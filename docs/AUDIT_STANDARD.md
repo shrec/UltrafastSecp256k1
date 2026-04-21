@@ -85,7 +85,7 @@ Understanding an attack class academically is not sufficient. The attack must
 be expressed as executable code that demonstrates the vulnerability, or
 demonstrates that it is not present under specific conditions.
 
-171 exploit PoC modules exist in this repository. Each one:
+189 exploit PoC modules exist in this repository. Each one:
 - Documents a known attack class (CVE, ePrint, published exploit)
 - Attempts the attack against the current implementation
 - Passes only if the implementation is not vulnerable
@@ -153,7 +153,7 @@ matrix. They are not self-reported estimates.
 
 | Metric | Value |
 |--------|-------|
-| Exploit Coverage | 171 PoC modules covering distinct attack classes |
+| Exploit Coverage | 189 PoC modules covering distinct attack classes |
 | Regression Depth | Every module permanent; 0 removed after discovery |
 | Time-to-Ingest | ≤ 1 working day from ePrint/CVE publication |
 | Time-to-Test | ≤ 1 working day from discovery to CI gate |
@@ -408,7 +408,7 @@ These are not aspirational — they are operational, run on CI or on demand.
   dev_bug_scanner.py │ auditor_mode.py │ nonce_bias_detector.py
          │
          ▼
-  bug_capsule_gen.py ──► audit/exploits/ (171 PoC modules, permanent)
+  bug_capsule_gen.py ──► audit/exploits/ (189 PoC modules, permanent)
          │
          ▼
   unified_audit_runner ──► CT pipeline ──► fuzz ──► differential

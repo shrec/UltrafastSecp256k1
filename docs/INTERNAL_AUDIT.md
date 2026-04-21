@@ -14,7 +14,7 @@
 > - **14 CI workflows** enforce every check on every push to `dev` — no claim can silently rot
 > - **Three-tier CT verification** (ct-verif LLVM IR + Valgrind CT + dudect) runs in CI, not just once during an engagement
 > - **Bit-exact differential** against bitcoin-core/libsecp256k1 v0.6.0 catches any arithmetic divergence
-> - **187 exploit PoC probes** (CVE-2023-33242, rogue-key, nonce-reuse, twist-attack, etc.) run on every commit
+> - **189 exploit PoC probes** (CVE-2023-33242, rogue-key, nonce-reuse, twist-attack, etc.) run on every commit
 > - **Structured assurance JSON** (`scripts/export_assurance.py`) produces machine-readable audit artifacts
 >
 > A traditional PDF audit is a point-in-time snapshot. This system is a **continuously enforced

@@ -1,0 +1,5289 @@
+{
+  "schema_version": "1.0.0",
+  "runner": "export_assurance",
+  "generated_at": "2026-04-21T05:09:53.162340+00:00",
+  "provenance": {
+    "collected_at": "2026-04-21T05:09:53.162323+00:00",
+    "version": "3.66.0",
+    "git": {
+      "sha": "617c796a32d87052655c4165f531eff781e9eeb3",
+      "short": "617c796a32",
+      "dirty": true,
+      "ref": "dev"
+    },
+    "submodules": null,
+    "toolchain": {
+      "cc": "cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+      "gcc": "gcc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+      "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+      "c++": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+      "g++": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+      "clang++": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+      "cmake": "cmake version 3.28.3",
+      "ninja": "1.11.1"
+    },
+    "build_flags": {
+      "available": true,
+      "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/build",
+      "flags": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "/usr/bin/cc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+        "CMAKE_C_FLAGS": "",
+        "CMAKE_CXX_FLAGS": "",
+        "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
+      },
+      "flags_hash": "b08a96ecab2b5a95"
+    },
+    "platform": {
+      "system": "Linux",
+      "release": "6.8.0-110-generic",
+      "machine": "x86_64",
+      "python": "3.12.3"
+    }
+  },
+  "graph_meta": {
+    "built_at": "2026-04-16T07:45:20.880883+00:00",
+    "lib_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+    "version": "4.29.0",
+    "schema_version": "4",
+    "stats": "{\"source_files\": 740, \"namespaces\": 8, \"cpp_types\": 20, \"c_abi_functions\": 181, \"include_deps\": 3866, \"test_targets\": 56, \"ci_workflows\": 22, \"audit_modules\": 57, \"error_codes\": 11, \"constants\": 22, \"gpu_backends\": 3, \"build_configs\": 14, \"platform_dispatch\": 19, \"docs\": 118, \"semantic_tags\": 1397, \"cpp_methods\": 79, \"security_patterns\": 508, \"abi_routing\": 106, \"binding_languages\": 13, \"macros\": 24, \"file_summaries\": 77, \"function_index\": 1226, \"edges\": 4348, \"call_edges\": 4836, \"config_bindings\": 60, \"symbol_aliases\": 450, \"hotspot_scores\": 315, \"reachability\": 1226, \"runtime_entrypoints\": 314, \"function_test_map\": 3151, \"symbol_reasoning\": 1028}",
+    "table_counts": {
+      "meta": 5,
+      "source_files": 740,
+      "namespaces": 8,
+      "cpp_types": 20,
+      "c_abi_functions": 181,
+      "include_deps": 3863,
+      "cmake_targets": 0,
+      "test_targets": 56,
+      "ci_workflows": 22,
+      "audit_modules": 57,
+      "constants": 22,
+      "error_codes": 11,
+      "gpu_backends": 3,
+      "edges": 4348,
+      "build_configs": 14,
+      "platform_dispatch": 19,
+      "docs": 118,
+      "semantic_tags": 18,
+      "entity_tags": 1379,
+      "cpp_methods": 79,
+      "security_patterns": 508,
+      "abi_routing": 106,
+      "binding_languages": 13,
+      "macros": 24,
+      "file_summaries": 77,
+      "function_index": 1226,
+      "fts_files": 740,
+      "fts_files_data": 15,
+      "fts_files_idx": 13,
+      "fts_files_docsize": 740,
+      "fts_files_config": 1,
+      "fts_functions": 181,
+      "fts_functions_data": 15,
+      "fts_functions_idx": 13,
+      "fts_functions_docsize": 181,
+      "fts_functions_config": 1,
+      "fts_docs": 118,
+      "fts_docs_data": 12,
+      "fts_docs_idx": 10,
+      "fts_docs_docsize": 118,
+      "fts_docs_config": 1,
+      "fts_tags": 1379,
+      "fts_tags_data": 33,
+      "fts_tags_idx": 30,
+      "fts_tags_content": 1379,
+      "fts_tags_docsize": 1379,
+      "fts_tags_config": 1,
+      "fts_methods": 79,
+      "fts_methods_data": 3,
+      "fts_methods_idx": 1,
+      "fts_methods_docsize": 79,
+      "fts_methods_config": 1,
+      "fts_routing": 106,
+      "fts_routing_data": 15,
+      "fts_routing_idx": 13,
+      "fts_routing_docsize": 106,
+      "fts_routing_config": 1,
+      "call_edges": 4646,
+      "config_bindings": 53,
+      "symbol_aliases": 450,
+      "hotspot_scores": 315,
+      "reachability": 1028,
+      "runtime_entrypoints": 314,
+      "function_test_map": 2219,
+      "symbol_semantics": 1028,
+      "symbol_security": 1028,
+      "symbol_performance": 1028,
+      "symbol_audit_coverage": 1028,
+      "symbol_history": 1028,
+      "symbol_scores": 1028
+    }
+  },
+  "subsystem_summary": {
+    "ecdsa": [
+      {
+        "layer": "test",
+        "files": 28,
+        "lines": 10933
+      },
+      {
+        "layer": "fast",
+        "files": 3,
+        "lines": 1090
+      },
+      {
+        "layer": "gpu",
+        "files": 1,
+        "lines": 763
+      }
+    ],
+    "field": [
+      {
+        "layer": "fast",
+        "files": 16,
+        "lines": 10763
+      },
+      {
+        "layer": "test",
+        "files": 9,
+        "lines": 3841
+      },
+      {
+        "layer": "gpu",
+        "files": 5,
+        "lines": 1958
+      },
+      {
+        "layer": "ct",
+        "files": 3,
+        "lines": 1139
+      },
+      {
+        "layer": "tool",
+        "files": 2,
+        "lines": 994
+      }
+    ],
+    "zk": [
+      {
+        "layer": "gpu",
+        "files": 6,
+        "lines": 6960
+      },
+      {
+        "layer": "test",
+        "files": 5,
+        "lines": 2168
+      },
+      {
+        "layer": "ct",
+        "files": 1,
+        "lines": 1697
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 1387
+      }
+    ],
+    "bip32": [
+      {
+        "layer": "test",
+        "files": 17,
+        "lines": 6060
+      },
+      {
+        "layer": "gpu",
+        "files": 7,
+        "lines": 4249
+      },
+      {
+        "layer": "tool",
+        "files": 3,
+        "lines": 1385
+      },
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 972
+      }
+    ],
+    "musig2": [
+      {
+        "layer": "test",
+        "files": 13,
+        "lines": 5493
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 594
+      }
+    ],
+    "frost": [
+      {
+        "layer": "test",
+        "files": 16,
+        "lines": 5469
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 694
+      },
+      {
+        "layer": "gpu",
+        "files": 1,
+        "lines": 158
+      }
+    ],
+    "precompute": [
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 4706
+      }
+    ],
+    "wallet": [
+      {
+        "layer": "test",
+        "files": 12,
+        "lines": 3959
+      },
+      {
+        "layer": "fast",
+        "files": 13,
+        "lines": 3383
+      }
+    ],
+    "point": [
+      {
+        "layer": "ct",
+        "files": 3,
+        "lines": 3885
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 3718
+      },
+      {
+        "layer": "test",
+        "files": 7,
+        "lines": 2452
+      },
+      {
+        "layer": "gpu",
+        "files": 5,
+        "lines": 2227
+      }
+    ],
+    "schnorr": [
+      {
+        "layer": "test",
+        "files": 13,
+        "lines": 3879
+      },
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 858
+      },
+      {
+        "layer": "gpu",
+        "files": 1,
+        "lines": 597
+      }
+    ],
+    "scalar": [
+      {
+        "layer": "test",
+        "files": 12,
+        "lines": 3560
+      },
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 1713
+      },
+      {
+        "layer": "ct",
+        "files": 3,
+        "lines": 1031
+      },
+      {
+        "layer": "gpu",
+        "files": 2,
+        "lines": 425
+      }
+    ],
+    "ecdh": [
+      {
+        "layer": "test",
+        "files": 8,
+        "lines": 2718
+      },
+      {
+        "layer": "gpu",
+        "files": 3,
+        "lines": 283
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 125
+      }
+    ],
+    "bip39": [
+      {
+        "layer": "fast",
+        "files": 3,
+        "lines": 2472
+      },
+      {
+        "layer": "test",
+        "files": 3,
+        "lines": 1064
+      }
+    ],
+    "ecies": [
+      {
+        "layer": "test",
+        "files": 7,
+        "lines": 2078
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 411
+      }
+    ],
+    "selftest": [
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 1700
+      },
+      {
+        "layer": "gpu",
+        "files": 1,
+        "lines": 1324
+      },
+      {
+        "layer": "test",
+        "files": 2,
+        "lines": 309
+      },
+      {
+        "layer": "tool",
+        "files": 1,
+        "lines": 138
+      }
+    ],
+    "hash": [
+      {
+        "layer": "test",
+        "files": 5,
+        "lines": 1670
+      },
+      {
+        "layer": "fast",
+        "files": 6,
+        "lines": 1521
+      },
+      {
+        "layer": "gpu",
+        "files": 3,
+        "lines": 804
+      }
+    ],
+    "ethereum": [
+      {
+        "layer": "test",
+        "files": 4,
+        "lines": 1451
+      },
+      {
+        "layer": "fast",
+        "files": 6,
+        "lines": 623
+      },
+      {
+        "layer": "gpu",
+        "files": 3,
+        "lines": 518
+      }
+    ],
+    "adaptor": [
+      {
+        "layer": "test",
+        "files": 4,
+        "lines": 1403
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 393
+      }
+    ],
+    "ct": [
+      {
+        "layer": "ct",
+        "files": 4,
+        "lines": 1269
+      },
+      {
+        "layer": "gpu",
+        "files": 4,
+        "lines": 756
+      }
+    ],
+    "batch": [
+      {
+        "layer": "test",
+        "files": 3,
+        "lines": 1188
+      },
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 1124
+      },
+      {
+        "layer": "gpu",
+        "files": 1,
+        "lines": 172
+      }
+    ],
+    "taproot": [
+      {
+        "layer": "test",
+        "files": 4,
+        "lines": 1141
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 705
+      }
+    ],
+    "pedersen": [
+      {
+        "layer": "test",
+        "files": 3,
+        "lines": 957
+      },
+      {
+        "layer": "gpu",
+        "files": 3,
+        "lines": 458
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 257
+      }
+    ],
+    "bip340": [
+      {
+        "layer": "test",
+        "files": 2,
+        "lines": 751
+      }
+    ],
+    "recovery": [
+      {
+        "layer": "gpu",
+        "files": 3,
+        "lines": 726
+      },
+      {
+        "layer": "fast",
+        "files": 4,
+        "lines": 514
+      },
+      {
+        "layer": "test",
+        "files": 1,
+        "lines": 371
+      }
+    ],
+    "glv": [
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 650
+      },
+      {
+        "layer": "test",
+        "files": 2,
+        "lines": 649
+      },
+      {
+        "layer": "tool",
+        "files": 1,
+        "lines": 383
+      }
+    ],
+    "multiscalar": [
+      {
+        "layer": "test",
+        "files": 1,
+        "lines": 363
+      },
+      {
+        "layer": "fast",
+        "files": 2,
+        "lines": 335
+      }
+    ]
+  },
+  "api_coverage": [
+    {
+      "function": "ufsecp_addr_p2pkh",
+      "category": "address",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "hash160 + base58check",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_addr_p2sh",
+      "category": "address",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_addr_p2sh_p2wpkh",
+      "category": "address",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_addr_p2tr",
+      "category": "address",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "taproot_output_key + bech32m",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_addr_p2wpkh",
+      "category": "address",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "hash160 + bech32",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip322_sign",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip322_verify",
+      "category": "bip32",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip324_create",
+      "category": "bip32",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip324_decrypt",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip324_destroy",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip324_encrypt",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip324_handshake",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip32_derive",
+      "category": "bip32",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "CKD_priv or CKD_pub",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip32_derive_path",
+      "category": "bip32",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "multi-level CKD",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip32_master",
+      "category": "bip32",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "HMAC-SHA512(seed)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip32_privkey",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "ExtendedKey::privkey()",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip32_pubkey",
+      "category": "bip32",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "ExtendedKey::pubkey()",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip32_vectors",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip39_generate",
+      "category": "bip39",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "bip39_generate(strength)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip39",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip39_to_entropy",
+      "category": "bip39",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "bip39_to_entropy(mnemonic)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip39",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip39_to_seed",
+      "category": "bip39",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "PBKDF2-SHA512(mnemonic, passphrase)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip39",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip39_validate",
+      "category": "bip39",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "bip39_validate(mnemonic)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip39",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ctx_clone",
+      "category": "context",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "memcpy ctx",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ctx_create",
+      "category": "context",
+      "layer": "fast",
+      "route_layer": "both",
+      "internal_call": "run_selftest + alloc",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ctx_destroy",
+      "category": "context",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ctx_size",
+      "category": "context",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdh",
+      "category": "ecdh",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::scalar_mul(pubkey, sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdh",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdh_raw",
+      "category": "ecdh",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::scalar_mul + raw output",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdh",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdh_xonly",
+      "category": "ecdh",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::scalar_mul + x-only output",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdh",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_adaptor_adapt",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "ecdsa_adaptor_adapt",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_adaptor_extract",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "ecdsa_adaptor_extract",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_adaptor_sign",
+      "category": "ecdsa",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::ecdsa_adaptor_sign(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_adaptor_verify",
+      "category": "ecdsa",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "ecdsa_adaptor_verify",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_batch_identify_invalid",
+      "category": "ecdsa",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "bisection invalid finder",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_batch_verify",
+      "category": "ecdsa",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "batch_ecdsa_verify(entries)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_recover",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "ecrecover(msg, sig, v)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sig_from_der",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "DER parse",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sig_to_der",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "ECDSASignature::to_der",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sign",
+      "category": "ecdsa",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::ecdsa_sign(msg, sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sign_batch",
+      "category": "ecdsa",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sign_recoverable",
+      "category": "ecdsa",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "ct::ecdsa_sign + recovery_id",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_sign_verified",
+      "category": "ecdsa",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::ecdsa_sign + ecdsa_verify",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecdsa_verify",
+      "category": "ecdsa",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "ecdsa_verify(msg, pubkey, sig)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "rfc6979_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "wycheproof_ecdsa",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecies_decrypt",
+      "category": "ecies",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ecies_decrypt(sk, ciphertext)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ecies_regression",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ecies_encrypt",
+      "category": "ecies",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ecies_encrypt(pubkey, msg)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ecies_regression",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_last_error",
+      "category": "error",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "ctx->last_err",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_last_error_msg",
+      "category": "error",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_eth_address",
+      "category": "ethereum",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "keccak256(pubkey)[12:]",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_eth_address_checksummed",
+      "category": "ethereum",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_eth_ecrecover",
+      "category": "ethereum",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_eth_personal_hash",
+      "category": "ethereum",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_eth_sign",
+      "category": "ethereum",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::ecdsa_sign(keccak(msg), sk) + v",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_keccak256",
+      "category": "ethereum",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "keccak256(data)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "ethereum",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_aggregate",
+      "category": "frost",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "frost_aggregate(partials)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_keygen_begin",
+      "category": "frost",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "frost_keygen_begin",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_keygen_finalize",
+      "category": "frost",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "frost_keygen_finalize",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_sign",
+      "category": "frost",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::frost_sign(sk, nonce)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_sign_nonce_gen",
+      "category": "frost",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "frost_sign_nonce_gen",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_frost_verify_partial",
+      "category": "frost",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "frost_verify_partial",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_backend_count",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_backend_name",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_bip324_aead_decrypt_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_bip324_aead_encrypt_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_bip352_scan_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_bulletproof_verify_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_ctx_create",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_ctx_destroy",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_device_count",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_device_info",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_ecdh_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_ecdsa_verify_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_ecrecover_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_error_str",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_frost_verify_partial_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_generator_mul_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_hash160_pubkey_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_is_available",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_last_error",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_last_error_msg",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_msm",
+      "category": "gpu",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_schnorr_verify_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_zk_dleq_verify_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_zk_ecdsa_snark_witness_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_zk_knowledge_verify_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gpu_zk_schnorr_snark_witness_batch",
+      "category": "gpu",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_hash160",
+      "category": "hash",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "SHA256+RIPEMD160",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "hash_accel",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_sha256",
+      "category": "hash",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "SHA256::digest(data, len)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "hash_accel",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_sha512",
+      "category": "hash",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "SHA512::digest(data, len)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "hash_accel",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_tagged_hash",
+      "category": "hash",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "tagged_hash(tag, msg)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "hash_accel",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_multi_scalar_mul",
+      "category": "multiscalar",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "pippenger_msm(points, scalars)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "batch_add_affine",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_shamir_trick",
+      "category": "multiscalar",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "shamir_trick(a*G + b*P)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "batch_add_affine",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_key_agg",
+      "category": "musig2",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "musig2_key_agg(pubkeys)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_nonce_agg",
+      "category": "musig2",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "musig2_nonce_agg(nonces)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_nonce_gen",
+      "category": "musig2",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "musig2_nonce_gen(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_partial_sig_agg",
+      "category": "musig2",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_partial_sign",
+      "category": "musig2",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::musig2_partial_sign(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_partial_verify",
+      "category": "musig2",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "musig2_partial_verify",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_musig2_start_sign_session",
+      "category": "musig2",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "musig2_session_init",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "musig2_frost",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_abi_version",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_aead_chacha20_poly1305_decrypt",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_aead_chacha20_poly1305_encrypt",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip143_p2wpkh_script_code",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip143_sighash",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip144_txid",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip144_witness_commitment",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip144_wtxid",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip352_prepare_scan_plan",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "gpu_bip352_scan",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip85_bip39",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_bip85_entropy",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_descriptor_address",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_descriptor_parse",
+      "category": "other",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ellswift_create",
+      "category": "other",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_ellswift_xdh",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gcs_build",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gcs_match",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_gcs_match_any",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_psbt_derive_key",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_psbt_sign_legacy",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_psbt_sign_segwit",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_psbt_sign_taproot",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_is_witness_program",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_p2tr_spk",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_p2wpkh_spk",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_p2wsh_spk",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_parse_program",
+      "category": "other",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_segwit_witness_script_hash",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_tapscript_sighash",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_version",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_version_string",
+      "category": "other",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pedersen_blind_sum",
+      "category": "pedersen",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "blind factor sum",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pedersen_commit",
+      "category": "pedersen",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "pedersen_commit(v, r)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pedersen_switch_commit",
+      "category": "pedersen",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "switch_commit(v, r)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pedersen_verify",
+      "category": "pedersen",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "pedersen_verify(C, v, r)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pedersen_verify_sum",
+      "category": "pedersen",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_add",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "Point::add",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_combine",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "multi-point add",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_create",
+      "category": "pubkey",
+      "layer": "fast",
+      "route_layer": "ct",
+      "internal_call": "ct::generator_mul(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_create_uncompressed",
+      "category": "pubkey",
+      "layer": "fast",
+      "route_layer": "ct",
+      "internal_call": "ct::generator_mul(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_negate",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "Point::negate",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_parse",
+      "category": "pubkey",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "point_from_compressed + on_curve",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_tweak_add",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "Point::add(gen_mul(tweak))",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_tweak_mul",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "Point::scalar_mul(tweak)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_pubkey_xonly",
+      "category": "pubkey",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "schnorr_pubkey(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_adaptor_adapt",
+      "category": "schnorr",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "adaptor_adapt(pre_sig, secret)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_adaptor_extract",
+      "category": "schnorr",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "adaptor_extract(sig, pre_sig)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_adaptor_sign",
+      "category": "schnorr",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::adaptor_sign(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_adaptor_verify",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "adaptor_verify",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_batch_identify_invalid",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "bisection invalid finder",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_batch_verify",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "batch_schnorr_verify(entries)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_sign",
+      "category": "schnorr",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::schnorr_sign(msg, sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_sign_batch",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_sign_msg",
+      "category": "schnorr",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_sign_verified",
+      "category": "schnorr",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct::schnorr_sign + schnorr_verify",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_verify",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "schnorr_verify(msg, xpub, sig)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_schnorr_verify_msg",
+      "category": "schnorr",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "bip340_strict",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "bip340_vectors",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "comprehensive",
+          "type": "abi_indirect"
+        },
+        {
+          "test": "fault_injection",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_seckey_negate",
+      "category": "seckey",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "Scalar::negate",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_seckey_tweak_add",
+      "category": "seckey",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct scalar add + validate",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_seckey_tweak_mul",
+      "category": "seckey",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "ct scalar mul + validate",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_seckey_verify",
+      "category": "seckey",
+      "layer": "fast",
+      "route_layer": "ct",
+      "internal_call": "Scalar::parse_bytes_strict_nonzero",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_silent_payment_address",
+      "category": "silent_payments",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_silent_payment_create_output",
+      "category": "silent_payments",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "silent_payment_create_output",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_silent_payment_scan",
+      "category": "silent_payments",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "silent_payment_scan",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_taproot_keypath_sighash",
+      "category": "taproot",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_taproot_output_key",
+      "category": "taproot",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "taproot_output_key(xpub, merkle)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_taproot_tweak_seckey",
+      "category": "taproot",
+      "layer": "ct",
+      "route_layer": "ct",
+      "internal_call": "taproot_tweak_seckey(sk, merkle)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_taproot_verify",
+      "category": "taproot",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "taproot_verify(xpub, merkle, output)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "adversarial_protocol",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_btc_message_hash",
+      "category": "wallet",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_btc_message_sign",
+      "category": "wallet",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "btc_message_sign(msg, sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_btc_message_verify",
+      "category": "wallet",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "btc_message_verify(msg, sig, addr)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_coin_address",
+      "category": "wallet",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "coin_address(coin, pubkey)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_coin_derive_from_seed",
+      "category": "wallet",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_coin_wif_encode",
+      "category": "wallet",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "wallet",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_wif_decode",
+      "category": "wif",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "base58check_decode + validate",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_wif_encode",
+      "category": "wif",
+      "layer": "both",
+      "route_layer": "fast",
+      "internal_call": "base58check(privkey)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_dleq_prove",
+      "category": "zk",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "dleq_prove(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_dleq_verify",
+      "category": "zk",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "dleq_verify(proof)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_ecdsa_snark_witness",
+      "category": "zk",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_knowledge_prove",
+      "category": "zk",
+      "layer": "both",
+      "route_layer": "ct",
+      "internal_call": "prove_knowledge(sk)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_knowledge_verify",
+      "category": "zk",
+      "layer": "fast",
+      "route_layer": "fast",
+      "internal_call": "verify_knowledge(proof, P)",
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_range_prove",
+      "category": "zk",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_range_verify",
+      "category": "zk",
+      "layer": "fast",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    },
+    {
+      "function": "ufsecp_zk_schnorr_snark_witness",
+      "category": "zk",
+      "layer": "both",
+      "route_layer": null,
+      "internal_call": null,
+      "test_coverage": [
+        {
+          "test": "abi_gate",
+          "type": "indirect"
+        },
+        {
+          "test": "zk_proofs",
+          "type": "abi_indirect"
+        }
+      ]
+    }
+  ],
+  "test_targets": [
+    {
+      "name": "abi_gate",
+      "category": "audit_always",
+      "timeout": 30,
+      "labels": "[\"audit\",\"abi\"]"
+    },
+    {
+      "name": "adversarial_protocol",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\",\"protocol\"]"
+    },
+    {
+      "name": "audit_fuzz",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\",\"fuzz\"]"
+    },
+    {
+      "name": "batch_randomness",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "carry_propagation",
+      "category": "audit_always",
+      "timeout": 900,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "cross_platform_kat",
+      "category": "audit_always",
+      "timeout": 900,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "ct_equivalence",
+      "category": "audit_always",
+      "timeout": 300,
+      "labels": "[\"audit\",\"ct\"]"
+    },
+    {
+      "name": "ct_sidechannel",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\",\"ct\"]"
+    },
+    {
+      "name": "ct_sidechannel_smoke",
+      "category": "audit_always",
+      "timeout": 120,
+      "labels": "[\"audit\",\"ct\"]"
+    },
+    {
+      "name": "ct_verif_formal",
+      "category": "audit_always",
+      "timeout": 1200,
+      "labels": "[\"audit\",\"ct\"]"
+    },
+    {
+      "name": "debug_invariants",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "diag_scalar_mul",
+      "category": "audit_always",
+      "timeout": 300,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "differential",
+      "category": "audit_always",
+      "timeout": 600,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "ecies_regression",
+      "category": "audit_always",
+      "timeout": 120,
+      "labels": "[\"audit\",\"ecies\"]"
+    },
+    {
+      "name": "fault_injection",
+      "category": "audit_always",
+      "timeout": 900,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "fiat_crypto_linkage",
+      "category": "audit_always",
+      "timeout": 900,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "fiat_crypto_vectors",
+      "category": "audit_always",
+      "timeout": 900,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "unified_audit",
+      "category": "audit_always",
+      "timeout": 1200,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "wycheproof_ecdh",
+      "category": "audit_always",
+      "timeout": 1200,
+      "labels": "[\"audit\",\"ecdh\"]"
+    },
+    {
+      "name": "wycheproof_ecdsa",
+      "category": "audit_always",
+      "timeout": 1200,
+      "labels": "[\"audit\",\"ecdsa\"]"
+    },
+    {
+      "name": "cross_libsecp256k1",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\"]"
+    },
+    {
+      "name": "frost_kat",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"frost\"]"
+    },
+    {
+      "name": "fuzz_address_bip32_ffi",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"fuzz\"]"
+    },
+    {
+      "name": "fuzz_parsers",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"fuzz\"]"
+    },
+    {
+      "name": "gpu_bip352_scan",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"gpu\",\"bip352\"]"
+    },
+    {
+      "name": "musig2_bip327_vectors",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"musig2\"]"
+    },
+    {
+      "name": "musig2_frost",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"musig2\",\"frost\"]"
+    },
+    {
+      "name": "musig2_frost_advanced",
+      "category": "audit_conditional",
+      "timeout": 300,
+      "labels": "[\"audit\",\"musig2\",\"frost\"]"
+    },
+    {
+      "name": "batch_add_affine",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "bip32_vectors",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"bip32\"]"
+    },
+    {
+      "name": "bip340_strict",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"bip340\"]"
+    },
+    {
+      "name": "bip340_vectors",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"bip340\"]"
+    },
+    {
+      "name": "bip39",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"bip39\"]"
+    },
+    {
+      "name": "comprehensive",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "ecc_properties",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "edge_cases",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "ethereum",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"ethereum\"]"
+    },
+    {
+      "name": "exhaustive",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "field_26",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "field_52",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "hash_accel",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "point_edge_cases",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "rfc6979_vectors",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"rfc6979\"]"
+    },
+    {
+      "name": "selftest",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\"]"
+    },
+    {
+      "name": "wallet",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"wallet\"]"
+    },
+    {
+      "name": "zk_proofs",
+      "category": "cpu_core",
+      "timeout": 300,
+      "labels": "[\"core\",\"zk\"]"
+    },
+    {
+      "name": "cuda_selftest",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"cuda\"]"
+    },
+    {
+      "name": "gpu_audit",
+      "category": "gpu",
+      "timeout": 1200,
+      "labels": "[\"gpu\",\"cuda\",\"audit\"]"
+    },
+    {
+      "name": "gpu_ct_smoke",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"cuda\",\"ct\"]"
+    },
+    {
+      "name": "metal_host_test",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"metal\"]"
+    },
+    {
+      "name": "opencl_audit",
+      "category": "gpu",
+      "timeout": 1200,
+      "labels": "[\"gpu\",\"opencl\",\"audit\"]"
+    },
+    {
+      "name": "opencl_selftest",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"opencl\"]"
+    },
+    {
+      "name": "secp256k1_metal_audit",
+      "category": "gpu",
+      "timeout": 1200,
+      "labels": "[\"gpu\",\"metal\",\"audit\"]"
+    },
+    {
+      "name": "secp256k1_metal_bench",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"metal\"]"
+    },
+    {
+      "name": "secp256k1_metal_bench_full",
+      "category": "gpu",
+      "timeout": 600,
+      "labels": "[\"gpu\",\"metal\"]"
+    },
+    {
+      "name": "secp256k1_metal_test",
+      "category": "gpu",
+      "timeout": 300,
+      "labels": "[\"gpu\",\"metal\"]"
+    }
+  ],
+  "security_density": {
+    "audit/audit_secure_erase.cpp": {
+      "secure_erase": 11
+    },
+    "audit/test_ct_sidechannel.cpp": {
+      "CLASSIFY": 8,
+      "DECLASSIFY": 10
+    },
+    "audit/test_ct_verif_formal.cpp": {
+      "CLASSIFY": 22,
+      "DECLASSIFY": 44,
+      "value_barrier": 4
+    },
+    "cpu/include/secp256k1/bip324.hpp": {
+      "secure_erase": 1
+    },
+    "cpu/include/secp256k1/ct/ops.hpp": {
+      "CLASSIFY": 4,
+      "DECLASSIFY": 4,
+      "value_barrier": 12
+    },
+    "cpu/include/secp256k1/ct_utils.hpp": {
+      "value_barrier": 25
+    },
+    "cpu/include/secp256k1/detail/secure_erase.hpp": {
+      "secure_erase": 1
+    },
+    "cpu/include/secp256k1/private_key.hpp": {
+      "secure_erase": 7
+    },
+    "cpu/src/adaptor.cpp": {
+      "secure_erase": 10
+    },
+    "cpu/src/address.cpp": {
+      "secure_erase": 9
+    },
+    "cpu/src/bip32.cpp": {
+      "secure_erase": 14
+    },
+    "cpu/src/bip324.cpp": {
+      "secure_erase": 7
+    },
+    "cpu/src/bip39.cpp": {
+      "secure_erase": 12
+    },
+    "cpu/src/chacha20_poly1305.cpp": {
+      "secure_erase": 10
+    },
+    "cpu/src/coin_hd.cpp": {
+      "secure_erase": 2
+    },
+    "cpu/src/ct_field.cpp": {
+      "value_barrier": 8
+    },
+    "cpu/src/ct_point.cpp": {
+      "DECLASSIFY": 8
+    },
+    "cpu/src/ct_scalar.cpp": {
+      "value_barrier": 13
+    },
+    "cpu/src/ct_sign.cpp": {
+      "secure_erase": 21
+    },
+    "cpu/src/ecdh.cpp": {
+      "secure_erase": 5
+    },
+    "cpu/src/ecdsa.cpp": {
+      "secure_erase": 28
+    },
+    "cpu/src/ecies.cpp": {
+      "secure_erase": 15
+    },
+    "cpu/src/ellswift.cpp": {
+      "secure_erase": 3
+    },
+    "cpu/src/frost.cpp": {
+      "secure_erase": 10
+    },
+    "cpu/src/hkdf.cpp": {
+      "secure_erase": 11
+    },
+    "cpu/src/keccak256.cpp": {
+      "secure_erase": 2
+    },
+    "cpu/src/message_signing.cpp": {
+      "secure_erase": 3
+    },
+    "cpu/src/musig2.cpp": {
+      "secure_erase": 11
+    },
+    "cpu/src/schnorr.cpp": {
+      "secure_erase": 8
+    },
+    "cpu/src/taproot.cpp": {
+      "secure_erase": 1
+    },
+    "cpu/src/wallet.cpp": {
+      "secure_erase": 2
+    },
+    "cpu/src/zk.cpp": {
+      "secure_erase": 15
+    },
+    "include/ufsecp/ufsecp_impl.cpp": {
+      "secure_erase": 127
+    }
+  },
+  "protocol_status": {
+    "musig2": {
+      "files": [
+        {
+          "path": "cpu/include/secp256k1/musig2.hpp",
+          "lines": 137,
+          "layer": "fast"
+        },
+        {
+          "path": "cpu/src/musig2.cpp",
+          "lines": 457,
+          "layer": "fast"
+        },
+        {
+          "path": "audit/test_exploit_musig2.cpp",
+          "lines": 441,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_byzantine_multiparty.cpp",
+          "lines": 469,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_key_agg.cpp",
+          "lines": 373,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_nonce_reuse.cpp",
+          "lines": 344,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_ordering.cpp",
+          "lines": 376,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_parallel_session_cross.cpp",
+          "lines": 186,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_partial_forgery.cpp",
+          "lines": 378,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_musig2_transcript_fork.cpp",
+          "lines": 216,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_fuzz_musig2_frost.cpp",
+          "lines": 413,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_musig2_bip327_vectors.cpp",
+          "lines": 558,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_musig2_frost.cpp",
+          "lines": 740,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_musig2_frost_advanced.cpp",
+          "lines": 694,
+          "layer": "test"
+        },
+        {
+          "path": "cpu/tests/test_musig2.cpp",
+          "lines": 305,
+          "layer": "test"
+        }
+      ],
+      "tests": [
+        {
+          "name": "musig2_frost",
+          "category": "audit_conditional"
+        },
+        {
+          "name": "musig2_frost_advanced",
+          "category": "audit_conditional"
+        },
+        {
+          "name": "musig2_bip327_vectors",
+          "category": "audit_conditional"
+        }
+      ]
+    },
+    "frost": {
+      "files": [
+        {
+          "path": "cpu/include/secp256k1/frost.hpp",
+          "lines": 153,
+          "layer": "fast"
+        },
+        {
+          "path": "cpu/src/frost.cpp",
+          "lines": 541,
+          "layer": "fast"
+        },
+        {
+          "path": "opencl/kernels/secp256k1_frost.cl",
+          "lines": 158,
+          "layer": "gpu"
+        },
+        {
+          "path": "audit/test_exploit_frost_adaptive_corruption.cpp",
+          "lines": 156,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_binding_factor_mismatch.cpp",
+          "lines": 523,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_byzantine.cpp",
+          "lines": 426,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_commitment_reuse.cpp",
+          "lines": 348,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_ct_nonce.cpp",
+          "lines": 235,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_dkg.cpp",
+          "lines": 552,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_identifiable_abort.cpp",
+          "lines": 357,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_index.cpp",
+          "lines": 81,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_lagrange_duplicate.cpp",
+          "lines": 84,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_participant_set_malleability.cpp",
+          "lines": 285,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_participant_zero.cpp",
+          "lines": 116,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_rogue_key.cpp",
+          "lines": 386,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_signing.cpp",
+          "lines": 450,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_threshold_degenerate.cpp",
+          "lines": 246,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_frost_weak_binding.cpp",
+          "lines": 300,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_frost_kat.cpp",
+          "lines": 924,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_fuzz_musig2_frost.cpp",
+          "lines": 413,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_musig2_frost.cpp",
+          "lines": 740,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_musig2_frost_advanced.cpp",
+          "lines": 694,
+          "layer": "test"
+        }
+      ],
+      "tests": [
+        {
+          "name": "musig2_frost",
+          "category": "audit_conditional"
+        },
+        {
+          "name": "musig2_frost_advanced",
+          "category": "audit_conditional"
+        },
+        {
+          "name": "frost_kat",
+          "category": "audit_conditional"
+        }
+      ]
+    },
+    "adaptor": {
+      "files": [
+        {
+          "path": "cpu/include/secp256k1/adaptor.hpp",
+          "lines": 105,
+          "layer": "fast"
+        },
+        {
+          "path": "cpu/src/adaptor.cpp",
+          "lines": 288,
+          "layer": "fast"
+        },
+        {
+          "path": "audit/test_exploit_adaptor_extended.cpp",
+          "lines": 323,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_adaptor_extraction_soundness.cpp",
+          "lines": 236,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_adaptor_parity.cpp",
+          "lines": 311,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_fault_zk_adaptor.cpp",
+          "lines": 533,
+          "layer": "test"
+        }
+      ],
+      "tests": []
+    },
+    "silent_payments": {
+      "files": [],
+      "tests": []
+    },
+    "ecies": {
+      "files": [
+        {
+          "path": "cpu/include/secp256k1/ecies.hpp",
+          "lines": 46,
+          "layer": "fast"
+        },
+        {
+          "path": "cpu/src/ecies.cpp",
+          "lines": 365,
+          "layer": "fast"
+        },
+        {
+          "path": "audit/test_ecies_regression.cpp",
+          "lines": 470,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_ecies_auth.cpp",
+          "lines": 381,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_ecies_encryption.cpp",
+          "lines": 329,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_ecies_envelope_confusion.cpp",
+          "lines": 316,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_ecies_ephemeral_reuse.cpp",
+          "lines": 73,
+          "layer": "test"
+        },
+        {
+          "path": "audit/test_exploit_ecies_roundtrip.cpp",
+          "lines": 292,
+          "layer": "test"
+        },
+        {
+          "path": "cpu/tests/test_ecies.cpp",
+          "lines": 217,
+          "layer": "test"
+        }
+      ],
+      "tests": [
+        {
+          "name": "ecies_regression",
+          "category": "audit_always"
+        }
+      ]
+    },
+    "dleq": {
+      "files": [],
+      "tests": []
+    }
+  },
+  "routing_summary": {
+    "both": 1,
+    "ct": 44,
+    "fast": 61
+  },
+  "semantic_tags": {
+    "inventory": [
+      {
+        "tag": "audit_evidence",
+        "domain": "tooling",
+        "description": "Audit runner, assurance export, CI evidence, or self-audit infrastructure.",
+        "entities": 362
+      },
+      {
+        "tag": "ffi_surface",
+        "domain": "ecosystem",
+        "description": "Public C ABI, bindings, or host-language interop surface.",
+        "entities": 204
+      },
+      {
+        "tag": "gpu_acceleration",
+        "domain": "platform",
+        "description": "GPU backend, kernels, host API, or backend dispatch logic.",
+        "entities": 119
+      },
+      {
+        "tag": "build_release",
+        "domain": "tooling",
+        "description": "Build, release, packaging, or reproducibility flow.",
+        "entities": 113
+      },
+      {
+        "tag": "wallet_flow",
+        "domain": "protocol",
+        "description": "Wallet, address, mnemonic, or HD derivation user-facing flow.",
+        "entities": 91
+      },
+      {
+        "tag": "signing",
+        "domain": "crypto",
+        "description": "Secret-key signing, nonce generation, or signing session flow.",
+        "entities": 60
+      },
+      {
+        "tag": "verification",
+        "domain": "crypto",
+        "description": "Signature, proof, or validity verification logic.",
+        "entities": 57
+      },
+      {
+        "tag": "parser_boundary",
+        "domain": "security",
+        "description": "Strict parsing, decoding, or malformed-input boundary handling.",
+        "entities": 53
+      },
+      {
+        "tag": "protocol_multisig",
+        "domain": "protocol",
+        "description": "MuSig2, FROST, adaptor, or multi-party signing logic.",
+        "entities": 53
+      },
+      {
+        "tag": "cross_platform",
+        "domain": "platform",
+        "description": "Platform dispatch, compatibility, or architecture-specific implementation.",
+        "entities": 45
+      },
+      {
+        "tag": "benchmarking",
+        "domain": "tooling",
+        "description": "Benchmark harness, performance measurement, or regression gate.",
+        "entities": 42
+      },
+      {
+        "tag": "constant_time",
+        "domain": "security",
+        "description": "Touches secret-bearing constant-time paths or CT verification logic.",
+        "entities": 40
+      },
+      {
+        "tag": "differential_testing",
+        "domain": "tooling",
+        "description": "Cross-lib differential, KAT, vector, or equivalence testing.",
+        "entities": 30
+      },
+      {
+        "tag": "hashing",
+        "domain": "crypto",
+        "description": "SHA-2, Keccak, tagged hash, hash160, or hash acceleration paths.",
+        "entities": 28
+      },
+      {
+        "tag": "privacy_protocol",
+        "domain": "protocol",
+        "description": "Silent payments, ECIES, Pedersen, or privacy-preserving flow.",
+        "entities": 27
+      },
+      {
+        "tag": "zk_proof",
+        "domain": "protocol",
+        "description": "Zero-knowledge proof generation or verification.",
+        "entities": 22
+      },
+      {
+        "tag": "ethereum_stack",
+        "domain": "protocol",
+        "description": "Ethereum signing, recovery, addressing, or Keccak-backed APIs.",
+        "entities": 19
+      },
+      {
+        "tag": "taproot_stack",
+        "domain": "protocol",
+        "description": "Taproot, BIP-340, x-only pubkeys, or taproot tweaking logic.",
+        "entities": 14
+      }
+    ],
+    "top_entities": [
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_secp256k1_sha256.cpp",
+        "tag_count": 5,
+        "tags": "audit_evidence, differential_testing, hashing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_secp256k1_sha256_p1363.cpp",
+        "tag_count": 5,
+        "tags": "audit_evidence, differential_testing, hashing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_secp256k1_sha512.cpp",
+        "tag_count": 5,
+        "tags": "audit_evidence, differential_testing, hashing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_secp256k1_sha512_p1363.cpp",
+        "tag_count": 5,
+        "tags": "audit_evidence, differential_testing, hashing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_exploit_ecdsa_der_confusion.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, parser_boundary, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_exploit_ecdsa_differential_fault.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, differential_testing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_exploit_schnorr_bip340_kat.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, signing, taproot_stack, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_exploit_schnorr_forgery_vectors.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, differential_testing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_exploit_schnorr_hash_order.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, parser_boundary, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, differential_testing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_bitcoin.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, differential_testing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "audit/test_wycheproof_ecdsa_extended.cpp",
+        "tag_count": 4,
+        "tags": "audit_evidence, differential_testing, signing, verification"
+      },
+      {
+        "entity_type": "source_file",
+        "entity_id": "metal/shaders/secp256k1_keccak256.h",
+        "tag_count": 4,
+        "tags": "ethereum_stack, gpu_acceleration, hashing, parser_boundary"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_bip32_derive",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, wallet_flow"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_bip32_derive_path",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, wallet_flow"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_bip32_master",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, wallet_flow"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_bip39_validate",
+        "tag_count": 3,
+        "tags": "ffi_surface, parser_boundary, wallet_flow"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_ecdsa_adaptor_sign",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, signing"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_ecdsa_sign",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, signing"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_ecdsa_sign_verified",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, signing"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_ecies_decrypt",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, privacy_protocol"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_ecies_encrypt",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, privacy_protocol"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_eth_sign",
+        "tag_count": 3,
+        "tags": "constant_time, ethereum_stack, ffi_surface"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_frost_sign",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, protocol_multisig"
+      },
+      {
+        "entity_type": "c_abi_function",
+        "entity_id": "ufsecp_musig2_partial_sign",
+        "tag_count": 3,
+        "tags": "constant_time, ffi_surface, protocol_multisig"
+      }
+    ]
+  },
+  "symbol_reasoning": {
+    "summary": [
+      {
+        "category": "general",
+        "backend": "cpu",
+        "symbols": 186,
+        "avg_risk": 39.843817204301075,
+        "avg_gain": 13.387096774193548
+      },
+      {
+        "category": "ffi_abi",
+        "backend": "cpu",
+        "symbols": 178,
+        "avg_risk": 45.95258426966292,
+        "avg_gain": 14.49438202247191
+      },
+      {
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "symbols": 153,
+        "avg_risk": 40.16078431372549,
+        "avg_gain": 22.274509803921568
+      },
+      {
+        "category": "field_arithmetic",
+        "backend": "cpu",
+        "symbols": 151,
+        "avg_risk": 40.0476821192053,
+        "avg_gain": 21.483443708609272
+      },
+      {
+        "category": "scalar_arithmetic",
+        "backend": "cpu",
+        "symbols": 118,
+        "avg_risk": 39.67169491525424,
+        "avg_gain": 22.35593220338983
+      },
+      {
+        "category": "wallet",
+        "backend": "cpu",
+        "symbols": 80,
+        "avg_risk": 44.920875,
+        "avg_gain": 9.4
+      },
+      {
+        "category": "schnorr",
+        "backend": "cpu",
+        "symbols": 47,
+        "avg_risk": 44.819148936170215,
+        "avg_gain": 20.04255319148936
+      },
+      {
+        "category": "ecdsa",
+        "backend": "cpu",
+        "symbols": 46,
+        "avg_risk": 47.477391304347826,
+        "avg_gain": 16.347826086956523
+      },
+      {
+        "category": "hashing",
+        "backend": "cpu",
+        "symbols": 42,
+        "avg_risk": 36.53809523809524,
+        "avg_gain": 20.0
+      },
+      {
+        "category": "test",
+        "backend": "cpu",
+        "symbols": 12,
+        "avg_risk": 37.49,
+        "avg_gain": 8.0
+      },
+      {
+        "category": "ecdh",
+        "backend": "cpu",
+        "symbols": 7,
+        "avg_risk": 52.565714285714286,
+        "avg_gain": 32.0
+      },
+      {
+        "category": "modinv",
+        "backend": "cpu",
+        "symbols": 5,
+        "avg_risk": 37.692,
+        "avg_gain": 62.0
+      },
+      {
+        "category": "bip352",
+        "backend": "cpu",
+        "symbols": 3,
+        "avg_risk": 60.666666666666664,
+        "avg_gain": 28.666666666666668
+      }
+    ],
+    "optimization_candidates": [
+      {
+        "symbol_name": "precompute_point_multiples",
+        "file_path": "cpu/src/batch_add_affine.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 28.0,
+        "gain_score": 62.0,
+        "optimization_priority": 59.2
+      },
+      {
+        "symbol_name": "msm",
+        "file_path": "cpu/src/pippenger.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 31.07,
+        "gain_score": 62.0,
+        "optimization_priority": 58.89
+      },
+      {
+        "symbol_name": "pippenger_msm",
+        "file_path": "cpu/src/pippenger.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 31.07,
+        "gain_score": 62.0,
+        "optimization_priority": 58.89
+      },
+      {
+        "symbol_name": "test_batch_inverse",
+        "file_path": "cpu/src/selftest.cpp",
+        "category": "modinv",
+        "backend": "cpu",
+        "risk_score": 37.49,
+        "gain_score": 62.0,
+        "optimization_priority": 58.25
+      },
+      {
+        "symbol_name": "test_batch_inverse_expanded",
+        "file_path": "cpu/src/selftest.cpp",
+        "category": "modinv",
+        "backend": "cpu",
+        "risk_score": 37.49,
+        "gain_score": 62.0,
+        "optimization_priority": 58.25
+      },
+      {
+        "symbol_name": "test_batch_inverse_sweep",
+        "file_path": "cpu/src/selftest.cpp",
+        "category": "modinv",
+        "backend": "cpu",
+        "risk_score": 37.49,
+        "gain_score": 62.0,
+        "optimization_priority": 58.25
+      },
+      {
+        "symbol_name": "test_batch_inverse_zero_safe",
+        "file_path": "cpu/src/selftest.cpp",
+        "category": "modinv",
+        "backend": "cpu",
+        "risk_score": 37.49,
+        "gain_score": 62.0,
+        "optimization_priority": 58.25
+      },
+      {
+        "symbol_name": "fe_batch_inverse",
+        "file_path": "cpu/src/field.cpp",
+        "category": "field_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 62.0,
+        "optimization_priority": 58.15
+      },
+      {
+        "symbol_name": "fe_batch_inverse_with_scratch",
+        "file_path": "cpu/src/field.cpp",
+        "category": "field_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 62.0,
+        "optimization_priority": 58.15
+      },
+      {
+        "symbol_name": "batch_inverse",
+        "file_path": "cpu/src/precompute.cpp",
+        "category": "modinv",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 62.0,
+        "optimization_priority": 58.15
+      },
+      {
+        "symbol_name": "fe52_batch_inverse",
+        "file_path": "cpu/src/ct_point.cpp",
+        "category": "field_arithmetic",
+        "backend": "cpu",
+        "risk_score": 45.5,
+        "gain_score": 62.0,
+        "optimization_priority": 57.45
+      },
+      {
+        "symbol_name": "fe_batch_inverse",
+        "file_path": "cpu/src/ct_point.cpp",
+        "category": "field_arithmetic",
+        "backend": "cpu",
+        "risk_score": 45.5,
+        "gain_score": 62.0,
+        "optimization_priority": 57.45
+      },
+      {
+        "symbol_name": "ufsecp_silent_payment_scan",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "bip352",
+        "backend": "cpu",
+        "risk_score": 56.0,
+        "gain_score": 58.0,
+        "optimization_priority": 52.4
+      },
+      {
+        "symbol_name": "batch_normalize",
+        "file_path": "cpu/src/point.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 56.0,
+        "optimization_priority": 52.15
+      },
+      {
+        "symbol_name": "batch_to_compressed",
+        "file_path": "cpu/src/point.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 56.0,
+        "optimization_priority": 52.15
+      },
+      {
+        "symbol_name": "batch_x_only_bytes",
+        "file_path": "cpu/src/point.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 56.0,
+        "optimization_priority": 52.15
+      },
+      {
+        "symbol_name": "batch_z_inv",
+        "file_path": "cpu/src/point.cpp",
+        "category": "point_arithmetic",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 56.0,
+        "optimization_priority": 52.15
+      },
+      {
+        "symbol_name": "precompute_g_multiples",
+        "file_path": "cpu/src/batch_add_affine.cpp",
+        "category": "ffi_abi",
+        "backend": "cpu",
+        "risk_score": 28.0,
+        "gain_score": 52.0,
+        "optimization_priority": 49.2
+      },
+      {
+        "symbol_name": "hash160_33_batch",
+        "file_path": "cpu/src/hash_accel.cpp",
+        "category": "hashing",
+        "backend": "cpu",
+        "risk_score": 36.32,
+        "gain_score": 52.0,
+        "optimization_priority": 48.37
+      },
+      {
+        "symbol_name": "ripemd160_32_batch",
+        "file_path": "cpu/src/hash_accel.cpp",
+        "category": "hashing",
+        "backend": "cpu",
+        "risk_score": 36.32,
+        "gain_score": 52.0,
+        "optimization_priority": 48.37
+      },
+      {
+        "symbol_name": "sha256_33_batch",
+        "file_path": "cpu/src/hash_accel.cpp",
+        "category": "hashing",
+        "backend": "cpu",
+        "risk_score": 36.32,
+        "gain_score": 52.0,
+        "optimization_priority": 48.37
+      },
+      {
+        "symbol_name": "_BitScanReverse64",
+        "file_path": "cpu/src/precompute.cpp",
+        "category": "general",
+        "backend": "cpu",
+        "risk_score": 38.5,
+        "gain_score": 52.0,
+        "optimization_priority": 48.15
+      },
+      {
+        "symbol_name": "verify_endomorphism",
+        "file_path": "cpu/src/glv.cpp",
+        "category": "general",
+        "backend": "cpu",
+        "risk_score": 39.24,
+        "gain_score": 52.0,
+        "optimization_priority": 48.08
+      },
+      {
+        "symbol_name": "eip55_verify",
+        "file_path": "cpu/src/ethereum.cpp",
+        "category": "general",
+        "backend": "cpu",
+        "risk_score": 39.82,
+        "gain_score": 52.0,
+        "optimization_priority": 48.02
+      },
+      {
+        "symbol_name": "pedersen_verify",
+        "file_path": "cpu/src/pedersen.cpp",
+        "category": "general",
+        "backend": "cpu",
+        "risk_score": 39.82,
+        "gain_score": 52.0,
+        "optimization_priority": 48.02
+      }
+    ],
+    "risk_hotspots": [
+      {
+        "symbol_name": "ufsecp_ecdsa_sign_batch",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdsa",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 46.0
+      },
+      {
+        "symbol_name": "ufsecp_schnorr_sign_batch",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "schnorr",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 46.0
+      },
+      {
+        "symbol_name": "ecdh_parse_args",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdh",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 32.0
+      },
+      {
+        "symbol_name": "negate_assign",
+        "file_path": "cpu/src/field.cpp",
+        "category": "field_arithmetic",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 18.0
+      },
+      {
+        "symbol_name": "uint320_add_assign",
+        "file_path": "cpu/src/field.cpp",
+        "category": "field_arithmetic",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 18.0
+      },
+      {
+        "symbol_name": "uint320_sub_assign",
+        "file_path": "cpu/src/field.cpp",
+        "category": "field_arithmetic",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 18.0
+      },
+      {
+        "symbol_name": "scalar_parse_strict_nonzero",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "scalar_arithmetic",
+        "secret_class": "public_only",
+        "risk_score": 70.0,
+        "gain_score": 18.0
+      },
+      {
+        "symbol_name": "ufsecp_silent_payment_address",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "bip352",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 14.0
+      },
+      {
+        "symbol_name": "MuSig2",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "parse_musig2_keyagg",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "parse_musig2_session",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_bip322_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_btc_message_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_ecdsa_adaptor_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdsa",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_ecdsa_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdsa",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_ecdsa_sign_recoverable",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdsa",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_ecdsa_sign_verified",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ecdsa",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_ecies_decrypt",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_eth_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_frost_sign",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_frost_sign_nonce_gen",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_musig2_key_agg",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_musig2_nonce_agg",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_musig2_nonce_gen",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      },
+      {
+        "symbol_name": "ufsecp_musig2_partial_sig_agg",
+        "file_path": "include/ufsecp/ufsecp_impl.cpp",
+        "category": "ffi_abi",
+        "secret_class": "ct_sensitive",
+        "risk_score": 70.0,
+        "gain_score": 8.0
+      }
+    ]
+  }
+}

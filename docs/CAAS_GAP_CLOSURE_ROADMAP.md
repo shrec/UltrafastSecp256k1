@@ -40,7 +40,7 @@ automated**:
 | Two-tool independence for CT verification | **partial** (one CT-verif chain) |
 | Public security disclosure / VDP | ✓ SECURITY.md + BUG_BOUNTY.md |
 | Auditor-grade reproducibility bundle | ✓ EXTERNAL_AUDIT_BUNDLE (P19) |
-| Exploit PoC catalog (per-CVE / per-ePrint) | ✓ 177 PoCs in `EXPLOIT_TEST_CATALOG.md` + `EXPLOIT_COVERAGE_MAP.md` |
+| Exploit PoC catalog (per-CVE / per-ePrint) | ✓ 189 PoCs in `EXPLOIT_TEST_CATALOG.md` + `EXPLOIT_COVERAGE_MAP.md` |
 | Attack class taxonomy doc | ✓ `ATTACK_GUIDE.md` (541 lines, 30+ classes) |
 | Research-signal tracking (CVE / ePrint mapping) | ✓ `RESEARCH_SIGNAL_MATRIX.json` (578 entries) |
 | Exploit backlog tracking | ✓ `EXPLOIT_BACKLOG.md` (cleared, all 7 PoCs landed) |
@@ -57,7 +57,7 @@ crypto libraries):
 
 | Dimension | Our state | Typical paid-audit deliverable |
 |-----------|-----------|--------------------------------|
-| PoC test count | 177 | 20–60 |
+| PoC test count | 189 | 20–60 |
 | Per-CVE/per-ePrint anchoring | every PoC has a citation | usually only critical findings cited |
 | Backlog discipline | cleared, conversion standard documented | informal |
 | Research-signal matrix | machine-readable JSON, 578 entries | usually narrative-only in report |
@@ -282,7 +282,7 @@ needing source access.
 
 ### G-9b. EXPLOIT_CATALOG ↔ THREAT_MODEL ↔ SPEC traceability join
 
-**Why it matters.** The 177 exploit PoCs, the threat model (G-1), and
+**Why it matters.** The 189 exploit PoCs, the threat model (G-1), and
 the spec traceability matrix (G-5) currently live in three separate
 docs. An auditor wants a single join: "for attacker model A targeting
 spec clause C, what PoCs exercise it and what is the residual?"

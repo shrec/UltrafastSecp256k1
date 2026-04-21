@@ -7,6 +7,32 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-21 (audit-doc reality reconciliation)
+
+Reconciled exploit-PoC counts across every live audit document against
+the actual on-disk inventory (`audit/test_exploit_*.cpp` = 189 files,
+all 189 wired in `unified_audit_runner.cpp`, parity enforced by
+`scripts/check_exploit_wiring.py`).
+
+Updated headline numbers in:
+
+- `README.md` (3 occurrences: "187 → 189" in tagline, ABI section, build instructions)
+- `docs/ATTACK_GUIDE.md` (2: "166 → 189", "157 → 189")
+- `docs/AUDIT_GUIDE.md` (2: "157 → 189")
+- `docs/AUDIT_PHILOSOPHY.md` (7: "171/187 → 189")
+- `docs/AUDIT_STANDARD.md` (3: "171 → 189")
+- `docs/AUDIT_READINESS_REPORT_v1.md` (1: "187 → 189")
+- `docs/INTERNAL_AUDIT.md` (1: "187 → 189")
+- `docs/EXPLOIT_COVERAGE_MAP.md` (headline "177 → 189"; per-category table
+  preserved as 2026-04-08 baseline with explicit note that 12 PoCs landed
+  since — see EXPLOIT_TEST_CATALOG changelog rows for 2026-04-13/-14/-16/-17)
+- `docs/CAAS_GAP_CLOSURE_ROADMAP.md` (3: "177 → 189")
+
+No PoC counts were inflated. Every claim now matches the exact count
+returned by `ls audit/test_exploit_*.cpp | wc -l`.
+
+---
+
 ## 2026-04-21 (CAAS hardening — H-1, H-2, H-3, H-4, H-5, H-6, H-7, H-8, H-9, H-10, H-11)
 
 Eleven of twelve `docs/CAAS_HARDENING_TODO.md` items closed in a single

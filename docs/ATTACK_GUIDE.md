@@ -4,10 +4,10 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 166 exploit PoC tests, 11 fuzzer harnesses, 58 audit
-modules, 39 formal Cryptol properties, dudect + Valgrind CT evidence, full
-Wycheproof vector coverage. None of this means the library is bug-free. It means
-we tried hard. Now you try.
+**Current assurance state**: 189 exploit PoC tests (all wired in `unified_audit_runner`),
+11 fuzzer harnesses, 58 audit modules, 39 formal Cryptol properties, dudect + Valgrind
+CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
+It means we tried hard. Now you try.
 
 ---
 
@@ -212,7 +212,7 @@ Classic DER parser bugs:
 - Trailing garbage after a valid DER blob accepted silently
 - Over-long encoding of short integers (`0x02 0x04 0x00 0x00 0x00 0x2A` vs `0x02 0x01 0x2A`)
 
-Check `audit/test_exploit_der_*.cpp` (157 exploit files total — grep for `der`).
+Check `audit/test_exploit_der_*.cpp` (189 exploit files total — grep for `der`).
 The parser should be strict: reject all of these.
 
 ---
