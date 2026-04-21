@@ -20,8 +20,12 @@ on:
         type: choice
         options: ['false', 'true']
 
+# Top-level permissions restricted to read-only (Scorecard
+# TokenPermissionsID). Only the `refresh` job needs contents:write in
+# order to push the refreshed evidence JSONs back to dev, so that scope
+# is granted at the job level below.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: caas-evidence-refresh
@@ -33,6 +37,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     if: github.repository == 'shrec/UltrafastSecp256k1'
+    # Needs write to push refreshed evidence JSONs back to the dev branch.
+    permissions:
+      contents: write
 
     steps:
       - name: Harden runner

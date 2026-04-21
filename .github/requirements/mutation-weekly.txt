@@ -1,0 +1,10 @@
+# Pinned dependencies for mutation-weekly workflow (hash-verified).
+#
+# Regenerate the hash after bumping the version:
+#   pip download --no-deps PyYAML==6.0.2
+#   sha256sum PyYAML-6.0.2-cp312-*.whl
+#
+# Only the Ubuntu 24.04 + CPython 3.12 manylinux_2_17 wheel is required
+# because the mutation-weekly runner pins `runs-on: ubuntu-24.04`.
+PyYAML==6.0.2 \
+    --hash=sha256:80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476
