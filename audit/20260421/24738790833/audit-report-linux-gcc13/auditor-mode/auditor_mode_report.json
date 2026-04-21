@@ -1,0 +1,124 @@
+{
+  "generated_at": "2026-04-21T18:41:59.387373+00:00",
+  "status": "ready",
+  "strict_mode": false,
+  "runner_source": "audit/unified_audit_runner.cpp",
+  "registered_symbol_count": 190,
+  "required_count": 8,
+  "covered_count": 8,
+  "missing_count": 0,
+  "missing_critical_count": 0,
+  "recommended_count": 5,
+  "recommended_covered_count": 5,
+  "recommended_missing_count": 0,
+  "coverage": [
+    {
+      "key": "invalid_curve_twist",
+      "severity": "high",
+      "rationale": "Reject off-curve/twist points across parse+ECDH paths.",
+      "expected_symbol": "test_exploit_invalid_curve_twist_run",
+      "expected_file": "audit/test_exploit_invalid_curve_twist.cpp",
+      "present": true
+    },
+    {
+      "key": "ecdsa_nonce_reuse",
+      "severity": "critical",
+      "rationale": "Prevent private-key recovery under nonce reuse.",
+      "expected_symbol": "test_exploit_ecdsa_nonce_reuse_run",
+      "expected_file": "audit/test_exploit_ecdsa_nonce_reuse.cpp",
+      "present": true
+    },
+    {
+      "key": "frost_ct_nonce",
+      "severity": "high",
+      "rationale": "Detect nonce handling leaks in threshold signing flows.",
+      "expected_symbol": "test_exploit_frost_ct_nonce_run",
+      "expected_file": "audit/test_exploit_frost_ct_nonce.cpp",
+      "present": true
+    },
+    {
+      "key": "musig2_parallel_sessions",
+      "severity": "high",
+      "rationale": "Check concurrent session transcript separation.",
+      "expected_symbol": "test_exploit_musig2_parallel_session_cross_run",
+      "expected_file": "audit/test_exploit_musig2_parallel_session_cross.cpp",
+      "present": true
+    },
+    {
+      "key": "ecdh_zvp_glv_static",
+      "severity": "critical",
+      "rationale": "ZVP/GLV static-ECDH leakage class from recent literature.",
+      "expected_symbol": "test_exploit_ecdh_zvp_glv_static_run",
+      "expected_file": "audit/test_exploit_ecdh_zvp_glv_static.cpp",
+      "present": true
+    },
+    {
+      "key": "frost_adaptive_corruption",
+      "severity": "critical",
+      "rationale": "Adaptive-corruption threshold Schnorr/FROST state leakage.",
+      "expected_symbol": "test_exploit_frost_adaptive_corruption_run",
+      "expected_file": "audit/test_exploit_frost_adaptive_corruption.cpp",
+      "present": true
+    },
+    {
+      "key": "ecdsa_fault_injection_deterministic",
+      "severity": "critical",
+      "rationale": "Fault-injection resistance for deterministic ECDSA flows.",
+      "expected_symbol": "test_exploit_ecdsa_fault_injection_run",
+      "expected_file": "audit/test_exploit_ecdsa_fault_injection.cpp",
+      "present": true
+    },
+    {
+      "key": "cache_sidechannel_amplification",
+      "severity": "high",
+      "rationale": "Microarchitectural leakage amplification regression checks.",
+      "expected_symbol": "test_exploit_cache_sidechannel_amplification_run",
+      "expected_file": "audit/test_exploit_cache_sidechannel_amplification.cpp",
+      "present": true
+    }
+  ],
+  "missing": [],
+  "recommended_coverage": [
+    {
+      "key": "ladderleak_subbit_nonce",
+      "severity": "high",
+      "rationale": "Sub-bit nonce leakage resilience (LadderLeak class).",
+      "expected_symbol": "test_exploit_ladderleak_subbit_nonce_run",
+      "expected_file": "audit/test_exploit_ladderleak_subbit_nonce.cpp",
+      "present": true
+    },
+    {
+      "key": "minerva_noisy_hnp",
+      "severity": "high",
+      "rationale": "Noisy timing-to-HNP robustness (Minerva class).",
+      "expected_symbol": "test_exploit_minerva_noisy_hnp_run",
+      "expected_file": "audit/test_exploit_minerva_noisy_hnp.cpp",
+      "present": true
+    },
+    {
+      "key": "hertzbleed_dvfs_timing",
+      "severity": "high",
+      "rationale": "DVFS frequency-leakage regression surface (Hertzbleed class).",
+      "expected_symbol": "test_exploit_hertzbleed_dvfs_timing_run",
+      "expected_file": "audit/test_exploit_hertzbleed_dvfs_timing.cpp",
+      "present": true
+    },
+    {
+      "key": "biased_nonce_chain_scan",
+      "severity": "medium",
+      "rationale": "Nonce-bias drift detection inspired by chain-scale incidents.",
+      "expected_symbol": "test_exploit_biased_nonce_chain_scan_run",
+      "expected_file": "audit/test_exploit_biased_nonce_chain_scan.cpp",
+      "present": true
+    },
+    {
+      "key": "kr_ecdsa_buff_binding",
+      "severity": "medium",
+      "rationale": "KR-ECDSA address/key-binding misuse resistance (BUFF-oriented).",
+      "expected_symbol": "test_exploit_kr_ecdsa_buff_binding_run",
+      "expected_file": "audit/test_exploit_kr_ecdsa_buff_binding.cpp",
+      "present": true
+    }
+  ],
+  "recommended_missing": []
+}
