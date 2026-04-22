@@ -4,6 +4,52 @@
 > Authoritative spec for the CAAS pipeline used by `caas_runner.py` and
 > `.github/workflows/caas.yml`. Pairs with `AUDIT_MANIFEST.md` P20.
 
+## Origin & Motivation
+
+CAAS started from two questions the author kept asking himself while
+building UltrafastSecp256k1:
+
+1. **"If I don't have $100k, does my project never get to see daylight?"**
+   Traditional cryptographic audits cost between $40k and $250k per
+   engagement (Trail of Bits, NCC Group, Cure53, Quantstamp). For most
+   open-source crypto authors that price tag is prohibitive. The result
+   is a two-tier ecosystem: well-funded code gets a PDF, everything else
+   ships uninspected. That is not a security model — it is a budget
+   filter. A real-world, useful, fast crypto engine should not be
+   blocked from production use just because its author cannot write a
+   six-figure check.
+
+2. **"Would I trust my own library with a billion-dollar asset — and if
+   not, what would I have to build to earn that trust without depending
+   on someone else's PDF?"**
+   The honest answer was no — not because the code was wrong, but
+   because no continuous, reproducible evidence existed that it stayed
+   correct on every commit, on every platform, against every known
+   exploit class. Snapshot audits do not answer that question. They
+   describe a moment in time and decay from the day they are signed.
+   What was needed was a verification process that runs on every push,
+   produces evidence anyone can re-execute, and treats every fixed bug
+   as a permanent regression test.
+
+CAAS is the answer to both questions. It replaces the *snapshot-PDF +
+reputation-of-the-auditor* model with a *continuous-pipeline +
+reproducible-evidence* model:
+
+| Traditional audit | CAAS |
+|---|---|
+| Snapshot in time (PDF) | Continuous, every commit |
+| $40k–$250k per engagement | $0 marginal cost |
+| Trust the auditor's reputation | Trust reproducible evidence |
+| Outdated within months | Always current |
+| Closed methodology | Open-source verifier |
+| Cannot be re-run by third parties | Anyone can re-execute the pipeline |
+| Single point of failure | Multi-CI cross-validation |
+
+CAAS is not a replacement for human security review — it is the
+infrastructure that makes human review *meaningful* by guaranteeing the
+artifact under review is the same artifact that production runs, and
+that every previously discovered weakness still has a regression test.
+
 ## Purpose
 
 CAAS exists so that audit posture is **continuously verified**, not
