@@ -78,6 +78,49 @@ This document describes the secp256k1 instantiation. The methodology
 itself is offered to the wider open-source community as a portable
 pattern — adopt it, fork it, adapt it.
 
+## Developer Benefit (Not Just Audit)
+
+CAAS is misread if it is treated only as an audit mechanism. In daily
+practice it functions as a **developer safety net** that pays for
+itself long before any external auditor looks at the code. The pipeline
+catches regressions, platform-specific compiler behaviour, and silent
+correctness drift the moment they are introduced — not weeks later when
+a user files a bug.
+
+A concrete example from this project: porting the constant-time pipeline
+to **RISC-V**. The first build on the new target compiled and passed
+functional tests, but the CAAS constant-time stage immediately reported
+a **secret-dependent timing leak** — the RISC-V compiler had
+re-optimised an arithmetic sequence in a way that re-introduced a data
+dependency on a secret. Without CAAS this would have shipped as a
+"working RISC-V port" and the leak would have been invisible until
+someone ran a side-channel measurement months later. With CAAS the same
+commit that introduced the port also surfaced the bug, and the fix
+landed in the same session.
+
+This is the practical leverage CAAS gives a small team or a solo
+maintainer:
+
+- **Hours, not months, to bring up a new platform.** RISC-V, ARM64,
+  Android, iOS, WASM, ESP32, STM32 — each new target inherits the full
+  CAAS suite. If anything regresses (functional, CT, GPU parity, ABI),
+  the pipeline says so on the first run.
+- **No "does it really work on this platform?" anxiety.** The same
+  evidence bundle that validates Linux x86_64 validates every other
+  target, because every target re-runs the full suite.
+- **Compiler surprises caught at commit time.** Compilers vary across
+  versions, targets, and optimisation levels. CAAS treats the compiled
+  binary as the unit of trust, not the source code, so optimisation
+  drift cannot hide.
+- **Refactors stay safe.** Rewriting a hot path, swapping an algorithm,
+  or restructuring a backend is bounded by the same suite — green
+  pipeline means the change is functionally and security-equivalent.
+
+In other words: CAAS is the infrastructure that makes *aggressive,
+fearless development on a high-stakes codebase* sustainable for a small
+team. The audit story is one consequence of that infrastructure, not
+its primary purpose.
+
 ## Purpose
 
 CAAS exists so that audit posture is **continuously verified**, not
