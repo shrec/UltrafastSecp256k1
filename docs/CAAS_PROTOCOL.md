@@ -50,6 +50,34 @@ infrastructure that makes human review *meaningful* by guaranteeing the
 artifact under review is the same artifact that production runs, and
 that every previously discovered weakness still has a regression test.
 
+## Portability of the Model
+
+CAAS is first an *idea and a methodology*, second an implementation. The
+specific pipeline shipped in this repository is tailored to a
+cryptographic engine — exploit PoCs, constant-time pipelines, GPU
+backends, formal-property tests — but the underlying principle is
+domain-agnostic:
+
+> Every claim made about the project must be expressed as an executable
+> test, every test must run on every commit, every result must be
+> reproducible by an independent third party, and every fixed bug must
+> become a permanent regression test.
+
+Any open-source project — wallet, compiler, parser, networking stack,
+embedded firmware, web framework — can adopt the same protocol by
+keeping the principle constant and re-instantiating the pipeline stages
+with tooling appropriate to its domain. A wallet's CAAS pipeline would
+swap exploit PoCs for transaction-construction differential tests; a
+parser's CAAS pipeline would swap GPU backends for fuzzing harnesses; a
+web framework's CAAS pipeline would swap CT verification for HTTP
+state-machine conformance tests. The five-stage skeleton (static
+analysis → audit gate → autonomy check → bundle produce → bundle
+verify) and the two founding questions stay the same.
+
+This document describes the secp256k1 instantiation. The methodology
+itself is offered to the wider open-source community as a portable
+pattern — adopt it, fork it, adapt it.
+
 ## Purpose
 
 CAAS exists so that audit posture is **continuously verified**, not
