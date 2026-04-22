@@ -157,6 +157,43 @@ protects the project for everyone. This turns the broader open-source
 community into co-maintainers of the project's security posture, with
 no central bottleneck and no proprietary tooling.
 
+## The Repository Is the Infrastructure
+
+A critical property of CAAS is that **the repository itself is the
+distribution mechanism**. There is no separate service to install, no
+SaaS account to provision, no proprietary backend to license, no
+`caas-server.example.com` to depend on. The pipeline lives inside the
+repo as ordinary source files, scripts, workflows, and tests.
+
+Concretely, this means:
+
+- **Cloning the repo clones the entire audit infrastructure.**
+  `git clone` brings down `audit/`, `caas_runner.py`,
+  `.github/workflows/caas.yml`, the unified audit runner, the static
+  analyzer, the security-autonomy checker, the bundle producer and
+  verifier, every exploit PoC, and every wired regression test — in
+  one operation.
+- **Forking the repo forks the audit infrastructure.** A fork inherits
+  the full pipeline automatically; CI starts running the same gates on
+  the fork's commits as soon as Actions are enabled.
+- **Vendoring the repo vendors the audit infrastructure.** Downstream
+  projects that pull the library in as a submodule, vcpkg port,
+  Conan recipe, or vendored copy receive the full evidence chain — not
+  a binary blob with a PDF attached.
+- **Mirroring the repo mirrors the audit infrastructure.** A mirror on
+  GitLab, Codeberg, Forgejo, sourcehut, or any private Git host can
+  re-run the entire pipeline locally and reproduce the same evidence
+  bundle, byte-for-byte, with no dependency on the upstream
+  organisation, the original maintainer, or any external service.
+
+This is the structural difference from the snapshot-PDF model: a PDF
+travels separately from the code, gets stale, and may not even be
+distributed with downstream copies. CAAS travels *with* the code,
+updates *with* the code, and re-executes wherever the code is cloned.
+The audit infrastructure has the same supply-chain footprint as the
+library itself, which is the only footprint a security-critical
+artifact should ever have.
+
 ## Purpose
 
 CAAS exists so that audit posture is **continuously verified**, not
