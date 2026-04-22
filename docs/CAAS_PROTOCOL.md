@@ -121,6 +121,42 @@ fearless development on a high-stakes codebase* sustainable for a small
 team. The audit story is one consequence of that infrastructure, not
 its primary purpose.
 
+## Open-Ended and Self-Evolving
+
+CAAS is a fully open-source pipeline, and that is structurally
+significant: it is not a fixed checklist that ages, it is a **living
+suite that grows with the threat landscape**. Anyone — the maintainer,
+a contributor, an external researcher, a future auditor — can write a
+new test, encode a freshly published attack as a PoC, add a new
+invariant, or wire in a new differential oracle, and from the next
+commit onward that case becomes a **permanent regression gatekeeper**.
+
+The cycle is intentionally simple:
+
+1. A new attack class, exploit technique, or correctness concern is
+   identified — by reading a paper, by a CVE disclosure, by a code
+   review, by user feedback, or by the maintainer's own intuition.
+2. The case is expressed as a test (`test_<name>_run()`), wired into
+   `unified_audit_runner.cpp`, registered with a section, and
+   documented per the *Exploit / Audit Test Conversion Standard*.
+3. From the very next push, that test runs on every commit, on every
+   platform, in every CI lane — forever. Any future change that
+   re-introduces the issue is rejected automatically.
+
+This is what makes CAAS qualitatively different from a snapshot audit.
+A PDF audit ends the day it is signed; CAAS *accumulates*. Every fixed
+bug, every researched attack, every newly discovered edge case
+strengthens the suite. The system therefore gets stronger with time
+rather than weaker — the opposite of the natural decay curve of
+traditional audits.
+
+Because the entire pipeline is open-source, this self-evolution is
+**not gated by the original author**. A third party who finds a new
+attack vector can submit a test as a pull request; once merged it
+protects the project for everyone. This turns the broader open-source
+community into co-maintainers of the project's security posture, with
+no central bottleneck and no proprietary tooling.
+
 ## Purpose
 
 CAAS exists so that audit posture is **continuously verified**, not
