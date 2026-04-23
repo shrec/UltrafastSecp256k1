@@ -85,9 +85,9 @@ public:
     Bip324Session(bool initiator, const std::uint8_t* privkey) noexcept;
 
     ~Bip324Session() noexcept {
-        // Erase private key material on destruction
-        volatile std::uint8_t* p = privkey_.data();
-        for (std::size_t i = 0; i < 32; ++i) p[i] = 0;
+        // Use canonical platform-specific secure erase (includes atomic_signal_fence
+        // barrier), consistent with Bip324Cipher::~Bip324Cipher().
+        secp256k1::detail::secure_erase(privkey_.data(), privkey_.size());
     }
 
     // Get our 64-byte ElligatorSwift-encoded public key to send to peer

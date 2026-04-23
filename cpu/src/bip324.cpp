@@ -174,7 +174,12 @@ bool Bip324Session::complete_handshake(const std::uint8_t* peer_encoding) noexce
     for (auto b : shared_secret) {
         if (b != 0) { all_zero = false; break; }
     }
-    if (all_zero) return false;
+    if (all_zero) {
+        // BUG-FIX: zeroize sk before early return so the ephemeral private key
+        // scalar does not remain on the stack after an attacker-induced ECDH failure.
+        detail::secure_erase(&sk, sizeof(sk));
+        return false;
+    }
 
     // 2. Derive PRK via HKDF-Extract
     constexpr char salt[] = "bitcoin_v2_shared_secret";
@@ -216,6 +221,9 @@ bool Bip324Session::complete_handshake(const std::uint8_t* peer_encoding) noexce
     detail::secure_erase(initiator_key, sizeof(initiator_key));
     detail::secure_erase(responder_key, sizeof(responder_key));
     detail::secure_erase(&sk, sizeof(sk));
+    // Proactively erase privkey_ now that it has served its purpose.
+    // The destructor will also clear it, but zeroing here reduces the window.
+    detail::secure_erase(privkey_.data(), privkey_.size());
 
     established_ = true;
     return true;

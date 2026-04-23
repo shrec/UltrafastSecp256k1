@@ -7,6 +7,35 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-23 (BIP-324 Bip324Session secure-erase bugs fixed: BPS-1..8)
+
+### Fixed: `cpu/src/bip324.cpp` + `cpu/include/secp256k1/bip324.hpp`
+
+Two latent memory-safety bugs found during deep hotspot audit scan:
+
+**BUG-3 — `complete_handshake` early-return without zeroizing `sk`**:
+`Bip324Session::complete_handshake()` constructs `auto sk = fast::Scalar::from_bytes(privkey_)`
+on the stack (containing private-key material).  When ECDH returns all-zero output
+(attacker-crafted peer encoding), the early `return false` left `sk` un-wiped on the stack.
+Fix: `detail::secure_erase(&sk, sizeof(sk));` immediately before the early return.
+
+**BUG-4 — `~Bip324Session` volatile loop vs `detail::secure_erase`**:
+The destructor used a raw `volatile uint8_t*` loop to clear `privkey_`.  This is
+inconsistent with `Bip324Cipher::~Bip324Cipher()` which already called
+`detail::secure_erase(key_, sizeof(key_))` (which includes `atomic_signal_fence(memory_order_seq_cst)`).
+The volatile-loop form lacks the memory barrier, potentially allowing the compiler to
+reorder/optimize away the clear in future TU contexts.
+Fix: changed to `secp256k1::detail::secure_erase(privkey_.data(), privkey_.size())`.
+
+Additionally: proactive `privkey_` erasure added on the success path of `complete_handshake()`
+just before `established_ = true`, reducing the window where raw privkey bytes remain in memory.
+
+New regression test: `test_regression_bip324_session` (BPS-1..8) registered in
+`unified_audit_runner` under section `memory_safety`.
+pass=36 fail=0.
+
+---
+
 ## 2026-04-23 (regression test for musig2_partial_verify OOB + infinity-nonce bugs: MVV-1..6)
 
 ### New Regression Test
