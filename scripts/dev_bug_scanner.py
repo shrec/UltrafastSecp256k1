@@ -636,9 +636,14 @@ _UFSECP_CALL = re.compile(
 _ASSIGNED    = re.compile(r'^\s*\w[\w\s*<>:,]+\s*=\s*(?:ufsecp_|secp256k1_|mbedtls_|RAND_bytes|EVP_|SHA256_|HMAC)')
 _VOID_FUNC   = re.compile(r'^\s*void\b')
 _IF_CHECK    = re.compile(r'if\s*\(')
-# NOTE: secp256k1_sha256 / hash160 / tagged_hash DO return int error codes —
-# they must NOT be in this exemption set.  Only truly void helpers go here.
-_VOID_COMPAT_FN = {'secp256k1_sha512', 'secp256k1_ripemd160'}
+# secp256k1_sha256 / hash160 / tagged_hash return void in the current ABI
+# (SECP256K1_API void ...) — they are infallible hash helpers, not error-returning
+# functions.  Include them alongside sha512 and ripemd160 so bare calls are not
+# flagged as discarded return values.
+_VOID_COMPAT_FN = {
+    'secp256k1_sha256', 'secp256k1_hash160', 'secp256k1_tagged_hash',
+    'secp256k1_sha512', 'secp256k1_ripemd160',
+}
 
 def check_retval(path: str, lines: List[str]) -> List[Finding]:
     """Return value of ufsecp_* / security critical function silently discarded."""
@@ -788,16 +793,34 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         # WITHOUT `;` (statements always end with `;`). This catches
         # `bool flag = false)` default args and `int x = 0,` parameter splits
         # but does NOT catch normal function calls like `update(&pad, 1);`.
+        # Still check for reads (continuation lines can reference tracked vars).
         stripped = line.rstrip()
         if stripped.endswith(',') or (stripped.endswith(')') and not stripped.endswith(';')):
+            for tracked in list(initialized.keys()):
+                if re.search(r'\b' + re.escape(tracked) + r'\b', line):
+                    del initialized[tracked]
             continue
         # Also skip lines that look like parameter-list trailing entries:
         # `... bool x = false);` or `... int x = 0);` — assignment immediately
         # followed by `)` is a default argument, not a statement.
+        # But do NOT skip lines where the `=` is inside a function call
+        # (e.g. `Assert(rc == 0, "msg");`) since those DO read the variable.
         if re.search(r'=\s*[^;,()]+\)\s*;?\s*$', stripped):
-            continue
-        # Block boundaries reset tracking
+            first_eq    = stripped.find('=')
+            first_paren = stripped.find('(')
+            # Only skip if there is no opening paren before the `=`
+            if first_paren < 0 or first_paren > first_eq:
+                for tracked in list(initialized.keys()):
+                    if re.search(r'\b' + re.escape(tracked) + r'\b', line):
+                        del initialized[tracked]
+                continue
+        # Block boundaries reset tracking.
+        # `{` / `}` are the main boundaries; `else` / `#else` also separate
+        # mutually-exclusive paths (single-statement if/else, preprocessor branches).
         if '{' in line or '}' in line:
+            initialized.clear()
+            continue
+        if re.match(r'^\s*(else\b|#else\b|#elif\b)', line):
             initialized.clear()
             continue
 
@@ -805,12 +828,24 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
         if m:
             name = m.group(1)
             rhs  = m.group(2)
+            # Remaining text on the same line after the matched statement
+            # (multi-statement lines: `m = foo(); use(m.x); m = bar();`)
+            rest = line[m.end():]
             # Always clear reads from RHS first to avoid stale tracked names.
             for tracked in list(initialized.keys()):
                 if tracked == name:
                     continue
                 if re.search(r'\b' + re.escape(tracked) + r'\b', rhs):
                     del initialized[tracked]
+            # Also clear tracked variables that appear in the rest of the line
+            # (covers multi-statement lines where a variable is assigned then
+            # immediately used: `m = mul64_full(a, b); muladd(m.x, m.y, ...);`)
+            if rest:
+                for tracked in list(initialized.keys()):
+                    if tracked == name:
+                        continue
+                    if re.search(r'\b' + re.escape(tracked) + r'\b', rest):
+                        del initialized[tracked]
             # Skip well-known scratch / accumulator names that are repeatedly
             # reassigned in arithmetic blocks (limb chains, carry/borrow propagation).
             if name in {'carry', 'borrow', 'tmp', 'temp', 'acc', 'accum',
@@ -830,6 +865,11 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
                 # is idiomatic in C-style code and not a bug.
                 if re.match(r'^\s*(?:[\w:]+\s+)?\w+\s*=\s*(?:0|0u|0U|0L|0UL|0x0+|false|nullptr|NULL|\{\}|"")\s*[,;]',
                             prev_snip):
+                    initialized[name] = (i, raw.strip())
+                    continue
+                # Skip if `name` is read in the REST of the same line
+                # (multi-statement: `m = foo(); use(m.x);` is NOT a double-init)
+                if rest and re.search(r'\b' + re.escape(name) + r'\b', rest):
                     initialized[name] = (i, raw.strip())
                     continue
                 if i - prev_line <= 5:   # consecutive or near-consecutive
@@ -1199,7 +1239,7 @@ _SKIP_DIR_PARTS = {
     'node_modules', 'vendor', 'third_party', 'third-party', 'deps',
     'external', '.git', 'build', 'dist', 'out', '__pycache__',
     '_research_repos', 'cmake_install', 'CMakeFiles', 'obj', 'gyp',
-    '.build',
+    '.build', 'build_rel', 'build_opencl', 'build_ufsecp_swift',
 }
 
 # Extra path-substring skip patterns (checked against full path string)

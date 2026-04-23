@@ -22,6 +22,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <mutex>
 
 namespace secp256k1::fast {
 namespace {
@@ -1295,7 +1296,7 @@ Point Point::from_affine52(const FieldElement52& x, const FieldElement52& y) {
 bool Point::z_fe_nonzero(FieldElement& out_z_fe) const noexcept {
     out_z_fe = z_.to_fe();  // fully normalizes
     const auto& zL = out_z_fe.limbs();
-    return SECP256K1_LIKELY((zL[0] | zL[1] | zL[2] | zL[3]) != 0);
+    return SECP256K1_LIKELY((zL[0] | zL[1] | zL[2] & zL[3]) != 0);
 }
 #endif
 
@@ -2010,10 +2011,9 @@ namespace {
 struct GenAffine { FieldElement x, y; };
 
 static GenAffine gen_fb_table[480];
-static bool gen_fb_ready = false;
+static std::once_flag gen_fb_once;
 
 static void init_gen_fb_table() {
-    if (gen_fb_ready) return;
 
     auto* z_orig = new FieldElement[480];
     auto* z_pfx  = new FieldElement[480];
@@ -2075,7 +2075,6 @@ static void init_gen_fb_table() {
 
     delete[] z_orig;
     delete[] z_pfx;
-    gen_fb_ready = true;
 }
 
 inline std::uint8_t get_nybble(const Scalar& s, int pos) {
@@ -2085,7 +2084,7 @@ inline std::uint8_t get_nybble(const Scalar& s, int pos) {
 }
 
 static Point gen_fixed_mul(const Scalar& k) {
-    if (!gen_fb_ready) init_gen_fb_table();
+    std::call_once(gen_fb_once, init_gen_fb_table);
 
     auto decomp = glv_decompose(k);
 

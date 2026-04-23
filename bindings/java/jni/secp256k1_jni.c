@@ -353,9 +353,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_secp256k1_Secp256k1_sha256
     uint8_t *dbuf = (uint8_t *)(*env)->GetByteArrayElements(env, data, NULL);
     if (!dbuf) { throw_exc(env, "sha256: GetByteArrayElements failed"); return NULL; }
     uint8_t out[32];
-    int rc = secp256k1_sha256(dbuf, (size_t)dlen, out);
+    secp256k1_sha256(dbuf, (size_t)dlen, out);
     (*env)->ReleaseByteArrayElements(env, data, (jbyte *)dbuf, JNI_ABORT);
-    if (rc != 0) { throw_exc(env, "sha256 failed"); return NULL; }
     return make_byte_array(env, out, 32);
 }
 
@@ -367,9 +366,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_secp256k1_Secp256k1_hash160
     uint8_t *dbuf = (uint8_t *)(*env)->GetByteArrayElements(env, data, NULL);
     if (!dbuf) { throw_exc(env, "hash160: GetByteArrayElements failed"); return NULL; }
     uint8_t out[20];
-    int rc = secp256k1_hash160(dbuf, (size_t)dlen, out);
+    secp256k1_hash160(dbuf, (size_t)dlen, out);
     (*env)->ReleaseByteArrayElements(env, data, (jbyte *)dbuf, JNI_ABORT);
-    if (rc != 0) { throw_exc(env, "hash160 failed"); return NULL; }
     return make_byte_array(env, out, 20);
 }
 
@@ -387,10 +385,9 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_secp256k1_Secp256k1_taggedHash
         return NULL;
     }
     uint8_t out[32];
-    int rc = secp256k1_tagged_hash(ctag, dbuf, (size_t)dlen, out);
+    secp256k1_tagged_hash(ctag, dbuf, (size_t)dlen, out);
     (*env)->ReleaseByteArrayElements(env, data, (jbyte *)dbuf, JNI_ABORT);
     (*env)->ReleaseStringUTFChars(env, tag, ctag);
-    if (rc != 0) { throw_exc(env, "taggedHash failed"); return NULL; }
     return make_byte_array(env, out, 32);
 }
 

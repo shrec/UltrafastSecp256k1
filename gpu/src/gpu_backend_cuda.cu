@@ -1358,10 +1358,11 @@ private:
         cudaError_t ensure(size_t n) {
             if (n <= capacity) return cudaSuccess;
             free_all();
-            size_t cap = n < 256 ? 256 : n;
-            /* round up to next power-of-two for block-reduce alignment */
-            cap = 1;
-            while (cap < n) cap <<= 1;
+            /* Round up to the next power-of-two ≥ max(n, 256) for
+             * block-reduce alignment and a sensible minimum pool size. */
+            size_t cap = 1;
+            size_t const target = n < 256 ? 256 : n;
+            while (cap < target) cap <<= 1;
             constexpr int kBlk = 256;
             const size_t n_blks = (cap + kBlk - 1) / kBlk;
 

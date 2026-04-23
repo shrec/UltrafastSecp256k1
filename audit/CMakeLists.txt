@@ -2307,6 +2307,25 @@ target_compile_definitions(test_exploit_hertzbleed_scalar_blind_standalone PRIVA
 add_test(NAME exploit_hertzbleed_scalar_blind COMMAND test_exploit_hertzbleed_scalar_blind_standalone)
 set_tests_properties(exploit_hertzbleed_scalar_blind PROPERTIES TIMEOUT 30 LABELS "audit;exploit;sidechannel;dvfs;hertzbleed")
 
+# -- Thread-safe lazy init regression (TIR-1..5) — 2026-04-27 ----------------
+add_executable(test_exploit_thread_unsafe_lazy_init_standalone
+    test_exploit_thread_unsafe_lazy_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_thread_unsafe_lazy_init_standalone)
+target_include_directories(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+find_package(Threads REQUIRED)
+target_link_libraries(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE Threads::Threads)
+add_test(NAME exploit_thread_unsafe_lazy_init COMMAND test_exploit_thread_unsafe_lazy_init_standalone)
+set_tests_properties(exploit_thread_unsafe_lazy_init PROPERTIES TIMEOUT 60 LABELS "audit;exploit;thread;race;concurrency")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2821,6 +2840,8 @@ add_executable(unified_audit_runner
     test_exploit_fiat_shamir_frozen_heart.cpp
     # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 --
     test_exploit_hertzbleed_scalar_blind.cpp
+    # -- Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5) — 2026-04-27 --
+    test_exploit_thread_unsafe_lazy_init.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -2831,6 +2852,8 @@ if(SECP256K1_BUILD_ETHEREUM)
     target_sources(unified_audit_runner PRIVATE ${CPU_TESTS_DIR}/test_ethereum.cpp)
 endif()
 target_link_libraries(unified_audit_runner PRIVATE fastsecp256k1)
+find_package(Threads REQUIRED)
+target_link_libraries(unified_audit_runner PRIVATE Threads::Threads)
 target_include_directories(unified_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_BINARY_DIR}/../include   # for generated version.hpp

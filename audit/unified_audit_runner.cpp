@@ -400,6 +400,7 @@ int test_exploit_jni_retval_ignored_run();     // JNI return-value ignored (RVI-
 int test_exploit_dark_skippy_exfil_run();      // Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225
 int test_exploit_fiat_shamir_frozen_heart_run(); // Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411
 int test_exploit_hertzbleed_scalar_blind_run(); // Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823
+int test_exploit_thread_unsafe_lazy_init_run(); // Thread-safe gen_fb_table init: std::once_flag regression (TIR-1..5) — 2026-04-27
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -796,6 +797,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_dark_skippy_exfil",         "Dark Skippy Nonce Exfiltration: RFC6979/aux_rand anti-grinding (DS-1..8) — ePrint 2024/1225",         "exploit_poc", test_exploit_dark_skippy_exfil_run, false },
     { "exploit_fiat_shamir_frozen_heart",  "Frozen Heart: ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411",                       "exploit_poc", test_exploit_fiat_shamir_frozen_heart_run, false },
     { "exploit_hertzbleed_scalar_blind",   "Hertzbleed Scalar Blinding: Hamming-weight oracle + aux_rand mitigation (SB-1..9) — ePrint 2022/823",  "exploit_poc", test_exploit_hertzbleed_scalar_blind_run, false },
+    { "exploit_thread_unsafe_lazy_init",   "Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5)",                             "exploit_poc", test_exploit_thread_unsafe_lazy_init_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
