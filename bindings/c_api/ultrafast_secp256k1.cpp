@@ -202,9 +202,10 @@ int secp256k1_ec_seckey_verify(const uint8_t privkey[32]) {
 
 int secp256k1_ec_privkey_negate(uint8_t privkey[32]) {
     auto sk = scalar_from_bytes(privkey);
+    if (sk.is_zero()) return 0;  // zero scalar and n ≡ 0 (mod n) are invalid keys
     auto neg = sk.negate();
     scalar_to_bytes(neg, privkey);
-    return 0;
+    return 1;  // success
 }
 
 int secp256k1_ec_privkey_tweak_add(uint8_t privkey[32], const uint8_t tweak[32]) {
