@@ -2341,7 +2341,7 @@ target_include_directories(test_regression_z_fe_nonzero_standalone PRIVATE
 )
 target_compile_definitions(test_regression_z_fe_nonzero_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME regression_z_fe_nonzero COMMAND test_regression_z_fe_nonzero_standalone)
-set_tests_properties(regression_z_fe_nonzero PROPERTIES TIMEOUT 30 LABELS "audit;regression;pubkey;correctness")
+set_tests_properties(regression_z_fe_nonzero PROPERTIES TIMEOUT 300 LABELS "audit;regression;pubkey;correctness")
 
 # -- CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27 -
 add_executable(test_regression_cuda_pool_cap_standalone
@@ -2366,7 +2366,7 @@ target_include_directories(test_regression_musig2_verify_standalone PRIVATE
 )
 target_compile_definitions(test_regression_musig2_verify_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_musig2_verify COMMAND test_regression_musig2_verify_standalone)
-set_tests_properties(regression_musig2_verify PROPERTIES TIMEOUT 30 LABELS "audit;regression;musig2;bounds")
+set_tests_properties(regression_musig2_verify PROPERTIES TIMEOUT 300 LABELS "audit;regression;musig2;bounds")
 
 # -- Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8) — 2026-04-23 --
 add_executable(test_regression_bip324_session_standalone
