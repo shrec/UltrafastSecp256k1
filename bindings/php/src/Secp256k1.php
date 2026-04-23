@@ -140,7 +140,8 @@ class Secp256k1
     {
         self::check($privkey, 32, 'privkey');
         $buf = $this->allocCopy($privkey, 32);
-        $this->ffi->secp256k1_ec_privkey_negate($buf);
+        $rc = $this->ffi->secp256k1_ec_privkey_negate($buf);
+        if ($rc !== 0) throw new \RuntimeException('ec_privkey_negate failed: invalid (zero) key');
         return FFI::string($buf, 32);
     }
 

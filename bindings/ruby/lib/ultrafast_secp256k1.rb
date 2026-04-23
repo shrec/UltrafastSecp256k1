@@ -160,7 +160,8 @@ module UltrafastSecp256k1
     def ec_privkey_negate(privkey)
       check_bytes(privkey, 32, 'privkey')
       buf = to_ptr_mut(privkey, 32)
-      Native.secp256k1_ec_privkey_negate(buf)
+      rc = Native.secp256k1_ec_privkey_negate(buf)
+      raise Error, 'Negate failed: invalid (zero) key' unless rc.zero?
       buf.read_bytes(32)
     end
 

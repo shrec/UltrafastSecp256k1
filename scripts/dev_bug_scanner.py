@@ -46,6 +46,11 @@ Detects the kind of bugs a human reviewer catches during development:
   MAC_TRUNCATION         memcmp on MAC/tag with truncated length (forgery class)
   SCALAR_NOT_REDUCED     scalar_inverse without adjacent reduce/zero check
   PRINTF_SECRET          printf/log statement of secret-bearing identifier
+  JNI_GETBYTES_NULL      JNI GetByteArrayElements return value used without null-check
+
+  Language-binding FFI checkers (added 2026-04):
+  FFI_RETVAL_IGNORED     secp256k1_*/ufsecp_* call in language binding with silently
+                         discarded return value (Python/C#/Swift/Go/Rust/Ruby/PHP/Dart)
 
 Usage examples
 --------------
@@ -1172,18 +1177,29 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
 # File collection
 # ──────────────────────────────────────────────────────────────────────────────
 
-_SOURCE_EXTENSIONS = {'.cpp', '.cxx', '.cc', '.c', '.cu', '.cuh', '.cl', '.hpp', '.h', '.mm'}
+_SOURCE_EXTENSIONS = {
+    # C/C++/CUDA/OpenCL/Metal
+    '.cpp', '.cxx', '.cc', '.c', '.cu', '.cuh', '.cl', '.hpp', '.h', '.mm',
+    # Language bindings
+    '.py', '.go', '.rs', '.swift', '.cs', '.dart', '.rb', '.php', '.js', '.ts',
+}
 
 # Directory name components that signal third-party / generated / build code
 _SKIP_DIR_PARTS = {
     'node_modules', 'vendor', 'third_party', 'third-party', 'deps',
     'external', '.git', 'build', 'dist', 'out', '__pycache__',
-    '_research_repos', 'cmake_install', 'CMakeFiles',
+    '_research_repos', 'cmake_install', 'CMakeFiles', 'obj', 'gyp',
+    '.build',
 }
+
+# Extra path-substring skip patterns (checked against full path string)
+_SKIP_PATH_SUBSTRS = ('node_modules/', 'gyp/', '/obj/', '__pycache__/',)
 
 
 def _is_skippable(path: Path) -> bool:
-    return any(part in _SKIP_DIR_PARTS for part in path.parts)
+    ps = str(path)
+    return (any(part in _SKIP_DIR_PARTS for part in path.parts)
+            or any(s in ps for s in _SKIP_PATH_SUBSTRS))
 
 
 # ── DANGLING_ELSE: braceless else/if-else after multi-line block (goto-fail) ──
@@ -1974,6 +1990,283 @@ def check_jni_getbytes_null(path: str, lines: List[str]) -> List[Finding]:
     return findings
 
 
+# ── FFI_RETVAL_IGNORED: language-binding callers that discard a fallible API
+#    return value without checking it.
+#
+#  Covers: Python ctypes, C# P/Invoke, Swift, Go CGo, Rust FFI, Ruby FFI,
+#          Dart FFI, PHP FFI.
+#
+#  A "fallible" call is any call to secp256k1_* / ufsecp_* that is NOT in the
+#  known-infallible set (void functions: sha256, hash160, tagged_hash,
+#  ctx_destroy, gpu_ctx_destroy, version, abi_version, version_string,
+#  last_error, last_error_msg).
+#
+#  The checker looks for a call on a line that is NOT part of:
+#    - an assignment (rc =, result =, ret =, _ =, let/var/const declaration)
+#    - a guard/if condition (guard rc, if rc, if (rc)
+#    - a return statement whose value is itself the call result
+#    - a throw/raise wrapper that RECEIVES the call as argument
+#    - a function whose purpose is infallible (void)
+#    - a test/bench file (where crash-on-error is intentional)
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Functions that are void / always-succeed — never flag these
+_FFI_INFALLIBLE = re.compile(
+    r'(?:secp256k1_|ufsecp_)'
+    r'(?:sha256|hash160|tagged_hash|ctx_destroy|gpu_ctx_destroy|'
+    r'abi_version|version_string|version\b|last_error_msg|last_error\b)',
+    re.IGNORECASE,
+)
+
+# Per-language: pattern that identifies a "guarded" context around the call
+# i.e. the return value IS being captured or checked within a ±2-line window.
+
+# ── Python (ctypes) ──────────────────────────────────────────────────────────
+_PY_CALL_RE   = re.compile(r'\bself\._lib\.(secp256k1_|ufsecp_)\w+\(')
+_PY_GUARD_RE  = re.compile(
+    r'^\s*(rc|result|ret|_rc)\s*='           # rc = lib.fn(...)
+    r'|self\._throw\s*\('                     # self._throw(self._lib.fn(...), ...)
+    r'|self\._lib\.\w+\([^)]*\)\s*==\s*\d'   # direct comparison
+    r'|return\s+self\._lib\.'                 # return lib.fn(...)
+    r'|\bif\s+.*self\._lib\.',                # if lib.fn(...) ...
+    re.MULTILINE,
+)
+
+# ── C# P/Invoke (both legacy secp256k1_ and new ufsecp_) ─────────────────────
+_CS_CALL_RE   = re.compile(r'\bNative\.(secp256k1_|ufsecp_)\w+\(')
+_CS_GUARD_RE  = re.compile(
+    r'^\s*(int|var|rc|result|ret)\s+\w+\s*='  # int rc = Native.fn(...);
+    r'|Throw\s*\('                              # Throw(Native.fn(...), ...)
+    r'|Chk\s*\('                               # Chk(Native.fn(...), ...)
+    r'|throw\s+'                               # throw new...
+    r'|\bif\s*\(rc'                            # if (rc ...
+    r'|return\s+Native\.'                      # return Native.fn(...)
+    r'|Assert\s*\('                            # Assert(rc == 0, ...)
+    r'|_\s*='                                   # _ = (discard explicitly)
+    r'|var\s+_',                               # var _ =
+    re.MULTILINE,
+)
+
+# ── Swift ─────────────────────────────────────────────────────────────────────
+_SWIFT_CALL_RE  = re.compile(r'\bCUltrafastSecp256k1\.(secp256k1_|ufsecp_)\w+\(')
+_SWIFT_GUARD_RE = re.compile(
+    r'^\s*let\s+rc\s*='                       # let rc = ...withUnsafe...
+    r'|^\s*let\s+rc\s*:'                      # let rc: Int32 (block-level decl)
+    r'|guard\s+rc\s*=='                       # guard rc == 0 else
+    r'|guard\s+rc\s*!='                       # guard rc != 0 else
+    r'|return\s+.*==\s*\d'                    # return ... == 1
+    r'|String\(cString'                       # String(cString: version())
+    r'|==\s*1\b'                              # ... == 1
+    r'|!=\s*0\b',                             # ... != 0
+    re.MULTILINE,
+)
+
+# ── Go CGo ────────────────────────────────────────────────────────────────────
+_GO_CALL_RE   = re.compile(r'\bC\.(secp256k1_|ufsecp_)\w+\(')
+_GO_GUARD_RE  = re.compile(
+    r':='                                      # rc := C.fn(...)
+    r'|errFromCode'                            # errFromCode(C.fn(...))
+    r'|return\s+C\.'                           # return C.fn(...)  (passes rc to caller)
+    r'|\bif\s+.*:=\s*C\.'                     # if rc := C.fn(...); rc != OK
+    r'|C\.free'                               # C.free (cleanup, not fallible)
+    r'|C\.secp256k1_tagged_hash',             # void — already in infallible set
+    re.MULTILINE,
+)
+
+# ── Rust (unsafe ufsecp_sys::) ────────────────────────────────────────────────
+_RS_CALL_RE   = re.compile(r'\bufsecp_sys::(secp256k1_|ufsecp_)\w+\(')
+_RS_GUARD_RE  = re.compile(
+    r'chk\s*\('                               # chk(ufsecp_sys::fn(...), ...)
+    r'|let\s+rc\s*='                          # let rc = unsafe { ufsecp_sys::fn(...) }
+    r'|==\s*0'                                # ... == 0
+    r'|!=\s*0'                                # ... != 0
+    r'|ufsecp_sys::ufsecp_ctx_destroy'        # void
+    r'|\bResult::',
+    re.MULTILINE,
+)
+
+# ── Ruby FFI ──────────────────────────────────────────────────────────────────
+_RB_CALL_RE   = re.compile(r'\bNative\.(secp256k1_|ufsecp_)\w+\(')
+_RB_GUARD_RE  = re.compile(
+    r'^\s*rc\s*='                              # rc = Native.fn(...)
+    r'|raise\s+'                              # raise Error unless rc.zero?
+    r'|\bif\s+.*\brc\b'                       # if rc != 0
+    r'|unless\s+rc'                           # unless rc.zero?
+    r'|\brc\.zero\?'                          # rc.zero?
+    r'|\brc\s*!=\b'                           # rc != 0
+    r'|\brc\s*==\b',                          # rc == 0
+    re.MULTILINE,
+)
+
+# ── PHP FFI ──────────────────────────────────────────────────────────────────
+_PHP_CALL_RE   = re.compile(r'->(?:ffi->|)(secp256k1_|ufsecp_)\w+\(')
+_PHP_GUARD_RE  = re.compile(
+    r'^\s*\$rc\s*='                           # $rc = $this->ffi->fn(...)
+    r'|^\s*\$result\s*='
+    r'|throw\s+new'                           # throw new RuntimeException
+    r'|\bif\s*\(\s*\$rc'                      # if ($rc !== 0)
+    r'|return\s+.*===\s*\d'                   # return $this->ffi->fn(...) === 1
+    r'|return\s+.*!==\s*\d'
+    r'|\$abi\s*='                             # $abi = ... version check
+    r'|return\s+\$this->ffi->',              # direct return of fn value
+    re.MULTILINE,
+)
+
+# ── Dart FFI ─────────────────────────────────────────────────────────────────
+_DART_CALL_RE   = re.compile(r'\b_lib\.(secp256k1_|ufsecp_)\w+\(')
+_DART_GUARD_RE  = re.compile(
+    r'^\s*(final|int|var)\s+\w+\s*='
+    r'|_chk\s*\('
+    r'|_throw\s*\('
+    r'|throw\s+'
+    r'|\bif\s*\(rc',
+    re.MULTILINE,
+)
+
+_FFI_LANG_CONFIGS = [
+    # (file-extension-set, call_re, guard_re, skip-test-files?)
+    ({'.py'},    _PY_CALL_RE,    _PY_GUARD_RE,    False),
+    ({'.cs'},    _CS_CALL_RE,    _CS_GUARD_RE,    False),
+    ({'.swift'}, _SWIFT_CALL_RE, _SWIFT_GUARD_RE, False),
+    ({'.go'},    _GO_CALL_RE,    _GO_GUARD_RE,    False),
+    ({'.rs'},    _RS_CALL_RE,    _RS_GUARD_RE,    False),
+    ({'.rb'},    _RB_CALL_RE,    _RB_GUARD_RE,    False),
+    ({'.php'},   _PHP_CALL_RE,   _PHP_GUARD_RE,   False),
+    ({'.dart'},  _DART_CALL_RE,  _DART_GUARD_RE,  False),
+]
+
+_FFI_SKIP_PATHS = re.compile(
+    r'(test|spec|smoke|bench|__init__|build\.rs|/sys/)',
+    re.IGNORECASE,
+)
+
+
+def check_ffi_retval_ignored(path: str, lines: List[str]) -> List[Finding]:
+    """FFI binding call to a fallible secp256k1_*/ufsecp_* function whose
+    return value is silently discarded (not assigned, not checked, not thrown).
+
+    Covers Python, C#, Swift, Go, Rust, Ruby, PHP, Dart bindings.
+    """
+    suffix = Path(path).suffix.lower()
+    cfg = next((c for c in _FFI_LANG_CONFIGS if suffix in c[0]), None)
+    if cfg is None:
+        return []
+    _, call_re, guard_re, _ = cfg
+
+    # Skip test / smoke / bench files
+    if _FFI_SKIP_PATHS.search(path):
+        return []
+
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = raw
+        # Must contain a fallible FFI call
+        if not call_re.search(line):
+            continue
+        # Skip infallible void functions
+        if _FFI_INFALLIBLE.search(line):
+            continue
+        # Skip comment / doc lines
+        stripped = line.strip()
+        if stripped.startswith(('//','#','*','///','--','<?','"""', "'''")):
+            continue
+        # Skip DllImport / attach_function / extern declarations
+        if re.search(r'(DllImport|extern\s+|attach_function|declare\s+function'
+                     r'|^\s*\[DllImport|@DllImport|unsafe\s+extern)', line):
+            continue
+        # Skip lines that ARE a return statement or comparison
+        if re.search(r'^\s*return\s+.*==\s*\d|^\s*return\s+.*!=\s*\d', line):
+            continue
+        # Skip if the call itself is part of a comparison expression (same-line check)
+        # e.g. `Native.fn(...) == 1` or `C.fn(...) != 0`
+        if re.search(r'(secp256k1_|ufsecp_)\w+\([^)]*\)\s*(==|!=)\s*\d', line):
+            continue
+        # Also check next 3 lines for closing paren + comparison (multi-line call)
+        fwd_ctx = '\n'.join(lines[i:min(len(lines), i + 4)])
+        if re.search(r'\)\s*(==|!=)\s*\d', fwd_ctx):
+            continue
+
+        # Check a WIDE context window (±8 lines) for a guard that is in the
+        # SAME function body as the call.  We collect ALL guard matches and
+        # accept the call as "guarded" only if at least one match has no
+        # function-definition boundary between it and the call line.
+        wide_start = max(0, i - 8)
+        wide_end   = min(len(lines), i + 8)
+        wide_ctx   = '\n'.join(lines[wide_start:wide_end])
+        _FN_BOUNDARY = re.compile(
+            r'^\s*(def |function |pub fn |fn \w|public function|private function'
+            r'|protected function|func \w|impl \w)',
+        )
+        guarded = False
+        for m in guard_re.finditer(wide_ctx):
+            guard_line_offset = wide_ctx[:m.start()].count('\n')
+            guard_abs = wide_start + guard_line_offset
+            if guard_abs < i:
+                between = lines[guard_abs:i]
+            elif guard_abs > i:
+                between = lines[i:guard_abs]
+            else:
+                # Guard is on the same line as the call → definitely guarded
+                guarded = True
+                break
+            if not any(_FN_BOUNDARY.search(bl) for bl in between):
+                guarded = True
+                break
+        if guarded:
+            continue
+
+        # Skip if the call is INSIDE a closure/callback argument:
+        # e.g. Ruby: get_address { |buf, len| Native.fn(...) }
+        # e.g. PHP:  getAddress(fn($buf, $len) => $this->ffi->fn(...))
+        # e.g. Swift: getAddress { buf, len in ... CUltrafastSecp256k1.fn(...) }
+        # e.g. Rust:  self.get_addr(|ctx, pk, n, buf, len| unsafe { ufsecp_sys::fn(...) })
+        # Detect by checking current line or 1-5 lines above for a helper that receives closure
+        _CALLBACK_HELPERS = re.compile(
+            r'\b(get_address|getAddress|get_addr|getAddr|_get_addr|_with_buf|getStr)\b'
+        )
+        in_callback = False
+        # Check current line first (handles same-line: get_address { ... Native.fn() ... })
+        if _CALLBACK_HELPERS.search(line):
+            in_callback = True
+        if not in_callback:
+            for back in range(max(0, i - 5), i):
+                bline = lines[back].strip()
+                if _CALLBACK_HELPERS.search(bline):
+                    in_callback = True
+                    break
+                # Also detect single-line lambda/closure pattern (Ruby block args, Rust closures)
+                # NOTE: do NOT match bare `{` on its own line — that's a function body, not a closure
+                if re.search(r'(fn\s*\(|\{[\s]*\||\{\s*buf\,|=>\s*\})', bline):
+                    in_callback = True
+                    break
+        if in_callback:
+            continue
+
+        # Also detect `let rc: Int32` (Swift) or `let rc:` (no = on the decl line,
+        # assignment happens later inside a block).  Use a wider window (±20) for
+        # Swift's deeply-nested closure patterns.
+        for back in range(max(0, i - 20), i):
+            if re.search(r'\blet\s+rc\s*:', lines[back]):
+                in_callback = True
+                break
+        if in_callback:
+            continue
+
+        call_fn_m = re.search(r'(secp256k1_|ufsecp_)(\w+)', line)
+        findings.append(Finding(
+            file=path, line=i + 1, severity="MEDIUM",
+            category="FFI_RETVAL_IGNORED",
+            message=f"FFI call return value silently discarded — "
+                    f"`{call_fn_m.group(0) if call_fn_m else '?'}` returns a non-zero "
+                    f"error code on failure but the result is not checked",
+            snippet=stripped[:120],
+            fix_hint="Assign the return value to a variable and check it; "
+                     "raise/throw an exception or return an error on non-zero result.",
+        ))
+    return findings
+
+
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
     seen: set[Path] = set()
     for d in src_dirs:
@@ -2037,6 +2330,8 @@ CHECKERS = [
     check_scalar_not_reduced,
     check_printf_secret,
     check_jni_getbytes_null,
+    # Cross-language FFI binding checker
+    check_ffi_retval_ignored,
 ]
 
 

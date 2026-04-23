@@ -106,7 +106,8 @@ Assert(rc == 0 && !negKey.SequenceEqual(privkey1), "seckey_negate changes key");
 
 // Double negate = original
 byte[] negNeg = (byte[])negKey.Clone();
-Native.ufsecp_seckey_negate(ctx, negNeg);
+rc = Native.ufsecp_seckey_negate(ctx, negNeg);
+Assert(rc == 0, "double negate: seckey_negate succeeded");
 AssertEq(negNeg, privkey1, "double negate = original");
 
 // Tweak add
