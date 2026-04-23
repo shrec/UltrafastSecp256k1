@@ -460,6 +460,7 @@ JNIEXPORT jobject JNICALL Java_com_ultrafast_secp256k1_Secp256k1_wifDecode
 {
     (void)cls;
     const char *cwif = (*env)->GetStringUTFChars(env, wif, NULL);
+    if (!cwif) { throw_exc(env, "OOM: GetStringUTFChars"); return NULL; }
     uint8_t pk[32];
     int comp, net;
     int rc = secp256k1_wif_decode(cwif, pk, &comp, &net);
@@ -523,6 +524,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_secp256k1_Secp256k1_bip32DeriveP
     secp256k1_bip32_key master, out;
     get_bytes(env, masterKey, (uint8_t *)&master, 79);
     const char *cpath = (*env)->GetStringUTFChars(env, path, NULL);
+    if (!cpath) { throw_exc(env, "OOM: GetStringUTFChars"); return NULL; }
     int rc = secp256k1_bip32_derive_path(&master, cpath, &out);
     (*env)->ReleaseStringUTFChars(env, path, cpath);
     if (rc != 0) {

@@ -302,6 +302,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeBip32DeriveP
     (void)clz;
     jbyte *m = pin(env, master);
     const char *p = (*env)->GetStringUTFChars(env, path, NULL);
+    if (!p) {
+        unpin(env, master, m);
+        jclass cls = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+        if (cls) (*env)->ThrowNew(env, cls, "GetStringUTFChars OOM");
+        return NULL;
+    }
     ufsecp_bip32_key master_key;
     ufsecp_bip32_key key;
     memcpy(&master_key, m, sizeof(master_key));
@@ -552,6 +558,11 @@ JNIEXPORT jobject JNICALL Java_com_ultrafast_ufsecp_Ufsecp_nativeWifDecode(
     JNIEnv *env, jclass clz, jlong ctx, jstring wif) {
     (void)clz;
     const char *w = (*env)->GetStringUTFChars(env, wif, NULL);
+    if (!w) {
+        jclass cls = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+        if (cls) (*env)->ThrowNew(env, cls, "GetStringUTFChars OOM");
+        return NULL;
+    }
     uint8_t privkey[32];
     int comp = 0, net = 0;
     int rc = ufsecp_wif_decode((ufsecp_ctx*)(uintptr_t)ctx, w, privkey, &comp, &net);
