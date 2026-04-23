@@ -133,7 +133,9 @@ class Secp256k1:
         """Negate a private key (mod n). Returns new key."""
         self._check_bytes(privkey, 32, "privkey")
         buf = ctypes.create_string_buffer(privkey)
-        self._lib.secp256k1_ec_privkey_negate(buf)
+        rc = self._lib.secp256k1_ec_privkey_negate(buf)
+        if rc != 0:
+            raise ValueError("ec_privkey_negate failed: invalid (zero) key")
         return buf.raw
 
     def ec_privkey_tweak_add(self, privkey: bytes, tweak: bytes) -> bytes:

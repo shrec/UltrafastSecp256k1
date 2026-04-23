@@ -131,10 +131,11 @@ public final class Secp256k1 {
     public func ecPrivkeyNegate(privkey: Data) throws -> Data {
         try checkLen(privkey, 32, "privkey")
         var out = privkey
-        out.withUnsafeMutableBytes { buf in
+        let rc = out.withUnsafeMutableBytes { buf in
             CUltrafastSecp256k1.secp256k1_ec_privkey_negate(
                 buf.baseAddress!.assumingMemoryBound(to: UInt8.self))
         }
+        guard rc == 0 else { throw Secp256k1Error.tweakFailed }
         return out
     }
 

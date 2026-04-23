@@ -234,7 +234,9 @@ namespace UltrafastSecp256k1
             Init();
             Check(privkey, 32, nameof(privkey));
             byte[] result = (byte[])privkey.Clone();
-            Native.secp256k1_ec_privkey_negate(result);
+            int rc = Native.secp256k1_ec_privkey_negate(result);
+            if (rc != 0)
+                throw new ArgumentException("NegatePrivateKey failed: invalid (zero) key");
             return result;
         }
 
