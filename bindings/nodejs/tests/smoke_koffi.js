@@ -144,8 +144,10 @@ test('ecdsa_deterministic', () => {
     const ctx = createCtx();
     const sig1 = Buffer.alloc(64);
     const sig2 = Buffer.alloc(64);
-    ufsecp_ecdsa_sign(ctx, RFC6979_MSG, KNOWN_PRIVKEY, sig1);
-    ufsecp_ecdsa_sign(ctx, RFC6979_MSG, KNOWN_PRIVKEY, sig2);
+    let err = ufsecp_ecdsa_sign(ctx, RFC6979_MSG, KNOWN_PRIVKEY, sig1);
+    assert.strictEqual(err, UFSECP_OK, `ecdsa_sign (1) returned error ${err}`);
+    err = ufsecp_ecdsa_sign(ctx, RFC6979_MSG, KNOWN_PRIVKEY, sig2);
+    assert.strictEqual(err, UFSECP_OK, `ecdsa_sign (2) returned error ${err}`);
     assert(sig1.equals(sig2), 'RFC 6979 must be deterministic');
     ufsecp_ctx_destroy(ctx);
 });
@@ -205,13 +207,17 @@ test('ecdh_symmetric', () => {
         '0000000000000000000000000000000000000000000000000000000000000002', 'hex');
     const pub1 = Buffer.alloc(33);
     const pub2 = Buffer.alloc(33);
-    ufsecp_pubkey_create(ctx, KNOWN_PRIVKEY, pub1);
-    ufsecp_pubkey_create(ctx, k2, pub2);
+    let err2 = ufsecp_pubkey_create(ctx, KNOWN_PRIVKEY, pub1);
+    assert.strictEqual(err2, UFSECP_OK, `pubkey_create (k1) returned error ${err2}`);
+    err2 = ufsecp_pubkey_create(ctx, k2, pub2);
+    assert.strictEqual(err2, UFSECP_OK, `pubkey_create (k2) returned error ${err2}`);
 
     const s12 = Buffer.alloc(32);
     const s21 = Buffer.alloc(32);
-    ufsecp_ecdh(ctx, KNOWN_PRIVKEY, pub2, s12);
-    ufsecp_ecdh(ctx, k2, pub1, s21);
+    let err3 = ufsecp_ecdh(ctx, KNOWN_PRIVKEY, pub2, s12);
+    assert.strictEqual(err3, UFSECP_OK, `ecdh (k1,P2) returned error ${err3}`);
+    err3 = ufsecp_ecdh(ctx, k2, pub1, s21);
+    assert.strictEqual(err3, UFSECP_OK, `ecdh (k2,P1) returned error ${err3}`);
     assert(s12.equals(s21), 'ECDH must be symmetric');
     ufsecp_ctx_destroy(ctx);
 });

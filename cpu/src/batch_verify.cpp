@@ -270,21 +270,23 @@ bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries) {
 
 bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     if (n == 0) return true;
-    if (n == 1) {
-        return ecdsa_verify(entries[0].msg_hash, entries[0].public_key,
-                            entries[0].signature);
-    }
 
-    // For ECDSA, we can't do a single multi-scalar check like Schnorr.
-    // Instead, we batch the scalar multiplications but still check each x-coord.
-    // Optimization: use Shamir's trick per-signature (already 2x faster than naive).
-
-    // Pre-validate all entries before batch inversion to avoid
-    // corrupting the Montgomery product with a zero s value.
+    // Pre-validate all entries before any further processing to enforce
+    // BIP-62 low-S: reject any s > n/2 and reject zero r/s.
+    // This must run before the n==1 shortcut to maintain consistent policy
+    // with the single ecdsa_verify path.
     for (std::size_t i = 0; i < n; ++i) {
         if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
             return false;
         }
+        if (!entries[i].signature.is_low_s()) {
+            return false;
+        }
+    }
+
+    if (n == 1) {
+        return ecdsa_verify(entries[0].msg_hash, entries[0].public_key,
+                            entries[0].signature);
     }
 
     // Pre-compute all s_inverse values

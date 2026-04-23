@@ -7,6 +7,60 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27 (2 new exploit PoCs: batch verify low-S regression, ABI return-value coverage + real bug fixes)
+
+### Real Bugs Fixed
+
+1. **ECDSA batch verify missing low-S enforcement** (BIP-62 / BIP-146)
+   `cpu/src/batch_verify.cpp` — the `n==1` shortcut in `ecdsa_batch_verify` bypassed
+   the BIP-62 pre-validation loop, allowing a high-S (malleable) signature to pass
+   when the batch contained exactly one entry.  Fix: moved pre-validation before the
+   `n==1` shortcut.  Also added `is_low_s()` check to `ufsecp_ecdsa_verify` (single)
+   via `include/ufsecp/ufsecp_impl.cpp` for consistent policy across all verify paths.
+
+2. **Node.js binding return-value discard** (6 RETVAL findings)
+   `bindings/nodejs/tests/smoke_koffi.js` — six calls to `ufsecp_ecdsa_sign`,
+   `ufsecp_pubkey_create`, and `ufsecp_ecdh` discarded the return value without
+   checking for errors.  Fixed with `assert.strictEqual(err, UFSECP_OK, ...)` after
+   each call.
+
+### Scanner Improvements
+
+Seven false-positive categories fixed in `scripts/dev_bug_scanner.py`:
+UNREACH (C#/Dart `finally` blocks), BINDING_NO_VALIDATION (PHP FFI declarations),
+ASSERT_SIDE (Node.js `assert(buf.equals(...))`), CPASTE (Python/Ruby OS-branch resets),
+POINT_NO_VALIDATION (non-C/C++ binding wrappers), SCALAR_NOT_REDUCED (header decl lines).
+
+Two new memory-safety checkers added:
+- `MISSING_NULL_AFTER_ALLOC` — flags `malloc`/`calloc`/`realloc` without NULL check
+- `UNCHECKED_REALLOC` — flags `ptr = realloc(ptr, n)` leak pattern
+
+### New Exploit PoC Tests
+
+- **`audit/test_exploit_batch_verify_low_s.cpp`** (BLS-1..BLS-12, 28 checks)
+  *ECDSA batch verify low-S enforcement regression guard.*
+  Verifies: batch rejects high-S (single entry, multi, first/last positions),
+  single `ecdsa_verify` consistency (high-S rejected), n/2+1 boundary rejected,
+  n/2 library output guarantee, 64-entry all-valid batch accepted.
+  Reference: BIP-62 rule 5, BIP-146.
+
+- **`audit/test_exploit_binding_retval.cpp`** (RV-1..RV-19, 23 checks)
+  *ABI return-value coverage — binding regression guard.*
+  Exhaustively exercises every fallible C ABI function with both invalid and valid
+  inputs, asserting correct non-OK / UFSECP_OK responses.  Prevents silent return-value
+  discard regressions in all language bindings.
+  Functions covered: `ecdsa_sign`, `pubkey_create`, `ecdh`, `ecdsa_verify`,
+  `schnorr_sign`, `schnorr_verify`, `ecdsa_sign_recoverable`, `ecdsa_recover`,
+  `seckey_negate`.
+
+### Audit Module Count
+
+- Previous: 194 modules
+- Added: 2 new exploit PoC modules
+- **Current total: 196 modules — 196/196 PASS**
+
+---
+
 ## 2026-04-24 (3 new exploit PoCs: Dark Skippy, Frozen Heart, Hertzbleed scalar blinding)
 
 Three new exploit PoC tests added to the CAAS audit suite covering advanced

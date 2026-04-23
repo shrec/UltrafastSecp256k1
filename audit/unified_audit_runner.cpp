@@ -281,6 +281,8 @@ int test_exploit_ecdh_variants_run();
 int test_exploit_ecdsa_der_confusion_run();
 int test_exploit_ecdsa_edge_cases_run();
 int test_exploit_ecdsa_malleability_run();
+int test_exploit_batch_verify_low_s_run();  // batch low-S regression (2026-04-27)
+int test_exploit_binding_retval_run();       // ABI return-value coverage (2026-04-27)
 int test_exploit_ecdsa_recovery_run();
 int test_exploit_ecdsa_rfc6979_kat_run();
 int test_exploit_ecies_auth_run();
@@ -625,6 +627,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ecdsa_der_confusion",    "ECDSA DER Encoding Confusion",                "exploit_poc", test_exploit_ecdsa_der_confusion_run, false },
     { "exploit_ecdsa_edge_cases",       "ECDSA Edge Cases and Normalization",          "exploit_poc", test_exploit_ecdsa_edge_cases_run, false },
     { "exploit_ecdsa_malleability",     "ECDSA Signature Malleability",                "exploit_poc", test_exploit_ecdsa_malleability_run, false },
+    { "exploit_batch_verify_low_s",     "ECDSA Batch Verify Low-S Enforcement",        "exploit_poc", test_exploit_batch_verify_low_s_run, false },
+    { "exploit_binding_retval",         "ABI Return-Value Coverage (binding guard)",   "exploit_poc", test_exploit_binding_retval_run, false },
     { "exploit_ecdsa_recovery",         "ECDSA Key Recovery Edge Cases",               "exploit_poc", test_exploit_ecdsa_recovery_run, false },
     { "exploit_ecdsa_rfc6979_kat",      "ECDSA RFC 6979 Nonce KAT",                   "exploit_poc", test_exploit_ecdsa_rfc6979_kat_run, false },
     { "exploit_ecies_auth",             "ECIES Authentication Bypass",                 "exploit_poc", test_exploit_ecies_auth_run, false },

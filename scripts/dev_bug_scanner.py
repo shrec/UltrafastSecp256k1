@@ -440,6 +440,11 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
         if '{' in line or '}' in line or _PREPROC.match(line):
             last_assigned.clear()
             continue
+        # Reset on Python/Ruby/Dart branch and exception-handler keywords —
+        # assignments in different conditional branches are not dead writes.
+        if re.match(r'^\s*(elif\b|else\s*:|else\s*$|rescue\b|except\b|finally\b|ensure\b)', line):
+            last_assigned.clear()
+            continue
         # Look for simple assignment
         m = _ASSIGN_STMT.match(line)
         if m:
@@ -917,7 +922,7 @@ def check_unreachable(path: str, lines: List[str]) -> List[Finding]:
             continue
 
         if terminated and brace_depth == term_depth:
-            if not re.match(r'^\s*(case\b|default\s*:|#|\}.*else\b|else\b|catch\b)', stripped):
+            if not re.match(r'^\s*(case\b|default\s*:|#|\}.*else\b|else\b|catch\b|\}.*catch\b|\}.*finally\b|finally\b)', stripped):
                 findings.append(Finding(
                     file=path, line=i + 1, severity="MEDIUM",
                     category="UNREACH",
@@ -1119,6 +1124,11 @@ def check_binding_no_validation(path: str, lines: List[str]) -> List[Finding]:
     """Public ufsecp_ function body does not start with NULL-pointer validation on arguments."""
     if 'impl' not in path.lower() and 'binding' not in path.lower() and 'ufsecp' not in path.lower():
         return []
+    # Only applies to C/C++ source files — language binding files may contain
+    # C declarations inside FFI string literals, which are not real function bodies.
+    _C_CPP_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.hxx', '.cu', '.cuh', '.mm'}
+    if not any(path.endswith(ext) for ext in _C_CPP_EXT):
+        return []
     findings: List[Finding] = []
     i = 0
     while i < len(lines):
@@ -1244,6 +1254,11 @@ _SIDE_EFFECT = re.compile(
 
 def check_assert_side_effect(path: str, lines: List[str]) -> List[Finding]:
     """assert() argument has side effects — stripped in Release builds, changing behavior."""
+    # In JavaScript/TypeScript, assert(buf.equals(other)) is the idiomatic
+    # testing pattern and `Buffer.prototype.equals` has no side effects on state.
+    # Flagging JS/TS test assert calls produces only false positives.
+    if path.endswith('.js') or path.endswith('.ts'):
+        return []
     findings: List[Finding] = []
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
@@ -1732,6 +1747,13 @@ def check_goto_fail(path: str, lines: List[str]) -> List[Finding]:
 # ── POINT_NO_VALIDATION: pubkey accept without point_on_curve / is_valid ─────
 # CVE anchor: invalid-curve attacks (Brainpool 2015, OpenSSL CVE-2015-1788).
 def check_point_no_validation(path: str, lines: List[str]) -> List[Finding]:
+    # Language binding files (Python/Ruby/Rust/Go/etc.) delegate to the C ABI
+    # `ufsecp_pubkey_parse`, which already performs on-curve validation inside
+    # the library.  Flagging binding wrappers as missing the check produces
+    # only false positives.  Only apply this checker to C/C++ implementation files.
+    _C_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.cu', '.cuh', '.mm'}
+    if not any(path.endswith(ext) for ext in _C_EXT):
+        return []
     findings: List[Finding] = []
     text = '\n'.join(lines)
     has_pub_parse = re.search(r'\b(pubkey_parse|pubkey_load|pubkey_from_bytes|deserialize_pubkey)\b', text)
@@ -1894,8 +1916,14 @@ def check_scalar_not_reduced(path: str, lines: List[str]) -> List[Finding]:
         return findings
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
-        # Look for divisions/inverses without an adjacent reduction comment or call
+        # Look for divisions/inverses without an adjacent reduction comment or call.
+        # Skip plain declarations / forward declarations (no function call on this line —
+        # e.g. `Scalar scalar_inverse(const Scalar& a) noexcept;`).
         if re.search(r'\bscalar_inverse\s*\(', line):
+            # A forward declaration ends with `;` and contains no assignment, no body.
+            stripped = line.strip()
+            if stripped.endswith(';') and '=' not in stripped and '{' not in stripped:
+                continue
             ctx = '\n'.join(lines[max(0, i - 4): min(len(lines), i + 4)])
             if not re.search(r'\b(scalar_reduce|scalar_set_b32|set_int|is_zero|zero_check)\b', ctx):
                 findings.append(Finding(
@@ -2267,6 +2295,103 @@ def check_ffi_retval_ignored(path: str, lines: List[str]) -> List[Finding]:
     return findings
 
 
+# ── MISSING_NULL_AFTER_ALLOC: malloc/calloc/new result used without NULL check ─
+# Matches: `type *var = malloc(...)` / `calloc(...)` / `new T`
+_ALLOC_ASSIGN = re.compile(
+    r'^\s*(?:\w[\w:\s]*?)\s*\*+\s*(\w+)\s*=\s*'
+    r'(?:(?:\(\s*\w[\w:\s]*\s*\*+\s*\))?\s*(?:malloc|calloc|realloc|aligned_alloc)\s*\('
+    r'|std::malloc\s*\('
+    r'|new\s+\w)'
+)
+_NULL_CHECK_AFTER_ALLOC = re.compile(
+    r'if\s*\(\s*!|if\s*\(\s*\w+\s*==\s*(?:NULL|nullptr|0)\s*\)|assert\s*\(\s*\w|ASSERT\s*\(\s*\w'
+)
+
+
+def check_missing_null_after_alloc(path: str, lines: List[str]) -> List[Finding]:
+    """malloc/calloc result assigned to a pointer without a NULL check in the
+    next few lines — crash on allocation failure, potential security escalation
+    if caller controls allocation size.
+
+    NOTE: `new` without `std::nothrow` throws on failure; this checker only
+    flags C-style allocators where NULL is the error signal.
+    """
+    # C/C++ only
+    _C_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.cu', '.cuh', '.mm'}
+    if not any(path.endswith(ext) for ext in _C_EXT):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _ALLOC_ASSIGN.match(line)
+        if not m:
+            continue
+        # Skip new-expressions — those throw on failure (nothrow is handled later if needed)
+        if 'new ' in line and 'malloc' not in line and 'calloc' not in line and 'realloc' not in line:
+            continue
+        var = m.group(1)
+        if not var or var in ('nullptr', 'NULL', '0'):
+            continue
+        # Scan next 4 lines for a null check on this var
+        has_check = False
+        for j in range(i + 1, min(len(lines), i + 5)):
+            nxt = _strip_comments(lines[j])
+            if re.search(r'\b' + re.escape(var) + r'\b', nxt):
+                if _NULL_CHECK_AFTER_ALLOC.search(nxt):
+                    has_check = True
+                    break
+                # Variable is used directly without check
+                break
+        if not has_check:
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="MISSING_NULL_AFTER_ALLOC",
+                message=f"`{var}` assigned from malloc/calloc/realloc without a NULL check — "
+                        "crash or security issue on allocation failure",
+                snippet=raw.strip(),
+                fix_hint=f"Add `if (!{var}) {{ /* handle OOM */ }}` immediately after the allocation",
+            ))
+    return findings
+
+
+# ── UNCHECKED_REALLOC: `ptr = realloc(ptr, ...)` leaks old allocation on OOM ─
+_REALLOC_LEAK = re.compile(
+    r'\b(\w+)\s*=\s*(?:\(\s*\w[\w:\s]*\s*\*+\s*\))?\s*realloc\s*\(\s*\1\s*,'
+)
+
+
+def check_unchecked_realloc(path: str, lines: List[str]) -> List[Finding]:
+    """The pattern `ptr = realloc(ptr, n)` leaks `ptr` when realloc returns NULL
+    because the original pointer is overwritten before the NULL check.
+
+    Correct idiom:
+        void *tmp = realloc(ptr, n);
+        if (!tmp) { free(ptr); return error; }
+        ptr = tmp;
+    """
+    _C_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.cu', '.cuh', '.mm'}
+    if not any(path.endswith(ext) for ext in _C_EXT):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        m = _REALLOC_LEAK.search(line)
+        if m:
+            var = m.group(1)
+            findings.append(Finding(
+                file=path, line=i + 1, severity="MEDIUM",
+                category="UNCHECKED_REALLOC",
+                message=f"`{var} = realloc({var}, …)` leaks `{var}` when realloc returns NULL "
+                        "— the original pointer is lost before the error can be handled",
+                snippet=raw.strip(),
+                fix_hint=(
+                    f"Use a temporary: `void *tmp = realloc({var}, n); "
+                    f"if (!tmp) {{ free({var}); return err; }} {var} = tmp;`"
+                ),
+            ))
+    return findings
+
+
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
     seen: set[Path] = set()
     for d in src_dirs:
@@ -2332,6 +2457,9 @@ CHECKERS = [
     check_jni_getbytes_null,
     # Cross-language FFI binding checker
     check_ffi_retval_ignored,
+    # Memory-safety checkers (added 2026-04-27)
+    check_missing_null_after_alloc,
+    check_unchecked_realloc,
 ]
 
 

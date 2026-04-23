@@ -988,6 +988,40 @@ target_compile_definitions(test_exploit_ecdsa_malleability_standalone PRIVATE ST
 add_test(NAME exploit_ecdsa_malleability COMMAND test_exploit_ecdsa_malleability_standalone)
 set_tests_properties(exploit_ecdsa_malleability PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;malleability")
 
+# -- PoC: ECDSA batch verify low-S enforcement (regression, 2026-04-27)
+add_executable(test_exploit_batch_verify_low_s_standalone
+    test_exploit_batch_verify_low_s.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_batch_verify_low_s_standalone)
+target_include_directories(test_exploit_batch_verify_low_s_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_batch_verify_low_s_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_batch_verify_low_s COMMAND test_exploit_batch_verify_low_s_standalone)
+set_tests_properties(exploit_batch_verify_low_s PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;batch;malleability")
+
+# -- PoC: ABI return-value coverage — binding regression guard (2026-04-27)
+add_executable(test_exploit_binding_retval_standalone
+    test_exploit_binding_retval.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_binding_retval_standalone)
+target_include_directories(test_exploit_binding_retval_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_binding_retval_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_binding_retval COMMAND test_exploit_binding_retval_standalone)
+set_tests_properties(exploit_binding_retval PROPERTIES TIMEOUT 60 LABELS "audit;exploit;binding;retval")
+
 # -- PoC: GLV decomposition KAT — endomorphism and scalar-mul parity
 add_executable(test_exploit_glv_kat_standalone test_exploit_glv_kat.cpp)
 audit_target_defaults(test_exploit_glv_kat_standalone)
@@ -2590,6 +2624,8 @@ add_executable(unified_audit_runner
     test_exploit_ecdsa_der_confusion.cpp
     test_exploit_ecdsa_edge_cases.cpp
     test_exploit_ecdsa_malleability.cpp
+    test_exploit_batch_verify_low_s.cpp
+    test_exploit_binding_retval.cpp
     test_exploit_ecdsa_recovery.cpp
     test_exploit_ecdsa_rfc6979_kat.cpp
     test_exploit_ecies_auth.cpp

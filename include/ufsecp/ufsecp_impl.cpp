@@ -669,6 +669,10 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
     if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "non-canonical compact sig");
     }
+    // BIP-62 low-S enforcement: reject high-S signatures (s > n/2)
+    if (!ecdsasig.is_low_s()) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "high-S signature rejected (BIP-62)");
+    }
     auto pk = point_from_compressed(pubkey33);
     if (pk.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid public key");
