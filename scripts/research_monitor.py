@@ -57,6 +57,21 @@ FOCUS_TERMS = (
     'performance',
     'benchmark',
     'cve',
+    'exfiltration',
+    'covert channel',
+    'subliminal channel',
+    'fiat-shamir',
+    'fiat shamir',
+    'zero-knowledge',
+    'bulletproofs',
+    'transcript',
+    'dvfs',
+    'power analysis',
+    'hertzbleed',
+    'cache',
+    'microarchitecture',
+    'forgery',
+    'grinding',
 )
 
 STATUS_RANK = {
@@ -549,6 +564,9 @@ def open_github_issue(report: dict) -> None:
         '> Auto-opened by `scripts/research_monitor.py --open-issue`.',
         '> Review each finding below, add a PoC / CI gate, then close this issue.',
         '',
+        'Hey @shrec — The research monitor just caught some new actionable signals from external papers/DBs.',
+        'Please review these gaps. If they look real, wire a new test into `audit/unified_audit_runner.cpp` and document them.',
+        '',
         render_markdown(report),
     ]
     body = '\n'.join(body_lines)
@@ -627,7 +645,29 @@ def main() -> int:
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=args.lookback_days)
-    raw_items, source_stats, source_errors = collect_items(args.query, args.max_results, cutoff)
+    
+    # Automatically expand default query into a comprehensive net
+    queries = [args.query]
+    if args.query == 'secp256k1':
+        queries.extend([
+            'ecdsa side-channel',
+            'schnorr forgery',
+            'fiat-shamir zero-knowledge',
+            'wallet nonce exfiltration',
+            'microarchitecture dvfs',
+            'constant-time hertzbleed'
+        ])
+
+    raw_items = []
+    source_stats = []
+    source_errors = []
+
+    for q in queries:
+        q_items, q_stats, q_errors = collect_items(q, args.max_results, cutoff)
+        raw_items.extend(q_items)
+        source_stats.extend(q_stats)
+        source_errors.extend(q_errors)
+
     if all(source['status'] == 'error' for source in source_stats):
         raise RuntimeError('all external sources failed; refusing to emit a misleading empty report')
 

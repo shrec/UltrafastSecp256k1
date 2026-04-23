@@ -2220,49 +2220,56 @@ set_tests_properties(exploit_custom_nonce_injection PROPERTIES TIMEOUT 60 LABELS
 
 # -- JNI return-value ignored (RVI-1..8) — 2026-04-23 ---------------------
 add_executable(test_exploit_jni_retval_ignored_standalone
-    test_exploit_jni_retval_ignored.cpp)
+    test_exploit_jni_retval_ignored.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api/ultrafast_secp256k1.cpp)
 audit_target_defaults(test_exploit_jni_retval_ignored_standalone)
 target_include_directories(test_exploit_jni_retval_ignored_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
 )
-target_compile_definitions(test_exploit_jni_retval_ignored_standalone PRIVATE STANDALONE_TEST)
+target_compile_definitions(test_exploit_jni_retval_ignored_standalone PRIVATE
+    STANDALONE_TEST ULTRAFAST_SECP256K1_BUILDING)
 add_test(NAME exploit_jni_retval_ignored COMMAND test_exploit_jni_retval_ignored_standalone)
 set_tests_properties(exploit_jni_retval_ignored PROPERTIES TIMEOUT 30 LABELS "audit;exploit;jni;bindings;retval")
 
 # -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 ---------
 add_executable(test_exploit_dark_skippy_exfil_standalone
-    test_exploit_dark_skippy_exfil.cpp)
+    test_exploit_dark_skippy_exfil.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_dark_skippy_exfil_standalone)
 target_include_directories(test_exploit_dark_skippy_exfil_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_dark_skippy_exfil_standalone PRIVATE STANDALONE_TEST)
+target_compile_definitions(test_exploit_dark_skippy_exfil_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_dark_skippy_exfil COMMAND test_exploit_dark_skippy_exfil_standalone)
 set_tests_properties(exploit_dark_skippy_exfil PROPERTIES TIMEOUT 30 LABELS "audit;exploit;nonce;ecdsa;schnorr;dark_skippy")
 
 # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 -
 add_executable(test_exploit_fiat_shamir_frozen_heart_standalone
-    test_exploit_fiat_shamir_frozen_heart.cpp)
+    test_exploit_fiat_shamir_frozen_heart.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_fiat_shamir_frozen_heart_standalone)
 target_include_directories(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE STANDALONE_TEST)
+target_compile_definitions(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_fiat_shamir_frozen_heart COMMAND test_exploit_fiat_shamir_frozen_heart_standalone)
 set_tests_properties(exploit_fiat_shamir_frozen_heart PROPERTIES TIMEOUT 30 LABELS "audit;exploit;zk;fiat-shamir;frozen-heart")
 
 # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 -
 add_executable(test_exploit_hertzbleed_scalar_blind_standalone
-    test_exploit_hertzbleed_scalar_blind.cpp)
+    test_exploit_hertzbleed_scalar_blind.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_hertzbleed_scalar_blind_standalone)
 target_include_directories(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE STANDALONE_TEST)
+target_compile_definitions(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_hertzbleed_scalar_blind COMMAND test_exploit_hertzbleed_scalar_blind_standalone)
 set_tests_properties(exploit_hertzbleed_scalar_blind PROPERTIES TIMEOUT 30 LABELS "audit;exploit;sidechannel;dvfs;hertzbleed")
 
@@ -2769,7 +2776,9 @@ add_executable(unified_audit_runner
     # -- Nonce edge cases: null/zero/n/n-1/determinism --
     test_exploit_custom_nonce_injection.cpp
     # -- JNI return-value ignored (RVI-1..8) — 2026-04-23 --
+    # ultrafast_secp256k1.cpp provides secp256k1_sha256/hash160/tagged_hash/privkey_negate
     test_exploit_jni_retval_ignored.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api/ultrafast_secp256k1.cpp
     # -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 --
     test_exploit_dark_skippy_exfil.cpp
     # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 --
@@ -2791,6 +2800,7 @@ target_include_directories(unified_audit_runner PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}/../include   # for generated version.hpp
     ${CMAKE_BINARY_DIR}/include              # fallback for version.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include  # for gpu_backend.hpp (gpu_registry.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api  # for ultrafast_secp256k1.h (jni_retval test)
 )
 # Inject git hash at compile time (short hash, 8 chars)
 execute_process(
