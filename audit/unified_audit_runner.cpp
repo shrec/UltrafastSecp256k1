@@ -405,6 +405,7 @@ int test_regression_z_fe_nonzero_run();         // z_fe_nonzero | vs & correctne
 int test_regression_cuda_pool_cap_run();         // CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27
 int test_regression_musig2_verify_run();        // musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6) — 2026-04-23
 int test_regression_bip324_session_run();       // Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8) — 2026-04-23
+int test_regression_exception_erase_run();      // Exception-path sk/ek/entropy leakage in C ABI layer (EPE-RAII + EPE-1..12) — 2026-04-23
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -806,6 +807,7 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_cuda_pool_cap",          "CUDA pool minimum-capacity rounding regression (CAP-1..4)",                                              "math_invariants", test_regression_cuda_pool_cap_run, false },
     { "regression_musig2_verify",          "musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6)",                                      "math_invariants", test_regression_musig2_verify_run, false },
     { "regression_bip324_session",         "Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8)",                                   "memory_safety",  test_regression_bip324_session_run, false },
+    { "regression_exception_erase",        "Exception-path sk/ek/entropy leakage in C ABI layer (EPE-RAII+EPE-1..12)",                               "memory_safety",  test_regression_exception_erase_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

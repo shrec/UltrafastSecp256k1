@@ -7,6 +7,50 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-23 (Exception-path secret key leakage in C ABI layer: EPE-RAII + EPE-1..12)
+
+### Fixed: `include/ufsecp/ufsecp_impl.cpp` — systematic exception-path sk-leak bug class
+
+A systematic bug class was found affecting 14 functions in the C ABI layer.
+The pattern: a secret-bearing variable (`Scalar sk`, `ExtendedKey ek`,
+`uint8_t entropy[32]`) is declared *before* a `try` block, parsed from the
+caller-supplied buffer, and then erased *inside* the `try` block on the
+success path.  If any operation inside the `try` block throws an exception
+(e.g. `std::bad_alloc` from a vector allocation), `UFSECP_CATCH_RETURN(ctx)`
+intercepts the exception and returns an error — but the `secure_erase` call
+inside the `try` was bypassed, leaving the secret key material on the C++
+stack frame until it is overwritten by subsequent stack use.
+
+**Fix**: Added two RAII helper templates to `ufsecp_impl.cpp`:
+- `ScopeSecureErase<T>`: calls `secp256k1::detail::secure_erase(ptr, sz)` on destruction
+  (any exit path — normal return, early return, exception through CATCH handler).
+- `ScopeExit<F>`: calls a callable on destruction (used for multi-field cleanup).
+
+Both guards are declared immediately after the secret variable is populated and
+before the `try` block.  The explicit `secure_erase` calls inside the `try` block
+are kept as "early erase" (double-erasing already-zeroed memory is safe/harmless).
+
+**Affected functions (14)**:
+- `ufsecp_wif_encode` — `Scalar sk`
+- `ufsecp_bip32_derive_path` — `ExtendedKey ek`
+- `ufsecp_coin_wif_encode` — `Scalar sk`
+- `ufsecp_btc_message_sign` — `Scalar sk`
+- `ufsecp_ecies_decrypt` — `Scalar sk`
+- `ufsecp_bip85_entropy` — `ExtendedKey ek`
+- `ufsecp_bip85_bip39` — `uint8_t entropy[32]`
+- `ufsecp_bip322_sign` — `Scalar sk` + `kp.d`
+- `ufsecp_psbt_sign_legacy` — `Scalar sk`
+- `ufsecp_psbt_sign_segwit` — `Scalar sk`
+- `ufsecp_psbt_sign_taproot` — `Scalar sk` + `kp.d`
+- `ufsecp_silent_payment_address` — `scan_sk` + `spend_sk`
+- `ufsecp_silent_payment_scan` — `scan_sk` + `spend_sk`
+- `ufsecp_silent_payment_create_output` — `privkeys` vector via `ScopeExit`
+
+New regression test: `test_regression_exception_erase` (EPE-RAII + EPE-1..12)
+registered in `unified_audit_runner` under section `memory_safety`.
+
+---
+
 ## 2026-04-23 (BIP-324 Bip324Session secure-erase bugs fixed: BPS-1..8)
 
 ### Fixed: `cpu/src/bip324.cpp` + `cpu/include/secp256k1/bip324.hpp`

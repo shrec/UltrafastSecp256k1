@@ -2381,6 +2381,15 @@ target_compile_definitions(test_regression_bip324_session_standalone PRIVATE STA
 add_test(NAME regression_bip324_session COMMAND test_regression_bip324_session_standalone)
 set_tests_properties(regression_bip324_session PROPERTIES TIMEOUT 30 LABELS "audit;regression;bip324;secure-erase")
 
+# -- Exception-path sk/ek/entropy leakage regression (EPE-RAII + EPE-1..12) — 2026-04-23 --
+# NOTE: This test is built into unified_audit_runner and run as a module.
+# A standalone executable target is not feasible because the test uses C ABI functions
+# (ufsecp_*) defined in ufsecp_impl.cpp, which is only included in the unified runner.
+# The test validates the RAII guards in ufsecp_impl.cpp and normal-path regression
+# of 12+ affected C ABI functions (EPE-1..12).
+# Wired into unified_audit_runner: yes. Standalone CTest: no (would have link errors).
+# Coverage: unified_audit_runner --module regression_exception_erase  (or --section memory_safety)
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2905,6 +2914,8 @@ add_executable(unified_audit_runner
     test_regression_musig2_verify.cpp
     # -- Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8) — 2026-04-23 --
     test_regression_bip324_session.cpp
+    # -- Exception-path sk/ek/entropy leakage regression (EPE-RAII + EPE-1..12) — 2026-04-23 --
+    test_regression_exception_erase.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

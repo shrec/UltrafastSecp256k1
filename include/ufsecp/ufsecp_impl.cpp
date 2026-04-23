@@ -245,6 +245,29 @@ static constexpr std::size_t kMaxBatchN = std::size_t{1} << 20;
                          : UFSECP_ERR_INTERNAL;                               \
     }
 
+// RAII guard: calls secure_erase on the pointed-to object when destroyed.
+// Guarantees erasure on ALL exit paths (normal return, early return, exception).
+template<typename T>
+struct ScopeSecureErase {
+    T*          ptr_;
+    std::size_t sz_;
+    ScopeSecureErase(T* p, std::size_t s) noexcept : ptr_(p), sz_(s) {}
+    ~ScopeSecureErase() noexcept { secp256k1::detail::secure_erase(ptr_, sz_); }
+    ScopeSecureErase(const ScopeSecureErase&)            = delete;
+    ScopeSecureErase& operator=(const ScopeSecureErase&) = delete;
+};
+
+// RAII scope-exit guard: calls a callable on destruction.
+// Used for multi-field or container cleanup on all exit paths.
+template<typename F>
+struct ScopeExit {
+    F fn_;
+    explicit ScopeExit(F fn) noexcept : fn_(std::move(fn)) {}
+    ~ScopeExit() noexcept { fn_(); }
+    ScopeExit(const ScopeExit&)            = delete;
+    ScopeExit& operator=(const ScopeExit&) = delete;
+};
+
 static inline Point point_from_compressed(const uint8_t pub[33]) {
     // Strict: only accept 0x02/0x03 prefix, reject x >= p
     if (pub[0] != 0x02 && pub[0] != 0x03) return Point::infinity();
@@ -1300,6 +1323,7 @@ ufsecp_error_t ufsecp_wif_encode(ufsecp_ctx* ctx,
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
     try {
     auto wif = secp256k1::wif_encode(sk, compressed != 0, to_network(network));
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -1468,6 +1492,10 @@ ufsecp_error_t ufsecp_bip32_derive_path(ufsecp_ctx* ctx,
     if (parse_rc != UFSECP_OK) {
         return parse_rc;
     }
+    ScopeExit ek_erase{[&ek]() noexcept {
+        secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
+        secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
+    }};
     try {
     auto [derived, ok] = secp256k1::bip32_derive_path(ek, std::string(path));
     secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
@@ -4098,6 +4126,7 @@ ufsecp_error_t ufsecp_coin_wif_encode(ufsecp_ctx* ctx,
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
     try {
     auto wif = secp256k1::coins::coin_wif_encode(sk, *coin, true, testnet != 0);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -4123,6 +4152,7 @@ ufsecp_error_t ufsecp_btc_message_sign(ufsecp_ctx* ctx,
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
     try {
     auto rsig = secp256k1::coins::bitcoin_sign_message(msg, msg_len, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -4184,6 +4214,8 @@ ufsecp_error_t ufsecp_silent_payment_address(
     ctx_clear_err(ctx);
 
     Scalar scan_sk, spend_sk;
+    ScopeSecureErase<Scalar> scan_sk_erase{&scan_sk, sizeof(scan_sk)}; // erases on all exit paths
+    ScopeSecureErase<Scalar> spend_sk_erase{&spend_sk, sizeof(spend_sk)};
     auto cleanup = [&]() {
         secp256k1::detail::secure_erase(&scan_sk, sizeof(scan_sk));
         secp256k1::detail::secure_erase(&spend_sk, sizeof(spend_sk));
@@ -4240,6 +4272,7 @@ ufsecp_error_t ufsecp_silent_payment_create_output(
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
         }
     };
+    ScopeExit privkeys_erase{cleanup_privkeys}; // erases privkeys on all exit paths (including exception)
     privkeys.reserve(n_inputs);
     for (size_t i = 0; i < n_inputs; ++i) {
         Scalar sk;
@@ -4305,6 +4338,8 @@ ufsecp_error_t ufsecp_silent_payment_scan(
     try {
 
     Scalar scan_sk, spend_sk;
+    ScopeSecureErase<Scalar> scan_sk_erase{&scan_sk, sizeof(scan_sk)}; // erases on all exit paths
+    ScopeSecureErase<Scalar> spend_sk_erase{&spend_sk, sizeof(spend_sk)};
     auto cleanup = [&]() {
         secp256k1::detail::secure_erase(&scan_sk, sizeof(scan_sk));
         secp256k1::detail::secure_erase(&spend_sk, sizeof(spend_sk));
@@ -4426,6 +4461,7 @@ ufsecp_error_t ufsecp_ecies_decrypt(
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
     try {
     auto pt = secp256k1::ecies_decrypt(sk, envelope, envelope_len);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -4767,6 +4803,10 @@ ufsecp_error_t ufsecp_bip85_entropy(
     secp256k1::ExtendedKey ek{};
     ufsecp_error_t const parse_rc = parse_bip32_key(ctx, master_xprv, ek);
     if (parse_rc != UFSECP_OK) return parse_rc;
+    ScopeExit ek_erase{[&ek]() noexcept {
+        secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
+        secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
+    }};
 
     try {
     // Derive at the given path (all components must be hardened per BIP-85)
@@ -4817,6 +4857,7 @@ ufsecp_error_t ufsecp_bip85_bip39(
     // entropy_len = (words / 3) * 4
     size_t const entropy_len = (static_cast<size_t>(words) / 3) * 4;
     uint8_t entropy[32]{};
+    ScopeSecureErase<uint8_t> entropy_erase{entropy, sizeof(entropy)}; // erases entropy on all exit paths
 
     ufsecp_error_t rc = ufsecp_bip85_entropy(ctx, master_xprv, path, entropy, entropy_len);
     if (rc != UFSECP_OK) {
@@ -4929,6 +4970,7 @@ ufsecp_error_t ufsecp_bip322_sign(
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
 
     try {
     if (addr_type == UFSECP_BIP322_ADDR_P2TR) {
@@ -4939,6 +4981,7 @@ ufsecp_error_t ufsecp_bip322_sign(
         std::array<uint8_t, 32> msg_arr{}, aux_arr{};
         std::memcpy(msg_arr.data(), msg_hash, 32);
         auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+        ScopeSecureErase<decltype(kp.d)> kp_d_erase{&kp.d, sizeof(kp.d)}; // erases kp.d on all exit paths
         auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
@@ -5249,6 +5292,7 @@ ufsecp_error_t ufsecp_psbt_sign_legacy(
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
 
     if (*sig_len < 73) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "legacy sig buffer too small (need 73)");
@@ -5319,6 +5363,7 @@ ufsecp_error_t ufsecp_psbt_sign_segwit(
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
 
     try {
     std::array<uint8_t, 32> msg_arr;
@@ -5353,6 +5398,7 @@ ufsecp_error_t ufsecp_psbt_sign_taproot(
     if (!scalar_parse_strict_nonzero(privkey, sk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
+    ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
 
     try {
     std::array<uint8_t, 32> msg_arr;
@@ -5361,6 +5407,7 @@ ufsecp_error_t ufsecp_psbt_sign_taproot(
     if (aux_rand32) std::memcpy(aux_arr.data(), aux_rand32, 32);
 
     auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    ScopeSecureErase<decltype(kp.d)> kp_d_erase{&kp.d, sizeof(kp.d)}; // erases kp.d on all exit paths
     auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));

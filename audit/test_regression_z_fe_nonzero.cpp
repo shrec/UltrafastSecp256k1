@@ -181,16 +181,16 @@ static int test_znf_consistency(ufsecp_ctx* ctx) {
     CHECK(ok, "ZFN-6: reference pubkey_create OK");
     if (!ok) return 0;
 
+    int inconsistent = 0;
     for (int i = 0; i < 100; ++i) {
         uint8_t pk[33] = {0};
         bool r = (ufsecp_pubkey_create(ctx, SK7, pk) == UFSECP_OK);
         if (!r || memcmp(pk, pk_ref, 33) != 0) {
-            CHECK(false, "ZFN-6: repeated call gave different result");
-            return 1;
+            ++inconsistent;
         }
     }
-    CHECK(true, "ZFN-6: all 100 calls consistent");
-    return 0;
+    CHECK(inconsistent == 0, "ZFN-6: all 100 calls consistent (no divergence)");
+    return inconsistent ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------
