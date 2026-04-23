@@ -437,7 +437,7 @@ static inline AffinePoint fe52_to_affine4x64(const FieldElement52& x,
     return {x.to_fe(), y.to_fe()};
 }
 
-#endif */ SECP256K1_USE_4X64_POINT_OPS && SECP256K1_FAST_52BIT
+#endif // SECP256K1_USE_4X64_POINT_OPS && SECP256K1_FAST_52BIT
 
 // -- Point Doubling (5x52) ----------------------------------------------------
 // Forward declaration for delegation

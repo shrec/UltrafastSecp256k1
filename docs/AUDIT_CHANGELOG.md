@@ -7,6 +7,29 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27 (2 regression tests for concrete bug fixes: ZFN-1..6 and CAP-1..4)
+
+### New Regression Tests
+
+1. **`test_regression_z_fe_nonzero` (ZFN-1..6)** — `cpu/src/point.cpp` `z_fe_nonzero()`
+   `& zL[3]` typo introduced in commit `81876d85` and fixed in `c085dba2`.
+   C operator-precedence bug (`&` binds tighter than `|`) caused the projective-Z
+   non-zero check to return wrong results for points where limb[2]≠0 and limb[3]=0.
+   Impact: incorrect public keys, signatures, and verify results on the 52-bit field path.
+   Test covers: 4 known-scalar pubkey comparisons against canonical secp256k1 generator
+   multiples (sk=1,2,7,255), Schnorr sign/verify round-trip on 5 keys, 100× consistency check.
+   Section: `math_invariants`. Advisory: false.
+
+2. **`test_regression_cuda_pool_cap` (CAP-1..4)** — `gpu/src/gpu_backend_cuda.cu` pool
+   minimum-capacity underflow fixed in commit `81876d85`.  Pool allocator for small
+   batches (n<256) started `cap` from 1 without clamping the target to 256 first,
+   leaving the pool 1 element wide and causing OOB writes on any batch of ≥2 ops.
+   Test covers: CPU-side formula unit tests (CAP-1..3) always run; GPU device smoke test
+   (CAP-4) runs when a GPU is present and skips gracefully otherwise.
+   Section: `math_invariants`. Advisory: false.
+
+---
+
 ## 2026-04-27 (2 new exploit PoCs: batch verify low-S regression, ABI return-value coverage + real bug fixes)
 
 ### Real Bugs Fixed

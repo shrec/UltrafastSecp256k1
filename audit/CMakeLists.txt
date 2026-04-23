@@ -2326,6 +2326,35 @@ target_link_libraries(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE Th
 add_test(NAME exploit_thread_unsafe_lazy_init COMMAND test_exploit_thread_unsafe_lazy_init_standalone)
 set_tests_properties(exploit_thread_unsafe_lazy_init PROPERTIES TIMEOUT 60 LABELS "audit;exploit;thread;race;concurrency")
 
+# -- z_fe_nonzero | vs & correctness regression (ZFN-1..6) — 2026-04-27 ---
+add_executable(test_regression_z_fe_nonzero_standalone
+    test_regression_z_fe_nonzero.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_regression_z_fe_nonzero_standalone)
+target_include_directories(test_regression_z_fe_nonzero_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_regression_z_fe_nonzero_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_z_fe_nonzero COMMAND test_regression_z_fe_nonzero_standalone)
+set_tests_properties(regression_z_fe_nonzero PROPERTIES TIMEOUT 30 LABELS "audit;regression;pubkey;correctness")
+
+# -- CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27 -
+add_executable(test_regression_cuda_pool_cap_standalone
+    test_regression_cuda_pool_cap.cpp)
+audit_target_defaults(test_regression_cuda_pool_cap_standalone)
+target_include_directories(test_regression_cuda_pool_cap_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_regression_cuda_pool_cap_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_cuda_pool_cap COMMAND test_regression_cuda_pool_cap_standalone)
+set_tests_properties(regression_cuda_pool_cap PROPERTIES TIMEOUT 30 LABELS "audit;regression;gpu;cuda;pool")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2842,6 +2871,10 @@ add_executable(unified_audit_runner
     test_exploit_hertzbleed_scalar_blind.cpp
     # -- Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5) — 2026-04-27 --
     test_exploit_thread_unsafe_lazy_init.cpp
+    # -- z_fe_nonzero | vs & correctness regression (ZFN-1..6) — 2026-04-27 --
+    test_regression_z_fe_nonzero.cpp
+    # -- CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27 --
+    test_regression_cuda_pool_cap.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

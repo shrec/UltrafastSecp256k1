@@ -401,6 +401,8 @@ int test_exploit_dark_skippy_exfil_run();      // Dark Skippy nonce exfiltration
 int test_exploit_fiat_shamir_frozen_heart_run(); // Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411
 int test_exploit_hertzbleed_scalar_blind_run(); // Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823
 int test_exploit_thread_unsafe_lazy_init_run(); // Thread-safe gen_fb_table init: std::once_flag regression (TIR-1..5) — 2026-04-27
+int test_regression_z_fe_nonzero_run();         // z_fe_nonzero | vs & correctness regression (ZFN-1..6) — 2026-04-27
+int test_regression_cuda_pool_cap_run();         // CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -798,6 +800,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_fiat_shamir_frozen_heart",  "Frozen Heart: ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411",                       "exploit_poc", test_exploit_fiat_shamir_frozen_heart_run, false },
     { "exploit_hertzbleed_scalar_blind",   "Hertzbleed Scalar Blinding: Hamming-weight oracle + aux_rand mitigation (SB-1..9) — ePrint 2022/823",  "exploit_poc", test_exploit_hertzbleed_scalar_blind_run, false },
     { "exploit_thread_unsafe_lazy_init",   "Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5)",                             "exploit_poc", test_exploit_thread_unsafe_lazy_init_run, false },
+    { "regression_z_fe_nonzero",           "z_fe_nonzero | vs & correctness regression (ZFN-1..6)",                                                 "math_invariants", test_regression_z_fe_nonzero_run, false },
+    { "regression_cuda_pool_cap",          "CUDA pool minimum-capacity rounding regression (CAP-1..4)",                                              "math_invariants", test_regression_cuda_pool_cap_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
