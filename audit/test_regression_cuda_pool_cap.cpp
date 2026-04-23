@@ -54,7 +54,7 @@ static std::size_t pool_cap_fixed(std::size_t n) {
 }
 
 // Mirror of the BROKEN formula (for documentation / comparison)
-static std::size_t pool_cap_broken(std::size_t n) {
+[[maybe_unused]] static std::size_t pool_cap_broken(std::size_t n) {
     std::size_t cap = 1;
     if (n < 256) n = 256;   // modifies the local copy of n …
     while (cap < n) cap <<= 1;

@@ -388,6 +388,12 @@ bool musig2_partial_verify(
     const MuSig2Session& session,
     std::size_t signer_index) {
 
+    // Bounds check: signer_index must be valid for the key_coefficients vector.
+    // musig2_partial_sign already has this guard; verify must be consistent.
+    if (signer_index >= key_agg_ctx.key_coefficients.size()) {
+        return false;
+    }
+
     // s_i * G should equal R_i + b * R2_i + e * a_i * P_i
     // (with appropriate negation adjustments)
 
@@ -395,6 +401,10 @@ bool musig2_partial_verify(
 
     auto R1_i = decompress_point(pub_nonce.R1);
     auto R2_i = decompress_point(pub_nonce.R2);
+    // BIP-327 §4 PartialSigVerify: reject invalid (infinity) nonce points.
+    if (R1_i.is_infinity() || R2_i.is_infinity()) {
+        return false;
+    }
 
     // Effective nonce: R_i = R1_i + b * R2_i
     auto R_eff = R1_i.add(R2_i.scalar_mul(session.b));

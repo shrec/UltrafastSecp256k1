@@ -7,6 +7,35 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-23 (regression test for musig2_partial_verify OOB + infinity-nonce bugs: MVV-1..6)
+
+### New Regression Test
+
+**`test_regression_musig2_verify` (MVV-1..6)** — `cpu/src/musig2.cpp`
+`musig2_partial_verify()` had two latent bugs found during deep audit scan:
+
+1. **Missing signer_index bounds check (BUG-1)**:
+   `musig2_partial_sign()` guards against `signer_index >= key_coefficients.size()`
+   (UB: out-of-bounds `std::vector` access) but `musig2_partial_verify()` had no
+   such guard.  The C ABI wrapper (`ufsecp_musig2_partial_verify`) did validate the
+   index, so the exposure was limited to direct C++ API callers.
+   Fix: added identical bounds check — return `false` on out-of-range index.
+
+2. **Missing infinity-point check on nonce (BUG-2)**:
+   After `decompress_point(pub_nonce.R1)` and `decompress_point(pub_nonce.R2)`,
+   the function continued without checking `is_infinity()`.  BIP-327 §4
+   PartialSigVerify requires rejecting invalid (infinity) nonce points.
+   A caller supplying an all-zero or otherwise decompression-failing nonce could
+   cause verify to accept an invalid partial signature.
+   Fix: added `if (R1_i.is_infinity() || R2_i.is_infinity()) return false;`.
+
+Tests: MVV-1 signer_index == n, MVV-2 signer_index == SIZE_MAX,
+MVV-3 nonce R1 prefix 0x00, MVV-4 nonce x=0 (not on curve),
+MVV-5 2-of-2 round-trip still passes, MVV-6 3-of-3 round-trip still passes.
+pass=14 fail=0.
+
+---
+
 ## 2026-04-27 (2 regression tests for concrete bug fixes: ZFN-1..6 and CAP-1..4)
 
 ### New Regression Tests

@@ -2355,6 +2355,19 @@ target_compile_definitions(test_regression_cuda_pool_cap_standalone PRIVATE STAN
 add_test(NAME regression_cuda_pool_cap COMMAND test_regression_cuda_pool_cap_standalone)
 set_tests_properties(regression_cuda_pool_cap PROPERTIES TIMEOUT 30 LABELS "audit;regression;gpu;cuda;pool")
 
+# -- musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6) — 2026-04-23 -
+add_executable(test_regression_musig2_verify_standalone
+    test_regression_musig2_verify.cpp)
+audit_target_defaults(test_regression_musig2_verify_standalone)
+target_include_directories(test_regression_musig2_verify_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_regression_musig2_verify_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_musig2_verify COMMAND test_regression_musig2_verify_standalone)
+set_tests_properties(regression_musig2_verify PROPERTIES TIMEOUT 30 LABELS "audit;regression;musig2;bounds")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2875,6 +2888,8 @@ add_executable(unified_audit_runner
     test_regression_z_fe_nonzero.cpp
     # -- CUDA pool minimum-capacity rounding regression (CAP-1..4) — 2026-04-27 --
     test_regression_cuda_pool_cap.cpp
+    # -- musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6) — 2026-04-23 --
+    test_regression_musig2_verify.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
