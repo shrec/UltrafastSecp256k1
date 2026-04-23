@@ -52,9 +52,10 @@
         "power side-channel"
       ],
       "repo_evidence": [
-        "audit/test_exploit_hertzbleed_dvfs_timing.cpp"
+        "audit/test_exploit_hertzbleed_dvfs_timing.cpp",
+        "audit/test_exploit_hertzbleed_scalar_blind.cpp"
       ],
-      "reason": "DVFS-style timing leakage already has an explicit exploit-style regression surface."
+      "reason": "DVFS-style timing leakage covered by two complementary tests: timing uniformity regression (hertzbleed_dvfs_timing) and scalar Hamming-weight blinding verification (hertzbleed_scalar_blind)."
     },
     {
       "id": "ladderleak_subbit_nonce",
@@ -574,6 +575,42 @@
       "references": [],
       "repo_evidence": [],
       "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
+    },
+    {
+      "id": "dark_skippy_exfil",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "dark skippy",
+        "nonce exfiltration",
+        "hardware wallet",
+        "low entropy nonce",
+        "grinding",
+        "rfc6979"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_dark_skippy_exfil.cpp"
+      ],
+      "reason": "ePrint 2024/1225 Dark Skippy hardware-wallet nonce exfiltration: ufsecp uses RFC 6979 deterministic nonce with no external nonce-callback injection surface. Verified: determinism, r-value uniformity, Schnorr aux_rand independence, 128-sig HW uniformity."
+    },
+    {
+      "id": "fiat_shamir_frozen_heart",
+      "status": "covered",
+      "priority": "high",
+      "action": "monitor",
+      "keywords": [
+        "frozen heart",
+        "fiat-shamir",
+        "incomplete binding",
+        "statement omission",
+        "zk proof",
+        "bulletproof"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_fiat_shamir_frozen_heart.cpp"
+      ],
+      "reason": "ePrint 2022/411 Frozen Heart: ZK Fiat-Shamir transcript must bind all public parameters. Verified: knowledge-proof pubkey/msg binding, DLEQ generator/point binding, Bulletproof commitment binding. All statement-swap and corruption tests return error. Distinct from fiat_shamir_hash_order (ePrint 2025/1846) which covers hash function ORDER confusion rather than statement OMISSION."
     }
   ]
 }

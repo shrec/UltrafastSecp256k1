@@ -2230,6 +2230,42 @@ target_compile_definitions(test_exploit_jni_retval_ignored_standalone PRIVATE ST
 add_test(NAME exploit_jni_retval_ignored COMMAND test_exploit_jni_retval_ignored_standalone)
 set_tests_properties(exploit_jni_retval_ignored PROPERTIES TIMEOUT 30 LABELS "audit;exploit;jni;bindings;retval")
 
+# -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 ---------
+add_executable(test_exploit_dark_skippy_exfil_standalone
+    test_exploit_dark_skippy_exfil.cpp)
+audit_target_defaults(test_exploit_dark_skippy_exfil_standalone)
+target_include_directories(test_exploit_dark_skippy_exfil_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_dark_skippy_exfil_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_dark_skippy_exfil COMMAND test_exploit_dark_skippy_exfil_standalone)
+set_tests_properties(exploit_dark_skippy_exfil PROPERTIES TIMEOUT 30 LABELS "audit;exploit;nonce;ecdsa;schnorr;dark_skippy")
+
+# -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 -
+add_executable(test_exploit_fiat_shamir_frozen_heart_standalone
+    test_exploit_fiat_shamir_frozen_heart.cpp)
+audit_target_defaults(test_exploit_fiat_shamir_frozen_heart_standalone)
+target_include_directories(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_fiat_shamir_frozen_heart COMMAND test_exploit_fiat_shamir_frozen_heart_standalone)
+set_tests_properties(exploit_fiat_shamir_frozen_heart PROPERTIES TIMEOUT 30 LABELS "audit;exploit;zk;fiat-shamir;frozen-heart")
+
+# -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 -
+add_executable(test_exploit_hertzbleed_scalar_blind_standalone
+    test_exploit_hertzbleed_scalar_blind.cpp)
+audit_target_defaults(test_exploit_hertzbleed_scalar_blind_standalone)
+target_include_directories(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_hertzbleed_scalar_blind COMMAND test_exploit_hertzbleed_scalar_blind_standalone)
+set_tests_properties(exploit_hertzbleed_scalar_blind PROPERTIES TIMEOUT 30 LABELS "audit;exploit;sidechannel;dvfs;hertzbleed")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2734,6 +2770,12 @@ add_executable(unified_audit_runner
     test_exploit_custom_nonce_injection.cpp
     # -- JNI return-value ignored (RVI-1..8) — 2026-04-23 --
     test_exploit_jni_retval_ignored.cpp
+    # -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 --
+    test_exploit_dark_skippy_exfil.cpp
+    # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 --
+    test_exploit_fiat_shamir_frozen_heart.cpp
+    # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 --
+    test_exploit_hertzbleed_scalar_blind.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

@@ -7,6 +7,47 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-24 (3 new exploit PoCs: Dark Skippy, Frozen Heart, Hertzbleed scalar blinding)
+
+Three new exploit PoC tests added to the CAAS audit suite covering advanced
+hardware-wallet and ZK-proof attack classes frequently cited in high-end audits:
+
+- **`audit/test_exploit_dark_skippy_exfil.cpp`** (DS-1..8) — ePrint 2024/1225
+  *Dark Skippy hardware-wallet nonce exfiltration countermeasure verification.*
+  Verifies: no nonce-callback injection surface in the API (architectural); RFC 6979
+  determinism (same inputs → identical sig); 32-message r-value distinctness; r-byte
+  spread uniformity (≥32 distinct values, range ≥100); Schnorr aux_rand independence
+  (different aux → different sig, both verify); zero-aux determinism; sign_verified parity;
+  128-sig r-value Hamming-weight uniformity (≤1 empty nibble bucket, HW in [80,180]).
+
+- **`audit/test_exploit_fiat_shamir_frozen_heart.cpp`** (FH-1..10) — ePrint 2022/411
+  *Frozen Heart: ZK Fiat-Shamir incomplete binding verification.*
+  Verifies: valid knowledge proof accepted; pubkey-swap rejected (FS binds pubkey);
+  msg-swap rejected (FS binds msg); all-zero proof rejected (trivial forgery blocked);
+  valid DLEQ proof accepted; DLEQ P-swap rejected; DLEQ G-generator swap rejected;
+  valid Bulletproof range proof accepted; commitment swap rejected (FS binds statement);
+  single-byte corruption rejected (no malleability).
+
+- **`audit/test_exploit_hertzbleed_scalar_blind.cpp`** (SB-1..9) — ePrint 2022/823 / CVE-2022-24436
+  *Hertzbleed scalar blinding: DVFS Hamming-weight oracle defence.*
+  Verifies: extreme-HW keys (all-1s, all-0s+1, alternating) sign+verify; 8-point HW
+  spectrum (HW 4..240) all sign; same-HW different-key produces different sigs; single-bit
+  keys (power-of-2) sign+verify for 5 bit positions; complementary key pair both sign+verify;
+  Schnorr aux_rand blinding defeats HW correlation (different aux → different nonce); 128-key
+  HW-varied batch all verify; no systematic r-value bias between max-HW and min-HW keys
+  (|Δmean| < 80); sign and sign_verified agree regardless of key HW (same CT path).
+
+All three PoCs are wired into `audit/unified_audit_runner.cpp` (ALL_MODULES entries)
+and `audit/CMakeLists.txt` (unified_audit_runner source list + standalone CTest targets).
+CI gate `python3 scripts/check_exploit_wiring.py` passes with all three registered.
+
+Docs updated: `EXPLOIT_TEST_CATALOG.md` (3 new rows + changelog entry),
+`AUDIT_CHANGELOG.md` (this entry), `RESEARCH_SIGNAL_MATRIX.json` (2 new class entries
+for dark_skippy_exfil and fiat_shamir_frozen_heart; hertzbleed_scalar_blind added to
+existing hertzbleed coverage).
+
+---
+
 ## 2026-04-21 (CAAS post-roadmap: multi-CI providers + INTEROP §3 OpenSSL wired)
 
 Two parallel reproducibility verifiers and the first INTEROP §3

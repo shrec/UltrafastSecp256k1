@@ -395,6 +395,9 @@ int test_exploit_hertzbleed_dvfs_timing_run();
 int test_exploit_biased_nonce_chain_scan_run();
 int test_exploit_kr_ecdsa_buff_binding_run();
 int test_exploit_jni_retval_ignored_run();     // JNI return-value ignored (RVI-1..8) — 2026-04-23
+int test_exploit_dark_skippy_exfil_run();      // Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225
+int test_exploit_fiat_shamir_frozen_heart_run(); // Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411
+int test_exploit_hertzbleed_scalar_blind_run(); // Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -786,6 +789,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_safegcd_divsteps",  "SafeGCD/Bernstein-Yang divstep count + correctness (SGD-1..11)", "math_invariants", test_exploit_safegcd_divsteps_run, false },
     { "exploit_nonce_injection",   "RFC 6979 nonce edge cases: null/zero/n/n-1/det (NIN-1..15)",    "protocol_security", test_exploit_custom_nonce_injection_run, false },
     { "exploit_jni_retval_ignored", "JNI Return-Value Ignored: sha256/hash160/tagged_hash/negate (RVI-1..8)", "exploit_poc", test_exploit_jni_retval_ignored_run, false },
+    { "exploit_dark_skippy_exfil",         "Dark Skippy Nonce Exfiltration: RFC6979/aux_rand anti-grinding (DS-1..8) — ePrint 2024/1225",         "exploit_poc", test_exploit_dark_skippy_exfil_run, false },
+    { "exploit_fiat_shamir_frozen_heart",  "Frozen Heart: ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411",                       "exploit_poc", test_exploit_fiat_shamir_frozen_heart_run, false },
+    { "exploit_hertzbleed_scalar_blind",   "Hertzbleed Scalar Blinding: Hamming-weight oracle + aux_rand mitigation (SB-1..9) — ePrint 2022/823",  "exploit_poc", test_exploit_hertzbleed_scalar_blind_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
