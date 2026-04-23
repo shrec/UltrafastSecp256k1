@@ -626,8 +626,9 @@ _UFSECP_CALL = re.compile(
 _ASSIGNED    = re.compile(r'^\s*\w[\w\s*<>:,]+\s*=\s*(?:ufsecp_|secp256k1_|mbedtls_|RAND_bytes|EVP_|SHA256_|HMAC)')
 _VOID_FUNC   = re.compile(r'^\s*void\b')
 _IF_CHECK    = re.compile(r'if\s*\(')
-_VOID_COMPAT_FN = {'secp256k1_sha256', 'secp256k1_sha512', 'secp256k1_hash160',
-                   'secp256k1_tagged_hash', 'secp256k1_ripemd160'}
+# NOTE: secp256k1_sha256 / hash160 / tagged_hash DO return int error codes —
+# they must NOT be in this exemption set.  Only truly void helpers go here.
+_VOID_COMPAT_FN = {'secp256k1_sha512', 'secp256k1_ripemd160'}
 
 def check_retval(path: str, lines: List[str]) -> List[Finding]:
     """Return value of ufsecp_* / security critical function silently discarded."""
@@ -1983,7 +1984,63 @@ CHECKERS = [
     check_mac_truncation,
     check_scalar_not_reduced,
     check_printf_secret,
+    check_jni_getbytes_null,
 ]
+
+
+# ── JNI: GetByteArrayElements / GetStringUTFChars without NULL check ──────────
+_JNI_GET_BYTES = re.compile(
+    r'\b(GetByteArrayElements|GetStringUTFChars|GetIntArrayElements|GetLongArrayElements)\s*\('
+)
+_JNI_FILE = re.compile(r'jni.*\.[ch]$|_jni\.[ch]$', re.I)
+_IF_NULL_DEREF = re.compile(r'if\s*\(\s*!\s*\w+\s*\)')
+
+def check_jni_getbytes_null(path: str, lines: List[str]) -> List[Finding]:
+    """JNI GetByteArrayElements / GetStringUTFChars return value used without NULL check.
+
+    These JNI functions CAN return NULL on out-of-memory.  Dereferencing the
+    result without a prior null-check is a crash / undefined-behaviour bug.
+    """
+    if not _JNI_FILE.search(path):
+        return []
+    findings: List[Finding] = []
+    # Map: variable_name -> line index where it was assigned via Get*Elements
+    assigned_unchecked: dict[str, int] = {}
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        # Assignment: `jbyte *ptr = (*env)->GetByteArrayElements(...);`
+        assign_m = re.match(
+            r'^\s*(?:j\w+\s*\*+|const\s+\w+\s*\*+|\w+\s*\*+)\s*(\w+)\s*=\s*'
+            r'(?:\(\s*\*env\s*\)\s*->|env\s*->)\s*'
+            r'(GetByteArrayElements|GetStringUTFChars|GetIntArrayElements|GetLongArrayElements)\s*\(',
+            line
+        )
+        if assign_m:
+            var = assign_m.group(1)
+            # Check if the VERY NEXT non-blank line (within 3 lines) does an
+            # immediate null check  `if (!var)` or `if (var == NULL)`
+            has_check = False
+            for j in range(i + 1, min(len(lines), i + 4)):
+                nxt = _strip_comments(lines[j]).strip()
+                if not nxt:
+                    continue
+                if re.search(r'if\s*\(\s*!' + re.escape(var) + r'\s*\)', nxt):
+                    has_check = True
+                if re.search(re.escape(var) + r'\s*==\s*(NULL|nullptr|0)\s*\)', nxt):
+                    has_check = True
+                break
+            if not has_check:
+                assigned_unchecked[var] = i
+                findings.append(Finding(
+                    file=path, line=i + 1, severity="MEDIUM",
+                    category="JNI_NULL",
+                    message=f"JNI `{assign_m.group(2)}(...)` result stored in `{var}` "
+                            "without an immediate NULL check — crash if JVM is out of memory",
+                    snippet=raw.strip(),
+                    fix_hint=f"Add `if (!{var}) {{ throw_exc(env, \"OOM\"); return NULL; }}` "
+                             f"immediately after the {assign_m.group(2)}() call",
+                ))
+    return findings
 
 
 def scan_file(path: Path, base_dir: Path) -> List[Finding]:

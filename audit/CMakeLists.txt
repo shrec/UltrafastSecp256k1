@@ -2218,6 +2218,18 @@ target_compile_definitions(test_exploit_custom_nonce_injection_standalone PRIVAT
 add_test(NAME exploit_custom_nonce_injection COMMAND test_exploit_custom_nonce_injection_standalone)
 set_tests_properties(exploit_custom_nonce_injection PROPERTIES TIMEOUT 60 LABELS "audit;exploit;nonce;ecdsa")
 
+# -- JNI return-value ignored (RVI-1..8) — 2026-04-23 ---------------------
+add_executable(test_exploit_jni_retval_ignored_standalone
+    test_exploit_jni_retval_ignored.cpp)
+audit_target_defaults(test_exploit_jni_retval_ignored_standalone)
+target_include_directories(test_exploit_jni_retval_ignored_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_jni_retval_ignored_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_jni_retval_ignored COMMAND test_exploit_jni_retval_ignored_standalone)
+set_tests_properties(exploit_jni_retval_ignored PROPERTIES TIMEOUT 30 LABELS "audit;exploit;jni;bindings;retval")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2720,6 +2732,8 @@ add_executable(unified_audit_runner
     test_exploit_safegcd_divsteps.cpp
     # -- Nonce edge cases: null/zero/n/n-1/determinism --
     test_exploit_custom_nonce_injection.cpp
+    # -- JNI return-value ignored (RVI-1..8) — 2026-04-23 --
+    test_exploit_jni_retval_ignored.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
