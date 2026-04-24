@@ -135,7 +135,7 @@ jobs:
 
       # -- Python audit dependencies (must be before CMake configure) --
       - name: Set up Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
 
@@ -212,7 +212,7 @@ jobs:
 
       # -- Upload artifact --
       - name: Upload
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.${{ matrix.ext }}
@@ -297,7 +297,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -382,7 +382,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -433,7 +433,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -505,7 +505,7 @@ jobs:
           echo "PKG_NAME=${PKG_NAME}" >> "$GITHUB_ENV"
 
       - name: Upload
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
@@ -599,7 +599,7 @@ jobs:
           ls -la wheelhouse/
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-python-wheels
           path: bindings/python/wheelhouse/
@@ -684,7 +684,7 @@ jobs:
           ls -la ufsecp-*.tgz
 
       - name: Upload npm tarball
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-npm
           path: bindings/nodejs/ufsecp-*.tgz
@@ -802,7 +802,7 @@ jobs:
           ls -la nupkgs/
 
       - name: Upload NuGet
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-nuget
           path: bindings/csharp/Ufsecp/nupkgs/*.nupkg
@@ -892,7 +892,7 @@ jobs:
           ls -la ufsecp-*.gem
 
       - name: Upload gem
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-gem
           path: bindings/ruby/ufsecp-*.gem
@@ -998,7 +998,7 @@ jobs:
           jar tf "ufsecp-${VERSION}.jar" | head -30
 
       - name: Upload JAR
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-java
           path: bindings/java/ufsecp-*.jar
@@ -1125,7 +1125,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Go package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-go
           path: ufsecp-go-*.tar.gz
@@ -1200,7 +1200,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Rust package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-rust
           path: ufsecp-rust-*.tar.gz
@@ -1279,7 +1279,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Dart package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-dart
           path: ufsecp-dart-*.tar.gz
@@ -1351,7 +1351,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload PHP package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-php
           path: ufsecp-php-*.tar.gz
@@ -1434,7 +1434,7 @@ jobs:
           ls -la react-native-ufsecp-*.tgz
 
       - name: Upload React Native package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-react-native
           path: bindings/react-native/react-native-ufsecp-*.tgz
@@ -1530,7 +1530,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload Swift package
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-swift
           path: ufsecp-swift-*.tar.gz
@@ -1604,7 +1604,7 @@ jobs:
           ls -la "${PKG}.tar.gz"
 
       - name: Upload C SDK
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-c-headers
           path: ufsecp-c-*.tar.gz
@@ -1848,7 +1848,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: "UltrafastSecp256k1 ${{ env.RELEASE_TAG }}"
