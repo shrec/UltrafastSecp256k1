@@ -171,7 +171,7 @@ silent_payment_create_output(const std::vector<fast::Scalar>& input_privkeys,
 
 // Receiver: Scan transaction to detect silent payment outputs
 // scan_privkey: receiver's scan private key
-// spend_privkey: receiver's spend private key  
+// spend_privkey: receiver's spend private key
 // input_pubkeys: all input public keys from the transaction
 // output_pubkeys: all output x-only public keys to check
 // Returns: vector of {output_index, tweaked_privkey} for detected outputs
@@ -180,6 +180,47 @@ silent_payment_scan(const fast::Scalar& scan_privkey,
                     const fast::Scalar& spend_privkey,
                     const std::vector<fast::Point>& input_pubkeys,
                     const std::vector<std::array<std::uint8_t, 32>>& output_pubkeys);
+
+// ── Fast batch scanner (wallet-optimised, non-CT) ────────────────────────────
+//
+// For full-blockchain scanning: scan_privkey is constant across millions of txs.
+// This API amortizes three expensive one-time costs:
+//   (1) KPlan::from_scalar(scan_privkey): GLV decompose + wNAF — computed ONCE.
+//   (2) batch_to_compressed for Stage 1: single field inversion across all N secrets.
+//   (3) batch_x_only_bytes for Stage 2: single field inversion across all N outputs.
+//
+// Compared to N × silent_payment_scan() on i5-14400F (50K txs, 1 thread):
+//   silent_payment_scan: ~47K ns/tx  (CT Stage 1 + ct::generator_mul per tx)
+//   fast_scan_batch:     ~23K ns/tx  →  2.06× speedup
+//
+// Sources of speedup:
+//   - KPlan Stage 1 vs CT scalar_mul: ~6K ns/tx saved
+//   - No per-tx ct::generator_mul (B_spend): ~18K ns/tx saved
+//   - batch_x_only_bytes vs individual inversions: ~800 ns/tx saved
+//   - scalar-add (t+spend_sk) vs point-add: ~80 ns/tx saved
+//
+// Not constant-time: suitable for trusted-environment wallet scanning.
+// For server-side scanning where side-channel matters, use silent_payment_scan().
+
+// One effective input pubkey + its candidate outputs per transaction.
+struct ScanTx {
+    fast::Point a_eff;                                    // A_sum (or input_hash×A_sum)
+    std::vector<std::array<std::uint8_t, 32>> outputs;   // x-only output pubkeys to test
+};
+
+// One detected match.
+struct ScanMatch {
+    std::uint32_t tx_index;       // index into the txs[] vector
+    std::uint32_t output_index;   // which output_pubkeys[] entry matched
+    fast::Scalar  tweaked_privkey; // spend_privkey + t_k (spendable key)
+};
+
+// Batch scanner: processes txs.size() transactions in one call.
+// Internally: KPlan built once; Stage-1 Jacobian results batched for one inversion.
+std::vector<ScanMatch>
+fast_scan_batch(const fast::Scalar& scan_privkey,
+                const fast::Scalar& spend_privkey,
+                const std::vector<ScanTx>& txs);
 
 } // namespace secp256k1
 

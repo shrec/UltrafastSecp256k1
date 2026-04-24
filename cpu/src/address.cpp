@@ -8,6 +8,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/precompute.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -769,6 +770,104 @@ silent_payment_scan(const Scalar& scan_privkey,
 
     // Erase shared secret material
     detail::secure_erase(const_cast<std::array<std::uint8_t, 33>*>(&S_comp)->data(), S_comp.size());
+
+    return results;
+}
+
+std::vector<ScanMatch>
+fast_scan_batch(const fast::Scalar& scan_privkey,
+                const fast::Scalar& spend_privkey,
+                const std::vector<ScanTx>& txs)
+{
+    if (txs.empty()) return {};
+
+    // ── Stage 1: one KPlan for scan_privkey, shared across all txs ──────────
+    fast::KPlan const plan = fast::KPlan::from_scalar(scan_privkey);
+
+    std::size_t const n = txs.size();
+    std::vector<fast::Point> s1_jac(n);   // Jacobian shared secrets
+
+    for (std::size_t i = 0; i < n; ++i)
+        s1_jac[i] = txs[i].a_eff.scalar_mul_with_plan(plan);
+
+    // One field inversion for all N shared secrets (Montgomery's trick).
+    std::vector<std::array<std::uint8_t, 33>> s1_comp(n);
+    fast::Point::batch_to_compressed(s1_jac.data(), n, s1_comp.data());
+
+    // ── Stage 2: hash + t×G per output, batch x-only extraction ─────────────
+    // Collect total output count to reserve for batch inversion.
+    std::size_t total_outputs = 0;
+    for (auto const& tx : txs)
+        total_outputs += tx.outputs.size();
+
+    if (total_outputs == 0) return {};
+
+    // BIP-352/SharedSecret tagged hash midstate (static, computed once).
+    static const auto s_tag = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>("BIP0352/SharedSecret"), 20);
+
+    // Precompute one SHA256 midstate per tx that absorbs the tag (×2) + shared secret.
+    // Inner loop then only appends the 4-byte k index — saves 2×32+33 bytes per output.
+    std::vector<SHA256> per_tx_midstate(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        SHA256& h = per_tx_midstate[i];
+        h.update(s_tag.data(), 32);
+        h.update(s_tag.data(), 32);
+        h.update(s1_comp[i].data(), 33);
+    }
+
+    // Compute all t_k scalars and store Jacobian t_k×G results.
+    // tx_out_map[j] = {tx_index, output_index_within_tx} for flat output j.
+    struct OutSlot { std::uint32_t tx; std::uint32_t k; };
+    std::vector<OutSlot>     out_map(total_outputs);
+    std::vector<fast::Point> out_jac(total_outputs);
+
+    std::size_t slot = 0;
+    for (std::uint32_t ti = 0; ti < static_cast<std::uint32_t>(n); ++ti) {
+        auto const& tx = txs[ti];
+        for (std::uint32_t k = 0; k < static_cast<std::uint32_t>(tx.outputs.size()); ++k) {
+            SHA256 h = per_tx_midstate[ti];
+            std::uint8_t k_be[4] = {
+                std::uint8_t(k >> 24), std::uint8_t(k >> 16),
+                std::uint8_t(k >> 8),  std::uint8_t(k)
+            };
+            h.update(k_be, 4);
+            auto t_hash = h.finalize();
+
+            Scalar t_k; Scalar::parse_bytes_strict_nonzero(t_hash.data(), t_k);
+            // (t_k + spend_privkey)×G is equivalent to t_k×G + B_spend;
+            // scalar add avoids the point add: saves ~80 ns, correct since
+            // the scanner holds spend_privkey.
+            // Use scalar_mul_generator (uses precomputed fixed-base table if configured,
+            // falls back to GLV wNAF otherwise). Scalar-add avoids point add.
+            out_jac[slot] = fast::scalar_mul_generator(t_k + spend_privkey);
+            out_map[slot] = {ti, k};
+            ++slot;
+        }
+    }
+
+    // One field inversion for all Stage-2 output keys.
+    std::vector<std::array<std::uint8_t, 32>> out_x(total_outputs);
+    fast::Point::batch_x_only_bytes(out_jac.data(), total_outputs, out_x.data());
+
+    // ── Compare and collect matches ──────────────────────────────────────────
+    std::vector<ScanMatch> results;
+    for (std::size_t j = 0; j < total_outputs; ++j) {
+        std::uint32_t ti = out_map[j].tx;
+        std::uint32_t k  = out_map[j].k;
+        if (out_x[j] == txs[ti].outputs[k]) {
+            // Reconstruct t_k to return the tweaked spend key.
+            SHA256 h = per_tx_midstate[ti];
+            std::uint8_t k_be[4] = {
+                std::uint8_t(k >> 24), std::uint8_t(k >> 16),
+                std::uint8_t(k >> 8),  std::uint8_t(k)
+            };
+            h.update(k_be, 4);
+            auto t_hash = h.finalize();
+            Scalar t_k; Scalar::parse_bytes_strict_nonzero(t_hash.data(), t_k);
+            results.push_back({ti, k, spend_privkey + t_k});
+        }
+    }
 
     return results;
 }
