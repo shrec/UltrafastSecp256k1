@@ -5,5 +5,7 @@ var searchData=
   ['_7ecombgencontext_2',['~CombGenContext',['../classsecp256k1_1_1fast_1_1CombGenContext.html#adef1c7af277caab0f148dceb96b50a06',1,'secp256k1::fast::CombGenContext']]],
   ['_7ekeccak256state_3',['~Keccak256State',['../structsecp256k1_1_1coins_1_1Keccak256State.html#a6ee1904d8ec7da3e871c29985afddab9',1,'secp256k1::coins::Keccak256State']]],
   ['_7eprivatekey_4',['~PrivateKey',['../classsecp256k1_1_1PrivateKey.html#ab0a2e215d394a394fce0e4f072d862de',1,'secp256k1::PrivateKey']]],
-  ['_7esecureeraseguard_5',['~SecureEraseGuard',['../classSecureEraseGuard.html#acca6a5113f25eafec7bcff3974e4de3f',1,'SecureEraseGuard']]]
+  ['_7escopeexit_5',['~ScopeExit',['../structScopeExit.html#a5fdbb85c844ec98d121638d8552f097c',1,'ScopeExit']]],
+  ['_7escopesecureerase_6',['~ScopeSecureErase',['../structScopeSecureErase.html#aaf19c3724f2c20781a72a098c87107ba',1,'ScopeSecureErase']]],
+  ['_7esecureeraseguard_7',['~SecureEraseGuard',['../classSecureEraseGuard.html#acca6a5113f25eafec7bcff3974e4de3f',1,'SecureEraseGuard']]]
 ];

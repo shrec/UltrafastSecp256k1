@@ -10,12 +10,14 @@ var searchData=
   ['schnorrsignature_7',['SchnorrSignature',['../structsecp256k1_1_1SchnorrSignature.html',1,'secp256k1']]],
   ['schnorrsnarkwitness_8',['SchnorrSnarkWitness',['../structsecp256k1_1_1zk_1_1SchnorrSnarkWitness.html',1,'secp256k1::zk']]],
   ['schnorrxonlypubkey_9',['SchnorrXonlyPubkey',['../structsecp256k1_1_1SchnorrXonlyPubkey.html',1,'secp256k1']]],
-  ['secureeraseguard_10',['SecureEraseGuard',['../classSecureEraseGuard.html',1,'']]],
-  ['selftestcaseresult_11',['SelftestCaseResult',['../structsecp256k1_1_1fast_1_1SelftestCaseResult.html',1,'secp256k1::fast']]],
-  ['selftestreport_12',['SelftestReport',['../structsecp256k1_1_1fast_1_1SelftestReport.html',1,'secp256k1::fast']]],
-  ['sha256_13',['SHA256',['../classsecp256k1_1_1SHA256.html',1,'secp256k1']]],
-  ['sha512_14',['SHA512',['../classsecp256k1_1_1SHA512.html',1,'secp256k1']]],
-  ['silentpaymentaddress_15',['SilentPaymentAddress',['../structsecp256k1_1_1SilentPaymentAddress.html',1,'secp256k1']]],
-  ['stats_16',['Stats',['../structbench_1_1Stats.html',1,'bench']]],
-  ['step_17',['Step',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html',1,'secp256k1::fast::PrecomputedScalarOptimized']]]
+  ['scopeexit_10',['ScopeExit',['../structScopeExit.html',1,'']]],
+  ['scopesecureerase_11',['ScopeSecureErase',['../structScopeSecureErase.html',1,'']]],
+  ['secureeraseguard_12',['SecureEraseGuard',['../classSecureEraseGuard.html',1,'']]],
+  ['selftestcaseresult_13',['SelftestCaseResult',['../structsecp256k1_1_1fast_1_1SelftestCaseResult.html',1,'secp256k1::fast']]],
+  ['selftestreport_14',['SelftestReport',['../structsecp256k1_1_1fast_1_1SelftestReport.html',1,'secp256k1::fast']]],
+  ['sha256_15',['SHA256',['../classsecp256k1_1_1SHA256.html',1,'secp256k1']]],
+  ['sha512_16',['SHA512',['../classsecp256k1_1_1SHA512.html',1,'secp256k1']]],
+  ['silentpaymentaddress_17',['SilentPaymentAddress',['../structsecp256k1_1_1SilentPaymentAddress.html',1,'secp256k1']]],
+  ['stats_18',['Stats',['../structbench_1_1Stats.html',1,'bench']]],
+  ['step_19',['Step',['../structsecp256k1_1_1fast_1_1PrecomputedScalarOptimized_1_1Step.html',1,'secp256k1::fast::PrecomputedScalarOptimized']]]
 ];

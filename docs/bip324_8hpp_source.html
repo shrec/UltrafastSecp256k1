@@ -191,9 +191,9 @@ $(document).ready(function(){initNavTree('bip324_8hpp_source.html',''); initResi
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span> </div>
 <div class="foldopen" id="foldopen00087" data-start="{" data-end="}">
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno"><a class="line" href="classsecp256k1_1_1Bip324Session.html#a5a70eba19d92b1a03c2a844c8ed856e6">   87</a></span>    <a class="code hl_function" href="classsecp256k1_1_1Bip324Session.html#a5a70eba19d92b1a03c2a844c8ed856e6">~Bip324Session</a>() noexcept {</div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        <span class="comment">// Erase private key material on destruction</span></div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        <span class="keyword">volatile</span> std::uint8_t* p = privkey_.data();</div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        <span class="keywordflow">for</span> (std::size_t i = 0; i &lt; 32; ++i) p[i] = 0;</div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>        <span class="comment">// Use canonical platform-specific secure erase (includes atomic_signal_fence</span></div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>        <span class="comment">// barrier), consistent with Bip324Cipher::~Bip324Cipher().</span></div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>        <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#a5dea1f75154fb440422d13d1356fcaa4">secp256k1::detail::secure_erase</a>(privkey_.data(), privkey_.size());</div>
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>    }</div>
 </div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>

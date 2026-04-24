@@ -104,6 +104,8 @@ var annotated_dup =
       [ "WitnessProgram", "structsecp256k1_1_1WitnessProgram.html", "structsecp256k1_1_1WitnessProgram" ],
       [ "WitnessTx", "structsecp256k1_1_1WitnessTx.html", "structsecp256k1_1_1WitnessTx" ]
     ] ],
+    [ "ScopeExit", "structScopeExit.html", "structScopeExit" ],
+    [ "ScopeSecureErase", "structScopeSecureErase.html", "structScopeSecureErase" ],
     [ "SecureEraseGuard", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
     [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
