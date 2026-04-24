@@ -71,7 +71,10 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_CXX_FLAGS="-emit-llvm -S -O1 -g -fno-discard-value-names" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=OFF
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF
           # Build just the CT object files
           ninja -k0 2>/dev/null || true
 

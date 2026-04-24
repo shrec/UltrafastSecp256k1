@@ -67,7 +67,10 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-18 \
             -DCMAKE_CXX_FLAGS="-${{ matrix.opt }} -g -fno-omit-frame-pointer" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=OFF
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF
           ninja -j$(nproc) 2>/dev/null || ninja -j1 2>/dev/null || true
 
       - name: Analyze compiled objects for CT violations
