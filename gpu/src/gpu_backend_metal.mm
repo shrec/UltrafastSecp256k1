@@ -1192,6 +1192,40 @@ public:
         return GpuError::Ok;
     }
 
+    /* -- BIP-340 Schnorr SNARK witness GPU batch (eprint 2025/695) ---------- */
+
+    GpuError schnorr_snark_witness_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count, uint8_t* out_flat) override
+    {
+        if (!msgs32 || !pubkeys_x32 || !sigs64 || !out_flat)
+            return set_error(GpuError::NullArg, "NULL pointer passed to schnorr_snark_witness_batch");
+        if (!count) return GpuError::Ok;
+
+        auto buf_msgs  = runtime_->alloc_buffer_shared(count * 32);
+        auto buf_pubs  = runtime_->alloc_buffer_shared(count * 32);
+        auto buf_sigs  = runtime_->alloc_buffer_shared(count * 64);
+        auto buf_out   = runtime_->alloc_buffer_shared(count * 472);
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+
+        std::memcpy(buf_msgs.contents(),  msgs32,       count * 32);
+        std::memcpy(buf_pubs.contents(),  pubkeys_x32,  count * 32);
+        std::memcpy(buf_sigs.contents(),  sigs64,       count * 64);
+        uint32_t n32 = (uint32_t)count;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("schnorr_snark_witness_batch");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: schnorr_snark_witness_batch kernel missing from loaded library");
+        runtime_->dispatch_sync(pipe, n32, 64u,
+                                {&buf_msgs, &buf_pubs, &buf_sigs, &buf_out, &buf_count});
+
+        std::memcpy(out_flat, buf_out.contents(), count * 472);
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError bip352_scan_batch(
         const uint8_t* scan_privkey32, const uint8_t* spend_pubkey33,
         const uint8_t* tweak_pubkeys33, size_t n_tweaks, uint64_t* prefix64_out) override

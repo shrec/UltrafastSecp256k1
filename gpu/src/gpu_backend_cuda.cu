@@ -81,6 +81,12 @@ extern __global__ void ecdsa_snark_witness_batch_kernel(
     const ECDSASignatureGPU* __restrict__ sigs,
     EcdsaSnarkWitnessFlat*   __restrict__ out,
     int count);
+extern __global__ void schnorr_snark_witness_batch_kernel(
+    const uint8_t*             __restrict__ msgs32,
+    const uint8_t*             __restrict__ pubkeys_x32,
+    const uint8_t*             __restrict__ sigs64,
+    SchnorrSnarkWitnessFlat*   __restrict__ out,
+    int count);
 } // namespace cuda
 
 namespace gpu {
@@ -1212,6 +1218,51 @@ public:
         cudaFree(d_pub_ok);
         cudaFree(d_pubs);
         cudaFree(d_pubs33);
+        cudaFree(d_msgs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* -- BIP-340 Schnorr SNARK witness GPU batch (eprint 2025/695) --------- */
+
+    GpuError schnorr_snark_witness_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_flat) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys_x32 || !sigs64 || !out_flat)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        uint8_t*                      d_msgs   = nullptr;
+        uint8_t*                      d_pubs   = nullptr;
+        uint8_t*                      d_sigs   = nullptr;
+        cuda::SchnorrSnarkWitnessFlat* d_out   = nullptr;
+
+        CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
+        CUDA_TRY(cudaMalloc(&d_pubs, count * 32));
+        CUDA_TRY(cudaMalloc(&d_sigs, count * 64));
+        CUDA_TRY(cudaMalloc(&d_out,  count * sizeof(cuda::SchnorrSnarkWitnessFlat)));
+
+        CUDA_TRY(cudaMemcpy(d_msgs, msgs32,       count * 32, cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_pubs, pubkeys_x32,  count * 32, cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_sigs, sigs64,       count * 64, cudaMemcpyHostToDevice));
+
+        int threads = 128;
+        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+        cuda::schnorr_snark_witness_batch_kernel<<<blocks, threads>>>(
+            d_msgs, d_pubs, d_sigs, d_out, static_cast<int>(count));
+        CUDA_TRY(cudaGetLastError());
+        CUDA_TRY(cudaDeviceSynchronize());
+
+        CUDA_TRY(cudaMemcpy(out_flat, d_out,
+                            count * sizeof(cuda::SchnorrSnarkWitnessFlat),
+                            cudaMemcpyDeviceToHost));
+
+        cudaFree(d_out);
+        cudaFree(d_sigs);
+        cudaFree(d_pubs);
         cudaFree(d_msgs);
         clear_error();
         return GpuError::Ok;

@@ -200,6 +200,7 @@ public:
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
+        if (ext_schnorr_snark_)  { clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_  = nullptr; }
         if (ext_program_)        { clReleaseProgram(ext_program_);       ext_program_        = nullptr; }
         ext_init_attempted_ = false;
         if (frost_kernel_)       { clReleaseKernel(frost_kernel_);       frost_kernel_       = nullptr; }
@@ -1049,6 +1050,84 @@ public:
         return GpuError::Ok;
     }
 
+    /* -- BIP-340 Schnorr SNARK witness GPU batch (eprint 2025/695) ---------- */
+
+    GpuError schnorr_snark_witness_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_flat) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys_x32 || !sigs64 || !out_flat)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+
+        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       32 * count, const_cast<uint8_t*>(msgs32), &clerr);
+        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msgs buffer alloc");
+
+        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       32 * count, const_cast<uint8_t*>(pubkeys_x32), &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_msgs);
+            return set_error(GpuError::Memory, "pubkeys buffer alloc");
+        }
+
+        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       64 * count, const_cast<uint8_t*>(sigs64), &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_pubs);
+            clReleaseMemObject(d_msgs);
+            return set_error(GpuError::Memory, "sigs buffer alloc");
+        }
+
+        constexpr size_t WITNESS_BYTES = 472;
+        cl_mem d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                      WITNESS_BYTES * count, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_sigs);
+            clReleaseMemObject(d_pubs);
+            clReleaseMemObject(d_msgs);
+            return set_error(GpuError::Memory, "output buffer alloc");
+        }
+
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(ext_schnorr_snark_, 0, sizeof(cl_mem),  &d_msgs);
+        clSetKernelArg(ext_schnorr_snark_, 1, sizeof(cl_mem),  &d_pubs);
+        clSetKernelArg(ext_schnorr_snark_, 2, sizeof(cl_mem),  &d_sigs);
+        clSetKernelArg(ext_schnorr_snark_, 3, sizeof(cl_mem),  &d_out);
+        clSetKernelArg(ext_schnorr_snark_, 4, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_snark_, 1, nullptr,
+                                       &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_out);
+            clReleaseMemObject(d_sigs);
+            clReleaseMemObject(d_pubs);
+            clReleaseMemObject(d_msgs);
+            return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel launch failed");
+        }
+        clFinish(queue);
+
+        clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0,
+                            WITNESS_BYTES * count, out_flat, 0, nullptr, nullptr);
+
+        clReleaseMemObject(d_out);
+        clReleaseMemObject(d_sigs);
+        clReleaseMemObject(d_pubs);
+        clReleaseMemObject(d_msgs);
+        clear_error();
+        return GpuError::Ok;
+    }
+
     /* -- ZK proof batch operations (OpenCL via secp256k1_zk.cl) ------------- */
 
     GpuError zk_knowledge_verify_batch(
@@ -1737,7 +1816,8 @@ private:
     cl_kernel  ext_ecdsa_verify_    = nullptr;
     cl_kernel  ext_schnorr_verify_  = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
-    cl_kernel  ext_ecdsa_snark_     = nullptr;
+    cl_kernel  ext_ecdsa_snark_        = nullptr;
+    cl_kernel  ext_schnorr_snark_      = nullptr;
     bool       ext_init_attempted_  = false;
 
     /* FROST kernel handles (lazy-loaded) */
@@ -1797,7 +1877,7 @@ private:
 
     /* -- Lazy-load extended OpenCL program for verify kernels -------------- */
     GpuError ensure_extended_kernels() {
-        if (ext_ecdsa_verify_ && ext_schnorr_verify_ && ext_ecrecover_ && ext_ecdsa_snark_) return GpuError::Ok;
+        if (ext_ecdsa_verify_ && ext_schnorr_verify_ && ext_ecrecover_ && ext_ecdsa_snark_ && ext_schnorr_snark_) return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
         ext_init_attempted_ = true;
@@ -1884,6 +1964,16 @@ private:
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "ecdsa_snark_witness_batch kernel not found");
+        }
+
+        ext_schnorr_snark_ = clCreateKernel(ext_program_, "schnorr_snark_witness_batch", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel not found");
         }
 
         return GpuError::Ok;

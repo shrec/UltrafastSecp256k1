@@ -1468,6 +1468,119 @@ kernel void ecdsa_snark_witness_batch(
 }
 
 // =============================================================================
+// BIP-340 Schnorr SNARK witness batch (eprint 2025/695)
+// Output: 472-byte flat records, one per thread.
+// Layout: msg[32] sig_r[32] sig_s[32] pub_x[32] r_y[32] pub_y[32] e[32]
+//         + 6×40-byte FF-limb blocks + valid(4) + _pad(4)
+// =============================================================================
+
+kernel void schnorr_snark_witness_batch(
+    device const uchar* msgs32      [[buffer(0)]],  // count × 32 bytes
+    device const uchar* pubkeys_x32 [[buffer(1)]],  // count × 32 bytes (x-only)
+    device const uchar* sigs64      [[buffer(2)]],  // count × 64 bytes (r||s)
+    device       uchar* out_flat    [[buffer(3)]],
+    constant uint&      count       [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    const uint rec_off = tid * 472u;
+    for (uint i = 0; i < 472u; i++) out_flat[rec_off + i] = 0;
+
+    // Load inputs
+    uchar msg[32], pub_x[32], r_be[32], s_be[32];
+    for (int i = 0; i < 32; i++) msg[i]   = msgs32[tid * 32 + i];
+    for (int i = 0; i < 32; i++) pub_x[i] = pubkeys_x32[tid * 32 + i];
+    for (int i = 0; i < 32; i++) r_be[i]  = sigs64[tid * 64 + i];
+    for (int i = 0; i < 32; i++) s_be[i]  = sigs64[tid * 64 + 32 + i];
+
+    // Validate r < p (secp256k1 field prime)
+    // p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+    const uchar P_BYTES[32] = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFE, 0xFF,0xFF,0xFC,0x2F
+    };
+    bool r_valid = false;
+    for (int i = 0; i < 32; i++) {
+        if (r_be[i] < P_BYTES[i]) { r_valid = true;  break; }
+        if (r_be[i] > P_BYTES[i]) { r_valid = false; break; }
+    }
+    if (!r_valid) return;
+
+    // Validate s in [1, n-1] (secp256k1 group order)
+    // n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    bool s_nonzero = false;
+    for (int i = 0; i < 32; i++) if (s_be[i] != 0) { s_nonzero = true; break; }
+    if (!s_nonzero) return;
+
+    const uchar N_BYTES[32] = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+    };
+    bool s_valid = false;
+    for (int i = 0; i < 32; i++) {
+        if (s_be[i] < N_BYTES[i]) { s_valid = true;  break; }
+        if (s_be[i] > N_BYTES[i]) { s_valid = false; break; }
+    }
+    if (!s_valid) return;
+
+    // lift_x(pub_x) → pub_y (even Y, BIP-340)
+    JacobianPoint P;
+    if (!lift_x(pub_x, P)) return;
+    uchar pub_y[32];
+    field_to_bytes(P.y, pub_y);
+
+    // lift_x(sig_r) → r_y (even Y, BIP-340)
+    JacobianPoint R;
+    if (!lift_x(r_be, R)) return;
+    uchar r_y[32];
+    field_to_bytes(R.y, r_y);
+
+    // Challenge e = tagged_hash("BIP0340/challenge", r_be || pub_x || msg)
+    uchar challenge_in[96];
+    for (int i = 0; i < 32; i++) challenge_in[i]      = r_be[i];
+    for (int i = 0; i < 32; i++) challenge_in[32 + i] = pub_x[i];
+    for (int i = 0; i < 32; i++) challenge_in[64 + i] = msg[i];
+    uchar e_hash[32];
+    tagged_hash_fast(2 /* BIP340_TAG_CHALLENGE */, challenge_in, 96, e_hash);
+
+    // Serialize 472-byte flat record
+    // bytes 0-31: msg
+    for (int i = 0; i < 32; i++) out_flat[rec_off +   0 + i] = msg[i];
+    // bytes 32-63: sig_r
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  32 + i] = r_be[i];
+    // bytes 64-95: sig_s
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  64 + i] = s_be[i];
+    // bytes 96-127: pub_x
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  96 + i] = pub_x[i];
+    // bytes 128-159: r_y
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 128 + i] = r_y[i];
+    // bytes 160-191: pub_y
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 160 + i] = pub_y[i];
+    // bytes 192-223: e
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 192 + i] = e_hash[i];
+
+    // 6 foreign-field limb arrays × 40 bytes = 240 bytes (bytes 224..463)
+    Scalar256 sig_s = scalar_from_bytes(s_be);
+    ulong lmb[5];
+    be32_to_ff_limbs(r_be,    lmb); write_ff_limbs(out_flat, rec_off + 224, lmb); // sig_r
+    scalar_to_ff_limbs(sig_s, lmb); write_ff_limbs(out_flat, rec_off + 264, lmb); // sig_s
+    be32_to_ff_limbs(pub_x,   lmb); write_ff_limbs(out_flat, rec_off + 304, lmb); // pub_x
+    be32_to_ff_limbs(r_y,     lmb); write_ff_limbs(out_flat, rec_off + 344, lmb); // r_y
+    be32_to_ff_limbs(pub_y,   lmb); write_ff_limbs(out_flat, rec_off + 384, lmb); // pub_y
+    be32_to_ff_limbs(e_hash,  lmb); write_ff_limbs(out_flat, rec_off + 424, lmb); // e
+
+    // bytes 464-467: valid = 1 (LE int32)
+    write_u32_le(out_flat, rec_off + 464, 1);
+    // bytes 468-471: _pad (already zero)
+    // Total record size: 7×32 + 6×40 + 8 = 224 + 240 + 8 = 472 bytes ✓
+}
+
+// =============================================================================
 // CT Smoke Kernel -- Branchless Constant-Time Layer (Section 11)
 // =============================================================================
 // Exercises CT primitives, CT field/scalar/point ops, CT ECDSA sign, CT Schnorr

@@ -53,7 +53,7 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_bip324_aead_encrypt_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_bip324_aead_decrypt_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | Y | - | Y | Y | Y |
-| `ufsecp_gpu_zk_schnorr_snark_witness_batch` ² | Y | - | Y* | Y* | Y* |
+| `ufsecp_gpu_zk_schnorr_snark_witness_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_bip352_scan_batch` | Y | - | Y | Y | Y |
 
 ¹ Several GPU public API functions accept private or secret key material:
@@ -64,16 +64,6 @@ transport encryption) where the secret-bearing step cannot be split from the GPU
 pipeline without losing throughput. Callers must accept the implied security posture
 of sending keys to the GPU driver and must ensure a trusted single-tenant
 environment. See *Secret-Use Policy* below.
-
-² `ufsecp_gpu_zk_schnorr_snark_witness_batch` has C ABI + virtual dispatch in place.
-A host-side CPU fallback (`schnorr_snark_witness_batch_cpu_fallback` in
-`gpu/src/gpu_backend_fallback.cpp`) is now wired as the default `GpuBackend`
-implementation, so all backends return correct, byte-identical results today.
-Native GPU kernels (CUDA/OpenCL/Metal) are still on the roadmap for higher
-throughput; the `Y*` mark indicates "served via host-side fallback, not yet
-backed by a native device kernel". This is a public-data-only operation (no
-secret values touched). CPU-side `ufsecp_zk_schnorr_snark_witness()` is fully
-functional.
 
 ### CPU-only operations (no GPU public API)
 
@@ -122,15 +112,16 @@ through `ufsecp_gpu.h`.
 > immediately by the parity audit workflow. The numbers below reflect the current
 > HEAD — they are not a manually maintained snapshot.
 
-All 15 of the original public GPU ABI operations are implemented on CUDA, OpenCL, and Metal.
-No partial stubs remain for those. Last resolved: 2026-03-25.
+All 16 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
+No partial stubs or CPU fallbacks remain for any of them. Last resolved: 2026-04-24.
 
-`ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15) has its C ABI and
-virtual dispatch in place. As of 2026-04-20 the default `GpuBackend` impl
-delegates to a deterministic host-side CPU fallback
-(`schnorr_snark_witness_batch_cpu_fallback`), so callers on every backend get
-the correct, byte-identical result today. Native GPU kernels for CUDA/OpenCL/
-Metal are still planned for higher throughput.
+`ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
+added 2026-04-24): native device kernels now exist on all three backends
+(CUDA: `schnorr_snark_witness_batch_kernel` in `cuda/src/secp256k1.cu`;
+OpenCL: `schnorr_snark_witness_batch` in `opencl/kernels/secp256k1_extended.cl`;
+Metal: `schnorr_snark_witness_batch` in `metal/shaders/secp256k1_kernels.metal`).
+The CPU fallback in `gpu_backend_fallback.cpp` is retained for reference and as a
+correctness baseline, but no backend dispatches through it any longer.
 CPU-side `ufsecp_zk_schnorr_snark_witness()` is fully functional.
 
 ROCm/HIP: early-development compatibility path via the shared CUDA/HIP portability

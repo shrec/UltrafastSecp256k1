@@ -591,6 +591,99 @@ __device__ inline bool schnorr_verify_xonly(
     return true;
 }
 
+// ============================================================================
+// BIP-340 Schnorr SNARK witness (eprint 2025/695) — foreign-field PLONK/Halo2
+// ============================================================================
+
+/** Flat 472-byte Schnorr SNARK witness record.
+ *  Layout (byte offsets):
+ *   [  0.. 31] msg[32]     — 32-byte message
+ *   [ 32.. 63] sig_r[32]   — sig R.x (BE)
+ *   [ 64.. 95] sig_s[32]   — sig s scalar (BE)
+ *   [ 96..127] pub_x[32]   — public key x (x-only, BE)
+ *   [128..159] r_y[32]     — R.y recovered via lift_x(sig_r), even, BE
+ *   [160..191] pub_y[32]   — pub key y recovered via lift_x(pub_x), even, BE
+ *   [192..223] e[32]       — BIP-340 challenge scalar (BE)
+ *   [224..263] lmb_sig_r   — 5×52-bit FF limbs for sig_r
+ *   [264..303] lmb_sig_s   — 5×52-bit FF limbs for sig_s
+ *   [304..343] lmb_pub_x   — 5×52-bit FF limbs for pub_x
+ *   [344..383] lmb_r_y     — 5×52-bit FF limbs for r_y
+ *   [384..423] lmb_pub_y   — 5×52-bit FF limbs for pub_y
+ *   [424..463] lmb_e       — 5×52-bit FF limbs for e
+ *   [464..467] valid int32
+ *   [468..471] _pad int32
+ */
+struct SchnorrSnarkWitnessFlat {
+    uint8_t  msg[32];
+    uint8_t  sig_r[32];
+    uint8_t  sig_s[32];
+    uint8_t  pub_x[32];
+    uint8_t  r_y[32];
+    uint8_t  pub_y[32];
+    uint8_t  e[32];
+    uint64_t lmb_sig_r[5];
+    uint64_t lmb_sig_s[5];
+    uint64_t lmb_pub_x[5];
+    uint64_t lmb_r_y[5];
+    uint64_t lmb_pub_y[5];
+    uint64_t lmb_e[5];
+    int32_t  valid;
+    int32_t  _pad;
+};
+static_assert(sizeof(SchnorrSnarkWitnessFlat) == 472,
+              "SchnorrSnarkWitnessFlat layout mismatch");
+
+// Compute BIP-340 Schnorr SNARK witness for one item.
+// Sets out->valid = 0 on any failure (bad sig, bad pubkey, x not on curve).
+__device__ inline void schnorr_snark_witness_device(
+    const uint8_t            msg[32],
+    const uint8_t            pub_x_bytes[32],
+    const uint8_t            sig64[64],        // sig_r[32] || sig_s[32]
+    SchnorrSnarkWitnessFlat* out)
+{
+    out->valid = 0;
+    out->_pad  = 0;
+
+    // Parse: r must be valid field element < p, s must be in [1, n-1]
+    SchnorrSignatureGPU sig;
+    if (!schnorr_sig_parse_strict(sig64, &sig)) return;
+    if (scalar_is_zero(&sig.s)) return;
+
+    // Copy byte fields
+    for (int i = 0; i < 32; i++) {
+        out->msg[i]   = msg[i];
+        out->sig_r[i] = sig.r[i];
+        out->pub_x[i] = pub_x_bytes[i];
+    }
+    scalar_to_bytes(&sig.s, out->sig_s);
+
+    // lift_x sets z=1, so P.x and P.y are already affine coordinates
+    JacobianPoint P;
+    if (!lift_x(pub_x_bytes, &P)) return;
+    field_to_bytes(&P.y, out->pub_y);
+
+    JacobianPoint R;
+    if (!lift_x(sig.r, &R)) return;
+    field_to_bytes(&R.y, out->r_y);
+
+    // e = tagged_hash("BIP0340/challenge", sig_r || pub_x || msg)
+    uint8_t challenge_in[96];
+    for (int i = 0; i < 32; i++) challenge_in[i]      = sig.r[i];
+    for (int i = 0; i < 32; i++) challenge_in[32 + i] = pub_x_bytes[i];
+    for (int i = 0; i < 32; i++) challenge_in[64 + i] = msg[i];
+    tagged_hash_fast(BIP340_TAG_CHALLENGE, challenge_in, 96, out->e);
+
+    // 5×52-bit foreign-field limbs for all 6 values
+    be_bytes_to_ff_limbs_device(out->sig_r, out->lmb_sig_r);
+    be_bytes_to_ff_limbs_device(out->sig_s, out->lmb_sig_s);
+    be_bytes_to_ff_limbs_device(out->pub_x, out->lmb_pub_x);
+    be_bytes_to_ff_limbs_device(out->r_y,   out->lmb_r_y);
+    be_bytes_to_ff_limbs_device(out->pub_y,  out->lmb_pub_y);
+    be_bytes_to_ff_limbs_device(out->e,     out->lmb_e);
+
+    out->valid = 1;
+}
+
 } // namespace cuda
 } // namespace secp256k1
 

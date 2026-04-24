@@ -2104,3 +2104,136 @@ __kernel void ecdsa_snark_witness_batch(
     ecdsa_snark_witness_impl(msg, &pub, &sig, &w);
     out[gid] = w;
 }
+
+// =============================================================================
+// LAYER 7: BIP-340 Schnorr SNARK witness (eprint 2025/695)
+// =============================================================================
+
+/** Flat 472-byte Schnorr SNARK witness record.
+ *  Total: 7×32 + 6×5×8 + 2×4 = 224 + 240 + 8 = 472 bytes.
+ */
+typedef struct {
+    uchar  msg[32];
+    uchar  sig_r[32];
+    uchar  sig_s[32];
+    uchar  pub_x[32];
+    uchar  r_y[32];
+    uchar  pub_y[32];
+    uchar  e[32];
+    ulong  lmb_sig_r[5];
+    ulong  lmb_sig_s[5];
+    ulong  lmb_pub_x[5];
+    ulong  lmb_r_y[5];
+    ulong  lmb_pub_y[5];
+    ulong  lmb_e[5];
+    int    valid;
+    int    _pad;
+} SchnorrSnarkWitnessFlatOCL;
+
+// Validate: be32 bytes represent value < p (secp256k1 field prime).
+// p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+inline int schnorr_be32_lt_p(const uchar x[32]) {
+    const uchar P[32] = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFE, 0xFF,0xFF,0xFC,0x2F
+    };
+    for (int i = 0; i < 32; i++) {
+        if (x[i] < P[i]) return 1;
+        if (x[i] > P[i]) return 0;
+    }
+    return 0;
+}
+
+// Validate: be32 bytes represent scalar s in [1, n-1].
+// n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+inline int schnorr_be32_is_nonzero_lt_n(const uchar s[32]) {
+    int all_zero = 1;
+    for (int i = 0; i < 32; i++) if (s[i] != 0) { all_zero = 0; break; }
+    if (all_zero) return 0;
+    const uchar N[32] = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+    };
+    for (int i = 0; i < 32; i++) {
+        if (s[i] < N[i]) return 1;
+        if (s[i] > N[i]) return 0;
+    }
+    return 0;
+}
+
+// Compute one BIP-340 Schnorr SNARK witness record.
+// out->valid = 0 on any failure (invalid sig, x not on curve, etc.).
+inline void schnorr_snark_witness_impl(
+    const uchar               msg[32],
+    const uchar               pub_x_bytes[32],
+    const uchar               sig64[64],
+    SchnorrSnarkWitnessFlatOCL* out)
+{
+    out->valid = 0;
+    out->_pad  = 0;
+
+    // r must be a valid field element (< p); s must be in [1, n-1]
+    if (!schnorr_be32_lt_p(sig64))           return;
+    if (!schnorr_be32_is_nonzero_lt_n(sig64 + 32)) return;
+
+    SchnorrSignature sig;
+    for (int i = 0; i < 32; i++) sig.r[i] = sig64[i];
+    scalar_from_bytes_impl(sig64 + 32, &sig.s);
+
+    // Copy byte fields
+    for (int i = 0; i < 32; i++) out->msg[i]   = msg[i];
+    for (int i = 0; i < 32; i++) out->sig_r[i] = sig.r[i];
+    for (int i = 0; i < 32; i++) out->pub_x[i] = pub_x_bytes[i];
+    scalar_to_bytes_impl(&sig.s, out->sig_s);
+
+    // lift_x sets z=1, so .x and .y are already affine
+    JacobianPoint P;
+    if (!lift_x_impl(pub_x_bytes, &P)) return;
+    field_to_bytes_impl(&P.y, out->pub_y);
+
+    JacobianPoint R;
+    if (!lift_x_impl(sig.r, &R)) return;
+    field_to_bytes_impl(&R.y, out->r_y);
+
+    // e = tagged_hash("BIP0340/challenge", sig_r || pub_x || msg)
+    uchar challenge_in[96];
+    for (int i = 0; i < 32; i++) challenge_in[i]      = sig.r[i];
+    for (int i = 0; i < 32; i++) challenge_in[32 + i] = pub_x_bytes[i];
+    for (int i = 0; i < 32; i++) challenge_in[64 + i] = msg[i];
+    tagged_hash_fast_impl(BIP340_TAG_CHALLENGE, challenge_in, 96, out->e);
+
+    // 5×52-bit foreign-field limbs for all 6 values
+    be_bytes_to_ff_limbs_cl(out->sig_r, out->lmb_sig_r);
+    be_bytes_to_ff_limbs_cl(out->sig_s, out->lmb_sig_s);
+    be_bytes_to_ff_limbs_cl(out->pub_x, out->lmb_pub_x);
+    be_bytes_to_ff_limbs_cl(out->r_y,   out->lmb_r_y);
+    be_bytes_to_ff_limbs_cl(out->pub_y,  out->lmb_pub_y);
+    be_bytes_to_ff_limbs_cl(out->e,     out->lmb_e);
+
+    out->valid = 1;
+}
+
+// Kernel: one thread per (msg, pub_x, sig) tuple.
+__kernel void schnorr_snark_witness_batch(
+    __global const uchar*                  msgs32,      // count × 32 bytes
+    __global const uchar*                  pubkeys_x32, // count × 32 bytes (x-only)
+    __global const uchar*                  sigs64,      // count × 64 bytes (r||s)
+    __global SchnorrSnarkWitnessFlatOCL*   out,         // count × 472-byte records
+    const uint                             count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32], pub_x[32], sig64[64];
+    for (int i = 0; i < 32; i++) msg[i]       = msgs32[gid * 32 + i];
+    for (int i = 0; i < 32; i++) pub_x[i]     = pubkeys_x32[gid * 32 + i];
+    for (int i = 0; i < 64; i++) sig64[i]     = sigs64[gid * 64 + i];
+
+    SchnorrSnarkWitnessFlatOCL w;
+    schnorr_snark_witness_impl(msg, pub_x, sig64, &w);
+    out[gid] = w;
+}
