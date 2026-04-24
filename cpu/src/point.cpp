@@ -2282,6 +2282,39 @@ Point Point::scalar_mul(const Scalar& scalar) const {
 #endif // ESP32/STM32
 }
 
+// scalar_mul_jacobian: same as scalar_mul() but skips the final normalize().
+// Result stays in Jacobian (Z≠1). Feed a batch into batch_to_compressed() or
+// batch_x_only_bytes() to amortise field inversion across N points.
+Point Point::scalar_mul_jacobian(const Scalar& scalar) const {
+    SECP_ASSERT_ON_CURVE(*this);
+    if (SECP256K1_UNLIKELY(is_infinity() || scalar.is_zero()))
+        return Point::infinity();
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && \
+    !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+    if (is_generator_)
+        return scalar_mul_generator(scalar);  // precomputed fixed-base → Jacobian, no normalize
+#   if defined(SECP256K1_FAST_52BIT)
+    return scalar_mul_glv52(*this, scalar);   // GLV Shamir → Jacobian, skip normalize
+#   else
+    // Non-FE52 (WASM/MSVC): binary double-and-add, skip final normalize
+    auto scalar_bytes = scalar.to_bytes();
+    Point result = Point::infinity();
+    Point base = *this;
+    for (int byte_idx = 31; byte_idx >= 0; --byte_idx) {
+        uint8_t bv = scalar_bytes[static_cast<std::size_t>(byte_idx)];
+        for (int bit = 0; bit < 8; ++bit) {
+            if ((bv >> bit) & 1) result.add_inplace(base);
+            base.dbl_inplace();
+        }
+    }
+    return result;  // Jacobian, no normalize
+#   endif
+#else
+    // Embedded targets: no batch-friendly path, fall back to affine output
+    return scalar_mul(scalar);
+#endif
+}
+
 // Step 1: Use existing GLV decomposition from K*G implementation
 // Q * k = Q * k1 + phi(Q) * k2
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && !defined(SECP256K1_PLATFORM_STM32)

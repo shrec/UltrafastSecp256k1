@@ -147,7 +147,15 @@ public:
     // All K-dependent work (GLV + wNAF) is cached in the plan
     // Runtime only: phi(Q), table generation, Shamir's trick
     Point scalar_mul_with_plan(const KPlan& plan) const;
-    
+
+    // Jacobian output variant: identical to scalar_mul() but skips the final
+    // normalize(). Result has z_one_=false (Jacobian coordinates, Z≠1).
+    // Use batch_normalize / batch_to_compressed / batch_x_only_bytes to convert
+    // N results to affine with ONE shared field inversion (Montgomery's trick).
+    // Saves ~500 ns/call when N points are processed together.
+    // Note: scalar_mul_with_plan() already returns Jacobian — no _jacobian variant needed.
+    Point scalar_mul_jacobian(const Scalar& scalar) const;
+
     // Negation: returns the opposite point on the curve
     Point negate() const;  // -(x, y) = (x, -y)
     
