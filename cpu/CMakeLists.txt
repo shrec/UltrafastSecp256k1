@@ -739,6 +739,10 @@ if(SECP256K1_BUILD_BENCH)
     add_executable(bench_ct bench/bench_ct.cpp)
     target_link_libraries(bench_ct PRIVATE ${SECP256K1_LIB_NAME})
 
+    # DLC oracle adaptor-signature benchmark (N outcomes, sign + verify + settle)
+    add_executable(bench_dlc bench/bench_dlc.cpp)
+    target_link_libraries(bench_dlc PRIVATE ${SECP256K1_LIB_NAME})
+
     # Focused hot-path microbenchmarks for before/after optimization work
     add_executable(bench_hotpaths bench/bench_hotpaths.cpp)
     target_link_libraries(bench_hotpaths PRIVATE ${SECP256K1_LIB_NAME} ufsecp_shared)
