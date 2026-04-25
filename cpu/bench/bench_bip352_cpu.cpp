@@ -1163,6 +1163,231 @@ int main() {
     }
 
     // ================================================================
+    // [K] Lockstep Stage 1 + sub-chunk batch Stage 2
+    //
+    // Stage 1: identical to [J] lockstep (scan_cache shared with [I]/[J]).
+    //
+    // Stage 2 restructured to eliminate ALL per-point field inversions:
+    //   Per-thread, per SUB_SIZE-point sub-chunk:
+    //   A) batch_to_compressed(S_i)          — 1 inv for SUB_SIZE pts (vs SUB_SIZE invs)
+    //   B) SHA256 per-point                  — unchanged
+    //   C) batch_scalar_mul_generator(t_i)   — 1 mutex lock per sub-chunk (vs per-point)
+    //   D) batch_normalize(T_i)              — 1 inv for SUB_SIZE pts (vs SUB_SIZE invs)
+    //   E) pack affine + batch_add_affine_x  — 1 inv for SUB_SIZE pts (vs SUB_SIZE invs)
+    //   F) prefix from raw x-bytes           — no extra inversion
+    //
+    // SUB_SIZE=512: 512×120B Jacobian = ~60KB fits in L2 cache.
+    // Saves ~2 field inversions per point (~600 ns/op at 300 ns/inv).
+    // ================================================================
+    printf("=== [K] Lockstep Stage 1 + sub-chunk batch Stage 2 (%dT, SUB_SIZE=512) ===\n",
+           NUM_THREADS);
+    double subchunk_ns = 0.0;
+    {
+        constexpr int SUB_SIZE = 512;
+        std::vector<CpuPoint> s1_results_k(BENCH_N, CpuPoint::infinity());
+
+        auto do_pass_k = [&]() {
+            // Stage 1: lockstep (same scan_cache as [I]/[J])
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        CpuPoint::batch_scan_run_lockstep(
+                            scan_cache, kplan,
+                            static_cast<size_t>(beg),
+                            s1_results_k.data() + beg,
+                            static_cast<size_t>(end - beg));
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+
+            // Stage 2: 16T, each thread processes its slice in SUB_SIZE-point sub-chunks
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        // Thread-local buffers allocated once, reused across sub-chunks
+                        std::vector<CpuScalar>      hs_buf(SUB_SIZE);
+                        std::vector<CpuPoint>       t_jac_buf(SUB_SIZE);
+                        std::vector<CpuField>       tx_buf(SUB_SIZE), ty_buf(SUB_SIZE);
+                        std::vector<CpuAffinePoint> t_aff_buf(SUB_SIZE);
+                        std::vector<CpuField>       out_x_buf(SUB_SIZE);
+                        std::vector<CpuField>       scratch;
+                        scratch.reserve(SUB_SIZE);
+
+                        for (int sb = beg; sb < end; sb += SUB_SIZE) {
+                            const int ss = std::min(sb + SUB_SIZE, end) - sb;
+
+                            // A: batch_to_compressed(S_i) — 1 inv for ss pts
+                            CpuPoint::batch_to_compressed(
+                                s1_results_k.data() + sb, ss,
+                                compressed.data() + sb);
+
+                            // B: SHA256 per-point → scalar
+                            for (int i = 0; i < ss; ++i) {
+                                uint8_t ser[37];
+                                memcpy(ser, compressed[sb + i].data(), 33);
+                                memset(ser + 33, 0, 4);
+                                auto h = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                                hs_buf[i] = CpuScalar::from_bytes(h.data());
+                            }
+
+                            // C: batch t×G — 1 mutex lock + warm table for ss scalars
+                            secp256k1::fast::batch_scalar_mul_generator(
+                                hs_buf.data(), t_jac_buf.data(), static_cast<size_t>(ss));
+
+                            // D: batch_normalize T_i — 1 inv for ss pts
+                            CpuPoint::batch_normalize(
+                                t_jac_buf.data(), ss, tx_buf.data(), ty_buf.data());
+
+                            // E: pack affine + batch_add_affine_x — 1 inv for ss pts
+                            for (int i = 0; i < ss; ++i)
+                                t_aff_buf[i] = {tx_buf[i], ty_buf[i]};
+                            secp256k1::fast::batch_add_affine_x(
+                                bs_x, bs_y,
+                                t_aff_buf.data(), out_x_buf.data(),
+                                static_cast<size_t>(ss), scratch);
+
+                            // F: prefix from raw x-bytes (no inversion)
+                            for (int i = 0; i < ss; ++i) {
+                                auto xb = out_x_buf[i].to_bytes();
+                                prefixes[sb + i] = extract_prefix(xb.data());
+                            }
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+        };
+
+        do_pass_k();  // warmup
+        uint64_t k_validation = prefixes[BENCH_N - 1];
+
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            do_pass_k();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        subchunk_ns = median_ns(times) / BENCH_N;
+        printf("  [K] SubChunk %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+               NUM_THREADS, subchunk_ns, 1e9/subchunk_ns/1e6, naive_ns/subchunk_ns);
+        printf("  [K] validation: 0x%016lx\n\n", (unsigned long)k_validation);
+
+        // ----------------------------------------------------------------
+        // [K] Stage 2 sub-step breakdown (single thread, isolated)
+        // ----------------------------------------------------------------
+        printf("  --- [K] Stage 2 sub-step breakdown (1T, N=%d, SUB_SIZE=%d) ---\n",
+               BENCH_N, SUB_SIZE);
+        {
+            // Precompute S_i compressed (Stage 1 already done)
+            CpuPoint::batch_to_compressed(s1_results_k.data(), BENCH_N, compressed.data());
+
+            // Precompute hs scalars for isolation
+            std::vector<CpuScalar> all_hs(BENCH_N);
+            for (int i = 0; i < BENCH_N; ++i) {
+                uint8_t ser[37]; memcpy(ser, compressed[i].data(), 33); memset(ser+33, 0, 4);
+                auto h = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                all_hs[i] = CpuScalar::from_bytes(h.data());
+            }
+
+            // Step A: batch_to_compressed (per sub-chunk, 1T sequential)
+            std::vector<double> tA(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int sb = 0; sb < BENCH_N; sb += SUB_SIZE) {
+                    int ss = std::min(sb + SUB_SIZE, BENCH_N) - sb;
+                    CpuPoint::batch_to_compressed(s1_results_k.data() + sb, ss, compressed.data() + sb);
+                }
+                auto t1 = Clock::now();
+                tA[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // Step C: batch_scalar_mul_generator (per sub-chunk, 1T)
+            std::vector<CpuPoint> t_jac_all(SUB_SIZE);
+            std::vector<double> tC(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int sb = 0; sb < BENCH_N; sb += SUB_SIZE) {
+                    int ss = std::min(sb + SUB_SIZE, BENCH_N) - sb;
+                    secp256k1::fast::batch_scalar_mul_generator(
+                        all_hs.data() + sb, t_jac_all.data(), static_cast<size_t>(ss));
+                }
+                auto t1 = Clock::now();
+                tC[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // Step D: batch_normalize (per sub-chunk, 1T)
+            std::vector<CpuField> tx_all(SUB_SIZE), ty_all(SUB_SIZE);
+            std::vector<double> tD(BENCH_PASSES);
+            // Pre-fill t_jac_all for a valid sub-chunk
+            secp256k1::fast::batch_scalar_mul_generator(all_hs.data(), t_jac_all.data(), SUB_SIZE);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int sb = 0; sb < BENCH_N; sb += SUB_SIZE) {
+                    int ss = std::min(sb + SUB_SIZE, BENCH_N) - sb;
+                    // Re-use same t_jac_all (timing only, not correctness)
+                    CpuPoint::batch_normalize(t_jac_all.data(), ss, tx_all.data(), ty_all.data());
+                }
+                auto t1 = Clock::now();
+                tD[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // Step E: batch_add_affine_x (per sub-chunk, 1T)
+            std::vector<CpuAffinePoint> t_aff_all(SUB_SIZE);
+            std::vector<CpuField>       out_x_all(SUB_SIZE);
+            std::vector<CpuField>       scratch_all;
+            for (int i = 0; i < SUB_SIZE; ++i) t_aff_all[i] = {tx_all[i], ty_all[i]};
+            std::vector<double> tE(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int sb = 0; sb < BENCH_N; sb += SUB_SIZE) {
+                    int ss = std::min(sb + SUB_SIZE, BENCH_N) - sb;
+                    secp256k1::fast::batch_add_affine_x(
+                        bs_x, bs_y, t_aff_all.data(), out_x_all.data(),
+                        static_cast<size_t>(ss), scratch_all);
+                }
+                auto t1 = Clock::now();
+                tE[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // Step B: SHA256 per-point
+            std::vector<double> tB(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int i = 0; i < BENCH_N; ++i) {
+                    uint8_t ser[37]; memcpy(ser, compressed[i].data(), 33); memset(ser+33, 0, 4);
+                    auto h = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                    all_hs[i] = CpuScalar::from_bytes(h.data());
+                }
+                auto t1 = Clock::now();
+                tB[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            double nsA = median_ns(tA);
+            double nsB = median_ns(tB);
+            double nsC = median_ns(tC);
+            double nsD = median_ns(tD);
+            double nsE = median_ns(tE);
+            printf("    A: batch_to_compressed(S_i, %d):    %8.1f ns\n", SUB_SIZE, nsA);
+            printf("    B: SHA256 + scalar_parse:            %8.1f ns\n", nsB);
+            printf("    C: batch_scalar_mul_generator(%d):   %8.1f ns\n", SUB_SIZE, nsC);
+            printf("    D: batch_normalize(T_i, %d):         %8.1f ns\n", SUB_SIZE, nsD);
+            printf("    E: batch_add_affine_x(%d):           %8.1f ns\n", SUB_SIZE, nsE);
+            printf("    Stage 2 reconstructed total:         %8.1f ns\n", nsA+nsB+nsC+nsD+nsE);
+            printf("\n");
+        }
+    }
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -1189,6 +1414,8 @@ int main() {
         NUM_THREADS, lut_hot_ns, 1e9/lut_hot_ns/1e6, naive_ns/lut_hot_ns, lut_setup_ns/1e6);
     printf("  [J] Lockstep %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
         NUM_THREADS, lockstep_ns, 1e9/lockstep_ns/1e6, naive_ns/lockstep_ns);
+    printf("  [K] SubChunk %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, subchunk_ns, 1e9/subchunk_ns/1e6, naive_ns/subchunk_ns);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 
