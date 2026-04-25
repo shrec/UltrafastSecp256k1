@@ -1847,6 +1847,32 @@ int main(int argc, char** argv) {
         }, N_SIGN);
         print_row("silent_payment_scan (single output set)", u_silent_scan);
 
+        // fast_scan_batch benchmarks — amortised cost per tx for various batch sizes
+        {
+            // Build ScanTx from the same sp data
+            ScanTx sp_scan_tx;
+            {
+                ScanTxRaw raw;
+                raw.input_pubkeys = sp_input_pks;
+                raw.smallest_outpoint.fill(0);
+                sp_scan_tx = compute_a_eff(raw);
+            }
+            sp_scan_tx.outputs = sp_outputs;
+
+            for (int bsz : {1, 16, 64, 256, 1024}) {
+                std::vector<ScanTx> batch(static_cast<size_t>(bsz), sp_scan_tx);
+                double total_ns = bench_ns([&]() {
+                    auto found = fast_scan_batch(privkeys[0], privkeys[1], batch);
+                    bench::DoNotOptimize(found);
+                }, N_SIGN);
+                double per_tx_ns = total_ns / static_cast<double>(bsz);
+                char row_name[80];
+                std::snprintf(row_name, sizeof(row_name),
+                              "fast_scan_batch /tx (N=%d)", bsz);
+                print_row(row_name, per_tx_ns);
+            }
+        }
+
         print_sep();
         printf("\n");
     }
