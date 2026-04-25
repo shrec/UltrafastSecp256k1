@@ -22,6 +22,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/batch_add_affine.hpp"
 
 #include <thread>
 #include <vector>
@@ -33,9 +34,10 @@
 #include <numeric>
 #include <functional>
 
-using CpuPoint  = secp256k1::fast::Point;
-using CpuScalar = secp256k1::fast::Scalar;
-using CpuField  = secp256k1::fast::FieldElement;
+using CpuPoint       = secp256k1::fast::Point;
+using CpuScalar      = secp256k1::fast::Scalar;
+using CpuField       = secp256k1::fast::FieldElement;
+using CpuAffinePoint = secp256k1::fast::AffinePointCompact;
 
 static constexpr int BENCH_N      = 100'000;
 static constexpr int BENCH_PASSES = 7;
@@ -493,6 +495,314 @@ int main() {
     }
 
     // ================================================================
+    // [E] Batch affine Stage 2: t×G Jacobian → batch_normalize → batch_add_affine_x
+    // Stage 1:  batch_scalar_mul_fixed_k (same as [B])
+    // Stage 1b: batch_to_compressed      (same as [B], needed for SHA256 parity)
+    // Stage 2a: SHA256 per-point         (same as [B])
+    // Stage 2b: t_i×G Jacobian (scalar_mul_jacobian, 16T parallel, skip normalize)
+    // Stage 2c: batch_normalize(all N t-points) → affine coords (1 inversion)
+    // Stage 2d: batch_add_affine_x(B_spend, T_i_affine) → x-coords (Montgomery)
+    // Stage 2e: prefix from x-bytes (no extra inversion)
+    // ================================================================
+    printf("=== [E] Batch affine Stage 2 (%dT t×G + batch_normalize + batch_add_affine_x) ===\n",
+           NUM_THREADS);
+    double batchaff_ns = 0.0;
+    {
+        // Per-point Jacobian t×G results
+        std::vector<CpuPoint>       t_jacobian(BENCH_N);
+        // Affine coords after batch_normalize
+        std::vector<CpuField>       tx_vals(BENCH_N), ty_vals(BENCH_N);
+        // Packed for batch_add_affine_x (AffinePointCompact is 2×FieldElement)
+        std::vector<CpuAffinePoint> t_affine(BENCH_N);
+        // Output x-coordinates
+        std::vector<CpuField>       out_x(BENCH_N);
+        // Reusable scratch for batch_add_affine_x (avoids per-call reallocation)
+        std::vector<CpuField>       scratch_buf;
+        scratch_buf.reserve(BENCH_N);
+
+        // Precomputed SHA256 hashes (Stage 2a, reused across passes)
+        std::vector<std::array<uint8_t, 32>> hashes(BENCH_N);
+
+        // Stage 1 once outside timing loop (for hash precompute)
+        CpuPoint::batch_scalar_mul_fixed_k(kplan, tweaks.data(), BENCH_N, shared_pts.data());
+        CpuPoint::batch_to_compressed(shared_pts.data(), BENCH_N, compressed.data());
+        for (int i = 0; i < BENCH_N; ++i) {
+            uint8_t ser[37];
+            memcpy(ser, compressed[i].data(), 33);
+            memset(ser + 33, 0, 4);
+            hashes[i] = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+        }
+
+        auto run_e = [&]() {
+            // Stage 1
+            CpuPoint::batch_scalar_mul_fixed_k(kplan, tweaks.data(), BENCH_N, shared_pts.data());
+            CpuPoint::batch_to_compressed(shared_pts.data(), BENCH_N, compressed.data());
+
+            // Stage 2a: SHA256 per-point
+            for (int i = 0; i < BENCH_N; ++i) {
+                uint8_t ser[37];
+                memcpy(ser, compressed[i].data(), 33);
+                memset(ser + 33, 0, 4);
+                hashes[i] = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+            }
+
+            // Stage 2b: t_i×G Jacobian, 16T parallel
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            CpuScalar hs = CpuScalar::from_bytes(hashes[i].data());
+                            t_jacobian[i] = CpuPoint::generator().scalar_mul_jacobian(hs);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+
+            // Stage 2c: batch normalize (1 inversion for all N)
+            CpuPoint::batch_normalize(t_jacobian.data(), BENCH_N,
+                                      tx_vals.data(), ty_vals.data());
+
+            // Stage 2d: pack into AffinePointCompact
+            for (int i = 0; i < BENCH_N; ++i) {
+                t_affine[i] = {tx_vals[i], ty_vals[i]};
+            }
+
+            // Stage 2e: batch affine add B_spend + T_i → x-coords
+            secp256k1::fast::batch_add_affine_x(
+                bs_x, bs_y, t_affine.data(), out_x.data(), BENCH_N, scratch_buf);
+
+            // Stage 2f: prefix from x-bytes (no inversion — already affine)
+            for (int i = 0; i < BENCH_N; ++i) {
+                auto xb = out_x[i].to_bytes();
+                prefixes[i] = extract_prefix(xb.data());
+            }
+        };
+
+        // Warmup
+        for (int w = 0; w < BENCH_WARMUP; ++w) run_e();
+        uint64_t e_validation = prefixes[BENCH_N - 1];
+
+        std::vector<double> full(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            run_e();
+            auto t1 = Clock::now();
+            full[p] = elapsed_ns(t0, t1);
+            printf("  pass %2d: %8.1f ms\n", p+1, full[p]/1e6);
+        }
+        batchaff_ns = median_ns(full) / BENCH_N;
+        double mph = 1e9 / batchaff_ns / 1e6;
+
+        // Validate Stage 2e x-prefix matches [D] result (parity bit differs but x matches)
+        printf("\n  [E] %.1f ns/op  (%.2f M/s)\n", batchaff_ns, mph);
+        printf("  validation: 0x%016lx", (unsigned long)e_validation);
+        // Note: [E] prefix is from raw x-bytes; [A-D] from compressed[1..8]
+        // Both are first 8 bytes of x-coordinate — should match modulo parity byte absence
+        printf("  (x-prefix, no parity byte)\n\n");
+
+        // Per-step breakdown for [E] Stage 2
+        printf("  --- [E] Stage 2 breakdown ---\n");
+        {
+            // 2b: t×G Jacobian (16T)
+            std::vector<double> t2b(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            CpuScalar hs = CpuScalar::from_bytes(hashes[i].data());
+                            t_jacobian[i] = CpuPoint::generator().scalar_mul_jacobian(hs);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+                auto t1 = Clock::now();
+                t2b[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // 2c: batch_normalize
+            std::vector<double> t2c(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                CpuPoint::batch_normalize(t_jacobian.data(), BENCH_N,
+                                          tx_vals.data(), ty_vals.data());
+                auto t1 = Clock::now();
+                t2c[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // 2d: pack AffinePointCompact
+            std::vector<double> t2d(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int i = 0; i < BENCH_N; ++i)
+                    t_affine[i] = {tx_vals[i], ty_vals[i]};
+                auto t1 = Clock::now();
+                t2d[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // 2e: batch_add_affine_x
+            std::vector<double> t2e(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                secp256k1::fast::batch_add_affine_x(
+                    bs_x, bs_y, t_affine.data(), out_x.data(), BENCH_N, scratch_buf);
+                auto t1 = Clock::now();
+                t2e[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            // 2f: x to_bytes + prefix
+            std::vector<double> t2f(BENCH_PASSES);
+            for (int p = 0; p < BENCH_PASSES; ++p) {
+                auto t0 = Clock::now();
+                for (int i = 0; i < BENCH_N; ++i) {
+                    auto xb = out_x[i].to_bytes();
+                    prefixes[i] = extract_prefix(xb.data());
+                }
+                auto t1 = Clock::now();
+                t2f[p] = elapsed_ns(t0, t1) / BENCH_N;
+            }
+
+            double ns_2b = median_ns(t2b);
+            double ns_2c = median_ns(t2c);
+            double ns_2d = median_ns(t2d);
+            double ns_2e = median_ns(t2e);
+            double ns_2f = median_ns(t2f);
+            printf("    2b: t_i×G Jacobian (%dT, no normalize):  %8.1f ns\n", NUM_THREADS, ns_2b);
+            printf("    2c: batch_normalize (1 inversion/N):      %8.1f ns\n", ns_2c);
+            printf("    2d: pack AffinePointCompact:              %8.1f ns\n", ns_2d);
+            printf("    2e: batch_add_affine_x (B_spend+T_i):    %8.1f ns\n", ns_2e);
+            printf("    2f: x to_bytes + prefix:                 %8.1f ns\n", ns_2f);
+            printf("    Stage 2 total (excl. SHA256):            %8.1f ns\n",
+                   ns_2b + ns_2c + ns_2d + ns_2e + ns_2f);
+        }
+        printf("\n");
+    }
+
+    // ================================================================
+    // [F] Best CPU: parallel Stage 1 (16T KPlan) + batch affine Stage 2
+    // Combines [D] parallelism with [E] batch normalize/affine savings:
+    //   Stage 1  (16T): scalar_mul_with_plan per-point, Jacobian, no normalize
+    //   Stage 1b (ser): batch_to_compressed — 1 inversion for all N
+    //   Stage 2a (16T): SHA256 per-point
+    //   Stage 2b (16T): t_i×G Jacobian (scalar_mul_jacobian, no normalize)
+    //   Stage 2c (ser): batch_normalize — 1 inversion for all N
+    //   Stage 2d (ser): batch_add_affine_x(B_spend, T_i)
+    //   Stage 2e (ser): x-prefix extract
+    // ================================================================
+    printf("=== [F] Best CPU: parallel Stage 1 + batch affine Stage 2 (%dT) ===\n",
+           NUM_THREADS);
+    double bestcpu_ns = 0.0;
+    {
+        // All buffers (reuse shared_pts, compressed, prefixes from earlier)
+        std::vector<CpuPoint>       t_jacobian_f(BENCH_N);
+        std::vector<CpuField>       tx_f(BENCH_N), ty_f(BENCH_N);
+        std::vector<CpuAffinePoint> t_affine_f(BENCH_N);
+        std::vector<CpuField>       out_x_f(BENCH_N);
+        std::vector<CpuField>       scratch_f;
+        scratch_f.reserve(BENCH_N);
+        std::vector<std::array<uint8_t, 32>> hashes_f(BENCH_N);
+
+        auto run_f = [&]() {
+            // Stage 1: 16T parallel scalar_mul_with_plan (Jacobian, no normalize)
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i)
+                            shared_pts[i] = tweaks[i].scalar_mul_with_plan(kplan);
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+
+            // Stage 1b: batch_to_compressed (1 inversion for all N)
+            CpuPoint::batch_to_compressed(shared_pts.data(), BENCH_N, compressed.data());
+
+            // Stage 2a: SHA256 per-point (16T)
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            uint8_t ser[37];
+                            memcpy(ser, compressed[i].data(), 33);
+                            memset(ser + 33, 0, 4);
+                            hashes_f[i] = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+
+            // Stage 2b: t_i×G Jacobian (16T, no normalize)
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            CpuScalar hs = CpuScalar::from_bytes(hashes_f[i].data());
+                            t_jacobian_f[i] = CpuPoint::generator().scalar_mul_jacobian(hs);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+
+            // Stage 2c: batch_normalize (1 inversion for all N)
+            CpuPoint::batch_normalize(t_jacobian_f.data(), BENCH_N,
+                                      tx_f.data(), ty_f.data());
+
+            // Stage 2d: pack + batch_add_affine_x
+            for (int i = 0; i < BENCH_N; ++i)
+                t_affine_f[i] = {tx_f[i], ty_f[i]};
+            secp256k1::fast::batch_add_affine_x(
+                bs_x, bs_y, t_affine_f.data(), out_x_f.data(), BENCH_N, scratch_f);
+
+            // Stage 2e: prefix from x-bytes
+            for (int i = 0; i < BENCH_N; ++i) {
+                auto xb = out_x_f[i].to_bytes();
+                prefixes[i] = extract_prefix(xb.data());
+            }
+        };
+
+        // Warmup
+        for (int w = 0; w < BENCH_WARMUP; ++w) run_f();
+        uint64_t f_validation = prefixes[BENCH_N - 1];
+
+        std::vector<double> full(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            run_f();
+            auto t1 = Clock::now();
+            full[p] = elapsed_ns(t0, t1);
+            printf("  pass %2d: %8.1f ms\n", p+1, full[p]/1e6);
+        }
+        bestcpu_ns = median_ns(full) / BENCH_N;
+        double mph = 1e9 / bestcpu_ns / 1e6;
+
+        printf("\n  [F] %.1f ns/op  (%.2f M/s)\n", bestcpu_ns, mph);
+        printf("  validation: 0x%016lx  (x-prefix)\n\n", (unsigned long)f_validation);
+    }
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -504,6 +814,10 @@ int main() {
         NUM_THREADS, batch16t_ns, 1e9/batch16t_ns/1e6, naive_ns/batch16t_ns);
     printf("  [D] Full  %2dT:   %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
         NUM_THREADS, full16t_ns, 1e9/full16t_ns/1e6, naive_ns/full16t_ns);
+    printf("  [E] BatchAff%dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, batchaff_ns, 1e9/batchaff_ns/1e6, naive_ns/batchaff_ns);
+    printf("  [F] BestCPU %dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, bestcpu_ns, 1e9/bestcpu_ns/1e6, naive_ns/bestcpu_ns);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 
