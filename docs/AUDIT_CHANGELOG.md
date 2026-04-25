@@ -7,6 +7,23 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-25c (fast_scan_batch: two correctness bugs fixed, BSM/IAG tests now green)
+
+- **Root cause 1 — LTO lazy-init elision:** `static const s_base_state` inside
+  `fast_scan_batch` was elided by GCC LTO+O3: `sha256_compress_dispatch`'s
+  write-back to the state array was treated as dead by alias analysis, leaving
+  the SHA256 midstate as the raw IV. Fix: promote to `g_bip352_base_state` at
+  anonymous-namespace scope (initialized before main).
+- **Root cause 2 — FE52 projective equality always skipped:** The
+  `#if SECP256K1_FAST_52BIT` comparison path computed `(Xt * Z2).negate(1) +
+  pt.X52()` but magnitude accounting for non-normalized outputs of
+  `batch_scalar_mul_generator` was incorrect, producing universal non-match.
+  Fix: remove FE52-specific path, use `batch_x_only_bytes` (batch Montgomery
+  inversion) on all platforms.
+- `exploit_bip352_batch_correctness` (BSM-4, IAG-3) now passes: 34/34.
+- `docs/EXPLOIT_TEST_CATALOG.md` updated with entry for
+  `test_exploit_bip352_batch_correctness.cpp`.
+
 ## 2026-04-25b (BIP-352 Stage 2c: projective equality — eliminates batch_x_only_bytes)
 
 ### Optimised: `fast_scan_batch` compare step — projective equality (FE52 path)
