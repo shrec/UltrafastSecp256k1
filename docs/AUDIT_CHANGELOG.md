@@ -7,6 +7,26 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-25b (BIP-352 Stage 2c: projective equality — eliminates batch_x_only_bytes)
+
+### Optimised: `fast_scan_batch` compare step — projective equality (FE52 path)
+
+**Change**: replace `batch_x_only_bytes` + `tl_out_x` comparison with inline projective check.
+
+**Algorithm** (FE52 builds — x86-64, ARM64):
+- For candidate point `P = (X:Y:Z)` and target x bytes `T`:
+  - Parse `Xt = FieldElement52::from_bytes(T)` — no inversion
+  - Check `Xt × Z² == pt.X` via `(Xt×Z²).negate(1) + pt.X` `.normalizes_to_zero_var()`
+  - Cost: 2 field muls + `normalizes_to_zero_var()` per candidate (vs 1 batch inversion + 3N muls before)
+- `tl_out_x` thread_local buffer eliminated on FE52 path (saves 32×N bytes per call).
+- 4x64 fallback (non-FE52): unchanged, still uses `batch_x_only_bytes`.
+
+**Crossover**: projective equality wins for N < ~300 total Stage-2 candidates. Typical BIP-352 batches (64-256 tx × 1-4 outputs) fall well below this.
+
+Audit gate: 197/197. No new audit modules needed (correctness covered by existing BSM-4 fast_scan_batch round-trip test).
+
+---
+
 ## 2026-04-25 (BIP-352 Stage 2: batch_scalar_mul_generator + allocation-free fast_scan_batch)
 
 ### Added: `batch_scalar_mul_generator` + thread-local allocation elimination

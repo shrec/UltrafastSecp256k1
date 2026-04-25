@@ -898,7 +898,10 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     static thread_local std::vector<std::array<std::uint8_t, 64>> tl_blk;
     static thread_local std::vector<std::uint64_t>            tl_out_map; // ti<<32|k
     static thread_local std::vector<fast::Point>              tl_out_jac;
+#if !defined(SECP256K1_FAST_52BIT)
+    // 4x64 fallback only: FE52 path uses projective equality (no tl_out_x).
     static thread_local std::vector<std::array<std::uint8_t, 32>> tl_out_x;
+#endif
 
     std::size_t const n = txs.size();
 
@@ -913,7 +916,9 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     for (auto const& tx : txs) total_outputs += tx.outputs.size();
     tl_out_map.resize(total_outputs);
     tl_out_jac.resize(total_outputs);
+#if !defined(SECP256K1_FAST_52BIT)
     tl_out_x.resize(total_outputs);
+#endif
 
     // ── Stage 1 ──────────────────────────────────────────────────────────────
     for (std::size_t i = 0; i < n; ++i)
@@ -966,36 +971,55 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     // Pass 2b: one mutex lock for all N×M fixed-base multiplications.
     fast::batch_scalar_mul_generator(tl_out_scalars.data(), tl_out_jac.data(), total_outputs);
 
-    // Batch x-only extraction: 1 field_inv for all Stage-2 candidates.
-    fast::Point::batch_x_only_bytes(tl_out_jac.data(), total_outputs, tl_out_x.data());
-
     // ── Compare and collect matches ──────────────────────────────────────────
+    // FE52 path: projective equality — X_target × Z² == pt.X
+    //   Cost: 2 field muls + normalizes_to_zero_var() per candidate.
+    //   No batch field inversion, no tl_out_x, no heap allocation.
+    // 4x64 fallback: batch_x_only_bytes + memcmp (unchanged).
     std::vector<ScanMatch> results;
-    for (std::size_t j = 0; j < total_outputs; ++j) {
-        std::uint32_t ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
-        std::uint32_t k  = static_cast<std::uint32_t>(tl_out_map[j]);
-        if (tl_out_x[j] == txs[ti].outputs[k]) {
-            // Match: recompute t_k from the pre-built block (k already written).
-            std::uint8_t* mblk = tl_blk[ti].data();
-            mblk[33] = std::uint8_t(k >> 24);
-            mblk[34] = std::uint8_t(k >> 16);
-            mblk[35] = std::uint8_t(k >>  8);
-            mblk[36] = std::uint8_t(k);
-            std::uint32_t h2[8];
-            std::memcpy(h2, s_base_state.data(), 32);
-            detail::sha256_compress_dispatch(mblk, h2);
-            std::array<std::uint8_t, 32> t_bytes;
-            for (int b = 0; b < 8; ++b) {
-                t_bytes[b*4+0] = std::uint8_t(h2[b] >> 24);
-                t_bytes[b*4+1] = std::uint8_t(h2[b] >> 16);
-                t_bytes[b*4+2] = std::uint8_t(h2[b] >>  8);
-                t_bytes[b*4+3] = std::uint8_t(h2[b]);
-            }
-            Scalar t_k;
-            Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k);
-            results.push_back({ti, k, spend_privkey + t_k});
+
+    auto recompute_t_k = [&](std::uint32_t ti, std::uint32_t k, Scalar& t_k_out) {
+        std::uint8_t* mblk = tl_blk[ti].data();
+        mblk[33] = std::uint8_t(k >> 24); mblk[34] = std::uint8_t(k >> 16);
+        mblk[35] = std::uint8_t(k >>  8); mblk[36] = std::uint8_t(k);
+        std::uint32_t h2[8];
+        std::memcpy(h2, s_base_state.data(), 32);
+        detail::sha256_compress_dispatch(mblk, h2);
+        std::array<std::uint8_t, 32> t_bytes;
+        for (int b = 0; b < 8; ++b) {
+            t_bytes[b*4+0] = std::uint8_t(h2[b] >> 24);
+            t_bytes[b*4+1] = std::uint8_t(h2[b] >> 16);
+            t_bytes[b*4+2] = std::uint8_t(h2[b] >>  8);
+            t_bytes[b*4+3] = std::uint8_t(h2[b]);
         }
+        Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k_out);
+    };
+
+#if defined(SECP256K1_FAST_52BIT)
+    for (std::size_t j = 0; j < total_outputs; ++j) {
+        fast::Point const& pt = tl_out_jac[j];
+        if (pt.is_infinity()) continue;
+        std::uint32_t const ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
+        std::uint32_t const k  = static_cast<std::uint32_t>(tl_out_map[j]);
+        // X_target × Z² == pt.X  ⟺  X_target × Z² - pt.X normalizes to zero
+        fast::FieldElement52 const Z2  = pt.Z52() * pt.Z52();
+        fast::FieldElement52 const Xt  = fast::FieldElement52::from_bytes(
+            txs[ti].outputs[k].data());
+        fast::FieldElement52 diff = (Xt * Z2).negate(1) + pt.X52();
+        if (!diff.normalizes_to_zero_var()) continue;
+        Scalar t_k; recompute_t_k(ti, k, t_k);
+        results.push_back({ti, k, spend_privkey + t_k});
     }
+#else
+    fast::Point::batch_x_only_bytes(tl_out_jac.data(), total_outputs, tl_out_x.data());
+    for (std::size_t j = 0; j < total_outputs; ++j) {
+        std::uint32_t const ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
+        std::uint32_t const k  = static_cast<std::uint32_t>(tl_out_map[j]);
+        if (tl_out_x[j] != txs[ti].outputs[k]) continue;
+        Scalar t_k; recompute_t_k(ti, k, t_k);
+        results.push_back({ti, k, spend_privkey + t_k});
+    }
+#endif
 
     return results;
 }
