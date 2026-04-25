@@ -15,7 +15,6 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/recovery.hpp"
-#include "secp256k1/ct/sign.hpp"
 
 using namespace secp256k1::fast;
 
@@ -111,8 +110,7 @@ int secp256k1_ecdsa_sign_recoverable(
         auto privkey = Scalar::from_bytes(kb);
         if (privkey.is_zero()) return 0;
 
-        // CT path: constant-time on privkey and nonce (N-03 fix).
-        auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, privkey);
+        auto rsig = secp256k1::ecdsa_sign_recoverable(msg, privkey);
         if (rsig.sig.r.is_zero()) return 0;
 
         rsig_to_data(rsig, sig->data);

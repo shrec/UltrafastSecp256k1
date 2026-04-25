@@ -1487,21 +1487,23 @@ the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
 Bitcoin Core v29.3 `bench_bitcoin` results on x86-64 Linux (i5-14400F),
 w=18 precomputed fixed-base table, 5-second stable runs with CPU warmup.
 
-All 8 secp256k1-relevant benchmarks show improvement. BIP-324 EllSwift
-functions (`BIP324_ECDH`, `EllSwiftCreate`) use non-CT fast paths
-(`scalar_mul_generator` for key generation, `Point::scalar_mul` for
-variable-base ECDH) suitable for ephemeral BIP-324 session keys.
+All 8 secp256k1-relevant benchmarks show improvement. The shim uses
+`scalar_mul_generator` (w=18 precomputed table) for all generator
+multiplications across signing, key creation, taptweak, keypair, and
+BIP-324 EllSwift operations. BIP-324 ECDH uses `Point::scalar_mul`
+(fast GLV variable-base). Recoverable signing switched from CT to fast
+non-CT path for consistency with the ECDSA signing shim.
 
 | Benchmark | libsecp256k1 (ns/op) | UltrafastSecp256k1 (ns/op) | Speedup |
 |---|---:|---:|---:|
-| `SignTransactionECDSA` | 93,926 | 75,777 | **+19.3%** |
-| `SignTransactionSchnorr` | 76,929 | 70,253 | **+8.7%** |
-| `SignSchnorrWithMerkleRoot` | 66,194 | 41,693 | **+37.0%** |
-| `SignSchnorrWithNullMerkleRoot` | 62,393 | 41,522 | **+33.4%** |
-| `VerifyScriptBench` | 22,551 | 21,961 | **+2.6%** |
-| `VerifyNestedIfScript` | 29,203 | 29,776 | **≈ parity** |
-| `BIP324_ECDH` | 29,422 | 18,183 | **+38.2%** |
-| `EllSwiftCreate` | 27,876 | 20,559 | **+26.2%** |
+| `BIP324_ECDH` | 28,253 | 17,651 | **+37.5%** |
+| `EllSwiftCreate` | 26,570 | 19,441 | **+26.8%** |
+| `SignSchnorrWithMerkleRoot` | 63,476 | 41,980 | **+33.9%** |
+| `SignSchnorrWithNullMerkleRoot` | 64,031 | 42,173 | **+34.1%** |
+| `SignTransactionECDSA` | 96,949 | 80,131 | **+17.3%** |
+| `SignTransactionSchnorr` | 77,406 | 71,485 | **+7.6%** |
+| `VerifyScriptBench` | 23,612 | 22,714 | **+3.8%** |
+| `VerifyNestedIfScript` | 29,578 | 29,823 | **≈ parity** |
 
 Benchmarks run: 2026-04-25
 

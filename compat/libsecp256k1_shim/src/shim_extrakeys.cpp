@@ -10,6 +10,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
+#include "secp256k1/precompute.hpp"
 
 using namespace secp256k1::fast;
 
@@ -106,7 +107,7 @@ int secp256k1_keypair_create(
         auto k = Scalar::from_bytes(kb);
         if (k.is_zero()) return 0;
 
-        auto P = Point::generator().scalar_mul(k);
+        auto P = scalar_mul_generator(k);
         if (P.is_infinity()) return 0;
 
         // Store seckey
@@ -200,7 +201,7 @@ int secp256k1_xonly_pubkey_tweak_add(
         // treat as error to match libsecp behavior (returns 0 for zero tweak)
         if (t.is_zero()) return 0;
 
-        auto tG = Point::generator().scalar_mul(t);
+        auto tG = scalar_mul_generator(t);
         auto Q  = P.add(tG);
         if (Q.is_infinity()) return 0;
 
@@ -229,7 +230,7 @@ int secp256k1_xonly_pubkey_tweak_add_check(
         auto t = Scalar::from_bytes(tb);
         if (t.is_zero()) return 0;
 
-        auto tG = Point::generator().scalar_mul(t);
+        auto tG = scalar_mul_generator(t);
         auto Q  = P.add(tG);
         if (Q.is_infinity()) return 0;
 
@@ -267,7 +268,7 @@ int secp256k1_keypair_xonly_tweak_add(
         auto new_sk = sk + t;
         if (new_sk.is_zero()) return 0;
 
-        auto P = Point::generator().scalar_mul(new_sk);
+        auto P = scalar_mul_generator(new_sk);
         if (P.is_infinity()) return 0;
 
         auto new_skb = new_sk.to_bytes();

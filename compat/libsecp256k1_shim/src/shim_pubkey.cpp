@@ -9,6 +9,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
+#include "secp256k1/precompute.hpp"
 
 using namespace secp256k1::fast;
 
@@ -130,7 +131,7 @@ int secp256k1_ec_pubkey_create(
         std::memcpy(kb.data(), seckey, 32);
         auto k = Scalar::from_bytes(kb);
         if (k.is_zero()) return 0;
-        auto P = Point::generator().scalar_mul(k);
+        auto P = scalar_mul_generator(k);
         if (P.is_infinity()) return 0;
         point_to_pubkey_data(P, pubkey->data);
         return 1;
@@ -161,7 +162,7 @@ int secp256k1_ec_pubkey_tweak_add(
         std::array<uint8_t, 32> tb{};
         std::memcpy(tb.data(), tweak32, 32);
         auto t = Scalar::from_bytes(tb);
-        auto T = Point::generator().scalar_mul(t);
+        auto T = scalar_mul_generator(t);
         auto result = P.add(T);
         if (result.is_infinity()) return 0;
         point_to_pubkey_data(result, pubkey->data);
