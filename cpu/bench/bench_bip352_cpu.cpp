@@ -23,6 +23,7 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/batch_add_affine.hpp"
+#include "secp256k1/precompute.hpp"
 
 #include <thread>
 #include <vector>
@@ -170,6 +171,12 @@ int main() {
     B_spend.normalize();
     CpuField bs_x = B_spend.x();
     CpuField bs_y = B_spend.y();
+
+    // Generator point WITHOUT is_generator_ flag → forces GLV52 per-point path.
+    // Used in [G] mode to avoid all threads thrashing the shared precomputed table.
+    CpuPoint gen_baseline = CpuPoint::generator();
+    gen_baseline.normalize();
+    (void)CpuPoint::from_affine(gen_baseline.x(), gen_baseline.y()); // gen_glv52 removed
 
     // ----------------------------------------------------------------
     // Generate N deterministic tweak points (same method as bench_bip352.cu)
@@ -803,6 +810,119 @@ int main() {
     }
 
     // ================================================================
+    // [G] Generator table window-size sweep under 16T.
+    // Default loaded from cache (w=15 GLV, ~2MB table → L3).
+    // Small window → small table → fits L1/L2 → less cache thrashing.
+    //
+    //  w=4  → table ≈  32KB → L1 ✓ (but ~32 adds/scalar)
+    //  w=6  → table ≈  90KB → L2 ✓ (but ~22 adds/scalar)
+    //  w=8  → table ≈ 256KB → L2/L3 (~16 adds/scalar)
+    //  w=12 → table ≈   1MB → L3  (~11 adds/scalar)
+    //  w=15 → table ≈   2MB → L3  (current default, ~9 adds/scalar)
+    //
+    // Each mode: [D]-style 16T full pipeline with reconfigured table.
+    // ================================================================
+    printf("=== [G] Generator table window-size sweep (%dT) ===\n", NUM_THREADS);
+    // Window sizes to test for generator table
+    // Smaller window → fewer table entries → fits in L1/L2 → less cache contention
+    // Under 16T: 16 threads reading the SAME precomputed generator table → thrashing
+    struct WinResult { unsigned w; double ns; double ms; };
+    std::vector<WinResult> win_results;
+    double best_win_ns = 1e18;
+    unsigned best_win = 0;
+
+    auto run_d_style = [&]() -> double {
+        // [D]-style: 16T fully parallel per-thread pipeline
+        // generator().scalar_mul_jacobian uses current global precompute context
+        auto worker = [&](int begin, int end) {
+            for (int i = begin; i < end; ++i) {
+                CpuPoint s   = tweaks[i].scalar_mul_with_plan(kplan);
+                auto comp    = s.to_compressed();
+                uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser+33,0,4);
+                auto hash    = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                CpuPoint tG  = CpuPoint::generator().scalar_mul_jacobian(hs);
+                tG.add_mixed_inplace(bs_x, bs_y);
+                auto cc      = tG.to_compressed();
+                prefixes[i]  = extract_prefix(cc.data() + 1);
+            }
+        };
+        // Warmup
+        {
+            std::vector<std::thread> threads(NUM_THREADS);
+            int chunk = BENCH_N / NUM_THREADS;
+            for (int t = 0; t < NUM_THREADS; ++t) {
+                int beg = t * chunk, end = (t == NUM_THREADS-1) ? BENCH_N : beg+chunk;
+                threads[t] = std::thread(worker, beg, end);
+            }
+            for (auto& th : threads) th.join();
+        }
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            std::vector<std::thread> threads(NUM_THREADS);
+            int chunk = BENCH_N / NUM_THREADS;
+            for (int t = 0; t < NUM_THREADS; ++t) {
+                int beg = t * chunk, end = (t == NUM_THREADS-1) ? BENCH_N : beg+chunk;
+                threads[t] = std::thread(worker, beg, end);
+            }
+            for (auto& th : threads) th.join();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        return median_ns(times) / BENCH_N;
+    };
+
+    for (unsigned wb : {4u, 6u, 8u, 12u}) {
+        // Estimate table size (without cache files): 2^wb entries × 64B × spacing
+        // spacing ≈ ceil(128/wb) for GLV half-scalars (~128 bits)
+        unsigned spacing = (128 + wb - 1) / wb;
+        size_t tbl_kb = ((size_t(1) << wb) * spacing * 64) / 1024;
+
+        printf("  --- w=%u (table≈%zuKB, %dT) ---\n", wb, tbl_kb, NUM_THREADS);
+
+        // Reconfigure precompute context with this window size (no cache, fast rebuild)
+        secp256k1::fast::FixedBaseConfig cfg;
+        cfg.window_bits  = wb;
+        cfg.enable_glv   = true;    // GLV halves the scalar → halves doublings
+        cfg.use_cache    = false;   // force rebuild (no disk I/O)
+        cfg.thread_count = 1;
+        secp256k1::fast::configure_fixed_base(cfg);
+        secp256k1::fast::ensure_fixed_base_ready();
+
+        double ns = run_d_style();
+        double mph = 1e9 / ns / 1e6;
+        printf("  w=%u: %.1f ns/op  (%.2f M/s)  validation: 0x%016lx\n",
+               wb, ns, mph, (unsigned long)prefixes[BENCH_N - 1]);
+        win_results.push_back({wb, ns, ns / 1e6});
+        if (ns < best_win_ns) { best_win_ns = ns; best_win = wb; }
+    }
+
+    // Also run with w=15 (default from cache) to compare
+    printf("  --- w=15 GLV cached (default, ~2MB, %dT) ---\n", NUM_THREADS);
+    {
+        secp256k1::fast::FixedBaseConfig cfg15;
+        cfg15.window_bits  = 15;
+        cfg15.enable_glv   = true;
+        cfg15.use_cache    = true;
+        cfg15.cache_path   = "cache_w15_glv.bin";
+        secp256k1::fast::configure_fixed_base(cfg15);
+        secp256k1::fast::ensure_fixed_base_ready();
+
+        double ns = run_d_style();
+        double mph = 1e9 / ns / 1e6;
+        printf("  w=15: %.1f ns/op  (%.2f M/s)  validation: 0x%016lx\n",
+               ns, mph, (unsigned long)prefixes[BENCH_N - 1]);
+        win_results.push_back({15u, ns, ns / 1e6});
+        if (ns < best_win_ns) { best_win_ns = ns; best_win = 15u; }
+    }
+
+    printf("\n  [G] Window sweep best: w=%u  %.1f ns/op  (%.2f M/s)\n\n",
+           best_win, best_win_ns, 1e9 / best_win_ns / 1e6);
+    double glv52tg_ns = best_win_ns;
+    (void)glv52tg_ns; // suppress unused warning if summary removed
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -818,6 +938,11 @@ int main() {
         NUM_THREADS, batchaff_ns, 1e9/batchaff_ns/1e6, naive_ns/batchaff_ns);
     printf("  [F] BestCPU %dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
         NUM_THREADS, bestcpu_ns, 1e9/bestcpu_ns/1e6, naive_ns/bestcpu_ns);
+    printf("  [G] WinSweep (best w=%u, %dT): %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        best_win, NUM_THREADS, best_win_ns, 1e9/best_win_ns/1e6, naive_ns/best_win_ns);
+    printf("  --- [G] Full sweep ---\n");
+    for (auto& r : win_results)
+        printf("       w=%2u: %8.1f ns/op   %6.2f M/s\n", r.w, r.ns, 1e9/r.ns/1e6);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 
