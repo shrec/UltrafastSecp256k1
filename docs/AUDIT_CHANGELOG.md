@@ -7,6 +7,30 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-25 (BIP-352 Stage 2: batch_scalar_mul_generator + allocation-free fast_scan_batch)
+
+### Added: `batch_scalar_mul_generator` + thread-local allocation elimination
+
+**`batch_scalar_mul_generator(scalars, results, n)`** — new public API in `precompute.hpp/.cpp`:
+- Acquires `g_mutex` ONCE for all N multiplications (vs N separate locks in prior code).
+- Non-GLV path: `fill_window_digits_into` + table accumulation per scalar.
+- GLV path: `split_scalar_internal` + `shamir_windowed_glv` per scalar (when `enable_glv=true`).
+- Falls back to per-point `scalar_mul_generator` on ESP32.
+- `n == 1` shortcut avoids batch overhead for single-element calls.
+
+**`fast_scan_batch` Stage 2 rewrite** (`address.cpp`):
+- Thread-local `tl_out_scalars` buffer: SHA256 pass writes all `t_k + spend_privkey`
+  scalars in one sweep; `batch_scalar_mul_generator` processes them with one mutex lock.
+- All 7 scratch buffers (`tl_a_eff`, `tl_s1`, `tl_s1c`, `tl_blk`, `tl_out_map`,
+  `tl_out_jac`, `tl_out_x`, `tl_out_scalars`) are `thread_local static` — zero heap
+  allocation after the first call per thread.
+- SHA256 template-block trick retained: one `sha256_compress_dispatch` + 32-byte
+  state copy per output (no SHA256 object copy, no heap touch).
+
+Audit gate (`check_exploit_wiring.py`): 0 unwired, 0 catalog drift.
+
+---
+
 ## 2026-04-24 (BIP-352 batch scan optimisation + BSM/IAG correctness audit: BSM-1..4 + IAG-1..3)
 
 ### Added: `batch_scalar_mul_fixed_k` + `compute_a_eff` + `fast_scan_batch` Stage 1 upgrade

@@ -139,6 +139,12 @@ ScalarDecomposition split_scalar_glv(const Scalar& scalar);
 // GLV with pre-decomposed constants (for benchmarking when decomposition is done once)
 Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2);
 
+// Batch fixed-base: compute results[i] = scalars[i] × G for all i.
+// ONE mutex lock + ONE table warm-up for the entire batch — subsequent
+// shamir_windowed_glv calls hit the warm L2/L3 cache.
+// Thread-local digit scratch: no heap allocation in the hot path.
+void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size_t n);
+
 // wNAF (width-w Non-Adjacent Form) computation
 // Returns wNAF representation with non-adjacent digits
 // window_bits: typically 4-6 for optimal performance

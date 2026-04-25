@@ -830,6 +830,56 @@ ScanTx compute_a_eff(const ScanTxRaw& raw)
     return result;
 }
 
+// ── fast_scan_batch: allocation-free hot path ────────────────────────────────
+//
+// All scratch buffers are thread_local and resized in-place; no heap allocation
+// occurs after the first call per thread.
+//
+// SHA256 midstate trick: BIP0352/SharedSecret tagged hash decomposes as:
+//   block0 = tag32 || tag32          (64 bytes → one SHA256 compression)
+//   block1 = S_comp33 || k_be4 || pad + len  (64 bytes → one SHA256 compression)
+// block0 is identical for every tx and every k; we compress it once into
+// s_base_state[8] (process-wide static).  Per-tx we store the 64-byte block1
+// template with S_comp pre-embedded; only 4 bytes (k) change per output.
+// The inner loop therefore does: memcpy(h, s_base_state, 32) + write k_be +
+// sha256_compress(blk, h) — no SHA256 object copy, no heap touch.
+
+namespace {
+
+// Compute SHA256 state after compressing tag||tag (one 64-byte block).
+// Called once (static init), result is process-wide constant.
+static std::array<std::uint32_t, 8> compute_bip352_base_state() noexcept {
+    static const auto tag = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>("BIP0352/SharedSecret"), 20);
+    std::uint8_t blk[64];
+    std::memcpy(blk,      tag.data(), 32);
+    std::memcpy(blk + 32, tag.data(), 32);
+    std::array<std::uint32_t, 8> st = {
+        0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
+        0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u
+    };
+    detail::sha256_compress_dispatch(blk, st.data());
+    return st;
+}
+
+// block1 template for tx i:
+//   [0 ..32] = S_comp (33 bytes)
+//   [33..36] = k_be4  (placeholder — written per output)
+//   [37]     = 0x80
+//   [38..55] = 0x00 × 18
+//   [56..63] = big-endian 64-bit bit-length = (64+37)*8 = 808 = 0x0000000000000328
+static void build_block1(const std::uint8_t s_comp[33],
+                          std::uint8_t       blk[64]) noexcept {
+    std::memcpy(blk, s_comp, 33);
+    blk[33] = blk[34] = blk[35] = blk[36] = 0; // k placeholder
+    blk[37] = 0x80;
+    std::memset(blk + 38, 0, 18);
+    blk[56] = 0x00; blk[57] = 0x00; blk[58] = 0x00; blk[59] = 0x00;
+    blk[60] = 0x00; blk[61] = 0x00; blk[62] = 0x03; blk[63] = 0x28;
+}
+
+} // anonymous namespace
+
 std::vector<ScanMatch>
 fast_scan_batch(const fast::Scalar& scan_privkey,
                 const fast::Scalar& spend_privkey,
@@ -837,95 +887,112 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
 {
     if (txs.empty()) return {};
 
-    // ── Stage 1: one KPlan for scan_privkey, shared across all txs ──────────
-    // KPlan amortizes: GLV decompose + wNAF recode — computed once, used N times.
-    // batch_scalar_mul_fixed_k runs the shared wNAF schedule in lockstep across
-    // all N points (chunk_size≈2048), batch-inverting window tables per chunk.
-    fast::KPlan const plan = fast::KPlan::from_scalar(scan_privkey);
+    // Process-wide constant: SHA256 state after compressing tag||tag block.
+    static const std::array<std::uint32_t, 8> s_base_state =
+        compute_bip352_base_state();
+
+    // ── Thread-local scratch buffers (no heap after first call per thread) ───
+    static thread_local std::vector<fast::Point>              tl_a_eff;
+    static thread_local std::vector<fast::Point>              tl_s1;
+    static thread_local std::vector<std::array<std::uint8_t, 33>> tl_s1c;
+    static thread_local std::vector<std::array<std::uint8_t, 64>> tl_blk;
+    static thread_local std::vector<std::uint64_t>            tl_out_map; // ti<<32|k
+    static thread_local std::vector<fast::Point>              tl_out_jac;
+    static thread_local std::vector<std::array<std::uint8_t, 32>> tl_out_x;
 
     std::size_t const n = txs.size();
-    std::vector<fast::Point> a_eff_pts(n);
-    for (std::size_t i = 0; i < n; ++i)
-        a_eff_pts[i] = txs[i].a_eff;
 
-    std::vector<fast::Point> s1_jac(n);   // Jacobian shared secrets
-    fast::Point::batch_scalar_mul_fixed_k(plan, a_eff_pts.data(), n, s1_jac.data());
+    // Resize-in-place (realloc only if growing beyond previous high-water mark).
+    tl_a_eff.resize(n);
+    tl_s1.resize(n);
+    tl_s1c.resize(n);
+    tl_blk.resize(n);
 
-    // One field inversion for all N shared secrets (Montgomery's trick).
-    std::vector<std::array<std::uint8_t, 33>> s1_comp(n);
-    fast::Point::batch_to_compressed(s1_jac.data(), n, s1_comp.data());
-
-    // ── Stage 2: hash + t×G per output, batch x-only extraction ─────────────
-    // Collect total output count to reserve for batch inversion.
+    // Count outputs upfront for Stage-2 buffer sizing.
     std::size_t total_outputs = 0;
-    for (auto const& tx : txs)
-        total_outputs += tx.outputs.size();
+    for (auto const& tx : txs) total_outputs += tx.outputs.size();
+    tl_out_map.resize(total_outputs);
+    tl_out_jac.resize(total_outputs);
+    tl_out_x.resize(total_outputs);
 
+    // ── Stage 1 ──────────────────────────────────────────────────────────────
+    for (std::size_t i = 0; i < n; ++i)
+        tl_a_eff[i] = txs[i].a_eff;
+
+    fast::KPlan const plan = fast::KPlan::from_scalar(scan_privkey);
+    fast::Point::batch_scalar_mul_fixed_k(plan, tl_a_eff.data(), n, tl_s1.data());
+    fast::Point::batch_to_compressed(tl_s1.data(), n, tl_s1c.data());
+
+    // ── Build per-tx SHA256 block1 templates ─────────────────────────────────
+    for (std::size_t i = 0; i < n; ++i)
+        build_block1(tl_s1c[i].data(), tl_blk[i].data());
+
+    // ── Stage 2: hash all → batch ×G → batch x-only ─────────────────────────
     if (total_outputs == 0) return {};
 
-    // BIP-352/SharedSecret tagged hash midstate (static, computed once).
-    static const auto s_tag = SHA256::hash(
-        reinterpret_cast<const std::uint8_t*>("BIP0352/SharedSecret"), 20);
+    static thread_local std::vector<fast::Scalar> tl_out_scalars;
+    tl_out_scalars.resize(total_outputs);
 
-    // Precompute one SHA256 midstate per tx that absorbs the tag (×2) + shared secret.
-    // Inner loop then only appends the 4-byte k index — saves 2×32+33 bytes per output.
-    std::vector<SHA256> per_tx_midstate(n);
-    for (std::size_t i = 0; i < n; ++i) {
-        SHA256& h = per_tx_midstate[i];
-        h.update(s_tag.data(), 32);
-        h.update(s_tag.data(), 32);
-        h.update(s1_comp[i].data(), 33);
-    }
-
-    // Compute all t_k scalars and store Jacobian t_k×G results.
-    // tx_out_map[j] = {tx_index, output_index_within_tx} for flat output j.
-    struct OutSlot { std::uint32_t tx; std::uint32_t k; };
-    std::vector<OutSlot>     out_map(total_outputs);
-    std::vector<fast::Point> out_jac(total_outputs);
-
+    // Pass 2a: compute all t_k + spend_privkey scalars (SHA256 only, no EC).
     std::size_t slot = 0;
     for (std::uint32_t ti = 0; ti < static_cast<std::uint32_t>(n); ++ti) {
         auto const& tx = txs[ti];
+        std::uint8_t* blk = tl_blk[ti].data();
         for (std::uint32_t k = 0; k < static_cast<std::uint32_t>(tx.outputs.size()); ++k) {
-            SHA256 h = per_tx_midstate[ti];
-            std::uint8_t k_be[4] = {
-                std::uint8_t(k >> 24), std::uint8_t(k >> 16),
-                std::uint8_t(k >> 8),  std::uint8_t(k)
-            };
-            h.update(k_be, 4);
-            auto t_hash = h.finalize();
+            blk[33] = std::uint8_t(k >> 24);
+            blk[34] = std::uint8_t(k >> 16);
+            blk[35] = std::uint8_t(k >>  8);
+            blk[36] = std::uint8_t(k);
 
-            Scalar t_k; Scalar::parse_bytes_strict_nonzero(t_hash.data(), t_k);
-            // (t_k + spend_privkey)×G is equivalent to t_k×G + B_spend;
-            // scalar add avoids the point add: saves ~80 ns, correct since
-            // the scanner holds spend_privkey.
-            // Use scalar_mul_generator (uses precomputed fixed-base table if configured,
-            // falls back to GLV wNAF otherwise). Scalar-add avoids point add.
-            out_jac[slot] = fast::scalar_mul_generator(t_k + spend_privkey);
-            out_map[slot] = {ti, k};
+            std::uint32_t h[8];
+            std::memcpy(h, s_base_state.data(), 32);
+            detail::sha256_compress_dispatch(blk, h);
+
+            std::array<std::uint8_t, 32> t_bytes;
+            for (int b = 0; b < 8; ++b) {
+                t_bytes[b*4+0] = std::uint8_t(h[b] >> 24);
+                t_bytes[b*4+1] = std::uint8_t(h[b] >> 16);
+                t_bytes[b*4+2] = std::uint8_t(h[b] >>  8);
+                t_bytes[b*4+3] = std::uint8_t(h[b]);
+            }
+            Scalar t_k;
+            Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k);
+            tl_out_scalars[slot] = t_k + spend_privkey;
+            tl_out_map[slot] = (static_cast<std::uint64_t>(ti) << 32) | k;
             ++slot;
         }
     }
 
-    // One field inversion for all Stage-2 output keys.
-    std::vector<std::array<std::uint8_t, 32>> out_x(total_outputs);
-    fast::Point::batch_x_only_bytes(out_jac.data(), total_outputs, out_x.data());
+    // Pass 2b: one mutex lock for all N×M fixed-base multiplications.
+    fast::batch_scalar_mul_generator(tl_out_scalars.data(), tl_out_jac.data(), total_outputs);
+
+    // Batch x-only extraction: 1 field_inv for all Stage-2 candidates.
+    fast::Point::batch_x_only_bytes(tl_out_jac.data(), total_outputs, tl_out_x.data());
 
     // ── Compare and collect matches ──────────────────────────────────────────
     std::vector<ScanMatch> results;
     for (std::size_t j = 0; j < total_outputs; ++j) {
-        std::uint32_t ti = out_map[j].tx;
-        std::uint32_t k  = out_map[j].k;
-        if (out_x[j] == txs[ti].outputs[k]) {
-            // Reconstruct t_k to return the tweaked spend key.
-            SHA256 h = per_tx_midstate[ti];
-            std::uint8_t k_be[4] = {
-                std::uint8_t(k >> 24), std::uint8_t(k >> 16),
-                std::uint8_t(k >> 8),  std::uint8_t(k)
-            };
-            h.update(k_be, 4);
-            auto t_hash = h.finalize();
-            Scalar t_k; Scalar::parse_bytes_strict_nonzero(t_hash.data(), t_k);
+        std::uint32_t ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
+        std::uint32_t k  = static_cast<std::uint32_t>(tl_out_map[j]);
+        if (tl_out_x[j] == txs[ti].outputs[k]) {
+            // Match: recompute t_k from the pre-built block (k already written).
+            std::uint8_t* mblk = tl_blk[ti].data();
+            mblk[33] = std::uint8_t(k >> 24);
+            mblk[34] = std::uint8_t(k >> 16);
+            mblk[35] = std::uint8_t(k >>  8);
+            mblk[36] = std::uint8_t(k);
+            std::uint32_t h2[8];
+            std::memcpy(h2, s_base_state.data(), 32);
+            detail::sha256_compress_dispatch(mblk, h2);
+            std::array<std::uint8_t, 32> t_bytes;
+            for (int b = 0; b < 8; ++b) {
+                t_bytes[b*4+0] = std::uint8_t(h2[b] >> 24);
+                t_bytes[b*4+1] = std::uint8_t(h2[b] >> 16);
+                t_bytes[b*4+2] = std::uint8_t(h2[b] >>  8);
+                t_bytes[b*4+3] = std::uint8_t(h2[b]);
+            }
+            Scalar t_k;
+            Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k);
             results.push_back({ti, k, spend_privkey + t_k});
         }
     }

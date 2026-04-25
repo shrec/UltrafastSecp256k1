@@ -789,6 +789,14 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
                 const fast::Scalar& spend_privkey,
                 const std::vector<ScanTx>& txs);
 
+// ── batch_scalar_mul_generator (fixed-base, N scalars) ──────────────────────
+// Computes results[i] = scalars[i] × G for all i in [0, n).
+// One mutex lock for all N multiplications; thread-local digit scratch.
+// Non-GLV path when config.enable_glv=false (default): fill_window_digits_into + accumulate.
+// GLV path when enable_glv=true: split_scalar_internal + shamir_windowed_glv.
+// ESP32: falls back to per-point scalar_mul_generator. n=1 fast-path skips batch setup.
+void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size_t n);
+
 // ── KPlan + batch_scalar_mul_fixed_k (low-level) ────────────────────────────
 
 // Precomputed GLV wNAF schedule for a fixed scalar.

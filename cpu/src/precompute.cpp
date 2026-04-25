@@ -3678,6 +3678,72 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2,
 }
 #endif // !SECP256K1_ESP32_BUILD  (scalar_mul_generator / glv_predecomposed)
 
+// ── batch_scalar_mul_generator ────────────────────────────────────────────────
+// Compute results[i] = scalars[i] × G for all i in [0, n).
+// One mutex lock + one table access warms L2/L3 for all N calls;
+// each subsequent shamir_windowed_glv hits the warm cache.
+// Thread-local digit scratch avoids heap per scalar.
+void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size_t n) {
+    if (n == 0) return;
+#if defined(SECP256K1_ESP32_BUILD)
+    for (std::size_t i = 0; i < n; ++i)
+        results[i] = Point::generator().scalar_mul(scalars[i]);
+#else
+    if (n == 1) { results[0] = scalar_mul_generator(scalars[0]); return; }
+
+    // Lock once: verify context is ready, then release.
+    std::unique_lock<std::mutex> lock(g_mutex);
+    ensure_built_locked();
+    PrecomputeContext const& ctx = *g_context;
+    if (!validate_precompute_context(ctx)) throw std::runtime_error("Invalid precompute context");
+    lock.unlock();
+
+    const std::size_t wc = ctx.window_count;
+    const unsigned    wb = ctx.window_bits;
+    const bool        use_glv = ctx.config.enable_glv;
+
+    // Thread-local digit scratch: no heap after first call.
+    static thread_local std::array<int32_t, kMaxWindowCount> tl_d1{};
+    static thread_local std::array<int32_t, kMaxWindowCount> tl_d2{};
+
+    // Inline accumulate for the non-GLV path (mirrors scalar_mul_generator).
+    auto do_accumulate = [&](const int32_t* digits,
+                              const std::vector<std::vector<AffinePointPacked>>& tables,
+                              JacobianPoint& result) {
+        for (std::size_t w = 0; w < wc; ++w) {
+            int32_t const d = digits[w];
+            if (d == 0) continue;
+            bool const neg = (d < 0);
+            auto const idx = static_cast<std::size_t>(neg ? -static_cast<std::int64_t>(d)
+                                                           :  static_cast<std::int64_t>(d));
+            const auto& entry = tables[w][idx];
+            if (entry.infinity) continue;
+            AffinePointPacked pt = entry;
+            if (neg) pt.y = negate_fe(pt.y);
+            result = jacobian_add_mixed_local(result, pt);
+        }
+    };
+
+    for (std::size_t i = 0; i < n; ++i) {
+        JacobianPoint result{FieldElement::zero(), FieldElement::one(),
+                             FieldElement::zero(), true};
+        if (use_glv) {
+            ScalarDecomposition const dec = split_scalar_internal(scalars[i]);
+            fill_window_digits_into(dec.k1, wb, wc, tl_d1.data());
+            fill_window_digits_into(dec.k2, wb, wc, tl_d2.data());
+            if (dec.neg1) for (std::size_t w = 0; w < wc; ++w) if (tl_d1[w]) tl_d1[w] = -tl_d1[w];
+            if (dec.neg2) for (std::size_t w = 0; w < wc; ++w) if (tl_d2[w]) tl_d2[w] = -tl_d2[w];
+            result = shamir_windowed_glv(tl_d1.data(), tl_d2.data(),
+                                         ctx.base_tables, ctx.psi_tables, wc);
+        } else {
+            fill_window_digits_into(scalars[i], wb, wc, tl_d1.data());
+            do_accumulate(tl_d1.data(), ctx.base_tables, result);
+        }
+        results[i] = Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+    }
+#endif
+}
+
 bool save_precompute_cache(const std::string& path) {
     (void)path;
     return false; // Not implemented on specialized build
