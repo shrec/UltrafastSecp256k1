@@ -14,7 +14,7 @@ Drop-in replacement for projects written against the libsecp256k1 C API. Link th
 | Public Keys | `pubkey_create`, `pubkey_parse`, `pubkey_serialize`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` | [OK] |
 | ECDSA | `ecdsa_sign`, `ecdsa_verify`, `signature_parse_compact`, `signature_serialize_compact`, `signature_normalize` | [OK] |
 | Schnorr (BIP-340) | `schnorrsig_sign32`, `schnorrsig_verify` | [OK] |
-| Extra Keys | `xonly_pubkey_parse`, `xonly_pubkey_serialize`, `keypair_create` | [OK] |
+| Extra Keys | `xonly_pubkey_parse`, `xonly_pubkey_serialize`, `xonly_pubkey_cmp`, `xonly_pubkey_from_pubkey`, `xonly_pubkey_tweak_add`, `xonly_pubkey_tweak_add_check`, `keypair_create`, `keypair_sec`, `keypair_pub`, `keypair_xonly_pub`, `keypair_xonly_tweak_add` | [OK] |
 | Secret Keys | `seckey_verify`, `seckey_negate`, `seckey_tweak_add`, `seckey_tweak_mul` | [OK] |
 | DER Signatures | `signature_parse_der`, `signature_serialize_der` | [OK] |
 | Tagged Hash | `tagged_sha256` | [OK] |
@@ -42,7 +42,7 @@ secp256k1_context_destroy(ctx);
 
 - Context randomization (`secp256k1_context_randomize`) is accepted but has no effect -- UltrafastSecp256k1 does not use blinding.
 - `secp256k1_context_static` is provided but points to a dummy.
-- `secp256k1_ecdh` and `secp256k1_ellswift` modules are not yet shimmed.
+- `secp256k1_ecdh` and `secp256k1_ellswift` modules are not yet shimmed (needed for P2P v2 encrypted transport only, not consensus).
 - Performance characteristics differ (typically faster).
 
 ## Building

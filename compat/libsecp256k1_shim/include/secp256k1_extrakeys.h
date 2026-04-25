@@ -55,6 +55,34 @@ SECP256K1_API int secp256k1_keypair_xonly_pub(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *pubkey,
     int *pk_parity, const secp256k1_keypair *keypair);
 
+/* -- Taproot tweak operations --------------------------------------------- */
+
+/** Compute tweaked public key: output = internal_pubkey + tweak32 * G.
+ *  output_pubkey: full secp256k1_pubkey (X || Y).
+ *  Returns 1 on success, 0 if tweak is invalid or result is infinity. */
+SECP256K1_API int secp256k1_xonly_pubkey_tweak_add(
+    const secp256k1_context *ctx,
+    secp256k1_pubkey *output_pubkey,
+    const secp256k1_xonly_pubkey *internal_pubkey,
+    const unsigned char *tweak32);
+
+/** Verify Taproot tweak commitment.
+ *  Returns 1 if tweaked_pubkey32 (with tweaked_pk_parity) == internal_pubkey + tweak32 * G. */
+SECP256K1_API int secp256k1_xonly_pubkey_tweak_add_check(
+    const secp256k1_context *ctx,
+    const unsigned char *tweaked_pubkey32,
+    int tweaked_pk_parity,
+    const secp256k1_xonly_pubkey *internal_pubkey,
+    const unsigned char *tweak32);
+
+/** Tweak a keypair in-place for Taproot key-path spending.
+ *  If the internal pubkey has odd Y, negates the secret key first, then adds tweak.
+ *  Returns 1 on success, 0 if tweak is invalid or result is infinity. */
+SECP256K1_API int secp256k1_keypair_xonly_tweak_add(
+    const secp256k1_context *ctx,
+    secp256k1_keypair *keypair,
+    const unsigned char *tweak32);
+
 #ifdef __cplusplus
 }
 #endif
