@@ -1513,25 +1513,55 @@ Benchmarks run: 2026-04-25
 
 Drop-in replacement via `compat/libsecp256k1_bchn_shim/` — exposes the BCHN
 `secp256k1_schnorr_*` API (legacy BCH Schnorr, not BIP-340) backed by the
-fast engine. Benchmarks on x86-64 Linux (i5-14400F), CPU warmed up.
+fast engine.
 
-BCH Schnorr scheme: `e = SHA256(R.x || P_compressed || msg)`, `s = k + e·d`.
+**BCH Schnorr scheme:** `e = SHA256(R.x[32] || P_compressed[33] || msg[32])`, `s = k + e·d`
 
-| Operation | UltrafastSecp256k1 (ns/op) | Notes |
+Reference: [bitcoin-abc/secp256k1](https://github.com/bitcoin-abc/secp256k1) built with
+`--enable-module-schnorr --enable-module-recovery --enable-module-ecdh -O2`.
+Platform: x86-64 Linux, i5-14400F, CPU warmed up, 11-pass median.
+
+### Head-to-head vs bitcoin-abc reference
+
+| Operation | bitcoin-abc (ns/op) | UltrafastSecp256k1 (ns/op) | Speedup |
+|---|---:|---:|---:|
+| **BCH Schnorr sign** | 38,046 | **14,130** | **+2.69×** |
+| **BCH Schnorr verify** | 26,746 | **22,875** | **+1.17×** |
+| ECDSA sign | 19,155 | **9,792** | **+1.96×** |
+| ECDSA verify | 26,445 | **20,891** | **+1.27×** |
+
+### UltrafastSecp256k1 BCH vs BIP-340 (internal comparison)
+
+| Operation | ns/op | Notes |
 |---|---:|---|
-| `BCH Schnorr sign` | **14,292** | 2× gen_mul: k·G + d·G fresh each call |
-| `BCH Schnorr verify` | **23,267** | gen_mul (s·G) + GLV (e·P) |
-| BIP-340 sign (keypair, reference) | 5,573 | 1× gen_mul: d·G pre-cached |
-| BIP-340 verify (cached, reference) | 20,163 | same two-mul structure |
-| ECDSA sign (reference) | 9,588 | 1× gen_mul + arithmetic |
+| BCH Schnorr sign | 14,130 | 2× gen_mul: k·G + d·G computed fresh |
+| BIP-340 Schnorr sign (keypair) | 5,572 | 1× gen_mul: d·G pre-cached in keypair |
+| BCH Schnorr verify | 22,875 | gen_mul (s·G, table) + GLV (e·P) |
+| BIP-340 Schnorr verify (cached) | 20,163 | same structure, smaller hash input |
 
-BCH sign is 2.3× slower than BIP-340 keypair sign because the BCH scheme
-recomputes `P = d·G` on every call — a second full generator multiplication
-(~6.7 µs). BCH clients that pre-cache the public key can add a fast-path
-that skips this second gen_mul, matching BIP-340 keypair speed.
+BCH sign computes `P = d·G` on every call (no keypair struct in the BCHN API).
+With keypair caching it would match BIP-340 keypair speed (~6.7 µs).
+BCH verify is ~13% slower than BIP-340 verify because the challenge hash
+covers 33 bytes of compressed pubkey vs 32 bytes of x-only key.
 
-BCH verify (23.3 µs) is 15% slower than BIP-340 verify (20.2 µs) due to the
-larger SHA-256 input (33-byte compressed pubkey vs 32-byte x-only key).
+### Coins and projects using libsecp256k1
+
+The shim provides a drop-in replacement for all of these:
+
+| Project | Scheme used | Notes |
+|---|---|---|
+| **Bitcoin (BTC)** | ECDSA + BIP-340 Schnorr + BIP-324 EllSwift | Core shim covers full API |
+| **Bitcoin Cash (BCH)** | ECDSA + BCH Schnorr + ECDH | BCHN shim |
+| **Litecoin (LTC)** | ECDSA | Uses bitcoin-core libsecp256k1 directly |
+| **Dogecoin (DOGE)** | ECDSA | Forked from Bitcoin Core, same secp256k1 |
+| **Dash (DASH)** | ECDSA + BLS (separate lib) | secp256k1 for standard tx |
+| **Zcash (ZEC)** | ECDSA (transparent) + Sapling/Orchard (separate) | secp256k1 for t-addr only |
+| **Monero (XMR)** | Ed25519 (different curve) | Does NOT use secp256k1 |
+| **Ethereum (ETH)** | ECDSA + secp256k1 recovery | Compatible with Core shim |
+| **Groestlcoin (GRS)** | ECDSA | Bitcoin Core fork |
+| **Bitcoin SV (BSV)** | ECDSA | BCH fork, same BCHN shim applies |
+| **eCash (XEC)** | ECDSA + BCH Schnorr | Bitcoin ABC fork, BCHN shim |
+| **Namecoin (NMC)** | ECDSA | Merged-mined Bitcoin fork |
 
 Benchmarks run: 2026-04-25
 
