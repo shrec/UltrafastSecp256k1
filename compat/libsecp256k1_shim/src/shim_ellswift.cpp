@@ -11,8 +11,8 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
+#include "secp256k1/precompute.hpp"
 #include "secp256k1/sha256.hpp"
-#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -176,7 +176,7 @@ int secp256k1_ellswift_xdh(
         auto their_point = Point::from_affine(their_x, y);
         if (their_point.is_infinity()) return 0;
 
-        auto ecdh_point = secp256k1::ct::scalar_mul(their_point, sk);
+        auto ecdh_point = their_point.scalar_mul(sk);
         if (ecdh_point.is_infinity()) return 0;
 
         auto x32_arr = ecdh_point.x().to_bytes();

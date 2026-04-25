@@ -15,6 +15,7 @@ add_library(secp256k1_shim STATIC
     src/shim_seckey.cpp
     src/shim_tagged_hash.cpp
     src/shim_recovery.cpp
+    src/shim_ellswift.cpp
 )
 
 # Public includes -- exposes libsecp256k1-compatible headers
