@@ -3280,6 +3280,121 @@ void Point::batch_scan_run(const PointScanCacheHandle& cache,
 #endif
 }
 
+// N-stream lockstep: b_scan wNAF digits loop runs ONCE, inner loop over chunk_n.
+// For each bit position d:
+//   - evaluate digit ONCE (not per-point)
+//   - skip chunk_n inner iterations when digit == 0 (~75% of positions)
+//   - hoist sign-branch outside inner loop for non-zero digits
+void Point::batch_scan_run_lockstep(const PointScanCacheHandle& cache,
+                                     const KPlan& plan,
+                                     size_t cache_offset,
+                                     Point* results,
+                                     size_t n,
+                                     size_t chunk_size)
+{
+    const auto* impl = static_cast<const ScanCacheImpl*>(cache.get());
+
+#if !defined(SECP256K1_FAST_52BIT)
+    for (size_t i = 0; i < n; ++i) results[i] = Point::infinity();
+    return;
+#else
+    if (SECP256K1_UNLIKELY(!impl || impl->table_size == 0 ||
+                            cache_offset + n > impl->n)) {
+        for (size_t i = 0; i < n; ++i) results[i] = Point::infinity();
+        return;
+    }
+
+    const int ts = impl->table_size;
+
+    std::size_t wnaf1_len = plan.wnaf1_len;
+    std::size_t wnaf2_len = plan.wnaf2_len;
+    const int32_t* wnaf1_ptr = plan.wnaf1.data();
+    const int32_t* wnaf2_ptr = plan.wnaf2.data();
+    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
+    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+    const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
+
+    const JacobianPoint52 inf52 = {
+        FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
+
+    // Stack scratch for accumulators (chunk_size ≤ 256 → 30 KB, fits in L1/L2)
+    constexpr std::size_t kMaxChunk = 256;
+    if (chunk_size == 0 || chunk_size > kMaxChunk) chunk_size = kMaxChunk;
+
+    JacobianPoint52 acc[kMaxChunk];
+
+    for (std::size_t chunk_start = 0; chunk_start < n; chunk_start += chunk_size) {
+        const std::size_t chunk_n = std::min(chunk_size, n - chunk_start);
+        const std::size_t base_ci = cache_offset + chunk_start;
+
+        for (std::size_t i = 0; i < chunk_n; ++i) acc[i] = inf52;
+
+        // Outer loop: b_scan digit positions (loaded ONCE per position)
+        for (int d = static_cast<int>(max_len) - 1; d >= 0; --d) {
+            // Double all chunk_n accumulators
+            for (std::size_t i = 0; i < chunk_n; ++i)
+                jac52_double_inplace(acc[i]);
+
+            // k1 stream — sign branch hoisted outside inner loop
+            const int32_t d1 = (static_cast<std::size_t>(d) < wnaf1_len)
+                                    ? wnaf1_ptr[d] : 0;
+            if (d1 > 0) {
+                const std::size_t idx = static_cast<std::size_t>(d1 - 1) >> 1;
+                for (std::size_t i = 0; i < chunk_n; ++i) {
+                    const std::size_t ci = base_ci + i;
+                    if (SECP256K1_LIKELY(impl->valid[ci]))
+                        jac52_add_mixed_inplace(acc[i], impl->tbl_P[ci * static_cast<std::size_t>(ts) + idx]);
+                }
+            } else if (d1 < 0) {
+                const std::size_t idx = static_cast<std::size_t>(-d1 - 1) >> 1;
+                for (std::size_t i = 0; i < chunk_n; ++i) {
+                    const std::size_t ci = base_ci + i;
+                    if (SECP256K1_LIKELY(impl->valid[ci])) {
+                        AffinePoint52 pt = impl->tbl_P[ci * static_cast<std::size_t>(ts) + idx];
+                        pt.y.negate_assign(1); pt.y.normalize_weak();
+                        jac52_add_mixed_inplace(acc[i], pt);
+                    }
+                }
+            }
+
+            // k2 stream — sign branch hoisted outside inner loop
+            const int32_t d2 = (static_cast<std::size_t>(d) < wnaf2_len)
+                                    ? wnaf2_ptr[d] : 0;
+            if (d2 > 0) {
+                const std::size_t idx = static_cast<std::size_t>(d2 - 1) >> 1;
+                for (std::size_t i = 0; i < chunk_n; ++i) {
+                    const std::size_t ci = base_ci + i;
+                    if (SECP256K1_LIKELY(impl->valid[ci]))
+                        jac52_add_mixed_inplace(acc[i], impl->tbl_phiP[ci * static_cast<std::size_t>(ts) + idx]);
+                }
+            } else if (d2 < 0) {
+                const std::size_t idx = static_cast<std::size_t>(-d2 - 1) >> 1;
+                for (std::size_t i = 0; i < chunk_n; ++i) {
+                    const std::size_t ci = base_ci + i;
+                    if (SECP256K1_LIKELY(impl->valid[ci])) {
+                        AffinePoint52 pt = impl->tbl_phiP[ci * static_cast<std::size_t>(ts) + idx];
+                        pt.y.negate_assign(1); pt.y.normalize_weak();
+                        jac52_add_mixed_inplace(acc[i], pt);
+                    }
+                }
+            }
+        }
+
+        // Convert chunk accumulators to results
+        for (std::size_t i = 0; i < chunk_n; ++i) {
+            const std::size_t ci = base_ci + i;
+            if (SECP256K1_UNLIKELY(!impl->valid[ci])) {
+                results[chunk_start + i] = Point::infinity();
+                continue;
+            }
+            if (!acc[i].infinity)
+                acc[i].z.mul_assign(impl->globalz[ci]);
+            results[chunk_start + i] = from_jac52(acc[i]);
+        }
+    }
+#endif
+}
+
 // ============================================================================
 // Scan-cache disk persistence
 // ============================================================================

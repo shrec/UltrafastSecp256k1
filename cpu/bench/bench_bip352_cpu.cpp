@@ -1017,13 +1017,14 @@ int main() {
     // ================================================================
     printf("=== [I] Precomputed-LUT Stage 1 (build once, run 16T) ===\n");
     double lut_setup_ns = 0.0, lut_hot_ns = 0.0;
+    CpuPoint::PointScanCacheHandle scan_cache;  // shared with [J]
     {
         // Setup: load from disk if cache exists; otherwise build + save
         const std::string scan_cache_path = "scan_lut_bench.bin";
         printf("  Loading/building LUT for %d points (cache: %s)...\n",
                BENCH_N, scan_cache_path.c_str());
         auto t_setup0 = Clock::now();
-        CpuPoint::PointScanCacheHandle scan_cache =
+        scan_cache =
             CpuPoint::batch_scan_precompute_or_load(
                 kplan, tweaks.data(), BENCH_N, scan_cache_path);
         auto t_setup1 = Clock::now();
@@ -1092,6 +1093,76 @@ int main() {
     }
 
     // ================================================================
+    // [J] Lockstep LUT: b_scan digits loop once, all A_i share it
+    //
+    // Outer loop: 128 digit positions (b_scan wNAF, loaded ONCE).
+    // Inner loop: chunk_n accumulators.
+    // Zero-digit positions (~75%): skip chunk_n inner iterations with 1 branch.
+    // Sign branch hoisted outside inner loop for non-zero digits.
+    // chunk_size=256: ~327KB tables + ~30KB accumulators → L2-resident.
+    // ================================================================
+    printf("=== [J] Lockstep LUT Stage 1 (b_scan digits once, %dT) ===\n", NUM_THREADS);
+    double lockstep_ns = 0.0;
+    {
+        std::vector<CpuPoint> s1_results(BENCH_N, CpuPoint::infinity());
+
+        auto do_pass_j = [&]() {
+            // Stage 1: lockstep loop
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        CpuPoint::batch_scan_run_lockstep(
+                            scan_cache, kplan,
+                            static_cast<size_t>(beg),
+                            s1_results.data() + beg,
+                            static_cast<size_t>(end - beg));
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+            // Stage 2: same as [D]
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            auto comp    = s1_results[i].to_compressed();
+                            uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser+33,0,4);
+                            auto hash    = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                            CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                            CpuPoint tG  = CpuPoint::generator().scalar_mul_jacobian(hs);
+                            tG.add_mixed_inplace(bs_x, bs_y);
+                            auto cc      = tG.to_compressed();
+                            prefixes[i]  = extract_prefix(cc.data() + 1);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+        };
+
+        do_pass_j();  // warmup
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            do_pass_j();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        lockstep_ns = median_ns(times) / BENCH_N;
+        printf("  [J] Lockstep %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+               NUM_THREADS, lockstep_ns, 1e9/lockstep_ns/1e6, naive_ns/lockstep_ns);
+        printf("  [J] validation: 0x%016lx\n\n", (unsigned long)prefixes[BENCH_N - 1]);
+    }
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -1116,6 +1187,8 @@ int main() {
         NUM_THREADS, fourx_ns, 1e9/fourx_ns/1e6, naive_ns/fourx_ns);
     printf("  [I] LUT   %2dT:   %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)  [setup:%.1fms]\n",
         NUM_THREADS, lut_hot_ns, 1e9/lut_hot_ns/1e6, naive_ns/lut_hot_ns, lut_setup_ns/1e6);
+    printf("  [J] Lockstep %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, lockstep_ns, 1e9/lockstep_ns/1e6, naive_ns/lockstep_ns);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 

@@ -245,6 +245,16 @@ public:
                                 Point* results,
                                 size_t n);
 
+    // Lockstep variant: outer loop over 128 b_scan digit positions, inner over n points.
+    // Each digit loaded ONCE; zero-digit positions skip the inner loop entirely.
+    // chunk_size controls working-set fit in L2 (default 256 ≈ 327 KB tables + 30 KB acc).
+    static void batch_scan_run_lockstep(const PointScanCacheHandle& cache,
+                                         const KPlan& plan,
+                                         size_t cache_offset,
+                                         Point* results,
+                                         size_t n,
+                                         size_t chunk_size = 256);
+
     // Persist cache to disk (atomic write via tmp+rename).
     // Returns true on success. File format includes magic/version for validation.
     static bool batch_scan_save(const PointScanCacheHandle& cache,
