@@ -25,6 +25,9 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 
 namespace secp256k1::fast {
 namespace {
