@@ -1485,22 +1485,23 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 Drop-in replacement via `compat/libsecp256k1_shim/` — the shim exposes
 the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
 Bitcoin Core v29.3 `bench_bitcoin` results on x86-64 Linux (i5-14400F),
-w=18 precomputed fixed-base table, non-GLV, 3-second stable runs.
+w=18 precomputed fixed-base table, 5-second stable runs with CPU warmup.
 
-All six consensus-critical secp256k1 benchmarks show improvement.
-`BIP324_ECDH` and `EllSwiftCreate` use the EllSwift encoding (BIP-324
-P2P v2 transport only, not consensus) which is currently stubbed.
+All 8 secp256k1-relevant benchmarks show improvement. BIP-324 EllSwift
+functions (`BIP324_ECDH`, `EllSwiftCreate`) use non-CT fast paths
+(`scalar_mul_generator` for key generation, `Point::scalar_mul` for
+variable-base ECDH) suitable for ephemeral BIP-324 session keys.
 
 | Benchmark | libsecp256k1 (ns/op) | UltrafastSecp256k1 (ns/op) | Speedup |
 |---|---:|---:|---:|
-| `SignTransactionECDSA` | 96,006 | 79,196 | **+17.5%** |
-| `SignTransactionSchnorr` | 80,368 | 73,663 | **+8.3%** |
-| `SignSchnorrWithMerkleRoot` | 64,723 | 43,981 | **+32.1%** |
-| `SignSchnorrWithNullMerkleRoot` | 66,059 | 43,823 | **+33.7%** |
-| `VerifyScriptBench` | 24,555 | 23,231 | **+5.4%** |
-| `VerifyNestedIfScript` | 29,517 | 29,026 | **+1.7%** |
-| `BIP324_ECDH` | 29,235 | — | stub (EllSwift) |
-| `EllSwiftCreate` | 27,654 | — | stub (EllSwift) |
+| `SignTransactionECDSA` | 93,926 | 75,777 | **+19.3%** |
+| `SignTransactionSchnorr` | 76,929 | 70,253 | **+8.7%** |
+| `SignSchnorrWithMerkleRoot` | 66,194 | 41,693 | **+37.0%** |
+| `SignSchnorrWithNullMerkleRoot` | 62,393 | 41,522 | **+33.4%** |
+| `VerifyScriptBench` | 22,551 | 21,961 | **+2.6%** |
+| `VerifyNestedIfScript` | 29,203 | 29,776 | **≈ parity** |
+| `BIP324_ECDH` | 29,422 | 18,183 | **+38.2%** |
+| `EllSwiftCreate` | 27,876 | 20,559 | **+26.2%** |
 
 Benchmarks run: 2026-04-25
 

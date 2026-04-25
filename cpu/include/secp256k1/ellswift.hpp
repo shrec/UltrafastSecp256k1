@@ -43,6 +43,25 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept;
 // Uses OS CSPRNG for the randomness needed by the encoding.
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey);
 
+// Fast variant: uses the precomputed fixed-base table (non-CT generator mul).
+// Suitable for ephemeral keys (BIP-324 session keys) where CT is not required.
+std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey);
+
+// Fast XDH variant: uses non-CT variable-base scalar_mul for the ECDH step.
+// Suitable for BIP-324 ephemeral session keys where CT is not required.
+std::array<std::uint8_t, 32> ellswift_xdh_fast(
+    const std::uint8_t ell_a64[64],
+    const std::uint8_t ell_b64[64],
+    const Scalar& our_privkey,
+    bool initiating) noexcept;
+
+// Encode an existing x-coordinate as a 64-byte ElligatorSwift encoding.
+// rnd32: 32 bytes of randomness that determine which of the many valid
+//        encodings is selected. Must not be a deterministic function of x.
+// Used by secp256k1_ellswift_encode (encode an existing pubkey).
+std::array<std::uint8_t, 64> ellswift_encode_x(const FieldElement& x,
+                                                const std::uint8_t rnd32[32]);
+
 // -- ElligatorSwift ECDH (BIP-324) --------------------------------------------
 
 // Perform x-only ECDH using ElligatorSwift-encoded public keys.
