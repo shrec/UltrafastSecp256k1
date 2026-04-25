@@ -9,6 +9,7 @@
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/precompute.hpp"
+#include "secp256k1/multiscalar.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -774,6 +775,61 @@ silent_payment_scan(const Scalar& scan_privkey,
     return results;
 }
 
+ScanTx compute_a_eff(const ScanTxRaw& raw)
+{
+    ScanTx result;
+    result.outputs = raw.outputs;
+
+    if (raw.input_pubkeys.empty()) {
+        result.a_eff = Point::infinity();
+        return result;
+    }
+
+    // Step 1: A_sum = Σ input_pubkeys
+    // Pippenger/Strauss via multi_scalar_mul with unit scalars — shares batch inversion
+    // across all inputs.  Crossover to Pippenger bucket-method at n_inputs > ~128
+    // is handled internally by multi_scalar_mul.  For n=1 skip to avoid overhead.
+    Point a_sum = Point::infinity();
+    {
+        std::size_t const m = raw.input_pubkeys.size();
+        if (m == 1) {
+            a_sum = raw.input_pubkeys[0];
+        } else {
+            // Build unit-scalar vector: each scalar = 1 (A_sum = Σ 1×P_i)
+            static const std::uint8_t one_bytes[32] = {
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+            };
+            Scalar unit;
+            Scalar::parse_bytes_strict_nonzero(one_bytes, unit);
+            std::vector<Scalar> scalars(m, unit);
+            a_sum = multi_scalar_mul(scalars.data(), raw.input_pubkeys.data(), m);
+        }
+    }
+
+    // Step 2: input_hash = H_BIP0352/Inputs(smallest_outpoint || A_sum_compressed)
+    static const auto s_inputs_tag = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>("BIP0352/Inputs"), 14);
+
+    auto a_sum_comp = a_sum.to_compressed();
+    SHA256 h;
+    h.update(s_inputs_tag.data(), 32);
+    h.update(s_inputs_tag.data(), 32);
+    h.update(raw.smallest_outpoint.data(), 36);
+    h.update(a_sum_comp.data(), 33);
+    auto hash_bytes = h.finalize();
+
+    Scalar input_hash;
+    if (!Scalar::parse_bytes_strict_nonzero(hash_bytes.data(), input_hash)) {
+        result.a_eff = Point::infinity();
+        return result;
+    }
+
+    // Step 3: a_eff = input_hash × A_sum
+    result.a_eff = a_sum.scalar_mul(input_hash);
+    return result;
+}
+
 std::vector<ScanMatch>
 fast_scan_batch(const fast::Scalar& scan_privkey,
                 const fast::Scalar& spend_privkey,
@@ -782,13 +838,18 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     if (txs.empty()) return {};
 
     // ── Stage 1: one KPlan for scan_privkey, shared across all txs ──────────
+    // KPlan amortizes: GLV decompose + wNAF recode — computed once, used N times.
+    // batch_scalar_mul_fixed_k runs the shared wNAF schedule in lockstep across
+    // all N points (chunk_size≈2048), batch-inverting window tables per chunk.
     fast::KPlan const plan = fast::KPlan::from_scalar(scan_privkey);
 
     std::size_t const n = txs.size();
-    std::vector<fast::Point> s1_jac(n);   // Jacobian shared secrets
-
+    std::vector<fast::Point> a_eff_pts(n);
     for (std::size_t i = 0; i < n; ++i)
-        s1_jac[i] = txs[i].a_eff.scalar_mul_with_plan(plan);
+        a_eff_pts[i] = txs[i].a_eff;
+
+    std::vector<fast::Point> s1_jac(n);   // Jacobian shared secrets
+    fast::Point::batch_scalar_mul_fixed_k(plan, a_eff_pts.data(), n, s1_jac.data());
 
     // One field inversion for all N shared secrets (Montgomery's trick).
     std::vector<std::array<std::uint8_t, 33>> s1_comp(n);

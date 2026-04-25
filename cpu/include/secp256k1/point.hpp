@@ -193,6 +193,19 @@ public:
     // Use when only x is needed (e.g. BIP-352 SHA-256 input, BIP-340 x-only).
     std::array<uint8_t, 32> x_only_bytes() const;
 
+    // Batch scalar mul: fixed K (from KPlan) × N variable points, N independent results.
+    // All points share the same wNAF (from plan), so:
+    //   (1) Tables for all N points built and batch-inverted together (1 field_inv per chunk).
+    //   (2) Shared wNAF loop processes chunk_size accumulators in lockstep.
+    //   (3) Results stored as lazy-Jacobian Points — pass to batch_to_compressed / batch_x_only_bytes.
+    // Chunked internally (chunk_size ≈ 2048) to keep the working set in L2/L3 cache.
+    // Fallback to per-point scalar_mul_with_plan on non-FE52 or degenerate inputs.
+    // Expected speedup over N × scalar_mul_with_plan: ~15–25% on Stage 1 latency.
+    static void batch_scalar_mul_fixed_k(const KPlan& plan,
+                                         const Point* pts,
+                                         size_t n,
+                                         Point* results);
+
     // Batch normalize: convert N Jacobian points to affine with ONE inversion
     // via Montgomery's trick. Cost: 1 inversion + 3(N-1) multiplications.
     // For N=2048: ~9.5 ns/point vs ~1000 ns/point individually.

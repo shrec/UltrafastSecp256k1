@@ -7,6 +7,44 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-24 (BIP-352 batch scan optimisation + BSM/IAG correctness audit: BSM-1..4 + IAG-1..3)
+
+### Added: `batch_scalar_mul_fixed_k` + `compute_a_eff` + `fast_scan_batch` Stage 1 upgrade
+
+**Motivation**: Silent Payment scanning on low-end hardware (Raspberry Pi, mobile,
+embedded) requires amortising GLV/wNAF overhead across the full UTXO scan, not just
+within a single scalar multiplication.
+
+**Stage 1 optimisation — `Point::batch_scalar_mul_fixed_k`**:
+- Computes `scan_sk × pts[i]` for N variable points with ONE `KPlan` recode.
+- wNAF loop runs in lockstep: all N accumulators advance together through the same
+  126.5 doubling steps — no per-point redundant scalar decode.
+- Chunked at 2048 pts; 1 `field_inverse` per chunk via Montgomery batch inversion.
+- Thread-local scratch buffers eliminate per-call heap churn.
+- Non-FE52 builds degrade gracefully to per-point `scalar_mul_with_plan`.
+
+**Input aggregation — `compute_a_eff`**:
+- `m = 1`: direct assignment (zero overhead).
+- `m > 1`: `multi_scalar_mul` with unit scalars (Pippenger/Strauss) computes
+  `A_sum = Σ input_pubkeys`; `a_eff = input_hash × A_sum`.
+- `ScanTxRaw` → `ScanTx` conversion handles smallest-outpoint tagged hash (BIP-352 §A).
+
+**`fast_scan_batch` updated**: Stage 1 now calls `batch_scalar_mul_fixed_k` instead
+of per-tx `scalar_mul_with_plan`; `ScanTxRaw` + `compute_a_eff` added to address API.
+
+**New audit evidence**: 7 correctness tests in `test_exploit_bip352_batch_correctness`:
+- BSM-1: batch N=512 + N=4200 (cross-chunk) vs per-point reference
+- BSM-2: GLV endomorphism linearity — φ(k·G) == k·φ(G)
+- BSM-3: KPlan idempotence
+- BSM-4: `fast_scan_batch` vs CT `silent_payment_scan` parity
+- IAG-1: `multi_scalar_mul(1,P1; 1,P2) == P1 + P2`
+- IAG-2: Pippenger A_sum (m=5) vs sequential add
+- IAG-3: `compute_a_eff` + `fast_scan_batch` round-trip agrees with CT reference
+
+Wired into `unified_audit_runner` (section: `math_invariants`, advisory=false).
+
+---
+
 ## 2026-04-23 (Exception-path secret key leakage in C ABI layer: EPE-RAII + EPE-1..12)
 
 ### Fixed: `include/ufsecp/ufsecp_impl.cpp` — systematic exception-path sk-leak bug class

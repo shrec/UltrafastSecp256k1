@@ -184,29 +184,46 @@ silent_payment_scan(const fast::Scalar& scan_privkey,
 // ── Fast batch scanner (wallet-optimised, non-CT) ────────────────────────────
 //
 // For full-blockchain scanning: scan_privkey is constant across millions of txs.
-// This API amortizes three expensive one-time costs:
+// This API amortizes four expensive costs:
 //   (1) KPlan::from_scalar(scan_privkey): GLV decompose + wNAF — computed ONCE.
-//   (2) batch_to_compressed for Stage 1: single field inversion across all N secrets.
-//   (3) batch_x_only_bytes for Stage 2: single field inversion across all N outputs.
+//   (2) batch_scalar_mul_fixed_k for Stage 1: shared wNAF loop, 1 field_inv per
+//       chunk (chunk_size≈2048). Treats scan as "one execution schedule, N data".
+//   (3) batch_to_compressed for Stage 1: single field inversion across all N secrets.
+//   (4) batch_x_only_bytes for Stage 2: single field inversion across all N outputs.
 //
 // Compared to N × silent_payment_scan() on i5-14400F (50K txs, 1 thread):
 //   silent_payment_scan: ~47K ns/tx  (CT Stage 1 + ct::generator_mul per tx)
 //   fast_scan_batch:     ~23K ns/tx  →  2.06× speedup
 //
-// Sources of speedup:
-//   - KPlan Stage 1 vs CT scalar_mul: ~6K ns/tx saved
-//   - No per-tx ct::generator_mul (B_spend): ~18K ns/tx saved
-//   - batch_x_only_bytes vs individual inversions: ~800 ns/tx saved
-//   - scalar-add (t+spend_sk) vs point-add: ~80 ns/tx saved
+// Stage 2 standalone throughput (16T, w=18 table): 1.60 M/s
+// Full pipeline (Stage 1 + Stage 2) at 16T: ~206K tx/s (Stage 1 dominates)
 //
 // Not constant-time: suitable for trusted-environment wallet scanning.
 // For server-side scanning where side-channel matters, use silent_payment_scan().
 
 // One effective input pubkey + its candidate outputs per transaction.
+// a_eff = input_hash × A_sum (caller's responsibility to aggregate inputs).
+// For raw-input aggregation, use ScanTxRaw + compute_a_eff() below.
 struct ScanTx {
-    fast::Point a_eff;                                    // A_sum (or input_hash×A_sum)
+    fast::Point a_eff;                                    // input_hash × A_sum
     std::vector<std::array<std::uint8_t, 32>> outputs;   // x-only output pubkeys to test
 };
+
+// Raw-input variant: caller provides individual input pubkeys per transaction.
+// compute_a_eff() aggregates them into a_eff using Pippenger/Strauss batch MSM
+// (all scalars = 1, so this reduces to batch point addition with one field_inv).
+struct ScanTxRaw {
+    std::vector<fast::Point> input_pubkeys;               // all P_j from tx inputs
+    std::array<std::uint8_t, 36> smallest_outpoint;      // BIP-352 input hash seed
+    std::vector<std::array<std::uint8_t, 32>> outputs;   // x-only output pubkeys
+};
+
+// Aggregate raw inputs into ScanTx.a_eff using batch MSM (scalars all = 1):
+//   a_eff = input_hash(outpoint, A_sum) × A_sum
+//   where A_sum = Σ input_pubkeys[j]
+// Uses multi_scalar_mul (Strauss GLV + effective-affine) for the summation.
+// Pippenger crossover applies at n_inputs > ~128; Strauss is used for all n < 128.
+ScanTx compute_a_eff(const ScanTxRaw& raw);
 
 // One detected match.
 struct ScanMatch {
@@ -216,7 +233,8 @@ struct ScanMatch {
 };
 
 // Batch scanner: processes txs.size() transactions in one call.
-// Internally: KPlan built once; Stage-1 Jacobian results batched for one inversion.
+// Stage 1 uses batch_scalar_mul_fixed_k (shared wNAF schedule, lockstep execution).
+// Stage 2 uses batch_x_only_bytes (one field_inv for all output candidates).
 std::vector<ScanMatch>
 fast_scan_batch(const fast::Scalar& scan_privkey,
                 const fast::Scalar& spend_privkey,

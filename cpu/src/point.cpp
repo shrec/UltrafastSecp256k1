@@ -2859,6 +2859,188 @@ static void batch_z_inv(const Point* points, size_t n,
     }
 }
 
+// -- batch_scalar_mul_fixed_k: fixed K × N variable points -------------------
+// Same wNAF for all N points (from KPlan) → one batch inversion per chunk.
+// Adapted from multi_scalar_mul (multiscalar.cpp) for the fixed-K case.
+void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
+                                     const Point* pts,
+                                     size_t n,
+                                     Point* results)
+{
+    if (n == 0) return;
+    if (n == 1) { results[0] = pts[0].scalar_mul_with_plan(plan); return; }
+
+#if !defined(SECP256K1_FAST_52BIT)
+    // Non-FE52 platforms: per-point fallback
+    for (size_t i = 0; i < n; ++i)
+        results[i] = pts[i].scalar_mul_with_plan(plan);
+    return;
+#else
+    using FE52 = FieldElement52;
+    static const FE52 beta52 = FE52::from_fe(
+        FieldElement::from_bytes(glv_constants::BETA));
+
+    const unsigned w = plan.window_width;
+    // Guard: only w ∈ [3,7] are supported by the FE52 path
+    if (SECP256K1_UNLIKELY(w < 3 || w > 7)) {
+        for (size_t i = 0; i < n; ++i)
+            results[i] = pts[i].scalar_mul_with_plan(plan);
+        return;
+    }
+    const size_t table_size = static_cast<size_t>(1) << (w - 2);  // 8 for w=5
+
+    // Trim trailing zeros from shared wNAF buffers
+    size_t wnaf1_len = plan.wnaf1_len;
+    size_t wnaf2_len = plan.wnaf2_len;
+    const int32_t* wnaf1 = plan.wnaf1.data();
+    const int32_t* wnaf2 = plan.wnaf2.data();
+    while (wnaf1_len > 0 && wnaf1[wnaf1_len - 1] == 0) --wnaf1_len;
+    while (wnaf2_len > 0 && wnaf2[wnaf2_len - 1] == 0) --wnaf2_len;
+    const size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
+
+    // Process in chunks to keep the working set in L2/L3 (~1 MB target).
+    // Each point needs table_size × 2 × FE52 (x+y) + 1 JacobianPoint52 accumulator.
+    // chunk_size = 2048: 2048 × 8 × 2 × 40B ≈ 1.25 MB for tables + 400 KB accumulators.
+    constexpr size_t kChunkSize = 2048;
+
+    // Thread-local scratch buffers — reused across calls, no heap churn per tx batch.
+    static thread_local std::vector<Point>  s_tables;
+    static thread_local std::vector<FE52>   s_prefix;
+    static thread_local std::vector<FE52>   s_tbl_P_x,  s_tbl_P_y;
+    static thread_local std::vector<FE52>   s_tbl_phi_x, s_tbl_phi_y;
+    static thread_local std::vector<Point>  s_acc;
+
+    for (size_t chunk_start = 0; chunk_start < n; chunk_start += kChunkSize) {
+        const size_t chunk_n = std::min(kChunkSize, n - chunk_start);
+        const size_t total   = chunk_n * table_size;
+
+        s_tables.resize(total);
+        s_prefix.resize(total);
+        s_tbl_P_x.resize(total);   s_tbl_P_y.resize(total);
+        s_tbl_phi_x.resize(total); s_tbl_phi_y.resize(total);
+        s_acc.resize(chunk_n);
+
+        // Step 1: Build Jacobian window tables for chunk_n points.
+        for (size_t i = 0; i < chunk_n; ++i) {
+            const Point& pt = pts[chunk_start + i];
+            if (SECP256K1_UNLIKELY(pt.is_infinity())) {
+                for (size_t j = 0; j < table_size; ++j)
+                    s_tables[i * table_size + j] = Point::infinity();
+                continue;
+            }
+            Point base = plan.neg1 ? pt.negate() : pt;
+            s_tables[i * table_size] = base;
+            if (table_size > 1) {
+                Point P2 = base.dbl();
+                for (size_t j = 1; j < table_size; ++j)
+                    s_tables[i * table_size + j] =
+                        s_tables[i * table_size + j - 1].add(P2);
+            }
+        }
+
+        // Step 2: Batch-invert all chunk_n × table_size Z-coordinates.
+        //         Montgomery forward pass → single inversion → backward pass.
+        bool all_affine = true;
+        for (size_t k = 0; k < total && all_affine; ++k)
+            if (!s_tables[k].is_infinity() && !s_tables[k].is_normalized())
+                all_affine = false;
+
+        if (all_affine) {
+            for (size_t k = 0; k < total; ++k) {
+                s_tbl_P_x[k] = s_tables[k].X52();
+                s_tbl_P_y[k] = s_tables[k].Y52();
+            }
+        } else {
+            // Forward accumulation
+            s_prefix[0] = s_tables[0].is_infinity()
+                            ? FE52::one() : s_tables[0].Z52();
+            for (size_t k = 1; k < total; ++k) {
+                s_prefix[k] = s_tables[k].is_infinity()
+                    ? s_prefix[k - 1]
+                    : s_prefix[k - 1] * s_tables[k].Z52();
+            }
+            if (SECP256K1_UNLIKELY(s_prefix[total - 1].normalizes_to_zero())) {
+                // Degenerate: fall back per-point for this chunk
+                for (size_t i = 0; i < chunk_n; ++i)
+                    results[chunk_start + i] =
+                        pts[chunk_start + i].scalar_mul_with_plan(plan);
+                continue;
+            }
+            FE52 inv = s_prefix[total - 1].inverse();
+            for (size_t k = total; k-- > 0; ) {
+                if (s_tables[k].is_infinity()) {
+                    s_tbl_P_x[k] = FE52::zero();
+                    s_tbl_P_y[k] = FE52::zero();
+                    continue;
+                }
+                FE52 const z_inv = (k > 0) ? s_prefix[k - 1] * inv : inv;
+                if (k > 0) inv *= s_tables[k].Z52();
+                FE52 const z2 = z_inv.square();
+                FE52 const z3 = z2 * z_inv;
+                s_tbl_P_x[k] = s_tables[k].X52() * z2;
+                s_tbl_P_y[k] = s_tables[k].Y52() * z3;
+            }
+        }
+
+        // Step 3: Derive phi tables via beta multiplication.
+        const bool flip_phi = (plan.neg1 != plan.neg2);
+        for (size_t k = 0; k < total; ++k) {
+            s_tbl_phi_x[k] = s_tbl_P_x[k] * beta52;
+            if (flip_phi) {
+                s_tbl_phi_y[k] = s_tbl_P_y[k].negate(1);
+                s_tbl_phi_y[k].normalize_weak();
+            } else {
+                s_tbl_phi_y[k] = s_tbl_P_y[k];
+            }
+        }
+
+        // Step 4: Shared wNAF loop — all chunk_n accumulators advance in lockstep.
+        for (size_t i = 0; i < chunk_n; ++i)
+            s_acc[i] = Point::infinity();
+
+        for (size_t bit = max_len; bit-- > 0; ) {
+            // Double all accumulators
+            for (size_t i = 0; i < chunk_n; ++i)
+                s_acc[i].dbl_inplace();
+
+            // k1 stream: same NAF digit for all points, different table rows
+            if (bit < wnaf1_len) {
+                const int32_t d1 = wnaf1[bit];
+                if (d1 != 0) {
+                    const size_t idx = static_cast<size_t>(
+                        (d1 > 0 ? d1 - 1 : -d1 - 1) / 2);
+                    for (size_t i = 0; i < chunk_n; ++i) {
+                        FE52 lx = s_tbl_P_x[i * table_size + idx];
+                        FE52 ly = s_tbl_P_y[i * table_size + idx];
+                        if (d1 < 0) { ly.negate_assign(1); ly.normalize_weak(); }
+                        s_acc[i].add_mixed52_inplace(lx, ly);
+                    }
+                }
+            }
+
+            // k2 stream
+            if (bit < wnaf2_len) {
+                const int32_t d2 = wnaf2[bit];
+                if (d2 != 0) {
+                    const size_t idx = static_cast<size_t>(
+                        (d2 > 0 ? d2 - 1 : -d2 - 1) / 2);
+                    for (size_t i = 0; i < chunk_n; ++i) {
+                        FE52 lx = s_tbl_phi_x[i * table_size + idx];
+                        FE52 ly = s_tbl_phi_y[i * table_size + idx];
+                        if (d2 < 0) { ly.negate_assign(1); ly.normalize_weak(); }
+                        s_acc[i].add_mixed52_inplace(lx, ly);
+                    }
+                }
+            }
+        }
+
+        // Step 5: Store results (lazy Jacobian — caller uses batch_to_compressed)
+        for (size_t i = 0; i < chunk_n; ++i)
+            results[chunk_start + i] = s_acc[i];
+    }
+#endif // SECP256K1_FAST_52BIT
+}
+
 // -- Batch normalize: Montgomery trick for N points ---------------------------
 // 1 inversion + 3(N-1) multiplications instead of N inversions.
 void Point::batch_normalize(const Point* points, size_t n,

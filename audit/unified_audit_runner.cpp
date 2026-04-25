@@ -378,6 +378,7 @@ int test_exploit_differential_openssl_run();
 int test_exploit_bip352_scan_dos_run();
 int test_exploit_taproot_commitment_adversarial_run();
 int test_exploit_bip352_parity_confusion_run();
+int test_exploit_bip352_batch_correctness_run();
 int test_exploit_rfc6979_truncation_bias_run();
 int test_exploit_binding_adversarial_api_run();
 int test_exploit_quantum_exposure_run();
@@ -726,6 +727,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip352_scan_dos",        "BIP-352 Scan DoS Prevention (DOS-0..3)",      "exploit_poc", test_exploit_bip352_scan_dos_run, false },
     { "exploit_taproot_commit_adv",     "Taproot Commitment Adversarial (TCA-1..5)",   "exploit_poc", test_exploit_taproot_commitment_adversarial_run, false },
     { "exploit_bip352_parity",          "BIP-352 Parity Confusion (PAR-1..6)",         "exploit_poc", test_exploit_bip352_parity_confusion_run, false },
+    { "exploit_bip352_batch_correct",   "BIP-352 Batch ScalarMul + Input Agg (BSM/IAG-1..10)", "math_invariants", test_exploit_bip352_batch_correctness_run, false },
     { "exploit_rfc6979_trunc_bias",     "RFC6979 Nonce Truncation Bias (NTB-1..5)",    "exploit_poc", test_exploit_rfc6979_truncation_bias_run, false },
     { "exploit_binding_adv_api",        "Binding Adversarial API (BAT-1..11)",         "exploit_poc", test_exploit_binding_adversarial_api_run, false },
     { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6)",         "exploit_poc", test_exploit_quantum_exposure_run, false },

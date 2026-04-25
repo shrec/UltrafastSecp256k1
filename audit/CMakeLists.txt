@@ -1623,6 +1623,14 @@ target_compile_definitions(test_exploit_bip352_parity_confusion_standalone PRIVA
 add_test(NAME exploit_bip352_parity_confusion COMMAND test_exploit_bip352_parity_confusion_standalone)
 set_tests_properties(exploit_bip352_parity_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip352;parity")
 
+# -- BIP-352 Batch Scalar Mul + Input Aggregation Correctness (BSM/IAG)
+add_executable(test_exploit_bip352_batch_correctness_standalone
+    test_exploit_bip352_batch_correctness.cpp)
+audit_target_defaults(test_exploit_bip352_batch_correctness_standalone)
+target_compile_definitions(test_exploit_bip352_batch_correctness_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip352_batch_correctness COMMAND test_exploit_bip352_batch_correctness_standalone)
+set_tests_properties(exploit_bip352_batch_correctness PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;batch;msm")
+
 # -- BIP-352 Known-Answer Tests (create_output byte-exact + full round-trip)
 add_executable(test_bip352_kat_standalone
     test_bip352_kat.cpp
@@ -2808,6 +2816,7 @@ add_executable(unified_audit_runner
     test_exploit_bip352_scan_dos.cpp
     test_exploit_taproot_commitment_adversarial.cpp
     test_exploit_bip352_parity_confusion.cpp
+    test_exploit_bip352_batch_correctness.cpp
     test_bip352_kat.cpp
     test_exploit_rfc6979_truncation_bias.cpp
     test_exploit_binding_adversarial_api.cpp

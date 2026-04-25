@@ -754,12 +754,53 @@ silent_payment_create_output(const std::vector<fast::Scalar>& input_privkeys,
                              const SilentPaymentAddress& recipient,
                              uint32_t k = 0);
 
-// Receiver: scan transaction to detect addressed outputs
+// Receiver: scan transaction to detect addressed outputs (CT reference)
 std::vector<std::pair<uint32_t, fast::Scalar>>
 silent_payment_scan(const fast::Scalar& scan_privkey,
                     const fast::Scalar& spend_privkey,
                     const std::vector<fast::Point>& input_pubkeys,
                     const std::vector<std::array<uint8_t, 32>>& output_pubkeys);
+
+// ── High-performance batch scanner ──────────────────────────────────────────
+
+// Pre-aggregated transaction (A_eff already computed)
+struct ScanTx {
+    fast::Point a_eff;                                   // scan_sk × this = shared secret
+    std::vector<std::array<uint8_t, 32>> outputs;        // x-only output pubkeys
+};
+
+// Raw transaction (input pubkeys not yet aggregated)
+struct ScanTxRaw {
+    std::vector<fast::Point> input_pubkeys;              // taproot-eligible inputs
+    std::array<uint8_t, 36> smallest_outpoint;           // for input_hash (BIP-352 §A)
+    std::vector<std::array<uint8_t, 32>> outputs;
+};
+
+// Compute A_eff = input_hash × Σ input_pubkeys
+// Uses multi_scalar_mul (Pippenger) for m > 1 inputs.
+ScanTx compute_a_eff(const ScanTxRaw& raw);
+
+// Batch scan: one KPlan recode, one GLV decompose, lockstep wNAF loop for all txs.
+// Stage 1: batch_scalar_mul_fixed_k (fixed scan_sk, N variable a_eff points).
+// Stage 2: hash × t×G comparison for each candidate output.
+// Expected throughput: ~206K tx/s (16-core) — Stage 1 bottleneck ~9.1 µs/tx/core.
+std::vector<std::pair<uint32_t, fast::Scalar>>
+fast_scan_batch(const fast::Scalar& scan_privkey,
+                const fast::Scalar& spend_privkey,
+                const std::vector<ScanTx>& txs);
+
+// ── KPlan + batch_scalar_mul_fixed_k (low-level) ────────────────────────────
+
+// Precomputed GLV wNAF schedule for a fixed scalar.
+// Computed once; reused for all N points in a batch.
+struct KPlan { /* opaque */ };
+
+// static method on fast::Point:
+//   static void batch_scalar_mul_fixed_k(const KPlan& plan,
+//                                        const Point* pts, size_t n,
+//                                        Point* results);
+// One KPlan recode, lockstep wNAF loop, 1 field_inv per 2048-pt chunk.
+// For N=1 falls back to scalar_mul_with_plan; non-FE52 builds use per-point fallback.
 ```
 
 ---
