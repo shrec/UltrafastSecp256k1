@@ -20,9 +20,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <string>
 
 namespace secp256k1::fast {
 namespace {
@@ -3276,6 +3278,173 @@ void Point::batch_scan_run(const PointScanCacheHandle& cache,
         results[i] = from_jac52(r52);
     }
 #endif
+}
+
+// ============================================================================
+// Scan-cache disk persistence
+// ============================================================================
+// Binary format:
+//   [4B magic][4B version][4B window_bits][4B table_size][8B n]
+//   [n × 1B valid]
+//   [n × table_size × (32B x + 32B y)]   ← tbl_P
+//   [n × table_size × (32B x + 32B y)]   ← tbl_phiP
+//   [n × 32B]                             ← globalz
+//
+// Field elements are serialized as 32-byte big-endian (normalized).
+// Atomic write: tmp file → rename to prevent readers seeing partial data.
+
+static constexpr uint32_t SCAN_CACHE_MAGIC   = 0x53434E21U; // "SCN!"
+static constexpr uint32_t SCAN_CACHE_VERSION = 1U;
+
+#if defined(SECP256K1_FAST_52BIT)
+static bool scan_write_fe52(std::ofstream& f, const FieldElement52& fe) {
+    std::array<uint8_t, 32> buf;
+    fe.to_bytes_into(buf.data());
+    f.write(reinterpret_cast<const char*>(buf.data()), 32);
+    return f.good();
+}
+static bool scan_read_fe52(std::ifstream& f, FieldElement52& fe) {
+    std::array<uint8_t, 32> buf;
+    f.read(reinterpret_cast<char*>(buf.data()), 32);
+    if (!f.good()) return false;
+    fe = FieldElement52::from_fe(FieldElement::from_bytes(buf));
+    return true;
+}
+#endif // SECP256K1_FAST_52BIT
+
+bool Point::batch_scan_save(const PointScanCacheHandle& cache, const std::string& path) {
+    const auto* impl = static_cast<const ScanCacheImpl*>(cache.get());
+    if (!impl || impl->n == 0) return false;
+
+#if !defined(SECP256K1_FAST_52BIT)
+    return false;  // No FE52 data to save
+#else
+    // Atomic write: tmp path → rename
+#if defined(_WIN32)
+    std::string tmp = path + ".tmp." + std::to_string(_getpid());
+#else
+    std::string tmp = path + ".tmp." + std::to_string(getpid());
+#endif
+    std::ofstream f(tmp, std::ios::binary);
+    if (!f.is_open()) return false;
+
+    // Header
+    const uint32_t magic   = SCAN_CACHE_MAGIC;
+    const uint32_t version = SCAN_CACHE_VERSION;
+    const uint32_t wbits   = impl->window_bits;
+    const uint32_t ts      = static_cast<uint32_t>(impl->table_size);
+    const uint64_t n       = static_cast<uint64_t>(impl->n);
+    f.write(reinterpret_cast<const char*>(&magic),   4);
+    f.write(reinterpret_cast<const char*>(&version), 4);
+    f.write(reinterpret_cast<const char*>(&wbits),   4);
+    f.write(reinterpret_cast<const char*>(&ts),      4);
+    f.write(reinterpret_cast<const char*>(&n),       8);
+    if (!f.good()) { std::remove(tmp.c_str()); return false; }
+
+    // valid flags
+    f.write(reinterpret_cast<const char*>(impl->valid.data()),
+            static_cast<std::streamsize>(impl->n));
+    if (!f.good()) { std::remove(tmp.c_str()); return false; }
+
+    // tbl_P and tbl_phiP
+    const size_t total = impl->n * static_cast<size_t>(impl->table_size);
+    for (size_t k = 0; k < total; ++k) {
+        if (!scan_write_fe52(f, impl->tbl_P[k].x)) { std::remove(tmp.c_str()); return false; }
+        if (!scan_write_fe52(f, impl->tbl_P[k].y)) { std::remove(tmp.c_str()); return false; }
+    }
+    for (size_t k = 0; k < total; ++k) {
+        if (!scan_write_fe52(f, impl->tbl_phiP[k].x)) { std::remove(tmp.c_str()); return false; }
+        if (!scan_write_fe52(f, impl->tbl_phiP[k].y)) { std::remove(tmp.c_str()); return false; }
+    }
+
+    // globalz
+    for (size_t i = 0; i < impl->n; ++i) {
+        if (!scan_write_fe52(f, impl->globalz[i])) { std::remove(tmp.c_str()); return false; }
+    }
+
+    f.close();
+    if (!f.good()) { std::remove(tmp.c_str()); return false; }
+
+    if (std::rename(tmp.c_str(), path.c_str()) != 0) {
+        std::remove(tmp.c_str());
+        return false;
+    }
+    return true;
+#endif
+}
+
+Point::PointScanCacheHandle Point::batch_scan_load(const std::string& path) {
+#if !defined(SECP256K1_FAST_52BIT)
+    return nullptr;
+#else
+    std::ifstream f(path, std::ios::binary);
+    if (!f.is_open()) return nullptr;
+
+    uint32_t magic = 0, version = 0, wbits = 0, ts_u = 0;
+    uint64_t n64 = 0;
+    f.read(reinterpret_cast<char*>(&magic),   4);
+    f.read(reinterpret_cast<char*>(&version), 4);
+    f.read(reinterpret_cast<char*>(&wbits),   4);
+    f.read(reinterpret_cast<char*>(&ts_u),    4);
+    f.read(reinterpret_cast<char*>(&n64),     8);
+    if (!f.good() || magic != SCAN_CACHE_MAGIC || version != SCAN_CACHE_VERSION) return nullptr;
+    if (ts_u == 0 || n64 == 0 || ts_u > 32) return nullptr;
+
+    const int ts = static_cast<int>(ts_u);
+    const size_t n = static_cast<size_t>(n64);
+    const size_t total = n * static_cast<size_t>(ts);
+
+    auto* impl = new ScanCacheImpl();
+    impl->window_bits = wbits;
+    impl->table_size  = ts;
+    impl->n           = n;
+    impl->tbl_P.resize(total);
+    impl->tbl_phiP.resize(total);
+    impl->globalz.resize(n);
+    impl->valid.resize(n, 0);
+
+    f.read(reinterpret_cast<char*>(impl->valid.data()),
+           static_cast<std::streamsize>(n));
+    if (!f.good()) { delete impl; return nullptr; }
+
+    for (size_t k = 0; k < total; ++k) {
+        if (!scan_read_fe52(f, impl->tbl_P[k].x) ||
+            !scan_read_fe52(f, impl->tbl_P[k].y)) { delete impl; return nullptr; }
+    }
+    for (size_t k = 0; k < total; ++k) {
+        if (!scan_read_fe52(f, impl->tbl_phiP[k].x) ||
+            !scan_read_fe52(f, impl->tbl_phiP[k].y)) { delete impl; return nullptr; }
+    }
+    for (size_t i = 0; i < n; ++i) {
+        if (!scan_read_fe52(f, impl->globalz[i])) { delete impl; return nullptr; }
+    }
+
+    return PointScanCacheHandle(impl, [](void* p){ delete static_cast<ScanCacheImpl*>(p); });
+#endif
+}
+
+Point::PointScanCacheHandle Point::batch_scan_precompute_or_load(
+    const KPlan& plan, const Point* pts, size_t n, const std::string& cache_path)
+{
+    // Try to load from disk first
+    if (!cache_path.empty()) {
+        PointScanCacheHandle h = batch_scan_load(cache_path);
+        if (h) {
+            const auto* impl = static_cast<const ScanCacheImpl*>(h.get());
+            // Validate: same window width and size
+            if (impl->n == n && impl->window_bits == plan.window_width)
+                return h;
+        }
+    }
+
+    // Build from scratch
+    PointScanCacheHandle h = batch_scan_precompute(plan, pts, n);
+
+    // Persist for next run
+    if (!cache_path.empty())
+        batch_scan_save(h, cache_path);
+
+    return h;
 }
 
 // -- Batch normalize: Montgomery trick for N points ---------------------------

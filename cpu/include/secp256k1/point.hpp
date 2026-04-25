@@ -245,6 +245,20 @@ public:
                                 Point* results,
                                 size_t n);
 
+    // Persist cache to disk (atomic write via tmp+rename).
+    // Returns true on success. File format includes magic/version for validation.
+    static bool batch_scan_save(const PointScanCacheHandle& cache,
+                                 const std::string& path);
+
+    // Load cache from disk. Returns null handle on failure (missing/corrupt file).
+    static PointScanCacheHandle batch_scan_load(const std::string& path);
+
+    // Convenience: load from path if it exists and is valid; otherwise build from pts,
+    // save to path, and return the cache. Single call replaces the if/else pattern.
+    static PointScanCacheHandle batch_scan_precompute_or_load(
+        const KPlan& plan, const Point* pts, size_t n,
+        const std::string& cache_path);
+
     // Batch normalize: convert N Jacobian points to affine with ONE inversion
     // via Montgomery's trick. Cost: 1 inversion + 3(N-1) multiplications.
     // For N=2048: ~9.5 ns/point vs ~1000 ns/point individually.

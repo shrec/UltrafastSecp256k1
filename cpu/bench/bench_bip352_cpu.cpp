@@ -1018,14 +1018,17 @@ int main() {
     printf("=== [I] Precomputed-LUT Stage 1 (build once, run 16T) ===\n");
     double lut_setup_ns = 0.0, lut_hot_ns = 0.0;
     {
-        // Setup: precompute GLV52 tables for all tweaks[] — one-time cost
-        printf("  Building LUT for %d points...\n", BENCH_N);
+        // Setup: load from disk if cache exists; otherwise build + save
+        const std::string scan_cache_path = "scan_lut_bench.bin";
+        printf("  Loading/building LUT for %d points (cache: %s)...\n",
+               BENCH_N, scan_cache_path.c_str());
         auto t_setup0 = Clock::now();
         CpuPoint::PointScanCacheHandle scan_cache =
-            CpuPoint::batch_scan_precompute(kplan, tweaks.data(), BENCH_N);
+            CpuPoint::batch_scan_precompute_or_load(
+                kplan, tweaks.data(), BENCH_N, scan_cache_path);
         auto t_setup1 = Clock::now();
         lut_setup_ns = elapsed_ns(t_setup0, t_setup1);
-        printf("  Setup (one-time): %.1f ms  (%.1f ns/point)\n",
+        printf("  Setup (load/build): %.1f ms  (%.1f ns/point)\n",
                lut_setup_ns / 1e6, lut_setup_ns / BENCH_N);
 
         std::vector<CpuPoint> s1_results(BENCH_N, CpuPoint::infinity());
