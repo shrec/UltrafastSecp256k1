@@ -595,6 +595,27 @@
       "reason": "ePrint 2024/1225 Dark Skippy hardware-wallet nonce exfiltration: ufsecp uses RFC 6979 deterministic nonce with no external nonce-callback injection surface. Verified: determinism, r-value uniformity, Schnorr aux_rand independence, 128-sig HW uniformity."
     },
     {
+      "id": "riscv_transient_execution_leakage",
+      "status": "candidate",
+      "priority": "high",
+      "action": "audit",
+      "keywords": [
+        "transient execution",
+        "risc-v",
+        "riscv",
+        "spectre",
+        "microarchitecture information leakage",
+        "microarchitecture leak",
+        "branch predictor",
+        "speculative execution"
+      ],
+      "repo_evidence": [
+        "audit/test_ct_sidechannel.cpp",
+        "audit/platform-reports/riscv64-gcc13-hw.txt"
+      ],
+      "reason": "Transient execution attacks (Spectre-class) on RISC-V cores can bypass code-discipline CT guarantees — the same class of leak that CAAS caught via compiler optimization on the RISC-V port. Current CT coverage uses dudect + LLVM MemorySanitizer; neither catches speculative-load leakage. A dedicated audit surface (e.g., hardware PMU probe or microarch simulator) is needed to fully close this vector on RISC-V."
+    },
+    {
       "id": "fiat_shamir_frozen_heart",
       "status": "covered",
       "priority": "high",

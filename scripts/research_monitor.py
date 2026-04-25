@@ -33,7 +33,8 @@ FOCUS_TERMS = (
     'exploit',
     'side-channel',
     'side channel',
-    'timing',
+    'timing attack',
+    'timing leak',
     'nonce',
     'ecdsa',
     'schnorr',
@@ -47,31 +48,78 @@ FOCUS_TERMS = (
     'formal verification',
     'verifiable c',
     'coq',
-    'fault',
-    'wallet',
+    'fault injection',
+    'fault attack',
+    'hardware wallet',
+    'bitcoin wallet',
+    'hd wallet',
     'batch verification',
     'precomputation',
     'precompute',
-    'optimization',
-    'accelerat',
-    'performance',
-    'benchmark',
     'cve',
-    'exfiltration',
+    'nonce exfiltration',
+    'key exfiltration',
     'covert channel',
     'subliminal channel',
     'fiat-shamir',
     'fiat shamir',
     'zero-knowledge',
     'bulletproofs',
-    'transcript',
+    'zk transcript',
+    'proof transcript',
     'dvfs',
     'power analysis',
     'hertzbleed',
-    'cache',
-    'microarchitecture',
-    'forgery',
+    'cache timing',
+    'cache side-channel',
+    'transient execution',
+    'spectre',
+    'meltdown',
+    'microarchitecture attack',
+    'microarchitecture leak',
+    'microarchitecture information leakage',
+    'signature forgery',
+    'ecdsa forgery',
+    'schnorr forgery',
     'grinding',
+)
+
+# At least one of these must appear (title+summary) for an unmatched item
+# to be flagged as actionable 'unmapped' rather than silently out_of_scope.
+CRYPTO_DOMAIN_TERMS = (
+    'secp256k1',
+    'ecdsa',
+    'schnorr',
+    'elliptic curve',
+    'bitcoin',
+    'cryptograph',
+    'side-channel',
+    'side channel',
+    'zero-knowledge',
+    'fiat-shamir',
+    'nonce',
+    'signature scheme',
+    'public key cryptography',
+    'timing attack',
+    'transient execution',
+    'spectre',
+    'constant-time',
+    'constant time',
+    'power analysis',
+    'fault injection',
+    'cve-',
+    'frost',
+    'musig',
+    'ecdh',
+    'glv',
+    'bulletproof',
+    'curve25519',
+    'secp256r1',
+    'p-256',
+    'rfc 6979',
+    'rfc6979',
+    'bip-340',
+    'bip340',
 )
 
 STATUS_RANK = {
@@ -339,7 +387,10 @@ def classify_item(item: SourceItem, classes: Iterable[SignalClass]) -> dict:
         if any(keyword in haystack for keyword in signal.keywords):
             matched.append(signal)
     if not matched:
-        if item.source != 'NVD' and not any(term in title_haystack for term in FOCUS_TERMS):
+        has_focus = any(term in title_haystack for term in FOCUS_TERMS)
+        # NVD items are crypto-domain by construction; others must pass both gates.
+        has_crypto = item.source == 'NVD' or any(term in haystack for term in CRYPTO_DOMAIN_TERMS)
+        if not has_focus or not has_crypto:
             return {
                 'status': 'out_of_scope',
                 'actionable': False,
@@ -650,12 +701,13 @@ def main() -> int:
     queries = [args.query]
     if args.query == 'secp256k1':
         queries.extend([
-            'ecdsa side-channel',
-            'schnorr forgery',
-            'fiat-shamir zero-knowledge',
-            'wallet nonce exfiltration',
-            'microarchitecture dvfs',
-            'constant-time hertzbleed'
+            'ecdsa side-channel attack',
+            'schnorr signature forgery',
+            'fiat-shamir zero-knowledge proof',
+            'bitcoin nonce exfiltration',
+            'cpu microarchitecture timing attack cryptography',
+            'constant-time hertzbleed',
+            'transient execution elliptic curve',
         ])
 
     raw_items = []
