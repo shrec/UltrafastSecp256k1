@@ -206,6 +206,15 @@ public:
                                          size_t n,
                                          Point* results);
 
+    // 4× interleaved variant: process 4 points per inner loop iteration sharing
+    // the same wNAF digit sequence. Gives ILP speedup via 4 independent add chains.
+    // n must be a multiple of 4; caller pads if needed.
+    // Falls back to per-point scalar_mul_with_plan on degenerate inputs.
+    static void batch_scalar_mul_fixed_k_4x(const KPlan& plan,
+                                             const Point* pts,
+                                             size_t n,
+                                             Point* results);
+
     // Batch normalize: convert N Jacobian points to affine with ONE inversion
     // via Montgomery's trick. Cost: 1 inversion + 3(N-1) multiplications.
     // For N=2048: ~9.5 ns/point vs ~1000 ns/point individually.

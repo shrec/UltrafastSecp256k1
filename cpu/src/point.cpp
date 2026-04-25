@@ -1115,6 +1115,47 @@ static JacobianPoint52 shamir_2stream_glv52(
     return result52;
 }
 
+// 4-stream Shamir's trick: 4 independent accumulators share the same wNAF
+// digit sequence. OOO execution pipelines the 4 independent add chains.
+// All 4 pairs of tables must have the same size (matching glv_window).
+static void shamir_4stream_glv52(
+    const AffinePoint52* tbl_P0,   const AffinePoint52* tbl_phiP0,
+    const AffinePoint52* tbl_P1,   const AffinePoint52* tbl_phiP1,
+    const AffinePoint52* tbl_P2,   const AffinePoint52* tbl_phiP2,
+    const AffinePoint52* tbl_P3,   const AffinePoint52* tbl_phiP3,
+    const int32_t* wnaf1, std::size_t wnaf1_len,
+    const int32_t* wnaf2, std::size_t wnaf2_len,
+    JacobianPoint52 out[4])
+{
+    const JacobianPoint52 inf52 = {
+        FieldElement52::zero(), FieldElement52::one(),
+        FieldElement52::zero(), true
+    };
+    out[0] = out[1] = out[2] = out[3] = inf52;
+
+    const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        jac52_double_inplace(out[0]);
+        jac52_double_inplace(out[1]);
+        jac52_double_inplace(out[2]);
+        jac52_double_inplace(out[3]);
+
+        const int32_t d1 = wnaf1[static_cast<std::size_t>(i)];
+        const int32_t d2 = wnaf2[static_cast<std::size_t>(i)];
+
+        apply_wnaf_mixed52(out[0], tbl_P0, d1);
+        apply_wnaf_mixed52(out[1], tbl_P1, d1);
+        apply_wnaf_mixed52(out[2], tbl_P2, d1);
+        apply_wnaf_mixed52(out[3], tbl_P3, d1);
+
+        apply_wnaf_mixed52(out[0], tbl_phiP0, d2);
+        apply_wnaf_mixed52(out[1], tbl_phiP1, d2);
+        apply_wnaf_mixed52(out[2], tbl_phiP2, d2);
+        apply_wnaf_mixed52(out[3], tbl_phiP3, d2);
+    }
+}
+
 // -- 4x64 Fallback for scalar_mul when 5x52 batch inversion fails --------
 // Extracted to its own noinline function to keep the hot 5x52 path free
 // of try/catch overhead.  Called only when eff_z product is zero (~never
@@ -2565,6 +2606,73 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
 
     return from_jac52(result52);
 }
+
+// 4× variant: same KPlan applied to 4 base points simultaneously.
+// Builds 4 sets of tables then runs a shared wNAF digit loop (shamir_4stream_glv52).
+// Falls back to 4× scalar_mul_with_plan_glv52 on any degenerate input.
+SECP256K1_NOINLINE SECP256K1_NO_STACK_PROTECTOR
+static void scalar_mul_with_plan_glv52_4x(
+    const Point bases[4], const KPlan& plan, Point results[4])
+{
+    const unsigned glv_window = plan.window_width;
+    constexpr unsigned kMaxGlvWindow    = 7;
+    constexpr int      kMaxGlvTableSize = 1 << (kMaxGlvWindow - 2);  // 32
+    const int glv_table_size = 1 << (glv_window - 2);
+
+    if (SECP256K1_UNLIKELY(glv_table_size > kMaxGlvTableSize || glv_window < 3)) {
+        for (int k = 0; k < 4; ++k)
+            results[k] = scalar_mul_with_plan_glv52(bases[k], plan);
+        return;
+    }
+
+    std::size_t wnaf1_len = plan.wnaf1_len;
+    std::size_t wnaf2_len = plan.wnaf2_len;
+    const int32_t* wnaf1_ptr = plan.wnaf1.data();
+    const int32_t* wnaf2_ptr = plan.wnaf2.data();
+    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
+    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+
+    const bool flip_phi = (plan.neg1 != plan.neg2);
+
+    // Per-point tables: 4 × (tbl_P + tbl_phiP)
+    std::array<AffinePoint52, kMaxGlvTableSize> tbl_P[4];
+    std::array<AffinePoint52, kMaxGlvTableSize> tbl_phiP[4];
+    FieldElement52 globalz[4];
+
+    for (int k = 0; k < 4; ++k) {
+        if (SECP256K1_UNLIKELY(bases[k].is_infinity())) {
+            // Fall back entirely — rare in BIP-352 but must be correct
+            for (int j = 0; j < 4; ++j)
+                results[j] = scalar_mul_with_plan_glv52(bases[j], plan);
+            return;
+        }
+        JacobianPoint52 const P52 = plan.neg1
+            ? to_jac52(bases[k].negate())
+            : to_jac52(bases[k]);
+
+        if (!build_glv52_table_zr(P52, tbl_P[k].data(), glv_table_size, globalz[k])) {
+            for (int j = 0; j < 4; ++j)
+                results[j] = scalar_mul_with_plan_glv52(bases[j], plan);
+            return;
+        }
+        derive_phi52_table(tbl_P[k].data(), tbl_phiP[k].data(), glv_table_size, flip_phi);
+    }
+
+    JacobianPoint52 acc[4];
+    shamir_4stream_glv52(
+        tbl_P[0].data(), tbl_phiP[0].data(),
+        tbl_P[1].data(), tbl_phiP[1].data(),
+        tbl_P[2].data(), tbl_phiP[2].data(),
+        tbl_P[3].data(), tbl_phiP[3].data(),
+        wnaf1_ptr, wnaf1_len, wnaf2_ptr, wnaf2_len,
+        acc);
+
+    for (int k = 0; k < 4; ++k) {
+        if (!acc[k].infinity)
+            acc[k].z.mul_assign(globalz[k]);
+        results[k] = from_jac52(acc[k]);
+    }
+}
 #endif // SECP256K1_FAST_52BIT
 
 // Fixed K x Variable Q: Optimal performance for repeated K with different Q
@@ -3039,6 +3147,32 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
             results[chunk_start + i] = s_acc[i];
     }
 #endif // SECP256K1_FAST_52BIT
+}
+
+// 4× interleaved variant: groups of 4 base points share the wNAF digit loop.
+// ILP from 4 independent JacobianPoint52 accumulators executing in parallel
+// inside the CPU's OOO engine.  Falls back to per-point on non-FE52 platforms.
+void Point::batch_scalar_mul_fixed_k_4x(const KPlan& plan,
+                                         const Point* pts,
+                                         size_t n,
+                                         Point* results)
+{
+    if (n == 0) return;
+
+#if !defined(SECP256K1_FAST_52BIT)
+    for (size_t i = 0; i < n; ++i)
+        results[i] = pts[i].scalar_mul_with_plan(plan);
+    return;
+#else
+    // Process in groups of 4
+    const size_t n4 = n & ~size_t(3);
+    for (size_t i = 0; i < n4; i += 4)
+        scalar_mul_with_plan_glv52_4x(pts + i, plan, results + i);
+
+    // Remainder (0-3 points)
+    for (size_t i = n4; i < n; ++i)
+        results[i] = scalar_mul_with_plan_glv52(pts[i], plan);
+#endif
 }
 
 // -- Batch normalize: Montgomery trick for N points ---------------------------

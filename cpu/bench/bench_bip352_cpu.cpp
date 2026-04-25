@@ -920,7 +920,89 @@ int main() {
     printf("\n  [G] Window sweep best: w=%u  %.1f ns/op  (%.2f M/s)\n\n",
            best_win, best_win_ns, 1e9 / best_win_ns / 1e6);
     double glv52tg_ns = best_win_ns;
-    (void)glv52tg_ns; // suppress unused warning if summary removed
+    (void)glv52tg_ns;
+
+    // Restore default precompute config (w=15 GLV cached) for [H]
+    {
+        secp256k1::fast::FixedBaseConfig cfgdef;
+        cfgdef.window_bits = 15;
+        cfgdef.enable_glv  = true;
+        cfgdef.use_cache   = true;
+        cfgdef.cache_path  = "cache_w15_glv.bin";
+        secp256k1::fast::configure_fixed_base(cfgdef);
+        secp256k1::fast::ensure_fixed_base_ready();
+    }
+
+    // ================================================================
+    // [H] 4× wNAF interleaving: Stage 1 ILP via 4 independent accumulators
+    //
+    // Each thread processes its N/T points in groups of 4, calling
+    // batch_scalar_mul_fixed_k_4x so the inner wNAF loop runs 4 independent
+    // JacobianPoint52 chains simultaneously — OOO CPU pipelines them.
+    // Stage 2 identical to [D] (16T SHA256 + generator mul + point add).
+    // ================================================================
+    printf("=== [H] 4× wNAF interleaved Stage 1 (%dT) ===\n", NUM_THREADS);
+    double fourx_ns = 0.0;
+    {
+        // Stage 1 result buffers (lazy Jacobian, shared across threads)
+        std::vector<CpuPoint> s1_results(BENCH_N, CpuPoint::infinity());
+
+        auto do_pass_h = [&]() {
+            // Stage 1: 16T, each thread calls batch_scalar_mul_fixed_k_4x for its slice
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        CpuPoint::batch_scalar_mul_fixed_k_4x(
+                            kplan, tweaks.data() + beg,
+                            static_cast<size_t>(end - beg),
+                            s1_results.data() + beg);
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+            // Stage 2: same as [D] — 16T per-point compress + SHA256 + t×G + add
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            auto comp    = s1_results[i].to_compressed();
+                            uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser+33,0,4);
+                            auto hash    = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                            CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                            CpuPoint tG  = CpuPoint::generator().scalar_mul_jacobian(hs);
+                            tG.add_mixed_inplace(bs_x, bs_y);
+                            auto cc      = tG.to_compressed();
+                            prefixes[i]  = extract_prefix(cc.data() + 1);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+        };
+
+        // Warmup
+        do_pass_h();
+
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            do_pass_h();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        fourx_ns = median_ns(times) / BENCH_N;
+        printf("  [H] 4×ILP %2dT:  %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+               NUM_THREADS, fourx_ns, 1e9/fourx_ns/1e6, naive_ns/fourx_ns);
+        printf("  Validation: 0x%016lx\n\n", (unsigned long)prefixes[BENCH_N - 1]);
+    }
 
     // ================================================================
     // Summary
@@ -943,6 +1025,8 @@ int main() {
     printf("  --- [G] Full sweep ---\n");
     for (auto& r : win_results)
         printf("       w=%2u: %8.1f ns/op   %6.2f M/s\n", r.w, r.ns, 1e9/r.ns/1e6);
+    printf("  [H] 4×ILP %2dT:   %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, fourx_ns, 1e9/fourx_ns/1e6, naive_ns/fourx_ns);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 
