@@ -1509,6 +1509,34 @@ Benchmarks run: 2026-04-25
 
 ---
 
+## Bitcoin Cash Node (BCHN) Shim Benchmarks
+
+Drop-in replacement via `compat/libsecp256k1_bchn_shim/` — exposes the BCHN
+`secp256k1_schnorr_*` API (legacy BCH Schnorr, not BIP-340) backed by the
+fast engine. Benchmarks on x86-64 Linux (i5-14400F), CPU warmed up.
+
+BCH Schnorr scheme: `e = SHA256(R.x || P_compressed || msg)`, `s = k + e·d`.
+
+| Operation | UltrafastSecp256k1 (ns/op) | Notes |
+|---|---:|---|
+| `BCH Schnorr sign` | **14,292** | 2× gen_mul: k·G + d·G fresh each call |
+| `BCH Schnorr verify` | **23,267** | gen_mul (s·G) + GLV (e·P) |
+| BIP-340 sign (keypair, reference) | 5,573 | 1× gen_mul: d·G pre-cached |
+| BIP-340 verify (cached, reference) | 20,163 | same two-mul structure |
+| ECDSA sign (reference) | 9,588 | 1× gen_mul + arithmetic |
+
+BCH sign is 2.3× slower than BIP-340 keypair sign because the BCH scheme
+recomputes `P = d·G` on every call — a second full generator multiplication
+(~6.7 µs). BCH clients that pre-cache the public key can add a fast-path
+that skips this second gen_mul, matching BIP-340 keypair speed.
+
+BCH verify (23.3 µs) is 15% slower than BIP-340 verify (20.2 µs) due to the
+larger SHA-256 input (33-byte compressed pubkey vs 32-byte x-only key).
+
+Benchmarks run: 2026-04-25
+
+---
+
 ## Version
 
 UltrafastSecp256k1 v3.60.0  
