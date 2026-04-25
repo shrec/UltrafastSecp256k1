@@ -73,9 +73,10 @@ int secp256k1_schnorrsig_verify(
     if (msglen != 32 || !msg) return 0;
 
     try {
-        // Extract x-only pubkey (first 32 bytes of opaque data)
-        std::array<uint8_t, 32> pk_x{};
-        std::memcpy(pk_x.data(), pubkey->data, 32);
+        // Use pre-cached pubkey (X || Y stored at parse time — no sqrt needed).
+        std::array<uint8_t, 32> pk_x{}, pk_y_bytes{};
+        std::memcpy(pk_x.data(),       pubkey->data,      32);
+        std::memcpy(pk_y_bytes.data(), pubkey->data + 32, 32);
 
         std::array<uint8_t, 32> msg32{};
         std::memcpy(msg32.data(), msg, 32);
@@ -84,7 +85,14 @@ int secp256k1_schnorrsig_verify(
         std::memcpy(sig_bytes.data(), sig64, 64);
         auto sig = secp256k1::SchnorrSignature::from_bytes(sig_bytes);
 
-        return secp256k1::schnorr_verify(pk_x, msg32, sig) ? 1 : 0;
+        // Build pre-cached pubkey: reconstruct Point from (X, Y) — no sqrt.
+        secp256k1::SchnorrXonlyPubkey xpub{};
+        xpub.x_bytes = pk_x;
+        auto px = FieldElement::from_bytes(pk_x);
+        auto py = FieldElement::from_bytes(pk_y_bytes);
+        xpub.point = Point::from_affine(px, py);
+
+        return secp256k1::schnorr_verify(xpub, msg32, sig) ? 1 : 0;
     } catch (...) { return 0; }
 }
 
