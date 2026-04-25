@@ -34,6 +34,7 @@
 #include <cstring>
 #include <numeric>
 #include <functional>
+#include <memory>
 
 using CpuPoint       = secp256k1::fast::Point;
 using CpuScalar      = secp256k1::fast::Scalar;
@@ -1005,6 +1006,89 @@ int main() {
     }
 
     // ================================================================
+    // [I] Precomputed-LUT Stage 1: build per-point tables ONCE, hot loop only
+    //
+    // Splits work:
+    //   Setup: batch_scan_precompute  — one-time, not measured in hot loop
+    //   Hot:   batch_scan_run (16T)   — only shamir wNAF loop, no table build
+    //
+    // In a real scanner: setup runs once when importing a new block range;
+    // subsequent scans (with different b_scan) only pay the hot-loop cost.
+    // ================================================================
+    printf("=== [I] Precomputed-LUT Stage 1 (build once, run 16T) ===\n");
+    double lut_setup_ns = 0.0, lut_hot_ns = 0.0;
+    {
+        // Setup: precompute GLV52 tables for all tweaks[] — one-time cost
+        printf("  Building LUT for %d points...\n", BENCH_N);
+        auto t_setup0 = Clock::now();
+        CpuPoint::PointScanCacheHandle scan_cache =
+            CpuPoint::batch_scan_precompute(kplan, tweaks.data(), BENCH_N);
+        auto t_setup1 = Clock::now();
+        lut_setup_ns = elapsed_ns(t_setup0, t_setup1);
+        printf("  Setup (one-time): %.1f ms  (%.1f ns/point)\n",
+               lut_setup_ns / 1e6, lut_setup_ns / BENCH_N);
+
+        std::vector<CpuPoint> s1_results(BENCH_N, CpuPoint::infinity());
+
+        auto do_pass_i = [&]() {
+            // Stage 1: 16T wNAF loop only (no table build)
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        CpuPoint::batch_scan_run(
+                            scan_cache, kplan,
+                            static_cast<size_t>(beg),
+                            s1_results.data() + beg,
+                            static_cast<size_t>(end - beg));
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+            // Stage 2: same as [D]
+            {
+                std::vector<std::thread> threads(NUM_THREADS);
+                int chunk = BENCH_N / NUM_THREADS;
+                for (int t = 0; t < NUM_THREADS; ++t) {
+                    int beg = t * chunk;
+                    int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                    threads[t] = std::thread([&, beg, end]() {
+                        for (int i = beg; i < end; ++i) {
+                            auto comp    = s1_results[i].to_compressed();
+                            uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser+33,0,4);
+                            auto hash    = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                            CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                            CpuPoint tG  = CpuPoint::generator().scalar_mul_jacobian(hs);
+                            tG.add_mixed_inplace(bs_x, bs_y);
+                            auto cc      = tG.to_compressed();
+                            prefixes[i]  = extract_prefix(cc.data() + 1);
+                        }
+                    });
+                }
+                for (auto& th : threads) th.join();
+            }
+        };
+
+        // Warmup
+        do_pass_i();
+
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            do_pass_i();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        lut_hot_ns = median_ns(times) / BENCH_N;
+        printf("  [I] LUT  %2dT:    %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+               NUM_THREADS, lut_hot_ns, 1e9/lut_hot_ns/1e6, naive_ns/lut_hot_ns);
+        printf("  [I] validation: 0x%016lx\n\n", (unsigned long)prefixes[BENCH_N - 1]);
+    }
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -1027,6 +1111,8 @@ int main() {
         printf("       w=%2u: %8.1f ns/op   %6.2f M/s\n", r.w, r.ns, 1e9/r.ns/1e6);
     printf("  [H] 4×ILP %2dT:   %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
         NUM_THREADS, fourx_ns, 1e9/fourx_ns/1e6, naive_ns/fourx_ns);
+    printf("  [I] LUT   %2dT:   %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)  [setup:%.1fms]\n",
+        NUM_THREADS, lut_hot_ns, 1e9/lut_hot_ns/1e6, naive_ns/lut_hot_ns, lut_setup_ns/1e6);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 

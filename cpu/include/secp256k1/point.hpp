@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -214,6 +215,35 @@ public:
                                              const Point* pts,
                                              size_t n,
                                              Point* results);
+
+    // ---- Precomputed scan-table API ----------------------------------------
+    // Splits the work into a ONE-TIME setup phase and a fast hot-loop phase.
+    //
+    // Setup (once at startup or whenever pts change):
+    //   auto cache = Point::batch_scan_precompute(plan, pts, n);
+    //
+    // Hot loop (called repeatedly, no table building inside):
+    //   Point::batch_scan_run(cache, plan, results, n);
+    //
+    // Memory: n × table_size × 2 × sizeof(AffinePoint52).
+    //   For n=100K, w=5: ~128 MB.
+    // -------------------------------------------------------------------------
+    using PointScanCacheHandle = std::shared_ptr<void>;
+
+    // Build per-point GLV52 tables for all N points. Thread-safe (read-only after).
+    static PointScanCacheHandle batch_scan_precompute(const KPlan& plan,
+                                                       const Point* pts,
+                                                       size_t n);
+
+    // Run the wNAF digit loop using pre-built tables — no table building here.
+    // cache must have been produced by batch_scan_precompute with the same plan.
+    // cache_offset: starting index into the cache (allows parallel slicing).
+    // Processes n points from cache[cache_offset..cache_offset+n-1].
+    static void batch_scan_run(const PointScanCacheHandle& cache,
+                                const KPlan& plan,
+                                size_t cache_offset,
+                                Point* results,
+                                size_t n);
 
     // Batch normalize: convert N Jacobian points to affine with ONE inversion
     // via Montgomery's trick. Cost: 1 inversion + 3(N-1) multiplications.

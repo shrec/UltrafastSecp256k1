@@ -3175,6 +3175,109 @@ void Point::batch_scalar_mul_fixed_k_4x(const KPlan& plan,
 #endif
 }
 
+// ============================================================================
+// Precomputed scan-table: build once, run hot loop many times
+// ============================================================================
+// Internal storage: per-point iso-affine tables + per-point globalz.
+// Exact same convention as scalar_mul_with_plan_glv52:
+//   tbl entries have shared implied Z = globalz (the iso curve frame).
+//   After shamir_2stream_glv52, multiply result.z by globalz to convert back.
+struct ScanCacheImpl {
+    unsigned window_bits;
+    int table_size;
+    size_t n;
+    std::vector<AffinePoint52> tbl_P;
+    std::vector<AffinePoint52> tbl_phiP;
+    std::vector<FieldElement52> globalz;  // per-point; Z correction after wNAF loop
+    std::vector<uint8_t> valid;           // 0 = infinity/degenerate
+};
+
+Point::PointScanCacheHandle Point::batch_scan_precompute(
+    const KPlan& plan, const Point* pts, size_t n)
+{
+    auto* impl = new ScanCacheImpl();
+    impl->window_bits = plan.window_width;
+    impl->n = n;
+
+#if !defined(SECP256K1_FAST_52BIT)
+    impl->table_size = 0;
+    return PointScanCacheHandle(impl, [](void* p){ delete static_cast<ScanCacheImpl*>(p); });
+#else
+    const unsigned w = plan.window_width;
+    const int ts = 1 << (w - 2);
+    impl->table_size = ts;
+    impl->tbl_P.resize(n * static_cast<size_t>(ts));
+    impl->tbl_phiP.resize(n * static_cast<size_t>(ts));
+    impl->globalz.resize(n);
+    impl->valid.resize(n, 0);
+
+    const bool flip_phi = (plan.neg1 != plan.neg2);
+
+    for (size_t i = 0; i < n; ++i) {
+        if (SECP256K1_UNLIKELY(pts[i].is_infinity())) continue;
+
+        JacobianPoint52 const P52 = plan.neg1
+            ? to_jac52(pts[i].negate())
+            : to_jac52(pts[i]);
+
+        AffinePoint52* tp  = impl->tbl_P.data()    + i * static_cast<size_t>(ts);
+        AffinePoint52* tph = impl->tbl_phiP.data() + i * static_cast<size_t>(ts);
+
+        if (!build_glv52_table_zr(P52, tp, ts, impl->globalz[i])) continue;
+        derive_phi52_table(tp, tph, ts, flip_phi);
+        impl->valid[i] = 1;
+    }
+
+    return PointScanCacheHandle(impl, [](void* p){ delete static_cast<ScanCacheImpl*>(p); });
+#endif
+}
+
+void Point::batch_scan_run(const PointScanCacheHandle& cache,
+                            const KPlan& plan,
+                            size_t cache_offset,
+                            Point* results,
+                            size_t n)
+{
+    const auto* impl = static_cast<const ScanCacheImpl*>(cache.get());
+
+#if !defined(SECP256K1_FAST_52BIT)
+    for (size_t i = 0; i < n; ++i) results[i] = Point::infinity();
+    return;
+#else
+    if (SECP256K1_UNLIKELY(!impl || impl->table_size == 0 ||
+                            cache_offset + n > impl->n)) {
+        for (size_t i = 0; i < n; ++i) results[i] = Point::infinity();
+        return;
+    }
+
+    const int ts = impl->table_size;
+
+    std::size_t wnaf1_len = plan.wnaf1_len;
+    std::size_t wnaf2_len = plan.wnaf2_len;
+    const int32_t* wnaf1_ptr = plan.wnaf1.data();
+    const int32_t* wnaf2_ptr = plan.wnaf2.data();
+    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
+    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+
+    for (size_t i = 0; i < n; ++i) {
+        const size_t ci = cache_offset + i;
+        if (SECP256K1_UNLIKELY(!impl->valid[ci])) {
+            results[i] = Point::infinity();
+            continue;
+        }
+        const AffinePoint52* tp  = impl->tbl_P.data()    + ci * static_cast<size_t>(ts);
+        const AffinePoint52* tph = impl->tbl_phiP.data() + ci * static_cast<size_t>(ts);
+
+        JacobianPoint52 r52 = shamir_2stream_glv52(
+            tp, tph, wnaf1_ptr, wnaf1_len, wnaf2_ptr, wnaf2_len);
+        if (!r52.infinity)
+            r52.z.mul_assign(impl->globalz[ci]);
+
+        results[i] = from_jac52(r52);
+    }
+#endif
+}
+
 // -- Batch normalize: Montgomery trick for N points ---------------------------
 // 1 inversion + 3(N-1) multiplications instead of N inversions.
 void Point::batch_normalize(const Point* points, size_t n,
