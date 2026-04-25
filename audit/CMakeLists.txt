@@ -3342,3 +3342,4 @@ if(SECP256K1_BUILD_LIBFUZZER_STANDALONE AND TARGET ufsecp_static)
 
     message(STATUS "  LibFuzzer standalone harnesses: ${_FUZZ_HARNESSES} (${CMAKE_CURRENT_BINARY_DIR})")
 endif()
+

@@ -847,9 +847,8 @@ ScanTx compute_a_eff(const ScanTxRaw& raw)
 namespace {
 
 // Compute SHA256 state after compressing tag||tag (one 64-byte block).
-// Called once (static init), result is process-wide constant.
 static std::array<std::uint32_t, 8> compute_bip352_base_state() noexcept {
-    static const auto tag = SHA256::hash(
+    const auto tag = SHA256::hash(
         reinterpret_cast<const std::uint8_t*>("BIP0352/SharedSecret"), 20);
     std::uint8_t blk[64];
     std::memcpy(blk,      tag.data(), 32);
@@ -861,6 +860,12 @@ static std::array<std::uint32_t, 8> compute_bip352_base_state() noexcept {
     detail::sha256_compress_dispatch(blk, st.data());
     return st;
 }
+
+// Process-wide constant: SHA256 midstate after compressing tag||tag.
+// Initialized at program startup (before main) to avoid LTO lazy-init
+// misoptimization of static-local const under function-level inlining.
+static const std::array<std::uint32_t, 8> g_bip352_base_state =
+    compute_bip352_base_state();
 
 // block1 template for tx i:
 //   [0 ..32] = S_comp (33 bytes)
@@ -887,9 +892,8 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
 {
     if (txs.empty()) return {};
 
-    // Process-wide constant: SHA256 state after compressing tag||tag block.
-    static const std::array<std::uint32_t, 8> s_base_state =
-        compute_bip352_base_state();
+    // Process-wide constant SHA256 midstate.
+    const std::array<std::uint32_t, 8>& s_base_state = g_bip352_base_state;
 
     // ── Thread-local scratch buffers (no heap after first call per thread) ───
     static thread_local std::vector<fast::Point>              tl_a_eff;
@@ -898,10 +902,7 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     static thread_local std::vector<std::array<std::uint8_t, 64>> tl_blk;
     static thread_local std::vector<std::uint64_t>            tl_out_map; // ti<<32|k
     static thread_local std::vector<fast::Point>              tl_out_jac;
-#if !defined(SECP256K1_FAST_52BIT)
-    // 4x64 fallback only: FE52 path uses projective equality (no tl_out_x).
     static thread_local std::vector<std::array<std::uint8_t, 32>> tl_out_x;
-#endif
 
     std::size_t const n = txs.size();
 
@@ -916,9 +917,7 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     for (auto const& tx : txs) total_outputs += tx.outputs.size();
     tl_out_map.resize(total_outputs);
     tl_out_jac.resize(total_outputs);
-#if !defined(SECP256K1_FAST_52BIT)
     tl_out_x.resize(total_outputs);
-#endif
 
     // ── Stage 1 ──────────────────────────────────────────────────────────────
     for (std::size_t i = 0; i < n; ++i)
@@ -972,10 +971,6 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     fast::batch_scalar_mul_generator(tl_out_scalars.data(), tl_out_jac.data(), total_outputs);
 
     // ── Compare and collect matches ──────────────────────────────────────────
-    // FE52 path: projective equality — X_target × Z² == pt.X
-    //   Cost: 2 field muls + normalizes_to_zero_var() per candidate.
-    //   No batch field inversion, no tl_out_x, no heap allocation.
-    // 4x64 fallback: batch_x_only_bytes + memcmp (unchanged).
     std::vector<ScanMatch> results;
 
     auto recompute_t_k = [&](std::uint32_t ti, std::uint32_t k, Scalar& t_k_out) {
@@ -995,22 +990,6 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
         Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k_out);
     };
 
-#if defined(SECP256K1_FAST_52BIT)
-    for (std::size_t j = 0; j < total_outputs; ++j) {
-        fast::Point const& pt = tl_out_jac[j];
-        if (pt.is_infinity()) continue;
-        std::uint32_t const ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
-        std::uint32_t const k  = static_cast<std::uint32_t>(tl_out_map[j]);
-        // X_target × Z² == pt.X  ⟺  X_target × Z² - pt.X normalizes to zero
-        fast::FieldElement52 const Z2  = pt.Z52() * pt.Z52();
-        fast::FieldElement52 const Xt  = fast::FieldElement52::from_bytes(
-            txs[ti].outputs[k].data());
-        fast::FieldElement52 diff = (Xt * Z2).negate(1) + pt.X52();
-        if (!diff.normalizes_to_zero_var()) continue;
-        Scalar t_k; recompute_t_k(ti, k, t_k);
-        results.push_back({ti, k, spend_privkey + t_k});
-    }
-#else
     fast::Point::batch_x_only_bytes(tl_out_jac.data(), total_outputs, tl_out_x.data());
     for (std::size_t j = 0; j < total_outputs; ++j) {
         std::uint32_t const ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
@@ -1019,7 +998,6 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
         Scalar t_k; recompute_t_k(ti, k, t_k);
         results.push_back({ti, k, spend_privkey + t_k});
     }
-#endif
 
     return results;
 }
