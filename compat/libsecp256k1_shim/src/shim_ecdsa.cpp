@@ -184,13 +184,18 @@ int secp256k1_ecdsa_verify(
 }
 
 // -- Sign -----------------------------------------------------------------
+// ndata: when non-null, 32 bytes of caller-supplied extra entropy.
+// Bitcoin Core's R-grinding loop (grind=true default in CKey::Sign) calls
+// secp256k1_ecdsa_sign repeatedly with increasing counter bytes in ndata.
+// Ignoring ndata makes every call return the same signature → infinite loop.
+// Fix: use ecdsa_sign_hedged() when ndata is provided.
 
 int secp256k1_ecdsa_sign(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const unsigned char *seckey,
     secp256k1_nonce_function noncefp, const void *ndata)
 {
-    (void)ctx; (void)noncefp; (void)ndata;
+    (void)ctx; (void)noncefp;
     if (!sig || !msghash32 || !seckey) return 0;
 
     try {
@@ -200,7 +205,14 @@ int secp256k1_ecdsa_sign(
         auto k = Scalar::from_bytes(kb);
         if (k.is_zero()) return 0;
 
-        auto result = secp256k1::ecdsa_sign(msg, k);
+        secp256k1::ECDSASignature result;
+        if (ndata) {
+            std::array<uint8_t, 32> aux{};
+            std::memcpy(aux.data(), ndata, 32);
+            result = secp256k1::ecdsa_sign_hedged(msg, k, aux);
+        } else {
+            result = secp256k1::ecdsa_sign(msg, k);
+        }
         if (result.r.is_zero() && result.s.is_zero()) return 0;
         ecdsa_sig_to_data(result, sig->data);
         return 1;
