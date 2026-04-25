@@ -761,6 +761,13 @@ if(SECP256K1_BUILD_BENCH)
     add_executable(bench_kP tests/bench_kP.cpp)
     target_link_libraries(bench_kP PRIVATE ${SECP256K1_LIB_NAME})
 
+    # BIP-352 Silent Payments CPU pipeline benchmark (single-thread vs 16-thread)
+    add_executable(bench_bip352_cpu bench/bench_bip352_cpu.cpp)
+    target_link_libraries(bench_bip352_cpu PRIVATE ${SECP256K1_LIB_NAME})
+    if(UNIX)
+        target_link_libraries(bench_bip352_cpu PRIVATE pthread)
+    endif()
+
     # BIP-324 benchmark (ChaCha20-Poly1305, HKDF, ElligatorSwift, session)
     if(SECP256K1_BUILD_BIP324)
         add_executable(bench_bip324 bench/bench_bip324.cpp)
