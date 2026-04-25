@@ -1050,6 +1050,55 @@ int main() {
     // Phase 4: Full Pipeline Benchmark -- CPU
     // ================================================================
     printf("=== Full Pipeline Benchmark ===\n");
+
+    // ---- Phase 4.0: CPU Naive (no KPlan, plain scalar_mul — libsecp-comparable baseline) ----
+    printf("\n--- CPU Naive (no KPlan, plain scalar_mul) ---\n");
+    constexpr int NAIVE_N = 10000;
+    int64_t naive_validation = 0;
+    double naive_ns_op = 0.0;
+
+    {
+        auto cpu_naive = [&](int iters) {
+            int64_t last_prefix = 0;
+            for (int i = 0; i < iters; i++) {
+                CpuPoint shared = cpu_tweaks[i % NAIVE_N].scalar_mul(scan_scalar);
+                auto comp = shared.to_compressed();
+                uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser + 33, 0, 4);
+                auto hash = secp256k1::detail::cached_tagged_hash(tag_midstate, ser, 37);
+                CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                CpuPoint out = CpuPoint::generator().scalar_mul(hs);
+                CpuPoint cand = spend_cpu.add(out);
+                auto cc = cand.to_compressed();
+                last_prefix = extract_upper_64(cc.data() + 1);
+                DoNotOptimize(last_prefix);
+            }
+        };
+
+        // Warmup, then two timed passes (take second for warm-cache measurement)
+        cpu_naive(NAIVE_N);
+        cpu_naive(NAIVE_N);
+        auto t0 = std::chrono::high_resolution_clock::now();
+        cpu_naive(NAIVE_N);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        naive_ns_op = ms * 1e6 / NAIVE_N;
+
+        // Capture validation prefix from last element
+        {
+            CpuPoint shared = cpu_tweaks[(NAIVE_N-1) % NAIVE_N].scalar_mul(scan_scalar);
+            auto comp = shared.to_compressed();
+            uint8_t ser[37]; memcpy(ser, comp.data(), 33); memset(ser+33,0,4);
+            auto hash = secp256k1::detail::cached_tagged_hash(tag_midstate, ser, 37);
+            CpuScalar hs = CpuScalar::from_bytes(hash.data());
+            CpuPoint out = CpuPoint::generator().scalar_mul(hs);
+            CpuPoint cand = spend_cpu.add(out);
+            auto cc = cand.to_compressed();
+            naive_validation = extract_upper_64(cc.data() + 1);
+        }
+        printf("  CPU Naive: %.1f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+               ms, NAIVE_N, naive_ns_op, naive_ns_op / 1000.0);
+    }
+
     printf("\n--- CPU (UltrafastSecp256k1, KPlan) ---\n");
 
     auto cpu_pipeline = [&](int iters) {
@@ -1101,6 +1150,63 @@ int main() {
     printf("\n  CPU: %.1f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
            cpu_median, BENCH_N, cpu_ns_op, cpu_ns_op / 1000.0);
     printf("  validation prefix: 0x%016lx\n", (unsigned long)cpu_validation);
+
+    // ================================================================
+    // Phase 4.5: CPU Batch-Opt (batch_to_compressed + batch_x_only_bytes)
+    // ================================================================
+    printf("\n--- CPU Batch-Opt (batch_to_compressed + batch_x_only_bytes) ---\n");
+    double batch_ns_op = 0.0;
+    int64_t batch_validation = 0;
+
+    {
+        std::vector<CpuPoint> shared_batch(BENCH_N);
+        std::vector<std::array<uint8_t, 33>> ser33_batch(BENCH_N);
+        std::vector<CpuPoint> gen_batch(BENCH_N), cand_batch(BENCH_N);
+        std::vector<std::array<uint8_t, 32>> x32_batch(BENCH_N);
+
+        auto cpu_pipeline_batch = [&]() {
+            for (int i = 0; i < BENCH_N; ++i)
+                shared_batch[i] = cpu_tweaks[i].scalar_mul_with_plan(kplan);
+            CpuPoint::batch_to_compressed(shared_batch.data(), BENCH_N, ser33_batch.data());
+            for (int i = 0; i < BENCH_N; ++i) {
+                uint8_t ser37[37]; memcpy(ser37, ser33_batch[i].data(), 33); memset(ser37+33,0,4);
+                auto hash = secp256k1::detail::cached_tagged_hash(tag_midstate, ser37, 37);
+                CpuScalar hs = CpuScalar::from_bytes(hash.data());
+                gen_batch[i] = CpuPoint::generator().scalar_mul(hs);
+            }
+            for (int i = 0; i < BENCH_N; ++i)
+                cand_batch[i] = gen_batch[i].add(spend_cpu);
+            CpuPoint::batch_x_only_bytes(cand_batch.data(), BENCH_N, x32_batch.data());
+            DoNotOptimize(x32_batch[BENCH_N - 1][0]);
+        };
+
+        // Warmup passes
+        for (int w = 0; w < BENCH_WARMUP; ++w) cpu_pipeline_batch();
+
+        std::vector<double> batch_times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = std::chrono::high_resolution_clock::now();
+            cpu_pipeline_batch();
+            auto t1 = std::chrono::high_resolution_clock::now();
+            batch_times[p] = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        }
+        std::sort(batch_times.begin(), batch_times.end());
+        double batch_median = batch_times[BENCH_PASSES / 2];
+        batch_ns_op = batch_median * 1e6 / BENCH_N;
+
+        // Validation: extract upper 64 bits of x-only for last element
+        cpu_pipeline_batch();
+        uint64_t vx = 0;
+        for (int b = 0; b < 8; ++b) vx = (vx << 8) | x32_batch[BENCH_N-1][b];
+        batch_validation = (int64_t)vx;
+
+        printf("  validation prefix: 0x%016lx  [%s]\n",
+               (unsigned long)batch_validation,
+               (batch_validation == cpu_validation) ? "OK matches CPU KPlan" : "MISMATCH");
+        printf("  CPU Batch-Opt: %.1f ms / %d ops = %.1f ns/op (%.1f us/op)\n",
+               batch_median, BENCH_N, batch_ns_op, batch_ns_op / 1000.0);
+        printf("  Speedup vs CPU KPlan: %.2fx\n", cpu_ns_op / batch_ns_op);
+    }
 
     // ================================================================
     // Phase 5: Full Pipeline Benchmark -- GPU
@@ -1316,18 +1422,27 @@ int main() {
     double sha256opt_vs_pretbl = gpu_pretbl_ns_op / gpu_sha256opt_ns_op;
     double preser_ratio        = cpu_ns_op / gpu_preser_ns_op;
     double preser_vs_pretbl    = gpu_pretbl_ns_op / gpu_preser_ns_op;
-    printf("  CPU:                          %10.1f ns/op\n", cpu_ns_op);
-    printf("  GPU (w=4):                    %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
-    printf("  GPU+LUT:                      %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
+    double naive_vs_naive      = 1.0;
+    double kplan_vs_naive      = naive_ns_op / cpu_ns_op;
+    double batch_vs_naive      = naive_ns_op / batch_ns_op;
+    double batch_vs_kplan      = cpu_ns_op / batch_ns_op;
+    printf("  CPU (Naive, no KPlan):           %10.1f ns/op  [libsecp-comparable baseline]\n", naive_ns_op);
+    printf("  CPU (KPlan, serial):             %10.1f ns/op  (%.2fx vs Naive)\n", cpu_ns_op, kplan_vs_naive);
+    printf("  CPU (KPlan, batch-opt):          %10.1f ns/op  (%.2fx vs Naive, %.2fx vs KPlan serial)\n",
+           batch_ns_op, batch_vs_naive, batch_vs_kplan);
+    printf("  GPU (w=4):                       %10.1f ns/op  (%.2fx vs CPU)\n", gpu_ns_op, pipeline_ratio);
+    printf("  GPU+LUT:                         %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU w=4)\n",
            gpu_lut_ns_op, lut_ratio, lut_vs_gpu);
-    printf("  GPU+LUT+Pretbl:               %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU+LUT)\n",
+    printf("  GPU+LUT+Pretbl:                  %10.1f ns/op  (%.2fx vs CPU, %.2fx vs GPU+LUT)\n",
            gpu_pretbl_ns_op, pretbl_ratio, pretbl_vs_lut);
-    printf("  GPU+LUT+Pretbl+SHA256opt:     %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
+    printf("  GPU+LUT+Pretbl+SHA256opt:        %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
            gpu_sha256opt_ns_op, sha256opt_ratio, sha256opt_vs_pretbl);
-    printf("  GPU+LUT+PreSer:               %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
+    printf("  GPU+LUT+PreSer:                  %10.1f ns/op  (%.2fx vs CPU, %.2fx vs Pretbl)\n",
            gpu_preser_ns_op, preser_ratio, preser_vs_pretbl);
+    (void)naive_vs_naive;
 
-    bool prefixes_match = (cpu_validation == gpu_validation) &&
+    bool prefixes_match = (naive_validation == cpu_validation) &&
+                          (cpu_validation == gpu_validation) &&
                           (cpu_validation == gpu_lut_validation) &&
                           (cpu_validation == gpu_pretbl_validation) &&
                           (cpu_validation == gpu_sha256opt_validation) &&
