@@ -1480,7 +1480,24 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 ---
 
+## Bitcoin Core Integration Benchmarks
+
+Drop-in replacement via `compat/libsecp256k1_shim/` — the shim exposes
+the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
+Bitcoin Core v29.3 `bench_bitcoin` results on x86-64 Linux (i5-14400F),
+w=18 precomputed fixed-base table, non-GLV, 3-second stable runs.
+
+| Benchmark | libsecp256k1 (ns/op) | UltrafastSecp256k1 (ns/op) | Speedup |
+|---|---:|---:|---:|
+| `SignTransactionECDSA` | 96,006 | 79,196 | **+17.5%** |
+| `SignTransactionSchnorr` | 80,368 | 73,663 | **+8.3%** |
+| `VerifyScriptBench` | 24,555 | 23,231 | **+5.4%** |
+
+Benchmarks run: 2026-04-25
+
+---
+
 ## Version
 
 UltrafastSecp256k1 v3.60.0  
-Benchmarks updated: 2026-03-02
+Benchmarks updated: 2026-04-25
