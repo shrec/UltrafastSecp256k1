@@ -1487,11 +1487,20 @@ the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
 Bitcoin Core v29.3 `bench_bitcoin` results on x86-64 Linux (i5-14400F),
 w=18 precomputed fixed-base table, non-GLV, 3-second stable runs.
 
+All six consensus-critical secp256k1 benchmarks show improvement.
+`BIP324_ECDH` and `EllSwiftCreate` use the EllSwift encoding (BIP-324
+P2P v2 transport only, not consensus) which is currently stubbed.
+
 | Benchmark | libsecp256k1 (ns/op) | UltrafastSecp256k1 (ns/op) | Speedup |
 |---|---:|---:|---:|
 | `SignTransactionECDSA` | 96,006 | 79,196 | **+17.5%** |
 | `SignTransactionSchnorr` | 80,368 | 73,663 | **+8.3%** |
+| `SignSchnorrWithMerkleRoot` | 64,723 | 43,981 | **+32.1%** |
+| `SignSchnorrWithNullMerkleRoot` | 66,059 | 43,823 | **+33.7%** |
 | `VerifyScriptBench` | 24,555 | 23,231 | **+5.4%** |
+| `VerifyNestedIfScript` | 29,517 | 29,026 | **+1.7%** |
+| `BIP324_ECDH` | 29,235 | — | stub (EllSwift) |
+| `EllSwiftCreate` | 27,654 | — | stub (EllSwift) |
 
 Benchmarks run: 2026-04-25
 
