@@ -18,6 +18,8 @@ Drop-in replacement for projects written against the libsecp256k1 C API. Link th
 | Secret Keys | `seckey_verify`, `seckey_negate`, `seckey_tweak_add`, `seckey_tweak_mul` | [OK] |
 | DER Signatures | `signature_parse_der`, `signature_serialize_der` | [OK] |
 | Tagged Hash | `tagged_sha256` | [OK] |
+| ECDH | `secp256k1_ecdh` (custom + default SHA-256 hash) | [OK] |
+| ElligatorSwift (BIP-324) | `ellswift_encode`, `ellswift_decode`, `ellswift_create`, `ellswift_xdh` | [OK] |
 
 ## Usage
 
@@ -40,10 +42,9 @@ secp256k1_context_destroy(ctx);
 
 ## Limitations
 
-- Context randomization (`secp256k1_context_randomize`) is accepted but has no effect -- UltrafastSecp256k1 does not use blinding.
+- Context randomization (`secp256k1_context_randomize`) is accepted but has no effect — UltrafastSecp256k1 does not use blinding.
 - `secp256k1_context_static` is provided but points to a dummy.
-- `secp256k1_ecdh` and `secp256k1_ellswift` modules are not yet shimmed (needed for P2P v2 encrypted transport only, not consensus).
-- Performance characteristics differ (typically faster).
+- Performance characteristics differ (typically faster — uses w=18 precomputed table for generator muls, GLV for variable-base).
 
 ## Building
 
