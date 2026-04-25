@@ -1388,6 +1388,102 @@ int main() {
     }
 
     // ================================================================
+    // [L] Fused: Stage 1 lockstep + Stage 2 sub-chunk in ONE thread wave
+    //
+    // [K] launches two sequential thread waves (Stage 1 join → Stage 2 join).
+    // [L] fuses them: each thread does Stage 1 + Stage 2 for its own slice
+    // with NO barrier in between.
+    //
+    // Key effect: Stage 2 for an early-finishing thread runs while other
+    // threads still do Stage 1. Only ~2-3T hit the generator table at once
+    // (instead of all 16T simultaneously in [K]) → less L3 cache contention
+    // for the t_i×G step that dominates Stage 2.
+    // ================================================================
+    printf("=== [L] Fused Stage 1 lockstep + Stage 2 sub-chunk (%dT, no barrier) ===\n",
+           NUM_THREADS);
+    double fused_ns = 0.0;
+    {
+        constexpr int SUB_SIZE_L = 512;
+        std::vector<CpuPoint> s1_results_l(BENCH_N, CpuPoint::infinity());
+
+        auto do_pass_l = [&]() {
+            std::vector<std::thread> threads(NUM_THREADS);
+            int chunk = BENCH_N / NUM_THREADS;
+            for (int t = 0; t < NUM_THREADS; ++t) {
+                int beg = t * chunk;
+                int end = (t == NUM_THREADS - 1) ? BENCH_N : beg + chunk;
+                threads[t] = std::thread([&, beg, end]() {
+                    // Stage 1: lockstep for this thread's own slice
+                    CpuPoint::batch_scan_run_lockstep(
+                        scan_cache, kplan,
+                        static_cast<size_t>(beg),
+                        s1_results_l.data() + beg,
+                        static_cast<size_t>(end - beg));
+
+                    // Stage 2: sub-chunk batch — starts immediately after Stage 1
+                    std::vector<CpuScalar>      hs_buf(SUB_SIZE_L);
+                    std::vector<CpuPoint>       t_jac_buf(SUB_SIZE_L);
+                    std::vector<CpuField>       tx_buf(SUB_SIZE_L), ty_buf(SUB_SIZE_L);
+                    std::vector<CpuAffinePoint> t_aff_buf(SUB_SIZE_L);
+                    std::vector<CpuField>       out_x_buf(SUB_SIZE_L);
+                    std::vector<CpuField>       scratch;
+                    scratch.reserve(SUB_SIZE_L);
+
+                    for (int sb = beg; sb < end; sb += SUB_SIZE_L) {
+                        const int ss = std::min(sb + SUB_SIZE_L, end) - sb;
+
+                        CpuPoint::batch_to_compressed(
+                            s1_results_l.data() + sb, ss,
+                            compressed.data() + sb);
+
+                        for (int i = 0; i < ss; ++i) {
+                            uint8_t ser[37];
+                            memcpy(ser, compressed[sb + i].data(), 33);
+                            memset(ser + 33, 0, 4);
+                            auto h = secp256k1::detail::cached_tagged_hash(tag_mid, ser, 37);
+                            hs_buf[i] = CpuScalar::from_bytes(h.data());
+                        }
+
+                        secp256k1::fast::batch_scalar_mul_generator(
+                            hs_buf.data(), t_jac_buf.data(), static_cast<size_t>(ss));
+
+                        CpuPoint::batch_normalize(
+                            t_jac_buf.data(), ss, tx_buf.data(), ty_buf.data());
+
+                        for (int i = 0; i < ss; ++i)
+                            t_aff_buf[i] = {tx_buf[i], ty_buf[i]};
+                        secp256k1::fast::batch_add_affine_x(
+                            bs_x, bs_y,
+                            t_aff_buf.data(), out_x_buf.data(),
+                            static_cast<size_t>(ss), scratch);
+
+                        for (int i = 0; i < ss; ++i) {
+                            auto xb = out_x_buf[i].to_bytes();
+                            prefixes[sb + i] = extract_prefix(xb.data());
+                        }
+                    }
+                });
+            }
+            for (auto& th : threads) th.join();
+        };
+
+        do_pass_l();  // warmup
+        uint64_t l_validation = prefixes[BENCH_N - 1];
+
+        std::vector<double> times(BENCH_PASSES);
+        for (int p = 0; p < BENCH_PASSES; ++p) {
+            auto t0 = Clock::now();
+            do_pass_l();
+            auto t1 = Clock::now();
+            times[p] = elapsed_ns(t0, t1);
+        }
+        fused_ns = median_ns(times) / BENCH_N;
+        printf("  [L] Fused   %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+               NUM_THREADS, fused_ns, 1e9/fused_ns/1e6, naive_ns/fused_ns);
+        printf("  [L] validation: 0x%016lx\n\n", (unsigned long)l_validation);
+    }
+
+    // ================================================================
     // Summary
     // ================================================================
     printf("\n=== Summary ===\n");
@@ -1416,6 +1512,8 @@ int main() {
         NUM_THREADS, lockstep_ns, 1e9/lockstep_ns/1e6, naive_ns/lockstep_ns);
     printf("  [K] SubChunk %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
         NUM_THREADS, subchunk_ns, 1e9/subchunk_ns/1e6, naive_ns/subchunk_ns);
+    printf("  [L] Fused   %2dT: %8.1f ns/op   %6.2f M/s   (%.2fx vs naive)\n",
+        NUM_THREADS, fused_ns, 1e9/fused_ns/1e6, naive_ns/fused_ns);
     printf("  GPU+LUT (ref):      91.3 ns/op   10.96 M/s   (1 GPU)\n");
     printf("  GPU PreSer (ref):   17.8 ns/op   56.18 M/s   (1 GPU, Stage 2 only)\n");
 
