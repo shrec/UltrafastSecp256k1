@@ -3191,9 +3191,11 @@ struct ScanCacheImpl {
     unsigned window_bits;
     int table_size;
     size_t n;
-    std::vector<AffinePoint52> tbl_P;
-    std::vector<AffinePoint52> tbl_phiP;
-    std::vector<FieldElement52> globalz;  // per-point; Z correction after wNAF loop
+#if defined(SECP256K1_FAST_52BIT)
+    std::vector<AffinePoint52>  tbl_P;
+    std::vector<AffinePoint52>  tbl_phiP;
+    std::vector<FieldElement52> globalz;
+#endif
     std::vector<uint8_t> valid;           // 0 = infinity/degenerate
 };
 
