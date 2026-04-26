@@ -26,6 +26,11 @@ static secp256k1_context_struct g_static_ctx = { SECP256K1_CONTEXT_NONE };
 static void shim_ensure_fixed_base() {
     static std::once_flag once;
     std::call_once(once, []() {
+        // Resolution order (first success wins):
+        //   1. SECP256K1_CONFIG env var  -> config file path
+        //   2. SECP256K1_CACHE_PATH env var -> direct .bin path
+        //   3. CWD config.ini
+        //   4. configure_fixed_base_auto() -> auto-detect best available window
         if (secp256k1::fast::configure_fixed_base_from_env()) return;
 
         if (const char* cp = std::getenv("SECP256K1_CACHE_PATH")) {
@@ -40,13 +45,9 @@ static void shim_ensure_fixed_base() {
 
         if (secp256k1::fast::configure_fixed_base_from_file("config.ini")) return;
 
-        // Absolute fallback: CI build artifact
-        secp256k1::fast::FixedBaseConfig cfg;
-        cfg.cache_path = "/home/shrek/actions-runner/_work/UltrafastSecp256k1/UltrafastSecp256k1/build/gpu-ci/cpu/cache_w18.bin";
-        cfg.window_bits = 18;
-        cfg.enable_glv = false;
-        cfg.use_cache = true;
-        secp256k1::fast::configure_fixed_base(cfg);
+        // Auto-detect: uses whatever precomputed tables exist on this machine,
+        // falling back to w=8 (always available, no external file required).
+        secp256k1::fast::configure_fixed_base_auto();
     });
 }
 
