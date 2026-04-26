@@ -960,7 +960,7 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
                 t_bytes[b*4+3] = std::uint8_t(h[b]);
             }
             Scalar t_k;
-            Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k);
+            if (!Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k)) continue;
             tl_out_scalars[slot] = t_k + spend_privkey;
             tl_out_map[slot] = (static_cast<std::uint64_t>(ti) << 32) | k;
             ++slot;
@@ -968,12 +968,14 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     }
 
     // Pass 2b: one mutex lock for all N×M fixed-base multiplications.
-    fast::batch_scalar_mul_generator(tl_out_scalars.data(), tl_out_jac.data(), total_outputs);
+    std::size_t const actual_outputs = slot;
+    if (actual_outputs == 0) return {};
+    fast::batch_scalar_mul_generator(tl_out_scalars.data(), tl_out_jac.data(), actual_outputs);
 
     // ── Compare and collect matches ──────────────────────────────────────────
     std::vector<ScanMatch> results;
 
-    auto recompute_t_k = [&](std::uint32_t ti, std::uint32_t k, Scalar& t_k_out) {
+    auto recompute_t_k = [&](std::uint32_t ti, std::uint32_t k, Scalar& t_k_out) -> bool {
         std::uint8_t* mblk = tl_blk[ti].data();
         mblk[33] = std::uint8_t(k >> 24); mblk[34] = std::uint8_t(k >> 16);
         mblk[35] = std::uint8_t(k >>  8); mblk[36] = std::uint8_t(k);
@@ -987,15 +989,16 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
             t_bytes[b*4+2] = std::uint8_t(h2[b] >>  8);
             t_bytes[b*4+3] = std::uint8_t(h2[b]);
         }
-        Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k_out);
+        return Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k_out);
     };
 
-    fast::Point::batch_x_only_bytes(tl_out_jac.data(), total_outputs, tl_out_x.data());
-    for (std::size_t j = 0; j < total_outputs; ++j) {
+    fast::Point::batch_x_only_bytes(tl_out_jac.data(), actual_outputs, tl_out_x.data());
+    for (std::size_t j = 0; j < actual_outputs; ++j) {
         std::uint32_t const ti = static_cast<std::uint32_t>(tl_out_map[j] >> 32);
         std::uint32_t const k  = static_cast<std::uint32_t>(tl_out_map[j]);
         if (tl_out_x[j] != txs[ti].outputs[k]) continue;
-        Scalar t_k; recompute_t_k(ti, k, t_k);
+        Scalar t_k;
+        if (!recompute_t_k(ti, k, t_k)) continue;
         results.push_back({ti, k, spend_privkey + t_k});
     }
 

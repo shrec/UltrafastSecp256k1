@@ -7,6 +7,23 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-26 (fast_scan_batch: fix SonarCloud C Reliability — checked parse return values)
+
+- **Bug**: `Scalar::parse_bytes_strict_nonzero` return value was ignored in two
+  places in `fast_scan_batch`: Stage 2 Pass 2a loop (line ~963) and the
+  `recompute_t_k` lambda (~line 990). If the SHA256 output happened to equal 0
+  or be ≥ N (astronomically rare but undefined behavior in practice),
+  `t_k` would be used uninitialized.
+- **Fix**:
+  - Stage 2 Pass 2a: check return; `continue` (skip slot) on failure.
+  - Introduce `actual_outputs = slot` after the loop; use it for
+    `batch_scalar_mul_generator`, `batch_x_only_bytes`, and the comparison
+    loop instead of the pre-computed `total_outputs`.
+  - `recompute_t_k` lambda: changed to return `bool`; caller checks and
+    `continue`s on the (impossible) failure path.
+- **Effect**: SonarCloud C Reliability Rating restored to A on dev.
+  Tests: 34/34 pass (unchanged).
+
 ## 2026-04-25c (fast_scan_batch: two correctness bugs fixed, BSM/IAG tests now green)
 
 - **Root cause 1 — LTO lazy-init elision:** `static const s_base_state` inside
