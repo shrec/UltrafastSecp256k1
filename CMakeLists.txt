@@ -52,6 +52,7 @@ option(SECP256K1_INSTALL_PKGCONFIG "Install pkg-config file" ON)
 # Performance/safety tradeoffs
 option(SECP256K1_SPEED_FIRST "Prioritize speed over safety checks" OFF)
 option(SECP256K1_BUILD_SHARED "Build shared library" OFF)
+option(SECP256K1_BUILD_SHIM "Build libsecp256k1-compatible shim + tests" OFF)
 
 # Bitcoin strict mode (default ON): public API rejects non-canonical inputs
 option(UFSECP_BITCOIN_STRICT "Enforce BIP-340 strict encoding in public API (reject r>=p, s>=n)" ON)
@@ -302,6 +303,12 @@ endif()
 # All audit-specific targets live in audit/ to keep the library source clean.
 if(SECP256K1_BUILD_CPU AND BUILD_TESTING)
     add_subdirectory(audit)
+endif()
+
+# -- libsecp256k1 compatibility shim (Bitcoin Core integration) ---------------
+if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
+    set(SECP256K1_SHIM_BUILD_TESTS ON CACHE BOOL "" FORCE)
+    add_subdirectory(compat/libsecp256k1_shim)
 endif()
 
 # NOTE: bench_compare removed -- use cpu/bench/bench_unified instead

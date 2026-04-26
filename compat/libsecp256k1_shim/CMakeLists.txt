@@ -24,23 +24,29 @@ target_include_directories(secp256k1_shim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Link against UltrafastSecp256k1 CPU library
-# When used via add_subdirectory from the main project, secp256k1_fast target exists.
-# Otherwise, find it via find_package or provide path.
-if(TARGET secp256k1_fast)
+# Link against UltrafastSecp256k1 CPU library.
+# The internal target is 'fastsecp256k1'; 'secp256k1_fast' is an older alias
+# kept for backward compatibility. Try both names.
+if(TARGET fastsecp256k1)
+    target_link_libraries(secp256k1_shim PRIVATE fastsecp256k1)
+elseif(TARGET secp256k1_fast)
     target_link_libraries(secp256k1_shim PRIVATE secp256k1_fast)
+elseif(TARGET secp256k1::fast)
+    target_link_libraries(secp256k1_shim PRIVATE secp256k1::fast)
 else()
-    # Fallback: expect the main library's include path
-    message(WARNING "secp256k1_fast target not found -- add UltrafastSecp256k1 via add_subdirectory first")
+    message(FATAL_ERROR
+        "UltrafastSecp256k1 library target not found.\n"
+        "Add UltrafastSecp256k1 via add_subdirectory before this shim.")
 endif()
 
-# -- Optional: test that the shim compiles -------------------------------------
+# -- Optional: shim API test ---------------------------------------------------
 
-option(SECP256K1_SHIM_BUILD_TESTS "Build shim tests" OFF)
+option(SECP256K1_SHIM_BUILD_TESTS "Build shim compatibility test" OFF)
 
 if(SECP256K1_SHIM_BUILD_TESTS)
     enable_testing()
     add_executable(shim_test tests/shim_test.cpp)
     target_link_libraries(shim_test PRIVATE secp256k1_shim)
     add_test(NAME secp256k1_shim_test COMMAND shim_test)
+    set_tests_properties(secp256k1_shim_test PROPERTIES LABELS "shim")
 endif()
