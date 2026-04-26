@@ -2756,7 +2756,10 @@ int main(int argc, char** argv) {
         // Setup: 2-of-2 (both must sign)
         auto pk1_x = schnorr_pubkeys_x[0];
         auto pk2_x = schnorr_pubkeys_x[1];
-        std::vector<std::array<std::uint8_t, 32>> pks = {pk1_x, pk2_x};
+        // BIP-327 key_agg requires 33-byte compressed keys
+        auto pk1_c = pubkeys[0].to_compressed();
+        auto pk2_c = pubkeys[1].to_compressed();
+        std::vector<std::array<std::uint8_t, 33>> pks = {pk1_c, pk2_c};
 
         auto key_agg = musig2_key_agg(pks);
         auto [snonce1, pnonce1] = musig2_nonce_gen(privkeys[0], pk1_x, key_agg.Q_x, msghashes[0]);

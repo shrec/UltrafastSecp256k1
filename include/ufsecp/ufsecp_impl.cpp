@@ -2440,9 +2440,10 @@ ufsecp_error_t ufsecp_musig2_key_agg(ufsecp_ctx* ctx,
     }
     ctx_clear_err(ctx);
     try {
-    std::vector<std::array<uint8_t, 32>> pks(n);
+    // BIP-327: pubkeys are 33-byte compressed (02/03 prefix preserves Y parity)
+    std::vector<std::array<uint8_t, 33>> pks(n);
     for (size_t i = 0; i < n; ++i) {
-        std::memcpy(pks[i].data(), pubkeys + i * 32, 32);
+        std::memcpy(pks[i].data(), pubkeys + i * 33, 33);
     }
     auto kagg = secp256k1::musig2_key_agg(pks);
     std::memcpy(agg_pubkey32_out, kagg.Q_x.data(), 32);

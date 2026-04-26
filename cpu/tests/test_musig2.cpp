@@ -46,6 +46,12 @@ static std::array<uint8_t, 32> get_xonly_pubkey(const Scalar& sk) {
     return P.x().to_bytes();
 }
 
+// Helper: get compressed public key (33 bytes) from private key scalar
+static std::array<uint8_t, 33> get_compressed_pubkey(const Scalar& sk) {
+    auto P = Point::generator().scalar_mul(sk);
+    return P.to_compressed();
+}
+
 // Helper: compare two points via compressed serialization
 static bool points_equal(const Point& a, const Point& b) {
     if (a.is_infinity() && b.is_infinity()) return true;
@@ -70,8 +76,10 @@ static void test_key_aggregation() {
 
     auto pk1 = get_xonly_pubkey(s1);
     auto pk2 = get_xonly_pubkey(s2);
+    auto pk1c = get_compressed_pubkey(s1);
+    auto pk2c = get_compressed_pubkey(s2);
 
-    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk1, pk2};
+    std::vector<std::array<uint8_t, 33>> const pubkeys = {pk1c, pk2c};
     auto ctx = musig2_key_agg(pubkeys);
 
     // Aggregated key should not be infinity
@@ -145,8 +153,9 @@ static void test_2of2_signing() {
     auto pk1 = get_xonly_pubkey(s1);
     auto pk2 = get_xonly_pubkey(s2);
 
-    // Step 1: Key aggregation
-    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk1, pk2};
+    // Step 1: Key aggregation (BIP-327: 33-byte compressed keys)
+    std::vector<std::array<uint8_t, 33>> const pubkeys = {
+        get_compressed_pubkey(s1), get_compressed_pubkey(s2)};
     auto key_ctx = musig2_key_agg(pubkeys);
 
     // Step 2: Message
@@ -203,12 +212,12 @@ static void test_3of3_signing() {
 
     Scalar sk[3];
     std::array<uint8_t, 32> pk[3];
-    std::vector<std::array<uint8_t, 32>> pubkeys;
+    std::vector<std::array<uint8_t, 33>> pubkeys;
 
     for (std::size_t i = 0; i < 3; ++i) {
         sk[i] = Scalar::from_bytes(sk_bytes[i]);
         pk[i] = get_xonly_pubkey(sk[i]);
-        pubkeys.push_back(pk[i]);
+        pubkeys.push_back(get_compressed_pubkey(sk[i]));
     }
 
     auto key_ctx = musig2_key_agg(pubkeys);
@@ -262,7 +271,7 @@ static void test_edge_cases() {
     Scalar const s = Scalar::from_bytes(sk_bytes);
     auto pk = get_xonly_pubkey(s);
 
-    std::vector<std::array<uint8_t, 32>> const pubkeys = {pk};
+    std::vector<std::array<uint8_t, 33>> const pubkeys = {get_compressed_pubkey(s)};
     auto key_ctx = musig2_key_agg(pubkeys);
     CHECK(!key_ctx.Q.is_infinity(), "Single-signer agg key valid");
 
