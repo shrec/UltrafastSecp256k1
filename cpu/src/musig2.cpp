@@ -79,11 +79,17 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
     if (n == 0) return ctx;
 
     // Validate ALL pubkeys upfront AND cache the lifted points.
-    // decompress_point handles parity from the prefix byte correctly.
+    // BIP-327 KeyAgg uses lift_x (even-Y) for point arithmetic; the full
+    // 33-byte key (with parity prefix) is used ONLY for hash inputs (L and
+    // coefficient).  Using actual parity here breaks partial_sign/verify
+    // consistency: musig2_partial_sign adjusts d for P_i's Y parity assuming
+    // even-Y keys in Q, so key_agg MUST use even-Y lifting to match.
     static thread_local std::vector<Point> points;
     points.resize(n);
     for (std::size_t i = 0; i < n; ++i) {
-        auto pt = decompress_point(pubkeys[i]);
+        std::array<uint8_t, 33> even_key = pubkeys[i];
+        even_key[0] = 0x02; // force even-Y (lift_x) for point arithmetic
+        auto pt = decompress_point(even_key);
         if (pt.is_infinity()) return ctx;
         points[i] = pt;
     }
