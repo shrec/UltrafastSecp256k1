@@ -442,9 +442,13 @@ elseif(APPLE)
     target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC ${SECURITY_FRAMEWORK})
 endif()
 
-# Optional OpenMP support for batch parallelization (e.g. fe_h_based_inversion_batched)
-# Skipped on ESP32, WASM, and other embedded targets
-if(NOT DEFINED SECP256K1_PLATFORM_ESP32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+# Optional OpenMP support — OFF by default to preserve zero-dependency builds.
+# Enable with: cmake -DSECP256K1_ENABLE_OPENMP=ON
+# When ON, batch_scalar_mul_fixed_k parallelises chunk loop across OMP threads.
+option(SECP256K1_ENABLE_OPENMP "Enable OpenMP for batch parallel operations" OFF)
+if(SECP256K1_ENABLE_OPENMP
+   AND NOT DEFINED SECP256K1_PLATFORM_ESP32
+   AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     # Prefer static OpenMP when doing static builds (cross-compile for Android etc.)
     if(CMAKE_EXE_LINKER_FLAGS MATCHES "-static" OR BUILD_SHARED_LIBS STREQUAL "OFF")
         set(OpenMP_gomp_LIBRARY "" CACHE STRING "" FORCE)
@@ -456,13 +460,13 @@ if(NOT DEFINED SECP256K1_PLATFORM_ESP32 AND NOT CMAKE_SYSTEM_NAME STREQUAL "Emsc
             set(OpenMP_gomp_LIBRARY "${_GOMP_STATIC}" CACHE STRING "" FORCE)
         endif()
     endif()
-    find_package(OpenMP QUIET)
+    find_package(OpenMP REQUIRED)
     if(OpenMP_CXX_FOUND)
         target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC OpenMP::OpenMP_CXX)
         message(STATUS "Secp256k1: OpenMP enabled (${OpenMP_CXX_VERSION})")
-    else()
-        message(STATUS "Secp256k1: OpenMP not found - batch parallelization disabled")
     endif()
+else()
+    message(STATUS "Secp256k1: OpenMP disabled (pass -DSECP256K1_ENABLE_OPENMP=ON to enable)")
 endif()
 
 # Optional inline assembly support (x64 only)
