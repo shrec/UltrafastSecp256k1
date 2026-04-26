@@ -7,6 +7,9 @@
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 // Inline 4x64 ADCX/ADOX field operations for hot-loop point ops
 #if (defined(__x86_64__) || defined(_M_X64)) && defined(__ADX__) && defined(__BMI2__)
 #include "secp256k1/field_4x64_inline.hpp"
@@ -3023,6 +3026,11 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
     static thread_local std::vector<FE52>   s_tbl_phi_x, s_tbl_phi_y;
     static thread_local std::vector<Point>  s_acc;
 
+    // Each chunk is fully independent: same KPlan (read-only), disjoint results[].
+    // thread_local scratch guarantees zero inter-thread contention.
+#ifdef _OPENMP
+    #pragma omp parallel for schedule(dynamic, 1) if (n >= kChunkSize * 4)
+#endif
     for (size_t chunk_start = 0; chunk_start < n; chunk_start += kChunkSize) {
         const size_t chunk_n = std::min(kChunkSize, n - chunk_start);
         const size_t total   = chunk_n * table_size;

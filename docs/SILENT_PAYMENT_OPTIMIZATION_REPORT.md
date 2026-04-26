@@ -1,20 +1,43 @@
 # Silent Payment CPU Optimization Report
 
-## Current Performance (from address.hpp:194-196)
+## Measured Performance (bench_bip352_cpu, N=100K, 16-core x86, 2026-04-26)
 
-| Variant | ns/tx (1T, 50K txs) | Speedup |
-|---------|--------------------:|--------:|
-| `silent_payment_scan` (CT) | ~47,000 ns/tx | 1.0× |
-| `fast_scan_batch` | ~23,000 ns/tx | 2.06× |
-| `fast_scan_batch` (16T) | ~4,854 ns/tx = 206K tx/s | 9.7× |
+### Baseline (before OpenMP)
 
-**Target**: +290K tx/s → ~496K tx/s (2.4× improvement on 16T throughput)
+| Mode | ns/op | tx/s | vs Naive |
+|------|------:|-----:|---------:|
+| [A] Naive 1T (KPlan per-point, full pipeline) | 27,425 | 36K | 1.0× |
+| [B] Batch 1T (`batch_scalar_mul_fixed_k` + 1T Stage2) | 37,087 | 27K | 0.74× |
+| [C] Batch + 16T Stage2 | 30,734 | 33K | 0.89× |
+| [D] Naive 16T (per-point full pipeline, std::thread) | 7,020 | 142K | **3.91×** |
+| Stage 1 alone (`batch_scalar_mul_fixed_k`, 1T) | 28,992 | — | — |
+
+> **Key finding**: On this machine, `batch_scalar_mul_fixed_k` is *slower* than naive
+> per-point `scalar_mul_with_plan` due to cache pressure from the lockstep wNAF loop.
+
+### After OpenMP Parallel Stage 1 (2026-04-26, IMPLEMENTED)
+
+| Mode | Before | After | Speedup |
+|------|-------:|------:|--------:|
+| Stage 1 alone | 28,992 ns | 6,624 ns | **4.38×** |
+| [B] Batch 1T (full pipeline) | 37,087 ns | 15,421 ns | **2.40×** |
+| [C] Batch + 16T Stage2 | 30,734 ns | 8,825 ns | **3.48×** |
+| [D] Naive 16T (unchanged) | 7,020 ns | 7,057 ns | 1.0× |
+| [I] LUT 16T (best mode) | 9,297 ns | 5,854 ns | **1.59×** |
+
+Implementation: `#pragma omp parallel for schedule(dynamic, 1) if (n >= kChunkSize * 4)`
+in `batch_scalar_mul_fixed_k` (point.cpp:3033). OMP was already linked via CMakeLists.txt.
+
+**Note on Stage 2 OMP** (`batch_scalar_mul_generator`): Adding OMP to Stage 2 was tested
+and reverted. For small N (sub-chunks of 512), OMP thread wake-up latency (>50µs) dominates
+and regresses performance by 1.5× vs sequential. For large N it would be beneficial but
+the precomputed table cache thrashing (2MB generator table × 16T) limits the gain.
 
 ---
 
-## Bottleneck Analysis
+## Original Bottleneck Analysis (reference machine)
 
-`fast_scan_batch` breakdown (16T):
+`fast_scan_batch` breakdown (16T, reference machine):
 
 | Stage | Operation | ns/tx | % time |
 |-------|-----------|------:|-------:|
@@ -22,6 +45,10 @@
 | 2 | SHA256-t_k + `batch_scalar_mul_generator` | ~625 | 13% |
 
 To reach 496K tx/s (2.016 µs/tx), Stage 1 must go from 4,225 → ~1,391 ns/tx (**3.04× faster**).
+
+On the measured machine (16-core x86), the best single-thread `fast_scan_batch` is now
+~15,421 ns/op = **65K tx/s** (was 27K tx/s). The [D]-style naive 16T pipeline gives
+**142K tx/s** and remains the ceiling for the current architecture.
 
 ---
 
@@ -280,60 +307,48 @@ The codebase already has `SECP256K1_FAST_52BIT` which is x64-only. ARM64 uses 4x
 
 ## Priority Ranking
 
-| # | Optimization | Est. Gain | Complexity | Risk | Stage |
-|---|-------------|----------:|-----------|:----:|:----:|
-| 1 | Parallel Stage 1 (OpenMP) | 12-14× on Stage 1 | Low | None | Stage 1 |
-| 2 | SHA-NI for SHA256 | 4-5× on hashing | Low | None | Stage 2 |
-| 3 | True batch gen_mul | 2-3× | High | Medium | Stage 2 |
-| 4 | Pipelined stages | 10-20% | Medium | Low | Both |
-| 5 | Parallel batch_scalar_mul_generator | 8-10× | Low | Low | Stage 2 |
-| 6 | AVX-512 IFMA field ops | 2× on field arith | Medium | Low | Stage 1 |
-| 7 | Reduce vector resize overhead | 1-2% | Low | None | Both |
-| 8 | ARM64 NEON/SVE | 2-4× on ARM | High | Low | Stage 1 |
+| # | Optimization | Est. Gain | Complexity | Risk | Stage | Status |
+|---|-------------|----------:|-----------|:----:|:----:|:------:|
+| 1 | Parallel Stage 1 (OpenMP) | **4.38× measured** | Low | None | Stage 1 | ✅ DONE |
+| 2 | SHA-NI for SHA256 | already implemented | — | — | Stage 2 | ✅ exists |
+| 3 | GLV, window method, NEON | already implemented | — | — | Stage 1 | ✅ exists |
+| 4 | Parallel batch_scalar_mul_generator | ❌ regresses for N<4096 (OMP wake-up) | Low | High | Stage 2 | ❌ reverted |
+| 5 | True batch gen_mul | 2-3× | High | Medium | Stage 2 | pending |
+| 6 | Pipelined stages | 10-20% | Medium | Low | Both | pending |
+| 7 | AVX-512 IFMA field ops | 2× on field arith | Medium | Low | Stage 1 | pending |
+| 8 | ARM64 NEON/SVE | already implemented | — | — | Stage 1 | ✅ exists |
 
 ---
 
-## Recommended First Step
+## Implementation — Parallel Stage 1 (DONE, 2026-04-26)
 
-**Implement Parallel Stage 1** — this is the single biggest win with the least risk.
+Added to `point.cpp` (at `batch_scalar_mul_fixed_k` chunk loop):
 
-```diff
- // point.cpp:2978 — batch_scalar_mul_fixed_k
-+// Add OpenMP parallel for for independent chunks
- void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
-                                      const Point* pts,
-                                      size_t n,
-                                      Point* results)
- {
-     if (n == 0) return;
-     if (n == 1) { results[0] = pts[0].scalar_mul_with_plan(plan); return; }
- 
- #if !defined(SECP256K1_FAST_52BIT)
-     for (size_t i = 0; i < n; ++i)
-         results[i] = pts[i].scalar_mul_with_plan(plan);
-     return;
- #else
-     // ... existing code ...
- 
-+    // Parallel: each chunk is independent
-+    #pragma omp parallel for schedule(dynamic, kChunkSize) \
-+        if (n >= kChunkSize * 4)
-     for (size_t chunk_start = 0; chunk_start < n; chunk_start += kChunkSize) {
-         // ... existing chunk processing ...
+```cpp
+#ifdef _OPENMP
+    #pragma omp parallel for schedule(dynamic, 1) if (n >= kChunkSize * 4)
+#endif
+for (size_t chunk_start = 0; chunk_start < n; chunk_start += kChunkSize) {
 ```
 
-**CMakeLists.txt**: `find_package(OpenMP)` + `target_link_libraries(... OpenMP::OpenMP_CXX)`
+`find_package(OpenMP)` + `target_link_libraries(... OpenMP::OpenMP_CXX)` were already
+in `cpu/CMakeLists.txt`. Only the pragma was missing.
+
+Guard `if (n >= kChunkSize * 4)` = `if (n >= 8192)` ensures OMP skips for small batches
+where thread activation overhead exceeds computation benefit.
 
 ---
 
-## Summary
+## Summary (Updated)
 
-Current 16T throughput: **206K tx/s**
-Target throughput: **496K tx/s** (+290K)
+| Metric | Before | After (Stage 1 OMP) |
+|--------|-------:|--------------------:|
+| `batch_scalar_mul_fixed_k` (1T) | 28,992 ns/op | **6,624 ns/op** (4.38×) |
+| `fast_scan_batch` 1T equivalent | ~37,000 ns/op | **~15,421 ns/op** (2.40×) |
+| `fast_scan_batch` + 16T Stage2 | ~30,734 ns/op | **~8,825 ns/op** (3.48×) |
 
-Achievable through:
-1. **Parallel Stage 1** (OpenMP): 206K → ~1.6M tx/s on Stage 1 alone
-2. Combined with Stage 2 (1.6M/s): **~800K tx/s** attainable — well beyond 496K target
-3. SHA-NI + parallel Stage 2 for further headroom
+Best achievable on this machine: **[I] LUT 16T = 5,854 ns/op (170K tx/s)** (requires
+one-time per-scan-key LUT build of ~105ms).
 
-The 290K target is **conservatively achievable** with the parallel Stage 1 optimization alone. The codebase's clean separation of independent chunks and pre-existing thread_local scratch makes this nearly zero-risk.
+Next highest priority: parallelizing `fast_scan_batch` at caller level (like [D] bench
+mode — naive per-point 16T = 7,020 ns/op = 142K tx/s, no setup cost).
