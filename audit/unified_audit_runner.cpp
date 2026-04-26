@@ -245,6 +245,7 @@ int test_exploit_adaptor_extended_run();
 int test_exploit_adaptor_parity_run();
 int test_exploit_address_encoding_run();
 int test_exploit_address_generation_run();
+int test_exploit_bech32_underflow_run();
 int test_exploit_aead_integrity_run();
 int test_exploit_backend_divergence_run();
 int test_exploit_batch_schnorr_run();
@@ -598,6 +599,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_adaptor_parity",         "Adaptor Signature R.y Parity",                "exploit_poc", test_exploit_adaptor_parity_run, false },
     { "exploit_address_encoding",       "Bitcoin Address Encoding Security",            "exploit_poc", test_exploit_address_encoding_run, false },
     { "exploit_address_generation",     "Bitcoin Address Generation Security",          "exploit_poc", test_exploit_address_generation_run, false },
+    { "exploit_bech32_underflow",       "bech32_decode SIZE_MAX Underflow Regression",  "exploit_poc", test_exploit_bech32_underflow_run, false },
     { "exploit_aead_integrity",         "AEAD ChaCha20-Poly1305 Integrity",            "exploit_poc", test_exploit_aead_integrity_run, false },
     { "exploit_backend_divergence",     "Backend Divergence Detection",                "exploit_poc", test_exploit_backend_divergence_run, false },
     { "exploit_batch_schnorr",          "Schnorr Batch Verification Soundness",        "exploit_poc", test_exploit_batch_schnorr_run, false },

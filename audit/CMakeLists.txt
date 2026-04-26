@@ -898,6 +898,13 @@ target_compile_definitions(test_exploit_address_encoding_standalone PRIVATE STAN
 add_test(NAME exploit_address_encoding COMMAND test_exploit_address_encoding_standalone)
 set_tests_properties(exploit_address_encoding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;address;bip352")
 
+# -- bech32_decode SIZE_MAX underflow regression (CVE-class: OOB read via size_t wrap) ---
+add_executable(test_exploit_bech32_underflow_standalone test_exploit_bech32_underflow.cpp)
+audit_target_defaults(test_exploit_bech32_underflow_standalone)
+target_compile_definitions(test_exploit_bech32_underflow_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bech32_underflow COMMAND test_exploit_bech32_underflow_standalone)
+set_tests_properties(exploit_bech32_underflow PROPERTIES TIMEOUT 30 LABELS "audit;exploit;address;regression")
+
 # -- CT vs FAST layer output divergence (fills audit gap from 2026-03-24) ---
 add_executable(test_exploit_ct_systematic_standalone test_exploit_ct_systematic.cpp)
 audit_target_defaults(test_exploit_ct_systematic_standalone)
@@ -2680,6 +2687,7 @@ add_executable(unified_audit_runner
     test_exploit_adaptor_parity.cpp
     test_exploit_address_encoding.cpp
     test_exploit_address_generation.cpp
+    test_exploit_bech32_underflow.cpp
     test_exploit_aead_integrity.cpp
     test_exploit_backend_divergence.cpp
     test_exploit_batch_schnorr.cpp

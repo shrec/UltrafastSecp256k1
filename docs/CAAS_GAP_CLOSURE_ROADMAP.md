@@ -1,7 +1,8 @@
 # CAAS Gap-Closure Roadmap — Make External Audit a Formality
 
-> Version: 1.0 — 2026-04-21
-> Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). This file
+> Version: 1.1 — 2026-04-26
+> Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). G-1..G-4
+> closed 2026-04-26 (docs created). G-5..G-6 partial. This file
 > identifies the **structural gaps that prevent CAAS from fully replacing
 > a paid external audit engagement** and the work needed to close each one.
 >
@@ -29,12 +30,12 @@ automated**:
 | Supply-chain (SLSA, SBOM, scorecard) | ✓ slsa-provenance + scorecard + cbom + dependency-review |
 | Reproducible build | ✓ reproducible-build.yml (single CI provider) |
 | Mutation testing | ✓ mutation-weekly |
-| Threat model document | **missing** |
-| RNG entropy attestation methodology | **missing** |
+| Threat model document | ✓ **THREAT_MODEL.md** (closed 2026-04-26) |
+| RNG entropy attestation methodology | ✓ **RNG_ENTROPY_ATTESTATION.md** (closed 2026-04-26) |
 | Public protocol spec (publishable, with vectors) | **partial** (NORMALIZATION_SPEC + FORMAL_INVARIANTS_SPEC) |
 | Spec-to-test traceability matrix (every normative MUST → test ID) | **partial** |
-| Compliance stance (FIPS / NIST / CC explicit claim or non-claim) | **missing** |
-| Hardware side-channel methodology (why power/EM deferred) | **missing** |
+| Compliance stance (FIPS / NIST / CC explicit claim or non-claim) | ✓ **COMPLIANCE_STANCE.md** (closed 2026-04-26) |
+| Hardware side-channel methodology (why power/EM deferred) | ✓ **HARDWARE_SIDE_CHANNEL_METHODOLOGY.md** (closed 2026-04-26) |
 | Cross-implementation interop matrix (libsecp256k1, OpenSSL, Botan, BC) | **missing** as published doc |
 | Multi-CI / clean-room reproducible-build attestation | **partial** (single provider) |
 | Two-tool independence for CT verification | **partial** (one CT-verif chain) |
