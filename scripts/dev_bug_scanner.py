@@ -52,6 +52,10 @@ Detects the kind of bugs a human reviewer catches during development:
   FFI_RETVAL_IGNORED     secp256k1_*/ufsecp_* call in language binding with silently
                          discarded return value (Python/C#/Swift/Go/Rust/Ruby/PHP/Dart)
 
+  Crypto parse-return checker (added 2026-04-26, grounded in SonarCloud C Reliability):
+  PARSE_RETVAL_IGNORED   Scalar::parse_bytes_strict_nonzero or parse_bytes_strict return
+                         value silently discarded; output Scalar indeterminate on failure
+
 Usage examples
 --------------
   # Scan everything under the default paths, human-readable output:
@@ -2432,6 +2436,79 @@ def check_unchecked_realloc(path: str, lines: List[str]) -> List[Finding]:
     return findings
 
 
+# ── PARSE_RETVAL_IGNORED: unchecked bool return from parse_bytes_strict* ────────
+# Catches the class of bugs we fixed in fast_scan_batch (address.cpp 2026-04-26).
+# Pattern: a standalone call to Scalar::parse_bytes_strict_nonzero() or
+# FieldElement::parse_bytes_strict() where the bool return is not captured,
+# tested, or returned.  Ignores lines that also appear in a condition (if/while/
+# return/assignment) — those properly consume the return value.
+_PARSE_STRICT_CALL = re.compile(
+    r'\b(?:Scalar|FieldElement\w*|fast::Scalar)\s*::\s*parse_bytes_strict\w*\s*\('
+)
+_PARSE_RETURN_CONSUMED = re.compile(
+    r'^\s*(?:'
+    r'if\s*\('            # if (!Scalar::parse...)
+    r'|while\s*\('        # while (!Scalar::parse...)
+    r'|(?:bool|auto|const)\s'  # bool ok = ...; auto ok = ...; const bool ok = ...
+    r'|return\s'          # return Scalar::parse...
+    r'|\[\[maybe_unused\]\]'   # [[maybe_unused]] const bool ...
+    r'|&&\s*Scalar\b'     # chained && in condition
+    r'|\s*!?\s*Scalar\b'  # (negation in condition context)
+    r'|\w+\s*='           # assignment: ok = Scalar::parse...
+    r')'
+)
+
+
+def check_parse_retval_ignored(path: str, lines: List[str]) -> List[Finding]:
+    """Detect calls to parse_bytes_strict_nonzero / parse_bytes_strict where
+    the bool return value is silently discarded.
+
+    Background: these functions return false when the byte input is out of range
+    (>= curve order) or zero.  Ignoring the return leaves the output Scalar in an
+    indeterminate state and can cause silent key-derivation or signature failures.
+    SonarCloud flags this as a MAJOR C Reliability bug (new_reliability_rating < A).
+    Two such bugs were found and fixed in cpu/src/address.cpp on 2026-04-26.
+    """
+    _C_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp'}
+    if not any(path.endswith(ext) for ext in _C_EXT):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if not _PARSE_STRICT_CALL.search(line):
+            continue
+        # If the call is inside a consuming context, skip
+        if _PARSE_RETURN_CONSUMED.match(line):
+            continue
+        # Check if the line is part of an if/while by looking for '(' before the call
+        # (handles `if (!Scalar::parse...)` where the regex anchor fails)
+        stripped = line.strip()
+        # Any line whose stripped form starts with '!' is a negated-call in a condition
+        if stripped.startswith(('if ', 'if(', 'while ', 'while(', 'return ',
+                                '!', 'bool ', 'auto ',
+                                'const ', '[[', '&&', '||')):
+            continue
+        # Also skip if there's an '=' anywhere before the call (assignment context)
+        call_pos = _PARSE_STRICT_CALL.search(line)
+        if call_pos and '=' in line[:call_pos.start()]:
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="HIGH",
+            category="PARSE_RETVAL_IGNORED",
+            message=(
+                "Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` "
+                "silently discarded — output Scalar is indeterminate if input >= N or == 0. "
+                "SonarCloud flags this as MAJOR C Reliability bug."
+            ),
+            snippet=raw.strip(),
+            fix_hint=(
+                "Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` "
+                "or propagate the bool return to the caller."
+            ),
+        ))
+    return findings
+
+
 def collect_files(src_dirs: List[Path]) -> Iterable[Path]:
     seen: set[Path] = set()
     for d in src_dirs:
@@ -2500,6 +2577,8 @@ CHECKERS = [
     # Memory-safety checkers (added 2026-04-27)
     check_missing_null_after_alloc,
     check_unchecked_realloc,
+    # Crypto parse-return checker (added 2026-04-26, grounded in SonarCloud C Reliability)
+    check_parse_retval_ignored,
 ]
 
 

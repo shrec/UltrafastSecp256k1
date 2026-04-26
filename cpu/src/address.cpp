@@ -801,7 +801,7 @@ ScanTx compute_a_eff(const ScanTxRaw& raw)
                 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
             };
             Scalar unit;
-            Scalar::parse_bytes_strict_nonzero(one_bytes, unit);
+            if (!Scalar::parse_bytes_strict_nonzero(one_bytes, unit)) return {};
             std::vector<Scalar> scalars(m, unit);
             a_sum = multi_scalar_mul(scalars.data(), raw.input_pubkeys.data(), m);
         }

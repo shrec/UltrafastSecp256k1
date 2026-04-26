@@ -7,6 +7,30 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-26b (code quality depth: PARSE_RETVAL_IGNORED checker + Clang SA + GCC -fanalyzer)
+
+### New static analysis tooling (Bitcoin Core PR readiness)
+- **`dev_bug_scanner.py` — `PARSE_RETVAL_IGNORED` checker**: scans all C++ source for
+  `Scalar::parse_bytes_strict_nonzero` / `parse_bytes_strict` calls whose `bool`
+  return value is silently discarded. Grounded in the two bugs fixed 2026-04-26
+  (fast_scan_batch Stage 2) and the one fixed in compute_a_eff (address.cpp:804).
+  Severity: HIGH. Zero false positives on the current codebase.
+- **`.github/workflows/clang-sa.yml`** — Clang Static Analyzer (scan-build-18) CI
+  workflow. Runs on push/PR to main/dev and weekly. Enables default + alpha checkers
+  (`ArrayBoundV2`, `ReturnPtrRange`, `CastSize`, `UninitializedObject`).
+  Inter-procedural symbolic execution; catches cross-function null-deref and
+  uninitialized-read paths that clang-tidy misses.
+- **`.github/workflows/gcc-analyzer.yml`** — GCC 14 `-fanalyzer` CI workflow.
+  Different SE engine from Clang SA; complements it with GCC-specific path analysis
+  (CWE-mapped findings, use-after-free across stack frames).
+- **`address.cpp:804`** — fixed unchecked `parse_bytes_strict_nonzero` return in
+  `compute_a_eff` (unit scalar constant 1; always succeeds but now explicitly checked).
+
+### Rationale
+Bitcoin Core code review expects defensive coding: every function that can return
+an error code must have that code checked at every call site. These additions raise
+the bar to match (and exceed) libsecp256k1's own CI posture.
+
 ## 2026-04-26 (fast_scan_batch: fix SonarCloud C Reliability — checked parse return values)
 
 - **Bug**: `Scalar::parse_bytes_strict_nonzero` return value was ignored in two
