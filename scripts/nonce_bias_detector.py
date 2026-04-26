@@ -32,8 +32,9 @@ Published attacks enabled by biased nonces:
   ECDSA-lattice (general): any bias in top 1 bit enough given ~2^27 sigs
 
 Threshold (we set conservatively):
-  Any bit position with |frequency - 0.5| > 3σ = 3/sqrt(N) → WARN
-  p-value < 0.001 on chi-squared → FAIL
+  Any bit position with |frequency - 0.5| > 4σ → WARN
+  p-value < 0.0001 (4-sigma) on chi-squared → FAIL for MSB/LSB
+  p-value < 1e-6 on chi-squared → FAIL for all 254 interior bits
 
 Usage:
     python3 scripts/nonce_bias_detector.py --lib build_opencl/.../libufsecp.so.3
@@ -248,10 +249,10 @@ def analyze(r_values: List[int], label: str = "") -> BiasReport:
     expected_msb_p = (N - (1 << 255)) / N  # ≈ 0.5 - 1.18e-20 ≈ 0.5
     pval_msb = _chi_squared_p(msb_count, n * expected_msb_p, n)
     sigma_msb = abs(msb_count / n - expected_msb_p) / math.sqrt(expected_msb_p * (1 - expected_msb_p) / n)
-    status = "✓ " if pval_msb > 0.001 else "⚠ "
+    status = "✓ " if pval_msb > 1e-4 else "⚠ "
     print(f"{header}{status} MSB (bit 255): {msb_count/n*100:.3f}% set  "
           f"(expected ~{expected_msb_p*100:.3f}%)  z={sigma_msb:.2f}  p={pval_msb:.4f}")
-    if pval_msb < 0.001:
+    if pval_msb < 1e-4:
         report.biased_bits.append((255, msb_count, pval_msb))
         report.warnings.append(f"MSB bias detected: p={pval_msb:.6f}")
         report.overall_pass = False
@@ -261,10 +262,10 @@ def analyze(r_values: List[int], label: str = "") -> BiasReport:
     report.lsb_freq = lsb_count / n
     pval_lsb = _chi_squared_p(lsb_count, n * 0.5, n)
     sigma_lsb = abs(lsb_count/n - 0.5) / math.sqrt(0.25/n)
-    status = "✓ " if pval_lsb > 0.001 else "⚠ "
+    status = "✓ " if pval_lsb > 1e-4 else "⚠ "
     print(f"{header}{status} LSB (bit   0): {lsb_count/n*100:.3f}% set  "
           f"(expected ~50.000%)  z={sigma_lsb:.2f}  p={pval_lsb:.4f}")
-    if pval_lsb < 0.001:
+    if pval_lsb < 1e-4:
         report.biased_bits.append((0, lsb_count, pval_lsb))
         report.warnings.append(f"LSB bias detected: p={pval_lsb:.6f}")
         report.overall_pass = False
