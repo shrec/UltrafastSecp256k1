@@ -397,6 +397,7 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
     // Suitable for ephemeral BIP-324 session keys where CT is not required.
     auto pub = scalar_mul_generator(privkey);
     auto x = pub.x();
+    bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
 
     static const FieldElement FE_TWO_ = FieldElement::from_uint64(2);
 
@@ -431,8 +432,9 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
         auto t_cand = t2.sqrt();
         if (!(t_cand.square() == t2)) continue;   // not a QR, try next u
 
-        // Randomly pick +t or -t for uniform distribution
-        auto t = (rand_bytes[0] & 1) ? t_cand.negate() : t_cand;
+        // t parity must match pubkey y parity (BIP-324 XSwiftEC round-trip).
+        bool t_cand_odd = (t_cand.to_bytes()[31] & 1) != 0;
+        auto t = (t_cand_odd == y_odd) ? t_cand : t_cand.negate();
 
         auto u_bytes = u.to_bytes();
         auto t_bytes = t.to_bytes();
