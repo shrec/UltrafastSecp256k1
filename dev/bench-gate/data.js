@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777191161863,
+  "lastUpdate": 1777201147350,
   "repoUrl": "https://github.com/shrec/UltrafastSecp256k1",
   "entries": {
     "Perf Regression Gate": [
@@ -97070,6 +97070,745 @@ window.BENCHMARK_DATA = {
           {
             "name": "Session roundtrip (256B)",
             "value": 1823.1,
+            "unit": "ns"
+          },
+          {
+            "name": "Harness",
+            "value": 3000000000,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "committer": {
+            "email": "shrec@users.noreply.github.com",
+            "name": "shrec",
+            "username": "shrec"
+          },
+          "distinct": true,
+          "id": "421a94ad71005acd370882903df95e8e8aca6e28",
+          "message": "feat(caas): PARSE_RETVAL_IGNORED checker + Clang SA + GCC -fanalyzer workflows\n\nThree hardening additions for Bitcoin Core PR readiness:\n\n1. dev_bug_scanner.py: new PARSE_RETVAL_IGNORED checker (HIGH severity)\n   - Detects Scalar::parse_bytes_strict_nonzero / parse_bytes_strict calls\n     whose bool return is silently discarded (output Scalar indeterminate).\n   - Grounded in two bugs fixed in fast_scan_batch (2026-04-26) and one in\n     compute_a_eff (address.cpp:804, this commit).\n   - Zero false positives on current codebase.\n\n2. .github/workflows/clang-sa.yml: Clang Static Analyzer (scan-build-18)\n   - Inter-procedural symbolic execution; catches cross-function null-deref\n     and uninitialized-read paths that clang-tidy misses.\n   - Runs on push/PR to main/dev and weekly (Monday 04:00 UTC).\n   - Alpha checkers: ArrayBoundV2, ReturnPtrRange, UninitializedObject.\n\n3. .github/workflows/gcc-analyzer.yml: GCC 14 -fanalyzer\n   - Different SE engine; CWE-mapped findings complement Clang SA.\n   - Weekly + push/PR trigger; non-blocking advisory run in addition to\n     the hard gate.\n\n4. address.cpp:804 — fixed unchecked parse_bytes_strict_nonzero return in\n   compute_a_eff (unit scalar 1; always succeeds but explicitly checked).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-26T10:35:03Z",
+          "tree_id": "de8c6e2ef499cd1dd35be6e0207fcd01db422a81",
+          "url": "https://github.com/shrec/UltrafastSecp256k1/commit/421a94ad71005acd370882903df95e8e8aca6e28"
+        },
+        "date": 1777201125544,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "field_inv",
+            "value": 1010.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inv",
+            "value": 1334.9,
+            "unit": "ns"
+          },
+          {
+            "name": "pubkey_create (k*G)",
+            "value": 8132.6,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul (k*P)",
+            "value": 33248.7,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_with_plan",
+            "value": 30784.3,
+            "unit": "ns"
+          },
+          {
+            "name": "dual_mul (a*G + b*P)",
+            "value": 36233.3,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (affine+affine)",
+            "value": 1271.5,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (J+A mixed)",
+            "value": 240.5,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl",
+            "value": 149.6,
+            "unit": "ns"
+          },
+          {
+            "name": "next_inplace (+=G)",
+            "value": 255.9,
+            "unit": "ns"
+          },
+          {
+            "name": "KPlan::from_scalar(w=4)",
+            "value": 1424.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign",
+            "value": 14338.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_verified",
+            "value": 74627.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify",
+            "value": 38065.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_keypair_create",
+            "value": 10781.6,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign",
+            "value": 9861.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign_verified",
+            "value": 53964.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (cached xonly)",
+            "value": 38920.1,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (raw bytes)",
+            "value": 43896.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=4)",
+            "value": 170577.4,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=4)",
+            "value": 42644.3,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=4)",
+            "value": 150295.8,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=4)",
+            "value": 37574,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=16)",
+            "value": 682107.3,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=16)",
+            "value": 42631.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=16)",
+            "value": 600592.1,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=16)",
+            "value": 37537,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=64)",
+            "value": 2813504.5,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=64)",
+            "value": 43961,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=64)",
+            "value": 2492124.2,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=64)",
+            "value": 38939.4,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=128)",
+            "value": 5064571.7,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=128)",
+            "value": 39567,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=128)",
+            "value": 4742768.2,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=128)",
+            "value": 37052.9,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(N=192)",
+            "value": 6748936.8,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig amortized (N=192)",
+            "value": 35150.7,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_batch_verify(cached,N=192)",
+            "value": 6428981.6,
+            "unit": "ns"
+          },
+          {
+            "name": "-> per-sig cached (N=192)",
+            "value": 33484.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=4)",
+            "value": 145149.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=16)",
+            "value": 581604.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=64)",
+            "value": 2331474.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=128)",
+            "value": 4657497.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_batch_verify(N=192)",
+            "value": 6984737.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_inverse (SafeGCD)",
+            "value": 1866.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::generator_mul (k*G)",
+            "value": 21499.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::scalar_mul (k*P)",
+            "value": 41472.8,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_dbl",
+            "value": 143,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_complete (11M+6S)",
+            "value": 401.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_complete (7M+5S)",
+            "value": 277.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::point_add_mixed_unified (7M+5S)",
+            "value": 274.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign",
+            "value": 29762.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::ecdsa_sign_verified",
+            "value": 89803,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign",
+            "value": 24573.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_sign_verified",
+            "value": 69021.6,
+            "unit": "ns"
+          },
+          {
+            "name": "ct::schnorr_keypair_create",
+            "value": 23033.5,
+            "unit": "ns"
+          },
+          {
+            "name": "keccak256 (32B)",
+            "value": 434.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address",
+            "value": 445.5,
+            "unit": "ns"
+          },
+          {
+            "name": "eip191_hash",
+            "value": 436.1,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_sign_hash",
+            "value": 14402.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign_recoverable",
+            "value": 14269.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecrecover",
+            "value": 48387.8,
+            "unit": "ns"
+          },
+          {
+            "name": "eth_personal_sign",
+            "value": 14923.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ethereum_address_eip55",
+            "value": 1009.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute (SHA256 shared secret)",
+            "value": 44789.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdh_compute_raw (x-only shared)",
+            "value": 42807.5,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_output_key (BIP-341 key path)",
+            "value": 17828.8,
+            "unit": "ns"
+          },
+          {
+            "name": "taproot_tweak_privkey (BIP-341)",
+            "value": 24535.6,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_master_key (64B seed)",
+            "value": 1357.7,
+            "unit": "ns"
+          },
+          {
+            "name": "bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)",
+            "value": 123948.5,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (BTC end-to-end)",
+            "value": 149460.9,
+            "unit": "ns"
+          },
+          {
+            "name": "coin_address_from_seed (ETH end-to-end)",
+            "value": 149352.7,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_create_output",
+            "value": 51076.9,
+            "unit": "ns"
+          },
+          {
+            "name": "silent_payment_scan (single output set)",
+            "value": 74279,
+            "unit": "ns"
+          },
+          {
+            "name": "fast_scan_batch /tx (N=1)",
+            "value": 41309,
+            "unit": "ns"
+          },
+          {
+            "name": "fast_scan_batch /tx (N=16)",
+            "value": 40068.4,
+            "unit": "ns"
+          },
+          {
+            "name": "fast_scan_batch /tx (N=64)",
+            "value": 39730.8,
+            "unit": "ns"
+          },
+          {
+            "name": "fast_scan_batch /tx (N=256)",
+            "value": 39624.9,
+            "unit": "ns"
+          },
+          {
+            "name": "fast_scan_batch /tx (N=1024)",
+            "value": 39632.5,
+            "unit": "ns"
+          },
+          {
+            "name": "field_inv_var",
+            "value": 1133.4,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse (CT)",
+            "value": 1847.2,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_inverse_var",
+            "value": 1164.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_dbl (gej_double_var)",
+            "value": 148.4,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (gej_add_ge_var)",
+            "value": 248.9,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult (a*P + b*G, Strauss)",
+            "value": 37507.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecmult_gen (k*G, comb)",
+            "value": 18220.9,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (ec_pubkey_create)",
+            "value": 20227.8,
+            "unit": "ns"
+          },
+          {
+            "name": "scalar_mul_P (k*P, tweak_mul)",
+            "value": 34663.7,
+            "unit": "ns"
+          },
+          {
+            "name": "point_add (pubkey_combine)",
+            "value": 2544,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_sign (BIP-340)",
+            "value": 21746.2,
+            "unit": "ns"
+          },
+          {
+            "name": "schnorr_verify (BIP-340)",
+            "value": 39719.2,
+            "unit": "ns"
+          },
+          {
+            "name": "generator_mul (EC_POINT_mul k*G)",
+            "value": 390886.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_sign (ECDSA_do_sign)",
+            "value": 412830.3,
+            "unit": "ns"
+          },
+          {
+            "name": "ecdsa_verify (ECDSA_do_verify)",
+            "value": 375995.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Pedersen commit",
+            "value": 65801.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge prove (sigma)",
+            "value": 46471.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Knowledge verify",
+            "value": 41540,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ prove",
+            "value": 90006.2,
+            "unit": "ns"
+          },
+          {
+            "name": "DLEQ verify",
+            "value": 108720.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_prove (64b)",
+            "value": 24512374,
+            "unit": "ns"
+          },
+          {
+            "name": "Bulletproof range_verify (64b)",
+            "value": 2968872.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor sign",
+            "value": 36710.4,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor verify",
+            "value": 51310.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Schnorr adaptor adapt",
+            "value": 22990.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA adaptor sign",
+            "value": 66230.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ECDSA adaptor verify",
+            "value": 64876.6,
+            "unit": "ns"
+          },
+          {
+            "name": "keygen_begin (DKG round 1)",
+            "value": 45125.3,
+            "unit": "ns"
+          },
+          {
+            "name": "nonce_gen",
+            "value": 44623.5,
+            "unit": "ns"
+          },
+          {
+            "name": "partial_sign",
+            "value": 86554.8,
+            "unit": "ns"
+          },
+          {
+            "name": "partial_verify",
+            "value": 159301.5,
+            "unit": "ns"
+          },
+          {
+            "name": "aggregate → Schnorr sig",
+            "value": 81668.5,
+            "unit": "ns"
+          },
+          {
+            "name": "key_agg (BIP-327)",
+            "value": 56681.8,
+            "unit": "ns"
+          },
+          {
+            "name": "sig_agg → Schnorr sig",
+            "value": 1114.1,
+            "unit": "ns"
+          },
+          {
+            "name": "ECIES encrypt (256B payload)",
+            "value": 101338.2,
+            "unit": "ns"
+          },
+          {
+            "name": "ECIES decrypt (256B payload)",
+            "value": 83113.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Bitcoin message sign",
+            "value": 31431.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Bitcoin message verify",
+            "value": 36245.9,
+            "unit": "ns"
+          },
+          {
+            "name": "SHA-256 (32B input)",
+            "value": 243.9,
+            "unit": "ns"
+          },
+          {
+            "name": "SHA-512 (32B input)",
+            "value": 333.6,
+            "unit": "ns"
+          },
+          {
+            "name": "Multi-scalar mul (4 points)",
+            "value": 90757.8,
+            "unit": "ns"
+          },
+          {
+            "name": "Multi-scalar mul (64 points)",
+            "value": 1156440.8,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_generate (12 words)",
+            "value": 17307.8,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_generate (24 words)",
+            "value": 17553.3,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_validate (12 words)",
+            "value": 1431.9,
+            "unit": "ns"
+          },
+          {
+            "name": "bip39_to_seed (PBKDF2, 12 words)",
+            "value": 2670264.5,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-143 sighash (1-in/1-out)",
+            "value": 1698.1,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 compute_wtxid",
+            "value": 2126.3,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 witness_commitment",
+            "value": 1235,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-144 tx_weight",
+            "value": 294.8,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-341 keypath_sighash",
+            "value": 2434.5,
+            "unit": "ns"
+          },
+          {
+            "name": "BIP-342 tapscript_sighash",
+            "value": 2680.4,
+            "unit": "ns"
+          },
+          {
+            "name": "ElligatorSwift create",
+            "value": 83758.7,
+            "unit": "ns"
+          },
+          {
+            "name": "ElligatorSwift XDH (ECDH)",
+            "value": 68570.3,
+            "unit": "ns"
+          },
+          {
+            "name": "HKDF-SHA256 extract",
+            "value": 1021.7,
+            "unit": "ns"
+          },
+          {
+            "name": "HKDF-SHA256 expand",
+            "value": 996.4,
+            "unit": "ns"
+          },
+          {
+            "name": "AEAD encrypt (256B)",
+            "value": 744.1,
+            "unit": "ns"
+          },
+          {
+            "name": "AEAD decrypt (256B)",
+            "value": 750.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Session handshake (full)",
+            "value": 301706.3,
+            "unit": "ns"
+          },
+          {
+            "name": "Session encrypt (256B)",
+            "value": 898.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Session decrypt (256B)",
+            "value": 1816.9,
+            "unit": "ns"
+          },
+          {
+            "name": "Session encrypt (1KB)",
+            "value": 2703.7,
+            "unit": "ns"
+          },
+          {
+            "name": "Session roundtrip (256B)",
+            "value": 1821.8,
             "unit": "ns"
           },
           {
