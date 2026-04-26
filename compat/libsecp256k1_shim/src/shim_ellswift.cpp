@@ -94,15 +94,22 @@ int secp256k1_ellswift_decode(
     try {
         auto x = secp256k1::ellswift_decode(ell64);
 
-        // Lift x to a point: y² = x³ + 7, pick even y
+        // Lift x to a point: y² = x³ + 7
         auto y2 = x * x * x + FieldElement::from_uint64(7);
         auto y = y2.sqrt();
         if (!(y.square() == y2)) return 0;
-        auto yb = y.to_bytes();
-        if (yb[31] & 1) y = y.negate();
+
+        // BIP-324 XSwiftEC: y parity must match t parity (t = ell64[32..63]).
+        // If t == 0 (mod p) it is replaced by 1 (odd); edge case is included.
+        std::array<uint8_t, 32> t_bytes{};
+        std::memcpy(t_bytes.data(), ell64 + 32, 32);
+        auto t = FieldElement::from_bytes(t_bytes);
+        bool t_odd = (t == FieldElement::zero()) ? true : ((t.to_bytes()[31] & 1) != 0);
+        bool y_odd = (y.to_bytes()[31] & 1) != 0;
+        if (y_odd != t_odd) y = y.negate();
 
         auto xb = x.to_bytes();
-        yb = y.to_bytes();
+        auto yb = y.to_bytes();
         std::memcpy(pubkey->data,      xb.data(), 32);
         std::memcpy(pubkey->data + 32, yb.data(), 32);
         return 1;
