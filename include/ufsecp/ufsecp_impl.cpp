@@ -2970,7 +2970,7 @@ ufsecp_error_t ufsecp_frost_sign_nonce_gen(
 ufsecp_error_t ufsecp_frost_sign(
     ufsecp_ctx* ctx,
     const uint8_t keypkg[UFSECP_FROST_KEYPKG_LEN],
-    const uint8_t nonce[UFSECP_FROST_NONCE_LEN],
+    uint8_t nonce[UFSECP_FROST_NONCE_LEN],
     const uint8_t msg32[32],
     const uint8_t* nonce_commits, size_t n_signers,
     uint8_t partial_sig_out[36]) {
@@ -3072,6 +3072,8 @@ ufsecp_error_t ufsecp_frost_sign(
     secp256k1::detail::secure_erase(&fn.binding_nonce, sizeof(fn.binding_nonce));
     secp256k1::detail::secure_erase(&h, sizeof(h));
     secp256k1::detail::secure_erase(&b, sizeof(b));
+    // Consume caller's nonce to prevent catastrophic nonce reuse (mirrors MuSig2 secnonce erasure)
+    secp256k1::detail::secure_erase(nonce, UFSECP_FROST_NONCE_LEN);
     std::memcpy(partial_sig_out, &psig.id, 4);
     scalar_to_bytes(psig.z_i, partial_sig_out + 4);
     return UFSECP_OK;
@@ -5057,6 +5059,7 @@ ufsecp_error_t ufsecp_bip322_verify(
         std::array<uint8_t, 64> compact64;
         std::memcpy(compact64.data(), sig, 64);
         auto esig = secp256k1::ECDSASignature::from_compact(compact64);
+        if (!esig.is_low_s()) return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "BIP-322 ECDSA high-S (non-BIP-62)");
         bool ok = secp256k1::ecdsa_verify(msg_arr, pk, esig);
         if (!ok) return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "BIP-322 ECDSA verify failed");
         return UFSECP_OK;

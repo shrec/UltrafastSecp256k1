@@ -219,6 +219,7 @@ bool DLEQProof::deserialize(const std::uint8_t* data64, DLEQProof& out) {
     std::memcpy(s_bytes.data(), data64 + 32, 32);
     out.e = Scalar::from_bytes(e_bytes);
     out.s = Scalar::from_bytes(s_bytes);
+    if (out.e.is_zero() || out.s.is_zero()) return false;
     return true;
 }
 

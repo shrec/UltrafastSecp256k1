@@ -369,7 +369,7 @@ Bech32DecodeResult bech32_decode(const std::string& addr) {
 
     // Find separator '1'
     auto sep = addr.rfind('1');
-    if (sep == std::string::npos || sep < 1 || sep + 7 > addr.size()) return result;
+    if (sep == std::string::npos || sep < 1 || sep + 8 > addr.size()) return result;
 
     std::string hrp_str;
     for (std::size_t i = 0; i < sep; ++i) {
@@ -388,7 +388,7 @@ Bech32DecodeResult bech32_decode(const std::string& addr) {
         data5.push_back(static_cast<std::uint8_t>(val));
     }
 
-    if (data5.size() < 6) return result;
+    if (data5.size() < 7) return result;
 
     // Verify checksum
     auto hrp_exp = bech32_hrp_expand(hrp_str);
@@ -728,7 +728,7 @@ silent_payment_scan(const Scalar& scan_privkey,
 
     // Shared secret: S = b_scan * A_sum
     Point const S = ct::scalar_mul(A_sum, scan_privkey);
-    auto const S_comp = S.to_compressed();
+    auto S_comp = S.to_compressed();
     Point const B_spend = ct::generator_mul(spend_privkey);
 
     // Precompute SHA midstate for t_k computation: avoids recomputing the
@@ -770,7 +770,7 @@ silent_payment_scan(const Scalar& scan_privkey,
     }
 
     // Erase shared secret material
-    detail::secure_erase(const_cast<std::array<std::uint8_t, 33>*>(&S_comp)->data(), S_comp.size());
+    detail::secure_erase(S_comp.data(), S_comp.size());
 
     return results;
 }

@@ -84,8 +84,8 @@ schnorr_adaptor_sign(const Scalar& private_key,
     // Generate nonce k 
     Scalar k = adaptor_nonce(sk, msg.data(), 32, adaptor_point, aux_rand.data(), 32);
 
-    // R^ = k * G (the pre-nonce, before adapting)
-    Point R_hat = Point::generator().scalar_mul(k);
+    // R^ = k * G (the pre-nonce, before adapting) — CT: k is secret
+    Point R_hat = ct::generator_mul(k);
 
     // R = R^ + T (the final nonce point after adapting)
     Point R = R_hat.add(adaptor_point);
@@ -205,7 +205,7 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     Scalar const k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
 
     Scalar const binding = ecdsa_adaptor_binding(adaptor_point);
-    Point const base_nonce = Point::generator().scalar_mul(k);
+    Point const base_nonce = ct::generator_mul(k);  // CT: k is secret
     Point const binding_point = ct::generator_mul(binding);
 
     // Bind the pre-signature to the advertised adaptor point without
@@ -225,7 +225,7 @@ ecdsa_adaptor_sign(const Scalar& private_key,
 
     // s = k^-^1 * (z + r*x)  where z = msg_hash
     Scalar const z = Scalar::from_bytes(msg_hash);
-    Scalar const k_inv = k.inverse();
+    Scalar const k_inv = ct::scalar_inverse(k);  // CT: k is secret
     Scalar const s_hat = k_inv * (z + r * private_key);
 
     detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));

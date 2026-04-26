@@ -871,7 +871,7 @@ UFSECP_API ufsecp_error_t ufsecp_frost_sign_nonce_gen(
 UFSECP_API ufsecp_error_t ufsecp_frost_sign(
     ufsecp_ctx* ctx,
     const uint8_t keypkg[UFSECP_FROST_KEYPKG_LEN],
-    const uint8_t nonce[UFSECP_FROST_NONCE_LEN],
+    uint8_t nonce[UFSECP_FROST_NONCE_LEN],
     const uint8_t msg32[32],
     const uint8_t* nonce_commits, size_t n_signers,
     uint8_t partial_sig_out[36]);

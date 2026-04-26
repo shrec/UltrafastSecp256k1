@@ -7,6 +7,49 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-26e (fix: 6 security bugs from external audit — CRITICAL/HIGH/MEDIUM)
+
+### Bugs fixed in this commit
+
+**CRITICAL — bech32_decode integer underflow → SIZE_MAX OOB read** (`cpu/src/address.cpp`):
+- Line 372: `sep + 7 > addr.size()` → `sep + 8 > addr.size()` (ensures data5.size() ≥ 7)
+- Line 391: `data5.size() < 6` → `data5.size() < 7` (defense in depth)
+- With data5.size() == 6, line 412's `data5.size() - 7` wraps to SIZE_MAX, causing
+  `convert_bits()` to read ~18 exabytes. Requires valid Bech32 checksum so exploit
+  probability is ~2^-32 per attempt, but deterministic if collision found.
+
+**HIGH — address.cpp:773 const_cast UB on secure_erase** (`cpu/src/address.cpp`):
+- `auto const S_comp` → `auto S_comp` (removes const), enabling direct `secure_erase`
+  without `const_cast`. Modifying a truly-const object via `const_cast` is UB; the
+  compiler may place it in read-only memory or elide the erase.
+
+**CRITICAL — adaptor.cpp: secret nonce in variable-time scalar_mul/inverse**:
+- `schnorr_adaptor_sign` line 88: `Point::generator().scalar_mul(k)` → `ct::generator_mul(k)`
+- `ecdsa_adaptor_sign` line 208: same fix (k → CT path)
+- `ecdsa_adaptor_sign` line 228: `k.inverse()` → `ct::scalar_inverse(k)`
+- Full private key recovery via nonce timing was possible via lattice attack.
+
+**MEDIUM — DLEQProof::deserialize always returns true** (`cpu/src/zk.cpp`):
+- Added `if (out.e.is_zero() || out.s.is_zero()) return false;`
+- Zero scalars are trivially invalid proofs; accepting them lets verification
+  proceed to dleq_verify which may produce misleading error messages.
+
+**MEDIUM — BIP-322 ECDSA verify missing low-S (BIP-62) enforcement** (`ufsecp_impl.cpp`):
+- Added `if (!esig.is_low_s()) return ctx_set_err(..., "BIP-322 ECDSA high-S")` before
+  calling `ecdsa_verify`. The standard `ufsecp_ecdsa_verify` enforces low-S; the
+  BIP-322 path did not, accepting malleable signatures.
+
+**CRITICAL — FROST caller nonce not erased after signing** (`ufsecp.h`, `ufsecp_impl.cpp`):
+- Changed `const uint8_t nonce[UFSECP_FROST_NONCE_LEN]` → `uint8_t nonce[...]` (non-const)
+- Added `secure_erase(nonce, UFSECP_FROST_NONCE_LEN)` after successful signing, matching
+  the MuSig2 secnonce consumption pattern. Prevents catastrophic nonce reuse if the
+  caller reuses the same buffer in a second signing session.
+
+**Verification**: Build passes clean; existing FROST tests accept both erasure and
+non-erasure outcomes; adaptor CT change is drop-in (same function signature).
+
+---
+
 ## 2026-04-26d (fix: MuSig2 key aggregation even-Y lifting regression)
 
 ### Critical bug fix: `musig2_key_agg` Y-parity inconsistency
