@@ -70,14 +70,14 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     const int N = SCALED(5000, 200);
     printf("[1-3] musig2_key_agg: random / zero / single pubkeys (%d rounds each)\n", N);
 
-    // API: const uint8_t* pubkeys (flat n*32 bytes, x-only), agg_pk32 output
+    // API: const uint8_t* pubkeys (flat n*33 bytes, compressed), agg_pk32 output
     uint8_t keyagg_out[UFSECP_MUSIG2_KEYAGG_LEN];
     uint8_t agg_pk32[32];
 
     int no_crash = 0;
     for (int i = 0; i < N; ++i) {
         int n_keys = static_cast<int>(rng() % 3u) + 1;
-        auto keys = rand_blob(static_cast<size_t>(n_keys) * 32);
+        auto keys = rand_blob(static_cast<size_t>(n_keys) * 33);
         ufsecp_musig2_key_agg(ctx, keys.data(), static_cast<size_t>(n_keys), keyagg_out, agg_pk32);
         ++no_crash;
     }
@@ -86,7 +86,7 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     // Zero pubkeys
     int zero_rounds = 0;
     for (int i = 0; i < 100; ++i) {
-        std::vector<uint8_t> zeros(32 * 3, 0);
+        std::vector<uint8_t> zeros(33 * 3, 0);
         ufsecp_musig2_key_agg(ctx, zeros.data(), 3, keyagg_out, agg_pk32);
         ++zero_rounds;
     }
@@ -95,7 +95,7 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     // Single pubkey
     int single_rounds = 0;
     for (int i = 0; i < 200; ++i) {
-        auto k = rand32();
+        auto k = rand33();
         ufsecp_musig2_key_agg(ctx, k.data(), 1, keyagg_out, agg_pk32);
         ++single_rounds;
     }
@@ -141,7 +141,7 @@ static void test_musig2_partial_verify_random(ufsecp_ctx* ctx) {
         auto pubkey32   = rand32();
         auto msg32      = rand32();
         // flat 2-pubkey buffer
-        auto pks_flat   = rand_blob(64);  // 2 * 32 x-only
+        auto pks_flat   = rand_blob(66);  // 2 * 33 compressed
         ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg, agg_pk32);
         auto nonces_flat = rand_blob(2 * UFSECP_MUSIG2_PUBNONCE_LEN);
         ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce);

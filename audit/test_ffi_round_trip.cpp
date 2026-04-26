@@ -1417,14 +1417,17 @@ static void test_musig2_flow() {
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
 
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "musig2: comp1");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "musig2: comp2");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "musig2: xonly1");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "musig2: xonly2");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    // Key aggregation
-    uint8_t pubkeys[64]; // 2 * 32
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    // Key aggregation (BIP-327: 33-byte compressed pubkeys)
+    uint8_t pubkeys[66]; // 2 * 33
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
 
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN];
     uint8_t agg_pub[32];

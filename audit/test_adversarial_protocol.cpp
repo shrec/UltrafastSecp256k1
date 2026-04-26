@@ -77,13 +77,16 @@ static void test_musig2_nonce_reuse() {
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
 
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
 
@@ -190,13 +193,16 @@ static void test_musig2_partial_sig_replay() {
     uint8_t priv1[32], priv2[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
 
@@ -288,8 +294,8 @@ static void test_musig2_hostile_args() {
 
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly signer1");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly signer2");
+    {uint8_t _c[33]; CHECK_OK(ufsecp_pubkey_create(ctx, priv1, _c), "pubkey_create1"); std::memcpy(xonly1, _c+1, 32);}
+    {uint8_t _c[33]; CHECK_OK(ufsecp_pubkey_create(ctx, priv2, _c), "pubkey_create2"); std::memcpy(xonly2, _c+1, 32);}
     hex_to_bytes(MSG_HEX, msg32, 32);
 
     // key_agg: null ctx
@@ -301,10 +307,15 @@ static void test_musig2_hostile_args() {
     // key_agg: n=0
     CHECK(ufsecp_musig2_key_agg(ctx, buf, 0, keyagg, agg_pub) != UFSECP_OK,
           "key_agg n=0");
-    // key_agg: n=1 (should work -- single signer)
-        std::memcpy(buf, xonly1, 32);
-        std::memcpy(buf + 32, xonly2, 32);
+    // key_agg: n=2 valid pair (33-byte compressed keys)
+    {
+        uint8_t _ck1[33], _ck2[33];
+        ufsecp_pubkey_create(ctx, priv1, _ck1);
+        ufsecp_pubkey_create(ctx, priv2, _ck2);
+        std::memcpy(buf, _ck1, 33);
+        std::memcpy(buf + 33, _ck2, 33);
         CHECK_OK(ufsecp_musig2_key_agg(ctx, buf, 2, keyagg, agg_pub), "key_agg valid pair");
+    }
     // nonce_gen: null ctx
     CHECK(ufsecp_musig2_nonce_gen(nullptr, buf, buf, buf, buf, buf, secnonce, pubnonce) != UFSECP_OK,
           "nonce_gen null ctx");
@@ -388,12 +399,15 @@ static void test_musig2_hostile_args() {
         hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
         hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
         uint8_t xonly1[32], xonly2[32];
-        CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "xonly1 for arity mismatch test");
-        CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "xonly2 for arity mismatch test");
+        uint8_t _comp1[33], _comp2[33];
+        CHECK_OK(ufsecp_pubkey_create(ctx, priv1, _comp1), "pubkey_create1 for arity mismatch test");
+        CHECK_OK(ufsecp_pubkey_create(ctx, priv2, _comp2), "pubkey_create2 for arity mismatch test");
+        std::memcpy(xonly1, _comp1 + 1, 32);
+        std::memcpy(xonly2, _comp2 + 1, 32);
 
-        uint8_t pubkeys[64];
-        std::memcpy(pubkeys, xonly1, 32);
-        std::memcpy(pubkeys + 32, xonly2, 32);
+        uint8_t pubkeys[66];
+        std::memcpy(pubkeys, _comp1, 33);
+        std::memcpy(pubkeys + 33, _comp2, 33);
         uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
         CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "key_agg for arity mismatch test");
 
@@ -468,17 +482,18 @@ static void test_musig2_keyagg_participant_overflow() {
     hex_to_bytes(PRIVKEY3_HEX, priv3, 32);
     hex_to_bytes(PRIVKEY4_HEX, priv4, 32);
 
+    uint8_t comp1[33], comp2[33], comp3[33], comp4[33];
     uint8_t xonly1[32], xonly2[32], xonly3[32], xonly4[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "xonly1");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "xonly2");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv3, xonly3), "xonly3");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv4, xonly4), "xonly4");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create1"); std::memcpy(xonly1, comp1+1, 32);
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create2"); std::memcpy(xonly2, comp2+1, 32);
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv3, comp3), "pubkey_create3"); std::memcpy(xonly3, comp3+1, 32);
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv4, comp4), "pubkey_create4"); std::memcpy(xonly4, comp4+1, 32);
 
-    uint8_t pubkeys[128];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
-    std::memcpy(pubkeys + 64, xonly3, 32);
-    std::memcpy(pubkeys + 96, xonly4, 32);
+    uint8_t pubkeys[132];
+    std::memcpy(pubkeys,      comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
+    std::memcpy(pubkeys + 66, comp3, 33);
+    std::memcpy(pubkeys + 99, comp4, 33);
 
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN] = {};
     uint8_t agg_pub[32] = {};
@@ -497,17 +512,19 @@ static void test_musig2_rogue_key() {
 
     uint8_t priv1[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
+    uint8_t comp1[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
     uint8_t xonly1[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
 
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
 
-    // Rogue key: all 0xFF (not on curve for most implementations)
-    uint8_t rogue[32];
-    std::memset(rogue, 0xFF, 32);
-    uint8_t pubkeys_rogue[64];
-    std::memcpy(pubkeys_rogue, xonly1, 32);
-    std::memcpy(pubkeys_rogue + 32, rogue, 32);
+    // Rogue key: all 0xFF (adversarial 33-byte input)
+    uint8_t rogue[33];
+    std::memset(rogue, 0xFF, 33);
+    uint8_t pubkeys_rogue[66];
+    std::memcpy(pubkeys_rogue, comp1, 33);
+    std::memcpy(pubkeys_rogue + 33, rogue, 33);
     ufsecp_error_t rc = ufsecp_musig2_key_agg(ctx, pubkeys_rogue, 2, keyagg, agg_pub);
     if (rc != UFSECP_OK) {
         CHECK(rc != UFSECP_OK, "key_agg rejects 0xFF rogue key");
@@ -518,12 +535,12 @@ static void test_musig2_rogue_key() {
               "key_agg accepted 0xFF key and defers validation to later protocol steps");
     }
 
-    // Rogue key: all zeros (could map to a valid x-coordinate)
-    uint8_t zero_key[32];
+    // Rogue key: all zeros (adversarial 33-byte input)
+    uint8_t zero_key[33];
     std::memset(zero_key, 0, sizeof(zero_key));
-    uint8_t pubkeys_zero[64];
-    std::memcpy(pubkeys_zero, xonly1, 32);
-    std::memcpy(pubkeys_zero + 32, zero_key, 32);
+    uint8_t pubkeys_zero[66];
+    std::memcpy(pubkeys_zero, comp1, 33);
+    std::memcpy(pubkeys_zero + 33, zero_key, 33);
     rc = ufsecp_musig2_key_agg(ctx, pubkeys_zero, 2, keyagg, agg_pub);
     if (rc != UFSECP_OK) {
         CHECK(rc != UFSECP_OK, "key_agg rejects zero (identity) key");
@@ -533,9 +550,9 @@ static void test_musig2_rogue_key() {
     }
 
     // Duplicate key (same key twice) -- should not crash; may succeed or fail
-    uint8_t pubkeys_dup[64];
-    std::memcpy(pubkeys_dup, xonly1, 32);
-    std::memcpy(pubkeys_dup + 32, xonly1, 32);
+    uint8_t pubkeys_dup[66];
+    std::memcpy(pubkeys_dup, comp1, 33);
+    std::memcpy(pubkeys_dup + 33, comp1, 33);
     const ufsecp_error_t dup_rc = ufsecp_musig2_key_agg(ctx, pubkeys_dup, 2, keyagg, agg_pub);
     if (dup_rc == UFSECP_OK) {
         uint8_t zero_agg[32] = {};
@@ -558,13 +575,16 @@ static void test_musig2_transcript_mutation() {
     uint8_t priv1[32], priv2[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "key_agg");
 
@@ -629,13 +649,16 @@ static void test_musig2_signer_ordering() {
     uint8_t priv1[32], priv2[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
 
@@ -683,13 +706,16 @@ static void test_musig2_malicious_aggregator() {
     uint8_t priv1[32], priv2[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
 
@@ -751,13 +777,16 @@ static void test_musig2_abort_restart() {
     uint8_t priv1[32], priv2[32];
     hex_to_bytes(PRIVKEY1_HEX, priv1, 32);
     hex_to_bytes(PRIVKEY2_HEX, priv2, 32);
+    uint8_t comp1[33], comp2[33];
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv1, comp1), "pubkey_create");
+    CHECK_OK(ufsecp_pubkey_create(ctx, priv2, comp2), "pubkey_create");
     uint8_t xonly1[32], xonly2[32];
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv1, xonly1), "pubkey_xonly");
-    CHECK_OK(ufsecp_pubkey_xonly(ctx, priv2, xonly2), "pubkey_xonly");
+    std::memcpy(xonly1, comp1 + 1, 32);
+    std::memcpy(xonly2, comp2 + 1, 32);
 
-    uint8_t pubkeys[64];
-    std::memcpy(pubkeys, xonly1, 32);
-    std::memcpy(pubkeys + 32, xonly2, 32);
+    uint8_t pubkeys[66];
+    std::memcpy(pubkeys, comp1, 33);
+    std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
     ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
 
