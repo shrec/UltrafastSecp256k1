@@ -86,9 +86,11 @@ int secp256k1_schnorrsig_verify(
         std::array<uint8_t, 32> msg32{};
         std::memcpy(msg32.data(), msg, 32);
 
-        // Use x-only bytes directly — library handles the lift (sqrt) internally
-        // and returns false for any invalid x coordinate.
-        return secp256k1::schnorr_verify(pubkey->data, msg32, sig) ? 1 : 0;
+        // x-only key is stored in the first 32 bytes of the opaque 64-byte struct.
+        // schnorr_verify handles the lift (sqrt) internally and rejects invalid x.
+        std::array<uint8_t, 32> pk_x{};
+        std::memcpy(pk_x.data(), pubkey->data, 32);
+        return secp256k1::schnorr_verify(pk_x, msg32, sig) ? 1 : 0;
     } catch (...) { return 0; }
 }
 
