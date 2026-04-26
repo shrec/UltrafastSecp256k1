@@ -11,12 +11,12 @@ extern "C" {
 /* Opaque data structures matching libsecp256k1 byte-layout guarantees.
    Internal layout is implementation-defined; do not read/write directly. */
 
-typedef struct { unsigned char data[197]; } secp256k1_musig_keyagg_cache;
-typedef struct { unsigned char data[132]; } secp256k1_musig_secnonce;
-typedef struct { unsigned char data[66];  } secp256k1_musig_pubnonce;
-typedef struct { unsigned char data[66];  } secp256k1_musig_aggnonce;
-typedef struct { unsigned char data[133]; } secp256k1_musig_session;
-typedef struct { unsigned char data[36];  } secp256k1_musig_partial_sig;
+typedef struct secp256k1_musig_keyagg_cache { unsigned char data[197]; } secp256k1_musig_keyagg_cache;
+typedef struct secp256k1_musig_secnonce    { unsigned char data[132]; } secp256k1_musig_secnonce;
+typedef struct secp256k1_musig_pubnonce    { unsigned char data[66];  } secp256k1_musig_pubnonce;
+typedef struct secp256k1_musig_aggnonce    { unsigned char data[66];  } secp256k1_musig_aggnonce;
+typedef struct secp256k1_musig_session     { unsigned char data[133]; } secp256k1_musig_session;
+typedef struct secp256k1_musig_partial_sig { unsigned char data[36];  } secp256k1_musig_partial_sig;
 
 /* Key aggregation -----------------------------------------------------------*/
 
