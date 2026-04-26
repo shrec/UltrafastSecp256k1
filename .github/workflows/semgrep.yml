@@ -142,9 +142,9 @@ jobs:
           semgrep \
             --config /tmp/crypto-rules.yml \
             --include '*.cpp' --include '*.hpp' --include '*.h' \
-            --exclude-dir 'build*' \
-            --exclude-dir 'tests' \
-            --exclude-dir 'audit' \
+            --exclude 'build*' \
+            --exclude 'tests/*' \
+            --exclude 'audit/*' \
             --error \
             --json \
             -o semgrep-report.json \
@@ -179,9 +179,9 @@ jobs:
           semgrep \
             --config /tmp/crypto-rules.yml \
             --include '*.cpp' --include '*.hpp' --include '*.h' \
-            --exclude-dir 'build*' \
-            --exclude-dir 'tests' \
-            --exclude-dir 'audit' \
+            --exclude 'build*' \
+            --exclude 'tests/*' \
+            --exclude 'audit/*' \
             --sarif \
             -o semgrep.sarif \
             cpu/src cpu/include include cuda/src cuda/include bindings \
@@ -213,7 +213,7 @@ jobs:
           semgrep \
             --config "p/cpp" \
             --include '*.cpp' --include '*.hpp' \
-            --exclude-dir 'build*' \
+            --exclude 'build*' \
             --json \
             -o semgrep-community.json \
             cpu/src include bindings \
