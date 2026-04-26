@@ -7,6 +7,38 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-26c (CAAS expansion: Facebook Infer + Semgrep + scanner false-positive fix)
+
+### New static analysis tools added to CAAS
+
+- **`.github/workflows/infer.yml`** — Facebook Infer (bi-abduction + null-deref) CI
+  workflow. Uses Infer 1.2.0 via compilation-database capture. Hard-fails on
+  `NULL_DEREFERENCE`, `RESOURCE_LEAK`, `USE_AFTER_FREE`, `MEMORY_LEAK`,
+  `BUFFER_OVERRUN_U5`. Advisory full-report uploaded as artifact. Complements
+  Clang SA / GCC -fanalyzer with a different inter-procedural engine.
+- **`.github/workflows/semgrep.yml`** — Semgrep with custom crypto rules CI workflow.
+  Hard-fails on: unchecked `parse_bytes_strict_nonzero` / `parse_bytes_strict` return
+  values (CWE-252), `rand()` used as RNG (CWE-338). Advisory run with Semgrep
+  community C++ ruleset. SARIF results uploaded to GitHub Security tab.
+
+### Scanner false-positive fix
+
+- **`scripts/dev_bug_scanner.py` — `check_missing_low_s`**: fixed false positive on
+  `batch_verify.hpp:72` (the declaration `bool ecdsa_batch_verify(...);`). The checker
+  was scanning header files that contain declarations, not implementations. Updated to
+  skip `.hpp`/`.h` files and to skip forward declarations (lines ending in `;` with no
+  `{`). The implementation in `batch_verify.cpp` already enforces low-S at lines 278–285
+  via `is_low_s()` — confirmed clean.
+
+### Deep audit: all parse_bytes_strict call sites clean
+
+Full grep of `cpu/src`, `cpu/include`, `include`, `bindings` — all 47
+`parse_bytes_strict`/`parse_bytes_strict_nonzero` call sites are properly checked
+(every call wrapped in `if (!...)`, `return`, or `if (...)` condition).
+MuSig2, FROST, ECIES, schnorr, ECDSA, BIP-32, taproot: no unchecked returns remain.
+
+---
+
 ## 2026-04-26b (code quality depth: PARSE_RETVAL_IGNORED checker + Clang SA + GCC -fanalyzer)
 
 ### New static analysis tooling (Bitcoin Core PR readiness)

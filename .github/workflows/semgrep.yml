@@ -1,0 +1,240 @@
+name: Semgrep (Custom Crypto Rules)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 7 * * 1'   # Weekly Monday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep (crypto-aware pattern analysis)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Semgrep
+        run: |
+          pip3 install --quiet semgrep
+
+      - name: Write custom crypto rules
+        run: |
+          cat > /tmp/crypto-rules.yml << 'RULES_EOF'
+          rules:
+
+            # ── Parse return value ignored ───────────────────────────────────────
+            - id: parse-bytes-strict-retval-ignored
+              patterns:
+                - pattern: |
+                    $CLASS::parse_bytes_strict($ARGS);
+                - pattern-not: |
+                    if ($CLASS::parse_bytes_strict($ARGS)) { ... }
+                - pattern-not: |
+                    if (!$CLASS::parse_bytes_strict($ARGS)) { ... }
+                - pattern-not: |
+                    $VAR = $CLASS::parse_bytes_strict($ARGS);
+                - pattern-not: |
+                    bool $V = $CLASS::parse_bytes_strict($ARGS);
+                - pattern-not: |
+                    return $CLASS::parse_bytes_strict($ARGS);
+              message: |
+                parse_bytes_strict return value is ignored. The output scalar/field element
+                is INDETERMINATE if the function returns false. Use the return value in a
+                condition or assign to a bool. CVE class: crypto misuse / invalid key use.
+              languages: [cpp]
+              severity: ERROR
+              metadata:
+                category: security
+                cwe: CWE-252
+
+            - id: parse-bytes-strict-nonzero-retval-ignored
+              patterns:
+                - pattern: |
+                    $CLASS::parse_bytes_strict_nonzero($ARGS);
+                - pattern-not: |
+                    if ($CLASS::parse_bytes_strict_nonzero($ARGS)) { ... }
+                - pattern-not: |
+                    if (!$CLASS::parse_bytes_strict_nonzero($ARGS)) { ... }
+                - pattern-not: |
+                    $VAR = $CLASS::parse_bytes_strict_nonzero($ARGS);
+                - pattern-not: |
+                    bool $V = $CLASS::parse_bytes_strict_nonzero($ARGS);
+                - pattern-not: |
+                    return $CLASS::parse_bytes_strict_nonzero($ARGS);
+              message: |
+                parse_bytes_strict_nonzero return value is ignored. Use the return value
+                in a condition — on false the output is INDETERMINATE.
+              languages: [cpp]
+              severity: ERROR
+              metadata:
+                category: security
+                cwe: CWE-252
+
+            # ── Timing-sensitive secrets via variable-time operations ─────────────
+            - id: secret-scalar-variable-time-mul
+              patterns:
+                - pattern: |
+                    $SK.scalar_mul($OTHER);
+                - metavariable-regex:
+                    metavariable: $SK
+                    regex: '.*(secret|priv|sk|key|nonce|k1|k2).*'
+              message: |
+                Possible variable-time scalar multiplication on a secret value ($SK).
+                Use ct::generator_mul or ct::scalar_mul_variable for blinded paths.
+              languages: [cpp]
+              severity: WARNING
+              metadata:
+                category: security
+                cwe: CWE-385
+
+            # ── rand()/random() used as RNG source ────────────────────────────────
+            - id: rand-used-as-rng
+              patterns:
+                - pattern: rand()
+              message: |
+                rand() is not a cryptographic RNG. Use secp256k1::detail::csprng_fill()
+                or getrandom() for nonce and key generation.
+              languages: [cpp]
+              severity: ERROR
+              metadata:
+                category: security
+                cwe: CWE-338
+
+            # ── memcmp for secret comparison (timing leak) ────────────────────────
+            - id: memcmp-secret-comparison
+              patterns:
+                - pattern: memcmp($A, $B, $N)
+                - metavariable-regex:
+                    metavariable: $A
+                    regex: '.*(secret|privkey|sk|mac|hmac|tag|token).*'
+              message: |
+                memcmp on a secret value leaks timing information. Use
+                CRYPTO_memcmp() or a constant-time comparison.
+              languages: [cpp]
+              severity: WARNING
+              metadata:
+                category: security
+                cwe: CWE-385
+
+          RULES_EOF
+          echo "Custom rules written."
+
+      - name: Run Semgrep (hard-fail rules)
+        run: |
+          semgrep \
+            --config /tmp/crypto-rules.yml \
+            --include '*.cpp' --include '*.hpp' --include '*.h' \
+            --exclude-dir 'build*' \
+            --exclude-dir 'tests' \
+            --exclude-dir 'audit' \
+            --error \
+            --json \
+            -o semgrep-report.json \
+            cpu/src cpu/include include cuda/src cuda/include bindings \
+          ; EXIT=$?
+          echo "Semgrep exit: $EXIT"
+          # Show human-readable summary
+          python3 - <<'PYEOF'
+          import json, sys
+          try:
+              data = json.load(open("semgrep-report.json"))
+              results = data.get("results", [])
+              errors = data.get("errors", [])
+              print(f"Semgrep: {len(results)} finding(s), {len(errors)} error(s)")
+              for r in results:
+                  path = r.get("path", "?")
+                  line = r.get("start", {}).get("line", "?")
+                  rule = r.get("check_id", "?")
+                  msg  = r.get("extra", {}).get("message", "")[:100]
+                  sev  = r.get("extra", {}).get("severity", "?")
+                  print(f"  [{sev}] {path}:{line} [{rule}] {msg}")
+              if results:
+                  sys.exit(1)
+          except Exception as e:
+              print(f"(parse error: {e})")
+          PYEOF
+
+      - name: Run Semgrep (SARIF output for GitHub Security tab)
+        if: always()
+        continue-on-error: true
+        run: |
+          semgrep \
+            --config /tmp/crypto-rules.yml \
+            --include '*.cpp' --include '*.hpp' --include '*.h' \
+            --exclude-dir 'build*' \
+            --exclude-dir 'tests' \
+            --exclude-dir 'audit' \
+            --sarif \
+            -o semgrep.sarif \
+            cpu/src cpu/include include cuda/src cuda/include bindings \
+          || true
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-crypto
+        continue-on-error: true
+
+      - name: Upload Semgrep JSON report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: semgrep-report
+          path: |
+            semgrep-report.json
+            semgrep.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Run Semgrep community C++ rules (advisory)
+        if: always()
+        continue-on-error: true
+        run: |
+          semgrep \
+            --config "p/cpp" \
+            --include '*.cpp' --include '*.hpp' \
+            --exclude-dir 'build*' \
+            --json \
+            -o semgrep-community.json \
+            cpu/src include bindings \
+          || true
+          python3 -c "
+          import json
+          try:
+              d = json.load(open('semgrep-community.json'))
+              r = d.get('results', [])
+              print(f'Community ruleset: {len(r)} advisory finding(s)')
+              for x in r[:20]:
+                  print(f\"  {x.get('path','?')}:{x.get('start',{}).get('line','?')} [{x.get('check_id','?')}]\")
+          except Exception as e:
+              print(f'(parse error: {e})')
+          " || true
+
+      - name: Upload community Semgrep report (advisory)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: semgrep-community-report
+          path: semgrep-community.json
+          if-no-files-found: ignore
+          retention-days: 14

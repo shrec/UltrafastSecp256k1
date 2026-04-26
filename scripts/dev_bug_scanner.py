@@ -1716,21 +1716,30 @@ def check_missing_low_s(path: str, lines: List[str]) -> List[Finding]:
     findings: List[Finding] = []
     if 'ecdsa' not in path.lower() and 'verify' not in path.lower():
         return findings
+    # Skip header files — they contain declarations only; the check must run on
+    # the corresponding .cpp implementation file that has the actual function body.
+    if path.endswith(('.hpp', '.h', '.hxx', '.hh')):
+        return findings
     text = '\n'.join(lines)
     # Only flag once per file.
     if 'verify' not in text:
         return findings
     if re.search(r'(low_s|high_s|s_high|half_n|half_order|is_low|is_high)', text):
         return findings
-    # Look for a verify-style function definition.
+    # Look for a verify-style function definition (not a forward declaration).
+    # A declaration ends with ';' on the same line; a definition has a body '{'.
     for i, raw in enumerate(lines):
         if re.search(r'\b\w*ecdsa\w*verify\w*\s*\(', raw, re.IGNORECASE):
+            # Skip forward declarations (line ends with ';' and has no '{')
+            stripped = raw.strip()
+            if stripped.endswith(';') and '{' not in stripped:
+                continue
             findings.append(Finding(
                 file=path, line=i + 1, severity="MEDIUM",
                 category="MISSING_LOW_S_CHECK",
                 message="ECDSA verify path has no low-S / high-S reference — signature "
                         "malleability risk (BIP-62, segwit policy)",
-                snippet=raw.strip(),
+                snippet=stripped,
                 fix_hint="Reject signatures with s > n/2 in policy-strict verify paths; "
                          "or document a deliberate non-strict mode.",
             ))
