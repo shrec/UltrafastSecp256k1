@@ -7,6 +7,36 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-26d (fix: MuSig2 key aggregation even-Y lifting regression)
+
+### Critical bug fix: `musig2_key_agg` Y-parity inconsistency
+
+**Symptom**: All honest-path MuSig2 signatures (2-of-2, 3-of-3, N-of-N) failed
+`schnorr_verify` whenever any signer's public key had an odd Y coordinate.
+Affected: all platforms, all signer counts.
+
+**Root cause**: Commit `a1a62475` changed `musig2_key_agg` to accept 33-byte
+compressed pubkeys and called `decompress_point(pubkeys[i])`, which uses the
+actual parity (02/03 prefix) when building the aggregate point Q. However,
+`musig2_partial_sign` was written for BIP-327 Option A semantics: it adjusts
+`d_i` for P_i's Y parity (`g_i = 1 if even, n-1 if odd`) so that
+`d_i_eff * G = P_i_even`. This means partial_sign contributes
+`e * a_i * P_i_even` to the aggregate, but key_agg had accumulated
+`a_i * P_i_actual` into Q. For odd-Y keys, `P_i_actual ≠ P_i_even`, so
+`s * G ≠ R + e * Q`.
+
+**Fix** (`cpu/src/musig2.cpp`): Force the 02 prefix before `decompress_point`
+in the point-caching loop of `musig2_key_agg`. This implements BIP-327's
+`lift_x` semantics: the full 33-byte compressed key (with parity prefix) still
+feeds the L hash and per-key coefficient hash unchanged; only the EC point
+arithmetic uses even-Y lifting. This is consistent with `musig2_partial_sign`
+and `musig2_partial_verify` (which both use even-Y form of P_i).
+
+**Verification**: 10/10 MuSig2 CTests pass; BIP-327 reference vector suite
+35/35 pass; unified audit runner 0 failures (commit `31d66205`).
+
+---
+
 ## 2026-04-26c (CAAS expansion: Facebook Infer + Semgrep + scanner false-positive fix)
 
 ### New static analysis tools added to CAAS
