@@ -40,10 +40,10 @@ struct MuSig2KeyAggCtx {
 };
 
 // Aggregate public keys (KeyAgg from BIP-327).
-// pubkeys: array of X-only public keys (32 bytes each)
+// pubkeys: array of compressed public keys (33 bytes each, 02/03 prefix)
 // Returns aggregation context with combined key and coefficients.
 // If ANY pubkey is invalid (x >= p or not on curve), returns ctx with Q = infinity.
-MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<std::uint8_t, 32>>& pubkeys);
+MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<std::uint8_t, 33>>& pubkeys);
 
 // -- Nonce --------------------------------------------------------------------
 

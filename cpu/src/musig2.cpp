@@ -70,81 +70,54 @@ bool has_even_y(const Point& P) {
 // -- Key Aggregation (KeyAgg) -------------------------------------------------
 // BIP-327 KeyAgg: Q = sum(a_i * P_i)
 // a_i = tagged_hash("KeyAgg coefficient", L || pk_i)
-// where L = hash of all sorted pubkeys
-//
-// NOTE: This implementation uses 32-byte x-only pubkeys (even Y assumed).
-// BIP-327 specifies 33-byte compressed ("plain") pubkeys to preserve Y parity.
-// This is correct when all signers use x-only keys by convention, but does not
-// handle signers with odd-Y keys. A future revision should accept 33-byte keys
-// for full BIP-327 conformance.
+// where L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n)
+// pk_i are 33-byte compressed pubkeys (prefix byte preserves Y parity).
 
-MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 32>>& pubkeys) {
+MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubkeys) {
     MuSig2KeyAggCtx ctx{};
     std::size_t const n = pubkeys.size();
     if (n == 0) return ctx;
 
-    // Validate ALL pubkeys upfront AND cache the lifted points, so we avoid
-    // computing sqrt twice per pubkey (once for validation, once for Q aggr).
-    // If any key is invalid (x >= p or not on curve), reject the entire set.
-    // Silently skipping invalid keys would allow rogue key attacks.
+    // Validate ALL pubkeys upfront AND cache the lifted points.
+    // decompress_point handles parity from the prefix byte correctly.
     static thread_local std::vector<Point> points;
     points.resize(n);
     for (std::size_t i = 0; i < n; ++i) {
-        FieldElement px;
-        if (!FieldElement::parse_bytes_strict(pubkeys[i], px)) return ctx;
-        auto x3 = px.square() * px;
-        auto y2 = x3 + FieldElement::from_uint64(7);
-        auto y = y2.sqrt();
-        if (y.square() != y2) return ctx;  // x not on curve
-        // BIP-340: ensure even Y (cache the canonical point for Q aggregation)
-        if (y.limbs()[0] & 1) {
-            y = y.negate();
-        }
-        points[i] = Point::from_affine(px, y);
+        auto pt = decompress_point(pubkeys[i]);
+        if (pt.is_infinity()) return ctx;
+        points[i] = pt;
     }
 
-    // Sort a canonical copy of the pubkeys so that L is identical regardless
-    // of the order in which callers pass the same set of keys.  Without this,
-    // signers that disagree on ordering derive different aggregate keys.
-    static thread_local std::vector<std::array<uint8_t, 32>> sorted_keys;
-    sorted_keys.assign(pubkeys.begin(), pubkeys.end());
-    std::sort(sorted_keys.begin(), sorted_keys.end());
-
-    // L = tagged_hash("KeyAgg list", sorted_pk_1 || sorted_pk_2 || ... || sorted_pk_n)
+    // BIP-327: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n) — 33 bytes each
     SHA256 l_ctx;
-    // Use tagged hash prefix
     auto tag_hash = SHA256::hash("KeyAgg list", 11);
     l_ctx.update(tag_hash.data(), 32);
     l_ctx.update(tag_hash.data(), 32);
     for (std::size_t i = 0; i < n; ++i) {
-        l_ctx.update(sorted_keys[i].data(), 32);
+        l_ctx.update(pubkeys[i].data(), 33);
     }
     auto L = l_ctx.finalize();
 
-    // Compute coefficients: a_i = tagged_hash("KeyAgg coefficient", L || pk_i)
-    // Exception: "second unique key" gets a_i = 1 (optimization, BIP-327)
+    // BIP-327: pk2 = first key in list that differs from pk_1.
+    // Keys equal to pk2 get coefficient 1; all others get the hash coefficient.
     ctx.key_coefficients.resize(n);
-
-    // Find second unique key in the SORTED list (canonical position)
-    const std::array<uint8_t, 32>* second_unique_sorted = nullptr;
+    const std::array<uint8_t, 33>* pk2 = nullptr;
     for (std::size_t i = 1; i < n; ++i) {
-        if (sorted_keys[i] != sorted_keys[0]) {
-            second_unique_sorted = &sorted_keys[i];
+        if (pubkeys[i] != pubkeys[0]) {
+            pk2 = &pubkeys[i];
             break;
         }
     }
 
     for (std::size_t i = 0; i < n; ++i) {
-        bool const is_second_unique =
-            second_unique_sorted && (pubkeys[i] == *second_unique_sorted);
-        if (is_second_unique) {
+        if (pk2 && pubkeys[i] == *pk2) {
             ctx.key_coefficients[i] = Scalar::one();
         } else {
-            // a_i = tagged_hash("KeyAgg coefficient", L || pk_i)
-            uint8_t coeff_input[64];
+            // a_i = tagged_hash("KeyAgg coefficient", L || pk_i) — pk_i is 33 bytes
+            uint8_t coeff_input[65];
             std::memcpy(coeff_input, L.data(), 32);
-            std::memcpy(coeff_input + 32, pubkeys[i].data(), 32);
-            auto coeff_hash = tagged_hash("KeyAgg coefficient", coeff_input, 64);
+            std::memcpy(coeff_input + 32, pubkeys[i].data(), 33);
+            auto coeff_hash = tagged_hash("KeyAgg coefficient", coeff_input, 65);
             ctx.key_coefficients[i] = Scalar::from_bytes(coeff_hash);
         }
     }

@@ -50,11 +50,12 @@ int secp256k1_ec_pubkey_parse(
             std::memcpy(xb.data(), input + 1, 32);
             auto x = FieldElement::from_bytes(xb);
 
-            // y^2 = x^3 + 7
+            // y^2 = x^3 + 7; reject if x is not a valid curve x-coordinate
             auto y2 = x * x * x + FieldElement::from_uint64(7);
             auto y = y2.sqrt();
+            if (!(y.square() == y2)) return 0;
 
-            // Check parity and negate if needed
+            // Select y with correct parity
             auto yb = y.to_bytes();
             bool y_is_odd = (yb[31] & 1) != 0;
             bool want_odd = (prefix == 0x03);
@@ -66,13 +67,16 @@ int secp256k1_ec_pubkey_parse(
 
         } else if (inputlen == 65) {
             // Uncompressed: 04 || X || Y
-            if (input[0] != 0x04 && input[0] != 0x06 && input[0] != 0x07) return 0;
+            if (input[0] != 0x04) return 0;
 
-            std::array<uint8_t, 32> xb{}, yb{};
+            std::array<uint8_t, 32> xb{}, yb_arr{};
             std::memcpy(xb.data(), input + 1, 32);
-            std::memcpy(yb.data(), input + 33, 32);
+            std::memcpy(yb_arr.data(), input + 33, 32);
             auto x = FieldElement::from_bytes(xb);
-            auto y = FieldElement::from_bytes(yb);
+            auto y = FieldElement::from_bytes(yb_arr);
+            // Reject if not on curve: y^2 != x^3 + 7
+            auto rhs = x * x * x + FieldElement::from_uint64(7);
+            if (!(y.square() == rhs)) return 0;
             auto pt = Point::from_affine(x, y);
             point_to_pubkey_data(pt, pubkey->data);
             return 1;

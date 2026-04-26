@@ -46,190 +46,178 @@ static const FieldElement FE_SEVEN = FieldElement::from_uint64(7);
 
 // FieldElement from 32-byte big-endian (mod p), always succeeds
 FieldElement fe_from_bytes_mod_p(const std::uint8_t bytes[32]) noexcept {
-    // Parse as big-endian 256-bit, reduce mod p.
-    // FieldElement::from_bytes already handles this (mod p reduction).
     std::array<std::uint8_t, 32> arr;
     std::memcpy(arr.data(), bytes, 32);
     return FieldElement::from_bytes(arr);
 }
 
-// Check if a field element has a square root (Euler criterion)
-// Returns true if x^((p-1)/2) == 1 (i.e., x is a QR mod p)
+// Check if a field element is a quadratic residue mod p
 bool fe_is_square(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return true;
-    // For secp256k1 p, a is a QR iff a^((p-1)/2) == 1
-    // sqrt() returns the square root; verify by squaring back
     auto s = x.sqrt();
     return (s.square() == x);
 }
 
-// XSwiftEC forward map: given (u, t), compute x-coordinate on secp256k1
-// This implements the XSwiftEC function from BIP-324.
+// XSwiftEC forward map (correct BIP-324 algorithm from libsecp256k1).
 //
-// The function maps (u, t) in F_p^2 to an x-coordinate on the curve y^2 = x^3 + 7.
-//
-// Algorithm (from libsecp256k1):
-//   If u^3 + t^2 + 7 == 0, fail (return false)
-//   X = (u^3 + 7 - t^2) / (2 * t)
-//   Y = (X + t) / (u * c)  ... adjusted
-//
-// Actually the BIP-324 uses a slightly different formulation.
-// Let me implement the exact algorithm from the BIP-324 spec.
-//
-// XSwiftEC(u, t):
-//   if u^3 + 7 == 0, replace u with 1  (doesn't affect uniformity)
-//   if t == 0, replace t with 1
-//   X = (u^3 + 7 - t^2) / (2*t)
-//   Y = (X + t) / (sqrt(-3) * u)  ... not quite
-//
-// The actual BIP-324 algorithm from the reference implementation:
-//   c = -(u^3 + 7)     (negation of f(u))
-//   if c == 0: c = 1   (edge case)
-//   r = t^2 / (-3*u^2 + c*t^2*(-3-u^2*(-3)))  ... complex
-//
-// Let me use the exact formulas from Bitcoin Core's src/modules/ellswift/main_impl.h:
-//
-// Given (u, t), compute x such that x^3 + 7 is a square:
-//
-//   g(x) = x^3 + 7
-//   u' = u (or 1 if u=0 and certain conditions)
-//   t' = t (or 1 if t=0)
-//
-// The XSwiftEC function uses one of three "cases" depending on conditions:
-//   s = u'^3 + 7
-//   p = t'^2
-//   For each candidate x = f(u', t', case), check if g(x) is a QR.
-//   Return the first x that works.
-
-// The actual forward map from BIP-324 / libsecp256k1:
-// XSwiftECInv(x, u, case) -> t  (if possible)
-
-// Let me implement the exact decode algorithm from BIP-324:
-//
-// decode(u, t):
-//   if u mod p == 0: fail
-//   if t mod p == 0: fail  
-//   if u^3 + t^2 + 7 == 0: fail
-//   Let X = (u^3 + 7 - t^2) / (2*t)
-//   Let Y = (X + t) / (u^3 + 7)^((p+1)/4)  ... no
-//
-// OK, I'll implement the precise algorithm from Bitcoin Core's ellswift module.
-
-// XSwiftEC forward map from the BIP-324 specification Section 2.
-//
-// Given u and t (both field elements), returns x on secp256k1.
+// Constants:
+//   c1 = (sqrt(-3)-1)/2
+//   c2 = (-sqrt(-3)-1)/2
 //
 // Algorithm:
-// 1. Let u, c, d, s, x1, x2, x3 be field elements.
-// 2. c = -u (if u^3+7=0, then u is replaced)
-// 3. Swap formula: uses several attempts.
-//
-// The real formulas directly from the reference:
-
+//   If u=0: u=1.
+//   If t=0: s=1, else s=t^2.
+//   g = u^3+7.
+//   If g+s=0: s=4*s.
+//   Try x3 = (3*s*u^3-(g+s)^2)/(3*s*u^2). If on curve, return.
+//   Try x2 = u*(c1*s+c2*g)/(g+s). If on curve, return.
+//   Return x1 = -(x2+u).
 FieldElement xswiftec_fwd(FieldElement u, FieldElement t) noexcept {
-    static const FieldElement FE_ZERO    = FieldElement::zero();
-    static const FieldElement FE_ONE     = FieldElement::one();
-    static const FieldElement FE_TWO     = FieldElement::from_uint64(2);
-    static const FieldElement FE_THREE   = FieldElement::from_uint64(3);
-    // Precomputed: inverse of 2 mod p (avoids a field inversion per call)
-    static const FieldElement FE_TWO_INV = FieldElement::from_uint64(2).inverse();
+    // c1 = (sqrt(-3)-1)/2
+    static const FieldElement C1 = []() {
+        std::array<uint8_t, 32> b = {
+            0x85,0x16,0x95,0xd4, 0x9a,0x83,0xf8,0xef,
+            0x91,0x9b,0xb8,0x61, 0x53,0xcb,0xcb,0x16,
+            0x63,0x0f,0xb6,0x8a, 0xed,0x0a,0x76,0x6a,
+            0x3e,0xc6,0x93,0xd6, 0x8e,0x6a,0xfa,0x40
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    // c2 = (-sqrt(-3)-1)/2
+    static const FieldElement C2 = []() {
+        std::array<uint8_t, 32> b = {
+            0x7a,0xe9,0x6a,0x2b, 0x65,0x7c,0x07,0x10,
+            0x6e,0x64,0x47,0x9e, 0xac,0x34,0x34,0xe9,
+            0x9c,0xf0,0x49,0x75, 0x12,0xf5,0x89,0x95,
+            0xc1,0x39,0x6c,0x28, 0x71,0x95,0x01,0xee
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    static const FieldElement FE_ZERO  = FieldElement::zero();
+    static const FieldElement FE_ONE   = FieldElement::one();
+    static const FieldElement FE_THREE = FieldElement::from_uint64(3);
+    static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
 
-    if (t == FE_ZERO) t = FE_ONE;
     if (u == FE_ZERO) u = FE_ONE;
+
+    FieldElement s = (t == FE_ZERO) ? FE_ONE : t.square();
 
     auto u2 = u.square();
     auto u3 = u2 * u;
-    auto g  = u3 + FE_SEVEN;   // g = u^3 + 7
+    auto g  = u3 + FE_SEVEN;   // g = u^3+7
 
-    if (g == FE_ZERO) {
-        u  = u + FE_ONE;
-        u2 = u.square();
-        u3 = u2 * u;
-        g  = u3 + FE_SEVEN;
+    // p = g+s; if zero, replace s=4*s and recompute p
+    auto p = g + s;
+    if (p == FE_ZERO) {
+        s = FE_FOUR * s;
+        p = g + s;
     }
 
-    // X = -(u^3 + 7) / t^2
-    auto X = g.negate() * t.square().inverse();
+    // d = 3*s*u^2
+    auto d  = FE_THREE * s * u2;
 
-    // Candidate 1: x1 = (X - u) / 2
-    auto x1 = (X - u) * FE_TWO_INV;
-    if (fe_is_square(x1 * x1 * x1 + FE_SEVEN)) return x1;
+    // Try x3 = (3*s*u^3 - (g+s)^2) / (3*s*u^2) = (d*u - p^2) / d
+    auto n3 = d * u - p.square();
+    auto x3 = n3 * d.inverse();
+    if (fe_is_square(x3 * x3 * x3 + FE_SEVEN)) return x3;
 
-    // Candidate 2: x2 = -(X + u) / 2
-    auto x2 = (X + u).negate() * FE_TWO_INV;
+    // Try x2 = u*(c1*s + c2*g) / (g+s)
+    auto n2 = (C1 * s + C2 * g) * u;
+    auto x2 = n2 * p.inverse();
     if (fe_is_square(x2 * x2 * x2 + FE_SEVEN)) return x2;
 
-    // Candidate 3: x3 = u - 4*g / (3*u^2 + 4*g) — always valid when x1 and x2 fail
-    auto four_g = FE_TWO * (FE_TWO * g);
-    return u - four_g * (FE_THREE * u2 + four_g).inverse();
+    // Return x1 = -(x2+u)
+    return (x2 + u).negate();
 }
 
-// XSwiftEC inverse: given an x-coordinate and u, find t such that xswiftec(u, t) = x.
-// case_idx selects which solution (0-7) to try.
-// Returns (success, t).
+// XSwiftEC inverse: given x (on curve) and u (must be nonzero), find t such that
+// xswiftec_fwd(u,t)=x. c (0-7) selects which of up to 8 solutions to try.
+// Returns {true, t} on success; {false, _} if no solution for this c.
+//
+// Ported from libsecp256k1 secp256k1_ellswift_xswiftec_inv_var.
+//
+// c3 = (-sqrt(-3)+1)/2 = -c1 = c2+1
+// c4 = ( sqrt(-3)+1)/2 = -c2 = c1+1
+//
+// If c&2=0 (x1/x2 case):
+//   Fail if (-u-x) is on curve.
+//   s = -(u^3+7)/(u^2+u*x+x^2). Fail if not square.
+//   v = x.
+// If c&2=2 (x3 case):
+//   s = x-u. Fail if not square or zero.
+//   r = sqrt(-s*(4*(u^3+7)+3*u^2*s)). Fail if doesn't exist.
+//   Fail if c&1=1 and r=0.
+//   v = (r/s-u)/2.
+// w = sqrt(s). Negate if (c&5)==0 or (c&5)==5.
+// Return w * ((c&1 ? c4 : c3)*u + v).
 std::pair<bool, FieldElement> xswiftec_inv(
-    const FieldElement& x, const FieldElement& u, int case_idx) noexcept {
-    static const FieldElement FE_ZERO = FieldElement::zero();
-    static const FieldElement FE_ONE  = FieldElement::one();
-    static const FieldElement FE_TWO  = FieldElement::from_uint64(2);
+    const FieldElement& x, const FieldElement& u, int c) noexcept {
+    // c3 = c2+1 = (-sqrt(-3)+1)/2
+    static const FieldElement C3 = []() {
+        std::array<uint8_t, 32> b = {
+            0x7a,0xe9,0x6a,0x2b, 0x65,0x7c,0x07,0x10,
+            0x6e,0x64,0x47,0x9e, 0xac,0x34,0x34,0xe9,
+            0x9c,0xf0,0x49,0x75, 0x12,0xf5,0x89,0x95,
+            0xc1,0x39,0x6c,0x28, 0x71,0x95,0x01,0xef
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    // c4 = c1+1 = (sqrt(-3)+1)/2
+    static const FieldElement C4 = []() {
+        std::array<uint8_t, 32> b = {
+            0x85,0x16,0x95,0xd4, 0x9a,0x83,0xf8,0xef,
+            0x91,0x9b,0xb8,0x61, 0x53,0xcb,0xcb,0x16,
+            0x63,0x0f,0xb6,0x8a, 0xed,0x0a,0x76,0x6a,
+            0x3e,0xc6,0x93,0xd6, 0x8e,0x6a,0xfa,0x41
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    static const FieldElement FE_ZERO  = FieldElement::zero();
     static const FieldElement FE_THREE = FieldElement::from_uint64(3);
-    static const FieldElement FE_FOUR = FieldElement::from_uint64(4);
+    static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
+    static const FieldElement TWO_INV  = FieldElement::from_uint64(2).inverse();
 
-    // Adjust u for inverse
-    auto v = u;
-    auto v3_b = v * v * v + FE_SEVEN;
-    if (v3_b == FE_ZERO) {
-        v = v + FE_ONE;
-        v3_b = v * v * v + FE_SEVEN;
-    }
+    FieldElement v, s;
 
-    auto g = v3_b; // g = v^3 + 7
-    auto v2 = v.square();
+    if (!(c & 2)) {
+        // x1/x2 case (c ∈ {0,1,4,5})
+        // Fail if (-u-x) is on curve — that x would be x3 candidate, taking priority
+        auto neg_ux = (u + x).negate();
+        if (fe_is_square(neg_ux * neg_ux * neg_ux + FE_SEVEN)) return {false, FE_ZERO};
 
-    // Which candidate was used? (case_idx % 4 determines the approach, bit 2 = sign)
-    int which = case_idx & 3; // 0, 1, 2, 3
-    bool flip = (case_idx & 4) != 0;
+        // s = -(u^3+7)/(u^2+u*x+x^2)
+        // sp = -(u+x)^2 + u*x = -(u^2+ux+x^2)
+        auto u2  = u.square();
+        auto g   = u2 * u + FE_SEVEN;
+        auto sp  = (u + x).square().negate() + u * x;  // -(u^2+ux+x^2)
+        // sp*g = -(u^2+ux+x^2)*(u^3+7) must be square
+        if (!fe_is_square(sp * g)) return {false, FE_ZERO};
+        s = g * sp.inverse();   // -(u^3+7)/(u^2+ux+x^2)
+        v = x;
 
-    FieldElement w;
-
-    if (which == 0) {
-        // From candidate 1: x = (X - v)/2, so X = 2*x + v
-        auto X = FE_TWO * x + v;
-        // X = -g / t^2, so t^2 = -g / X
-        if (X == FE_ZERO) return {false, FE_ZERO};
-        auto t2 = g.negate() * X.inverse();
-        if (!fe_is_square(t2)) return {false, FE_ZERO};
-        w = t2.sqrt();
-    } else if (which == 1) {
-        // From candidate 2: x = -(X+v)/2, so X = -2*x - v
-        auto X = (FE_TWO * x + v).negate();
-        if (X == FE_ZERO) return {false, FE_ZERO};
-        auto t2 = g.negate() * X.inverse();
-        if (!fe_is_square(t2)) return {false, FE_ZERO};
-        w = t2.sqrt();
-    } else if (which == 2) {
-        // From candidate 3: x = v - 4*g / (3*v^2 + 4*g)
-        // This is independent of X and t — every (u, t) pair gives the same x3.
-        // We just need some t s.t. candidates 1 and 2 don't also match.
-        // Pick t = 1 (adjusted for sign by flip).
-        auto diff = v + x.negate();
-        if (diff == FE_ZERO) return {false, FE_ZERO};
-        auto x3_check = v + (FE_FOUR * g).negate() * (FE_THREE * v2 + FE_FOUR * g).inverse();
-        if (!(x3_check == x)) return {false, FE_ZERO};
-        w = FE_ONE;
     } else {
-        // which == 3: same as case 2 but with a different sign
-        return {false, FE_ZERO};
+        // x3 case (c ∈ {2,3,6,7})
+        s = x - u;
+        if (!fe_is_square(s) || s == FE_ZERO) return {false, FE_ZERO};
+
+        // r = sqrt(-s*(4*(u^3+7)+3*u^2*s))
+        auto u2 = u.square();
+        auto g4 = (u2 * u + FE_SEVEN) * FE_FOUR;
+        auto r2 = (FE_THREE * u2 * s + g4).negate() * s; // -s*(4*(u^3+7)+3*u^2*s)
+        if (!fe_is_square(r2)) return {false, FE_ZERO};
+        auto r = r2.sqrt();
+        if ((c & 1) && r == FE_ZERO) return {false, FE_ZERO};
+
+        v = (r * s.inverse() - u) * TWO_INV;
     }
 
-    if (flip) {
-        w = w.negate();
-    }
+    // w = sqrt(s); negate for c&5 ∈ {0,5}
+    auto w = s.sqrt();
+    if ((c & 5) == 0 || (c & 5) == 5) w = w.negate();
 
-    // Verify: t must not be zero
-    if (w == FE_ZERO) return {false, FE_ZERO};
-
-    return {true, w};
+    auto t = w * (((c & 1) ? C4 : C3) * u + v);
+    if (t == FE_ZERO) return {false, FE_ZERO};
+    return {true, t};
 }
 
 } // anonymous namespace
@@ -262,21 +250,20 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
 
+        // xswiftec_inv requires u != 0
+        if (u == FieldElement::zero()) continue;
+
         // Try all 8 cases
         for (int c = 0; c < 8; ++c) {
             auto [ok, t] = xswiftec_inv(x, u, c);
             if (!ok) continue;
 
-            // Verify the encoding decodes back to x
             auto u_bytes = u.to_bytes();
             auto t_bytes = t.to_bytes();
-
             std::memcpy(result.data(), u_bytes.data(), 32);
             std::memcpy(result.data() + 32, t_bytes.data(), 32);
 
-            // Double-check
-            auto decoded = xswiftec_fwd(u, t);
-            if (decoded == x) {
+            if (xswiftec_fwd(u, t) == x) {
                 detail::secure_erase(rand_bytes, sizeof(rand_bytes));
                 return result;
             }
@@ -305,6 +292,7 @@ std::array<std::uint8_t, 64> ellswift_encode_x(const FieldElement& x,
         }
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
+        if (u == FieldElement::zero()) continue;
 
         for (int c = 0; c < 8; ++c) {
             auto [ok, t] = xswiftec_inv(x, u, c);
@@ -320,7 +308,6 @@ std::array<std::uint8_t, 64> ellswift_encode_x(const FieldElement& x,
             }
         }
     }
-    // Fallback: return rnd32 || rnd32 (callers check decode round-trip separately)
     if (rnd32) {
         std::memcpy(result.data(),      rnd32, 32);
         std::memcpy(result.data() + 32, rnd32, 32);
@@ -396,10 +383,8 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
     // Non-CT: use precomputed w=18 fixed-base table (~6.7 µs vs ~27 µs CT path).
     // Suitable for ephemeral BIP-324 session keys where CT is not required.
     auto pub = scalar_mul_generator(privkey);
-    auto x = pub.x();
+    auto x   = pub.x();
     bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
-
-    static const FieldElement FE_TWO_ = FieldElement::from_uint64(2);
 
     std::array<std::uint8_t, 64> result{};
     static constexpr int kMaxAttempts = 200;
@@ -408,40 +393,24 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
         csprng_fill(rand_bytes, 32);
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
+        if (u == FieldElement::zero()) continue;  // xswiftec_inv requires u != 0
 
-        // Ensure u^3 + 7 != 0
-        auto u2 = u.square();
-        auto u3 = u2 * u;
-        auto g = u3 + FE_SEVEN;
-        if (g == FieldElement::zero()) {
-            u = u + FieldElement::one();
-            u2 = u.square();
-            u3 = u2 * u;
-            g = u3 + FE_SEVEN;
+        for (int c = 0; c < 8; ++c) {
+            auto [ok, t] = xswiftec_inv(x, u, c);
+            if (!ok) continue;
+
+            // Negating t doesn't change xswiftec_fwd (only t^2 appears),
+            // so we can freely adjust t parity to match pubkey y parity.
+            bool t_odd = (t.to_bytes()[31] & 1) != 0;
+            if (t_odd != y_odd) t = t.negate();
+
+            auto u_bytes = u.to_bytes();
+            auto t_bytes = t.to_bytes();
+            std::memcpy(result.data(),      u_bytes.data(), 32);
+            std::memcpy(result.data() + 32, t_bytes.data(), 32);
+            detail::secure_erase(rand_bytes, sizeof(rand_bytes));
+            return result;
         }
-
-        // Case 0 (XSwiftEC inverse): X = 2x + u, t^2 = -g/X
-        // xswiftec_fwd(u, t) = x1 = (X - u)/2 = x when t^2 = -g/X, which is exact.
-        auto X = FE_TWO_ * x + u;
-        if (X == FieldElement::zero()) continue;
-
-        // t^2 = -g / X
-        auto t2 = g.negate() * X.inverse();
-
-        // Check if t^2 is a quadratic residue (has a square root)
-        auto t_cand = t2.sqrt();
-        if (!(t_cand.square() == t2)) continue;   // not a QR, try next u
-
-        // t parity must match pubkey y parity (BIP-324 XSwiftEC round-trip).
-        bool t_cand_odd = (t_cand.to_bytes()[31] & 1) != 0;
-        auto t = (t_cand_odd == y_odd) ? t_cand : t_cand.negate();
-
-        auto u_bytes = u.to_bytes();
-        auto t_bytes = t.to_bytes();
-        std::memcpy(result.data(),      u_bytes.data(), 32);
-        std::memcpy(result.data() + 32, t_bytes.data(), 32);
-        detail::secure_erase(rand_bytes, sizeof(rand_bytes));
-        return result;
     }
     throw std::runtime_error("ellswift_create_fast: RNG produced unusable values");
 }

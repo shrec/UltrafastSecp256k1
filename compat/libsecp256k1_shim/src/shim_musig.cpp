@@ -45,16 +45,16 @@ static void compress(const Point& pt, unsigned char out[33]) {
 // ---------------------------------------------------------------------------
 struct KAEntry {
     secp256k1::MuSig2KeyAggCtx ctx;
-    std::array<unsigned char, 33> agg_pk_comp;        // compressed aggregated pubkey
-    std::vector<std::array<unsigned char, 32>> xonly;  // x-only keys in aggregation order
+    std::array<unsigned char, 33> agg_pk_comp;             // compressed aggregated pubkey
+    std::vector<std::array<unsigned char, 33>> compressed;  // 33-byte compressed keys in aggregation order
 
-    // Return signer index for a given secret key; -1 if not found.
+    // Return signer index for a given secret key; 0 if not found.
     std::size_t find_index(const Scalar& sk) const {
         auto pk_comp = secp256k1::fast::scalar_mul_generator(sk).to_compressed();
-        std::array<unsigned char, 32> pk_x;
-        std::memcpy(pk_x.data(), pk_comp.data() + 1, 32);
-        for (std::size_t i = 0; i < xonly.size(); ++i) {
-            if (xonly[i] == pk_x) return i;
+        std::array<unsigned char, 33> pk33;
+        std::memcpy(pk33.data(), pk_comp.data(), 33);
+        for (std::size_t i = 0; i < compressed.size(); ++i) {
+            if (compressed[i] == pk33) return i;
         }
         return 0; // fallback: single-signer or unrecognised key
     }
@@ -136,20 +136,23 @@ int secp256k1_musig_pubkey_agg(
 {
     if (!keyagg_cache || !pubkeys || n_pubkeys == 0) return 0;
 
-    std::vector<std::array<unsigned char, 32>> xonly(n_pubkeys);
+    std::vector<std::array<unsigned char, 33>> comp33(n_pubkeys);
     for (size_t i = 0; i < n_pubkeys; ++i) {
         if (!pubkeys[i]) return 0;
-        unsigned char buf[65]; size_t len = 65;
+        unsigned char buf[33]; size_t len = 33;
         secp256k1_ec_pubkey_serialize(nullptr, buf, &len, pubkeys[i], SECP256K1_EC_COMPRESSED);
-        std::memcpy(xonly[i].data(), buf + 1, 32);
+        std::memcpy(comp33[i].data(), buf, 33);
     }
 
     auto e = std::make_unique<KAEntry>();
-    e->ctx = secp256k1::musig2_key_agg(xonly);
+    e->ctx = secp256k1::musig2_key_agg(comp33);
     if (e->ctx.Q.is_infinity()) return 0;
 
-    compress(e->ctx.Q, e->agg_pk_comp.data());
-    e->xonly = xonly;
+    // musig2_key_agg normalizes Q to even-Y for signing, but secp256k1_musig_pubkey_get
+    // must return the plain (possibly odd-Y) aggregate key. Restore original Y if negated.
+    Point orig_Q = e->ctx.Q_negated ? e->ctx.Q.negate() : e->ctx.Q;
+    compress(orig_Q, e->agg_pk_comp.data());
+    e->compressed = comp33;
 
     if (agg_pk) std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
 
@@ -367,14 +370,16 @@ int secp256k1_musig_partial_sig_verify(
 
     unsigned char buf[33]; size_t len = 33;
     secp256k1_ec_pubkey_serialize(nullptr, buf, &len, pubkey, SECP256K1_EC_COMPRESSED);
-    std::array<unsigned char, 32> pk_x;
-    std::memcpy(pk_x.data(), buf + 1, 32);
+    std::array<unsigned char, 33> pk33;
+    std::memcpy(pk33.data(), buf, 33);
 
     std::size_t idx = 0;
-    for (std::size_t i = 0; i < e->xonly.size(); ++i) {
-        if (e->xonly[i] == pk_x) { idx = i; break; }
+    for (std::size_t i = 0; i < e->compressed.size(); ++i) {
+        if (e->compressed[i] == pk33) { idx = i; break; }
     }
 
+    std::array<unsigned char, 32> pk_x;
+    std::memcpy(pk_x.data(), buf + 1, 32);
     return secp256k1::musig2_partial_verify(psig, pn, pk_x, e->ctx, s, idx) ? 1 : 0;
 }
 
