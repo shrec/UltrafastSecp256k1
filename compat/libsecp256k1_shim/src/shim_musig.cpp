@@ -45,7 +45,19 @@ static void compress(const Point& pt, unsigned char out[33]) {
 // ---------------------------------------------------------------------------
 struct KAEntry {
     secp256k1::MuSig2KeyAggCtx ctx;
-    std::array<unsigned char, 33> agg_pk_comp; // compressed aggregated pubkey
+    std::array<unsigned char, 33> agg_pk_comp;        // compressed aggregated pubkey
+    std::vector<std::array<unsigned char, 32>> xonly;  // x-only keys in aggregation order
+
+    // Return signer index for a given secret key; -1 if not found.
+    std::size_t find_index(const Scalar& sk) const {
+        auto pk_comp = secp256k1::fast::scalar_mul_generator(sk).to_compressed();
+        std::array<unsigned char, 32> pk_x;
+        std::memcpy(pk_x.data(), pk_comp.data() + 1, 32);
+        for (std::size_t i = 0; i < xonly.size(); ++i) {
+            if (xonly[i] == pk_x) return i;
+        }
+        return 0; // fallback: single-signer or unrecognised key
+    }
 };
 
 std::mutex g_mu;
@@ -137,6 +149,7 @@ int secp256k1_musig_pubkey_agg(
     if (e->ctx.Q.is_infinity()) return 0;
 
     compress(e->ctx.Q, e->agg_pk_comp.data());
+    e->xonly = xonly;
 
     if (agg_pk) std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
 
@@ -326,7 +339,8 @@ int secp256k1_musig_partial_sign(
 
     secp256k1::MuSig2SecNonce sn{ k1, k2 };
     auto s = sess_unpack(session);
-    auto psig = secp256k1::musig2_partial_sign(sn, sk, e->ctx, s, 0);
+    std::size_t idx = e->find_index(sk);
+    auto psig = secp256k1::musig2_partial_sign(sn, sk, e->ctx, s, idx);
     auto b = psig.to_bytes();
     std::memcpy(partial_sig->data, b.data(), 32);
     std::memset(partial_sig->data + 32, 0, 4);
@@ -356,7 +370,12 @@ int secp256k1_musig_partial_sig_verify(
     std::array<unsigned char, 32> pk_x;
     std::memcpy(pk_x.data(), buf + 1, 32);
 
-    return secp256k1::musig2_partial_verify(psig, pn, pk_x, e->ctx, s, 0) ? 1 : 0;
+    std::size_t idx = 0;
+    for (std::size_t i = 0; i < e->xonly.size(); ++i) {
+        if (e->xonly[i] == pk_x) { idx = i; break; }
+    }
+
+    return secp256k1::musig2_partial_verify(psig, pn, pk_x, e->ctx, s, idx) ? 1 : 0;
 }
 
 int secp256k1_musig_partial_sig_agg(

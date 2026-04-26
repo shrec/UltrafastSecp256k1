@@ -13,9 +13,11 @@
 
 struct secp256k1_context_struct {
     unsigned int flags;
+    unsigned char blind[32];   // randomization seed from secp256k1_context_randomize
+    bool blinded;
 };
 
-static secp256k1_context_struct g_static_ctx = { SECP256K1_CONTEXT_NONE };
+static secp256k1_context_struct g_static_ctx = { SECP256K1_CONTEXT_NONE, {}, false };
 
 // Auto-initialize the fixed-base precomputed table once on first context_create.
 // Resolution order:
@@ -75,8 +77,16 @@ void secp256k1_context_destroy(secp256k1_context *ctx) {
 }
 
 int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *seed32) {
-    (void)ctx; (void)seed32;
-    // UltrafastSecp256k1 does not use blinding -- accepted as no-op.
+    if (!ctx) return 0;
+    if (seed32) {
+        std::memcpy(ctx->blind, seed32, 32);
+        ctx->blinded = true;
+    } else {
+        std::memset(ctx->blind, 0, 32);
+        ctx->blinded = false;
+    }
+    // UltrafastSecp256k1 uses constant-time operations; stored seed is
+    // available for hedged nonce generation (RFC 6979 additional input).
     return 1;
 }
 
