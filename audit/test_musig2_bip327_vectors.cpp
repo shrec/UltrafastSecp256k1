@@ -3,18 +3,16 @@
 // Phase V -- Pinned KAT vectors for MuSig2 protocol correctness
 // ============================================================================
 //
-// NOTE: Our MuSig2 implementation uses x-only (32-byte) pubkeys for hash
-// inputs (KeyAgg coefficient computation) rather than plain 33-byte
-// compressed keys as BIP-327 specifies. This means intermediate hash
-// values (L, coefficients) will differ from BIP-327 reference vectors.
+// BIP-327 KeyAgg uses 33-byte compressed pubkeys (with 02/03 parity prefix)
+// for all hash inputs: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n).
+// Key aggregation is ORDER-DEPENDENT (no internal sort).
 //
 // Strategy:
 //   1. Use well-known private keys (small generator multiples)
 //   2. Pin the expected aggregated public key x-coordinate
 //   3. Pin partial signature values for regression
 //   4. Verify end-to-end via BIP-340 schnorr_verify()
-//   5. Test algebraic properties (determinism, ordering, commutativity where
-//      expected) that are BIP-327-compatible regardless of hash domain
+//   5. Test algebraic properties (determinism, order-dependence, scaling)
 //
 // All hex constants in this file are BIG-ENDIAN (standard crypto convention).
 // ============================================================================
@@ -67,6 +65,11 @@ static std::array<uint8_t, 32> xonly_pubkey(const Scalar& sk) {
     return P.x().to_bytes();
 }
 
+static std::array<uint8_t, 33> compressed_pubkey(const Scalar& sk) {
+    auto P = Point::generator().scalar_mul(sk);
+    return P.to_compressed();
+}
+
 // ============================================================================
 // Well-known keys used across all tests (generator multiples)
 // ============================================================================
@@ -101,13 +104,15 @@ static void test_key_agg_known_keys() {
 
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
 
     // Verify pubkeys match expected values
     CHECK(pk1 == hex32(PK1_X_HEX), "pk1 matches G.x");
     CHECK(pk2 == hex32(PK2_X_HEX), "pk2 matches 2G.x");
 
-    // Aggregate
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    // Aggregate (BIP-327: 33-byte compressed keys)
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
     // Pin the aggregated x-only key (regression)
@@ -131,9 +136,10 @@ static void test_key_agg_known_keys() {
     // 3-key aggregation
     Scalar const s3 = Scalar::from_bytes(hex32(SK3_HEX));
     auto pk3 = xonly_pubkey(s3);
+    auto ck3 = compressed_pubkey(s3);
     CHECK(pk3 == hex32(PK3_X_HEX), "pk3 matches 3G.x");
 
-    const std::vector<std::array<uint8_t, 32>> pks3 = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 33>> pks3 = {ck1, ck2, ck3};
     auto ctx3 = secp256k1::musig2_key_agg(pks3);
 
     char agg3_hex[65];
@@ -147,34 +153,34 @@ static void test_key_agg_known_keys() {
 }
 
 // ============================================================================
-// Test 2: Key Aggregation -- Order independence (canonical sort fixes this)
+// Test 2: Key Aggregation -- Order dependence (BIP-327 does NOT sort keys)
 // ============================================================================
 static void test_key_agg_ordering() {
-    (void)std::printf("[2] MuSig2 BIP-327: Key aggregation order independence (canonical sort)\n");
+    (void)std::printf("[2] MuSig2 BIP-327: Key aggregation is order-dependent\n");
 
     Scalar const s1 = Scalar::from_bytes(hex32(SK1_HEX));
     Scalar const s2 = Scalar::from_bytes(hex32(SK2_HEX));
     Scalar const s3 = Scalar::from_bytes(hex32(SK3_HEX));
 
-    auto pk1 = xonly_pubkey(s1);
-    auto pk2 = xonly_pubkey(s2);
-    auto pk3 = xonly_pubkey(s3);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
+    auto ck3 = compressed_pubkey(s3);
 
-    // Canonical sort: musig2_key_agg sorts keys internally, so order doesn't matter
-    const std::vector<std::array<uint8_t, 32>> fwd = {pk1, pk2, pk3};
-    const std::vector<std::array<uint8_t, 32>> rev = {pk3, pk2, pk1};
+    // BIP-327: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n) — order matters
+    const std::vector<std::array<uint8_t, 33>> fwd = {ck1, ck2, ck3};
+    const std::vector<std::array<uint8_t, 33>> rev = {ck3, ck2, ck1};
 
     auto ctx_fwd = secp256k1::musig2_key_agg(fwd);
     auto ctx_rev = secp256k1::musig2_key_agg(rev);
 
-    CHECK(ctx_fwd.Q_x == ctx_rev.Q_x,
-          "canonical sort: rev order gives same agg key");
+    CHECK(ctx_fwd.Q_x != ctx_rev.Q_x,
+          "BIP-327: reversed order gives different agg key");
 
-    // Swap just two keys -- should still yield same result with canonical sort
-    const std::vector<std::array<uint8_t, 32>> swap12 = {pk2, pk1, pk3};
+    // Swap just two keys -- must also yield a different result
+    const std::vector<std::array<uint8_t, 33>> swap12 = {ck2, ck1, ck3};
     auto ctx_swap = secp256k1::musig2_key_agg(swap12);
-    CHECK(ctx_fwd.Q_x == ctx_swap.Q_x,
-          "canonical sort: swap(1,2) gives same agg key");
+    CHECK(ctx_fwd.Q_x != ctx_swap.Q_x,
+          "BIP-327: swap(1,2) gives different agg key");
 }
 
 // ============================================================================
@@ -188,8 +194,10 @@ static void test_2of2_signing_pinned() {
 
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
 
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2};
     auto key_ctx = secp256k1::musig2_key_agg(pks);
 
     const auto msg = hex32(MSG_HEX);
@@ -260,8 +268,11 @@ static void test_3of3_signing_pinned() {
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
     auto pk3 = xonly_pubkey(s3);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
+    auto ck3 = compressed_pubkey(s3);
 
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2, ck3};
     auto key_ctx = secp256k1::musig2_key_agg(pks);
 
     const auto msg = hex32(MSG_HEX);
@@ -325,8 +336,10 @@ static void test_nonce_freshness() {
 
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
 
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2};
     const auto key_ctx = secp256k1::musig2_key_agg(pks);
     const auto msg = hex32(MSG_HEX);
 
@@ -375,11 +388,11 @@ static void test_coefficient_properties() {
     Scalar const s2 = Scalar::from_bytes(hex32(SK2_HEX));
     Scalar const s3 = Scalar::from_bytes(hex32(SK3_HEX));
 
-    auto pk1 = xonly_pubkey(s1);
-    auto pk2 = xonly_pubkey(s2);
-    auto pk3 = xonly_pubkey(s3);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
+    auto ck3 = compressed_pubkey(s3);
 
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2, pk3};
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2, ck3};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
     // All coefficients must be non-zero
@@ -418,8 +431,10 @@ static void test_multiple_messages() {
 
     auto pk1 = xonly_pubkey(s1);
     auto pk2 = xonly_pubkey(s2);
+    auto ck1 = compressed_pubkey(s1);
+    auto ck2 = compressed_pubkey(s2);
 
-    const std::vector<std::array<uint8_t, 32>> pks = {pk1, pk2};
+    const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2};
     const auto key_ctx = secp256k1::musig2_key_agg(pks);
 
     // Two different messages
@@ -478,18 +493,20 @@ static void test_signer_scaling() {
     };
 
     Scalar sks[5];
-    std::array<uint8_t, 32> pubkeys[5];
+    std::array<uint8_t, 32> pubkeys[5];       // x-only for nonce_gen
+    std::array<uint8_t, 33> comp_pubkeys[5];  // 33-byte for key_agg
     for (int i = 0; i < 5; ++i) {
         sks[i] = Scalar::from_bytes(hex32(sk_hexes[i]));
         pubkeys[i] = xonly_pubkey(sks[i]);
+        comp_pubkeys[i] = compressed_pubkey(sks[i]);
     }
 
     auto msg = hex32(MSG_HEX);
 
     for (int n = 2; n <= 5; ++n) {
-        std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> pks;
         pks.reserve(static_cast<size_t>(n));
-        for (int i = 0; i < n; ++i) pks.push_back(pubkeys[i]);
+        for (int i = 0; i < n; ++i) pks.push_back(comp_pubkeys[i]);
 
         auto key_ctx = secp256k1::musig2_key_agg(pks);
 

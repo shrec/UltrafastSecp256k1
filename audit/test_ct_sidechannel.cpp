@@ -1465,7 +1465,8 @@ static void test_protocol_timing() {
         auto pk2_pt = G.scalar_mul(sk2);
         const std::array<uint8_t, 32> pk2_x = pk2_pt.x().to_bytes();
 
-        const std::vector<std::array<uint8_t, 32>> pubkeys = { pk_fixed_x, pk2_x };
+        const std::vector<std::array<uint8_t, 33>> pubkeys = {
+            pk_fixed_pt.to_compressed(), pk2_pt.to_compressed()};
         auto ctx = secp256k1::musig2_key_agg(pubkeys);
 
         // Generate nonces using proper API

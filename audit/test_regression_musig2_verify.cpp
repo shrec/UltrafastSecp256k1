@@ -112,12 +112,17 @@ static bool musig2_round_trip(
 {
     std::size_t const n = privs.size();
 
-    // Build xonly pubkeys
+    // Build xonly pubkeys (for nonce_gen/partial_verify) and compressed (for key_agg)
     std::vector<std::array<uint8_t, 32>> pks;
-    for (auto const& p : privs) pks.push_back(xonly_from_priv(p));
+    std::vector<std::array<uint8_t, 33>> pks33;
+    for (auto const& p : privs) {
+        pks.push_back(xonly_from_priv(p));
+        auto sk = Scalar::from_bytes(p);
+        pks33.push_back(secp256k1::fast::Point::generator().scalar_mul(sk).to_compressed());
+    }
 
     // Key aggregation
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    auto key_agg = secp256k1::musig2_key_agg(pks33);
     if (key_agg.Q.is_infinity()) return false;
 
     // Nonce generation
@@ -161,9 +166,13 @@ static void test_mvv1_oob_signer_index_exact() {
 
     std::vector<std::array<uint8_t, 32>> privs = {kPriv1, kPriv2};
     std::vector<std::array<uint8_t, 32>> pks;
-    for (auto const& p : privs) pks.push_back(xonly_from_priv(p));
+    std::vector<std::array<uint8_t, 33>> pks33;
+    for (auto const& p : privs) {
+        pks.push_back(xonly_from_priv(p));
+        pks33.push_back(secp256k1::fast::Point::generator().scalar_mul(Scalar::from_bytes(p)).to_compressed());
+    }
 
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    auto key_agg = secp256k1::musig2_key_agg(pks33);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;
@@ -193,9 +202,13 @@ static void test_mvv2_oob_signer_index_max() {
 
     std::vector<std::array<uint8_t, 32>> privs = {kPriv1, kPriv2};
     std::vector<std::array<uint8_t, 32>> pks;
-    for (auto const& p : privs) pks.push_back(xonly_from_priv(p));
+    std::vector<std::array<uint8_t, 33>> pks33;
+    for (auto const& p : privs) {
+        pks.push_back(xonly_from_priv(p));
+        pks33.push_back(secp256k1::fast::Point::generator().scalar_mul(Scalar::from_bytes(p)).to_compressed());
+    }
 
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    auto key_agg = secp256k1::musig2_key_agg(pks33);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;
@@ -225,9 +238,13 @@ static void test_mvv3_infinity_nonce_prefix() {
 
     std::vector<std::array<uint8_t, 32>> privs = {kPriv1, kPriv2};
     std::vector<std::array<uint8_t, 32>> pks;
-    for (auto const& p : privs) pks.push_back(xonly_from_priv(p));
+    std::vector<std::array<uint8_t, 33>> pks33;
+    for (auto const& p : privs) {
+        pks.push_back(xonly_from_priv(p));
+        pks33.push_back(secp256k1::fast::Point::generator().scalar_mul(Scalar::from_bytes(p)).to_compressed());
+    }
 
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    auto key_agg = secp256k1::musig2_key_agg(pks33);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;
@@ -266,9 +283,13 @@ static void test_mvv4_zero_x_nonce() {
 
     std::vector<std::array<uint8_t, 32>> privs = {kPriv1, kPriv2};
     std::vector<std::array<uint8_t, 32>> pks;
-    for (auto const& p : privs) pks.push_back(xonly_from_priv(p));
+    std::vector<std::array<uint8_t, 33>> pks33;
+    for (auto const& p : privs) {
+        pks.push_back(xonly_from_priv(p));
+        pks33.push_back(secp256k1::fast::Point::generator().scalar_mul(Scalar::from_bytes(p)).to_compressed());
+    }
 
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    auto key_agg = secp256k1::musig2_key_agg(pks33);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;

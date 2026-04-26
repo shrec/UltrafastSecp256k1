@@ -55,15 +55,22 @@ static std::array<uint8_t, 32> xonly_pubkey(const Scalar& sk) {
     return Point::generator().scalar_mul(sk).x().to_bytes();
 }
 
+static std::array<uint8_t, 33> compressed_pubkey(const Scalar& sk) {
+    return Point::generator().scalar_mul(sk).to_compressed();
+}
+
 // Full MuSig2 sign+verify helper
 static bool musig2_full_sign_verify(
     const std::vector<Scalar>& sks,
-    const std::vector<std::array<uint8_t, 32>>& pks,
+    const std::vector<std::array<uint8_t, 32>>& pks,  // x-only, for nonce_gen
     const std::array<uint8_t, 32>& msg,
     std::mt19937_64& rng)
 {
     int const n = static_cast<int>(sks.size());
-    auto key_agg = secp256k1::musig2_key_agg(pks);
+    std::vector<std::array<uint8_t, 33>> comp_pks;
+    comp_pks.reserve(sks.size());
+    for (const auto& sk : sks) comp_pks.push_back(compressed_pubkey(sk));
+    auto key_agg = secp256k1::musig2_key_agg(comp_pks);
 
     std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
     std::vector<secp256k1::MuSig2PubNonce> pub_nonces;
@@ -127,7 +134,9 @@ static void test_musig2_rogue_key_resistance() {
         auto pk_attacker = xonly_pubkey(sk_attacker);
 
         std::vector<std::array<uint8_t, 32>> const pks = {pk_honest, pk_attacker};
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        const std::vector<std::array<uint8_t, 33>> comp_pks = {
+            compressed_pubkey(sk_honest), compressed_pubkey(sk_attacker)};
+        auto key_agg = secp256k1::musig2_key_agg(comp_pks);
 
         // Agg key should NOT equal the attacker's target
         CHECK(key_agg.Q_x != pk_target, "agg key != attacker target");
@@ -176,10 +185,13 @@ static void test_musig2_key_coefficient_binding() {
         auto pk_b = xonly_pubkey(sk_b);
         auto pk_c = xonly_pubkey(sk_c);
 
+        auto ck_a = compressed_pubkey(sk_a);
+        auto ck_b = compressed_pubkey(sk_b);
+        auto ck_c = compressed_pubkey(sk_c);
         // Group 1: {A, B}
-        auto ctx_ab = secp256k1::musig2_key_agg({pk_a, pk_b});
+        auto ctx_ab = secp256k1::musig2_key_agg({ck_a, ck_b});
         // Group 2: {A, C}
-        auto ctx_ac = secp256k1::musig2_key_agg({pk_a, pk_c});
+        auto ctx_ac = secp256k1::musig2_key_agg({ck_a, ck_c});
 
         // Primary security property: different group compositions → different
         // aggregate keys.  This is always true because L = hash(all sorted keys)
@@ -223,12 +235,14 @@ static void test_musig2_message_binding() {
     for (int round = 0; round < N; ++round) {
         std::vector<Scalar> sks;
         std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> comp_pks;
         for (int i = 0; i < 2; ++i) {
             sks.push_back(random_privkey(rng));
             pks.push_back(xonly_pubkey(sks.back()));
+            comp_pks.push_back(compressed_pubkey(sks.back()));
         }
 
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        auto key_agg = secp256k1::musig2_key_agg(comp_pks);
         auto msg1 = random32(rng);
         auto msg2 = random32(rng);
 
@@ -295,11 +309,13 @@ static void test_musig2_nonce_binding() {
     for (int round = 0; round < N; ++round) {
         std::vector<Scalar> sks;
         std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> comp_pks;
         for (int i = 0; i < 2; ++i) {
             sks.push_back(random_privkey(rng));
             pks.push_back(xonly_pubkey(sks.back()));
+            comp_pks.push_back(compressed_pubkey(sks.back()));
         }
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        auto key_agg = secp256k1::musig2_key_agg(comp_pks);
         auto msg = random32(rng);
 
         // Two signing sessions with different extra_input (different nonces)
@@ -355,12 +371,14 @@ static void test_musig2_fault_injection() {
     for (int round = 0; round < N; ++round) {
         std::vector<Scalar> sks;
         std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> comp_pks;
         for (int i = 0; i < 3; ++i) {
             sks.push_back(random_privkey(rng));
             pks.push_back(xonly_pubkey(sks.back()));
+            comp_pks.push_back(compressed_pubkey(sks.back()));
         }
 
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        auto key_agg = secp256k1::musig2_key_agg(comp_pks);
         auto msg = random32(rng);
 
         std::vector<secp256k1::MuSig2SecNonce> sns;

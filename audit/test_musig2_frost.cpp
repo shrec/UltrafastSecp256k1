@@ -59,10 +59,16 @@ static Scalar random_privkey(std::mt19937_64& rng) {
     }
 }
 
-// Get x-only pubkey from private key
+// Get x-only pubkey from private key (32 bytes, even-Y convention)
 static std::array<uint8_t, 32> xonly_pubkey(const Scalar& sk) {
     auto P = Point::generator().scalar_mul(sk);
     return P.x().to_bytes();
+}
+
+// Get compressed pubkey from private key (33 bytes, preserves Y parity)
+static std::array<uint8_t, 33> compressed_pubkey(const Scalar& sk) {
+    auto P = Point::generator().scalar_mul(sk);
+    return P.to_compressed();
 }
 
 // ===============================================================================
@@ -80,11 +86,11 @@ static void test_musig2_key_agg_determinism() {
     for (int round = 0; round < N; ++round) {
         int const n_signers = 2 + (round % 4); // 2,3,4,5
         std::vector<Scalar> sks;
-        std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> pks;
         for (int i = 0; i < n_signers; ++i) {
             auto sk = random_privkey(rng);
             sks.push_back(sk);
-            pks.push_back(xonly_pubkey(sk));
+            pks.push_back(compressed_pubkey(sk));
         }
 
         auto ctx1 = secp256k1::musig2_key_agg(pks);
@@ -106,29 +112,27 @@ static void test_musig2_key_agg_determinism() {
 // -- Test 2: Key Aggregation -- Order Independence (canonical sort) -----------
 
 static void test_musig2_key_agg_ordering() {
-    std::printf("[2] MuSig2 Key Aggregation: Order Independence (canonical sort)\n");
+    std::printf("[2] MuSig2 Key Aggregation: Order Dependence (BIP-327)\n");
 
     std::mt19937_64 rng(0xCAFEBABE);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     const int N = 20;
 
     for (int round = 0; round < N; ++round) {
-        std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> pks;
         pks.reserve(3);
-for (int i = 0; i < 3; ++i) {
-            pks.push_back(xonly_pubkey(random_privkey(rng)));
+        for (int i = 0; i < 3; ++i) {
+            pks.push_back(compressed_pubkey(random_privkey(rng)));
         }
 
         auto ctx_fwd = secp256k1::musig2_key_agg(pks);
 
-        // Reverse order
+        // BIP-327: order matters — reversed list must produce a different Q.
         auto pks_rev = pks;
         std::reverse(pks_rev.begin(), pks_rev.end());
         auto ctx_rev = secp256k1::musig2_key_agg(pks_rev);
 
-        // Canonical sort: musig2_key_agg sorts keys internally, so forward and
-        // reversed order must produce the same aggregate key.
         bool const same = (ctx_fwd.Q_x == ctx_rev.Q_x);
-        CHECK(same, "canonical sort: key aggregation is order-independent");
+        CHECK(!same, "BIP-327: key aggregation is order-dependent");
     }
 
     std::printf("    %d checks OK\n\n", g_pass);
@@ -141,10 +145,10 @@ static void test_musig2_key_agg_duplicates() {
 
     std::mt19937_64 rng(0x12345678);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
     auto sk = random_privkey(rng);
-    auto pk = xonly_pubkey(sk);
+    auto pk = compressed_pubkey(sk);
 
     // Same key 3 times
-    std::vector<std::array<uint8_t, 32>> const pks = {pk, pk, pk};
+    std::vector<std::array<uint8_t, 33>> const pks = {pk, pk, pk};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
     // Should not crash, should produce a valid x-only key (32 bytes)
@@ -172,15 +176,17 @@ static void test_musig2_round_trip(int n_signers, const char* label) {
     for (int round = 0; round < ROUNDS; ++round) {
         // 1. Generate keys
         std::vector<Scalar> sks;
-        std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 32>> pks;    // x-only for nonce/verify
+        std::vector<std::array<uint8_t, 33>> pks_c;  // compressed for key_agg
         for (int i = 0; i < n_signers; ++i) {
             auto sk = random_privkey(rng);
             sks.push_back(sk);
             pks.push_back(xonly_pubkey(sk));
+            pks_c.push_back(compressed_pubkey(sk));
         }
 
-        // 2. Key aggregation
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        // 2. Key aggregation (BIP-327: 33-byte compressed keys)
+        auto key_agg = secp256k1::musig2_key_agg(pks_c);
 
         // 3. Message
         auto msg = random32(rng);
@@ -240,12 +246,14 @@ static void test_musig2_wrong_signer() {
     for (int round = 0; round < N; ++round) {
         std::vector<Scalar> sks;
         std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> pks_c;
         for (int i = 0; i < 3; ++i) {
             sks.push_back(random_privkey(rng));
             pks.push_back(xonly_pubkey(sks.back()));
+            pks_c.push_back(compressed_pubkey(sks.back()));
         }
 
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        auto key_agg = secp256k1::musig2_key_agg(pks_c);
         auto msg = random32(rng);
 
         std::vector<secp256k1::MuSig2SecNonce> sec_nonces;
@@ -285,12 +293,14 @@ static void test_musig2_bitflip() {
     for (int round = 0; round < N; ++round) {
         std::vector<Scalar> sks;
         std::vector<std::array<uint8_t, 32>> pks;
+        std::vector<std::array<uint8_t, 33>> pks_c;
         for (int i = 0; i < 2; ++i) {
             sks.push_back(random_privkey(rng));
             pks.push_back(xonly_pubkey(sks.back()));
+            pks_c.push_back(compressed_pubkey(sks.back()));
         }
 
-        auto key_agg = secp256k1::musig2_key_agg(pks);
+        auto key_agg = secp256k1::musig2_key_agg(pks_c);
         auto msg = random32(rng);
 
         std::vector<secp256k1::MuSig2SecNonce> sec_nonces;

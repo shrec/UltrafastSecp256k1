@@ -227,7 +227,9 @@ static void test_musig2_nonce_consumption() {
         Scalar sk1 = random_scalar();
         auto pk0 = Point::generator().scalar_mul(sk0).x().to_bytes();
         auto pk1 = Point::generator().scalar_mul(sk1).x().to_bytes();
-        std::vector<std::array<uint8_t, 32>> pks = {pk0, pk1};
+        std::vector<std::array<uint8_t, 33>> pks = {
+            Point::generator().scalar_mul(sk0).to_compressed(),
+            Point::generator().scalar_mul(sk1).to_compressed()};
 
         auto key_agg = musig2_key_agg(pks);
         std::array<uint8_t, 32> msg{};
