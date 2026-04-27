@@ -1049,6 +1049,38 @@ class AuditHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0].rstrip("/") or "/"
+
+        # Serve .md / .json / .txt files directly from docs/ or lib root
+        if path != "/" and not ROUTES.get(path):
+            # Strip leading slash, prevent path traversal
+            rel = path.lstrip("/")
+            if ".." not in rel:
+                for base in (DOCS, LIB_ROOT):
+                    candidate = base / rel
+                    if candidate.is_file() and candidate.suffix in (".md", ".json", ".txt", ".sha256", ".log"):
+                        raw = candidate.read_text(errors="replace")
+                        if candidate.suffix == ".md":
+                            body = f"<article style='max-width:900px;margin:0 auto'>{md_to_html(raw)}</article>"
+                            content = page(candidate.name, body)
+                            mime = "text/html; charset=utf-8"
+                        else:
+                            raw_bytes = raw.encode()
+                            self.send_response(200)
+                            self.send_header("Content-Type", "text/plain; charset=utf-8")
+                            self.send_header("Content-Length", str(len(raw_bytes)))
+                            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                            self.end_headers()
+                            self.wfile.write(raw_bytes)
+                            return
+                        content_bytes = content if isinstance(content, bytes) else content.encode()
+                        self.send_response(200)
+                        self.send_header("Content-Type", mime)
+                        self.send_header("Content-Length", str(len(content_bytes)))
+                        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                        self.end_headers()
+                        self.wfile.write(content_bytes)
+                        return
+
         handler = ROUTES.get(path)
 
         if handler is None:
