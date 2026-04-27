@@ -2470,6 +2470,40 @@ target_compile_definitions(test_exploit_wallet_sign_ct_standalone PRIVATE STANDA
 add_test(NAME exploit_wallet_sign_ct COMMAND test_exploit_wallet_sign_ct_standalone)
 set_tests_properties(exploit_wallet_sign_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;wallet;ecdsa")
 
+# -- B-04 fix: Monolith split integrity (MONO-1..12) — 2026-04-27 -----------
+add_executable(test_exploit_monolith_split_standalone
+    test_exploit_monolith_split.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_monolith_split_standalone)
+target_include_directories(test_exploit_monolith_split_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_monolith_split_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING SECP256K1_BUILD_ETHEREUM)
+add_test(NAME exploit_monolith_split COMMAND test_exploit_monolith_split_standalone)
+set_tests_properties(exploit_monolith_split PROPERTIES TIMEOUT 60 LABELS "audit;exploit;monolith;split;regression")
+
+# -- B-08/B-09 fix: GPU secret erase + batch sign partial — 2026-04-27 ------
+add_executable(test_exploit_gpu_secret_erase_standalone
+    test_exploit_gpu_secret_erase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_gpu_secret_erase_standalone)
+target_include_directories(test_exploit_gpu_secret_erase_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_gpu_secret_erase_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING SECP256K1_BUILD_ETHEREUM)
+add_test(NAME exploit_gpu_secret_erase COMMAND test_exploit_gpu_secret_erase_standalone)
+set_tests_properties(exploit_gpu_secret_erase PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;secret;erase;batch")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3007,6 +3041,10 @@ add_executable(unified_audit_runner
     test_exploit_eth_signing_ct.cpp
     # B-02: Wallet sign_hash CT path (WALCT-1..8)
     test_exploit_wallet_sign_ct.cpp
+    # B-04: Monolith split integrity (MONO-1..12)
+    test_exploit_monolith_split.cpp
+    # B-08/B-09: GPU secret erase + batch sign partial
+    test_exploit_gpu_secret_erase.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

@@ -412,6 +412,8 @@ int test_exploit_recoverable_sign_ct_run();     // C ABI recovery signing CT pat
 int test_exploit_pippenger_batch_regression_run(); // Pippenger batch verify regression guard (PIPBATCH-1..8) — M-6 — 2026-04-27
 int test_exploit_eth_signing_ct_run();          // Ethereum signing CT path (ETHCT-1..8) — B-01 fix — 2026-04-27
 int test_exploit_wallet_sign_ct_run();          // Wallet sign_hash CT path (WALCT-1..8) — B-02 fix — 2026-04-27
+int test_exploit_monolith_split_run();          // Monolith split integrity (MONO-1..12) — B-04 fix — 2026-04-27
+int test_exploit_gpu_secret_erase_run();        // GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 — 2026-04-27
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -823,6 +825,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_pippenger_batch_regression",  "Pippenger batch verify regression guard (PIPBATCH-1..8) — M-6 2026-04-27",     "exploit_poc",   test_exploit_pippenger_batch_regression_run, false },
     { "exploit_eth_signing_ct",              "Ethereum signing CT path (ETHCT-1..8) — B-01 fix 2026-04-27",                  "exploit_poc",   test_exploit_eth_signing_ct_run, false },
     { "exploit_wallet_sign_ct",              "Wallet sign_hash CT path (WALCT-1..8) — B-02 fix 2026-04-27",                  "exploit_poc",   test_exploit_wallet_sign_ct_run, false },
+    { "exploit_monolith_split",              "ufsecp_impl.cpp unity-build split integrity (MONO-1..12) — B-04 2026-04-27",   "exploit_poc",   test_exploit_monolith_split_run, false },
+    { "exploit_gpu_secret_erase",            "GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 2026-04-27", "exploit_poc", test_exploit_gpu_secret_erase_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

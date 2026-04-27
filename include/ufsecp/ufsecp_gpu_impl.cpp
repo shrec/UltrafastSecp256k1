@@ -24,6 +24,7 @@
 /* CPU headers needed for ufsecp_bip352_prepare_scan_plan */
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/glv.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::gpu;
 
@@ -581,9 +582,13 @@ ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
     using namespace secp256k1::fast;
 
     Scalar k = Scalar::from_bytes(scan_privkey32);
-    if (k.is_zero()) return UFSECP_ERR_BAD_KEY;
+    if (k.is_zero()) {
+        secp256k1::detail::secure_erase(&k, sizeof(k));
+        return UFSECP_ERR_BAD_KEY;
+    }
 
     auto decomp   = glv_decompose(k);
+    secp256k1::detail::secure_erase(&k, sizeof(k));
     auto k1_bytes = decomp.k1.to_bytes();
     auto k2_bytes = decomp.k2.to_bytes();
 
@@ -635,6 +640,9 @@ ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
 
     compute_wnaf(k1_bytes.data(), wn1);
     compute_wnaf(k2_bytes.data(), wn2);
+    secp256k1::detail::secure_erase(k1_bytes.data(), k1_bytes.size());
+    secp256k1::detail::secure_erase(k2_bytes.data(), k2_bytes.size());
+    secp256k1::detail::secure_erase(&decomp, sizeof(decomp));
     return UFSECP_OK;
 }
 

@@ -7,6 +7,40 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27b (fix: B-04 monolith split + B-08 GPU secret erase + B-09 batch sign partial — quality audit wave 2)
+
+### Bugs fixed
+
+**MEDIUM (B-04) — `ufsecp_impl.cpp` 5656-line monolith split:**
+- Split into 8 domain implementation files under `include/ufsecp/impl/`:
+  `ufsecp_core.cpp` (270 lines), `ufsecp_ecdsa.cpp` (517), `ufsecp_address.cpp` (412),
+  `ufsecp_taproot.cpp` (866), `ufsecp_musig2.cpp` (830), `ufsecp_zk.cpp` (762),
+  `ufsecp_coins.cpp` (927), `ufsecp_bip322.cpp` (710).
+- `ufsecp_impl.cpp` reduced to 380-line preamble + 8 `#include` unity-build statements.
+- Unity build: domain files are not independently compiled, ensuring zero ODR risk.
+- Impact: code review bottleneck for Bitcoin Core PR eliminated; each domain
+  is independently navigable and reviewable.
+
+**MEDIUM (B-08) — `ufsecp_bip352_prepare_scan_plan()` CPU-side secret leak:**
+- Added `#include "secp256k1/detail/secure_erase.hpp"` to `ufsecp_gpu_impl.cpp`.
+- `Scalar k` now erased immediately after `glv_decompose(k)`.
+- `decomp`, `k1_bytes`, `k2_bytes` erased after `compute_wnaf()` writes wNAF digits.
+- Early-return path (zero key) also erases `k` before returning `UFSECP_ERR_BAD_KEY`.
+
+**LOW (B-09) — `ufsecp_ecdsa_sign_batch()` partial output on failure:**
+- Added `memset(sigs64_out, 0, count * 64)` at function entry before the loop.
+- On failure at index i, entire output buffer is zeroed — caller sees an
+  unambiguously invalid (all-zero) buffer, not a mix of valid + unwritten slots.
+
+### New exploit tests added (wiring gate: 205/205 PASS)
+
+- `audit/test_exploit_monolith_split.cpp` — MONO-1..12: exercises one representative
+  function from each of the 8 domain files to verify the unity-build split is complete.
+- `audit/test_exploit_gpu_secret_erase.cpp` — B08-1..4 + B09-1..5: verifies
+  bip352_prepare_scan_plan secret erase behavior, and ecdsa_sign_batch partial-output zeroing.
+
+---
+
 ## 2026-04-27 (fix: C-1 CRITICAL + M-6 MEDIUM + 2 exploit tests — 2026-04-27 Comprehensive Quality Audit)
 
 ### Bugs fixed
