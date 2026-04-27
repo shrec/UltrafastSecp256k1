@@ -10,6 +10,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/ecdsa.hpp"
+#include "secp256k1/ct/sign.hpp"
 
 using namespace secp256k1::fast;
 
@@ -102,6 +103,13 @@ int secp256k1_ecdsa_signature_parse_der(
     unsigned char r[32]{}, s[32]{};
     if (!parse_der_int(p, end, r)) return 0;
     if (!parse_der_int(p, end, s)) return 0;
+
+    // Validate r, s are in (0, n-1] — matches libsecp strict contract.
+    Scalar rs, ss;
+    if (!Scalar::parse_bytes_strict_nonzero(
+            reinterpret_cast<const uint8_t*>(r), rs)) return 0;
+    if (!Scalar::parse_bytes_strict_nonzero(
+            reinterpret_cast<const uint8_t*>(s), ss)) return 0;
 
     std::memcpy(sig->data, r, 32);
     std::memcpy(sig->data + 32, s, 32);
@@ -212,9 +220,9 @@ int secp256k1_ecdsa_sign(
         if (ndata) {
             std::array<uint8_t, 32> aux{};
             std::memcpy(aux.data(), ndata, 32);
-            result = secp256k1::ecdsa_sign_hedged(msg, k, aux);
+            result = secp256k1::ct::ecdsa_sign_hedged(msg, k, aux);
         } else {
-            result = secp256k1::ecdsa_sign(msg, k);
+            result = secp256k1::ct::ecdsa_sign(msg, k);
         }
         if (result.r.is_zero() && result.s.is_zero()) return 0;
         ecdsa_sig_to_data(result, sig->data);

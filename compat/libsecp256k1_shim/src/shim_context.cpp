@@ -2,11 +2,17 @@
 // shim_context.cpp -- Context lifecycle (no-op for UltrafastSecp256k1)
 // ============================================================================
 #include "secp256k1.h"
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
 
 #include "secp256k1/precompute.hpp"
+#include "secp256k1/scalar.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/sign.hpp"
+
+using namespace secp256k1::fast;
 
 // UltrafastSecp256k1 is stateless -- contexts are opaque dummies.
 // We allocate a small sentinel so null-checks in user code pass.
@@ -81,12 +87,23 @@ int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *see
     if (seed32) {
         std::memcpy(ctx->blind, seed32, 32);
         ctx->blinded = true;
+        // Activate additive scalar blinding on this thread's signing path.
+        // r = seed32 mod n; r_G = r*G precomputed (CT). Blinding is thread-local.
+        std::array<uint8_t, 32> seed_arr{};
+        std::memcpy(seed_arr.data(), seed32, 32);
+        Scalar r = Scalar::from_bytes(seed_arr); // reduce mod n
+        if (r.is_zero()) {
+            // Astronomically unlikely; fall back to unblinded rather than panic.
+            secp256k1::ct::clear_blinding();
+            return 1;
+        }
+        auto r_G = secp256k1::ct::generator_mul(r);
+        secp256k1::ct::set_blinding(r, r_G);
     } else {
         std::memset(ctx->blind, 0, 32);
         ctx->blinded = false;
+        secp256k1::ct::clear_blinding();
     }
-    // UltrafastSecp256k1 uses constant-time operations; stored seed is
-    // available for hedged nonce generation (RFC 6979 additional input).
     return 1;
 }
 
