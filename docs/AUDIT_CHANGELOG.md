@@ -7,6 +7,35 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27e (BIP-327 Y-parity fix + Bitcoin Core 693/693 evidence)
+
+### musig2_key_agg: forced even-Y removed (BIP-327 compliance)
+
+`musig2_key_agg` was forcing `prefix = 0x02` (even-Y) on all input
+compressed public keys before decompressing them for Q aggregation. BIP-327
+specifies `cpoint(P_i)` — full compressed decompression respecting Y parity.
+This produced wrong aggregate pubkeys for any 33-byte key with `0x03` prefix,
+failing all BIP-328 test vectors and all 64 Taproot descriptor tests.
+
+Fix: `cpu/src/musig2.cpp` uses `decompress_point(pubkeys[i])` directly,
+removing the forced even-Y. Partial signing's d-adjustment handles individual
+P_i parity independently, so this is safe.
+
+### shim_pubkey.cpp: hybrid pubkey prefix 0x06/0x07 accepted
+
+libsecp256k1 accepts hybrid 65-byte pubkeys (prefix `0x06`/`0x07`) without
+`SECP256K1_FLAGS_BIT_STRICTENC`. The shim was rejecting them, causing 661
+`script_tests` failures in Bitcoin Core. Fixed with Y-parity validation.
+
+### Bitcoin Core test evidence: 693/693 pass
+
+Full `test_bitcoin` suite on the UltrafastSecp256k1 backend:
+- 693 test cases, 0 failures
+- Evidence file: `docs/BITCOIN_CORE_TEST_RESULTS.json`
+- Backend commit: `c1df659e`
+
+---
+
 ## 2026-04-27d (security: CT default + context randomization / scalar blinding)
 
 ### CT Default Cleanup — public C++ signing APIs

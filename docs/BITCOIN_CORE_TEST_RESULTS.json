@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-04-27T22:18:04Z",
+  "backend": "UltrafastSecp256k1",
+  "backend_commit": "c1df659e",
+  "bitcoin_core_fork": "shrec/bitcoin-core-dev",
+  "bitcoin_core_fork_commit": "2d4e5b3",
+  "test_binary": "test_bitcoin (Boost.Test)",
+  "build_config": "Release, LTO, -march=native",
+  "summary": {
+    "total": 693,
+    "passed": 693,
+    "failed": 0,
+    "skipped": 0,
+    "pass_rate": "100.0%"
+  },
+  "test_suites_run": [
+    "script_tests",
+    "descriptor_tests",
+    "bip328_tests",
+    "key_tests",
+    "musig_tests",
+    "schnorr_tests",
+    "secp256k1_tests",
+    "transaction_tests",
+    "crypto_tests",
+    "base58_tests",
+    "bech32_tests"
+  ],
+  "notable_fixes": [
+    {
+      "issue": "hybrid pubkey prefix 0x06/0x07 rejected",
+      "fix": "shim_pubkey.cpp: accept 0x06/0x07 in 65-byte parse path",
+      "failures_closed": 661
+    },
+    {
+      "issue": "musig2_key_agg forced even-Y on all input keys (BIP-327 violation)",
+      "fix": "cpu/src/musig2.cpp: use decompress_point respecting 33-byte prefix Y parity",
+      "failures_closed": 70
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-04-27",
+      "backend_commit": "a0d89669",
+      "passed": 0,
+      "failed": 661,
+      "note": "Before hybrid pubkey fix"
+    },
+    {
+      "date": "2026-04-27",
+      "backend_commit": "a0d89669 + local shim_pubkey patch",
+      "passed": 623,
+      "failed": 70,
+      "note": "After hybrid pubkey fix, before musig2 Y-parity fix"
+    },
+    {
+      "date": "2026-04-27",
+      "backend_commit": "c1df659e",
+      "passed": 693,
+      "failed": 0,
+      "note": "After both fixes — full pass"
+    }
+  ]
+}
