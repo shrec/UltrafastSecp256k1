@@ -104,18 +104,39 @@ class Finding:
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+_RAW_STRING_RE = re.compile(r'R"([^()\\]{0,16})\(.*?\)\1"', re.DOTALL)
+_RAW_PLACEHOLDER = "\x00RAW\x00"
+
+
 def _strip_comments(line: str) -> str:
-    """Remove // line comments (simple heuristic, good enough for pattern matching)."""
+    """Remove // line comments, handling C++ raw string literals R\"(...)\" correctly."""
+    # Replace raw string literals with a placeholder so // inside them is ignored
+    raw_parts: list[str] = []
+
+    def _save_raw(m: re.Match) -> str:
+        raw_parts.append(m.group(0))
+        return _RAW_PLACEHOLDER
+
+    safe = _RAW_STRING_RE.sub(_save_raw, line)
+
     in_str = False
     i = 0
-    while i < len(line) - 1:
-        c = line[i]
-        if c == '"' and (i == 0 or line[i - 1] != '\\'):
+    while i < len(safe) - 1:
+        c = safe[i]
+        if c == '"' and (i == 0 or safe[i - 1] != '\\'):
             in_str = not in_str
-        if not in_str and line[i] == '/' and line[i + 1] == '/':
-            return line[:i]
+        if not in_str and safe[i] == '/' and safe[i + 1] == '/':
+            result = safe[:i]
+            # Restore raw strings that survive the truncation
+            for raw in raw_parts:
+                result = result.replace(_RAW_PLACEHOLDER, raw, 1)
+            return result
         i += 1
-    return line
+
+    # No comment found — restore raw strings
+    for raw in raw_parts:
+        safe = safe.replace(_RAW_PLACEHOLDER, raw, 1)
+    return safe
 
 
 def _context_window(lines: List[str], idx: int, radius: int = 5) -> List[Tuple[int, str]]:
@@ -440,8 +461,9 @@ def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
         # Indexed-assignment lines like `buf[32] = 0x01;` are byte writes,
         # not copy-paste candidates — different indices write different cells.
         # Only treat plain identifiers (no `[`) as candidates.
-        # Reset on block boundaries and preprocessor conditionals
-        if '{' in line or '}' in line or _PREPROC.match(line):
+        # Reset on block boundaries (standalone { or } only) and preprocessor conditionals.
+        # Initializer lists like `int v[] = {1, 2};` must NOT clear tracking.
+        if (line.strip() in ('{', '}') or line.strip().startswith('}')) or _PREPROC.match(line):
             last_assigned.clear()
             continue
         # Reset on Python/Ruby/Dart branch and exception-handler keywords —
@@ -819,9 +841,9 @@ def check_dblinit(path: str, lines: List[str]) -> List[Finding]:
                         del initialized[tracked]
                 continue
         # Block boundaries reset tracking.
-        # `{` / `}` are the main boundaries; `else` / `#else` also separate
-        # mutually-exclusive paths (single-statement if/else, preprocessor branches).
-        if '{' in line or '}' in line:
+        # Only reset on standalone { or } lines to avoid false negatives from
+        # initializer lists like `Type v = {a, b};`.
+        if line.strip() in ('{', '}') or line.strip().startswith('}'):
             initialized.clear()
             continue
         if re.match(r'^\s*(else\b|#else\b|#elif\b)', line):

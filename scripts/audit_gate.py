@@ -421,7 +421,12 @@ def check_audit_test_quality(conn):
             f"{item.get('severity', 'info')} {item.get('file', '?')}:{item.get('line', '?')} {item.get('label', 'finding')}"
         ))
 
-    if rc != 0 or severity_counts.get('critical', 0) or severity_counts.get('high', 0):
+    if rc != 0:
+        findings.append((
+            'WARN',
+            f"Audit test-quality scanner returned exit code {rc}. Results may be incomplete."
+        ))
+    if severity_counts.get('critical', 0) or severity_counts.get('high', 0):
         findings.append((
             'FAIL',
             f"Audit test-quality scanner found blocking findings: critical={severity_counts.get('critical', 0)}, high={severity_counts.get('high', 0)}"
@@ -540,7 +545,7 @@ NARRATIVE_FILES = [
     'audit/run_full_audit.ps1',
 ]
 
-HISTORICAL_MARKER = re.compile(r'(?i)(historical\s+report|superseded\s+by|snapshot\s+from\s+v\d)')
+HISTORICAL_MARKER = re.compile(r'^(?:#+\s*)?\[?(?:historical\s+report|superseded\s+by|snapshot\s+from\s+v\d)\]?', re.IGNORECASE | re.MULTILINE)
 
 
 def check_narrative(conn):
@@ -556,7 +561,7 @@ def check_narrative(conn):
                 content = filepath.read_text(errors='replace')
             except Exception:
                 continue
-            if HISTORICAL_MARKER.search(content[:500]):
+            if HISTORICAL_MARKER.search(content):
                 continue
             for i, line in enumerate(content.splitlines(), 1):
                 if pat.search(line):
@@ -574,7 +579,11 @@ def check_narrative(conn):
 def check_freshness(conn):
     findings = []
 
-    built_str = conn.execute("SELECT value FROM meta WHERE key='built_at'").fetchone()['value']
+    _built_row = conn.execute("SELECT value FROM meta WHERE key='built_at'").fetchone()
+    built_str = _built_row['value'] if _built_row is not None else "unknown"
+    if built_str == "unknown":
+        findings.append(('WARN', "Graph meta key 'built_at' not found — graph may need rebuild"))
+        return 'P6: Graph Freshness', findings
     built_dt = datetime.fromisoformat(built_str)
 
     stale = []

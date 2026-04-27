@@ -97,10 +97,11 @@ jobs:
       - name: Regenerate external audit bundle
         run: |
           python3 scripts/external_audit_bundle.py
-          python3 scripts/verify_external_audit_bundle.py --json > /tmp/bundle_verify.json || true
-          python3 - <<'EOF'
-          import json
-          with open('/tmp/bundle_verify.json') as f:
+          BUNDLE_VERIFY_JSON="${{ runner.temp }}/bundle_verify.json"
+          python3 scripts/verify_external_audit_bundle.py --json > "$BUNDLE_VERIFY_JSON" || true
+          python3 - "$BUNDLE_VERIFY_JSON" <<'EOF'
+          import json, sys
+          with open(sys.argv[1]) as f:
               r = json.load(f)
           if not r.get('overall_pass', False):
               print('::warning::Bundle verify did not pass; committing refreshed bundle anyway so the next CAAS run sees fresh evidence')
@@ -124,6 +125,7 @@ jobs:
       - name: Commit and push if changed
         env:
           GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          FORCE_COMMIT: ${{ github.event.inputs.force_commit }}
         run: |
           set -e
           git config user.name  "caas-bot"
@@ -140,7 +142,7 @@ jobs:
             fi
           done
 
-          if [ "$CHANGED" -eq 0 ] && [ "${{ github.event.inputs.force_commit }}" != "true" ]; then
+          if [ "$CHANGED" -eq 0 ] && [ "${FORCE_COMMIT}" != "true" ]; then
             echo "::notice::No evidence changed; nothing to commit"
             exit 0
           fi

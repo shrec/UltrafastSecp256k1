@@ -115,8 +115,8 @@ def get_toolchain() -> dict[str, Any]:
 def get_build_flags(build_dir: Optional[Path] = None) -> dict[str, Any]:
     """Extract key build flags from CMakeCache.txt."""
     if build_dir is None:
-        # Try common build directories
-        for name in ('build', 'build_opencl', 'build_rel', 'build-cuda'):
+        # Try common build directories (build-audit first: CI default target)
+        for name in ('build-audit', 'build', 'build_opencl', 'build_rel', 'build-cuda'):
             candidate = LIB_ROOT / name
             if (candidate / 'CMakeCache.txt').exists():
                 build_dir = candidate

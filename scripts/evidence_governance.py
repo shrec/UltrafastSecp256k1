@@ -30,8 +30,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 
-# HMAC key derived from repository identity (not a secret — tamper detection only)
-_HMAC_KEY = b"ufsecp-evidence-chain-v1"
+# HMAC key derived from repository identity (not a secret — tamper detection only).
+# Override with CAAS_HMAC_KEY env var for production deployments.
+_HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
+if "CAAS_HMAC_KEY" not in os.environ:
+    import sys as _sys
+    print("WARNING: Using hardcoded HMAC key. Set CAAS_HMAC_KEY env var for production.", file=_sys.stderr)
+_HMAC_KEY = os.environ.get("CAAS_HMAC_KEY", _HMAC_KEY_DEFAULT).encode()
 
 
 def _git_sha() -> str:
@@ -59,7 +64,7 @@ def _file_sha256(path: Path) -> str:
 
 
 def _compute_hmac(record: dict) -> str:
-    """Compute HMAC for tamper detection."""
+    """Compute HMAC for tamper detection (covers all evidence fields including reason)."""
     payload = json.dumps({
         "who": record.get("who", ""),
         "what": record.get("what", ""),
@@ -67,6 +72,7 @@ def _compute_hmac(record: dict) -> str:
         "commit": record.get("commit", ""),
         "binary_hash": record.get("binary_hash", ""),
         "verdict": record.get("verdict", ""),
+        "reason": record.get("reason", ""),
     }, sort_keys=True)
     return hmac.new(_HMAC_KEY, payload.encode(), hashlib.sha256).hexdigest()
 
