@@ -408,6 +408,8 @@ int test_regression_cuda_pool_cap_run();         // CUDA pool minimum-capacity r
 int test_regression_musig2_verify_run();        // musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6) — 2026-04-23
 int test_regression_bip324_session_run();       // Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8) — 2026-04-23
 int test_regression_exception_erase_run();      // Exception-path sk/ek/entropy leakage in C ABI layer (EPE-RAII + EPE-1..12) — 2026-04-23
+int test_exploit_recoverable_sign_ct_run();     // C ABI recovery signing CT path (RCTX-1..8) — C-1 fix — 2026-04-27
+int test_exploit_pippenger_batch_regression_run(); // Pippenger batch verify regression guard (PIPBATCH-1..8) — M-6 — 2026-04-27
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -812,6 +814,11 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_musig2_verify",          "musig2_partial_verify OOB + infinity-nonce regression (MVV-1..6)",                                      "math_invariants", test_regression_musig2_verify_run, false },
     { "regression_bip324_session",         "Bip324Session sk-leak + destructor secure-erase regression (BPS-1..8)",                                   "memory_safety",  test_regression_bip324_session_run, false },
     { "regression_exception_erase",        "Exception-path sk/ek/entropy leakage in C ABI layer (EPE-RAII+EPE-1..12)",                               "memory_safety",  test_regression_exception_erase_run, false },
+    // ===================================================================
+    // Section 11: Quality Audit Fixes (2026-04-27 Comprehensive Report)
+    // ===================================================================
+    { "exploit_recoverable_sign_ct",         "C ABI recovery signing CT path (RCTX-1..8) — C-1 fix 2026-04-27",              "exploit_poc",   test_exploit_recoverable_sign_ct_run, false },
+    { "exploit_pippenger_batch_regression",  "Pippenger batch verify regression guard (PIPBATCH-1..8) — M-6 2026-04-27",     "exploit_poc",   test_exploit_pippenger_batch_regression_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

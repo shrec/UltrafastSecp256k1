@@ -869,13 +869,11 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
-    // ARCH DECISION: No ct::ecdsa_sign_recoverable exists because recovery signing is
-    // inherently non-constant-time — the recid value (0..3) depends on the R point's x
-    // coordinate, leaking timing. We use the FAST path (secp256k1::ecdsa_sign_recoverable)
-    // with explicit zeroization of the private-key scalar immediately after use.
-    // If a future CT recovery path is needed, it must accept a fixed recid hint from the
-    // caller and branch only on public data.
-    auto rsig = secp256k1::ecdsa_sign_recoverable(msg, sk);
+    // CT path: ct::ecdsa_sign_recoverable uses ct::generator_mul(k) for R=k*G,
+    // ct::scalar_inverse(k) via SafeGCD divsteps-59, branchless recovery ID bits,
+    // and branchless low-S normalization. All secret stack buffers are securely
+    // erased inside ct::ecdsa_sign_recoverable before return.
+    auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     auto normalized = rsig.sig.normalize();
     auto compact = normalized.to_compact();

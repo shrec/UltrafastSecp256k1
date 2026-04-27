@@ -14,6 +14,7 @@
 
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/multiscalar.hpp"
+#include "secp256k1/config.hpp"
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -148,11 +149,17 @@ Point pippenger_msm(const Scalar* scalars,
         std::size_t max_touched_digit = 0;
 
         // -- Scatter: distribute points into buckets --
+        // Prefetch distance: 8 points ahead keeps L2/L3 latency hidden for
+        // the ~40-byte affine FE52 point load.
+        constexpr std::size_t PREFETCH_DIST = 8;
         if (all_affine) {
             for (std::size_t i = 0; i < n; ++i) {
+                if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+                    __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+                }
                 std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
                                                           static_cast<std::size_t>(w)];
-                if (digit == 0 || points[i].is_infinity()) continue;
+                if (SECP256K1_UNLIKELY(digit == 0) || SECP256K1_UNLIKELY(points[i].is_infinity())) continue;
                 if (!used[digit]) {
                     used[digit] = 1;
                     touched[touched_count++] = static_cast<std::size_t>(digit);
@@ -172,9 +179,12 @@ Point pippenger_msm(const Scalar* scalars,
             }
         } else {
             for (std::size_t i = 0; i < n; ++i) {
+                if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+                    __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+                }
                 std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
                                                           static_cast<std::size_t>(w)];
-                if (digit == 0) continue;  // bucket[0] is unused (identity)
+                if (SECP256K1_UNLIKELY(digit == 0)) continue;  // bucket[0] is unused (identity)
                 if (!used[digit]) {
                     used[digit] = 1;
                     touched[touched_count++] = static_cast<std::size_t>(digit);
@@ -199,7 +209,7 @@ Point pippenger_msm(const Scalar* scalars,
             // Untouched slots remain uninitialized on the stack; adding the
             // identity element would be a no-op, so skipping them is correct
             // and avoids MSan uninitialized-read false positives.
-            if (used[b]) {
+            if (SECP256K1_LIKELY(used[b] != 0)) {
                 running_sum.add_inplace(buckets[b]);
             }
             partial_sum.add_inplace(running_sum);

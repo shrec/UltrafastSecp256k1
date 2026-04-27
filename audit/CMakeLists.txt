@@ -2405,6 +2405,40 @@ set_tests_properties(regression_bip324_session PROPERTIES TIMEOUT 30 LABELS "aud
 # Wired into unified_audit_runner: yes. Standalone CTest: no (would have link errors).
 # Coverage: unified_audit_runner --module regression_exception_erase  (or --section memory_safety)
 
+# -- C-1 fix: C ABI recovery signing CT path (RCTX-1..8) — 2026-04-27 -------
+add_executable(test_exploit_recoverable_sign_ct_standalone
+    test_exploit_recoverable_sign_ct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_recoverable_sign_ct_standalone)
+target_include_directories(test_exploit_recoverable_sign_ct_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_recoverable_sign_ct_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_recoverable_sign_ct COMMAND test_exploit_recoverable_sign_ct_standalone)
+set_tests_properties(exploit_recoverable_sign_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;recovery;ecdsa")
+
+# -- M-6 fix: Pippenger batch verify regression guard (PIPBATCH-1..8) — 2026-04-27 ---
+add_executable(test_exploit_pippenger_batch_regression_standalone
+    test_exploit_pippenger_batch_regression.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_pippenger_batch_regression_standalone)
+target_include_directories(test_exploit_pippenger_batch_regression_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_pippenger_batch_regression_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_pippenger_batch_regression COMMAND test_exploit_pippenger_batch_regression_standalone)
+set_tests_properties(exploit_pippenger_batch_regression PROPERTIES TIMEOUT 120 LABELS "audit;exploit;pippenger;batch;regression")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2933,6 +2967,11 @@ add_executable(unified_audit_runner
     test_regression_bip324_session.cpp
     # -- Exception-path sk/ek/entropy leakage regression (EPE-RAII + EPE-1..12) — 2026-04-23 --
     test_regression_exception_erase.cpp
+    # -- Quality audit fixes (2026-04-27 Comprehensive Report) --
+    # C-1: C ABI recovery signing CT path (RCTX-1..8)
+    test_exploit_recoverable_sign_ct.cpp
+    # M-6: Pippenger batch verify regression guard (PIPBATCH-1..8)
+    test_exploit_pippenger_batch_regression.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

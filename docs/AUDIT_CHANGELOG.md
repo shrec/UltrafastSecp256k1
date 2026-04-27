@@ -7,6 +7,40 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27 (fix: C-1 CRITICAL + M-6 MEDIUM + 2 exploit tests — 2026-04-27 Comprehensive Quality Audit)
+
+### Bugs fixed
+
+**CRITICAL (C-1) — `ufsecp_ecdsa_sign_recoverable` C ABI used variable-time signing path:**
+- `include/ufsecp/ufsecp_impl.cpp` line 878: `secp256k1::ecdsa_sign_recoverable(msg, sk)`
+  → `secp256k1::ct::ecdsa_sign_recoverable(msg, sk)`.
+- The ARCH DECISION comment incorrectly stated `ct::ecdsa_sign_recoverable` does not exist.
+  In fact, `cpu/src/ct_sign.cpp:289-361` contains the full CT implementation with:
+  branchless R.y parity extraction, CT branchless byte comparison for overflow bit,
+  `ct::scalar_inverse(k)` (SafeGCD Bernstein-Yang divsteps-59), and `secure_erase` of
+  all secret stack buffers. Impact: wNAF nonce k*G leaks nonce k via timing
+  → full private key recovery in ~10^4–10^6 signatures.
+
+**MEDIUM (M-6) — Pippenger scatter loop lacked prefetch + branch hints:**
+- `cpu/src/pippenger.cpp`: Added `__builtin_prefetch(&points[i+8], 0, 1)` in both
+  affine and non-affine scatter loops + `SECP256K1_LIKELY/UNLIKELY` branch hints.
+- Measured improvement: N=64 cached batch: 2994540→1547857 ns (48% faster),
+  N=128: 5405628→2919917 ns (46%), N=192: 7363274→3957681 ns (46%).
+
+### New exploit tests added
+
+- `audit/test_exploit_recoverable_sign_ct.cpp` — RCTX-1..8: verifies C ABI recovery signing
+  uses CT path (fix for C-1). Tests determinism, CT equivalence, recovery roundtrip, KAT, edge cases.
+- `audit/test_exploit_pippenger_batch_regression.cpp` — PIPBATCH-1..8: Pippenger batch verify
+  regression guard (fix for M-6). Tests correctness + timing regression guard.
+
+### New CAAS pipeline integrity tests added
+
+- `scripts/test_caas_integrity.py` — CAAS-GATE-1..3, CAAS-HMAC-1..4, CAAS-KEY-1..2:
+  Verifies C-2 (stunt-double gates fixed), C-3 (HMAC includes reason field), H-3 (env-var key).
+
+---
+
 ## 2026-04-26e (fix: 6 security bugs from external audit — CRITICAL/HIGH/MEDIUM)
 
 ### Bugs fixed in this commit
