@@ -66,8 +66,10 @@ int secp256k1_ec_pubkey_parse(
             return 1;
 
         } else if (inputlen == 65) {
-            // Uncompressed: 04 || X || Y
-            if (input[0] != 0x04) return 0;
+            // Uncompressed (04) or hybrid (06/07): all carry explicit X || Y.
+            // libsecp accepts 06/07 without STRICTENC (hybrid pubkey compatibility).
+            uint8_t pfx = input[0];
+            if (pfx != 0x04 && pfx != 0x06 && pfx != 0x07) return 0;
 
             // Reject x >= p or y >= p (libsecp strict boundary)
             FieldElement x, y;
@@ -76,6 +78,12 @@ int secp256k1_ec_pubkey_parse(
             // Reject if not on curve: y^2 != x^3 + 7
             auto rhs = x * x * x + FieldElement::from_uint64(7);
             if (!(y.square() == rhs)) return 0;
+            // For hybrid prefix: validate Y parity matches (06 = even Y, 07 = odd Y)
+            if (pfx == 0x06 || pfx == 0x07) {
+                auto yb = y.to_bytes();
+                bool y_is_odd = (yb[31] & 1) != 0;
+                if (y_is_odd != (pfx == 0x07)) return 0;
+            }
             auto pt = Point::from_affine(x, y);
             point_to_pubkey_data(pt, pubkey->data);
             return 1;
