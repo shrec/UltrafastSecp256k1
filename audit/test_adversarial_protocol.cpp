@@ -310,8 +310,8 @@ static void test_musig2_hostile_args() {
     // key_agg: n=2 valid pair (33-byte compressed keys)
     {
         uint8_t _ck1[33], _ck2[33];
-        ufsecp_pubkey_create(ctx, priv1, _ck1);
-        ufsecp_pubkey_create(ctx, priv2, _ck2);
+        CHECK_OK(ufsecp_pubkey_create(ctx, priv1, _ck1), "pubkey_create priv1");
+        CHECK_OK(ufsecp_pubkey_create(ctx, priv2, _ck2), "pubkey_create priv2");
         std::memcpy(buf, _ck1, 33);
         std::memcpy(buf + 33, _ck2, 33);
         CHECK_OK(ufsecp_musig2_key_agg(ctx, buf, 2, keyagg, agg_pub), "key_agg valid pair");

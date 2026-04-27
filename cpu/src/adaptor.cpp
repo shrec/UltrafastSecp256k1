@@ -225,6 +225,9 @@ ecdsa_adaptor_sign(const Scalar& private_key,
 
     // s = k^-^1 * (z + r*x)  where z = msg_hash
     Scalar const z = Scalar::from_bytes(msg_hash);
+    if (k.is_zero()) {
+        return ECDSAAdaptorSig{Point::infinity(), Scalar::zero(), Scalar::zero()};
+    }
     Scalar const k_inv = ct::scalar_inverse(k);  // CT: k is secret
     Scalar const s_hat = k_inv * (z + r * private_key);
 

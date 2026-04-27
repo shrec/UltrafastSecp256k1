@@ -173,7 +173,7 @@ static void test_musig2_partial_sig_agg_random(ufsecp_ctx* ctx) {
         int n = static_cast<int>(rng() % 3u) + 1;
         auto partial_sigs = rand_blob(static_cast<size_t>(n) * 32);
 
-        auto pks_flat = rand_blob(64);  // 2*32 x-only
+        auto pks_flat = rand_blob(66);  // 2*33 compressed pubkeys
         ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg2, agg_pk32b);
         auto nonces_flat = rand_blob(2 * UFSECP_MUSIG2_PUBNONCE_LEN);
         ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce2);

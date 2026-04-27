@@ -3014,10 +3014,10 @@ ufsecp_error_t ufsecp_frost_sign(
     }
     secp256k1::FrostNonce fn;
     Scalar h, b;
-    if (!scalar_parse_strict(nonce, h)) {
+    if (!scalar_parse_strict_nonzero(nonce, h)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce");
     }
-    if (!scalar_parse_strict(nonce + 32, b)) {
+    if (!scalar_parse_strict_nonzero(nonce + 32, b)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid binding nonce");
     }
     fn.hiding_nonce = h;
