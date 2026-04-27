@@ -212,8 +212,8 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     // changing the scalar k used for adaptation/extraction.
     Point const R_hat = base_nonce.add(binding_point);
 
-    // R = k * T = (k*t) * G.
-    Point const R = adaptor_point.scalar_mul(k);
+    // R = k * T = (k*t) * G.  CT: k is secret nonce.
+    Point const R = ct::scalar_mul(adaptor_point, k);
 
     // r = R.x mod n
     auto R_x_bytes = R.x().to_bytes();
@@ -228,11 +228,11 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     if (k.is_zero()) {
         return ECDSAAdaptorSig{Point::infinity(), Scalar::zero(), Scalar::zero()};
     }
-    Scalar const k_inv = ct::scalar_inverse(k);  // CT: k is secret
+    Scalar k_inv = ct::scalar_inverse(k);  // CT: k is secret; non-const for secure_erase
     Scalar const s_hat = k_inv * (z + r * private_key);
 
     detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
-    detail::secure_erase(const_cast<Scalar*>(&k_inv), sizeof(k_inv));
+    detail::secure_erase(&k_inv, sizeof(k_inv));
     detail::secure_erase(const_cast<Scalar*>(&binding), sizeof(binding));
 
     return ECDSAAdaptorSig{R_hat, s_hat, r};
