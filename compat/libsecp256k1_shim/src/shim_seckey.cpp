@@ -19,10 +19,8 @@ int secp256k1_ec_seckey_verify(
     if (!seckey) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{};
-        std::memcpy(kb.data(), seckey, 32);
-        auto k = Scalar::from_bytes(kb);
-        return k.is_zero() ? 0 : 1;
+        Scalar k;
+        return Scalar::parse_bytes_strict_nonzero(seckey, k) ? 1 : 0;
     } catch (...) { return 0; }
 }
 
@@ -33,10 +31,8 @@ int secp256k1_ec_seckey_negate(
     if (!seckey) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{};
-        std::memcpy(kb.data(), seckey, 32);
-        auto k = Scalar::from_bytes(kb);
-        if (k.is_zero()) return 0;
+        Scalar k;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
         auto neg = k.negate();
         auto out = neg.to_bytes();
         std::memcpy(seckey, out.data(), 32);
@@ -52,12 +48,10 @@ int secp256k1_ec_seckey_tweak_add(
     if (!seckey || !tweak32) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{}, tb{};
-        std::memcpy(kb.data(), seckey, 32);
-        std::memcpy(tb.data(), tweak32, 32);
-        auto k = Scalar::from_bytes(kb);
-        auto t = Scalar::from_bytes(tb);
-        if (k.is_zero()) return 0;
+        Scalar k, t;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
+        // tweak in [0, n-1]; 0 is valid (result == seckey)
+        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
         auto result = k + t;
         if (result.is_zero()) return 0;
         auto out = result.to_bytes();
@@ -74,12 +68,9 @@ int secp256k1_ec_seckey_tweak_mul(
     if (!seckey || !tweak32) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{}, tb{};
-        std::memcpy(kb.data(), seckey, 32);
-        std::memcpy(tb.data(), tweak32, 32);
-        auto k = Scalar::from_bytes(kb);
-        auto t = Scalar::from_bytes(tb);
-        if (k.is_zero() || t.is_zero()) return 0;
+        Scalar k, t;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
+        if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
         auto result = k * t;
         if (result.is_zero()) return 0;
         auto out = result.to_bytes();

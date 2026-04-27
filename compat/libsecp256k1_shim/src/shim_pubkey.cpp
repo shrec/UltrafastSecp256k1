@@ -46,9 +46,9 @@ int secp256k1_ec_pubkey_parse(
             uint8_t prefix = input[0];
             if (prefix != 0x02 && prefix != 0x03) return 0;
 
-            std::array<uint8_t, 32> xb{};
-            std::memcpy(xb.data(), input + 1, 32);
-            auto x = FieldElement::from_bytes(xb);
+            // Reject x >= p (libsecp uses secp256k1_fe_set_b32_limit)
+            FieldElement x;
+            if (!FieldElement::parse_bytes_strict(input + 1, x)) return 0;
 
             // y^2 = x^3 + 7; reject if x is not a valid curve x-coordinate
             auto y2 = x * x * x + FieldElement::from_uint64(7);
@@ -69,11 +69,10 @@ int secp256k1_ec_pubkey_parse(
             // Uncompressed: 04 || X || Y
             if (input[0] != 0x04) return 0;
 
-            std::array<uint8_t, 32> xb{}, yb_arr{};
-            std::memcpy(xb.data(), input + 1, 32);
-            std::memcpy(yb_arr.data(), input + 33, 32);
-            auto x = FieldElement::from_bytes(xb);
-            auto y = FieldElement::from_bytes(yb_arr);
+            // Reject x >= p or y >= p (libsecp strict boundary)
+            FieldElement x, y;
+            if (!FieldElement::parse_bytes_strict(input + 1,  x)) return 0;
+            if (!FieldElement::parse_bytes_strict(input + 33, y)) return 0;
             // Reject if not on curve: y^2 != x^3 + 7
             auto rhs = x * x * x + FieldElement::from_uint64(7);
             if (!(y.square() == rhs)) return 0;
@@ -131,10 +130,8 @@ int secp256k1_ec_pubkey_create(
     if (!pubkey || !seckey) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{};
-        std::memcpy(kb.data(), seckey, 32);
-        auto k = Scalar::from_bytes(kb);
-        if (k.is_zero()) return 0;
+        Scalar k;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
         auto P = scalar_mul_generator(k);
         if (P.is_infinity()) return 0;
         point_to_pubkey_data(P, pubkey->data);
@@ -163,9 +160,9 @@ int secp256k1_ec_pubkey_tweak_add(
     if (!pubkey || !tweak32) return 0;
     try {
         auto P = pubkey_data_to_point(pubkey->data);
-        std::array<uint8_t, 32> tb{};
-        std::memcpy(tb.data(), tweak32, 32);
-        auto t = Scalar::from_bytes(tb);
+        // tweak in [0, n-1]; 0 is valid (result == pubkey)
+        Scalar t;
+        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
         auto T = scalar_mul_generator(t);
         auto result = P.add(T);
         if (result.is_infinity()) return 0;
@@ -182,10 +179,8 @@ int secp256k1_ec_pubkey_tweak_mul(
     if (!pubkey || !tweak32) return 0;
     try {
         auto P = pubkey_data_to_point(pubkey->data);
-        std::array<uint8_t, 32> tb{};
-        std::memcpy(tb.data(), tweak32, 32);
-        auto t = Scalar::from_bytes(tb);
-        if (t.is_zero()) return 0;
+        Scalar t;
+        if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
         auto result = P.scalar_mul(t);
         if (result.is_infinity()) return 0;
         point_to_pubkey_data(result, pubkey->data);

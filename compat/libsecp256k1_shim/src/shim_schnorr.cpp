@@ -33,10 +33,8 @@ int secp256k1_schnorrsig_sign32(
     if (!sig64 || !msg32 || !keypair) return 0;
 
     try {
-        std::array<uint8_t, 32> sk_bytes{};
-        std::memcpy(sk_bytes.data(), keypair->data, 32);
-        auto sk = Scalar::from_bytes(sk_bytes);
-        if (sk.is_zero()) return 0;
+        Scalar sk;
+        if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
         std::array<uint8_t, 32> msg{};
         std::memcpy(msg.data(), msg32, 32);

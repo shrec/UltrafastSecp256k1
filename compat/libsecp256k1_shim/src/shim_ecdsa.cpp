@@ -48,6 +48,10 @@ int secp256k1_ecdsa_signature_parse_compact(
 {
     (void)ctx;
     if (!sig || !input64) return 0;
+    // libsecp rejects r==0, s==0, r>=n, s>=n at parse time.
+    Scalar r, s;
+    if (!Scalar::parse_bytes_strict_nonzero(input64,      r)) return 0;
+    if (!Scalar::parse_bytes_strict_nonzero(input64 + 32, s)) return 0;
     std::memcpy(sig->data, input64, 64);
     return 1;
 }
@@ -199,11 +203,10 @@ int secp256k1_ecdsa_sign(
     if (!sig || !msghash32 || !seckey) return 0;
 
     try {
-        std::array<uint8_t, 32> msg{}, kb{};
+        std::array<uint8_t, 32> msg{};
         std::memcpy(msg.data(), msghash32, 32);
-        std::memcpy(kb.data(), seckey, 32);
-        auto k = Scalar::from_bytes(kb);
-        if (k.is_zero()) return 0;
+        Scalar k;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
         secp256k1::ECDSASignature result;
         if (ndata) {

@@ -28,11 +28,13 @@ int secp256k1_xonly_pubkey_parse(
     if (!pubkey || !input32) return 0;
 
     try {
-        std::array<uint8_t, 32> xb{};
-        std::memcpy(xb.data(), input32, 32);
-        auto x = FieldElement::from_bytes(xb);
+        // Reject x >= p (libsecp strict boundary)
+        FieldElement x;
+        if (!FieldElement::parse_bytes_strict(input32, x)) return 0;
         auto y2 = x * x * x + FieldElement::from_uint64(7);
         auto y = y2.sqrt();
+        // Reject if x is not a valid x-coordinate (y^2 != x^3+7)
+        if (!(y.square() == y2)) return 0;
         // Ensure even Y (x-only canonical form)
         auto yb = y.to_bytes();
         if (yb[31] & 1) y = y.negate();
@@ -102,10 +104,8 @@ int secp256k1_keypair_create(
     if (!keypair || !seckey) return 0;
 
     try {
-        std::array<uint8_t, 32> kb{};
-        std::memcpy(kb.data(), seckey, 32);
-        auto k = Scalar::from_bytes(kb);
-        if (k.is_zero()) return 0;
+        Scalar k;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
         auto P = scalar_mul_generator(k);
         if (P.is_infinity()) return 0;
@@ -194,12 +194,9 @@ int secp256k1_xonly_pubkey_tweak_add(
         auto P = xonly_to_point(internal_pubkey);
         if (P.is_infinity()) return 0;
 
-        std::array<uint8_t, 32> tb{};
-        std::memcpy(tb.data(), tweak32, 32);
-        auto t = Scalar::from_bytes(tb);
-        // t == 0 is technically valid per libsecp (returns P itself), but
-        // treat as error to match libsecp behavior (returns 0 for zero tweak)
-        if (t.is_zero()) return 0;
+        // Reject tweak >= n (libsecp uses scalar_set_b32_limit)
+        Scalar t;
+        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
         auto tG = scalar_mul_generator(t);
         auto Q  = P.add(tG);
@@ -225,10 +222,8 @@ int secp256k1_xonly_pubkey_tweak_add_check(
         auto P = xonly_to_point(internal_pubkey);
         if (P.is_infinity()) return 0;
 
-        std::array<uint8_t, 32> tb{};
-        std::memcpy(tb.data(), tweak32, 32);
-        auto t = Scalar::from_bytes(tb);
-        if (t.is_zero()) return 0;
+        Scalar t;
+        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
         auto tG = scalar_mul_generator(t);
         auto Q  = P.add(tG);
@@ -251,19 +246,16 @@ int secp256k1_keypair_xonly_tweak_add(
     if (!keypair || !tweak32) return 0;
 
     try {
-        std::array<uint8_t, 32> skb{};
-        std::memcpy(skb.data(), keypair->data, 32);
-        auto sk = Scalar::from_bytes(skb);
-        if (sk.is_zero()) return 0;
+        Scalar sk;
+        if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
         // If Y is odd, negate the secret key (so the x-only key has even Y)
         int y_parity = (keypair->data[95] & 1) ? 1 : 0;
         if (y_parity) sk = sk.negate();
 
-        std::array<uint8_t, 32> tb{};
-        std::memcpy(tb.data(), tweak32, 32);
-        auto t = Scalar::from_bytes(tb);
-        if (t.is_zero()) return 0;
+        // tweak in [0, n-1]; libsecp allows 0 (keypair unchanged)
+        Scalar t;
+        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
         auto new_sk = sk + t;
         if (new_sk.is_zero()) return 0;
