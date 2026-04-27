@@ -2439,6 +2439,37 @@ target_compile_definitions(test_exploit_pippenger_batch_regression_standalone PR
 add_test(NAME exploit_pippenger_batch_regression COMMAND test_exploit_pippenger_batch_regression_standalone)
 set_tests_properties(exploit_pippenger_batch_regression PROPERTIES TIMEOUT 120 LABELS "audit;exploit;pippenger;batch;regression")
 
+# -- B-01 fix: Ethereum signing CT path (ETHCT-1..8) — 2026-04-27 ----------
+add_executable(test_exploit_eth_signing_ct_standalone
+    test_exploit_eth_signing_ct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/eth_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/keccak256.cpp)
+audit_target_defaults(test_exploit_eth_signing_ct_standalone)
+target_include_directories(test_exploit_eth_signing_ct_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_eth_signing_ct_standalone PRIVATE STANDALONE_TEST SECP256K1_BUILD_ETHEREUM)
+add_test(NAME exploit_eth_signing_ct COMMAND test_exploit_eth_signing_ct_standalone)
+set_tests_properties(exploit_eth_signing_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;ethereum;ecdsa")
+
+# -- B-02 fix: Wallet sign_hash CT path (WALCT-1..8) — 2026-04-27 ----------
+add_executable(test_exploit_wallet_sign_ct_standalone
+    test_exploit_wallet_sign_ct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/wallet.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/coin_address.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/message_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/eth_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/keccak256.cpp)
+audit_target_defaults(test_exploit_wallet_sign_ct_standalone)
+target_include_directories(test_exploit_wallet_sign_ct_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_wallet_sign_ct_standalone PRIVATE STANDALONE_TEST SECP256K1_BUILD_ETHEREUM)
+add_test(NAME exploit_wallet_sign_ct COMMAND test_exploit_wallet_sign_ct_standalone)
+set_tests_properties(exploit_wallet_sign_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;wallet;ecdsa")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -2972,6 +3003,10 @@ add_executable(unified_audit_runner
     test_exploit_recoverable_sign_ct.cpp
     # M-6: Pippenger batch verify regression guard (PIPBATCH-1..8)
     test_exploit_pippenger_batch_regression.cpp
+    # B-01: Ethereum signing CT path (ETHCT-1..8)
+    test_exploit_eth_signing_ct.cpp
+    # B-02: Wallet sign_hash CT path (WALCT-1..8)
+    test_exploit_wallet_sign_ct.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

@@ -197,6 +197,12 @@ void ufsecp_gpu_ctx_destroy(ufsecp_gpu_ctx* ctx) {
     }
 }
 
+int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx) {
+    if (!ctx || !ctx->backend) return 0;
+    try { return ctx->backend->is_ready() ? 1 : 0; }
+    catch (...) { return 0; }
+}
+
 ufsecp_error_t ufsecp_gpu_last_error(const ufsecp_gpu_ctx* ctx) {
     if (!ctx) return UFSECP_ERR_NULL_ARG;
     return to_abi_error(ctx->backend->last_error());

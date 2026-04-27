@@ -33,6 +33,45 @@ evidence upgrades, and changes to what the repository can honestly claim.
   uses CT path (fix for C-1). Tests determinism, CT equivalence, recovery roundtrip, KAT, edge cases.
 - `audit/test_exploit_pippenger_batch_regression.cpp` — PIPBATCH-1..8: Pippenger batch verify
   regression guard (fix for M-6). Tests correctness + timing regression guard.
+- `audit/test_exploit_eth_signing_ct.cpp` — ETHCT-1..8: verifies `eth_sign_hash()` uses the
+  CT path (fix for B-01). Tests ct:: equivalence, determinism, ecrecover roundtrip, address recovery,
+  key separation, KAT stability.
+- `audit/test_exploit_wallet_sign_ct.cpp` — WALCT-1..8: verifies `wallet::sign_hash()` Bitcoin-family
+  path uses CT path (fix for B-02). Tests ct:: equivalence, determinism, recovery roundtrip,
+  address recovery, multi-coin (LTC), NULL hash edge case, key separation, KAT stability.
+
+Total exploit tests: 203 (wiring gate: all pass).
+
+### Bugs fixed (B-01..B-12 quality audit wave)
+
+**CRITICAL (B-01) — `eth_sign_hash()` used variable-time signing path:**
+- `cpu/src/eth_signing.cpp` line 72: `secp256k1::ecdsa_sign_recoverable()` →
+  `secp256k1::ct::ecdsa_sign_recoverable()`.
+- Impact: timing leak on k*G reveals nonce k → full private key recovery on EIP-155 endpoints.
+
+**HIGH (B-02) — `wallet::sign_hash()` Bitcoin-family path used variable-time signing:**
+- `cpu/src/wallet.cpp` line 177: unqualified `ecdsa_sign_recoverable()` (resolves to variable-time)
+  → `ct::ecdsa_sign_recoverable()`.
+- Impact: same k*G timing leak for all BTC/LTC/DOGE/BCH wallet sign_hash callers.
+
+**HIGH (B-03) — Metal `compute_units` always 0 (no GPU family heuristic):**
+- `gpu/src/gpu_backend_metal.mm`: Added GPU family heuristic: Apple7→8 CU, Apple8→8 CU, Apple9→10 CU.
+- `max_clock_mhz` remains 0 (Metal API does not expose clock frequency).
+
+**MEDIUM (B-05) — Stale version strings in active documentation:**
+- 9 docs updated from v3.{3,9,14,22,60,63,64}.x → v3.66.0:
+  `docs/API_REFERENCE.md`, `SECURITY.md`, `docs/CT_EMPIRICAL_REPORT.md`,
+  `docs/USER_GUIDE.md`, `docs/AUDIT_READINESS_REPORT_v1.md`,
+  `docs/AUDIT_TRACEABILITY.md`, `THREAT_MODEL.md`, `PORTING.md`, `AUDIT_GUIDE.md`.
+
+**MEDIUM (B-07) — Missing `ufsecp_gpu_is_ready()` C ABI wrapper:**
+- Added `int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx)` to:
+  `include/ufsecp/ufsecp_gpu.h` (declaration + Doxygen) and
+  `include/ufsecp/ufsecp_gpu_impl.cpp` (implementation with NULL + exception safety).
+
+**LOW (B-12) — Metal `max_threads_per_threadgroup` hardcoded to 1024:**
+- `metal/src/metal_runtime.mm`: replaced compile-time constant with
+  `[impl_->device maxThreadsPerThreadgroup].width` (device-specific query).
 
 ### New CAAS pipeline integrity tests added
 

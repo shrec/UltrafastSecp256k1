@@ -12,7 +12,7 @@
 
 ## Scope
 
-This report covers **UltrafastSecp256k1 v3.64.0+** internal verification results.
+This report covers **UltrafastSecp256k1 v3.66.0+** internal verification results.
 No external audit firm was engaged. All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
@@ -369,5 +369,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v3.64.0 -- Verification Transparency Report*  
+*UltrafastSecp256k1 v3.66.0 -- Verification Transparency Report*  
 *Not audited. Verification artifacts published for independent review.*

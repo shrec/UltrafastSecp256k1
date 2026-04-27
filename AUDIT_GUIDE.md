@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.64.0** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.66.0** -- Independent Auditor Navigation
 
 > The audit is not a document.
 > It is a reproducible system: clone, build, run, verify.
@@ -348,7 +348,7 @@ UltrafastSecp256k1/
 
 ## 6. Test Categories & Check Counts
 
-From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.22.0):
+From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.66.0):
 
 | Suite | Checks | Focus |
 |-------|--------|-------|
@@ -428,4 +428,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.64.0 -- Audit Guide*
+*UltrafastSecp256k1 v3.66.0 -- Audit Guide*

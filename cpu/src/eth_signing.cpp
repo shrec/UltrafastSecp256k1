@@ -8,6 +8,7 @@
 #include "secp256k1/coins/keccak256.hpp"
 #include "secp256k1/coins/ethereum.hpp"
 #include "secp256k1/recovery.hpp"
+#include "secp256k1/ct/sign.hpp"
 #include <cstring>
 
 namespace secp256k1::coins {
@@ -67,8 +68,8 @@ EthSignature eth_personal_sign(const std::uint8_t* msg, std::size_t msg_len,
 EthSignature eth_sign_hash(const std::array<std::uint8_t, 32>& hash,
                            const Scalar& private_key,
                            std::uint64_t chain_id) {
-    // ecdsa_sign_recoverable uses RFC 6979 deterministic nonce
-    auto rsig = secp256k1::ecdsa_sign_recoverable(hash, private_key);
+    // CT path: branchless parity, ct::scalar_inverse (SafeGCD), ct::generator_mul(k)
+    auto rsig = secp256k1::ct::ecdsa_sign_recoverable(hash, private_key);
 
     EthSignature result;
     auto r_bytes = rsig.sig.r.to_bytes();

@@ -143,6 +143,12 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_ctx_create(
 /** Destroy a GPU context and release all device resources. */
 UFSECP_API void ufsecp_gpu_ctx_destroy(ufsecp_gpu_ctx* ctx);
 
+/** Return 1 if the GPU context is fully initialized and ready to accept batch
+ *  operations, 0 otherwise. A context is ready after a successful
+ *  ufsecp_gpu_ctx_create() and until ufsecp_gpu_ctx_destroy() is called.
+ *  Returns 0 if ctx is NULL. */
+UFSECP_API int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx);
+
 /** Return the last error code from this GPU context. */
 UFSECP_API ufsecp_error_t ufsecp_gpu_last_error(const ufsecp_gpu_ctx* ctx);
 

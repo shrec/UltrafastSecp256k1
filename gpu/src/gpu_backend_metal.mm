@@ -326,8 +326,15 @@ public:
         std::memset(&out, 0, sizeof(out));
         std::snprintf(out.name, sizeof(out.name), "%s", info.name.c_str());
         out.global_mem_bytes      = info.recommended_working_set;
-        out.compute_units         = 0;
-        out.max_clock_mhz         = 0;
+        // Metal API does not expose SM/CU count or clock MHz directly.
+        // Estimate compute_units from GPU family (Apple7=M1 8-CU, Apple8=M2 8-10CU,
+        // Apple9=M3 10-CU baseline). Falls back to 0 for unknown/non-Apple hardware.
+        uint32_t cu_estimate = 0;
+        if (info.supports_family_apple9)      cu_estimate = 10; // M3 baseline (10 GPU cores)
+        else if (info.supports_family_apple8) cu_estimate = 8;  // M2 baseline (8 GPU cores)
+        else if (info.supports_family_apple7) cu_estimate = 8;  // M1 baseline (8 GPU cores)
+        out.compute_units         = cu_estimate;
+        out.max_clock_mhz         = 0; // Metal API: clock MHz unavailable
         out.max_threads_per_block = info.max_threads_per_threadgroup;
         out.backend_id            = 3;
         out.device_index          = 0;

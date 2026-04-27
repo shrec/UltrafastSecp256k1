@@ -9,6 +9,7 @@
 #include "secp256k1/coins/message_signing.hpp"
 #include "secp256k1/context.hpp"
 #include "secp256k1/recovery.hpp"
+#include "secp256k1/ct/sign.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
@@ -174,7 +175,7 @@ MessageSignature sign_hash(const CoinParams& coin, const WalletKey& key,
         return result;
     }
 #endif
-    auto rsig = ecdsa_sign_recoverable(hash, key.priv);
+    auto rsig = ct::ecdsa_sign_recoverable(hash, key.priv);
     return from_recoverable(rsig, static_cast<std::uint64_t>(27) + static_cast<std::uint64_t>(rsig.recid));
 }
 

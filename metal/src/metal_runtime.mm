@@ -135,7 +135,9 @@ DeviceInfo MetalRuntime::device_info() const {
     info.name = [[impl_->device name] UTF8String];
     info.max_buffer_length = [impl_->device maxBufferLength];
     info.recommended_working_set = [impl_->device recommendedMaxWorkingSetSize];
-    info.max_threads_per_threadgroup = 1024; // Apple Silicon default
+    // Query device max threads per threadgroup (not a constant — varies by family).
+    info.max_threads_per_threadgroup = static_cast<uint32_t>(
+        [impl_->device maxThreadsPerThreadgroup].width);
     info.supports_family_apple7 = [impl_->device supportsFamily:MTLGPUFamilyApple7];
     info.supports_family_apple8 = [impl_->device supportsFamily:MTLGPUFamilyApple8];
     // Apple9 check — MTLGPUFamilyApple9 is an enum (not a macro),

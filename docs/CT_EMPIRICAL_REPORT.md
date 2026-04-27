@@ -1,6 +1,6 @@
 # Constant-Time Empirical Proof Report
 
-**UltrafastSecp256k1 v3.60.0** -- Statistical Timing Analysis
+**UltrafastSecp256k1 v3.66.0** -- Statistical Timing Analysis
 
 ---
 
@@ -169,7 +169,7 @@ no out-of-order scheduler pressure.
 ARM64 Cortex-A55 shows the highest CT overhead (2.57x ECDSA) despite being in-order —
 likely cache pressure from the larger working set of precomputed tables.
 
-x86-64 CT overhead improved from 1.94x (v3.14.0) to **1.77x** (v3.16.0) following
+x86-64 CT overhead improved from 1.94x (v3.66.0) to **1.77x** (v3.16.0) following
 the GLV decomposition correctness fix (v3.13.1): `ct_scalar_mul_mod_n()` replaced
 the truncated 128-bit intermediate path. Absolute CT scalar_mul: 25.3µs vs 24.0µs
 fast path (1.05x overhead at the scalar_mul level alone).
@@ -334,7 +334,7 @@ timeout 1800 ./build/cpu/test_ct_sidechannel_standalone
 > total measurements across 35+ operations (plus protocol-level tests added
 > in v3.16.0), using Welch's two-sample t-test at a significance level of
 > p < 0.00001 (|t| < 4.5), we find **no statistically significant timing
-> variance** in any `ct::` namespace operation of UltrafastSecp256k1 v3.60.0.
+> variance** in any `ct::` namespace operation of UltrafastSecp256k1 v3.66.0.
 >
 > This does NOT constitute formal verification. CT properties may be
 > affected by compiler version, optimization level, and target
@@ -370,4 +370,4 @@ timeout 1800 ./build/cpu/test_ct_sidechannel_standalone
 
 ---
 
-*UltrafastSecp256k1 v3.60.0 — CT Empirical Proof Report v2.0*
+*UltrafastSecp256k1 v3.66.0 — CT Empirical Proof Report v2.0*

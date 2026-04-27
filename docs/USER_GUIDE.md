@@ -90,7 +90,7 @@ project(myapp)
 include(FetchContent)
 FetchContent_Declare(ufsecp
     GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
-    GIT_TAG        v3.60.0)
+    GIT_TAG        v3.66.0)
 FetchContent_MakeAvailable(ufsecp)
 
 add_executable(myapp main.c)
