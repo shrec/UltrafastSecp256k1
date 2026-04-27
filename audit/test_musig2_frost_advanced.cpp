@@ -181,10 +181,6 @@ static void test_musig2_key_coefficient_binding() {
         auto sk_a = random_privkey(rng);
         auto sk_b = random_privkey(rng);
         auto sk_c = random_privkey(rng);
-        auto pk_a = xonly_pubkey(sk_a);
-        auto pk_b = xonly_pubkey(sk_b);
-        auto pk_c = xonly_pubkey(sk_c);
-
         auto ck_a = compressed_pubkey(sk_a);
         auto ck_b = compressed_pubkey(sk_b);
         auto ck_c = compressed_pubkey(sk_c);
