@@ -249,7 +249,7 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
     Scalar const s_inv = pre_sig.s_hat.inverse();
 
     Point const u1G = Point::generator().scalar_mul(z * s_inv);
-    Point const u2P = public_key.scalar_mul(pre_sig.r * s_inv);
+    Point const u2P = public_key.scalar_mul(pre_sig.r * s_inv);  // nosemgrep: secret-scalar-variable-time-mul
     Point const R_check = u1G.add(u2P);
 
     Scalar const binding = ecdsa_adaptor_binding(adaptor_point);

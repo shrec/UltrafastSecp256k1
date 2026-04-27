@@ -74,8 +74,6 @@ static void test_key_aggregation() {
     Scalar const s1 = Scalar::from_bytes(sk1_bytes);
     Scalar const s2 = Scalar::from_bytes(sk2_bytes);
 
-    auto pk1 = get_xonly_pubkey(s1);
-    auto pk2 = get_xonly_pubkey(s2);
     auto pk1c = get_compressed_pubkey(s1);
     auto pk2c = get_compressed_pubkey(s2);
 

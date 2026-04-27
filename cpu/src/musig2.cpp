@@ -269,7 +269,7 @@ MuSig2Session musig2_start_sign_session(
     session.b = Scalar::from_bytes(b_hash);
 
     // R = R1 + b * R2
-    auto bR2 = agg_nonce.R2.scalar_mul(session.b);
+    auto bR2 = agg_nonce.R2.scalar_mul(session.b);  // nosemgrep: secret-scalar-variable-time-mul
     session.R = agg_nonce.R1.add(bR2);
 
     // Negate R if needed for even Y
