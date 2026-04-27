@@ -403,7 +403,7 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
         ${CMAKE_SOURCE_DIR}  # For rdtsc.h and intrinsics.h
 )
 
-target_compile_features(${SECP256K1_LIB_NAME} PUBLIC cxx_std_20)
+target_compile_features(${SECP256K1_LIB_NAME} PRIVATE cxx_std_20)
 
 # Set SOVERSION for shared library builds
 set_target_properties(${SECP256K1_LIB_NAME} PROPERTIES

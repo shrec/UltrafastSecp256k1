@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
 project(secp256k1_shim LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # -- Shim library --------------------------------------------------------------
+# The shim implementation uses C++20 internally (it includes UF C++ headers),
+# but exposes a pure C API.  Use PRIVATE so the C++20 requirement does NOT
+# propagate to consumers (e.g. Bitcoin Core which targets C++17).
 
 add_library(secp256k1_shim STATIC
     src/shim_context.cpp
@@ -19,6 +19,10 @@ add_library(secp256k1_shim STATIC
     src/shim_ecdh.cpp
     src/shim_musig.cpp
 )
+
+# C++20 is needed to compile the shim (it includes UF C++ headers),
+# but must not leak to consumers — PRIVATE keeps it shim-internal.
+target_compile_features(secp256k1_shim PRIVATE cxx_std_20)
 
 # Public includes -- exposes libsecp256k1-compatible headers
 target_include_directories(secp256k1_shim PUBLIC

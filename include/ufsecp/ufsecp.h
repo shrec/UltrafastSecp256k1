@@ -11,8 +11,11 @@
  *   2. Every function returns `ufsecp_error_t` (0 = OK).
  *   3. No internal types leak -- all I/O is `uint8_t[]` with documented sizes.
  *   4. ABI version checked at link time via `ufsecp_abi_version()`.
+ *      Full policy: docs/ABI_VERSIONING.md
  *   5. Thread safety: each ctx is single-thread; create one per thread or
- *      protect externally.
+ *      protect externally. Blinding state (ufsecp_context_randomize) is
+ *      thread-local and orthogonal to context ownership.
+ *      Full policy: docs/THREAD_SAFETY.md
  *   6. Dual-layer constant-time: secret-dependent operations (scalar mul,
  *      nonce gen, key tweak) ALWAYS use the CT layer; public operations
  *      (verification, point serialisation) ALWAYS use the fast layer.
