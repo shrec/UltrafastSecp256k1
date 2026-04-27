@@ -1071,7 +1071,7 @@ if(BUILD_TESTING)
     # -- FFI C ABI coverage tests (Pedersen switch, ZK range, BIP-324) --
     add_executable(test_ffi_coverage_standalone
         tests/test_ffi_coverage.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp/ufsecp_impl.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ufsecp_impl.cpp)
     target_link_libraries(test_ffi_coverage_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_include_directories(test_ffi_coverage_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include

@@ -47,12 +47,12 @@ set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
 option(UFSECP_BUILD_SHARED "Build shared library" ON)
 option(UFSECP_BUILD_STATIC "Build static library" ON)
 
-set(UFSECP_IMPL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ufsecp_impl.cpp")
+set(UFSECP_IMPL_SRC "${ULTRAFAST_ROOT}/cpu/src/ufsecp_impl.cpp")
 
 # GPU C ABI implementation (only when gpu host layer is built)
 set(UFSECP_GPU_IMPL_SRC "")
 if(TARGET secp256k1_gpu_host)
-    set(UFSECP_GPU_IMPL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ufsecp_gpu_impl.cpp")
+    set(UFSECP_GPU_IMPL_SRC "${ULTRAFAST_ROOT}/cpu/src/ufsecp_gpu_impl.cpp")
 endif()
 
 # Helper: configure a target with the right includes/definitions
