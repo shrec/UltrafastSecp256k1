@@ -182,3 +182,7 @@ tools/source_graph_kit/source_graph.db
 
 # Lean 4 build artifacts
 audit/formal/lean/.lake/
+
+# Local scratch / generated binaries
+config.ini
+scan_lut_bench.bin
