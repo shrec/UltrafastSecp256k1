@@ -7,6 +7,41 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27f (CAAS completion: Wycheproof CI, BTC bench evidence, libsecp/Bitcoin Core gap tests)
+
+### CAAS Stage 2e: Bitcoin Core test_bitcoin gate added
+
+`scripts/check_bitcoin_core_test_results.py` validates `docs/BITCOIN_CORE_TEST_RESULTS.json`
+(total≥693, failed=0, commit present). Wired into `preflight.yml` as Stage 2e.
+Current status: 5/5 PASS against the 693/693 evidence from commit `c1df659e`.
+
+### Dedicated Wycheproof CI workflow
+
+`.github/workflows/wycheproof.yml` runs all 11 `test_wycheproof_*` targets
+independently and uploads a named `wycheproof-report` artifact. Triggers on
+push/PR to main/dev and weekly on Wednesdays.
+
+### Bitcoin Core bench_bitcoin evidence
+
+`docs/BITCOIN_CORE_BENCH_RESULTS.json` records UltrafastSecp256k1 vs libsecp256k1
+bench_bitcoin results: SignTransactionECDSA +17.5%, SignTransactionSchnorr +8.3%,
+VerifyScriptBench +5.4%.
+
+### CAAS gap: libsecp256k1 EC key API tests (L-01)
+
+`test_exploit_libsecp_eckey_api.cpp` mirrors bitcoin-core/secp256k1 `run_eckey_tests()`:
+17 tests covering seckey/pubkey tweak add/mul with boundary tweaks (zero, identity,
+overflow, cancellation), negate double-roundtrip, and sign/verify after tweak.
+Wired in `differential` section of unified_audit_runner.
+
+### CAAS gap: Bitcoin Core R-grinding nonce pattern (BC-01)
+
+`test_exploit_bitcoin_core_rgrinding.cpp` verifies the ndata-increment grinding
+pattern used by Bitcoin Core (grind_r=true): different aux_rand → different sigs,
+all grinding sigs valid, all DER-valid, all low-S (STRICTENC). 8 tests in `differential` section.
+
+---
+
 ## 2026-04-27e (BIP-327 Y-parity fix + Bitcoin Core 693/693 evidence)
 
 ### musig2_key_agg: forced even-Y removed (BIP-327 compliance)

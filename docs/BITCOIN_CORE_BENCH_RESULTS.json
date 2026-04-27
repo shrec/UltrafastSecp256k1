@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-04-27T22:30:00Z",
+  "description": "Bitcoin Core bench_bitcoin performance comparison: upstream libsecp256k1 vs UltrafastSecp256k1 shim",
+  "backend": "UltrafastSecp256k1",
+  "backend_commit": "c1df659e",
+  "bitcoin_core_fork": "shrec/bitcoin-core-dev",
+  "bitcoin_core_fork_commit": "2d4e5b3",
+  "bench_config": {
+    "duration_s": 3,
+    "flag": "-s",
+    "build_type": "Release",
+    "extra_flags": "-march=native, LTO",
+    "shim_config": "w=18 precomputed table cache, non-GLV path"
+  },
+  "results": [
+    {
+      "benchmark": "SignTransactionECDSA",
+      "unit": "ns/op",
+      "baseline_libsecp256k1": 96006,
+      "ultrafast_secp256k1": 79196,
+      "improvement_pct": 17.5,
+      "note": "ECDSA transaction signing; UltrafastSecp256k1 hedged nonce via ct::ecdsa_sign_hedged"
+    },
+    {
+      "benchmark": "SignTransactionSchnorr",
+      "unit": "ns/op",
+      "baseline_libsecp256k1": 80368,
+      "ultrafast_secp256k1": 73663,
+      "improvement_pct": 8.3,
+      "note": "Schnorr (BIP-340) transaction signing"
+    },
+    {
+      "benchmark": "VerifyScriptBench",
+      "unit": "ns/op",
+      "baseline_libsecp256k1": 24555,
+      "ultrafast_secp256k1": 23231,
+      "improvement_pct": 5.4,
+      "note": "Script verification (mixed ECDSA + Schnorr inputs)"
+    }
+  ],
+  "summary": {
+    "benchmarks_run": 3,
+    "all_improved": true,
+    "best_improvement_pct": 17.5,
+    "worst_improvement_pct": 5.4,
+    "geometric_mean_improvement_pct": 10.2
+  },
+  "methodology": "bench_bitcoin run with -s 3 (3-second stable run per benchmark). Results averaged over multiple trials. Shim uses CT-safe signing path (ct::ecdsa_sign_hedged for ndata != nullptr) and precomputed w=18 generator table."
+}

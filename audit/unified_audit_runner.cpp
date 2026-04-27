@@ -414,6 +414,8 @@ int test_exploit_eth_signing_ct_run();          // Ethereum signing CT path (ETH
 int test_exploit_wallet_sign_ct_run();          // Wallet sign_hash CT path (WALCT-1..8) — B-02 fix — 2026-04-27
 int test_exploit_monolith_split_run();          // Monolith split integrity (MONO-1..12) — B-04 fix — 2026-04-27
 int test_exploit_gpu_secret_erase_run();        // GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 — 2026-04-27
+int test_exploit_libsecp_eckey_api_run();       // libsecp256k1 EC key API compat (ECKEY-1..17) — L-01 — 2026-04-27
+int test_exploit_bitcoin_core_rgrinding_run();  // Bitcoin Core R-grinding nonce pattern (RGRIND-1..8) — BC-01 — 2026-04-27
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -827,6 +829,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wallet_sign_ct",              "Wallet sign_hash CT path (WALCT-1..8) — B-02 fix 2026-04-27",                  "exploit_poc",   test_exploit_wallet_sign_ct_run, false },
     { "exploit_monolith_split",              "ufsecp_impl.cpp unity-build split integrity (MONO-1..12) — B-04 2026-04-27",   "exploit_poc",   test_exploit_monolith_split_run, false },
     { "exploit_gpu_secret_erase",            "GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 2026-04-27", "exploit_poc", test_exploit_gpu_secret_erase_run, false },
+    { "exploit_libsecp_eckey_api",           "libsecp256k1 EC key API compat (ECKEY-1..17) — L-01 2026-04-27",                   "differential", test_exploit_libsecp_eckey_api_run, false },
+    { "exploit_bitcoin_core_rgrinding",      "Bitcoin Core R-grinding nonce pattern (RGRIND-1..8) — BC-01 2026-04-27",           "differential", test_exploit_bitcoin_core_rgrinding_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

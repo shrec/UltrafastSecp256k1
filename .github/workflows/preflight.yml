@@ -124,6 +124,9 @@ jobs:
       - name: CAAS Stage 2d — Source Graph Quality (hard-fail)
         run: python3 scripts/check_source_graph_quality.py
 
+      - name: CAAS Stage 2e — Bitcoin Core test_bitcoin Gate (hard-fail)
+        run: python3 scripts/check_bitcoin_core_test_results.py
+
       - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
         run: |
           python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json

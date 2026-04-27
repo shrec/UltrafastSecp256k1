@@ -2504,6 +2504,30 @@ target_compile_definitions(test_exploit_gpu_secret_erase_standalone PRIVATE STAN
 add_test(NAME exploit_gpu_secret_erase COMMAND test_exploit_gpu_secret_erase_standalone)
 set_tests_properties(exploit_gpu_secret_erase PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;secret;erase;batch")
 
+# -- L-01: libsecp256k1 EC key API compatibility (ECKEY-1..17) — 2026-04-27 --
+add_executable(test_exploit_libsecp_eckey_api_standalone
+    test_exploit_libsecp_eckey_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_libsecp_eckey_api_standalone)
+target_include_directories(test_exploit_libsecp_eckey_api_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+)
+target_compile_definitions(test_exploit_libsecp_eckey_api_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_libsecp_eckey_api COMMAND test_exploit_libsecp_eckey_api_standalone)
+set_tests_properties(exploit_libsecp_eckey_api PROPERTIES TIMEOUT 60 LABELS "audit;exploit;libsecp;eckey;tweak;negate;differential")
+
+# -- BC-01: Bitcoin Core R-grinding nonce pattern (RGRIND-1..8) — 2026-04-27 -
+add_executable(test_exploit_bitcoin_core_rgrinding_standalone test_exploit_bitcoin_core_rgrinding.cpp)
+audit_target_defaults(test_exploit_bitcoin_core_rgrinding_standalone)
+target_compile_definitions(test_exploit_bitcoin_core_rgrinding_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bitcoin_core_rgrinding COMMAND test_exploit_bitcoin_core_rgrinding_standalone)
+set_tests_properties(exploit_bitcoin_core_rgrinding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bitcoin;core;rgrinding;nonce;differential")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3045,6 +3069,10 @@ add_executable(unified_audit_runner
     test_exploit_monolith_split.cpp
     # B-08/B-09: GPU secret erase + batch sign partial
     test_exploit_gpu_secret_erase.cpp
+    # L-01: libsecp256k1 EC key API compatibility
+    test_exploit_libsecp_eckey_api.cpp
+    # BC-01: Bitcoin Core R-grinding nonce pattern
+    test_exploit_bitcoin_core_rgrinding.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
