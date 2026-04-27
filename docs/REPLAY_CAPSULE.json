@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-04-27T17:19:42.635642+00:00",
-  "commit_hash": "613fd2fef20dcbd48839f792f6579fe17cd4e90c",
+  "generated_at": "2026-04-27T17:25:37.366993+00:00",
+  "commit_hash": "4fa1abb68b9f33e896c176ce35d9f6d7846dd267",
   "dirty": true,
-  "profile": "default",
+  "profile": "bitcoin-core-backend",
   "build_flags": {
     "cmake_build_type": "Release",
     "compiler": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
@@ -19,7 +19,7 @@
   "replay_commands": [
     "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release",
     "ninja -C build",
-    "python3 scripts/caas_runner.py --profile default --json -o caas_report.json",
+    "python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o caas_report.json",
     "python3 scripts/verify_external_audit_bundle.py --json"
   ],
   "known_residuals": [
