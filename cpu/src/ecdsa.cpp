@@ -118,13 +118,7 @@ namespace {
 using secp256k1::detail::secure_erase;
 
 static inline Point signing_generator_mul(const Scalar& scalar) {
-#if defined(_MSC_VER)
-    // MSVC Release has shown runtime fixed-base generator divergence for some
-    // scalars after hostile reconfiguration. Keep signing on the proven CT path.
-    return ct::generator_mul(scalar);
-#else
-    return Point::generator().scalar_mul(scalar);
-#endif
+    return ct::generator_mul_blinded(scalar);
 }
 
 // -- SHA-256 IV ---------------------------------------------------------------
@@ -473,8 +467,8 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 #endif
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
-                // s = k^{-1} * (z + r * d) mod n
-                auto k_inv = k.inverse();
+                // s = k^{-1} * (z + r * d) mod n  (CT SafeGCD inverse)
+                auto k_inv = ct::scalar_inverse(k);
                 auto s = k_inv * (z + r * private_key);
                 if (!s.is_zero()) {
                     // Normalize to low-S (BIP-62)
@@ -532,7 +526,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
             auto r_bytes = r_fe.to_bytes();
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
-                auto k_inv = k.inverse();
+                auto k_inv = ct::scalar_inverse(k);
                 auto s = k_inv * (z + r * private_key);
                 if (!s.is_zero()) {
                     result = ECDSASignature{r, s}.normalize();

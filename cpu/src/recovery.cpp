@@ -45,13 +45,7 @@ static const std::array<uint8_t, 32> SECP256K1_ORDER_BYTES = {
 };
 
 static inline Point signing_generator_mul(const Scalar& scalar) {
-#if defined(_MSC_VER)
-    // Match ECDSA signing fallback so recoverable signatures stay correct when
-    // hostile runtime fixed-base settings are active on MSVC Release builds.
-    return ct::generator_mul(scalar);
-#else
-    return Point::generator().scalar_mul(scalar);
-#endif
+    return ct::generator_mul_blinded(scalar);
 }
 
 // -- Sign with Recovery ID ----------------------------------------------------
@@ -97,8 +91,8 @@ RecoverableSignature ecdsa_sign_recoverable(
     }
     if (overflow) recid |= 2;
 
-    // s = k^-^1 * (z + r * d) mod n
-    auto k_inv = k.inverse();
+    // s = k^-^1 * (z + r * d) mod n  (CT SafeGCD inverse)
+    auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 

@@ -2027,6 +2027,7 @@ ufsecp_ctx_destroy(ctx);
 | `ufsecp_last_error` | `(const ctx*) -> error_t` | Last error code |
 | `ufsecp_last_error_msg` | `(const ctx*) -> const char*` | Last error message |
 | `ufsecp_ctx_size` | `(void) -> size_t` | Compiled ctx struct size |
+| `ufsecp_context_randomize` | `(ctx, seed32[32]\|NULL) -> error_t` | Install scalar blinding (thread-local); NULL clears |
 
 <a id="c-abi-private-key-operations"></a>
 ### Private Key Operations

@@ -91,6 +91,46 @@ size_t ufsecp_ctx_size(void) {
 }
 
 /* ===========================================================================
+ * Context randomization / scalar blinding
+ * =========================================================================== */
+
+ufsecp_error_t ufsecp_context_randomize(ufsecp_ctx* ctx,
+                                        const uint8_t* seed32) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    if (!seed32) {
+        secp256k1::ct::clear_blinding();
+        return UFSECP_OK;
+    }
+
+    // Derive blinding scalar r via SHA-256(seed32 || context_salt)
+    // Using two rounds so r has full 256-bit entropy and is indistinguishable
+    // from uniform (SHA-256 output is uniformly distributed in [0, 2^256-1]).
+    static constexpr uint8_t SALT[8] = {'U','F','B','L','I','N','D',0};
+    secp256k1::SHA256 h;
+    h.update(seed32, 32);
+    h.update(SALT, sizeof(SALT));
+    auto digest = h.finalize();
+
+    Scalar r = Scalar::from_bytes(digest);
+    // from_bytes reduces mod n — reject zero (astronomically unlikely: p(0)=2^{-128})
+    if (SECP256K1_UNLIKELY(r.is_zero())) {
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "blinding scalar is zero");
+    }
+
+    // r_G = r * G  (uses the precomputed CT Hamburg comb; ~8 µs)
+    Point r_G = secp256k1::ct::generator_mul(r);
+    secp256k1::ct::set_blinding(r, r_G);
+
+    // Zeroize local secrets before returning
+    secp256k1::detail::secure_erase(digest.data(), digest.size());
+    secp256k1::detail::secure_erase(&r, sizeof(r));
+    secp256k1::detail::secure_erase(&r_G, sizeof(r_G));
+    return UFSECP_OK;
+}
+
+/* ===========================================================================
  * Private key utilities
  * =========================================================================== */
 

@@ -6,6 +6,7 @@
 #include "secp256k1/field_52.hpp"
 #include "secp256k1/debug_invariants.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/ct/point.hpp"  // ct::generator_mul for secret-bearing paths
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)
@@ -281,7 +282,7 @@ bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
 
 std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
     SECP_ASSERT_SCALAR_VALID(private_key);
-    auto P = Point::generator().scalar_mul(private_key);
+    auto P = ct::generator_mul(private_key);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
     (void)p_y_odd;
     return px;
@@ -295,7 +296,7 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     auto d_prime = private_key;
     if (d_prime.is_zero()) return kp;
 
-    auto P = Point::generator().scalar_mul(d_prime);
+    auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
 
     kp.d = p_y_odd ? d_prime.negate() : d_prime;
@@ -327,8 +328,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero()) return SchnorrSignature{};
 
-    // Step 3: R = k' * G (single gen_mul -- the only expensive point op)
-    auto R = Point::generator().scalar_mul(k_prime);
+    // Step 3: R = k' * G (CT Hamburg comb, blinded when context_randomize active)
+    auto R = ct::generator_mul_blinded(k_prime);
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
 
     // Step 4: k = k' if has_even_y(R), else n - k'
@@ -472,7 +473,7 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
 
 SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
     SchnorrXonlyPubkey pub{};
-    auto P = Point::generator().scalar_mul(kp.d);
+    auto P = ct::generator_mul(kp.d);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
     if (p_y_odd) {
 #if defined(SECP256K1_FAST_52BIT)

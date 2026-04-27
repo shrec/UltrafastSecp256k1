@@ -231,6 +231,25 @@ std::uint64_t point_is_on_curve(const Point& p) noexcept;
 // CT equality check
 std::uint64_t point_eq(const Point& a, const Point& b) noexcept;
 
+// --- Context Scalar Blinding -------------------------------------------------
+// Enables additive scalar blinding on the signing generator multiply path.
+// When active, generator_mul_blinded(k) computes (k+r)*G - r*G = k*G, where
+// r is a random scalar renewed by the caller (ufsecp_context_randomize).
+// Blinding state is thread-local: each thread inherits a clean (inactive) state
+// and must call set_blinding() to activate it.
+
+// Install a new blinding factor r and its precomputed negation -r*G.
+// r_G must equal r*G (computed via ct::generator_mul).  Caller is responsible.
+void set_blinding(const Scalar& r, const Point& r_G) noexcept;
+
+// Remove blinding (returns to unblinded ct::generator_mul).
+void clear_blinding() noexcept;
+
+// Blinded generator multiply for signing paths only.
+// Returns k*G via (k+r)*G + (-r*G) when blinding is active; falls through to
+// plain ct::generator_mul(k) otherwise.
+Point generator_mul_blinded(const Scalar& k) noexcept;
+
 } // namespace secp256k1::ct
 
 #endif // SECP256K1_CT_POINT_HPP

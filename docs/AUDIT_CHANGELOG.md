@@ -7,6 +7,60 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27d (security: CT default + context randomization / scalar blinding)
+
+### CT Default Cleanup — public C++ signing APIs
+
+Previously, the public C++ signing functions (`secp256k1::ecdsa_sign`,
+`ecdsa_sign_hedged`, `ecdsa_sign_recoverable`, `schnorr_sign`,
+`schnorr_keypair_create`, `schnorr_pubkey`, `schnorr_xonly_from_keypair`)
+used variable-time generator multiplication and `Scalar::inverse()` on the
+secret nonce k. Only MSVC builds fell back to the CT path.
+
+**Changes:**
+
+- `cpu/src/ecdsa.cpp`: `signing_generator_mul` → `ct::generator_mul_blinded`;
+  `k.inverse()` → `ct::scalar_inverse(k)` in both `ecdsa_sign` and
+  `ecdsa_sign_hedged`.
+- `cpu/src/recovery.cpp`: same changes for `ecdsa_sign_recoverable`.
+- `cpu/src/schnorr.cpp`: added `ct/point.hpp` include; all four secret-key
+  generator multiplications (`schnorr_pubkey`, `schnorr_keypair_create`,
+  nonce R = k'*G in `schnorr_sign`, and `schnorr_xonly_from_keypair`) changed
+  to `ct::generator_mul` / `ct::generator_mul_blinded`.
+
+Security impact: eliminates timing oracle on the nonce scalar in the fast-path
+C++ API. The C ABI wrappers (`ufsecp_*`) already routed through `ct::*`; this
+commit closes the gap in the public C++ interface.
+
+### Context Scalar Blinding — `ufsecp_context_randomize`
+
+New API: `ufsecp_context_randomize(ctx, seed32)`.
+
+Installs a per-thread random blinding scalar r derived from seed32 via
+SHA-256(seed32 ∥ "UFBLIND\0"). Subsequent signing calls compute (k+r)·G −
+r·G instead of k·G, protecting against DPA and fault-injection attacks without
+changing the output signature. Passing NULL clears the blinding state.
+
+**New symbols:**
+- `secp256k1::ct::generator_mul_blinded(k)` — signing entry-point that applies
+  blinding when active, falls through to `ct::generator_mul(k)` otherwise.
+- `secp256k1::ct::set_blinding(r, r_G)` — installs blinding state.
+- `secp256k1::ct::clear_blinding()` — zeroizes and deactivates.
+- `ufsecp_context_randomize(ctx, seed32)` — public C ABI function.
+
+Blinding state is thread-local. Performance overhead when active:
+~286 ns/sign (one `scalar_add` + one `point_add_mixed_complete`), ~3% on k·G.
+
+**Files changed:** `cpu/src/ct_point.cpp`, `cpu/include/secp256k1/ct/point.hpp`,
+`include/ufsecp/ufsecp.h`, `include/ufsecp/impl/ufsecp_core.cpp`.
+
+### Minor fixes (evaluation report items)
+
+- `VERSION.txt`: bumped 3.66.0 → 3.68.0 (matches git tag chain v3.68.0-69).
+- `README.md`: updated exploit PoC count 189 → 205 (was stale).
+
+---
+
 ## 2026-04-27c (perf: B-11 SECP256K1_UNLIKELY guard annotations — quality audit wave 3)
 
 ### Bugs fixed

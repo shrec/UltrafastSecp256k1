@@ -33,6 +33,7 @@
 
 #include "secp256k1/config.hpp"  // SECP256K1_FAST_52BIT, SECP256K1_INLINE
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/ops.hpp"
@@ -2949,6 +2950,56 @@ std::uint64_t point_eq(const Point& a, const Point& b) noexcept {
     FieldElement const s2 = field_mul(b.Y(), z1cu);
 
     return field_eq(u1, u2) & field_eq(s1, s2);
+}
+
+// --- Context Scalar Blinding -------------------------------------------------
+
+namespace {
+
+struct BlindingState {
+    Scalar       r;               // random blinding scalar
+    CTAffinePoint neg_r_G;        // affine coordinates of -r*G
+    bool         active{false};
+};
+
+} // anonymous namespace
+
+static thread_local BlindingState g_blinding;
+
+void set_blinding(const Scalar& r, const Point& r_G) noexcept {
+    BlindingState& bl = g_blinding;
+    bl.r = r;
+    // Store -r*G as affine point for efficient mixed addition
+    CTAffinePoint aff = CTAffinePoint::from_point(r_G);
+    // Negate y: -r*G = (x, -y)
+    aff.y = aff.y.negate(1);
+    aff.y.normalize_weak();
+    bl.neg_r_G = aff;
+    bl.active  = true;
+}
+
+void clear_blinding() noexcept {
+    using secp256k1::detail::secure_erase;
+    BlindingState& bl = g_blinding;
+    secure_erase(&bl.r,       sizeof(bl.r));
+    secure_erase(&bl.neg_r_G, sizeof(bl.neg_r_G));
+    bl.active = false;
+}
+
+Point generator_mul_blinded(const Scalar& k) noexcept {
+    const BlindingState& bl = g_blinding;
+    if (SECP256K1_UNLIKELY(!bl.active)) {
+        return generator_mul(k);
+    }
+    // (k + r)*G - r*G = k*G, but attacker observes multiplication over (k+r)
+    const Scalar blinded = scalar_add(k, bl.r);
+    const Point  R       = generator_mul(blinded);
+    // Subtract r*G: add precomputed -r*G (affine mixed add, ~278 ns)
+    CTJacobianPoint R_jac    = CTJacobianPoint::from_point(R);
+    CTJacobianPoint R_result = point_add_mixed_complete(R_jac, bl.neg_r_G);
+    Point result = R_result.to_point();
+    SECP256K1_DECLASSIFY(&result, sizeof(result));
+    return result;
 }
 
 } // namespace secp256k1::ct

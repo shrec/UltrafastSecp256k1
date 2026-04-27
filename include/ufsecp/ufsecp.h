@@ -114,6 +114,26 @@ UFSECP_API const char* ufsecp_last_error_msg(const ufsecp_ctx* ctx);
 /** Size of the compiled ufsecp_ctx struct (for FFI layout assertions). */
 UFSECP_API size_t ufsecp_ctx_size(void);
 
+/** Randomize scalar blinding for constant-time signing operations.
+ *
+ *  Installs a fresh random blinding scalar r derived from seed32 into the
+ *  calling thread's blinding state.  Subsequent signing calls (ECDSA, Schnorr,
+ *  recoverable ECDSA) compute (k+r)*G - r*G instead of k*G, protecting against
+ *  DPA and fault-injection attacks without changing the output signature.
+ *
+ *  @param ctx    valid context (used only for error reporting).
+ *  @param seed32 32 bytes of entropy.  Pass NULL to clear blinding.
+ *  @return UFSECP_OK on success.
+ *
+ *  Thread safety: blinding state is thread-local; each thread must call this
+ *  independently.  A single context may be shared by multiple threads as long
+ *  as each thread randomizes its own blinding state.
+ *
+ *  Recommended: call once after context creation and periodically thereafter
+ *  (e.g. every 2^32 signing operations or whenever a new session begins). */
+UFSECP_API ufsecp_error_t ufsecp_context_randomize(ufsecp_ctx*    ctx,
+                                                    const uint8_t* seed32);
+
 /* ===========================================================================
  * Private key utilities
  * =========================================================================== */
