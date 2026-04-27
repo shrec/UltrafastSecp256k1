@@ -10,7 +10,7 @@ ufsecp_error_t ufsecp_taproot_output_key(ufsecp_ctx* ctx,
                                          const uint8_t* merkle_root,
                                          uint8_t output_x_out[32],
                                          int* parity_out) {
-    if (!ctx || !internal_x || !output_x_out || !parity_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !internal_x || !output_x_out || !parity_out)) {
         return UFSECP_ERR_NULL_ARG;
 }
     ctx_clear_err(ctx);
@@ -36,11 +36,11 @@ ufsecp_error_t ufsecp_taproot_tweak_seckey(ufsecp_ctx* ctx,
                                            const uint8_t privkey[32],
                                            const uint8_t* merkle_root,
                                            uint8_t tweaked32_out[32]) {
-    if (!ctx || !privkey || !tweaked32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !tweaked32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     size_t const mr_len = merkle_root ? 32 : 0;
@@ -61,8 +61,8 @@ ufsecp_error_t ufsecp_taproot_verify(ufsecp_ctx* ctx,
                                      const uint8_t output_x[32], int output_parity,
                                      const uint8_t internal_x[32],
                                      const uint8_t* merkle_root, size_t merkle_root_len) {
-    if (!ctx || !output_x || !internal_x) return UFSECP_ERR_NULL_ARG;
-    if (!merkle_root && merkle_root_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !output_x || !internal_x)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!merkle_root && merkle_root_len > 0)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> ok_x, ik_x;
@@ -119,7 +119,7 @@ ufsecp_error_t ufsecp_bip143_sighash(
 ufsecp_error_t ufsecp_bip143_p2wpkh_script_code(
     const uint8_t pubkey_hash[20],
     uint8_t script_code_out[25]) {
-    if (!pubkey_hash || !script_code_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!pubkey_hash || !script_code_out)) return UFSECP_ERR_NULL_ARG;
 
     auto sc = secp256k1::bip143_p2wpkh_script_code(pubkey_hash);
     std::memcpy(script_code_out, sc.data(), 25);
@@ -167,13 +167,13 @@ ufsecp_error_t ufsecp_bip144_txid(
     ufsecp_ctx* ctx,
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t txid_out[32]) {
-    if (!ctx || !raw_tx || !txid_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !raw_tx || !txid_out)) return UFSECP_ERR_NULL_ARG;
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // Detect witness flag: version(4) + marker(0x00) + flag(0x01)
     bool has_witness = (raw_tx_len > 6 && raw_tx[4] == 0x00 && raw_tx[5] == 0x01);
 
-    if (!has_witness) {
+    if (SECP256K1_UNLIKELY(!has_witness)) {
         // Legacy tx: txid = double-SHA256 of the entire raw bytes
         auto h = secp256k1::SHA256::hash256(raw_tx, raw_tx_len);
         std::memcpy(txid_out, h.data(), 32);
@@ -235,7 +235,7 @@ ufsecp_error_t ufsecp_bip144_wtxid(
     ufsecp_ctx* ctx,
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t wtxid_out[32]) {
-    if (!ctx || !raw_tx || !wtxid_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !raw_tx || !wtxid_out)) return UFSECP_ERR_NULL_ARG;
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // wtxid = double-SHA256 of the full witness-serialized tx
@@ -293,7 +293,7 @@ ufsecp_error_t ufsecp_segwit_parse_program(
 ufsecp_error_t ufsecp_segwit_p2wpkh_spk(
     const uint8_t pubkey_hash[20],
     uint8_t spk_out[22]) {
-    if (!pubkey_hash || !spk_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!pubkey_hash || !spk_out)) return UFSECP_ERR_NULL_ARG;
 
     auto spk = secp256k1::segwit_scriptpubkey_p2wpkh(pubkey_hash);
     std::memcpy(spk_out, spk.data(), 22);
@@ -303,7 +303,7 @@ ufsecp_error_t ufsecp_segwit_p2wpkh_spk(
 ufsecp_error_t ufsecp_segwit_p2wsh_spk(
     const uint8_t script_hash[32],
     uint8_t spk_out[34]) {
-    if (!script_hash || !spk_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!script_hash || !spk_out)) return UFSECP_ERR_NULL_ARG;
 
     auto spk = secp256k1::segwit_scriptpubkey_p2wsh(script_hash);
     std::memcpy(spk_out, spk.data(), 34);
@@ -313,7 +313,7 @@ ufsecp_error_t ufsecp_segwit_p2wsh_spk(
 ufsecp_error_t ufsecp_segwit_p2tr_spk(
     const uint8_t output_key[32],
     uint8_t spk_out[34]) {
-    if (!output_key || !spk_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!output_key || !spk_out)) return UFSECP_ERR_NULL_ARG;
 
     auto spk = secp256k1::segwit_scriptpubkey_p2tr(output_key);
     std::memcpy(spk_out, spk.data(), 34);
@@ -471,7 +471,7 @@ ufsecp_error_t ufsecp_pubkey_add(ufsecp_ctx* ctx,
                                  const uint8_t a33[33],
                                  const uint8_t b33[33],
                                  uint8_t out33[33]) {
-    if (!ctx || !a33 || !b33 || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !a33 || !b33 || !out33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto pa = point_from_compressed(a33);
     if (pa.is_infinity()) {
@@ -492,7 +492,7 @@ ufsecp_error_t ufsecp_pubkey_add(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_pubkey_negate(ufsecp_ctx* ctx,
                                     const uint8_t pubkey33[33],
                                     uint8_t out33[33]) {
-    if (!ctx || !pubkey33 || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !out33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto p = point_from_compressed(pubkey33);
     if (p.is_infinity()) {
@@ -507,14 +507,14 @@ ufsecp_error_t ufsecp_pubkey_tweak_add(ufsecp_ctx* ctx,
                                        const uint8_t pubkey33[33],
                                        const uint8_t tweak[32],
                                        uint8_t out33[33]) {
-    if (!ctx || !pubkey33 || !tweak || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !tweak || !out33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto p = point_from_compressed(pubkey33);
     if (p.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid pubkey");
     }
     Scalar tw;
-    if (!scalar_parse_strict(tweak, tw)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(tweak, tw))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "tweak >= n");
     }
     auto tG = Point::generator().scalar_mul(tw);
@@ -530,14 +530,14 @@ ufsecp_error_t ufsecp_pubkey_tweak_mul(ufsecp_ctx* ctx,
                                        const uint8_t pubkey33[33],
                                        const uint8_t tweak[32],
                                        uint8_t out33[33]) {
-    if (!ctx || !pubkey33 || !tweak || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !tweak || !out33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto p = point_from_compressed(pubkey33);
     if (p.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid pubkey");
     }
     Scalar tw;
-    if (!scalar_parse_strict_nonzero(tweak, tw)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(tweak, tw))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "tweak is zero or >= n");
     }
     auto result = p.scalar_mul(tw);
@@ -552,7 +552,7 @@ ufsecp_error_t ufsecp_pubkey_combine(ufsecp_ctx* ctx,
                                      const uint8_t* pubkeys,
                                      size_t n,
                                      uint8_t out33[33]) {
-    if (!ctx || !pubkeys || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkeys || !out33)) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "need >= 1 pubkey");
     ctx_clear_err(ctx);
     std::size_t total_pubkey_bytes = 0;
@@ -586,7 +586,7 @@ ufsecp_error_t ufsecp_bip39_generate(ufsecp_ctx* ctx,
                                      const uint8_t* entropy_in,
                                      char* mnemonic_out,
                                      size_t* mnemonic_len) {
-    if (!ctx || !mnemonic_out || !mnemonic_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !mnemonic_out || !mnemonic_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (entropy_bytes != 16 && entropy_bytes != 20 && entropy_bytes != 24 &&
         entropy_bytes != 28 && entropy_bytes != 32) {
@@ -594,7 +594,7 @@ ufsecp_error_t ufsecp_bip39_generate(ufsecp_ctx* ctx,
     }
     try {
     auto [mnemonic, ok] = secp256k1::bip39_generate(entropy_bytes, entropy_in);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-39 generation failed");
     }
     if (*mnemonic_len < mnemonic.size() + 1) {
@@ -608,7 +608,7 @@ ufsecp_error_t ufsecp_bip39_generate(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_bip39_validate(const ufsecp_ctx* ctx,
                                      const char* mnemonic) {
-    if (!ctx || !mnemonic) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !mnemonic)) return UFSECP_ERR_NULL_ARG;
     try {
     if (!secp256k1::bip39_validate(std::string(mnemonic))) {
         return UFSECP_ERR_BAD_INPUT;
@@ -621,12 +621,12 @@ ufsecp_error_t ufsecp_bip39_to_seed(ufsecp_ctx* ctx,
                                     const char* mnemonic,
                                     const char* passphrase,
                                     uint8_t seed64_out[64]) {
-    if (!ctx || !mnemonic || !seed64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !mnemonic || !seed64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     try {
     const std::string pass = passphrase ? passphrase : "";
     auto [seed, ok] = secp256k1::bip39_mnemonic_to_seed(std::string(mnemonic), pass);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid mnemonic");
     }
     std::memcpy(seed64_out, seed.data(), 64);
@@ -639,11 +639,11 @@ ufsecp_error_t ufsecp_bip39_to_entropy(ufsecp_ctx* ctx,
                                        const char* mnemonic,
                                        uint8_t* entropy_out,
                                        size_t* entropy_len) {
-    if (!ctx || !mnemonic || !entropy_out || !entropy_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !mnemonic || !entropy_out || !entropy_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     try {
     auto [ent, ok] = secp256k1::bip39_mnemonic_to_entropy(std::string(mnemonic));
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid mnemonic");
     }
     if (*entropy_len < ent.length) {
@@ -661,7 +661,7 @@ ufsecp_error_t ufsecp_bip39_to_entropy(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_schnorr_batch_verify(ufsecp_ctx* ctx,
                                            const uint8_t* entries, size_t n) {
-    if (!ctx || !entries) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !entries)) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return UFSECP_OK;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
@@ -693,7 +693,7 @@ ufsecp_error_t ufsecp_schnorr_batch_verify(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_ecdsa_batch_verify(ufsecp_ctx* ctx,
                                          const uint8_t* entries, size_t n) {
-    if (!ctx || !entries) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !entries)) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return UFSECP_OK;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
@@ -712,11 +712,11 @@ ufsecp_error_t ufsecp_ecdsa_batch_verify(ufsecp_ctx* ctx,
         }
         std::array<uint8_t, 64> compact;
         std::memcpy(compact.data(), e + 65, 64);
-        if (!secp256k1::ECDSASignature::parse_compact_strict(compact, batch[i].signature)) {
+        if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, batch[i].signature))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid ECDSA sig in batch");
         }
     }
-    if (!secp256k1::ecdsa_batch_verify(batch)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_batch_verify(batch))) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "batch verify failed");
     }
     return UFSECP_OK;
@@ -726,7 +726,7 @@ ufsecp_error_t ufsecp_ecdsa_batch_verify(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_schnorr_batch_identify_invalid(
     ufsecp_ctx* ctx, const uint8_t* entries, size_t n,
     size_t* invalid_out, size_t* invalid_count) {
-    if (!ctx || !entries || !invalid_out || !invalid_count) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !entries || !invalid_out || !invalid_count)) return UFSECP_ERR_NULL_ARG;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
     try {
@@ -757,7 +757,7 @@ ufsecp_error_t ufsecp_schnorr_batch_identify_invalid(
 ufsecp_error_t ufsecp_ecdsa_batch_identify_invalid(
     ufsecp_ctx* ctx, const uint8_t* entries, size_t n,
     size_t* invalid_out, size_t* invalid_count) {
-    if (!ctx || !entries || !invalid_out || !invalid_count) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !entries || !invalid_out || !invalid_count)) return UFSECP_ERR_NULL_ARG;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
     try {
@@ -771,7 +771,7 @@ ufsecp_error_t ufsecp_ecdsa_batch_identify_invalid(
         }
         std::array<uint8_t, 64> compact;
         std::memcpy(compact.data(), e + 65, 64);
-        if (!secp256k1::ECDSASignature::parse_compact_strict(compact, batch[i].signature)) {
+        if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, batch[i].signature))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid ECDSA sig in batch");
         }
     }
@@ -792,7 +792,7 @@ ufsecp_error_t ufsecp_ecdsa_batch_identify_invalid(
 
 ufsecp_error_t ufsecp_sha512(const uint8_t* data, size_t len,
                              uint8_t digest64_out[64]) {
-    if (!data || !digest64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data || !digest64_out)) return UFSECP_ERR_NULL_ARG;
     auto hash = secp256k1::SHA512::hash(data, len);
     std::memcpy(digest64_out, hash.data(), 64);
     return UFSECP_OK;
@@ -806,13 +806,13 @@ ufsecp_error_t ufsecp_shamir_trick(ufsecp_ctx* ctx,
                                    const uint8_t a[32], const uint8_t P33[33],
                                    const uint8_t b[32], const uint8_t Q33[33],
                                    uint8_t out33[33]) {
-    if (!ctx || !a || !P33 || !b || !Q33 || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !a || !P33 || !b || !Q33 || !out33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sa, sb;
-    if (!scalar_parse_strict(a, sa)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(a, sa))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "scalar a >= n");
     }
-    if (!scalar_parse_strict(b, sb)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(b, sb))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "scalar b >= n");
     }
     auto P = point_from_compressed(P33);
@@ -836,7 +836,7 @@ ufsecp_error_t ufsecp_multi_scalar_mul(ufsecp_ctx* ctx,
                                        const uint8_t* points,
                                        size_t n,
                                        uint8_t out33[33]) {
-    if (!ctx || !scalars || !points || !out33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !scalars || !points || !out33)) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "n must be >= 1");
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "n too large");
     ctx_clear_err(ctx);
@@ -850,7 +850,7 @@ ufsecp_error_t ufsecp_multi_scalar_mul(ufsecp_ctx* ctx,
     std::vector<Scalar> svec(n);
     std::vector<Point> pvec(n);
     for (size_t i = 0; i < n; ++i) {
-        if (!scalar_parse_strict(scalars + i * 32, svec[i])) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(scalars + i * 32, svec[i]))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "scalar >= n");
         }
         pvec[i] = point_from_compressed(points + i * 33);

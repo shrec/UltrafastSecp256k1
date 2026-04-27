@@ -9,7 +9,7 @@ ufsecp_error_t ufsecp_musig2_key_agg(ufsecp_ctx* ctx,
                                      const uint8_t* pubkeys, size_t n,
                                      uint8_t keyagg_out[UFSECP_MUSIG2_KEYAGG_LEN],
                                      uint8_t agg_pubkey32_out[32]) {
-    if (!ctx || !pubkeys || !keyagg_out || !agg_pubkey32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkeys || !keyagg_out || !agg_pubkey32_out)) return UFSECP_ERR_NULL_ARG;
     std::memset(keyagg_out, 0, UFSECP_MUSIG2_KEYAGG_LEN);
     std::memset(agg_pubkey32_out, 0, 32);
     if (n < 2) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "need >= 2 pubkeys");
@@ -46,11 +46,11 @@ ufsecp_error_t ufsecp_musig2_nonce_gen(ufsecp_ctx* ctx,
                                        const uint8_t extra_in[32],
                                        uint8_t secnonce_out[UFSECP_MUSIG2_SECNONCE_LEN],
                                        uint8_t pubnonce_out[UFSECP_MUSIG2_PUBNONCE_LEN]) {
-    if (!ctx || !privkey || !pubkey32 || !agg_pubkey32 || !msg32 ||
-        !secnonce_out || !pubnonce_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey32 || !agg_pubkey32 || !msg32 ||
+        !secnonce_out || !pubnonce_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     std::array<uint8_t, 32> pk_arr, agg_arr, msg_arr;
@@ -76,7 +76,7 @@ ufsecp_error_t ufsecp_musig2_nonce_gen(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_musig2_nonce_agg(ufsecp_ctx* ctx,
                                        const uint8_t* pubnonces, size_t n,
                                        uint8_t aggnonce_out[UFSECP_MUSIG2_AGGNONCE_LEN]) {
-    if (!ctx || !pubnonces || !aggnonce_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubnonces || !aggnonce_out)) return UFSECP_ERR_NULL_ARG;
     std::memset(aggnonce_out, 0, UFSECP_MUSIG2_AGGNONCE_LEN);
     if (n < 2) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "need >= 2 nonces");
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "nonce count too large");
@@ -113,7 +113,7 @@ ufsecp_error_t ufsecp_musig2_start_sign_session(
     const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
     const uint8_t msg32[32],
     uint8_t session_out[UFSECP_MUSIG2_SESSION_LEN]) {
-    if (!ctx || !aggnonce || !keyagg || !msg32 || !session_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !aggnonce || !keyagg || !msg32 || !session_out)) return UFSECP_ERR_NULL_ARG;
     std::memset(session_out, 0, UFSECP_MUSIG2_SESSION_LEN);
     ctx_clear_err(ctx);
     /* Deserialize agg nonce */
@@ -156,20 +156,20 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
     size_t signer_index,
     uint8_t partial_sig32_out[32]) {
-    if (!ctx || !secnonce || !privkey || !keyagg || !session || !partial_sig32_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !secnonce || !privkey || !keyagg || !session || !partial_sig32_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     secp256k1::MuSig2SecNonce sn;
     Scalar k1, k2;
-    if (!scalar_parse_strict_nonzero(secnonce, k1)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(secnonce, k1))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid secnonce k1");
     }
-    if (!scalar_parse_strict_nonzero(secnonce + 32, k2)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(secnonce + 32, k2))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid secnonce k2");
     }
     sn.k1 = k1;
@@ -212,12 +212,12 @@ ufsecp_error_t ufsecp_musig2_partial_verify(
     const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
     const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
     size_t signer_index) {
-    if (!ctx || !partial_sig32 || !pubnonce || !pubkey32 || !keyagg || !session) {
+    if (SECP256K1_UNLIKELY(!ctx || !partial_sig32 || !pubnonce || !pubkey32 || !keyagg || !session)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar psig;
-    if (!scalar_parse_strict(partial_sig32, psig)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(partial_sig32, psig))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "partial sig >= n");
     }
     std::array<uint8_t, 66> pn_buf;
@@ -257,7 +257,7 @@ ufsecp_error_t ufsecp_musig2_partial_sig_agg(
     const uint8_t* partial_sigs, size_t n,
     const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
     uint8_t sig64_out[64]) {
-    if (!ctx || !partial_sigs || !session || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !partial_sigs || !session || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (n == 0) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sigs must be non-empty");
@@ -269,7 +269,7 @@ ufsecp_error_t ufsecp_musig2_partial_sig_agg(
     try {
     std::vector<Scalar> psigs(n);
     for (size_t i = 0; i < n; ++i) {
-        if (!scalar_parse_strict(partial_sigs + i * 32, psigs[i])) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(partial_sigs + i * 32, psigs[i]))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "partial sig >= n");
         }
     }
@@ -300,7 +300,7 @@ ufsecp_error_t ufsecp_frost_keygen_begin(
     const uint8_t seed[32],
     uint8_t* commits_out, size_t* commits_len,
     uint8_t* shares_out, size_t* shares_len) {
-    if (!ctx || !seed || !commits_out || !commits_len || !shares_out || !shares_len) {
+    if (SECP256K1_UNLIKELY(!ctx || !seed || !commits_out || !commits_len || !shares_out || !shares_len)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -377,7 +377,7 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
     const uint8_t* received_shares, size_t shares_len,
     uint32_t threshold, uint32_t num_participants,
     uint8_t keypkg_out[UFSECP_FROST_KEYPKG_LEN]) {
-    if (!ctx || !all_commits || !received_shares || !keypkg_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !all_commits || !received_shares || !keypkg_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (threshold < 2 || threshold > num_participants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid threshold");
@@ -472,7 +472,7 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
         seen_share_from[shares[i].from] = 1;
         shares[i].id = participant_id;
         Scalar v;
-        if (!scalar_parse_strict(s + 4, v)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(s + 4, v))) {
             erase_shares();
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid share scalar");
         }
@@ -480,7 +480,7 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
     }
     auto [kp, ok] = secp256k1::frost_keygen_finalize(
         participant_id, commits, shares, threshold, num_participants);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         erase_shares();
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "FROST keygen finalize failed");
     }
@@ -505,7 +505,7 @@ ufsecp_error_t ufsecp_frost_sign_nonce_gen(
     const uint8_t nonce_seed[32],
     uint8_t nonce_out[UFSECP_FROST_NONCE_LEN],
     uint8_t nonce_commit_out[UFSECP_FROST_NONCE_COMMIT_LEN]) {
-    if (!ctx || !nonce_seed || !nonce_out || !nonce_commit_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !nonce_seed || !nonce_out || !nonce_commit_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (participant_id == 0) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid participant_id");
@@ -552,7 +552,7 @@ ufsecp_error_t ufsecp_frost_sign(
     const uint8_t msg32[32],
     const uint8_t* nonce_commits, size_t n_signers,
     uint8_t partial_sig_out[36]) {
-    if (!ctx || !keypkg || !nonce || !msg32 || !nonce_commits || !partial_sig_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !keypkg || !nonce || !msg32 || !nonce_commits || !partial_sig_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -579,7 +579,7 @@ ufsecp_error_t ufsecp_frost_sign(
     if (n_signers > kp.num_participants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid signer count");
     }
-    if (!scalar_parse_strict(keypkg + 12, kp.signing_share)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(keypkg + 12, kp.signing_share))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "invalid signing share in keypkg");
     }
     kp.verification_share = point_from_compressed(keypkg + 44);
@@ -592,10 +592,10 @@ ufsecp_error_t ufsecp_frost_sign(
     }
     secp256k1::FrostNonce fn;
     Scalar h, b;
-    if (!scalar_parse_strict_nonzero(nonce, h)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(nonce, h))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce");
     }
-    if (!scalar_parse_strict_nonzero(nonce + 32, b)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(nonce + 32, b))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid binding nonce");
     }
     fn.hiding_nonce = h;
@@ -665,7 +665,7 @@ ufsecp_error_t ufsecp_frost_verify_partial(
     const uint8_t* nonce_commits, size_t n_signers,
     const uint8_t msg32[32],
     const uint8_t group_pubkey33[33]) {
-    if (!ctx || !partial_sig || !verification_share33 || !nonce_commits || !msg32 || !group_pubkey33) {
+    if (SECP256K1_UNLIKELY(!ctx || !partial_sig || !verification_share33 || !nonce_commits || !msg32 || !group_pubkey33)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -685,7 +685,7 @@ ufsecp_error_t ufsecp_frost_verify_partial(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sig.id must be non-zero");
     }
     Scalar z;
-    if (!scalar_parse_strict(partial_sig + 4, z)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(partial_sig + 4, z))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid partial sig scalar");
     }
     psig.z_i = z;
@@ -732,7 +732,7 @@ ufsecp_error_t ufsecp_frost_verify_partial(
     std::array<uint8_t, 32> msg_arr;
     std::memcpy(msg_arr.data(), msg32, 32);
     const bool ok = secp256k1::frost_verify_partial(psig, signer_commit, vs, msg_arr, ncs, gp);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "FROST partial signature verification failed");
     }
     return UFSECP_OK;
@@ -746,7 +746,7 @@ ufsecp_error_t ufsecp_frost_aggregate(
     const uint8_t group_pubkey33[33],
     const uint8_t msg32[32],
     uint8_t sig64_out[64]) {
-    if (!ctx || !partial_sigs || !nonce_commits || !group_pubkey33 || !msg32 || !sig64_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !partial_sigs || !nonce_commits || !group_pubkey33 || !msg32 || !sig64_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -780,7 +780,7 @@ ufsecp_error_t ufsecp_frost_aggregate(
             }
         }
         Scalar z;
-        if (!scalar_parse_strict(ps + 4, z)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(ps + 4, z))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid partial sig scalar");
         }
         psigs[i].z_i = z;
@@ -814,7 +814,7 @@ ufsecp_error_t ufsecp_frost_aggregate(
                 break;
             }
         }
-        if (!found) {
+        if (SECP256K1_UNLIKELY(!found)) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial sig signer missing from nonce commitments");
         }
     }

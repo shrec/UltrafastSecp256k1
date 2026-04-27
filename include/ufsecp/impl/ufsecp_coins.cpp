@@ -9,10 +9,10 @@ ufsecp_error_t ufsecp_coin_address(ufsecp_ctx* ctx,
                                    const uint8_t pubkey33[33],
                                    uint32_t coin_type, int testnet,
                                    char* addr_out, size_t* addr_len) {
-    if (!ctx || !pubkey33 || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto coin = find_coin(coin_type);
-    if (!coin) {
+    if (SECP256K1_UNLIKELY(!coin)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "unknown coin type");
     }
     auto pk = point_from_compressed(pubkey33);
@@ -41,7 +41,7 @@ ufsecp_error_t ufsecp_coin_derive_from_seed(
     uint8_t* privkey32_out,
     uint8_t* pubkey33_out,
     char* addr_out, size_t* addr_len) {
-    if (!ctx || !seed) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !seed)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if ((addr_out == nullptr) != (addr_len == nullptr)) {
         return ctx_set_err(ctx, UFSECP_ERR_NULL_ARG,
@@ -51,13 +51,13 @@ ufsecp_error_t ufsecp_coin_derive_from_seed(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "seed must be 16-64 bytes");
     }
     auto coin = find_coin(coin_type);
-    if (!coin) {
+    if (SECP256K1_UNLIKELY(!coin)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "unknown coin type");
     }
     try {
     /* BIP-32 master */
     auto bip32_result = secp256k1::bip32_master_key(seed, seed_len);
-    if (!bip32_result.second) {
+    if (SECP256K1_UNLIKELY(!bip32_result.second)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 master key failed");
     }
     auto master = bip32_result.first;
@@ -70,7 +70,7 @@ ufsecp_error_t ufsecp_coin_derive_from_seed(
         master, *coin, account, change != 0, index);
     auto key = derived.first;
     bool const d_ok = derived.second;
-    if (!d_ok) {
+    if (SECP256K1_UNLIKELY(!d_ok)) {
         cleanup_keys();
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "coin key derivation failed");
     }
@@ -105,14 +105,14 @@ ufsecp_error_t ufsecp_coin_wif_encode(ufsecp_ctx* ctx,
                                       const uint8_t privkey[32],
                                       uint32_t coin_type, int testnet,
                                       char* wif_out, size_t* wif_len) {
-    if (!ctx || !privkey || !wif_out || !wif_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !wif_out || !wif_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto coin = find_coin(coin_type);
-    if (!coin) {
+    if (SECP256K1_UNLIKELY(!coin)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "unknown coin type");
     }
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -135,10 +135,10 @@ ufsecp_error_t ufsecp_btc_message_sign(ufsecp_ctx* ctx,
                                        const uint8_t* msg, size_t msg_len,
                                        const uint8_t privkey[32],
                                        char* base64_out, size_t* base64_len) {
-    if (!ctx || !msg || !privkey || !base64_out || !base64_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg || !privkey || !base64_out || !base64_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -159,7 +159,7 @@ ufsecp_error_t ufsecp_btc_message_verify(ufsecp_ctx* ctx,
                                          const uint8_t* msg, size_t msg_len,
                                          const uint8_t pubkey33[33],
                                          const char* base64_sig) {
-    if (!ctx || !msg || !pubkey33 || !base64_sig) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg || !pubkey33 || !base64_sig)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto pk = point_from_compressed(pubkey33);
     if (pk.is_infinity()) {
@@ -167,7 +167,7 @@ ufsecp_error_t ufsecp_btc_message_verify(ufsecp_ctx* ctx,
     }
     try {
     auto dec = secp256k1::coins::bitcoin_sig_from_base64(std::string(base64_sig));
-    if (!dec.valid) {
+    if (SECP256K1_UNLIKELY(!dec.valid)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid base64 signature");
     }
     if (!secp256k1::coins::bitcoin_verify_message(msg, msg_len, pk, dec.sig)) {
@@ -179,7 +179,7 @@ ufsecp_error_t ufsecp_btc_message_verify(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_btc_message_hash(const uint8_t* msg, size_t msg_len,
                                        uint8_t digest32_out[32]) {
-    if (!msg || !digest32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg || !digest32_out)) return UFSECP_ERR_NULL_ARG;
     auto h = secp256k1::coins::bitcoin_message_hash(msg, msg_len);
     std::memcpy(digest32_out, h.data(), 32);
     return UFSECP_OK;
@@ -196,8 +196,8 @@ ufsecp_error_t ufsecp_silent_payment_address(
     uint8_t scan_pubkey33_out[33],
     uint8_t spend_pubkey33_out[33],
     char* addr_out, size_t* addr_len) {
-    if (!ctx || !scan_privkey || !spend_privkey || !scan_pubkey33_out ||
-        !spend_pubkey33_out || !addr_out || !addr_len) {
+    if (SECP256K1_UNLIKELY(!ctx || !scan_privkey || !spend_privkey || !scan_pubkey33_out ||
+        !spend_pubkey33_out || !addr_out || !addr_len)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -209,10 +209,10 @@ ufsecp_error_t ufsecp_silent_payment_address(
         secp256k1::detail::secure_erase(&scan_sk, sizeof(scan_sk));
         secp256k1::detail::secure_erase(&spend_sk, sizeof(spend_sk));
     };
-    if (!scalar_parse_strict_nonzero(scan_privkey, scan_sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(scan_privkey, scan_sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "scan privkey is zero or >= n");
     }
-    if (!scalar_parse_strict_nonzero(spend_privkey, spend_sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(spend_privkey, spend_sk))) {
         cleanup();
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "spend privkey is zero or >= n");
     }
@@ -243,8 +243,8 @@ ufsecp_error_t ufsecp_silent_payment_create_output(
     uint32_t k,
     uint8_t output_pubkey33_out[33],
     uint8_t* tweak32_out) {
-    if (!ctx || !input_privkeys || n_inputs == 0 || !scan_pubkey33 ||
-        !spend_pubkey33 || !output_pubkey33_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !input_privkeys || n_inputs == 0 || !scan_pubkey33 ||
+        !spend_pubkey33 || !output_pubkey33_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -265,7 +265,7 @@ ufsecp_error_t ufsecp_silent_payment_create_output(
     privkeys.reserve(n_inputs);
     for (size_t i = 0; i < n_inputs; ++i) {
         Scalar sk;
-        if (!scalar_parse_strict_nonzero(input_privkeys + i * 32, sk)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(input_privkeys + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
             cleanup_privkeys();
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "input privkey is zero or >= n");
@@ -310,8 +310,8 @@ ufsecp_error_t ufsecp_silent_payment_scan(
     uint32_t* found_indices_out,
     uint8_t* found_privkeys_out,
     size_t* n_found) {
-    if (!ctx || !scan_privkey || !spend_privkey || !input_pubkeys33 ||
-        !output_xonly32 || !n_found) {
+    if (SECP256K1_UNLIKELY(!ctx || !scan_privkey || !spend_privkey || !input_pubkeys33 ||
+        !output_xonly32 || !n_found)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (n_input_pubkeys == 0 || n_outputs == 0) {
@@ -333,10 +333,10 @@ ufsecp_error_t ufsecp_silent_payment_scan(
         secp256k1::detail::secure_erase(&scan_sk, sizeof(scan_sk));
         secp256k1::detail::secure_erase(&spend_sk, sizeof(spend_sk));
     };
-    if (!scalar_parse_strict_nonzero(scan_privkey, scan_sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(scan_privkey, scan_sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "scan privkey is zero or >= n");
     }
-    if (!scalar_parse_strict_nonzero(spend_privkey, spend_sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(spend_privkey, spend_sk))) {
         cleanup();
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "spend privkey is zero or >= n");
     }
@@ -396,7 +396,7 @@ ufsecp_error_t ufsecp_ecies_encrypt(
     const uint8_t recipient_pubkey33[33],
     const uint8_t* plaintext, size_t plaintext_len,
     uint8_t* envelope_out, size_t* envelope_len) {
-    if (!ctx || !recipient_pubkey33 || !plaintext || !envelope_out || !envelope_len) {
+    if (SECP256K1_UNLIKELY(!ctx || !recipient_pubkey33 || !plaintext || !envelope_out || !envelope_len)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (plaintext_len == 0) {
@@ -433,7 +433,7 @@ ufsecp_error_t ufsecp_ecies_decrypt(
     const uint8_t privkey[32],
     const uint8_t* envelope, size_t envelope_len,
     uint8_t* plaintext_out, size_t* plaintext_len) {
-    if (!ctx || !privkey || !envelope || !plaintext_out || !plaintext_len) {
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !envelope || !plaintext_out || !plaintext_len)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (envelope_len < 82) { // min: 33 + 16 + 1 + 32
@@ -447,7 +447,7 @@ ufsecp_error_t ufsecp_ecies_decrypt(
     }
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -480,7 +480,7 @@ ufsecp_error_t ufsecp_bip324_create(
     int initiator,
     ufsecp_bip324_session** session_out,
     uint8_t ellswift64_out[64]) {
-    if (!ctx || !session_out || !ellswift64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !session_out || !ellswift64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     *session_out = nullptr;
     if (initiator != 0 && initiator != 1) {
@@ -492,7 +492,7 @@ ufsecp_error_t ufsecp_bip324_create(
     sess->cpp_session = nullptr;
 
     sess->cpp_session = new (std::nothrow) secp256k1::Bip324Session(initiator == 1);
-    if (!sess->cpp_session) {
+    if (SECP256K1_UNLIKELY(!sess->cpp_session)) {
         delete sess;
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "allocation failed");
     }
@@ -508,7 +508,7 @@ ufsecp_error_t ufsecp_bip324_handshake(
     ufsecp_bip324_session* session,
     const uint8_t peer_ellswift64[64],
     uint8_t session_id32_out[32]) {
-    if (!session || !session->cpp_session || !peer_ellswift64) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!session || !session->cpp_session || !peer_ellswift64)) return UFSECP_ERR_NULL_ARG;
 
     if (!session->cpp_session->complete_handshake(peer_ellswift64)) {
         return UFSECP_ERR_INTERNAL;
@@ -525,8 +525,8 @@ ufsecp_error_t ufsecp_bip324_encrypt(
     ufsecp_bip324_session* session,
     const uint8_t* plaintext, size_t plaintext_len,
     uint8_t* out, size_t* out_len) {
-    if (!session || !session->cpp_session || !out || !out_len) return UFSECP_ERR_NULL_ARG;
-    if (!plaintext && plaintext_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!session || !session->cpp_session || !out || !out_len)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!plaintext && plaintext_len > 0)) return UFSECP_ERR_NULL_ARG;
     if (plaintext_len > SIZE_MAX - 19) return UFSECP_ERR_BAD_INPUT;
 
     size_t const needed = plaintext_len + 19; // 3 (length) + payload + 16 (tag)
@@ -581,10 +581,10 @@ ufsecp_error_t ufsecp_aead_chacha20_poly1305_encrypt(
     const uint8_t* aad, size_t aad_len,
     const uint8_t* plaintext, size_t plaintext_len,
     uint8_t* out, uint8_t tag[16]) {
-    if (!key || !nonce || !tag) return UFSECP_ERR_NULL_ARG;
-    if (!out && plaintext_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!plaintext && plaintext_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!aad && aad_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!key || !nonce || !tag)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!out && plaintext_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!plaintext && plaintext_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!aad && aad_len > 0)) return UFSECP_ERR_NULL_ARG;
 
     secp256k1::aead_chacha20_poly1305_encrypt(
         key, nonce, aad, aad_len, plaintext, plaintext_len, out, tag);
@@ -596,10 +596,10 @@ ufsecp_error_t ufsecp_aead_chacha20_poly1305_decrypt(
     const uint8_t* aad, size_t aad_len,
     const uint8_t* ciphertext, size_t ciphertext_len,
     const uint8_t tag[16], uint8_t* out) {
-    if (!key || !nonce || !tag) return UFSECP_ERR_NULL_ARG;
-    if (!out && ciphertext_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!ciphertext && ciphertext_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!aad && aad_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!key || !nonce || !tag)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!out && ciphertext_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ciphertext && ciphertext_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!aad && aad_len > 0)) return UFSECP_ERR_NULL_ARG;
 
     bool ok = secp256k1::aead_chacha20_poly1305_decrypt(
         key, nonce, aad, aad_len, ciphertext, ciphertext_len, tag, out);
@@ -610,11 +610,11 @@ ufsecp_error_t ufsecp_ellswift_create(
     ufsecp_ctx* ctx,
     const uint8_t privkey[32],
     uint8_t encoding64_out[64]) {
-    if (!ctx || !privkey || !encoding64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !encoding64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -637,7 +637,7 @@ ufsecp_error_t ufsecp_ellswift_xdh(
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(our_privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(our_privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -658,8 +658,8 @@ ufsecp_error_t ufsecp_ellswift_xdh(
 
 ufsecp_error_t ufsecp_keccak256(const uint8_t* data, size_t len,
                                 uint8_t digest32_out[32]) {
-    if (!data && len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!digest32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data && len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!digest32_out)) return UFSECP_ERR_NULL_ARG;
 
     auto hash = secp256k1::coins::keccak256(data, len);
     std::memcpy(digest32_out, hash.data(), 32);
@@ -669,7 +669,7 @@ ufsecp_error_t ufsecp_keccak256(const uint8_t* data, size_t len,
 ufsecp_error_t ufsecp_eth_address(ufsecp_ctx* ctx,
                                   const uint8_t pubkey33[33],
                                   uint8_t addr20_out[20]) {
-    if (!ctx || !pubkey33 || !addr20_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr20_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     const Point pk = point_from_compressed(pubkey33);
@@ -685,7 +685,7 @@ ufsecp_error_t ufsecp_eth_address(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_eth_address_checksummed(ufsecp_ctx* ctx,
                                               const uint8_t pubkey33[33],
                                               char* addr_out, size_t* addr_len) {
-    if (!ctx || !pubkey33 || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (*addr_len < 43) {
@@ -708,8 +708,8 @@ ufsecp_error_t ufsecp_eth_address_checksummed(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_eth_personal_hash(const uint8_t* msg, size_t msg_len,
                                         uint8_t digest32_out[32]) {
-    if (!msg && msg_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!digest32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg && msg_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!digest32_out)) return UFSECP_ERR_NULL_ARG;
 
     auto hash = secp256k1::coins::eip191_hash(msg, msg_len);
     std::memcpy(digest32_out, hash.data(), 32);
@@ -723,13 +723,13 @@ ufsecp_error_t ufsecp_eth_sign(ufsecp_ctx* ctx,
                                uint8_t s_out[32],
                                uint64_t* v_out,
                                uint64_t chain_id) {
-    if (!ctx || !msg32 || !privkey || !r_out || !s_out || !v_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !r_out || !s_out || !v_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -751,7 +751,7 @@ ufsecp_error_t ufsecp_eth_ecrecover(ufsecp_ctx* ctx,
                                     const uint8_t s[32],
                                     uint64_t v,
                                     uint8_t addr20_out[20]) {
-    if (!ctx || !msg32 || !r || !s || !addr20_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !r || !s || !addr20_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> hash, r_arr, s_arr;
@@ -760,7 +760,7 @@ ufsecp_error_t ufsecp_eth_ecrecover(ufsecp_ctx* ctx,
     std::memcpy(s_arr.data(), s, 32);
 
     auto [addr, ok] = secp256k1::coins::ecrecover(hash, r_arr, s_arr, v);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "ecrecover failed");
     }
 
@@ -779,13 +779,13 @@ ufsecp_error_t ufsecp_bip85_entropy(
     const ufsecp_bip32_key* master_xprv,
     const char* path,
     uint8_t* entropy_out, size_t entropy_len) {
-    if (!ctx || !master_xprv || !path || !entropy_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !master_xprv || !path || !entropy_out)) return UFSECP_ERR_NULL_ARG;
     if (entropy_len == 0 || entropy_len > 32) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "entropy_len must be 1-32");
     }
     ctx_clear_err(ctx);
 
-    if (!master_xprv->is_private) {
+    if (SECP256K1_UNLIKELY(!master_xprv->is_private)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "BIP-85 requires xprv (private key)");
     }
 
@@ -802,7 +802,7 @@ ufsecp_error_t ufsecp_bip85_entropy(
     auto [derived, ok] = secp256k1::bip32_derive_path(ek, std::string(path));
     secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
     secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "BIP-85 path derivation failed");
     }
 
@@ -827,7 +827,7 @@ ufsecp_error_t ufsecp_bip85_bip39(
     const ufsecp_bip32_key* master_xprv,
     uint32_t words, uint32_t language_index, uint32_t index,
     char* mnemonic_out, size_t* mnemonic_len) {
-    if (!ctx || !master_xprv || !mnemonic_out || !mnemonic_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !master_xprv || !mnemonic_out || !mnemonic_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (words != 12 && words != 18 && words != 24) {
@@ -879,9 +879,9 @@ ufsecp_error_t ufsecp_schnorr_sign_msg(
     const uint8_t* msg, size_t msg_len,
     const uint8_t* aux_rand32,
     uint8_t sig64_out[64]) {
-    if (!ctx || !privkey || !sig64_out) return UFSECP_ERR_NULL_ARG;
-    if (!msg && msg_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!aux_rand32) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !sig64_out)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg && msg_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!aux_rand32)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     // Hash the message with BIP-340 tagged hash "BIP0340/msg"
@@ -909,8 +909,8 @@ ufsecp_error_t ufsecp_schnorr_verify_msg(
     const uint8_t pubkey_x[32],
     const uint8_t* msg, size_t msg_len,
     const uint8_t sig64[64]) {
-    if (!ctx || !pubkey_x || !sig64) return UFSECP_ERR_NULL_ARG;
-    if (!msg && msg_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey_x || !sig64)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg && msg_len > 0)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     static const uint8_t tag_data[] = "BIP0340/msg";

@@ -7,7 +7,7 @@
 
 ufsecp_error_t ufsecp_sha256(const uint8_t* data, size_t len,
                              uint8_t digest32_out[32]) {
-    if (!data || !digest32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data || !digest32_out)) return UFSECP_ERR_NULL_ARG;
     secp256k1::SHA256 hasher;
     hasher.update(data, len);
     auto digest = hasher.finalize();
@@ -17,7 +17,7 @@ ufsecp_error_t ufsecp_sha256(const uint8_t* data, size_t len,
 
 ufsecp_error_t ufsecp_hash160(const uint8_t* data, size_t len,
                               uint8_t digest20_out[20]) {
-    if (!data || !digest20_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data || !digest20_out)) return UFSECP_ERR_NULL_ARG;
     auto h = secp256k1::hash160(data, len);
     std::memcpy(digest20_out, h.data(), 20);
     return UFSECP_OK;
@@ -26,7 +26,7 @@ ufsecp_error_t ufsecp_hash160(const uint8_t* data, size_t len,
 ufsecp_error_t ufsecp_tagged_hash(const char* tag,
                                   const uint8_t* data, size_t len,
                                   uint8_t digest32_out[32]) {
-    if (!tag || !data || !digest32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!tag || !data || !digest32_out)) return UFSECP_ERR_NULL_ARG;
     auto h = secp256k1::tagged_hash(tag, data, len);
     std::memcpy(digest32_out, h.data(), 32);
     return UFSECP_OK;
@@ -39,7 +39,7 @@ ufsecp_error_t ufsecp_tagged_hash(const char* tag,
 ufsecp_error_t ufsecp_addr_p2pkh(ufsecp_ctx* ctx,
                                  const uint8_t pubkey33[33], int network,
                                  char* addr_out, size_t* addr_len) {
-    if (!ctx || !pubkey33 || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid network");
     ctx_clear_err(ctx);
 
@@ -64,7 +64,7 @@ ufsecp_error_t ufsecp_addr_p2pkh(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_addr_p2wpkh(ufsecp_ctx* ctx,
                                   const uint8_t pubkey33[33], int network,
                                   char* addr_out, size_t* addr_len) {
-    if (!ctx || !pubkey33 || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid network");
     ctx_clear_err(ctx);
 
@@ -89,7 +89,7 @@ ufsecp_error_t ufsecp_addr_p2wpkh(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
                                 const uint8_t internal_key_x[32], int network,
                                 char* addr_out, size_t* addr_len) {
-    if (!ctx || !internal_key_x || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !internal_key_x || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid network");
     ctx_clear_err(ctx);
 
@@ -120,8 +120,8 @@ ufsecp_error_t ufsecp_addr_p2sh(
     const uint8_t* redeem_script, size_t redeem_script_len,
     int network,
     char* addr_out, size_t* addr_len) {
-    if (!redeem_script && redeem_script_len > 0) return UFSECP_ERR_NULL_ARG;
-    if (!addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!redeem_script && redeem_script_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return UFSECP_ERR_BAD_INPUT;
 
     try {
@@ -141,7 +141,7 @@ ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
     const uint8_t pubkey33[33],
     int network,
     char* addr_out, size_t* addr_len) {
-    if (!ctx || !pubkey33 || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey33 || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid network");
     ctx_clear_err(ctx);
 
@@ -171,12 +171,12 @@ ufsecp_error_t ufsecp_wif_encode(ufsecp_ctx* ctx,
                                  const uint8_t privkey[32],
                                  int compressed, int network,
                                  char* wif_out, size_t* wif_len) {
-    if (!ctx || !privkey || !wif_out || !wif_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !wif_out || !wif_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid network");
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -200,14 +200,14 @@ ufsecp_error_t ufsecp_wif_decode(ufsecp_ctx* ctx,
                                  uint8_t privkey32_out[32],
                                  int* compressed_out,
                                  int* network_out) {
-    if (!ctx || !wif || !privkey32_out || !compressed_out || !network_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !wif || !privkey32_out || !compressed_out || !network_out)) {
         return UFSECP_ERR_NULL_ARG;
 }
     ctx_clear_err(ctx);
 
     try {
     auto result = secp256k1::wif_decode(std::string(wif));
-    if (!result.valid) {
+    if (SECP256K1_UNLIKELY(!result.valid)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid WIF string");
 }
 
@@ -272,7 +272,7 @@ static ufsecp_error_t parse_bip32_key(ufsecp_ctx* ctx,
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid BIP-32 private marker");
         }
         Scalar sk;
-        if (!scalar_parse_strict_nonzero(key->data + 46, sk)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(key->data + 46, sk))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "invalid BIP-32 private key");
         }
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -293,7 +293,7 @@ static ufsecp_error_t parse_bip32_key(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_bip32_master(ufsecp_ctx* ctx,
                                    const uint8_t* seed, size_t seed_len,
                                    ufsecp_bip32_key* key_out) {
-    if (!ctx || !seed || !key_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !seed || !key_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (seed_len < 16 || seed_len > 64) {
@@ -301,7 +301,7 @@ ufsecp_error_t ufsecp_bip32_master(ufsecp_ctx* ctx,
 }
 
     auto [ek, ok] = secp256k1::bip32_master_key(seed, seed_len);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 master key failed");
 }
 
@@ -315,7 +315,7 @@ ufsecp_error_t ufsecp_bip32_derive(ufsecp_ctx* ctx,
                                    const ufsecp_bip32_key* parent,
                                    uint32_t index,
                                    ufsecp_bip32_key* child_out) {
-    if (!ctx || !parent || !child_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !parent || !child_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     secp256k1::ExtendedKey ek{};
@@ -326,7 +326,7 @@ ufsecp_error_t ufsecp_bip32_derive(ufsecp_ctx* ctx,
     auto [child, ok] = ek.derive_child(index);
     secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
     secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 derivation failed");
 }
 
@@ -340,7 +340,7 @@ ufsecp_error_t ufsecp_bip32_derive_path(ufsecp_ctx* ctx,
                                         const ufsecp_bip32_key* master,
                                         const char* path,
                                         ufsecp_bip32_key* key_out) {
-    if (!ctx || !master || !path || !key_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !master || !path || !key_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     secp256k1::ExtendedKey ek{};
@@ -356,7 +356,7 @@ ufsecp_error_t ufsecp_bip32_derive_path(ufsecp_ctx* ctx,
     auto [derived, ok] = secp256k1::bip32_derive_path(ek, std::string(path));
     secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
     secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid BIP-32 path");
 }
 
@@ -370,10 +370,10 @@ ufsecp_error_t ufsecp_bip32_derive_path(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_bip32_privkey(ufsecp_ctx* ctx,
                                     const ufsecp_bip32_key* key,
                                     uint8_t privkey32_out[32]) {
-    if (!ctx || !key || !privkey32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !key || !privkey32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
-    if (!key->is_private) {
+    if (SECP256K1_UNLIKELY(!key->is_private)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "key is public, not private");
 }
 
@@ -393,7 +393,7 @@ ufsecp_error_t ufsecp_bip32_privkey(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_bip32_pubkey(ufsecp_ctx* ctx,
                                    const ufsecp_bip32_key* key,
                                    uint8_t pubkey33_out[33]) {
-    if (!ctx || !key || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !key || !pubkey33_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     secp256k1::ExtendedKey ek{};

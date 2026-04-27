@@ -9,13 +9,13 @@ ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
                                  const uint8_t msg32[32],
                                  const uint8_t privkey[32],
                                  uint8_t sig64_out[64]) {
-    if (!ctx || !msg32 || !privkey || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg32, 32);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -31,13 +31,13 @@ ufsecp_error_t ufsecp_ecdsa_sign_verified(ufsecp_ctx* ctx,
                                           const uint8_t msg32[32],
                                           const uint8_t privkey[32],
                                           uint8_t sig64_out[64]) {
-    if (!ctx || !msg32 || !privkey || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg32, 32);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -52,7 +52,7 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
                                    const uint8_t msg32[32],
                                    const uint8_t sig64[64],
                                    const uint8_t pubkey33[33]) {
-    if (!ctx || !msg32 || !sig64 || !pubkey33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !sig64 || !pubkey33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> msg;
@@ -61,7 +61,7 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
     std::memcpy(compact.data(), sig64, 64);
 
     secp256k1::ECDSASignature ecdsasig;
-    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "non-canonical compact sig");
     }
     // BIP-62 low-S enforcement: reject high-S signatures (s > n/2)
@@ -73,7 +73,7 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid public key");
     }
 
-    if (!secp256k1::ecdsa_verify(msg, pk, ecdsasig)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_verify(msg, pk, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "ECDSA verify failed");
     }
 
@@ -83,14 +83,14 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_ecdsa_sig_to_der(ufsecp_ctx* ctx,
                                         const uint8_t sig64[64],
                                         uint8_t* der_out, size_t* der_len) {
-    if (!ctx || !sig64 || !der_out || !der_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !sig64 || !der_out || !der_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 64> compact;
     std::memcpy(compact.data(), sig64, 64);
 
     secp256k1::ECDSASignature ecdsasig;
-    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "non-canonical compact sig");
     }
 
@@ -107,7 +107,7 @@ ufsecp_error_t ufsecp_ecdsa_sig_to_der(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_ecdsa_sig_from_der(ufsecp_ctx* ctx,
                                          const uint8_t* der, size_t der_len,
                                          uint8_t sig64_out[64]) {
-    if (!ctx || !der || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !der || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     /* Strict DER parser for ECDSA secp256k1 signatures.
@@ -229,7 +229,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
                                              const uint8_t privkey[32],
                                              uint8_t sig64_out[64],
                                              int* recid_out) {
-    if (!ctx || !msg32 || !privkey || !sig64_out || !recid_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !sig64_out || !recid_out)) {
         return UFSECP_ERR_NULL_ARG;
 }
     ctx_clear_err(ctx);
@@ -237,7 +237,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg32, 32);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -259,7 +259,7 @@ ufsecp_error_t ufsecp_ecdsa_recover(ufsecp_ctx* ctx,
                                     const uint8_t sig64[64],
                                     int recid,
                                     uint8_t pubkey33_out[33]) {
-    if (!ctx || !msg32 || !sig64 || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !sig64 || !pubkey33_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (recid < 0 || recid > 3) {
@@ -272,12 +272,12 @@ ufsecp_error_t ufsecp_ecdsa_recover(ufsecp_ctx* ctx,
     std::memcpy(compact.data(), sig64, 64);
 
     secp256k1::ECDSASignature ecdsasig;
-    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "non-canonical compact sig");
     }
 
     auto [point, ok] = secp256k1::ecdsa_recover(msg, ecdsasig, recid);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "recovery failed");
     }
 
@@ -294,13 +294,13 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
                                    const uint8_t privkey[32],
                                    const uint8_t aux_rand[32],
                                    uint8_t sig64_out[64]) {
-    if (!ctx || !msg32 || !privkey || !aux_rand || !sig64_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !aux_rand || !sig64_out)) {
         return UFSECP_ERR_NULL_ARG;
 }
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -322,13 +322,13 @@ ufsecp_error_t ufsecp_schnorr_sign_verified(ufsecp_ctx* ctx,
                                             const uint8_t privkey[32],
                                             const uint8_t aux_rand[32],
                                             uint8_t sig64_out[64]) {
-    if (!ctx || !msg32 || !privkey || !aux_rand || !sig64_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !aux_rand || !sig64_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 
@@ -352,7 +352,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
     const uint8_t* privkeys32,
     uint8_t* sigs64_out)
 {
-    if (!ctx || !msgs32 || !privkeys32 || !sigs64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msgs32 || !privkeys32 || !sigs64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     std::size_t total_msg_bytes, total_sig_bytes;
@@ -366,7 +366,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
         std::array<uint8_t, 32> msg;
         std::memcpy(msg.data(), msgs32 + i * 32, 32);
         Scalar sk;
-        if (!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
@@ -387,7 +387,7 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
     const uint8_t* aux_rands32,
     uint8_t* sigs64_out)
 {
-    if (!ctx || !msgs32 || !privkeys32 || !sigs64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msgs32 || !privkeys32 || !sigs64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     std::size_t total_msg_bytes, total_sig_bytes;
@@ -399,7 +399,7 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
 
     for (size_t i = 0; i < count; ++i) {
         Scalar sk;
-        if (!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
@@ -425,7 +425,7 @@ ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
                                      const uint8_t msg32[32],
                                      const uint8_t sig64[64],
                                      const uint8_t pubkey_x[32]) {
-    if (!ctx || !msg32 || !sig64 || !pubkey_x) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !sig64 || !pubkey_x)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     // BIP-340 strict parse: reject non-canonical r >= p, s >= n, or s == 0
@@ -459,7 +459,7 @@ static ufsecp_error_t ecdh_parse_args(ufsecp_ctx* ctx,
                                       const uint8_t privkey[32],
                                       const uint8_t pubkey33[33],
                                       Scalar& sk, Point& pk) {
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     pk = point_from_compressed(pubkey33);
@@ -474,7 +474,7 @@ ufsecp_error_t ufsecp_ecdh(ufsecp_ctx* ctx,
                            const uint8_t privkey[32],
                            const uint8_t pubkey33[33],
                            uint8_t secret32_out[32]) {
-    if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey33 || !secret32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
     const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
@@ -490,7 +490,7 @@ ufsecp_error_t ufsecp_ecdh_xonly(ufsecp_ctx* ctx,
                                  const uint8_t privkey[32],
                                  const uint8_t pubkey33[33],
                                  uint8_t secret32_out[32]) {
-    if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey33 || !secret32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
     const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);
@@ -506,7 +506,7 @@ ufsecp_error_t ufsecp_ecdh_raw(ufsecp_ctx* ctx,
                                const uint8_t privkey[32],
                                const uint8_t pubkey33[33],
                                uint8_t secret32_out[32]) {
-    if (!ctx || !privkey || !pubkey33 || !secret32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey33 || !secret32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk; Point pk;
     const ufsecp_error_t err = ecdh_parse_args(ctx, privkey, pubkey33, sk, pk);

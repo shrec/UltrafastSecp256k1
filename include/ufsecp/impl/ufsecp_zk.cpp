@@ -12,12 +12,12 @@ ufsecp_error_t ufsecp_schnorr_adaptor_sign(
     const uint8_t adaptor_point33[33],
     const uint8_t aux_rand[32],
     uint8_t pre_sig_out[UFSECP_SCHNORR_ADAPTOR_SIG_LEN]) {
-    if (!ctx || !privkey || !msg32 || !adaptor_point33 || !aux_rand || !pre_sig_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !msg32 || !adaptor_point33 || !aux_rand || !pre_sig_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     std::array<uint8_t, 32> msg_arr, aux_arr;
@@ -45,7 +45,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_verify(
     const uint8_t pubkey_x[32],
     const uint8_t msg32[32],
     const uint8_t adaptor_point33[33]) {
-    if (!ctx || !pre_sig || !pubkey_x || !msg32 || !adaptor_point33) {
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !pubkey_x || !msg32 || !adaptor_point33)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -55,7 +55,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_verify(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
@@ -83,7 +83,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_adapt(
     const uint8_t pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN],
     const uint8_t adaptor_secret[32],
     uint8_t sig64_out[64]) {
-    if (!ctx || !pre_sig || !adaptor_secret || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !adaptor_secret || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     secp256k1::SchnorrAdaptorSig as;
     as.R_hat = point_from_compressed(pre_sig);
@@ -91,13 +91,13 @@ ufsecp_error_t ufsecp_schnorr_adaptor_adapt(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
     as.needs_negation = (pre_sig[65] != 0);
     Scalar secret;
-    if (!scalar_parse_strict_nonzero(adaptor_secret, secret)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(adaptor_secret, secret))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "adaptor secret is zero or >= n");
     }
     auto sig = secp256k1::schnorr_adaptor_adapt(as, secret);
@@ -112,7 +112,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_extract(
     const uint8_t pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN],
     const uint8_t sig64[64],
     uint8_t secret32_out[32]) {
-    if (!ctx || !pre_sig || !sig64 || !secret32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !sig64 || !secret32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     secp256k1::SchnorrAdaptorSig as;
     as.R_hat = point_from_compressed(pre_sig);
@@ -120,7 +120,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_extract(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
@@ -130,7 +130,7 @@ ufsecp_error_t ufsecp_schnorr_adaptor_extract(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid schnorr signature");
     }
     auto [secret, ok] = secp256k1::schnorr_adaptor_extract(as, sig);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "adaptor extract failed");
     }
     scalar_to_bytes(secret, secret32_out);
@@ -144,12 +144,12 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_sign(
     const uint8_t msg32[32],
     const uint8_t adaptor_point33[33],
     uint8_t pre_sig_out[UFSECP_ECDSA_ADAPTOR_SIG_LEN]) {
-    if (!ctx || !privkey || !msg32 || !adaptor_point33 || !pre_sig_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !msg32 || !adaptor_point33 || !pre_sig_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     std::array<uint8_t, 32> msg_arr;
@@ -177,7 +177,7 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_verify(
     const uint8_t pubkey33[33],
     const uint8_t msg32[32],
     const uint8_t adaptor_point33[33]) {
-    if (!ctx || !pre_sig || !pubkey33 || !msg32 || !adaptor_point33) {
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !pubkey33 || !msg32 || !adaptor_point33)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
@@ -187,11 +187,11 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_verify(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
-    if (!scalar_parse_strict(pre_sig + 65, as.r)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 65, as.r))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig r");
     }
     auto pk = point_from_compressed(pubkey33);
@@ -204,7 +204,7 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_verify(
     if (ap.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid adaptor point");
     }
-    if (!secp256k1::ecdsa_adaptor_verify(as, pk, msg_arr, ap)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_adaptor_verify(as, pk, msg_arr, ap))) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "ECDSA adaptor verify failed");
     }
     return UFSECP_OK;
@@ -215,7 +215,7 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_adapt(
     const uint8_t pre_sig[UFSECP_ECDSA_ADAPTOR_SIG_LEN],
     const uint8_t adaptor_secret[32],
     uint8_t sig64_out[64]) {
-    if (!ctx || !pre_sig || !adaptor_secret || !sig64_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !adaptor_secret || !sig64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     secp256k1::ECDSAAdaptorSig as;
     as.R_hat = point_from_compressed(pre_sig);
@@ -223,15 +223,15 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_adapt(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
-    if (!scalar_parse_strict(pre_sig + 65, as.r)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 65, as.r))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig r");
     }
     Scalar secret;
-    if (!scalar_parse_strict_nonzero(adaptor_secret, secret)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(adaptor_secret, secret))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "adaptor secret is zero or >= n");
     }
     auto sig = secp256k1::ecdsa_adaptor_adapt(as, secret);
@@ -246,7 +246,7 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_extract(
     const uint8_t pre_sig[UFSECP_ECDSA_ADAPTOR_SIG_LEN],
     const uint8_t sig64[64],
     uint8_t secret32_out[32]) {
-    if (!ctx || !pre_sig || !sig64 || !secret32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pre_sig || !sig64 || !secret32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     secp256k1::ECDSAAdaptorSig as;
     as.R_hat = point_from_compressed(pre_sig);
@@ -254,21 +254,21 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_extract(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor R_hat");
     }
     Scalar shat;
-    if (!scalar_parse_strict(pre_sig + 33, shat)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 33, shat))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig scalar");
     }
     as.s_hat = shat;
-    if (!scalar_parse_strict(pre_sig + 65, as.r)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(pre_sig + 65, as.r))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid adaptor sig r");
     }
     std::array<uint8_t, 64> compact;
     std::memcpy(compact.data(), sig64, 64);
     secp256k1::ECDSASignature ecdsasig;
-    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid ECDSA sig");
     }
     auto [secret, ok] = secp256k1::ecdsa_adaptor_extract(as, ecdsasig);
-    if (!ok) {
+    if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "ECDSA adaptor extract failed");
     }
     scalar_to_bytes(secret, secret32_out);
@@ -284,13 +284,13 @@ ufsecp_error_t ufsecp_pedersen_commit(ufsecp_ctx* ctx,
                                       const uint8_t value[32],
                                       const uint8_t blinding[32],
                                       uint8_t commitment33_out[33]) {
-    if (!ctx || !value || !blinding || !commitment33_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !value || !blinding || !commitment33_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar v, b;
-    if (!scalar_parse_strict(value, v)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(value, v))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "value >= n");
     }
-    if (!scalar_parse_strict(blinding, b)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinding, b))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "blinding >= n");
     }
     auto c = secp256k1::pedersen_commit(v, b);
@@ -303,13 +303,13 @@ ufsecp_error_t ufsecp_pedersen_verify(ufsecp_ctx* ctx,
                                       const uint8_t commitment33[33],
                                       const uint8_t value[32],
                                       const uint8_t blinding[32]) {
-    if (!ctx || !commitment33 || !value || !blinding) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !commitment33 || !value || !blinding)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar v, b;
-    if (!scalar_parse_strict(value, v)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(value, v))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "value >= n");
     }
-    if (!scalar_parse_strict(blinding, b)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinding, b))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "blinding >= n");
     }
     auto commit_pt = point_from_compressed(commitment33);
@@ -373,12 +373,12 @@ ufsecp_error_t ufsecp_pedersen_blind_sum(ufsecp_ctx* ctx,
     try {
     std::vector<Scalar> ins(n_in), outs(n_out);
     for (size_t i = 0; i < n_in; ++i) {
-        if (!scalar_parse_strict(blinds_in + i * 32, ins[i])) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinds_in + i * 32, ins[i]))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid input blind");
         }
     }
     for (size_t i = 0; i < n_out; ++i) {
-        if (!scalar_parse_strict(blinds_out + i * 32, outs[i])) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinds_out + i * 32, outs[i]))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid output blind");
         }
     }
@@ -393,18 +393,18 @@ ufsecp_error_t ufsecp_pedersen_switch_commit(ufsecp_ctx* ctx,
                                              const uint8_t blinding[32],
                                              const uint8_t switch_blind[32],
                                              uint8_t commitment33_out[33]) {
-    if (!ctx || !value || !blinding || !switch_blind || !commitment33_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !value || !blinding || !switch_blind || !commitment33_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar v, b, sb;
-    if (!scalar_parse_strict(value, v)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(value, v))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "value >= n");
     }
-    if (!scalar_parse_strict(blinding, b)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinding, b))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "blinding >= n");
     }
-    if (!scalar_parse_strict(switch_blind, sb)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(switch_blind, sb))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "switch_blind >= n");
     }
     auto c = secp256k1::pedersen_switch_commit(v, b, sb);
@@ -424,12 +424,12 @@ ufsecp_error_t ufsecp_zk_knowledge_prove(
     const uint8_t msg32[32],
     const uint8_t aux_rand[32],
     uint8_t proof_out[UFSECP_ZK_KNOWLEDGE_PROOF_LEN]) {
-    if (!ctx || !secret || !pubkey33 || !msg32 || !aux_rand || !proof_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !secret || !pubkey33 || !msg32 || !aux_rand || !proof_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar s;
-    if (!scalar_parse_strict_nonzero(secret, s)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(secret, s))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "secret is zero or >= n");
     }
     auto pk = point_from_compressed(pubkey33);
@@ -451,7 +451,7 @@ ufsecp_error_t ufsecp_zk_knowledge_verify(
     const uint8_t proof[UFSECP_ZK_KNOWLEDGE_PROOF_LEN],
     const uint8_t pubkey33[33],
     const uint8_t msg32[32]) {
-    if (!ctx || !proof || !pubkey33 || !msg32) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !proof || !pubkey33 || !msg32)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto pk = point_from_compressed(pubkey33);
     if (pk.is_infinity()) {
@@ -476,12 +476,12 @@ ufsecp_error_t ufsecp_zk_dleq_prove(
     const uint8_t P33[33], const uint8_t Q33[33],
     const uint8_t aux_rand[32],
     uint8_t proof_out[UFSECP_ZK_DLEQ_PROOF_LEN]) {
-    if (!ctx || !secret || !G33 || !H33 || !P33 || !Q33 || !aux_rand || !proof_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !secret || !G33 || !H33 || !P33 || !Q33 || !aux_rand || !proof_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar s;
-    if (!scalar_parse_strict_nonzero(secret, s)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(secret, s))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "secret is zero or >= n");
     }
     auto G = point_from_compressed(G33);
@@ -505,7 +505,7 @@ ufsecp_error_t ufsecp_zk_dleq_verify(
     const uint8_t proof[UFSECP_ZK_DLEQ_PROOF_LEN],
     const uint8_t G33[33], const uint8_t H33[33],
     const uint8_t P33[33], const uint8_t Q33[33]) {
-    if (!ctx || !proof || !G33 || !H33 || !P33 || !Q33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !proof || !G33 || !H33 || !P33 || !Q33)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     auto G = point_from_compressed(G33);
     auto H = point_from_compressed(H33);
@@ -531,12 +531,12 @@ ufsecp_error_t ufsecp_zk_range_prove(
     const uint8_t commitment33[33],
     const uint8_t aux_rand[32],
     uint8_t* proof_out, size_t* proof_len) {
-    if (!ctx || !blinding || !commitment33 || !aux_rand || !proof_out || !proof_len) {
+    if (SECP256K1_UNLIKELY(!ctx || !blinding || !commitment33 || !aux_rand || !proof_out || !proof_len)) {
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
     Scalar b;
-    if (!scalar_parse_strict(blinding, b)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(blinding, b))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "blinding >= n");
     }
     auto commit_pt = point_from_compressed(commitment33);
@@ -576,7 +576,7 @@ ufsecp_error_t ufsecp_zk_range_verify(
     ufsecp_ctx* ctx,
     const uint8_t commitment33[33],
     const uint8_t* proof, size_t proof_len) {
-    if (!ctx || !commitment33 || !proof) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !commitment33 || !proof)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     /* Deserialize range proof */
     const size_t expected = 33*4 + 32*3 + 6*33 + 6*33 + 32*2;
@@ -598,7 +598,7 @@ ufsecp_error_t ufsecp_zk_range_verify(
     bool scalar_ok = true;
     auto read_scalar = [&]() -> Scalar {
         Scalar s;
-        if (!scalar_parse_strict(proof + off, s)) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict(proof + off, s))) {
             scalar_ok = false;
         }
         off += 32;
@@ -610,10 +610,10 @@ ufsecp_error_t ufsecp_zk_range_verify(
     for (int i = 0; i < 6; ++i) rp.L[i] = read_point();
     for (int i = 0; i < 6; ++i) rp.R[i] = read_point();
     rp.a = read_scalar(); rp.b = read_scalar();
-    if (!point_ok) {
+    if (SECP256K1_UNLIKELY(!point_ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid point in range proof");
     }
-    if (!scalar_ok) {
+    if (SECP256K1_UNLIKELY(!scalar_ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid scalar in range proof");
     }
     auto commit_pt = point_from_compressed(commitment33);

@@ -39,18 +39,18 @@ const char* ufsecp_error_str(ufsecp_error_t err) {
  * =========================================================================== */
 
 ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx** ctx_out) {
-    if (!ctx_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx_out)) return UFSECP_ERR_NULL_ARG;
     *ctx_out = nullptr;
 
     auto* ctx = static_cast<ufsecp_ctx*>(std::calloc(1, sizeof(ufsecp_ctx)));
-    if (!ctx) return UFSECP_ERR_INTERNAL;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_INTERNAL;
 
     ctx->last_err   = UFSECP_OK;
     ctx->last_msg[0] = '\0';
 
     /* Run selftest once (cached globally by ensure_library_integrity) */
     ctx->selftest_ok = secp256k1::fast::ensure_library_integrity(false);
-    if (!ctx->selftest_ok) {
+    if (SECP256K1_UNLIKELY(!ctx->selftest_ok)) {
         std::free(ctx);
         return UFSECP_ERR_SELFTEST;
     }
@@ -60,11 +60,11 @@ ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx** ctx_out) {
 }
 
 ufsecp_error_t ufsecp_ctx_clone(const ufsecp_ctx* src, ufsecp_ctx** ctx_out) {
-    if (!src || !ctx_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!src || !ctx_out)) return UFSECP_ERR_NULL_ARG;
     *ctx_out = nullptr;
 
     auto* dst = static_cast<ufsecp_ctx*>(std::malloc(sizeof(ufsecp_ctx)));
-    if (!dst) return UFSECP_ERR_INTERNAL;
+    if (SECP256K1_UNLIKELY(!dst)) return UFSECP_ERR_INTERNAL;
 
     std::memcpy(dst, src, sizeof(ufsecp_ctx));
     ctx_clear_err(dst);
@@ -96,10 +96,10 @@ size_t ufsecp_ctx_size(void) {
 
 ufsecp_error_t ufsecp_seckey_verify(const ufsecp_ctx* ctx,
                                     const uint8_t privkey[32]) {
-    if (!ctx || !privkey) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey)) return UFSECP_ERR_NULL_ARG;
     // BIP-340 strict: reject if privkey == 0 or privkey >= n (no reduction)
     Scalar sk;
-    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!Scalar::parse_bytes_strict_nonzero(privkey, sk))) {
         return UFSECP_ERR_BAD_KEY;
     }
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
@@ -107,10 +107,10 @@ ufsecp_error_t ufsecp_seckey_verify(const ufsecp_ctx* ctx,
 }
 
 ufsecp_error_t ufsecp_seckey_negate(ufsecp_ctx* ctx, uint8_t privkey[32]) {
-    if (!ctx || !privkey) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     auto neg = sk.negate();
@@ -123,14 +123,14 @@ ufsecp_error_t ufsecp_seckey_negate(ufsecp_ctx* ctx, uint8_t privkey[32]) {
 
 ufsecp_error_t ufsecp_seckey_tweak_add(ufsecp_ctx* ctx, uint8_t privkey[32],
                                        const uint8_t tweak[32]) {
-    if (!ctx || !privkey || !tweak) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !tweak)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     Scalar tw;
-    if (!scalar_parse_strict(tweak, tw)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict(tweak, tw))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "tweak >= n");
     }
     auto result = sk + tw;
@@ -147,15 +147,15 @@ ufsecp_error_t ufsecp_seckey_tweak_add(ufsecp_ctx* ctx, uint8_t privkey[32],
 
 ufsecp_error_t ufsecp_seckey_tweak_mul(ufsecp_ctx* ctx, uint8_t privkey[32],
                                        const uint8_t tweak[32]) {
-    if (!ctx || !privkey || !tweak) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !tweak)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     Scalar tw;
     // tweak_mul: reject tweak==0 (result would be zero) and tweak >= n
-    if (!scalar_parse_strict_nonzero(tweak, tw)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(tweak, tw))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "tweak is zero or >= n");
     }
     auto result = sk * tw;
@@ -178,7 +178,7 @@ static ufsecp_error_t pubkey_create_core(ufsecp_ctx* ctx,
                                          const uint8_t privkey[32],
                                          Point& pk_out) {
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     pk_out = secp256k1::ct::generator_mul(sk);
@@ -192,7 +192,7 @@ static ufsecp_error_t pubkey_create_core(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_pubkey_create(ufsecp_ctx* ctx,
                                     const uint8_t privkey[32],
                                     uint8_t pubkey33_out[33]) {
-    if (!ctx || !privkey || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey33_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Point pk;
     const ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
@@ -204,7 +204,7 @@ ufsecp_error_t ufsecp_pubkey_create(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_pubkey_create_uncompressed(ufsecp_ctx* ctx,
                                                  const uint8_t privkey[32],
                                                  uint8_t pubkey65_out[65]) {
-    if (!ctx || !privkey || !pubkey65_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !pubkey65_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
     Point pk;
     const ufsecp_error_t err = pubkey_create_core(ctx, privkey, pk);
@@ -217,7 +217,7 @@ ufsecp_error_t ufsecp_pubkey_create_uncompressed(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_pubkey_parse(ufsecp_ctx* ctx,
                                    const uint8_t* input, size_t input_len,
                                    uint8_t pubkey33_out[33]) {
-    if (!ctx || !input || !pubkey33_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !input || !pubkey33_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (input_len == 33 && (input[0] == 0x02 || input[0] == 0x03)) {
@@ -257,11 +257,11 @@ ufsecp_error_t ufsecp_pubkey_parse(ufsecp_ctx* ctx,
 ufsecp_error_t ufsecp_pubkey_xonly(ufsecp_ctx* ctx,
                                    const uint8_t privkey[32],
                                    uint8_t xonly32_out[32]) {
-    if (!ctx || !privkey || !xonly32_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !xonly32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
 

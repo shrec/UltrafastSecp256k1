@@ -13,6 +13,7 @@
 
 #include "ufsecp_gpu.h"
 #include "../../gpu/include/gpu_backend.hpp"
+#include "secp256k1/config.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -142,10 +143,10 @@ ufsecp_error_t ufsecp_gpu_device_info(
     uint32_t bid, uint32_t device_index,
     ufsecp_gpu_device_info_t* info_out)
 {
-    if (!info_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!info_out)) return UFSECP_ERR_NULL_ARG;
     try {
     auto b = create_backend(bid);
-    if (!b) return UFSECP_ERR_GPU_UNAVAILABLE;
+    if (SECP256K1_UNLIKELY(!b)) return UFSECP_ERR_GPU_UNAVAILABLE;
 
     DeviceInfo di;
     auto err = b->device_info(device_index, di);
@@ -171,17 +172,17 @@ ufsecp_error_t ufsecp_gpu_ctx_create(
     uint32_t bid,
     uint32_t device_index)
 {
-    if (!ctx_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx_out)) return UFSECP_ERR_NULL_ARG;
     *ctx_out = nullptr;
     try {
     auto backend = create_backend(bid);
-    if (!backend) return UFSECP_ERR_GPU_UNAVAILABLE;
+    if (SECP256K1_UNLIKELY(!backend)) return UFSECP_ERR_GPU_UNAVAILABLE;
 
     auto err = backend->init(device_index);
     if (err != GpuError::Ok) return to_abi_error(err);
 
     auto* ctx = new (std::nothrow) ufsecp_gpu_ctx;
-    if (!ctx) return UFSECP_ERR_INTERNAL;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_INTERNAL;
 
     ctx->backend      = std::move(backend);
     ctx->backend_id   = bid;
@@ -205,7 +206,7 @@ int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx) {
 }
 
 ufsecp_error_t ufsecp_gpu_last_error(const ufsecp_gpu_ctx* ctx) {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     return to_abi_error(ctx->backend->last_error());
 }
 
@@ -224,9 +225,9 @@ ufsecp_error_t ufsecp_gpu_generator_mul_batch(
     size_t count,
     uint8_t* out_pubkeys33)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!scalars32 || !out_pubkeys33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!scalars32 || !out_pubkeys33)) return UFSECP_ERR_NULL_ARG;
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     try {
     return to_abi_error(
@@ -242,9 +243,9 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!msg_hashes32 || !pubkeys33 || !sigs64 || !out_results) {
+    if (SECP256K1_UNLIKELY(!msg_hashes32 || !pubkeys33 || !sigs64 || !out_results)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
@@ -263,9 +264,9 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!msg_hashes32 || !pubkeys_x32 || !sigs64 || !out_results) {
+    if (SECP256K1_UNLIKELY(!msg_hashes32 || !pubkeys_x32 || !sigs64 || !out_results)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
@@ -283,9 +284,9 @@ ufsecp_error_t ufsecp_gpu_ecdh_batch(
     size_t count,
     uint8_t* out_secrets32)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!privkeys32 || !peer_pubkeys33 || !out_secrets32) {
+    if (SECP256K1_UNLIKELY(!privkeys32 || !peer_pubkeys33 || !out_secrets32)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (!has_valid_compressed_pubkeys(peer_pubkeys33, count)) {
@@ -305,9 +306,9 @@ ufsecp_error_t ufsecp_gpu_hash160_pubkey_batch(
     size_t count,
     uint8_t* out_hash160)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!pubkeys33 || !out_hash160) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!pubkeys33 || !out_hash160)) return UFSECP_ERR_NULL_ARG;
     if (!has_valid_compressed_pubkeys(pubkeys33, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
@@ -325,9 +326,9 @@ ufsecp_error_t ufsecp_gpu_msm(
     size_t n,
     uint8_t* out_result33)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return UFSECP_OK;
-    if (!scalars32 || !points33 || !out_result33) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!scalars32 || !points33 || !out_result33)) return UFSECP_ERR_NULL_ARG;
     if (n > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     try {
     return to_abi_error(
@@ -348,10 +349,10 @@ ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!z_i32 || !D_i33 || !E_i33 || !Y_i33 || !rho_i32 ||
-        !lambda_ie32 || !negate_R || !negate_key || !out_results) {
+    if (SECP256K1_UNLIKELY(!z_i32 || !D_i33 || !E_i33 || !Y_i33 || !rho_i32 ||
+        !lambda_ie32 || !negate_R || !negate_key || !out_results)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (!has_valid_compressed_pubkeys(D_i33, count) ||
@@ -377,9 +378,9 @@ ufsecp_error_t ufsecp_gpu_ecrecover_batch(
     uint8_t* out_pubkeys33,
     uint8_t* out_valid)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
-    if (!msg_hashes32 || !sigs64 || !recids || !out_pubkeys33 || !out_valid) {
+    if (SECP256K1_UNLIKELY(!msg_hashes32 || !sigs64 || !recids || !out_pubkeys33 || !out_valid)) {
         return UFSECP_ERR_NULL_ARG;
     }
     if (!has_valid_recovery_ids(recids, count)) {
@@ -405,7 +406,7 @@ ufsecp_error_t ufsecp_gpu_zk_knowledge_verify_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
     if (!proofs64 || !pubkeys65 || !messages32 || !out_results)
         return UFSECP_ERR_NULL_ARG;
@@ -430,7 +431,7 @@ ufsecp_error_t ufsecp_gpu_zk_dleq_verify_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
     if (!proofs64 || !G_pts65 || !H_pts65 || !P_pts65 || !Q_pts65 || !out_results)
         return UFSECP_ERR_NULL_ARG;
@@ -456,7 +457,7 @@ ufsecp_error_t ufsecp_gpu_bulletproof_verify_batch(
     size_t count,
     uint8_t* out_results)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
     if (!proofs324 || !commitments65 || !H_generator65 || !out_results)
         return UFSECP_ERR_NULL_ARG;
@@ -487,7 +488,7 @@ ufsecp_error_t ufsecp_gpu_bip324_aead_encrypt_batch(
     size_t count,
     uint8_t* wire_out)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
     if (!keys32 || !nonces12 || !plaintexts || !sizes || !wire_out)
         return UFSECP_ERR_NULL_ARG;
@@ -513,7 +514,7 @@ ufsecp_error_t ufsecp_gpu_bip324_aead_decrypt_batch(
     uint8_t*  plaintext_out,
     uint8_t*  out_valid)
 {
-    if (!ctx) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
     if (count == 0) return UFSECP_OK;
     if (!keys32 || !nonces12 || !wire_in || !sizes || !plaintext_out || !out_valid)
         return UFSECP_ERR_NULL_ARG;
@@ -577,7 +578,7 @@ ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
     const uint8_t scan_privkey32[32],
     uint8_t       plan264_out[264])
 {
-    if (!scan_privkey32 || !plan264_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!scan_privkey32 || !plan264_out)) return UFSECP_ERR_NULL_ARG;
 
     using namespace secp256k1::fast;
 

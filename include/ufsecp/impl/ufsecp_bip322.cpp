@@ -11,8 +11,8 @@ ufsecp_error_t ufsecp_bip322_sign(
     ufsecp_bip322_addr_type addr_type,
     const uint8_t* msg, size_t msg_len,
     uint8_t* sig_out, size_t* sig_len) {
-    if (!ctx || !privkey || !sig_out || !sig_len) return UFSECP_ERR_NULL_ARG;
-    if (!msg && msg_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !privkey || !sig_out || !sig_len)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg && msg_len > 0)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     // BIP-322 message hash: tagged_hash("BIP0322-signed-message", msg)
@@ -29,7 +29,7 @@ ufsecp_error_t ufsecp_bip322_sign(
     }
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -76,8 +76,8 @@ ufsecp_error_t ufsecp_bip322_verify(
     ufsecp_bip322_addr_type addr_type,
     const uint8_t* msg, size_t msg_len,
     const uint8_t* sig, size_t sig_len) {
-    if (!ctx || !pubkey || !sig) return UFSECP_ERR_NULL_ARG;
-    if (!msg && msg_len > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !pubkey || !sig)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!msg && msg_len > 0)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     static const uint8_t bip322_tag[] = "BIP0322-signed-message";
@@ -263,9 +263,9 @@ ufsecp_error_t ufsecp_gcs_build(
     const uint8_t key[16],
     const uint8_t** data, const size_t* data_sizes, size_t count,
     uint8_t* filter_out, size_t* filter_len) {
-    if (!key || !filter_out || !filter_len) return UFSECP_ERR_NULL_ARG;
-    if (!data && count > 0) return UFSECP_ERR_NULL_ARG;
-    if (!data_sizes && count > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!key || !filter_out || !filter_len)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data && count > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!data_sizes && count > 0)) return UFSECP_ERR_NULL_ARG;
 
     try {
     uint64_t const modulus = static_cast<uint64_t>(count) * GCS_M;
@@ -290,7 +290,7 @@ ufsecp_error_t ufsecp_gcs_match(
     const uint8_t* filter, size_t filter_len,
     size_t n_items,
     const uint8_t* item, size_t item_len) {
-    if (!key || !filter || !item) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!key || !filter || !item)) return UFSECP_ERR_NULL_ARG;
 
     try {
     std::vector<uint64_t> decoded;
@@ -315,9 +315,9 @@ ufsecp_error_t ufsecp_gcs_match_any(
     const uint8_t* filter, size_t filter_len,
     size_t n_items,
     const uint8_t** query, const size_t* query_sizes, size_t query_count) {
-    if (!key || !filter) return UFSECP_ERR_NULL_ARG;
-    if (!query && query_count > 0) return UFSECP_ERR_NULL_ARG;
-    if (!query_sizes && query_count > 0) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!key || !filter)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!query && query_count > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!query_sizes && query_count > 0)) return UFSECP_ERR_NULL_ARG;
 
     try {
     std::vector<uint64_t> decoded;
@@ -348,11 +348,11 @@ ufsecp_error_t ufsecp_psbt_sign_legacy(
     const uint8_t privkey[32],
     uint8_t sighash_type,
     uint8_t* sig_out, size_t* sig_len) {
-    if (!ctx || !sighash32 || !privkey || !sig_out || !sig_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !sighash32 || !privkey || !sig_out || !sig_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -415,7 +415,7 @@ ufsecp_error_t ufsecp_psbt_sign_segwit(
     const uint8_t privkey[32],
     uint8_t sighash_type,
     uint8_t* sig_out, size_t* sig_len) {
-    if (!ctx || !sighash32 || !privkey || !sig_out || !sig_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !sighash32 || !privkey || !sig_out || !sig_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     if (*sig_len < 65) {
@@ -423,7 +423,7 @@ ufsecp_error_t ufsecp_psbt_sign_segwit(
     }
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -449,7 +449,7 @@ ufsecp_error_t ufsecp_psbt_sign_taproot(
     uint8_t sighash_type,
     const uint8_t* aux_rand32,
     uint8_t* sig_out, size_t* sig_len) {
-    if (!ctx || !sighash32 || !privkey || !sig_out || !sig_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !sighash32 || !privkey || !sig_out || !sig_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     size_t const expected_len = (sighash_type == UFSECP_SIGHASH_DEFAULT) ? 64 : 65;
@@ -458,7 +458,7 @@ ufsecp_error_t ufsecp_psbt_sign_taproot(
     }
 
     Scalar sk;
-    if (!scalar_parse_strict_nonzero(privkey, sk)) {
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
@@ -492,7 +492,7 @@ ufsecp_error_t ufsecp_psbt_derive_key(
     const ufsecp_bip32_key* master_xprv,
     const char* key_path,
     uint8_t privkey_out[32]) {
-    if (!ctx || !master_xprv || !key_path || !privkey_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !master_xprv || !key_path || !privkey_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     ufsecp_bip32_key derived{};
@@ -512,7 +512,7 @@ ufsecp_error_t ufsecp_descriptor_parse(
     uint32_t index,
     ufsecp_desc_key* key_out,
     char* addr_out, size_t* addr_len) {
-    if (!ctx || !descriptor || !key_out) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !descriptor || !key_out)) return UFSECP_ERR_NULL_ARG;
     if (addr_out && !addr_len) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
@@ -709,7 +709,7 @@ ufsecp_error_t ufsecp_descriptor_address(
     const char* descriptor,
     uint32_t index,
     char* addr_out, size_t* addr_len) {
-    if (!ctx || !descriptor || !addr_out || !addr_len) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!ctx || !descriptor || !addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
 
     ufsecp_desc_key key_out{};

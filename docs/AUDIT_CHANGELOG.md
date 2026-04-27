@@ -7,6 +7,29 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-27c (perf: B-11 SECP256K1_UNLIKELY guard annotations — quality audit wave 3)
+
+### Bugs fixed
+
+**LOW (B-11) — C ABI wrapper functions had no branch-prediction hints on error-guard paths:**
+- Added `SECP256K1_UNLIKELY()` (defined in `cpu/include/secp256k1/config.hpp` as
+  `__builtin_expect(!!(x), 0)` on GCC/Clang, identity on MSVC) to 297 argument-guard
+  and key-parse-failure branches across all 9 implementation files:
+  `impl/ufsecp_core.cpp` (21), `impl/ufsecp_ecdsa.cpp` (28), `impl/ufsecp_address.cpp` (23),
+  `impl/ufsecp_taproot.cpp` (39), `impl/ufsecp_musig2.cpp` (28), `impl/ufsecp_zk.cpp` (49),
+  `impl/ufsecp_coins.cpp` (60), `impl/ufsecp_bip322.cpp` (21), `ufsecp_gpu_impl.cpp` (28).
+- Added `#include "secp256k1/config.hpp"` to `ufsecp_gpu_impl.cpp` so the macro is in scope.
+- Pattern applied: `if (!ctx || !arg)` → `if (SECP256K1_UNLIKELY(!ctx || !arg))`.
+  Error paths (NULL arg, bad key, parse fail) are cold; happy path falls through
+  without a branch-predictor penalty.
+- Expected gain: 2-5% throughput improvement in tight signing/verify loops where
+  argument validation overhead is measurable.
+- B-10 (AVX2 SIMD field_mul): deferred — baseline: field_mul=31.56 ns (35.76 M/s),
+  field_sqr=22.80 ns; i5-14400F lacks IFMA52 (`vpmadd52luq`), so AVX2 cannot improve
+  single-op field multiply without SoA data layout. Separate session.
+
+---
+
 ## 2026-04-27b (fix: B-04 monolith split + B-08 GPU secret erase + B-09 batch sign partial — quality audit wave 2)
 
 ### Bugs fixed
