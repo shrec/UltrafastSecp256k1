@@ -65,3 +65,48 @@ Important tables/views:
 - Do not claim audit coverage without checking `function_test_map` or `symbol_audit_coverage`.
 - Do not change ABI-visible or secret-bearing code blindly; query `routing`, `bindings`, and `fragile` first.
 - If you add new graph-worthy entities, update the graph builder.
+
+## Security Guardrails (Strict)
+
+These rules apply to every model and every agent working in this library.
+
+1. **CT signing is mandatory for secret-bearing signing paths.**
+   Public C++ APIs, C ABI wrappers, bindings, wallet integrations, recovery signing,
+   ECDSA, Schnorr, Ethereum, Bitcoin message signing, ECIES, and batch signing must
+   route private-key and nonce operations through `secp256k1::ct::*` primitives.
+   Do not add or recommend default signing paths that call variable-time
+   `Point::generator().scalar_mul()`, `Scalar::inverse()`, wNAF, GLV fast paths,
+   or branchy recovery-ID logic on secrets.
+
+2. **Non-CT public C++ signing is a security finding.**
+   If `cpu/src/ecdsa.cpp`, `cpu/src/recovery.cpp`, or public headers expose a
+   normal-looking non-CT signing API, either make CT the default or add an explicit
+   opt-in guard, warning, deprecation, or compile-time restriction. Never claim
+   production-safe signing while default public C++ signing is non-CT.
+
+3. **Batch signing failure must be fail-closed.**
+   All batch sign APIs must clear output buffers before processing and must not
+   leave partial valid signatures visible after an error. Keep Schnorr and ECDSA
+   batch semantics identical for null args, zero count, invalid key, overflow,
+   and partial-failure behavior.
+
+4. **Zero signatures from signing internals are ABI errors.**
+   If a CT signing primitive returns `r == 0`, `s == 0`, or an all-zero Schnorr
+   signature, ABI wrappers must return a non-OK error such as `UFSECP_ERR_INTERNAL`
+   and must not serialize the zero signature as success.
+
+5. **Graph evidence must match security claims.**
+   Before claiming CT coverage, query source graph `symbol`, `coverage`, `risk`,
+   and relevant `function_test_map` / `symbol_audit_coverage` entries. ABI wrappers
+   that dispatch to CT implementations must have CT evidence mapped in the graph.
+   If metadata is stale or wrong, repair the graph/config and rebuild it.
+
+6. **Corrupt benchmark artifacts are not evidence.**
+   Reject benchmark files with zero timings, impossible throughput, malformed
+   columns, or concatenated numeric fields. Regenerate benchmarks with sanity
+   checks before using them in performance, release, audit, or marketing claims.
+
+7. **Documentation and tests must change with security fixes.**
+   Any change to CT signing, ABI failure semantics, batch APIs, parser behavior,
+   or benchmark evidence must update the matching docs and audit tests in the
+   same commit.

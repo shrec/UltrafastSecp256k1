@@ -4528,7 +4528,14 @@ def _categorize_file(filename):
 
 
 SEMANTIC_TAG_RULES = [
-    ("security", ("auth", "login", "secure", "password", "warehouse", "otp", "pin")),
+    ("security", ("auth", "login", "secure", "password", "warehouse", "otp", "pin", "secret", "seckey", "private key", "nonce")),
+    ("crypto", ("secp256k1", "ecdsa", "schnorr", "bip340", "bip-340", "taproot", "xonly", "x-only", "ecdh", "scalar", "field", "point")),
+    ("constant-time", ("constant-time", "constant time", "ct::", "ct_", "ct-verif", "dudect", "valgrind-ct", "side-channel", "side channel")),
+    ("caas", ("caas", "continuous audit", "audit bundle", "audit_gate", "security_autonomy", "external_audit_bundle", "claim", "evidence")),
+    ("audit", ("audit", "assurance", "exploit", "poc", "wycheproof", "fuzz", "traceability", "autonomy", "evidence")),
+    ("bitcoin-core", ("bitcoin core", "bitcoin-core", "bitcoin_core", "libsecp", "libsecp256k1", "secp256k1_shim", "shim", "consensus")),
+    ("compat-shim", ("compat", "shim", "libsecp256k1_shim", "secp256k1_context", "secp256k1_ecdsa", "secp256k1_schnorr")),
+    ("strict-parser", ("parse_strict", "strict parse", "strict parsing", "parse_compact_strict", "parse_bytes_strict", "der parser", "canonical")),
     ("auth", ("auth", "login", "account", "session", "token")),
     ("warehouse", ("warehouse", "vault")),
     ("movement", ("move", "path", "teleport", "dir", "viewport", "position")),
@@ -4537,7 +4544,8 @@ SEMANTIC_TAG_RULES = [
     ("boss-tab", ("neweventwindow", "bossfight", "ctrl+t", "ctrlt", "boss tab")),
     ("event", ("event", "castle", "blood", "devil", "kanturu", "raklion", "medusa", "kundun", "evomon")),
     ("ai", ("monsterai", "monstermovement", "ai_", "automata", "monster ai")),
-    ("network-packet", ("packet", "protocol", "headcode", "serverlink", "sendpacket", "recv")),
+    ("network-packet", ("packet", "protocol", "headcode", "serverlink", "sendpacket", "recv", "p2p", "network")),
+    ("build-integration", ("cmake", "fetchcontent", "submodule", "build", "target_link_libraries", "add_subdirectory", "reproducible")),
     ("mix", ("mix", "chaos", "goblin")),
     ("inventory", ("inventory", "itembag", "item", "warehouse")),
     ("combat", ("attack", "damage", "skill", "combat", "threat")),
@@ -4546,11 +4554,11 @@ SEMANTIC_TAG_RULES = [
     ("npc", ("npc", "guard", "merchant", "shop")),
 ]
 
-HOT_PATH_TAGS = {"movement", "combat", "ai", "network-packet", "world-flag", "boss-tab"}
-OPTIMIZATION_TAGS = {"movement", "combat", "ai", "db", "network-packet", "world-flag"}
-SECURITY_TAGS = {"security", "auth", "warehouse"}
-FRAGILE_TAGS = {"security", "auth", "warehouse", "boss-tab", "world-flag", "event", "mix"}
-NETWORK_TAGS = {"network-packet", "boss-tab"}
+HOT_PATH_TAGS = {"movement", "combat", "ai", "network-packet", "world-flag", "boss-tab", "crypto"}
+OPTIMIZATION_TAGS = {"movement", "combat", "ai", "db", "network-packet", "world-flag", "crypto", "build-integration"}
+SECURITY_TAGS = {"security", "auth", "warehouse", "crypto", "constant-time", "strict-parser"}
+FRAGILE_TAGS = {"security", "auth", "warehouse", "boss-tab", "world-flag", "event", "mix", "bitcoin-core", "compat-shim", "strict-parser", "build-integration", "caas", "audit"}
+NETWORK_TAGS = {"network-packet", "boss-tab", "bitcoin-core"}
 
 
 def _collect_semantic_tags(*parts):
@@ -8202,12 +8210,14 @@ def _file_focus_penalty(file_name):
         return 35
     if lowered.startswith(("dist/", "out/", "node_modules/", ".git/")):
         return 30
-    if file_name.startswith(("src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/")):
+    if file_name.startswith(("src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/", "compat/")):
         return 0
+    if file_name.startswith(("audit/", "scripts/", "tools/", ".github/", "cmake/")):
+        return 1
     if file_name.startswith(("apps/", "examples/", "benchmarks/")):
         return 1
     if file_name.startswith(("tests/", "test_", "docs/")):
-        return 3
+        return 2
     if file_name.startswith(("shaders/", "esp32_test/")):
         return 4
     return 2
@@ -8216,7 +8226,10 @@ def _file_focus_penalty(file_name):
 def _is_core_file(file_name):
     if not file_name:
         return False
-    return file_name.startswith(("src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/"))
+    return file_name.startswith((
+        "src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/", "compat/",
+        "audit/", "tests/", "docs/", "scripts/", "tools/", ".github/", "cmake/"
+    ))
 
 
 def _select_candidate_files(conn, term, limit=12, core_only=False):
@@ -8261,6 +8274,9 @@ def _collect_candidate_files(conn, term, limit=12):
     pattern = f"%{term}%"
     queries = [
         ("SELECT DISTINCT path AS file FROM files WHERE path LIKE ? LIMIT 12", (pattern,)),
+        ("SELECT DISTINCT file FROM file_summaries WHERE file LIKE ? OR summary LIKE ? OR category LIKE ? LIMIT 12", (pattern, pattern, pattern)),
+        ("SELECT DISTINCT file FROM semantic_tags WHERE tag LIKE ? OR entity_name LIKE ? OR evidence LIKE ? OR file LIKE ? LIMIT 12", (pattern, pattern, pattern, pattern)),
+        ("SELECT DISTINCT file_path AS file FROM symbol_metadata WHERE symbol_name LIKE ? OR file_path LIKE ? OR semantic_tags LIKE ? OR summary LIKE ? LIMIT 12", (pattern, pattern, pattern, pattern)),
         ("SELECT DISTINCT file FROM function_index WHERE function_name LIKE ? OR class_name LIKE ? OR file LIKE ? LIMIT 12", (pattern, pattern, pattern)),
         ("SELECT DISTINCT cpp_file AS file FROM classes WHERE name LIKE ? OR cpp_file LIKE ? LIMIT 8", (pattern, pattern)),
         ("SELECT DISTINCT header AS file FROM classes WHERE name LIKE ? OR header LIKE ? LIMIT 8", (pattern, pattern)),

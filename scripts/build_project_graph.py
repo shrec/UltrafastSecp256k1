@@ -32,7 +32,8 @@ LIB_ROOT = SCRIPT_DIR.parent          # libs/UltrafastSecp256k1/
 DB_PATH = LIB_ROOT / ".project_graph.db"
 
 SOURCE_EXTS = {'.cpp', '.hpp', '.h', '.cu', '.cuh', '.cl', '.metal', '.mm',
-               '.S', '.asm', '.py', '.sh', '.ps1', '.cmake'}
+               '.S', '.asm', '.py', '.sh', '.ps1', '.cmake', '.md', '.json',
+               '.yml', '.yaml', '.toml', '.txt'}
 SKIP_DIRS = {'build-linux', 'build_rel', 'build_opencl', 'build-cuda',
              'build-riscv-rel', '_research_repos', 'node_modules', '.git',
              'build', 'build_bench', 'build_rel'}
@@ -845,6 +846,9 @@ SEMANTIC_TAGS = {
     'ethereum_stack': ('protocol', 'Ethereum signing, recovery, addressing, or Keccak-backed APIs.'),
     'taproot_stack': ('protocol', 'Taproot, BIP-340, x-only pubkeys, or taproot tweaking logic.'),
     'differential_testing': ('tooling', 'Cross-lib differential, KAT, vector, or equivalence testing.'),
+    'bitcoin_core': ('ecosystem', 'Bitcoin Core integration, consensus parity, or libsecp256k1 compatibility.'),
+    'compat_shim': ('ecosystem', 'libsecp256k1-compatible shim surface and API semantics.'),
+    'caas_evidence': ('tooling', 'Continuous Audit as a Service pipeline, gate, bundle, or reproducible evidence.'),
 }
 
 
@@ -869,8 +873,17 @@ def derive_semantic_tags_for_source(path: str, category: str, subsystem: str, la
         add('gpu_acceleration', 1.0)
     if category in ('compat', 'android', 'wasm') or any(x in p for x in ('arm64', 'riscv', 'esp32', 'wasm', 'msvc', 'cross_platform')):
         add('cross_platform', 0.9)
+    if category == 'compat' or 'libsecp256k1_shim' in p or 'secp256k1_shim' in p:
+        add('compat_shim', 1.0)
+        add('bitcoin_core', 0.9)
+        add('ffi_surface', 0.9)
     if category in ('script',) or any(x in p for x in ('release', 'package', 'build', 'cmake', 'preset', 'reproducible')):
         add('build_release', 0.8)
+    if any(x in p for x in ('caas', 'audit_gate', 'security_autonomy', 'external_audit_bundle', 'evidence_governance')):
+        add('caas_evidence', 1.0)
+        add('audit_evidence', 0.95)
+    if any(x in p for x in ('bitcoin_core', 'bitcoin-core', 'libsecp256k1', 'libsecp', 'consensus')):
+        add('bitcoin_core', 1.0)
 
     if subsystem in ('ecdsa', 'schnorr'):
         add('signing', 0.9)
@@ -961,6 +974,12 @@ def infer_coordinate_model(symbol_name: str, file_path: str) -> str:
 
 def classify_symbol_category(symbol_name: str, file_path: str):
     s = f"{symbol_name} {file_path}".lower()
+    if any(x in s for x in ('libsecp256k1_shim', 'secp256k1_context', 'secp256k1_ecdsa', 'secp256k1_schnorr')):
+        return 'compat_shim', 'abi'
+    if any(x in s for x in ('caas', 'audit_gate', 'security_autonomy', 'external_audit_bundle', 'evidence_governance')):
+        return 'caas', 'tool'
+    if any(x in s for x in ('bitcoin_core', 'bitcoin-core', 'libsecp256k1', 'libsecp', 'consensus')):
+        return 'bitcoin_core', 'abi'
     if any(x in s for x in ('field', 'fe52', 'fe_')):
         return 'field_arithmetic', 'field'
     if any(x in s for x in ('scalar', 'safegcd', 'wnaf')):
@@ -1029,7 +1048,7 @@ def derive_symbol_security(symbol_name: str, file_path: str, semantics: dict):
     public_only = 1 if semantics['secret_class'] == 'public_only' else 0
     device_secret = 1 if semantics['backend'] in ('cuda', 'opencl', 'metal') and uses_secret else 0
     zeroize = 1 if any(x in s for x in ('sign', 'nonce', 'ecdh', 'decrypt', 'blind', 'derive', 'seed', 'mnemonic')) else 0
-    invalid_input = 1 if any(x in s for x in ('parse', 'verify', 'validate', 'from_der', 'pubkey', 'sig', 'address', 'decode', 'ecies')) else 0
+    invalid_input = 1 if any(x in s for x in ('parse', 'verify', 'validate', 'from_der', 'pubkey', 'sig', 'address', 'decode', 'ecies', 'seckey', 'context_randomize')) else 0
     notes = []
     if device_secret:
         notes.append('secret-bearing symbol reaches GPU/backend memory')

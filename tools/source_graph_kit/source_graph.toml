@@ -107,6 +107,12 @@ optional = true
 extensions = ["*.cmake", "CMakeLists.txt", "*.txt"]
 
 [[source_dirs]]
+label = "compat"
+path = "../compat"
+optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.md", "*.txt", "*.cmake", "CMakeLists.txt"]
+
+[[source_dirs]]
 label = "bindings"
 path = "../bindings"
 optional = true
@@ -167,6 +173,18 @@ source_dir = "cmake"
 match = "suffix"
 pattern = ".cmake"
 category = "build_config"
+
+[[category_rules]]
+source_dir = "compat"
+match = "contains"
+pattern = "libsecp256k1_shim"
+category = "compat_shim"
+
+[[category_rules]]
+source_dir = "compat"
+match = "suffix"
+pattern = ".md"
+category = "docs"
 
 [[category_rules]]
 source_dir = "bindings"
