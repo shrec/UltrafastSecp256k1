@@ -58,7 +58,7 @@ ufsecp_error_t ufsecp_bip322_sign(
         }
         std::array<uint8_t, 32> msg_arr;
         std::memcpy(msg_arr.data(), msg_hash, 32);
-        auto sig = secp256k1::ecdsa_sign(msg_arr, sk);
+        auto sig = secp256k1::ct::ecdsa_sign(msg_arr, sk);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         auto compact = sig.to_compact();
         std::memcpy(sig_out, compact.data(), 32);
@@ -364,7 +364,7 @@ ufsecp_error_t ufsecp_psbt_sign_legacy(
     try {
     std::array<uint8_t, 32> msg_arr;
     std::memcpy(msg_arr.data(), sighash32, 32);
-    auto sig = secp256k1::ecdsa_sign(msg_arr, sk);
+    auto sig = secp256k1::ct::ecdsa_sign(msg_arr, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
 
     // DER encode: extract r and s from compact encoding
@@ -431,7 +431,7 @@ ufsecp_error_t ufsecp_psbt_sign_segwit(
     try {
     std::array<uint8_t, 32> msg_arr;
     std::memcpy(msg_arr.data(), sighash32, 32);
-    auto sig = secp256k1::ecdsa_sign(msg_arr, sk);
+    auto sig = secp256k1::ct::ecdsa_sign(msg_arr, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     auto compact = sig.to_compact();
     std::memcpy(sig_out, compact.data(), 32);

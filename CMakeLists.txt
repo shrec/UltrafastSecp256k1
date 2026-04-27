@@ -64,6 +64,18 @@ option(SECP256K1_BUILD_ETHEREUM "Build Ethereum module (Keccak, EIP-55/155/191, 
 # CT enforcement: deprecate non-CT signing functions at compile time
 option(SECP256K1_REQUIRE_CT "Deprecate non-CT sign functions (compile warnings on fast:: signing)" OFF)
 
+# Bitcoin Core backend mode: bundles CT enforcement + strict ABI for backend integration.
+# Enables SECP256K1_REQUIRE_CT and UFSECP_BITCOIN_STRICT; suitable for a deterministic,
+# RFC 6979-only signing configuration matching libsecp256k1's external contract.
+option(SECP256K1_CORE_BACKEND_MODE
+       "Bitcoin Core alternative backend: CT enforced, strict ABI, RFC 6979 deterministic signing" OFF)
+if(SECP256K1_CORE_BACKEND_MODE)
+    set(SECP256K1_REQUIRE_CT ON CACHE BOOL "Enabled by SECP256K1_CORE_BACKEND_MODE" FORCE)
+    set(UFSECP_BITCOIN_STRICT ON CACHE BOOL "Enabled by SECP256K1_CORE_BACKEND_MODE" FORCE)
+    add_compile_definitions(SECP256K1_CORE_BACKEND_MODE=1)
+    message(STATUS "secp256k1-fast: Bitcoin Core backend mode (CT enforce + strict ABI + RFC 6979)")
+endif()
+
 # x86-64 -march override: use "x86-64-v3" in CI with ccache to avoid SIGILL
 # when cached objects from a different runner CPU are reused.  Empty = native.
 set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect)")

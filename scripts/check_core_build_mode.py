@@ -441,6 +441,23 @@ def check_shim_private_link() -> dict:
 # All checks in presentation order
 # ---------------------------------------------------------------------------
 
+def check_core_backend_mode_option() -> dict:
+    """SECP256K1_CORE_BACKEND_MODE option must exist in root CMakeLists.txt."""
+    check_id   = "core_backend_mode_option"
+    check_name = "SECP256K1_CORE_BACKEND_MODE CMake option (deterministic Core build)"
+    root_cmake = LIB_ROOT / "CMakeLists.txt"
+    if not root_cmake.exists():
+        return {"id": check_id, "name": check_name, "status": "SKIP",
+                "detail": ["CMakeLists.txt not found"]}
+    text = root_cmake.read_text(errors="replace")
+    pat = re.compile(r'option\s*\(\s*SECP256K1_CORE_BACKEND_MODE\b', re.IGNORECASE)
+    if pat.search(text):
+        return {"id": check_id, "name": check_name, "status": "PASS",
+                "detail": ["SECP256K1_CORE_BACKEND_MODE option found"]}
+    return {"id": check_id, "name": check_name, "status": "FAIL",
+            "detail": ["SECP256K1_CORE_BACKEND_MODE option missing — needed for Core deterministic mode"]}
+
+
 ALL_CHECKS = [
     check_no_public_cxx_std_20,
     check_no_fetchcontent_in_core,
@@ -448,6 +465,7 @@ ALL_CHECKS = [
     check_cmake_minimum_version,
     check_no_global_cxx_standard_in_shim,
     check_shim_private_link,
+    check_core_backend_mode_option,
 ]
 
 # ---------------------------------------------------------------------------

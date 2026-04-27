@@ -341,6 +341,145 @@ static void test_tagged_hash(secp256k1_context* ctx) {
     CHECK(memcmp(out, out2, 32) == 0, "tagged_sha256 deterministic");
 }
 
+// ── DER Parity Test (libsecp boundary vectors) ────────────────────────────────
+// secp256k1 order n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+// Every DER r/s must be in (0, n-1].
+
+static void test_der_parity(secp256k1_context* ctx) {
+    printf("\n[DER parity — libsecp boundary vectors]\n");
+
+    // Helper: build a minimal DER sequence: 0x30 seqlen [r_der] [s_der]
+    // r_der = 02 rlen r_bytes, same for s.
+    // Returns total length written.
+    auto make_der = [](unsigned char* out,
+                       const unsigned char* r_val, int r_len,
+                       const unsigned char* s_val, int s_len) -> size_t {
+        // DER integer: add 0x00 prefix when high bit is set
+        bool r_pad = r_len > 0 && (r_val[0] & 0x80);
+        bool s_pad = s_len > 0 && (s_val[0] & 0x80);
+        int r_enc = r_len + (r_pad ? 1 : 0);
+        int s_enc = s_len + (s_pad ? 1 : 0);
+        int seqlen = 2 + r_enc + 2 + s_enc;
+        unsigned char* p = out;
+        *p++ = 0x30;
+        *p++ = static_cast<unsigned char>(seqlen);
+        *p++ = 0x02;
+        *p++ = static_cast<unsigned char>(r_enc);
+        if (r_pad) *p++ = 0x00;
+        memcpy(p, r_val, r_len); p += r_len;
+        *p++ = 0x02;
+        *p++ = static_cast<unsigned char>(s_enc);
+        if (s_pad) *p++ = 0x00;
+        memcpy(p, s_val, s_len); p += s_len;
+        return static_cast<size_t>(p - out);
+    };
+
+    // Order n and n-1
+    static const unsigned char N[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41
+    };
+    static const unsigned char N_MINUS_1[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x40
+    };
+    static const unsigned char ONE[1]  = {0x01};
+    static const unsigned char ZERO[1] = {0x00};
+
+    unsigned char der[80];
+    size_t derlen;
+    secp256k1_ecdsa_signature sig{};
+
+    // 1. Valid: r=1, s=1
+    derlen = make_der(der, ONE, 1, ONE, 1);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 1,
+          "DER r=1 s=1: accept");
+
+    // 2. Invalid: r=0 → reject (zero is not in (0, n-1])
+    derlen = make_der(der, ZERO, 1, ONE, 1);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 0,
+          "DER r=0: reject");
+
+    // 3. Invalid: s=0 → reject
+    derlen = make_der(der, ONE, 1, ZERO, 1);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 0,
+          "DER s=0: reject");
+
+    // 4. Invalid: r=n → reject (not in (0, n-1])
+    derlen = make_der(der, N, 32, ONE, 1);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 0,
+          "DER r=n: reject");
+
+    // 5. Invalid: s=n → reject
+    derlen = make_der(der, ONE, 1, N, 32);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 0,
+          "DER s=n: reject");
+
+    // 6. Valid: r=n-1, s=1 (maximum valid r)
+    derlen = make_der(der, N_MINUS_1, 32, ONE, 1);
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 1,
+          "DER r=n-1: accept");
+
+    // 7. Invalid: wrong outer tag (not 0x30)
+    unsigned char bad_tag[8] = {0x31,0x06,0x02,0x01,0x01,0x02,0x01,0x01};
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, bad_tag, 8) == 0,
+          "DER wrong outer tag: reject");
+
+    // 8. Invalid: truncated input
+    unsigned char trunc[4] = {0x30,0x06,0x02,0x01};
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, trunc, 4) == 0,
+          "DER truncated: reject");
+
+    // Compact parse parity: r=0 compact → reject
+    unsigned char compact_zero[64] = {};
+    secp256k1_ecdsa_signature csig{};
+    CHECK(secp256k1_ecdsa_signature_parse_compact(ctx, &csig, compact_zero) == 0,
+          "compact r=0: reject");
+
+    // Compact parse parity: r=n compact → reject
+    unsigned char compact_n[64] = {};
+    memcpy(compact_n, N, 32);
+    compact_n[32] = 0x01; // s=1
+    CHECK(secp256k1_ecdsa_signature_parse_compact(ctx, &csig, compact_n) == 0,
+          "compact r=n: reject");
+
+    // Compact parse parity: r=n-1, s=1 → accept
+    unsigned char compact_nm1[64] = {};
+    memcpy(compact_nm1, N_MINUS_1, 32);
+    compact_nm1[32] = 0x01; // s=1
+    CHECK(secp256k1_ecdsa_signature_parse_compact(ctx, &csig, compact_nm1) == 1,
+          "compact r=n-1: accept");
+}
+
+// ── context_randomize + blinding test ─────────────────────────────────────────
+static void test_context_randomize(secp256k1_context* ctx) {
+    printf("\n[context_randomize — blinding]\n");
+
+    unsigned char seed[32];
+    for (int i = 0; i < 32; i++) seed[i] = (unsigned char)(i + 1);
+
+    CHECK(secp256k1_context_randomize(ctx, seed) == 1,
+          "context_randomize with seed succeeds");
+
+    // Sign after blinding activation: should still produce a valid signature
+    secp256k1_ecdsa_signature sig{};
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig, MSG32, PRIVKEY, nullptr, nullptr) == 1,
+          "ecdsa_sign after randomize succeeds");
+    secp256k1_pubkey pubkey{};
+    secp256k1_ec_pubkey_create(ctx, &pubkey, PRIVKEY);
+    CHECK(secp256k1_ecdsa_verify(ctx, &sig, MSG32, &pubkey) == 1,
+          "ecdsa_verify after randomize: valid sig");
+
+    // Disable blinding (seed = NULL): should succeed
+    CHECK(secp256k1_context_randomize(ctx, nullptr) == 1,
+          "context_randomize(NULL) — clear blinding");
+
+    // Sign after blinding cleared: still valid
+    secp256k1_ecdsa_signature sig2{};
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig2, MSG32, PRIVKEY, nullptr, nullptr) == 1,
+          "ecdsa_sign after clear-blinding succeeds");
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 int main() {
@@ -358,6 +497,8 @@ int main() {
     test_recovery(ctx);
     test_ecdh(ctx);
     test_tagged_hash(ctx);
+    test_der_parity(ctx);
+    test_context_randomize(ctx);
 
     secp256k1_context_destroy(ctx);
 

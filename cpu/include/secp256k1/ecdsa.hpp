@@ -53,8 +53,10 @@ struct ECDSASignature {
 
 // -- ECDSA Operations ---------------------------------------------------------
 
-// Sign a 32-byte message hash with a private key.
-// Uses RFC 6979 deterministic nonce generation.
+// Sign a 32-byte message hash with a private key (FAST, non-constant-time).
+// Uses RFC 6979 deterministic nonce generation, variable-time R=k*G.
+// For production signing where private_key/nonce must be secret:
+//   use secp256k1::ct::ecdsa_sign() from <secp256k1/ct/sign.hpp>.
 // Returns normalized (low-S) signature.
 // Returns {zero, zero} signature on failure (zero key, etc.)
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
