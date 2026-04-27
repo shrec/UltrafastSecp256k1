@@ -115,7 +115,7 @@ target_include_directories(${COMPONENT_LIB} PUBLIC
 )
 
 # C++20 for the component
-target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
+target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_20)
 
 # ESP32-P4 is RISC-V 32-bit: no __int128, no inline ASM, 26-bit field path.
 # UNIFIED_AUDIT_RUNNER suppresses standalone main() in test files.

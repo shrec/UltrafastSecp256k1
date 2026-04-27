@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-27T17:19:42.635642+00:00",
+  "commit_hash": "613fd2fef20dcbd48839f792f6579fe17cd4e90c",
+  "dirty": true,
+  "profile": "default",
+  "build_flags": {
+    "cmake_build_type": "Release",
+    "compiler": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+    "cxx_standard": "20"
+  },
+  "tool_versions": {
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]",
+    "cmake": "cmake version 3.28.3",
+    "git": "git version 2.43.0"
+  },
+  "graph_hash": "df2e1251182c6fa95afd817ae8cd096842ebb74d0e5f2fba053d7e125e51503f",
+  "evidence_bundle_hash": "1952bf1457c0f7b5139f1c0661aea862245ead234b0d8e38ebd84974b6981135",
+  "replay_commands": [
+    "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release",
+    "ninja -C build",
+    "python3 scripts/caas_runner.py --profile default --json -o caas_report.json",
+    "python3 scripts/verify_external_audit_bundle.py --json"
+  ],
+  "known_residuals": [
+    "RR-001",
+    "RR-002",
+    "RR-003",
+    "RR-006",
+    "RR-007",
+    "RR-008"
+  ],
+  "caas_version": "1.0.0"
+}

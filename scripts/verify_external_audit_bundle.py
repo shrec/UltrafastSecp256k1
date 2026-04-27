@@ -5,6 +5,7 @@ Validates:
   1. Detached bundle digest (SHA-256)
   2. Evidence file existence + SHA-256 hashes
   3. Optional replay of bundled gate commands by hash comparison
+  4. Optional deep-replay of key pipeline scripts (--deep-replay)
 
 Exit code:
   0 when verification passes
@@ -25,6 +26,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 DEFAULT_BUNDLE = LIB_ROOT / "docs" / "EXTERNAL_AUDIT_BUNDLE.json"
 DEFAULT_DIGEST = LIB_ROOT / "docs" / "EXTERNAL_AUDIT_BUNDLE.sha256"
+
+# Default per-command timeout for deep-replay (seconds)
+DEEP_REPLAY_TIMEOUT = 120
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -78,12 +82,143 @@ def _cmd_for_name(name: str) -> list[str] | None:
     return mapping.get(name)
 
 
+def _run_command(
+    cmd: list[str],
+    cwd: str,
+    timeout: int,
+) -> tuple[int, str, str, str | None]:
+    """Run a command and return (returncode, stdout, stderr, error_msg).
+
+    error_msg is None on success, a string description on exception.
+    """
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        return result.returncode, result.stdout, result.stderr, None
+    except subprocess.TimeoutExpired:
+        return -1, "", "", f"timed out after {timeout}s"
+    except Exception as exc:
+        return -1, "", "", str(exc)
+
+
+def run_deep_replay(
+    bundle: dict,
+    timeout: int = DEEP_REPLAY_TIMEOUT,
+) -> dict:
+    """Re-run key pipeline scripts and compare to bundle's recorded results.
+
+    Returns a dict with keys:
+      commands_run, commands_passed, results (list of per-command dicts)
+    """
+    # Commands that are always attempted
+    always_run: list[dict] = [
+        {
+            "label": "audit_gate",
+            "cmd": [sys.executable, "scripts/audit_gate.py", "--json",
+                    "-o", "/tmp/replay_audit_gate.json"],
+            "required": True,
+        },
+    ]
+
+    # Scripts run only if they exist
+    optional_scripts = [
+        "scripts/check_libsecp_shim_parity.py",
+        "scripts/check_core_build_mode.py",
+    ]
+
+    commands = list(always_run)
+    for rel in optional_scripts:
+        p = LIB_ROOT / rel
+        if p.exists():
+            commands.append({
+                "label": rel,
+                "cmd": [sys.executable, rel],
+                "required": False,
+            })
+
+    # Build a quick lookup from bundle gate_results by name
+    bundle_gates: dict[str, dict] = {}
+    for g in bundle.get("gate_results", []):
+        name = str(g.get("name", ""))
+        if name:
+            bundle_gates[name] = g
+
+    results: list[dict] = []
+    passed = 0
+
+    for entry in commands:
+        label: str = entry["label"]
+        cmd: list[str] = entry["cmd"]
+
+        rc, stdout, stderr, err_msg = _run_command(cmd, str(LIB_ROOT), timeout)
+
+        if err_msg is not None:
+            results.append({
+                "label": label,
+                "pass": False,
+                "returncode": rc,
+                "error": err_msg,
+                "comparison": None,
+            })
+            continue
+
+        # Compare to bundle if there is a recorded result
+        comparison: dict | None = None
+        gate_key = label if "/" not in label else label.split("/")[-1].replace(".py", "")
+        recorded = bundle_gates.get(label) or bundle_gates.get(gate_key)
+        if recorded is not None:
+            exp_rc = recorded.get("returncode")
+            exp_stdout_sha = recorded.get("stdout_sha256", "")
+            exp_stderr_sha = recorded.get("stderr_sha256", "")
+            actual_stdout_sha = _sha256_bytes(stdout.encode("utf-8", errors="replace"))
+            actual_stderr_sha = _sha256_bytes(stderr.encode("utf-8", errors="replace"))
+            comparison = {
+                "expected_returncode": exp_rc,
+                "actual_returncode": rc,
+                "returncode_match": rc == exp_rc,
+                "expected_stdout_sha256": exp_stdout_sha,
+                "actual_stdout_sha256": actual_stdout_sha,
+                "stdout_match": actual_stdout_sha == exp_stdout_sha,
+                "expected_stderr_sha256": exp_stderr_sha,
+                "actual_stderr_sha256": actual_stderr_sha,
+                "stderr_match": actual_stderr_sha == exp_stderr_sha,
+            }
+
+        # A command "passes" if it exits 0
+        cmd_pass = rc == 0
+        if cmd_pass:
+            passed += 1
+
+        results.append({
+            "label": label,
+            "pass": cmd_pass,
+            "returncode": rc,
+            "error": None,
+            "comparison": comparison,
+        })
+
+    return {
+        "commands_run": len(results),
+        "commands_passed": passed,
+        "results": results,
+    }
+
+
 def verify(
     bundle_path: Path,
     digest_path: Path,
     replay_commands: bool,
     allow_commit_mismatch: bool,
     json_mode: bool,
+    deep_replay: bool = False,
+    strict: bool = False,
+    deep_replay_timeout: int = DEEP_REPLAY_TIMEOUT,
 ) -> int:
     checks: list[dict[str, object]] = []
 
@@ -184,6 +319,19 @@ def verify(
                 checks.append({"name": f"replay:{name}", "passing": False, "detail": str(exc)})
 
     overall_pass = all(bool(c.get("passing", False)) for c in checks)
+
+    # --- Deep replay ---
+    deep_replay_result: dict | None = None
+    deep_replay_warn = False
+
+    if deep_replay:
+        deep_replay_result = run_deep_replay(bundle, timeout=deep_replay_timeout)
+        n_run = deep_replay_result["commands_run"]
+        n_pass = deep_replay_result["commands_passed"]
+        n_fail = n_run - n_pass
+        if n_fail > 0:
+            deep_replay_warn = True
+
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "bundle": str(bundle_path),
@@ -194,6 +342,14 @@ def verify(
         "checks": checks,
     }
 
+    if deep_replay_result is not None:
+        report["deep_replay"] = deep_replay_result
+
+    # Determine final exit code
+    exit_code = 0 if overall_pass else 1
+    if deep_replay_warn and strict:
+        exit_code = 1
+
     if json_mode:
         print(json.dumps(report, indent=2))
     else:
@@ -202,8 +358,19 @@ def verify(
         for c in checks:
             if not c.get("passing", False):
                 print(f"  FAIL {c.get('name')} :: {c.get('detail', '')}")
+        if deep_replay_result is not None:
+            n_run = deep_replay_result["commands_run"]
+            n_pass = deep_replay_result["commands_passed"]
+            status_prefix = "WARN" if deep_replay_warn and not strict else (
+                "FAIL" if deep_replay_warn and strict else "OK"
+            )
+            print(f"Deep replay: {n_pass}/{n_run} commands passed  [{status_prefix}]")
+            for r in deep_replay_result["results"]:
+                icon = "PASS" if r["pass"] else "FAIL"
+                err = f" ({r['error']})" if r.get("error") else ""
+                print(f"  {icon} {r['label']}{err}")
 
-    return 0 if overall_pass else 1
+    return exit_code
 
 
 def main() -> int:
@@ -213,6 +380,27 @@ def main() -> int:
     parser.add_argument("--replay-commands", action="store_true", help="Re-run bundled gate commands and verify output hashes")
     parser.add_argument("--allow-commit-mismatch", action="store_true", help="Do not fail when current HEAD differs from bundle commit")
     parser.add_argument("--json", action="store_true", help="JSON output")
+    parser.add_argument(
+        "--deep-replay",
+        action="store_true",
+        help=(
+            "After regular verification, re-run key pipeline scripts "
+            "(audit_gate, check_libsecp_shim_parity, check_core_build_mode) "
+            "and compare to bundle results. Failures are WARNs unless --strict."
+        ),
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat any WARN (including deep-replay failures) as FAIL for exit-code purposes.",
+    )
+    parser.add_argument(
+        "--deep-replay-timeout",
+        type=int,
+        default=DEEP_REPLAY_TIMEOUT,
+        metavar="SECONDS",
+        help=f"Per-command timeout for deep-replay (default: {DEEP_REPLAY_TIMEOUT}s).",
+    )
     args = parser.parse_args()
 
     return verify(
@@ -221,6 +409,9 @@ def main() -> int:
         replay_commands=args.replay_commands,
         allow_commit_mismatch=args.allow_commit_mismatch,
         json_mode=args.json,
+        deep_replay=args.deep_replay,
+        strict=args.strict,
+        deep_replay_timeout=args.deep_replay_timeout,
     )
 
 

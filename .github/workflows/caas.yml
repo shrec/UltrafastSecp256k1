@@ -384,13 +384,66 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
+  # Bitcoin Core Backend Profile — scoped gate for Core PR reviewers
+  # Runs shim parity + core build mode + source graph quality checks.
+  # Advisory (non-blocking) until Bitcoin Core make check is fully wired.
+  # =========================================================================
+  bitcoin_core_profile:
+    name: CAAS / Bitcoin Core Backend Profile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [scanner, audit_gate]
+    if: always()
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+
+      - name: Build project graph
+        run: python3 scripts/build_project_graph.py --rebuild
+
+      - name: Shim Parser Parity Gate (hard-fail)
+        run: python3 scripts/check_libsecp_shim_parity.py
+
+      - name: Core Build Mode Gate (hard-fail)
+        run: python3 scripts/check_core_build_mode.py
+
+      - name: Source Graph Quality Gate (advisory)
+        run: python3 scripts/check_source_graph_quality.py || true
+
+      - name: Bitcoin Core Profile Summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          ## CAAS — Bitcoin Core Backend Profile
+
+          | Check | Description |
+          |-------|-------------|
+          | Shim Parser Parity | All scalar/field inputs use strict range validation |
+          | Core Build Mode | No C++20 leak, no FetchContent, no config.ini required |
+          | Source Graph Quality | Key directories and symbols indexed |
+
+          Scope: CPU signing, libsecp256k1 shim, parser parity, CT signing, C++17 isolation.
+          Out of scope: GPU, multicoin APIs, ZK, FROST, BIP-352 perf.
+          EOF
+
+  # =========================================================================
   # Full CAAS report — summary job (runs after all stages)
   # =========================================================================
   caas_report:
     name: CAAS / Report
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [scanner, audit_gate, security_autonomy, bundle]
+    needs: [scanner, audit_gate, security_autonomy, bundle, bitcoin_core_profile]
     if: always()
 
     steps:
@@ -405,10 +458,11 @@ jobs:
           import sys, os
 
           results = {
-              "scanner":           "${{ needs.scanner.result }}",
-              "audit_gate":        "${{ needs.audit_gate.result }}",
-              "security_autonomy": "${{ needs.security_autonomy.result }}",
-              "bundle":            "${{ needs.bundle.result }}",
+              "scanner":              "${{ needs.scanner.result }}",
+              "audit_gate":           "${{ needs.audit_gate.result }}",
+              "security_autonomy":    "${{ needs.security_autonomy.result }}",
+              "bundle":               "${{ needs.bundle.result }}",
+              "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
           }
 
           print("## CAAS Pipeline Results")

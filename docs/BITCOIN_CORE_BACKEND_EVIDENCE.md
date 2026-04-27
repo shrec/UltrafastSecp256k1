@@ -1,0 +1,218 @@
+# Bitcoin Core Alternative Backend — Evidence Document
+
+> Version: 1.0 — 2026-04-27
+> Profile: `bitcoin-core-backend`
+> Status: Pre-review (not yet submitted to Bitcoin Core)
+
+This document presents structured evidence for Bitcoin Core reviewers evaluating
+UltrafastSecp256k1 as an alternative CPU backend for libsecp256k1. It is written
+to be honest and verifiable. Each claim cites the evidence file, CI gate, and
+verification command a reviewer can use to independently check it.
+
+---
+
+## 1. Scope Definition
+
+### In scope for the `bitcoin-core-backend` profile
+
+The following components and properties are subject to audit coverage under this profile:
+
+- **CPU signing and verification only.** No GPU signing path is in scope. GPU operations
+  process public data only; no secret material passes through GPU code paths.
+
+- **`compat/libsecp256k1_shim/`** — all shim functions that translate the libsecp256k1
+  C API to UltrafastSecp256k1 internals:
+  - `shim_context.cpp` — context creation and self-test
+  - `shim_ecdsa.cpp` — ECDSA sign, verify, parse, serialize
+  - `shim_schnorr.cpp` — BIP-340 Schnorr sign, verify, batch verify
+  - `shim_extrakeys.cpp` — `secp256k1_keypair_*`, `secp256k1_xonly_pubkey_*`
+  - `shim_pubkey.cpp` — pubkey parse, serialize, tweak, combine
+  - `shim_seckey.cpp` — seckey verify, negate, tweak
+  - `shim_recovery.cpp` — ECDSA sign-recoverable, recovery
+  - `shim_ecdh.cpp` — ECDH via `secp256k1_ecdh`
+  - `shim_tagged_hash.cpp` — `secp256k1_tagged_sha256`
+
+- **Public header API surface:**
+  - `secp256k1.h`
+  - `secp256k1_schnorrsig.h`
+  - `secp256k1_extrakeys.h`
+  - `secp256k1_recovery.h`
+  - `secp256k1_ecdh.h`
+
+- **Parser parity** — accept/reject behavior must match libsecp256k1 exactly for all
+  inputs, including edge cases at group order and field prime boundaries.
+
+- **ECDSA, Schnorr/Taproot, libsecp256k1 compatibility** — functional equivalence
+  verified by differential testing against the reference implementation.
+
+- **C++20 to C++17 build isolation** — the shim layer and any headers exposed to consumers
+  must not require C++20 language features.
+
+- **Thread safety of signing paths** — all signing operations must be safe for concurrent
+  use from multiple threads.
+
+- **RFC 6979 nonce generation** — deterministic nonce derivation compatible with the
+  libsecp256k1 behavior, including `ndata` (extra entropy) and R-grinding (retry on
+  high-s or r==0).
+
+### Out of scope for this profile
+
+The following are intentionally excluded from the Bitcoin Core backend evaluation.
+Exclusion is not a deferral of bugs; it is a boundary definition.
+
+| Item | Reason for exclusion |
+|------|---------------------|
+| GPU backend | Public-data-only operations; no secret values. Separate assurance track. |
+| Multicoin address generation beyond secp256k1 | Not used by Bitcoin Core |
+| ZK / FROST / MuSig2 | Not on the Bitcoin Core critical path unless Core adds them |
+| BIP-352 (Silent Payments) scanning performance | Separate feature track |
+| Language bindings (Rust, Python, etc.) | Not relevant to Core's C API usage |
+| ROCm/HIP hardware validation | Deferred; see RR-003 in `docs/RESIDUAL_RISK_REGISTER.md` |
+
+---
+
+## 2. Security Claims for This Scope
+
+The table below lists each security claim, the evidence artifact that supports it, the
+CI gate that enforces it, and when it was last verified. "Every commit" means the gate
+runs in CI on every push to `dev`.
+
+A claim without a CI gate is explicitly marked; manual-verification-only claims are a
+known gap (see Section 3).
+
+| Claim | Evidence | CI Gate | Last Verified |
+|-------|----------|---------|---------------|
+| Constant-time ECDSA signing on x86-64: private key and nonce operations route through `secp256k1::ct::*` primitives with no variable-time branches on secret data | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
+| Constant-time Schnorr signing on x86-64: BIP-340 signing uses `secp256k1::ct::schnorr_sign`; aux_rand masking and nonce derivation are CT throughout | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
+| `secp256k1_ecdsa_signature_parse_compact` rejects `r == 0`, `s == 0`, `r >= n`, `s >= n` | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_ec_seckey_verify` rejects `key == 0` and `key >= n` | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_xonly_pubkey_parse` rejects `x >= p` and x-coordinates with no valid y | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_pubkey_parse` rejects the point at infinity and malformed encodings | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| RFC 6979 deterministic nonce derivation matches the libsecp256k1 reference output on the BIP-340 test vectors and the RFC 6979 ECDSA test vectors | `scripts/rfc6979_spec_verifier.py` | `security-audit.yml` | Every commit |
+| `ndata` / R-grinding compatibility: `secp256k1_ecdsa_sign` with `ndata != NULL` (extra entropy) produces the same output as libsecp256k1 for the same `ndata` input | `compat/libsecp256k1_shim/src/shim_ecdsa.cpp` (`ecdsa_sign_hedged`) | Manual verified; CI gate planned | 2026-04-27 |
+| The shim layer does not leak C++20 language requirements to consumers: `cmake --print-target-features` shows no C++20 ABI in exported interface | `cmake --print-target-features` output | Build CI (`build.yml`) | Every commit |
+| Context creation calls `ensure_library_integrity()` self-test: `ufsecp_ctx_create` verifies field arithmetic, scalar arithmetic, and generator point before returning | `compat/libsecp256k1_shim/src/shim_context.cpp` | Audit tests (`unified_audit_runner`) | Every commit |
+| Zero-signature detection: CT signing primitives returning `r == 0`, `s == 0`, or all-zero Schnorr signature cause the ABI wrapper to return `UFSECP_ERR_INTERNAL`, not serialize the zero result | `audit/test_exploit_boundary_sentinels.cpp` | `unified_audit_runner` via CTest | Every commit |
+| Batch signing is fail-closed: output buffers are cleared before processing; partial failures do not leave valid-looking partial signatures | `audit/` batch signing exploit PoCs | `unified_audit_runner` | Every commit |
+| Schnorr low-s / half-order boundary handled correctly: signatures with `s = (n-1)/2` and `s = (n+1)/2` are accepted or rejected per BIP-340 | `audit/test_exploit_boundary_sentinels.cpp` | `unified_audit_runner` | Every commit |
+
+### CT evidence methodology
+
+CT claims are verified using a multi-layer approach. No single tool is treated as
+definitive; all three must pass:
+
+1. **LLVM constant-time verification** (`scripts/collect_ct_evidence.py`) — disassembly
+   analysis for conditional branches on secret-derived values.
+2. **Valgrind memcheck with ct-grind** (`scripts/ctgrind_validate.sh`) — marks secret
+   inputs as uninitialised at the Valgrind level; any data-dependent branch triggers a
+   Valgrind error.
+3. **dudect statistical timing** — runs the signing path under varying secret inputs and
+   tests for statistically significant timing differences.
+
+Results are recorded in `docs/CT_VERIFICATION.md`. The CI gate in `ct-verif.yml` runs
+all three on every push.
+
+**Confidence ceiling:** CT verification tools can miss some attack classes. Hardware
+microarchitectural channels (cache sets, branch predictor state, power) are not covered
+by software tooling alone. This limitation is documented in RR-001
+(`docs/RESIDUAL_RISK_REGISTER.md`) and in `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md`.
+
+---
+
+## 3. Known Gaps and Open Items
+
+These are honest statements of what is not yet complete. They are open items, not
+suppressions of known bugs.
+
+| Gap | Impact | Plan |
+|-----|--------|------|
+| Bitcoin Core's full test suite (`make check`) has not been run against the UF backend | A Core reviewer cannot yet confirm end-to-end functional equivalence at the full test-suite level | Requires Bitcoin Core integration scaffolding; tracked in project roadmap |
+| Windows and macOS CI coverage is partial | CT verification and some audit tests run Linux-only | Windows/macOS CI expansion is planned; not yet scheduled |
+| `ndata`/R-grinding parity is verified manually, not by an automated CI gate | The parity claim for non-null `ndata` may regress without CI catching it | A CI gate script (`scripts/check_ndata_compat.py`) is planned; currently unimplemented |
+| Thread safety when multiple contexts on the same thread share blinding state | If a caller creates multiple contexts and interleaves operations, blinding state isolation is not tested at the CI level | Documented in `docs/THREAD_SAFETY.md` §7 as a known limitation; a test is planned |
+| Formal verification of CT layer | Software-tool CT verification does not constitute a formal proof | No formal proof is claimed or planned in the near term; this is a known confidence gap |
+| libsecp256k1 parity test coverage for `secp256k1_ellswift_*` functions | The ElligatorSwift functions in `shim_ellswift.cpp` have parity tests, but differential coverage against the libsecp256k1 reference is thinner than for ECDSA/Schnorr | Expanding differential tests for ElligatorSwift is in the audit backlog |
+
+---
+
+## 4. How to Run the Profile
+
+The following commands reproduce the evidence for this profile. Run them on the commit
+hash recorded in `docs/REPLAY_CAPSULE.json` with the build flags documented there.
+
+### Full CAAS pipeline
+
+```bash
+# Build
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C build
+
+# Run the bitcoin-core-backend profile
+python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o btc_evidence.json
+
+# Verify the evidence bundle
+python3 scripts/verify_external_audit_bundle.py --json
+```
+
+### Individual gate checks
+
+```bash
+# Parser parity checks (accept/reject behavior vs libsecp256k1)
+python3 scripts/check_libsecp_shim_parity.py
+
+# Build isolation check (no C++20 leaked to consumers)
+python3 scripts/check_core_build_mode.py
+
+# RFC 6979 nonce derivation vs reference vectors
+python3 scripts/rfc6979_spec_verifier.py
+
+# CT evidence collection (requires clang-19, valgrind, dudect)
+python3 scripts/collect_ct_evidence.py --cpu-only
+```
+
+### Audit test suite (CPU paths only)
+
+```bash
+# Run all audit tests (includes exploit PoCs)
+ctest --test-dir build -L audit --output-on-failure --timeout 300
+
+# Run only the shim-layer tests
+ctest --test-dir build -R shim --output-on-failure
+```
+
+---
+
+## 5. Evidence Artifacts
+
+All evidence files relevant to this profile are listed below. Each file is
+integrity-pinned in `docs/EXTERNAL_AUDIT_BUNDLE.json` with a SHA-256 hash.
+
+| Artifact | Description |
+|----------|-------------|
+| `docs/EXTERNAL_AUDIT_BUNDLE.json` | Hash-pinned evidence record. The SHA-256 digest is at `docs/EXTERNAL_AUDIT_BUNDLE.sha256`. The verifier script is `scripts/verify_external_audit_bundle.py`. |
+| `docs/CT_VERIFICATION.md` | CT pipeline results: LLVM disassembly analysis, ctgrind output, dudect timing results for ECDSA and Schnorr signing. Updated on every CT verification run. |
+| `docs/BACKEND_PARITY.md` | Feature parity matrix across CPU and GPU backends. The CPU column is the relevant one for this profile. |
+| `docs/SPEC_TRACEABILITY_MATRIX.md` | Maps each BIP-340, RFC 6979, and SEC 1/2 specification clause to the implementing source file and the audit module that verifies it. Gate: `scripts/exploit_traceability_join.py --strict`. |
+| `docs/THREAD_SAFETY.md` | Threading model, thread-safety classification for every public API function, and known limitations. |
+| `docs/ABI_VERSIONING.md` | ABI stability policy, version bump rules, and migration guidance. Relevant to Core's binary compatibility requirements. |
+| `docs/RESIDUAL_RISK_REGISTER.md` | Exhaustive list of open residual risks with justification, status, and owner. Entries RR-001, RR-002, and RR-003 are relevant to this profile. |
+| `docs/SECURITY_CLAIMS.md` | Full security claims document including the FAST/CT dual-layer architecture, fail-closed assurance perimeter, and non-claim statements. |
+| `docs/AUDIT_SCOPE.md` | External audit engagement scope including in-scope component list and line counts. |
+| `docs/BACKEND_ASSURANCE_MATRIX.md` | Per-backend assurance level ratings. The CPU fast path and CPU CT path both carry HIGH assurance. |
+| `docs/SELF_AUDIT_FAILURE_MATRIX.md` | Self-audit failure-class matrix documenting every failure class, its current status, and the CI gate that enforces it. |
+| `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md` | Scope statement for hardware side-channel claims (power/EM/fault). The library makes software-side-channel claims only. |
+| `docs/REPLAY_CAPSULE_SPEC.md` | Specification for the replay capsule format, which records all inputs needed to reproduce a CAAS pipeline run without maintainer assistance. |
+| `docs/REPLAY_CAPSULE.json` | The most recent replay capsule, updated on each release-candidate pipeline run. |
+| `compat/libsecp256k1_shim/README.md` | Integration guide for the libsecp256k1 shim layer. |
+
+---
+
+## 6. Contact and Review Process
+
+Questions about specific evidence entries or CI gate behavior can be directed to
+`payysoon@gmail.com`.
+
+This document does not constitute a finished external audit. It is a structured
+evidence presentation intended to reduce the time an independent reviewer spends
+locating and cross-referencing evidence. The reviewer's own judgment supersedes
+every claim made here.

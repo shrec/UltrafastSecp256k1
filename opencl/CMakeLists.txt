@@ -118,8 +118,8 @@ if(MSVC)
     )
 endif()
 
-# C++20 standard
-target_compile_features(secp256k1_opencl PUBLIC cxx_std_20)
+# C++20 is needed internally; PRIVATE avoids leaking it to consumers.
+target_compile_features(secp256k1_opencl PRIVATE cxx_std_20)
 
 # Platform defines
 if(WIN32)

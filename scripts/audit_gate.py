@@ -1120,6 +1120,264 @@ def check_ct_tool_agreement(_conn):
 
 
 # ---------------------------------------------------------------------------
+# P21 — External-Audit Replacement Gate
+# ---------------------------------------------------------------------------
+def check_external_audit_replacement(conn):
+    """P21: verify all required CAAS docs are present to replace verifiable
+    parts of a traditional external audit."""
+    findings = []
+
+    required = [
+        'docs/CAAS_PROTOCOL.md',
+        'docs/AUDIT_PHILOSOPHY.md',
+        'docs/RESIDUAL_RISK_REGISTER.md',
+        'docs/SECURITY_CLAIMS.md',
+        'docs/EXPLOIT_TEST_CATALOG.md',
+        'docs/EXTERNAL_AUDIT_BUNDLE.json',
+        'docs/EXTERNAL_AUDIT_BUNDLE.sha256',
+        'docs/CAAS_REVIEWER_QUICKSTART.md',
+        'docs/CAAS_FAQ.md',
+        'docs/CAAS_THREAT_MODEL.md',
+        'docs/NEGATIVE_RESULTS_LEDGER.md',
+        'docs/THREAD_SAFETY.md',
+        'docs/ABI_VERSIONING.md',
+        'docs/SECURITY_INCIDENT_TIMELINE.md',
+        'scripts/verify_external_audit_bundle.py',
+    ]
+
+    missing = []
+    for rel in required:
+        path = LIB_ROOT / rel
+        if path.exists():
+            findings.append(('PASS', f'{rel} present'))
+        else:
+            findings.append(('FAIL', f'{rel} missing'))
+            missing.append(rel)
+
+    # Summarise
+    n_total = len(required)
+    n_missing = len(missing)
+    if n_missing == 0:
+        findings.insert(0, ('PASS', f'P21: all required CAAS docs present ({n_total} files)'))
+    else:
+        findings.insert(0, ('FAIL', f'P21: missing {n_missing} required docs: {missing}'))
+
+    return 'P21: External-Audit Replacement Gate', findings
+
+
+# ---------------------------------------------------------------------------
+# G-10 — Spec Traceability
+# ---------------------------------------------------------------------------
+def check_spec_traceability(conn):
+    """G-10: verify key specification clauses are mapped to tests in
+    docs/SPEC_TRACEABILITY_MATRIX.md."""
+    findings = []
+
+    matrix_path = LIB_ROOT / 'docs' / 'SPEC_TRACEABILITY_MATRIX.md'
+    if not matrix_path.exists():
+        findings.append(('FAIL', 'docs/SPEC_TRACEABILITY_MATRIX.md missing'))
+        return 'G-10: Spec Traceability', findings
+
+    try:
+        content = matrix_path.read_text(errors='replace')
+    except Exception as exc:
+        findings.append(('FAIL', f'Cannot read SPEC_TRACEABILITY_MATRIX.md: {exc}'))
+        return 'G-10: Spec Traceability', findings
+
+    if not content.strip():
+        findings.append(('FAIL', 'SPEC_TRACEABILITY_MATRIX.md is empty'))
+        return 'G-10: Spec Traceability', findings
+
+    # Count data rows (lines starting with | that are not separator rows)
+    data_rows = [
+        ln for ln in content.splitlines()
+        if ln.strip().startswith('|') and '---' not in ln
+    ]
+    # Skip header row (first pipe row)
+    n_rows = max(0, len(data_rows) - 1)
+    if n_rows >= 10:
+        findings.append(('PASS', f'traceability matrix has {n_rows} rows'))
+    else:
+        findings.append(('WARN', f'traceability matrix has only {n_rows} rows'))
+
+    # Spec clause references to look for
+    spec_clauses = [
+        ('BIP-340 / BIP340', ['BIP-340', 'BIP340']),
+        ('RFC 6979 / RFC6979', ['RFC 6979', 'RFC6979']),
+        ('libsecp / compat', ['libsecp', 'compat']),
+        ('DER', ['DER']),
+        ('Taproot / taproot', ['Taproot', 'taproot']),
+        ('x-only / xonly', ['x-only', 'xonly']),
+    ]
+    for label, variants in spec_clauses:
+        found = any(v in content for v in variants)
+        if found:
+            findings.append(('PASS', f'spec clause covered: {label}'))
+        else:
+            findings.append(('WARN', f'spec clause not in traceability matrix: {label}'))
+
+    return 'G-10: Spec Traceability', findings
+
+
+# ---------------------------------------------------------------------------
+# G-11 — Exploit Traceability
+# ---------------------------------------------------------------------------
+def check_exploit_traceability(conn):
+    """G-11: verify every test_exploit_*.cpp is wired into
+    unified_audit_runner.cpp AND listed in EXPLOIT_TEST_CATALOG.md."""
+    findings = []
+
+    audit_dir = LIB_ROOT / 'audit'
+    exploit_files = sorted(audit_dir.glob('test_exploit_*.cpp'))
+    findings.append(('INFO', f'Total exploit files found: {len(exploit_files)}'))
+
+    if not exploit_files:
+        findings.append(('WARN', 'No test_exploit_*.cpp files found in audit/'))
+        return 'G-11: Exploit Traceability', findings
+
+    # Read unified_audit_runner.cpp
+    runner_path = audit_dir / 'unified_audit_runner.cpp'
+    if runner_path.exists():
+        try:
+            runner_text = runner_path.read_text(errors='replace')
+        except Exception as exc:
+            runner_text = ''
+            findings.append(('WARN', f'Cannot read unified_audit_runner.cpp: {exc}'))
+    else:
+        runner_text = ''
+        findings.append(('FAIL', 'audit/unified_audit_runner.cpp not found'))
+
+    # Read EXPLOIT_TEST_CATALOG.md
+    catalog_path = LIB_ROOT / 'docs' / 'EXPLOIT_TEST_CATALOG.md'
+    if catalog_path.exists():
+        try:
+            catalog_text = catalog_path.read_text(errors='replace')
+        except Exception as exc:
+            catalog_text = ''
+            findings.append(('WARN', f'Cannot read EXPLOIT_TEST_CATALOG.md: {exc}'))
+    else:
+        catalog_text = ''
+        findings.append(('WARN', 'docs/EXPLOIT_TEST_CATALOG.md not found'))
+
+    un_wired = []
+    wired_count = 0
+    in_catalog_count = 0
+
+    for ef in exploit_files:
+        stem = ef.stem  # e.g. "test_exploit_ecdsa_nonce_reuse"
+
+        # Check wired in runner: look for stem_run() or stem in runner text
+        run_sym = stem + '_run'
+        if runner_text and run_sym in runner_text:
+            wired_count += 1
+        else:
+            un_wired.append(stem)
+
+        # Check in catalog (less strict)
+        if catalog_text and stem in catalog_text:
+            in_catalog_count += 1
+        else:
+            if catalog_text:
+                findings.append(('WARN', f'not in EXPLOIT_TEST_CATALOG.md: {stem}'))
+
+    n_total = len(exploit_files)
+    if un_wired:
+        findings.append(('FAIL',
+                         f'un-wired exploit tests ({len(un_wired)}/{n_total}): '
+                         f'{", ".join(un_wired[:10])}'
+                         f'{" …" if len(un_wired) > 10 else ""}'))
+    else:
+        findings.append(('PASS', f'wired in runner: {wired_count}/{n_total}'))
+
+    if catalog_text:
+        if in_catalog_count == n_total:
+            findings.append(('PASS', f'in catalog: {in_catalog_count}/{n_total}'))
+        else:
+            findings.append(('WARN',
+                             f'in catalog: {in_catalog_count}/{n_total} '
+                             f'({n_total - in_catalog_count} missing)'))
+
+    return 'G-11: Exploit Traceability', findings
+
+
+# ---------------------------------------------------------------------------
+# G-12 — Source Graph Quality
+# ---------------------------------------------------------------------------
+def check_source_graph_quality(conn):
+    """G-12: check source graph DB quality (existence, freshness, row count)."""
+    findings = []
+
+    if not DB_PATH.exists():
+        findings.append(('FAIL', f'Source graph DB not found: {DB_PATH}'))
+        return 'G-12: Source Graph Quality', findings
+
+    findings.append(('PASS', f'Source graph DB exists: {DB_PATH.name}'))
+
+    # Check DB staleness vs any .cpp file under cpu/
+    cpu_dir = LIB_ROOT / 'cpu'
+    db_mtime = DB_PATH.stat().st_mtime
+    stale_files = []
+    if cpu_dir.exists():
+        for cpp_file in cpu_dir.rglob('*.cpp'):
+            try:
+                if cpp_file.stat().st_mtime > db_mtime:
+                    stale_files.append(str(cpp_file.relative_to(LIB_ROOT)))
+            except Exception:
+                pass
+    if stale_files:
+        findings.append(('WARN',
+                         f'{len(stale_files)} cpu/*.cpp file(s) newer than source graph DB '
+                         f'(rebuild recommended): {stale_files[:3]}'))
+    else:
+        findings.append(('PASS', 'Source graph DB is up-to-date relative to cpu/ sources'))
+
+    # Count rows in a well-known table
+    try:
+        sg_conn = sqlite3.connect(str(DB_PATH))
+        sg_conn.row_factory = sqlite3.Row
+        try:
+            tables = [
+                row[0]
+                for row in sg_conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+                ).fetchall()
+            ]
+            findings.append(('INFO', f'Source graph tables: {", ".join(tables[:10])}'
+                             f'{"…" if len(tables) > 10 else ""}'))
+
+            # Pick a candidate table to count rows
+            count_table = None
+            for candidate in ('symbols', 'files', 'entries', 'source_files', 'c_abi_functions'):
+                if candidate in tables:
+                    count_table = candidate
+                    break
+
+            if count_table is None and tables:
+                count_table = tables[0]
+
+            if count_table:
+                row_count = sg_conn.execute(
+                    f'SELECT COUNT(*) FROM "{count_table}"'
+                ).fetchone()[0]
+                if row_count >= 200:
+                    findings.append(('PASS',
+                                     f'Source graph "{count_table}" has {row_count} rows '
+                                     f'(threshold: 200)'))
+                else:
+                    findings.append(('FAIL',
+                                     f'Source graph "{count_table}" has only {row_count} rows '
+                                     f'(threshold: 200) — graph may be incomplete'))
+            else:
+                findings.append(('WARN', 'Source graph DB has no tables — rebuild required'))
+        finally:
+            sg_conn.close()
+    except Exception as exc:
+        findings.append(('WARN', f'Could not query source graph DB: {exc}'))
+
+    return 'G-12: Source Graph Quality', findings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 CHECK_MAP = {
@@ -1146,6 +1404,10 @@ CHECK_MAP = {
     '--residual-risk-register': check_residual_risk_register,
     '--disclosure-sla': check_disclosure_sla,
     '--ct-tool-agreement': check_ct_tool_agreement,
+    '--external-audit-replacement': check_external_audit_replacement,
+    '--spec-traceability': check_spec_traceability,
+    '--exploit-traceability': check_exploit_traceability,
+    '--source-graph-quality': check_source_graph_quality,
 }
 
 ALL_CHECKS = [
@@ -1171,6 +1433,10 @@ ALL_CHECKS = [
     check_residual_risk_register,
     check_disclosure_sla,
     check_ct_tool_agreement,
+    check_external_audit_replacement,
+    check_spec_traceability,
+    check_exploit_traceability,
+    check_source_graph_quality,
 ]
 
 

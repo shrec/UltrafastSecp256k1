@@ -5,10 +5,11 @@ caas_runner.py  --  Continuous Audit as a Service (CAAS) local runner
 Runs the full audit pipeline in a single fail-fast pass:
 
   Stage 1  —  Static analysis (audit_test_quality_scanner)
-  Stage 2  —  Audit gate        (audit_gate.py)
-  Stage 3  —  Security autonomy (security_autonomy_check.py)
-  Stage 4  —  Bundle produce    (external_audit_bundle.py)
-  Stage 5  —  Bundle verify     (verify_external_audit_bundle.py)
+  Stage 2  —  Traceability join (exploit_traceability_join.py)
+  Stage 3  —  Audit gate        (audit_gate.py)
+  Stage 4  —  Security autonomy (security_autonomy_check.py)
+  Stage 5  —  Bundle produce    (external_audit_bundle.py)
+  Stage 6  —  Bundle verify     (verify_external_audit_bundle.py)
 
 Exit codes:
     0   all stages PASS
@@ -22,6 +23,17 @@ Usage:
     python3 scripts/caas_runner.py --json -o caas_report.json
     python3 scripts/caas_runner.py --skip-bundle     # skip bundle gen/verify (faster)
     python3 scripts/caas_runner.py --stage scanner   # run only one stage
+
+    # Profile-scoped runs
+    python3 scripts/caas_runner.py --list-profiles
+    python3 scripts/caas_runner.py --profile bitcoin-core-backend
+    python3 scripts/caas_runner.py --profile bitcoin-core-backend --auditor-mode
+    python3 scripts/caas_runner.py --profile cpu-signing --auditor-mode --json
+
+Profiles define a subset of stages plus optional pre-flight checks.
+--auditor-mode forces --no-fail-fast, runs extra_checks, and prints a
+REVIEWER SUMMARY with scope, out-of-scope, per-stage pass/fail, and
+the exact command needed to reproduce the run.
 
 Environment overrides:
     CAAS_SCANNER_DIR   — override audit dir for scanner (default: audit/)
@@ -113,6 +125,71 @@ STAGES = [
         "skippable": True,
     },
 ]
+
+# ---------------------------------------------------------------------------
+# Profile definitions
+# ---------------------------------------------------------------------------
+
+PROFILES: dict[str, dict] = {
+    "default": {
+        "name": "Default",
+        "description": "Full CAAS pipeline — all surfaces, all stages",
+        "stages": "all",
+        "extra_checks": [],
+        "scope_description": "All CPU and GPU surfaces, all APIs",
+        "out_of_scope": [],
+    },
+    "bitcoin-core-backend": {
+        "name": "Bitcoin Core Backend",
+        "description": "Scoped to the libsecp256k1 shim and CPU signing paths only",
+        "stages": ["scanner", "traceability", "audit_gate", "security_autonomy", "bundle_verify"],
+        "extra_checks": [
+            "check_libsecp_shim_parity.py",
+            "check_core_build_mode.py",
+        ],
+        "scope_description": (
+            "CPU signing (ECDSA, Schnorr, Taproot), "
+            "libsecp256k1 shim (compat/libsecp256k1_shim/), "
+            "strict parser parity, RFC 6979 nonces, "
+            "C++20 build isolation"
+        ),
+        "out_of_scope": [
+            "GPU backend (public data only, no signing)",
+            "Multicoin address APIs",
+            "ZK / FROST / MuSig2 (unless Core path uses them)",
+            "BIP-352 performance",
+            "Bindings (Rust, Python, etc.)",
+        ],
+    },
+    "cpu-signing": {
+        "name": "CPU Signing Only",
+        "description": "Scoped to CPU signing paths and CT verification only",
+        "stages": ["scanner", "audit_gate", "security_autonomy"],
+        "extra_checks": [],
+        "scope_description": "ECDSA, Schnorr, key derivation, CT layer",
+        "out_of_scope": ["GPU", "Bindings", "Shim parity", "BIP-352"],
+    },
+    "gpu-public-data": {
+        "name": "GPU Public Data",
+        "description": "Scoped to GPU batch operations on public data only",
+        "stages": ["scanner", "audit_gate"],
+        "extra_checks": [],
+        "scope_description": "GPU batch verify, BIP-352 scanning — public data only, no secrets",
+        "out_of_scope": ["CPU signing CT", "Shim parity", "Bindings"],
+    },
+    "release": {
+        "name": "Release",
+        "description": "Full pipeline including bundle produce — used for release preparation",
+        "stages": "all",
+        "extra_checks": [
+            "check_libsecp_shim_parity.py",
+            "check_core_build_mode.py",
+            "check_source_graph_quality.py",
+        ],
+        "scope_description": "All surfaces — full release readiness check",
+        "out_of_scope": [],
+    },
+}
 
 
 # ---------------------------------------------------------------------------
@@ -295,15 +372,136 @@ def print_summary(results: list[dict], total_s: float) -> None:
     print(f"  {overall_color}{BOLD}{overall_text}{RESET}  (total: {round(total_s, 1)}s)")
 
 
-def build_json_report(results: list[dict], total_s: float) -> dict:
+def build_json_report(
+    results: list[dict],
+    total_s: float,
+    profile_key: str = "default",
+    profile: dict | None = None,
+    extra_check_results: list[dict] | None = None,
+) -> dict:
     overall_pass = all(r["passed"] for r in results)
-    return {
+    extra_checks_clean = []
+    if extra_check_results:
+        for ec in extra_check_results:
+            extra_checks_clean.append({
+                "script": ec["script"],
+                "passed": ec["passed"],
+                "exit_code": ec["exit_code"],
+            })
+        overall_pass = overall_pass and all(ec["passed"] for ec in extra_check_results)
+    report: dict = {
         "caas_version": CAAS_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "overall_pass": overall_pass,
         "total_duration_s": round(total_s, 2),
+        "profile": profile_key,
+        "profile_scope": profile["scope_description"] if profile else "",
+        "profile_out_of_scope": profile["out_of_scope"] if profile else [],
+        "extra_checks": extra_checks_clean,
         "stages": results,
     }
+    return report
+
+
+def run_extra_check(script_name: str, timeout: int) -> dict:
+    """Run a single pre-flight extra_check script and return a result dict."""
+    script_path = SCRIPT_DIR / script_name
+    t0 = time.monotonic()
+    if not script_path.exists():
+        return {
+            "script": script_name,
+            "passed": False,
+            "exit_code": -1,
+            "detail": f"Script not found: {script_path}",
+            "duration_s": 0.0,
+        }
+    cmd = [sys.executable, str(script_path)]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(LIB_ROOT),
+        )
+    except subprocess.TimeoutExpired:
+        elapsed = time.monotonic() - t0
+        return {
+            "script": script_name,
+            "passed": False,
+            "exit_code": -1,
+            "detail": f"Timed out after {timeout}s",
+            "duration_s": round(elapsed, 2),
+        }
+    elapsed = round(time.monotonic() - t0, 2)
+    passed = result.returncode == 0
+    return {
+        "script": script_name,
+        "passed": passed,
+        "exit_code": result.returncode,
+        "detail": "exit 0" if passed else f"exit {result.returncode}",
+        "duration_s": elapsed,
+        "stdout_tail": result.stdout[-1000:] if not passed else "",
+        "stderr_tail": result.stderr[-500:] if not passed else "",
+    }
+
+
+def print_reviewer_summary(
+    profile: dict,
+    profile_key: str,
+    extra_check_results: list[dict],
+    stage_results: list[dict],
+    total_s: float,
+) -> None:
+    """Print the auditor-mode REVIEWER SUMMARY block."""
+    bar = "═" * 64
+    print(f"\n{BOLD}{CYAN}{bar}{RESET}")
+    print(f"{BOLD}{CYAN}  REVIEWER SUMMARY — {profile['name']}{RESET}")
+    print(f"{BOLD}{CYAN}{bar}{RESET}")
+
+    print(f"\n{BOLD}Profile:{RESET}      {profile_key}")
+    print(f"{BOLD}Description:{RESET}  {profile['description']}")
+    print(f"\n{BOLD}Scope:{RESET}")
+    print(f"  {profile['scope_description']}")
+
+    if profile["out_of_scope"]:
+        print(f"\n{BOLD}Out of scope:{RESET}")
+        for item in profile["out_of_scope"]:
+            print(f"  • {item}")
+
+    if extra_check_results:
+        print(f"\n{BOLD}Pre-flight checks:{RESET}")
+        for ec in extra_check_results:
+            icon = f"{GREEN}✓{RESET}" if ec["passed"] else f"{RED}✗{RESET}"
+            status = f"{GREEN}PASS{RESET}" if ec["passed"] else f"{RED}FAIL{RESET}"
+            print(f"  {icon} {status}  {ec['script']}  ({ec['detail']}, {ec['duration_s']}s)")
+
+    print(f"\n{BOLD}Stage results:{RESET}")
+    for r in stage_results:
+        if r["passed"]:
+            icon = f"{GREEN}✓{RESET}"
+            status = f"{GREEN}PASS{RESET}"
+        elif r.get("status") == "skipped":
+            icon = f"{YELLOW}—{RESET}"
+            status = f"{YELLOW}SKIP{RESET}"
+        elif r.get("status") == "missing":
+            icon = f"{YELLOW}?{RESET}"
+            status = f"{YELLOW}MISSING{RESET}"
+        else:
+            icon = f"{RED}✗{RESET}"
+            status = f"{RED}FAIL{RESET}"
+        print(f"  {icon} {status}  {r['name']}  — {r['detail']}  ({r['duration_s']}s)")
+
+    print(f"\n{BOLD}Reproduce:{RESET}")
+    print(f"  python3 scripts/caas_runner.py --profile {profile_key} --auditor-mode")
+
+    overall_pass = all(r["passed"] for r in stage_results if r.get("status") != "skipped")
+    overall_ec_pass = all(ec["passed"] for ec in extra_check_results)
+    fully_passed = overall_pass and overall_ec_pass
+    verdict_color = GREEN if fully_passed else RED
+    verdict_text = "AUDIT PASS" if fully_passed else "AUDIT FAIL — SEE ABOVE"
+    print(f"\n  {verdict_color}{BOLD}{verdict_text}{RESET}  (total: {round(total_s, 1)}s)")
+    print(f"{BOLD}{CYAN}{bar}{RESET}\n")
 
 
 def _rebuild_graphs(timeout: int, quiet: bool = False) -> None:
@@ -359,7 +557,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--stage",
         metavar="ID",
-        help="Run only the stage with this ID (scanner|audit_gate|security_autonomy|bundle_produce|bundle_verify)",
+        help="Run only the stage with this ID (scanner|traceability|audit_gate|security_autonomy|bundle_produce|bundle_verify)",
     )
     parser.add_argument(
         "--timeout",
@@ -373,35 +571,128 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Rebuild both project graphs before running stages (fixes P6 Graph Freshness WARN)",
     )
+    parser.add_argument(
+        "--profile",
+        metavar="NAME",
+        default="default",
+        choices=list(PROFILES.keys()),
+        help=(
+            "Audit profile to use — scopes stages and extra pre-flight checks. "
+            "Choices: " + ", ".join(PROFILES.keys()) + "  (default: default)"
+        ),
+    )
+    parser.add_argument(
+        "--auditor-mode",
+        action="store_true",
+        help=(
+            "Auditor mode: prints AUDITOR MODE banner, forces --no-fail-fast, "
+            "runs profile extra_checks as blocking pre-flight, and prints a "
+            "REVIEWER SUMMARY at the end with scope, out-of-scope, per-stage "
+            "pass/fail, and the reproduce command."
+        ),
+    )
+    parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="List available audit profiles and exit",
+    )
     args = parser.parse_args(argv)
 
+    # --list-profiles: print and exit immediately
+    if args.list_profiles:
+        print(f"\n{BOLD}Available CAAS profiles:{RESET}\n")
+        for key, prof in PROFILES.items():
+            stage_ids = prof["stages"] if prof["stages"] == "all" else ", ".join(prof["stages"])
+            print(f"  {CYAN}{BOLD}{key}{RESET}")
+            print(f"    {prof['description']}")
+            print(f"    Stages : {stage_ids}")
+            print(f"    Scope  : {prof['scope_description']}")
+            if prof["out_of_scope"]:
+                print(f"    Out    : {'; '.join(prof['out_of_scope'])}")
+            if prof["extra_checks"]:
+                print(f"    Checks : {', '.join(prof['extra_checks'])}")
+            print()
+        return 0
+
+    profile_key = args.profile
+    profile = PROFILES[profile_key]
+    auditor_mode = args.auditor_mode
+
+    # --auditor-mode forces no-fail-fast
     fail_fast = not args.no_fail_fast
+    if auditor_mode:
+        fail_fast = False
     env_ff = os.environ.get("CAAS_FAIL_FAST", "1")
     if env_ff == "0":
         fail_fast = False
 
-    # Select stages
-    stages = list(STAGES)
+    # Select stages — first apply profile filter, then --stage override
+    if profile["stages"] == "all":
+        stages = list(STAGES)
+    else:
+        profile_ids: list[str] = profile["stages"]
+        stages = [s for s in STAGES if s["id"] in profile_ids]
+
     if args.stage:
         stages = [s for s in stages if s["id"] == args.stage]
         if not stages:
-            print(f"{RED}ERROR: Unknown stage '{args.stage}'{RESET}", file=sys.stderr)
+            print(f"{RED}ERROR: Unknown stage '{args.stage}' (or not in profile '{profile_key}'){RESET}", file=sys.stderr)
             valid = ", ".join(s["id"] for s in STAGES)
             print(f"Valid stages: {valid}", file=sys.stderr)
             return 2
+
     if args.skip_bundle:
         stages = [s for s in stages if not s.get("skippable")]
 
+    # ------------------------------------------------------------------ banner
     if not args.json:
-        print_banner(f"CAAS  v{CAAS_VERSION}  —  Continuous Audit as a Service")
+        if auditor_mode:
+            bar = "█" * 64
+            print(f"\n{RED}{BOLD}{bar}{RESET}")
+            print(f"{RED}{BOLD}  AUDITOR MODE  —  {profile['name']}{RESET}")
+            print(f"{RED}{BOLD}  All stages will run. Results are held to auditor standard.{RESET}")
+            print(f"{RED}{BOLD}{bar}{RESET}")
+        print_banner(
+            f"CAAS  v{CAAS_VERSION}  —  Continuous Audit as a Service"
+            + (f"  [{profile['name']}]" if profile_key != "default" else "")
+        )
+        if profile_key != "default":
+            print(f"  {CYAN}Profile scope:{RESET} {profile['scope_description']}")
 
     # Optionally rebuild both graphs before running stages.
-    # Prevents P6 Graph Freshness WARN after mutation testing or heavy source edits.
     if args.rebuild_graph:
         if not args.json:
             print(f"\n{CYAN}[pre] Rebuilding project graphs...{RESET}")
         _rebuild_graphs(args.timeout, quiet=args.json)
 
+    # --------------------------------------------------- extra_checks pre-flight
+    extra_check_results: list[dict] = []
+    if profile["extra_checks"]:
+        if not args.json:
+            print(f"\n{CYAN}[pre-flight] Running {len(profile['extra_checks'])} extra check(s)...{RESET}")
+        for script_name in profile["extra_checks"]:
+            ec_result = run_extra_check(script_name, args.timeout)
+            extra_check_results.append(ec_result)
+            if not args.json:
+                icon = f"{GREEN}✓{RESET}" if ec_result["passed"] else f"{RED}✗{RESET}"
+                status = f"{GREEN}PASS{RESET}" if ec_result["passed"] else f"{RED}FAIL{RESET}"
+                print(f"  {icon} {status}  {script_name}  ({ec_result['detail']}, {ec_result['duration_s']}s)")
+                if not ec_result["passed"]:
+                    tail = ec_result.get("stdout_tail", "")
+                    if tail:
+                        print(f"\n{YELLOW}  --- output tail ---{RESET}")
+                        for line in tail.splitlines()[-20:]:
+                            print(f"  {line}")
+                    etail = ec_result.get("stderr_tail", "")
+                    if etail:
+                        print(f"\n{YELLOW}  --- stderr tail ---{RESET}")
+                        for line in etail.splitlines()[-10:]:
+                            print(f"  {line}")
+            # In auditor mode, a failing extra_check is blocking — but we still
+            # run all checks (fail_fast is already False in auditor mode).
+            # For non-auditor mode, extra_check failures are warnings only.
+
+    # ----------------------------------------------------------- main stage loop
     results: list[dict] = []
     t_global = time.monotonic()
     aborted_at = None
@@ -440,8 +731,37 @@ def main(argv: list[str] | None = None) -> int:
                 f"\n{YELLOW}  Fail-fast triggered at stage '{aborted_at}'."
                 f" Use --no-fail-fast to run all stages.{RESET}\n"
             )
+        if auditor_mode:
+            print_reviewer_summary(
+                profile=profile,
+                profile_key=profile_key,
+                extra_check_results=extra_check_results,
+                stage_results=results,
+                total_s=total_s,
+            )
 
-    report = build_json_report(results, total_s)
+    # ----------------------------------------- optional replay capsule (auditor)
+    if auditor_mode:
+        capsule_script = SCRIPT_DIR / "create_replay_capsule.py"
+        if capsule_script.exists():
+            try:
+                subprocess.run(
+                    [sys.executable, str(capsule_script)],
+                    capture_output=True,
+                    text=True,
+                    timeout=args.timeout,
+                    cwd=str(LIB_ROOT),
+                )
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
+    report = build_json_report(
+        results,
+        total_s,
+        profile_key=profile_key,
+        profile=profile,
+        extra_check_results=extra_check_results,
+    )
 
     if args.json:
         print(json.dumps(report, indent=2))
@@ -452,6 +772,10 @@ def main(argv: list[str] | None = None) -> int:
         out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         if not args.json:
             print(f"\n  Report written to: {out_path}")
+
+    # In auditor mode: overall_pass also requires all extra_checks to pass
+    if auditor_mode and extra_check_results:
+        overall_pass = overall_pass and all(ec["passed"] for ec in extra_check_results)
 
     return 0 if overall_pass else 1
 

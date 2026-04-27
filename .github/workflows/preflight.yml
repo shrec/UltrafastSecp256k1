@@ -112,8 +112,17 @@ jobs:
           print(f"PASS: 0 findings")
           EOF
 
-      - name: CAAS Stage 2 — Audit Gate P0–P18 (hard-fail)
+      - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
         run: python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+
+      - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)
+        run: python3 scripts/check_libsecp_shim_parity.py
+
+      - name: CAAS Stage 2c — Core Build Mode (hard-fail)
+        run: python3 scripts/check_core_build_mode.py
+
+      - name: CAAS Stage 2d — Source Graph Quality (hard-fail)
+        run: python3 scripts/check_source_graph_quality.py
 
       - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
         run: |

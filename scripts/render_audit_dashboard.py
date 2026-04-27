@@ -11,11 +11,13 @@ Implements CAAS hardening item H-9 (see `docs/CAAS_HARDENING_TODO.md`).
 
 Usage:
     python3 scripts/render_audit_dashboard.py [-o docs/AUDIT_DASHBOARD.md]
+    python3 scripts/render_audit_dashboard.py --profile bitcoin-core-backend
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from datetime import datetime, timezone
@@ -24,6 +26,8 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SUITE_ROOT = REPO_ROOT.parent.parent  # …/Secp256K1fast
+
+PROFILES = ("default", "bitcoin-core-backend", "cpu-signing", "release")
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
@@ -94,7 +98,160 @@ def _format_caas_hardening(todo_path: Path) -> str:
             f'See [`docs/CAAS_HARDENING_TODO.md`](CAAS_HARDENING_TODO.md).')
 
 
-def render() -> str:
+def _format_profile(profile: str) -> str:
+    if profile == "bitcoin-core-backend":
+        scope = "Bitcoin Core secondary secp256k1 backend (compile-time opt-in)"
+        out_of_scope = "ECDH, signing key material not surfaced to Core, GPU paths"
+        return '\n'.join([
+            f'**Profile:** `{profile}`',
+            '',
+            f'**Scope:** {scope}',
+            '',
+            f'**Out of scope:** {out_of_scope}',
+        ])
+    if profile == "cpu-signing":
+        scope = "CPU CT signing paths (ECDSA, Schnorr, recovery)"
+        out_of_scope = "GPU backends, batch GPU, OpenCL/CUDA paths"
+        return '\n'.join([
+            f'**Profile:** `{profile}`',
+            '',
+            f'**Scope:** {scope}',
+            '',
+            f'**Out of scope:** {out_of_scope}',
+        ])
+    if profile == "release":
+        scope = "Full library — all backends, all signing paths, ABI surface"
+        out_of_scope = "Experimental / preview features behind compile-time guards"
+        return '\n'.join([
+            f'**Profile:** `{profile}`',
+            '',
+            f'**Scope:** {scope}',
+            '',
+            f'**Out of scope:** {out_of_scope}',
+        ])
+    # generic fallback for any unknown profile
+    return '\n'.join([
+        f'**Profile:** `{profile}`',
+        '',
+        '_No specific scope note for this profile._',
+    ])
+
+
+def _format_caas_pipeline(kpi: dict[str, Any] | None) -> str:
+    if kpi is None:
+        return (
+            '_`docs/SECURITY_AUTONOMY_KPI.json` not found._\n\n'
+            'Run `python3 scripts/caas_runner.py` to generate.'
+        )
+    score = kpi.get('total_score', kpi.get('score', '?'))
+    gates_pass = kpi.get('gates_pass', kpi.get('overall_pass', None))
+    gates_str = 'PASS' if gates_pass else ('FAIL' if gates_pass is False else '?')
+    out = [
+        f'**Overall score:** {score} / 100',
+        f'**Gates:** {gates_str}',
+    ]
+    # Show individual gate statuses if present
+    gates = kpi.get('gates') or kpi.get('gate_results') or []
+    if gates:
+        out.append('')
+        out.append('| Gate | Pass |')
+        out.append('|------|------|')
+        for g in gates:
+            name = g.get('name', '?')
+            passing = g.get('passing', g.get('pass', g.get('overall_pass', '?')))
+            out.append(_row(name, 'yes' if passing is True else ('no' if passing is False else str(passing))))
+    return '\n'.join(out)
+
+
+def _format_evidence_bundle(
+    bundle_path: Path,
+    digest_path: Path,
+) -> str:
+    bundle_exists = bundle_path.exists()
+    digest_exists = digest_path.exists()
+
+    lines: list[str] = []
+    lines.append(f'**Bundle file:** `{bundle_path.name}` — '
+                 + ('exists' if bundle_exists else 'MISSING'))
+    lines.append(f'**Digest file:** `{digest_path.name}` — '
+                 + ('exists' if digest_exists else 'MISSING'))
+
+    if digest_exists:
+        try:
+            raw = digest_path.read_text(encoding='utf-8').strip()
+            sha_token = raw.split()[0] if raw else ''
+            display = (sha_token[:16] + '...') if len(sha_token) >= 16 else sha_token
+            lines.append(f'**SHA-256 (first 16):** `{display}`')
+        except OSError:
+            lines.append('**SHA-256:** _(unreadable)_')
+
+    if bundle_exists:
+        bundle = _load_json(bundle_path)
+        if bundle:
+            gen_at = bundle.get('generated_at', bundle.get('timestamp', ''))
+            if gen_at:
+                lines.append(f'**Generated at:** {gen_at}')
+        else:
+            lines.append('**Bundle JSON:** _(parse error)_')
+
+    return '\n'.join(lines)
+
+
+def _format_open_risks(reg_path: Path) -> str:
+    try:
+        text = reg_path.read_text()
+    except OSError:
+        return '_No RESIDUAL_RISK_REGISTER.md available._'
+    lines = text.splitlines()
+    table_rows = [ln for ln in lines if ln.startswith('| RR-')]
+    open_count = 0
+    closed_count = 0
+    accepted_count = 0
+    for ln in table_rows:
+        parts = ln.split('|')
+        if len(parts) < 5:
+            continue
+        status = parts[3].strip().upper()
+        if 'OPEN' in status:
+            open_count += 1
+        elif 'CLOSED' in status or 'FIXED' in status or 'RESOLVED' in status:
+            closed_count += 1
+        elif 'ACCEPTED' in status or 'MITIGATED' in status or 'WONTFIX' in status:
+            accepted_count += 1
+        else:
+            open_count += 1  # treat unknown as open (conservative)
+    total = open_count + closed_count + accepted_count
+    if total == 0:
+        return '_Register table empty._'
+    return (
+        f'**{open_count} open, {closed_count} closed, {accepted_count} accepted** '
+        f'({total} total)\n\n'
+        f'See [`docs/RESIDUAL_RISK_REGISTER.md`](RESIDUAL_RISK_REGISTER.md).'
+    )
+
+
+def _format_btc_core_section() -> str:
+    return '\n'.join([
+        '**BTC Core scope:**',
+        '',
+        '- Field arithmetic (`secp256k1_field_*`)',
+        '- Group operations (`secp256k1_ge_*`, `secp256k1_gej_*`)',
+        '- Scalar operations (`secp256k1_scalar_*`)',
+        '- ECDSA verify (non-signing, public-key path only)',
+        '- CT signing if compile guard `UFSECP_ENABLE_SIGNING` is set',
+        '',
+        '**Key gates that must pass for Core integration:**',
+        '',
+        '| Gate | Description |',
+        '|------|-------------|',
+        '| `audit_gate` | Overall audit gate — zero failures |',
+        '| `audit_gap_report_strict` | No uncovered public symbols |',
+        '| `security_autonomy_check` | Autonomy KPI ≥ threshold |',
+        '| `supply_chain_gate` | No unexpected dependencies |',
+    ])
+
+
+def render(profile: str = "default") -> str:
     out: list[str] = []
     out.append('# Audit Dashboard')
     out.append('')
@@ -104,19 +261,45 @@ def render() -> str:
     out.append('> Refreshed nightly by the `caas-evidence-refresh` workflow.')
     out.append('')
 
+    # Profile section — only when non-default
+    if profile != "default":
+        out.append(_section('Profile'))
+        out.append(_format_profile(profile))
+        if profile == "bitcoin-core-backend":
+            out.append('')
+            out.append(_format_btc_core_section())
+
     out.append(_section('Security Autonomy KPI'))
-    out.append(_format_autonomy(_load_json(REPO_ROOT / 'docs' / 'SECURITY_AUTONOMY_KPI.json')))
+    kpi = _load_json(REPO_ROOT / 'docs' / 'SECURITY_AUTONOMY_KPI.json')
+    out.append(_format_autonomy(kpi))
+
+    out.append(_section('CAAS Pipeline Status'))
+    out.append(_format_caas_pipeline(kpi))
 
     out.append(_section('Assurance Report'))
     rep = _load_json(SUITE_ROOT / 'assurance_report.json') \
         or _load_json(REPO_ROOT / 'assurance_report.json')
     out.append(_format_assurance(rep))
 
+    out.append(_section('Evidence Bundle'))
+    bundle_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.json'
+    digest_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.sha256'
+    out.append(_format_evidence_bundle(bundle_path, digest_path))
+
     out.append(_section('Residual Risk Register (snapshot)'))
     out.append(_format_residual(REPO_ROOT / 'docs' / 'RESIDUAL_RISK_REGISTER.md'))
 
+    out.append(_section('Open Residual Risks'))
+    out.append(_format_open_risks(REPO_ROOT / 'docs' / 'RESIDUAL_RISK_REGISTER.md'))
+
     out.append(_section('CAAS Hardening Progress'))
     out.append(_format_caas_hardening(REPO_ROOT / 'docs' / 'CAAS_HARDENING_TODO.md'))
+
+    out.append(_section('Replay Command'))
+    out.append(
+        f'```\npython3 scripts/caas_runner.py --profile {profile} --auditor-mode\n'
+        f'python3 scripts/audit_viewer.py\n```'
+    )
 
     out.append('')
     return '\n'.join(out) + '\n'
@@ -127,8 +310,12 @@ def main() -> int:
     p.add_argument('-o', '--output',
                    default=str(REPO_ROOT / 'docs' / 'AUDIT_DASHBOARD.md'),
                    help='output Markdown path')
+    p.add_argument('--profile',
+                   choices=PROFILES,
+                   default='default',
+                   help='audit profile scope (default: default)')
     args = p.parse_args()
-    Path(args.output).write_text(render())
+    Path(args.output).write_text(render(profile=args.profile))
     print(f'render_audit_dashboard: wrote {args.output}', file=sys.stderr)
     return 0
 
