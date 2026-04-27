@@ -480,6 +480,66 @@ static void test_context_randomize(secp256k1_context* ctx) {
           "ecdsa_sign after clear-blinding succeeds");
 }
 
+// ── noncefp / R-grinding compatibility ───────────────────────────────────────
+// Bitcoin Core's CKey::Sign (grind=true) calls secp256k1_ecdsa_sign repeatedly
+// with increasing counter bytes in `ndata`. The shim must produce a DIFFERENT
+// signature on each call so the R-grinding loop terminates.
+//
+// noncefp is accepted for API compatibility but always ignored — the shim uses
+// its own RFC 6979 / hedged nonce internally.
+
+static void test_nonce_callback_and_rgrinding(secp256k1_context* ctx) {
+    printf("\n[noncefp / R-grinding compatibility]\n");
+
+    secp256k1_pubkey pubkey{};
+    secp256k1_ec_pubkey_create(ctx, &pubkey, PRIVKEY);
+
+    // 1. ndata=NULL: plain RFC 6979 — deterministic
+    secp256k1_ecdsa_signature sig1{}, sig1b{};
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig1,  MSG32, PRIVKEY, nullptr, nullptr) == 1,
+          "sign(ndata=NULL) succeeds");
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig1b, MSG32, PRIVKEY, nullptr, nullptr) == 1,
+          "sign(ndata=NULL) again succeeds");
+    CHECK(memcmp(sig1.data, sig1b.data, 64) == 0,
+          "sign(ndata=NULL) is deterministic");
+    CHECK(secp256k1_ecdsa_verify(ctx, &sig1, MSG32, &pubkey) == 1,
+          "sig1 verifies");
+
+    // 2. ndata provided: hedged nonce — different signature each unique ndata
+    unsigned char ndata1[32] = {0x01};
+    unsigned char ndata2[32] = {0x02};
+    secp256k1_ecdsa_signature sig2{}, sig3{};
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig2, MSG32, PRIVKEY, nullptr, ndata1) == 1,
+          "sign(ndata=0x01...) succeeds");
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig3, MSG32, PRIVKEY, nullptr, ndata2) == 1,
+          "sign(ndata=0x02...) succeeds");
+    CHECK(memcmp(sig2.data, sig3.data, 64) != 0,
+          "different ndata -> different signature (R-grinding terminates)");
+    CHECK(secp256k1_ecdsa_verify(ctx, &sig2, MSG32, &pubkey) == 1,
+          "sig2(ndata=0x01) verifies");
+    CHECK(secp256k1_ecdsa_verify(ctx, &sig3, MSG32, &pubkey) == 1,
+          "sig3(ndata=0x02) verifies");
+
+    // 3. noncefp non-null: ignored; ndata still effective
+    secp256k1_ecdsa_signature sig4{};
+    CHECK(secp256k1_ecdsa_sign(ctx, &sig4, MSG32, PRIVKEY,
+                               secp256k1_nonce_function_rfc6979, ndata1) == 1,
+          "sign(noncefp=rfc6979, ndata=0x01) succeeds");
+    CHECK(memcmp(sig2.data, sig4.data, 64) == 0,
+          "noncefp ignored; same ndata -> same signature");
+
+    // 4. Simulated R-grinding: 4 iterations with counter ndata
+    for (int iter = 0; iter < 4; ++iter) {
+        unsigned char counter_ndata[32] = {};
+        counter_ndata[0] = (unsigned char)(iter + 1);
+        secp256k1_ecdsa_signature sigi{};
+        CHECK(secp256k1_ecdsa_sign(ctx, &sigi, MSG32, PRIVKEY, nullptr, counter_ndata) == 1,
+              "R-grinding iter sign succeeds");
+        CHECK(secp256k1_ecdsa_verify(ctx, &sigi, MSG32, &pubkey) == 1,
+              "R-grinding iter sig verifies");
+    }
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 int main() {
@@ -499,6 +559,7 @@ int main() {
     test_tagged_hash(ctx);
     test_der_parity(ctx);
     test_context_randomize(ctx);
+    test_nonce_callback_and_rgrinding(ctx);
 
     secp256k1_context_destroy(ctx);
 
