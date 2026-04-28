@@ -3,18 +3,18 @@
 # ===========================================================================
 #
 # Runs the full audit pipeline on every push and pull request to dev/main.
-# All five stages must pass. Any failure blocks merge.
+# All stages must pass. Any failure blocks merge.
 #
-# Stages:
-#   1. Static Analysis     — audit_test_quality_scanner (0 findings required)
-#                          — exploit_traceability_join (G-9b, catalog consistency)
-#   2. Audit Gate          — audit_gate.py  (P0–P18, exit 0 required)
-#   3. Security Autonomy   — security_autonomy_check.py (100/100 required)
-#   4. Bundle Produce      — external_audit_bundle.py (reproducible evidence)
-#   5. Bundle Verify       — verify_external_audit_bundle.py (integrity check)
+# Pipeline stages (6 logical, 5 CI jobs; traceability join runs in Stage 1):
+#   1a. Static Analysis    — audit_test_quality_scanner (0 findings required)
+#   1b. Traceability Join  — exploit_traceability_join (G-9b, catalog consistency)
+#   2.  Audit Gate         — audit_gate.py  (P0–P18, exit 0 required)
+#   3.  Security Autonomy  — security_autonomy_check.py (100/100 required)
+#   4.  Bundle Produce     — external_audit_bundle.py (reproducible evidence)
+#   5.  Bundle Verify      — verify_external_audit_bundle.py (integrity check)
 #
 # Artifacts:
-#   - caas-report         : JSON summary of all five stages
+#   - caas-report         : JSON summary of all pipeline stages
 #   - audit-bundle        : EXTERNAL_AUDIT_BUNDLE.json + sha256 manifest
 #
 # On PR:  each stage becomes a required status check named "CAAS / <stage>"
