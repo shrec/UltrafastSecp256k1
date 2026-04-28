@@ -458,13 +458,9 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
         // R = k * G
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
-            // r = R.x mod n  (direct FE52→bytes, avoids FieldElement intermediate)
-#if defined(SECP256K1_FAST_52BIT)
-            std::array<uint8_t, 32> r_bytes{};
-            R.X52().store_b32_prenorm(r_bytes.data());
-#else
-            auto r_bytes = R.x().to_bytes();
-#endif
+            // r = R.x mod n — normalize to affine first (ct::generator_mul_blinded
+            // returns a Jacobian point; X52() is only the affine x after Z=1).
+            auto r_bytes = R.x_only_bytes();
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
                 // s = k^{-1} * (z + r * d) mod n  (CT SafeGCD inverse)

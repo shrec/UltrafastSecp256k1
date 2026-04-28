@@ -203,7 +203,7 @@ When the library implements a new spec clause:
 | secp256k1_ecdh.h | `secp256k1_ecdh` — shared secret | `compat/libsecp256k1_shim/src/shim_ecdh.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
 | secp256k1_recovery.h | Recoverable ECDSA sign / recover | `compat/libsecp256k1_shim/src/shim_recovery.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
 | secp256k1_ellswift.h | ElligatorSwift encode/decode (BIP-324) | `compat/libsecp256k1_shim/src/shim_ellswift.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
-| secp256k1_musig.h | MuSig2 BIP-327: all 14 functions | `compat/libsecp256k1_shim/src/shim_musig2.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_musig.h | MuSig2 BIP-327: all 14 functions | `compat/libsecp256k1_shim/src/shim_musig.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
 | Parity | Full differential parity vs libsecp256k1 reference | `compat/libsecp256k1_shim/` | `audit/test_exploit_differential_libsecp.cpp` | OK |
 
 ## x-only / xonly Pubkeys — BIP-340 / BIP-341
@@ -212,6 +212,6 @@ When the library implements a new spec clause:
 |--------|-------------|------|------|--------|
 | BIP-340 §Encoding | x-only pubkey = 32-byte x coordinate, even y assumed | `cpu/src/schnorr.cpp`, `compat/libsecp256k1_shim/src/shim_extrakeys.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp` | OK |
 | BIP-340 §Verification | Lift x-only to even-y point; reject if not on curve | `cpu/src/schnorr.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/test_exploit_ectester_point_validation.cpp` | OK |
-| BIP-341 §key_path | Internal key + tweak → x-only output key | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_merkle_collision.cpp`, `audit/test_exploit_taproot_script_path.cpp` | OK |
-| BIP-341 §annex | Taproot annex hash does not affect x-only key path | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_annex.cpp` | OK |
+| BIP-341 §key_path | Internal key + tweak → x-only output key | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_merkle_path_alias.cpp`, `audit/test_exploit_taproot_scripts.cpp` | OK |
+| BIP-341 §annex | Taproot annex hash does not affect x-only key path | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_commitment_adversarial.cpp` | OK |
 | secp256k1_extrakeys.h | `secp256k1_xonly_pubkey_*` shim covers serialize/parse/tweak | `compat/libsecp256k1_shim/src/shim_extrakeys.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |

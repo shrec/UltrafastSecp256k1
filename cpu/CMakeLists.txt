@@ -1075,6 +1075,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_ffi_coverage_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_include_directories(test_ffi_coverage_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp
         ${CMAKE_BINARY_DIR}/include)
     target_compile_definitions(test_ffi_coverage_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
     add_test(NAME ffi_coverage COMMAND test_ffi_coverage_standalone)

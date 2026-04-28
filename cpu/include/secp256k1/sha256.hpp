@@ -40,6 +40,10 @@ public:
         buf_len_ = 0;
     }
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
     void update(const void* data, std::size_t len) noexcept {
         auto ptr = static_cast<const std::uint8_t*>(data);
         total_ += len;
@@ -69,6 +73,9 @@ public:
             buf_len_ = len;
         }
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     digest_type finalize() noexcept {
         std::uint64_t const bits = total_ * 8;

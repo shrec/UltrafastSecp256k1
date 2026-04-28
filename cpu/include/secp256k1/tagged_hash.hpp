@@ -38,6 +38,7 @@ inline const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge"
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 inline std::array<uint8_t, 32> cached_tagged_hash(const SHA256& midstate,
                                                     const void* data,
