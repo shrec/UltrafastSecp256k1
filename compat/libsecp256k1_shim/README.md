@@ -10,7 +10,7 @@ Drop-in replacement for projects written against the libsecp256k1 C API. Link th
 
 | Category | Functions | Status |
 |---|---|---|
-| Context | `create`, `destroy`, `randomize` | [OK] Full — randomize installs thread-local scalar blinding |
+| Context | `create`, `clone`, `destroy`, `randomize`, `set_illegal_callback`, `set_error_callback`, `selftest` | [OK] Full — randomize installs thread-local scalar blinding; callbacks store a user-supplied handler (default: `abort()`); selftest verifies 1·G |
 | Public Keys | `pubkey_create`, `pubkey_parse`, `pubkey_serialize`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` | [OK] |
 | ECDSA | `ecdsa_sign`, `ecdsa_verify`, `signature_parse_compact`, `signature_serialize_compact`, `signature_normalize` | [OK] |
 | Schnorr (BIP-340) | `schnorrsig_sign32`, `schnorrsig_verify` | [OK] |

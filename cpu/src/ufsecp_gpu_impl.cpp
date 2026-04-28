@@ -107,14 +107,12 @@ static bool has_valid_bulletproof_prefixes(const uint8_t* proofs324, size_t coun
  * Backend & device discovery
  * =========================================================================== */
 
-uint32_t ufsecp_gpu_backend_count(uint32_t* backend_ids_out, uint32_t max_ids) {
-    try {
+uint32_t ufsecp_gpu_backend_count(uint32_t* backend_ids_out, uint32_t max_ids) noexcept {
     const uint32_t count = backend_count();
     if (backend_ids_out && max_ids > 0) {
         backend_ids(backend_ids_out, max_ids);
     }
     return count;
-    } catch (...) { return 0; }
 }
 
 const char* ufsecp_gpu_backend_name(uint32_t bid) {
@@ -126,17 +124,14 @@ const char* ufsecp_gpu_backend_name(uint32_t bid) {
     }
 }
 
-int ufsecp_gpu_is_available(uint32_t bid) {
-    try { return is_available(bid) ? 1 : 0; }
-    catch (...) { return 0; }
+int ufsecp_gpu_is_available(uint32_t bid) noexcept {
+    return is_available(bid) ? 1 : 0;
 }
 
-uint32_t ufsecp_gpu_device_count(uint32_t bid) {
-    try {
+uint32_t ufsecp_gpu_device_count(uint32_t bid) noexcept {
     auto b = create_backend(bid);
     if (!b) return 0;
     return b->device_count();
-    } catch (...) { return 0; }
 }
 
 ufsecp_error_t ufsecp_gpu_device_info(
@@ -199,10 +194,9 @@ void ufsecp_gpu_ctx_destroy(ufsecp_gpu_ctx* ctx) {
     }
 }
 
-int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx) {
+int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx) noexcept {
     if (!ctx || !ctx->backend) return 0;
-    try { return ctx->backend->is_ready() ? 1 : 0; }
-    catch (...) { return 0; }
+    return ctx->backend->is_ready() ? 1 : 0;
 }
 
 ufsecp_error_t ufsecp_gpu_last_error(const ufsecp_gpu_ctx* ctx) {

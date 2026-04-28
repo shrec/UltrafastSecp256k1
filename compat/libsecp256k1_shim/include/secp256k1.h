@@ -64,6 +64,12 @@ typedef int (*secp256k1_nonce_function)(
 #define SECP256K1_TAG_PUBKEY_ODD           0x03
 #define SECP256K1_TAG_PUBKEY_UNCOMPRESSED  0x04
 
+/* -- Illegal/error callback ----------------------------------------------- */
+/* Called when an illegal API usage or internal error is detected.
+ * The default behavior (when not set) is to call abort(). Pass a no-op
+ * function pointer to suppress the default abort (Bitcoin Core pattern). */
+typedef void (*secp256k1_callback_fn)(const char *text, void *data);
+
 /* -- Static context ------------------------------------------------------- */
 SECP256K1_API const secp256k1_context * const secp256k1_context_static;
 
@@ -73,6 +79,20 @@ SECP256K1_API secp256k1_context *secp256k1_context_clone(const secp256k1_context
 SECP256K1_API void secp256k1_context_destroy(secp256k1_context *ctx);
 SECP256K1_API int  secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *seed32);
 SECP256K1_API void secp256k1_selftest(void);
+
+/* Install a callback invoked on illegal API usage (NULL ctx, bad arg, etc.).
+ * The default callback calls abort(). Pass a no-op to suppress abort. */
+SECP256K1_API void secp256k1_context_set_illegal_callback(
+    secp256k1_context *ctx,
+    secp256k1_callback_fn fun,
+    const void *data);
+
+/* Install a callback for internal library errors (e.g., OOM during context ops).
+ * The default callback calls abort(). */
+SECP256K1_API void secp256k1_context_set_error_callback(
+    secp256k1_context *ctx,
+    secp256k1_callback_fn fun,
+    const void *data);
 
 /* -- Public key operations ------------------------------------------------ */
 SECP256K1_API int secp256k1_ec_pubkey_parse(

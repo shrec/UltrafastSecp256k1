@@ -365,6 +365,8 @@ void table_lookup_core(CTAffinePoint* out,
 
     // Load first entry (80 bytes = x.n[5] + y.n[5]) into 3 ymm registers
     // Layout: [x.n[0..3]] [x.n[4], y.n[0..2]] [y.n[3..4], padding]
+    // Aliasing note: __m256i has __attribute__(__may_alias__) in GCC/Clang immintrin.h,
+    // so reinterpret_cast<__m256i*> from char* is defined behavior — no strict-aliasing UB.
     const auto* base0 = reinterpret_cast<const char*>(&table[0].x.n[0]);
     __m256i r0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base0));           // x.n[0..3] (32 bytes)
     __m256i r1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base0 + 32));      // x.n[4], y.n[0..2]

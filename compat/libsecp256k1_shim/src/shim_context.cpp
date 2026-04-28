@@ -17,13 +17,25 @@ using namespace secp256k1::fast;
 // UltrafastSecp256k1 is stateless -- contexts are opaque dummies.
 // We allocate a small sentinel so null-checks in user code pass.
 
+static void default_illegal_callback(const char * /*text*/, void * /*data*/) noexcept {
+    std::abort();
+}
+
 struct secp256k1_context_struct {
     unsigned int flags;
     unsigned char blind[32];   // randomization seed from secp256k1_context_randomize
     bool blinded;
+    secp256k1_callback_fn illegal_cb{default_illegal_callback};
+    const void* illegal_cb_data{nullptr};
+    secp256k1_callback_fn error_cb{default_illegal_callback};
+    const void* error_cb_data{nullptr};
 };
 
-static secp256k1_context_struct g_static_ctx = { SECP256K1_CONTEXT_NONE, {}, false };
+static secp256k1_context_struct g_static_ctx = {
+    SECP256K1_CONTEXT_NONE, {}, false,
+    default_illegal_callback, nullptr,
+    default_illegal_callback, nullptr
+};
 
 // Auto-initialize the fixed-base precomputed table once on first context_create.
 // Resolution order:
@@ -72,7 +84,8 @@ secp256k1_context *secp256k1_context_create(unsigned int flags) {
 }
 
 secp256k1_context *secp256k1_context_clone(const secp256k1_context *ctx) {
-    if (!ctx) return nullptr;
+    // libsecp256k1 calls the illegal callback (default: abort) on NULL ctx.
+    if (!ctx) { std::abort(); }
     auto *clone = static_cast<secp256k1_context *>(std::malloc(sizeof(secp256k1_context)));
     if (clone) std::memcpy(clone, ctx, sizeof(secp256k1_context));
     return clone;
@@ -108,7 +121,41 @@ int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *see
 }
 
 void secp256k1_selftest(void) {
-    // The underlying library has its own selftest; this is a compatibility stub.
+    // Verify that 1*G produces the known generator x-coordinate.
+    // Exercises scalar_mul_generator and field/point serialization.
+    // abort() on failure (matches libsecp256k1 selftest contract).
+    static constexpr uint8_t kGx[32] = {
+        0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC,
+        0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07,
+        0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9,
+        0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98
+    };
+    std::array<uint8_t, 32> one_bytes{};
+    one_bytes[31] = 1;
+    Scalar one = Scalar::from_bytes(one_bytes);
+    auto G = scalar_mul_generator(one);
+    auto unc = G.to_uncompressed(); // [04][x:32][y:32]
+    if (std::memcmp(unc.data() + 1, kGx, 32) != 0) { std::abort(); }
+}
+
+void secp256k1_context_set_illegal_callback(
+    secp256k1_context *ctx,
+    secp256k1_callback_fn fun,
+    const void *data) noexcept
+{
+    if (!ctx || ctx == &g_static_ctx) return;
+    ctx->illegal_cb      = fun ? fun : default_illegal_callback;
+    ctx->illegal_cb_data = data;
+}
+
+void secp256k1_context_set_error_callback(
+    secp256k1_context *ctx,
+    secp256k1_callback_fn fun,
+    const void *data) noexcept
+{
+    if (!ctx || ctx == &g_static_ctx) return;
+    ctx->error_cb      = fun ? fun : default_illegal_callback;
+    ctx->error_cb_data = data;
 }
 
 } // extern "C"

@@ -179,7 +179,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 205 exploit-PoC test files (all 205 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 232 exploit-PoC test files (all 232 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
@@ -333,11 +333,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
-- All 60 non-exploit audit modules and all 207 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 60 non-exploit audit modules and all 232 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
-### Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
 
-In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **205 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **232 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -356,7 +356,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 205 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
+> All 232 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
