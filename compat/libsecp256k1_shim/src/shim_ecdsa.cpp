@@ -228,7 +228,7 @@ int secp256k1_ecdsa_sign(
     } else {
         result = secp256k1::ct::ecdsa_sign(msg, k);
     }
-    if (result.r.is_zero() && result.s.is_zero()) return 0;
+    if (result.r.is_zero() || result.s.is_zero()) return 0;
     ecdsa_sig_to_data(result, sig->data);
     return 1;
 }

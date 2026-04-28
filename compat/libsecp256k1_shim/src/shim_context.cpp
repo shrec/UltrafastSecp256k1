@@ -76,10 +76,11 @@ extern "C" {
 const secp256k1_context * const secp256k1_context_static = &g_static_ctx;
 
 secp256k1_context *secp256k1_context_create(unsigned int flags) {
-    (void)flags;
     shim_ensure_fixed_base();
-    auto *ctx = static_cast<secp256k1_context *>(std::malloc(sizeof(secp256k1_context)));
-    if (ctx) ctx->flags = flags;
+    void* mem = std::malloc(sizeof(secp256k1_context));
+    if (!mem) return nullptr;
+    auto *ctx = new(mem) secp256k1_context{};  // runs default member initializers
+    ctx->flags = flags;
     return ctx;
 }
 

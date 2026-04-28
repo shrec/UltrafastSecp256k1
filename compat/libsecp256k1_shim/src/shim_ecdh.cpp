@@ -1,9 +1,9 @@
 // ============================================================================
 // shim_ecdh.cpp -- ECDH key exchange (secp256k1_ecdh)
 // ============================================================================
-// Implements the libsecp256k1 ECDH module API using the fast engine.
-// ECDH is a public-side operation: the private key scalar multiplication
-// uses Point::scalar_mul (GLV, ~17 µs) rather than CT (~40 µs).
+// Implements the libsecp256k1 ECDH module API using the CT engine.
+// ECDH is secret-bearing: the private key scalar multiplication must use
+// ct::scalar_mul (constant-time, no secret-dependent branches or timing).
 // ============================================================================
 
 #include "secp256k1_ecdh.h"
@@ -17,6 +17,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -68,8 +69,8 @@ int secp256k1_ecdh(
     auto pk = Point::from_affine(x, y);
     if (pk.is_infinity()) return 0;
 
-    // ECDH: result = sk * PK  (fast GLV)
-    auto result = pk.scalar_mul(sk);
+    // ECDH: result = sk * PK  (constant-time — secret key must not leak via timing)
+    auto result = secp256k1::ct::scalar_mul(pk, sk);
     if (result.is_infinity()) return 0;
 
     // Extract affine X, Y
