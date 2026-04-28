@@ -50,10 +50,8 @@ static inline Point signing_generator_mul(const Scalar& scalar) {
 }
 
 // -- Sign with Recovery ID ----------------------------------------------------
-// WARNING: Variable-time path -- uses fast::scalar_mul(k) and fast::inverse(k)
-// on the secret nonce. For side-channel-resistant signing, use ct::ecdsa_sign()
-// (which does not produce recovery IDs). This function is suitable only for
-// environments where timing attacks are not a concern.
+// CT path: uses ct::generator_mul_blinded(k) and ct::scalar_inverse(k).
+// Recovery ID computation branches only on public data (r, r_bytes).
 
 RecoverableSignature ecdsa_sign_recoverable(
     const std::array<uint8_t, 32>& msg_hash,
@@ -65,9 +63,8 @@ RecoverableSignature ecdsa_sign_recoverable(
     auto k = rfc6979_nonce(private_key, msg_hash);
     if (k.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
-    // R = k * G
+    // R = k * G  (k is non-zero by check above; kG is never infinity)
     auto R = signing_generator_mul(k);
-    if (R.is_infinity()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // r = R.x mod n
     auto r_fe = R.x();
@@ -92,7 +89,7 @@ RecoverableSignature ecdsa_sign_recoverable(
         gt     = gt | (eq_run & byte_gt);
         eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
     }
-    if (gt) recid |= 2;
+    recid |= (int)(gt << 1);
 
     // s = k^-^1 * (z + r * d) mod n  (CT SafeGCD inverse)
     auto k_inv = ct::scalar_inverse(k);
