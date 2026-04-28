@@ -182,11 +182,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-O3>
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-DNDEBUG>
         # Build hardening (supply-chain / CAAS gate requirement)
+        # -fstack-protector-strong: stack canaries on vulnerable frames
         $<$<COMPILE_LANGUAGE:C,CXX>:-fstack-protector-strong>
+        # -D_FORTIFY_SOURCE=2: fortified glibc wrappers (Release only)
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-D_FORTIFY_SOURCE=2>
-        $<$<COMPILE_LANGUAGE:C,CXX>:-fPIE>
     )
-    add_link_options(-pie)
+    # Position-independent code: -fPIC for shared libs, -fPIE for executables.
+    # CMake applies the right variant per target type via this global variable.
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     if(SECP256K1_WERROR)
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Werror>)
     endif()

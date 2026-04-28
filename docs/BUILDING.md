@@ -703,6 +703,6 @@ The release build automatically enables supply-chain hardening flags:
 
 - `-fstack-protector-strong` — stack canaries for all functions with vulnerable stack frames
 - `-D_FORTIFY_SOURCE=2` (Release builds only) — fortified glibc function wrappers
-- `-fPIE` + `-pie` — position-independent executable (ASLR support)
+- `-fPIE` / `-fPIC` — position-independent code (ASLR support). CMake applies `-fPIC` to shared libraries and `-fPIE` to executables automatically via `CMAKE_POSITION_INDEPENDENT_CODE=ON`; do not pass `-fPIE` globally as it breaks shared library linking.
 
 These are required by the CAAS supply-chain gate (`scripts/supply_chain_gate.py`). To override for embedded/no-OS targets, pass `-DCMAKE_C_FLAGS=-fno-stack-protector` explicitly.
