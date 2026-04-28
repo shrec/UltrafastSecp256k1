@@ -4,6 +4,7 @@
 #include "secp256k1/config.hpp"  // SECP256K1_FAST_52BIT
 #include "secp256k1/field_52.hpp"
 #include "secp256k1/ct/point.hpp"  // ct::generator_mul for sign-then-verify
+#include "secp256k1/ct/scalar.hpp" // ct::ct_normalize_low_s
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/debug_invariants.hpp"
 #include <cstring>
@@ -93,8 +94,7 @@ bool ECDSASignature::parse_compact_strict(const std::array<uint8_t, 64>& data,
 }
 
 ECDSASignature ECDSASignature::normalize() const {
-    if (is_low_s()) return *this;
-    return {r, s.negate()};
+    return ct::ct_normalize_low_s(*this);
 }
 
 bool ECDSASignature::is_low_s() const {

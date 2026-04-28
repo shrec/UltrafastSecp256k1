@@ -2739,6 +2739,54 @@ target_compile_definitions(test_exploit_bip352_address_collision_standalone PRIV
 add_test(NAME exploit_bip352_address_collision COMMAND test_exploit_bip352_address_collision_standalone)
 set_tests_properties(exploit_bip352_address_collision PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;silent-payments;collision")
 
+# -- BUG-001/007: addr off-by-one overflow + p2sh null ---------------------
+add_executable(test_exploit_bug001_addr_overflow_standalone
+    test_exploit_bug001_addr_overflow.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_bug001_addr_overflow_standalone)
+target_include_directories(test_exploit_bug001_addr_overflow_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_bug001_addr_overflow_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bug001_addr_overflow COMMAND test_exploit_bug001_addr_overflow_standalone)
+set_tests_properties(exploit_bug001_addr_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;abi;buffer")
+
+# -- BUG-002: recovery.cpp CT recid overflow check -------------------------
+add_executable(test_exploit_bug002_recovery_ct_standalone test_exploit_bug002_recovery_ct.cpp)
+audit_target_defaults(test_exploit_bug002_recovery_ct_standalone)
+target_link_libraries(test_exploit_bug002_recovery_ct_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_bug002_recovery_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bug002_recovery_ct COMMAND test_exploit_bug002_recovery_ct_standalone)
+set_tests_properties(exploit_bug002_recovery_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;ct;recovery")
+
+# -- BUG-003/008: ECDSASignature::normalize() CT path ----------------------
+add_executable(test_exploit_bug003_normalize_ct_standalone test_exploit_bug003_normalize_ct.cpp)
+audit_target_defaults(test_exploit_bug003_normalize_ct_standalone)
+target_link_libraries(test_exploit_bug003_normalize_ct_standalone PRIVATE fastsecp256k1)
+target_compile_definitions(test_exploit_bug003_normalize_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bug003_normalize_ct COMMAND test_exploit_bug003_normalize_ct_standalone)
+set_tests_properties(exploit_bug003_normalize_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;ct;normalize")
+
+# -- BUG-004: Schnorr batch sign fail-closed --------------------------------
+add_executable(test_exploit_bug004_batch_failclosed_standalone
+    test_exploit_bug004_batch_failclosed.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_bug004_batch_failclosed_standalone)
+target_include_directories(test_exploit_bug004_batch_failclosed_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_bug004_batch_failclosed_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bug004_batch_failclosed COMMAND test_exploit_bug004_batch_failclosed_standalone)
+set_tests_properties(exploit_bug004_batch_failclosed PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;batch;failclosed")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3311,6 +3359,11 @@ add_executable(unified_audit_runner
     test_exploit_gpu_memory_safety.cpp
     test_exploit_rs_zero_check.cpp
     test_exploit_bip352_address_collision.cpp
+    # BUG-001..008 fixes (2026-04-28 full audit)
+    test_exploit_bug001_addr_overflow.cpp
+    test_exploit_bug002_recovery_ct.cpp
+    test_exploit_bug003_normalize_ct.cpp
+    test_exploit_bug004_batch_failclosed.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

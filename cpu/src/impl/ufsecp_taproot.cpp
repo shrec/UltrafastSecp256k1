@@ -597,7 +597,7 @@ ufsecp_error_t ufsecp_bip39_generate(ufsecp_ctx* ctx,
     if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-39 generation failed");
     }
-    if (*mnemonic_len < mnemonic.size() + 1) {
+    if (*mnemonic_len <= mnemonic.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "mnemonic buffer too small");
     }
     std::memcpy(mnemonic_out, mnemonic.c_str(), mnemonic.size() + 1);

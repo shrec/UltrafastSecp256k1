@@ -461,6 +461,14 @@ int test_exploit_schnorr_nonce_reuse_run();
 int test_exploit_eip712_kat_run();
 
 // ============================================================================
+// Forward declarations -- BUG-001..008 fixes (2026-04-28 full audit)
+// ============================================================================
+int test_exploit_bug001_addr_overflow_run();  // BUG-001/007: addr off-by-one + p2sh null
+int test_exploit_bug002_recovery_ct_run();    // BUG-002: recovery.cpp CT recid overflow
+int test_exploit_bug003_normalize_ct_run();   // BUG-003/008: ECDSASignature::normalize() CT
+int test_exploit_bug004_batch_failclosed_run(); // BUG-004: schnorr batch sign fail-closed
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -875,6 +883,12 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, true },
     { "exploit_rs_zero_check",               "ECDSA r,s Zero Check Gap: CVE-2022-39272-class rejection (RZERO-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_rs_zero_check_run, false },
     { "exploit_bip352_address_collision",    "BIP-352 Address Collision: domain separation collision resistance (SP-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_bip352_address_collision_run, false },
+    // Section 13: BUG-001..008 fixes (2026-04-28 full audit)
+    // ===================================================================
+    { "exploit_bug001_addr_overflow",    "BUG-001/007: ufsecp_addr_* off-by-one overflow + p2sh null (AOF-1..15) — 2026-04-28", "exploit_poc", test_exploit_bug001_addr_overflow_run, false },
+    { "exploit_bug002_recovery_ct",      "BUG-002: recovery.cpp CT recid overflow check (RCT-1..8) — 2026-04-28",               "exploit_poc", test_exploit_bug002_recovery_ct_run, false },
+    { "exploit_bug003_normalize_ct",     "BUG-003/008: ECDSASignature::normalize() CT path (NCT-1..8) — 2026-04-28",            "exploit_poc", test_exploit_bug003_normalize_ct_run, false },
+    { "exploit_bug004_batch_failclosed", "BUG-004: Schnorr batch sign fail-closed (BFC-1..8) — 2026-04-28",                     "exploit_poc", test_exploit_bug004_batch_failclosed_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

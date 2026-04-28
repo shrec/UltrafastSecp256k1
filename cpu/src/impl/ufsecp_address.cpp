@@ -52,7 +52,7 @@ ufsecp_error_t ufsecp_addr_p2pkh(ufsecp_ctx* ctx,
     if (addr.empty()) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "P2PKH generation failed");
 }
-    if (*addr_len < addr.size() + 1) {
+    if (*addr_len <= addr.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "P2PKH buffer too small");
 }
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
@@ -77,7 +77,7 @@ ufsecp_error_t ufsecp_addr_p2wpkh(ufsecp_ctx* ctx,
     if (addr.empty()) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "P2WPKH generation failed");
 }
-    if (*addr_len < addr.size() + 1) {
+    if (*addr_len <= addr.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "P2WPKH buffer too small");
 }
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
@@ -107,7 +107,7 @@ ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
     if (addr.empty()) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "P2TR generation failed");
 }
-    if (*addr_len < addr.size() + 1) {
+    if (*addr_len <= addr.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "P2TR buffer too small");
 }
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
@@ -120,7 +120,7 @@ ufsecp_error_t ufsecp_addr_p2sh(
     const uint8_t* redeem_script, size_t redeem_script_len,
     int network,
     char* addr_out, size_t* addr_len) {
-    if (SECP256K1_UNLIKELY(!redeem_script && redeem_script_len > 0)) return UFSECP_ERR_NULL_ARG;
+    if (SECP256K1_UNLIKELY(!redeem_script)) return UFSECP_ERR_NULL_ARG;
     if (SECP256K1_UNLIKELY(!addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
     if (!valid_network(network)) return UFSECP_ERR_BAD_INPUT;
 
@@ -129,7 +129,7 @@ ufsecp_error_t ufsecp_addr_p2sh(
     auto script_hash = secp256k1::hash160(redeem_script, redeem_script_len);
     auto addr = secp256k1::address_p2sh(script_hash, to_network(network));
     if (addr.empty()) return UFSECP_ERR_INTERNAL;
-    if (*addr_len < addr.size() + 1) return UFSECP_ERR_BUF_TOO_SMALL;
+    if (*addr_len <= addr.size()) return UFSECP_ERR_BUF_TOO_SMALL;
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
     *addr_len = addr.size();
     return UFSECP_OK;
@@ -154,7 +154,7 @@ ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
     if (addr.empty()) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "P2SH-P2WPKH generation failed");
     }
-    if (*addr_len < addr.size() + 1) {
+    if (*addr_len <= addr.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "P2SH-P2WPKH buffer too small");
     }
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
@@ -186,7 +186,7 @@ ufsecp_error_t ufsecp_wif_encode(ufsecp_ctx* ctx,
     if (wif.empty()) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "WIF encode failed");
 }
-    if (*wif_len < wif.size() + 1) {
+    if (*wif_len <= wif.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "WIF buffer too small");
 }
     std::memcpy(wif_out, wif.c_str(), wif.size() + 1);

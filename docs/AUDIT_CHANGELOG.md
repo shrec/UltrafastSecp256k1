@@ -7,6 +7,33 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28h (BUG-001..008 fix sweep from full multi-role audit)
+
+### Security Fixes (code + CT)
+
+- **BUG-001 (HIGH)** — `ufsecp_addr_p2pkh/p2wpkh/p2tr/p2sh/p2sh_p2wpkh/wif_encode/bip39_generate`: off-by-one in buffer size check (`< size+1` → `<= size`). With `*out_len == addr_len`, the check passed but `memcpy` wrote 1 byte past the end of caller's buffer. Fix: all 7 functions now use `<= addr.size()`.
+- **BUG-002 (HIGH)** — `recovery.cpp:88-91`: early-exit byte comparison loop on secret-nonce-derived `r_bytes` leaks which byte differs from the order via timing. Replaced with branchless 32-byte GT detection (same as `ct_sign.cpp:326-337`). Additionally replaced `is_low_s()` branch before normalize with `ct::scalar_is_high()` + `ct::ct_normalize_low_s()`.
+- **BUG-003/008 (MEDIUM)** — `ECDSASignature::normalize()` branched on secret `s` during signing (`is_low_s()` used early-exit limb comparisons). Changed `normalize()` to call `ct::ct_normalize_low_s(*this)`, making all callers in `ecdsa.cpp` and `recovery.cpp` CT. `ecdsa.cpp` now includes `ct/scalar.hpp`.
+- **BUG-004 (MEDIUM)** — `ufsecp_schnorr_sign_batch()` cleared output before the loop but re-wrote partial sigs before failing on a bad key. Added re-clear on error path for both Schnorr and ECDSA batch sign. `ufsecp_ecdsa_sign_batch()` had the same re-clear gap.
+- **BUG-005 (DOC)** — `SECURITY_CLAIMS.md:182`: `ufsecp_xonly_pubkey_parse` does not exist. Corrected to `ufsecp_pubkey_xonly`.
+- **BUG-006 (DOC)** — `EXPLOIT_TEST_CATALOG.md`: count updated from stale 205 → 233.
+- **BUG-007 (MEDIUM)** — `ufsecp_addr_p2sh(NULL, 0, ...)`: old check `(!redeem_script && len > 0)` allowed NULL with len=0, calling `hash160(NULL, 0)`. Fix: always require non-NULL redeem_script.
+
+### New Exploit PoC Coverage: +4 tests (74 new assertions)
+
+- **`test_exploit_bug001_addr_overflow.cpp`** (AOF-1..15, 21 checks): verifies exact-size buffer returns `BUF_TOO_SMALL` and sentinel byte is intact for all 7 functions; AOF-13/14 test BUG-007 p2sh null behavior.
+- **`test_exploit_bug002_recovery_ct.cpp`** (RCT-1..8, 31 checks): recoverable sign correctness at sk=1/7/n-1, determinism, recid range, 50-scalar batch, low-S, invalid recid.
+- **`test_exploit_bug003_normalize_ct.cpp`** (NCT-1..8, 10 checks): normalize idempotency, high-S→low-S, double normalize, is_low_s() agreement, ECDSA sign always low-S, n-1 boundary, n/2 boundary, sign+verify.
+- **`test_exploit_bug004_batch_failclosed.cpp`** (BFC-1..8, 12 checks): batch error → all-zero output; both Schnorr and ECDSA; count=0; NULL args; 3-key partial failure.
+
+### Wiring
+
+- All 4 tests wired in `unified_audit_runner.cpp` under section `exploit_poc`.
+- All 4 `.cpp` added to `audit/CMakeLists.txt` (unified runner + standalone CTest targets).
+- `check_exploit_wiring.py` passes: 232/232 exploit files referenced.
+
+---
+
 ## 2026-04-28g (Original Security Analysis: 5 new exploit PoCs N9–N13 — V2 Work Order)
 
 ### New Exploit PoC Coverage: +5 tests (2 code-confirmed + 3 gap analysis)

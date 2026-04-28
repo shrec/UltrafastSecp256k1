@@ -759,5 +759,55 @@ The collision probability is ≈1/2^128 (birthday bound on SHA-256 tagged hash).
 
 ---
 
+---
+
+### BUG-001: ABI Buffer Off-by-One Overflow (AOF)
+
+**Class**: Buffer overflow / ABI contract violation  
+**Risk**: HIGH  
+**Status**: Fixed 2026-04-28
+
+Seven C ABI functions (`ufsecp_addr_p2pkh`, `p2wpkh`, `p2tr`, `p2sh`, `p2sh_p2wpkh`, `wif_encode`, `bip39_generate`) used `*out_len < string.size() + 1` as the too-small check. This passes when `*out_len == string.size()`, but `memcpy` then writes `string.size() + 1` bytes — overwriting the byte immediately after the caller's buffer. Fix: changed to `<= string.size()`.
+
+**Test file**: `audit/test_exploit_bug001_addr_overflow.cpp` (AOF-1..15)
+
+---
+
+### BUG-002: recovery.cpp Timing Leak on Secret Nonce (RCT)
+
+**Class**: Timing side-channel on secret-derived data  
+**Risk**: HIGH  
+**Status**: Fixed 2026-04-28
+
+`recovery.cpp:88-91` used an early-exit loop to determine if `r_bytes >= n` (the recid overflow bit). The loop exits as soon as a differing byte is found, leaking which byte of the secret-nonce-derived value differs from the order. The CT fix (identical to `ct_sign.cpp:326-337`) accumulates `gt` and `eq_run` branchlessly across all 32 bytes.
+
+**Test file**: `audit/test_exploit_bug002_recovery_ct.cpp` (RCT-1..8)
+
+---
+
+### BUG-003/008: ECDSASignature::normalize() Timing Leak (NCT)
+
+**Class**: Timing side-channel on secret `s`  
+**Risk**: MEDIUM  
+**Status**: Fixed 2026-04-28
+
+`ECDSASignature::normalize()` branched on `is_low_s()` which used early-exit limb comparisons across the 4 64-bit limbs of `s`. During signing, `s` is derived from the secret nonce and private key. Fix: `normalize()` now calls `ct::ct_normalize_low_s(*this)` directly.
+
+**Test file**: `audit/test_exploit_bug003_normalize_ct.cpp` (NCT-1..8)
+
+---
+
+### BUG-004: Batch Sign Fail-Closed Violation (BFC)
+
+**Class**: Security invariant / partial-output leakage  
+**Risk**: MEDIUM  
+**Status**: Fixed 2026-04-28
+
+`ufsecp_schnorr_sign_batch()` and `ufsecp_ecdsa_sign_batch()` cleared the output buffer before the loop, then wrote each signature as it was computed. On failure at index `i`, sigs `[0..i-1]` remained in the output buffer — valid signatures from a failed batch. Callers checking only the return code would see garbage valid signatures. Fix: on error path, re-clear the entire output buffer before returning.
+
+**Test file**: `audit/test_exploit_bug004_batch_failclosed.cpp` (BFC-1..8)
+
+---
+
 *Generated: 2026-04-06 | Updated: 2026-04-28*  
 *Cross-references: [SECURITY_CLAIMS.md](SECURITY_CLAIMS.md), [RESIDUAL_RISK_REGISTER.md](RESIDUAL_RISK_REGISTER.md), [AUDIT_TRACEABILITY.md](AUDIT_TRACEABILITY.md), [SELF_AUDIT_FAILURE_MATRIX.md](SELF_AUDIT_FAILURE_MATRIX.md)*

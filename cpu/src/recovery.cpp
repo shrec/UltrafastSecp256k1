@@ -1,6 +1,7 @@
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -81,27 +82,28 @@ RecoverableSignature ecdsa_sign_recoverable(
     auto R_uncomp = R.to_uncompressed();
     if ((R_uncomp[64] & 1) != 0) recid |= 1;
 
-    // bit 1: whether R.x >= n (overflow)
-    // Compare r_bytes (big-endian x-coordinate) with order
-    // If x >= n then r = x - n, and we need recid bit 1
-    bool overflow = false;
-    for (std::size_t i = 0; i < 32; ++i) {
-        if (r_bytes[i] < SECP256K1_ORDER_BYTES[i]) break;
-        if (r_bytes[i] > SECP256K1_ORDER_BYTES[i]) { overflow = true; break; }
+    // bit 1: whether R.x >= n (overflow), branchless CT comparison on secret nonce
+    unsigned gt = 0u, eq_run = 1u;
+    for (int oi = 0; oi < 32; ++oi) {
+        unsigned const rb = static_cast<unsigned>(r_bytes[static_cast<unsigned>(oi)]);
+        unsigned const ob = static_cast<unsigned>(SECP256K1_ORDER_BYTES[static_cast<unsigned>(oi)]);
+        unsigned const byte_gt = ((ob - rb) >> 31) & 1u;
+        unsigned const byte_lt = ((rb - ob) >> 31) & 1u;
+        gt     = gt | (eq_run & byte_gt);
+        eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
     }
-    if (overflow) recid |= 2;
+    if (gt) recid |= 2;
 
     // s = k^-^1 * (z + r * d) mod n  (CT SafeGCD inverse)
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
     if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
-    // Normalize to low-S (BIP-62)
+    // Normalize to low-S (BIP-62): CT path — no branch on secret s
     ECDSASignature sig{r, s};
-    if (!sig.is_low_s()) {
-        sig = sig.normalize();
-        recid ^= 1; // Negating s flips y parity
-    }
+    std::uint64_t const s_was_high = ct::scalar_is_high(s);
+    sig = ct::ct_normalize_low_s(sig);
+    recid ^= static_cast<int>(s_was_high & 1u); // flip y parity if s was negated
 
     return {sig, recid};
 }

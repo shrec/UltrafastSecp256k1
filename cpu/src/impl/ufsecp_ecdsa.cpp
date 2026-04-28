@@ -368,6 +368,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
+            std::memset(sigs64_out, 0, count * 64); // re-clear partial output (fail-closed)
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }
@@ -396,11 +397,14 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
 
     static constexpr uint8_t kZeroAux[32] = {};
+    // Fail-closed: clear output before signing so partial failure leaves no valid sigs visible
+    std::memset(sigs64_out, 0, count * 64);
 
     for (size_t i = 0; i < count; ++i) {
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
+            std::memset(sigs64_out, 0, count * 64); // re-clear partial output (fail-closed)
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }

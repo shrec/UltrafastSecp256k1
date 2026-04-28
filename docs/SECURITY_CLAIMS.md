@@ -179,7 +179,7 @@ preventing degenerate or out-of-range values from entering the cryptographic pip
 The following C ABI functions use strict parsing internally (v3.16.0):
 - `ufsecp_schnorr_verify` — rejects malformed signatures before any computation
 - `ufsecp_schnorr_sign` — validates keypair before signing
-- `ufsecp_xonly_pubkey_parse` — rejects x-coordinate >= p
+- `ufsecp_pubkey_xonly` — rejects x-coordinate >= p when lifting to curve point
 
 ### CMake Option
 
