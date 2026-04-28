@@ -161,7 +161,7 @@ int secp256k1_ecdsa_signature_serialize_der(
 
 int secp256k1_ecdsa_signature_normalize(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sigout,
-    const secp256k1_ecdsa_signature *sigin) noexcept
+    const secp256k1_ecdsa_signature *sigin)
 {
     (void)ctx;
     if (!sigin) return 0;
@@ -177,7 +177,7 @@ int secp256k1_ecdsa_signature_normalize(
 
 int secp256k1_ecdsa_verify(
     const secp256k1_context *ctx, const secp256k1_ecdsa_signature *sig,
-    const unsigned char *msghash32, const secp256k1_pubkey *pubkey) noexcept
+    const unsigned char *msghash32, const secp256k1_pubkey *pubkey)
 {
     (void)ctx;
     if (!sig || !msghash32 || !pubkey) return 0;
@@ -201,7 +201,7 @@ int secp256k1_ecdsa_verify(
 int secp256k1_ecdsa_sign(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const unsigned char *seckey,
-    secp256k1_nonce_function noncefp, const void *ndata) noexcept
+    secp256k1_nonce_function noncefp, const void *ndata)
 {
     (void)ctx;
     if (!sig || !msghash32 || !seckey) return 0;
