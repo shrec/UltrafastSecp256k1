@@ -22,7 +22,7 @@ extern "C" {
 
 int secp256k1_xonly_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *pubkey,
-    const unsigned char *input32) noexcept
+    const unsigned char *input32)
 {
     (void)ctx;
     if (!pubkey || !input32) return 0;
@@ -96,7 +96,7 @@ int secp256k1_xonly_pubkey_from_pubkey(
 
 int secp256k1_keypair_create(
     const secp256k1_context *ctx, secp256k1_keypair *keypair,
-    const unsigned char *seckey) noexcept
+    const unsigned char *seckey)
 {
     (void)ctx;
     if (!keypair || !seckey) return 0;
@@ -181,7 +181,7 @@ int secp256k1_xonly_pubkey_tweak_add(
     const secp256k1_context *ctx,
     secp256k1_pubkey *output_pubkey,
     const secp256k1_xonly_pubkey *internal_pubkey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!output_pubkey || !internal_pubkey || !tweak32) return 0;
@@ -207,7 +207,7 @@ int secp256k1_xonly_pubkey_tweak_add_check(
     const unsigned char *tweaked_pubkey32,
     int tweaked_pk_parity,
     const secp256k1_xonly_pubkey *internal_pubkey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!tweaked_pubkey32 || !internal_pubkey || !tweak32) return 0;
@@ -232,7 +232,7 @@ int secp256k1_xonly_pubkey_tweak_add_check(
 int secp256k1_keypair_xonly_tweak_add(
     const secp256k1_context *ctx,
     secp256k1_keypair *keypair,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!keypair || !tweak32) return 0;

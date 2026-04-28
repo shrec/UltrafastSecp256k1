@@ -141,7 +141,7 @@ void secp256k1_selftest(void) {
 void secp256k1_context_set_illegal_callback(
     secp256k1_context *ctx,
     secp256k1_callback_fn fun,
-    const void *data) noexcept
+    const void *data)
 {
     if (!ctx || ctx == &g_static_ctx) return;
     ctx->illegal_cb      = fun ? fun : default_illegal_callback;
@@ -151,7 +151,7 @@ void secp256k1_context_set_illegal_callback(
 void secp256k1_context_set_error_callback(
     secp256k1_context *ctx,
     secp256k1_callback_fn fun,
-    const void *data) noexcept
+    const void *data)
 {
     if (!ctx || ctx == &g_static_ctx) return;
     ctx->error_cb      = fun ? fun : default_illegal_callback;

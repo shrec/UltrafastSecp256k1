@@ -106,7 +106,7 @@ int secp256k1_ecdsa_sign_recoverable(
     const unsigned char *msghash32,
     const unsigned char *seckey,
     secp256k1_nonce_function noncefp,
-    const void *ndata) noexcept
+    const void *ndata)
 {
     (void)ctx;
     if (!sig || !msghash32 || !seckey) return 0;
@@ -159,7 +159,7 @@ int secp256k1_ecdsa_recover(
     const secp256k1_context *ctx,
     secp256k1_pubkey *pubkey,
     const secp256k1_ecdsa_recoverable_signature *sig,
-    const unsigned char *msghash32) noexcept
+    const unsigned char *msghash32)
 {
     (void)ctx;
     if (!pubkey || !sig || !msghash32) return 0;

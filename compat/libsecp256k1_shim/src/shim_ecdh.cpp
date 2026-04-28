@@ -46,7 +46,7 @@ int secp256k1_ecdh(
     const secp256k1_pubkey* pubkey,
     const unsigned char* seckey,
     secp256k1_ecdh_hashfp hashfp,
-    void* data) noexcept
+    void* data)
 {
     (void)ctx;
     if (!output || !pubkey || !seckey) return 0;

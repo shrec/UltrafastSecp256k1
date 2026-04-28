@@ -13,7 +13,7 @@ using namespace secp256k1::fast;
 extern "C" {
 
 int secp256k1_ec_seckey_verify(
-    const secp256k1_context *ctx, const unsigned char *seckey) noexcept
+    const secp256k1_context *ctx, const unsigned char *seckey)
 {
     (void)ctx;
     if (!seckey) return 0;
@@ -22,7 +22,7 @@ int secp256k1_ec_seckey_verify(
 }
 
 int secp256k1_ec_seckey_negate(
-    const secp256k1_context *ctx, unsigned char *seckey) noexcept
+    const secp256k1_context *ctx, unsigned char *seckey)
 {
     (void)ctx;
     if (!seckey) return 0;
@@ -36,7 +36,7 @@ int secp256k1_ec_seckey_negate(
 
 int secp256k1_ec_seckey_tweak_add(
     const secp256k1_context *ctx, unsigned char *seckey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!seckey || !tweak32) return 0;
@@ -53,7 +53,7 @@ int secp256k1_ec_seckey_tweak_add(
 
 int secp256k1_ec_seckey_tweak_mul(
     const secp256k1_context *ctx, unsigned char *seckey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!seckey || !tweak32) return 0;

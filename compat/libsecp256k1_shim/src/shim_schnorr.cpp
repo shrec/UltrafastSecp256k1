@@ -27,7 +27,7 @@ int secp256k1_schnorrsig_sign32(
     unsigned char *sig64,
     const unsigned char *msg32,
     const secp256k1_keypair *keypair,
-    const unsigned char *aux_rand32) noexcept
+    const unsigned char *aux_rand32)
 {
     (void)ctx;
     if (!sig64 || !msg32 || !keypair) return 0;
@@ -67,7 +67,7 @@ int secp256k1_schnorrsig_verify(
     const secp256k1_context *ctx,
     const unsigned char *sig64,
     const unsigned char *msg, size_t msglen,
-    const secp256k1_xonly_pubkey *pubkey) noexcept
+    const secp256k1_xonly_pubkey *pubkey)
 {
     (void)ctx;
     if (!sig64 || !pubkey) return 0;

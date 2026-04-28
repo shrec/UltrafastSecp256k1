@@ -66,7 +66,7 @@ int secp256k1_ellswift_encode(
     const secp256k1_context* ctx,
     unsigned char* ell64,
     const secp256k1_pubkey* pubkey,
-    const unsigned char* rnd32) noexcept
+    const unsigned char* rnd32)
 {
     (void)ctx;
     if (!ell64 || !pubkey || !rnd32) return 0;
@@ -84,7 +84,7 @@ int secp256k1_ellswift_encode(
 int secp256k1_ellswift_decode(
     const secp256k1_context* ctx,
     secp256k1_pubkey* pubkey,
-    const unsigned char* ell64) noexcept
+    const unsigned char* ell64)
 {
     (void)ctx;
     if (!pubkey || !ell64) return 0;
@@ -118,7 +118,7 @@ int secp256k1_ellswift_create(
     const secp256k1_context* ctx,
     unsigned char* ell64,
     const unsigned char* seckey32,
-    const unsigned char* /*auxrnd32*/) noexcept
+    const unsigned char* /*auxrnd32*/)
 {
     (void)ctx;
     if (!ell64 || !seckey32) return 0;
@@ -143,7 +143,7 @@ int secp256k1_ellswift_xdh(
     const unsigned char* seckey32,
     int party,
     secp256k1_ellswift_xdh_hash_function hashfp,
-    void* data) noexcept
+    void* data)
 {
     (void)ctx;
     if (!output || !ell_a64 || !ell_b64 || !seckey32 || !hashfp) return 0;

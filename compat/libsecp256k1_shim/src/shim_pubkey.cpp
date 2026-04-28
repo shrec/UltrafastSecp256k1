@@ -35,7 +35,7 @@ extern "C" {
 
 int secp256k1_ec_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *input, size_t inputlen) noexcept
+    const unsigned char *input, size_t inputlen)
 {
     (void)ctx;
     if (!pubkey || !input) return 0;
@@ -130,7 +130,7 @@ int secp256k1_ec_pubkey_cmp(
 
 int secp256k1_ec_pubkey_create(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *seckey) noexcept
+    const unsigned char *seckey)
 {
     (void)ctx;
     if (!pubkey || !seckey) return 0;
@@ -144,7 +144,7 @@ int secp256k1_ec_pubkey_create(
 }
 
 int secp256k1_ec_pubkey_negate(
-    const secp256k1_context *ctx, secp256k1_pubkey *pubkey) noexcept
+    const secp256k1_context *ctx, secp256k1_pubkey *pubkey)
 {
     (void)ctx;
     if (!pubkey) return 0;
@@ -156,7 +156,7 @@ int secp256k1_ec_pubkey_negate(
 
 int secp256k1_ec_pubkey_tweak_add(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!pubkey || !tweak32) return 0;
@@ -173,7 +173,7 @@ int secp256k1_ec_pubkey_tweak_add(
 
 int secp256k1_ec_pubkey_tweak_mul(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *tweak32) noexcept
+    const unsigned char *tweak32)
 {
     (void)ctx;
     if (!pubkey || !tweak32) return 0;
@@ -188,7 +188,7 @@ int secp256k1_ec_pubkey_tweak_mul(
 
 int secp256k1_ec_pubkey_combine(
     const secp256k1_context *ctx, secp256k1_pubkey *out,
-    const secp256k1_pubkey * const *ins, size_t n) noexcept
+    const secp256k1_pubkey * const *ins, size_t n)
 {
     (void)ctx;
     if (!out || !ins || n == 0) return 0;
