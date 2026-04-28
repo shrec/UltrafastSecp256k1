@@ -35,60 +35,58 @@ extern "C" {
 
 int secp256k1_ec_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *input, size_t inputlen)
+    const unsigned char *input, size_t inputlen) noexcept
 {
     (void)ctx;
     if (!pubkey || !input) return 0;
 
-    try {
-        if (inputlen == 33) {
-            // Compressed: 02/03 || X
-            uint8_t prefix = input[0];
-            if (prefix != 0x02 && prefix != 0x03) return 0;
+    if (inputlen == 33) {
+        // Compressed: 02/03 || X
+        uint8_t prefix = input[0];
+        if (prefix != 0x02 && prefix != 0x03) return 0;
 
-            // Reject x >= p (libsecp uses secp256k1_fe_set_b32_limit)
-            FieldElement x;
-            if (!FieldElement::parse_bytes_strict(input + 1, x)) return 0;
+        // Reject x >= p (libsecp uses secp256k1_fe_set_b32_limit)
+        FieldElement x;
+        if (!FieldElement::parse_bytes_strict(input + 1, x)) return 0;
 
-            // y^2 = x^3 + 7; reject if x is not a valid curve x-coordinate
-            auto y2 = x * x * x + FieldElement::from_uint64(7);
-            auto y = y2.sqrt();
-            if (!(y.square() == y2)) return 0;
+        // y^2 = x^3 + 7; reject if x is not a valid curve x-coordinate
+        auto y2 = x * x * x + FieldElement::from_uint64(7);
+        auto y = y2.sqrt();
+        if (!(y.square() == y2)) return 0;
 
-            // Select y with correct parity
+        // Select y with correct parity
+        auto yb = y.to_bytes();
+        bool y_is_odd = (yb[31] & 1) != 0;
+        bool want_odd = (prefix == 0x03);
+        if (y_is_odd != want_odd) y = y.negate();
+
+        auto pt = Point::from_affine(x, y);
+        point_to_pubkey_data(pt, pubkey->data);
+        return 1;
+
+    } else if (inputlen == 65) {
+        // Uncompressed (04) or hybrid (06/07): all carry explicit X || Y.
+        // libsecp accepts 06/07 without STRICTENC (hybrid pubkey compatibility).
+        uint8_t pfx = input[0];
+        if (pfx != 0x04 && pfx != 0x06 && pfx != 0x07) return 0;
+
+        // Reject x >= p or y >= p (libsecp strict boundary)
+        FieldElement x, y;
+        if (!FieldElement::parse_bytes_strict(input + 1,  x)) return 0;
+        if (!FieldElement::parse_bytes_strict(input + 33, y)) return 0;
+        // Reject if not on curve: y^2 != x^3 + 7
+        auto rhs = x * x * x + FieldElement::from_uint64(7);
+        if (!(y.square() == rhs)) return 0;
+        // For hybrid prefix: validate Y parity matches (06 = even Y, 07 = odd Y)
+        if (pfx == 0x06 || pfx == 0x07) {
             auto yb = y.to_bytes();
             bool y_is_odd = (yb[31] & 1) != 0;
-            bool want_odd = (prefix == 0x03);
-            if (y_is_odd != want_odd) y = y.negate();
-
-            auto pt = Point::from_affine(x, y);
-            point_to_pubkey_data(pt, pubkey->data);
-            return 1;
-
-        } else if (inputlen == 65) {
-            // Uncompressed (04) or hybrid (06/07): all carry explicit X || Y.
-            // libsecp accepts 06/07 without STRICTENC (hybrid pubkey compatibility).
-            uint8_t pfx = input[0];
-            if (pfx != 0x04 && pfx != 0x06 && pfx != 0x07) return 0;
-
-            // Reject x >= p or y >= p (libsecp strict boundary)
-            FieldElement x, y;
-            if (!FieldElement::parse_bytes_strict(input + 1,  x)) return 0;
-            if (!FieldElement::parse_bytes_strict(input + 33, y)) return 0;
-            // Reject if not on curve: y^2 != x^3 + 7
-            auto rhs = x * x * x + FieldElement::from_uint64(7);
-            if (!(y.square() == rhs)) return 0;
-            // For hybrid prefix: validate Y parity matches (06 = even Y, 07 = odd Y)
-            if (pfx == 0x06 || pfx == 0x07) {
-                auto yb = y.to_bytes();
-                bool y_is_odd = (yb[31] & 1) != 0;
-                if (y_is_odd != (pfx == 0x07)) return 0;
-            }
-            auto pt = Point::from_affine(x, y);
-            point_to_pubkey_data(pt, pubkey->data);
-            return 1;
+            if (y_is_odd != (pfx == 0x07)) return 0;
         }
-    } catch (...) {}
+        auto pt = Point::from_affine(x, y);
+        point_to_pubkey_data(pt, pubkey->data);
+        return 1;
+    }
 
     return 0;
 }
@@ -132,86 +130,76 @@ int secp256k1_ec_pubkey_cmp(
 
 int secp256k1_ec_pubkey_create(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *seckey)
+    const unsigned char *seckey) noexcept
 {
     (void)ctx;
     if (!pubkey || !seckey) return 0;
 
-    try {
-        Scalar k;
-        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
-        auto P = scalar_mul_generator(k);
-        if (P.is_infinity()) return 0;
-        point_to_pubkey_data(P, pubkey->data);
-        return 1;
-    } catch (...) { return 0; }
+    Scalar k;
+    if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
+    auto P = scalar_mul_generator(k);
+    if (P.is_infinity()) return 0;
+    point_to_pubkey_data(P, pubkey->data);
+    return 1;
 }
 
 int secp256k1_ec_pubkey_negate(
-    const secp256k1_context *ctx, secp256k1_pubkey *pubkey)
+    const secp256k1_context *ctx, secp256k1_pubkey *pubkey) noexcept
 {
     (void)ctx;
     if (!pubkey) return 0;
-    try {
-        auto P = pubkey_data_to_point(pubkey->data);
-        auto neg = P.negate();
-        point_to_pubkey_data(neg, pubkey->data);
-        return 1;
-    } catch (...) { return 0; }
+    auto P = pubkey_data_to_point(pubkey->data);
+    auto neg = P.negate();
+    point_to_pubkey_data(neg, pubkey->data);
+    return 1;
 }
 
 int secp256k1_ec_pubkey_tweak_add(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *tweak32)
+    const unsigned char *tweak32) noexcept
 {
     (void)ctx;
     if (!pubkey || !tweak32) return 0;
-    try {
-        auto P = pubkey_data_to_point(pubkey->data);
-        // tweak in [0, n-1]; 0 is valid (result == pubkey)
-        Scalar t;
-        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
-        auto T = scalar_mul_generator(t);
-        auto result = P.add(T);
-        if (result.is_infinity()) return 0;
-        point_to_pubkey_data(result, pubkey->data);
-        return 1;
-    } catch (...) { return 0; }
+    auto P = pubkey_data_to_point(pubkey->data);
+    // tweak in [0, n-1]; 0 is valid (result == pubkey)
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    auto T = scalar_mul_generator(t);
+    auto result = P.add(T);
+    if (result.is_infinity()) return 0;
+    point_to_pubkey_data(result, pubkey->data);
+    return 1;
 }
 
 int secp256k1_ec_pubkey_tweak_mul(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
-    const unsigned char *tweak32)
+    const unsigned char *tweak32) noexcept
 {
     (void)ctx;
     if (!pubkey || !tweak32) return 0;
-    try {
-        auto P = pubkey_data_to_point(pubkey->data);
-        Scalar t;
-        if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
-        auto result = P.scalar_mul(t);
-        if (result.is_infinity()) return 0;
-        point_to_pubkey_data(result, pubkey->data);
-        return 1;
-    } catch (...) { return 0; }
+    auto P = pubkey_data_to_point(pubkey->data);
+    Scalar t;
+    if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
+    auto result = P.scalar_mul(t);
+    if (result.is_infinity()) return 0;
+    point_to_pubkey_data(result, pubkey->data);
+    return 1;
 }
 
 int secp256k1_ec_pubkey_combine(
     const secp256k1_context *ctx, secp256k1_pubkey *out,
-    const secp256k1_pubkey * const *ins, size_t n)
+    const secp256k1_pubkey * const *ins, size_t n) noexcept
 {
     (void)ctx;
     if (!out || !ins || n == 0) return 0;
-    try {
-        auto acc = pubkey_data_to_point(ins[0]->data);
-        for (size_t i = 1; i < n; ++i) {
-            auto P = pubkey_data_to_point(ins[i]->data);
-            acc = acc.add(P);
-        }
-        if (acc.is_infinity()) return 0;
-        point_to_pubkey_data(acc, out->data);
-        return 1;
-    } catch (...) { return 0; }
+    auto acc = pubkey_data_to_point(ins[0]->data);
+    for (size_t i = 1; i < n; ++i) {
+        auto P = pubkey_data_to_point(ins[i]->data);
+        acc = acc.add(P);
+    }
+    if (acc.is_infinity()) return 0;
+    point_to_pubkey_data(acc, out->data);
+    return 1;
 }
 
 } // extern "C"

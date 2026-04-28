@@ -27,26 +27,24 @@ int secp256k1_schnorrsig_sign32(
     unsigned char *sig64,
     const unsigned char *msg32,
     const secp256k1_keypair *keypair,
-    const unsigned char *aux_rand32)
+    const unsigned char *aux_rand32) noexcept
 {
     (void)ctx;
     if (!sig64 || !msg32 || !keypair) return 0;
 
-    try {
-        Scalar sk;
-        if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
-        std::array<uint8_t, 32> msg{};
-        std::memcpy(msg.data(), msg32, 32);
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msg32, 32);
 
-        std::array<uint8_t, 32> aux{};
-        if (aux_rand32) std::memcpy(aux.data(), aux_rand32, 32);
+    std::array<uint8_t, 32> aux{};
+    if (aux_rand32) std::memcpy(aux.data(), aux_rand32, 32);
 
-        auto sig = secp256k1::schnorr_sign(sk, msg, aux);
-        auto sig_bytes = sig.to_bytes();
-        std::memcpy(sig64, sig_bytes.data(), 64);
-        return 1;
-    } catch (...) { return 0; }
+    auto sig = secp256k1::schnorr_sign(sk, msg, aux);
+    auto sig_bytes = sig.to_bytes();
+    std::memcpy(sig64, sig_bytes.data(), 64);
+    return 1;
 }
 
 int secp256k1_schnorrsig_sign_custom(
@@ -69,27 +67,25 @@ int secp256k1_schnorrsig_verify(
     const secp256k1_context *ctx,
     const unsigned char *sig64,
     const unsigned char *msg, size_t msglen,
-    const secp256k1_xonly_pubkey *pubkey)
+    const secp256k1_xonly_pubkey *pubkey) noexcept
 {
     (void)ctx;
     if (!sig64 || !pubkey) return 0;
     if (!msg || msglen != 32) return 0;
 
-    try {
-        secp256k1::SchnorrSignature sig;
-        std::array<uint8_t, 64> sig_buf{};
-        std::memcpy(sig_buf.data(), sig64, 64);
-        if (!secp256k1::SchnorrSignature::parse_strict(sig_buf, sig)) return 0;
+    secp256k1::SchnorrSignature sig;
+    std::array<uint8_t, 64> sig_buf{};
+    std::memcpy(sig_buf.data(), sig64, 64);
+    if (!secp256k1::SchnorrSignature::parse_strict(sig_buf, sig)) return 0;
 
-        std::array<uint8_t, 32> msg32{};
-        std::memcpy(msg32.data(), msg, 32);
+    std::array<uint8_t, 32> msg32{};
+    std::memcpy(msg32.data(), msg, 32);
 
-        // x-only key is stored in the first 32 bytes of the opaque 64-byte struct.
-        // schnorr_verify handles the lift (sqrt) internally and rejects invalid x.
-        std::array<uint8_t, 32> pk_x{};
-        std::memcpy(pk_x.data(), pubkey->data, 32);
-        return secp256k1::schnorr_verify(pk_x, msg32, sig) ? 1 : 0;
-    } catch (...) { return 0; }
+    // x-only key is stored in the first 32 bytes of the opaque 64-byte struct.
+    // schnorr_verify handles the lift (sqrt) internally and rejects invalid x.
+    std::array<uint8_t, 32> pk_x{};
+    std::memcpy(pk_x.data(), pubkey->data, 32);
+    return secp256k1::schnorr_verify(pk_x, msg32, sig) ? 1 : 0;
 }
 
 } // extern "C"

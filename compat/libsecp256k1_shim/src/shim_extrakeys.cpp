@@ -22,28 +22,26 @@ extern "C" {
 
 int secp256k1_xonly_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *pubkey,
-    const unsigned char *input32)
+    const unsigned char *input32) noexcept
 {
     (void)ctx;
     if (!pubkey || !input32) return 0;
 
-    try {
-        // Reject x >= p (libsecp strict boundary)
-        FieldElement x;
-        if (!FieldElement::parse_bytes_strict(input32, x)) return 0;
-        auto y2 = x * x * x + FieldElement::from_uint64(7);
-        auto y = y2.sqrt();
-        // Reject if x is not a valid x-coordinate (y^2 != x^3+7)
-        if (!(y.square() == y2)) return 0;
-        // Ensure even Y (x-only canonical form)
-        auto yb = y.to_bytes();
-        if (yb[31] & 1) y = y.negate();
-        yb = y.to_bytes();
-        // Store X || Y (even)
-        std::memcpy(pubkey->data,      input32, 32);
-        std::memcpy(pubkey->data + 32, yb.data(), 32);
-        return 1;
-    } catch (...) { return 0; }
+    // Reject x >= p (libsecp strict boundary)
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(input32, x)) return 0;
+    auto y2 = x * x * x + FieldElement::from_uint64(7);
+    auto y = y2.sqrt();
+    // Reject if x is not a valid x-coordinate (y^2 != x^3+7)
+    if (!(y.square() == y2)) return 0;
+    // Ensure even Y (x-only canonical form)
+    auto yb = y.to_bytes();
+    if (yb[31] & 1) y = y.negate();
+    yb = y.to_bytes();
+    // Store X || Y (even)
+    std::memcpy(pubkey->data,      input32, 32);
+    std::memcpy(pubkey->data + 32, yb.data(), 32);
+    return 1;
 }
 
 int secp256k1_xonly_pubkey_serialize(
@@ -98,26 +96,24 @@ int secp256k1_xonly_pubkey_from_pubkey(
 
 int secp256k1_keypair_create(
     const secp256k1_context *ctx, secp256k1_keypair *keypair,
-    const unsigned char *seckey)
+    const unsigned char *seckey) noexcept
 {
     (void)ctx;
     if (!keypair || !seckey) return 0;
 
-    try {
-        Scalar k;
-        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
+    Scalar k;
+    if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
-        auto P = scalar_mul_generator(k);
-        if (P.is_infinity()) return 0;
+    auto P = scalar_mul_generator(k);
+    if (P.is_infinity()) return 0;
 
-        // Store seckey
-        std::memcpy(keypair->data, seckey, 32);
+    // Store seckey
+    std::memcpy(keypair->data, seckey, 32);
 
-        // Store pubkey (X || Y)
-        auto unc = P.to_uncompressed();
-        std::memcpy(keypair->data + 32, unc.data() + 1, 64);
-        return 1;
-    } catch (...) { return 0; }
+    // Store pubkey (X || Y)
+    auto unc = P.to_uncompressed();
+    std::memcpy(keypair->data + 32, unc.data() + 1, 64);
+    return 1;
 }
 
 int secp256k1_keypair_sec(
@@ -185,27 +181,25 @@ int secp256k1_xonly_pubkey_tweak_add(
     const secp256k1_context *ctx,
     secp256k1_pubkey *output_pubkey,
     const secp256k1_xonly_pubkey *internal_pubkey,
-    const unsigned char *tweak32)
+    const unsigned char *tweak32) noexcept
 {
     (void)ctx;
     if (!output_pubkey || !internal_pubkey || !tweak32) return 0;
 
-    try {
-        auto P = xonly_to_point(internal_pubkey);
-        if (P.is_infinity()) return 0;
+    auto P = xonly_to_point(internal_pubkey);
+    if (P.is_infinity()) return 0;
 
-        // Reject tweak >= n (libsecp uses scalar_set_b32_limit)
-        Scalar t;
-        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    // Reject tweak >= n (libsecp uses scalar_set_b32_limit)
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
-        auto tG = scalar_mul_generator(t);
-        auto Q  = P.add(tG);
-        if (Q.is_infinity()) return 0;
+    auto tG = scalar_mul_generator(t);
+    auto Q  = P.add(tG);
+    if (Q.is_infinity()) return 0;
 
-        auto unc = Q.to_uncompressed();
-        std::memcpy(output_pubkey->data, unc.data() + 1, 64);
-        return 1;
-    } catch (...) { return 0; }
+    auto unc = Q.to_uncompressed();
+    std::memcpy(output_pubkey->data, unc.data() + 1, 64);
+    return 1;
 }
 
 int secp256k1_xonly_pubkey_tweak_add_check(
@@ -213,62 +207,58 @@ int secp256k1_xonly_pubkey_tweak_add_check(
     const unsigned char *tweaked_pubkey32,
     int tweaked_pk_parity,
     const secp256k1_xonly_pubkey *internal_pubkey,
-    const unsigned char *tweak32)
+    const unsigned char *tweak32) noexcept
 {
     (void)ctx;
     if (!tweaked_pubkey32 || !internal_pubkey || !tweak32) return 0;
 
-    try {
-        auto P = xonly_to_point(internal_pubkey);
-        if (P.is_infinity()) return 0;
+    auto P = xonly_to_point(internal_pubkey);
+    if (P.is_infinity()) return 0;
 
-        Scalar t;
-        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
-        auto tG = scalar_mul_generator(t);
-        auto Q  = P.add(tG);
-        if (Q.is_infinity()) return 0;
+    auto tG = scalar_mul_generator(t);
+    auto Q  = P.add(tG);
+    if (Q.is_infinity()) return 0;
 
-        auto unc = Q.to_uncompressed(); // 65 bytes: 04 || X || Y
-        int q_parity = (unc[64] & 1) ? 1 : 0;
+    auto unc = Q.to_uncompressed(); // 65 bytes: 04 || X || Y
+    int q_parity = (unc[64] & 1) ? 1 : 0;
 
-        if (q_parity != tweaked_pk_parity) return 0;
-        return std::memcmp(unc.data() + 1, tweaked_pubkey32, 32) == 0 ? 1 : 0;
-    } catch (...) { return 0; }
+    if (q_parity != tweaked_pk_parity) return 0;
+    return std::memcmp(unc.data() + 1, tweaked_pubkey32, 32) == 0 ? 1 : 0;
 }
 
 int secp256k1_keypair_xonly_tweak_add(
     const secp256k1_context *ctx,
     secp256k1_keypair *keypair,
-    const unsigned char *tweak32)
+    const unsigned char *tweak32) noexcept
 {
     (void)ctx;
     if (!keypair || !tweak32) return 0;
 
-    try {
-        Scalar sk;
-        if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
-        // If Y is odd, negate the secret key (so the x-only key has even Y)
-        int y_parity = (keypair->data[95] & 1) ? 1 : 0;
-        if (y_parity) sk = sk.negate();
+    // If Y is odd, negate the secret key (so the x-only key has even Y)
+    int y_parity = (keypair->data[95] & 1) ? 1 : 0;
+    if (y_parity) sk = sk.negate();
 
-        // tweak in [0, n-1]; libsecp allows 0 (keypair unchanged)
-        Scalar t;
-        if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    // tweak in [0, n-1]; libsecp allows 0 (keypair unchanged)
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
-        auto new_sk = sk + t;
-        if (new_sk.is_zero()) return 0;
+    auto new_sk = sk + t;
+    if (new_sk.is_zero()) return 0;
 
-        auto P = scalar_mul_generator(new_sk);
-        if (P.is_infinity()) return 0;
+    auto P = scalar_mul_generator(new_sk);
+    if (P.is_infinity()) return 0;
 
-        auto new_skb = new_sk.to_bytes();
-        std::memcpy(keypair->data, new_skb.data(), 32);
-        auto unc = P.to_uncompressed();
-        std::memcpy(keypair->data + 32, unc.data() + 1, 64);
-        return 1;
-    } catch (...) { return 0; }
+    auto new_skb = new_sk.to_bytes();
+    std::memcpy(keypair->data, new_skb.data(), 32);
+    auto unc = P.to_uncompressed();
+    std::memcpy(keypair->data + 32, unc.data() + 1, 64);
+    return 1;
 }
 
 } // extern "C"

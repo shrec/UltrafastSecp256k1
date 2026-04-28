@@ -82,7 +82,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     auto R_uncomp = R.to_uncompressed();
     if ((R_uncomp[64] & 1) != 0) recid |= 1;
 
-    // bit 1: whether R.x >= n (overflow), branchless CT comparison on secret nonce
+    // bit 1: whether R.x >= n (r overflowed past n); branchless comparison on r_bytes (public data)
     unsigned gt = 0u, eq_run = 1u;
     for (int oi = 0; oi < 32; ++oi) {
         unsigned const rb = static_cast<unsigned>(r_bytes[static_cast<unsigned>(oi)]);

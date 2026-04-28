@@ -161,38 +161,34 @@ int secp256k1_ecdsa_signature_serialize_der(
 
 int secp256k1_ecdsa_signature_normalize(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sigout,
-    const secp256k1_ecdsa_signature *sigin)
+    const secp256k1_ecdsa_signature *sigin) noexcept
 {
     (void)ctx;
     if (!sigin) return 0;
 
-    try {
-        auto sig = ecdsa_sig_from_data(sigin->data);
-        bool was_high = !sig.is_low_s();
-        auto norm = sig.normalize();
-        if (sigout) ecdsa_sig_to_data(norm, sigout->data);
-        return was_high ? 1 : 0;
-    } catch (...) { return 0; }
+    auto sig = ecdsa_sig_from_data(sigin->data);
+    bool was_high = !sig.is_low_s();
+    auto norm = sig.normalize();
+    if (sigout) ecdsa_sig_to_data(norm, sigout->data);
+    return was_high ? 1 : 0;
 }
 
 // -- Verify ---------------------------------------------------------------
 
 int secp256k1_ecdsa_verify(
     const secp256k1_context *ctx, const secp256k1_ecdsa_signature *sig,
-    const unsigned char *msghash32, const secp256k1_pubkey *pubkey)
+    const unsigned char *msghash32, const secp256k1_pubkey *pubkey) noexcept
 {
     (void)ctx;
     if (!sig || !msghash32 || !pubkey) return 0;
 
-    try {
-        auto internal_sig = ecdsa_sig_from_data(sig->data);
-        auto P = pubkey_data_to_point(pubkey->data);
+    auto internal_sig = ecdsa_sig_from_data(sig->data);
+    auto P = pubkey_data_to_point(pubkey->data);
 
-        std::array<uint8_t, 32> msg{};
-        std::memcpy(msg.data(), msghash32, 32);
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msghash32, 32);
 
-        return secp256k1::ecdsa_verify(msg, P, internal_sig) ? 1 : 0;
-    } catch (...) { return 0; }
+    return secp256k1::ecdsa_verify(msg, P, internal_sig) ? 1 : 0;
 }
 
 // -- Sign -----------------------------------------------------------------
@@ -205,7 +201,7 @@ int secp256k1_ecdsa_verify(
 int secp256k1_ecdsa_sign(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const unsigned char *seckey,
-    secp256k1_nonce_function noncefp, const void *ndata)
+    secp256k1_nonce_function noncefp, const void *ndata) noexcept
 {
     (void)ctx;
     if (!sig || !msghash32 || !seckey) return 0;
@@ -219,24 +215,22 @@ int secp256k1_ecdsa_sign(
         return 0;
     }
 
-    try {
-        std::array<uint8_t, 32> msg{};
-        std::memcpy(msg.data(), msghash32, 32);
-        Scalar k;
-        if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msghash32, 32);
+    Scalar k;
+    if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
-        secp256k1::ECDSASignature result;
-        if (ndata) {
-            std::array<uint8_t, 32> aux{};
-            std::memcpy(aux.data(), ndata, 32);
-            result = secp256k1::ct::ecdsa_sign_hedged(msg, k, aux);
-        } else {
-            result = secp256k1::ct::ecdsa_sign(msg, k);
-        }
-        if (result.r.is_zero() && result.s.is_zero()) return 0;
-        ecdsa_sig_to_data(result, sig->data);
-        return 1;
-    } catch (...) { return 0; }
+    secp256k1::ECDSASignature result;
+    if (ndata) {
+        std::array<uint8_t, 32> aux{};
+        std::memcpy(aux.data(), ndata, 32);
+        result = secp256k1::ct::ecdsa_sign_hedged(msg, k, aux);
+    } else {
+        result = secp256k1::ct::ecdsa_sign(msg, k);
+    }
+    if (result.r.is_zero() && result.s.is_zero()) return 0;
+    ecdsa_sig_to_data(result, sig->data);
+    return 1;
 }
 
 // -- RFC 6979 nonce function pointers (stubs -- sign uses internal RFC 6979) -

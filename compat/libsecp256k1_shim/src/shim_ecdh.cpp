@@ -46,37 +46,35 @@ int secp256k1_ecdh(
     const secp256k1_pubkey* pubkey,
     const unsigned char* seckey,
     secp256k1_ecdh_hashfp hashfp,
-    void* data)
+    void* data) noexcept
 {
     (void)ctx;
     if (!output || !pubkey || !seckey) return 0;
 
     if (!hashfp) hashfp = default_hashfp;
 
-    try {
-        // Deserialize private key
-        std::array<uint8_t, 32> kb{};
-        std::memcpy(kb.data(), seckey, 32);
-        auto sk = Scalar::from_bytes(kb);
-        if (sk.is_zero()) return 0;
+    // Deserialize private key
+    std::array<uint8_t, 32> kb{};
+    std::memcpy(kb.data(), seckey, 32);
+    auto sk = Scalar::from_bytes(kb);
+    if (sk.is_zero()) return 0;
 
-        // Deserialize public key (shim layout: X || Y, 64 bytes)
-        std::array<uint8_t, 32> xb{}, yb{};
-        std::memcpy(xb.data(), pubkey->data,      32);
-        std::memcpy(yb.data(), pubkey->data + 32, 32);
-        auto x = FieldElement::from_bytes(xb);
-        auto y = FieldElement::from_bytes(yb);
-        auto pk = Point::from_affine(x, y);
-        if (pk.is_infinity()) return 0;
+    // Deserialize public key (shim layout: X || Y, 64 bytes)
+    std::array<uint8_t, 32> xb{}, yb{};
+    std::memcpy(xb.data(), pubkey->data,      32);
+    std::memcpy(yb.data(), pubkey->data + 32, 32);
+    auto x = FieldElement::from_bytes(xb);
+    auto y = FieldElement::from_bytes(yb);
+    auto pk = Point::from_affine(x, y);
+    if (pk.is_infinity()) return 0;
 
-        // ECDH: result = sk * PK  (fast GLV)
-        auto result = pk.scalar_mul(sk);
-        if (result.is_infinity()) return 0;
+    // ECDH: result = sk * PK  (fast GLV)
+    auto result = pk.scalar_mul(sk);
+    if (result.is_infinity()) return 0;
 
-        // Extract affine X, Y
-        auto unc = result.to_uncompressed(); // 04 || X[32] || Y[32]
-        return hashfp(output, unc.data() + 1, unc.data() + 33, data);
-    } catch (...) { return 0; }
+    // Extract affine X, Y
+    auto unc = result.to_uncompressed(); // 04 || X[32] || Y[32]
+    return hashfp(output, unc.data() + 1, unc.data() + 33, data);
 }
 
 } // extern "C"

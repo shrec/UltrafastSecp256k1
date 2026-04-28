@@ -106,48 +106,51 @@ int secp256k1_ecdsa_sign_recoverable(
     const unsigned char *msghash32,
     const unsigned char *seckey,
     secp256k1_nonce_function noncefp,
-    const void *ndata)
+    const void *ndata) noexcept
 {
-    (void)ctx; (void)noncefp;
+    (void)ctx;
     if (!sig || !msghash32 || !seckey) return 0;
+    if (noncefp != nullptr &&
+        noncefp != secp256k1_nonce_function_rfc6979 &&
+        noncefp != secp256k1_nonce_function_default) {
+        return 0;
+    }
 
-    try {
-        std::array<uint8_t, 32> msg{};
-        std::memcpy(msg.data(), msghash32, 32);
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msghash32, 32);
 
-        Scalar privkey_scalar;
-        if (!Scalar::parse_bytes_strict_nonzero(
-                reinterpret_cast<const uint8_t*>(seckey), privkey_scalar)) return 0;
+    Scalar privkey_scalar;
+    if (!Scalar::parse_bytes_strict_nonzero(
+            reinterpret_cast<const uint8_t*>(seckey), privkey_scalar)) return 0;
 
-        secp256k1::RecoverableSignature rsig;
-        if (ndata) {
-            // RFC 6979 + extra entropy: sign hedged then derive recovery ID.
-            std::array<uint8_t, 32> aux{};
-            std::memcpy(aux.data(), ndata, 32);
-            auto plain_sig = secp256k1::ct::ecdsa_sign_hedged(msg, privkey_scalar, aux);
-            if (plain_sig.r.is_zero() || plain_sig.s.is_zero()) return 0;
+    secp256k1::RecoverableSignature rsig;
+    if (ndata) {
+        // RFC 6979 + extra entropy: sign hedged then derive recovery ID.
+        std::array<uint8_t, 32> aux{};
+        std::memcpy(aux.data(), ndata, 32);
+        auto plain_sig = secp256k1::ct::ecdsa_sign_hedged(msg, privkey_scalar, aux);
+        if (plain_sig.r.is_zero() || plain_sig.s.is_zero()) return 0;
 
-            // Trial: find recid that recovers our pubkey.
-            auto expected_pk = secp256k1::ct::generator_mul(privkey_scalar);
-            int found_recid = -1;
-            for (int rid = 0; rid < 4 && found_recid < 0; ++rid) {
-                auto [pk_try, ok] = secp256k1::ecdsa_recover(msg, plain_sig, rid);
-                if (ok && !pk_try.is_infinity()) {
-                    if (pk_try.to_uncompressed() == expected_pk.to_uncompressed())
-                        found_recid = rid;
-                }
+        // Trial: find recid that recovers our pubkey.
+        auto expected_pk = secp256k1::ct::generator_mul(privkey_scalar);
+        int found_recid = -1;
+        for (int rid = 0; rid < 4 && found_recid < 0; ++rid) {
+            auto [pk_try, ok] = secp256k1::ecdsa_recover(msg, plain_sig, rid);
+            if (ok && !pk_try.is_infinity()) {
+                if (pk_try.to_uncompressed() == expected_pk.to_uncompressed())
+                    found_recid = rid;
             }
-            if (found_recid < 0) return 0;
-            rsig = {plain_sig, found_recid};
-        } else {
-            rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, privkey_scalar);
         }
+        if (found_recid < 0) return 0;
+        rsig = {plain_sig, found_recid};
+    } else {
+        rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, privkey_scalar);
+    }
 
-        if (rsig.sig.r.is_zero() || rsig.sig.s.is_zero()) return 0;
+    if (rsig.sig.r.is_zero() || rsig.sig.s.is_zero()) return 0;
 
-        rsig_to_data(rsig, sig->data);
-        return 1;
-    } catch (...) { return 0; }
+    rsig_to_data(rsig, sig->data);
+    return 1;
 }
 
 // -- Recover public key -------------------------------------------------------
@@ -156,23 +159,21 @@ int secp256k1_ecdsa_recover(
     const secp256k1_context *ctx,
     secp256k1_pubkey *pubkey,
     const secp256k1_ecdsa_recoverable_signature *sig,
-    const unsigned char *msghash32)
+    const unsigned char *msghash32) noexcept
 {
     (void)ctx;
     if (!pubkey || !sig || !msghash32) return 0;
 
-    try {
-        std::array<uint8_t, 32> msg{};
-        std::memcpy(msg.data(), msghash32, 32);
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msghash32, 32);
 
-        auto rsig = rsig_from_data(sig->data);
+    auto rsig = rsig_from_data(sig->data);
 
-        auto [pk, ok] = secp256k1::ecdsa_recover(msg, rsig.sig, rsig.recid);
-        if (!ok || pk.is_infinity()) return 0;
+    auto [pk, ok] = secp256k1::ecdsa_recover(msg, rsig.sig, rsig.recid);
+    if (!ok || pk.is_infinity()) return 0;
 
-        point_to_pubkey_data(pk, pubkey->data);
-        return 1;
-    } catch (...) { return 0; }
+    point_to_pubkey_data(pk, pubkey->data);
+    return 1;
 }
 
 } // extern "C"
