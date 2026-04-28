@@ -2581,6 +2581,41 @@ target_compile_definitions(test_exploit_xoshiro_standalone PRIVATE STANDALONE_TE
 add_test(NAME exploit_xoshiro COMMAND test_exploit_xoshiro_standalone)
 set_tests_properties(exploit_xoshiro PROPERTIES TIMEOUT 60 LABELS "audit;exploit;xoshiro;prng;randomize")
 
+# -- N1: Cross-Protocol Key Reuse (CPK-1..5) ----------------------------------
+add_executable(test_exploit_cross_protocol_kreuse_standalone test_exploit_cross_protocol_kreuse.cpp)
+audit_target_defaults(test_exploit_cross_protocol_kreuse_standalone)
+target_compile_definitions(test_exploit_cross_protocol_kreuse_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_cross_protocol_kreuse COMMAND test_exploit_cross_protocol_kreuse_standalone)
+set_tests_properties(exploit_cross_protocol_kreuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;musig2;frost;ecdsa;key-reuse")
+
+# -- N2: BIP-340 Tagged SHA-256 Length Extension (TAGEXT-1..5) ----------------
+add_executable(test_exploit_tagged_hash_ext_standalone test_exploit_tagged_hash_ext.cpp)
+audit_target_defaults(test_exploit_tagged_hash_ext_standalone)
+target_compile_definitions(test_exploit_tagged_hash_ext_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_tagged_hash_ext COMMAND test_exploit_tagged_hash_ext_standalone)
+set_tests_properties(exploit_tagged_hash_ext PROPERTIES TIMEOUT 60 LABELS "audit;exploit;sha256;tagged-hash;length-extension")
+
+# -- N3: wNAF Window-18 Cache Amplification (WCACHE-1..5) ---------------------
+add_executable(test_exploit_wnaf_cache_ampl_standalone test_exploit_wnaf_cache_ampl.cpp)
+audit_target_defaults(test_exploit_wnaf_cache_ampl_standalone)
+target_compile_definitions(test_exploit_wnaf_cache_ampl_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_wnaf_cache_ampl COMMAND test_exploit_wnaf_cache_ampl_standalone)
+set_tests_properties(exploit_wnaf_cache_ampl PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wnaf;cache;flush-reload")
+
+# -- N4: MuSig2 KeyAgg Fingerprint Collision (FPC-1..6) -----------------------
+add_executable(test_exploit_musig2_fingerprint_collision_standalone test_exploit_musig2_fingerprint_collision.cpp)
+audit_target_defaults(test_exploit_musig2_fingerprint_collision_standalone)
+target_compile_definitions(test_exploit_musig2_fingerprint_collision_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_musig2_fingerprint_collision COMMAND test_exploit_musig2_fingerprint_collision_standalone)
+set_tests_properties(exploit_musig2_fingerprint_collision PROPERTIES TIMEOUT 60 LABELS "audit;exploit;musig2;key-agg;collision")
+
+# -- N5: Context Blinding Recovery via HNP (BLIND-1..7) -----------------------
+add_executable(test_exploit_blinding_recovery_hnp_standalone test_exploit_blinding_recovery_hnp.cpp)
+audit_target_defaults(test_exploit_blinding_recovery_hnp_standalone)
+target_compile_definitions(test_exploit_blinding_recovery_hnp_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_blinding_recovery_hnp COMMAND test_exploit_blinding_recovery_hnp_standalone)
+set_tests_properties(exploit_blinding_recovery_hnp PROPERTIES TIMEOUT 60 LABELS "audit;exploit;blinding;hnp;nonce")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3137,6 +3172,12 @@ add_executable(unified_audit_runner
     # Upstream gap closure (2026-04-28) — scratch allocator + xoshiro256**
     test_exploit_scratch.cpp
     test_exploit_xoshiro.cpp
+    # Original Security Analysis (2026-04-28) — N1..N5
+    test_exploit_cross_protocol_kreuse.cpp
+    test_exploit_tagged_hash_ext.cpp
+    test_exploit_wnaf_cache_ampl.cpp
+    test_exploit_musig2_fingerprint_collision.cpp
+    test_exploit_blinding_recovery_hnp.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

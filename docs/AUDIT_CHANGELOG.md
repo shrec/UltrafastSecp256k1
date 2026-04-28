@@ -7,6 +7,22 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28e (Original Security Analysis: 5 new exploit PoCs N1–N5)
+
+### New Exploit PoC Coverage: +5 tests
+
+- **N1 — Cross-Protocol Key Reuse** (`test_exploit_cross_protocol_kreuse.cpp`, CPK-1..5): Same sk across ECDSA+MuSig2+FROST with related nonces → full key recovery. Domain-separation and per-protocol derived sk defenses confirmed. Risk: HIGH.
+- **N2 — BIP-340 Tagged Hash Length Extension** (`test_exploit_tagged_hash_ext.cpp`, TAGEXT-1..5): SHA-256 length extension analysis on BIP-340 tagged_hash construction. Double-hash structure and 32-byte message constraint block practical forgery. Risk: MEDIUM.
+- **N3 — wNAF Window-18 Cache Amplification** (`test_exploit_wnaf_cache_ampl.cpp`, WCACHE-1..5): w=18 precompute table is 8× larger than libsecp256k1 w=15, giving 8× more Flush+Reload probe points. Risk: MEDIUM.
+- **N4 — MuSig2 KeyAgg Fingerprint Collision** (`test_exploit_musig2_fingerprint_collision.cpp`, FPC-1..6): KeyAgg collision resistance — no collision in 45 pairs from 10 keys. X-only truncation reduces collision resistance from 2^128 to 2^127. Risk: MEDIUM.
+- **N5 — Blinding Recovery via HNP** (`test_exploit_blinding_recovery_hnp.cpp`, BLIND-1..7): Fixed blinding r allows HNP recovery from 2 sigs; batch sharing amplifies attack. Fresh-r defense confirmed. Risk: LOW-MEDIUM.
+
+### Infrastructure
+
+- **audit/CMakeLists.txt**: Added `include/ufsecp` to `audit_target_defaults` macro, fixing `ufsecp.h`/`ufsecp_gpu.h` include failures across all ~25 audit targets in TSan, Clang Static Analyzer, and Benchmark CI jobs.
+
+---
+
 ## 2026-04-28d (Bitcoin Core PR prep: misuse_resistance 100/100 + supply_chain 5/5 + upstream gap parity)
 
 ### Security Autonomy: 100/100 (all 8 gates passing)

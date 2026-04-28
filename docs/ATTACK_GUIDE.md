@@ -537,5 +537,84 @@ All accepted findings will be credited in `CHANGELOG.md` and `AUDIT_CHANGELOG.md
 
 ---
 
-*Generated: 2026-04-06*  
+---
+
+## 13. Original Security Analyses (2026-04-28)
+
+The following attack classes are original analyses specific to UltrafastSecp256k1.
+They are NOT published papers. References are to related background work only.
+
+### N1: Cross-Protocol Key Reuse (CPK)
+
+**Risk: HIGH** — full private key recovery
+
+Same secret key `sk` used across ECDSA, MuSig2, and FROST with related nonces allows key recovery:
+- ECDSA nonce `k = k1 + k2` (MuSig2 nonces) → attacker knows `k` → recovers `sk`
+- FROST nonce `d = k` (ECDSA nonce) → combined equation system → recovers `sk`
+- MuSig2 + FROST nonce collision → linear system in `sk` → recovers `sk`
+
+**Mitigations**: Protocol-scoped key derivation (`sk_proto = H(sk_master || domain)`); never reuse sk across signature schemes; use independent, protocol-specific secret keys.
+
+**Test file**: `audit/test_exploit_cross_protocol_kreuse.cpp` (CPK-1..5)
+
+### N2: BIP-340 Tagged Hash Length Extension (TAGEXT)
+
+**Risk: MEDIUM** — message forgery in variable-length Schnorr modes
+
+SHA-256 admits Merkle-Damgård length extension: `H(prefix)` → `H(prefix||pad||extra)`.
+BIP-340 tagged_hash blocks this via double-SHA256 structure. The 32-byte message constraint
+prevents practical exploitation in standard BIP-340 Schnorr. Vulnerable only in non-standard
+variable-length Schnorr modes that accept extended messages.
+
+**Mitigations**: Standard BIP-340 32-byte message enforcement; avoid custom variable-length Schnorr.
+
+**Test file**: `audit/test_exploit_tagged_hash_ext.cpp` (TAGEXT-1..5)
+
+### N3: wNAF Window-18 Cache Amplification (WCACHE)
+
+**Risk: MEDIUM** — Flush+Reload cache side-channel amplification
+
+UltrafastSecp256k1 uses w=18 (262,144 table entries, ~16 MB) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB).
+This 8× larger cache footprint provides 8× more Flush+Reload probe points per signing operation.
+Each nonzero wNAF digit accesses a distinct table entry; monitoring which entries are flushed/reloaded
+leaks digit values → partial nonce → HNP → key recovery.
+
+**Mitigations**: Additive scalar blinding (`k'=k+r`) randomizes which table entries are accessed;
+fresh blinding per signature prevents digit correlation across observations.
+
+**Test file**: `audit/test_exploit_wnaf_cache_ampl.cpp` (WCACHE-1..5)
+
+### N4: MuSig2 KeyAgg Fingerprint Collision (FPC)
+
+**Risk: MEDIUM** — signature verification bypass
+
+MuSig2 key aggregation `Q = Σ(a_i·P_i)` produces a 32-byte x-only aggregate key.
+Two distinct signer sets with the same `Q` (a birthday collision) would allow one set's
+signatures to verify under the other's aggregate key. X-only representation (parity bit dropped)
+reduces the collision resistance from ~2^128 to ~2^127 queries.
+
+**Mitigations**: Include signer count in `L = H(n || X_1 || ... || X_n)` to prevent subset collisions;
+birthday bound ~2^127 remains computationally infeasible for current hardware.
+
+**Test file**: `audit/test_exploit_musig2_fingerprint_collision.cpp` (FPC-1..6)
+
+### N5: Context Blinding Recovery via HNP (BLIND)
+
+**Risk: LOW-MEDIUM** — statistical analysis after nonce compromise
+
+`secp256k1_context_randomize(seed)` activates additive blinding `k' = k + r`. If `r` is not
+refreshed between signing operations, an attacker with 2+ known nonces `k_i` can recover `r`
+via HNP: `r = k_blind_i - k_i`. Once `r` is recovered, all prior and future blinded nonces
+are exposed. Batch signing with a shared `r` amplifies: a single nonce leak exposes the
+entire batch's nonces.
+
+**Mitigations**: Refresh blinding factor `r` before each signing operation (auto-refresh);
+use multiplicative blinding `k' = k·r` which has a different HNP structure; never share
+blinding across batch operations when nonce confidentiality is required.
+
+**Test file**: `audit/test_exploit_blinding_recovery_hnp.cpp` (BLIND-1..7)
+
+---
+
+*Generated: 2026-04-06 | Updated: 2026-04-28*  
 *Cross-references: [SECURITY_CLAIMS.md](SECURITY_CLAIMS.md), [RESIDUAL_RISK_REGISTER.md](RESIDUAL_RISK_REGISTER.md), [AUDIT_TRACEABILITY.md](AUDIT_TRACEABILITY.md), [SELF_AUDIT_FAILURE_MATRIX.md](SELF_AUDIT_FAILURE_MATRIX.md)*

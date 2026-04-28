@@ -157,6 +157,11 @@ int test_exploit_lattice_sieve_hnp_run();            // ePrint 2024/296 lattice 
 int test_exploit_deterministic_sig_dfa_run();        // ePrint 2017/975 DFA on RFC 6979 det. sigs
 int test_exploit_sign_type_confusion_kreuse_run();   // CVE-2024-49364/49365/2022-41340 type confusion k-reuse
 int test_exploit_ros_concurrent_schnorr_run();       // ePrint 2020/945 ROS concurrent Schnorr
+int test_exploit_cross_protocol_kreuse_run();         // Original: Cross-Protocol Key Reuse (CPK-1..5)
+int test_exploit_tagged_hash_ext_run();               // Original: BIP-340 Tagged SHA-256 Length Extension (TAGEXT-1..5)
+int test_exploit_wnaf_cache_ampl_run();               // Original: wNAF Window-18 Cache Amplification (WCACHE-1..5)
+int test_exploit_musig2_fingerprint_collision_run();  // Original: MuSig2 KeyAgg Fingerprint Collision (FPC-1..6)
+int test_exploit_blinding_recovery_hnp_run();         // Original: Context Blinding Recovery via HNP (BLIND-1..7)
 int test_exploit_frost_weak_binding_run();            // ePrint 2026/075, 2025/1001 FROST weak binding
 int test_exploit_blind_spa_cmov_leak_run();           // ePrint 2024/589, 2025/935 Blind SPA + cmov leak
 int test_exploit_ectester_point_validation_run();     // ePrint 2025/1293 ECTester point validation
@@ -849,6 +854,11 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_int128",                      "128-bit arithmetic field boundaries (GAP-7) — upstream run_int128_tests 2026-04-28","exploit_poc", test_exploit_int128_run, false },
     { "exploit_scratch",                     "Scratch allocator risk surface — upstream run_scratch_tests 2026-04-28",            "exploit_poc",  test_exploit_scratch_run, false },
     { "exploit_xoshiro",                     "xoshiro256** PRNG context randomization — upstream run_xoshiro256pp_tests 2026-04-28","exploit_poc",test_exploit_xoshiro_run, false },
+    { "exploit_cross_protocol_kreuse",       "Cross-Protocol Key Reuse: MuSig2+FROST+ECDSA same sk (CPK-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_cross_protocol_kreuse_run, false },
+    { "exploit_tagged_hash_ext",             "BIP-340 Tagged SHA-256 Length Extension (TAGEXT-1..5) — Original 2026-04-28",           "exploit_poc", test_exploit_tagged_hash_ext_run, false },
+    { "exploit_wnaf_cache_ampl",             "wNAF Window-18 Cache Amplification 8× (WCACHE-1..5) — Original 2026-04-28",            "exploit_poc", test_exploit_wnaf_cache_ampl_run, false },
+    { "exploit_musig2_fingerprint_collision","MuSig2 KeyAgg Fingerprint Collision (FPC-1..6) — Original 2026-04-28",                  "exploit_poc", test_exploit_musig2_fingerprint_collision_run, false },
+    { "exploit_blinding_recovery_hnp",       "Context Blinding Recovery via HNP (BLIND-1..7) — Original 2026-04-28",                  "exploit_poc", test_exploit_blinding_recovery_hnp_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

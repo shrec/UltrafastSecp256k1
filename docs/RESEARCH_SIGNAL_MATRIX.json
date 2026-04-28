@@ -611,6 +611,97 @@
         "audit/test_exploit_fiat_shamir_frozen_heart.cpp"
       ],
       "reason": "ePrint 2022/411 Frozen Heart: ZK Fiat-Shamir transcript must bind all public parameters. Verified: knowledge-proof pubkey/msg binding, DLEQ generator/point binding, Bulletproof commitment binding. All statement-swap and corruption tests return error. Distinct from fiat_shamir_hash_order (ePrint 2025/1846) which covers hash function ORDER confusion rather than statement OMISSION."
+    },
+    {
+      "id": "cross_protocol_key_reuse",
+      "status": "original_analysis",
+      "priority": "high",
+      "action": "covered",
+      "keywords": [
+        "cross-protocol",
+        "key reuse",
+        "ECDSA",
+        "MuSig2",
+        "FROST",
+        "nonce relationship",
+        "key recovery"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_cross_protocol_kreuse.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): Using the same secret key sk across ECDSA, MuSig2, and FROST protocols with related nonces (k=k1+k2, same nonce d=k, or nonce collision) enables full private key recovery. Related background: Micali-Reyzin (2001), Degabriele-Thompson (2022), Bellare-Pointcheval (2002). Mitigations: per-protocol derived keys (domain-separated sk derivation) or strict nonce separation between protocols. CPK-1..5 confirm both attack paths and defenses."
+    },
+    {
+      "id": "bip340_tagged_hash_length_extension",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "covered",
+      "keywords": [
+        "SHA-256",
+        "length extension",
+        "tagged hash",
+        "BIP-340",
+        "Schnorr",
+        "Merkle-Damgard"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_tagged_hash_ext.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): SHA-256 admits Merkle-Damgård length extension: given H(prefix), any attacker can compute H(prefix||pad||extra). BIP-340 tagged_hash uses SHA256(SHA256(tag)||SHA256(tag)||msg) which blocks extension via double-hash structure (extension of outer SHA-256 doesn't produce valid tagged_hash of extended message). Additionally, BIP-340 enforces 32-byte message length, making length extension forgery impossible in standard Schnorr. Related background: NIST FIPS 180-4, BIP-340, Kelsey-Schneier (2005). TAGEXT-1..5 confirm domain separation, extension mechanics, and the 32-byte restriction as defense."
+    },
+    {
+      "id": "wnaf_w18_cache_amplification",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "wNAF",
+        "window-18",
+        "cache side-channel",
+        "Flush+Reload",
+        "Hertzbleed",
+        "precomputation table"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_wnaf_cache_ampl.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): UltrafastSecp256k1 uses w=18 for fixed-base scalar multiplication (2^18=262,144 entries, ~16 MB table) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB). This 8× larger cache footprint provides 8× more Flush+Reload probe points per signing operation. Digit leakage → partial nonce recovery → HNP → full key recovery. Related background: Percival (2005), Yarom-Falkner (2014), ePrint 2022/823 (Hertzbleed). Blinding (k+r) randomizes access patterns; statistically independent nonces produce statistically independent cache traces. WCACHE-1..5 characterize the amplification."
+    },
+    {
+      "id": "musig2_keyagg_fingerprint_collision",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "MuSig2",
+        "key aggregation",
+        "fingerprint collision",
+        "x-only pubkey",
+        "birthday attack",
+        "BIP-327"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_musig2_fingerprint_collision.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): MuSig2 key aggregation Q=sum(a_i*P_i) produces a 32-byte x-only public key. Two distinct signer sets producing the same aggregate Q would allow one set's signatures to verify under the other's key. Birthday bound for collision: ~2^128 queries. X-only representation (dropping parity bit) reduces this to ~2^127. Including signer count in L=H(n||X_1||...||X_n) prevents subset-collision attacks. Related background: BIP-327, Wagner (2002), Bellare-Neven (2006). FPC-1..6 confirm collision resistance at small scale and characterize x-only parity reduction."
+    },
+    {
+      "id": "blinding_recovery_hnp",
+      "status": "original_analysis",
+      "priority": "low",
+      "action": "monitor",
+      "keywords": [
+        "scalar blinding",
+        "Hidden Number Problem",
+        "HNP",
+        "context randomize",
+        "additive blinding",
+        "lattice attack"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_blinding_recovery_hnp.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): secp256k1_context_randomize activates additive scalar blinding k'=k+r. If r is not refreshed between signatures, an attacker with known nonces (k_i) can recover r via HNP: r=kb_i-k_i. Once r is known, all blinded nonces are exposed. Batch signing with shared r amplifies: 1 nonce leak exposes entire batch. Related background: Boneh-Venkatesan (1996), Howgrave-Graham/Smart (2001), ePrint 2024/296 (lattice sieve HNP). Defenses: fresh r per signing operation (auto-refresh), multiplicative blinding (k'=k*r has different HNP structure). BLIND-1..7 confirm attack paths and defenses."
     }
   ]
 }
