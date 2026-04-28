@@ -162,6 +162,9 @@ int test_exploit_tagged_hash_ext_run();               // Original: BIP-340 Tagge
 int test_exploit_wnaf_cache_ampl_run();               // Original: wNAF Window-18 Cache Amplification (WCACHE-1..5)
 int test_exploit_musig2_fingerprint_collision_run();  // Original: MuSig2 KeyAgg Fingerprint Collision (FPC-1..6)
 int test_exploit_blinding_recovery_hnp_run();         // Original: Context Blinding Recovery via HNP (BLIND-1..7)
+int test_exploit_shim_noncefp_bypass_run();           // N6: Shim noncefp Callback Bypass (NONCEFP-1..5)
+int test_exploit_encoding_memory_corruption_run();    // N7: Encoding Memory Corruption (ENCORR-1..6)
+int test_exploit_batch_verify_malleability_run();     // N8: Batch Verify Malleability (BVM-1..6)
 int test_exploit_frost_weak_binding_run();            // ePrint 2026/075, 2025/1001 FROST weak binding
 int test_exploit_blind_spa_cmov_leak_run();           // ePrint 2024/589, 2025/935 Blind SPA + cmov leak
 int test_exploit_ectester_point_validation_run();     // ePrint 2025/1293 ECTester point validation
@@ -859,6 +862,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wnaf_cache_ampl",             "wNAF Window-18 Cache Amplification 8× (WCACHE-1..5) — Original 2026-04-28",            "exploit_poc", test_exploit_wnaf_cache_ampl_run, false },
     { "exploit_musig2_fingerprint_collision","MuSig2 KeyAgg Fingerprint Collision (FPC-1..6) — Original 2026-04-28",                  "exploit_poc", test_exploit_musig2_fingerprint_collision_run, false },
     { "exploit_blinding_recovery_hnp",       "Context Blinding Recovery via HNP (BLIND-1..7) — Original 2026-04-28",                  "exploit_poc", test_exploit_blinding_recovery_hnp_run, false },
+    { "exploit_shim_noncefp_bypass",         "Shim noncefp Callback Bypass: callback silently ignored (NONCEFP-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_shim_noncefp_bypass_run, false },
+    { "exploit_encoding_memory_corruption",  "Encoding Memory Corruption: DER/field/pubkey adversarial inputs (ENCORR-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_encoding_memory_corruption_run, false },
+    { "exploit_batch_verify_malleability",   "Batch Verify Malleability: order/dup/poison/ECDSA correctness (BVM-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_batch_verify_malleability_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

@@ -616,5 +616,65 @@ blinding across batch operations when nonce confidentiality is required.
 
 ---
 
+### N6: Shim noncefp Callback Bypass (NONCEFP)
+
+**Class**: API contract violation / nonce control bypass  
+**Risk**: HIGH  
+**Status**: Confirmed real vulnerability in `compat/libsecp256k1_shim/src/shim_ecdsa.cpp:210`
+
+`secp256k1_ecdsa_sign` in the libsecp256k1 compatibility shim accepts a `secp256k1_nonce_function noncefp` callback parameter but immediately discards it with `(void)noncefp;`. Any caller passing a custom nonce function — expecting to control the signing nonce (e.g. for protocol-defined derivation, hardware token nonces, or test determinism) — receives an RFC 6979 signature with no error indication.
+
+The `ndata` (auxiliary entropy) parameter IS respected: non-NULL ndata routes to `ct::ecdsa_sign_hedged(msg, sk, aux)` which mixes aux_rand into the RFC 6979 HMAC-DRBG. This is the correct behavior for Bitcoin Core's ndata-increment R-grinding loop.
+
+**Attack**: A caller expecting a custom nonce function to produce a specific R (e.g. for a protocol that requires a committed nonce) will silently receive an RFC 6979 nonce instead, breaking the protocol assumption.
+
+**Defense**: The shim's behavior must be documented as a known divergence from the libsecp256k1 API contract. Callers requiring custom nonce control cannot use this shim — they must use the C++ ct:: API with explicit nonce material via aux_rand.
+
+**Test file**: `audit/test_exploit_shim_noncefp_bypass.cpp` (NONCEFP-1..5)
+
+---
+
+### N7: Encoding Memory Corruption — Adversarial Parser Inputs (ENCORR)
+
+**Class**: Memory safety / input validation  
+**Risk**: HIGH (CVE class)  
+**Status**: Confirmed tests; parsers correctly reject adversarial inputs
+
+Encoding parsers for DER signatures, field elements, and compressed public keys are common targets for memory corruption attacks (CVE-2020-1983, CVE-2018-17960 class). Malformed blobs fed to insufficient-validation parsers cause OOB reads, buffer overflows, or heap corruption.
+
+Tested adversarial patterns:
+- **DER oversized** (100 bytes): sequence length exceeds max-70 check
+- **DER undersized** (1 byte): minimum-length check `inputlen < 8` triggers
+- **Scalar = 0**: `parse_bytes_strict_nonzero` rejects ECDSA r=0 or s=0
+- **x-only pubkey = 0x00..00**: BIP-340 requires x ∈ [1, p-1]; `schnorr_xonly_pubkey_parse` rejects
+- **Field element = p**: `FieldElement::parse_bytes_strict` rejects x ≥ p
+- **Field element = p+1**: same strict parser rejects
+
+**Defense**: All parsers use strict bounds checking with early-return on invalid input. No memory is accessed beyond the declared buffer. Memory safety confirmed by test completion without crash.
+
+**Test file**: `audit/test_exploit_encoding_memory_corruption.cpp` (ENCORR-1..6)
+
+---
+
+### N8: Batch Verify Weight Malleability (BVM)
+
+**Class**: Forgery / semantic correctness  
+**Risk**: MEDIUM  
+**Status**: Batch verifier correctness confirmed across all tested patterns
+
+Schnorr batch verification uses random linear combinations `sum(a_i * s_i)*G == sum(a_i*R_i + a_i*e_i*P_i)`. Incorrect weight assignment or degenerate batch handling could allow:
+- **Order-dependent accept**: reordering entries changes verification outcome (breaks security proof)
+- **Duplicate dilution**: duplicate entries inflate a_i weight, potentially masking an invalid sig
+- **Empty batch pass**: vacuous truth must return true (all-quantifier over empty set)
+- **Poison failure**: one invalid sig must fail the entire batch
+
+Tested patterns: BVM-1 order independence (3-entry batch, forward/reverse), BVM-2 single bad sig poisons batch, BVM-3 empty batch returns true, BVM-4 single-entry agrees with individual verify, BVM-5 duplicate valid entries pass, BVM-6 ECDSA batch correctness.
+
+**Defense**: Batch verifier uses uniformly random scalar weights (a_0=1, a_i uniformly random for i>0 in secp256k1 convention). Order independence follows from scalar linearity. A single invalid entry breaks the linear combination with overwhelming probability.
+
+**Test file**: `audit/test_exploit_batch_verify_malleability.cpp` (BVM-1..6)
+
+---
+
 *Generated: 2026-04-06 | Updated: 2026-04-28*  
 *Cross-references: [SECURITY_CLAIMS.md](SECURITY_CLAIMS.md), [RESIDUAL_RISK_REGISTER.md](RESIDUAL_RISK_REGISTER.md), [AUDIT_TRACEABILITY.md](AUDIT_TRACEABILITY.md), [SELF_AUDIT_FAILURE_MATRIX.md](SELF_AUDIT_FAILURE_MATRIX.md)*

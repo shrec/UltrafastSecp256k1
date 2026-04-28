@@ -2616,6 +2616,42 @@ target_compile_definitions(test_exploit_blinding_recovery_hnp_standalone PRIVATE
 add_test(NAME exploit_blinding_recovery_hnp COMMAND test_exploit_blinding_recovery_hnp_standalone)
 set_tests_properties(exploit_blinding_recovery_hnp PROPERTIES TIMEOUT 60 LABELS "audit;exploit;blinding;hnp;nonce")
 
+# -- N6: Shim noncefp Callback Bypass (NONCEFP-1..5) — Original 2026-04-28 --
+# The libsecp256k1 shim (shim_ecdsa.cpp:210) silently ignores the noncefp
+# callback. Compile shim_ecdsa.cpp directly so the test runs without
+# SECP256K1_BUILD_SHIM and the unified runner uses the C++ layer path.
+add_executable(test_exploit_shim_noncefp_bypass_standalone
+    test_exploit_shim_noncefp_bypass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp)
+audit_target_defaults(test_exploit_shim_noncefp_bypass_standalone)
+target_include_directories(test_exploit_shim_noncefp_bypass_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_shim_noncefp_bypass_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_noncefp_bypass COMMAND test_exploit_shim_noncefp_bypass_standalone)
+set_tests_properties(exploit_shim_noncefp_bypass PROPERTIES TIMEOUT 60 LABELS "audit;exploit;shim;noncefp;ecdsa")
+
+# -- N7: Encoding Memory Corruption (ENCORR-1..6) — Original 2026-04-28 ------
+# Adversarial DER/field/pubkey blobs fed to parsers — must be rejected safely.
+# Shim_ecdsa.cpp included for the DER parser path in STANDALONE mode.
+add_executable(test_exploit_encoding_memory_corruption_standalone
+    test_exploit_encoding_memory_corruption.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp)
+audit_target_defaults(test_exploit_encoding_memory_corruption_standalone)
+target_include_directories(test_exploit_encoding_memory_corruption_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_encoding_memory_corruption_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_encoding_memory_corruption COMMAND test_exploit_encoding_memory_corruption_standalone)
+set_tests_properties(exploit_encoding_memory_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;encoding;der;memory")
+
+# -- N8: Batch Verify Weight Malleability (BVM-1..6) — Original 2026-04-28 ---
+# Audits Schnorr + ECDSA batch verify correctness: order, duplicates, poison.
+add_executable(test_exploit_batch_verify_malleability_standalone
+    test_exploit_batch_verify_malleability.cpp)
+audit_target_defaults(test_exploit_batch_verify_malleability_standalone)
+target_compile_definitions(test_exploit_batch_verify_malleability_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_batch_verify_malleability COMMAND test_exploit_batch_verify_malleability_standalone)
+set_tests_properties(exploit_batch_verify_malleability PROPERTIES TIMEOUT 60 LABELS "audit;exploit;batch;schnorr;malleability")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3178,6 +3214,10 @@ add_executable(unified_audit_runner
     test_exploit_wnaf_cache_ampl.cpp
     test_exploit_musig2_fingerprint_collision.cpp
     test_exploit_blinding_recovery_hnp.cpp
+    # Original Security Analysis (2026-04-28) — N6..N8
+    test_exploit_shim_noncefp_bypass.cpp
+    test_exploit_encoding_memory_corruption.cpp
+    test_exploit_batch_verify_malleability.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

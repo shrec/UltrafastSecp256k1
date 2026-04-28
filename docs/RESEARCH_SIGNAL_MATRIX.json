@@ -702,6 +702,33 @@
         "audit/test_exploit_blinding_recovery_hnp.cpp"
       ],
       "reason": "Original Security Analysis (2026-04-28): secp256k1_context_randomize activates additive scalar blinding k'=k+r. If r is not refreshed between signatures, an attacker with known nonces (k_i) can recover r via HNP: r=kb_i-k_i. Once r is known, all blinded nonces are exposed. Batch signing with shared r amplifies: 1 nonce leak exposes entire batch. Related background: Boneh-Venkatesan (1996), Howgrave-Graham/Smart (2001), ePrint 2024/296 (lattice sieve HNP). Defenses: fresh r per signing operation (auto-refresh), multiplicative blinding (k'=k*r has different HNP structure). BLIND-1..7 confirm attack paths and defenses."
+    },
+    {
+      "id": "shim_noncefp_bypass",
+      "status": "original_analysis",
+      "priority": "high",
+      "action": "document_divergence",
+      "keywords": ["noncefp callback", "libsecp256k1 shim", "RFC 6979", "API contract", "hedged signing"],
+      "repo_evidence": ["audit/test_exploit_shim_noncefp_bypass.cpp", "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"],
+      "reason": "Original Security Analysis (2026-04-28): shim_ecdsa.cpp:210 has (void)noncefp — custom nonce callback silently ignored. Callers expecting nonce control receive RFC 6979 with no error. ndata IS respected via ct::ecdsa_sign_hedged. NONCEFP-1..5 confirm bypass and hedging escape hatch. Impact: any protocol requiring specific noncefp (hardware tokens, protocol-defined nonces) silently broken. Fix: document divergence."
+    },
+    {
+      "id": "encoding_memory_corruption",
+      "status": "original_analysis",
+      "priority": "high",
+      "action": "verify_parser_bounds",
+      "keywords": ["DER parsing", "buffer overflow", "OOB read", "field element", "input validation", "CVE class"],
+      "repo_evidence": ["audit/test_exploit_encoding_memory_corruption.cpp", "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"],
+      "reason": "Original Security Analysis (2026-04-28): adversarial DER/field/pubkey parser inputs must be cleanly rejected. CVE class: OOB read via malformed blob. Tests: DER 100-byte oversized, 1-byte undersized, scalar=0, x-only pubkey=0, field element >= p. All parsers use strict bounds checks. ENCORR-1..6 confirm safe rejection."
+    },
+    {
+      "id": "batch_verify_malleability",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": ["batch verification", "Schnorr batch", "ECDSA batch", "order independence", "forgery class"],
+      "repo_evidence": ["audit/test_exploit_batch_verify_malleability.cpp"],
+      "reason": "Original Security Analysis (2026-04-28): Schnorr+ECDSA batch verifier semantic correctness audit. Tests: BVM-1 order independence, BVM-2 poison (one bad sig fails batch), BVM-3 empty batch vacuous truth, BVM-4 single-entry agreement, BVM-5 duplicates pass, BVM-6 ECDSA batch. Related: Maxwell-Poelstra-Seurin-Wuille (2019), eprint 2019/741. All BVM-1..6 pass."
     }
   ]
 }

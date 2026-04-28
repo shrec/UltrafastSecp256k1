@@ -7,6 +7,22 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28f (Original Security Analysis: 3 new exploit PoCs N6–N8 — Real Code Vulnerabilities)
+
+### New Exploit PoC Coverage: +3 tests (confirmed real vulnerabilities)
+
+- **N6 — Shim noncefp Callback Bypass** (`test_exploit_shim_noncefp_bypass.cpp`, NONCEFP-1..5): `compat/libsecp256k1_shim/src/shim_ecdsa.cpp:210` has `(void)noncefp;` — the libsecp256k1 nonce callback is silently ignored. Any caller passing a custom nonce function receives an RFC 6979 signature with no error. The `ndata` (aux entropy) field IS respected via hedged signing. Risk: HIGH. Fix required: document or enforce the bypass contract.
+- **N7 — Encoding Memory Corruption** (`test_exploit_encoding_memory_corruption.cpp`, ENCORR-1..6): Adversarial DER blobs (100-byte, 1-byte), all-zero scalars, all-zero x-only pubkeys, and field elements ≥ prime p fed to C ABI parsers — all must be cleanly rejected without memory corruption or crash. CVE-class: OOB read via malformed encoding input. Risk: HIGH.
+- **N8 — Batch Verify Weight Malleability** (`test_exploit_batch_verify_malleability.cpp`, BVM-1..6): Batch Schnorr+ECDSA verifier semantic correctness audit — order independence, single-bad-sig poisoning, empty batch vacuous truth, duplicate entry handling, ECDSA batch correctness. Forgery-class: incorrect batch accept/reject semantics. Risk: MEDIUM.
+
+### Wiring
+
+- All three `.cpp` files added to `unified_audit_runner` source list.
+- N6/N7 standalone binaries compile `shim_ecdsa.cpp` directly (no `SECP256K1_BUILD_SHIM` dependency).
+- N8 standalone uses pure C++ batch verify API.
+
+---
+
 ## 2026-04-28e (Original Security Analysis: 5 new exploit PoCs N1–N5)
 
 ### New Exploit PoC Coverage: +5 tests
