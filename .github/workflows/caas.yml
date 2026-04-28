@@ -6,11 +6,12 @@
 # All five stages must pass. Any failure blocks merge.
 #
 # Stages:
-#   1. Static Analysis   — audit_test_quality_scanner (0 findings required)
-#   2. Audit Gate        — audit_gate.py  (P0–P18, exit 0 required)
-#   3. Security Autonomy — security_autonomy_check.py (100/100 required)
-#   4. Bundle Produce    — external_audit_bundle.py (reproducible evidence)
-#   5. Bundle Verify     — verify_external_audit_bundle.py (integrity check)
+#   1. Static Analysis     — audit_test_quality_scanner (0 findings required)
+#                          — exploit_traceability_join (G-9b, catalog consistency)
+#   2. Audit Gate          — audit_gate.py  (P0–P18, exit 0 required)
+#   3. Security Autonomy   — security_autonomy_check.py (100/100 required)
+#   4. Bundle Produce      — external_audit_bundle.py (reproducible evidence)
+#   5. Bundle Verify       — verify_external_audit_bundle.py (integrity check)
 #
 # Artifacts:
 #   - caas-report         : JSON summary of all five stages
@@ -72,6 +73,12 @@ jobs:
         # with a *_run() entry point must be registered in
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
         run: python3 scripts/check_exploit_wiring.py
+
+      - name: Exploit traceability join (G-9b / CAAS Stage 2)
+        # G-9b: Joins exploit catalog, threat model, and spec traceability matrix.
+        # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or
+        # any spec row points at a non-existent path.
+        run: python3 scripts/exploit_traceability_join.py
 
       - name: Run audit test quality scanner
         id: scanner

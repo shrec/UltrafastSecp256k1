@@ -152,7 +152,7 @@ def _sha256_bytes(data: bytes) -> str:
 def build_capsule(profile: str) -> dict:
     """Collect all fields and return the capsule dict."""
     db_path     = LIB_ROOT / ".project_graph.db"
-    bundle_path = LIB_ROOT / "docs" / "EXTERNAL_AUDIT_BUNDLE.sha256"
+    bundle_path = LIB_ROOT / "docs" / "EXTERNAL_AUDIT_BUNDLE.json"
 
     capsule = {
         "schema_version": SCHEMA_VERSION,

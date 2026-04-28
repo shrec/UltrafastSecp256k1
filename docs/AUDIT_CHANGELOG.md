@@ -7,6 +7,34 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28b (CAAS gap closure: CAAS-01, CAAS-03, CAAS-05, CAAS-07)
+
+### CAAS-01: Replay capsule evidence_bundle_hash fixed
+
+`create_replay_capsule.py`: `evidence_bundle_hash` now hashes `EXTERNAL_AUDIT_BUNDLE.json`
+(the actual evidence artifact) instead of `EXTERNAL_AUDIT_BUNDLE.sha256` (the checksum
+text file). The hash is now meaningful to third-party reviewers comparing it against
+the bundle they download.
+
+### CAAS-03: Exploit traceability join wired into CAAS CI (G-9b)
+
+`exploit_traceability_join.py` (G-9b) now runs in `caas.yml` Stage 1 alongside the
+exploit wiring parity check. Ensures catalog ↔ threat model ↔ spec traceability
+consistency is gated on every push/PR.
+
+### CAAS-05: caas-freshness-check.yml created (T10 mitigation)
+
+New workflow `.github/workflows/caas-freshness-check.yml` runs on a 6-hour schedule
+and validates that `docs/EXTERNAL_AUDIT_BUNDLE.json` was committed within the last
+7 days. Implements the T10 mitigation from `CAAS_THREAT_MODEL.md`.
+
+### CAAS-07: dependency-review continue-on-error fixed
+
+`dependency-review.yml`: Changed `continue-on-error: true` → `false`. Vulnerable
+dependency introduction now blocks merge via GitHub's dependency review action.
+
+---
+
 ## 2026-04-28 (CAAS/Audit Gate unblock: P0 hostile-caller + P2 coverage gaps)
 
 ### P0 ABI Hostile-Caller: ufsecp_gpu_is_ready + P2 coverage gaps closed

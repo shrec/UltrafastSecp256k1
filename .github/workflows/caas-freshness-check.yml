@@ -1,0 +1,107 @@
+# ===========================================================================
+# CAAS Freshness Check — T10 Mitigation
+# ===========================================================================
+#
+# Runs on a 6-hour schedule independently of push-triggered pipelines.
+# Evaluates evidence age against the 7-day expiry threshold.
+#
+# T10 mitigation: ensures the freshness check fires even when no commits
+# are pushed, so stale evidence is detected within 6 hours of expiry.
+#
+# Fails if:
+#   - docs/EXTERNAL_AUDIT_BUNDLE.json has not been updated in >7 days
+#   - The bundle is missing or malformed
+# ===========================================================================
+
+name: CAAS Freshness Check
+
+on:
+  schedule:
+    # Every 6 hours (T10 mitigation — detect stale evidence within 6h)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    name: CAAS / Evidence Freshness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Check evidence bundle freshness (T10 mitigation)
+        run: |
+          python3 - <<'EOF'
+          import json, sys, subprocess
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+
+          BUNDLE = Path("docs/EXTERNAL_AUDIT_BUNDLE.json")
+          MAX_AGE_DAYS = 7
+
+          if not BUNDLE.exists():
+              print("::error::docs/EXTERNAL_AUDIT_BUNDLE.json not found — evidence missing")
+              sys.exit(1)
+
+          try:
+              bundle = json.loads(BUNDLE.read_text())
+          except Exception as e:
+              print(f"::error::Bundle parse error: {e}")
+              sys.exit(1)
+
+          # Get last commit date for the bundle file
+          result = subprocess.run(
+              ["git", "log", "-1", "--format=%cI", "--", str(BUNDLE)],
+              capture_output=True, text=True, check=True
+          )
+          commit_date_str = result.stdout.strip()
+          if not commit_date_str:
+              print("::warning::No git history for bundle file — skipping age check")
+              sys.exit(0)
+
+          commit_date = datetime.fromisoformat(commit_date_str)
+          now = datetime.now(timezone.utc)
+          age = now - commit_date
+          age_days = age.total_seconds() / 86400
+
+          bundle_commit = bundle.get("git", {}).get("commit", "unknown")
+          print(f"Bundle last updated: {commit_date_str}")
+          print(f"Bundle git commit:   {bundle_commit}")
+          print(f"Evidence age:        {age_days:.1f} days (threshold: {MAX_AGE_DAYS} days)")
+
+          if age_days > MAX_AGE_DAYS:
+              print(f"::error::Evidence STALE — bundle is {age_days:.1f} days old (max {MAX_AGE_DAYS} days)")
+              print("::error::Run: python3 scripts/external_audit_bundle.py && git commit")
+              sys.exit(1)
+
+          print(f"::notice::Evidence FRESH — {age_days:.1f} days old (within {MAX_AGE_DAYS}-day threshold)")
+          EOF
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Evidence Freshness Check (T10 Mitigation)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          BUNDLE="docs/EXTERNAL_AUDIT_BUNDLE.json"
+          if [ -f "$BUNDLE" ]; then
+            LAST=$(git log -1 --format="%cI %s" -- "$BUNDLE")
+            echo "Last bundle update: \`$LAST\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**MISSING**: docs/EXTERNAL_AUDIT_BUNDLE.json not found" >> $GITHUB_STEP_SUMMARY
+          fi
