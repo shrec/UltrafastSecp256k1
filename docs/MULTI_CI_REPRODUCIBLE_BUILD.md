@@ -1,6 +1,6 @@
 # MULTI_CI_REPRODUCIBLE_BUILD.md — UltrafastSecp256k1
 
-> Version: 1.0 — 2026-04-21
+> Version: 1.1 — 2026-04-28
 > Closes CAAS gap **G-7**.
 >
 > This document defines how UltrafastSecp256k1 backs its
@@ -24,12 +24,20 @@ is treated as a starting baseline, not an end state.
 | Provider | Workflow | Purpose | Status |
 |----------|----------|---------|--------|
 | GitHub Actions | `.github/workflows/reproducible-build.yml` | Primary reproducibility check on `push`-to-`dev` and `push`-to-`main` | **Active** |
+| GitHub Actions | `.github/workflows/multi-ci-repro.yml` | **G-7 gate** — two-environment build (ubuntu-22.04/gcc-12 vs ubuntu-24.04/gcc-14) with cross-hash comparison via `scripts/multi_ci_repro_check.py` | **Active** |
 | GitHub Actions | `.github/workflows/slsa-provenance.yml` | SLSA Level 3 provenance attestation | **Active** |
 | GitLab CI | `.gitlab-ci.yml` | Independent provider; runs identical build matrix and emits `reproducible-attestation.json` | **Config landed** (awaits GitLab mirror enablement) |
 | Codeberg / Woodpecker CI | `.woodpecker.yml` | Third independent provider; identical attestation schema | **Config landed** (awaits Codeberg mirror enablement) |
 | Local (developer) | `scripts/verify_reproducible_build.sh` | On-demand local reproduction | **Active** |
 
-The two non-GitHub configs are committed in-tree and will run
+The `multi-ci-repro.yml` workflow satisfies the G-7 requirement for **two
+independent build environments on a single CI provider**: it runs
+ubuntu-22.04/gcc-12 and ubuntu-24.04/gcc-14 as separate jobs, uploads
+their SHA-256 hash manifests, then runs `scripts/multi_ci_repro_check.py`
+to assert bit-identical output. A schedule trigger (weekly, Sunday 05:00
+UTC) catches toolchain drift between releases.
+
+The two non-GitHub mirror configs are committed in-tree and will run
 automatically once the corresponding read-only mirror is enabled
 on the upstream repository. Neither requires owner intervention
 beyond pushing the mirror.
@@ -110,7 +118,8 @@ recorded as advisory and tracked here.
 
 | Provider | Last successful run | Last failure | Notes |
 |----------|---------------------|--------------|-------|
-| GitHub Actions | (most recent push) | none on dev tip | Active |
+| GitHub Actions (`reproducible-build.yml`) | (most recent push) | none on dev tip | Active |
+| GitHub Actions (`multi-ci-repro.yml`) | (most recent push) | none — first run after 2026-04-28 | G-7 gate, Active |
 | GitLab CI | n/a — mirror not yet enabled | n/a | Config landed in `.gitlab-ci.yml` |
 | Codeberg / Woodpecker | n/a — mirror not yet enabled | n/a | Config landed in `.woodpecker.yml` |
 

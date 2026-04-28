@@ -1,0 +1,211 @@
+# ============================================================================
+# G-7: Multi-CI Reproducible Build — Two-Provider Attestation
+# ============================================================================
+# Closes CAAS gap G-7 (docs/MULTI_CI_REPRODUCIBLE_BUILD.md).
+#
+# The single-provider reproducible-build.yml proves "two builds on the same
+# Ubuntu 24.04 + gcc-14 environment produce the same artifact". This workflow
+# proves the stronger property: "two DIFFERENT CI environments — different OS
+# image, different compiler version — produce the same artifact."
+#
+# Two independent build jobs run in parallel:
+#   Provider A: ubuntu-22.04 / gcc-12 (LTS image, older toolchain)
+#   Provider B: ubuntu-24.04 / gcc-14 (current LTS, newer toolchain)
+#
+# Both must produce bit-identical libufsecp.a and libufsecp.so for the
+# reproducible-build claim to hold across providers.
+#
+# The comparison uses scripts/multi_ci_repro_check.py (G-7 gate script).
+# ============================================================================
+
+name: Multi-CI Reproducible Build
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - 'compat/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - '.github/workflows/multi-ci-repro.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+  schedule:
+    # Weekly on Sunday at 05:00 UTC — catches toolchain drift
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Provider A: Ubuntu 22.04 / GCC 12 ────────────────────────────────────────
+
+jobs:
+  build-provider-a:
+    name: "Provider A: ubuntu-22.04 / gcc-12"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build gcc-12 g++-12
+
+      - name: Configure (Release, reproducible, CPU only)
+        run: |
+          cmake -S . -B build-a \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-12 \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DUFSECP_REPRODUCIBLE=ON \
+            -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_SHIM=OFF \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_CUDA=OFF \
+            -DSECP256K1_BUILD_OPENCL=OFF \
+            -DSECP256K1_BUILD_METAL=OFF
+
+      - name: Build
+        run: cmake --build build-a --parallel
+
+      - name: Compute SHA-256 of canonical artifacts
+        id: hash
+        run: |
+          mkdir -p attestation
+          find build-a -name 'libufsecp*.a' -o -name 'libufsecp*.so' | \
+            grep -v '\.so\.' | sort | \
+            xargs -I{} sh -c 'sha256sum "$1" | sed "s|build-a/||"' _ {} \
+            > attestation/hashes-provider-a.txt
+          cat attestation/hashes-provider-a.txt
+
+      - name: Upload hash attestation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hashes-provider-a
+          path: attestation/hashes-provider-a.txt
+          retention-days: 30
+
+# ── Provider B: Ubuntu 24.04 / GCC 14 ────────────────────────────────────────
+
+  build-provider-b:
+    name: "Provider B: ubuntu-24.04 / gcc-14"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build gcc-14 g++-14
+
+      - name: Configure (Release, reproducible, CPU only)
+        run: |
+          cmake -S . -B build-b \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DUFSECP_REPRODUCIBLE=ON \
+            -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_SHIM=OFF \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_CUDA=OFF \
+            -DSECP256K1_BUILD_OPENCL=OFF \
+            -DSECP256K1_BUILD_METAL=OFF
+
+      - name: Build
+        run: cmake --build build-b --parallel
+
+      - name: Compute SHA-256 of canonical artifacts
+        id: hash
+        run: |
+          mkdir -p attestation
+          find build-b -name 'libufsecp*.a' -o -name 'libufsecp*.so' | \
+            grep -v '\.so\.' | sort | \
+            xargs -I{} sh -c 'sha256sum "$1" | sed "s|build-b/||"' _ {} \
+            > attestation/hashes-provider-b.txt
+          cat attestation/hashes-provider-b.txt
+
+      - name: Upload hash attestation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hashes-provider-b
+          path: attestation/hashes-provider-b.txt
+          retention-days: 30
+
+# ── Comparison: both providers must match ─────────────────────────────────────
+
+  compare:
+    name: "Cross-Provider Comparison (G-7 gate)"
+    needs: [build-provider-a, build-provider-b]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Download provider A hashes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: hashes-provider-a
+          path: attestation
+
+      - name: Download provider B hashes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: hashes-provider-b
+          path: attestation
+
+      - name: Compare hashes (G-7 gate)
+        run: |
+          python3 scripts/multi_ci_repro_check.py \
+            attestation/hashes-provider-a.txt \
+            attestation/hashes-provider-b.txt
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## Multi-CI Reproducible Build (G-7)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Provider | Runner | Compiler |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| A | ubuntu-22.04 | gcc-12 |" >> $GITHUB_STEP_SUMMARY
+          echo "| B | ubuntu-24.04 | gcc-14 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f attestation/hashes-provider-a.txt ] && [ -f attestation/hashes-provider-b.txt ]; then
+            python3 scripts/multi_ci_repro_check.py \
+              attestation/hashes-provider-a.txt \
+              attestation/hashes-provider-b.txt >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          fi
