@@ -101,7 +101,9 @@ jobs:
       - name: Run wycheproof tests (CTest)
         id: ctest
         run: |
-          ctest --test-dir build-wyche --output-on-failure -j"$(nproc)" \
+          # Run sequentially (no -j) — parallel runs race on cache_w18.bin
+          # which corrupts the w=18 generator table used by ecdsa_verify.
+          ctest --test-dir build-wyche --output-on-failure -j1 \
             -R "^wycheproof_" --timeout 600 \
             --output-junit wycheproof-junit.xml 2>&1 | tee wycheproof-output.txt
           echo "ctest_exit=$?" >> "$GITHUB_OUTPUT"
