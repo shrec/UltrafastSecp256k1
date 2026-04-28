@@ -410,9 +410,10 @@ def check_abi_surface():
     """Detect new/removed ufsecp_* functions vs graph."""
     conn = get_conn()
 
-    # Known from graph
+    # Known from graph — restrict to ufsecp_* only; secp256k1_* shim functions
+    # use SECP256K1_API (not UFSECP_API) and are intentionally absent from ufsecp.h
     known = set()
-    rows = conn.execute("SELECT name FROM c_abi_functions").fetchall()
+    rows = conn.execute("SELECT name FROM c_abi_functions WHERE name LIKE 'ufsecp_%'").fetchall()
     for r in rows:
         known.add(r['name'])
 
