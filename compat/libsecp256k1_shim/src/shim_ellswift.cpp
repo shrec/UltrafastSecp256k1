@@ -13,6 +13,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -128,7 +129,7 @@ int secp256k1_ellswift_create(
     auto sk = Scalar::from_bytes(kb);
     if (sk.is_zero()) return 0;
 
-    auto enc = secp256k1::ellswift_create_fast(sk);
+    auto enc = secp256k1::ellswift_create(sk);  // CT: uses ct::generator_mul internally
     std::memcpy(ell64, enc.data(), 64);
     return 1;
 }
@@ -155,10 +156,9 @@ int secp256k1_ellswift_xdh(
 
     bool initiating = (party == 0);
 
-    // Fast path: BIP-324 tagged hash — use the fully tested internal path
-    // which handles all XSwiftEC edge cases correctly.
+    // BIP-324 path: use CT ellswift_xdh which routes through ct::scalar_mul internally.
     if (hashfp == secp256k1_ellswift_xdh_hash_function_bip324) {
-        auto secret = secp256k1::ellswift_xdh_fast(ell_a64, ell_b64, sk, initiating);
+        auto secret = secp256k1::ellswift_xdh(ell_a64, ell_b64, sk, initiating);
         std::memcpy(output, secret.data(), 32);
         return 1;
     }
@@ -176,7 +176,7 @@ int secp256k1_ellswift_xdh(
     auto their_point = Point::from_affine(their_x, y);
     if (their_point.is_infinity()) return 0;
 
-    auto ecdh_point = their_point.scalar_mul(sk);
+    auto ecdh_point = secp256k1::ct::scalar_mul(their_point, sk);
     if (ecdh_point.is_infinity()) return 0;
 
     auto x32_arr = ecdh_point.x().to_bytes();

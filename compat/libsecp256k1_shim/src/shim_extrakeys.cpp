@@ -11,6 +11,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/precompute.hpp"
+#include "secp256k1/ct/scalar.hpp"
 
 using namespace secp256k1::fast;
 
@@ -240,9 +241,10 @@ int secp256k1_keypair_xonly_tweak_add(
     Scalar sk;
     if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
-    // If Y is odd, negate the secret key (so the x-only key has even Y)
-    int y_parity = (keypair->data[95] & 1) ? 1 : 0;
-    if (y_parity) sk = sk.negate();
+    // If Y is odd, negate the secret key (so the x-only key has even Y).
+    // Use ct::scalar_cneg to avoid branching on keypair state.
+    std::uint64_t y_odd_mask = (keypair->data[95] & 1) ? ~std::uint64_t(0) : std::uint64_t(0);
+    sk = secp256k1::ct::scalar_cneg(sk, y_odd_mask);
 
     // tweak in [0, n-1]; libsecp allows 0 (keypair unchanged)
     Scalar t;

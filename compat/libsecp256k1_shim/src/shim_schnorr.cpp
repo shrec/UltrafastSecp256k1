@@ -57,7 +57,12 @@ int secp256k1_schnorrsig_sign_custom(
     void *ndata)
 {
     (void)noncefp; (void)ndata;
-    if (msglen != 32) return 0;
+    // NOTE: This implementation restricts messages to exactly 32 bytes, matching
+    // BIP-340 strict mode. Upstream libsecp256k1 sign_custom accepts variable-length
+    // messages by including them verbatim in H_BIP0340/challenge(R_x||P_x||msg).
+    // Variable-length support requires extending the internal schnorr_sign API.
+    // Bitcoin Core itself only calls sign_custom with 32-byte hashes.
+    if (!msg || msglen != 32) return 0;
     return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair, nullptr);
 }
 
