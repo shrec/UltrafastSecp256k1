@@ -614,7 +614,7 @@ ufsecp_error_t ufsecp_bip39_validate(const ufsecp_ctx* ctx,
         return UFSECP_ERR_BAD_INPUT;
     }
     return UFSECP_OK;
-    } catch (...) { return UFSECP_ERR_INTERNAL; }
+    } UFSECP_CATCH_RETURN(nullptr)
 }
 
 ufsecp_error_t ufsecp_bip39_to_seed(ufsecp_ctx* ctx,

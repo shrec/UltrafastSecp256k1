@@ -282,7 +282,7 @@ ufsecp_error_t ufsecp_gcs_build(
         return UFSECP_ERR_BUF_TOO_SMALL;
     }
     return UFSECP_OK;
-    } catch (...) { return UFSECP_ERR_INTERNAL; }
+    } UFSECP_CATCH_RETURN(nullptr)
 }
 
 ufsecp_error_t ufsecp_gcs_match(
@@ -307,7 +307,7 @@ ufsecp_error_t ufsecp_gcs_match(
         if (v > target) break;
     }
     return UFSECP_ERR_NOT_FOUND;
-    } catch (...) { return UFSECP_ERR_INTERNAL; }
+    } UFSECP_CATCH_RETURN(nullptr)
 }
 
 ufsecp_error_t ufsecp_gcs_match_any(
@@ -335,7 +335,7 @@ ufsecp_error_t ufsecp_gcs_match_any(
         }
     }
     return UFSECP_ERR_NOT_FOUND;
-    } catch (...) { return UFSECP_ERR_INTERNAL; }
+    } UFSECP_CATCH_RETURN(nullptr)
 }
 
 /* ===========================================================================
