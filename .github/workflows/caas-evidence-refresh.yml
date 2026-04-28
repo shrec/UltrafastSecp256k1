@@ -113,6 +113,14 @@ jobs:
         run: |
           python3 scripts/security_autonomy_check.py --json -o docs/SECURITY_AUTONOMY_KPI.json || true
 
+      - name: Regenerate audit dashboard (H-9)
+        run: |
+          python3 scripts/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md || true
+
+      - name: Regenerate exploit traceability join (G-9b)
+        run: |
+          python3 scripts/exploit_traceability_join.py --emit-join || true
+
       - name: Show diff
         run: |
           git --no-pager diff --stat -- \
@@ -120,6 +128,8 @@ jobs:
             docs/EXTERNAL_AUDIT_BUNDLE.json \
             docs/EXTERNAL_AUDIT_BUNDLE.sha256 \
             docs/SECURITY_AUTONOMY_KPI.json \
+            docs/AUDIT_DASHBOARD.md \
+            docs/EXPLOIT_TRACEABILITY_JOIN.md \
             || true
 
       - name: Commit and push if changed
@@ -135,7 +145,9 @@ jobs:
           for f in assurance_report.json \
                    docs/EXTERNAL_AUDIT_BUNDLE.json \
                    docs/EXTERNAL_AUDIT_BUNDLE.sha256 \
-                   docs/SECURITY_AUTONOMY_KPI.json; do
+                   docs/SECURITY_AUTONOMY_KPI.json \
+                   docs/AUDIT_DASHBOARD.md \
+                   docs/EXPLOIT_TRACEABILITY_JOIN.md; do
             if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
               git add "$f"
               CHANGED=1
@@ -148,6 +160,6 @@ jobs:
           fi
 
           git commit -m "[bot] CAAS evidence refresh ($(date -u +%Y-%m-%d))" \
-                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. See docs/CAAS_HARDENING_TODO.md (H-1)."
+                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. Includes audit dashboard (H-9) and exploit traceability join (G-9b). See docs/CAAS_HARDENING_TODO.md (H-1)."
 
           git push origin dev
