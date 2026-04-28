@@ -81,9 +81,9 @@ STAGES = [
         "id": "traceability",
         "name": "Traceability Join (exploit_traceability_join.py)",
         "script": "exploit_traceability_join.py",
-        "args": [],
+        "args": ["--emit-join"],
         "pass_fn": "_generic_pass",
-        "description": "G-9b gate: exploit catalog ↔ spec matrix ↔ RR ↔ AM cross-refs (strict)",
+        "description": "G-9b gate: exploit catalog ↔ spec matrix ↔ RR ↔ AM cross-refs (strict); emits EXPLOIT_TRACEABILITY_JOIN.md",
         "blocking": True,
     },
     {
