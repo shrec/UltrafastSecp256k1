@@ -313,27 +313,12 @@ Scalar musig2_partial_sign(
     }
 
     // Adjust secret key -- fully constant-time path:
-    // 1) Compute P_i = d*G using CT generator multiplication (the secret
-    //    key d is the sensitive input; fast::scalar_mul is variable-time).
+    // BIP-327 §signing: s_i = k_i_eff + e * a_i * g * d_i
+    // g = -1 if Q has odd Y, else 1. No per-signer P_i parity adjustment.
+    // (Individual P_i parity is NOT part of the BIP-327 signing formula.)
     Scalar d = secret_key;
-    auto Pi = ct::generator_mul(d);
 
-    // 2) CT negate d if P_i has odd Y (x-only pubkeys assume even Y).
-    //    Point::has_even_y() uses fast FieldElement::inverse() (SafeGCD,
-    //    variable-time). Since Pi depends on the secret key d, the Z
-    //    coordinate is secret-dependent. Use CT field inverse instead.
-    {
-        FieldElement z_inv = ct::field_inv(Pi.z_raw());
-        FieldElement z_inv2 = z_inv.square();
-        FieldElement y_aff = Pi.y_raw() * z_inv2 * z_inv;
-        // y_aff is fully reduced -- LSB gives parity (0 = even, 1 = odd)
-        bool const odd_y = (y_aff.limbs()[0] & 1) != 0;
-        std::uint64_t const mask = ct::bool_to_mask(odd_y);
-        Scalar const neg_d = d.negate();
-        d = ct::scalar_select(neg_d, d, mask);
-    }
-
-    // 3) CT negate d if aggregate key Q was negated for even-Y.
+    // CT negate d if aggregate key Q was negated for even-Y (the g factor).
     {
         std::uint64_t const mask = ct::bool_to_mask(key_agg_ctx.Q_negated);
         Scalar const neg_d = d.negate();
@@ -389,33 +374,40 @@ bool musig2_partial_verify(
     }
 
     // Key contribution: e * a_i * P_i
-    // Lift pubkey (strict: reject x >= p)
+    // Lift pubkey (strict: reject x >= p). Use BOTH possible Y parities
+    // because the partial sign API takes a raw secret key (original parity),
+    // not an x-only key. BIP-327 signing uses d_i directly (no per-signer
+    // Y-parity flip), so P_i can have either Y parity.
     FieldElement px;
     if (!FieldElement::parse_bytes_strict(pubkey, px)) return false;
     auto x3 = px.square() * px;
     auto y2 = x3 + FieldElement::from_uint64(7);
-    // sqrt via optimized addition chain (~253 sqr + 13 mul)
     auto y = y2.sqrt();
-    // Validate sqrt: reject non-residue (x not on curve)
-    if (y.square() != y2) return false;
-    // BIP-340: ensure even Y
-    if (y.limbs()[0] & 1) y = y.negate();
+    if (y.square() != y2) return false;  // x not on curve -- reject
 
-    auto Pi = Point::from_affine(px, y);
     Scalar ea = session.e * key_agg_ctx.key_coefficients[signer_index];
     if (key_agg_ctx.Q_negated) ea = ea.negate();
 
-    auto eaP = Pi.scalar_mul(ea);
+    // Helper: check if sG == R_eff + ea * Point::from_affine(px, y_candidate)
+    auto jacobian_eq = [](const Point& A, const Point& B) -> bool {
+        auto const z1sq = A.z().square();
+        auto const z2sq = B.z().square();
+        if (A.X() * z2sq != B.X() * z1sq) return false;
+        auto const z1cu = z1sq * A.z();
+        auto const z2cu = z2sq * B.z();
+        return A.Y() * z2cu == B.Y() * z1cu;
+    };
 
-    auto expected = R_eff.add(eaP);
-    // Compare: sG == expected (Jacobian cross-multiplication, avoids 2 inversions)
-    // (X1,Y1,Z1) == (X2,Y2,Z2)  iff  X1*Z2^2 == X2*Z1^2  &&  Y1*Z2^3 == Y2*Z1^3
-    auto const z1sq = sG.z().square();
-    auto const z2sq = expected.z().square();
-    if (sG.X() * z2sq != expected.X() * z1sq) return false;
-    auto const z1cu = z1sq * sG.z();
-    auto const z2cu = z2sq * expected.z();
-    return sG.Y() * z2cu == expected.Y() * z1cu;
+    // Try even-Y candidate
+    FieldElement y_even = (y.limbs()[0] & 1) ? y.negate() : y;
+    auto Pi_even = Point::from_affine(px, y_even);
+    auto expected_even = R_eff.add(Pi_even.scalar_mul(ea));
+    if (jacobian_eq(sG, expected_even)) return true;
+
+    // Try odd-Y candidate (negate)
+    auto Pi_odd = Point::from_affine(px, y_even.negate());
+    auto expected_odd = R_eff.add(Pi_odd.scalar_mul(ea));
+    return jacobian_eq(sG, expected_odd);
 }
 
 // -- Signature Aggregation ----------------------------------------------------

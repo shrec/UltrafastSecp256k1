@@ -7,6 +7,25 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28k (MuSig2 BIP-327 signing fix + audit gate PASS — 312/313)
+
+### Security / Correctness Fixes
+
+- **MuSig2 partial sign BIP-327 violation (HIGH)** — `cpu/src/musig2.cpp` `musig2_partial_sign`: step 2 incorrectly negated `d_i` based on individual P_i's Y parity. BIP-327 §signing formula is `s_i = k_i_eff + e * a_i * g * d_i` where `g` adjusts for Q's parity only — no per-signer parity adjustment. This made aggregate signatures invalid whenever any signer had odd-Y pubkey (tests [1], [3], [12] of 19 were failing). Fix: removed step 2 and the now-unused `ct::generator_mul(d)` call.
+- **MuSig2 partial verify Y-parity assumption** — `musig2_partial_verify` forced even-Y via BIP-340 lift (`if (y.limbs()[0] & 1) y = y.negate()`). After the signing fix, partial sign uses the original d_i (either parity), so verify must accept both Y candidates. Fix: compute `eaP` for both even and odd Y, return true if either matches `s_i * G`.
+
+### Audit Wiring / Test Fixes
+
+- **`test_c_abi_negative` NEG-22.7**: `ufsecp_version()` returned 0 because source-tree `include/ufsecp/ufsecp_version.h` has 0.0.0 placeholders and shadows the CMake-generated copy (co-located with `ufsecp.h`, found first by `#include "ufsecp_version.h"`). Fixed source-tree header to contain 3.68.0. Added comment explaining both files must stay in sync.
+- **`test_exploit_p2sh_address_confusion` test 5**: `ufsecp_addr_p2sh(nullptr, 0, ...)` correctly returns `UFSECP_ERR_NULL_ARG` (non-null script always required per BUG-007), but the test only accepted `OK | BAD_INPUT`. Test updated to also accept `NULL_ARG`; added second sub-case with valid non-null pointer for the zero-length script path.
+
+### Audit Gate Result
+
+- **Sections 1–8: all PASS.** Section 9 (Exploit PoC Security Probes): **228/228 PASS**.
+- **TOTAL: 312/313 — AUDIT GATE CLEAR** (1 advisory: mutation kill-rate).
+
+---
+
 ## 2026-04-28j (CT audit cleanup — ct_sign.cpp dead-code removal + nonce invariant docs)
 
 ### CT / Correctness

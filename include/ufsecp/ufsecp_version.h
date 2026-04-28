@@ -21,17 +21,21 @@
 extern "C" {
 #endif
 
-/* -- Compile-time version (dev placeholder -- CMake builds use generated header) */
+/* -- Compile-time version.
+ * NOTE: when building with CMake the generated copy in ${CMAKE_BINARY_DIR}/include
+ * SHOULD override this, but because ufsecp.h includes "ufsecp_version.h" with a
+ * relative path, the compiler finds this co-located copy first.  Both files must
+ * stay in sync. Keep this file updated to match ufsecp_version.h.in. */
 
-#define UFSECP_VERSION_MAJOR   0
-#define UFSECP_VERSION_MINOR   0
+#define UFSECP_VERSION_MAJOR   3
+#define UFSECP_VERSION_MINOR   68
 #define UFSECP_VERSION_PATCH   0
 
 /** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat. */
 #define UFSECP_VERSION_PACKED \
     ((UFSECP_VERSION_MAJOR << 16) | (UFSECP_VERSION_MINOR << 8) | UFSECP_VERSION_PATCH)
 
-#define UFSECP_VERSION_STRING  "0.0.0-dev"
+#define UFSECP_VERSION_STRING  "3.68.0"
 
 /* -- ABI version (incremented ONLY on binary-incompatible changes) ---------- */
 

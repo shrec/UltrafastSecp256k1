@@ -146,7 +146,7 @@ Two fixes were required:
 
 | Gate | Status | What it checks |
 |------|--------|---------------|
-| Stage 0 — exploit wiring | ✅ 232/232 | Every `test_exploit_*.cpp` has `_run()` in runner |
+| Stage 0 — exploit wiring | ✅ 228/228 | Every `test_exploit_*.cpp` has `_run()` in runner |
 | Stage 1 — CT analysis | ✅ PASS | Constant-time verification on signing paths |
 | Stage 2a — core build mode | ✅ PASS | CMake build config correctness |
 | Stage 2b — ABI stability | ✅ PASS | `static_assert` struct layout guards |
@@ -156,4 +156,4 @@ Two fixes were required:
 
 ---
 
-*Last updated: 2026-04-28 — all 10 original + 3 surface blockers closed; CT dead-code cleanup (M14-M16) + noexcept fix (M17) committed*
+*Last updated: 2026-04-28 — all 10 original + 3 surface blockers closed; MuSig2 BIP-327 partial sign fix + audit gate CLEAR (312/313, 0 mandatory failures)*
