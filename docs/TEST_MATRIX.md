@@ -803,3 +803,10 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `exploit_hsort` | `audit/test_exploit_hsort.cpp` | Heap sort / batch ordering (GAP-2) — ports upstream run_hsort_tests; batch verify must be order-independent (forward/reversed/shuffled inputs) |
 | `exploit_wnaf` | `audit/test_exploit_wnaf.cpp` | wNAF window decomposition boundaries (GAP-5) — ports upstream run_wnaf_tests; sk=1→G, sk=n-1→-G, GLV split, alternating-bit and FF scalars |
 | `exploit_int128` | `audit/test_exploit_int128.cpp` | 128-bit field arithmetic boundaries (GAP-7) — ports upstream run_int128_tests; field identity, p-1 edge, 2^64 carry boundaries, commutativity |
+
+## Upstream Libsecp256k1 Parity Tests (batch 4 — v3.70+)
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `exploit_scratch` | `audit/test_exploit_scratch.cpp` | Scratch allocator risk surface — upstream run_scratch_tests; scratch_space API not in shim (confirmed), tests via batch lifecycle + context stress |
+| `exploit_xoshiro` | `audit/test_exploit_xoshiro.cpp` | xoshiro256** PRNG context randomization — upstream run_xoshiro256pp_tests; KAT seed from upstream, behavioral properties via context_randomize |

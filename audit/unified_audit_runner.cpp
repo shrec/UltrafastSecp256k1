@@ -422,6 +422,8 @@ int test_exploit_alloc_bounds_run();            // Allocation boundary batch ver
 int test_exploit_hsort_run();                   // Heap sort / batch ordering (GAP-2) — upstream run_hsort_tests — 2026-04-28
 int test_exploit_wnaf_run();                    // wNAF window decomposition boundaries (GAP-5) — upstream run_wnaf_tests — 2026-04-28
 int test_exploit_int128_run();                  // 128-bit arithmetic field boundaries (GAP-7) — upstream run_int128_tests — 2026-04-28
+int test_exploit_scratch_run();                 // Scratch allocator risk surface — upstream run_scratch_tests — 2026-04-28
+int test_exploit_xoshiro_run();                 // xoshiro256** PRNG / context randomization — upstream run_xoshiro256pp_tests — 2026-04-28
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -845,6 +847,8 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_hsort",                       "Heap sort / batch ordering (GAP-2) — upstream run_hsort_tests 2026-04-28",         "exploit_poc",  test_exploit_hsort_run, false },
     { "exploit_wnaf",                        "wNAF window decomposition boundaries (GAP-5) — upstream run_wnaf_tests 2026-04-28","exploit_poc",  test_exploit_wnaf_run, false },
     { "exploit_int128",                      "128-bit arithmetic field boundaries (GAP-7) — upstream run_int128_tests 2026-04-28","exploit_poc", test_exploit_int128_run, false },
+    { "exploit_scratch",                     "Scratch allocator risk surface — upstream run_scratch_tests 2026-04-28",            "exploit_poc",  test_exploit_scratch_run, false },
+    { "exploit_xoshiro",                     "xoshiro256** PRNG context randomization — upstream run_xoshiro256pp_tests 2026-04-28","exploit_poc",test_exploit_xoshiro_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

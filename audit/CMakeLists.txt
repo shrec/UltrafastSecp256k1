@@ -2566,6 +2566,19 @@ target_compile_definitions(test_exploit_int128_standalone PRIVATE STANDALONE_TES
 add_test(NAME exploit_int128 COMMAND test_exploit_int128_standalone)
 set_tests_properties(exploit_int128 PROPERTIES TIMEOUT 60 LABELS "audit;exploit;int128;field;arithmetic")
 
+# -- Upstream gap closure (scratch allocator + xoshiro256** PRNG) 2026-04-28 -
+add_executable(test_exploit_scratch_standalone test_exploit_scratch.cpp)
+audit_target_defaults(test_exploit_scratch_standalone)
+target_compile_definitions(test_exploit_scratch_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_scratch COMMAND test_exploit_scratch_standalone)
+set_tests_properties(exploit_scratch PROPERTIES TIMEOUT 60 LABELS "audit;exploit;allocator;scratch;batch")
+
+add_executable(test_exploit_xoshiro_standalone test_exploit_xoshiro.cpp)
+audit_target_defaults(test_exploit_xoshiro_standalone)
+target_compile_definitions(test_exploit_xoshiro_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_xoshiro COMMAND test_exploit_xoshiro_standalone)
+set_tests_properties(exploit_xoshiro PROPERTIES TIMEOUT 60 LABELS "audit;exploit;xoshiro;prng;randomize")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3119,6 +3132,9 @@ add_executable(unified_audit_runner
     test_exploit_hsort.cpp
     test_exploit_wnaf.cpp
     test_exploit_int128.cpp
+    # Upstream gap closure (2026-04-28) — scratch allocator + xoshiro256**
+    test_exploit_scratch.cpp
+    test_exploit_xoshiro.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
