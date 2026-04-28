@@ -43,6 +43,7 @@ secp256k1_context_destroy(ctx);
 ## Limitations
 
 - Context randomization (`secp256k1_context_randomize`) is fully implemented — it installs additive thread-local scalar blinding (`ct::set_blinding(r, r_G)`) that protects all subsequent signing on that thread. Passing NULL clears blinding (`ct::clear_blinding()`), matching libsecp256k1 semantics exactly.
+- Custom `noncefp` callbacks in `secp256k1_ecdsa_sign` are **not forwarded** — the shim uses RFC 6979 internally. Passing a custom non-NULL nonce function (that is not `secp256k1_nonce_function_rfc6979` or `secp256k1_nonce_function_default`) returns 0 (fail-closed). Bitcoin Core passes NULL noncefp exclusively, so this is not a compatibility issue for Bitcoin Core integration.
 - `secp256k1_context_static` is provided but points to a dummy.
 - Performance characteristics differ (typically faster — uses w=18 precomputed table for generator muls, GLV for variable-base).
 

@@ -207,8 +207,17 @@ int secp256k1_ecdsa_sign(
     const unsigned char *msghash32, const unsigned char *seckey,
     secp256k1_nonce_function noncefp, const void *ndata)
 {
-    (void)ctx; (void)noncefp;
+    (void)ctx;
     if (!sig || !msghash32 || !seckey) return 0;
+    // Reject custom nonce functions: this shim uses RFC 6979 internally and
+    // cannot forward an arbitrary noncefp callback. Fail-closed so callers
+    // that rely on a specific nonce function are not silently given RFC 6979.
+    // The two standard constants (rfc6979 / default) are treated as NULL.
+    if (noncefp != nullptr &&
+        noncefp != secp256k1_nonce_function_rfc6979 &&
+        noncefp != secp256k1_nonce_function_default) {
+        return 0;
+    }
 
     try {
         std::array<uint8_t, 32> msg{};

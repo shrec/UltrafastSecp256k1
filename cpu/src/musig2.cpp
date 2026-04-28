@@ -252,7 +252,8 @@ MuSig2Session musig2_start_sign_session(
 
     MuSig2Session session{};
 
-    // b = tagged_hash("MuSig/noncecoef", aggR1 || aggR2 || Q_x || msg)
+    // b = tagged_hash("MuSig/nonceblinding", cbytes_ext(R1)||cbytes_ext(R2)||xbytes(Q)||msg)
+    // BIP-327 §GetSessionValues: tag MUST be "MuSig/nonceblinding" (not "noncecoef").
     auto R1_comp = agg_nonce.R1.to_compressed();
     auto R2_comp = agg_nonce.R2.to_compressed();
 
@@ -261,7 +262,7 @@ MuSig2Session musig2_start_sign_session(
     std::memcpy(b_input + 33, R2_comp.data(), 33);
     std::memcpy(b_input + 66, key_agg_ctx.Q_x.data(), 32);
     std::memcpy(b_input + 98, msg.data(), 32);
-    auto b_hash = tagged_hash("MuSig/noncecoef", b_input, 130);
+    auto b_hash = tagged_hash("MuSig/nonceblinding", b_input, 130);
     session.b = Scalar::from_bytes(b_hash);
 
     // R = R1 + b * R2
