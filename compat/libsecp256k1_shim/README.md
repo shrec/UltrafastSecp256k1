@@ -10,7 +10,7 @@ Drop-in replacement for projects written against the libsecp256k1 C API. Link th
 
 | Category | Functions | Status |
 |---|---|---|
-| Context | `create`, `destroy`, `randomize` | [OK] Stub (context is no-op) |
+| Context | `create`, `destroy`, `randomize` | [OK] Full — randomize installs thread-local scalar blinding |
 | Public Keys | `pubkey_create`, `pubkey_parse`, `pubkey_serialize`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` | [OK] |
 | ECDSA | `ecdsa_sign`, `ecdsa_verify`, `signature_parse_compact`, `signature_serialize_compact`, `signature_normalize` | [OK] |
 | Schnorr (BIP-340) | `schnorrsig_sign32`, `schnorrsig_verify` | [OK] |
@@ -42,7 +42,7 @@ secp256k1_context_destroy(ctx);
 
 ## Limitations
 
-- Context randomization (`secp256k1_context_randomize`) is accepted but has no effect — UltrafastSecp256k1 does not use blinding.
+- Context randomization (`secp256k1_context_randomize`) is fully implemented — it installs additive thread-local scalar blinding (`ct::set_blinding(r, r_G)`) that protects all subsequent signing on that thread. Passing NULL clears blinding (`ct::clear_blinding()`), matching libsecp256k1 semantics exactly.
 - `secp256k1_context_static` is provided but points to a dummy.
 - Performance characteristics differ (typically faster — uses w=18 precomputed table for generator muls, GLV for variable-base).
 

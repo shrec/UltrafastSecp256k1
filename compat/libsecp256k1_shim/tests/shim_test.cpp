@@ -63,7 +63,7 @@ static void test_context(secp256k1_context* ctx) {
     CHECK(clone != nullptr, "context_clone");
     secp256k1_context_destroy(clone);
 
-    // randomize is a no-op but must return 1 (success)
+    // randomize installs thread-local CT blinding; must return 1
     unsigned char seed[32] = {0x42};
     CHECK(secp256k1_context_randomize(ctx, seed) == 1, "context_randomize returns 1");
     CHECK(secp256k1_context_randomize(ctx, nullptr) == 1, "context_randomize(null) returns 1");

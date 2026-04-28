@@ -1,5 +1,5 @@
 // ============================================================================
-// shim_context.cpp -- Context lifecycle (no-op for UltrafastSecp256k1)
+// shim_context.cpp -- Context lifecycle (context_randomize installs thread-local CT blinding)
 // ============================================================================
 #include "secp256k1.h"
 #include <array>
