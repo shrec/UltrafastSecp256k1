@@ -23,7 +23,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 |-----------|---------|
 | 5-stage pipeline (static analysis → audit gate → autonomy → bundle → verify) | ✅ |
 | 12 CAAS pipeline bugs fixed (d0da0c38) — C1-C12 | ✅ |
-| 247+ audit modules, 207 exploit PoCs, ~1M assertions | ✅ |
+| 313 audit modules, 232 exploit PoCs, ~1M assertions (2026-04-28 audit: 312/313 PASS) | ✅ |
 | 16+ fuzz harnesses (4066 lines) | ✅ |
 | CAAS protocol spec (`CAAS_PROTOCOL.md`) | ✅ |
 | CAAS hardening backlog (`CAAS_HARDENING_TODO.md`) — 12 items, all closed | ✅ |
