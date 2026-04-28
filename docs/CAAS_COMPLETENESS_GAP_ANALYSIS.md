@@ -23,7 +23,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 |-----------|---------|
 | 5-stage pipeline (static analysis → audit gate → autonomy → bundle → verify) | ✅ |
 | 12 CAAS pipeline bugs fixed (d0da0c38) — C1-C12 | ✅ |
-| 247 audit modules, 189 exploit PoCs, ~1M assertions | ✅ |
+| 247+ audit modules, 207 exploit PoCs, ~1M assertions | ✅ |
 | 16+ fuzz harnesses (4066 lines) | ✅ |
 | CAAS protocol spec (`CAAS_PROTOCOL.md`) | ✅ |
 | CAAS hardening backlog (`CAAS_HARDENING_TODO.md`) — 12 items, all closed | ✅ |
@@ -47,17 +47,9 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 
 ## ❌ ჯერ კიდევ რაც აკლია (Gap Closure Roadmap-ის Done Criteria)
 
-### 1. G-10: SECURITY_INCIDENT_TIMELINE.md — ❌ MISSING
+### 1. G-10: SECURITY_INCIDENT_TIMELINE.md — ✅ CLOSED (2026-04-28)
 
-**რატომ:** CAAS_GAP_CLOSURE_ROADMAP.md-ის G-10 მოითხოვს `docs/SECURITY_INCIDENT_TIMELINE.md`-ს, რომელიც არ არსებობს:
-
-```
-❌ ls: cannot access 'docs/SECURITY_INCIDENT_TIMELINE.md': No such file or directory
-```
-
-**რა უნდა შეიცავდეს:** ცარიელი template მაინც — ყოველი published advisory-ის timeline (date discovered, date fixed, date disclosed). "Structure with content, can start empty."
-
-**audit_gate.py-ს gate:** `audit_gate.py --disclosure-policy`
+`docs/SECURITY_INCIDENT_TIMELINE.md` **exists**. This gap is closed.
 
 ### 2. P21 — External-Audit Replacement Completeness Principle ❌ NOT REGISTERED
 
@@ -117,7 +109,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 | # | Item | Priority | Effort | Status |
 |---|------|----------|--------|--------|
 | 🔴 | P21 registration (AUDIT_MANIFEST.md + audit_gate.py) | HIGH | 2 hr | ⬜ NOT STARTED |
-| 🔴 | G-10: SECURITY_INCIDENT_TIMELINE.md creation | HIGH | 30 min | ⬜ NOT STARTED |
+| ✅ | G-10: SECURITY_INCIDENT_TIMELINE.md creation | HIGH | 30 min | ✅ CLOSED |
 | 🟡 | G-9b: audit_gate --exploit-traceability gate | MEDIUM | 1 hr | ⬜ NOT STARTED |
 | 🟡 | G-9b: CI integration (exploit traceability join each push) | MEDIUM | 1 hr | ⬜ NOT STARTED |
 | 🟡 | H-9: Audit dashboard CI integration | MEDIUM | 2 hr | ⚠️ PARTIAL |

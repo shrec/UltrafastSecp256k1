@@ -126,7 +126,7 @@ suppressions of known bugs.
 
 | Gap | Impact | Plan |
 |-----|--------|------|
-| Bitcoin Core's full test suite (`make check`) has not been run against the UF backend | A Core reviewer cannot yet confirm end-to-end functional equivalence at the full test-suite level | Requires Bitcoin Core integration scaffolding; tracked in project roadmap |
+| ~~Bitcoin Core's full test suite has not been run~~ — **Closed (2026-04-27)**: 693/693 `make check` tests pass against the UF backend (commit `c1df659e`; results in `docs/BITCOIN_CORE_TEST_RESULTS.json`; validated by `scripts/check_bitcoin_core_test_results.py` CAAS gate) | ✅ Resolved | See `docs/BITCOIN_CORE_TEST_RESULTS.json` |
 | Windows and macOS CI coverage is partial | CT verification and some audit tests run Linux-only | Windows/macOS CI expansion is planned; not yet scheduled |
 | `ndata`/R-grinding parity is verified manually, not by an automated CI gate | The parity claim for non-null `ndata` may regress without CI catching it | A CI gate script (`scripts/check_ndata_compat.py`) is planned; currently unimplemented |
 | Thread safety when multiple contexts on the same thread share blinding state | If a caller creates multiple contexts and interleaves operations, blinding state isolation is not tested at the CI level | Documented in `docs/THREAD_SAFETY.md` §7 as a known limitation; a test is planned |

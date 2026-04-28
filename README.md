@@ -16,8 +16,8 @@ UltrafastSecp256k1 is:
 
 - ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
 - 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
-- 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 60 non-exploit modules + 205 exploit PoCs, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 205 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
+- 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 60 non-exploit modules + 207 exploit PoCs, 0 failures — not a snapshot
+- 🧪 **Adversarially tested** — 207 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
 
 > Security is not assumed — it is continuously verified on every commit.
 
@@ -134,7 +134,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs 1,000,000+ assertions across 60 non-exploit audit modules and 205 exploit PoCs
+- Every commit runs 1,000,000+ assertions across 60 non-exploit audit modules and 207 exploit PoCs
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -297,7 +297,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **60 non-exploit modules + 205 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **60 non-exploit modules + 207 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **86 tests, 14 coverage areas, 0 failures** |
 | CI/CD workflows | **37 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
@@ -312,7 +312,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
-| `security-audit.yml` | Runs full `unified_audit_runner` — 60 non-exploit modules + 205 exploit PoCs, ~1M+ assertions | Every push |
+| `security-audit.yml` | Runs full `unified_audit_runner` — 60 non-exploit modules + 207 exploit PoCs, ~1M+ assertions | Every push |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |
 | `valgrind-ct.yml` | Valgrind memcheck + CT analysis | Every push |
@@ -333,7 +333,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
-- All 60 non-exploit audit modules and all 205 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 60 non-exploit audit modules and all 207 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)
 
@@ -1501,7 +1501,7 @@ libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
 
 ### Cross-Platform Audit Results
 
-The `unified_audit_runner` executes **60 non-exploit audit modules + 205 exploit PoCs** across 9 sections
+The `unified_audit_runner` executes **60 non-exploit audit modules + 207 exploit PoCs** across 9 sections
 (mathematical invariants, constant-time analysis, differential testing, standard
 vectors, fuzzing, protocol security, ABI safety, performance validation).
 
@@ -1637,7 +1637,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 60 non-exploit modules + 205 exploit PoCs and platform verdicts |
+| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 60 non-exploit modules + 207 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |
