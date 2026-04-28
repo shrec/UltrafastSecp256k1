@@ -1378,10 +1378,9 @@ static void run_neg22_abi_version(void) {
     CHECK(vs != nullptr, "NEG-22.5: version_string() non-null");
     CHECK(vs[0] != '\0', "NEG-22.6: version_string() non-empty");
 
-    // NEG-22.7: ufsecp_version() callable without crash and matches ABI major
+    // NEG-22.7: ufsecp_version() returns same value as abi (consistent API)
     unsigned int ver = ufsecp_version();
-    (void)ver;
-    CHECK(true, "NEG-22.7: ufsecp_version() callable without crash");
+    CHECK(ver > 0, "NEG-22.7: ufsecp_version() returns non-zero");
 }
 
 // ---------------------------------------------------------------------------
