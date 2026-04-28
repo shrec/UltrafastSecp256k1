@@ -7,6 +7,31 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28i (Bitcoin Core PR readiness sweep — shim hardening + MuSig2 protocol fix)
+
+### Security / Correctness Fixes
+
+- **MuSig2 wrong tagged hash tag** — `cpu/src/musig2.cpp`: nonce blinding factor `b` was computed with `tagged_hash("MuSig/noncecoef", ...)` instead of the BIP-327 §GetSessionValues required `"MuSig/nonceblinding"`. Wrong tag → wrong b → wrong R → wrong challenge e → all partial sigs invalid. Tests: 19/19 pass (was 16/19). All 2-of-2, 3-of-3, and 1-of-1 roundtrips verified.
+- **noncefp silent bypass** — `shim_ecdsa.cpp` had `(void)noncefp;` silently ignoring custom nonce callbacks and always using RFC 6979. Fail-closed guard added: returns 0 when a non-standard noncefp is passed. Same fix applied to `shim_recovery.cpp`.
+- **catch(...)×28 swallows removed** — All `try { ... } catch (...) { return 0; }` blocks removed from 9 compat shim files (shim_ecdh, shim_ecdsa, shim_ellswift, shim_extrakeys, shim_pubkey, shim_recovery, shim_schnorr, shim_seckey, shim_tagged_hash). Each extern "C" function now marked `noexcept`: unexpected exceptions (including std::bad_alloc) call `std::terminate()` instead of silently returning 0 — eliminating ambiguity with "invalid arguments" error.
+- **catch(...)×4 removed from GPU impl** — `ufsecp_gpu_impl.cpp`: 4 bare `catch(...){return 0;}` removed; functions now `noexcept`. Returning 0 was ambiguous with legitimate "no backends" / "not available" states.
+- **BUG-002 comment fix** — `recovery.cpp`: comment said "branchless CT comparison on secret nonce" for recid bit-1. Corrected: comparison is on `r_bytes` (public R.x component), not the secret nonce directly.
+
+### API Completeness (Bitcoin Core compatibility)
+
+- **B1: `secp256k1_context_set_illegal_callback` / `set_error_callback` added** — `secp256k1.h` now declares `secp256k1_callback_fn` typedef and both set-callback functions. Context struct stores per-context callback; default is `abort()`. Callers passing a no-op suppress the abort (Bitcoin Core ECCVerifyHandle pattern). Previously these symbols were missing — any code linking against Bitcoin Core's secp256k1 headers would fail to link.
+- **H1: `secp256k1_selftest` now functional** — No longer a stub. Verifies `1·G` produces the known generator x-coordinate; calls `abort()` on mismatch (matches libsecp256k1 selftest contract).
+- **H2: `secp256k1_context_clone(NULL)` now calls `abort()`** — Previously returned nullptr. Now matches libsecp default illegal-callback behavior.
+
+### Documentation Fixes
+
+- **H3/H4: README exploit test counts corrected** — "205", "187" → "232" in 4 places.
+- **Shim README updated** — Context row now lists all 7 context functions including callbacks and selftest.
+- **catch(...) pattern normalization** — 3 GCS functions in `ufsecp_bip322.cpp` + `ufsecp_bip39_validate` in `ufsecp_taproot.cpp` converted from bare `catch(...)` to `UFSECP_CATCH_RETURN(nullptr)` for consistency.
+- **ct_point.cpp SIMD alias comment** — Added note explaining `__m256i` has `__attribute__(__may_alias__)` in GCC/Clang; the reinterpret_cast<__m256i*> pattern is well-defined (not a strict aliasing UB).
+
+---
+
 ## 2026-04-28h (BUG-001..008 fix sweep from full multi-role audit)
 
 ### Security Fixes (code + CT)
