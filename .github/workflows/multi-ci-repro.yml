@@ -77,6 +77,7 @@ jobs:
             -DCMAKE_C_COMPILER=gcc-12 \
             -DCMAKE_CXX_COMPILER=g++-12 \
             -DUFSECP_REPRODUCIBLE=ON \
+            -DUFSECP_REFRESH_SOURCE_GRAPH=OFF \
             -DSECP256K1_BUILD_CPU=ON \
             -DSECP256K1_BUILD_SHIM=OFF \
             -DSECP256K1_BUILD_TESTS=OFF \
@@ -133,6 +134,7 @@ jobs:
             -DCMAKE_C_COMPILER=gcc-14 \
             -DCMAKE_CXX_COMPILER=g++-14 \
             -DUFSECP_REPRODUCIBLE=ON \
+            -DUFSECP_REFRESH_SOURCE_GRAPH=OFF \
             -DSECP256K1_BUILD_CPU=ON \
             -DSECP256K1_BUILD_SHIM=OFF \
             -DSECP256K1_BUILD_TESTS=OFF \

@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sanitizer-${{ github.ref }}-${{ matrix.sanitizer }}
+  group: sanitizer-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,6 +24,9 @@ jobs:
     name: ${{ matrix.sanitizer }} (Clang-17)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    concurrency:
+      group: sanitizer-${{ github.ref }}-${{ matrix.sanitizer }}
+      cancel-in-progress: true
 
     strategy:
       fail-fast: false
