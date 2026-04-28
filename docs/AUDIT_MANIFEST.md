@@ -370,6 +370,30 @@ Local enforcement: install with `python3 scripts/install_caas_hooks.py` (pre-pus
 
 ---
 
+### P21 — External-Audit Replacement Completeness
+
+> Every gap that an external audit engagement would normally close is closed
+> by an automated CAAS gate or by a published CAAS-pinned document.
+> The set of such gaps and gates is enumerated in
+> `docs/CAAS_GAP_CLOSURE_ROADMAP.md`.
+> External audit becomes a verification of methodology, not a bug-hunt.
+
+**Automated gate:** `audit_gate.py --external-audit-replacement` (included in `ALL_CHECKS`)
+
+Checks:
+- All 15 CAAS auditor-replacement documents present (CAAS_PROTOCOL.md, RESIDUAL_RISK_REGISTER.md,
+  SECURITY_CLAIMS.md, EXPLOIT_TEST_CATALOG.md, EXTERNAL_AUDIT_BUNDLE.{json,sha256},
+  CAAS_REVIEWER_QUICKSTART.md, CAAS_FAQ.md, CAAS_THREAT_MODEL.md,
+  NEGATIVE_RESULTS_LEDGER.md, THREAD_SAFETY.md, ABI_VERSIONING.md,
+  SECURITY_INCIDENT_TIMELINE.md, AUDIT_PHILOSOPHY.md,
+  `scripts/verify_external_audit_bundle.py`)
+- Failure: any required document absent blocks the pipeline.
+
+**Status:** All 15 required documents present as of 2026-04-28.
+See `docs/CAAS_GAP_CLOSURE_ROADMAP.md` and `docs/CAAS_HARDENING_TODO.md`.
+
+---
+
 ## 3. Severity Levels
 
 | Level | Meaning | Gate behavior |
@@ -532,3 +556,4 @@ To add a new audit principle:
 | 2026-04-14 | Security Autonomy Program: 10 scripts, 3 spec docs, preflight steps 18-20 | P12-P18 principles added; formal invariants, SLA, supply chain, misuse resistance, evidence governance, incident drills, fuzz campaigns, perf-security co-gating; master orchestrator `security_autonomy_check.py` |
 | 2026-04-14 | Added external-audit bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 external-auditor reproducibility principle added; external sign-off can be independently hash-verified and replay-validated |
 | 2026-04-14 | Added CAAS infrastructure: `caas_runner.py`, `install_caas_hooks.py`, `.github/workflows/caas.yml`; added CAAS stages to `preflight.yml` | P20 added — all five audit stages now run automatically on every push and PR; pre-push hook available for local enforcement |
+| 2026-04-28 | Registered P21 External-Audit Replacement Completeness; created `docs/CAAS_HARDENING_TODO.md` (H-1..H-12 all closed); `check_external_audit_replacement` gate in ALL_CHECKS | P21 added — all 15 CAAS auditor-replacement documents verified present; CAAS hardening backlog formally documented and closed |
