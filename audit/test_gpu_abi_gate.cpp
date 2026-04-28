@@ -121,6 +121,11 @@ static void test_context_lifecycle() {
     ufsecp_gpu_ctx_destroy(nullptr); /* should not crash */
     CHECK(1, "ctx_destroy(NULL) does not crash");
 
+    /* is_ready: NULL guard */
+    CHECK(ufsecp_gpu_is_ready(nullptr) == 0, "is_ready(NULL) == 0");
+    /* ctx is still nullptr here after all failed creates above */
+    CHECK(ufsecp_gpu_is_ready(ctx) == 0, "is_ready(NULL ctx after failed create) == 0");
+
     /* Error queries on NULL */
     CHECK(ufsecp_gpu_last_error(nullptr) == UFSECP_ERR_NULL_ARG,
           "last_error(NULL) returns ERR_NULL_ARG");
@@ -189,6 +194,9 @@ static void test_gpu_ops_if_available() {
     auto err = ufsecp_gpu_ctx_create(&ctx, avail_id, 0);
     CHECK(err == UFSECP_OK, "ctx_create succeeds");
     if (err != UFSECP_OK || !ctx) return;
+
+    /* is_ready: valid ctx → 1 (smoke) */
+    CHECK(ufsecp_gpu_is_ready(ctx) == 1, "is_ready(valid ctx) == 1 (smoke)");
 
     /* Test generator_mul_batch with known test vector:
        scalar = 1 → result = generator G

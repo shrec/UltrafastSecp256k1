@@ -4972,6 +4972,85 @@ static void test_k6_ecdh_semantic_variants() {
     ufsecp_ctx_destroy(ctx);
 }
 
+// I.6: context_randomize -------------------------------------------------------
+static void test_i6_context_randomize() {
+    (void)std::printf("  [I.6] ufsecp_context_randomize edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { CHECK(false, "I.6: ctx_create"); return; }
+
+    // NULL ctx rejected
+    uint8_t seed[32] = {};
+    CHECK(ufsecp_context_randomize(nullptr, seed) != UFSECP_OK,
+          "I.6a: NULL ctx rejected");
+
+    // zero-seed (all-zero 32 bytes) accepted — clears/resets blinding
+    CHECK(ufsecp_context_randomize(ctx, seed) == UFSECP_OK,
+          "I.6b: zero-seed (all-zero 32 bytes) accepted");
+
+    // valid random seed succeeds (smoke)
+    for (int i = 0; i < 32; ++i) seed[i] = static_cast<uint8_t>(0x42 + i);
+    CHECK(ufsecp_context_randomize(ctx, seed) == UFSECP_OK,
+          "I.6c: valid random seed succeeds (smoke)");
+
+    // signing after randomize produces a valid signature
+    uint8_t sk[32] = {}; sk[31] = 7;
+    uint8_t pub[33] = {};
+    uint8_t msg[32] = {}; for (int i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(i);
+    uint8_t sig[64] = {};
+    ufsecp_error_t rc = ufsecp_pubkey_create(ctx, sk, pub);
+    (void)rc;
+    rc = ufsecp_ecdsa_sign(ctx, msg, sk, sig);
+    CHECK(rc == UFSECP_OK, "I.6d: ecdsa_sign succeeds after randomize");
+    int ok = 0;
+    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub, &ok);
+    CHECK(rc == UFSECP_OK && ok == 1, "I.6e: signature verifies after randomize (round-trip)");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
+// I.7: ecdsa_sign with default (RFC 6979) nonce path ---------------------------
+static void test_i7_ecdsa_sign_noncefp() {
+    (void)std::printf("  [I.7] ufsecp_ecdsa_sign nonce path edge cases\n");
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { CHECK(false, "I.7: ctx_create"); return; }
+
+    uint8_t sk[32] = {}; sk[31] = 7;
+    uint8_t pub[33] = {};
+    uint8_t msg[32] = {}; for (int i = 0; i < 32; ++i) msg[i] = static_cast<uint8_t>(i);
+    uint8_t sig[64] = {};
+
+    ufsecp_error_t rc = ufsecp_pubkey_create(ctx, sk, pub);
+    (void)rc;
+
+    // NULL ctx → error
+    CHECK(ufsecp_ecdsa_sign(nullptr, msg, sk, sig) != UFSECP_OK,
+          "I.7a: NULL ctx rejected");
+    // NULL msg → error
+    CHECK(ufsecp_ecdsa_sign(ctx, nullptr, sk, sig) != UFSECP_OK,
+          "I.7b: NULL msg rejected");
+    // NULL privkey → error
+    CHECK(ufsecp_ecdsa_sign(ctx, msg, nullptr, sig) != UFSECP_OK,
+          "I.7c: NULL privkey rejected");
+    // NULL sig_out → error
+    CHECK(ufsecp_ecdsa_sign(ctx, msg, sk, nullptr) != UFSECP_OK,
+          "I.7d: NULL sig_out rejected");
+
+    // Default RFC 6979 path succeeds and is deterministic
+    uint8_t sig2[64] = {};
+    rc = ufsecp_ecdsa_sign(ctx, msg, sk, sig);
+    CHECK(rc == UFSECP_OK, "I.7e: ecdsa_sign succeeds (smoke)");
+    rc = ufsecp_ecdsa_sign(ctx, msg, sk, sig2);
+    CHECK(rc == UFSECP_OK, "I.7f: ecdsa_sign second call succeeds");
+    CHECK(std::memcmp(sig, sig2, 64) == 0, "I.7g: RFC 6979 output is deterministic");
+
+    // Verify round-trip
+    int ok = 0;
+    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub, &ok);
+    CHECK(rc == UFSECP_OK && ok == 1, "I.7h: signature verifies (round-trip)");
+
+    ufsecp_ctx_destroy(ctx);
+}
+
 // ============================================================================
 // Entry Point
 // ============================================================================
@@ -5089,6 +5168,8 @@ int test_adversarial_protocol_run() {
     test_i3_ecdsa_recoverable_roundtrip();
     test_i4_sign_verified();
     test_i5_batch_verify_deep();
+    test_i6_context_randomize();
+    test_i7_ecdsa_sign_noncefp();
 
     // K. Deep session security (v3.4+)
 #ifdef SECP256K1_BIP324

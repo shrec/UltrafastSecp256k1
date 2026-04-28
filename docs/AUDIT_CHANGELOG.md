@@ -7,6 +7,29 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28 (CAAS/Audit Gate unblock: P0 hostile-caller + P2 coverage gaps)
+
+### P0 ABI Hostile-Caller: ufsecp_gpu_is_ready + P2 coverage gaps closed
+
+Three CAAS/Audit Gate P0/P2 blockers resolved after the B-04 monolith split:
+
+**P0 ABI Hostile-Caller — `ufsecp_gpu_is_ready`**: Added NULL guard and smoke
+calls in `test_gpu_abi_gate.cpp` (`test_context_lifecycle`, `test_gpu_ops_if_available`).
+Updated `docs/FFI_HOSTILE_CALLER.md` Section J to explicitly document coverage.
+
+**P2 Test Coverage — 10 coverage gaps**: `cpu/src/impl/*.cpp` wrapper files (B-04 split)
+and `cpu/src/ufsecp_impl.cpp` had no `covers` edges because `test_coverage` dict in
+`scripts/build_project_graph.py` had stale `include/ufsecp/ufsecp_impl.cpp` paths.
+Fixed by adding a `monolith_split` test target covering all 8 impl files + aggregator,
+and correcting the `abi_gate` and `gpu_bip352_scan` paths.
+
+**P2 Test Coverage — `ufsecp_context_randomize` unmapped**: No audit test called this
+function. Added `test_i6_context_randomize()` and `test_i7_ecdsa_sign_noncefp()` to
+`audit/test_adversarial_protocol.cpp`, matching the coverage described in
+`docs/FFI_HOSTILE_CALLER.md` Section I.6/I.7.
+
+---
+
 ## 2026-04-27f (CAAS completion: Wycheproof CI, BTC bench evidence, libsecp/Bitcoin Core gap tests)
 
 ### CAAS Stage 2e: Bitcoin Core test_bitcoin gate added

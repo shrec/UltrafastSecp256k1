@@ -1711,8 +1711,22 @@ def populate_edges(cur: sqlite3.Cursor):
         ],
         'ecies_regression': ['cpu/src/ecies.cpp'],
         'musig2_frost': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp'],
-        'abi_gate': ['include/ufsecp/ufsecp_impl.cpp'],
-        'gpu_bip352_scan': ['include/ufsecp/ufsecp_gpu_impl.cpp'],
+        'abi_gate': ['cpu/src/ufsecp_impl.cpp'],
+        'gpu_bip352_scan': ['cpu/src/ufsecp_gpu_impl.cpp'],
+        'gpu_abi_gate': ['cpu/src/ufsecp_gpu_impl.cpp'],
+        'gpu_api_negative': ['cpu/src/ufsecp_gpu_impl.cpp'],
+        # B-04 monolith split: monolith_split exercises one function from each domain wrapper
+        'monolith_split': [
+            'cpu/src/ufsecp_impl.cpp',
+            'cpu/src/impl/ufsecp_address.cpp',
+            'cpu/src/impl/ufsecp_bip322.cpp',
+            'cpu/src/impl/ufsecp_coins.cpp',
+            'cpu/src/impl/ufsecp_core.cpp',
+            'cpu/src/impl/ufsecp_ecdsa.cpp',
+            'cpu/src/impl/ufsecp_musig2.cpp',
+            'cpu/src/impl/ufsecp_taproot.cpp',
+            'cpu/src/impl/ufsecp_zk.cpp',
+        ],
         'wycheproof_ecdsa': ['cpu/src/ecdsa.cpp'],
         'wycheproof_ecdh': ['cpu/src/ecdh.cpp'],
         'fault_injection': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp'],
@@ -1734,6 +1748,8 @@ def populate_edges(cur: sqlite3.Cursor):
             count += 1
     
     # C ABI -> source implementation edges
+    # Note: after B-04 monolith split, ABI wrapper layer lives in cpu/src/impl/ufsecp_*.cpp.
+    # Map both the deep implementation file and the wrapper file so neither is flagged as uncovered.
     abi_impl = {
         'ecdsa': 'cpu/src/ecdsa.cpp', 'schnorr': 'cpu/src/schnorr.cpp',
         'ecdh': 'cpu/src/ecdh.cpp', 'bip32': 'cpu/src/bip32.cpp',
@@ -1744,12 +1760,21 @@ def populate_edges(cur: sqlite3.Cursor):
         'ethereum': 'cpu/src/ethereum.cpp', 'hash': 'cpu/src/hash_accel.cpp',
         'wallet': 'cpu/src/wallet.cpp', 'address': 'cpu/src/address.cpp',
         'multiscalar': 'cpu/src/multiscalar.cpp',
+        # B-04 wrapper layer (cpu/src/impl/): categories that don't map to a deep impl file
+        'coins': 'cpu/src/impl/ufsecp_coins.cpp',
+        'pubkey': 'cpu/src/impl/ufsecp_core.cpp',
+        'seckey': 'cpu/src/impl/ufsecp_core.cpp',
+        'context': 'cpu/src/impl/ufsecp_core.cpp',
+        'other': 'cpu/src/impl/ufsecp_core.cpp',
+        'silent_payments': 'cpu/src/impl/ufsecp_core.cpp',
+        'error': 'cpu/src/impl/ufsecp_core.cpp',
+        'wif': 'cpu/src/impl/ufsecp_core.cpp',
     }
     cur.execute("SELECT name, category FROM c_abi_functions")
     for fname, cat in cur.fetchall():
         target_file = None
         if fname.startswith('ufsecp_gpu_') or fname == 'ufsecp_bip352_prepare_scan_plan':
-            target_file = 'include/ufsecp/ufsecp_gpu_impl.cpp'
+            target_file = 'cpu/src/ufsecp_gpu_impl.cpp'
         elif cat in abi_impl:
             target_file = abi_impl[cat]
 
@@ -2461,9 +2486,9 @@ def populate_call_edges(cur: sqlite3.Cursor):
     for name, category in cur.fetchall():
         if name not in known:
             if category == 'gpu' or name.startswith('ufsecp_gpu_') or name == 'ufsecp_bip352_prepare_scan_plan':
-                known[name] = 'include/ufsecp/ufsecp_gpu_impl.cpp'
+                known[name] = 'cpu/src/ufsecp_gpu_impl.cpp'
             else:
-                known[name] = 'include/ufsecp/ufsecp_impl.cpp'
+                known[name] = 'cpu/src/ufsecp_impl.cpp'
 
     # Build file -> sorted list of (start_line, end_line, func_name)
     ranges: dict = {}
@@ -2523,6 +2548,44 @@ def populate_call_edges(cur: sqlite3.Cursor):
                     count += 1
                 except Exception:
                     pass
+
+    # Also scan audit/test directories for ufsecp_* calls (these files are not in
+    # function_index because they are test binaries, not library source). This
+    # populates call_edges so that function_test_map can be derived for P2 coverage.
+    test_scan_dirs = [
+        LIB_ROOT / 'audit',
+        LIB_ROOT / 'cpu' / 'tests',
+        LIB_ROOT / 'tests',
+    ]
+    for test_dir in test_scan_dirs:
+        if not test_dir.exists():
+            continue
+        for filepath in sorted(test_dir.rglob('*.cpp')):
+            rel_path = str(filepath.relative_to(LIB_ROOT))
+            try:
+                lines = filepath.read_text(encoding='utf-8', errors='replace').split('\n')
+            except Exception:
+                continue
+            for lineno, line in enumerate(lines, 1):
+                s = line.strip()
+                if not s or s.startswith('//') or s.startswith('#') or \
+                   s.startswith('/*') or s.startswith('*'):
+                    continue
+                for m in call_re.finditer(line):
+                    callee = m.group(1)
+                    if not callee.startswith('ufsecp_'):
+                        continue
+                    if callee in SKIP_WORDS:
+                        continue
+                    callee_file = known.get(callee, 'cpu/src/ufsecp_impl.cpp')
+                    try:
+                        cur.execute("""INSERT OR IGNORE INTO call_edges
+                            (caller_file, caller_func, callee_func, callee_file, call_line)
+                            VALUES (?,?,?,?,?)""",
+                            (rel_path, 'test_body', callee, callee_file, lineno))
+                        count += 1
+                    except Exception:
+                        pass
 
     return count
 
