@@ -371,11 +371,18 @@ def check_test_coverage(conn):
     if unmapped:
         # GPU functions may not have direct test mappings
         gpu_unmapped = [f for f in unmapped if 'gpu' in f]
-        non_gpu_unmapped = [f for f in unmapped if 'gpu' not in f]
+        # secp256k1_* shim functions are tested via standalone shim tests (not
+        # routed through the unified runner), so they won't appear in call_edges.
+        # They are covered by check_libsecp_shim_parity.py + dedicated shim tests.
+        shim_unmapped = [f for f in unmapped if f.startswith('secp256k1_') and 'gpu' not in f]
+        non_gpu_unmapped = [f for f in unmapped
+                            if 'gpu' not in f and not f.startswith('secp256k1_')]
         if non_gpu_unmapped:
             findings.append(('FAIL', f'{len(non_gpu_unmapped)} non-GPU ABI functions without test mapping: {", ".join(non_gpu_unmapped[:5])}'))
         if gpu_unmapped:
             findings.append(('WARN', f'{len(gpu_unmapped)} GPU ABI functions without test mapping (GPU tests map differently)'))
+        if shim_unmapped:
+            findings.append(('WARN', f'{len(shim_unmapped)} secp256k1_* shim ABI functions covered by standalone shim tests (not in unified runner call graph)'))
 
     if not findings:
         findings.append(('PASS', f'All {len(all_abi)} ABI functions have test coverage'))
