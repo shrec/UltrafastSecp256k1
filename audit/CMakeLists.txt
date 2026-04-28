@@ -24,6 +24,13 @@ set(CPU_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/tests)
 # -- Helper: common link + stack options ------------------------------------
 macro(audit_target_defaults target_name)
     target_link_libraries(${target_name} PRIVATE fastsecp256k1)
+    # ufsecp_static provides the ufsecp_* C ABI symbols (ufsecp_pubkey_create etc.)
+    # It is built when SECP256K1_BUILD_CABI=ON (default). Link it when available.
+    if(TARGET ufsecp_static)
+        target_link_libraries(${target_name} PRIVATE ufsecp_static)
+    elseif(TARGET ufsecp_shared)
+        target_link_libraries(${target_name} PRIVATE ufsecp_shared)
+    endif()
     target_include_directories(${target_name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp)
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
