@@ -198,6 +198,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Clang treats __int128 as a built-in type and does not warn.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-pedantic>)
+        # Suppress GCC false-positive -Wstringop-overflow in LTO mode.
+        # GCC's LTO analysis cannot trace the buf_len_ < 64 invariant in SHA256::update
+        # across the LTO boundary, producing spurious "writing N bytes into region of M"
+        # diagnostics for code that is statically correct.
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-stringop-overflow>)
+        add_link_options(-Wno-stringop-overflow)
     endif()
     # macOS SDK headers (CFBase.h) trigger -Welaborated-enum-base with -Wpedantic
     if(APPLE)

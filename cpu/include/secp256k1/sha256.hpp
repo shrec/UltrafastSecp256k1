@@ -51,11 +51,25 @@ public:
         if (buf_len_ > 0) {
             std::size_t const fill = 64 - buf_len_;
             if (len < fill) {
-                std::memcpy(buf_ + buf_len_, ptr, len);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+                std::memcpy(buf_ + buf_len_, ptr, len);  // len < fill <= 64, safe
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
                 buf_len_ += len;
                 return;
             }
-            std::memcpy(buf_ + buf_len_, ptr, fill);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+            std::memcpy(buf_ + buf_len_, ptr, fill);  // fill = 64 - buf_len_, safe
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
             detail::sha256_compress_dispatch(buf_, state_);
             ptr += fill;
             len -= fill;

@@ -158,7 +158,7 @@ static void run_for_n(std::size_t n_outcomes, int passes) {
                 bool ok = schnorr_adaptor_verify(
                     f.pre_sigs[i], f.oracle_pubkey_x,
                     f.outcomes[i].msg, f.outcomes[i].adaptor_point);
-                if (ok) ++ok_count;
+                if (ok) ok_count = ok_count + 1;
             }
             auto t1 = Clock::now();
             times.push_back(
