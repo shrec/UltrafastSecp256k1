@@ -1,6 +1,6 @@
 # Bitcoin Core PR Readiness — Current Status Matrix
 
-**Commit:** `eb51507f` (dev branch, 2026-04-28)
+**Commit:** `ad1838d7` (dev branch, 2026-04-28)
 **Date:** 2026-04-28
 **Overall PR Readiness:** **~99%** (all 10 original + 3 surface blockers closed)
 
@@ -156,4 +156,4 @@ Two fixes were required:
 
 ---
 
-*Last updated: 2026-04-28 — all 10 original + 3 surface blockers closed*
+*Last updated: 2026-04-28 — all 10 original + 3 surface blockers closed; CT dead-code cleanup (M14-M16) + noexcept fix (M17) committed*
