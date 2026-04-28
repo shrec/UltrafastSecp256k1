@@ -1175,24 +1175,32 @@ def populate_source_files(cur: sqlite3.Cursor):
     return count
 
 def populate_abi_functions(cur: sqlite3.Cursor):
-    """Parse ufsecp.h, ufsecp_gpu.h, and ufsecp_version.h for all C ABI function declarations."""
-    headers = [
-        LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp.h',
-        LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_gpu.h',
-        LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_version.h',
+    """Parse ufsecp.h, ufsecp_gpu.h, ufsecp_version.h, and secp256k1 shim header."""
+    # (api_macro, func_prefix) pairs
+    header_specs = [
+        (LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp.h',         'UFSECP_API',     'ufsecp_'),
+        (LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_gpu.h',      'UFSECP_API',     'ufsecp_'),
+        (LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_version.h',  'UFSECP_API',     'ufsecp_'),
+        (LIB_ROOT / 'compat' / 'libsecp256k1_shim' / 'include' / 'secp256k1.h',
+         'SECP256K1_API', 'secp256k1_'),
+        (LIB_ROOT / 'compat' / 'libsecp256k1_shim' / 'include' / 'secp256k1_extrakeys.h',
+         'SECP256K1_API', 'secp256k1_'),
     ]
     count = 0
-    for header in headers:
+    for header, api_macro, func_prefix in header_specs:
         if not header.exists():
             continue
         with open(header, 'r') as f:
             lines = f.readlines()
-        
+
+        pat = re.compile(
+            r'%s\s+(?:const\s+)?(\w[\w\s*]*?)\s+\*?\s*(%s\w+)\s*\(' % (
+                re.escape(api_macro), re.escape(func_prefix))
+        )
         i = 0
         while i < len(lines):
             line = lines[i]
-            # Match UFSECP_API function declarations
-            m = re.match(r'UFSECP_API\s+(\w[\w\s*]*?)\s+(ufsecp_\w+)\s*\(', line)
+            m = pat.search(line)
             if m:
                 ret_type = m.group(1).strip()
                 func_name = m.group(2)
@@ -1203,10 +1211,10 @@ def populate_abi_functions(cur: sqlite3.Cursor):
                     sig += ' ' + lines[j].strip()
                     j += 1
                 sig = re.sub(r'\s+', ' ', sig).strip().rstrip(';')
-                
+
                 cat = categorize_abi_func(func_name)
                 layer = abi_layer(func_name)
-                
+
                 cur.execute("""INSERT OR IGNORE INTO c_abi_functions
                     (name, category, signature, line_no, layer)
                     VALUES (?,?,?,?,?)""",

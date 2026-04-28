@@ -192,7 +192,7 @@
         "audit/formal/lean/SafeGCD/Equivalence.lean",
         ".github/workflows/formal-verification.yml"
       ],
-      "reason": "Dual-prover formal verification: (1) Z3 SMT — 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT≡branching equivalence); (2) Lean 4 — 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT≡branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push."
+      "reason": "Dual-prover formal verification: (1) Z3 SMT \u2014 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT\u2261branching equivalence); (2) Lean 4 \u2014 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT\u2261branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push."
     },
     {
       "id": "m_ary_precompute_optimization",
@@ -382,7 +382,7 @@
         "audit/test_exploit_zvp_glv_dcp_multiscalar.cpp",
         "audit/test_exploit_ecdh_zvp_glv_static.cpp"
       ],
-      "reason": "ePrint 2025/076 extends classical ZVP to the Dependent Coordinates Problem on GLV multiscalar multiplication, recovering ~63% of key bits. PoC validates r-value distribution, β-endomorphism probing resilience, and static-key stability."
+      "reason": "ePrint 2025/076 extends classical ZVP to the Dependent Coordinates Problem on GLV multiscalar multiplication, recovering ~63% of key bits. PoC validates r-value distribution, \u03b2-endomorphism probing resilience, and static-key stability."
     },
     {
       "id": "lattice_sieve_hnp_subbit",
@@ -439,7 +439,7 @@
         "audit/test_exploit_sign_type_confusion_kreuse.cpp",
         "audit/test_exploit_ecdsa_nonce_reuse.cpp"
       ],
-      "reason": "CVE-2024-49364: tiny-secp256k1 type confusion allows k-reuse → key extraction. CVE-2024-49365: verify() false positive. CVE-2022-41340: missing r,s range validation. PoC validates k-uniqueness across 1024 signatures, boundary r/s rejection, and false-positive resistance."
+      "reason": "CVE-2024-49364: tiny-secp256k1 type confusion allows k-reuse \u2192 key extraction. CVE-2024-49365: verify() false positive. CVE-2022-41340: missing r,s range validation. PoC validates k-uniqueness across 1024 signatures, boundary r/s rejection, and false-positive resistance."
     },
     {
       "id": "ros_concurrent_schnorr_forgery",
@@ -517,7 +517,7 @@
       "repo_evidence": [
         "audit/test_exploit_ectester_point_validation.cpp"
       ],
-      "reason": "ePrint 2025/1293: ECTester systematic point validation testing found widespread ECC library failures — infinity acceptance, off-curve acceptance, twist-point acceptance. PoC validates all rejection paths + negate/tweak/combine edge cases."
+      "reason": "ePrint 2025/1293: ECTester systematic point validation testing found widespread ECC library failures \u2014 infinity acceptance, off-curve acceptance, twist-point acceptance. PoC validates all rejection paths + negate/tweak/combine edge cases."
     },
     {
       "id": "ros_dimensional_erosion",
@@ -574,7 +574,7 @@
       ],
       "references": [],
       "repo_evidence": [],
-      "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
+      "reason": "ePrint 2025/1151 (Such\u00e1nek, S\u00fds, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED \u2014 NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 \u03bb\u00b2 \u2261 -\u03bb-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free \u2014 the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
     },
     {
       "id": "dark_skippy_exfil",
@@ -647,7 +647,7 @@
       "repo_evidence": [
         "audit/test_exploit_tagged_hash_ext.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): SHA-256 admits Merkle-Damgård length extension: given H(prefix), any attacker can compute H(prefix||pad||extra). BIP-340 tagged_hash uses SHA256(SHA256(tag)||SHA256(tag)||msg) which blocks extension via double-hash structure (extension of outer SHA-256 doesn't produce valid tagged_hash of extended message). Additionally, BIP-340 enforces 32-byte message length, making length extension forgery impossible in standard Schnorr. Related background: NIST FIPS 180-4, BIP-340, Kelsey-Schneier (2005). TAGEXT-1..5 confirm domain separation, extension mechanics, and the 32-byte restriction as defense."
+      "reason": "Original Security Analysis (2026-04-28): SHA-256 admits Merkle-Damg\u00e5rd length extension: given H(prefix), any attacker can compute H(prefix||pad||extra). BIP-340 tagged_hash uses SHA256(SHA256(tag)||SHA256(tag)||msg) which blocks extension via double-hash structure (extension of outer SHA-256 doesn't produce valid tagged_hash of extended message). Additionally, BIP-340 enforces 32-byte message length, making length extension forgery impossible in standard Schnorr. Related background: NIST FIPS 180-4, BIP-340, Kelsey-Schneier (2005). TAGEXT-1..5 confirm domain separation, extension mechanics, and the 32-byte restriction as defense."
     },
     {
       "id": "wnaf_w18_cache_amplification",
@@ -665,7 +665,7 @@
       "repo_evidence": [
         "audit/test_exploit_wnaf_cache_ampl.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): UltrafastSecp256k1 uses w=18 for fixed-base scalar multiplication (2^18=262,144 entries, ~16 MB table) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB). This 8× larger cache footprint provides 8× more Flush+Reload probe points per signing operation. Digit leakage → partial nonce recovery → HNP → full key recovery. Related background: Percival (2005), Yarom-Falkner (2014), ePrint 2022/823 (Hertzbleed). Blinding (k+r) randomizes access patterns; statistically independent nonces produce statistically independent cache traces. WCACHE-1..5 characterize the amplification."
+      "reason": "Original Security Analysis (2026-04-28): UltrafastSecp256k1 uses w=18 for fixed-base scalar multiplication (2^18=262,144 entries, ~16 MB table) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB). This 8\u00d7 larger cache footprint provides 8\u00d7 more Flush+Reload probe points per signing operation. Digit leakage \u2192 partial nonce recovery \u2192 HNP \u2192 full key recovery. Related background: Percival (2005), Yarom-Falkner (2014), ePrint 2022/823 (Hertzbleed). Blinding (k+r) randomizes access patterns; statistically independent nonces produce statistically independent cache traces. WCACHE-1..5 characterize the amplification."
     },
     {
       "id": "musig2_keyagg_fingerprint_collision",
@@ -708,17 +708,36 @@
       "status": "original_analysis",
       "priority": "high",
       "action": "document_divergence",
-      "keywords": ["noncefp callback", "libsecp256k1 shim", "RFC 6979", "API contract", "hedged signing"],
-      "repo_evidence": ["audit/test_exploit_shim_noncefp_bypass.cpp", "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"],
-      "reason": "Original Security Analysis (2026-04-28): shim_ecdsa.cpp:210 has (void)noncefp — custom nonce callback silently ignored. Callers expecting nonce control receive RFC 6979 with no error. ndata IS respected via ct::ecdsa_sign_hedged. NONCEFP-1..5 confirm bypass and hedging escape hatch. Impact: any protocol requiring specific noncefp (hardware tokens, protocol-defined nonces) silently broken. Fix: document divergence."
+      "keywords": [
+        "noncefp callback",
+        "libsecp256k1 shim",
+        "RFC 6979",
+        "API contract",
+        "hedged signing"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_shim_noncefp_bypass.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): shim_ecdsa.cpp:210 has (void)noncefp \u2014 custom nonce callback silently ignored. Callers expecting nonce control receive RFC 6979 with no error. ndata IS respected via ct::ecdsa_sign_hedged. NONCEFP-1..5 confirm bypass and hedging escape hatch. Impact: any protocol requiring specific noncefp (hardware tokens, protocol-defined nonces) silently broken. Fix: document divergence."
     },
     {
       "id": "encoding_memory_corruption",
       "status": "original_analysis",
       "priority": "high",
       "action": "verify_parser_bounds",
-      "keywords": ["DER parsing", "buffer overflow", "OOB read", "field element", "input validation", "CVE class"],
-      "repo_evidence": ["audit/test_exploit_encoding_memory_corruption.cpp", "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"],
+      "keywords": [
+        "DER parsing",
+        "buffer overflow",
+        "OOB read",
+        "field element",
+        "input validation",
+        "CVE class"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_encoding_memory_corruption.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
       "reason": "Original Security Analysis (2026-04-28): adversarial DER/field/pubkey parser inputs must be cleanly rejected. CVE class: OOB read via malformed blob. Tests: DER 100-byte oversized, 1-byte undersized, scalar=0, x-only pubkey=0, field element >= p. All parsers use strict bounds checks. ENCORR-1..6 confirm safe rejection."
     },
     {
@@ -726,9 +745,113 @@
       "status": "original_analysis",
       "priority": "medium",
       "action": "monitor",
-      "keywords": ["batch verification", "Schnorr batch", "ECDSA batch", "order independence", "forgery class"],
-      "repo_evidence": ["audit/test_exploit_batch_verify_malleability.cpp"],
+      "keywords": [
+        "batch verification",
+        "Schnorr batch",
+        "ECDSA batch",
+        "order independence",
+        "forgery class"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_batch_verify_malleability.cpp"
+      ],
       "reason": "Original Security Analysis (2026-04-28): Schnorr+ECDSA batch verifier semantic correctness audit. Tests: BVM-1 order independence, BVM-2 poison (one bad sig fails batch), BVM-3 empty batch vacuous truth, BVM-4 single-entry agreement, BVM-5 duplicates pass, BVM-6 ECDSA batch. Related: Maxwell-Poelstra-Seurin-Wuille (2019), eprint 2019/741. All BVM-1..6 pass."
+    },
+    {
+      "id": "thread_local_blinding_race",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "thread safety",
+        "blinding",
+        "thread_local",
+        "concurrent",
+        "shim_context"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_thread_local_blinding.cpp",
+        "compat/libsecp256k1_shim/src/shim_context.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): shim_context.cpp calls ct::set_blinding() (thread-local). Concurrent context_randomize on shared ctx may race on ctx->blind[32] struct fields. Critical invariant: blinding is side-channel countermeasure only \u2014 same (key,msg) with different seeds must produce identical compact sigs. TLB-1..4 confirm correct behavior under concurrent access."
+    },
+    {
+      "id": "hedged_sign_return_silence",
+      "status": "original_analysis",
+      "priority": "low",
+      "action": "monitor",
+      "keywords": [
+        "hedged signing",
+        "fail-closed",
+        "zero signature",
+        "RFC 6979",
+        "ABI contract",
+        "shim"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_hedged_return_value.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): CLAUDE.md rule 4 \u2014 zero sigs from internals are ABI errors. shim_ecdsa.cpp hedged sign path must return error AND zero output on failure (not UFSECP_OK with zero sig). HEDGED-1..4 confirm fail-closed invariant: error leaves sig buffer zeroed, hedged is deterministic with same aux, hedged differs from deterministic."
+    },
+    {
+      "id": "gpu_kernel_memory_safety",
+      "status": "original_analysis",
+      "priority": "medium",
+      "action": "monitor",
+      "keywords": [
+        "GPU",
+        "CUDA",
+        "device memory",
+        "buffer overflow",
+        "OOB write",
+        "API boundary",
+        "null check"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_gpu_memory_safety.cpp",
+        "include/ufsecp/ufsecp_gpu.h"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): GPU kernel OOB writes corrupt device memory silently \u2014 no segfault, no ASAN. API-level guards are the only defense before kernel launch. Tests: GPU-1 null ctx_out, GPU-2 invalid backend, GPU-3 null output buffer, GPU-4 zero count, GPU-5 null pubkeys input. Advisory: skips when no GPU available."
+    },
+    {
+      "id": "ecdsa_rs_zero_check",
+      "status": "original_analysis",
+      "priority": "low",
+      "action": "monitor",
+      "keywords": [
+        "ECDSA",
+        "r=0",
+        "s=0",
+        "CVE-2022-39272",
+        "signature bypass",
+        "field prime",
+        "Schnorr"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_rs_zero_check.cpp",
+        "include/ufsecp/ufsecp.h"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): CVE-2022-39272-class \u2014 verifier skipping r != 0 allows (r=0,s=0) to verify against any public key. Tests: RZERO-1 r=0,s=0 rejected; RZERO-2 r=0,s=valid rejected; RZERO-3 r=valid,s=0 rejected; RZERO-4 Schnorr R.x=0 rejected (lift_x fails); RZERO-5 r=p (out-of-range) rejected. All rejections confirmed."
+    },
+    {
+      "id": "bip352_address_collision",
+      "status": "original_analysis",
+      "priority": "low",
+      "action": "monitor",
+      "keywords": [
+        "BIP-352",
+        "Silent Payments",
+        "address collision",
+        "domain separation",
+        "bech32m",
+        "scan key"
+      ],
+      "repo_evidence": [
+        "audit/test_exploit_bip352_address_collision.cpp",
+        "include/ufsecp/ufsecp.h"
+      ],
+      "reason": "Original Security Analysis (2026-04-28): BIP-352 Silent Payment address collision resistance. Domain separation via SHA256(shared_secret_x || \"Silent Payments\") must produce distinct addresses for distinct (scan_sk, spend_sk) pairs. SP-1..4: distinct scan keys, distinct spend keys, key order matters, 1000 random pairs with no collision. Birthday bound 2^128."
     }
   ]
 }

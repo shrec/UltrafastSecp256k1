@@ -676,5 +676,88 @@ Tested patterns: BVM-1 order independence (3-entry batch, forward/reverse), BVM-
 
 ---
 
+### N9: Thread-Local Blinding State Race (TLB)
+
+**Class**: Thread safety / side-channel countermeasure transparency  
+**Risk**: MEDIUM  
+**Status**: Blinding state is correctly thread-local; concurrent randomize+sign verified safe
+
+`shim_context.cpp` activates scalar blinding via `secp256k1::ct::set_blinding(r, r_G)` which stores the blinding factor in a thread-local variable. When multiple threads share one context and call `context_randomize` concurrently:
+- The context struct fields (`ctx->blind[32]`, `ctx->blinded`) may race on concurrent writes (not protected by a mutex)
+- The signing output (ECDSA compact sig) must be identical regardless of blinding seed, since blinding is a side-channel countermeasure only — it must not change the cryptographic output
+
+**Defense**: Thread-local blinding ensures each thread's signing path is independent. The `once_flag` in `shim_ensure_fixed_base` protects the table init race. Tests confirm correct signatures under concurrent randomize+sign load.
+
+**Test file**: `audit/test_exploit_thread_local_blinding.cpp` (TLB-1..4)
+
+---
+
+### N10: Hedged Sign Return-Value Silence (HEDGED)
+
+**Class**: Fail-closed invariant / ABI correctness  
+**Risk**: LOW  
+**Status**: Fail-closed confirmed; hedged path deterministic with same aux
+
+`shim_ecdsa.cpp` routes to `ct::ecdsa_sign_hedged` (RFC 6979 + aux entropy) when `ndata` is provided. If the hedged sign path fails (e.g., rejected key), the shim must:
+1. Return `0` (failure) — not silently return success
+2. Leave the output buffer all-zero — not partial/garbage data (CLAUDE.md rule 4)
+
+Returning `UFSECP_OK` with a zero signature is an ABI error that could silently propagate an invalid signature into a Bitcoin transaction.
+
+**Test file**: `audit/test_exploit_hedged_return_value.cpp` (HEDGED-1..4)
+
+---
+
+### N11: GPU Kernel Memory Safety (GPU)
+
+**Class**: Memory safety / API boundary  
+**Risk**: MEDIUM  
+**Status**: API-level guards verified; device memory OOB not directly testable
+
+GPU kernels operate on device memory via `cudaMalloc + cudaMemcpy`. A kernel OOB write corrupts device memory silently — no segfault, no ASAN catch. Corruption surfaces as arithmetic errors in later results. API-level guards (null checks, parameter validation) are the only defense before kernel launch.
+
+**Attack vectors**:
+- NULL output buffer → kernel writes to address 0 on GPU → silent corruption
+- Invalid backend (0xFF) → uninitialized context → crash or garbage results
+- Zero-count batch → undefined behavior if implementation doesn't guard
+- NULL input pubkeys → kernel reads from GPU null address
+
+**Test file**: `audit/test_exploit_gpu_memory_safety.cpp` (GPU-1..5) — advisory (skips if no GPU)
+
+---
+
+### N12: ECDSA r,s Zero Check Gap (RZERO)
+
+**Class**: Signature verification bypass (CVE-2022-39272 class)  
+**Risk**: LOW  
+**Status**: All zero/out-of-range inputs correctly rejected
+
+A verifier that skips the r≠0 or s≠0 check is vulnerable to a signature forgery:
+- `(r=0, s=0)` produces a signature equation that holds for any public key if the check is missing
+- `r = p` (field prime) is not a valid field element — a verifier accepting it operates on garbage
+- Schnorr R.x=0: `lift_x(0)` fails since x=0 is not on the secp256k1 curve
+
+**CVE reference**: CVE-2022-39272 — Ethereum go-ethereum ECDSA zero-s bypass class
+
+**Test file**: `audit/test_exploit_rs_zero_check.cpp` (RZERO-1..5)
+
+---
+
+### N13: BIP-352 Silent Payment Address Collision (SP)
+
+**Class**: Domain separation / collision resistance  
+**Risk**: LOW  
+**Status**: No collision in 1,000 random (scan_sk, spend_sk) pairs
+
+BIP-352 Silent Payment addresses encode `(scan_pubkey, spend_pubkey)` in bech32m. If two different `(scan_sk, spend_sk)` pairs produce the same address:
+- Funds sent to that address can be scanned by the attacker's scan key
+- The recipient cannot distinguish their output from the attacker's
+
+The collision probability is ≈1/2^128 (birthday bound on SHA-256 tagged hash). The test validates domain separation: distinct key pairs produce distinct addresses, and key order matters (`addr(scan=A,spend=B) ≠ addr(scan=B,spend=A)`).
+
+**Test file**: `audit/test_exploit_bip352_address_collision.cpp` (SP-1..4)
+
+---
+
 *Generated: 2026-04-06 | Updated: 2026-04-28*  
 *Cross-references: [SECURITY_CLAIMS.md](SECURITY_CLAIMS.md), [RESIDUAL_RISK_REGISTER.md](RESIDUAL_RISK_REGISTER.md), [AUDIT_TRACEABILITY.md](AUDIT_TRACEABILITY.md), [SELF_AUDIT_FAILURE_MATRIX.md](SELF_AUDIT_FAILURE_MATRIX.md)*

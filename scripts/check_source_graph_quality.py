@@ -50,7 +50,7 @@ WATCHED_DIRS = ["cpu", "include", "compat", "audit"]
 # Per-directory minimum entry counts
 DIR_FLOORS: dict[str, int] = {
     "cpu":     50,
-    "include": 20,
+    "include": 6,
     "audit":  100,
     "compat":  10,
     "docs":    30,

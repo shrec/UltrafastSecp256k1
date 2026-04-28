@@ -90,6 +90,10 @@ public:
     FieldElement negate(unsigned magnitude = 1) const;
     void negate_assign(unsigned magnitude = 1);
 
+    // No-op for API compatibility with FieldElement52/26 which track lazy-reduction
+    // magnitude and may need normalization. FE64 is always fully normalized.
+    void normalize_weak() noexcept {}
+
     // In-place mutable versions (modify this object directly)
     // ~10-15% faster than immutable versions due to no memory allocation
     void square_inplace();    // this = this^2 (modifies this)

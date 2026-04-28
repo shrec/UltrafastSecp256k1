@@ -1,0 +1,99 @@
+# sanitizer.yml — ASAN + MSAN matrix gate (C1 from V3 work order)
+#
+# Complements tsan.yml (ThreadSanitizer) with AddressSanitizer and
+# MemorySanitizer coverage across the CPU test suite and audit runner.
+# Any detected heap corruption, use-after-free, or uninitialized-read → hard fail.
+
+name: Sanitizers (ASAN / MSAN)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanitizer-${{ github.ref }}-${{ matrix.sanitizer }}
+  cancel-in-progress: true
+
+jobs:
+  sanitize:
+    name: ${{ matrix.sanitizer }} (Clang-17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: ASAN
+            cmake_flags: "-fsanitize=address,undefined -fno-omit-frame-pointer"
+            linker_flags: "-fsanitize=address,undefined"
+            env_var: ASAN_OPTIONS
+            env_val: "detect_leaks=1:halt_on_error=1:abort_on_error=1"
+          - sanitizer: MSAN
+            cmake_flags: "-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2"
+            linker_flags: "-fsanitize=memory"
+            env_var: MSAN_OPTIONS
+            env_val: "halt_on_error=1:abort_on_error=1"
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ matrix.sanitizer }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-${{ matrix.sanitizer }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
+
+      - name: Configure with ${{ matrix.sanitizer }}
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_FLAGS="${{ matrix.cmake_flags }}" \
+            -DCMAKE_C_FLAGS="${{ matrix.cmake_flags }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.linker_flags }}" \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_JAVA=OFF
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test suite under ${{ matrix.sanitizer }}
+        env:
+          ${{ matrix.env_var }}: ${{ matrix.env_val }}
+        run: |
+          echo "## ${{ matrix.sanitizer }} Results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ctest --test-dir build --output-on-failure -j"$(nproc)" \
+            -E "^(ct_sidechannel|selftest|unified_audit|py_)" \
+            --timeout 900 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

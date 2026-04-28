@@ -5001,9 +5001,8 @@ static void test_i6_context_randomize() {
     (void)rc;
     rc = ufsecp_ecdsa_sign(ctx, msg, sk, sig);
     CHECK(rc == UFSECP_OK, "I.6d: ecdsa_sign succeeds after randomize");
-    int ok = 0;
-    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub, &ok);
-    CHECK(rc == UFSECP_OK && ok == 1, "I.6e: signature verifies after randomize (round-trip)");
+    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub);
+    CHECK(rc == UFSECP_OK, "I.6e: signature verifies after randomize (round-trip)");
 
     ufsecp_ctx_destroy(ctx);
 }
@@ -5044,9 +5043,8 @@ static void test_i7_ecdsa_sign_noncefp() {
     CHECK(std::memcmp(sig, sig2, 64) == 0, "I.7g: RFC 6979 output is deterministic");
 
     // Verify round-trip
-    int ok = 0;
-    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub, &ok);
-    CHECK(rc == UFSECP_OK && ok == 1, "I.7h: signature verifies (round-trip)");
+    rc = ufsecp_ecdsa_verify(ctx, msg, sig, pub);
+    CHECK(rc == UFSECP_OK, "I.7h: signature verifies (round-trip)");
 
     ufsecp_ctx_destroy(ctx);
 }

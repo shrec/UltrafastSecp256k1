@@ -7,6 +7,25 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28g (Original Security Analysis: 5 new exploit PoCs N9–N13 — V2 Work Order)
+
+### New Exploit PoC Coverage: +5 tests (2 code-confirmed + 3 gap analysis)
+
+- **N9 — Thread-Local Blinding State Race** (`test_exploit_thread_local_blinding.cpp`, TLB-1..4): `shim_context.cpp` uses `ct::set_blinding()` which is thread-local. Confirms that concurrent `context_randomize` + `ecdsa_sign` across multiple threads sharing one ctx produces correct, verifiable signatures. Critical invariant: blinding is transparent (same key+msg with different seeds → same sig). Risk: MEDIUM.
+- **N10 — Hedged Sign Return-Value Silence** (`test_exploit_hedged_return_value.cpp`, HEDGED-1..4): Fail-closed invariant for hedged signing: error from `ecdsa_sign` must leave sig buffer all-zero (never partial/garbage). Tests the `ct::ecdsa_sign_hedged` path's determinism and difference from plain RFC 6979. Risk: LOW.
+- **N11 — GPU Kernel Memory Safety** (`test_exploit_gpu_memory_safety.cpp`, GPU-1..5): GPU C ABI boundary tests — NULL ctx_out, invalid backend, NULL output buffer, zero count, NULL pubkeys input. GPU kernel OOB writes corrupt device memory silently (no ASAN catch). Advisory: skips gracefully when no GPU is available. Risk: MEDIUM.
+- **N12 — ECDSA r,s Zero Check Gap** (`test_exploit_rs_zero_check.cpp`, RZERO-1..5): CVE-2022-39272-class: verifier must reject r=0, s=0, r=p (out-of-range), Schnorr R.x=0. A verifier skipping r≠0 allows a crafted (r=0,s=0) signature to pass against any public key. Risk: LOW.
+- **N13 — BIP-352 Address Collision** (`test_exploit_bip352_address_collision.cpp`, SP-1..4): Domain separation collision resistance for Silent Payment addresses. 1,000 random (scan_sk, spend_sk) pairs must produce unique bech32m addresses. Birthday bound 2^128. Risk: LOW.
+
+### Wiring
+
+- All five `.cpp` files added to `unified_audit_runner` source list and forward-declared.
+- N9/N12/N13 use C ABI (`ufsecp_context_randomize`, `ufsecp_ecdsa_verify`, `ufsecp_silent_payment_address`).
+- N10 standalone compiles `shim_ecdsa.cpp` directly for hedged sign testing via shim C API.
+- N11 marked `advisory=true`; skips gracefully when no GPU backend is available.
+
+---
+
 ## 2026-04-28f (Original Security Analysis: 3 new exploit PoCs N6–N8 — Real Code Vulnerabilities)
 
 ### New Exploit PoC Coverage: +3 tests (confirmed real vulnerabilities)

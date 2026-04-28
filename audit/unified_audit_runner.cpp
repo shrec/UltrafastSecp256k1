@@ -165,6 +165,11 @@ int test_exploit_blinding_recovery_hnp_run();         // Original: Context Blind
 int test_exploit_shim_noncefp_bypass_run();           // N6: Shim noncefp Callback Bypass (NONCEFP-1..5)
 int test_exploit_encoding_memory_corruption_run();    // N7: Encoding Memory Corruption (ENCORR-1..6)
 int test_exploit_batch_verify_malleability_run();     // N8: Batch Verify Malleability (BVM-1..6)
+int test_exploit_thread_local_blinding_run();         // N9: Thread-Local Blinding State Race (TLB-1..4)
+int test_exploit_hedged_return_value_run();           // N10: Hedged Sign Return-Value Silence (HEDGED-1..4)
+int test_exploit_gpu_memory_safety_run();             // N11: GPU Kernel Memory Safety (GPU-1..5)
+int test_exploit_rs_zero_check_run();                 // N12: ECDSA r,s Zero Check Gap (RZERO-1..5)
+int test_exploit_bip352_address_collision_run();      // N13: BIP-352 Address Collision (SP-1..4)
 int test_exploit_frost_weak_binding_run();            // ePrint 2026/075, 2025/1001 FROST weak binding
 int test_exploit_blind_spa_cmov_leak_run();           // ePrint 2024/589, 2025/935 Blind SPA + cmov leak
 int test_exploit_ectester_point_validation_run();     // ePrint 2025/1293 ECTester point validation
@@ -865,6 +870,11 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_shim_noncefp_bypass",         "Shim noncefp Callback Bypass: callback silently ignored (NONCEFP-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_shim_noncefp_bypass_run, false },
     { "exploit_encoding_memory_corruption",  "Encoding Memory Corruption: DER/field/pubkey adversarial inputs (ENCORR-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_encoding_memory_corruption_run, false },
     { "exploit_batch_verify_malleability",   "Batch Verify Malleability: order/dup/poison/ECDSA correctness (BVM-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_batch_verify_malleability_run, false },
+    { "exploit_thread_local_blinding",       "Thread-Local Blinding Race: shared ctx concurrent randomize+sign (TLB-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_thread_local_blinding_run, false },
+    { "exploit_hedged_return_value",         "Hedged Sign Return Silence: fail-closed zero-sig invariant (HEDGED-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_hedged_return_value_run, false },
+    { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, true },
+    { "exploit_rs_zero_check",               "ECDSA r,s Zero Check Gap: CVE-2022-39272-class rejection (RZERO-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_rs_zero_check_run, false },
+    { "exploit_bip352_address_collision",    "BIP-352 Address Collision: domain separation collision resistance (SP-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_bip352_address_collision_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

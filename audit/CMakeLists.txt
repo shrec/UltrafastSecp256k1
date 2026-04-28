@@ -2652,6 +2652,93 @@ target_compile_definitions(test_exploit_batch_verify_malleability_standalone PRI
 add_test(NAME exploit_batch_verify_malleability COMMAND test_exploit_batch_verify_malleability_standalone)
 set_tests_properties(exploit_batch_verify_malleability PROPERTIES TIMEOUT 60 LABELS "audit;exploit;batch;schnorr;malleability")
 
+# -- N9: Thread-Local Blinding State Race (TLB-1..4) — Original 2026-04-28 --
+# Validates thread-local blinding transparency: concurrent randomize+sign on
+# shared ctx must produce correct, verifiable signatures for each thread.
+add_executable(test_exploit_thread_local_blinding_standalone
+    test_exploit_thread_local_blinding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_thread_local_blinding_standalone)
+target_include_directories(test_exploit_thread_local_blinding_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_thread_local_blinding_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+find_package(Threads REQUIRED)
+target_link_libraries(test_exploit_thread_local_blinding_standalone PRIVATE Threads::Threads)
+add_test(NAME exploit_thread_local_blinding COMMAND test_exploit_thread_local_blinding_standalone)
+set_tests_properties(exploit_thread_local_blinding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;thread;blinding;tsan")
+
+# -- N10: Hedged Sign Return-Value Silence (HEDGED-1..4) — Original 2026-04-28 -
+# Audits fail-closed invariant: error from ecdsa_sign must leave sig zeroed,
+# and hedged signing with aux produces a different sig from deterministic path.
+add_executable(test_exploit_hedged_return_value_standalone
+    test_exploit_hedged_return_value.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
+audit_target_defaults(test_exploit_hedged_return_value_standalone)
+target_include_directories(test_exploit_hedged_return_value_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_hedged_return_value_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_hedged_return_value COMMAND test_exploit_hedged_return_value_standalone)
+set_tests_properties(exploit_hedged_return_value PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;hedged;shim")
+
+# -- N11: GPU Kernel Memory Safety (GPU-1..5) — Original 2026-04-28 ----------
+# NULL/invalid input boundary tests for GPU batch APIs.
+# Skips gracefully when no GPU backend is compiled or device is unavailable.
+add_executable(test_exploit_gpu_memory_safety_standalone
+    test_exploit_gpu_memory_safety.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_gpu_memory_safety_standalone)
+target_include_directories(test_exploit_gpu_memory_safety_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_gpu_memory_safety_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_gpu_memory_safety COMMAND test_exploit_gpu_memory_safety_standalone)
+set_tests_properties(exploit_gpu_memory_safety PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;memory;boundary")
+
+# -- N12: ECDSA r,s Zero Check Gap (RZERO-1..5) — Original 2026-04-28 --------
+# CVE-2022-39272-class: verify must reject r=0, s=0, r=p (out-of-range).
+add_executable(test_exploit_rs_zero_check_standalone
+    test_exploit_rs_zero_check.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_rs_zero_check_standalone)
+target_include_directories(test_exploit_rs_zero_check_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_rs_zero_check_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_rs_zero_check COMMAND test_exploit_rs_zero_check_standalone)
+set_tests_properties(exploit_rs_zero_check PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;schnorr;zero;cve")
+
+# -- N13: BIP-352 Address Collision (SP-1..4) — Original 2026-04-28 ----------
+# Domain separation collision resistance: 1000 random (scan,spend) pairs
+# must produce unique Silent Payment addresses.
+add_executable(test_exploit_bip352_address_collision_standalone
+    test_exploit_bip352_address_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_bip352_address_collision_standalone)
+target_include_directories(test_exploit_bip352_address_collision_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+target_compile_definitions(test_exploit_bip352_address_collision_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bip352_address_collision COMMAND test_exploit_bip352_address_collision_standalone)
+set_tests_properties(exploit_bip352_address_collision PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;silent-payments;collision")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3218,6 +3305,12 @@ add_executable(unified_audit_runner
     test_exploit_shim_noncefp_bypass.cpp
     test_exploit_encoding_memory_corruption.cpp
     test_exploit_batch_verify_malleability.cpp
+    # Original Security Analysis (2026-04-28) — N9..N13
+    test_exploit_thread_local_blinding.cpp
+    test_exploit_hedged_return_value.cpp
+    test_exploit_gpu_memory_safety.cpp
+    test_exploit_rs_zero_check.cpp
+    test_exploit_bip352_address_collision.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -3232,6 +3325,7 @@ find_package(Threads REQUIRED)
 target_link_libraries(unified_audit_runner PRIVATE Threads::Threads)
 target_include_directories(unified_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp   # for ufsecp_impl.cpp "#include ufsecp.h"
     ${CMAKE_CURRENT_BINARY_DIR}/../include   # for generated version.hpp
     ${CMAKE_BINARY_DIR}/include              # fallback for version.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include  # for gpu_backend.hpp (gpu_registry.cpp)

@@ -18,6 +18,38 @@ python3 scripts/build_project_graph.py --rebuild
 3. After structural changes, rebuild the graph.
 4. Before finishing, rerun `preflight.py` if the change is substantial.
 
+## Session State Recovery
+
+For non-trivial work, restore session state before making assumptions:
+
+```bash
+python3 ../../tools/session_state/session_state.py bootstrap --format text
+```
+
+Record durable handoff checkpoints after meaningful progress:
+
+```bash
+python3 ../../tools/session_state/session_state.py checkpoint \
+  --summary "<what changed>" \
+  --next "<next steps>"
+```
+
+Mandatory update triggers:
+
+- new substantial task starts
+- before planned file edits
+- after file edits
+- blocker found or resolved
+- important decision made
+- tests/validation run
+- source graph or memory repaired
+- before handoff or final response on non-trivial work
+
+Use `decision`, `blocker`, and `file` subcommands for important context. Do not
+checkpoint every tiny read or trivial reply. Checkpoint when losing the chat
+would force the next model to rediscover context or repeat work. Do not store
+secrets, private keys, credentials, or tokens.
+
 ## Most Useful Commands
 
 ```bash
