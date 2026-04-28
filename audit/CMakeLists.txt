@@ -24,6 +24,8 @@ set(CPU_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/tests)
 # -- Helper: common link + stack options ------------------------------------
 macro(audit_target_defaults target_name)
     target_link_libraries(${target_name} PRIVATE fastsecp256k1)
+    target_include_directories(${target_name} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp)
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(${target_name} PRIVATE "LINKER:/STACK:8388608")
     endif()
