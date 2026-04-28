@@ -696,3 +696,13 @@ docker run --rm ultrafastsecp256k1 ctest --output-on-failure
 ## Version
 
 Current version is read from `VERSION.txt` at configure time.
+
+## Security Hardening Flags (2026-04-28)
+
+The release build automatically enables supply-chain hardening flags:
+
+- `-fstack-protector-strong` — stack canaries for all functions with vulnerable stack frames
+- `-D_FORTIFY_SOURCE=2` (Release builds only) — fortified glibc function wrappers
+- `-fPIE` + `-pie` — position-independent executable (ASLR support)
+
+These are required by the CAAS supply-chain gate (`scripts/supply_chain_gate.py`). To override for embedded/no-OS targets, pass `-DCMAKE_C_FLAGS=-fno-stack-protector` explicitly.

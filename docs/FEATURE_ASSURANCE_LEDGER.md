@@ -33,8 +33,9 @@
 | `ufsecp_last_error` | Y | - | - | N/A | N/A | - | N/A | N/A |
 | `ufsecp_last_error_msg` | Y | - | - | N/A | N/A | - | N/A | N/A |
 | `ufsecp_ctx_size` | Y | - | - | N/A | N/A | - | N/A | N/A |
+| `ufsecp_context_randomize` | Y | Y | Y (null ctx, null seed) | N/A | N/A | CT blinding | N/A | N/A |
 
-**Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp`
+**Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp` (`test_i6_context_randomize`)
 
 ---
 
@@ -589,6 +590,7 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_device_info` | Y | Y (NULL info, invalid dev) | N/A | Name, memory, CUs, clock |
 | `ufsecp_gpu_ctx_create` | Y | Y (NULL ctx_out, invalid bid, bad dev) | N/A | Returns ERR_GPU_UNAVAILABLE |
 | `ufsecp_gpu_ctx_destroy` | Y | Y (NULL safe) | N/A | delete + shutdown |
+| `ufsecp_gpu_is_ready` | Y | Y (NULL ctx → 0, uninitialized → 0) | N/A | Smoke: valid ctx → 1 (`audit/test_gpu_abi_gate.cpp`) |
 | `ufsecp_gpu_last_error` | Y | Y (NULL → ERR_NULL_ARG) | N/A | Last op result |
 | `ufsecp_gpu_last_error_msg` | Y | Y (NULL → fixed msg) | N/A | Human-readable |
 | `ufsecp_gpu_error_str` | Y | Y (unknown code → "unknown error") | Y | CPU + GPU codes |

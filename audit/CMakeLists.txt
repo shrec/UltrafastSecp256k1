@@ -2528,6 +2528,44 @@ target_compile_definitions(test_exploit_bitcoin_core_rgrinding_standalone PRIVAT
 add_test(NAME exploit_bitcoin_core_rgrinding COMMAND test_exploit_bitcoin_core_rgrinding_standalone)
 set_tests_properties(exploit_bitcoin_core_rgrinding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bitcoin;core;rgrinding;nonce;differential")
 
+# -- Upstream gap closure (GAP-1, GAP-3, GAP-4) 2026-04-28 ------------------
+add_executable(test_exploit_pubkey_cmp_standalone test_exploit_pubkey_cmp.cpp)
+audit_target_defaults(test_exploit_pubkey_cmp_standalone)
+target_compile_definitions(test_exploit_pubkey_cmp_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_pubkey_cmp COMMAND test_exploit_pubkey_cmp_standalone)
+set_tests_properties(exploit_pubkey_cmp PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pubkey;comparison;ordering;musig2")
+
+add_executable(test_exploit_pubkey_sort_standalone test_exploit_pubkey_sort.cpp)
+audit_target_defaults(test_exploit_pubkey_sort_standalone)
+target_compile_definitions(test_exploit_pubkey_sort_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_pubkey_sort COMMAND test_exploit_pubkey_sort_standalone)
+set_tests_properties(exploit_pubkey_sort PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pubkey;sort;ordering;musig2")
+
+add_executable(test_exploit_alloc_bounds_standalone test_exploit_alloc_bounds.cpp)
+audit_target_defaults(test_exploit_alloc_bounds_standalone)
+target_compile_definitions(test_exploit_alloc_bounds_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_alloc_bounds COMMAND test_exploit_alloc_bounds_standalone)
+set_tests_properties(exploit_alloc_bounds PROPERTIES TIMEOUT 60 LABELS "audit;exploit;allocation;batch;scratch;bounds")
+
+# -- Upstream gap closure (GAP-2, GAP-5, GAP-7) 2026-04-28 ------------------
+add_executable(test_exploit_hsort_standalone test_exploit_hsort.cpp)
+audit_target_defaults(test_exploit_hsort_standalone)
+target_compile_definitions(test_exploit_hsort_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_hsort COMMAND test_exploit_hsort_standalone)
+set_tests_properties(exploit_hsort PROPERTIES TIMEOUT 60 LABELS "audit;exploit;heapsort;batch;ordering")
+
+add_executable(test_exploit_wnaf_standalone test_exploit_wnaf.cpp)
+audit_target_defaults(test_exploit_wnaf_standalone)
+target_compile_definitions(test_exploit_wnaf_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_wnaf COMMAND test_exploit_wnaf_standalone)
+set_tests_properties(exploit_wnaf PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wnaf;scalar;decomposition")
+
+add_executable(test_exploit_int128_standalone test_exploit_int128.cpp)
+audit_target_defaults(test_exploit_int128_standalone)
+target_compile_definitions(test_exploit_int128_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_int128 COMMAND test_exploit_int128_standalone)
+set_tests_properties(exploit_int128 PROPERTIES TIMEOUT 60 LABELS "audit;exploit;int128;field;arithmetic")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3073,6 +3111,14 @@ add_executable(unified_audit_runner
     test_exploit_libsecp_eckey_api.cpp
     # BC-01: Bitcoin Core R-grinding nonce pattern
     test_exploit_bitcoin_core_rgrinding.cpp
+    # Upstream gap closure (2026-04-28) — GAP-1, GAP-3, GAP-4
+    test_exploit_pubkey_cmp.cpp
+    test_exploit_pubkey_sort.cpp
+    test_exploit_alloc_bounds.cpp
+    # Upstream gap closure (2026-04-28) — GAP-2, GAP-5, GAP-7
+    test_exploit_hsort.cpp
+    test_exploit_wnaf.cpp
+    test_exploit_int128.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

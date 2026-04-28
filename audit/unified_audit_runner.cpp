@@ -416,6 +416,12 @@ int test_exploit_monolith_split_run();          // Monolith split integrity (MON
 int test_exploit_gpu_secret_erase_run();        // GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 — 2026-04-27
 int test_exploit_libsecp_eckey_api_run();       // libsecp256k1 EC key API compat (ECKEY-1..17) — L-01 — 2026-04-27
 int test_exploit_bitcoin_core_rgrinding_run();  // Bitcoin Core R-grinding nonce pattern (RGRIND-1..8) — BC-01 — 2026-04-27
+int test_exploit_pubkey_cmp_run();              // Pubkey comparison ordering (GAP-3) — upstream run_pubkey_comparison — 2026-04-28
+int test_exploit_pubkey_sort_run();             // Pubkey sort + MuSig2 ordering (GAP-4) — upstream run_pubkey_sort — 2026-04-28
+int test_exploit_alloc_bounds_run();            // Allocation boundary batch verify (GAP-1) — upstream run_scratch_tests — 2026-04-28
+int test_exploit_hsort_run();                   // Heap sort / batch ordering (GAP-2) — upstream run_hsort_tests — 2026-04-28
+int test_exploit_wnaf_run();                    // wNAF window decomposition boundaries (GAP-5) — upstream run_wnaf_tests — 2026-04-28
+int test_exploit_int128_run();                  // 128-bit arithmetic field boundaries (GAP-7) — upstream run_int128_tests — 2026-04-28
 
 // ============================================================================
 // Forward declarations -- orphan PoCs previously built as CTest targets but
@@ -831,6 +837,14 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_gpu_secret_erase",            "GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 2026-04-27", "exploit_poc", test_exploit_gpu_secret_erase_run, false },
     { "exploit_libsecp_eckey_api",           "libsecp256k1 EC key API compat (ECKEY-1..17) — L-01 2026-04-27",                   "differential", test_exploit_libsecp_eckey_api_run, false },
     { "exploit_bitcoin_core_rgrinding",      "Bitcoin Core R-grinding nonce pattern (RGRIND-1..8) — BC-01 2026-04-27",           "differential", test_exploit_bitcoin_core_rgrinding_run, false },
+    // Section 12: Upstream libsecp256k1 test parity (2026-04-28 gap closure)
+    // ===================================================================
+    { "exploit_pubkey_cmp",                  "Pubkey comparison ordering (GAP-3) — upstream run_pubkey_comparison 2026-04-28",   "exploit_poc",  test_exploit_pubkey_cmp_run, false },
+    { "exploit_pubkey_sort",                 "Pubkey sort + MuSig2 ordering (GAP-4) — upstream run_pubkey_sort 2026-04-28",      "exploit_poc",  test_exploit_pubkey_sort_run, false },
+    { "exploit_alloc_bounds",                "Allocation boundary batch verify (GAP-1) — upstream run_scratch_tests 2026-04-28", "exploit_poc",  test_exploit_alloc_bounds_run, false },
+    { "exploit_hsort",                       "Heap sort / batch ordering (GAP-2) — upstream run_hsort_tests 2026-04-28",         "exploit_poc",  test_exploit_hsort_run, false },
+    { "exploit_wnaf",                        "wNAF window decomposition boundaries (GAP-5) — upstream run_wnaf_tests 2026-04-28","exploit_poc",  test_exploit_wnaf_run, false },
+    { "exploit_int128",                      "128-bit arithmetic field boundaries (GAP-7) — upstream run_int128_tests 2026-04-28","exploit_poc", test_exploit_int128_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

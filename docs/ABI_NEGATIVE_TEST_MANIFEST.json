@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-04-28T07:40:53.355323+00:00",
-  "header_count": 180,
+  "generated_at": "2026-04-28T08:16:31.261078+00:00",
+  "header_count": 181,
   "blocking_function_count": 0,
   "coverage_counts": {
     "null_rejection": 180,
@@ -9,6 +9,33 @@
     "success_smoke": 180
   },
   "functions": [
+    {
+      "function": "ufsecp_abi_version",
+      "category": "cpu",
+      "header": "include/ufsecp/ufsecp.h",
+      "signature": "unsigned int ufsecp_abi_version(void)",
+      "required_checks": [
+        "success_smoke",
+        "zero_edge",
+        "invalid_content"
+      ],
+      "covered_checks": {
+        "success_smoke": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.1",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.5",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.7"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.2"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.3",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg22_abi_version:NEG-22.4"
+        ]
+      },
+      "missing_checks": [],
+      "blocking": false
+    },
     {
       "function": "ufsecp_addr_p2pkh",
       "category": "cpu",
@@ -46,6 +73,16 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_1_p2pkh_fuzz",
           "test-call:audit/test_kat_all_operations.cpp:run_kat9_p2pkh"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
+          "test-call:audit/test_c_abi_negative.cpp:697",
+          "test-call:audit/test_c_abi_negative.cpp:702",
+          "test-call:audit/test_c_abi_negative.cpp:708",
+          "test-call:audit/test_c_abi_negative.cpp:714",
+          "test-call:audit/test_c_abi_negative.cpp:720",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_1_p2pkh_fuzz",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
           "test-call:audit/test_c_abi_negative.cpp:714",
@@ -63,16 +100,6 @@
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2pkh_rejects",
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_error_code_specificity",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_1_p2pkh_fuzz"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
-          "test-call:audit/test_c_abi_negative.cpp:697",
-          "test-call:audit/test_c_abi_negative.cpp:702",
-          "test-call:audit/test_c_abi_negative.cpp:708",
-          "test-call:audit/test_c_abi_negative.cpp:714",
-          "test-call:audit/test_c_abi_negative.cpp:720",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_1_p2pkh_fuzz",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -103,6 +130,11 @@
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_p2sh_determinism",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_invalid_network_selector"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
+          "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_redeem_script_edge_cases",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_redeem_script_edge_cases"
@@ -112,11 +144,6 @@
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2sh_rejects",
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_error_code_specificity",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_invalid_network_selector"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
-          "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_redeem_script_edge_cases",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -148,6 +175,10 @@
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_mainnet_testnet_confusion",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_uncompressed_pubkey_rejected"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_uncompressed_pubkey_rejected"
@@ -157,10 +188,6 @@
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2sh_p2wpkh_rejects",
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_error_code_specificity",
           "test-call:audit/test_exploit_p2sh_address_confusion.cpp:test_uncompressed_pubkey_rejected"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg13_p2sh_addr",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -198,14 +225,6 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_3_p2tr_fuzz",
           "test-call:audit/test_kat_all_operations.cpp:run_kat17_p2tr"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_invalid_enums",
-          "test-call:audit/test_c_abi_negative.cpp:741",
-          "test-call:audit/test_c_abi_negative.cpp:746",
-          "test-call:audit/test_c_abi_negative.cpp:752",
-          "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2tr_rejects"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
           "test-call:audit/test_c_abi_negative.cpp:741",
@@ -213,6 +232,14 @@
           "test-call:audit/test_c_abi_negative.cpp:752",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_3_p2tr_fuzz",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_invalid_enums",
+          "test-call:audit/test_c_abi_negative.cpp:741",
+          "test-call:audit/test_c_abi_negative.cpp:746",
+          "test-call:audit/test_c_abi_negative.cpp:752",
+          "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2tr_rejects"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:752",
@@ -254,14 +281,6 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_2_p2wpkh_fuzz",
           "test-call:audit/test_kat_all_operations.cpp:run_kat13_p2wpkh"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_invalid_enums",
-          "test-call:audit/test_c_abi_negative.cpp:725",
-          "test-call:audit/test_c_abi_negative.cpp:730",
-          "test-call:audit/test_c_abi_negative.cpp:736",
-          "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2wpkh_rejects"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
           "test-call:audit/test_c_abi_negative.cpp:725",
@@ -269,6 +288,14 @@
           "test-call:audit/test_c_abi_negative.cpp:736",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_2_p2wpkh_fuzz",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_invalid_enums",
+          "test-call:audit/test_c_abi_negative.cpp:725",
+          "test-call:audit/test_c_abi_negative.cpp:730",
+          "test-call:audit/test_c_abi_negative.cpp:736",
+          "test-call:audit/test_exploit_network_validation_bypass.cpp:test_p2wpkh_rejects"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:725",
@@ -380,13 +407,13 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
         ]
       },
       "missing_checks": [],
@@ -409,13 +436,13 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143"
@@ -440,12 +467,12 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
@@ -471,12 +498,12 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
@@ -501,12 +528,12 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144"
@@ -542,14 +569,14 @@
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe8_bip322_sign"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
-          "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
+          "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
@@ -582,14 +609,14 @@
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_modified_message_fails",
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_zero_and_invalid_inputs"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_modified_message_fails",
           "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg16_bip322",
@@ -786,12 +813,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_k1_bip324_multi_packet",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip324_lengths"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip324_lengths",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip324_lengths"
         ]
       },
       "missing_checks": [],
@@ -871,17 +898,17 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_bip32_derivation",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_7_bip32_derive_fuzz"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_7_bip32_derive_fuzz"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
           "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_7_bip32_derive_fuzz"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
@@ -923,14 +950,6 @@
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_bip32_path",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe2_bip32_derive_path"
         ],
-        "invalid_content": [
-          "test-call:audit/fuzz_bip32_path.cpp:123",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_bad_path",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_6_bip32_path_fuzz"
-        ],
         "null_rejection": [
           "test-call:audit/fuzz_bip32_path.cpp:123",
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
@@ -939,6 +958,14 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_6_bip32_path_fuzz",
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_bip32_path",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/fuzz_bip32_path.cpp:123",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_bad_path",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_6_bip32_path_fuzz"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_bad_path"
@@ -1067,17 +1094,17 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe2_bip32_derive_path"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
-          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
           "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
+          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
@@ -1110,16 +1137,16 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_bip32_derivation",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_7_bip32_derive_fuzz"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
           "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg10_bip32"
         ]
       },
       "missing_checks": [],
@@ -1149,6 +1176,11 @@
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b08_4",
           "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_2_3_cpu_plan"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
+          "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_2_3_cpu_plan",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b08_2",
@@ -1158,11 +1190,6 @@
         "invalid_content": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b08_2"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
-          "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_2_3_cpu_plan",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -1188,13 +1215,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers",
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers",
@@ -1223,12 +1250,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39"
         ],
         "zero_edge": [
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
@@ -1256,13 +1283,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
-          "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
+          "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ],
         "zero_edge": [
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
@@ -1289,13 +1316,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
-          "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
+          "test-call:audit/test_ffi_round_trip.cpp:test_bip39_round_trip"
         ]
       },
       "missing_checks": [],
@@ -1323,13 +1350,13 @@
           "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe7_bip85_bip39"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
-          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
+          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
@@ -1364,15 +1391,15 @@
           "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe6_bip85_entropy"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
-          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_null_handling",
-          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
           "test-call:audit/test_exploit_bip85_path_collision.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg14_bip85",
+          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_null_handling",
+          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_bip85_path_collision.cpp:test_zero_and_invalid_inputs"
@@ -1398,12 +1425,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
           "test-call:audit/test_ffi_round_trip.cpp:test_btc_message_sign"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
@@ -1434,12 +1461,12 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_btc_message_sign",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe4_btc_message_sign"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_11",
@@ -1470,13 +1497,13 @@
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_11",
           "test-call:audit/test_ffi_round_trip.cpp:test_btc_message_sign"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
-          "test-call:audit/test_ffi_round_trip.cpp:test_btc_message_sign"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
+          "test-call:audit/test_ffi_round_trip.cpp:test_btc_message_sign"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_11"
@@ -1504,16 +1531,16 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_coin_wallet"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_coin_wallet"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -1536,15 +1563,15 @@
           "graph:function_test_map:wallet",
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -1571,12 +1598,12 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_coin_wallet",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe3_coin_wif_encode"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin"
         ],
         "zero_edge": [
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_coin_wallet"
@@ -1602,17 +1629,17 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ]
       },
@@ -1645,14 +1672,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_context_lifecycle",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_8_ffi_context_stress"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run"
-        ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg1_context"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
           "test-call:audit/test_c_abi_negative.cpp:run_neg1_context",
@@ -1663,6 +1682,14 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_8_ffi_context_stress",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg1_context"
         ]
       },
       "missing_checks": [],
@@ -3001,6 +3028,79 @@
           "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_content_core_ops",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_partial_sig_agg_rejects_arity_mismatch",
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_keyagg_participant_overflow",
+          "test-call:audit/test_adversarial_protocol.cpp:test_frost_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_transcript_mismatch",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_bad_seed",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
+          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_schnorr",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144",
+          "test-call:audit/test_adversarial_protocol.cpp:test_h12_taproot_sighash",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg1_context",
+          "test-call:audit/test_c_abi_thread_stress.cpp:110",
+          "test-call:audit/test_exploit_batch_sign.cpp:test_exploit_batch_sign_run",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_exploit_binding_invalid_curve.cpp:test_exploit_binding_invalid_curve_run",
+          "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_null_handling",
+          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_null_handling",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
+          "test-call:audit/test_exploit_ctx_clone.cpp:test_exploit_ctx_clone_run",
+          "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
+          "test-call:audit/test_exploit_ecdh_zvp_glv_static.cpp:test_exploit_ecdh_zvp_glv_static_run",
+          "test-call:audit/test_exploit_ecies_ephemeral_reuse.cpp:test_exploit_ecies_ephemeral_reuse_run",
+          "test-call:audit/test_exploit_frost_ct_nonce.cpp:test_exploit_frost_ct_nonce_run",
+          "test-call:audit/test_exploit_frost_participant_set_malleability.cpp:test_exploit_frost_participant_set_malleability_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:23",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:303",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_destroy_null",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_double_destroy",
+          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
+          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_null_handling",
+          "test-call:audit/test_exploit_pubkey_arith.cpp:test_exploit_pubkey_arith_run",
+          "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_null_args",
+          "test-call:audit/test_exploit_taproot_commitment_adversarial.cpp:test_exploit_taproot_commitment_adversarial_run",
+          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
+          "test-call:audit/test_ffi_round_trip.cpp:test_context_lifecycle",
+          "test-call:audit/test_ffi_round_trip.cpp:test_silent_payments",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_8_ffi_context_stress",
+          "test-call:audit/test_fuzz_musig2_frost.cpp:test_fuzz_musig2_frost_run",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_rogue_key",
@@ -3082,79 +3182,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_coin_wallet",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid",
           "test-call:audit/test_regression_z_fe_nonzero.cpp:test_regression_z_fe_nonzero_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_partial_sig_agg_rejects_arity_mismatch",
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_keyagg_participant_overflow",
-          "test-call:audit/test_adversarial_protocol.cpp:test_frost_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_transcript_mismatch",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_bad_seed",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_hostile_args",
-          "test-call:audit/test_adversarial_protocol.cpp:test_bip32_corrupted_key_blob",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_addresses",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_btc_message",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_bip39",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_schnorr",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_coin",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h9_bip143",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h10_bip144",
-          "test-call:audit/test_adversarial_protocol.cpp:test_h12_taproot_sighash",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg1_context",
-          "test-call:audit/test_c_abi_thread_stress.cpp:110",
-          "test-call:audit/test_exploit_batch_sign.cpp:test_exploit_batch_sign_run",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_exploit_binding_invalid_curve.cpp:test_exploit_binding_invalid_curve_run",
-          "test-call:audit/test_exploit_bip322_type_confusion.cpp:test_null_handling",
-          "test-call:audit/test_exploit_bip85_path_collision.cpp:test_null_handling",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
-          "test-call:audit/test_exploit_ctx_clone.cpp:test_exploit_ctx_clone_run",
-          "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
-          "test-call:audit/test_exploit_ecdh_zvp_glv_static.cpp:test_exploit_ecdh_zvp_glv_static_run",
-          "test-call:audit/test_exploit_ecies_ephemeral_reuse.cpp:test_exploit_ecies_ephemeral_reuse_run",
-          "test-call:audit/test_exploit_frost_ct_nonce.cpp:test_exploit_frost_ct_nonce_run",
-          "test-call:audit/test_exploit_frost_participant_set_malleability.cpp:test_exploit_frost_participant_set_malleability_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:23",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:303",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_destroy_null",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_double_destroy",
-          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
-          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_null_handling",
-          "test-call:audit/test_exploit_pubkey_arith.cpp:test_exploit_pubkey_arith_run",
-          "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_null_args",
-          "test-call:audit/test_exploit_taproot_commitment_adversarial.cpp:test_exploit_taproot_commitment_adversarial_run",
-          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
-          "test-call:audit/test_ffi_round_trip.cpp:test_context_lifecycle",
-          "test-call:audit/test_ffi_round_trip.cpp:test_silent_payments",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_8_ffi_context_stress",
-          "test-call:audit/test_fuzz_musig2_frost.cpp:test_fuzz_musig2_frost_run",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -3180,12 +3207,12 @@
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_ctx_size",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ],
-        "zero_edge": [
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run"
         ]
       },
       "missing_checks": [],
@@ -3211,14 +3238,14 @@
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
-          "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
+          "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
@@ -3254,15 +3281,15 @@
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
-          "test-call:audit/test_exploit_descriptor_injection.cpp:test_malformed_rejection",
-          "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
           "test-call:audit/test_exploit_descriptor_injection.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
+          "test-call:audit/test_exploit_descriptor_injection.cpp:test_malformed_rejection",
+          "test-call:audit/test_exploit_descriptor_injection.cpp:test_zero_and_invalid_descriptor_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg19_descriptors",
@@ -3346,6 +3373,19 @@
           "test-call:audit/test_kat_all_operations.cpp:run_kat1_ecdh",
           "test-call:audit/test_kat_all_operations.cpp:run_kat35_ecdh_ext"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
+          "test-call:audit/test_exploit_binding_invalid_curve.cpp:test_exploit_binding_invalid_curve_run",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
+          "test-call:audit/test_exploit_ecdh_zvp_glv_static.cpp:test_exploit_ecdh_zvp_glv_static_run",
+          "test-call:audit/test_exploit_ecies_ephemeral_reuse.cpp:test_exploit_ecies_ephemeral_reuse_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_11_ffi_ecdh_tweak",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
           "test-call:audit/test_adversarial_protocol.cpp:test_k6_ecdh_semantic_variants",
@@ -3385,19 +3425,6 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_15_ffi_ecdh_edge",
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf17_ecdh_degenerate",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
-          "test-call:audit/test_exploit_binding_invalid_curve.cpp:test_exploit_binding_invalid_curve_run",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
-          "test-call:audit/test_exploit_ecdh_zvp_glv_static.cpp:test_exploit_ecdh_zvp_glv_static_run",
-          "test-call:audit/test_exploit_ecies_ephemeral_reuse.cpp:test_exploit_ecies_ephemeral_reuse_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_11_ffi_ecdh_tweak",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -3433,6 +3460,11 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_15_ffi_ecdh_edge",
           "test-call:audit/test_kat_all_operations.cpp:run_kat35_ecdh_ext"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
           "test-call:audit/test_adversarial_protocol.cpp:test_k6_ecdh_semantic_variants",
@@ -3445,11 +3477,6 @@
           "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
           "test-call:audit/test_ecies_regression.cpp:test_abi_prefix_rejection",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -3487,6 +3514,11 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf17_ecdh_degenerate",
           "test-call:audit/test_kat_all_operations.cpp:run_kat1_ecdh"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
           "test-call:audit/test_adversarial_protocol.cpp:test_k6_ecdh_semantic_variants",
@@ -3502,11 +3534,6 @@
           "test-call:audit/test_ecies_regression.cpp:test_abi_prefix_rejection",
           "test-call:audit/test_exploit_ecdh_twist_injection.cpp:test_exploit_ecdh_twist_injection_run",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdh",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg6_ecdh",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -3533,12 +3560,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_round_trip",
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
@@ -3569,12 +3596,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_extraction_misuse"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ecdsa_adaptor_hostile_args"
@@ -3691,14 +3718,14 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
           "test-call:audit/test_exploit_ecdsa_batch_verify_rand.cpp:test_exploit_ecdsa_batch_verify_rand_run"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
           "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
           "test-call:audit/test_exploit_ecdsa_batch_verify_rand.cpp:test_exploit_ecdsa_batch_verify_rand_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify"
@@ -3804,6 +3831,17 @@
           "test-call:audit/test_gpu_ops_equivalence.cpp:test_ecrecover_equiv",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
+          "test-call:audit/test_c_abi_negative.cpp:479",
+          "test-call:audit/test_c_abi_negative.cpp:483",
+          "test-call:audit/test_c_abi_negative.cpp:488",
+          "test-call:audit/test_c_abi_negative.cpp:492",
+          "test-call:audit/test_c_abi_negative.cpp:496",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_14_ffi_ecdsa_recover",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
           "test-call:audit/test_c_abi_negative.cpp:496",
@@ -3823,17 +3861,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_ecdsa_recovery",
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_14_ffi_ecdsa_recover",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
-          "test-call:audit/test_c_abi_negative.cpp:479",
-          "test-call:audit/test_c_abi_negative.cpp:483",
-          "test-call:audit/test_c_abi_negative.cpp:488",
-          "test-call:audit/test_c_abi_negative.cpp:492",
-          "test-call:audit/test_c_abi_negative.cpp:496",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_14_ffi_ecdsa_recover",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ]
       },
@@ -3886,6 +3913,16 @@
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_der_parse",
           "test-call:audit/test_parse_strictness.cpp:run_ps23_der_parse"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
+          "test-call:audit/test_c_abi_negative.cpp:446",
+          "test-call:audit/test_c_abi_negative.cpp:450",
+          "test-call:audit/test_c_abi_negative.cpp:454",
+          "test-call:audit/test_c_abi_negative.cpp:459",
+          "test-call:audit/test_fuzz_parsers.cpp:test_der_adversarial",
+          "test-call:audit/test_parse_strictness.cpp:run_ps23_der_parse",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
           "test-call:audit/test_c_abi_negative.cpp:446",
@@ -3896,16 +3933,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_fuzz_parsers.cpp:test_der_adversarial",
           "test-call:audit/test_parse_strictness.cpp:run_ps23_der_parse"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
-          "test-call:audit/test_c_abi_negative.cpp:446",
-          "test-call:audit/test_c_abi_negative.cpp:450",
-          "test-call:audit/test_c_abi_negative.cpp:454",
-          "test-call:audit/test_c_abi_negative.cpp:459",
-          "test-call:audit/test_fuzz_parsers.cpp:test_der_adversarial",
-          "test-call:audit/test_parse_strictness.cpp:run_ps23_der_parse",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:459",
@@ -3963,6 +3990,15 @@
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_der_parse",
           "test-call:audit/test_parse_strictness.cpp:run_ps23_der_parse"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
+          "test-call:audit/test_c_abi_negative.cpp:421",
+          "test-call:audit/test_c_abi_negative.cpp:426",
+          "test-call:audit/test_c_abi_negative.cpp:431",
+          "test-call:audit/test_c_abi_negative.cpp:435",
+          "test-call:audit/test_c_abi_negative.cpp:441",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers",
@@ -3973,15 +4009,6 @@
           "test-call:audit/test_c_abi_negative.cpp:441",
           "test-call:audit/test_ffi_round_trip.cpp:test_ecdsa_round_trip",
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
-          "test-call:audit/test_c_abi_negative.cpp:421",
-          "test-call:audit/test_c_abi_negative.cpp:426",
-          "test-call:audit/test_c_abi_negative.cpp:431",
-          "test-call:audit/test_c_abi_negative.cpp:435",
-          "test-call:audit/test_c_abi_negative.cpp:441",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers",
@@ -4127,6 +4154,26 @@
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_ecdsa_snark_witness",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
+          "test-call:audit/test_c_abi_negative.cpp:357",
+          "test-call:audit/test_c_abi_negative.cpp:361",
+          "test-call:audit/test_c_abi_negative.cpp:365",
+          "test-call:audit/test_c_abi_negative.cpp:369",
+          "test-call:audit/test_c_abi_negative.cpp:373",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_exploit_custom_nonce_injection.cpp:test_exploit_custom_nonce_injection_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
+          "test-call:audit/test_exploit_rfc6979_minerva_amplified.cpp:test_exploit_rfc6979_minerva_amplified_run",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_9_ffi_ecdsa_boundary",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
@@ -4171,26 +4218,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_batch_verify",
           "test-call:audit/test_fuzz_parsers.cpp:test_der_roundtrip",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_content_core_ops"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
-          "test-call:audit/test_c_abi_negative.cpp:357",
-          "test-call:audit/test_c_abi_negative.cpp:361",
-          "test-call:audit/test_c_abi_negative.cpp:365",
-          "test-call:audit/test_c_abi_negative.cpp:369",
-          "test-call:audit/test_c_abi_negative.cpp:373",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_exploit_custom_nonce_injection.cpp:test_exploit_custom_nonce_injection_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
-          "test-call:audit/test_exploit_rfc6979_minerva_amplified.cpp:test_exploit_rfc6979_minerva_amplified_run",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_9_ffi_ecdsa_boundary",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ]
       },
       "missing_checks": [],
@@ -4222,6 +4249,11 @@
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_3",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_4"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_1",
@@ -4236,11 +4268,6 @@
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_2",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_3",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_4"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
       "missing_checks": [],
@@ -4289,6 +4316,15 @@
           "test-call:audit/test_gpu_ops_equivalence.cpp:test_ecrecover_equiv",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
+          "test-call:audit/test_c_abi_negative.cpp:464",
+          "test-call:audit/test_c_abi_negative.cpp:468",
+          "test-call:audit/test_c_abi_negative.cpp:473",
+          "test-call:audit/test_exploit_recoverable_sign_ct.cpp:test_exploit_recoverable_sign_ct_run",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
           "test-call:audit/test_c_abi_negative.cpp:464",
@@ -4297,15 +4333,6 @@
           "test-call:audit/test_exploit_buff_kr_ecdsa.cpp:test_exploit_buff_kr_ecdsa_run",
           "test-call:audit/test_exploit_recoverable_sign_ct.cpp:test_exploit_recoverable_sign_ct_run",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i3_ecdsa_recoverable_roundtrip",
-          "test-call:audit/test_c_abi_negative.cpp:464",
-          "test-call:audit/test_c_abi_negative.cpp:468",
-          "test-call:audit/test_c_abi_negative.cpp:473",
-          "test-call:audit/test_exploit_recoverable_sign_ct.cpp:test_exploit_recoverable_sign_ct_run",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
         "zero_edge": [
@@ -4353,14 +4380,6 @@
           "test-call:audit/test_exploit_ecdsa_sign_sentinels.cpp:test_ss4_ss5_cabi_zero_sk",
           "test-call:audit/test_exploit_hertzbleed_scalar_blind.cpp:test_exploit_hertzbleed_scalar_blind_run"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
-          "test-call:audit/test_c_abi_negative.cpp:377",
-          "test-call:audit/test_c_abi_negative.cpp:381",
-          "test-call:audit/test_exploit_ecdsa_fault_injection.cpp:test_exploit_ecdsa_fault_injection_run",
-          "test-call:audit/test_exploit_ecdsa_sign_sentinels.cpp:28",
-          "test-call:audit/test_exploit_ecdsa_sign_sentinels.cpp:test_ss4_ss5_cabi_zero_sk"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
           "test-call:audit/test_c_abi_negative.cpp:377",
@@ -4368,6 +4387,14 @@
           "test-call:audit/test_exploit_ecdsa_fault_injection.cpp:test_exploit_ecdsa_fault_injection_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
+          "test-call:audit/test_c_abi_negative.cpp:377",
+          "test-call:audit/test_c_abi_negative.cpp:381",
+          "test-call:audit/test_exploit_ecdsa_fault_injection.cpp:test_exploit_ecdsa_fault_injection_run",
+          "test-call:audit/test_exploit_ecdsa_sign_sentinels.cpp:28",
+          "test-call:audit/test_exploit_ecdsa_sign_sentinels.cpp:test_ss4_ss5_cabi_zero_sk"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
@@ -4495,6 +4522,23 @@
           "test-call:audit/test_kat_all_operations.cpp:run_kat26_der",
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_ecdsa_verify"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
+          "test-call:audit/test_c_abi_negative.cpp:385",
+          "test-call:audit/test_c_abi_negative.cpp:389",
+          "test-call:audit/test_c_abi_negative.cpp:393",
+          "test-call:audit/test_c_abi_negative.cpp:397",
+          "test-call:audit/test_c_abi_negative.cpp:401",
+          "test-call:audit/test_c_abi_negative.cpp:405",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_9_ffi_ecdsa_boundary",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
           "test-call:audit/test_c_abi_negative.cpp:385",
@@ -4515,23 +4559,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_error_paths",
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_ecdsa_verify"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ecdsa",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i7_ecdsa_sign_noncefp",
-          "test-call:audit/test_c_abi_negative.cpp:385",
-          "test-call:audit/test_c_abi_negative.cpp:389",
-          "test-call:audit/test_c_abi_negative.cpp:393",
-          "test-call:audit/test_c_abi_negative.cpp:397",
-          "test-call:audit/test_c_abi_negative.cpp:401",
-          "test-call:audit/test_c_abi_negative.cpp:405",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_9_ffi_ecdsa_boundary",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i6_context_randomize",
@@ -4582,6 +4609,11 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe5_ecies_decrypt"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
+          "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies"
         ],
@@ -4594,11 +4626,6 @@
           "test-call:audit/test_ecies_regression.cpp:test_ecies_roundtrip_kat",
           "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
-          "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -4632,6 +4659,11 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe5_ecies_decrypt"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
+          "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
           "test-call:audit/test_ecies_regression.cpp:74"
@@ -4642,11 +4674,6 @@
           "test-call:audit/test_ecies_regression.cpp:test_pubkey_parser_consistency",
           "test-call:audit/test_exploit_cross_scheme_pubkey.cpp:test_exploit_cross_scheme_pubkey_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h3_ecies",
-          "test-call:audit/test_ffi_round_trip.cpp:test_ecies_round_trip",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -4674,14 +4701,14 @@
           "test-call:audit/test_exploit_ellswift_xdh_overflow.cpp:test_exploit_ellswift_xdh_overflow_run",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_ellswift"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
           "test-call:audit/test_exploit_ellswift_bad_scalar_ecdh.cpp:test_exploit_ellswift_bad_scalar_ecdh_run",
           "test-call:audit/test_exploit_ellswift_xdh_overflow.cpp:test_exploit_ellswift_xdh_overflow_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
@@ -4714,6 +4741,10 @@
           "test-call:audit/test_exploit_ellswift_xdh_overflow.cpp:test_exploit_ellswift_xdh_overflow_run",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_ellswift"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
           "test-call:audit/test_exploit_ellswift_bad_scalar_ecdh.cpp:test_exploit_ellswift_bad_scalar_ecdh_run",
@@ -4723,10 +4754,6 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
           "test-call:audit/test_exploit_ellswift_bad_scalar_ecdh.cpp:test_exploit_ellswift_bad_scalar_ecdh_run",
           "test-call:audit/test_exploit_ellswift_xdh_overflow.cpp:test_exploit_ellswift_xdh_overflow_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h4_ellswift",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -4752,16 +4779,16 @@
           "test-call:audit/test_exploit_buff_kr_ecdsa.cpp:test_exploit_buff_kr_ecdsa_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -4786,13 +4813,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
@@ -4823,12 +4850,12 @@
           "test-call:audit/test_exploit_buff_kr_ecdsa.cpp:test_exploit_buff_kr_ecdsa_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
         ]
       },
       "missing_checks": [],
@@ -4852,17 +4879,17 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h5_eth_edge",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
       "missing_checks": [],
@@ -4887,15 +4914,15 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -5240,17 +5267,17 @@
           "test-call:audit/test_fuzz_musig2_frost.cpp:test_frost_verify_partial_random",
           "test-call:audit/test_fuzz_musig2_frost.cpp:test_null_length_nonce_commits"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_frost_hostile_args",
+          "test-call:audit/test_fuzz_musig2_frost.cpp:test_null_length_nonce_commits",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_frost_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_frost_verify_partial_rejects_malformed_signer_sets",
           "test-call:audit/test_adversarial_protocol.cpp:test_frost_participant_identity_mismatch",
           "test-call:audit/test_exploit_frost_participant_set_malleability.cpp:test_exploit_frost_participant_set_malleability_run",
           "test-call:audit/test_exploit_frost_rogue_key.cpp:test_exploit_frost_rogue_key_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_frost_hostile_args",
-          "test-call:audit/test_fuzz_musig2_frost.cpp:test_null_length_nonce_commits",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_frost_verify_partial_rejects_malformed_signer_sets",
@@ -5281,16 +5308,16 @@
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling",
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_12"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
-          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
           "test-call:audit/test_exploit_gcs_false_positive.cpp:74",
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_empty_filter",
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
+          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_gcs_false_positive.cpp:74",
@@ -5324,15 +5351,15 @@
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling",
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_12"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
-          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_no_false_negatives",
-          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_empty_filter"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
+          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_no_false_negatives",
+          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_empty_filter"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_empty_filter",
@@ -5360,13 +5387,13 @@
           "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_match_any"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
-          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_match_any"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg17_gcs",
+          "test-call:audit/test_exploit_gcs_false_positive.cpp:test_match_any"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_gcs_false_positive.cpp:test_match_any"
@@ -5478,15 +5505,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -5511,15 +5538,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -5545,14 +5572,14 @@
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_4_13_gpu"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
-          "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_4_13_gpu"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_4_13_gpu",
           "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
+          "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_4_13_gpu"
         ],
         "zero_edge": [
           "test-call:audit/test_gpu_bip352_scan.cpp:test_bip352_4_13_gpu"
@@ -5580,15 +5607,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -5624,13 +5651,6 @@
           "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_device",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_gpu_host_api_negative_run"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
-          "test-call:audit/test_gpu_abi_gate.cpp:test_context_lifecycle",
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_backend",
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_device",
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_gpu_host_api_negative_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_abi_gate.cpp:test_context_lifecycle",
@@ -5643,6 +5663,13 @@
           "test-call:audit/test_gpu_host_api_negative.cpp:test_gpu_host_api_negative_run",
           "test-call:audit/test_gpu_ops_equivalence.cpp:main",
           "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
+          "test-call:audit/test_gpu_abi_gate.cpp:test_context_lifecycle",
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_backend",
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_device",
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_gpu_host_api_negative_run"
         ]
       },
       "missing_checks": [],
@@ -5871,15 +5898,15 @@
           "test-call:audit/test_gpu_host_api_negative.cpp:test_unsupported_ops",
           "test-call:audit/test_gpu_ops_equivalence.cpp:test_ecrecover_equiv"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_ecrecover_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -5934,15 +5961,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -6271,15 +6298,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -6305,6 +6332,11 @@
           "graph:function_test_map:gpu_ecdsa_snark_witness",
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
+          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:275",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:308"
@@ -6312,11 +6344,6 @@
         "invalid_content": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:320"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
-          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:275",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -6341,15 +6368,15 @@
           "graph:function_test_map:gpu_host_api_negative",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
         "invalid_content": [
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -6376,6 +6403,11 @@
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
+          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
@@ -6383,11 +6415,6 @@
         "invalid_content": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg21_gpu",
-          "test-call:audit/test_gpu_host_api_negative.cpp:test_extended_ops_zero_and_invalid",
-          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
         ]
       },
       "missing_checks": [],
@@ -6419,6 +6446,12 @@
           "test-call:audit/test_gpu_ops_equivalence.cpp:test_hash160_equiv",
           "test-call:audit/test_kat_all_operations.cpp:run_kat31_hash"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
@@ -6428,12 +6461,6 @@
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -6457,17 +6484,17 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
+          "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
           "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_ethereum",
-          "test-call:audit/test_ffi_round_trip.cpp:test_ethereum_round_trip",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -6496,17 +6523,17 @@
           "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_13_ffi_error_inspection"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_13_ffi_error_inspection"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
           "test-call:audit/test_c_abi_negative.cpp:run_neg1_context",
           "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_13_ffi_error_inspection",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i1_ctx_clone_and_last_error_msg",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_13_ffi_error_inspection"
         ],
         "invalid_content": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg1_context"
@@ -6575,13 +6602,13 @@
           "test-call:audit/test_exploit_scalar_mul.cpp:test_exploit_scalar_mul_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_scalar_mul"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts"
@@ -6865,11 +6892,6 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_signer_ordering",
           "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
-          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
-          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_partial_sig_agg_rejects_arity_mismatch",
@@ -6877,6 +6899,11 @@
           "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:88",
           "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
+          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
+          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
         ]
       },
       "missing_checks": [],
@@ -6915,12 +6942,12 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_abort_restart",
           "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args"
         ]
       },
       "missing_checks": [],
@@ -6968,17 +6995,17 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_malicious_aggregator",
           "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
         ],
-        "zero_edge": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
-          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
-          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
           "test-call:audit/test_adversarial_protocol.cpp:test_musig2_partial_sig_agg_rejects_arity_mismatch",
           "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:84",
           "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_musig2_hostile_args",
+          "test-call:audit/test_exploit_musig2_parallel_session_cross.cpp:test_exploit_musig2_parallel_session_cross_run",
+          "test-call:audit/test_exploit_musig2_partial_forgery.cpp:test_exploit_musig2_partial_forgery_run"
         ]
       },
       "missing_checks": [],
@@ -7002,13 +7029,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
-          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
+          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
         "zero_edge": [
           "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
@@ -7041,15 +7068,15 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_range"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
-          "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
+          "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_10"
@@ -7076,16 +7103,16 @@
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_pedersen_switch_commit",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h6_pedersen_switch",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h6_pedersen_switch"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h6_pedersen_switch"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h6_pedersen_switch",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
       "missing_checks": [],
@@ -7111,13 +7138,13 @@
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_10",
           "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
-          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
+          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_monolith_split.cpp:test_mono_10"
@@ -7145,13 +7172,13 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
-          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen",
+          "test-call:audit/test_ffi_round_trip.cpp:test_pedersen_commitments"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pedersen"
@@ -7180,13 +7207,13 @@
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_key_derivation",
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
@@ -7220,15 +7247,15 @@
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe9_psbt_sign_legacy"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_key_isolation",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_key_isolation",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
@@ -7263,14 +7290,14 @@
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe10_psbt_sign_segwit"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_null_handling",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
@@ -7304,11 +7331,6 @@
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe11_psbt_sign_taproot"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_key_isolation",
-          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_encoding_isolation",
@@ -7318,6 +7340,11 @@
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe11_psbt_sign_taproot",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg18_psbt",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_key_isolation",
+          "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_psbt_input_confusion.cpp:test_zero_and_invalid_inputs"
@@ -7350,14 +7377,14 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf5_pubkey_add_cancel",
           "test-call:audit/test_kat_all_operations.cpp:run_kat39_pubkey_arith"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
           "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith"
@@ -7396,14 +7423,14 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_pubkey_arithmetic",
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf13_combine_cancel"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
           "test-call:audit/test_exploit_pubkey_arith.cpp:test_exploit_pubkey_arith_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_malformed_counts",
@@ -7849,15 +7876,15 @@
           "test-call:audit/test_parse_strictness.cpp:run_ps41_pubkey_uncompressed",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
           "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
         "zero_edge": [
@@ -7907,16 +7934,16 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip",
           "test-call:audit/test_kat_all_operations.cpp:run_kat39_pubkey_arith"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
-          "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
           "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
           "test-call:audit/test_exploit_pubkey_arith.cpp:test_exploit_pubkey_arith_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
+          "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith"
@@ -7973,6 +8000,15 @@
           "test-call:audit/test_parse_strictness.cpp:run_ps41_pubkey_uncompressed",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_fuzz_parsers.cpp:test_pubkey_adversarial",
+          "test-call:audit/test_parse_strictness.cpp:run_ps1_pubkey_compressed",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
           "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
@@ -7993,15 +8029,6 @@
           "test-call:audit/test_parse_strictness.cpp:34",
           "test-call:audit/test_parse_strictness.cpp:run_ps1_pubkey_compressed",
           "test-call:audit/test_parse_strictness.cpp:run_ps41_pubkey_uncompressed",
-          "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i2_pubkey_parse_and_uncompressed",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg3_pubkey",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_fuzz_parsers.cpp:test_pubkey_adversarial",
-          "test-call:audit/test_parse_strictness.cpp:run_ps1_pubkey_compressed",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
         ]
       },
@@ -8048,17 +8075,17 @@
           "test-call:audit/test_kat_all_operations.cpp:run_kat39_pubkey_arith",
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_pubkey_parse"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
-          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_overlapping_buffers",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
-          "test-call:audit/test_exploit_libsecp_eckey_api.cpp:test_eckey_13"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
           "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
           "test-call:audit/test_exploit_pubkey_arith.cpp:test_exploit_pubkey_arith_run",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_pubkey_arith",
+          "test-call:audit/test_adversarial_protocol.cpp:test_ffi_overlapping_buffers",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg12_pubkey_arith",
+          "test-call:audit/test_exploit_libsecp_eckey_api.cpp:test_eckey_13"
         ],
         "zero_edge": [
           "test-call:audit/test_exploit_ectester_point_validation.cpp:test_exploit_ectester_point_validation_run",
@@ -8333,14 +8360,14 @@
           "test-call:audit/test_exploit_adaptor_extraction_soundness.cpp:test_exploit_adaptor_extraction_soundness_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_adaptor_signatures"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
-          "test-call:audit/test_exploit_adaptor_extraction_soundness.cpp:test_exploit_adaptor_extraction_soundness_run"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
+          "test-call:audit/test_exploit_adaptor_extraction_soundness.cpp:test_exploit_adaptor_extraction_soundness_run"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h7_schnorr_adaptor_extract",
@@ -8463,16 +8490,16 @@
           "test-call:audit/test_exploit_schnorr_batch_inflation.cpp:test_exploit_schnorr_batch_inflation_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_batch_verify"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
           "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
           "test-call:audit/test_exploit_ros_concurrent_schnorr.cpp:test_exploit_ros_concurrent_schnorr_run",
           "test-call:audit/test_exploit_schnorr_batch_inflation.cpp:test_exploit_schnorr_batch_inflation_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_batch_verify"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
@@ -8650,6 +8677,25 @@
           "test-call:audit/test_regression_z_fe_nonzero.cpp:test_znf_sign_verify",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_schnorr",
+          "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
+          "test-call:audit/test_c_abi_negative.cpp:512",
+          "test-call:audit/test_c_abi_negative.cpp:516",
+          "test-call:audit/test_c_abi_negative.cpp:521",
+          "test-call:audit/test_c_abi_negative.cpp:529",
+          "test-call:audit/test_c_abi_negative.cpp:537",
+          "test-call:audit/test_c_abi_negative.cpp:542",
+          "test-call:audit/test_exploit_batch_sign.cpp:test_exploit_batch_sign_run",
+          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
+          "test-call:audit/test_exploit_ctx_clone.cpp:test_exploit_ctx_clone_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_10_ffi_schnorr_boundary",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_schnorr",
@@ -8689,25 +8735,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_gpu_host_api_negative.cpp:test_invalid_content_core_ops",
           "test-call:audit/test_libfuzzer_unified.cpp:run_fuzz_schnorr_verify"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_batch_verify",
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_schnorr",
-          "test-call:audit/test_adversarial_protocol.cpp:test_i5_batch_verify_deep",
-          "test-call:audit/test_c_abi_negative.cpp:512",
-          "test-call:audit/test_c_abi_negative.cpp:516",
-          "test-call:audit/test_c_abi_negative.cpp:521",
-          "test-call:audit/test_c_abi_negative.cpp:529",
-          "test-call:audit/test_c_abi_negative.cpp:537",
-          "test-call:audit/test_c_abi_negative.cpp:542",
-          "test-call:audit/test_exploit_batch_sign.cpp:test_exploit_batch_sign_run",
-          "test-call:audit/test_exploit_buffer_type_confusion.cpp:test_exploit_buffer_type_confusion_run",
-          "test-call:audit/test_exploit_ctx_clone.cpp:test_exploit_ctx_clone_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_output_buffer",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_10_ffi_schnorr_boundary",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -8735,14 +8762,14 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
           "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_5"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
-          "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_5"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
+          "test-call:audit/test_exploit_gpu_secret_erase.cpp:test_b09_5"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h8_batch_sign",
@@ -8780,14 +8807,14 @@
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_modified_message_fails",
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_invalid_zero_privkey"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
-          "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_invalid_zero_privkey"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_empty_message",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
+          "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_invalid_zero_privkey"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
@@ -8820,15 +8847,15 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
           "test-call:audit/test_c_abi_negative.cpp:547"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
-          "test-call:audit/test_c_abi_negative.cpp:547"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
           "test-call:audit/test_c_abi_negative.cpp:547",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section I: Remaining ABI Surface (v3.23+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
+          "test-call:audit/test_c_abi_negative.cpp:547"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_i4_sign_verified",
@@ -9048,14 +9075,14 @@
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_large_message",
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_modified_message_fails"
         ],
-        "invalid_content": [
-          "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
-          "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_modified_message_fails"
-        ],
         "null_rejection": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
           "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_empty_message",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
+          "test-call:audit/test_exploit_schnorr_msg_length_confusion.cpp:test_modified_message_fails"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg15_schnorr_msg",
@@ -9101,15 +9128,15 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_key_tweaks",
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
-          "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
           "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
+          "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
@@ -9161,6 +9188,11 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf1_seckey_cancellation",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
           "test-call:audit/test_adversarial_protocol.cpp:test_k5_seckey_tweak_invalid",
@@ -9169,11 +9201,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf1_seckey_cancellation",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_k4_seckey_tweak_overflow",
@@ -9219,6 +9246,11 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_11_ffi_ecdh_tweak",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
           "test-call:audit/test_adversarial_protocol.cpp:test_k5_seckey_tweak_invalid",
@@ -9226,11 +9258,6 @@
           "test-call:audit/test_exploit_libsecp_eckey_api.cpp:test_eckey_9_10",
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "docs/FFI_HOSTILE_CALLER.md:Section K: Deep Session Security (v3.4+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_k5_seckey_tweak_invalid",
@@ -9283,6 +9310,15 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf25_negate_round_trip",
           "test-call:audit/test_parse_strictness.cpp:run_ps17_seckey_verify"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
+          "test-call:audit/test_ffi_round_trip.cpp:test_error_paths",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
           "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
@@ -9293,15 +9329,6 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_negative_vectors",
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32",
           "test-call:audit/test_parse_strictness.cpp:run_ps17_seckey_verify"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg2_seckey",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_context",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_null_input_buffer",
-          "test-call:audit/test_ffi_round_trip.cpp:test_error_paths",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_seckey",
@@ -9366,16 +9393,16 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
@@ -9401,13 +9428,13 @@
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
@@ -9430,16 +9457,16 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
@@ -9463,13 +9490,13 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ],
         "zero_edge": [
@@ -9496,16 +9523,16 @@
           "graph:function_test_map:monolith_split",
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
+          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_h11_segwit",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions",
           "docs/FFI_HOSTILE_CALLER.md:Section H: New ABI Surface Edge Cases (v3.22+)"
         ]
       },
@@ -9542,6 +9569,14 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_hashing_vectors",
           "test-call:audit/test_kat_all_operations.cpp:run_kat31_hash"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
+          "test-call:audit/test_exploit_monolith_split.cpp:test_mono_4",
+          "test-call:audit/test_ffi_round_trip.cpp:test_hashing_vectors",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_exploit_differential_libsecp.cpp:test_exploit_differential_libsecp_run",
@@ -9553,14 +9588,6 @@
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
-          "test-call:audit/test_exploit_monolith_split.cpp:test_mono_4",
-          "test-call:audit/test_ffi_round_trip.cpp:test_hashing_vectors",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -9584,16 +9611,16 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_ffi_round_trip.cpp:test_sha512_vector"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_ffi_round_trip.cpp:test_sha512_vector"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -9618,12 +9645,12 @@
           "test-call:audit/test_exploit_scalar_mul.cpp:test_exploit_scalar_mul_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_multi_scalar_mul"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_multi_scalar"
         ]
       },
       "missing_checks": [],
@@ -9769,15 +9796,15 @@
           "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_zero_key",
           "test-call:audit/test_ffi_round_trip.cpp:test_silent_payments"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
-          "test-call:audit/test_bip352_kat.cpp:test_rejection_kat",
-          "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_scan_rejects_unrelated"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
           "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_null_args",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
+          "test-call:audit/test_bip352_kat.cpp:test_rejection_kat",
+          "test-call:audit/test_exploit_silent_payment_confusion.cpp:test_scan_rejects_unrelated"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_sp_hostile_args",
@@ -9809,6 +9836,12 @@
           "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
           "test-call:audit/test_ffi_round_trip.cpp:test_hashing_vectors"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
+          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
@@ -9817,12 +9850,6 @@
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
           "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_hashing",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg7_hash",
-          "test-call:audit/test_exploit_gpu_host_api_shape.cpp:test_zero_length_input",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -9890,12 +9917,6 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32",
           "test-call:audit/test_kat_all_operations.cpp:run_kat21_taproot"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
-          "test-call:audit/test_exploit_taproot_commitment_adversarial.cpp:test_exploit_taproot_commitment_adversarial_run",
-          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
@@ -9905,6 +9926,12 @@
           "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_12_ffi_taproot_boundary",
           "test-call:audit/test_kat_all_operations.cpp:run_kat21_taproot",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
+          "test-call:audit/test_exploit_taproot_commitment_adversarial.cpp:test_exploit_taproot_commitment_adversarial_run",
+          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
@@ -9943,11 +9970,6 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe11_psbt_sign_taproot"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
-          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
@@ -9956,6 +9978,11 @@
           "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe11_psbt_sign_taproot",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
+          "test-call:audit/test_infinity_edge_cases.cpp:run_inf21_taproot_bip32"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
@@ -9989,16 +10016,16 @@
           "test-call:audit/test_ffi_round_trip.cpp:test_taproot_operations",
           "test-call:audit/test_kat_all_operations.cpp:run_kat21_taproot"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
           "test-call:audit/test_ffi_round_trip.cpp:test_taproot_operations",
           "test-call:audit/test_kat_all_operations.cpp:run_kat21_taproot",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_taproot",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot"
         ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:run_neg11_taproot",
@@ -10072,6 +10099,14 @@
           "test-call:audit/test_kat_all_operations.cpp:run_kat5_wif",
           "test-call:audit/test_parse_strictness.cpp:run_ps31_wif_decode"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
+          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_4_wif_fuzz",
+          "test-call:audit/test_parse_strictness.cpp:run_ps31_wif_decode",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
           "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
@@ -10085,14 +10120,6 @@
           "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
           "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
           "test-call:audit/test_parse_strictness.cpp:run_ps31_wif_decode"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
-          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_4_wif_fuzz",
-          "test-call:audit/test_parse_strictness.cpp:run_ps31_wif_decode",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -10135,6 +10162,14 @@
           "test-call:audit/test_kat_all_operations.cpp:run_kat5_wif",
           "test-call:audit/test_regression_exception_erase.cpp:test_epe1_wif_encode"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
+          "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
+          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
+          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
+          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_4_wif_fuzz",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
           "test-call:audit/test_adversarial_protocol.cpp:test_ffi_undersized_buffers",
@@ -10151,14 +10186,6 @@
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_wif_rejects",
           "test-call:audit/test_exploit_network_validation_bypass.cpp:test_error_code_specificity",
           "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_wif",
-          "test-call:audit/test_c_abi_negative.cpp:run_neg9_wif",
-          "test-call:audit/test_exploit_binding_adversarial_api.cpp:test_exploit_binding_adversarial_api_run",
-          "test-call:audit/test_exploit_wif_security.cpp:test_exploit_wif_security_run",
-          "test-call:audit/test_fuzz_address_bip32_ffi.cpp:suite_4_wif_fuzz",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -10262,6 +10289,17 @@
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:test_sw9_null_ctx",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_ecdsa_snark_witness"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:1282",
+          "test-call:audit/test_c_abi_negative.cpp:1284",
+          "test-call:audit/test_c_abi_negative.cpp:1286",
+          "test-call:audit/test_c_abi_negative.cpp:1288",
+          "test-call:audit/test_c_abi_negative.cpp:1290",
+          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:test_sw9_null_ctx",
+          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:238",
+          "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_ecdsa_snark_witness",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:1282",
           "test-call:audit/test_c_abi_negative.cpp:1284",
@@ -10279,17 +10317,6 @@
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:118",
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:191",
           "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:249"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:1282",
-          "test-call:audit/test_c_abi_negative.cpp:1284",
-          "test-call:audit/test_c_abi_negative.cpp:1286",
-          "test-call:audit/test_c_abi_negative.cpp:1288",
-          "test-call:audit/test_c_abi_negative.cpp:1290",
-          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:test_sw9_null_ctx",
-          "test-call:audit/test_gpu_ecdsa_snark_witness.cpp:238",
-          "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_ecdsa_snark_witness",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -10316,12 +10343,12 @@
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_zk_proofs"
         ],
-        "invalid_content": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
-        ],
         "null_rejection": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
           "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
@@ -10351,14 +10378,14 @@
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_zk_proofs"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:audit/test_ffi_round_trip.cpp:test_zk_proofs"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
@@ -10389,15 +10416,15 @@
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_range"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
         ],
         "invalid_content": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -10424,6 +10451,10 @@
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_range"
         ],
+        "null_rejection": [
+          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk"
         ],
@@ -10431,10 +10462,6 @@
           "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
           "test-call:audit/test_exploit_fiat_shamir_frozen_heart.cpp:test_exploit_fiat_shamir_frozen_heart_run",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_range"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_adversarial_protocol.cpp:test_hostile_zk",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],
@@ -10457,6 +10484,15 @@
           "graph:function_test_map:zk_proofs",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness"
         ],
+        "null_rejection": [
+          "test-call:audit/test_c_abi_negative.cpp:1294",
+          "test-call:audit/test_c_abi_negative.cpp:1296",
+          "test-call:audit/test_c_abi_negative.cpp:1298",
+          "test-call:audit/test_c_abi_negative.cpp:1300",
+          "test-call:audit/test_c_abi_negative.cpp:1302",
+          "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness",
+          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
+        ],
         "zero_edge": [
           "test-call:audit/test_c_abi_negative.cpp:1294",
           "test-call:audit/test_c_abi_negative.cpp:1296",
@@ -10472,15 +10508,6 @@
           "test-call:audit/test_c_abi_negative.cpp:1300",
           "test-call:audit/test_c_abi_negative.cpp:1302",
           "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness"
-        ],
-        "null_rejection": [
-          "test-call:audit/test_c_abi_negative.cpp:1294",
-          "test-call:audit/test_c_abi_negative.cpp:1296",
-          "test-call:audit/test_c_abi_negative.cpp:1298",
-          "test-call:audit/test_c_abi_negative.cpp:1300",
-          "test-call:audit/test_c_abi_negative.cpp:1302",
-          "test-call:cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness",
-          "docs/FFI_HOSTILE_CALLER.md:G.1 all CPU ABI functions"
         ]
       },
       "missing_checks": [],

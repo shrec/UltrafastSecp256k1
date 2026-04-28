@@ -92,12 +92,18 @@ def find_lib(hint: Optional[str] = None) -> str:
         root / "build" / "include" / "ufsecp" / "libufsecp.so",
         root / "build-packaging-repro" / "include" / "ufsecp" / "libufsecp.so.3",
         root / "bindings" / "c_api" / "build" / "libultrafast_secp256k1.so",
+        root / "build-shim-v3" / "include" / "ufsecp" / "libufsecp.so.3",
+        root / "build-shim-v3" / "include" / "ufsecp" / "libufsecp.so",
+        root / "build_test" / "include" / "ufsecp" / "libufsecp.so.3",
+        root / "build_test" / "include" / "ufsecp" / "libufsecp.so",
     ]
 
     # CI/build layouts can place versioned libs in target-specific subdirs.
     # Probe common build trees for libufsecp.so* and C-API shims.
     search_roots = [
         root / "build-audit",
+        root / "build-shim-v3",
+        root / "build_test",
         root / "build",
         root / "build_opencl",
         root / "build-packaging-repro",
@@ -111,11 +117,18 @@ def find_lib(hint: Optional[str] = None) -> str:
         candidates.extend(sorted(sr.rglob("libufsecp.so*")))
         candidates.extend(sorted(sr.rglob("libultrafast_secp256k1.so*")))
 
+    import ctypes as _ct
     for c in candidates:
-        if Path(c).is_file():
-            return str(c)
+        p = Path(c)
+        if not p.is_file():
+            continue
+        try:
+            _ct.CDLL(str(p))
+            return str(p)
+        except OSError:
+            continue
     raise FileNotFoundError(
-        "Cannot locate libufsecp.so / libultrafast_secp256k1.so.\n"
+        "Cannot locate a loadable libufsecp.so / libultrafast_secp256k1.so.\n"
         "Pass --lib /path/to/libufsecp.so.3 explicitly."
     )
 

@@ -181,7 +181,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         $<$<COMPILE_LANGUAGE:C,CXX>:${MARCH_FLAG}>
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-O3>
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-DNDEBUG>
+        # Build hardening (supply-chain / CAAS gate requirement)
+        $<$<COMPILE_LANGUAGE:C,CXX>:-fstack-protector-strong>
+        $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:-D_FORTIFY_SOURCE=2>
+        $<$<COMPILE_LANGUAGE:C,CXX>:-fPIE>
     )
+    add_link_options(-pie)
     if(SECP256K1_WERROR)
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Werror>)
     endif()

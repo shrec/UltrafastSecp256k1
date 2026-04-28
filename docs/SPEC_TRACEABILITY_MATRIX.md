@@ -179,3 +179,39 @@ When the library implements a new spec clause:
    and keep it; do not delete.
 3. CI gate `spec_traceability_check.py` (G-9b) refuses any row whose
    `Impl` or `Test` path no longer exists in the repo.
+
+## DER / BIP-66 — Strict DER Encoding
+
+| Spec § | Requirement | Impl | Test | Status |
+|--------|-------------|------|------|--------|
+| BIP-66 §2 | SEQUENCE tag = 0x30, correct length, no trailing bytes | `cpu/src/ecdsa.cpp` (`ufsecp_ecdsa_sig_from_der`) | `audit/test_fuzz_parsers.cpp`, `audit/test_exploit_der_parsing_differential.cpp` | OK |
+| BIP-66 §2 | INTEGER tags = 0x02 for R and S; reject wrong tags | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp` (500+ vectors) | OK |
+| BIP-66 §2 | R and S ≤ 32 scalar bytes; reject oversized | `cpu/src/ecdsa.cpp` | `audit/test_fuzz_parsers.cpp` | OK |
+| BIP-66 §2 | Required 0x00 pad when high bit set; reject missing pad | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp` | OK |
+| BIP-66 §2 | Reject unnecessary leading 0x00 pads | `cpu/src/ecdsa.cpp` | `audit/test_wycheproof_ecdsa.cpp` | OK |
+| BIP-62 §Low-S | s ≤ n/2 for signing output | `cpu/src/ecdsa.cpp` | `audit/test_exploit_batch_verify_low_s.cpp`, `audit/test_exploit_der_parsing_differential.cpp` (test 12) | OK |
+| Round-trip | `sig_to_der(sig_from_der(x)) == x` for all valid DER | `cpu/src/ecdsa.cpp` | `audit/test_fuzz_parsers.cpp` (580K fuzz inputs) | OK |
+| DER max size | Output ≤ 72 bytes (`UFSECP_SIG_DER_MAX_LEN`) | `cpu/src/ecdsa.cpp` | `audit/test_fuzz_parsers.cpp`, `docs/DER_PARITY_MATRIX.md` | OK |
+
+## libsecp256k1 — Compatibility Shim (compat layer)
+
+| Spec § | Requirement | Impl | Test | Status |
+|--------|-------------|------|------|--------|
+| secp256k1.h API | `secp256k1_context_*`, `secp256k1_ec_*`, `secp256k1_ecdsa_*` — identical signatures | `compat/libsecp256k1_shim/src/` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_extrakeys.h | `keypair_*`, `xonly_pubkey_*` — BIP-340/341 key handling | `compat/libsecp256k1_shim/src/shim_extrakeys.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_schnorrsig.h | `secp256k1_schnorrsig_sign32`, `_verify` | `compat/libsecp256k1_shim/src/shim_schnorr.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_ecdh.h | `secp256k1_ecdh` — shared secret | `compat/libsecp256k1_shim/src/shim_ecdh.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_recovery.h | Recoverable ECDSA sign / recover | `compat/libsecp256k1_shim/src/shim_recovery.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_ellswift.h | ElligatorSwift encode/decode (BIP-324) | `compat/libsecp256k1_shim/src/shim_ellswift.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| secp256k1_musig.h | MuSig2 BIP-327: all 14 functions | `compat/libsecp256k1_shim/src/shim_musig2.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
+| Parity | Full differential parity vs libsecp256k1 reference | `compat/libsecp256k1_shim/` | `audit/test_exploit_differential_libsecp.cpp` | OK |
+
+## x-only / xonly Pubkeys — BIP-340 / BIP-341
+
+| Spec § | Requirement | Impl | Test | Status |
+|--------|-------------|------|------|--------|
+| BIP-340 §Encoding | x-only pubkey = 32-byte x coordinate, even y assumed | `cpu/src/schnorr.cpp`, `compat/libsecp256k1_shim/src/shim_extrakeys.cpp` | `audit/test_exploit_schnorr_bip340_kat.cpp` | OK |
+| BIP-340 §Verification | Lift x-only to even-y point; reject if not on curve | `cpu/src/schnorr.cpp` | `audit/test_wycheproof_ecdsa.cpp`, `audit/test_exploit_ectester_point_validation.cpp` | OK |
+| BIP-341 §key_path | Internal key + tweak → x-only output key | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_merkle_collision.cpp`, `audit/test_exploit_taproot_script_path.cpp` | OK |
+| BIP-341 §annex | Taproot annex hash does not affect x-only key path | `cpu/src/impl/ufsecp_taproot.cpp` | `audit/test_exploit_taproot_annex.cpp` | OK |
+| secp256k1_extrakeys.h | `secp256k1_xonly_pubkey_*` shim covers serialize/parse/tweak | `compat/libsecp256k1_shim/src/shim_extrakeys.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |

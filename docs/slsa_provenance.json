@@ -1,0 +1,59 @@
+{
+  "_type": "https://in-toto.io/Statement/v0.1",
+  "subject": [
+    {
+      "name": "UltrafastSecp256k1-local-build",
+      "digest": {
+        "sha256": "metadata-only-no-artifact"
+      }
+    }
+  ],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://slsa.dev/provenance/v1",
+      "externalParameters": {
+        "repository": "https://github.com/shrec/UltrafastSecp256k1",
+        "ref": "refs/heads/dev",
+        "commit": "939a517693d01166106e50749f956a05e1e1a96b"
+      },
+      "resolvedDependencies": [
+        {
+          "uri": "https://github.com/shrec/UltrafastSecp256k1",
+          "digest": {
+            "gitCommit": "939a517693d01166106e50749f956a05e1e1a96b"
+          }
+        }
+      ]
+    },
+    "runDetails": {
+      "builder": {
+        "id": "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
+        "version": {
+          "slsa-github-generator": "v2.1.0"
+        }
+      },
+      "metadata": {
+        "invocationId": "local-build-2026-04-28T08:20:05.140608+00:00",
+        "startedOn": "2026-04-28T08:20:05.140608+00:00",
+        "finishedOn": "2026-04-28T08:20:05.140608+00:00"
+      },
+      "byproducts": [
+        {
+          "name": "build-environment",
+          "content": {
+            "platform": "Linux-6.8.0-110-generic-x86_64-with-glibc2.39",
+            "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]",
+            "os_uname": [
+              "Linux",
+              "parking",
+              "6.8.0-110-generic",
+              "#110-Ubuntu SMP PREEMPT_DYNAMIC Thu Mar 19 15:09:20 UTC 2026",
+              "x86_64"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

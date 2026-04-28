@@ -477,7 +477,7 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_bip324_aead_decrypt_batch(
 /**
  * Compute ECDSA SNARK witnesses for a batch of (message, pubkey, sig) tuples.
  *
- * @param ctx          GPU context returned by ufsecp_gpu_context_create().
+ * @param ctx          GPU context returned by ufsecp_gpu_ctx_create().
  * @param msg_hashes32 Input: count × 32 bytes (one BE SHA-256 hash per item).
  * @param pubkeys33    Input: count × 33 bytes (compressed SEC1 public keys).
  * @param sigs64       Input: count × 64 bytes (BE compact r|s signatures).
@@ -505,7 +505,7 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_zk_ecdsa_snark_witness_batch(
 /**
  * Compute BIP-340 Schnorr SNARK witnesses for a batch of (message, xonly-pubkey, sig) tuples.
  *
- * @param ctx          GPU context returned by ufsecp_gpu_context_create().
+ * @param ctx          GPU context returned by ufsecp_gpu_ctx_create().
  * @param msgs32       Input: count × 32 bytes (messages, per BIP-340).
  * @param pubkeys_x32  Input: count × 32 bytes (x-only public keys).
  * @param sigs64       Input: count × 64 bytes (BIP-340 sigs: R.x[32] || s[32]).

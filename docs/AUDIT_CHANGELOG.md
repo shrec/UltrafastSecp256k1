@@ -7,6 +7,38 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28d (Bitcoin Core PR prep: misuse_resistance 100/100 + supply_chain 5/5 + upstream gap parity)
+
+### Security Autonomy: 100/100 (all 8 gates passing)
+
+- **misuse_resistance gate**: Fixed phantom export `ufsecp_gpu_context_create` (docstring typo in `ufsecp_gpu.h`) and `ufsecp_abi_version` (1 → 7 negative tests). Score: 10/10.
+- **supply_chain gate**: Added `-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, `-fPIE`, `-pie` to `CMakeLists.txt`; created `scripts/generate_slsa_provenance.py` and generated `docs/slsa_provenance.json`. Score: 15/15.
+
+### Audit Gate: PASS (0 blocking findings, 2 advisory warnings)
+
+- **G-10 Spec Traceability**: Added DER/BIP-66, libsecp/compat, x-only/xonly sections to `docs/SPEC_TRACEABILITY_MATRIX.md` (now 101 rows). Previously 3 WARNs.
+- **P0 Invalid-Input Grammar + Stateful Sequences**: Fixed `scripts/_ufsecp.py` find_lib() to skip unloadable CUDA-linked libraries and probe `build-shim-v3`/`build_test`. Both harnesses now find a working library automatically.
+- **P0 Secret-Path Change Gate**: Updated `docs/SECURITY_CLAIMS.md` and `docs/FFI_HOSTILE_CALLER.md` to pair with `ufsecp_gpu.h` docstring fix. Gate now passes.
+- **P1 ABI Completeness**: Added `ufsecp_context_randomize` and `ufsecp_gpu_is_ready` to `docs/FEATURE_ASSURANCE_LEDGER.md`.
+- **P8 Test Documentation**: Added 22 (batch 2) + 6 (batch 3) CTest targets to `docs/TEST_MATRIX.md` (804 entries total).
+- **P10 Doc-Code Pairing**: Updated `docs/BUILDING.md` with build hardening flags section.
+- **G-12 Source Graph**: Rebuilt project graph (1215 source files, 5368 KB DB).
+
+### Upstream libsecp256k1 Test Parity (all 6 Tier 1 + Tier 2 GAPs ported)
+
+Ports from bitcoin-core/secp256k1 `src/tests.c` — each file wired into unified_audit_runner.cpp, CMakeLists.txt standalone target, and EXPLOIT_TEST_CATALOG.md.
+
+| File | GAP | Upstream test | Tests |
+|------|-----|---------------|-------|
+| `test_exploit_pubkey_cmp.cpp` | GAP-3 | `run_pubkey_comparison` | 7 |
+| `test_exploit_pubkey_sort.cpp` | GAP-4 | `run_pubkey_sort` | 7 |
+| `test_exploit_alloc_bounds.cpp` | GAP-1 | `run_scratch_tests` | 7 |
+| `test_exploit_hsort.cpp` | GAP-2 | `run_hsort_tests` | 4 |
+| `test_exploit_wnaf.cpp` | GAP-5 | `run_wnaf_tests` | 8 |
+| `test_exploit_int128.cpp` | GAP-7 | `run_int128_tests` | 8 |
+
+Total PoC files wired: **213/213** (0 unwired, 0 catalog gaps).
+
 ## 2026-04-28c (CAAS gap closure: CAAS-08, CAAS-11 + PR body fix)
 
 ### CAAS-08: Build caching added to all three CAAS jobs

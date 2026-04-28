@@ -155,3 +155,5 @@ an audit release commits it to the coverage matrix:
 4. A success smoke test with valid inputs
 
 No function can crash, hang, or leak memory on any hostile input. All reject with the appropriate `ufsecp_error_t` and leave output buffers untouched.
+
+<!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create. Phantom export removed from misuse_resistance gate. No hostile-caller contract changes. -->

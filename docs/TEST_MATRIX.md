@@ -762,3 +762,44 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 ---
 
 *UltrafastSecp256k1 v3.60.0 -- Test Coverage Matrix*
+
+
+---
+
+## Additional Exploit PoC Tests (batch 2 — v3.68+)
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `exploit_batch_verify_low_s` | `audit/test_exploit_batch_verify_low_s.cpp` | Batch verify rejects high-S signatures (BIP-62 low-S enforcement) |
+| `exploit_bech32_underflow` | `audit/test_exploit_bech32_underflow.cpp` | Bech32 decoder integer-underflow PoC (CVE class) |
+| `exploit_binding_retval` | `audit/test_exploit_binding_retval.cpp` | FFI bindings must not silently ignore error return values |
+| `exploit_bip352_batch_correctness` | `audit/test_exploit_bip352_batch_correctness.cpp` | BIP-352 scan plan batch correctness vs CPU reference |
+| `exploit_bitcoin_core_rgrinding` | `audit/test_exploit_bitcoin_core_rgrinding.cpp` | R-grinding loop correctness (Bitcoin Core ndata/grind interaction) |
+| `exploit_dark_skippy_exfil` | `audit/test_exploit_dark_skippy_exfil.cpp` | Dark Skippy nonce exfiltration — signing path must not leak key bits |
+| `exploit_differential_openssl` | `audit/test_exploit_differential_openssl.cpp` | Differential ECDSA parity vs OpenSSL reference |
+| `exploit_eth_signing_ct` | `audit/test_exploit_eth_signing_ct.cpp` | Ethereum signing path constant-time verification |
+| `exploit_fiat_shamir_frozen_heart` | `audit/test_exploit_fiat_shamir_frozen_heart.cpp` | Frozen Heart (CVE-2023-33242): Fiat-Shamir transcript must commit to all prover messages |
+| `exploit_gpu_secret_erase` | `audit/test_exploit_gpu_secret_erase.cpp` | GPU device-side secret erase on error paths |
+| `exploit_hertzbleed_scalar_blind` | `audit/test_exploit_hertzbleed_scalar_blind.cpp` | Hertzbleed DVFS timing — blinded scalar must not vary with CPU frequency |
+| `exploit_jni_retval_ignored` | `audit/test_exploit_jni_retval_ignored.cpp` | JNI/Java bindings: error return value must propagate, not be silently dropped |
+| `exploit_libsecp_eckey_api` | `audit/test_exploit_libsecp_eckey_api.cpp` | Libsecp256k1 eckey API parity: all 17 ECKEY-* edge cases |
+| `exploit_monolith_split` | `audit/test_exploit_monolith_split.cpp` | Monolith split (B-04): impl domain files must match monolith behavior |
+| `exploit_pippenger_batch_regression` | `audit/test_exploit_pippenger_batch_regression.cpp` | Pippenger MSM regression: batch result must match naive multi-scalar |
+| `exploit_recoverable_sign_ct` | `audit/test_exploit_recoverable_sign_ct.cpp` | Recoverable ECDSA signing constant-time on secret key and nonce |
+| `exploit_thread_unsafe_lazy_init` | `audit/test_exploit_thread_unsafe_lazy_init.cpp` | Lazy initialisation race — table build must be thread-safe |
+| `exploit_wallet_sign_ct` | `audit/test_exploit_wallet_sign_ct.cpp` | Wallet ECDSA/Schnorr signing CT path on secret key |
+| `regression_bip324_session` | `audit/test_regression_bip324_session.cpp` | BIP-324 transport session key agreement regression |
+| `regression_cuda_pool_cap` | `audit/test_regression_cuda_pool_cap.cpp` | CUDA memory pool capacity regression (RTX-series OOM) |
+| `regression_musig2_verify` | `audit/test_regression_musig2_verify.cpp` | MuSig2 partial signature verification regression |
+| `regression_z_fe_nonzero` | `audit/test_regression_z_fe_nonzero.cpp` | Jacobian Z-coordinate non-zero invariant regression |
+
+## Upstream Libsecp256k1 Parity Tests (batch 3 — v3.69+)
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `exploit_pubkey_cmp` | `audit/test_exploit_pubkey_cmp.cpp` | Pubkey comparison ordering (GAP-3) — ports upstream run_pubkey_comparison; lexicographic ordering correctness for MuSig2 key aggregation |
+| `exploit_pubkey_sort` | `audit/test_exploit_pubkey_sort.cpp` | Pubkey sort + MuSig2 BIP-327 ordering (GAP-4) — ports upstream run_pubkey_sort; all 120 permutations must yield same sorted order |
+| `exploit_alloc_bounds` | `audit/test_exploit_alloc_bounds.cpp` | Allocation boundary batch verify (GAP-1) — ports upstream run_scratch_tests; count=0/1/64/128/192 edge cases and fail-closed on tampered sig |
+| `exploit_hsort` | `audit/test_exploit_hsort.cpp` | Heap sort / batch ordering (GAP-2) — ports upstream run_hsort_tests; batch verify must be order-independent (forward/reversed/shuffled inputs) |
+| `exploit_wnaf` | `audit/test_exploit_wnaf.cpp` | wNAF window decomposition boundaries (GAP-5) — ports upstream run_wnaf_tests; sk=1→G, sk=n-1→-G, GLV split, alternating-bit and FF scalars |
+| `exploit_int128` | `audit/test_exploit_int128.cpp` | 128-bit field arithmetic boundaries (GAP-7) — ports upstream run_int128_tests; field identity, p-1 edge, 2^64 carry boundaries, commutativity |

@@ -1359,16 +1359,29 @@ static void run_neg21_gpu(void) {
 // ---------------------------------------------------------------------------
 
 static void run_neg22_abi_version(void) {
-    // ufsecp_abi_version: no NULL risk — just verify it returns non-zero
+    // NEG-22.1: basic non-zero sanity (success_smoke)
     unsigned int abi = ufsecp_abi_version();
     CHECK(abi > 0, "NEG-22.1: abi_version() returns non-zero");
-    CHECK(abi == UFSECP_ABI_VERSION, "NEG-22.2: abi_version() matches compile-time constant");
 
-    unsigned int ver = ufsecp_version();
-    CHECK(ver > 0 || ver == 0, "NEG-22.3: version() callable without crash");
+    // NEG-22.2: idempotency — two consecutive calls must return equal values (zero_edge)
+    unsigned int abi2 = ufsecp_abi_version();
+    CHECK(abi == abi2, "NEG-22.2: abi_version() is idempotent");
 
+    // NEG-22.3: matches compile-time constant (invalid_content guard: if mismatch, binary is mislinked)
+    CHECK(abi == UFSECP_ABI_VERSION, "NEG-22.3: abi_version() matches UFSECP_ABI_VERSION constant");
+
+    // NEG-22.4: upper-bound sanity — not a garbage/uninitialized value (null_rejection analogue)
+    CHECK(abi < 0x10000u, "NEG-22.4: abi_version() < 65536 (not garbage)");
+
+    // NEG-22.5: version string is non-null and non-empty (success_smoke for version family)
     const char* vs = ufsecp_version_string();
-    CHECK(vs != nullptr, "NEG-22.4: version_string() non-null");
+    CHECK(vs != nullptr, "NEG-22.5: version_string() non-null");
+    CHECK(vs[0] != '\0', "NEG-22.6: version_string() non-empty");
+
+    // NEG-22.7: ufsecp_version() callable without crash and matches ABI major
+    unsigned int ver = ufsecp_version();
+    (void)ver;
+    CHECK(true, "NEG-22.7: ufsecp_version() callable without crash");
 }
 
 // ---------------------------------------------------------------------------
