@@ -186,3 +186,10 @@ audit/formal/lean/.lake/
 # Local scratch / generated binaries
 config.ini
 scan_lut_bench.bin
+
+# Internal working documents — never commit to repo
+docs/WORK_ORDER_*.md
+docs/*_TODO.md
+docs/INTERNAL_*.md
+docs/TASK[0-9]*.md
+WORK_ORDER_*.md
