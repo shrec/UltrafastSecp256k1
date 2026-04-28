@@ -155,7 +155,9 @@ Point pippenger_msm(const Scalar* scalars,
         if (all_affine) {
             for (std::size_t i = 0; i < n; ++i) {
                 if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+#ifdef __GNUC__
                     __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+#endif
                 }
                 std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
                                                           static_cast<std::size_t>(w)];
@@ -180,7 +182,9 @@ Point pippenger_msm(const Scalar* scalars,
         } else {
             for (std::size_t i = 0; i < n; ++i) {
                 if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+#ifdef __GNUC__
                     __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+#endif
                 }
                 std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
                                                           static_cast<std::size_t>(w)];

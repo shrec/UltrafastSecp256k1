@@ -48,11 +48,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ── Provider A: Ubuntu 22.04 / GCC 12 ────────────────────────────────────────
+# ── Provider A: Ubuntu 22.04 / GCC 14 (via ubuntu-toolchain-r PPA) ───────────
+# Same compiler version as Provider B to allow bit-identical cross-OS comparison.
+# Different OS image (22.04 vs 24.04) still tests cross-environment portability.
 
 jobs:
   build-provider-a:
-    name: "Provider A: ubuntu-22.04 / gcc-12"
+    name: "Provider A: ubuntu-22.04 / gcc-14"
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -63,19 +65,20 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Install build deps
+      - name: Install build deps (gcc-14 via ubuntu-toolchain-r PPA)
         run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build gcc-12 g++-12
+            cmake ninja-build gcc-14 g++-14
 
       - name: Configure (Release, reproducible, CPU only)
         run: |
           cmake -S . -B build-a \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=gcc-12 \
-            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DCMAKE_C_COMPILER=gcc-14 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
             -DUFSECP_REPRODUCIBLE=ON \
             -DUFSECP_REFRESH_SOURCE_GRAPH=OFF \
             -DSECP256K1_BUILD_CPU=ON \
@@ -203,7 +206,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Provider | Runner | Compiler |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| A | ubuntu-22.04 | gcc-12 |" >> $GITHUB_STEP_SUMMARY
+          echo "| A | ubuntu-22.04 | gcc-14 (PPA) |" >> $GITHUB_STEP_SUMMARY
           echo "| B | ubuntu-24.04 | gcc-14 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f attestation/hashes-provider-a.txt ] && [ -f attestation/hashes-provider-b.txt ]; then
