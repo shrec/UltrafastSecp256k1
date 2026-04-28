@@ -7,6 +7,28 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28c (CAAS gap closure: CAAS-08, CAAS-11 + PR body fix)
+
+### CAAS-08: Build caching added to all three CAAS jobs
+
+`caas.yml`: All three jobs that rebuild `libufsecp.so` (`audit_gate`, `security_autonomy`,
+`bundle`) now use `actions/cache` keyed on `hashFiles('cpu/src/**', 'cpu/include/**',
+'include/**', 'CMakeLists.txt')`. On cache hit, the ~5-minute CMake build is skipped.
+Estimated savings: ~10 minutes per pipeline run when source files are unchanged.
+
+### CAAS-11: Spurious `submodules: recursive` removed from 12 workflow files
+
+Removed `submodules: recursive` from all 12 workflow `actions/checkout` steps.
+The repo has no `.gitmodules` — the option was a silent no-op but misleading to
+external reviewers and auditors who might infer submodule dependencies that don't exist.
+
+### BITCOIN_CORE_PR_BODY.md: macOS CI known gap updated
+
+Line 62 updated from "No macOS ARM64 CI is wired yet" → accurate statement reflecting
+that `macos-shim.yml` now covers shim build + test on Apple Silicon.
+
+---
+
 ## 2026-04-28b (CAAS gap closure: CAAS-01, CAAS-03, CAAS-05, CAAS-07)
 
 ### CAAS-01: Replay capsule evidence_bundle_hash fixed

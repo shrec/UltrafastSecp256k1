@@ -59,7 +59,7 @@ Differential testing against bitcoin-core/secp256k1 reference:
 
 ### Known gaps and honest statements
 
-- No macOS ARM64 CI is wired yet (Linux x86-64 only at this stage)
+- macOS ARM64 CI covers shim build + test only; full GPU suite remains Linux x86-64
 - Formal verification is not claimed; software-tool CT verification only
 - Thread safety: each context is independent; concurrent use of distinct contexts is safe
 

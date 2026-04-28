@@ -142,7 +142,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@5a3ec84eff668545956fd18022d5f7d7eba9b49b # v4.2.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-
+
       - name: Build shared library (required by P0 harnesses)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -232,7 +241,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@5a3ec84eff668545956fd18022d5f7d7eba9b49b # v4.2.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-
+
       - name: Build shared library (required by audit_gate in bundle)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -319,7 +337,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@5a3ec84eff668545956fd18022d5f7d7eba9b49b # v4.2.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-
+
       - name: Build shared library (required by audit_gate in bundle)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
