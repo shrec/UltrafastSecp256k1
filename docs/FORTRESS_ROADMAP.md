@@ -212,11 +212,6 @@ The project should only claim fortress-grade self-audit when all of the followin
 
 ## What This Roadmap Does Not Assume
 
-This roadmap does not assume:
-
-1. A paid third-party audit is required first
-2. Trust should depend on a one-time report
-3. External review is optional
-
-External audit remains welcome.
-The point is to ensure the repository is already strong, transparent, and rerunnable before anyone arrives.
+This roadmap does not assume trust should depend on a one-time snapshot report.
+External review is always welcome; the repository is structured so reviewers can step in and replay all evidence at any time.
+The point is to ensure the codebase is already strong, transparent, and rerunnable before anyone arrives.

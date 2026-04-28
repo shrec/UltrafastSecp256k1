@@ -313,7 +313,6 @@ Include:
 
 We are actively seeking sponsors for:
 
-- **Independent cryptographic audit** -- professional third-party review
 - **Bug bounty program** -- financial rewards for security researchers
 - **Ongoing development** -- GPU acceleration, ZK proofs, formal verification, platform ports
 

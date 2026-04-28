@@ -355,33 +355,40 @@ UFSECP_API ufsecp_error_t ufsecp_tagged_hash(const char* tag,
  * =========================================================================== */
 
 /** P2PKH address from compressed pubkey.
- *  addr_len: in = buffer size, out = strlen (excl. NUL). */
+ *  addr_len: in = buffer size (must be > strlen(result), i.e. >= strlen+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2pkh(ufsecp_ctx* ctx,
                                             const uint8_t pubkey33[33],
                                             int network,
                                             char* addr_out, size_t* addr_len);
 
-/** P2WPKH (Bech32, SegWit v0). */
+/** P2WPKH (Bech32, SegWit v0).
+ *  addr_len: in = buffer size (must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2wpkh(ufsecp_ctx* ctx,
                                              const uint8_t pubkey33[33],
                                              int network,
                                              char* addr_out, size_t* addr_len);
 
-/** P2TR (Bech32m, Taproot) from x-only internal key. */
+/** P2TR (Bech32m, Taproot) from x-only internal key.
+ *  addr_len: in = buffer size (must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
                                            const uint8_t internal_key_x[32],
                                            int network,
                                            char* addr_out, size_t* addr_len);
 
 /** P2SH address from arbitrary redeem script.
- *  addr_len: in = buffer size (min 36), out = strlen (excl. NUL). */
+ *  addr_len: in = buffer size (min 36, must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  redeem_script must be non-NULL. Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2sh(
     const uint8_t* redeem_script, size_t redeem_script_len,
     int network,
     char* addr_out, size_t* addr_len);
 
 /** P2SH-P2WPKH (WrappedSegWit) address from compressed pubkey.
- *  addr_len: in = buffer size (min 36), out = strlen (excl. NUL). */
+ *  addr_len: in = buffer size (min 36, must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
     ufsecp_ctx* ctx,
     const uint8_t pubkey33[33],
@@ -393,7 +400,8 @@ UFSECP_API ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
  * =========================================================================== */
 
 /** Encode private key -> WIF string.
- *  wif_len: in = buf size, out = strlen. */
+ *  wif_len: in = buffer size (must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *wif_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_wif_encode(ufsecp_ctx* ctx,
                                             const uint8_t privkey[32],
                                             int compressed, int network,
@@ -663,7 +671,8 @@ UFSECP_API ufsecp_error_t ufsecp_pubkey_combine(ufsecp_ctx* ctx,
  *  entropy_bytes: 16 (12 words), 20 (15), 24 (18), 28 (21), 32 (24 words).
  *  entropy_in: NULL for random, or pointer to entropy bytes.
  *  mnemonic_out: buffer for NUL-terminated mnemonic.
- *  mnemonic_len: in = buffer size, out = strlen. */
+ *  mnemonic_len: in = buffer size (must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
+ *  Returns UFSECP_ERR_BUF_TOO_SMALL if *mnemonic_len <= strlen(result). */
 UFSECP_API ufsecp_error_t ufsecp_bip39_generate(ufsecp_ctx* ctx,
                                                 size_t entropy_bytes,
                                                 const uint8_t* entropy_in,

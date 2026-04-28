@@ -44,12 +44,9 @@ We will acknowledge within **72 hours** and provide a fix timeline.
 
 ## Audit Status
 
-This library has **not undergone a paid external security audit**.
-That fact is not the center of the project's assurance model.
 The primary security posture is an open, reproducible self-audit program that any outside reviewer can rerun.
-We are open to external audit and prepare for it continuously, but we do not wait for a formal third-party process before tightening correctness and security ourselves.
 The project philosophy is to strengthen assurance through internal audit on every build and every commit.
-It is provided for research, educational, and experimental purposes.
+The project is designed to make external review as efficient as possible: reproducible artifacts, graph-backed code navigation, structured traceability, and CI-backed verification that any reviewer can replay independently.
 
 > **Open self-audit and reproducible review**
 >

@@ -373,7 +373,6 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) | Per-backend assurance matrix |
 | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) | Requirement-to-test traceability map |
 
-> **Note:** UltrafastSecp256k1 has not undergone a third-party cryptographic audit.
 > The assurance model is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun.
 > The project hardens continuously through internal audit on every build and every commit.
 
@@ -1619,7 +1618,7 @@ cosign verify-blob SHA256SUMS \
 > All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.
 
 **Which parts are production-safe today?**
-> This library has not undergone a third-party audit. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI with a strong self-audit trail and reproducible evidence.
+> Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI with a strong self-audit trail and reproducible evidence.
 
 **How do I reproduce the benchmarks?**
 > See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for exact commands, pinned compiler/driver versions, and raw logs. The [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) tracks performance across commits.

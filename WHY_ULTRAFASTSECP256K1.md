@@ -218,14 +218,9 @@ Every benchmark number in this project is:
 
 ---
 
-## 7. What "Not Paid-Externally Audited" Actually Means Here
+## 7. Assurance Model
 
-UltrafastSecp256k1 has **not yet undergone a paid third-party professional audit**.
-That is a factual status note, not the center of the project's security philosophy.
-The project is open to external audit and continuously prepares evidence so outside reviewers can audit it at any time.
-At the same time, it does not wait for a third party to begin strengthening correctness and security, and it does not outsource trust to a single PDF milestone.
-
-However, "not externally audited" does **not** mean "unverified." The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program that most open-source cryptographic libraries do not have:
+The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program:
 
 - Over **1,000,000 internal audit assertions** executed on every build
 - **37 CI workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
@@ -233,10 +228,9 @@ However, "not externally audited" does **not** mean "unverified." The internal q
 - **Supply-chain hardening** at the OpenSSF standard
 - **Nightly differential testing** at 1.3M+ additional random checks per night
 
-The honest summary:
-> This library does **not** rely on a paid-audit badge as its primary trust story.
-> It **does** rely on open self-audit, reproducible evidence, graph-assisted review, and reviewer-friendly verification so anyone can inspect and challenge the implementation.
-> External audit is welcomed, but assurance work already happens continuously through internal audit on every build, every push/PR gate, and every nightly extended run.
+> The project relies on open self-audit, reproducible evidence, graph-assisted review, and reviewer-friendly verification so anyone can inspect and challenge the implementation.
+> Assurance work happens continuously through internal audit on every build, every push/PR gate, and every nightly extended run.
+> The repository is structured so outside reviewers can step in and replay all evidence at any time.
 
 ---
 

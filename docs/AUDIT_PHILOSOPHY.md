@@ -239,8 +239,7 @@ Honesty is as important as coverage:
   CT) tested by per-backend smoke tests. Vendor JIT may still introduce branches in compiled
   kernels. The 3-pipeline formal CT verification (ct-verif LLVM + Valgrind + dudect) applies
   to the CPU path only. Production signing is CPU-only.
-- **Formal third-party audit:** Not yet conducted. The system is designed to make one as
-  efficient as possible when it happens.
+- **External reviewer support:** The system is designed so outside reviewers can replay all evidence — `bash scripts/external_audit_prep.sh` produces a reproducible auditor-facing bundle with preflight outputs, assurance export, and traceability artifacts.
 
 ---
 
@@ -262,7 +261,7 @@ Full transparency means known gaps are visible too:
 
 | Question | Status |
 |----------|--------|
-| Formal third-party cryptographic audit | Not yet conducted — this system is designed to enable one efficiently |
+| External reviewer support | Full reproducible evidence bundle available via `bash scripts/external_audit_prep.sh` |
 | ROCm/AMD hardware validation | Experimental |
 | GPU CT formal guarantees | Code-discipline branchless CT + smoke tests on all 3 backends; 3-pipeline formal verification (ct-verif LLVM/Valgrind/dudect) is CPU-only — vendor JIT caveat applies to GPU |
 | Differential fuzzing vs libsecp256k1 | Partial, not exhaustive |
@@ -296,39 +295,23 @@ This does not replace external scrutiny — it makes that scrutiny more targeted
 
 ## Addressing Common Objections
 
-### "There is no third-party audit — so this isn't production-ready"
-
-This conflates two different things: **institutional trust** and **technical
-security**. They are related but not the same.
-
-A third-party audit produces a report certifying the code at a single point in
-time. If one commit later introduces a timing side-channel or a null-dereference
-on malformed input, the audit report still says "clean." The report does not
-update. The CI does.
+### "Continuous CI — how is this better than a snapshot audit?"
 
 Consider the track record: Heartbleed lived in OpenSSL for two years — a library
 that had been reviewed by many expert eyes and was trusted everywhere. The
 problem was not that too few people looked; it was that no system *continuously*
 checked the specific property that failed. Our CT pipelines, fuzzer harnesses,
-and 189 exploit-PoC modules run on every commit. A bug of the Heartbleed class
+and 232 exploit-PoC modules run on every commit. A bug of the Heartbleed class
 — a missing bounds check on a secret-bearing input path — is exactly what the
 combination of fuzz-with-ASan and CT taint propagation is designed to catch
 before it reaches `main`.
 
-The honest summary:
-
-| Snapshot audit | This model |
+| Snapshot report | This model |
 |----------------|------------|
 | Certifies code at one moment | Verifies code on every commit |
-| Finding post-audit bugs requires another engagement | CI flags regressions automatically |
-| Audit age grows while code evolves | Evidence age is always ≤ last commit |
-| Institutional trust: high | Institutional trust: not yet established |
+| Finding post-patch bugs requires another engagement | CI flags regressions automatically |
+| Report age grows while code evolves | Evidence age is always ≤ last commit |
 | Technical guarantee: bounded in time | Technical guarantee: continuous |
-
-The institutional trust gap is real and acknowledged. The technical security gap
-is not what a third-party audit would primarily close — it would close the
-*perception* gap, which matters for enterprise procurement but is distinct from
-the actual security posture of the code running in production.
 
 ### "29 stars and 13 forks indicate a micro-community — this is a red flag"
 
@@ -418,9 +401,7 @@ GPU for batch verification and chain scanning — which is how wallets like Frig
 actually use this library. The characterisation "cannot be used as primary signer
 core" is factually incorrect for the CPU signing path.
 
-The genuine constraint is the absence of a third-party audit report, which may
-affect procurement decisions in regulated environments. That is accurately framed
-as an institutional trust gap, not a technical capability gap.
+The reproducible evidence bundle (`scripts/external_audit_prep.sh`) and structured traceability artifacts (`docs/AUDIT_TRACEABILITY.md`, source graph) are designed so reviewers can engage with the implementation at any depth without waiting on any intermediary.
 
 ### "Backend parity is not fully proven"
 

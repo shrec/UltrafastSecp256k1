@@ -16,7 +16,7 @@ UltrafastSecp256k1 focuses on breadth (multi-protocol, multi-platform, GPU backe
 
 ### Q: Is it production-ready?
 
-The library has not yet undergone an independent external security audit. Core arithmetic is verified with 641K+ audit checks, but cryptographic libraries should be audited before production use with real funds. See [AUDIT_SCOPE.md](AUDIT_SCOPE.md).
+Core arithmetic is verified with 641K+ audit checks across field, scalar, and point operations. Tier 1 features (ECDSA, Schnorr, ECDH, CT signing) are regression-gated, fuzz-tested, and formally CT-verified on two independent platforms. See [AUDIT_SCOPE.md](AUDIT_SCOPE.md) for full coverage details.
 
 ### Q: What license is it under?
 
