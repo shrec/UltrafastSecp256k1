@@ -36,22 +36,26 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 
     // Deterministic nonce (RFC 6979)
     auto k = rfc6979_nonce(private_key, msg_hash);
+    // k.is_zero() guards against RFC 6979 100-attempt exhaustion (≈2^−8000
+    // probability); not a timing concern since k is never zero in practice.
     if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // R = k * G  -- CT path
     auto R = ct::generator_mul(k);
-    if (R.is_infinity()) return {Scalar::zero(), Scalar::zero()};
+    // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
-    // r = R.x mod n
+    // r = R.x mod n (R.x is public after ct::generator_mul)
     auto r_fe = R.x();
     auto r_bytes = r_fe.to_bytes();
     auto r = Scalar::from_bytes(r_bytes);
+    // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // s = k^{-1} * (z + r * d) mod n
     // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
+    // s.is_zero() is astronomically unlikely for valid inputs.
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // CT low-S normalization: branchless comparison with n/2 + conditional negate.
@@ -102,20 +106,23 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
 
     auto z = Scalar::from_bytes(msg_hash);
     auto k = secp256k1::rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
+    // k.is_zero() guards against RFC 6979 exhaustion (≈2^−8000 probability).
     if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // R = k * G  -- CT path
     auto R = ct::generator_mul(k);
-    if (R.is_infinity()) return {Scalar::zero(), Scalar::zero()};
+    // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
     auto r_fe = R.x();
     auto r_bytes = r_fe.to_bytes();
     auto r = Scalar::from_bytes(r_bytes);
+    // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // CT inverse: SafeGCD Bernstein-Yang divsteps-59, same as ecdsa_sign above.
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
+    // s.is_zero() is astronomically unlikely for valid inputs.
     if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
     // CT low-S normalization (branchless)
@@ -303,16 +310,18 @@ RecoverableSignature ecdsa_sign_recoverable(
 
     // Deterministic nonce (RFC 6979)
     auto k = rfc6979_nonce(private_key, msg_hash);
+    // k.is_zero() guards against RFC 6979 exhaustion (≈2^−8000 probability).
     if (k.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // R = k * G  -- CT path (data-independent execution trace)
     auto R = ct::generator_mul(k);
-    if (R.is_infinity()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
-    // r = R.x mod n
+    // r = R.x mod n (R.x is public after ct::generator_mul)
     auto r_fe = R.x();
     auto r_bytes = r_fe.to_bytes();
     auto r = Scalar::from_bytes(r_bytes);
+    // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // Recovery ID bit 0: parity of R.y
@@ -340,6 +349,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
     auto k_inv = ct::scalar_inverse(k);
     auto s = k_inv * (z + r * private_key);
+    // s.is_zero() is astronomically unlikely for valid inputs.
     if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // CT low-S normalization (branchless throughout).

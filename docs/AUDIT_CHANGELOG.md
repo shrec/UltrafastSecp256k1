@@ -7,6 +7,24 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-28j (CT audit cleanup — ct_sign.cpp dead-code removal + nonce invariant docs)
+
+### CT / Correctness
+
+- **M14-M16: `ct_sign.cpp` dead `R.is_infinity()` checks removed** — In `ecdsa_sign`, `ecdsa_sign_hedged`, and `ecdsa_sign_recoverable`, the check `if (R.is_infinity())` was dead code: secp256k1 has prime order, so a nonzero scalar k guarantees R = k·G ≠ ∞. All three occurrences removed. Documentation comments added explaining: (a) `k.is_zero()` is an RFC 6979 100-attempt exhaustion guard (≈2^−8000 probability — not a timing concern); (b) `r.is_zero()` requires R.x ≡ n exactly (≈2^−128 probability); (c) `s.is_zero()` is astronomically unlikely for valid inputs.
+- **H8 investigation: rfc6979_nonce is pure HMAC-SHA256** — The punch list claimed an "AES fallback loop on the secret nonce." Investigation confirmed this does not exist: `rfc6979_nonce()` and `rfc6979_nonce_hedged()` are strictly RFC 6979 §3.2/§3.6 HMAC-DRBG with no AES. The "AES fallback" was a false alarm.
+
+### False-Alarm Investigation Results (punch list items)
+
+- **M8** (`1 << 31` UB): Not found in any source file. Punch list referenced `cpu/src/field_52.hpp:89` which is a function declaration, not a bit-shift.
+- **M7** (malformed bench JSON): All JSON files parse cleanly with no zero timings. False alarm.
+- **M13** (ndata when noncefp=NULL): Correct by design — libsecp256k1 itself uses ndata for hedged RFC 6979 when noncefp=NULL. Not a bug.
+- **M21** (thread safety): `shim_ensure_fixed_base()` uses `std::call_once` — standard C++11 thread-safe one-time initialization. No issue.
+- **M3/M4/M5** (broken doc links): `docs/API_REFERENCE.md`, `docs/ABI_VERSIONING.md`, `docs/THREAD_SAFETY.md` all exist.
+- **M22-M27** (CT on public data): DER serialization, recovery.cpp recid logic, and other flagged paths operate on public signature data only. These are not CT violations.
+
+---
+
 ## 2026-04-28i (Bitcoin Core PR readiness sweep — shim hardening + MuSig2 protocol fix)
 
 ### Security / Correctness Fixes

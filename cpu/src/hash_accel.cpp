@@ -532,6 +532,8 @@ SHANI_FUNC_ATTR
 void sha256_compress(const std::uint8_t block[64], std::uint32_t state[8]) noexcept {
     // Load state into two 128-bit registers
     // state0 = [A B E F], state1 = [C D G H]  (SHA-NI layout)
+    // __m128i has __attribute__(__may_alias__) in GCC/Clang: reinterpret_cast from
+    // uint32_t* is defined behavior — standard SHA-NI implementation pattern.
     __m128i const abef = _mm_loadu_si128(reinterpret_cast<const __m128i*>(state));
     __m128i cdgh = _mm_loadu_si128(reinterpret_cast<const __m128i*>(state + 4));
 

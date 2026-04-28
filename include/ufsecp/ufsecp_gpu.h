@@ -62,7 +62,10 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+#  define UFSECP_NOEXCEPT noexcept
 extern "C" {
+#else
+#  define UFSECP_NOEXCEPT
 #endif
 
 /* ============================================================================
@@ -98,16 +101,16 @@ typedef struct ufsecp_gpu_ctx ufsecp_gpu_ctx;
 
 /** Return number of compiled-in GPU backends (0 if none).
  *  Fills backend_ids[] if non-NULL (caller allocates, size >= count). */
-UFSECP_API uint32_t ufsecp_gpu_backend_count(uint32_t* backend_ids, uint32_t max_ids);
+UFSECP_API uint32_t ufsecp_gpu_backend_count(uint32_t* backend_ids, uint32_t max_ids) UFSECP_NOEXCEPT;
 
 /** Return short name for a backend id ("CUDA", "OpenCL", "Metal", "none"). */
 UFSECP_API const char* ufsecp_gpu_backend_name(uint32_t backend_id);
 
 /** Return 1 if the backend is compiled in AND at least one device exists. */
-UFSECP_API int ufsecp_gpu_is_available(uint32_t backend_id);
+UFSECP_API int ufsecp_gpu_is_available(uint32_t backend_id) UFSECP_NOEXCEPT;
 
 /** Return number of devices for the given backend (0 if unavailable). */
-UFSECP_API uint32_t ufsecp_gpu_device_count(uint32_t backend_id);
+UFSECP_API uint32_t ufsecp_gpu_device_count(uint32_t backend_id) UFSECP_NOEXCEPT;
 
 /** Device info structure (filled by ufsecp_gpu_device_info). */
 typedef struct {
@@ -147,7 +150,7 @@ UFSECP_API void ufsecp_gpu_ctx_destroy(ufsecp_gpu_ctx* ctx);
  *  operations, 0 otherwise. A context is ready after a successful
  *  ufsecp_gpu_ctx_create() and until ufsecp_gpu_ctx_destroy() is called.
  *  Returns 0 if ctx is NULL. */
-UFSECP_API int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx);
+UFSECP_API int ufsecp_gpu_is_ready(const ufsecp_gpu_ctx* ctx) UFSECP_NOEXCEPT;
 
 /** Return the last error code from this GPU context. */
 UFSECP_API ufsecp_error_t ufsecp_gpu_last_error(const ufsecp_gpu_ctx* ctx);
