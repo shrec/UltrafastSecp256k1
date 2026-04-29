@@ -71,29 +71,29 @@ Drop-in engine replacement for cryptocurrency node implementations.
 
 ### Dogecoin Core (dogecoin/dogecoin)
 
-**Harness:** `bench_dogecoin` (Bitcoin Core fork harness)  
-**Version:** 1.14.x  
-**Status:** 📋 Planned
+**Harness:** Dogecoin bench.h harness (10 runs × 20,000 ops)  
+**Version:** dogecoin/dogecoin master  
+**Note:** Uses newer libsecp256k1 with existing optimizations.
 
-| Benchmark | libsecp256k1 | UF shim | Δ |
+| Operation | Dogecoin native | UF shim | Speedup |
 |---|---|---|---|
-| SignTransactionECDSA | — | — | — |
-| VerifyScriptBench | — | — | — |
+| ECDSA Sign + DER | 18.7 μs | 16.4 μs | **+14%** |
+| ECDSA Verify | 21.8 μs | 20.3 μs | **+7%** |
 
 ---
 
 ### BCHN (Bitcoin Cash Node)
 
-**Harness:** BCHN `bench_bitcoin` (Bitcoin Cash fork harness)  
-**Version:** 28.x  
-**Status:** 📋 Planned
+**Harness:** 10 runs × 20,000 ops per-op timing  
+**Version:** master (bitcoin-cash-node/bitcoin-cash-node)  
+**Modules:** ECDSA + BCH Schnorr (`secp256k1_schnorr.h` — non-BIP340)
 
-| Benchmark | libsecp256k1 | UF shim | Δ |
+| Operation | BCHN native | UF shim | Speedup |
 |---|---|---|---|
-| ECDSA Sign | — | — | — |
-| ECDSA Verify | — | — | — |
-| BCH Schnorr Sign | — | — | — |
-| BCH Schnorr Verify | — | — | — |
+| ECDSA Sign + DER | 60.9 μs | 15.6 μs | **+290% (3.9×)** |
+| BCH Schnorr Sign | 70.6 μs | 14.6 μs | **+384% (4.8×)** |
+| ECDSA Verify | 70.6 μs | 19.4 μs | **+264% (3.6×)** |
+| BCH Schnorr Verify | 46.5 μs | 21.3 μs | **+118% (2.2×)** |
 
 ---
 
