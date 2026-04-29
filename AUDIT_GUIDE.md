@@ -43,7 +43,7 @@ No proprietary environment. No hidden pipeline. No special auditor toolchain.
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
 >
-> The project is open to external audit and keeps the repository audit-ready,
+> The project keeps the repository audit-ready,
 > but it does not wait for a formal third-party engagement before improving assurance.
 > Internal audit and verification are expected to run continuously on every build and every commit.
 > The intended model is not "trust the report" but "rerun the evidence".

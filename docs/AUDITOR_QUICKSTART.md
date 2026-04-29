@@ -1,6 +1,6 @@
 # Auditor Quickstart
 
-> **3 commands, 3 artifacts — everything an external auditor needs.**
+> **3 commands, 3 artifacts — everything a security reviewer needs.**
 
 ## Prerequisites
 

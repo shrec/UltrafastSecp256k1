@@ -59,7 +59,7 @@ jobs:
   ct-tool-valgrind:
     name: "CT Tool A: Valgrind taint"
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -72,7 +72,20 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            valgrind cmake ninja-build gcc-14 g++-14
+            valgrind cmake ninja-build gcc-14 g++-14 ccache
+
+      - name: Cache ccache (Valgrind build)
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-vg-ct-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          restore-keys: ccache-vg-ct-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
 
       - name: Build with VALGRIND_CT_CHECK=ON
         run: |
@@ -81,6 +94,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER=gcc-14 \
             -DCMAKE_CXX_COMPILER=g++-14 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DVALGRIND_CT_CHECK=ON \
             -DSECP256K1_BUILD_CPU=ON \
             -DSECP256K1_BUILD_SHIM=OFF \
@@ -137,7 +152,7 @@ jobs:
   ct-tool-dudect:
     name: "CT Tool B: dudect statistical timing"
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0

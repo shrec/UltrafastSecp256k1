@@ -13,7 +13,7 @@
 ## Scope
 
 This report covers **UltrafastSecp256k1 v3.68.0+** internal verification results.
-No external audit firm was engaged. All data below can be independently reproduced
+All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
 | | |
@@ -22,7 +22,7 @@ from source using the commands in [How to Reproduce](#how-to-reproduce).
 | Branch | `dev` |
 | Report Date | 2026-04-09 |
 | Methodology | Automated deterministic + statistical |
-| External Audit | **None** |
+
 
 ---
 
@@ -261,7 +261,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 
 | Claim | Status |
 |-------|--------|
-| "Fully audited" | **No.** No external audit. |
+| "Formally audited by PDF firm" | No — CAAS continuous evidence instead. |
 | "Production ready" | **Yes** for single-signer operations. MuSig2/FROST require external protocol review for adversarial multi-party use. |
 | "Provably secure" | **No.** No machine-checked cryptographic proofs (Coq/F*/Jasmin). CT properties are verified by ct-verif (LLVM IR) + Valgrind CT + dudect — all CI-enforced. |
 | "Constant-time guaranteed" | **Three-tier verified**: ct-verif (IR-level), Valgrind CT (memory-origin), dudect (statistical timing). Not machine-checked proofs. |

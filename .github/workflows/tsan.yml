@@ -11,6 +11,16 @@ name: TSan
 on:
   push:
     branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'gpu/**'
+      - 'opencl/**'
+      - 'metal/**'
+      - 'cuda/**'
+      - 'include/**'
+      - 'audit/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/tsan.yml'
   pull_request:
     branches: [main, dev]
 

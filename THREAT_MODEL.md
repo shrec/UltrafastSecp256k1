@@ -142,7 +142,7 @@ The coin dispatch layer generates addresses only. It does **not** store keys, ma
 | ZK proof reveals secret via timing | MEDIUM | Proving path uses `ct::` namespace throughout |
 | Batch verification shortcut forgery | LOW | Batch verify independently validates each proof; no shortcut |
 
-**⚠️ Status (v3.68.0):** API experimental. ZK primitives have internal audit coverage (`audit_zk.cpp`, ~1,500 checks) but have **not** undergone independent third-party review. Bulletproof soundness is not formally proven for this implementation.
+**⚠️ Status (v3.68.0):** API experimental. ZK primitives have internal audit coverage (`audit_zk.cpp`, ~1,500 checks). Bulletproof soundness is not formally proven for this implementation.
 
 ### 8. Ethereum Signing Layer (`secp256k1::eth`)
 

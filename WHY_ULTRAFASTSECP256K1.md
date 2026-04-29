@@ -70,7 +70,7 @@ All 232 exploit-PoC modules pass. Zero failures across all 20+ coverage categori
 
 | Document | Purpose |
 |----------|---------|
-| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | Navigation guide for external auditors — build steps, source layout, test commands |
+| [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | Navigation guide for security reviewers — build steps, source layout, test commands |
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | Historical formal audit report (v3.9.0): 641,194 checks, 0 failures |
 | [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) | Current coverage matrix by module and section |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk analysis — what is in scope and out of scope |
