@@ -3125,6 +3125,8 @@ add_executable(unified_audit_runner
     test_exploit_bitcoin_message_signing.cpp
     test_exploit_chacha20_kat.cpp
     test_exploit_chacha20_nonce_reuse.cpp
+    test_exploit_kat_corpus.cpp
+    test_exploit_primitive_kat.cpp
     test_exploit_chacha20_poly1305.cpp
     test_exploit_coin_hd_derivation.cpp
     test_exploit_ct_fast_equivalence.cpp
