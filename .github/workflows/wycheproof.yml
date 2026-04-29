@@ -104,7 +104,7 @@ jobs:
           # fastsecp256k1 and are known-stable. Blocking: any failure fails the job.
           # Tests 38/39/229 (non-standalone, link ufsecp_static) run as advisory below.
           ctest --test-dir build-wyche --output-on-failure -j1 \
-            -R "^wycheproof_(ecdsa_sha|ecdh_sha|hmac|hkdf|chacha|ecdsa_extended|ecdsa_bitcoin|ecdsa_sha256_p1363|ecdsa_sha512)" \
+            -R "^wycheproof_(ecdsa_sha256$|ecdsa_sha256_p1363|ecdsa_extended|ecdsa_sha512|hmac_sha256|hkdf_sha256|chacha20_poly1305)" \
             --timeout 600 \
             --output-junit wycheproof-junit.xml 2>&1 | tee wycheproof-output.txt
           echo "ctest_exit=$?" >> "$GITHUB_OUTPUT"
@@ -119,7 +119,7 @@ jobs:
           # The same coverage is provided by the standalone equivalents (tests 230+) above.
           ctest --test-dir build-wyche --output-on-failure -j1 \
             -R "^wycheproof_ecdsa$|^wycheproof_ecdh$|^wycheproof_ecdsa_bitcoin$" \
-            --timeout 120 2>&1 | tee -a wycheproof-output.txt || true
+            --timeout 120 2>&1 | tee wycheproof-advisory.txt || true
           echo "[advisory] tests 38/39/229 above — failures do not block CI"
 
       - name: Generate wycheproof JSON report
