@@ -190,19 +190,18 @@ async function main() {
         if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 2000;
         const sk1 = randomBytes(32); sk1[0] &= 0x7F; sk1[31] |= 1;
         const sk2 = randomBytes(32); sk2[0] &= 0x7F; sk2[31] |= 1;
         const p1 = lib.pubkeyCreate(sk1);
         const p2 = lib.pubkeyCreate(sk2);
-
         const r = bench('Point Add (P+Q)', () => {
             lib.pointAdd(p1.x, p1.y, p2.x, p2.y);
         }, iterations);
         printResult(r);
         if (r) results.push(r);
-    }
+    } catch(e) { console.warn('  Point Add: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── ECDSA ───────────────────────────────────────────────────────────────
     console.log('\n=== ECDSA ===');
@@ -218,19 +217,18 @@ async function main() {
         if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 500;
         const msg = randomBytes(32);
         const sk = randomBytes(32); sk[0] &= 0x7F; sk[31] |= 1;
         const pub = lib.pubkeyCreate(sk);
         const sig = lib.ecdsaSign(msg, sk);
-
         const r = bench('ECDSA Verify', () => {
             lib.ecdsaVerify(msg, pub.x, pub.y, sig);
         }, iterations);
         printResult(r);
         if (r) results.push(r);
-    }
+    } catch(e) { console.warn('  ECDSA Verify: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── Schnorr BIP-340 ─────────────────────────────────────────────────────
     console.log('\n=== Schnorr (BIP-340) ===');
@@ -247,20 +245,19 @@ async function main() {
         if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 500;
         const sk = randomBytes(32); sk[0] &= 0x7F; sk[31] |= 1;
         const msg = randomBytes(32);
         const aux = randomBytes(32);
         const pk = lib.schnorrPubkey(sk);
         const sig = lib.schnorrSign(sk, msg, aux);
-
         const r = bench('Schnorr Verify', () => {
             lib.schnorrVerify(pk, msg, sig);
         }, iterations);
         printResult(r);
         if (r) results.push(r);
-    }
+    } catch(e) { console.warn('  Schnorr Verify: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── SHA-256 ─────────────────────────────────────────────────────────────
     console.log('\n=== SHA-256 ===');
