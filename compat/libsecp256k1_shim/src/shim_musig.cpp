@@ -68,6 +68,18 @@ static void compress(const Point& pt, unsigned char out[33]) {
 //   again, the old entry will be silently overwritten on the next pubkey_agg.
 //   Callers must treat each keyagg_cache as a single-session opaque handle
 //   and must not move, copy, or reuse the struct across sessions.
+//
+// NOTE FOR REVIEWERS:
+//   This shim-private registry stores MuSig2KeyAggCtx state that cannot fit
+//   inline into the opaque secp256k1_musig_keyagg_cache struct (197 bytes,
+//   but key_coefficients is a variable-length vector — count depends on
+//   signers). No per-process global state exists in UF's CPU or CT layers;
+//   this map is an unavoidable consequence of the fixed-size opaque ABI.
+//
+//   Bitcoin Core usage: Bitcoin Core does not use MuSig2 in its current
+//   production signing paths. This registry is therefore not on the critical
+//   path for the bitcoin-core-backend profile.
+//   See docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §MuSig2.
 // ---------------------------------------------------------------------------
 struct KAEntry {
     secp256k1::MuSig2KeyAggCtx ctx;

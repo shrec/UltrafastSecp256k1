@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 -- Project Roadmap
 
-> Last updated: 2026-03-23
+> Last updated: 2026-04-28
 > Covers: March 2026 - February 2027
 
 This roadmap describes what the project intends to do -- and explicitly not do -- over the next 12 months. It is organized into four phases.
@@ -42,6 +42,11 @@ This roadmap describes what the project intends to do -- and explicitly not do -
 
 ### Completed During Phase II
 
+- **Bitcoin Core secondary backend readiness**: All 10 original + 3 surface blockers
+  closed. 693/693 `test_bitcoin` pass. See `BITCOIN_CORE_PR_BLOCKERS.md`.
+- **DER hostile parity matrix**: `docs/DER_PARITY_MATRIX.md` — full BIP-66 edge case
+  coverage vs libsecp256k1 reference behavior.
+- **Cross-platform CI closure**: Linux x86_64, macOS ARM64, Windows x86_64 all green.
 - **Stable binding validation closure**: shared `validate_bindings.sh` smoke matrix now covers C#, Java, Swift, Python, Go, Rust, Node.js, PHP, Ruby, and Dart.
 - **React Native validation baseline**: default mock-bridge contract smoke path added, with full native RN smoke retained as an explicit opt-in lane.
 - **Binding documentation alignment**: canonical bindings docs, examples, packaging notes, and README surfaces now match the validated package names and current context-based APIs.

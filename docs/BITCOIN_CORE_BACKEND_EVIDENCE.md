@@ -1,8 +1,8 @@
 # Bitcoin Core Alternative Backend — Evidence Document
 
-> Version: 1.0 — 2026-04-27
+> Version: 1.1 — 2026-04-28
 > Profile: `bitcoin-core-backend`
-> Status: Pre-review (not yet submitted to Bitcoin Core)
+> Status: PR-ready — all blockers closed (see BITCOIN_CORE_PR_BLOCKERS.md)
 
 This document presents structured evidence for Bitcoin Core reviewers evaluating
 UltrafastSecp256k1 as an alternative CPU backend for libsecp256k1. It is written

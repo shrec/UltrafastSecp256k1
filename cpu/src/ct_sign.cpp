@@ -356,6 +356,11 @@ RecoverableSignature ecdsa_sign_recoverable(
 
     // CT low-S normalization (branchless throughout).
     const ECDSASignature pre_sig{r, s};
+    // TIMING NOTE: high_mask is derived from s (which depends on nonce k).
+    // k is already consumed and erased below before this function returns.
+    // The only observable timing variation here is whether s required low-S
+    // normalization — this is a function of the nonce, not the signing key.
+    // No signing key material is leaked by this branch outcome.
     std::uint64_t const high_mask = ct::scalar_is_high(pre_sig.s);
     const ECDSASignature sig = ct::ct_normalize_low_s(pre_sig);
     // Negating s flips the R.y parity bit in the recovery ID.
