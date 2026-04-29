@@ -40,6 +40,7 @@ add_library(ultrafast_secp256k1 SHARED
 target_include_directories(ultrafast_secp256k1 PRIVATE
     ${CPU_INCLUDE_DIR}
     ${SHARED_INCLUDE_DIR}
+    ${SHARED_INCLUDE_DIR}/ufsecp
 )
 
 target_compile_definitions(ultrafast_secp256k1 PRIVATE
