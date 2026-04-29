@@ -613,14 +613,31 @@ def check_missing_break(path: str, lines: List[str]) -> List[Finding]:
     last_case_snip: str = ""
     has_exit_in_case = False
     case_body_lines = 0   # count of non-empty, non-case lines in this case body
+    # CAAS-22 fix: track Allman-style switch where '{' is on the line AFTER 'switch'.
+    # Old code required both 'switch' and '{' on the same line, silently disabling
+    # the entire MBREAK checker for Allman-brace code.
+    _pending_switch = False
 
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         # Track brace depth to stay within the switch
         brace_depth += line.count('{') - line.count('}')
 
-        if 'switch' in line and '{' in line:
-            in_switch_depth = brace_depth
+        if 'switch' in line:
+            if '{' in line:
+                # K&R style: switch (...) {
+                in_switch_depth = brace_depth
+                _pending_switch = False
+            else:
+                # Allman style: switch (...) \n {
+                _pending_switch = True
+        elif _pending_switch:
+            stripped = line.strip()
+            if stripped.startswith('{'):
+                # The opening brace of the switch body (already counted above)
+                in_switch_depth = brace_depth
+            if stripped:  # any non-blank, non-brace line cancels the pending flag
+                _pending_switch = False
 
         if in_switch_depth > 0 and brace_depth < in_switch_depth:
             in_switch_depth = 0

@@ -429,6 +429,10 @@ class AuditTestScanner:
         if not runner.exists():
             return  # nothing to correlate against
         runner_text = runner.read_text(errors="replace")
+        # CAAS-23 fix: strip single-line comments before wiring checks so that
+        # `// TODO: wire test_exploit_foo_run()` does not produce a false-pass.
+        # A comment mentioning the symbol is NOT the same as it being registered.
+        runner_text_stripped = re.sub(r'//[^\n]*', '', runner_text)
 
         # Collect every test_exploit_*.cpp that defines a `*_run()` entry point
         exploit_files = sorted(self.audit_dir.glob("test_exploit_*.cpp"))
@@ -460,7 +464,7 @@ class AuditTestScanner:
             run_sym = m.group(1)
             # Registration check: symbol must appear both as a forward decl
             # AND inside the ALL_MODULES table of unified_audit_runner.
-            if run_sym not in runner_text:
+            if run_sym not in runner_text_stripped:
                 self._add(
                     cpp.name, m.start(), "high", "G", "exploit_unwired",
                     f"{cpp.name} exposes {run_sym}() but unified_audit_runner.cpp "

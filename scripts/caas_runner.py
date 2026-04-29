@@ -221,16 +221,19 @@ def _scanner_pass(result: subprocess.CompletedProcess, stdout_json: dict | None)
 
 
 def _autonomy_pass(result: subprocess.CompletedProcess, stdout_json: dict | None) -> tuple[bool, str]:
-    """Passes only when autonomy_score == 100."""
-    if result.returncode != 0 and stdout_json is None:
+    """Passes only when autonomy_score == 100.
+    CAAS-20 fix: returncode is checked FIRST — a non-zero exit always fails
+    regardless of JSON content (prevents a crashing script with JSON score=100
+    from producing a false-pass)."""
+    if result.returncode != 0:
         return False, f"autonomy check exited {result.returncode}"
-    if stdout_json is not None:
-        score = stdout_json.get("autonomy_score", 0)
-        ready = stdout_json.get("autonomy_ready", False)
-        if ready and score >= 100:
-            return True, f"score={score}/100"
-        return False, f"score={score}/100, ready={ready}"
-    return result.returncode == 0, f"exit {result.returncode}"
+    if stdout_json is None:
+        return False, "autonomy check produced no JSON output"
+    score = stdout_json.get("autonomy_score", 0)
+    ready = stdout_json.get("autonomy_ready", False)
+    if ready and score >= 100:
+        return True, f"score={score}/100"
+    return False, f"score={score}/100, ready={ready}"
 
 
 # Patch forward-declared functions into STAGES table

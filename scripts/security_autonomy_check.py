@@ -58,12 +58,23 @@ def _run_gate(gate: dict, timeout: int = 300) -> dict:
     try:
         result = subprocess.run(cmd, capture_output=True, text=True,
                                 timeout=timeout, cwd=str(LIB_ROOT))
-        try:
-            gate_report = json.loads(result.stdout)
-            passing = gate_report.get("overall_pass", False)
-        except (json.JSONDecodeError, ValueError):
-            passing = result.returncode == 0
-            gate_report = {"raw_output": result.stdout[:500]}
+        # CAAS-24 fix: check returncode BEFORE trusting JSON content.
+        # A gate script that crashes (non-zero exit) but emits JSON with
+        # overall_pass=true would previously award full weight — a false-pass.
+        if result.returncode != 0:
+            passing = False
+            gate_report = {
+                "raw_output": result.stdout[:500],
+                "stderr": result.stderr[:200],
+                "error": f"gate script exited {result.returncode}",
+            }
+        else:
+            try:
+                gate_report = json.loads(result.stdout)
+                passing = gate_report.get("overall_pass", False)
+            except (json.JSONDecodeError, ValueError):
+                passing = False
+                gate_report = {"raw_output": result.stdout[:500]}
 
         score = gate["weight"] if passing else 0
 

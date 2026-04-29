@@ -118,16 +118,17 @@ def scan_header_functions():
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_gpu.h',
         LIB_ROOT / 'include' / 'ufsecp' / 'ufsecp_version.h',
     ]
-    api_re = re.compile(r'UFSECP_API\s+.*?(ufsecp_\w+)\s*\(')
+    # CAAS-21 fix: read whole file and use re.DOTALL so the pattern crosses
+    # newlines. The old line-by-line approach silently missed multi-line
+    # declarations like `UFSECP_API\nufsecp_error_t ufsecp_foo(...)`.
+    api_re = re.compile(r'UFSECP_API\s+.*?(ufsecp_\w+)\s*\(', re.DOTALL)
     fns = set()
     for h in headers:
         if not h.exists():
             continue
-        with open(h, 'r', errors='replace') as f:
-            for line in f:
-                m = api_re.search(line)
-                if m:
-                    fns.add(m.group(1))
+        text = h.read_text(errors='replace')
+        for m in api_re.finditer(text):
+            fns.add(m.group(1))
     return fns
 
 
