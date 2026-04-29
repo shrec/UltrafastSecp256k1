@@ -327,6 +327,31 @@ CHECKS = [
             },
         ],
     },
+    # ---- shim_ecdh.cpp -----------------------------------------------
+    # DELIBERATE EXCEPTION: secp256k1_ecdh uses Scalar::from_bytes (silent
+    # mod-n reduction) rather than parse_bytes_strict_nonzero.  This matches
+    # libsecp256k1's own contract: ECDH silently reduces the scalar mod n so
+    # that callers passing a raw 256-bit hash never see a spurious rejection.
+    # The check below ENFORCES the from_bytes usage so a future "fix" that
+    # swaps it for strict parsing does not silently introduce a parity break.
+    {
+        "file": "shim_ecdh.cpp",
+        "function": "secp256k1_ecdh",
+        "description": "ECDH deliberately uses Scalar::from_bytes (reduces mod n) — matches libsecp silent-reduction contract",
+        "checks": [
+            {
+                "kind": "require",
+                "pattern": r"Scalar::from_bytes",
+                "message": "ECDH must use Scalar::from_bytes to match libsecp silent mod-n reduction behavior",
+            },
+            {
+                "kind": "forbid",
+                "pattern": r"Scalar::parse_bytes_strict_nonzero",
+                "message": "ECDH must NOT use parse_bytes_strict_nonzero — that would reject inputs libsecp accepts (parity break)",
+            },
+        ],
+    },
+
     {
         "file": "shim_extrakeys.cpp",
         "function": "secp256k1_xonly_pubkey_tweak_add_check",

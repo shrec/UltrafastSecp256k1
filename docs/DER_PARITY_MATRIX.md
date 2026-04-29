@@ -32,7 +32,7 @@ and `audit/test_exploit_der_parsing_differential.cpp`.
 | S tag wrong (`0x03` instead of `0x02`) | ❌ reject | reject | reject | `test_fuzz_parsers` — bad S tag rejected |
 | R length = 0 | ❌ reject | reject | reject | `test_fuzz_parsers` — zero R length rejected |
 | R or S > 32 bytes of scalar data | ❌ reject | reject | reject | `test_fuzz_parsers` — oversized R rejected |
-| R or S with unnecessary leading `0x00` pad for non-negative value | ❌ reject | reject | reject | G.10 / `test_wycheproof_ecdsa` |
+| R or S with unnecessary leading `0x00` pad for non-negative value | ❌ reject | reject | reject | `shim_test` — BUG-1 regression (DER leading-zero); `test_exploit_der_parsing_differential` test 13 (native C ABI) |
 | R or S missing required `0x00` pad (high bit set, would be negative) | ❌ reject | reject | reject | Wycheproof vectors |
 | R = 0 (scalar == 0) | ❌ reject | reject | reject | `test_exploit_der_parsing_differential` test 1 |
 | S = 0 (scalar == 0) | ❌ reject | reject | reject | `test_exploit_der_parsing_differential` test 2 |

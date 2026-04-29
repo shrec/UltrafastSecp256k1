@@ -119,7 +119,7 @@ int secp256k1_ellswift_create(
     const secp256k1_context* ctx,
     unsigned char* ell64,
     const unsigned char* seckey32,
-    const unsigned char* /*auxrnd32*/)
+    const unsigned char* auxrnd32)
 {
     (void)ctx;
     if (!ell64 || !seckey32) return 0;
@@ -129,7 +129,10 @@ int secp256k1_ellswift_create(
     auto sk = Scalar::from_bytes(kb);
     if (sk.is_zero()) return 0;
 
-    auto enc = secp256k1::ellswift_create(sk);  // CT: uses ct::generator_mul internally
+    // Pass auxrnd32 through: when non-NULL it randomises the encoding (BIP-324
+    // requires a fresh value per connection to prevent key-identity leakage).
+    // When NULL, the library falls back to pure CSPRNG (no regression).
+    auto enc = secp256k1::ellswift_create(sk, auxrnd32);
     std::memcpy(ell64, enc.data(), 64);
     return 1;
 }

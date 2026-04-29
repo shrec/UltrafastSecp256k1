@@ -77,8 +77,16 @@ static int parse_der_int(const unsigned char *&p, const unsigned char *end,
     if (p >= end) return 0;
     size_t len = *p++;
     if (len == 0 || p + len > end) return 0;
-    // Skip leading zeros
-    while (len > 32 && *p == 0x00) { ++p; --len; }
+
+    // BIP-66 strict DER: reject unnecessary leading zeros.
+    // A leading 0x00 is only valid when the NEXT byte has its high bit set
+    // (to distinguish a positive integer from a negative one in DER encoding).
+    // Any other leading 0x00 is non-canonical and must be rejected.
+    if (*p == 0x00) {
+        if (len < 2 || (p[1] & 0x80) == 0) return 0;  // unnecessary leading zero
+        ++p; --len;  // consume the required padding byte
+    }
+
     if (len > 32) return 0;
     std::memset(out, 0, 32);
     std::memcpy(out + (32 - len), p, len);

@@ -96,6 +96,20 @@ void secp256k1_context_destroy(secp256k1_context *ctx) {
     if (ctx && ctx != &g_static_ctx) std::free(ctx);
 }
 
+// DEVIATION FROM LIBSECP CONTRACT (documented, intentional):
+// In libsecp256k1 blinding is per-context: each secp256k1_context* has
+// independent blinding state. In this shim, blinding is thread-local:
+// secp256k1::ct::set_blinding() installs state on the CALLING THREAD, not on ctx.
+//
+// Practical impact: Bitcoin Core calls context_randomize once per context,
+// once per thread, and does not share contexts across threads — so this
+// deviation is harmless for the primary use case. Two independent contexts
+// on the same thread will overwrite each other's blinding state; contexts
+// randomized on thread A are not blinded when used on thread B.
+//
+// For the full per-context blinding model, store the seed in ctx and apply
+// it lazily inside each signing call on the calling thread (Option B in
+// the audit review). Tracked as a known deviation in docs/THREAD_SAFETY.md.
 int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *seed32) {
     if (!ctx) return 0;
     if (seed32) {

@@ -120,8 +120,11 @@ int secp256k1_ec_pubkey_cmp(
     const secp256k1_pubkey *pubkey1, const secp256k1_pubkey *pubkey2)
 {
     (void)ctx;
-    // Compare compressed serializations lexicographically
-    unsigned char c1[33], c2[33];
+    // Matches libsecp256k1 illegal_callback contract: null pubkey triggers abort.
+    if (!pubkey1 || !pubkey2) { std::abort(); }
+    // Compare compressed serializations lexicographically.
+    // Zero-initialize so unwritten bytes don't produce UB in memcmp.
+    unsigned char c1[33]{}, c2[33]{};
     size_t len1 = 33, len2 = 33;
     secp256k1_ec_pubkey_serialize(ctx, c1, &len1, pubkey1, SECP256K1_EC_COMPRESSED);
     secp256k1_ec_pubkey_serialize(ctx, c2, &len2, pubkey2, SECP256K1_EC_COMPRESSED);

@@ -420,6 +420,33 @@ static void test_der_parity(secp256k1_context* ctx) {
     CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, der, derlen) == 1,
           "DER r=n-1: accept");
 
+    // BUG-1 regression: unnecessary leading 0x00 on R must be rejected (BIP-66)
+    // r = 0x0F (canonical: len=1, no pad needed). Injecting 0x00 pad makes len=2
+    // and the next byte (0x0F) has its high bit clear → non-canonical → reject.
+    {
+        // 0x30 seqlen 0x02 0x02 0x00 r_val 0x02 0x01 s_val
+        unsigned char der_bad[9] = {0x30,0x07,0x02,0x02,0x00,0x0F,0x02,0x01,0x01};
+        secp256k1_ecdsa_signature sig_bad{};
+        CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig_bad, der_bad, 9) == 0,
+              "DER: unnecessary leading zero on R must be rejected (BIP-66)");
+    }
+    // Also verify the canonical encoding of r=0x0F IS accepted
+    {
+        // 0x30 seqlen 0x02 0x01 0x0F 0x02 0x01 0x01
+        unsigned char der_ok[8] = {0x30,0x06,0x02,0x01,0x0F,0x02,0x01,0x01};
+        secp256k1_ecdsa_signature sig_ok{};
+        CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig_ok, der_ok, 8) == 1,
+              "DER: canonical r=0x0F without leading zero is accepted");
+    }
+    // BUG-1 regression: unnecessary leading 0x00 on S must be rejected (BIP-66)
+    {
+        // r=1 canonical, s=0x0F with unnecessary leading 0x00 pad
+        unsigned char der_bad_s[9] = {0x30,0x07,0x02,0x01,0x01,0x02,0x02,0x00,0x0F};
+        secp256k1_ecdsa_signature sig_bad_s{};
+        CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig_bad_s, der_bad_s, 9) == 0,
+              "DER: unnecessary leading zero on S must be rejected (BIP-66)");
+    }
+
     // 7. Invalid: wrong outer tag (not 0x30)
     unsigned char bad_tag[8] = {0x31,0x06,0x02,0x01,0x01,0x02,0x01,0x01};
     CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig, bad_tag, 8) == 0,

@@ -1188,7 +1188,11 @@ set_tests_properties(exploit_ctx_lifecycle_hostile PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: DER / signature encoding differential (consensus-critical) ---------
 add_executable(test_exploit_der_parsing_differential_standalone test_exploit_der_parsing_differential.cpp)
 audit_target_defaults(test_exploit_der_parsing_differential_standalone)
-target_compile_definitions(test_exploit_der_parsing_differential_standalone PRIVATE STANDALONE_TEST)
+# Add ../include so Test 13 can resolve ufsecp.h (ufsecp_ecdsa_sig_from_der, BIP-66 leading-zero)
+target_include_directories(test_exploit_der_parsing_differential_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_exploit_der_parsing_differential_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_der_parsing_differential COMMAND test_exploit_der_parsing_differential_standalone)
 set_tests_properties(exploit_der_parsing_differential PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;der")
 

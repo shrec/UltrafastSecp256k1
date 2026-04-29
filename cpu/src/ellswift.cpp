@@ -276,6 +276,61 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
     throw std::runtime_error("ellswift_create: RNG produced 100 consecutive unusable values");
 }
 
+std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
+                                              const std::uint8_t* auxrnd32) {
+    if (!auxrnd32) return ellswift_create(privkey);  // fall back to CSPRNG path
+
+    // Deterministic path: derive u candidates from
+    // H("secp256k1_ellswift_create" || privkey || 0x00*32 || auxrnd32 || cnt)
+    // matching libsecp256k1's secp256k1_ellswift_create auxrnd32 semantics.
+    auto pub = ct::generator_mul(privkey);
+    auto x = pub.x();
+    auto privkey_bytes = privkey.to_bytes();
+
+    // Precompute tagged-hash prefix (tag applied twice per BIP-340 convention)
+    static constexpr char kTag[] = "secp256k1_ellswift_create";
+    static const auto kTagHash = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>(kTag), sizeof(kTag) - 1);
+
+    std::array<std::uint8_t, 64> result{};
+    static constexpr int kMaxAttempts = 100;
+    static constexpr std::uint8_t kZero32[32] = {};
+
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        SHA256 h;
+        h.update(kTagHash.data(), 32);
+        h.update(kTagHash.data(), 32);
+        h.update(privkey_bytes.data(), 32);
+        h.update(kZero32, 32);
+        h.update(auxrnd32, 32);
+        auto cnt = static_cast<std::uint8_t>(attempt);
+        h.update(&cnt, 1);
+        auto rand_hash = h.finalize();
+
+        std::uint8_t rand_bytes[32];
+        std::memcpy(rand_bytes, rand_hash.data(), 32);
+
+        auto u = fe_from_bytes_mod_p(rand_bytes);
+        if (u == FieldElement::zero()) continue;
+
+        for (int c = 0; c < 8; ++c) {
+            auto [ok, t] = xswiftec_inv(x, u, c);
+            if (!ok) continue;
+
+            auto u_bytes = u.to_bytes();
+            auto t_bytes = t.to_bytes();
+            std::memcpy(result.data(), u_bytes.data(), 32);
+            std::memcpy(result.data() + 32, t_bytes.data(), 32);
+
+            if (xswiftec_fwd(u, t) == x) {
+                detail::secure_erase(rand_bytes, sizeof(rand_bytes));
+                return result;
+            }
+        }
+    }
+    throw std::runtime_error("ellswift_create: auxrnd32 path exhausted 100 attempts");
+}
+
 std::array<std::uint8_t, 64> ellswift_encode_x(const FieldElement& x,
                                                const std::uint8_t rnd32[32]) {
     std::array<std::uint8_t, 64> result{};

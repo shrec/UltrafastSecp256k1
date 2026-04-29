@@ -43,6 +43,15 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept;
 // Uses OS CSPRNG for the randomness needed by the encoding.
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey);
 
+// Auxrnd variant: mixes auxrnd32 into the encoding RNG (matches libsecp256k1
+// secp256k1_ellswift_create auxrnd32 semantics). When auxrnd32 is NULL,
+// falls back to pure CSPRNG (identical to the single-argument overload).
+// Callers SHOULD pass a fresh 32-byte random value so that the same private
+// key produces a different encoding on each call — required by BIP-324 to
+// prevent key-identity leakage across connections.
+std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
+                                              const std::uint8_t* auxrnd32);
+
 // Fast variant: uses the precomputed fixed-base table (non-CT generator mul).
 // Suitable for ephemeral keys (BIP-324 session keys) where CT is not required.
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey);
