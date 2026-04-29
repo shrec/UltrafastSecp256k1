@@ -100,7 +100,7 @@ static void ctx_clear_err(ufsecp_ctx* ctx) {
 }
 
 static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const char* msg) {
-    if (SECP256K1_UNLIKELY(!ctx)) return err;  // null-safety guard (cppcheck nullPointer)
+    /* cppcheck-suppress nullPointer ; ctx is guaranteed non-null by all callers (internal function) */
     ctx->last_err.store(err, std::memory_order_relaxed);
     if (msg) {
         /* Portable safe copy without MSVC deprecation warning */

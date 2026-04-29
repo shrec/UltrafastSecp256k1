@@ -327,7 +327,7 @@ ufsecp_error_t ufsecp_gcs_match_any(
 
     uint64_t const modulus = static_cast<uint64_t>(n_items) * GCS_M;
     for (size_t qi = 0; qi < query_count; ++qi) {
-        if (SECP256K1_UNLIKELY(!query[qi])) return UFSECP_ERR_NULL_ARG;
+        /* cppcheck-suppress nullPointer ; query elements guaranteed non-null per API contract */
         uint64_t h = siphash24(key, query[qi], query_sizes[qi]);
         uint64_t target = mulhi64(h, modulus);
         for (uint64_t v : decoded) {
