@@ -25,6 +25,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(ULTRAFAST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/cpu/include")
 set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
+set(GPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/gpu/include")
 
 # Check that includes exist
 if(NOT EXISTS "${CPU_INCLUDE_DIR}/UltrafastSecp256k1.hpp")
@@ -41,6 +42,7 @@ target_include_directories(ultrafast_secp256k1 PRIVATE
     ${CPU_INCLUDE_DIR}
     ${SHARED_INCLUDE_DIR}
     ${SHARED_INCLUDE_DIR}/ufsecp
+    ${GPU_INCLUDE_DIR}
 )
 
 target_compile_definitions(ultrafast_secp256k1 PRIVATE
@@ -67,6 +69,15 @@ else()
     endif()
 
     target_sources(ultrafast_secp256k1 PRIVATE ${CPU_SOURCES})
+
+    # cpu/src/ufsecp_gpu_impl.cpp references the GPU backend registry (backend_count,
+    # backend_ids, create_backend, is_available). In a CPU-only standalone build no
+    # GPU CMake target is present, so we must compile gpu_registry.cpp directly.
+    # Without any SECP256K1_HAVE_{CUDA,OPENCL,METAL} defines, the registry returns
+    # backend_count=0 and create_backend=nullptr — a safe CPU-only stub.
+    target_sources(ultrafast_secp256k1 PRIVATE
+        "${ULTRAFAST_ROOT}/gpu/src/gpu_registry.cpp"
+    )
 endif()
 
 # -- Platform-specific flags -----------------------------------------------
