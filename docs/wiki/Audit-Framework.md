@@ -486,4 +486,4 @@ Human-readable summary with pass/fail status for each module.
 ---
 
 *Last updated: 2026-03-04*
-*UltrafastSecp256k1 v3.60.0*
+*UltrafastSecp256k1 v3.68.0*

@@ -2502,9 +2502,44 @@ int main() {
 
 ---
 
+## libsecp256k1 Shim Extensions
+
+Functions in `compat/libsecp256k1_shim/` that extend the libsecp256k1 API with
+shim-specific lifecycle helpers. These have no counterpart in upstream libsecp256k1.
+
+### MuSig2 Session Cleanup
+
+```c
+/* Explicitly release the shim's internal state for a MuSig2 session that was
+ * abandoned before secp256k1_musig_partial_sig_agg (e.g. on protocol abort).
+ * Calling on a never-initialised or already-cleared cache is a no-op.
+ * Not needed for completed sessions — partial_sig_agg auto-cleans. */
+void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cache);
+```
+
+**When to call:** Only when a MuSig2 signing session is aborted before the final
+`secp256k1_musig_partial_sig_agg` call. Completed sessions clean up automatically.
+
+### GPU Acceleration (shim config.ini)
+
+When built with `-DSECP256K1_SHIM_GPU=ON` and `secp256k1_gpu_host` is available,
+the shim reads `[gpu]` section from `config.ini` at context creation:
+
+```ini
+[gpu]
+enabled  = true          ; master on/off switch (default: false)
+platform = auto          ; auto | cuda | opencl | metal | rocm | hip
+device   = 0             ; device index within platform (default: 0)
+```
+
+When enabled, `secp256k1_ecdsa_verify` and `secp256k1_schnorrsig_verify` dispatch
+to GPU (batch-of-1). CT signing always uses CPU. Falls back to CPU on GPU error.
+
+---
+
 ## Version
 
-UltrafastSecp256k1 v3.66.0
+UltrafastSecp256k1 v3.68.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).
 

@@ -35,7 +35,7 @@
 vcpkg install ultrafastsecp256k1
 
 # Conan
-conan install ultrafastsecp256k1/3.60.0@
+conan install ultrafastsecp256k1/3.68.0@
 
 # Cargo (Rust binding)
 cargo add ultrafastsecp256k1
@@ -90,7 +90,7 @@ project(myapp)
 include(FetchContent)
 FetchContent_Declare(ufsecp
     GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
-    GIT_TAG        v3.66.0)
+    GIT_TAG        v3.68.0)
 FetchContent_MakeAvailable(ufsecp)
 
 add_executable(myapp main.c)

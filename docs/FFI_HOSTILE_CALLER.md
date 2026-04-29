@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-03-23 | **Version**: 3.60.0
+**Last updated**: 2026-03-23 | **Version**: 3.68.0
 
 Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions). All tests are in `audit/test_adversarial_protocol.cpp`:
 - Section G (FFI Hostile-Caller) — original 97-function coverage

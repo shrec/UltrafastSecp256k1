@@ -1,6 +1,6 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.64.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.68.0** -- CT Layer Methodology & Audit Status
 
 ---
 
@@ -493,4 +493,4 @@ FROST and MuSig2 remain broader experimental protocol surfaces, but the repo no 
 
 ---
 
-*UltrafastSecp256k1 v3.64.0 -- CT Verification*
+*UltrafastSecp256k1 v3.68.0 -- CT Verification*

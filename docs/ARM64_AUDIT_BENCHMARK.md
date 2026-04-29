@@ -2,7 +2,7 @@
 
 > **Status:** Production-Ready (Audit Complete, Benchmarked on 3 platforms)  
 > **Generated:** 2026-03-06  
-> **Library Version:** UltrafastSecp256k1 v3.60.0  
+> **Library Version:** UltrafastSecp256k1 v3.68.0  
 > **Commit:** 1dcdb8d
 
 ---
@@ -380,7 +380,7 @@ For workloads requiring maximum throughput on ARM64:
 
 ---
 
-**Audit Certification:** This document certifies that UltrafastSecp256k1 v3.60.0 passes all security, correctness, and constant-time requirements on ARM64 (AArch64) platforms as of commit 1dcdb8d (2026-03-06).
+**Audit Certification:** This document certifies that UltrafastSecp256k1 v3.68.0 passes all security, correctness, and constant-time requirements on ARM64 (AArch64) platforms as of commit 1dcdb8d (2026-03-06).
 
 **Maintainer:** shrec  
 **Repository:** https://github.com/shrec/UltrafastSecp256k1

@@ -12,7 +12,7 @@ assignees: ''
 - Compiler: [e.g. GCC 13, Clang 17, MSVC 2022, AppleClang]
 - Backend: [CPU / CUDA / Metal / OpenCL / WASM / ROCm]
 - Architecture: [x86-64 / ARM64 / RISC-V / ESP32]
-- Library version: [e.g. v3.60.0]
+- Library version: [e.g. v3.68.0]
 
 **Describe the bug**
 A clear description of the incorrect behavior.

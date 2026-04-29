@@ -1,6 +1,6 @@
 # Feature Maturity Table
 
-**Last updated**: 2026-03-15 | **Version**: 3.60.0
+**Last updated**: 2026-03-15 | **Version**: 3.68.0
 
 Each feature is rated by: implementation status, threat model coverage, test vector sources, fuzz coverage, GPU support, secret-safety classification, and release tier.
 

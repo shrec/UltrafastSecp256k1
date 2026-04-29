@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v3.60.0)'
+        description: 'Tag to release (e.g. v3.68.0)'
         required: true
 
 permissions: read-all
@@ -18,7 +18,7 @@ env:
   RELEASE_VERSION: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v') && format('{0}', github.event.inputs.tag || github.ref_name) || github.ref_name }}
 
 # ----------------------------------------------------------------------------
-# Global: version is always derived from the git tag (e.g. v3.60.0 -> 3.9.0)
+# Global: version is always derived from the git tag (e.g. v3.68.0 -> 3.9.0)
 # All binding configs use 0.0.0-dev as placeholder; CI overrides at build time.
 # ----------------------------------------------------------------------------
 
@@ -1020,7 +1020,7 @@ jobs:
             <modelVersion>4.0.0</modelVersion>
             <groupId>com.ultrafast</groupId>
             <artifactId>ufsecp</artifactId>
-            <version>3.60.0</version>
+            <version>3.68.0</version>
             <packaging>jar</packaging>
             <name>UltrafastSecp256k1 JNI</name>
             <description>Java JNI bindings for UltrafastSecp256k1</description>
@@ -1028,7 +1028,7 @@ jobs:
           </project>
           POMEOF
           # Fix version in POM (heredoc can't expand shell vars with quoted delimiter)
-          sed -i "s|<version>3.60.0</version>|<version>${VERSION}</version>|" pom.xml
+          sed -i "s|<version>3.68.0</version>|<version>${VERSION}</version>|" pom.xml
 
           # Generate settings.xml with GitHub Packages credentials
           cat > settings.xml <<'SETEOF'

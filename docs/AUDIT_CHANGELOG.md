@@ -7,6 +7,55 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-29 (shim BIP-66/UB/auxrnd32 fixes, GPU shim, CAAS-20..27, EXT-3, doc sync)
+
+### Security / Correctness Fixes (shim audit — P0/P1)
+
+- **BUG-1 P0**: `shim_ecdsa.cpp` `parse_der_int` — stripped leading zeros instead of rejecting (BIP-66 violation). Fixed: reject 0x00 prefix when next byte has high bit clear. Regression tests added to `shim_test.cpp`.
+- **BUG-2 P0**: `shim_pubkey.cpp` `secp256k1_ec_pubkey_cmp` — UB: read uninitialized stack `c1[33]/c2[33]` when either pubkey is NULL. Fixed: `std::abort()` on null (matches libsecp contract), zero-init buffers.
+- **BUG-3 P1**: `shim_ellswift.cpp` `secp256k1_ellswift_create` — silently ignored `auxrnd32` (BIP-324 key-identity leak). Fixed: `ellswift_create(privkey, auxrnd32)` overload added to `ellswift.hpp/cpp`; shim passes through.
+- **BUG-4 P1**: Thread-local blinding deviation documented in `shim_context.cpp`.
+- **CAAS-1**: `shim_ecdh.cpp` explicit exception in `check_libsecp_shim_parity.py` — deliberate `from_bytes` usage documented.
+- **CAAS-2**: `docs/DER_PARITY_MATRIX.md` leading-zero row citation corrected (was G.10/wycheproof — wrong).
+- **CAAS-3**: Test 13 added to `test_exploit_der_parsing_differential.cpp` — native C ABI BIP-66 leading-zero rejection.
+- **Test 13 API fix**: Wrong API names (`ufsecp_context_create`/`ufsecp_err_t`) corrected to `ufsecp_ctx_create`/`ufsecp_error_t`.
+
+### CAAS Pipeline Self-Bug Fixes (CAAS-20..27)
+
+- **CAAS-20**: `caas_runner.py` `_autonomy_pass` — `and` → separate `returncode` check first (false-pass risk).
+- **CAAS-21**: `audit_gate.py` UFSECP_API regex — line-by-line → whole-file + `re.DOTALL` (multi-line declarations missed).
+- **CAAS-22**: `dev_bug_scanner.py` MBREAK checker — `_pending_switch` flag for Allman-style switches (checker was silently disabled for Allman braces).
+- **CAAS-23**: `audit_test_quality_scanner.py` — `//` comment stripping before wiring check (comment false-pass).
+- **CAAS-24**: `security_autonomy_check.py` — `returncode` checked before JSON (crash hidden by JSON content).
+- **CAAS-25**: `security_autonomy_check.py` — `json_capable` gate flag; unconditional `--json` replaced.
+- **CAAS-27**: `check_exploit_wiring.py` — `runner_text_stripped` (comments stripped) before sym check.
+- **CAAS-26**: Reclassified — `_SIMPLE_INIT` regex correctly handles parentheses; was mischaracterized.
+
+### New Features
+
+- **shim GPU acceleration** — `shim_gpu.cpp` + `shim_gpu_state.hpp`: config.ini `[gpu]` section (enabled/platform/device). Auto-probes CUDA → OpenCL → Metal. CT signing always CPU-only. Build-time guard: `#ifdef SECP256K1_SHIM_GPU`.
+- **EXT-3**: `secp256k1_musig_keyagg_cache_clear()` shim extension — explicit cleanup for aborted MuSig2 sessions. Declaration in `secp256k1_musig.h`, implementation in `shim_musig.cpp`.
+- **H-9**: `docs.yml` — CAAS dashboard built and deployed to gh-pages alongside Doxygen docs.
+- **CAAS profiles**: `dash-backend` + `bchn-backend` profiles added to `caas_runner.py`.
+
+### Documentation Sync
+
+- `sync_module_count.py` run: WHY/README updated to 232 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
+- CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
+- `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
+- `docs/API_REFERENCE.md`: shim extensions section added (keyagg_cache_clear + GPU config.ini).
+- `GOVERNANCE.md`: Single-Maintainer Acknowledgement section.
+- `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: v1.1, status "PR-ready".
+- `ROADMAP.md`: updated to 2026-04-28, Bitcoin Core readiness + DER parity + CI closure.
+- `docs/BITCOIN_CORE_PR_DESCRIPTION.md`: new file — complete PR body template.
+
+### Audit Gate Result
+
+- **312/313** modules pass. Static Analysis: 0 findings. Traceability: PASS. Audit Gate: PASS. Security Autonomy: 90/100 (H-1 time-dependent, pre-existing).
+
+---
+
 ## 2026-04-28k (MuSig2 BIP-327 signing fix + audit gate PASS — 312/313)
 
 ### Security / Correctness Fixes

@@ -1,6 +1,6 @@
 # Threat Model
 
-UltrafastSecp256k1 v3.66.0 -- Layer-by-Layer Risk Assessment
+UltrafastSecp256k1 v3.68.0 -- Layer-by-Layer Risk Assessment
 
 ---
 
@@ -309,4 +309,4 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-*UltrafastSecp256k1 v3.66.0 -- Threat Model*
+*UltrafastSecp256k1 v3.68.0 -- Threat Model*

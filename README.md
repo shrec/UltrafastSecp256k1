@@ -17,7 +17,7 @@ UltrafastSecp256k1 is:
 - ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
 - 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
 - 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 84 non-exploit modules + 228 exploit PoCs, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines
+- 🧪 **Adversarially tested** — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 5 independent CT pipelines
 
 > Security is not assumed — it is continuously verified on every commit.
 
@@ -179,7 +179,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 232 exploit-PoC test files (all 232 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 232 exploit-PoC test files (all 232 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 41 CI workflows, 5 CT verification pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
@@ -302,7 +302,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | CI/CD workflows | **37 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
-| Constant-time verification pipelines | **3 independent (ct-arm64, ct-verif, Valgrind CT)** |
+| Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
 | Fuzzing adversarial corpus | **530,000+ cases (libFuzzer + ClusterFuzz-Lite)** |
 | Static analysis tools | **4 (CodeQL, Clang-Tidy, CPPCheck, SonarCloud)** |
 | Self-audit documents in repo | **13 dedicated audit/quality documents** |
@@ -328,12 +328,12 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 ### What "Self-Audit Culture" Means in Practice
 
 - Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form
-- Every constant-time path is verified under **formal CT analysis + Valgrind + hardware-native ARM64 CT pipeline** — three independent layers
+- Every constant-time path is verified under **5 independent pipelines: LLVM ct-verif, Valgrind taint, ct-prover (sPIN), dudect (statistical), ARM64 native**
 - Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, independent reference golden vectors, and BIP test vectors**
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
-- All 60 non-exploit audit modules and all 232 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 80 non-exploit audit modules and all 232 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
 
