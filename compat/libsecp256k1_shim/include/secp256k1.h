@@ -166,6 +166,11 @@ SECP256K1_API int secp256k1_ecdsa_verify(
     const secp256k1_context *ctx, const secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const secp256k1_pubkey *pubkey);
 
+/* NOTE (shim divergence): custom noncefp values (other than NULL /
+ * secp256k1_nonce_function_rfc6979 / secp256k1_nonce_function_default)
+ * are rejected (return 0) rather than silently ignored. RFC 6979 is always
+ * used. ndata IS respected as auxiliary entropy (hedged signing path), which
+ * is how Bitcoin Core's R-grinding loop works. See BITCOIN_CORE_PR_BLOCKERS.md §B. */
 SECP256K1_API int secp256k1_ecdsa_sign(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const unsigned char *seckey,

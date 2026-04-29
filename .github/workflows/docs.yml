@@ -51,6 +51,14 @@ jobs:
       - name: Generate documentation
         run: doxygen Doxyfile
 
+      - name: Build CAAS audit dashboard (H-9)
+        run: |
+          mkdir -p docs/generated/html/dashboard
+          python3 scripts/caas_dashboard.py -o docs/generated/html/dashboard/index.html \
+            || python3 scripts/render_audit_dashboard.py -o docs/generated/html/dashboard/index.html \
+            || echo "<html><body>Dashboard build skipped.</body></html>" \
+               > docs/generated/html/dashboard/index.html
+
       - name: Deploy to GitHub Pages (gh-pages branch)
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
         with:
