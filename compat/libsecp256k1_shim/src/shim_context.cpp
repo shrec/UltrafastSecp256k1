@@ -7,10 +7,6 @@
 #include <cstring>
 #include <mutex>
 
-#ifdef SECP256K1_SHIM_GPU
-#include "shim_gpu_state.hpp"
-#endif
-
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/ct/point.hpp"
@@ -68,10 +64,6 @@ static void shim_ensure_fixed_base() {
         }
 
         if (secp256k1::fast::configure_fixed_base_from_file("config.ini")) {
-#ifdef SECP256K1_SHIM_GPU
-            shim_gpu_init("config.ini");
-            std::atexit(shim_gpu_shutdown);
-#endif
             return;
         }
 
@@ -79,11 +71,6 @@ static void shim_ensure_fixed_base() {
         // falling back to w=8 (always available, no external file required).
         secp256k1::fast::configure_fixed_base_auto();
 
-#ifdef SECP256K1_SHIM_GPU
-        // Probe GPU even when config.ini is absent (enabled=false by default)
-        shim_gpu_init("config.ini");
-        std::atexit(shim_gpu_shutdown);
-#endif
     });
 }
 

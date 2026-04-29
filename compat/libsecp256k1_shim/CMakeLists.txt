@@ -44,27 +44,6 @@ else()
         "Add UltrafastSecp256k1 via add_subdirectory before this shim.")
 endif()
 
-# -- Optional: GPU acceleration -----------------------------------------------
-# When secp256k1_gpu_host is compiled (any of CUDA / OpenCL / Metal),
-# wire shim_gpu.cpp into the shim and activate the GPU dispatch path.
-# Runtime activation is controlled by [gpu] enabled = true in config.ini.
-option(SECP256K1_SHIM_GPU "Enable GPU acceleration in the shim (requires secp256k1_gpu_host)" ON)
-
-if(SECP256K1_SHIM_GPU AND TARGET secp256k1_gpu_host)
-    target_sources(secp256k1_shim PRIVATE src/shim_gpu.cpp)
-    target_link_libraries(secp256k1_shim PRIVATE secp256k1_gpu_host)
-    target_include_directories(secp256k1_shim PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../include/ufsecp)
-    target_compile_definitions(secp256k1_shim PRIVATE SECP256K1_SHIM_GPU=1)
-    message(STATUS "secp256k1_shim: GPU acceleration ENABLED (secp256k1_gpu_host)")
-else()
-    if(SECP256K1_SHIM_GPU)
-        message(STATUS "secp256k1_shim: GPU acceleration DISABLED (secp256k1_gpu_host not found)")
-    else()
-        message(STATUS "secp256k1_shim: GPU acceleration DISABLED (SECP256K1_SHIM_GPU=OFF)")
-    endif()
-endif()
-
 # -- Optional: shim API test ---------------------------------------------------
 
 option(SECP256K1_SHIM_BUILD_TESTS "Build shim compatibility test" OFF)
