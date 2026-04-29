@@ -1,0 +1,12 @@
+{
+  "version": "3.68.0",
+  "last_updated": "2026-04-29",
+  "exploit_poc_count": 232,
+  "non_exploit_modules": 80,
+  "total_modules": 312,
+  "ci_workflow_count": 51,
+  "ct_pipeline_count": 5,
+  "bitcoin_core_tests_pass": 693,
+  "bitcoin_core_tests_total": 693,
+  "shim_api_function_count": 66
+}
