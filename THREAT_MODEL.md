@@ -116,7 +116,7 @@ The coin dispatch layer generates addresses only. It does **not** store keys, ma
 
 ### 7. Zero-Knowledge Proof Layer (`secp256k1::zk`)
 
-**Added in v3.66.0.** Provides non-interactive ZK proofs over secp256k1:
+**Added in v3.68.0.** Provides non-interactive ZK proofs over secp256k1:
 
 | Primitive | Description | Security Property |
 |-----------|-------------|------------------|
@@ -142,11 +142,11 @@ The coin dispatch layer generates addresses only. It does **not** store keys, ma
 | ZK proof reveals secret via timing | MEDIUM | Proving path uses `ct::` namespace throughout |
 | Batch verification shortcut forgery | LOW | Batch verify independently validates each proof; no shortcut |
 
-**⚠️ Status (v3.66.0):** API experimental. ZK primitives have internal audit coverage (`audit_zk.cpp`, ~1,500 checks) but have **not** undergone independent third-party review. Bulletproof soundness is not formally proven for this implementation.
+**⚠️ Status (v3.68.0):** API experimental. ZK primitives have internal audit coverage (`audit_zk.cpp`, ~1,500 checks) but have **not** undergone independent third-party review. Bulletproof soundness is not formally proven for this implementation.
 
 ### 8. Ethereum Signing Layer (`secp256k1::eth`)
 
-**Added in v3.66.0.** Provides Ethereum-specific signing (EIP-191, EIP-155, ecrecover):
+**Added in v3.68.0.** Provides Ethereum-specific signing (EIP-191, EIP-155, ecrecover):
 
 | Primitive | Description | Risk |
 |-----------|-------------|------|
@@ -268,7 +268,7 @@ NOT TRUSTED (caller responsibility):
 
 ---
 
-## Automated Security Measures (v3.66.0)
+## Automated Security Measures (v3.68.0)
 
 | Measure | Frequency | What It Catches |
 |---------|-----------|------------------|
@@ -301,7 +301,7 @@ NOT TRUSTED (caller responsibility):
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | Auditor navigation and checklist |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v3.66.0 baseline; test suite has been restructured since) |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v3.68.0 baseline; test suite has been restructured since) |
 | [SECURITY.md](SECURITY.md) | Vulnerability reporting, production readiness |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture deep-dive |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology |

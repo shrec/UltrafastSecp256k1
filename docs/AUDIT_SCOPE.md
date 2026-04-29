@@ -189,7 +189,7 @@ ctest --test-dir build_audit -R test_field_audit -V
 # dudect constant-time smoke test
 ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (187 probes)
+# Exploit PoC security probes (232 probes)
 ctest --test-dir build_audit -R exploit -V
 
 # Machine-readable assurance artifact

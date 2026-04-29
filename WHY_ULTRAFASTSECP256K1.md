@@ -85,10 +85,10 @@ All 232 exploit-PoC modules pass. Zero failures across all 20+ coverage categori
 
 ---
 
-## 2. CI/CD Pipeline — 37 Automated Workflows
+## 2. CI/CD Pipeline — 51 Automated Workflows
 
 The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 37 GitHub Actions workflows
+It is a multi-layer quality enforcement system with 51 GitHub Actions workflows
 covering security, correctness, performance, supply chain, and formal analysis.
 
 It is also only one part of the assurance model. The repository is routinely reviewed
@@ -105,7 +105,7 @@ reproducible audit framework.
 | `ci.yml` | Core build + full test suite across 17 configurations × 7 architectures × 5 OSes | Every push / PR |
 | `preflight.yml` | Fast pre-merge smoke check — blocks merge on basic failures | Every PR |
 | `nightly.yml` | Nightly stress: 1.3M+ differential checks, extended fuzz, full sanitizer run | Nightly |
-| `security-audit.yml` | Runs the full `unified_audit_runner` (75 non-exploit + 232 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
+| `security-audit.yml` | Runs the full `unified_audit_runner` (80 non-exploit + 232 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
 | `audit-report.yml` | Generates and archives structured audit report artifacts | On release / manual |
 | `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
 | `ct-verif.yml` | Formal constant-time verification pass | Every push |

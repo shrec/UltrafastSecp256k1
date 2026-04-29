@@ -114,6 +114,70 @@ _RULES: list[tuple[str, str, str]] = [
      r"UltrafastSecp256k1 v\d+\.\d+\.\d+",
      "UltrafastSecp256k1 v{version}"),
 
+    # ── WHY_ULTRAFASTSECP256K1.md section headers ──────────────────────────
+    ("WHY_ULTRAFASTSECP256K1.md",
+     r"## 2\. CI/CD Pipeline — \d+ Automated Workflows",
+     "## 2. CI/CD Pipeline — {ci_workflow_count} Automated Workflows"),
+
+    ("WHY_ULTRAFASTSECP256K1.md",
+     r"quality enforcement system with \d+ GitHub Actions workflows",
+     "quality enforcement system with {ci_workflow_count} GitHub Actions workflows"),
+
+    # ── WHY_ULTRAFASTSECP256K1.md security-audit.yml row ──────────────────
+    ("WHY_ULTRAFASTSECP256K1.md",
+     r"\d+ non-exploit \+ \d+ exploit-PoC modules, ~1M assertions",
+     "{non_exploit_modules} non-exploit + {exploit_poc_count} exploit-PoC modules, ~1M assertions"),
+
+    # ── AUDIT_REPORT.md ────────────────────────────────────────────────────
+    ("AUDIT_REPORT.md",
+     r"\d+ modules, ~1,000,000\+ checks, \d+ exploit PoC tests, 0 failures",
+     "{total_modules} modules, ~1,000,000+ checks, {exploit_poc_count} exploit PoC tests, 0 failures"),
+
+    ("AUDIT_REPORT.md",
+     r"Exploit PoC tests \| — \| \d+ tests, \d+ attack vectors",
+     "Exploit PoC tests | — | {exploit_poc_count} tests, {exploit_poc_count} attack vectors"),
+
+    # ── docs/AUDIT_READINESS_REPORT_v1.md ──────────────────────────────────
+    ("docs/AUDIT_READINESS_REPORT_v1.md",
+     r"# Exploit PoC security probes \(\d+ probes\)",
+     "# Exploit PoC security probes ({exploit_poc_count} probes)"),
+
+    # ── docs/AUDIT_SCOPE.md ────────────────────────────────────────────────
+    ("docs/AUDIT_SCOPE.md",
+     r"# Exploit PoC security probes \(\d+ probes\)",
+     "# Exploit PoC security probes ({exploit_poc_count} probes)"),
+
+    # ── THREAT_MODEL.md version refs ──────────────────────────────────────
+    ("THREAT_MODEL.md",
+     r"\*\*Added in v\d+\.\d+\.\d+\.\*\* Provides non-interactive ZK",
+     "**Added in v{version}.** Provides non-interactive ZK"),
+
+    ("THREAT_MODEL.md",
+     r"\*\*⚠️ Status \(v\d+\.\d+\.\d+\):\*\*",
+     "**⚠️ Status (v{version}):**"),
+
+    ("THREAT_MODEL.md",
+     r"\*\*Added in v\d+\.\d+\.\d+\.\*\* Provides Ethereum-specific",
+     "**Added in v{version}.** Provides Ethereum-specific"),
+
+    ("THREAT_MODEL.md",
+     r"## Automated Security Measures \(v\d+\.\d+\.\d+\)",
+     "## Automated Security Measures (v{version})"),
+
+    ("THREAT_MODEL.md",
+     r"Internal audit report \(v\d+\.\d+\.\d+ baseline",
+     "Internal audit report (v{version} baseline"),
+
+    # ── SECURITY.md version ref ────────────────────────────────────────────
+    ("SECURITY.md",
+     r"Internal audit report \(v\d+\.\d+\.\d+ baseline",
+     "Internal audit report (v{version} baseline"),
+
+    # ── AUDIT_GUIDE.md version ref ─────────────────────────────────────────
+    ("AUDIT_GUIDE.md",
+     r"\(v\d+\.\d+\.\d+\):",
+     "(v{version}):"),
+
     # ── docs/BACKEND_ASSURANCE_MATRIX.md ───────────────────────────────────
     # (no numeric counts to sync here — skip)
 ]
