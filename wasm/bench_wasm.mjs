@@ -75,11 +75,21 @@ function formatThroughput(opsPerSec) {
 // ── Benchmark runner ─────────────────────────────────────────────────────────
 
 function bench(name, fn, iterations, warmup = 50) {
-    // Warmup
-    for (let i = 0; i < warmup; i++) fn();
+    try {
+        // Warmup
+        for (let i = 0; i < warmup; i++) fn();
+    } catch (e) {
+        console.warn(`  ${name}: SKIPPED (warmup error: ${e.message || e})`);
+        return null;
+    }
 
     const t0 = performance.now();
-    for (let i = 0; i < iterations; i++) fn();
+    try {
+        for (let i = 0; i < iterations; i++) fn();
+    } catch (e) {
+        console.warn(`  ${name}: SKIPPED (error during iteration: ${e.message || e})`);
+        return null;
+    }
     const t1 = performance.now();
 
     const total_ms = t1 - t0;
@@ -90,6 +100,7 @@ function bench(name, fn, iterations, warmup = 50) {
 }
 
 function printResult(r) {
+    if (!r) return; // null means the bench was skipped
     const name = r.name.padEnd(24);
     const time = formatTime(r.ns_per_op).padStart(10);
     const throughput = formatThroughput(r.ops_per_sec).padStart(12);
@@ -157,16 +168,17 @@ async function main() {
             idx++;
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── Point Multiplication (P*k) ──────────────────────────────────────────
     console.log('\n=== Point Operations ===');
-    {
+    try {
         const iterations = 500;
         // Generate a base point via pubkeyCreate
         const sk = testPrivkey();
-        const { x: px, y: py } = lib.pubkeyCreate(sk);
+        let px, py;
+        try { const pt = lib.pubkeyCreate(sk); px = pt.x; py = pt.y; } catch(e) { console.warn('  Point Mul: SKIPPED (pubkeyCreate failed)'); }
         const scalar = randomBytes(32);
         scalar[0] &= 0x7F;
         scalar[31] |= 1;
@@ -175,7 +187,7 @@ async function main() {
             lib.pointMul(px, py, scalar);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     {
@@ -189,7 +201,7 @@ async function main() {
             lib.pointAdd(p1.x, p1.y, p2.x, p2.y);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── ECDSA ───────────────────────────────────────────────────────────────
@@ -203,7 +215,7 @@ async function main() {
             lib.ecdsaSign(msg, sk);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     {
@@ -217,7 +229,7 @@ async function main() {
             lib.ecdsaVerify(msg, pub.x, pub.y, sig);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── Schnorr BIP-340 ─────────────────────────────────────────────────────
@@ -232,7 +244,7 @@ async function main() {
             lib.schnorrSign(sk, msg, aux);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     {
@@ -247,7 +259,7 @@ async function main() {
             lib.schnorrVerify(pk, msg, sig);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── SHA-256 ─────────────────────────────────────────────────────────────
@@ -259,7 +271,7 @@ async function main() {
             lib.sha256(data32);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     {
@@ -269,7 +281,7 @@ async function main() {
             lib.sha256(data1k);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── Summary ─────────────────────────────────────────────────────────────
