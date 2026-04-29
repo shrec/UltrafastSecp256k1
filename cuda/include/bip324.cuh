@@ -62,7 +62,7 @@ __device__ inline void d_chacha20_quarter_round(
 {
     a += b; d ^= a; d = __byte_perm(d, 0, 0x1032);       // rotl32(16)
     c += d; b ^= c; b = __funnelshift_l(b, b, 12);       // rotl32(12)
-    a += b; d ^= a; d = __byte_perm(d, 0, 0x0321);       // rotl32(8)
+    a += b; d ^= a; d = __byte_perm(d, 0, 0x2103);       // rotl32(8)
     c += d; b ^= c; b = __funnelshift_l(b, b, 7);        // rotl32(7)
 }
 
