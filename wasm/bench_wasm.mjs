@@ -173,7 +173,7 @@ async function main() {
 
     // ── Point Multiplication (P*k) ──────────────────────────────────────────
     console.log('\n=== Point Operations ===');
-    try {
+    {
         const iterations = 500;
         // Generate a base point via pubkeyCreate
         const sk = testPrivkey();
