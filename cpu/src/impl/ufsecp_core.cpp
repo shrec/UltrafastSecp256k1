@@ -42,16 +42,19 @@ ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx** ctx_out) {
     if (SECP256K1_UNLIKELY(!ctx_out)) return UFSECP_ERR_NULL_ARG;
     *ctx_out = nullptr;
 
-    auto* ctx = static_cast<ufsecp_ctx*>(std::calloc(1, sizeof(ufsecp_ctx)));
+    // Use new{} (value-initializes) so std::atomic<int>'s constructor is called.
+    // calloc() without a constructor call is UB for non-trivially-constructible
+    // types and triggers -Wclass-memaccess with g++-13 -Werror.
+    auto* ctx = new (std::nothrow) ufsecp_ctx{};
     if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_INTERNAL;
 
-    ctx->last_err   = UFSECP_OK;
+    ctx->last_err.store(UFSECP_OK, std::memory_order_relaxed);
     ctx->last_msg[0] = '\0';
 
     /* Run selftest once (cached globally by ensure_library_integrity) */
     ctx->selftest_ok = secp256k1::fast::ensure_library_integrity(false);
     if (SECP256K1_UNLIKELY(!ctx->selftest_ok)) {
-        std::free(ctx);
+        delete ctx;
         return UFSECP_ERR_SELFTEST;
     }
 
@@ -63,18 +66,21 @@ ufsecp_error_t ufsecp_ctx_clone(const ufsecp_ctx* src, ufsecp_ctx** ctx_out) {
     if (SECP256K1_UNLIKELY(!src || !ctx_out)) return UFSECP_ERR_NULL_ARG;
     *ctx_out = nullptr;
 
-    auto* dst = static_cast<ufsecp_ctx*>(std::malloc(sizeof(ufsecp_ctx)));
+    // Can't memcpy a struct containing std::atomic<int> — not trivially copyable.
+    // memcpy triggers -Wclass-memaccess with g++-13 -Werror. Copy fields explicitly.
+    auto* dst = new (std::nothrow) ufsecp_ctx{};
     if (SECP256K1_UNLIKELY(!dst)) return UFSECP_ERR_INTERNAL;
 
-    std::memcpy(dst, src, sizeof(ufsecp_ctx));
-    ctx_clear_err(dst);
+    dst->last_err.store(UFSECP_OK, std::memory_order_relaxed);
+    dst->last_msg[0] = '\0';
+    dst->selftest_ok = src->selftest_ok;
 
     *ctx_out = dst;
     return UFSECP_OK;
 }
 
 void ufsecp_ctx_destroy(ufsecp_ctx* ctx) {
-    std::free(ctx);  // free(NULL) is a no-op per C standard
+    delete ctx;  // delete nullptr is a no-op per C++ standard
 }
 
 ufsecp_error_t ufsecp_last_error(const ufsecp_ctx* ctx) {
@@ -85,7 +91,9 @@ ufsecp_error_t ufsecp_last_error(const ufsecp_ctx* ctx) {
 const char* ufsecp_last_error_msg(const ufsecp_ctx* ctx) {
     if (!ctx) return "NULL context";
     auto err = static_cast<ufsecp_error_t>(ctx->last_err.load(std::memory_order_relaxed));
-    return ctx->last_msg[0] ? ctx->last_msg : ufsecp_error_str(err);
+    // Only consult last_msg when there is a non-OK error — prevents stale
+    // messages from appearing after ctx_clear_err (which no longer zeroes last_msg).
+    return (err != UFSECP_OK && ctx->last_msg[0]) ? ctx->last_msg : ufsecp_error_str(err);
 }
 
 size_t ufsecp_ctx_size(void) {

@@ -93,7 +93,10 @@ struct ufsecp_ctx {
 
 static void ctx_clear_err(ufsecp_ctx* ctx) {
     ctx->last_err.store(UFSECP_OK, std::memory_order_relaxed);
-    ctx->last_msg[0] = '\0';
+    // Do NOT write last_msg here — concurrent API calls on a shared ctx (e.g.
+    // TLB-2/TLB-3 thread-local-blinding tests) would race on this char array.
+    // last_msg is only meaningful when last_err != OK; ufsecp_last_error_msg
+    // guards on err != UFSECP_OK before consulting it.
 }
 
 static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const char* msg) {
