@@ -40,8 +40,34 @@ static void compress(const Point& pt, unsigned char out[33]) {
 }
 
 // ---------------------------------------------------------------------------
-// keyagg_cache registry: MuSig2KeyAggCtx has a std::vector so cannot be
-// stored inline.  Registry keyed on the caller's struct address.
+// keyagg_cache side-channel registry
+//
+// WHY A GLOBAL MAP:
+//   MuSig2KeyAggCtx contains key_coefficients (std::vector<Scalar>) — one
+//   scalar per signer.  The libsecp256k1-compatible opaque struct
+//   secp256k1_musig_keyagg_cache is 197 bytes, which cannot hold a
+//   variable-length vector.  We therefore store the context in a process-
+//   global map keyed on the caller's struct address.
+//
+// THREAD SAFETY:
+//   g_mu guards all accesses to g_ka.  Concurrent signing sessions with
+//   distinct secp256k1_musig_keyagg_cache objects are fully independent.
+//
+// LIFETIME / KNOWN LIMITATION:
+//   Entries are inserted in secp256k1_musig_pubkey_agg and automatically
+//   removed in secp256k1_musig_partial_sig_agg (the final protocol step).
+//   If the caller abandons a session before aggregation (e.g. on error),
+//   the entry persists until the keyagg_cache address is reused by another
+//   pubkey_agg call, which overwrites the slot, or until process exit.
+//   For most signing sessions (which reach partial_sig_agg), there is no
+//   persistent memory growth.
+//
+// ADDRESS-REUSE HAZARD:
+//   If a secp256k1_musig_keyagg_cache is freed and a new struct is
+//   stack/heap-allocated at the same address before pubkey_agg is called
+//   again, the old entry will be silently overwritten on the next pubkey_agg.
+//   Callers must treat each keyagg_cache as a single-session opaque handle
+//   and must not move, copy, or reuse the struct across sessions.
 // ---------------------------------------------------------------------------
 struct KAEntry {
     secp256k1::MuSig2KeyAggCtx ctx;
@@ -76,6 +102,12 @@ static KAEntry* ka_put(const secp256k1_musig_keyagg_cache* p, std::unique_ptr<KA
     return slot.get();
 }
 
+// Called after the final protocol step — releases the side-channel entry.
+static void ka_remove(const secp256k1_musig_keyagg_cache* p) {
+    std::lock_guard<std::mutex> lk(g_mu);
+    g_ka.erase(p);
+}
+
 // ---------------------------------------------------------------------------
 // SecNonce: k1[32] | k2[32] packed into data[132]
 // ---------------------------------------------------------------------------
@@ -102,7 +134,13 @@ static secp256k1::MuSig2PubNonce pn_unpack(const secp256k1_musig_pubnonce* in) {
     return pn;
 }
 
-// Session: R[33] | b[32] | e[32] | R_negated[1] = 98 bytes in data[133]
+// Session layout in data[133]:
+//   [0..32]   R         (33 bytes, compressed point)
+//   [33..64]  b         (32 bytes, scalar)
+//   [65..96]  e         (32 bytes, scalar)
+//   [97]      R_negated (1 byte)
+//   [98..105] keyagg_cache ptr (8 bytes, same-process use only)
+//   [106..132] reserved (26 bytes)
 static void sess_pack(secp256k1_musig_session* out, const secp256k1::MuSig2Session& s) {
     compress(s.R, out->data);
     auto b = s.b.to_bytes(); std::memcpy(out->data + 33, b.data(), 32);
@@ -117,6 +155,22 @@ static secp256k1::MuSig2Session sess_unpack(const secp256k1_musig_session* in) {
     Scalar::parse_bytes_strict(in->data + 65, s.e);
     s.R_negated = (in->data[97] != 0);
     return s;
+}
+
+// Stash the keyagg_cache address in the session's reserved bytes so that
+// partial_sig_agg can clean up the side-channel map entry without an extra
+// parameter (the libsecp256k1 ABI omits keyagg_cache from that call).
+static void sess_stash_cache_ptr(secp256k1_musig_session* s,
+                                  const secp256k1_musig_keyagg_cache* p) {
+    static_assert(sizeof(p) <= 8, "pointer wider than reserved slot");
+    std::memcpy(s->data + 98, &p, sizeof(p));
+}
+
+static const secp256k1_musig_keyagg_cache*
+sess_load_cache_ptr(const secp256k1_musig_session* s) {
+    const secp256k1_musig_keyagg_cache* p = nullptr;
+    std::memcpy(&p, s->data + 98, sizeof(p));
+    return p;
 }
 
 } // namespace
@@ -318,6 +372,7 @@ int secp256k1_musig_nonce_process(
     std::memcpy(msg.data(), msg32, 32);
     auto s = secp256k1::musig2_start_sign_session(an, e->ctx, msg);
     sess_pack(session, s);
+    sess_stash_cache_ptr(session, keyagg_cache);
     return 1;
 }
 
@@ -399,6 +454,9 @@ int secp256k1_musig_partial_sig_agg(
     auto s = sess_unpack(session);
     auto final_sig = secp256k1::musig2_partial_sig_agg(psigs, s);
     std::memcpy(sig64, final_sig.data(), 64);
+    // Protocol complete — release the side-channel map entry so the
+    // keyagg_cache address can be safely reused by a future session.
+    ka_remove(sess_load_cache_ptr(session));
     return 1;
 }
 
