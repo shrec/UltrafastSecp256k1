@@ -22,13 +22,11 @@ so we can list you here.
 
 | Organization | Use Case | Features Used | Since |
 |---|---|---|---|
-| *Be the first!* | | | |
 
 ## Personal / Hobby Projects
 
 | Project | Use Case | Features Used | Since |
 |---|---|---|---|
-| *Be the first!* | | | |
 
 ## Ecosystem Signals
 
