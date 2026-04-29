@@ -40,6 +40,7 @@ jobs:
     # Needs write to push refreshed evidence JSONs back to the dev branch.
     permissions:
       contents: write
+      actions: read
 
     steps:
       - name: Harden runner

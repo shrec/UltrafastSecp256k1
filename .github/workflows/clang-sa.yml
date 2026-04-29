@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 concurrency:
   group: clang-sa-${{ github.ref }}

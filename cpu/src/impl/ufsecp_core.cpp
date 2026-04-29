@@ -45,6 +45,7 @@ ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx** ctx_out) {
     // Use new{} (value-initializes) so std::atomic<int>'s constructor is called.
     // calloc() without a constructor call is UB for non-trivially-constructible
     // types and triggers -Wclass-memaccess with g++-13 -Werror.
+    /* cppcheck-suppress legacyUninitvar ; ctx checked for null immediately after */
     auto* ctx = new (std::nothrow) ufsecp_ctx{};
     if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_INTERNAL;
 
@@ -68,6 +69,7 @@ ufsecp_error_t ufsecp_ctx_clone(const ufsecp_ctx* src, ufsecp_ctx** ctx_out) {
 
     // Can't memcpy a struct containing std::atomic<int> — not trivially copyable.
     // memcpy triggers -Wclass-memaccess with g++-13 -Werror. Copy fields explicitly.
+    /* cppcheck-suppress legacyUninitvar ; dst checked for null immediately after */
     auto* dst = new (std::nothrow) ufsecp_ctx{};
     if (SECP256K1_UNLIKELY(!dst)) return UFSECP_ERR_INTERNAL;
 
