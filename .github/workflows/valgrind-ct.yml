@@ -18,6 +18,11 @@ name: Valgrind CT Taint
 on:
   push:
     branches: [main, dev]
+  workflow_run:
+    workflows: ["Pipeline / Phase 1 — Fast Gates"]
+    types: [completed]
+    branches: [main, dev]
+
     paths:
       - 'cpu/src/**'
       - 'cpu/include/**'
