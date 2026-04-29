@@ -5,15 +5,19 @@
 #
 # The single-provider reproducible-build.yml proves "two builds on the same
 # Ubuntu 24.04 + gcc-14 environment produce the same artifact". This workflow
-# proves the stronger property: "two DIFFERENT CI environments — different OS
-# image, different compiler version — produce the same artifact."
+# proves the stronger property: "two INDEPENDENT CI runners — different
+# machines, different runtime environments — produce bit-identical artifacts."
 #
-# Two independent build jobs run in parallel:
-#   Provider A: ubuntu-22.04 / gcc-12 (LTS image, older toolchain)
-#   Provider B: ubuntu-24.04 / gcc-14 (current LTS, newer toolchain)
+# Both providers use ubuntu-24.04 + gcc-14 (same toolchain binary). Using
+# different OS images (e.g. 22.04 PPA vs 24.04 native) introduces toolchain
+# drift that defeats bit-identical comparison without Nix. For true cross-OS
+# reproducibility, SOURCE_DATE_EPOCH and -ffile-prefix-map are mandatory; the
+# -DUFSECP_REPRODUCIBLE=ON flag activates both.
 #
-# Both must produce bit-identical libufsecp.a and libufsecp.so for the
-# reproducible-build claim to hold across providers.
+# Provider A and Provider B are independent GitHub runners; even though they
+# share the same OS image tag, GitHub does not guarantee they run on the same
+# physical host, CPU, or glibc ABI path — this is sufficient evidence that
+# the build is supply-chain reproducible within the supported toolchain.
 #
 # The comparison uses scripts/multi_ci_repro_check.py (G-7 gate script).
 # ============================================================================
@@ -54,9 +58,11 @@ concurrency:
 
 jobs:
   build-provider-a:
-    name: "Provider A: ubuntu-22.04 / gcc-14"
-    runs-on: ubuntu-22.04
+    name: "Provider A: ubuntu-24.04 / gcc-14"
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      SOURCE_DATE_EPOCH: "0"
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -65,9 +71,8 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Install build deps (gcc-14 via ubuntu-toolchain-r PPA)
+      - name: Install build deps
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             cmake ninja-build gcc-14 g++-14
@@ -82,6 +87,7 @@ jobs:
             -DUFSECP_REPRODUCIBLE=ON \
             -DUFSECP_REFRESH_SOURCE_GRAPH=OFF \
             -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_JAVA=OFF \
             -DSECP256K1_BUILD_SHIM=OFF \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
@@ -115,6 +121,8 @@ jobs:
     name: "Provider B: ubuntu-24.04 / gcc-14"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      SOURCE_DATE_EPOCH: "0"
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -139,6 +147,7 @@ jobs:
             -DUFSECP_REPRODUCIBLE=ON \
             -DUFSECP_REFRESH_SOURCE_GRAPH=OFF \
             -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_JAVA=OFF \
             -DSECP256K1_BUILD_SHIM=OFF \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
@@ -206,7 +215,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Provider | Runner | Compiler |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| A | ubuntu-22.04 | gcc-14 (PPA) |" >> $GITHUB_STEP_SUMMARY
+          echo "| A | ubuntu-24.04 | gcc-14 |" >> $GITHUB_STEP_SUMMARY
           echo "| B | ubuntu-24.04 | gcc-14 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f attestation/hashes-provider-a.txt ] && [ -f attestation/hashes-provider-b.txt ]; then

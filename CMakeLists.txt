@@ -84,6 +84,30 @@ set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect
 option(SECP256K1_WERROR "Treat compiler warnings as errors (-Werror / /WX)" OFF)
 option(UFSECP_REFRESH_SOURCE_GRAPH "Refresh the repo source graph during builds" ON)
 
+# Reproducible build mode (G-7 gate).
+# Forces deterministic compiler output: strips source paths, fixes march, disables
+# non-deterministic LTO passes, and enables SOURCE_DATE_EPOCH awareness.
+# Enable with -DUFSECP_REPRODUCIBLE=ON. Implied by SECP256K1_CORE_BACKEND_MODE.
+option(UFSECP_REPRODUCIBLE "Enable reproducible-build flags (path stripping, fixed march)" OFF)
+if(SECP256K1_CORE_BACKEND_MODE)
+    set(UFSECP_REPRODUCIBLE ON CACHE BOOL "Enabled by SECP256K1_CORE_BACKEND_MODE" FORCE)
+endif()
+if(UFSECP_REPRODUCIBLE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Strip the build directory prefix so debug info paths are relative.
+    # cmake_current_binary_dir → "." makes two builds from different checkout
+    # directories produce bit-identical DWARF.
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C,CXX>:-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}=.>
+        $<$<COMPILE_LANGUAGE:C,CXX>:-ffile-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=.>
+        # Warn if source uses __DATE__ / __TIME__ (non-reproducible).
+        $<$<COMPILE_LANGUAGE:C,CXX>:-Wdate-time>
+    )
+    # Force a stable march (not -march=native) so the artifact is identical
+    # regardless of which specific CPU the runner uses.
+    set(SECP256K1_MARCH "x86-64-v3" CACHE STRING "Forced to x86-64-v3 by UFSECP_REPRODUCIBLE" FORCE)
+    message(STATUS "secp256k1-fast: Reproducible build enabled (path normalization, march=x86-64-v3, Wdate-time)")
+endif()
+
 find_package(Python3 COMPONENTS Interpreter QUIET)
 
 # Global compile definitions

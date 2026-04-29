@@ -6,6 +6,8 @@
 
 #include "secp256k1/coins/ethereum.hpp"
 #include "secp256k1/coins/keccak256.hpp"
+#include <algorithm>
+#include <array>
 #include <cstring>
 
 namespace secp256k1::coins {
@@ -49,9 +51,14 @@ std::string ethereum_address_raw(const fast::Point& pubkey) {
 // -- EIP-55 Checksum ----------------------------------------------------------
 
 std::string eip55_checksum(const std::string& hex_addr) {
-    // Keccak-256 of the lowercase hex address string
-    auto hash = keccak256(reinterpret_cast<const std::uint8_t*>(hex_addr.data()),
-                          hex_addr.size());
+    // Keccak-256 of the lowercase hex address string.
+    // Copy to a uint8_t buffer first to avoid strict-aliasing UB: passing
+    // reinterpret_cast<const uint8_t*>(std::string::data()) violates the
+    // type-aliasing rules when the underlying char and uint8_t types differ.
+    std::array<std::uint8_t, 40> addr_bytes{};
+    std::memcpy(addr_bytes.data(), hex_addr.data(),
+                std::min<std::size_t>(hex_addr.size(), addr_bytes.size()));
+    auto hash = keccak256(addr_bytes.data(), std::min(hex_addr.size(), addr_bytes.size()));
     
     std::string result(40, '\0');
     for (std::size_t i = 0; i < 40; ++i) {

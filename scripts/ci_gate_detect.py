@@ -48,9 +48,9 @@ HARD_GATE_PATTERNS = [
     'metal/shaders/',
     'gpu/',
     'include/ufsecp/ufsecp.h',
-    'include/ufsecp/ufsecp_impl.cpp',
+    'cpu/src/ufsecp_impl.cpp',
     'include/ufsecp/ufsecp_gpu.h',
-    'include/ufsecp/ufsecp_gpu_impl.cpp',
+    'cpu/src/ufsecp_gpu_impl.cpp',
     'include/ufsecp/ufsecp_version.h',
 ]
 

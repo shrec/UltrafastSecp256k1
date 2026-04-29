@@ -23,6 +23,12 @@
 #include <cstring>
 #include <array>
 #include <fstream>
+#include <filesystem>
+#ifdef _WIN32
+#  include <windows.h>
+#else
+#  include <unistd.h>
+#endif
 
 using namespace secp256k1::fast;
 using secp256k1::ecdsa_sign;
@@ -272,32 +278,45 @@ static void test_bip32_il_geq_n() {
 static void test_precompute_cache_corrupt() {
     std::printf("\n=== Precompute cache corruption recovery ===\n");
 
+    // Use temp_directory_path() rather than hardcoded /tmp to be portable and
+    // avoid predictable path collisions in concurrent test runs.
+    auto tmpdir = std::filesystem::temp_directory_path();
+    std::string pid_str = std::to_string(static_cast<long>(
+#ifdef _WIN32
+        GetCurrentProcessId()
+#else
+        getpid()
+#endif
+    ));
+    std::string corrupt_path = (tmpdir / ("secp256k1_test_corrupt_" + pid_str + ".bin")).string();
+    std::string trunc_path   = (tmpdir / ("secp256k1_test_trunc_"   + pid_str + ".bin")).string();
+
     // Loading from nonexistent file should return false
-    bool ok = load_precompute_cache("/tmp/nonexistent_secp256k1_cache_xyz.bin");
+    bool ok = load_precompute_cache((tmpdir / ("nonexistent_secp256k1_cache_" + pid_str + ".bin")).string().c_str());
     CHECK(!ok, "load_precompute_cache rejects nonexistent file");
 
     // Create a truncated/corrupt cache file
     {
-        std::ofstream f("/tmp/secp256k1_test_corrupt_cache.bin", std::ios::binary);
+        std::ofstream f(corrupt_path, std::ios::binary);
         const char garbage[] = "not a valid cache header";
         f.write(garbage, sizeof(garbage));
     }
-    ok = load_precompute_cache("/tmp/secp256k1_test_corrupt_cache.bin");
+    ok = load_precompute_cache(corrupt_path.c_str());
     CHECK(!ok, "load_precompute_cache rejects corrupt file");
 
     // Create a file with valid magic but truncated data
     {
-        std::ofstream f("/tmp/secp256k1_test_trunc_cache.bin", std::ios::binary);
+        std::ofstream f(trunc_path, std::ios::binary);
         // Write 8 bytes (likely wrong magic + version)
         uint64_t fake_header = 0;
         f.write(reinterpret_cast<const char*>(&fake_header), 8);
     }
-    ok = load_precompute_cache("/tmp/secp256k1_test_trunc_cache.bin");
+    ok = load_precompute_cache(trunc_path.c_str());
     CHECK(!ok, "load_precompute_cache rejects truncated file");
 
     // Cleanup temp files
-    (void)std::remove("/tmp/secp256k1_test_corrupt_cache.bin");
-    (void)std::remove("/tmp/secp256k1_test_trunc_cache.bin");
+    (void)std::remove(corrupt_path.c_str());
+    (void)std::remove(trunc_path.c_str());
 }
 
 // ============================================================================

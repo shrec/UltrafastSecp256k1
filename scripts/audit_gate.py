@@ -552,7 +552,7 @@ NARRATIVE_FILES = [
     'audit/run_full_audit.ps1',
 ]
 
-HISTORICAL_MARKER = re.compile(r'^(?:#+\s*)?\[?(?:historical\s+report|superseded\s+by|snapshot\s+from\s+v\d)\]?', re.IGNORECASE | re.MULTILINE)
+HISTORICAL_MARKER = re.compile(r'^(?:#+\s*)?\[?(?:historical\s+report|superseded\s+by|snapshot\s+from\s+v\d+)\]?', re.IGNORECASE | re.MULTILINE)
 
 
 def check_narrative(conn):

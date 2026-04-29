@@ -27,11 +27,14 @@
 #include <string>
 #include <vector>
 
+#include <filesystem>
+
 #ifdef _WIN32
 #  define popen  _popen
 #  define pclose _pclose
 #else
 #  include <sys/wait.h>
+#  include <unistd.h>
 #endif
 
 // ---------------------------------------------------------------------------
@@ -77,10 +80,19 @@ static int check_cryptol_spec(const std::string& cry_dir,
     }
     batch += ":quit\n";
 
-    // Write batch to a temp file
-    std::string tmpfile = "/tmp/cryptol_check_" + module_name + ".sh";
+    // Write batch to a temp file. Use mkstemp to create the file atomically,
+    // preventing symlink attacks on predictable /tmp names.
+#ifdef _WIN32
+    std::string tmpfile = (std::filesystem::temp_directory_path() / ("cryptol_check_" + module_name + ".sh")).string();
     FILE* tf = std::fopen(tmpfile.c_str(), "w");
-    if (!tf) return 0;  // can't write temp — skip
+    if (!tf) return 0;
+#else
+    std::string tmpfile = (std::filesystem::temp_directory_path() / "cryptol_check_XXXXXX").string();
+    int tmpfd = mkstemp(tmpfile.data());
+    if (tmpfd < 0) return 0;  // can't write temp — skip
+    FILE* tf = fdopen(tmpfd, "w");
+    if (!tf) { close(tmpfd); return 0; }
+#endif
     std::fputs(batch.c_str(), tf);
     std::fclose(tf);
 

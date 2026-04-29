@@ -56,7 +56,13 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1_nonce_function_hardened noncefp,
     void *ndata)
 {
-    (void)noncefp; (void)ndata;
+    // Fail-closed for unsupported custom nonce functions: only accept NULL
+    // (use internal BIP-340 nonce derivation) or the standard BIP-340 stub
+    // (secp256k1_nonce_function_bip340). Any other noncefp cannot be honoured
+    // by this shim — silently ignoring it would produce a signing result that
+    // does not respect the caller's nonce policy.
+    if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
+    (void)ndata;
     // NOTE: This implementation restricts messages to exactly 32 bytes, matching
     // BIP-340 strict mode. Upstream libsecp256k1 sign_custom accepts variable-length
     // messages by including them verbatim in H_BIP0340/challenge(R_x||P_x||msg).

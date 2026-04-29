@@ -41,13 +41,13 @@ FALLBACK_SECURITY_FILES = {
     "cpu/src/ecies.cpp",
     "cpu/src/frost.cpp",
     "cpu/src/musig2.cpp",
-    "cpu/src/silent_payments.cpp",
-    "include/ufsecp/ufsecp_impl.cpp",
+    "cpu/src/address.cpp",
+    "cpu/src/ufsecp_impl.cpp",
 }
 SECRET_ABI_FILES = {
     "include/ufsecp/ufsecp.h",
     "include/ufsecp/ufsecp_gpu.h",
-    "include/ufsecp/ufsecp_impl.cpp",
+    "cpu/src/ufsecp_impl.cpp",
 }
 
 

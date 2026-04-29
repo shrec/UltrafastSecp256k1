@@ -239,7 +239,7 @@ STALE_PHRASES = [
 
 # Files that are marked historical are exempt from drift checks
 HISTORICAL_EXEMPT_MARKER = re.compile(
-    r'(?i)(historical\s+report|superseded\s+by|snapshot\s+from\s+v\d)',
+    r'(?i)(?:^|\b)(historical\s+report|superseded\s+by|snapshot\s+from\s+v\d+)(?:\b|$)',
 )
 
 def check_narrative_drift():

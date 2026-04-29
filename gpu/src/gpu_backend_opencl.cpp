@@ -1887,6 +1887,8 @@ private:
         /* Get device from context */
         cl_device_id device = nullptr;
         clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
 
         /* Search for secp256k1_extended.cl */
         const char* search_paths[] = {
@@ -1932,7 +1934,7 @@ private:
             clGetProgramBuildInfo(ext_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
             clReleaseProgram(ext_program_);
             ext_program_ = nullptr;
-            std::string msg = "extended.cl build failed: " + log.substr(0, 200);
+            std::string msg = "extended.cl build failed: " + log;
             return set_error(GpuError::Launch, msg.c_str());
         }
 
@@ -1989,6 +1991,8 @@ private:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         cl_device_id device = nullptr;
         clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
 
         const char* search_paths[] = {
             "../../opencl/kernels/secp256k1_frost.cl",
@@ -2031,7 +2035,7 @@ private:
             clGetProgramBuildInfo(frost_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
             clReleaseProgram(frost_program_);
             frost_program_ = nullptr;
-            std::string msg = "frost.cl build failed: " + log.substr(0, 200);
+            std::string msg = "frost.cl build failed: " + log;
             return set_error(GpuError::Launch, msg.c_str());
         }
 
@@ -2164,6 +2168,8 @@ private:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         cl_device_id device = nullptr;
         clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
 
         const char* search_paths[] = {
             "../../opencl/kernels/secp256k1_zk.cl",
@@ -2203,7 +2209,7 @@ private:
             std::string log(log_len, '\0');
             clGetProgramBuildInfo(zk_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
             clReleaseProgram(zk_program_); zk_program_ = nullptr;
-            std::string msg = "zk.cl build failed: " + log.substr(0, 200);
+            std::string msg = "zk.cl build failed: " + log;
             return set_error(GpuError::Launch, msg.c_str());
         }
 
@@ -2241,6 +2247,8 @@ private:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         cl_device_id device = nullptr;
         clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
 
         const char* search_paths[] = {
             "../../opencl/kernels/secp256k1_bip324.cl",
@@ -2280,7 +2288,7 @@ private:
             std::string log(log_len, '\0');
             clGetProgramBuildInfo(bip324_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
             clReleaseProgram(bip324_program_); bip324_program_ = nullptr;
-            std::string msg = "bip324.cl build failed: " + log.substr(0, 200);
+            std::string msg = "bip324.cl build failed: " + log;
             return set_error(GpuError::Launch, msg.c_str());
         }
 
@@ -2310,6 +2318,8 @@ private:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         cl_device_id device = nullptr;
         clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
 
         const char* search_paths[] = {
             "../../opencl/kernels/secp256k1_bip352.cl",
@@ -2351,7 +2361,7 @@ private:
             std::string log(log_len, '\0');
             clGetProgramBuildInfo(bip352_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
             clReleaseProgram(bip352_program_); bip352_program_ = nullptr;
-            std::string msg = "bip352.cl build failed: " + log.substr(0, 400);
+            std::string msg = "bip352.cl build failed: " + log;
             return set_error(GpuError::Launch, msg.c_str());
         }
 
