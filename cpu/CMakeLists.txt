@@ -309,10 +309,12 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
             target_compile_options(${SECP256K1_LIB_NAME} PRIVATE
                 $<$<COMPILE_LANGUAGE:CXX>:-flto=thin>)
 
-            # Do not force lld on Apple/Android CI toolchains.
+            # Do not force lld on Apple/Android/Emscripten toolchains.
             # - macOS/iOS clang may reject -fuse-ld=lld when ld64 is used.
             # - Android NDK clang may already select lld and can reject explicit override.
-            if(APPLE OR ANDROID)
+            # - Emscripten uses wasm-ld (bundled); -fuse-ld=lld picks system lld
+            #   which is absent, causing WASM link failures.
+            if(APPLE OR ANDROID OR EMSCRIPTEN)
                 target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin)
                 message(STATUS "Secp256k1: OK LTO ENABLED (ThinLTO with Clang + platform default linker, INTERFACE propagated)")
             else()
