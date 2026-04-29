@@ -149,7 +149,8 @@ int secp256k1_ecdsa_signature_serialize_der(
     (void)ctx;
     if (!output || !outputlen || !sig) return 0;
 
-    unsigned char r_der[34]{}, s_der[34]{};
+    // Max DER integer: 0x02 + len(1) + 0x00 pad(1) + 32 data = 35 bytes
+    unsigned char r_der[35]{}, s_der[35]{};
     size_t r_len = 0, s_len = 0;
     der_encode_int(r_der, &r_len, sig->data);
     der_encode_int(s_der, &s_len, sig->data + 32);
