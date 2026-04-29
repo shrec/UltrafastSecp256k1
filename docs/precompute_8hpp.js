@@ -8,6 +8,7 @@ var precompute_8hpp =
     [ "ProgressCallback", "precompute_8hpp.html#a37c1f085bc37d25789620da90ed4988a", null ],
     [ "auto_tune_and_write_config", "precompute_8hpp.html#a8bf4841897ffc813adc3a3f20352d655", null ],
     [ "auto_tune_fixed_base", "precompute_8hpp.html#acc62b62046e16ab0b660ec03615a9dc7", null ],
+    [ "batch_scalar_mul_generator", "precompute_8hpp.html#a8baf2b4b221f29bf9b4b86477695863c", null ],
     [ "compute_wnaf", "precompute_8hpp.html#a1dc02366f6b79e850c2c590c1e67a55a", null ],
     [ "compute_wnaf_into", "precompute_8hpp.html#a30fbdce16865f42e67f82429f60f4cd6", null ],
     [ "configure_fixed_base", "precompute_8hpp.html#a6d3cab998e7a21402dac29639f8338f7", null ],

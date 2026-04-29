@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -143,29 +143,60 @@ $(document).ready(function(){initNavTree('ellswift_8hpp_source.html',''); initRe
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// Uses OS CSPRNG for the randomness needed by the encoding.</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239">   44</a></span>std::array&lt;std::uint8_t, 64&gt; <a class="code hl_function" href="namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239">ellswift_create</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; privkey);</div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// -- ElligatorSwift ECDH (BIP-324) --------------------------------------------</span></div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// Perform x-only ECDH using ElligatorSwift-encoded public keys.</span></div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment">// Both ell_a64 and ell_b64 are 64-byte ElligatorSwift encodings.</span></div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment">// our_privkey is our secret key.</span></div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">// initiating: true if we are the connection initiator (determines key order).</span></div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span><span class="comment">// Returns 32-byte shared secret (SHA256-based).</span></div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">   53</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">ellswift_xdh</a>(</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>    <span class="keyword">const</span> std::uint8_t ell_a64[64],</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    <span class="keyword">const</span> std::uint8_t ell_b64[64],</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>    <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; our_privkey,</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>    <span class="keywordtype">bool</span> initiating) <span class="keyword">noexcept</span>;</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span><span class="comment">// Auxrnd variant: mixes auxrnd32 into the encoding RNG (matches libsecp256k1</span></div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span><span class="comment">// secp256k1_ellswift_create auxrnd32 semantics). When auxrnd32 is NULL,</span></div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// falls back to pure CSPRNG (identical to the single-argument overload).</span></div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span><span class="comment">// Callers SHOULD pass a fresh 32-byte random value so that the same private</span></div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span><span class="comment">// key produces a different encoding on each call — required by BIP-324 to</span></div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span><span class="comment">// prevent key-identity leakage across connections.</span></div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#acdc650e07a43e5b75fb38dd0ced03585">   52</a></span>std::array&lt;std::uint8_t, 64&gt; <a class="code hl_function" href="namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239">ellswift_create</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; privkey,</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>                                              <span class="keyword">const</span> std::uint8_t* auxrnd32);</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span><span class="comment">// Fast variant: uses the precomputed fixed-base table (non-CT generator mul).</span></div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span><span class="comment">// Suitable for ephemeral keys (BIP-324 session keys) where CT is not required.</span></div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a4eb69afd7d7fb07b10ce573eca0a8ad5">   57</a></span>std::array&lt;std::uint8_t, 64&gt; <a class="code hl_function" href="namespacesecp256k1.html#a4eb69afd7d7fb07b10ce573eca0a8ad5">ellswift_create_fast</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; privkey);</div>
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>} <span class="comment">// namespace secp256k1</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_ELLSWIFT_HPP</span></div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// Fast XDH variant: uses non-CT variable-base scalar_mul for the ECDH step.</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment">// Suitable for BIP-324 ephemeral session keys where CT is not required.</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#ad8fbbe26400011a047c230ce3b9628a9">   61</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1.html#ad8fbbe26400011a047c230ce3b9628a9">ellswift_xdh_fast</a>(</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    <span class="keyword">const</span> std::uint8_t ell_a64[64],</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    <span class="keyword">const</span> std::uint8_t ell_b64[64],</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; our_privkey,</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    <span class="keywordtype">bool</span> initiating) <span class="keyword">noexcept</span>;</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment">// Encode an existing x-coordinate as a 64-byte ElligatorSwift encoding.</span></div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment">// rnd32: 32 bytes of randomness that determine which of the many valid</span></div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment">//        encodings is selected. Must not be a deterministic function of x.</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="comment">// Used by secp256k1_ellswift_encode (encode an existing pubkey).</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#abc71d469bf8b05861459fc7c95a76e84">   71</a></span>std::array&lt;std::uint8_t, 64&gt; <a class="code hl_function" href="namespacesecp256k1.html#abc71d469bf8b05861459fc7c95a76e84">ellswift_encode_x</a>(<span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a>&amp; x,</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>                                                <span class="keyword">const</span> std::uint8_t rnd32[32]);</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span><span class="comment">// -- ElligatorSwift ECDH (BIP-324) --------------------------------------------</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span><span class="comment">// Perform x-only ECDH using ElligatorSwift-encoded public keys.</span></div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span><span class="comment">// Both ell_a64 and ell_b64 are 64-byte ElligatorSwift encodings.</span></div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span><span class="comment">// our_privkey is our secret key.</span></div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span><span class="comment">// initiating: true if we are the connection initiator (determines key order).</span></div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// Returns 32-byte shared secret (SHA256-based).</span></div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">   81</a></span>std::array&lt;std::uint8_t, 32&gt; <a class="code hl_function" href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">ellswift_xdh</a>(</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="keyword">const</span> std::uint8_t ell_a64[64],</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    <span class="keyword">const</span> std::uint8_t ell_b64[64],</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    <span class="keyword">const</span> <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>&amp; our_privkey,</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    <span class="keywordtype">bool</span> initiating) <span class="keyword">noexcept</span>;</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span> </div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>} <span class="comment">// namespace secp256k1</span></div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span> </div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_ELLSWIFT_HPP</span></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00030">field.hpp:30</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00014">scalar.hpp:14</a></div></div>
 <div class="ttc" id="afield_8hpp_html"><div class="ttname"><a href="field_8hpp.html">field.hpp</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html"><div class="ttname"><a href="namespacesecp256k1.html">secp256k1</a></div><div class="ttdef"><b>Definition</b> <a href="adaptor_8hpp_source.html#l00030">adaptor.hpp:30</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a2c445ab965d90d7f6c33d6b25d311c18"><div class="ttname"><a href="namespacesecp256k1.html#a2c445ab965d90d7f6c33d6b25d311c18">secp256k1::ellswift_decode</a></div><div class="ttdeci">FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a3465843e0c2317a71e7537d2056e7beb"><div class="ttname"><a href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">secp256k1::ellswift_xdh</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; ellswift_xdh(const std::uint8_t ell_a64[64], const std::uint8_t ell_b64[64], const Scalar &amp;our_privkey, bool initiating) noexcept</div></div>
+<div class="ttc" id="anamespacesecp256k1_html_a4eb69afd7d7fb07b10ce573eca0a8ad5"><div class="ttname"><a href="namespacesecp256k1.html#a4eb69afd7d7fb07b10ce573eca0a8ad5">secp256k1::ellswift_create_fast</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 64 &gt; ellswift_create_fast(const Scalar &amp;privkey)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a7a5e8ef4a69a43ea040294cbfdfa6239"><div class="ttname"><a href="namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239">secp256k1::ellswift_create</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 64 &gt; ellswift_create(const Scalar &amp;privkey)</div></div>
+<div class="ttc" id="anamespacesecp256k1_html_abc71d469bf8b05861459fc7c95a76e84"><div class="ttname"><a href="namespacesecp256k1.html#abc71d469bf8b05861459fc7c95a76e84">secp256k1::ellswift_encode_x</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 64 &gt; ellswift_encode_x(const FieldElement &amp;x, const std::uint8_t rnd32[32])</div></div>
+<div class="ttc" id="anamespacesecp256k1_html_ad8fbbe26400011a047c230ce3b9628a9"><div class="ttname"><a href="namespacesecp256k1.html#ad8fbbe26400011a047c230ce3b9628a9">secp256k1::ellswift_xdh_fast</a></div><div class="ttdeci">std::array&lt; std::uint8_t, 32 &gt; ellswift_xdh_fast(const std::uint8_t ell_a64[64], const std::uint8_t ell_b64[64], const Scalar &amp;our_privkey, bool initiating) noexcept</div></div>
 <div class="ttc" id="apoint_8hpp_html"><div class="ttname"><a href="point_8hpp.html">point.hpp</a></div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
 </div><!-- fragment --></div><!-- contents -->

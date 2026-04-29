@@ -13,7 +13,7 @@ var searchData=
   ['mulhi64_10',['mulhi64',['../namespacesecp256k1_1_1detail.html#af211a0551decba8fe942187faf87934d',1,'secp256k1::detail']]],
   ['multi_5fscalar_5fmul_11',['multi_scalar_mul',['../namespacesecp256k1.html#a882905c11972263399924316d1d2b926',1,'secp256k1::multi_scalar_mul(const fast::Scalar *scalars, const fast::Point *points, std::size_t n)'],['../namespacesecp256k1.html#a03ccaf89eefb01c0e251db92af63f745',1,'secp256k1::multi_scalar_mul(const std::vector&lt; fast::Scalar &gt; &amp;scalars, const std::vector&lt; fast::Point &gt; &amp;points)'],['../namespacesecp256k1_1_1fast.html#ad4a24da1cf720f9d22d32a067bd11007',1,'secp256k1::fast::multi_scalar_mul()']]],
   ['mulx64_12',['mulx64',['../namespacesecp256k1_1_1fast_1_1detail.html#abd0a8a75651b2b16f166e31ee5953a4a',1,'secp256k1::fast::detail']]],
-  ['musig2_5fkey_5fagg_13',['musig2_key_agg',['../namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020',1,'secp256k1']]],
+  ['musig2_5fkey_5fagg_13',['musig2_key_agg',['../namespacesecp256k1.html#a4fc3b0b3683481c42e98663432f8ea1f',1,'secp256k1']]],
   ['musig2_5fnonce_5fagg_14',['musig2_nonce_agg',['../namespacesecp256k1.html#a1e657aa17dd7fac020caf840c95a66c7',1,'secp256k1']]],
   ['musig2_5fnonce_5fgen_15',['musig2_nonce_gen',['../namespacesecp256k1.html#ad06f70571037fd7994ef18cd9af9c223',1,'secp256k1']]],
   ['musig2_5fpartial_5fsig_5fagg_16',['musig2_partial_sig_agg',['../namespacesecp256k1.html#aef846e4a35cbf41f7492bfef7df8cd51',1,'secp256k1']]],

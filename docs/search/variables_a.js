@@ -7,9 +7,8 @@ var searchData=
   ['kdefaultglvwindow_4',['kDefaultGlvWindow',['../namespacesecp256k1_1_1fast.html#ae2fc97818aadbb882aa0524b782ee6fa',1,'secp256k1::fast']]],
   ['key_5',['key',['../structsecp256k1_1_1WIFDecodeResult.html#a4e6eafd2a2b9580f38292f1bbd7e158c',1,'secp256k1::WIFDecodeResult::key'],['../structsecp256k1_1_1ExtendedKey.html#a380ec5519c570fcceafc96de21f77dd0',1,'secp256k1::ExtendedKey::key']]],
   ['key_5fcoefficients_6',['key_coefficients',['../structsecp256k1_1_1MuSig2KeyAggCtx.html#a11b4bfa558ecfb2ae94fddddc5e99bf1',1,'secp256k1::MuSig2KeyAggCtx']]],
-  ['kmaxgpubatchn_7',['kMaxGpuBatchN',['../ufsecp__gpu__impl_8cpp.html#a2bd0e0421252f49615cf058e11101f6b',1,'ufsecp_gpu_impl.cpp']]],
-  ['komodo_8',['Komodo',['../namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac',1,'secp256k1::coins']]],
-  ['koptimaltier_9',['kOptimalTier',['../namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772',1,'secp256k1::fast']]],
-  ['koptimaltiername_10',['kOptimalTierName',['../namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444',1,'secp256k1::fast']]],
-  ['kwnafbuflen_11',['kWnafBufLen',['../namespacesecp256k1_1_1fast.html#aa2df5e51067f2adcde3a9c6fe4bd9a2a',1,'secp256k1::fast']]]
+  ['komodo_7',['Komodo',['../namespacesecp256k1_1_1coins.html#a9d201e64ae77de5a741877bc933592ac',1,'secp256k1::coins']]],
+  ['koptimaltier_8',['kOptimalTier',['../namespacesecp256k1_1_1fast.html#ac077839f3cd4edb76742bd262e204772',1,'secp256k1::fast']]],
+  ['koptimaltiername_9',['kOptimalTierName',['../namespacesecp256k1_1_1fast.html#a1e421faed0a680753b2c618fef2a1444',1,'secp256k1::fast']]],
+  ['kwnafbuflen_10',['kWnafBufLen',['../namespacesecp256k1_1_1fast.html#aa2df5e51067f2adcde3a9c6fe4bd9a2a',1,'secp256k1::fast']]]
 ];

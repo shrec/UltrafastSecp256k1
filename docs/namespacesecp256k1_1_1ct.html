@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -228,6 +228,12 @@ Functions</h2></td></tr>
 <tr class="separator:ae769fe8d593b07526d2adec94c54afc9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a06187228e0a81e957dbddeacb6fffea3" id="r_a06187228e0a81e957dbddeacb6fffea3"><td class="memItemLeft" align="right" valign="top">std::uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a06187228e0a81e957dbddeacb6fffea3">point_eq</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a> &amp;a, const <a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a> &amp;b) noexcept</td></tr>
 <tr class="separator:a06187228e0a81e957dbddeacb6fffea3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a641ac8b96aeebb3f74e7cf496b1341a8" id="r_a641ac8b96aeebb3f74e7cf496b1341a8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a641ac8b96aeebb3f74e7cf496b1341a8">set_blinding</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;r, const <a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a> &amp;r_G) noexcept</td></tr>
+<tr class="separator:a641ac8b96aeebb3f74e7cf496b1341a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a574f745a7fe4406343cd8c3f4c6de31b" id="r_a574f745a7fe4406343cd8c3f4c6de31b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a574f745a7fe4406343cd8c3f4c6de31b">clear_blinding</a> () noexcept</td></tr>
+<tr class="separator:a574f745a7fe4406343cd8c3f4c6de31b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7f345dc771b3d8f7019c769d9f5eb098" id="r_a7f345dc771b3d8f7019c769d9f5eb098"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a7f345dc771b3d8f7019c769d9f5eb098">generator_mul_blinded</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;k) noexcept</td></tr>
+<tr class="separator:a7f345dc771b3d8f7019c769d9f5eb098"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2fc97413b0fe7f284895286da8d9cc10" id="r_a2fc97413b0fe7f284895286da8d9cc10"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a2fc97413b0fe7f284895286da8d9cc10">scalar_add</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;b) noexcept</td></tr>
 <tr class="separator:a2fc97413b0fe7f284895286da8d9cc10"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a70c358a2e9653ff6d677c8087f278f24" id="r_a70c358a2e9653ff6d677c8087f278f24"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1ct.html#a70c358a2e9653ff6d677c8087f278f24">scalar_sub</a> (const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;a, const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;b) noexcept</td></tr>
@@ -644,6 +650,31 @@ Functions</h2></td></tr>
 <p class="reference">References <a class="el" href="ops_8hpp_source.html#l00094">value_barrier()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="ct__utils_8hpp_source.html#l00067">ct_memcpy_if()</a>, <a class="el" href="ct__utils_8hpp_source.html#l00082">ct_memswap_if()</a>, and <a class="el" href="ct__utils_8hpp_source.html#l00127">ct_select_byte()</a>.</p>
+
+</div>
+</div>
+<a id="a574f745a7fe4406343cd8c3f4c6de31b" name="a574f745a7fe4406343cd8c3f4c6de31b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a574f745a7fe4406343cd8c3f4c6de31b">&#9670;&#160;</a></span>clear_blinding()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::ct::clear_blinding </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -1409,7 +1440,7 @@ template&lt;std::size_t N&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00078">ecdsa_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00636">ufsecp_ecdsa_sign()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00978">ufsecp_ecdsa_sign_batch()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00078">ecdsa_sign()</a>.</p>
 
 </div>
 </div>
@@ -1713,7 +1744,7 @@ template&lt;std::size_t N&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00083">ecdsa_sign_verified()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00658">ufsecp_ecdsa_sign_verified()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00083">ecdsa_sign_verified()</a>.</p>
 
 </div>
 </div>
@@ -2285,7 +2316,31 @@ template&lt;std::size_t N&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00535">pubkey_create_core()</a>.</p>
+</div>
+</div>
+<a id="a7f345dc771b3d8f7019c769d9f5eb098" name="a7f345dc771b3d8f7019c769d9f5eb098"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7f345dc771b3d8f7019c769d9f5eb098">&#9670;&#160;</a></span>generator_mul_blinded()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a> secp256k1::ct::generator_mul_blinded </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>k</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -3432,7 +3487,7 @@ template&lt;std::size_t N&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00115">schnorr_keypair_create()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l04946">ufsecp_bip322_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l05382">ufsecp_psbt_sign_taproot()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00922">ufsecp_schnorr_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l01009">ufsecp_schnorr_sign_batch()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00950">ufsecp_schnorr_sign_verified()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="sign_8hpp_source.html#l00115">schnorr_keypair_create()</a>.</p>
 
 </div>
 </div>
@@ -3548,8 +3603,6 @@ template&lt;std::size_t N&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04946">ufsecp_bip322_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l05382">ufsecp_psbt_sign_taproot()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00922">ufsecp_schnorr_sign()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l01009">ufsecp_schnorr_sign_batch()</a>.</p>
-
 </div>
 </div>
 <a id="af512ab8a3f3c1c70c1ddf59e7a0074bc" name="af512ab8a3f3c1c70c1ddf59e7a0074bc"></a>
@@ -3584,7 +3637,41 @@ template&lt;std::size_t N&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00950">ufsecp_schnorr_sign_verified()</a>.</p>
+</div>
+</div>
+<a id="a641ac8b96aeebb3f74e7cf496b1341a8" name="a641ac8b96aeebb3f74e7cf496b1341a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a641ac8b96aeebb3f74e7cf496b1341a8">&#9670;&#160;</a></span>set_blinding()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::ct::set_blinding </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="namespacesecp256k1_1_1ct.html#ae54db4309cace8136d6d134bdf9a2cba">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a">Point</a> &amp;&#160;</td>
+          <td class="paramname"><em>r_G</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
 
 </div>
 </div>

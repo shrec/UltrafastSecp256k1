@@ -5,7 +5,7 @@ var musig2_8hpp =
     [ "secp256k1::MuSig2PubNonce", "structsecp256k1_1_1MuSig2PubNonce.html", "structsecp256k1_1_1MuSig2PubNonce" ],
     [ "secp256k1::MuSig2AggNonce", "structsecp256k1_1_1MuSig2AggNonce.html", "structsecp256k1_1_1MuSig2AggNonce" ],
     [ "secp256k1::MuSig2Session", "structsecp256k1_1_1MuSig2Session.html", "structsecp256k1_1_1MuSig2Session" ],
-    [ "musig2_key_agg", "musig2_8hpp.html#a193d22c028b107d14dd814fa3b760020", null ],
+    [ "musig2_key_agg", "musig2_8hpp.html#a4fc3b0b3683481c42e98663432f8ea1f", null ],
     [ "musig2_nonce_agg", "musig2_8hpp.html#a1e657aa17dd7fac020caf840c95a66c7", null ],
     [ "musig2_nonce_gen", "musig2_8hpp.html#ad06f70571037fd7994ef18cd9af9c223", null ],
     [ "musig2_partial_sig_agg", "musig2_8hpp.html#aef846e4a35cbf41f7492bfef7df8cd51", null ],

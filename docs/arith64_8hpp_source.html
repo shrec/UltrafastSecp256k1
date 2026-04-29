@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -184,7 +184,7 @@ $(document).ready(function(){initNavTree('arith64_8hpp_source.html',''); initRes
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span><span class="comment">// ---------------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span><span class="preprocessor">#if defined(_MSC_VER) &amp;&amp; !defined(__clang__)</span></div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span><span class="preprocessor">#include &lt;intrin.h&gt;</span></div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="keyword">inline</span> std::uint64_t mulhi64(std::uint64_t a, std::uint64_t b) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span><span class="keyword">inline</span> std::uint64_t <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#af211a0551decba8fe942187faf87934d">mulhi64</a>(std::uint64_t a, std::uint64_t b) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    std::uint64_t hi;</div>
 <div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    _umul128(a, b, &amp;hi);</div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>    <span class="keywordflow">return</span> hi;</div>
@@ -194,7 +194,7 @@ $(document).ready(function(){initNavTree('arith64_8hpp_source.html',''); initRes
 <div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="preprocessor">#pragma GCC diagnostic push</span></div>
 <div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span><span class="preprocessor">#pragma GCC diagnostic ignored &quot;-Wpedantic&quot;</span></div>
 <div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="keyword">inline</span> std::uint64_t mulhi64(std::uint64_t a, std::uint64_t b) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span><span class="keyword">inline</span> std::uint64_t <a class="code hl_function" href="namespacesecp256k1_1_1detail.html#af211a0551decba8fe942187faf87934d">mulhi64</a>(std::uint64_t a, std::uint64_t b) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    <span class="keywordflow">return</span> <span class="keyword">static_cast&lt;</span>std::uint64_t<span class="keyword">&gt;</span>(</div>
 <div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>        (<span class="keyword">static_cast&lt;</span><span class="keywordtype">unsigned</span> __int128<span class="keyword">&gt;</span>(a) * b) &gt;&gt; 64);</div>
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>}</div>

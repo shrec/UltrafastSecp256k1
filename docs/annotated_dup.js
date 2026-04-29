@@ -87,6 +87,9 @@ var annotated_dup =
       [ "PrivateKey", "classsecp256k1_1_1PrivateKey.html", "classsecp256k1_1_1PrivateKey" ],
       [ "RecoverableSignature", "structsecp256k1_1_1RecoverableSignature.html", "structsecp256k1_1_1RecoverableSignature" ],
       [ "ScalarData", "structsecp256k1_1_1ScalarData.html", "structsecp256k1_1_1ScalarData" ],
+      [ "ScanMatch", "structsecp256k1_1_1ScanMatch.html", "structsecp256k1_1_1ScanMatch" ],
+      [ "ScanTx", "structsecp256k1_1_1ScanTx.html", "structsecp256k1_1_1ScanTx" ],
+      [ "ScanTxRaw", "structsecp256k1_1_1ScanTxRaw.html", "structsecp256k1_1_1ScanTxRaw" ],
       [ "SchnorrAdaptorSig", "structsecp256k1_1_1SchnorrAdaptorSig.html", "structsecp256k1_1_1SchnorrAdaptorSig" ],
       [ "SchnorrBatchCachedEntry", "structsecp256k1_1_1SchnorrBatchCachedEntry.html", "structsecp256k1_1_1SchnorrBatchCachedEntry" ],
       [ "SchnorrBatchEntry", "structsecp256k1_1_1SchnorrBatchEntry.html", "structsecp256k1_1_1SchnorrBatchEntry" ],
@@ -104,15 +107,10 @@ var annotated_dup =
       [ "WitnessProgram", "structsecp256k1_1_1WitnessProgram.html", "structsecp256k1_1_1WitnessProgram" ],
       [ "WitnessTx", "structsecp256k1_1_1WitnessTx.html", "structsecp256k1_1_1WitnessTx" ]
     ] ],
-    [ "ScopeExit", "structScopeExit.html", "structScopeExit" ],
-    [ "ScopeSecureErase", "structScopeSecureErase.html", "structScopeSecureErase" ],
-    [ "SecureEraseGuard", "classSecureEraseGuard.html", "classSecureEraseGuard" ],
     [ "ufsecp_bip32_key", "structufsecp__bip32__key.html", "structufsecp__bip32__key" ],
-    [ "ufsecp_ctx", "structufsecp__ctx.html", "structufsecp__ctx" ],
     [ "ufsecp_desc_key", "structufsecp__desc__key.html", "structufsecp__desc__key" ],
     [ "ufsecp_ecdsa_snark_witness_t", "structufsecp__ecdsa__snark__witness__t.html", "structufsecp__ecdsa__snark__witness__t" ],
     [ "ufsecp_ff_limbs_t", "structufsecp__ff__limbs__t.html", "structufsecp__ff__limbs__t" ],
-    [ "ufsecp_gpu_ctx", "structufsecp__gpu__ctx.html", "structufsecp__gpu__ctx" ],
     [ "ufsecp_gpu_device_info_t", "structufsecp__gpu__device__info__t.html", "structufsecp__gpu__device__info__t" ],
     [ "ufsecp_schnorr_snark_witness_t", "structufsecp__schnorr__snark__witness__t.html", "structufsecp__schnorr__snark__witness__t" ]
 ];

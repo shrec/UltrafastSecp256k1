@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -417,6 +417,8 @@ Functions</h2></td></tr>
 <tr class="separator:ad3ced354357f695073913024f5539a8d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a1d98ebe3ad209dc842065b216535b0" id="r_a4a1d98ebe3ad209dc842065b216535b0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a4a1d98ebe3ad209dc842065b216535b0">scalar_mul_generator_glv_predecomposed</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k1, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;k2, bool neg1, bool neg2)</td></tr>
 <tr class="separator:a4a1d98ebe3ad209dc842065b216535b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8baf2b4b221f29bf9b4b86477695863c" id="r_a8baf2b4b221f29bf9b4b86477695863c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a8baf2b4b221f29bf9b4b86477695863c">batch_scalar_mul_generator</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> *scalars, <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *results, std::size_t n)</td></tr>
+<tr class="separator:a8baf2b4b221f29bf9b4b86477695863c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1dc02366f6b79e850c2c590c1e67a55a" id="r_a1dc02366f6b79e850c2c590c1e67a55a"><td class="memItemLeft" align="right" valign="top">std::vector&lt; int32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#a1dc02366f6b79e850c2c590c1e67a55a">compute_wnaf</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;scalar, unsigned window_bits)</td></tr>
 <tr class="separator:a1dc02366f6b79e850c2c590c1e67a55a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec97c3e9d6fb0e5fff4dcf590c97f463" id="r_aec97c3e9d6fb0e5fff4dcf590c97f463"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1_1_1fast.html#aec97c3e9d6fb0e5fff4dcf590c97f463">scalar_mul_arbitrary</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> &amp;base, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;scalar, unsigned window_bits=5)</td></tr>
@@ -965,6 +967,40 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="a8baf2b4b221f29bf9b4b86477695863c" name="a8baf2b4b221f29bf9b4b86477695863c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8baf2b4b221f29bf9b4b86477695863c">&#9670;&#160;</a></span>batch_scalar_mul_generator()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::batch_scalar_mul_generator </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> *&#160;</td>
+          <td class="paramname"><em>scalars</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> *&#160;</td>
+          <td class="paramname"><em>results</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::size_t&#160;</td>
+          <td class="paramname"><em>n</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a41378871634150e7254bdcfb6a79da81" name="a41378871634150e7254bdcfb6a79da81"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a41378871634150e7254bdcfb6a79da81">&#9670;&#160;</a></span>comb_gen_mul()</h2>
 
@@ -1224,8 +1260,6 @@ Variables</h2></td></tr>
 <p class="definition">Definition at line <a class="el" href="init_8hpp_source.html#l00014">14</a> of file <a class="el" href="init_8hpp_source.html">init.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="namespacesecp256k1_1_1fast.html#aa1ade8639ae8e331731389af48483662">Selftest()</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00399">ufsecp_ctx_create()</a>.</p>
 
 </div>
 </div>
@@ -3884,7 +3918,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00118">118</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00122">122</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -3973,7 +4007,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00057">57</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00058">58</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>
@@ -4045,7 +4079,7 @@ This function is optimized for fixed-step ECC walks where we have a deterministi
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00064">64</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="point_8hpp_source.html#l00065">65</a> of file <a class="el" href="point_8hpp_source.html">point.hpp</a>.</p>
 
 </div>
 </div>

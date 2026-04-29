@@ -18,6 +18,7 @@ var namespacesecp256k1_1_1ct =
     [ "affine_table_lookup_signed", "namespacesecp256k1_1_1ct.html#a70151035f2c87ed4a2e8d741fa58a81a", null ],
     [ "affine_table_lookup_signed_into", "namespacesecp256k1_1_1ct.html#a9318c71df40cf00c16d37a425e4a364b", null ],
     [ "bool_to_mask", "namespacesecp256k1_1_1ct.html#aa3677f36024ac1630d6ba4082a556bd8", null ],
+    [ "clear_blinding", "namespacesecp256k1_1_1ct.html#a574f745a7fe4406343cd8c3f4c6de31b", null ],
     [ "cmov256", "namespacesecp256k1_1_1ct.html#a64999411c70b8fbc3e914a6969074744", null ],
     [ "cmov64", "namespacesecp256k1_1_1ct.html#a1e5b7e2fb038f58c50a09666fc9b9315", null ],
     [ "cswap256", "namespacesecp256k1_1_1ct.html#a1b1727e3ebbe1d3e404615e56f341fe1", null ],
@@ -61,6 +62,7 @@ var namespacesecp256k1_1_1ct =
     [ "field_sqr", "namespacesecp256k1_1_1ct.html#ab6a2ba4f2a2767bab4ea7381b8f0f6fd", null ],
     [ "field_sub", "namespacesecp256k1_1_1ct.html#a4669d6b88fb60a588c1ec88a47a8df8b", null ],
     [ "generator_mul", "namespacesecp256k1_1_1ct.html#ab2d86fc45186b174895078e32e58b936", null ],
+    [ "generator_mul_blinded", "namespacesecp256k1_1_1ct.html#a7f345dc771b3d8f7019c769d9f5eb098", null ],
     [ "init_generator_table", "namespacesecp256k1_1_1ct.html#a7326ac4644fbf6fe8f02a84c5249ddff", null ],
     [ "is_nonzero_mask", "namespacesecp256k1_1_1ct.html#a51e67ed0c010816389b43cea440a1f60", null ],
     [ "is_zero_mask", "namespacesecp256k1_1_1ct.html#ad4bdb019aac5e3d4c267295ad61dd598", null ],
@@ -100,6 +102,7 @@ var namespacesecp256k1_1_1ct =
     [ "schnorr_pubkey", "namespacesecp256k1_1_1ct.html#a0395559c34023213c3182f49e8e73807", null ],
     [ "schnorr_sign", "namespacesecp256k1_1_1ct.html#ad253f17b576c8232a0b92f990543b58e", null ],
     [ "schnorr_sign_verified", "namespacesecp256k1_1_1ct.html#af512ab8a3f3c1c70c1ddf59e7a0074bc", null ],
+    [ "set_blinding", "namespacesecp256k1_1_1ct.html#a641ac8b96aeebb3f74e7cf496b1341a8", null ],
     [ "value_barrier", "namespacesecp256k1_1_1ct.html#afd63109c8236d3322af884fe4ada2645", null ],
     [ "value_barrier", "namespacesecp256k1_1_1ct.html#a85a7d82aa4c208dbbd1f5de6b6f7d8ac", null ]
 ];

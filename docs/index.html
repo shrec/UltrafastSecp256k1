@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -102,8 +102,8 @@ What Is This?</h1>
 <ul>
 <li>⚡ <b>High-throughput ECC engine</b> — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)</li>
 <li>🔐 <b>Cryptographic stack</b> — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH</li>
-<li>🧠 <b>Continuous audit system</b> — 1,000,000+ assertions per build, 60 non-exploit modules + 189 exploit PoCs, 0 failures — not a snapshot</li>
-<li>🧪 <b>Adversarially tested</b> — 189 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines</li>
+<li>🧠 <b>Continuous audit system</b> — 1,000,000+ assertions per build, 84 non-exploit modules + 228 exploit PoCs, 0 failures — not a snapshot</li>
+<li>🧪 <b>Adversarially tested</b> — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines</li>
 </ul>
 <blockquote class="doxtable">
 <p>&zwj;Security is not assumed — it is continuously verified on every commit. </p>
@@ -241,7 +241,7 @@ Why This Exists</h1>
 <p>We do not rely on trust. We provide reproducible evidence.</p>
 <ul>
 <li>Every exploit attempt becomes a permanent regression test</li>
-<li>Every commit runs 1,000,000+ assertions across 60 non-exploit audit modules and 189 exploit PoCs</li>
+<li>Every commit runs 1,000,000+ assertions across 84 non-exploit audit modules and 228 exploit PoCs</li>
 <li>Every claim maps to a test in docs/AUDIT_TRACEABILITY.md</li>
 <li>Every performance number has pinned compiler/driver/toolkit versions and raw logs</li>
 </ul>
@@ -286,7 +286,7 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
 </blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 189 exploit-PoC test files (all 189 registered as runner modules, parity enforced by <code>scripts/check_exploit_wiring.py</code>) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 232 exploit-PoC test files (all 232 registered as runner modules, parity enforced by <code>scripts/check_exploit_wiring.py</code>) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
 <li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
@@ -356,9 +356,9 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Internal audit assertions per build   </td><td class="markdownTableBodyNone">**~1,000,000+**    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Audit modules (<code>unified_audit_runner</code>)   </td><td class="markdownTableBodyNone"><b>60 non-exploit modules + 189 exploit PoCs across 9 sections, 0 failures</b>    </td></tr>
+<td class="markdownTableBodyNone">Audit modules (<code>unified_audit_runner</code>)   </td><td class="markdownTableBodyNone"><b>84 non-exploit modules + 228 exploit PoCs across 9 sections, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>86 tests, 14 coverage areas, 0 failures</b>    </td></tr>
+<td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>232 tests, 20+ coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">CI/CD workflows   </td><td class="markdownTableBodyNone"><b>37 GitHub Actions workflows</b>    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -382,7 +382,7 @@ CI/CD Pipeline Highlights</h2>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Workflow   </th><th class="markdownTableHeadNone">Purpose   </th><th class="markdownTableHeadNone">Trigger    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>security-audit.yml</code>   </td><td class="markdownTableBodyNone">Runs full <code>unified_audit_runner</code> — 60 non-exploit modules + 189 exploit PoCs, ~1M+ assertions   </td><td class="markdownTableBodyNone">Every push    </td></tr>
+<td class="markdownTableBodyNone"><code>security-audit.yml</code>   </td><td class="markdownTableBodyNone">Runs full <code>unified_audit_runner</code> — 84 non-exploit modules + 228 exploit PoCs, ~1M+ assertions   </td><td class="markdownTableBodyNone">Every push    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>ct-arm64.yml</code>   </td><td class="markdownTableBodyNone">Constant-time verification on native ARM64 hardware   </td><td class="markdownTableBodyNone">Every push    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -415,11 +415,11 @@ What "Self-Audit Culture" Means in Practice</h2>
 <li>Every commit that would regress throughput <b>fails CI automatically</b> via <code>bench-regression.yml</code></li>
 <li>Audit results are logged as <b>structured artifacts</b> (JSON reports, per-platform logs), not just pass/fail signals</li>
 <li><b>Nightly differential testing</b> runs ~1.3M random round-trips against reference implementations every night</li>
-<li>All 60 non-exploit audit modules and all 189 exploit PoCs return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
+<li>All 60 non-exploit audit modules and all 232 exploit PoCs return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md42"></a>
-Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)</h2>
-<p>In addition to the 55-module <code>unified_audit_runner</code>, UltrafastSecp256k1 ships <b>189 dedicated exploit-style PoC tests</b> that actively try to break the library across its highest-risk surfaces. Each <code>audit/test_exploit_*.cpp</code> target builds and runs standalone so failures stay easy to attribute and reproduce.</p>
+Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)</h2>
+<p>In addition to the 55-module <code>unified_audit_runner</code>, UltrafastSecp256k1 ships <b>232 dedicated exploit-style PoC tests</b> that actively try to break the library across its highest-risk surfaces. Each <code>audit/test_exploit_*.cpp</code> target builds and runs standalone so failures stay easy to attribute and reproduce.</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Coverage Area   </th><th class="markdownTableHeadNone">Representative attack focus    </th></tr>
@@ -453,7 +453,7 @@ Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)</h2>
 <td class="markdownTableBodyNone">Batch Verify   </td><td class="markdownTableBodyNone">aggregate verification math correctness   </td></tr>
 </table>
 <blockquote class="doxtable">
-<p>&zwj;All 189 exploit tests live in <code>audit/test_exploit_*.cpp</code>. Build with <code>cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release</code> and run them standalone or via <code>ctest</code>. </p>
+<p>&zwj;All 232 exploit tests live in <code>audit/test_exploit_*.cpp</code>. Build with <code>cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release</code> and run them standalone or via <code>ctest</code>. </p>
 </blockquote>
 <h2><a class="anchor" id="autotoc_md43"></a>
 Self-Audit Document Index</h2>
@@ -482,7 +482,7 @@ Self-Audit Document Index</h2>
 <td class="markdownTableBodyNone">docs/AUDIT_TRACEABILITY.md   </td><td class="markdownTableBodyNone">Requirement-to-test traceability map   </td></tr>
 </table>
 <blockquote class="doxtable">
-<p>&zwj;<b>Note:</b> UltrafastSecp256k1 has not undergone a third-party cryptographic audit. The assurance model is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun. The project hardens continuously through internal audit on every build and every commit. </p>
+<p>&zwj;The assurance model is open self-audit: reproducible tests, traceability, CI enforcement, and public review artifacts that anyone can rerun. The project hardens continuously through internal audit on every build and every commit. </p>
 </blockquote>
 <h1><a class="anchor" id="autotoc_md44"></a>
 &lt;/blockquote&gt;</h1>
@@ -1184,11 +1184,11 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="point_8hpp.html">secp256k1/point.hpp</a>&gt;</span></div>
 <div class="line"><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a>;</div>
 <div class="line"> </div>
-<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> P = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
+<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> P = Point::generator();</div>
 <div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> gx = P.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">x</a>(), gy = P.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">y</a>();</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Compute 2G using mixed add (7M + 4S)</span></div>
-<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> Q = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
+<div class="line"><a class="code hl_class" href="classsecp256k1_1_1fast_1_1Point.html">Point</a> Q = Point::generator();</div>
 <div class="line">Q.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">add_mixed_inplace</a>(gx, gy);  <span class="comment">// Q = G + G = 2G</span></div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Batch walk: P, P+G, P+2G, ...</span></div>
@@ -1197,11 +1197,10 @@ Mixed Addition (Jacobian + Affine)</h2>
 <div class="line">    walker.<a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">add_mixed_inplace</a>(gx, gy);  <span class="comment">// walker += G each step</span></div>
 <div class="line">}</div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1FieldElement_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1FieldElement.html">secp256k1::fast::FieldElement</a></div><div class="ttdef"><b>Definition</b> <a href="field_8hpp_source.html#l00030">field.hpp:30</a></div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00083">point.hpp:83</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00084">point.hpp:84</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_a9fac69f2a5fe229eb3bd933577eda9a4"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#a9fac69f2a5fe229eb3bd933577eda9a4">secp256k1::fast::Point::x</a></div><div class="ttdeci">FieldElement x() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_aa1c473d6c48e571884b379ca1859c23c"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#aa1c473d6c48e571884b379ca1859c23c">secp256k1::fast::Point::y</a></div><div class="ttdeci">FieldElement y() const</div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab1c2e6e7b9d44952844ec3915dae9301"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab1c2e6e7b9d44952844ec3915dae9301">secp256k1::fast::Point::add_mixed_inplace</a></div><div class="ttdeci">void add_mixed_inplace(const FieldElement &amp;ax, const FieldElement &amp;ay)</div></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html_ab8925efdda5643d2e239b5000d5a0144"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">secp256k1::fast::Point::generator</a></div><div class="ttdeci">static Point generator()</div></div>
 <div class="ttc" id="anamespacesecp256k1_1_1fast_html"><div class="ttname"><a href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a></div><div class="ttdef"><b>Definition</b> <a href="batch__add__affine_8hpp_source.html#l00008">batch_add_affine.hpp:8</a></div></div>
 <div class="ttc" id="apoint_8hpp_html"><div class="ttname"><a href="point_8hpp.html">point.hpp</a></div></div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md107"></a>
@@ -1237,7 +1236,7 @@ secp256k1 Stable C ABI (&lt;tt&gt;ufsecp&lt;/tt&gt;) – FFI Bindings</h1>
 Quick Start (C)</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="ufsecp_8h.html">ufsecp.h</a>&quot;</span></div>
 <div class="line"> </div>
-<div class="line"><a class="code hl_struct" href="structufsecp__ctx.html">ufsecp_ctx</a>* ctx = NULL;</div>
+<div class="line"><a class="code hl_typedef" href="ufsecp_8h.html#ad484dfcca7aaff34945544fac730b561">ufsecp_ctx</a>* ctx = NULL;</div>
 <div class="line"><a class="code hl_function" href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a>(&amp;ctx);</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Generate keypair</span></div>
@@ -1254,12 +1253,12 @@ Quick Start (C)</h2>
 <div class="line"><a class="code hl_function" href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a>(ctx, pubkey, 33, msg, sig, &amp;valid);</div>
 <div class="line"> </div>
 <div class="line"><a class="code hl_function" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a>(ctx);</div>
-<div class="ttc" id="astructufsecp__ctx_html"><div class="ttname"><a href="structufsecp__ctx.html">ufsecp_ctx</a></div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00083">ufsecp_impl.cpp:83</a></div></div>
 <div class="ttc" id="aufsecp_8h_html"><div class="ttname"><a href="ufsecp_8h.html">ufsecp.h</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00679">ufsecp_impl.cpp:679</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00636">ufsecp_impl.cpp:636</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00434">ufsecp_impl.cpp:434</a></div></div>
-<div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00399">ufsecp_impl.cpp:399</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_a3bcb3e21569903007e46c2a377637a84"><div class="ttname"><a href="ufsecp_8h.html#a3bcb3e21569903007e46c2a377637a84">ufsecp_ecdsa_verify</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t sig64[64], const uint8_t pubkey33[33])</div></div>
+<div class="ttc" id="aufsecp_8h_html_a4e1fa2ddc0f82ca0772ce2e4b500c55e"><div class="ttname"><a href="ufsecp_8h.html#a4e1fa2ddc0f82ca0772ce2e4b500c55e">ufsecp_ecdsa_sign</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx *ctx, const uint8_t msg32[32], const uint8_t privkey[32], uint8_t sig64_out[64])</div></div>
+<div class="ttc" id="aufsecp_8h_html_a87d42e60b2f61d1931c088231b6e6b59"><div class="ttname"><a href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy</a></div><div class="ttdeci">UFSECP_API void ufsecp_ctx_destroy(ufsecp_ctx *ctx)</div></div>
+<div class="ttc" id="aufsecp_8h_html_ad484dfcca7aaff34945544fac730b561"><div class="ttname"><a href="ufsecp_8h.html#ad484dfcca7aaff34945544fac730b561">ufsecp_ctx</a></div><div class="ttdeci">struct ufsecp_ctx ufsecp_ctx</div><div class="ttdef"><b>Definition</b> <a href="ufsecp_8h_source.html#l00092">ufsecp.h:92</a></div></div>
+<div class="ttc" id="aufsecp_8h_html_ad59bb140d404cf17909ad63955e8e948"><div class="ttname"><a href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create</a></div><div class="ttdeci">UFSECP_API ufsecp_error_t ufsecp_ctx_create(ufsecp_ctx **ctx_out)</div></div>
 </div><!-- fragment --><h2><a class="anchor" id="autotoc_md111"></a>
 GPU C ABI (&lt;tt&gt;ufsecp_gpu&lt;/tt&gt;)</h2>
 <p>Starting with <b>v3.3.0</b>, the GPU layer is fully accessible from any FFI language via <code><a class="el" href="ufsecp__gpu_8h.html">ufsecp_gpu.h</a></code>:</p>
@@ -1427,8 +1426,8 @@ Basic Point Operations</h2>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">int</span> main() {</div>
 <div class="line">    <span class="comment">// Public key derivation: private_key x G = public_key</span></div>
-<div class="line">    <span class="keyword">auto</span> generator = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>();</div>
-<div class="line">    <span class="keyword">auto</span> private_key = <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">Scalar::from_hex</a>(</div>
+<div class="line">    <span class="keyword">auto</span> generator = Point::generator();</div>
+<div class="line">    <span class="keyword">auto</span> private_key = Scalar::from_hex(</div>
 <div class="line">        <span class="stringliteral">&quot;E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262&quot;</span></div>
 <div class="line">    );</div>
 <div class="line">    <span class="keyword">auto</span> public_key = generator * private_key;</div>
@@ -1437,7 +1436,6 @@ Basic Point Operations</h2>
 <div class="line">    std::cout &lt;&lt; <span class="stringliteral">&quot;Public Key Y: &quot;</span> &lt;&lt; public_key.y().to_hex() &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
 <div class="line">    <span class="keywordflow">return</span> 0;</div>
 <div class="line">}</div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html_a405303c64f84eeb9d9f8eafe2474342f"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html#a405303c64f84eeb9d9f8eafe2474342f">secp256k1::fast::Scalar::from_hex</a></div><div class="ttdeci">static Scalar from_hex(const std::string &amp;hex)</div></div>
 <div class="ttc" id="afield_8hpp_html"><div class="ttname"><a href="field_8hpp.html">field.hpp</a></div></div>
 <div class="ttc" id="ascalar_8hpp_html"><div class="ttname"><a href="scalar_8hpp.html">scalar.hpp</a></div></div>
 </div><!-- fragment --><div class="fragment"><div class="line">g++ -std=c++20 example.cpp -lufsecp -o example &amp;&amp; ./example</div>
@@ -1450,7 +1448,7 @@ GPU Batch Multiplication</h2>
 <div class="line"><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacesecp256k1_1_1fast.html">secp256k1::fast</a>;</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">int</span> main() {</div>
-<div class="line">    std::vector&lt;Point&gt; base_points(1&#39;000&#39;000, <a class="code hl_function" href="classsecp256k1_1_1fast_1_1Point.html#ab8925efdda5643d2e239b5000d5a0144">Point::generator</a>());</div>
+<div class="line">    std::vector&lt;Point&gt; base_points(1&#39;000&#39;000, Point::generator());</div>
 <div class="line">    std::vector&lt;Scalar&gt; scalars(1&#39;000&#39;000);</div>
 <div class="line">    <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; s : scalars) s = <a class="code hl_class" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a>::random();</div>
 <div class="line"> </div>
@@ -1725,7 +1723,7 @@ Platform CI Coverage</h2>
 </table>
 <h2><a class="anchor" id="autotoc_md146"></a>
 Cross-Platform Audit Results</h2>
-<p>The <code>unified_audit_runner</code> executes <b>60 non-exploit audit modules + 189 exploit PoCs</b> across 9 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
+<p>The <code>unified_audit_runner</code> executes <b>84 non-exploit audit modules + 228 exploit PoCs</b> across 9 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Platform   </th><th class="markdownTableHeadNone">OS   </th><th class="markdownTableHeadNone">Compiler   </th><th class="markdownTableHeadNone">Modules   </th><th class="markdownTableHeadNone">Verdict   </th><th class="markdownTableHeadNone">Time    </th></tr>
@@ -1839,7 +1837,7 @@ FAQ</h1>
 <p>&zwj;All functions in <code>ct::</code> namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See CT Evidence above. </p>
 </blockquote>
 <p><b>Which parts are production-safe today?</b> </p><blockquote class="doxtable">
-<p>&zwj;This library has not undergone a third-party audit. Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI with a strong self-audit trail and reproducible evidence. </p>
+<p>&zwj;Tier 1 features (core ECC, ECDSA, Schnorr, ECDH, stable C ABI) are extensively tested, fuzzed, regression-gated, and run through sanitizer-backed CI with a strong self-audit trail and reproducible evidence. </p>
 </blockquote>
 <p><b>How do I reproduce the benchmarks?</b> </p><blockquote class="doxtable">
 <p>&zwj;See `docs/BENCHMARKS.md` for exact commands, pinned compiler/driver versions, and raw logs. The <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a> tracks performance across commits. </p>
@@ -1866,7 +1864,7 @@ Documentation</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">Supported Guarantees</a>   </td><td class="markdownTableBodyNone">ABI stability tiers and commitment levels    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Audit Coverage   </td><td class="markdownTableBodyNone">Full audit report with 60 non-exploit modules + 189 exploit PoCs and platform verdicts    </td></tr>
+<td class="markdownTableBodyNone">Audit Coverage   </td><td class="markdownTableBodyNone">Full audit report with 84 non-exploit modules + 228 exploit PoCs and platform verdicts    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Audit Guide   </td><td class="markdownTableBodyNone">How to run and interpret audit suite    </td></tr>
 <tr class="markdownTableRowEven">

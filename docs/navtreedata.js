@@ -42,7 +42,7 @@ var NAVTREE =
       [ "By the Numbers", "index.html#autotoc_md39", null ],
       [ "CI/CD Pipeline Highlights", "index.html#autotoc_md40", null ],
       [ "What \"Self-Audit Culture\" Means in Practice", "index.html#autotoc_md41", null ],
-      [ "Exploit PoC Test Suite (187 Tests, 20+ Coverage Areas)", "index.html#autotoc_md42", null ],
+      [ "Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)", "index.html#autotoc_md42", null ],
       [ "Self-Audit Document Index", "index.html#autotoc_md43", null ]
     ] ],
     [ "</blockquote>", "index.html#autotoc_md44", null ],
@@ -201,8 +201,7 @@ var NAVTREE =
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
         [ "All", "globals.html", "globals_dup" ],
-        [ "Functions", "globals_func.html", "globals_func" ],
-        [ "Variables", "globals_vars.html", null ],
+        [ "Functions", "globals_func.html", null ],
         [ "Typedefs", "globals_type.html", null ],
         [ "Enumerations", "globals_enum.html", null ],
         [ "Enumerator", "globals_eval.html", null ],
@@ -215,21 +214,20 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "UltrafastSecp256k1_8hpp.html",
-"classsecp256k1_1_1fast_1_1CombGenContext.html#a39f7b0f5e9c3e2e2ee4fa78fde132e83",
-"classsecp256k1_1_1fast_1_1Scalar.html#acc52e92477f518388b7e0827e3a3ce86",
-"field_8hpp.html#a2f78be3f271012542db24ae54e1b5a8e",
-"globals_s.html",
-"namespacemembers_func_o.html",
-"namespacesecp256k1_1_1coins.html#a84486208cf9429ac5cc24519fc04cf44",
-"namespacesecp256k1_1_1fast.html#a8768b53649dccf9a8649dbb3c325d8da",
-"precompute_8hpp.html#a37c1f085bc37d25789620da90ed4988a",
+"classsecp256k1_1_1fast_1_1CombGenContext.html#a49672498ff1c87311e1e157bd327edc7",
+"classsecp256k1_1_1fast_1_1Scalar.html#a68806585ed78689d8487ab2dee0471a8",
+"eth__signing_8hpp.html#a8b4dcac20a10c5c918b5aa961de41113",
+"globals.html",
+"namespacemembers_func_l.html",
+"namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5",
+"namespacesecp256k1_1_1fast.html#a739f63c0ac25d645d4ebf2c88bb7643d",
+"point_8hpp.html#aa1ade8639ae8e331731389af48483662",
 "structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788",
-"structsecp256k1_1_1TapSighashTxData.html#afb5c4b880913b94dea5b0b9f45c15308",
-"structsecp256k1_1_1fast_1_1FieldElement26.html#af354ed17b708c3eb0845a983b067e0ca",
-"structsecp256k1_1_1fast_1_1debug_1_1DebugCounters.html#adc36ff492f74b4d50fe4fb4ee7442eca",
-"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335ad8afbc541b39d23648c823057cffe3a5",
-"ufsecp__gpu_8h.html#ac1ebeaf361d8c715150a31aaeadd8214",
-"zk_8hpp.html#a14ba4085afe20bce0dc2ab3cf26d3b90"
+"structsecp256k1_1_1TapSighashTxData.html#a03081aaaf536b02cbe3830131aa3f91d",
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a6d42bcbf1c71e5a8e85186218851cef5",
+"structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec",
+"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335a7a421afa7e8c91fc5613976fd1ae9deb",
+"ufsecp__gpu_8h.html#a6c9aeb90ba791cd6c67faa991b7fc30a"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -142,10 +142,10 @@ $(document).ready(function(){initNavTree('musig2_8hpp_source.html',''); initResi
 </div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span><span class="comment">// Aggregate public keys (KeyAgg from BIP-327).</span></div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// pubkeys: array of X-only public keys (32 bytes each)</span></div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="comment">// pubkeys: array of compressed public keys (33 bytes each, 02/03 prefix)</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span><span class="comment">// Returns aggregation context with combined key and coefficients.</span></div>
 <div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span><span class="comment">// If ANY pubkey is invalid (x &gt;= p or not on curve), returns ctx with Q = infinity.</span></div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020">   46</a></span><a class="code hl_struct" href="structsecp256k1_1_1MuSig2KeyAggCtx.html">MuSig2KeyAggCtx</a> <a class="code hl_function" href="namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020">musig2_key_agg</a>(<span class="keyword">const</span> std::vector&lt;std::array&lt;std::uint8_t, 32&gt;&gt;&amp; pubkeys);</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno"><a class="line" href="namespacesecp256k1.html#a4fc3b0b3683481c42e98663432f8ea1f">   46</a></span><a class="code hl_struct" href="structsecp256k1_1_1MuSig2KeyAggCtx.html">MuSig2KeyAggCtx</a> <a class="code hl_function" href="namespacesecp256k1.html#a4fc3b0b3683481c42e98663432f8ea1f">musig2_key_agg</a>(<span class="keyword">const</span> std::vector&lt;std::array&lt;std::uint8_t, 33&gt;&gt;&amp; pubkeys);</div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span><span class="comment">// -- Nonce --------------------------------------------------------------------</span></div>
 <div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
@@ -245,12 +245,12 @@ $(document).ready(function(){initNavTree('musig2_8hpp_source.html',''); initResi
 <div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>} <span class="comment">// namespace secp256k1</span></div>
 <div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span> </div>
 <div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span><span class="preprocessor">#endif </span><span class="comment">// SECP256K1_MUSIG2_HPP</span></div>
-<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00083">point.hpp:83</a></div></div>
+<div class="ttc" id="aclasssecp256k1_1_1fast_1_1Point_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Point.html">secp256k1::fast::Point</a></div><div class="ttdef"><b>Definition</b> <a href="point_8hpp_source.html#l00084">point.hpp:84</a></div></div>
 <div class="ttc" id="aclasssecp256k1_1_1fast_1_1Scalar_html"><div class="ttname"><a href="classsecp256k1_1_1fast_1_1Scalar.html">secp256k1::fast::Scalar</a></div><div class="ttdef"><b>Definition</b> <a href="scalar_8hpp_source.html#l00014">scalar.hpp:14</a></div></div>
 <div class="ttc" id="anamespacesecp256k1_html"><div class="ttname"><a href="namespacesecp256k1.html">secp256k1</a></div><div class="ttdef"><b>Definition</b> <a href="adaptor_8hpp_source.html#l00030">adaptor.hpp:30</a></div></div>
-<div class="ttc" id="anamespacesecp256k1_html_a193d22c028b107d14dd814fa3b760020"><div class="ttname"><a href="namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020">secp256k1::musig2_key_agg</a></div><div class="ttdeci">MuSig2KeyAggCtx musig2_key_agg(const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;pubkeys)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a1e657aa17dd7fac020caf840c95a66c7"><div class="ttname"><a href="namespacesecp256k1.html#a1e657aa17dd7fac020caf840c95a66c7">secp256k1::musig2_nonce_agg</a></div><div class="ttdeci">MuSig2AggNonce musig2_nonce_agg(const std::vector&lt; MuSig2PubNonce &gt; &amp;pub_nonces)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_a3060f18aa9eda0c3398f9166e19971e9"><div class="ttname"><a href="namespacesecp256k1.html#a3060f18aa9eda0c3398f9166e19971e9">secp256k1::musig2_partial_sign</a></div><div class="ttdeci">fast::Scalar musig2_partial_sign(MuSig2SecNonce &amp;sec_nonce, const fast::Scalar &amp;secret_key, const MuSig2KeyAggCtx &amp;key_agg_ctx, const MuSig2Session &amp;session, std::size_t signer_index)</div></div>
+<div class="ttc" id="anamespacesecp256k1_html_a4fc3b0b3683481c42e98663432f8ea1f"><div class="ttname"><a href="namespacesecp256k1.html#a4fc3b0b3683481c42e98663432f8ea1f">secp256k1::musig2_key_agg</a></div><div class="ttdeci">MuSig2KeyAggCtx musig2_key_agg(const std::vector&lt; std::array&lt; std::uint8_t, 33 &gt; &gt; &amp;pubkeys)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_aac69418e53d08dfb473069cf133dac78"><div class="ttname"><a href="namespacesecp256k1.html#aac69418e53d08dfb473069cf133dac78">secp256k1::musig2_start_sign_session</a></div><div class="ttdeci">MuSig2Session musig2_start_sign_session(const MuSig2AggNonce &amp;agg_nonce, const MuSig2KeyAggCtx &amp;key_agg_ctx, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_ac70c7095aa9d4247c147e9fb52e10af4"><div class="ttname"><a href="namespacesecp256k1.html#ac70c7095aa9d4247c147e9fb52e10af4">secp256k1::musig2_partial_verify</a></div><div class="ttdeci">bool musig2_partial_verify(const fast::Scalar &amp;partial_sig, const MuSig2PubNonce &amp;pub_nonce, const std::array&lt; std::uint8_t, 32 &gt; &amp;pubkey, const MuSig2KeyAggCtx &amp;key_agg_ctx, const MuSig2Session &amp;session, std::size_t signer_index)</div></div>
 <div class="ttc" id="anamespacesecp256k1_html_ad06f70571037fd7994ef18cd9af9c223"><div class="ttname"><a href="namespacesecp256k1.html#ad06f70571037fd7994ef18cd9af9c223">secp256k1::musig2_nonce_gen</a></div><div class="ttdeci">std::pair&lt; MuSig2SecNonce, MuSig2PubNonce &gt; musig2_nonce_gen(const fast::Scalar &amp;secret_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;pub_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;agg_pub_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::uint8_t *extra_input=nullptr)</div></div>

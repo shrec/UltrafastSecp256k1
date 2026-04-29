@@ -16,6 +16,7 @@ var classsecp256k1_1_1fast_1_1FieldElement =
     [ "limbs_mut", "classsecp256k1_1_1fast_1_1FieldElement.html#a4354c5302be917a3c5a368ebdd481a39", null ],
     [ "negate", "classsecp256k1_1_1fast_1_1FieldElement.html#adb8784c7f1741b5edacd568820a2d2aa", null ],
     [ "negate_assign", "classsecp256k1_1_1fast_1_1FieldElement.html#accfb3e3a65a9e41deec53b3e9e21d59a", null ],
+    [ "normalize_weak", "classsecp256k1_1_1fast_1_1FieldElement.html#a616d4a6afe42051f9a8174570a1b34de", null ],
     [ "one", "classsecp256k1_1_1fast_1_1FieldElement.html#acba3f6493ff465149640c1591aab170f", null ],
     [ "operator*", "classsecp256k1_1_1fast_1_1FieldElement.html#ac317d794e2d4c542619d119058ef0d63", null ],
     [ "operator*=", "classsecp256k1_1_1fast_1_1FieldElement.html#a4271580143bb03d70b2ec54967cedcf4", null ],

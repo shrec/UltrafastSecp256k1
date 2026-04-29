@@ -12,8 +12,10 @@ var ct_2point_8hpp =
     [ "affine_table_lookup", "ct_2point_8hpp.html#a37a061a5106c30dc12f8509ae8f3c3d2", null ],
     [ "affine_table_lookup_signed", "ct_2point_8hpp.html#a70151035f2c87ed4a2e8d741fa58a81a", null ],
     [ "affine_table_lookup_signed_into", "ct_2point_8hpp.html#a9318c71df40cf00c16d37a425e4a364b", null ],
+    [ "clear_blinding", "ct_2point_8hpp.html#a574f745a7fe4406343cd8c3f4c6de31b", null ],
     [ "ct_glv_decompose", "ct_2point_8hpp.html#ad5edbc4ccf483ebb3544e569260044f0", null ],
     [ "generator_mul", "ct_2point_8hpp.html#ab2d86fc45186b174895078e32e58b936", null ],
+    [ "generator_mul_blinded", "ct_2point_8hpp.html#a7f345dc771b3d8f7019c769d9f5eb098", null ],
     [ "init_generator_table", "ct_2point_8hpp.html#a7326ac4644fbf6fe8f02a84c5249ddff", null ],
     [ "point_add_complete", "ct_2point_8hpp.html#a7cc6bee5345ed46977ce46f0f0dc4d51", null ],
     [ "point_add_mixed_complete", "ct_2point_8hpp.html#a31dccb4894d8fa7ad93009acb7b37bfe", null ],
@@ -29,5 +31,6 @@ var ct_2point_8hpp =
     [ "point_neg", "ct_2point_8hpp.html#a45a6dfd2c24ba34bec010790f59b203e", null ],
     [ "point_select", "ct_2point_8hpp.html#a660b1c44c4c952ee65542b3ef3b3ef9a", null ],
     [ "point_table_lookup", "ct_2point_8hpp.html#a2c0514f309fbaac7449849c8acabdea1", null ],
-    [ "scalar_mul", "ct_2point_8hpp.html#a5c7e54c3f93fe7d3d8fbb4473cad6faa", null ]
+    [ "scalar_mul", "ct_2point_8hpp.html#a5c7e54c3f93fe7d3d8fbb4473cad6faa", null ],
+    [ "set_blinding", "ct_2point_8hpp.html#a641ac8b96aeebb3f74e7cf496b1341a8", null ]
 ];

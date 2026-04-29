@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -151,7 +151,7 @@ Public Attributes</h2></td></tr>
 <p>Contains every intermediate value required by a PLONK circuit to verify one <a class="el" href="namespacesecp256k1.html">secp256k1</a> ECDSA signature using foreign-field arithmetic. Values are provided in canonical 32-byte big-endian encoding AND in 5×52-bit limb form (<a class="el" href="structufsecp__ff__limbs__t.html">ufsecp_ff_limbs_t</a>) for direct PLONK gate wiring.</p>
 <p>ECDSA verify circuit steps: s_inv = sig_s^{-1} mod n u1 = msg * s_inv mod n u2 = sig_r * s_inv mod n R = u1*G + u2*pubkey valid = (R ≠ ∞) AND (R.x mod n == sig_r) </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01097">1097</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01129">1129</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
 <a id="ace6bd63dbff1510639f882711eb116a1" name="ace6bd63dbff1510639f882711eb116a1"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ace6bd63dbff1510639f882711eb116a1">&#9670;&#160;</a></span>lmb_pub_x</h2>
@@ -167,9 +167,7 @@ Public Attributes</h2></td></tr>
 <p>pub_x limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01116">1116</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01148">1148</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -187,9 +185,7 @@ Public Attributes</h2></td></tr>
 <p>pub_y limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01117">1117</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01149">1149</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -207,9 +203,7 @@ Public Attributes</h2></td></tr>
 <p>R.x limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01121">1121</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01153">1153</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -227,9 +221,7 @@ Public Attributes</h2></td></tr>
 <p>R.x mod n limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01123">1123</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01155">1155</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -247,9 +239,7 @@ Public Attributes</h2></td></tr>
 <p>R.y limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01122">1122</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01154">1154</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -267,9 +257,7 @@ Public Attributes</h2></td></tr>
 <p>s_inv limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01118">1118</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01150">1150</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -287,9 +275,7 @@ Public Attributes</h2></td></tr>
 <p>sig_r limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01114">1114</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01146">1146</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -307,9 +293,7 @@ Public Attributes</h2></td></tr>
 <p>sig_s limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01115">1115</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01147">1147</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -327,9 +311,7 @@ Public Attributes</h2></td></tr>
 <p>u1 limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01119">1119</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01151">1151</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -347,9 +329,7 @@ Public Attributes</h2></td></tr>
 <p>u2 limbs <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01120">1120</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01152">1152</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -367,9 +347,7 @@ Public Attributes</h2></td></tr>
 <p>message hash e (big-endian) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01099">1099</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01131">1131</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -387,9 +365,7 @@ Public Attributes</h2></td></tr>
 <p>public key P.x (Fp element) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01102">1102</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01134">1134</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -407,9 +383,7 @@ Public Attributes</h2></td></tr>
 <p>public key P.y (Fp element) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01103">1103</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01135">1135</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -427,9 +401,7 @@ Public Attributes</h2></td></tr>
 <p>R.x (Fp) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01109">1109</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01141">1141</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -447,9 +419,7 @@ Public Attributes</h2></td></tr>
 <p>R.x mod n (Fr) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01111">1111</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01143">1143</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -467,9 +437,7 @@ Public Attributes</h2></td></tr>
 <p>R.y (Fp) <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01110">1110</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01142">1142</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -487,9 +455,7 @@ Public Attributes</h2></td></tr>
 <p>s^{-1} mod n <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01106">1106</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01138">1138</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -507,9 +473,7 @@ Public Attributes</h2></td></tr>
 <p>signature r <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01100">1100</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01132">1132</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -527,9 +491,7 @@ Public Attributes</h2></td></tr>
 <p>signature s <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01101">1101</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01133">1133</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -547,9 +509,7 @@ Public Attributes</h2></td></tr>
 <p>e * s^{-1} mod n <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01107">1107</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01139">1139</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -567,9 +527,7 @@ Public Attributes</h2></td></tr>
 <p>r * s^{-1} mod n <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01108">1108</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01140">1140</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>
@@ -586,9 +544,7 @@ Public Attributes</h2></td></tr>
 </div><div class="memdoc">
 <p>1 = signature valid, 0 = invalid </p>
 
-<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01126">1126</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03883">ufsecp_zk_ecdsa_snark_witness()</a>.</p>
+<p class="definition">Definition at line <a class="el" href="ufsecp_8h_source.html#l01158">1158</a> of file <a class="el" href="ufsecp_8h_source.html">ufsecp.h</a>.</p>
 
 </div>
 </div>

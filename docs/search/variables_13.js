@@ -9,6 +9,8 @@ var searchData=
   ['ticker_6',['ticker',['../structsecp256k1_1_1coins_1_1CoinParams.html#a7f53ab8e1bb63eb3627fcac25603b879',1,'secp256k1::coins::CoinParams']]],
   ['total_7',['total',['../structsecp256k1_1_1fast_1_1SelftestReport.html#ae9ec4cb1a1aaa4a60b80ea442c8eb417',1,'secp256k1::fast::SelftestReport']]],
   ['tron_8',['Tron',['../namespacesecp256k1_1_1coins.html#ac85c6599d9dda16b046b00cfa0cf97e2',1,'secp256k1::coins']]],
-  ['txid_9',['txid',['../structsecp256k1_1_1Outpoint.html#aec19225c5251863fd38ceb2791bb6f44',1,'secp256k1::Outpoint']]],
-  ['type_10',['type',['../structsecp256k1_1_1WitnessProgram.html#aff54ef39ec2018835e129a5f693fb5df',1,'secp256k1::WitnessProgram::type'],['../structufsecp__desc__key.html#adb7e2ca02bcf5c0a8da664c01ac1682d',1,'ufsecp_desc_key::type']]]
+  ['tweaked_5fprivkey_9',['tweaked_privkey',['../structsecp256k1_1_1ScanMatch.html#a6ade306f484fcd233a51966e8f63902c',1,'secp256k1::ScanMatch']]],
+  ['tx_5findex_10',['tx_index',['../structsecp256k1_1_1ScanMatch.html#ac373dfef62401af5e840783078a56279',1,'secp256k1::ScanMatch']]],
+  ['txid_11',['txid',['../structsecp256k1_1_1Outpoint.html#aec19225c5251863fd38ceb2791bb6f44',1,'secp256k1::Outpoint']]],
+  ['type_12',['type',['../structsecp256k1_1_1WitnessProgram.html#aff54ef39ec2018835e129a5f693fb5df',1,'secp256k1::WitnessProgram::type'],['../structufsecp__desc__key.html#adb7e2ca02bcf5c0a8da664c01ac1682d',1,'ufsecp_desc_key::type']]]
 ];

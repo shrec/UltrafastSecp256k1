@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -179,6 +179,12 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScalarData.html">ScalarData</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanMatch.html">ScanMatch</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanTxRaw.html">ScanTxRaw</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SchnorrAdaptorSig.html">SchnorrAdaptorSig</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SchnorrBatchCachedEntry.html">SchnorrBatchCachedEntry</a></td></tr>
@@ -304,6 +310,10 @@ Functions</h2></td></tr>
 <tr class="separator:a49f25551091dee5851c2c0bc742e18b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac85046a194c79dec3e7691ad8cf0a636" id="r_ac85046a194c79dec3e7691ad8cf0a636"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::pair&lt; std::uint32_t, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ac85046a194c79dec3e7691ad8cf0a636">silent_payment_scan</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;scan_privkey, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;spend_privkey, const std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &gt; &amp;input_pubkeys, const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;output_pubkeys)</td></tr>
 <tr class="separator:ac85046a194c79dec3e7691ad8cf0a636"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3fb3fff19e504e96d860acb2f47e8ad4" id="r_a3fb3fff19e504e96d860acb2f47e8ad4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a3fb3fff19e504e96d860acb2f47e8ad4">compute_a_eff</a> (const <a class="el" href="structsecp256k1_1_1ScanTxRaw.html">ScanTxRaw</a> &amp;raw)</td></tr>
+<tr class="separator:a3fb3fff19e504e96d860acb2f47e8ad4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aca76939d05ec7d42c6f680f90bb1b268" id="r_aca76939d05ec7d42c6f680f90bb1b268"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanMatch.html">ScanMatch</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aca76939d05ec7d42c6f680f90bb1b268">fast_scan_batch</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;scan_privkey, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;spend_privkey, const std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a> &gt; &amp;txs)</td></tr>
+<tr class="separator:aca76939d05ec7d42c6f680f90bb1b268"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a492eba5997fcf195c49c0ffbf62d1bf7" id="r_a492eba5997fcf195c49c0ffbf62d1bf7"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a492eba5997fcf195c49c0ffbf62d1bf7">schnorr_batch_verify</a> (const <a class="el" href="structsecp256k1_1_1SchnorrBatchEntry.html">SchnorrBatchEntry</a> *entries, std::size_t n)</td></tr>
 <tr class="separator:a492eba5997fcf195c49c0ffbf62d1bf7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a449be37811f1fcb668bf18ed4d737415" id="r_a449be37811f1fcb668bf18ed4d737415"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a449be37811f1fcb668bf18ed4d737415">schnorr_batch_verify</a> (const std::vector&lt; <a class="el" href="structsecp256k1_1_1SchnorrBatchEntry.html">SchnorrBatchEntry</a> &gt; &amp;entries)</td></tr>
@@ -420,6 +430,14 @@ Functions</h2></td></tr>
 <tr class="separator:a2c445ab965d90d7f6c33d6b25d311c18"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a5e8ef4a69a43ea040294cbfdfa6239" id="r_a7a5e8ef4a69a43ea040294cbfdfa6239"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 64 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a7a5e8ef4a69a43ea040294cbfdfa6239">ellswift_create</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;privkey)</td></tr>
 <tr class="separator:a7a5e8ef4a69a43ea040294cbfdfa6239"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acdc650e07a43e5b75fb38dd0ced03585" id="r_acdc650e07a43e5b75fb38dd0ced03585"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 64 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#acdc650e07a43e5b75fb38dd0ced03585">ellswift_create</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;privkey, const std::uint8_t *auxrnd32)</td></tr>
+<tr class="separator:acdc650e07a43e5b75fb38dd0ced03585"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4eb69afd7d7fb07b10ce573eca0a8ad5" id="r_a4eb69afd7d7fb07b10ce573eca0a8ad5"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 64 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a4eb69afd7d7fb07b10ce573eca0a8ad5">ellswift_create_fast</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;privkey)</td></tr>
+<tr class="separator:a4eb69afd7d7fb07b10ce573eca0a8ad5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8fbbe26400011a047c230ce3b9628a9" id="r_ad8fbbe26400011a047c230ce3b9628a9"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ad8fbbe26400011a047c230ce3b9628a9">ellswift_xdh_fast</a> (const std::uint8_t ell_a64[64], const std::uint8_t ell_b64[64], const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;our_privkey, bool initiating) noexcept</td></tr>
+<tr class="separator:ad8fbbe26400011a047c230ce3b9628a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc71d469bf8b05861459fc7c95a76e84" id="r_abc71d469bf8b05861459fc7c95a76e84"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 64 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#abc71d469bf8b05861459fc7c95a76e84">ellswift_encode_x</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;x, const std::uint8_t rnd32[32])</td></tr>
+<tr class="separator:abc71d469bf8b05861459fc7c95a76e84"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3465843e0c2317a71e7537d2056e7beb" id="r_a3465843e0c2317a71e7537d2056e7beb"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a3465843e0c2317a71e7537d2056e7beb">ellswift_xdh</a> (const std::uint8_t ell_a64[64], const std::uint8_t ell_b64[64], const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;our_privkey, bool initiating) noexcept</td></tr>
 <tr class="separator:a3465843e0c2317a71e7537d2056e7beb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a799903aca6c37f859aa9782a6b4a3267" id="r_a799903aca6c37f859aa9782a6b4a3267"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1FrostCommitment.html">FrostCommitment</a>, std::vector&lt; <a class="el" href="structsecp256k1_1_1FrostShare.html">FrostShare</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a799903aca6c37f859aa9782a6b4a3267">frost_keygen_begin</a> (<a class="el" href="namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf">ParticipantId</a> participant_id, std::uint32_t threshold, std::uint32_t num_participants, const std::array&lt; std::uint8_t, 32 &gt; &amp;secret_seed)</td></tr>
@@ -450,8 +468,8 @@ Functions</h2></td></tr>
 <tr class="separator:a03ccaf89eefb01c0e251db92af63f745"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8a55e5dd23941219c03aec3fab3011d8" id="r_a8a55e5dd23941219c03aec3fab3011d8"><td class="memItemLeft" align="right" valign="top">unsigned&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a8a55e5dd23941219c03aec3fab3011d8">strauss_optimal_window</a> (std::size_t n)</td></tr>
 <tr class="separator:a8a55e5dd23941219c03aec3fab3011d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a193d22c028b107d14dd814fa3b760020" id="r_a193d22c028b107d14dd814fa3b760020"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1MuSig2KeyAggCtx.html">MuSig2KeyAggCtx</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a193d22c028b107d14dd814fa3b760020">musig2_key_agg</a> (const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;pubkeys)</td></tr>
-<tr class="separator:a193d22c028b107d14dd814fa3b760020"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4fc3b0b3683481c42e98663432f8ea1f" id="r_a4fc3b0b3683481c42e98663432f8ea1f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1MuSig2KeyAggCtx.html">MuSig2KeyAggCtx</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a4fc3b0b3683481c42e98663432f8ea1f">musig2_key_agg</a> (const std::vector&lt; std::array&lt; std::uint8_t, 33 &gt; &gt; &amp;pubkeys)</td></tr>
+<tr class="separator:a4fc3b0b3683481c42e98663432f8ea1f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad06f70571037fd7994ef18cd9af9c223" id="r_ad06f70571037fd7994ef18cd9af9c223"><td class="memItemLeft" align="right" valign="top">std::pair&lt; <a class="el" href="structsecp256k1_1_1MuSig2SecNonce.html">MuSig2SecNonce</a>, <a class="el" href="structsecp256k1_1_1MuSig2PubNonce.html">MuSig2PubNonce</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ad06f70571037fd7994ef18cd9af9c223">musig2_nonce_gen</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;secret_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;pub_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;agg_pub_key, const std::array&lt; std::uint8_t, 32 &gt; &amp;msg, const std::uint8_t *extra_input=nullptr)</td></tr>
 <tr class="separator:ad06f70571037fd7994ef18cd9af9c223"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1e657aa17dd7fac020caf840c95a66c7" id="r_a1e657aa17dd7fac020caf840c95a66c7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1MuSig2AggNonce.html">MuSig2AggNonce</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a1e657aa17dd7fac020caf840c95a66c7">musig2_nonce_agg</a> (const std::vector&lt; <a class="el" href="structsecp256k1_1_1MuSig2PubNonce.html">MuSig2PubNonce</a> &gt; &amp;pub_nonces)</td></tr>
@@ -801,8 +819,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01183">ufsecp_addr_p2pkh()</a>.</p>
-
 </div>
 </div>
 <a id="a19899f0c15f827ac0296f7f84e3d6306" name="a19899f0c15f827ac0296f7f84e3d6306"></a>
@@ -831,8 +847,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01263">ufsecp_addr_p2sh()</a>.</p>
-
 </div>
 </div>
 <a id="a44ff13e692740f4fe6239412a3b9ebb7" name="a44ff13e692740f4fe6239412a3b9ebb7"></a>
@@ -860,8 +874,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01283">ufsecp_addr_p2sh_p2wpkh()</a>.</p>
 
 </div>
 </div>
@@ -919,8 +931,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01233">ufsecp_addr_p2tr()</a>.</p>
-
 </div>
 </div>
 <a id="a6dfad5fbaf4f7381e377423c2ab2a1e9" name="a6dfad5fbaf4f7381e377423c2ab2a1e9"></a>
@@ -948,8 +958,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01208">ufsecp_addr_p2wpkh()</a>.</p>
 
 </div>
 </div>
@@ -1140,8 +1148,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l05446">ufsecp_descriptor_parse()</a>.</p>
 
 </div>
 </div>
@@ -1429,8 +1435,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01675">ufsecp_bip143_p2wpkh_script_code()</a>.</p>
-
 </div>
 </div>
 <a id="ad351b91b4c56eb0e4deaa8b536ccf5a7" name="ad351b91b4c56eb0e4deaa8b536ccf5a7"></a>
@@ -1497,8 +1501,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01640">ufsecp_bip143_sighash()</a>.</p>
-
 </div>
 </div>
 <a id="aff490eb527f1e92e5b5bed039244608d" name="aff490eb527f1e92e5b5bed039244608d"></a>
@@ -1526,8 +1528,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01483">ufsecp_bip32_derive_path()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l04788">ufsecp_bip85_entropy()</a>.</p>
 
 </div>
 </div>
@@ -1557,8 +1557,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01437">ufsecp_bip32_master()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l04047">ufsecp_coin_derive_from_seed()</a>.</p>
-
 </div>
 </div>
 <a id="a589c1c7cfeb58e77acd208dd8c7405b5" name="a589c1c7cfeb58e77acd208dd8c7405b5"></a>
@@ -1587,8 +1585,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02140">ufsecp_bip39_generate()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l04836">ufsecp_bip85_bip39()</a>.</p>
-
 </div>
 </div>
 <a id="a12dcae3ae6b84f36f1a980d701cf5f70" name="a12dcae3ae6b84f36f1a980d701cf5f70"></a>
@@ -1606,8 +1602,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02194">ufsecp_bip39_to_entropy()</a>.</p>
 
 </div>
 </div>
@@ -1637,8 +1631,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02176">ufsecp_bip39_to_seed()</a>.</p>
-
 </div>
 </div>
 <a id="a8e6bb7742ed7bfc2870d754856540d76" name="a8e6bb7742ed7bfc2870d754856540d76"></a>
@@ -1656,8 +1648,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02165">ufsecp_bip39_validate()</a>.</p>
 
 </div>
 </div>
@@ -1814,6 +1804,24 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a3fb3fff19e504e96d860acb2f47e8ad4" name="a3fb3fff19e504e96d860acb2f47e8ad4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3fb3fff19e504e96d860acb2f47e8ad4">&#9670;&#160;</a></span>compute_a_eff()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a> secp256k1::compute_a_eff </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structsecp256k1_1_1ScanTxRaw.html">ScanTxRaw</a> &amp;&#160;</td>
+          <td class="paramname"><em>raw</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a2d3870a67b597b10f4ce771ff58d73e8" name="a2d3870a67b597b10f4ce771ff58d73e8"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2d3870a67b597b10f4ce771ff58d73e8">&#9670;&#160;</a></span>compute_txid()</h2>
 
@@ -1932,8 +1940,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01100">ufsecp_ecdh()</a>.</p>
-
 </div>
 </div>
 <a id="a018372bd150a2b30ce4dfa604ec9fddf" name="a018372bd150a2b30ce4dfa604ec9fddf"></a>
@@ -1961,8 +1967,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01132">ufsecp_ecdh_raw()</a>.</p>
 
 </div>
 </div>
@@ -1992,8 +1996,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01116">ufsecp_ecdh_xonly()</a>.</p>
-
 </div>
 </div>
 <a id="aa75d899fe72d1327f2d89d12a961ba5d" name="aa75d899fe72d1327f2d89d12a961ba5d"></a>
@@ -2022,8 +2024,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03462">ufsecp_ecdsa_adaptor_adapt()</a>.</p>
-
 </div>
 </div>
 <a id="aa822de77c4daffb35bf7581982912615" name="aa822de77c4daffb35bf7581982912615"></a>
@@ -2051,8 +2051,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03493">ufsecp_ecdsa_adaptor_extract()</a>.</p>
 
 </div>
 </div>
@@ -2087,8 +2085,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03390">ufsecp_ecdsa_adaptor_sign()</a>.</p>
 
 </div>
 </div>
@@ -2129,8 +2125,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03423">ufsecp_ecdsa_adaptor_verify()</a>.</p>
 
 </div>
 </div>
@@ -2194,8 +2188,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02313">ufsecp_ecdsa_batch_identify_invalid()</a>.</p>
-
 </div>
 </div>
 <a id="a83665b7ab6a1fcd0d85b49c2e92908d9" name="a83665b7ab6a1fcd0d85b49c2e92908d9"></a>
@@ -2223,8 +2215,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02250">ufsecp_ecdsa_batch_verify()</a>.</p>
 
 </div>
 </div>
@@ -2278,8 +2268,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00887">ufsecp_ecdsa_recover()</a>.</p>
-
 </div>
 </div>
 <a id="ae91d47690356ed60430b67d44ca4896f" name="ae91d47690356ed60430b67d44ca4896f"></a>
@@ -2307,8 +2295,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04946">ufsecp_bip322_sign()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l05282">ufsecp_psbt_sign_legacy()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l05349">ufsecp_psbt_sign_segwit()</a>.</p>
 
 </div>
 </div>
@@ -2406,8 +2392,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00855">ufsecp_ecdsa_sign_recoverable()</a>.</p>
-
 </div>
 </div>
 <a id="a8b7a5e11f7425303b843a8f21997177d" name="a8b7a5e11f7425303b843a8f21997177d"></a>
@@ -2504,8 +2488,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l05011">ufsecp_bip322_verify()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00679">ufsecp_ecdsa_verify()</a>.</p>
-
 </div>
 </div>
 <a id="a169c1c3d7696ea890cebdedfa79619f0" name="a169c1c3d7696ea890cebdedfa79619f0"></a>
@@ -2540,8 +2522,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04442">ufsecp_ecies_decrypt()</a>.</p>
-
 </div>
 </div>
 <a id="af718e31c07d8f7c9be36ba4324d4817f" name="af718e31c07d8f7c9be36ba4324d4817f"></a>
@@ -2575,8 +2555,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04405">ufsecp_ecies_encrypt()</a>.</p>
 
 </div>
 </div>
@@ -2613,13 +2591,59 @@ Functions</h2></td></tr>
 </div>
 </div>
 <a id="a7a5e8ef4a69a43ea040294cbfdfa6239" name="a7a5e8ef4a69a43ea040294cbfdfa6239"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a7a5e8ef4a69a43ea040294cbfdfa6239">&#9670;&#160;</a></span>ellswift_create()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a7a5e8ef4a69a43ea040294cbfdfa6239">&#9670;&#160;</a></span>ellswift_create() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">std::array&lt; std::uint8_t, 64 &gt; secp256k1::ellswift_create </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>privkey</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="acdc650e07a43e5b75fb38dd0ced03585" name="acdc650e07a43e5b75fb38dd0ced03585"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acdc650e07a43e5b75fb38dd0ced03585">&#9670;&#160;</a></span>ellswift_create() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt; std::uint8_t, 64 &gt; secp256k1::ellswift_create </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>privkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t *&#160;</td>
+          <td class="paramname"><em>auxrnd32</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a4eb69afd7d7fb07b10ce573eca0a8ad5" name="a4eb69afd7d7fb07b10ce573eca0a8ad5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4eb69afd7d7fb07b10ce573eca0a8ad5">&#9670;&#160;</a></span>ellswift_create_fast()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt; std::uint8_t, 64 &gt; secp256k1::ellswift_create_fast </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
           <td class="paramname"><em>privkey</em></td><td>)</td>
@@ -2652,6 +2676,34 @@ Functions</h2></td></tr>
 <span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
   </tr>
 </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="abc71d469bf8b05861459fc7c95a76e84" name="abc71d469bf8b05861459fc7c95a76e84"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abc71d469bf8b05861459fc7c95a76e84">&#9670;&#160;</a></span>ellswift_encode_x()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt; std::uint8_t, 64 &gt; secp256k1::ellswift_encode_x </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html">FieldElement</a> &amp;&#160;</td>
+          <td class="paramname"><em>x</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t&#160;</td>
+          <td class="paramname"><em>rnd32</em>[32]&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
 </div><div class="memdoc">
 
 </div>
@@ -2700,6 +2752,88 @@ Functions</h2></td></tr>
 <span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
   </tr>
 </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ad8fbbe26400011a047c230ce3b9628a9" name="ad8fbbe26400011a047c230ce3b9628a9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad8fbbe26400011a047c230ce3b9628a9">&#9670;&#160;</a></span>ellswift_xdh_fast()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::array&lt; std::uint8_t, 32 &gt; secp256k1::ellswift_xdh_fast </td>
+          <td>(</td>
+          <td class="paramtype">const std::uint8_t&#160;</td>
+          <td class="paramname"><em>ell_a64</em>[64], </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::uint8_t&#160;</td>
+          <td class="paramname"><em>ell_b64</em>[64], </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>our_privkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>initiating</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aca76939d05ec7d42c6f680f90bb1b268" name="aca76939d05ec7d42c6f680f90bb1b268"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aca76939d05ec7d42c6f680f90bb1b268">&#9670;&#160;</a></span>fast_scan_batch()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanMatch.html">ScanMatch</a> &gt; secp256k1::fast_scan_batch </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>scan_privkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;&#160;</td>
+          <td class="paramname"><em>spend_privkey</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a> &gt; &amp;&#160;</td>
+          <td class="paramname"><em>txs</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
 </div><div class="memdoc">
 
 </div>
@@ -2798,8 +2932,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03161">ufsecp_frost_aggregate()</a>.</p>
-
 </div>
 </div>
 <a id="a799903aca6c37f859aa9782a6b4a3267" name="a799903aca6c37f859aa9782a6b4a3267"></a>
@@ -2839,8 +2971,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02718">ufsecp_frost_keygen_begin()</a>.</p>
 
 </div>
 </div>
@@ -2887,8 +3017,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02794">ufsecp_frost_keygen_finalize()</a>.</p>
 
 </div>
 </div>
@@ -2958,8 +3086,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02969">ufsecp_frost_sign()</a>.</p>
-
 </div>
 </div>
 <a id="ad496d2f71ae2565cd6cbe2ffc721e838" name="ad496d2f71ae2565cd6cbe2ffc721e838"></a>
@@ -2987,8 +3113,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02923">ufsecp_frost_sign_nonce_gen()</a>.</p>
 
 </div>
 </div>
@@ -3041,8 +3165,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03080">ufsecp_frost_verify_partial()</a>.</p>
 
 </div>
 </div>
@@ -3097,8 +3219,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01263">ufsecp_addr_p2sh()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l01162">ufsecp_hash160()</a>.</p>
 
 </div>
 </div>
@@ -3290,8 +3410,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04788">ufsecp_bip85_entropy()</a>.</p>
-
 </div>
 </div>
 <a id="afc82187b72cdca415bbf2c58ceb38348" name="afc82187b72cdca415bbf2c58ceb38348"></a>
@@ -3327,8 +3445,6 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01823">ufsecp_segwit_is_witness_program()</a>.</p>
 
 </div>
 </div>
@@ -3452,8 +3568,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02390">ufsecp_multi_scalar_mul()</a>.</p>
-
 </div>
 </div>
 <a id="a03ccaf89eefb01c0e251db92af63f745" name="a03ccaf89eefb01c0e251db92af63f745"></a>
@@ -3484,8 +3598,8 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="a193d22c028b107d14dd814fa3b760020" name="a193d22c028b107d14dd814fa3b760020"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a193d22c028b107d14dd814fa3b760020">&#9670;&#160;</a></span>musig2_key_agg()</h2>
+<a id="a4fc3b0b3683481c42e98663432f8ea1f" name="a4fc3b0b3683481c42e98663432f8ea1f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4fc3b0b3683481c42e98663432f8ea1f">&#9670;&#160;</a></span>musig2_key_agg()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3493,14 +3607,12 @@ Functions</h2></td></tr>
         <tr>
           <td class="memname"><a class="el" href="structsecp256k1_1_1MuSig2KeyAggCtx.html">MuSig2KeyAggCtx</a> secp256k1::musig2_key_agg </td>
           <td>(</td>
-          <td class="paramtype">const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;&#160;</td>
+          <td class="paramtype">const std::vector&lt; std::array&lt; std::uint8_t, 33 &gt; &gt; &amp;&#160;</td>
           <td class="paramname"><em>pubkeys</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02430">ufsecp_musig2_key_agg()</a>.</p>
 
 </div>
 </div>
@@ -3519,8 +3631,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02497">ufsecp_musig2_nonce_agg()</a>.</p>
 
 </div>
 </div>
@@ -3568,8 +3678,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02462">ufsecp_musig2_nonce_gen()</a>.</p>
-
 </div>
 </div>
 <a id="aef846e4a35cbf41f7492bfef7df8cd51" name="aef846e4a35cbf41f7492bfef7df8cd51"></a>
@@ -3597,8 +3705,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02676">ufsecp_musig2_partial_sig_agg()</a>.</p>
 
 </div>
 </div>
@@ -3645,8 +3751,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02572">ufsecp_musig2_partial_sign()</a>.</p>
 
 </div>
 </div>
@@ -3700,8 +3804,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02628">ufsecp_musig2_partial_verify()</a>.</p>
-
 </div>
 </div>
 <a id="aac69418e53d08dfb473069cf133dac78" name="aac69418e53d08dfb473069cf133dac78"></a>
@@ -3735,8 +3837,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02531">ufsecp_musig2_start_sign_session()</a>.</p>
 
 </div>
 </div>
@@ -3838,8 +3938,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01829">ufsecp_segwit_parse_program()</a>.</p>
-
 </div>
 </div>
 <a id="ad7d4c64791bdbef580be702e468bddfc" name="ad7d4c64791bdbef580be702e468bddfc"></a>
@@ -3938,8 +4036,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03608">ufsecp_pedersen_blind_sum()</a>.</p>
-
 </div>
 </div>
 <a id="aa164bf7961c4c98e33564df8f56363e2" name="aa164bf7961c4c98e33564df8f56363e2"></a>
@@ -3967,8 +4063,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03532">ufsecp_pedersen_commit()</a>.</p>
 
 </div>
 </div>
@@ -4038,8 +4132,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03640">ufsecp_pedersen_switch_commit()</a>.</p>
-
 </div>
 </div>
 <a id="a90ce24eb3d14058f1365f87dbb51b8ae" name="a90ce24eb3d14058f1365f87dbb51b8ae"></a>
@@ -4073,8 +4165,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03551">ufsecp_pedersen_verify()</a>.</p>
 
 </div>
 </div>
@@ -4115,8 +4205,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03574">ufsecp_pedersen_verify_sum()</a>.</p>
 
 </div>
 </div>
@@ -4472,8 +4560,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03330">ufsecp_schnorr_adaptor_adapt()</a>.</p>
-
 </div>
 </div>
 <a id="ac27a9a9d010fc747969b71f6db6c89a2" name="ac27a9a9d010fc747969b71f6db6c89a2"></a>
@@ -4501,8 +4587,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03359">ufsecp_schnorr_adaptor_extract()</a>.</p>
 
 </div>
 </div>
@@ -4544,8 +4628,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03257">ufsecp_schnorr_adaptor_sign()</a>.</p>
-
 </div>
 </div>
 <a id="a88abfd05258117363c779f5d24acb443" name="a88abfd05258117363c779f5d24acb443"></a>
@@ -4585,8 +4667,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l03291">ufsecp_schnorr_adaptor_verify()</a>.</p>
 
 </div>
 </div>
@@ -4712,8 +4792,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02282">ufsecp_schnorr_batch_identify_invalid()</a>.</p>
-
 </div>
 </div>
 <a id="aa090d2231af481eb9fec37bd139ec9c7" name="aa090d2231af481eb9fec37bd139ec9c7"></a>
@@ -4769,8 +4847,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02218">ufsecp_schnorr_batch_verify()</a>.</p>
 
 </div>
 </div>
@@ -4843,8 +4919,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00615">ufsecp_pubkey_xonly()</a>.</p>
 
 </div>
 </div>
@@ -5152,8 +5226,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01051">ufsecp_schnorr_verify()</a>.</p>
-
 </div>
 </div>
 <a id="aca1aa4565e070b342762da3037bf9ceb" name="aca1aa4565e070b342762da3037bf9ceb"></a>
@@ -5296,8 +5368,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01869">ufsecp_segwit_p2tr_spk()</a>.</p>
-
 </div>
 </div>
 <a id="aac6a6414dbc1f009f38ebfe91b5c15ff" name="aac6a6414dbc1f009f38ebfe91b5c15ff"></a>
@@ -5324,8 +5394,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01849">ufsecp_segwit_p2wpkh_spk()</a>.</p>
-
 </div>
 </div>
 <a id="a4a922616010270fe6569fe83f195ae1b" name="a4a922616010270fe6569fe83f195ae1b"></a>
@@ -5351,8 +5419,6 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01859">ufsecp_segwit_p2wsh_spk()</a>.</p>
 
 </div>
 </div>
@@ -5394,8 +5460,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l02361">ufsecp_shamir_trick()</a>.</p>
-
 </div>
 </div>
 <a id="afa0a68be87c65148c94371f0abd5a7fd" name="afa0a68be87c65148c94371f0abd5a7fd"></a>
@@ -5423,8 +5487,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04203">ufsecp_silent_payment_address()</a>.</p>
 
 </div>
 </div>
@@ -5459,8 +5521,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04249">ufsecp_silent_payment_create_output()</a>.</p>
 
 </div>
 </div>
@@ -5501,8 +5561,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l04315">ufsecp_silent_payment_scan()</a>.</p>
 
 </div>
 </div>
@@ -5555,8 +5613,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01170">ufsecp_tagged_hash()</a>.</p>
 
 </div>
 </div>
@@ -5639,8 +5695,6 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01934">ufsecp_taproot_keypath_sighash()</a>.</p>
 
 </div>
 </div>
@@ -5756,8 +5810,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01564">ufsecp_taproot_output_key()</a>.</p>
-
 </div>
 </div>
 <a id="ab83d6da7a92a0bc4047f10a753c23cb3" name="ab83d6da7a92a0bc4047f10a753c23cb3"></a>
@@ -5826,8 +5878,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01591">ufsecp_taproot_tweak_seckey()</a>.</p>
-
 </div>
 </div>
 <a id="ad9d3f5afa97615b9adf0f6102c5a09ea" name="ad9d3f5afa97615b9adf0f6102c5a09ea"></a>
@@ -5873,8 +5923,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01616">ufsecp_taproot_verify()</a>.</p>
 
 </div>
 </div>
@@ -5947,8 +5995,6 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01974">ufsecp_tapscript_sighash()</a>.</p>
 
 </div>
 </div>
@@ -6092,8 +6138,6 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01342">ufsecp_wif_decode()</a>.</p>
-
 </div>
 </div>
 <a id="abf0a498d216f2463f9dcf7ad27624674" name="abf0a498d216f2463f9dcf7ad27624674"></a>
@@ -6127,8 +6171,6 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01314">ufsecp_wif_encode()</a>.</p>
 
 </div>
 </div>
@@ -6166,8 +6208,6 @@ Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01803">ufsecp_bip144_witness_commitment()</a>.</p>
-
 </div>
 </div>
 <a id="a6dd7b59d00c5dcfb67b1e8fa78cb1e87" name="a6dd7b59d00c5dcfb67b1e8fa78cb1e87"></a>
@@ -6203,8 +6243,6 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l01879">ufsecp_segwit_witness_script_hash()</a>.</p>
 
 </div>
 </div>

@@ -1,6 +1,7 @@
 var searchData=
 [
   ['participantid_0',['ParticipantId',['../namespacesecp256k1.html#a1b9640e94c535a205c9ca5edf2a5dbcf',1,'secp256k1']]],
-  ['point_1',['point',['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct::Point'],['../ufsecp__impl_8cpp.html#a60051d6ae89015e67ae01b3c4417ceab',1,'Point:&#160;ufsecp_impl.cpp']]],
-  ['progresscallback_2',['ProgressCallback',['../namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a',1,'secp256k1::fast']]]
+  ['point_1',['Point',['../namespacesecp256k1_1_1ct.html#a8e1ae79cac2082af82e69fc1f66a6f0a',1,'secp256k1::ct']]],
+  ['pointscancachehandle_2',['PointScanCacheHandle',['../classsecp256k1_1_1fast_1_1Point.html#a57fa01d091ffeb3fc14c58aad154154d',1,'secp256k1::fast::Point']]],
+  ['progresscallback_3',['ProgressCallback',['../namespacesecp256k1_1_1fast.html#a37c1f085bc37d25789620da90ed4988a',1,'secp256k1::fast']]]
 ];

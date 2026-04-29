@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -117,6 +117,12 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1SilentPaymentAddress.html">secp256k1::SilentPaymentAddress</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanTx.html">secp256k1::ScanTx</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanTxRaw.html">secp256k1::ScanTxRaw</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structsecp256k1_1_1ScanMatch.html">secp256k1::ScanMatch</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
 Namespaces</h2></td></tr>
@@ -174,6 +180,10 @@ Functions</h2></td></tr>
 <tr class="separator:a49f25551091dee5851c2c0bc742e18b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac85046a194c79dec3e7691ad8cf0a636" id="r_ac85046a194c79dec3e7691ad8cf0a636"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::pair&lt; std::uint32_t, <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ac85046a194c79dec3e7691ad8cf0a636">secp256k1::silent_payment_scan</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;scan_privkey, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;spend_privkey, const std::vector&lt; <a class="el" href="classsecp256k1_1_1fast_1_1Point.html">fast::Point</a> &gt; &amp;input_pubkeys, const std::vector&lt; std::array&lt; std::uint8_t, 32 &gt; &gt; &amp;output_pubkeys)</td></tr>
 <tr class="separator:ac85046a194c79dec3e7691ad8cf0a636"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3fb3fff19e504e96d860acb2f47e8ad4" id="r_a3fb3fff19e504e96d860acb2f47e8ad4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a3fb3fff19e504e96d860acb2f47e8ad4">secp256k1::compute_a_eff</a> (const <a class="el" href="structsecp256k1_1_1ScanTxRaw.html">ScanTxRaw</a> &amp;raw)</td></tr>
+<tr class="separator:a3fb3fff19e504e96d860acb2f47e8ad4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aca76939d05ec7d42c6f680f90bb1b268" id="r_aca76939d05ec7d42c6f680f90bb1b268"><td class="memItemLeft" align="right" valign="top">std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanMatch.html">ScanMatch</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#aca76939d05ec7d42c6f680f90bb1b268">secp256k1::fast_scan_batch</a> (const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;scan_privkey, const <a class="el" href="classsecp256k1_1_1fast_1_1Scalar.html">fast::Scalar</a> &amp;spend_privkey, const std::vector&lt; <a class="el" href="structsecp256k1_1_1ScanTx.html">ScanTx</a> &gt; &amp;txs)</td></tr>
+<tr class="separator:aca76939d05ec7d42c6f680f90bb1b268"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->

@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -142,6 +142,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:adb8784c7f1741b5edacd568820a2d2aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:accfb3e3a65a9e41deec53b3e9e21d59a" id="r_accfb3e3a65a9e41deec53b3e9e21d59a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#accfb3e3a65a9e41deec53b3e9e21d59a">negate_assign</a> (unsigned magnitude=1)</td></tr>
 <tr class="separator:accfb3e3a65a9e41deec53b3e9e21d59a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a616d4a6afe42051f9a8174570a1b34de" id="r_a616d4a6afe42051f9a8174570a1b34de"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#a616d4a6afe42051f9a8174570a1b34de">normalize_weak</a> () noexcept</td></tr>
+<tr class="separator:a616d4a6afe42051f9a8174570a1b34de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4b0fc4a1d1e3aad26f5fad6c14c901ef" id="r_a4b0fc4a1d1e3aad26f5fad6c14c901ef"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#a4b0fc4a1d1e3aad26f5fad6c14c901ef">square_inplace</a> ()</td></tr>
 <tr class="separator:a4b0fc4a1d1e3aad26f5fad6c14c901ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6c6b6e5e2469bcfd77f1423985cdd78c" id="r_a6c6b6e5e2469bcfd77f1423985cdd78c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classsecp256k1_1_1fast_1_1FieldElement.html#a6c6b6e5e2469bcfd77f1423985cdd78c">inverse_inplace</a> ()</td></tr>
@@ -238,7 +240,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00102">102</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00106">106</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -292,7 +294,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00107">107</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00111">111</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -378,7 +380,7 @@ Static Public Member Functions</h2></td></tr>
 
 <p class="reference">References <a class="el" href="field_8hpp_source.html#l00024">secp256k1::fast::MidFieldElement::limbs</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="field_8hpp_source.html#l00125">secp256k1::fast::MidFieldElement::ToFieldElement()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="field_8hpp_source.html#l00129">secp256k1::fast::MidFieldElement::ToFieldElement()</a>.</p>
 
 </div>
 </div>
@@ -432,7 +434,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="reference">Referenced by <a class="el" href="debug__invariants_8hpp_source.html#l00084">secp256k1::fast::debug::is_on_curve()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00271">point_from_compressed()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l00575">ufsecp_pubkey_parse()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="debug__invariants_8hpp_source.html#l00084">secp256k1::fast::debug::is_on_curve()</a>.</p>
 
 </div>
 </div>
@@ -561,6 +563,33 @@ Static Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a616d4a6afe42051f9a8174570a1b34de" name="a616d4a6afe42051f9a8174570a1b34de"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a616d4a6afe42051f9a8174570a1b34de">&#9670;&#160;</a></span>normalize_weak()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void secp256k1::fast::FieldElement::normalize_weak </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="field_8hpp_source.html#l00095">95</a> of file <a class="el" href="field_8hpp_source.html">field.hpp</a>.</p>
 
 </div>
 </div>
@@ -792,8 +821,6 @@ Static Public Member Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-<p class="reference">Referenced by <a class="el" href="ufsecp__impl_8cpp_source.html#l00271">point_from_compressed()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l00575">ufsecp_pubkey_parse()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l03291">ufsecp_schnorr_adaptor_verify()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02282">ufsecp_schnorr_batch_identify_invalid()</a>, <a class="el" href="ufsecp__impl_8cpp_source.html#l02218">ufsecp_schnorr_batch_verify()</a>, and <a class="el" href="ufsecp__impl_8cpp_source.html#l01051">ufsecp_schnorr_verify()</a>.</p>
 
 </div>
 </div>

@@ -80,6 +80,7 @@ var namespacesecp256k1_1_1fast =
     [ "batch_add_affine_x_bidirectional", "namespacesecp256k1_1_1fast.html#af636b8c1cea96dfed02bb3386058b52b", null ],
     [ "batch_add_affine_x_with_parity", "namespacesecp256k1_1_1fast.html#a45d351a8fa0a9c55d3785a7b494b144d", null ],
     [ "batch_add_affine_xy", "namespacesecp256k1_1_1fast.html#a5b67b23232ed8d6c300bbe57f6083048", null ],
+    [ "batch_scalar_mul_generator", "namespacesecp256k1_1_1fast.html#a8baf2b4b221f29bf9b4b86477695863c", null ],
     [ "comb_gen_mul", "namespacesecp256k1_1_1fast.html#a41378871634150e7254bdcfb6a79da81", null ],
     [ "comb_gen_mul_ct", "namespacesecp256k1_1_1fast.html#a7351530a09b2c36386085378b24488c6", null ],
     [ "comb_gen_ready", "namespacesecp256k1_1_1fast.html#ac3a5de9f507a1b192d743b5557a050ac", null ],

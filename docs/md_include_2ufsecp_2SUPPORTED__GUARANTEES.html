@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.66.0</span>
+   <div id="projectname">UltrafastSecp256k1<span id="projectnumber">&#160;3.68.0</span>
    </div>
    <div id="projectbrief">Ultra high-performance secp256k1 elliptic curve cryptography library</div>
   </td>
@@ -105,7 +105,7 @@ Tier 1 – Stable (ABI &gt;= 1)</h1>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Category   </th><th class="markdownTableHeadNone">Guarantee    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Opaque context</b>   </td><td class="markdownTableBodyNone"><code><a class="el" href="structufsecp__ctx.html">ufsecp_ctx</a></code> is always heap-allocated via <code><a class="el" href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create()</a></code> and freed via <code><a class="el" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy()</a></code>. No layout is exposed.    </td></tr>
+<td class="markdownTableBodyNone"><b>Opaque context</b>   </td><td class="markdownTableBodyNone"><code>ufsecp_ctx</code> is always heap-allocated via <code><a class="el" href="ufsecp_8h.html#ad59bb140d404cf17909ad63955e8e948">ufsecp_ctx_create()</a></code> and freed via <code><a class="el" href="ufsecp_8h.html#a87d42e60b2f61d1931c088231b6e6b59">ufsecp_ctx_destroy()</a></code>. No layout is exposed.    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>Error model</b>   </td><td class="markdownTableBodyNone">Every function returns <code>ufsecp_error_t</code> (0 = OK). New error codes may be added (minor bump).    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -137,7 +137,7 @@ Tier 1 – Stable (ABI &gt;= 1)</h1>
 </table>
 <h2><a class="anchor" id="autotoc_md3"></a>
 Thread safety</h2>
-<p>Each <code><a class="el" href="structufsecp__ctx.html">ufsecp_ctx</a></code> is single-threaded. Create one per thread, or protect with external synchronisation. Stateless functions (<code>ufsecp_sha256</code>, <code>ufsecp_hash160</code>, <code>ufsecp_tagged_hash</code>) are thread-safe.</p>
+<p>Each <code>ufsecp_ctx</code> is single-threaded. Create one per thread, or protect with external synchronisation. Stateless functions (<code>ufsecp_sha256</code>, <code>ufsecp_hash160</code>, <code>ufsecp_tagged_hash</code>) are thread-safe.</p>
 <h2><a class="anchor" id="autotoc_md4"></a>
 Memory</h2>
 <p>All output buffers are caller-owned. The library never allocates on behalf of the caller except during <code>ufsecp_ctx_create</code> / <code>ufsecp_ctx_clone</code>.</p>
@@ -202,11 +202,11 @@ Versioning Rules</h1>
 <td class="markdownTableBodyNone">Major (x.0.0)   </td><td class="markdownTableBodyNone">Breaking changes   </td><td class="markdownTableBodyNone">ABI version incremented   </td></tr>
 </table>
 <p>Clients should guard with:</p>
-<div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a>() != <a class="code hl_define" href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a>) {</div>
+<div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc">ufsecp_abi_version</a>() != <a class="code hl_define" href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a>) {</div>
 <div class="line">    <span class="comment">/* linked library is incompatible */</span></div>
 <div class="line">}</div>
-<div class="ttc" id="aufsecp__impl_8cpp_html_ada009081ae04d5e549373c33a2b3f6f5"><div class="ttname"><a href="ufsecp__impl_8cpp.html#ada009081ae04d5e549373c33a2b3f6f5">ufsecp_abi_version</a></div><div class="ttdeci">unsigned int ufsecp_abi_version(void)</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__impl_8cpp_source.html#l00370">ufsecp_impl.cpp:370</a></div></div>
-<div class="ttc" id="aufsecp__version_8h_html_ab2da3f29bf4348b5e781f4e9bbefc26a"><div class="ttname"><a href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a></div><div class="ttdeci">#define UFSECP_ABI_VERSION</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00038">ufsecp_version.h:38</a></div></div>
+<div class="ttc" id="aufsecp__version_8h_html_ab2da3f29bf4348b5e781f4e9bbefc26a"><div class="ttname"><a href="ufsecp__version_8h.html#ab2da3f29bf4348b5e781f4e9bbefc26a">UFSECP_ABI_VERSION</a></div><div class="ttdeci">#define UFSECP_ABI_VERSION</div><div class="ttdef"><b>Definition</b> <a href="ufsecp__version_8h_source.html#l00042">ufsecp_version.h:42</a></div></div>
+<div class="ttc" id="aufsecp__version_8h_html_ad27d2519d10da3a7e8e22d62be35facc"><div class="ttname"><a href="ufsecp__version_8h.html#ad27d2519d10da3a7e8e22d62be35facc">ufsecp_abi_version</a></div><div class="ttdeci">UFSECP_API unsigned int ufsecp_abi_version(void)</div></div>
 </div><!-- fragment --><hr  />
 <h1><a class="anchor" id="autotoc_md15"></a>
 What This Library Does NOT Do</h1>
