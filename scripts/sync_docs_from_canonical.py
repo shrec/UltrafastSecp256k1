@@ -44,6 +44,34 @@ _RULES: list[tuple[str, str, str]] = [
      "{exploit_poc_count} exploit-PoC test files (all {exploit_poc_count} registered"),
 
     ("README.md",
+     r"\d+ non-exploit modules \+ \d+ exploit PoCs",
+     "{non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit PoCs"),
+
+    ("README.md",
+     r"\d+ non-exploit audit modules and \d+ exploit PoCs",
+     "{non_exploit_modules} non-exploit audit modules and {exploit_poc_count} exploit PoCs"),
+
+    ("README.md",
+     r"\d+ non-exploit modules \+ \d+ exploit-PoC modules",
+     "{non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit-PoC modules"),
+
+    ("README.md",
+     r"\*\*\d+ non-exploit modules \+ \d+ exploit PoCs across \d+ sections, 0 failures\*\*",
+     "**{non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit PoCs across 9 sections, 0 failures**"),
+
+    ("README.md",
+     r"\d+ non-exploit modules \+ \d+ exploit PoCs, ~1M\+ assertions",
+     "{non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit PoCs, ~1M+ assertions"),
+
+    ("README.md",
+     r"\*\*\d+ non-exploit audit modules \+ \d+ exploit PoCs\*\*",
+     "**{non_exploit_modules} non-exploit audit modules + {exploit_poc_count} exploit PoCs**"),
+
+    ("README.md",
+     r"\d+ non-exploit modules \+ \d+ exploit PoCs and platform verdicts",
+     "{non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit PoCs and platform verdicts"),
+
+    ("README.md",
      r"\d+ CI workflows, 5 CT verification pipelines",
      "{ci_workflow_count} CI workflows, {ct_pipeline_count} CT verification pipelines"),
 
