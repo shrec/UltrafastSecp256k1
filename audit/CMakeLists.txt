@@ -949,6 +949,15 @@ target_compile_definitions(test_exploit_chacha20_kat_standalone PRIVATE STANDALO
 add_test(NAME exploit_chacha20_kat COMMAND test_exploit_chacha20_kat_standalone)
 set_tests_properties(exploit_chacha20_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;chacha20;rfc8439")
 
+# -- Primitive-layer KAT (bottom-up: bitops → quarter-round → block → AEAD) --
+# Every stream/hash/AEAD tested at the LOWEST layer against RFC/FIPS vectors.
+# Round-trip tests are insufficient — both sides share the bug (issue #256).
+add_executable(test_exploit_primitive_kat_standalone test_exploit_primitive_kat.cpp)
+audit_target_defaults(test_exploit_primitive_kat_standalone)
+target_compile_definitions(test_exploit_primitive_kat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_primitive_kat COMMAND test_exploit_primitive_kat_standalone)
+set_tests_properties(exploit_primitive_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;kat;chacha20;sha256;rfc8439;fips180")
+
 # -- EC point serialization (G coords, 2*G, infinity, parity, associativity) -
 add_executable(test_exploit_point_serialization_standalone test_exploit_point_serialization.cpp)
 audit_target_defaults(test_exploit_point_serialization_standalone)

@@ -280,6 +280,7 @@ int test_exploit_bip39_entropy_run();
 int test_exploit_bip39_mnemonic_run();
 int test_exploit_bitcoin_message_signing_run();
 int test_exploit_chacha20_kat_run();
+int test_exploit_primitive_kat_run();
 int test_exploit_chacha20_nonce_reuse_run();
 int test_exploit_chacha20_poly1305_run();
 int test_exploit_coin_hd_derivation_run();
@@ -658,6 +659,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip39_mnemonic",         "BIP-39 Mnemonic Security Properties",         "exploit_poc", test_exploit_bip39_mnemonic_run, false },
     { "exploit_btc_msg_signing",        "Bitcoin Message Signing Security",             "exploit_poc", test_exploit_bitcoin_message_signing_run, false },
     { "exploit_chacha20_kat",           "ChaCha20-Poly1305 RFC 8439 KAT",              "exploit_poc", test_exploit_chacha20_kat_run, false },
+    { "exploit_primitive_kat",           "Primitive-layer KAT (bitops/QR/block/AEAD)",   "exploit_poc", test_exploit_primitive_kat_run, false },
     { "exploit_chacha20_nonce_reuse",   "ChaCha20-Poly1305 Nonce Reuse",               "exploit_poc", test_exploit_chacha20_nonce_reuse_run, false },
     { "exploit_chacha20_poly1305",      "ChaCha20-Poly1305 AEAD (RFC 8439)",           "exploit_poc", test_exploit_chacha20_poly1305_run, false },
     { "exploit_coin_hd_derivation",     "Multi-Coin BIP-44 HD Derivation",             "exploit_poc", test_exploit_coin_hd_derivation_run, false },
