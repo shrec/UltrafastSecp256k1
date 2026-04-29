@@ -102,10 +102,18 @@ static bool ini_read_bool(const char* path, const char* sec, const char* key,
 {
     auto v = ini_read(path, sec, key);
     if (v.empty()) return default_val;
-    // case-insensitive "true" / "1" / "yes"
     std::transform(v.begin(), v.end(), v.begin(),
                    [](unsigned char c){ return std::tolower(c); });
     return (v == "true" || v == "1" || v == "yes");
+}
+
+static uint32_t ini_read_uint(const char* path, const char* sec, const char* key,
+                               uint32_t default_val = 0)
+{
+    auto v = ini_read(path, sec, key);
+    if (v.empty()) return default_val;
+    try { return static_cast<uint32_t>(std::stoul(v)); }
+    catch (...) { return default_val; }
 }
 
 // Probe order for auto-detect
@@ -115,11 +123,19 @@ static constexpr uint32_t kProbeOrder[] = {
     UFSECP_GPU_BACKEND_METAL,
 };
 
+// Maps config platform name → ufsecp backend ID.
+// Aliases:
+//   cuda   → CUDA  (NVIDIA discrete, Jetson)
+//   opencl → OpenCL (Intel iGPU, AMD via ROCm-OpenCL, NVIDIA via CL)
+//   metal  → Metal (Apple Silicon / macOS)
+//   rocm   → OpenCL (AMD ROCm OpenCL runtime — no dedicated backend ID yet)
+//   hip    → CUDA  (AMD HIP via CUDA portability layer)
+// Returns NONE for "auto" or unrecognised — triggers probe-order fallback.
 static uint32_t name_to_backend(const std::string& name) {
-    if (name == "cuda")   return UFSECP_GPU_BACKEND_CUDA;
-    if (name == "opencl") return UFSECP_GPU_BACKEND_OPENCL;
-    if (name == "metal")  return UFSECP_GPU_BACKEND_METAL;
-    return UFSECP_GPU_BACKEND_NONE; // "auto" or unknown
+    if (name == "cuda" || name == "hip")           return UFSECP_GPU_BACKEND_CUDA;
+    if (name == "opencl" || name == "rocm")        return UFSECP_GPU_BACKEND_OPENCL;
+    if (name == "metal")                           return UFSECP_GPU_BACKEND_METAL;
+    return UFSECP_GPU_BACKEND_NONE; // "auto" or unknown → probe-order
 }
 
 } // anonymous namespace
@@ -145,14 +161,21 @@ void shim_gpu_init(const char* config_ini_path)
             return; // GPU disabled in config — stay on CPU
         }
 
-        // Determine backend preference
-        std::string backend_str = ini_read(path, "gpu", "backend");
-        // normalise to lowercase
+        // Determine backend/platform preference.
+        // Accept both "platform" and "backend" keys — "platform" is the
+        // user-facing term; "backend" kept for backward compatibility.
+        // Valid values: auto | cuda | opencl | metal | rocm | hip
+        std::string backend_str = ini_read(path, "gpu", "platform");
+        if (backend_str.empty())
+            backend_str = ini_read(path, "gpu", "backend");
         std::transform(backend_str.begin(), backend_str.end(),
                        backend_str.begin(),
                        [](unsigned char c){ return std::tolower(c); });
 
         uint32_t preferred = name_to_backend(backend_str); // 0 = auto
+
+        // Device index: which GPU to use within the selected backend (default: 0)
+        uint32_t device_index = ini_read_uint(path, "gpu", "device", 0);
 
         // Build probe list
         uint32_t probe[4];
@@ -168,23 +191,26 @@ void shim_gpu_init(const char* config_ini_path)
             uint32_t bid = probe[i];
             if (!ufsecp_gpu_is_available(bid)) continue;
 
+            // Clamp device_index to what's actually present
+            uint32_t dev_count = ufsecp_gpu_device_count(bid);
+            uint32_t dev       = (device_index < dev_count) ? device_index : 0;
+
             ufsecp_gpu_ctx* ctx = nullptr;
-            ufsecp_error_t  rc  = ufsecp_gpu_ctx_create(&ctx, bid, 0);
+            ufsecp_error_t  rc  = ufsecp_gpu_ctx_create(&ctx, bid, dev);
             if (rc != UFSECP_OK || !ctx) continue;
 
             gs.ctx     = ctx;
             gs.backend = bid;
+            gs.device  = dev;
             gs.enabled = true;
 
             // Log to stderr so the user can see which backend was selected
             ufsecp_gpu_device_info_t info{};
-            ufsecp_gpu_device_info(bid, 0, &info);
+            ufsecp_gpu_device_info(bid, dev, &info);
             std::fprintf(stderr,
-                "[secp256k1-shim] GPU acceleration: %s — %s (%u CUs, %u MHz)\n",
-                ufsecp_gpu_backend_name(bid),
-                info.name,
-                info.compute_units,
-                info.max_clock_mhz);
+                "[secp256k1-shim] GPU acceleration: %s device %u — %s (%u CUs, %u MHz)\n",
+                ufsecp_gpu_backend_name(bid), dev,
+                info.name, info.compute_units, info.max_clock_mhz);
             return;
         }
 

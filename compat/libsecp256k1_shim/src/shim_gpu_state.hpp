@@ -19,6 +19,7 @@
 struct ShimGpuState {
     ufsecp_gpu_ctx* ctx      = nullptr;
     uint32_t        backend  = UFSECP_GPU_BACKEND_NONE;
+    uint32_t        device   = 0;    // device index within the backend
     bool            enabled  = false;
     std::mutex      mu;   // protects ctx for concurrent single-item dispatches
 };
