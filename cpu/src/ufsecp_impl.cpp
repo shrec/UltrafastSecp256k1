@@ -100,7 +100,6 @@ static void ctx_clear_err(ufsecp_ctx* ctx) {
 }
 
 static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const char* msg) {
-    /* cppcheck-suppress nullPointer ; ctx is guaranteed non-null by all callers (internal function) */
     ctx->last_err.store(err, std::memory_order_relaxed);
     if (msg) {
         /* Portable safe copy without MSVC deprecation warning */
@@ -375,17 +374,15 @@ static secp256k1::Network to_network(int n) {
 
 /* ============================================================================
  * Domain implementation files (unity build)
- * Intentional: unity build #includes .cpp files to produce a single TU.
- * NOLINT(bugprone-suspicious-include) applies to all includes below.
+ * Each file covers one functional domain; see include/ufsecp/impl/
  * ============================================================================ */
-// NOLINT begin(bugprone-suspicious-include)
-#include "impl/ufsecp_core.cpp"       // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_ecdsa.cpp"      // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_address.cpp"    // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_taproot.cpp"    // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_musig2.cpp"     // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_zk.cpp"         // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_coins.cpp"      // NOLINT(bugprone-suspicious-include)
-#include "impl/ufsecp_bip322.cpp"     // NOLINT(bugprone-suspicious-include)
-// NOLINT end(bugprone-suspicious-include)
+
+#include "impl/ufsecp_core.cpp"
+#include "impl/ufsecp_ecdsa.cpp"
+#include "impl/ufsecp_address.cpp"
+#include "impl/ufsecp_taproot.cpp"
+#include "impl/ufsecp_musig2.cpp"
+#include "impl/ufsecp_zk.cpp"
+#include "impl/ufsecp_coins.cpp"
+#include "impl/ufsecp_bip322.cpp"
 

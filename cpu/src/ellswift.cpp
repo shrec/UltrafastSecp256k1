@@ -72,7 +72,7 @@ bool fe_is_square(const FieldElement& x) noexcept {
 //   Try x3 = (3*s*u^3-(g+s)^2)/(3*s*u^2). If on curve, return.
 //   Try x2 = u*(c1*s+c2*g)/(g+s). If on curve, return.
 //   Return x1 = -(x2+u).
-FieldElement xswiftec_fwd(FieldElement u, FieldElement t) noexcept {  // NOLINT(performance-unnecessary-value-param) — local modification
+FieldElement xswiftec_fwd(FieldElement u, FieldElement t) noexcept {
     // c1 = (sqrt(-3)-1)/2
     static const FieldElement C1 = []() {
         std::array<uint8_t, 32> b = {
