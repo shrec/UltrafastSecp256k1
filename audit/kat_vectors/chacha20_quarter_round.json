@@ -1,0 +1,21 @@
+{
+  "primitive": "chacha20_quarter_round",
+  "source": "RFC 8439 \u00a72.1.1",
+  "description": "QUARTERROUND \u2014 4-word state transformation, the core of ChaCha20. A bug here propagates through all higher layers (block, stream, AEAD).",
+  "layer": 1,
+  "version": "1.0",
+  "vectors": [
+    {
+      "id": "rfc8439-s211-tv1",
+      "comment": "RFC8439\u00a72.1.1QUARTERROUND(0x11111111,0x01020304,0x9b8d6f43,0x01234567)",
+      "a_in": "11111111",
+      "b_in": "01020304",
+      "c_in": "9b8d6f43",
+      "d_in": "01234567",
+      "a_out": "ea2a92f4",
+      "b_out": "cb1cf8ce",
+      "c_out": "4581472e",
+      "d_out": "5881c4bb"
+    }
+  ]
+}

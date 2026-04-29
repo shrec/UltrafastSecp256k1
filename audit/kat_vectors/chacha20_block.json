@@ -1,0 +1,25 @@
+{
+  "primitive": "chacha20_block",
+  "source": "RFC 8439 \u00a72.3.2",
+  "description": "ChaCha20 block function \u2014 20 rounds applied to the 16-word state. Tests the full block output including all quarter-rounds and state addition.",
+  "layer": 2,
+  "version": "1.0",
+  "vectors": [
+    {
+      "id": "rfc8439-s232-tv1",
+      "comment": "RFC8439\u00a72.3.2:key=00..1f,nonce=000000090000004a00000000,counter=1",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce": "000000090000004a00000000",
+      "counter": 1,
+      "keystream": "10f1e7e4d13b5915500fdd1fa32071c4c7d1f4c733c068030422aa9ac3d46c4ed2826446079faa0914c2d705d98b02a2b5129cd1de164eb9cbd083e8a2503c4e"
+    },
+    {
+      "id": "rfc8439-s241-tv1",
+      "comment": "RFC8439\u00a72.4.1:key=00..1f,nonce=000000000000004a00000000,counter=1",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce": "000000000000004a00000000",
+      "counter": 1,
+      "keystream": "224f51f3401bd9e12fde276fb8631ded8c131f823d2c06e27e4fcaec9ef3cf788a3b0aa372600a92b57974cded2b9334794cba40c63e34cdea212c4cf07d41b7"
+    }
+  ]
+}

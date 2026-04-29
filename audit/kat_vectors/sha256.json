@@ -1,0 +1,27 @@
+{
+  "primitive": "sha256",
+  "source": "FIPS 180-4",
+  "description": "SHA-256 hash function. Tests against NIST FIPS 180-4 known-answer vectors.",
+  "layer": 2,
+  "version": "1.0",
+  "vectors": [
+    {
+      "id": "fips180-tv1",
+      "comment": "SHA-256(\"abc\")",
+      "msg": "616263",
+      "hash": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "id": "fips180-tv2",
+      "comment": "SHA-256(\"\")\u2014emptymessage",
+      "msg": "",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "fips180-tv3",
+      "comment": "SHA-256(\"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\")",
+      "msg": "6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071",
+      "hash": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+    }
+  ]
+}
