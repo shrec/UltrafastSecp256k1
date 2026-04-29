@@ -7,6 +7,10 @@
 #include <cstring>
 #include <mutex>
 
+#ifdef SECP256K1_SHIM_GPU
+#include "shim_gpu_state.hpp"
+#endif
+
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/ct/point.hpp"
@@ -63,11 +67,23 @@ static void shim_ensure_fixed_base() {
             return;
         }
 
-        if (secp256k1::fast::configure_fixed_base_from_file("config.ini")) return;
+        if (secp256k1::fast::configure_fixed_base_from_file("config.ini")) {
+#ifdef SECP256K1_SHIM_GPU
+            shim_gpu_init("config.ini");
+            std::atexit(shim_gpu_shutdown);
+#endif
+            return;
+        }
 
         // Auto-detect: uses whatever precomputed tables exist on this machine,
         // falling back to w=8 (always available, no external file required).
         secp256k1::fast::configure_fixed_base_auto();
+
+#ifdef SECP256K1_SHIM_GPU
+        // Probe GPU even when config.ini is absent (enabled=false by default)
+        shim_gpu_init("config.ini");
+        std::atexit(shim_gpu_shutdown);
+#endif
     });
 }
 
@@ -94,6 +110,8 @@ secp256k1_context *secp256k1_context_clone(const secp256k1_context *ctx) {
 
 void secp256k1_context_destroy(secp256k1_context *ctx) {
     if (ctx && ctx != &g_static_ctx) std::free(ctx);
+    // GPU context is process-wide; shut down on last destroy via atexit instead.
+    // shim_gpu_shutdown() is registered below via std::atexit.
 }
 
 // DEVIATION FROM LIBSECP CONTRACT (documented, intentional):

@@ -8,6 +8,11 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/schnorr.hpp"
 
+#ifdef SECP256K1_SHIM_GPU
+#  include "shim_gpu_state.hpp"
+#  include <mutex>
+#endif
+
 using namespace secp256k1::fast;
 
 extern "C" {
@@ -83,6 +88,27 @@ int secp256k1_schnorrsig_verify(
     (void)ctx;
     if (!sig64 || !pubkey) return 0;
     if (!msg || msglen != 32) return 0;
+
+#ifdef SECP256K1_SHIM_GPU
+    // GPU fast path (non-CT — BIP-340 Schnorr verify is public-data only).
+    // pubkey->data[0..31] = x-only key (32 bytes) — matches ufsecp_gpu layout.
+    {
+        auto& gs = shim_gpu_state();
+        if (gs.enabled && gs.ctx) {
+            uint8_t result = 0;
+            std::lock_guard<std::mutex> lk(gs.mu);
+            ufsecp_error_t rc = ufsecp_gpu_schnorr_verify_batch(
+                gs.ctx,
+                reinterpret_cast<const uint8_t*>(msg),
+                pubkey->data,   // x-only key (32 bytes)
+                sig64,          // r||s (64 bytes)
+                1,
+                &result);
+            if (rc == UFSECP_OK) return result ? 1 : 0;
+            // GPU error: fall through to CPU
+        }
+    }
+#endif
 
     secp256k1::SchnorrSignature sig;
     std::array<uint8_t, 64> sig_buf{};
