@@ -626,9 +626,11 @@ std::uint64_t scalar_window(const Scalar& a, std::size_t pos,
 
     return (lo | (hi_limb << shift)) & mask;
 #else
-    // Branched path: safe on x86/ARM OOO cores (branch predictor handles
-    // the public pos/width pattern perfectly). Avoids MSVC/Clang LTCG
-    // miscompilation of the branchless is_nonzero_mask pattern.
+    // Branched path: branch condition depends only on pos (the public loop
+    // counter), not on any bit of the secret scalar — so timing variation
+    // here is over pos, not over secret data.  Safe on x86/ARM OOO cores
+    // (branch predictor handles the public pos/width pattern perfectly).
+    // Avoids MSVC/Clang LTCG miscompilation of the branchless is_nonzero_mask.
     if (bit_idx + width <= 64) {
         return (limbs[limb_idx] >> bit_idx) & mask;
     }

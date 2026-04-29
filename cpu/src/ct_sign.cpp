@@ -275,6 +275,8 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
 
     if (sig.s.is_zero()) return SchnorrSignature{};
 
+    // Fast (non-CT) verify: timing variation is over the public sig/key only —
+    // d and k are both erased inside schnorr_sign before this call.
     if (!schnorr_verify(kp.px, msg, sig)) {
         return SchnorrSignature{};
     }
