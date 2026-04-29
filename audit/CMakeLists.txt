@@ -955,12 +955,12 @@ set_tests_properties(exploit_chacha20_kat PROPERTIES TIMEOUT 60 LABELS "audit;ex
 add_executable(test_exploit_kat_corpus_standalone test_exploit_kat_corpus.cpp)
 audit_target_defaults(test_exploit_kat_corpus_standalone)
 target_compile_definitions(test_exploit_kat_corpus_standalone PRIVATE STANDALONE_TEST)
-# Pass kat_vectors dir so ctest finds the JSON files regardless of cwd
-set_tests_properties(exploit_kat_corpus PROPERTIES
-    ENVIRONMENT "KAT_VECTORS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/kat_vectors")
 add_test(NAME exploit_kat_corpus COMMAND test_exploit_kat_corpus_standalone)
-set_tests_properties(exploit_kat_corpus PROPERTIES TIMEOUT 30
-    LABELS "audit;exploit;kat;corpus;chacha20;sha256;rfc8439;fips180")
+# set_tests_properties must come AFTER add_test
+set_tests_properties(exploit_kat_corpus PROPERTIES
+    TIMEOUT 30
+    LABELS "audit;exploit;kat;corpus;chacha20;sha256;rfc8439;fips180"
+    ENVIRONMENT "KAT_VECTORS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/kat_vectors")
 
 # -- Primitive-layer KAT (bottom-up: bitops → quarter-round → block → AEAD) --
 # Every stream/hash/AEAD tested at the LOWEST layer against RFC/FIPS vectors.
