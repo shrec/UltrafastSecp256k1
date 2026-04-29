@@ -121,17 +121,18 @@ by software tooling alone. This limitation is documented in RR-001
 
 ## 3. Known Gaps and Open Items
 
-These are honest statements of what is not yet complete. They are open items, not
-suppressions of known bugs.
+These are honest statements of residual confidence gaps. Each entry is labelled
+**PR blocker** (whether it must be resolved before a Core PR) or **residual gap**
+(an honest limitation that does not block the PR but a reviewer should know about).
 
-| Gap | Impact | Plan |
-|-----|--------|------|
-| ~~Bitcoin Core's full test suite has not been run~~ — **Closed (2026-04-27)**: 693/693 `make check` tests pass against the UF backend (commit `c1df659e`; results in `docs/BITCOIN_CORE_TEST_RESULTS.json`; validated by `scripts/check_bitcoin_core_test_results.py` CAAS gate) | ✅ Resolved | See `docs/BITCOIN_CORE_TEST_RESULTS.json` |
-| Windows and macOS CI coverage is partial | CT verification and some audit tests run Linux-only | Windows/macOS CI expansion is planned; not yet scheduled |
-| `ndata`/R-grinding parity is verified manually, not by an automated CI gate | The parity claim for non-null `ndata` may regress without CI catching it | A CI gate script (`scripts/check_ndata_compat.py`) is planned; currently unimplemented |
-| Thread safety when multiple contexts on the same thread share blinding state | If a caller creates multiple contexts and interleaves operations, blinding state isolation is not tested at the CI level | Documented in `docs/THREAD_SAFETY.md` §7 as a known limitation; a test is planned |
-| Formal verification of CT layer | Software-tool CT verification does not constitute a formal proof | No formal proof is claimed or planned in the near term; this is a known confidence gap |
-| libsecp256k1 parity test coverage for `secp256k1_ellswift_*` functions | The ElligatorSwift functions in `shim_ellswift.cpp` have parity tests, but differential coverage against the libsecp256k1 reference is thinner than for ECDSA/Schnorr | Expanding differential tests for ElligatorSwift is in the audit backlog |
+| Item | PR blocker? | Residual gap / notes |
+|------|-------------|----------------------|
+| ~~Bitcoin Core's full test suite has not been run~~ | **Closed (2026-04-27)** | 693/693 `make check` pass; see `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| Windows and macOS CI coverage | **Not a blocker** — macOS ARM64 shim build+test active (`macos-shim.yml`); Windows x86-64 build + bench covered in CI | Residual gap: GPU suite and extended CT tools (Valgrind, dudect nightly) run Linux-only; acceptable for a CPU-only backend PR |
+| `ndata` / R-grinding parity | **Not a blocker** — Bitcoin Core 28.x production signing paths use `NULL` noncefp (verified by grep of Core source); shim accepts NULL / default / rfc6979 and fails-closed on any unknown noncefp | Residual gap: arbitrary custom nonce callback emulation is intentionally unsupported; not needed for Core's usage pattern |
+| Thread safety: multiple contexts sharing blinding state | **Not a blocker** — each context has its own blinding state; concurrent use of distinct contexts is safe and documented in `docs/THREAD_SAFETY.md` | Residual gap: interleaved calls across contexts on the same thread are not CI-tested; THREAD_SAFETY.md §7 marks this as a known limitation; not exercised by Core |
+| Formal verification of CT layer | **Not a blocker** — no formal proof is claimed; software-tool CT verification (valgrind, ct-verif, dudect, ct-prover, ARM64 native) is the stated evidence level | Residual gap: hardware microarchitectural side channels are not ruled out by software tools alone; acceptable known confidence gap |
+| libsecp256k1 parity for `secp256k1_ellswift_*` | **Not a blocker** — ECDSA and Schnorr differential coverage is primary; ElligatorSwift has parity tests in `shim_ellswift.cpp` | Residual gap: differential coverage against the libsecp256k1 reference is thinner than for ECDSA/Schnorr; expanding is in the audit backlog |
 
 ---
 

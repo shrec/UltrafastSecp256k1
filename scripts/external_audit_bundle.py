@@ -21,6 +21,7 @@ import json
 import platform
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,8 +34,12 @@ DEFAULT_DIGEST = LIB_ROOT / "docs" / "EXTERNAL_AUDIT_BUNDLE.sha256"
 GATE_COMMANDS: list[dict[str, object]] = [
     {
         "name": "audit_gate",
+        # Use -o file output (not stdout capture) so nested harness subprocesses
+        # behave identically to the direct CAAS Stage 2 invocation. Stdout capture
+        # of a nested subprocess tree can cause empty stderr/stdout in harnesses.
         "cmd": [sys.executable, "scripts/audit_gate.py", "--json"],
         "required": True,
+        "use_file_output": True,
     },
     {
         "name": "audit_gap_report_strict",
@@ -99,16 +104,56 @@ def _git(cmd: list[str]) -> str:
         return ""
 
 
-def _run_gate(name: str, cmd: list[str], required: bool) -> dict[str, object]:
+def _run_gate(name: str, cmd: list[str], required: bool,
+              use_file_output: bool = False) -> dict[str, object]:
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(LIB_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=900,
-            check=False,
-        )
+        if use_file_output:
+            # Write gate JSON output to a temp file (same as direct CAAS Stage 2
+            # invocation). This prevents nested subprocess stdout capture from
+            # silently swallowing harness output in deep subprocess trees.
+            with tempfile.NamedTemporaryFile(
+                prefix=f"bundle_gate_{name}_",
+                suffix=".json",
+                mode="w",
+                delete=False,
+            ) as tmp:
+                out_path = Path(tmp.name)
+            actual_cmd = cmd + ["-o", str(out_path)]
+            result = subprocess.run(
+                actual_cmd,
+                cwd=str(LIB_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=900,
+                check=False,
+            )
+            stdout_content = ""
+            parsed: dict[str, object] | None = None
+            if out_path.exists() and out_path.stat().st_size > 0:
+                try:
+                    parsed = json.loads(out_path.read_text(encoding="utf-8", errors="replace"))
+                    stdout_content = json.dumps(parsed)
+                except Exception:
+                    parsed = None
+            try:
+                out_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+        else:
+            result = subprocess.run(
+                cmd,
+                cwd=str(LIB_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=900,
+                check=False,
+            )
+            stdout_content = result.stdout
+            parsed = None
+            try:
+                parsed = json.loads(result.stdout)
+            except Exception:
+                parsed = None
     except Exception as exc:
         return {
             "name": name,
@@ -120,12 +165,6 @@ def _run_gate(name: str, cmd: list[str], required: bool) -> dict[str, object]:
             "stderr_sha256": "",
         }
 
-    parsed: dict[str, object] | None = None
-    try:
-        parsed = json.loads(result.stdout)
-    except Exception:
-        parsed = None
-
     passing = result.returncode == 0
     if isinstance(parsed, dict) and "overall_pass" in parsed:
         passing = passing and bool(parsed.get("overall_pass", False))
@@ -135,7 +174,7 @@ def _run_gate(name: str, cmd: list[str], required: bool) -> dict[str, object]:
         "required": required,
         "passing": passing,
         "returncode": result.returncode,
-        "stdout_sha256": _sha256_bytes(result.stdout.encode("utf-8", errors="replace")),
+        "stdout_sha256": _sha256_bytes(stdout_content.encode("utf-8", errors="replace")),
         "stderr_sha256": _sha256_bytes(result.stderr.encode("utf-8", errors="replace")),
         "parsed_json": parsed,
     }
@@ -176,6 +215,7 @@ def run(bundle_path: Path, digest_path: Path, json_mode: bool) -> int:
                 name=str(gate["name"]),
                 cmd=list(gate["cmd"]),
                 required=bool(gate["required"]),
+                use_file_output=bool(gate.get("use_file_output", False)),
             )
         )
 

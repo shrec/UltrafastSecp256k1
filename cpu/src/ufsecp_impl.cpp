@@ -14,6 +14,7 @@
 
 #include "ufsecp.h"
 
+#include <atomic>
 #include <cstring>
 #include <cstdint>
 #include <cstdlib>
@@ -81,18 +82,22 @@ using FE     = secp256k1::fast::FieldElement;
  * =========================================================================== */
 
 struct ufsecp_ctx {
-    ufsecp_error_t   last_err;
-    char             last_msg[128];
-    bool             selftest_ok;
+    // Atomic: ufsecp_context_randomize is safe to call concurrently on distinct
+    // contexts (blinding state is thread_local). last_err is shared per-ctx and
+    // written by ctx_clear_err/ctx_set_err on every API call, so it must be
+    // atomic to avoid a TSan data race when two threads share one context.
+    std::atomic<int>  last_err;
+    char              last_msg[128];
+    bool              selftest_ok;
 };
 
 static void ctx_clear_err(ufsecp_ctx* ctx) {
-    ctx->last_err  = UFSECP_OK;
+    ctx->last_err.store(UFSECP_OK, std::memory_order_relaxed);
     ctx->last_msg[0] = '\0';
 }
 
 static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const char* msg) {
-    ctx->last_err = err;
+    ctx->last_err.store(err, std::memory_order_relaxed);
     if (msg) {
         /* Portable safe copy without MSVC deprecation warning */
         size_t i = 0;

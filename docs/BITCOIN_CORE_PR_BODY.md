@@ -5,7 +5,7 @@
 
 ---
 
-## Alternative secp256k1 backend: UltrafastSecp256k1
+## cmake: add optional secp256k1 backend evaluation path
 
 This PR introduces an **opt-in, compile-time alternative backend** for libsecp256k1.
 No existing code paths change. Bitcoin Core behavior is identical when using the default backend.
@@ -30,7 +30,7 @@ to work without modification.
 | 693/693 `make check` tests pass | `python3 scripts/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
 | All signing paths constant-time | `python3 scripts/audit_gate.py --ct-integrity` | `docs/CT_SIGNING_PATHS.md` |
 | Differential parity with libsecp256k1 | CTest `differential_*` targets | `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2` |
-| 207 exploit PoC tests, 0 failures | `python3 scripts/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
+| 232 exploit PoC tests, 0 failures | `python3 scripts/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
 | Reproducible evidence bundle | `python3 scripts/verify_external_audit_bundle.py` | `docs/EXTERNAL_AUDIT_BUNDLE.json` |
 
 ### Constant-time guarantee
@@ -38,7 +38,7 @@ to work without modification.
 All signing paths (ECDSA, Schnorr, recovery) route through `secp256k1::ct::*`
 primitives — branchless scalar inversion, constant-time scalar multiplication,
 and blinding. Verified by three independent tools:
-- **ct-verif** (LLVM-based): [CT_TOOL_INDEPENDENCE.md](CT_TOOL_INDEPENDENCE.md)
+- **ct-verif** (LLVM-based): [CT_INDEPENDENCE.md](CT_INDEPENDENCE.md)
 - **Valgrind CT mode**: run `ctest -R ct_verif`
 - **dudect** (timing-based): run `ctest -R cycle_ct`
 

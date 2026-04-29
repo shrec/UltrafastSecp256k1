@@ -78,12 +78,14 @@ void ufsecp_ctx_destroy(ufsecp_ctx* ctx) {
 }
 
 ufsecp_error_t ufsecp_last_error(const ufsecp_ctx* ctx) {
-    return ctx ? ctx->last_err : UFSECP_ERR_NULL_ARG;
+    return ctx ? static_cast<ufsecp_error_t>(ctx->last_err.load(std::memory_order_relaxed))
+               : UFSECP_ERR_NULL_ARG;
 }
 
 const char* ufsecp_last_error_msg(const ufsecp_ctx* ctx) {
     if (!ctx) return "NULL context";
-    return ctx->last_msg[0] ? ctx->last_msg : ufsecp_error_str(ctx->last_err);
+    auto err = static_cast<ufsecp_error_t>(ctx->last_err.load(std::memory_order_relaxed));
+    return ctx->last_msg[0] ? ctx->last_msg : ufsecp_error_str(err);
 }
 
 size_t ufsecp_ctx_size(void) {
