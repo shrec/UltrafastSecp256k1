@@ -9,7 +9,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 232 PoC files, 232 registered modules, 0 failures |
+| Exploit tests | 235 PoC files, 235 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Nightly checks | ~1,300,000+ random differential tests |
 | CI workflows | 53 workflows, 16 platform combinations |
@@ -64,7 +64,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | **Total (exploit PoC tests)** | **235 exploit-style PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **235 modules, 0 failures** |
 
 All 80 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 232 exploit-PoC modules pass. Zero failures across all 20+ coverage categories.
+All 235 exploit-PoC modules pass. Zero failures across all 20+ coverage categories.
 
 ### Self-Audit Documents
 
