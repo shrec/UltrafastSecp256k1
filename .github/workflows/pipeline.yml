@@ -68,11 +68,11 @@ jobs:
           python3 scripts/sync_docs_from_canonical.py --dry-run
           python3 scripts/sync_module_count.py --dry-run
 
-  # ── Phase 1b: Preflight (fast compile smoke, < 5 min) ────────────────────────
+  # ── Phase 1b: Preflight (fast compile smoke, ≤ 15 min) ──────────────────────
   preflight:
     name: "Phase 1 / Preflight"
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
