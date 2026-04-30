@@ -37,6 +37,10 @@ struct FixedBaseConfig {
     // Cache configuration
     bool use_cache = true;              // Enable cache system
     std::string cache_path{};           // Empty = auto-detect cache path from cache_dir
+    // MSan note: std::string SSO bits are untracked with uninstrumented libc++.
+    // Use this bool (plain scalar, MSan-clean) instead of cache_path.empty() checks
+    // inside critical paths that run under MSan (e.g. ensure_built_locked).
+    bool cache_path_set = false;        // true when cache_path was explicitly set
     std::string cache_dir = "";         // Default cache directory with all precomputed tables
     unsigned max_windows_to_load = 0U;  // Load all windows for optimal performance
     
