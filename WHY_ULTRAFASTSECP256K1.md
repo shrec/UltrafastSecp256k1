@@ -12,7 +12,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Exploit tests | 232 PoC files, 232 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Nightly checks | ~1,300,000+ random differential tests |
-| CI workflows | 52 workflows, 16 platform combinations |
+| CI workflows | 53 workflows, 16 platform combinations |
 | CT verification | 5 independent pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) |
 | GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
 | Philosophy | Don't trust — reproduce |
@@ -85,10 +85,10 @@ All 232 exploit-PoC modules pass. Zero failures across all 20+ coverage categori
 
 ---
 
-## 2. CI/CD Pipeline — 52 Automated Workflows
+## 2. CI/CD Pipeline — 53 Automated Workflows
 
 The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 52 GitHub Actions workflows
+It is a multi-layer quality enforcement system with 53 GitHub Actions workflows
 covering security, correctness, performance, supply chain, and formal analysis.
 
 It is also only one part of the assurance model. The repository is routinely reviewed
