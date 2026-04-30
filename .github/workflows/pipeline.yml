@@ -45,7 +45,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: pipeline-${{ github.ref }}
+  # Per-SHA group: each commit gets its own Pipeline that runs to completion.
+  # Using github.ref would make every new push cancel the previous Pipeline
+  # (which takes 15-20 min for Preflight), so it would never finish.
+  # With github.sha: different commits run independently; same SHA can't
+  # start duplicate Pipelines (cancel-in-progress handles re-triggers).
+  group: pipeline-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
