@@ -59,9 +59,9 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-wycheproof-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'audit/**/*.cpp', 'audit/**/*.h') }}
+          key: ccache-wycheproof-v3-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'audit/**/*.cpp', 'audit/**/*.h') }}
           restore-keys: |
-            ccache-wycheproof-
+            ccache-wycheproof-v3-
 
       - name: Configure ccache
         run: |
@@ -79,7 +79,8 @@ jobs:
             -DSECP256K1_BUILD_CUDA=OFF \
             -DSECP256K1_BUILD_OPENCL=OFF \
             -DBUILD_AUDIT=ON \
-            -DUFSECP_BITCOIN_STRICT=OFF
+            -DUFSECP_BITCOIN_STRICT=OFF \
+            -DSECP256K1_MARCH=x86-64-v3
 
       - name: Build wycheproof targets
         run: |
