@@ -73,45 +73,16 @@ jobs:
           python3 scripts/sync_docs_from_canonical.py --dry-run
           python3 scripts/sync_module_count.py --dry-run
 
-  # ── Phase 1b: Preflight (fast compile smoke, ≤ 15 min) ──────────────────────
-  preflight:
-    name: "Phase 1 / Preflight"
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Install deps
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends cmake ninja-build g++-14 gcc-14 ccache python3
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-preflight-${{ hashFiles('cpu/src/**', 'cpu/include/**') }}
-          restore-keys: ccache-preflight-
-      - name: Preflight build (CPU only, Release)
-        run: |
-          cmake -S . -B build-pf -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_BUILD_CUDA=OFF \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=OFF
-          cmake --build build-pf --parallel
-      - name: Selftest
-        run: ctest --test-dir build-pf -R "selftest|comprehensive" --output-on-failure --timeout 60
-
-  # ── Phase 1 Gate: must both pass before Phase 2 workflows trigger ─────────────
+  # ── Phase 1 Gate ──────────────────────────────────────────────────────────────
+  # Preflight (cmake build + code quality scans) runs as its own standalone
+  # workflow (preflight.yml) — duplicating it here took 20+ min and kept hitting
+  # the timeout. Phase 1 only gates on the fast doc/wiring checks (<2 min).
   phase1-gate:
     name: "Phase 1 / Gate"
-    needs: [doc-gates, preflight]
+    needs: [doc-gates]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Phase 1 passed
-        run: echo "Phase 1 gates passed — Phase 2 workflows will trigger automatically"
+        run: echo "Phase 1 fast gates passed (doc + wiring checks OK)"
 
