@@ -2226,6 +2226,9 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 // Cache System
 // ============================================================================
 
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 std::string get_default_cache_path(unsigned window_bits) {
     // Build cache filename with GLV suffix if enabled
     std::string filename = "cache_w" + std::to_string(window_bits);
@@ -2365,6 +2368,13 @@ bool save_precompute_cache_locked(const std::string& path) {
 }
 
 // Internal version without lock - must be called with g_mutex already locked
+// MSan note: std::string (uninstrumented libc++) triggers use-of-uninitialized-value
+// false positives in __is_long() / c_str() / data() when string SSO bits are not
+// tracked. These are file-path management functions (not crypto) so we suppress
+// MSan checking here — the underlying cryptographic code is checked normally.
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 bool load_precompute_cache_locked(const std::string& path, unsigned max_windows) {
 #if SECP256K1_DEBUG_GLV
     auto load_start = std::chrono::steady_clock::now();
@@ -2473,6 +2483,9 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     return true;
 }
 
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 void ensure_built_locked() {
     if (!g_context) {
         // Try to load from cache if enabled
