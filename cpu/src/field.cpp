@@ -450,7 +450,7 @@ inline void mul_add_to(wide8& acc, std::size_t index, std::uint64_t a, std::uint
 wide8 mul_wide(const limbs4& a, const limbs4& b) {
     wide8 prod{};
     for (std::size_t i = 0; i < 4; ++i) {
-        for (std::size_t j = 1; j < 4; ++j) {
+        for (std::size_t j = 0; j < 4; ++j) {
             mul_add_to(prod, i + j, a[i], b[j]);
         }
     }
