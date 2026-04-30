@@ -163,6 +163,12 @@ NEGATIVE_TERMS: dict[str, int] = {
     'string search':  -7,
     'hydropower':     -8,
     'traffic volume': -8,
+    # Blockchain application-level analysis (uses secp256k1 but doesn't study it)
+    'fraudulent activity pattern': -12,
+    'suspicious wallet behavior':  -12,
+    'transaction graph':           -8,
+    'fraud detection':             -7,
+    'anomaly detection':           -5,
 }
 
 # Hard focus terms: an UNMAPPED item with one of these in the title is
