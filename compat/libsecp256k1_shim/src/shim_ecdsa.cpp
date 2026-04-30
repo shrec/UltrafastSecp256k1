@@ -237,7 +237,10 @@ int secp256k1_ecdsa_sign(
     } else {
         result = secp256k1::ct::ecdsa_sign(msg, k);
     }
-    if (result.r.is_zero() || result.s.is_zero()) return 0;
+    // C5: explicit error propagation via ECDSASignature::is_valid() rather than
+    // ad-hoc zero-checks. is_valid() ↔ (r ∈ [1,n-1] ∧ s ∈ [1,n-1]).
+    // CT signing returns zero (r,s) on any degenerate case (k≡0 mod n, etc.).
+    if (!result.is_valid()) return 0;
     ecdsa_sig_to_data(result, sig->data);
     return 1;
 }
