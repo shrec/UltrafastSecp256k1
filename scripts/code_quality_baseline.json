@@ -3,9 +3,9 @@
   "_updated": "2026-04-30",
   "dev_bug_scanner": {
     "HIGH": 0,
-    "MEDIUM": 10,
+    "MEDIUM": 11,
     "LOW": 17,
-    "total": 27
+    "total": 28
   },
   "hot_path_alloc_scanner": {
     "HIGH": 2,
