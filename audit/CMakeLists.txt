@@ -86,13 +86,16 @@ set_tests_properties(zeroization PROPERTIES TIMEOUT 900)
 add_executable(test_fault_zk_adaptor test_fault_zk_adaptor.cpp)
 audit_target_defaults(test_fault_zk_adaptor)
 target_compile_definitions(test_fault_zk_adaptor PRIVATE STANDALONE_TEST)
-# Disable LTO for this target: the ZK/adaptor headers produce very large
-# ThinLTO translation units. Apple ld (used on macOS Release builds) crashes
-# with SIGABRT when linking this target under ThinLTO — a known ld64 OOM
-# bug triggered by the complex template expansions in zk.hpp + adaptor.hpp.
-# The corrected mul_wide (j=0) generates different code that tips ld over the
-# limit. Disabling LTO here only affects this single audit target.
-set_target_properties(test_fault_zk_adaptor PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+# macOS only: Apple ld (ThinLTO) crashes with SIGABRT when linking this target
+# due to the very large ZK/adaptor template expansions (zk.hpp + adaptor.hpp).
+# The corrected mul_wide (j=0) changes the LTO code-size profile enough to
+# trigger Apple ld's internal OOM limit. Scope the fix to APPLE only — setting
+# INTERPROCEDURAL_OPTIMIZATION OFF globally causes GCC on Linux to mix LTO and
+# non-LTO objects in the same project, which emits SIGILL from the field-
+# arithmetic path in other (unrelated) targets built under the same CMake run.
+if(APPLE)
+    set_target_properties(test_fault_zk_adaptor PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+endif()
 add_test(NAME fault_zk_adaptor COMMAND test_fault_zk_adaptor)
 set_tests_properties(fault_zk_adaptor PROPERTIES TIMEOUT 1200)
 
