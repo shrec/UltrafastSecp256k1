@@ -125,7 +125,11 @@ jobs:
         alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: false
-        benchmark-data-dir-path: 'dev/bench-v2'
+        # Store data on gh-pages branch, NOT dev — keeping it on dev created an
+        # auto-commit that triggered cancel-in-progress on the Pipeline workflow,
+        # cancelling Preflight and other fast gates on every benchmark run.
+        gh-pages-branch: gh-pages
+        benchmark-data-dir-path: 'bench-v2'
 
     - name: Summary
       if: always()
