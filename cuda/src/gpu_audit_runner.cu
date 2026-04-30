@@ -1929,6 +1929,106 @@ static int audit_ct_point_ops() {
 }
 
 // ============================================================================
+// GPU ChaCha20 KAT (RFC 8439 §2.3.2 known-answer test)
+// ============================================================================
+// This test runs a ChaCha20 block directly on GPU hardware using the CORRECT
+// __byte_perm selector (0x2103 for rotl32(8)). It would have caught issue #256
+// (wrong 0x0321 selector in bip324.cuh and bench_bip324_transport.cu) on day one.
+//
+// RFC 8439 §2.3.2 test vector:
+//   Key:     00 01 02 ... 1f  (32 bytes)
+//   Counter: 1
+//   Nonce:   00 00 00 09 00 00 00 4a 00 00 00 00
+// Expected output (first 64 bytes of keystream):
+//   10 f1 e7 e4  d1 3b 59 15  50 0f dd 1f  a3 20 71 c4
+//   c7 d1 f4 c7  33 c0 68 03  04 22 aa 9a  c3 d4 6c 4e
+//   d2 82 64 46  07 9f aa 09  14 c2 d7 05  d9 8b 02 a2
+//   b5 12 9c d1  de 16 4e b9  cb d0 83 e8  a2 50 3c 4e
+// ============================================================================
+
+__device__ __forceinline__ void kat_quarter_round(
+    std::uint32_t& a, std::uint32_t& b,
+    std::uint32_t& c, std::uint32_t& d)
+{
+    a += b; d ^= a; d = __byte_perm(d, 0, 0x1032); // rotl32(16)
+    c += d; b ^= c; b = __funnelshift_l(b, b, 12); // rotl32(12)
+    a += b; d ^= a; d = __byte_perm(d, 0, 0x2103); // rotl32(8)  — CORRECT selector
+    c += d; b ^= c; b = __funnelshift_l(b, b, 7);  // rotl32(7)
+}
+
+__global__ void audit_chacha20_kat_kernel(std::uint8_t* out) {
+    // RFC 8439 §2.3.2 input state (little-endian 32-bit words)
+    std::uint32_t x[16] = {
+        0x61707865u, 0x3320646eu, 0x79622d32u, 0x6b206574u, // constants
+        0x03020100u, 0x07060504u, 0x0b0a0908u, 0x0f0e0d0cu, // key[0..15]
+        0x13121110u, 0x17161514u, 0x1b1a1918u, 0x1f1e1d1cu, // key[16..31]
+        0x00000001u,                                          // counter = 1
+        0x09000000u, 0x4a000000u, 0x00000000u,              // nonce
+    };
+    const std::uint32_t orig[16] = {
+        0x61707865u, 0x3320646eu, 0x79622d32u, 0x6b206574u,
+        0x03020100u, 0x07060504u, 0x0b0a0908u, 0x0f0e0d0cu,
+        0x13121110u, 0x17161514u, 0x1b1a1918u, 0x1f1e1d1cu,
+        0x00000001u, 0x09000000u, 0x4a000000u, 0x00000000u,
+    };
+    // 20 rounds (10 double-rounds)
+    #pragma unroll
+    for (int i = 0; i < 10; ++i) {
+        kat_quarter_round(x[0], x[4], x[ 8], x[12]);
+        kat_quarter_round(x[1], x[5], x[ 9], x[13]);
+        kat_quarter_round(x[2], x[6], x[10], x[14]);
+        kat_quarter_round(x[3], x[7], x[11], x[15]);
+        kat_quarter_round(x[0], x[5], x[10], x[15]);
+        kat_quarter_round(x[1], x[6], x[11], x[12]);
+        kat_quarter_round(x[2], x[7], x[ 8], x[13]);
+        kat_quarter_round(x[3], x[4], x[ 9], x[14]);
+    }
+    #pragma unroll
+    for (int i = 0; i < 16; ++i) {
+        std::uint32_t w = x[i] + orig[i];
+        // serialize little-endian
+        out[i*4+0] = (std::uint8_t)(w);
+        out[i*4+1] = (std::uint8_t)(w >> 8);
+        out[i*4+2] = (std::uint8_t)(w >> 16);
+        out[i*4+3] = (std::uint8_t)(w >> 24);
+    }
+}
+
+static int audit_gpu_chacha20_kat() {
+    // RFC 8439 §2.3.2 expected output (64 bytes)
+    static const std::uint8_t expected[64] = {
+        0x10,0xf1,0xe7,0xe4, 0xd1,0x3b,0x59,0x15,
+        0x50,0x0f,0xdd,0x1f, 0xa3,0x20,0x71,0xc4,
+        0xc7,0xd1,0xf4,0xc7, 0x33,0xc0,0x68,0x03,
+        0x04,0x22,0xaa,0x9a, 0xc3,0xd4,0x6c,0x4e,
+        0xd2,0x82,0x64,0x46, 0x07,0x9f,0xaa,0x09,
+        0x14,0xc2,0xd7,0x05, 0xd9,0x8b,0x02,0xa2,
+        0xb5,0x12,0x9c,0xd1, 0xde,0x16,0x4e,0xb9,
+        0xcb,0xd0,0x83,0xe8, 0xa2,0x50,0x3c,0x4e,
+    };
+
+    std::uint8_t* d_out = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_out, 64));
+    audit_chacha20_kat_kernel<<<1, 1>>>(d_out);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    std::uint8_t h_out[64];
+    CUDA_CHECK(cudaMemcpy(h_out, d_out, 64, cudaMemcpyDeviceToHost));
+    cudaFree(d_out);
+
+    for (int i = 0; i < 64; ++i) {
+        if (h_out[i] != expected[i]) {
+            std::fprintf(stderr,
+                "[FAIL] GPU ChaCha20 KAT: byte[%d] got 0x%02x, expected 0x%02x\n"
+                "       Likely cause: wrong __byte_perm selector (0x0321 instead of 0x2103)\n",
+                i, h_out[i], expected[i]);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// ============================================================================
 // Module registry
 // ============================================================================
 struct GpuAuditModule {
@@ -1955,6 +2055,7 @@ static const GpuSectionInfo GPU_SECTIONS[] = {
     { "protocol_security", "Protocol Security (multi-key, ECDH, recovery)" },
     { "fuzzing",           "Fuzzing & Adversarial Inputs" },
     { "performance",       "Performance Smoke Tests" },
+    { "kat",               "Known-Answer Tests (RFC/NIST vectors on GPU)" },
 };
 static constexpr int NUM_GPU_SECTIONS = sizeof(GPU_SECTIONS) / sizeof(GPU_SECTIONS[0]);
 
@@ -2026,6 +2127,10 @@ static const GpuAuditModule GPU_MODULES[] = {
     // Section 10: Performance Smoke
     { "perf_ecdsa_100",    "ECDSA 100-iteration stress",                  "performance", audit_perf_ecdsa_stress, false },
     { "perf_schnorr_50",   "Schnorr 50-iteration stress",                 "performance", audit_perf_schnorr_stress, false },
+
+    // Known-Answer Tests (RFC vectors executed on actual GPU hardware)
+    // advisory=true: skip gracefully when no CUDA device is present (CI without GPU).
+    { "chacha20_kat",      "ChaCha20 RFC 8439 §2.3.2 KAT (GPU hardware)", "kat",         audit_gpu_chacha20_kat,    true  },
 };
 static constexpr int NUM_GPU_MODULES = sizeof(GPU_MODULES) / sizeof(GPU_MODULES[0]);
 

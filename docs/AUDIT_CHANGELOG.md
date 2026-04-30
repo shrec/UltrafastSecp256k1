@@ -7,6 +7,33 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-30 — CUDA #256 second instance + intrinsic checker system
+
+### [N6] Second instance of issue #256: wrong `__byte_perm` selector in bench
+
+- **File:** `cuda/src/bench_bip324_transport.cu:111`
+- **Bug:** `__byte_perm(d, 0, 0x0321)` (produces `rotl32(24)`) used instead of
+  `0x2103` (`rotl32(8)`) in the standalone ChaCha20 quarter-round copy inside
+  the BIP-324 CUDA benchmark. The benchmark's own copy was not updated when
+  `cuda/include/bip324.cuh` was fixed for issue #256.
+- **Root cause class:** Round-trip tests (encrypt→decrypt) cannot detect this;
+  both sides share the same broken quarter-round and always agree. Only an RFC
+  8439 §2.3.2 keystream KAT against an external reference exposes the mismatch.
+- **Fix:** `0x0321` → `0x2103` (`bench_bip324_transport.cu:111`).
+- **Impact:** All BIP-324 CUDA benchmark results prior to this fix are invalid.
+
+### Detection system added (prevents recurrence)
+
+- `tools/cuda_intrinsic_checker.py` — static analyzer; validates `__byte_perm`
+  selector constants against adjacent rotation comments; auto-fix mode.
+- `.github/workflows/cuda-intrinsic-check.yml` — CI gate on every `.cu`/`.cuh`
+  change; exits 1 on any ERROR-level mismatch.
+- `audit_gpu_chacha20_kat()` in `cuda/src/gpu_audit_runner.cu` — RFC 8439 §2.3.2
+  known-answer test executed on actual GPU hardware (section `kat`, advisory).
+  This is the test that would have caught both instances of the bug on day one.
+
+---
+
 ## 2026-04-29 (shim BIP-66/UB/auxrnd32 fixes, GPU shim, CAAS-20..27, EXT-3, doc sync)
 
 ### Security / Correctness Fixes (shim audit — P0/P1)

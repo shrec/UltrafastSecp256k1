@@ -108,7 +108,7 @@ __device__ void d_chacha20_quarter_round(std::uint32_t& a, std::uint32_t& b,
                                           std::uint32_t& c, std::uint32_t& d) {
     a += b; d ^= a; d = __byte_perm(d, 0, 0x1032);       // rotl32(16) via PTX
     c += d; b ^= c; b = __funnelshift_l(b, b, 12);       // rotl32(12) via PTX
-    a += b; d ^= a; d = __byte_perm(d, 0, 0x0321);       // rotl32(8)  via PTX
+    a += b; d ^= a; d = __byte_perm(d, 0, 0x2103);       // rotl32(8)  via PTX
     c += d; b ^= c; b = __funnelshift_l(b, b, 7);        // rotl32(7)  via PTX
 }
 

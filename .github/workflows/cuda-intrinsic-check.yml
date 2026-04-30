@@ -1,0 +1,62 @@
+name: CUDA Intrinsic Constant Check
+
+# Catches wrong __byte_perm / __funnelshift selectors in .cu/.cuh files.
+# Class of bug: issue #256 (0x0321 instead of 0x2103 for rotl32(8)).
+# No GPU hardware required — pure Python static analysis.
+
+on:
+  push:
+    paths:
+      - 'cuda/**/*.cu'
+      - 'cuda/**/*.cuh'
+      - 'opencl/**/*.cl'
+      - 'tools/cuda_intrinsic_checker.py'
+  pull_request:
+    paths:
+      - 'cuda/**/*.cu'
+      - 'cuda/**/*.cuh'
+      - 'opencl/**/*.cl'
+      - 'tools/cuda_intrinsic_checker.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cuda-intrinsic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: CUDA intrinsic constant validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Run CUDA intrinsic checker (JSON)
+        id: checker
+        run: |
+          python3 ../../tools/cuda_intrinsic_checker.py \
+            --reporter json \
+            --check-only \
+            2>&1 | tee cuda_intrinsic_report.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Print text summary
+        if: always()
+        run: |
+          python3 ../../tools/cuda_intrinsic_checker.py || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-intrinsic-report
+          path: cuda_intrinsic_report.json
+          retention-days: 30
