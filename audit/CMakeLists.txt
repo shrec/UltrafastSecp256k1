@@ -869,6 +869,12 @@ target_compile_definitions(test_exploit_bip39_mnemonic_standalone PRIVATE STANDA
 add_test(NAME exploit_bip39_mnemonic COMMAND test_exploit_bip39_mnemonic_standalone)
 set_tests_properties(exploit_bip39_mnemonic PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip39")
 
+add_executable(test_exploit_bip39_nfkd_standalone test_exploit_bip39_nfkd.cpp)
+audit_target_defaults(test_exploit_bip39_nfkd_standalone)
+target_compile_definitions(test_exploit_bip39_nfkd_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip39_nfkd COMMAND test_exploit_bip39_nfkd_standalone)
+set_tests_properties(exploit_bip39_nfkd PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip39;nfkd")
+
 add_executable(test_exploit_musig2_standalone test_exploit_musig2.cpp)
 audit_target_defaults(test_exploit_musig2_standalone)
 target_compile_definitions(test_exploit_musig2_standalone PRIVATE STANDALONE_TEST)
@@ -3132,6 +3138,7 @@ add_executable(unified_audit_runner
     test_exploit_bip32_path_overflow.cpp
     test_exploit_bip39_entropy.cpp
     test_exploit_bip39_mnemonic.cpp
+    test_exploit_bip39_nfkd.cpp
     test_exploit_bitcoin_message_signing.cpp
     test_exploit_chacha20_kat.cpp
     test_exploit_chacha20_nonce_reuse.cpp

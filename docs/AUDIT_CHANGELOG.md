@@ -7,6 +7,40 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-30 — BIP-39 NFKD normalization (spec compliance)
+
+### UTF-8 NFKD normalization added to BIP-39 seed derivation
+
+- **Files added:** `cpu/include/secp256k1/unicode_nfkd.hpp`,
+  `cpu/src/unicode_nfkd.cpp`
+- **Files modified:** `cpu/src/bip39.cpp`, `cpu/CMakeLists.txt`
+- **Audit test added:** `audit/test_exploit_bip39_nfkd.cpp`
+- **Issue:** BIP-39 spec mandates `PBKDF2(password=NFKD(mnemonic),
+  salt="mnemonic"+NFKD(passphrase))`. The previous implementation passed
+  mnemonic and passphrase directly to PBKDF2 without NFKD normalization.
+  This caused divergence: a passphrase encoded as NFC "café" (U+00E9 é)
+  produced a different seed than the NFD form (e + U+0301 combining acute),
+  violating the BIP-39 spec and breaking interoperability with Trezor,
+  Ledger, and other compliant hardware wallets.
+- **Fix:** `bip39_mnemonic_to_seed` now calls `nfkd_normalize()` on both
+  `mnemonic` and `passphrase` before PBKDF2. Normalized copies are
+  securely erased after use.
+- **Platform dispatch:** Windows (NormalizeString API), macOS
+  (CFStringNormalize), Linux/other (table-based, Unicode 15.0, no external
+  deps). CoreFoundation linked on macOS via CMakeLists.
+- **Table coverage:** U+00A0-U+00BF (spacing modifiers, fractions,
+  superscripts), U+00C0-U+00FF (Latin-1 precomposed), U+0100-U+017F
+  (Latin Extended-A), U+0180-U+024F (Latin Extended-B), U+02B0-U+02FF
+  (spacing modifier letters), U+2126/212A/212B (Ohm/Kelvin/Angstrom),
+  U+2153-U+215F (number forms), U+FB00-U+FB06 (fi/fl/ff ligatures).
+- **Canonical ordering:** CCC-based bubble sort applied after decomposition
+  (covers U+0300-U+036F combining diacritical marks).
+- **Backward compatible:** ASCII-only strings bypass normalization entirely
+  (fast path). The Trezor KAT "abandon×11 about" + "TREZOR" seed first
+  bytes 0xC5 0x52 are verified in the audit test.
+
+---
+
 ## 2026-04-30 — RIPEMD-160 r2[46,47] swap in OpenCL/Metal
 
 ### [N7] RIPEMD-160 right-chain message schedule: r2[46] and r2[47] swapped in OpenCL + Metal

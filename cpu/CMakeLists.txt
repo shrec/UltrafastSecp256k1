@@ -32,6 +32,7 @@ set(SECP256K1_SOURCES
     src/batch_verify.cpp # Batch ECDSA/Schnorr verification
     src/bip32.cpp        # BIP-32 HD key derivation
     src/bip39.cpp        # BIP-39 mnemonic seed phrases
+    src/unicode_nfkd.cpp # UTF-8 NFKD normalization (BIP-39 spec compliance)
     src/musig2.cpp       # MuSig2 multi-signatures (BIP-327)
     src/ecdh.cpp         # ECDH key exchange
     src/ecies.cpp        # ECIES encryption (AES-256-CTR + HMAC-SHA256)
@@ -436,12 +437,14 @@ target_compile_definitions(${SECP256K1_LIB_NAME}
         $<$<CXX_COMPILER_ID:MSVC>:SECP256K1_NO_INT128=1>  # MSVC has no __int128
 )
 
-# Platform CSPRNG libraries (ECIES + BIP-39)
+# Platform CSPRNG libraries (ECIES + BIP-39) + CoreFoundation for NFKD on macOS
 if(WIN32)
     target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC bcrypt)
 elseif(APPLE)
     find_library(SECURITY_FRAMEWORK Security REQUIRED)
-    target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC ${SECURITY_FRAMEWORK})
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC ${SECURITY_FRAMEWORK}
+                                                        ${COREFOUNDATION_FRAMEWORK})
 endif()
 
 # Optional OpenMP support — OFF by default to preserve zero-dependency builds.

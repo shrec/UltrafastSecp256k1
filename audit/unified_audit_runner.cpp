@@ -278,6 +278,7 @@ int test_exploit_bip32_parent_fingerprint_confusion_run();
 int test_exploit_bip32_path_overflow_run();
 int test_exploit_bip39_entropy_run();
 int test_exploit_bip39_mnemonic_run();
+int test_exploit_bip39_nfkd_run();
 int test_exploit_bitcoin_message_signing_run();
 int test_exploit_chacha20_kat_run();
 int test_exploit_kat_corpus_run();
@@ -658,6 +659,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip32_path_overflow",    "BIP-32 Path Parser Integer Overflow",         "exploit_poc", test_exploit_bip32_path_overflow_run, false },
     { "exploit_bip39_entropy",          "BIP-39 Mnemonic Security Properties",         "exploit_poc", test_exploit_bip39_entropy_run, false },
     { "exploit_bip39_mnemonic",         "BIP-39 Mnemonic Security Properties",         "exploit_poc", test_exploit_bip39_mnemonic_run, false },
+    { "exploit_bip39_nfkd",             "BIP-39 NFKD Normalization Correctness",       "exploit_poc", test_exploit_bip39_nfkd_run, false },
     { "exploit_btc_msg_signing",        "Bitcoin Message Signing Security",             "exploit_poc", test_exploit_bitcoin_message_signing_run, false },
     { "exploit_chacha20_kat",           "ChaCha20-Poly1305 RFC 8439 KAT",              "exploit_poc", test_exploit_chacha20_kat_run, false },
     { "exploit_kat_corpus",             "KAT Corpus — runtime JSON loader (all layers)", "exploit_poc", test_exploit_kat_corpus_run, false },
