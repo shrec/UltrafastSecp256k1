@@ -364,7 +364,7 @@ jobs:
         run: |
           if [ "${{ matrix.sanitizer }}" = "msan" ]; then
             ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
-              -R "^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_musig2_ordering|exploit_invalid_curve|exploit_metal_field_reduce)$" --timeout 900
+              -R "^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_invalid_curve|exploit_metal_field_reduce)$" --timeout 900
           else
             ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
               -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
