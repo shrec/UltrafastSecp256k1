@@ -86,6 +86,13 @@ set_tests_properties(zeroization PROPERTIES TIMEOUT 900)
 add_executable(test_fault_zk_adaptor test_fault_zk_adaptor.cpp)
 audit_target_defaults(test_fault_zk_adaptor)
 target_compile_definitions(test_fault_zk_adaptor PRIVATE STANDALONE_TEST)
+# Disable LTO for this target: the ZK/adaptor headers produce very large
+# ThinLTO translation units. Apple ld (used on macOS Release builds) crashes
+# with SIGABRT when linking this target under ThinLTO — a known ld64 OOM
+# bug triggered by the complex template expansions in zk.hpp + adaptor.hpp.
+# The corrected mul_wide (j=0) generates different code that tips ld over the
+# limit. Disabling LTO here only affects this single audit target.
+set_target_properties(test_fault_zk_adaptor PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
 add_test(NAME fault_zk_adaptor COMMAND test_fault_zk_adaptor)
 set_tests_properties(fault_zk_adaptor PROPERTIES TIMEOUT 1200)
 
