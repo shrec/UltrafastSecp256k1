@@ -3606,7 +3606,9 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 500
                 --json -o "${CMAKE_BINARY_DIR}/py_differential_report.json")
     if(WIN32)
-        set(_py_diff_timeout 360)
+        # Windows: ctypes DLL loading + Defender scan on first load adds 3-5min overhead.
+        # 360s was insufficient on CI (timed out). Raise to 600s.
+        set(_py_diff_timeout 600)
     else()
         set(_py_diff_timeout 180)
     endif()
