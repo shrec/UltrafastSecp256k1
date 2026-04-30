@@ -7,6 +7,28 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-04-30 — RIPEMD-160 r2[46,47] swap in OpenCL/Metal
+
+### [N7] RIPEMD-160 right-chain message schedule: r2[46] and r2[47] swapped in OpenCL + Metal
+
+- **Files:** `opencl/kernels/secp256k1_hash160.cl:148`, `metal/shaders/secp256k1_hash160.h:145`
+- **Bug:** The third segment of the RIPEMD-160 right-chain selection array (`RIPEMD_R2` /
+  `RMD_R2`) ended with `10,0,13,4` instead of the spec-correct `10,0,4,13`.
+  r2[46]=13 and r2[47]=4 when both should be r2[46]=4, r2[47]=13.
+- **Standard reference:** ISO/IEC 10118-3, Round 3 right-chain schedule (positions 32–47):
+  `15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13`. Position 46=4, 47=13.
+- **CPU and CUDA unaffected:** `cpu/src/hash_accel.cpp` and `cuda/include/hash160.cuh`
+  had the correct values `10,0,4,13`.
+- **Impact:** All hash160 = RIPEMD-160(SHA256(x)) computations on OpenCL and Metal backends
+  produced wrong hashes. Any public-key-to-address derivation via OpenCL/Metal would yield
+  an incorrect Bitcoin address. The CPU and CUDA paths were unaffected and correct.
+- **Root cause:** Transcription error — not an endianness issue.
+- **Fix:** `10,0,13,4` → `10,0,4,13` in both OpenCL and Metal constants arrays.
+- **Detection:** `test_gpu_ops_equivalence.cpp` `test_hash160_equiv()` compares GPU vs CPU
+  hash160 and would have caught this on any CI run with a GPU present.
+
+---
+
 ## 2026-04-30 — CUDA #256 second instance + intrinsic checker system
 
 ### [N6] Second instance of issue #256: wrong `__byte_perm` selector in bench
