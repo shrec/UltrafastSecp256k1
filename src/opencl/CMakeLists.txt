@@ -101,7 +101,7 @@ target_include_directories(secp256k1_opencl
     PRIVATE
         ${OpenCL_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 target_link_libraries(secp256k1_opencl
@@ -276,7 +276,7 @@ target_link_libraries(opencl_audit_runner PRIVATE
 target_include_directories(opencl_audit_runner PRIVATE
     ${OpenCL_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 # Copy kernel files next to the audit runner binary for runtime loading

@@ -65,7 +65,7 @@ add_library(secp256k1_gpu_host STATIC
 target_include_directories(secp256k1_gpu_host
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/../include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 # Pass backend availability defines

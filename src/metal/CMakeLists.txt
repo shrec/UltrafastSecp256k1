@@ -21,7 +21,7 @@ if(SECP256K1_BUILD_TESTS)
 
     target_include_directories(metal_host_test PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include
         ${CMAKE_CURRENT_SOURCE_DIR}/..
     )
 
@@ -65,7 +65,7 @@ add_library(secp256k1_metal_lib STATIC
 
 target_include_directories(secp256k1_metal_lib PUBLIC
     include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 target_link_libraries(secp256k1_metal_lib PRIVATE
@@ -126,7 +126,7 @@ add_executable(metal_audit_runner
 
 target_include_directories(metal_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 

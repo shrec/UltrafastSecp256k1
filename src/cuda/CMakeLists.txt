@@ -29,7 +29,7 @@ if(_GPU_LANG STREQUAL "CUDA")
 endif()
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+include_directories(include ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 
 # Source files -- .cu extension works with both nvcc and hipcc
 set(_GPU_SOURCES src/secp256k1.cu)
@@ -58,7 +58,7 @@ endif()
 
 target_include_directories(secp256k1_cuda_lib PUBLIC
     include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 if(SECP256K1_CUDA_USE_MONTGOMERY)
@@ -109,7 +109,7 @@ add_executable(test_bip324_kat src/test_bip324_kat.cu)
 target_link_libraries(test_bip324_kat PRIVATE secp256k1_cuda_lib)
 target_include_directories(test_bip324_kat PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 set_target_properties(test_bip324_kat PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
