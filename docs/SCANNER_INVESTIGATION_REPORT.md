@@ -1,7 +1,7 @@
 # dev_bug_scanner Investigation Report — 2026-04-21
 
 > Scope: deep-dive triage of every non-FP signal returned by
-> `scripts/dev_bug_scanner.py` after the 2026-04-21 false-positive
+> `ci/dev_bug_scanner.py` after the 2026-04-21 false-positive
 > reduction pass. Goal: confirm whether any signal represents a real,
 > exploitable bug in `dev` HEAD.
 
@@ -17,7 +17,7 @@
 
 ## Method
 
-1. Ran scanner on `dev` HEAD: `python3 scripts/dev_bug_scanner.py --json`.
+1. Ran scanner on `dev` HEAD: `python3 ci/dev_bug_scanner.py --json`.
 2. For every MEDIUM finding, queried the source-graph
    (`focus`, `bodygrep`, `find`) before opening any file.
 3. Cross-checked each finding against
@@ -184,7 +184,7 @@ issues.
 
 ```bash
 cd libs/UltrafastSecp256k1
-python3 scripts/dev_bug_scanner.py --json -o /tmp/scan.json
+python3 ci/dev_bug_scanner.py --json -o /tmp/scan.json
 python3 -c "import json; r=json.load(open('/tmp/scan.json')); \
   print(len(r), 'findings;', \
   sum(1 for f in r if f['severity']=='HIGH'), 'HIGH;', \

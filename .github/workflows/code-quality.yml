@@ -2,7 +2,7 @@
 #
 # Runs all three code-quality scanners on every push/PR to dev/main.
 # Fails the workflow if any severity count exceeds the committed baseline
-# in scripts/code_quality_baseline.json.
+# in ci/code_quality_baseline.json.
 
 name: Code Quality
 
@@ -39,7 +39,7 @@ jobs:
 
       - name: Run code-quality scanners (regression gate)
         run: |
-          python3 scripts/run_code_quality.py \
+          python3 ci/run_code_quality.py \
             --fail-on-regression \
             --github-summary \
             --json -o code_quality_report.json
@@ -48,7 +48,7 @@ jobs:
 
       - name: Human-readable summary
         if: always()
-        run: python3 scripts/run_code_quality.py 2>/dev/null || true
+        run: python3 ci/run_code_quality.py 2>/dev/null || true
         env:
           NO_COLOR: "1"
 

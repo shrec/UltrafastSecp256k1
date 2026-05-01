@@ -16,7 +16,7 @@ The project has two Docker-based local CI setups:
 
 | System | Entry Point | Image | Key Strength |
 |--------|-------------|-------|-------------|
-| `Dockerfile.local-ci` + `scripts/local-ci.sh` | `bash scripts/local-ci.sh --all` | `ubuntu:24.04` (pinned digest) | Richer (cppcheck, valgrind-ct, dudect, bench, HTML reports) |
+| `Dockerfile.local-ci` + `ci/local-ci.sh` | `bash ci/local-ci.sh --all` | `ubuntu:24.04` (pinned digest) | Richer (cppcheck, valgrind-ct, dudect, bench, HTML reports) |
 | `docker/Dockerfile.ci` + `docker-compose.ci.yml` | `docker compose -f docker-compose.ci.yml run <service>` | `ubuntu:24.04` (pinned digest) | Broader (ARM64, WASM, Emscripten) |
 
 **Recommendation:** Merge into a single system (using `docker/Dockerfile.ci` as the base, adding missing jobs from `local-ci.sh`).

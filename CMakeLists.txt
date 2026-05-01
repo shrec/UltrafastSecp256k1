@@ -437,7 +437,7 @@ if(SECP256K1_INSTALL)
 endif()
 
 # -- Code quality targets (local dev + CI) -----------------------------------
-set(UFSECP_CODE_QUALITY_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_code_quality.py")
+set(UFSECP_CODE_QUALITY_RUNNER "${CMAKE_CURRENT_SOURCE_DIR}/ci/run_code_quality.py")
 if(Python3_Interpreter_FOUND AND EXISTS "${UFSECP_CODE_QUALITY_RUNNER}")
     # Human-readable report (cmake --build build --target code-quality)
     add_custom_target(code-quality

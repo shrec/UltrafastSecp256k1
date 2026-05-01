@@ -1,6 +1,6 @@
 # Supply Chain Local Parity (CAAS H-6)
 
-> Companion document for `scripts/supply_chain_gate.py`. Lists which P15
+> Companion document for `ci/supply_chain_gate.py`. Lists which P15
 > supply-chain controls run **locally without GitHub services**, which
 > require GitHub, and how the gap is mitigated.
 
@@ -34,7 +34,7 @@ should be able to detect the most damaging supply-chain regressions
 # reproducible-build digest, SLSA provenance, artifact hash manifest,
 # build hardening flags). All checks are filesystem-local and need no
 # GitHub credentials.
-python3 scripts/supply_chain_gate.py --json -o supply_chain_local.json
+python3 ci/supply_chain_gate.py --json -o supply_chain_local.json
 ```
 
 Exit code is non-zero if any local-runnable control fails. The
@@ -62,7 +62,7 @@ provenance bundle, etc.).
 ## Acceptance
 
 A reviewer with no network access can run
-`scripts/supply_chain_gate.py` on a clean clone and:
+`ci/supply_chain_gate.py` on a clean clone and:
 
 1. Enumerate every workflow action and its pinned SHA.
 2. Diff the current SBOM against any prior committed SBOM.

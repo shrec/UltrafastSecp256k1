@@ -13,7 +13,7 @@
 **Purpose:** Catch obvious mistakes before commit.
 
 ```bash
-python3 scripts/preflight.py --security --abi --drift --autonomy
+python3 ci/preflight.py --security --abi --drift --autonomy
 ```
 
 **What runs:**
@@ -72,12 +72,12 @@ cross-platform, and performance regression detection.
 | `ctest -L fuzz` (extended budget) | Fuzzing | 10–30 min |
 | `ctest -L sanitizer` (ASan + UBSan) | Memory safety | 5–10 min |
 | `ctest -L benchmark` | Performance | 3–5 min |
-| `scripts/cross_compiler_ct_stress.sh` | Cross-uarch CT | 10–30 min |
-| `scripts/cachegrind_ct_analysis.sh` | CT IR analysis | 5–10 min |
+| `ci/cross_compiler_ct_stress.sh` | Cross-uarch CT | 10–30 min |
+| `ci/cachegrind_ct_analysis.sh` | CT IR analysis | 5–10 min |
 | GPU backend tests (CUDA / OpenCL / Metal) | GPU parity | hardware-dependent |
-| `scripts/artifact_analyzer.py diff` | Regression diff | < 1 min |
-| `scripts/mutation_kill_rate.py` | Mutation testing | 10–30 min |
-| `scripts/perf_regression_check.sh` | Performance gate | 3–5 min |
+| `ci/artifact_analyzer.py diff` | Regression diff | < 1 min |
+| `ci/mutation_kill_rate.py` | Mutation testing | 10–30 min |
+| `ci/perf_regression_check.sh` | Performance gate | 3–5 min |
 | Cross-library comparison | Benchmarking | 5 min |
 
 **Gate behavior:**
@@ -123,7 +123,7 @@ Triggered when changes touch only:
 |---|---|
 | `docs/**` | Documentation only |
 | `bindings/**` | Language bindings |
-| `scripts/**` | Tooling/automation |
+| `ci/**` | Tooling/automation |
 | `benchmarks/**` | Performance measurement |
 | `examples/**` | Example code |
 | `.github/**` | CI config |

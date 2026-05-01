@@ -20,8 +20,8 @@
       "resulting_changes": [
         "docs/ASSURANCE_LEDGER.md",
         "docs/ASSURANCE_CLAIMS.json",
-        "scripts/validate_assurance.py",
-        "scripts/preflight.py"
+        "ci/validate_assurance.py",
+        "ci/preflight.py"
       ],
       "notes": "Converted into a graph-backed stale-claim preflight gate and a truth-aligned evidence fix."
     },
@@ -38,7 +38,7 @@
         "docs/FEATURE_ASSURANCE_LEDGER.md",
         "include/ufsecp/ufsecp.h",
         "include/ufsecp/ufsecp_gpu.h",
-        "scripts/validate_assurance.py"
+        "ci/validate_assurance.py"
       ],
       "resulting_changes": [
         "docs/FEATURE_ASSURANCE_LEDGER.md"

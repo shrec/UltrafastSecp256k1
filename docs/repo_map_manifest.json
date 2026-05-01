@@ -108,8 +108,8 @@
       "summary": "Continuous Audit as a Service, exploit PoCs, source graph, and evidence bundles.",
       "paths": [
         "audit/",
-        "scripts/caas_runner.py",
-        "scripts/audit_gate.py",
+        "ci/caas_runner.py",
+        "ci/audit_gate.py",
         "tools/source_graph_kit/",
         ".github/workflows/"
       ],

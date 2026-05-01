@@ -2,7 +2,7 @@
 
 **UltrafastSecp256k1 current repository state** -- Comprehensive Test Map for Auditors
 
-The owner-grade audit bundle and `scripts/validate_assurance.py` are the
+The owner-grade audit bundle and `ci/validate_assurance.py` are the
 authoritative source for live target counts. When a narrative summary below
 lags behind the generated validation surfaces, prefer the generated counts.
 
@@ -713,18 +713,18 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 
 ---
 
-## Python Audit Harnesses (`scripts/`)
+## Python Audit Harnesses (`ci/`)
 
 | Target | Source | Description |
 |--------|--------|-------------|
-| `py_dev_bug_scan` | `scripts/dev_bug_scanner.py` | Static analysis for common API misuse patterns |
-| `py_differential_crossimpl` | `scripts/differential_cross_impl.py` | Differential cross-implementation testing via Python FFI |
-| `py_hot_path_alloc_scan` | `scripts/hot_path_alloc_scanner.py` | Hot-path allocation scanner: heap allocations in critical paths |
-| `py_invalid_input_grammar` | `scripts/invalid_input_grammar.py` | Grammar-guided malformed input generation |
-| `py_nonce_bias` | `scripts/nonce_bias_detector.py` | Statistical analysis of ECDSA nonce distribution |
-| `py_rfc6979_spec` | `scripts/rfc6979_spec_verifier.py` | RFC 6979 deterministic nonce KAT compliance |
-| `py_semantic_props` | `scripts/semantic_props.py` | Algebraic invariant property-based checking |
-| `py_stateful_sequences` | `scripts/stateful_sequences.py` | Multi-call API state machine exploration |
+| `py_dev_bug_scan` | `ci/dev_bug_scanner.py` | Static analysis for common API misuse patterns |
+| `py_differential_crossimpl` | `ci/differential_cross_impl.py` | Differential cross-implementation testing via Python FFI |
+| `py_hot_path_alloc_scan` | `ci/hot_path_alloc_scanner.py` | Hot-path allocation scanner: heap allocations in critical paths |
+| `py_invalid_input_grammar` | `ci/invalid_input_grammar.py` | Grammar-guided malformed input generation |
+| `py_nonce_bias` | `ci/nonce_bias_detector.py` | Statistical analysis of ECDSA nonce distribution |
+| `py_rfc6979_spec` | `ci/rfc6979_spec_verifier.py` | RFC 6979 deterministic nonce KAT compliance |
+| `py_semantic_props` | `ci/semantic_props.py` | Algebraic invariant property-based checking |
+| `py_stateful_sequences` | `ci/stateful_sequences.py` | Multi-call API state machine exploration |
 
 ---
 

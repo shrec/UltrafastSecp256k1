@@ -137,7 +137,7 @@ Accepted, rejected, and unconfirmed AI review outcomes should be recorded in:
 
 The canonical append utility is:
 
-- `scripts/log_ai_review_event.py`
+- `ci/log_ai_review_event.py`
 
 Required fields per event:
 

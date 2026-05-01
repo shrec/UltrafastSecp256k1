@@ -222,7 +222,7 @@ hardware:
 3. Audit runner output exists for the same hardware and is reproducible from the recorded command path.
 4. Driver/runtime metadata is archived, including ROCm driver version and AMD device model.
 5. Any published numbers identify the exact device class and do not reuse CUDA labels or NVIDIA-only evidence.
-6. `python3 scripts/preflight.py --gpu-evidence` and `python3 scripts/validate_assurance.py` pass after the evidence update.
+6. `python3 ci/preflight.py --gpu-evidence` and `python3 ci/validate_assurance.py` pass after the evidence update.
 
 Until those conditions are met, ROCm/HIP remains deliberately fail-closed for
 public benchmark and validation claims. This is a containment rule for future
@@ -232,8 +232,8 @@ validation surfaces.
 This checklist is enforceable through:
 
 ```bash
-python3 scripts/preflight.py --gpu-evidence
-python3 scripts/validate_assurance.py
+python3 ci/preflight.py --gpu-evidence
+python3 ci/validate_assurance.py
 ```
 
 ---

@@ -37,7 +37,7 @@
     {
       "id": "disasm-scan",
       "name": "Disassembly branch scan",
-      "tool": "scripts/verify_ct_disasm.sh",
+      "tool": "ci/verify_ct_disasm.sh",
       "status": "active",
       "blocking": false,
       "ci_workflow": null,

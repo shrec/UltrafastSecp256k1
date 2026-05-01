@@ -529,7 +529,7 @@ jobs:
 
       - name: Build XCFramework
         run: |
-          chmod +x scripts/build_xcframework.sh
+          chmod +x ci/build_xcframework.sh
           ./scripts/build_xcframework.sh
 
       - name: Upload XCFramework

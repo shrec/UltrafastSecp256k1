@@ -31,7 +31,7 @@ Validated bindings:
 
 ### Binding validation
 
-- Unified the shared binding validator at `scripts/validate_bindings.sh` across the stable bindings.
+- Unified the shared binding validator at `ci/validate_bindings.sh` across the stable bindings.
 - Default validation now covers smoke suites for C#, Java, Swift, Python, Go, Rust, Node.js, PHP, Ruby, and Dart.
 - React Native now has a default mock-bridge contract smoke path in plain Node.js.
 - Full native React Native smoke remains available as an opt-in lane via `UFSECP_VALIDATE_REACT_NATIVE=1`.

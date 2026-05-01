@@ -16,7 +16,7 @@
 # that the CT implementation has a methodology-dependent blind spot.
 #
 # Verdict format: each job emits ct-verdict-<tool>.json to a workflow artifact.
-# The `agree` job downloads both and runs scripts/ct_independence_check.py.
+# The `agree` job downloads both and runs ci/ct_independence_check.py.
 # ============================================================================
 
 name: CT Tool Independence (G-8)
@@ -31,8 +31,8 @@ on:
       - 'cpu/src/schnorr.cpp'
       - 'include/**'
       - 'audit/**'
-      - 'scripts/valgrind_ct_check.sh'
-      - 'scripts/ct_independence_check.py'
+      - 'ci/valgrind_ct_check.sh'
+      - 'ci/ct_independence_check.py'
       - '.github/workflows/ct-independence.yml'
   pull_request:
     branches: [main]
@@ -111,7 +111,7 @@ jobs:
         run: |
           mkdir -p ct-verdicts
           set +e
-          bash scripts/valgrind_ct_check.sh build-vg 2>&1 | tee ct-verdicts/valgrind-output.txt
+          bash ci/valgrind_ct_check.sh build-vg 2>&1 | tee ct-verdicts/valgrind-output.txt
           VG_EXIT=$?
           set -e
 
@@ -270,7 +270,7 @@ jobs:
 
       - name: Run CT independence check (G-8 gate)
         run: |
-          python3 scripts/ct_independence_check.py \
+          python3 ci/ct_independence_check.py \
             ct-verdicts/ct-verdict-valgrind.json \
             ct-verdicts/ct-verdict-dudect.json
 
@@ -289,7 +289,7 @@ jobs:
             echo "| $TOOL | $METHOD | $VERDICT |" >> $GITHUB_STEP_SUMMARY
           done
           echo "" >> $GITHUB_STEP_SUMMARY
-          if python3 scripts/ct_independence_check.py ct-verdicts/ct-verdict-valgrind.json ct-verdicts/ct-verdict-dudect.json >> $GITHUB_STEP_SUMMARY 2>&1; then
+          if python3 ci/ct_independence_check.py ct-verdicts/ct-verdict-valgrind.json ct-verdicts/ct-verdict-dudect.json >> $GITHUB_STEP_SUMMARY 2>&1; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**PASS: Tools agree — no CT leakage detected**" >> $GITHUB_STEP_SUMMARY
           else

@@ -43,7 +43,7 @@ Each row in this matrix links:
 4. **Validation Method** -- how it is verified (deterministic, statistical, differential)
 5. **Test Location** -- exact file and function/line where evidence is produced
 6. **Status** -- [OK] Verified | [!] Partial | [FAIL] Gap
-7. **Formal invariant spec** -- machine-readable invariant definitions for critical operations in `docs/FORMAL_INVARIANTS_SPEC.json`, validated by `scripts/check_formal_invariants.py`
+7. **Formal invariant spec** -- machine-readable invariant definitions for critical operations in `docs/FORMAL_INVARIANTS_SPEC.json`, validated by `ci/check_formal_invariants.py`
 
 ---
 
@@ -576,7 +576,7 @@ engine (`:check`) or can be discharged by SAW.
 
 **Location**: `formal/cryptol/`  
 **Run**: `cryptol --batch formal/cryptol/<file>.cry` (each run prints PASS/FAIL per property)  
-**CI**: `python3 scripts/unified_audit_runner.py --module cryptol_specs` (advisory — skipped if cryptol not installed)
+**CI**: `python3 ci/unified_audit_runner.py --module cryptol_specs` (advisory — skipped if cryptol not installed)
 
 ### 17a — Field Arithmetic (`Secp256k1Field.cry` — 15 properties)
 
@@ -651,10 +651,10 @@ engine (`:check`) or can be discharged by SAW.
 
 All 39 properties pass Cryptol QuickCheck (`:check`) over random inputs.
 For bounded or exhaustive proofs, use SAW with the same `.cry` files as input:
-`saw scripts/saw_verify_field.saw` (not yet in CI — see `formal/cryptol/README.md`).
+`saw ci/saw_verify_field.saw` (not yet in CI — see `formal/cryptol/README.md`).
 
 ---
 
 *Generated: 2026-04-06*
 *Invariant source: [INVARIANTS.md](INVARIANTS.md)*
-*This document is auto-updatable via `scripts/generate_traceability.sh`*
+*This document is auto-updatable via `ci/generate_traceability.sh`*

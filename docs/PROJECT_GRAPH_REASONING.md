@@ -18,7 +18,7 @@ used by humans and AI agents to reason about:
 ## Rebuild
 
 ```bash
-python3 scripts/build_project_graph.py --rebuild
+python3 ci/build_project_graph.py --rebuild
 ```
 
 ## What The Graph Contains
@@ -155,27 +155,27 @@ proof of correctness. It is useful for answering:
 ### Structural
 
 ```bash
-python3 scripts/query_graph.py context cpu/src/ct_sign.cpp
-python3 scripts/query_graph.py impact cpu/src/ecdh.cpp
-python3 scripts/query_graph.py callgraph pippenger_msm
-python3 scripts/query_graph.py coverage ecdsa_sign
+python3 ci/query_graph.py context cpu/src/ct_sign.cpp
+python3 ci/query_graph.py impact cpu/src/ecdh.cpp
+python3 ci/query_graph.py callgraph pippenger_msm
+python3 ci/query_graph.py coverage ecdsa_sign
 ```
 
 ### Semantic
 
 ```bash
-python3 scripts/query_graph.py tags
-python3 scripts/query_graph.py tag constant_time
-python3 scripts/query_graph.py symbol ecdsa_sign
+python3 ci/query_graph.py tags
+python3 ci/query_graph.py tag constant_time
+python3 ci/query_graph.py symbol ecdsa_sign
 ```
 
 ### Optimization / Audit Triage
 
 ```bash
-python3 scripts/query_graph.py optimize 20
-python3 scripts/query_graph.py risk 20
-python3 scripts/query_graph.py gpuwork 20
-python3 scripts/query_graph.py fragile 20
+python3 ci/query_graph.py optimize 20
+python3 ci/query_graph.py risk 20
+python3 ci/query_graph.py gpuwork 20
+python3 ci/query_graph.py fragile 20
 ```
 
 ## Recommended Workflow
@@ -183,32 +183,32 @@ python3 scripts/query_graph.py fragile 20
 ### Before editing a file
 
 ```bash
-python3 scripts/query_graph.py context <file>
-python3 scripts/query_graph.py impact <file>
+python3 ci/query_graph.py context <file>
+python3 ci/query_graph.py impact <file>
 ```
 
 ### Before touching secret-bearing code
 
 ```bash
-python3 scripts/query_graph.py security <file>
-python3 scripts/query_graph.py fragile 20
-python3 scripts/query_graph.py tag constant_time
+python3 ci/query_graph.py security <file>
+python3 ci/query_graph.py fragile 20
+python3 ci/query_graph.py tag constant_time
 ```
 
 ### Before changing the C ABI
 
 ```bash
-python3 scripts/query_graph.py routing <name>
-python3 scripts/query_graph.py bindings
-python3 scripts/query_graph.py tag ffi_surface
+python3 ci/query_graph.py routing <name>
+python3 ci/query_graph.py bindings
+python3 ci/query_graph.py tag ffi_surface
 ```
 
 ### Before proposing an optimization
 
 ```bash
-python3 scripts/query_graph.py optimize 20
-python3 scripts/query_graph.py gpuwork 20
-python3 scripts/query_graph.py risk 20
+python3 ci/query_graph.py optimize 20
+python3 ci/query_graph.py gpuwork 20
+python3 ci/query_graph.py risk 20
 ```
 
 ## Machine-Readable Export
@@ -216,7 +216,7 @@ python3 scripts/query_graph.py risk 20
 The reasoning graph is exported through:
 
 ```bash
-python3 scripts/export_assurance.py -o assurance_report.json
+python3 ci/export_assurance.py -o assurance_report.json
 ```
 
 The exported JSON includes:

@@ -169,7 +169,7 @@ cmake --build build --target bench_bitcoin
 ./build/src/bench/bench_bitcoin -filter="Sign|Verify"
 
 # Manual: Knuth
-# (see scripts/bench_nodes/bench_knuth.sh)
+# (see ci/bench_nodes/bench_knuth.sh)
 ```
 
 ---

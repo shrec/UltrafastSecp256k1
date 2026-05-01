@@ -33,7 +33,7 @@ on:
       - 'compat/**'
       - 'wasm/**'
       - 'bindings/**'
-      - 'scripts/**'
+      - 'ci/**'
       - 'CMakeLists.txt'
       - '.github/workflows/**'
   pull_request:
@@ -64,12 +64,12 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Exploit wiring parity check
-        run: python3 scripts/check_exploit_wiring.py
+        run: python3 ci/check_exploit_wiring.py
       - name: Doc canonical sync check
         run: |
-          python3 scripts/build_canonical_data.py --dry-run
-          python3 scripts/sync_docs_from_canonical.py --dry-run
-          python3 scripts/sync_module_count.py --dry-run
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
 
   # ── Phase 1 Gate ──────────────────────────────────────────────────────────────
   # Preflight (cmake build + code quality scans) runs as its own standalone

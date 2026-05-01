@@ -18,12 +18,12 @@ The FAST layer (`secp256k1::fast::` on CPU, `secp256k1::cuda::` on GPU) is expli
 **Principle**: Any operation that touches secret data (private keys, nonces, intermediate scalars) MUST use `ct::` functions on CPU. GPU operations that accept secret keys (`ecdh_batch`, `bip352_scan_batch`, `bip324_aead_*_batch`) require a trusted single-tenant environment. The default `fast::` namespace is allowed only when all inputs are public.
 
 The repository preflight also consumes graph-linked coverage metadata from
-`scripts/build_project_graph.py`. That metadata records both standalone CTest
+`ci/build_project_graph.py`. That metadata records both standalone CTest
 coverage and selected unified-audit module coverage for core files; it is used
 for coverage-gap reporting and does not replace the executable CT tests.
 
 CT secret-bearing implementation changes are under stricter change control:
-`scripts/check_secret_path_changes.py` requires paired updates to this document
+`ci/check_secret_path_changes.py` requires paired updates to this document
 and `docs/SECURITY_CLAIMS.md` whenever CT-layer secret surfaces change.
 
 ---
@@ -377,9 +377,9 @@ valgrind ./build/tests/test_ct_sidechannel_vg
 
 The CT layer is verified using:
 - **ct-verif LLVM pass** -- deterministic compile-time CT check of `ct_field.cpp`, `ct_scalar.cpp`, `ct_point.cpp`, and `ct_sign.cpp` (`.github/workflows/ct-verif.yml`). If the LLVM pass is unavailable, a fallback IR branch analysis runs.
-- **Valgrind CT taint analysis** -- `scripts/valgrind_ct_check.sh` marks private-key bytes as secret via `MAKE_MEM_UNDEFINED` / `--track-origins=yes` and runs signing + ECDH operations, failing on any secret-derived branch or memory access. Integrated in `.github/workflows/valgrind-ct.yml`.
+- **Valgrind CT taint analysis** -- `ci/valgrind_ct_check.sh` marks private-key bytes as secret via `MAKE_MEM_UNDEFINED` / `--track-origins=yes` and runs signing + ECDH operations, failing on any secret-derived branch or memory access. Integrated in `.github/workflows/valgrind-ct.yml`.
 
-The normalized evidence collector (`scripts/collect_ct_evidence.py --strict`) now treats the expected ct-verif module set as owner-grade blocking: `ct_field`, `ct_scalar`, `ct_point`, and `ct_sign`. A deterministic artifact that omits one of those modules is downgraded from usable proof material to a configured-only gap.
+The normalized evidence collector (`ci/collect_ct_evidence.py --strict`) now treats the expected ct-verif module set as owner-grade blocking: `ct_field`, `ct_scalar`, `ct_point`, and `ct_sign`. A deterministic artifact that omits one of those modules is downgraded from usable proof material to a configured-only gap.
 
 Not yet integrated:
 - **Vale** (F\* verified assembly)
@@ -474,10 +474,10 @@ FROST and MuSig2 remain broader experimental protocol surfaces, but the repo no 
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic
 - [x] **ct-verif** LLVM pass integration for CT verification (`.github/workflows/ct-verif.yml`)
-- [x] **ct-verif: ct_point.cpp** -- point operations are included in `.github/workflows/ct-verif.yml`, and `scripts/collect_ct_evidence.py --strict` treats missing point-module evidence as owner-grade blocking
+- [x] **ct-verif: ct_point.cpp** -- point operations are included in `.github/workflows/ct-verif.yml`, and `ci/collect_ct_evidence.py --strict` treats missing point-module evidence as owner-grade blocking
 - [x] **Multi-uarch dudect** -- x86-64 CI + ARM64 Apple M1 native (`.github/workflows/ct-arm64.yml`)
 - [x] **dudect expansion** to cover FROST/MuSig2 -- `musig2_partial_sign`, `frost_sign`, `frost_lagrange_coefficient`
-- [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`scripts/valgrind_ct_check.sh`, `.github/workflows/valgrind-ct.yml`)
+- [x] **Valgrind CT taint** in CI -- MAKE_MEM_UNDEFINED + --track-origins (`ci/valgrind_ct_check.sh`, `.github/workflows/valgrind-ct.yml`)
 - [ ] **Hardware timing analysis** with oscilloscope-level measurements
 - [ ] **Compiler output audit** for every release at `-O2` and `-O3`
 

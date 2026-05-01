@@ -34,7 +34,7 @@ Exit code `0` = builds match. Exit code `1` = builds differ.
 
 ```bash
 # Requires: cmake, ninja, g++ (or set CC/CXX env vars)
-chmod +x scripts/verify_reproducible_build.sh
+chmod +x ci/verify_reproducible_build.sh
 ./scripts/verify_reproducible_build.sh
 ```
 

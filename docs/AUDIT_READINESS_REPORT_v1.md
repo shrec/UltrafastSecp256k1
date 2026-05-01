@@ -281,7 +281,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 - 108 mathematical invariants cataloged, 107 fully verified
 - 263 unified audit modules across 9 failure classes — single-command reproducible
 - 14 CI workflows enforcing the above on every commit
-- Machine-readable assurance artifacts (`scripts/export_assurance.py`)
+- Machine-readable assurance artifacts (`ci/export_assurance.py`)
 
 > **Every number above is reproducible from source in a single build+run cycle.**
 > This is not a point-in-time finding — it is a continuously enforced assurance perimeter.
@@ -336,10 +336,10 @@ ctest --test-dir build -R ct_sidechannel_smoke -V
 ctest --test-dir build -R exploit -V
 
 # Machine-readable assurance artifact
-python3 scripts/export_assurance.py -o assurance_report.json
+python3 ci/export_assurance.py -o assurance_report.json
 
 # Preflight coherence check (docs + code consistency)
-python3 scripts/preflight.py
+python3 ci/preflight.py
 
 # Sanitizer build (ASan + UBSan)
 cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug \

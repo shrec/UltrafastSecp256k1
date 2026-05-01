@@ -126,7 +126,7 @@ the difference in acceptance behavior could mask an upstream error.
 and `FieldElement::parse_bytes_strict` (rejects inputs >= p) as appropriate
 for each function's semantics. Commit `d427c975`.
 
-**Regression test**: `scripts/check_libsecp_shim_parity.py` was added as a
+**Regression test**: `ci/check_libsecp_shim_parity.py` was added as a
 permanent CI gate. It runs the shim and libsecp256k1 in parallel against a
 systematic set of boundary inputs (values 0, 1, n-1, n, n+1, p-1, p, p+1,
 2^256-1, and random values in each range) for every shim function and fails
@@ -269,7 +269,7 @@ All closed findings have permanent regression tests:
 | Finding | Regression mechanism |
 |---------|---------------------|
 | RR-004 ECDSA r-comparison | Wycheproof tcId 346 + `audit/test_exploit_stark_bank_ecdsa_r.cpp` |
-| Shim parser parity gap | `scripts/check_libsecp_shim_parity.py` (permanent CI gate) |
+| Shim parser parity gap | `ci/check_libsecp_shim_parity.py` (permanent CI gate) |
 | CT default cleanup | CT pipeline (ct-verif, Valgrind, dudect) covering all signing paths, both GCC and Clang |
 | C++20 PUBLIC propagation | CMake consumer compatibility test (C++17 consumer link test) |
 

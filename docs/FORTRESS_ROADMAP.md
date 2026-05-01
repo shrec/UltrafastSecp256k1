@@ -89,8 +89,8 @@ The source graph becomes part of the assurance engine, not just review tooling.
 
 Current progress:
 
-1. Claim-surface graph coverage is validated through `scripts/validate_assurance.py`.
-2. `scripts/preflight.py --claims` exposes graph-driven stale-claim checks locally.
+1. Claim-surface graph coverage is validated through `ci/validate_assurance.py`.
+2. `ci/preflight.py --claims` exposes graph-driven stale-claim checks locally.
 3. Public-surface drift now fails closed when claim evidence resolves on disk but not in the indexed graph.
 4. Workspace graph coverage now explicitly includes the library audit scripts surface so orphan runtime harnesses cannot disappear from discovery at the workspace level.
 
@@ -127,8 +127,8 @@ already validated backends while AMD hardware is absent.
 Current progress:
 
 1. `docs/GPU_BACKEND_EVIDENCE.json` now defines backend status, publishability, and required artifact classes.
-2. `scripts/validate_assurance.py` validates fail-closed ROCm/HIP promotion rules.
-3. `scripts/preflight.py --gpu-evidence` exposes the local gate for backend publishability checks.
+2. `ci/validate_assurance.py` validates fail-closed ROCm/HIP promotion rules.
+3. `ci/preflight.py --gpu-evidence` exposes the local gate for backend publishability checks.
 4. Public narrative surfaces now cross-reference the assurance ledger claim IDs for top-level trust statements.
 5. GPU parity documentation has been reconciled around the real 13/13 CUDA/OpenCL/Metal stable C ABI surface.
 6. ROCm/HIP promotion is now documented as a hardware-backed checklist rather than a vague future task.
@@ -170,8 +170,8 @@ Current progress:
 
 1. `docs/SELF_AUDIT_FAILURE_MATRIX.md` now maps major failure classes to deterministic audit surfaces and named residual-risk notes.
 2. `docs/OWNER_GRADE_AUDIT_TODO.md` now translates the remaining assurance gap into concrete code-and-tooling work for an owner-grade audit class.
-3. `scripts/audit_gate.py` now absorbs `invalid_input_grammar.py`, `stateful_sequences.py`, and `audit_test_quality_scanner.py` into the default fail-closed perimeter.
-4. `scripts/mutation_kill_rate.py` is now exposed through the audit gate as an explicit heavy lane instead of remaining orphan tooling.
+3. `ci/audit_gate.py` now absorbs `invalid_input_grammar.py`, `stateful_sequences.py`, and `audit_test_quality_scanner.py` into the default fail-closed perimeter.
+4. `ci/mutation_kill_rate.py` is now exposed through the audit gate as an explicit heavy lane instead of remaining orphan tooling.
 5. The library graph builder now maps the BIP352 scan-plan audit surface so `ufsecp_bip352_prepare_scan_plan` is no longer allowed to hide behind a missing test-map edge.
 
 Coverage target:

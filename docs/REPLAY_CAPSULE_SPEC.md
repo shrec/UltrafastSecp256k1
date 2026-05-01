@@ -67,8 +67,8 @@ suggestions.
   "replay_commands": [
     "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release",
     "ninja -C build",
-    "python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o caas_report.json",
-    "python3 scripts/verify_external_audit_bundle.py --json"
+    "python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o caas_report.json",
+    "python3 ci/verify_external_audit_bundle.py --json"
   ],
   "expected_evidence_hash": "<SHA-256>",
   "known_residuals": ["RR-001", "RR-002", "RR-003"]
@@ -87,7 +87,7 @@ suggestions.
 | `generated_at` | string | ISO-8601 UTC timestamp of capsule creation, e.g. `"2026-04-27T14:32:00Z"`. |
 | `commit_hash` | string | Full 40-character hex git SHA of the commit that was audited. Must be a real commit reachable from the repository. |
 | `dirty` | boolean | Whether the working tree had uncommitted changes when the capsule was generated. Must be `false` for any release or publicly distributed capsule. |
-| `profile` | string | CAAS profile identifier. Use `"bitcoin-core-backend"` for Bitcoin Core alternative backend evaluations. Other valid values are defined in `scripts/caas_runner.py`. |
+| `profile` | string | CAAS profile identifier. Use `"bitcoin-core-backend"` for Bitcoin Core alternative backend evaluations. Other valid values are defined in `ci/caas_runner.py`. |
 
 ### `build_flags` object
 
@@ -128,7 +128,7 @@ defined by the profile; the capsule records what actually ran.
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Short stable stage identifier, e.g. `"scanner"`, `"audit_gate"`, `"security_autonomy"`. |
-| `script` | string | Python script filename relative to `scripts/`, e.g. `"audit_test_quality_scanner.py"`. |
+| `script` | string | Python script filename relative to `ci/`, e.g. `"audit_test_quality_scanner.py"`. |
 | `exit_code` | integer | Exit code returned by the script. Must be `0` for a passing stage. |
 | `duration_s` | number | Wall-clock execution time in seconds, recorded to one decimal place. |
 | `output_hash` | string | SHA-256 of the combined stdout+stderr of the stage run. A reviewer replaying the stage can verify output matches this hash. |
@@ -157,7 +157,7 @@ An honest capsule records residuals; omitting them is a capsule integrity violat
 
 ## 4. How a Capsule Is Generated
 
-Capsules are produced by `scripts/create_replay_capsule.py`. The script:
+Capsules are produced by `ci/create_replay_capsule.py`. The script:
 
 1. Verifies the working tree is clean (`dirty == false`).
 2. Captures the current git commit hash.
@@ -171,10 +171,10 @@ Capsules are produced by `scripts/create_replay_capsule.py`. The script:
 
 ```bash
 # Generate a capsule for the bitcoin-core-backend profile
-python3 scripts/create_replay_capsule.py --profile bitcoin-core-backend
+python3 ci/create_replay_capsule.py --profile bitcoin-core-backend
 
 # Generate to a custom path
-python3 scripts/create_replay_capsule.py --profile bitcoin-core-backend \
+python3 ci/create_replay_capsule.py --profile bitcoin-core-backend \
     --output /tmp/replay_capsule_$(git rev-parse --short HEAD).json
 ```
 
@@ -188,10 +188,10 @@ The script exits non-zero if:
 
 ## 5. How a Capsule Is Verified
 
-A reviewer who receives a capsule can verify it using `scripts/verify_replay_capsule.py`:
+A reviewer who receives a capsule can verify it using `ci/verify_replay_capsule.py`:
 
 ```bash
-python3 scripts/verify_replay_capsule.py docs/REPLAY_CAPSULE.json
+python3 ci/verify_replay_capsule.py docs/REPLAY_CAPSULE.json
 ```
 
 The verifier checks:
@@ -209,10 +209,10 @@ The verifier checks:
 
 ```bash
 # Strict mode: re-run all stages and compare output hashes
-python3 scripts/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --replay-stages
+python3 ci/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --replay-stages
 
 # JSON output (for CI integration)
-python3 scripts/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --json -o capsule_verify.json
+python3 ci/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --json -o capsule_verify.json
 ```
 
 ---
@@ -267,7 +267,7 @@ A build failure means either an environment mismatch or a genuine build regressi
 Run the profile command from `replay_commands[2]`:
 
 ```bash
-python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o caas_report.json
+python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o caas_report.json
 ```
 
 ### Step 6 — Verify the evidence bundle
@@ -275,13 +275,13 @@ python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o caas_rep
 Run the verification command from `replay_commands[3]`:
 
 ```bash
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 ### Step 7 — Cross-check hashes
 
 ```bash
-python3 scripts/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --replay-stages
+python3 ci/verify_replay_capsule.py docs/REPLAY_CAPSULE.json --replay-stages
 ```
 
 A clean run produces exit code `0` and a JSON report with all checks passing.
@@ -297,7 +297,7 @@ maintainer's.
 
 ## 7. Validation Rules
 
-The following rules are enforced by `scripts/verify_replay_capsule.py`. A capsule that
+The following rules are enforced by `ci/verify_replay_capsule.py`. A capsule that
 violates any of these is considered malformed.
 
 | Rule | Constraint |
@@ -306,7 +306,7 @@ violates any of these is considered malformed.
 | `commit_hash` | Must be exactly 40 lowercase hex characters |
 | `dirty` | Must be the boolean `false` for any capsule presented as a release or audit artifact |
 | `generated_at` | Must parse as a valid ISO-8601 datetime with UTC designator (`Z` or `+00:00`) |
-| `profile` | Must match a profile name known to `scripts/caas_runner.py` |
+| `profile` | Must match a profile name known to `ci/caas_runner.py` |
 | `evidence_bundle_hash` | Must be exactly 64 lowercase hex characters (SHA-256) |
 | `graph_hash` | Must be exactly 64 lowercase hex characters |
 | `expected_evidence_hash` | Must be exactly 64 lowercase hex characters |

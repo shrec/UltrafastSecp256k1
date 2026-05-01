@@ -224,7 +224,7 @@ of CI". Auditors care about the latter.
 - Add a second reproducible-build job using a different runtime
   (e.g. `ubuntu-24.04` vs `nixos-stable` on a self-hosted runner).
 - Both jobs upload artifact SHA-256 + cosign attestation.
-- A new gate (`scripts/multi_ci_repro_check.py`) downloads both
+- A new gate (`ci/multi_ci_repro_check.py`) downloads both
   attestations from the latest run and asserts equality.
 - Doc explains the methodology, accepted divergence sources (timestamp
   embedding, build-id), and accepted toolchain matrix.
@@ -289,7 +289,7 @@ docs. An auditor wants a single join: "for attacker model A targeting
 spec clause C, what PoCs exercise it and what is the residual?"
 
 **What to add.**
-- `scripts/exploit_traceability_join.py`: reads
+- `ci/exploit_traceability_join.py`: reads
   `EXPLOIT_TEST_CATALOG.md`, `THREAT_MODEL.md`, and
   `SPEC_TRACEABILITY_MATRIX.md`; emits a single
   `docs/EXPLOIT_TRACEABILITY_JOIN.md` with one row per (attacker,

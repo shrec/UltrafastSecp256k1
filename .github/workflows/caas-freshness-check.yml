@@ -87,7 +87,7 @@ jobs:
 
           if age_days > MAX_AGE_DAYS:
               print(f"::error::Evidence STALE — bundle is {age_days:.1f} days old (max {MAX_AGE_DAYS} days)")
-              print("::error::Run: python3 scripts/external_audit_bundle.py && git commit")
+              print("::error::Run: python3 ci/external_audit_bundle.py && git commit")
               sys.exit(1)
 
           print(f"::notice::Evidence FRESH — {age_days:.1f} days old (within {MAX_AGE_DAYS}-day threshold)")

@@ -10,16 +10,16 @@ All local builds should go under `out/<profile>` to keep the source tree clean:
 
 ```bash
 # Configure a profile
-python3 scripts/configure_build.py release       # out/release
-python3 scripts/configure_build.py audit         # out/audit
-python3 scripts/configure_build.py debug         # out/debug
+python3 ci/configure_build.py release       # out/release
+python3 ci/configure_build.py audit         # out/audit
+python3 ci/configure_build.py debug         # out/debug
 
 # List all profiles
-python3 scripts/configure_build.py --list
+python3 ci/configure_build.py --list
 
 # Clean all local build artifacts (dry-run first)
-bash scripts/clean_local_artifacts.sh
-bash scripts/clean_local_artifacts.sh --delete
+bash ci/clean_local_artifacts.sh
+bash ci/clean_local_artifacts.sh --delete
 ```
 
 Migration: old `build/`, `build-*`, `build_*` dirs are safe to delete.
@@ -727,4 +727,4 @@ The release build automatically enables supply-chain hardening flags:
 - `-D_FORTIFY_SOURCE=2` (Release builds only) — fortified glibc function wrappers
 - `-fPIE` / `-fPIC` — position-independent code (ASLR support). CMake applies `-fPIC` to shared libraries and `-fPIE` to executables automatically via `CMAKE_POSITION_INDEPENDENT_CODE=ON`; do not pass `-fPIE` globally as it breaks shared library linking.
 
-These are required by the CAAS supply-chain gate (`scripts/supply_chain_gate.py`). To override for embedded/no-OS targets, pass `-DCMAKE_C_FLAGS=-fno-stack-protector` explicitly.
+These are required by the CAAS supply-chain gate (`ci/supply_chain_gate.py`). To override for embedded/no-OS targets, pass `-DCMAKE_C_FLAGS=-fno-stack-protector` explicitly.

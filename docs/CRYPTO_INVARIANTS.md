@@ -192,8 +192,8 @@ rebuilds automatically.
 
 ## Automated Misuse Validation
 
-Misuse patterns documented above are validated by `scripts/check_misuse_resistance.py`.
-Run: `python3 scripts/check_misuse_resistance.py --json`.
+Misuse patterns documented above are validated by `ci/check_misuse_resistance.py`.
+Run: `python3 ci/check_misuse_resistance.py --json`.
 
 This gate checks that every exported ABI function has ≥3 negative/hostile-caller tests,
 covering NULL rejection, zero-edge handling, and invalid-content rejection.

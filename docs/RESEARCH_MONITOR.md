@@ -10,7 +10,7 @@ unmapped, or worth upgrading into deterministic evidence.
 
 ## What it does
 
-The monitor runs `scripts/research_monitor.py` and:
+The monitor runs `ci/research_monitor.py` and:
 
 1. fetches recent secp256k1-related items from external sources
 2. classifies them against `docs/RESEARCH_SIGNAL_MATRIX.json`
@@ -83,7 +83,7 @@ job summary but skips mail delivery.
 ## Local Run
 
 ```bash
-python3 scripts/research_monitor.py \
+python3 ci/research_monitor.py \
   --lookback-days 14 \
   --max-results 10 \
   --output-dir build/research_monitor
@@ -92,7 +92,7 @@ python3 scripts/research_monitor.py \
 Dry-run the mailer locally:
 
 ```bash
-python3 scripts/send_smtp_report.py \
+python3 ci/send_smtp_report.py \
   --subject-file build/research_monitor/mail_subject.txt \
   --body-file build/research_monitor/mail_body.txt \
   --dry-run

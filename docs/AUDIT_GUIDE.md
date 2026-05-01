@@ -335,8 +335,8 @@ cat /tmp/cry_out.json | python3 -c "import sys,json; d=json.load(sys.stdin); pri
 The same `.cry` files are SAW-compatible.  To run bounded proofs (not yet in CI):
 
 ```bash
-saw scripts/saw_verify_field.saw       # Field arithmetic (20 bounded tests)
-saw scripts/saw_verify_point.saw       # Point group axioms
+saw ci/saw_verify_field.saw       # Field arithmetic (20 bounded tests)
+saw ci/saw_verify_point.saw       # Point group axioms
 ```
 
 See `formal/cryptol/README.md` for the full SAW integration roadmap.
@@ -365,5 +365,5 @@ to compare both paths on the same inputs.
 | `opencl/src/opencl_audit_runner.cpp` | OpenCL GPU audit runner (27 modules) |
 | `metal/src/metal_audit_runner.mm` | Metal GPU audit runner (27 modules) |
 | `metal/CMakeLists.txt` | Metal build config (incl. audit runner target) |
-| `scripts/security_autonomy_check.py` | Master Security Autonomy orchestrator (10 gates, score 0-100) |
+| `ci/security_autonomy_check.py` | Master Security Autonomy orchestrator (10 gates, score 0-100) |
 | `docs/SECURITY_AUTONOMY_PLAN.md` | 30-day security autonomy framework and phase plan |

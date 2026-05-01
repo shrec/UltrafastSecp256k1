@@ -54,8 +54,8 @@ jobs:
       - name: Build CAAS audit dashboard (H-9)
         run: |
           mkdir -p docs/generated/html/dashboard
-          python3 scripts/caas_dashboard.py -o docs/generated/html/dashboard/index.html \
-            || python3 scripts/render_audit_dashboard.py -o docs/generated/html/dashboard/index.html \
+          python3 ci/caas_dashboard.py -o docs/generated/html/dashboard/index.html \
+            || python3 ci/render_audit_dashboard.py -o docs/generated/html/dashboard/index.html \
             || echo "<html><body>Dashboard build skipped.</body></html>" \
                > docs/generated/html/dashboard/index.html
 

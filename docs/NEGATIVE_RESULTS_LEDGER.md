@@ -173,7 +173,7 @@ or `Scalar::parse_bytes_strict`, and `FieldElement::parse_bytes_strict`.
 These functions return an error if the input >= n (or >= p for field elements)
 rather than silently reducing. Commit date 2026-04-27.
 
-**Detection**: `scripts/check_libsecp_shim_parity.py` now runs as a permanent
+**Detection**: `ci/check_libsecp_shim_parity.py` now runs as a permanent
 gate, comparing shim behavior against libsecp256k1 reference output on
 boundary inputs.
 

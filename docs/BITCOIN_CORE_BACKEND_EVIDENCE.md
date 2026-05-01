@@ -84,11 +84,11 @@ known gap (see Section 3).
 |-------|----------|---------|---------------|
 | Constant-time ECDSA signing on x86-64: private key and nonce operations route through `secp256k1::ct::*` primitives with no variable-time branches on secret data | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
 | Constant-time Schnorr signing on x86-64: BIP-340 signing uses `secp256k1::ct::schnorr_sign`; aux_rand masking and nonce derivation are CT throughout | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
-| `secp256k1_ecdsa_signature_parse_compact` rejects `r == 0`, `s == 0`, `r >= n`, `s >= n` | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
-| `secp256k1_ec_seckey_verify` rejects `key == 0` and `key >= n` | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
-| `secp256k1_xonly_pubkey_parse` rejects `x >= p` and x-coordinates with no valid y | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
-| `secp256k1_pubkey_parse` rejects the point at infinity and malformed encodings | `scripts/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
-| RFC 6979 deterministic nonce derivation matches the libsecp256k1 reference output on the BIP-340 test vectors and the RFC 6979 ECDSA test vectors | `scripts/rfc6979_spec_verifier.py` | `security-audit.yml` | Every commit |
+| `secp256k1_ecdsa_signature_parse_compact` rejects `r == 0`, `s == 0`, `r >= n`, `s >= n` | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_ec_seckey_verify` rejects `key == 0` and `key >= n` | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_xonly_pubkey_parse` rejects `x >= p` and x-coordinates with no valid y | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| `secp256k1_pubkey_parse` rejects the point at infinity and malformed encodings | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
+| RFC 6979 deterministic nonce derivation matches the libsecp256k1 reference output on the BIP-340 test vectors and the RFC 6979 ECDSA test vectors | `ci/rfc6979_spec_verifier.py` | `security-audit.yml` | Every commit |
 | `ndata` / R-grinding compatibility: `secp256k1_ecdsa_sign` with `ndata != NULL` (extra entropy) produces the same output as libsecp256k1 for the same `ndata` input | `compat/libsecp256k1_shim/src/shim_ecdsa.cpp` (`ecdsa_sign_hedged`) | Manual verified; CI gate planned | 2026-04-27 |
 | The shim layer does not leak C++20 language requirements to consumers: `cmake --print-target-features` shows no C++20 ABI in exported interface | `cmake --print-target-features` output | Build CI (`build.yml`) | Every commit |
 | Context creation calls `ensure_library_integrity()` self-test: `ufsecp_ctx_create` verifies field arithmetic, scalar arithmetic, and generator point before returning | `compat/libsecp256k1_shim/src/shim_context.cpp` | Audit tests (`unified_audit_runner`) | Every commit |
@@ -101,9 +101,9 @@ known gap (see Section 3).
 CT claims are verified using a multi-layer approach. No single tool is treated as
 definitive; all three must pass:
 
-1. **LLVM constant-time verification** (`scripts/collect_ct_evidence.py`) — disassembly
+1. **LLVM constant-time verification** (`ci/collect_ct_evidence.py`) — disassembly
    analysis for conditional branches on secret-derived values.
-2. **Valgrind memcheck with ct-grind** (`scripts/ctgrind_validate.sh`) — marks secret
+2. **Valgrind memcheck with ct-grind** (`ci/ctgrind_validate.sh`) — marks secret
    inputs as uninitialised at the Valgrind level; any data-dependent branch triggers a
    Valgrind error.
 3. **dudect statistical timing** — runs the signing path under varying secret inputs and
@@ -146,7 +146,7 @@ backends, language bindings, and compatibility shims. The fixes are fully docume
   Those fixes (nonce-reuse protection, CT Schnorr path, branchless nonce parity) are included in
   the evidence recorded in `docs/CT_VERIFICATION.md` and covered by `ct-verif.yml`.
 - Strict private-key parsing (`parse_bytes_strict_nonzero`) is now enforced across all shim sign
-  functions — the shim parity check in `scripts/check_libsecp_shim_parity.py` verifies rejection
+  functions — the shim parity check in `ci/check_libsecp_shim_parity.py` verifies rejection
   of `key == 0` and `key >= n` on every commit.
 - Schnorr R x-coordinate zero check (MEDIUM-1) is covered by the updated
   `audit/test_exploit_boundary_sentinels.cpp` exploit test.
@@ -168,26 +168,26 @@ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 
 # Run the bitcoin-core-backend profile
-python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o btc_evidence.json
+python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc_evidence.json
 
 # Verify the evidence bundle
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 ### Individual gate checks
 
 ```bash
 # Parser parity checks (accept/reject behavior vs libsecp256k1)
-python3 scripts/check_libsecp_shim_parity.py
+python3 ci/check_libsecp_shim_parity.py
 
 # Build isolation check (no C++20 leaked to consumers)
-python3 scripts/check_core_build_mode.py
+python3 ci/check_core_build_mode.py
 
 # RFC 6979 nonce derivation vs reference vectors
-python3 scripts/rfc6979_spec_verifier.py
+python3 ci/rfc6979_spec_verifier.py
 
 # CT evidence collection (requires clang-19, valgrind, dudect)
-python3 scripts/collect_ct_evidence.py --cpu-only
+python3 ci/collect_ct_evidence.py --cpu-only
 ```
 
 ### Audit test suite (CPU paths only)
@@ -209,10 +209,10 @@ integrity-pinned in `docs/EXTERNAL_AUDIT_BUNDLE.json` with a SHA-256 hash.
 
 | Artifact | Description |
 |----------|-------------|
-| `docs/EXTERNAL_AUDIT_BUNDLE.json` | Hash-pinned evidence record. The SHA-256 digest is at `docs/EXTERNAL_AUDIT_BUNDLE.sha256`. The verifier script is `scripts/verify_external_audit_bundle.py`. |
+| `docs/EXTERNAL_AUDIT_BUNDLE.json` | Hash-pinned evidence record. The SHA-256 digest is at `docs/EXTERNAL_AUDIT_BUNDLE.sha256`. The verifier script is `ci/verify_external_audit_bundle.py`. |
 | `docs/CT_VERIFICATION.md` | CT pipeline results: LLVM disassembly analysis, ctgrind output, dudect timing results for ECDSA and Schnorr signing. Updated on every CT verification run. |
 | `docs/BACKEND_PARITY.md` | Feature parity matrix across CPU and GPU backends. The CPU column is the relevant one for this profile. |
-| `docs/SPEC_TRACEABILITY_MATRIX.md` | Maps each BIP-340, RFC 6979, and SEC 1/2 specification clause to the implementing source file and the audit module that verifies it. Gate: `scripts/exploit_traceability_join.py --strict`. |
+| `docs/SPEC_TRACEABILITY_MATRIX.md` | Maps each BIP-340, RFC 6979, and SEC 1/2 specification clause to the implementing source file and the audit module that verifies it. Gate: `ci/exploit_traceability_join.py --strict`. |
 | `docs/THREAD_SAFETY.md` | Threading model, thread-safety classification for every public API function, and known limitations. |
 | `docs/ABI_VERSIONING.md` | ABI stability policy, version bump rules, and migration guidance. Relevant to Core's binary compatibility requirements. |
 | `docs/RESIDUAL_RISK_REGISTER.md` | Exhaustive list of open residual risks with justification, status, and owner. Entries RR-001, RR-002, and RR-003 are relevant to this profile. |

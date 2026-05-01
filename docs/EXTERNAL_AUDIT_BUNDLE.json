@@ -3,14 +3,14 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "507ddf0a9740f9010a5428576726f6bab582e4c127014b0818a41766c66a2515",
-      "size": 22318
+      "sha256": "0c434f522fc5bbf67b15519d38def6cc9b27bda7deb2381d471d8ff683e0568e",
+      "size": 22118
     },
     {
       "exists": true,
       "path": "docs/SELF_AUDIT_FAILURE_MATRIX.md",
-      "sha256": "a417f105d7b23401cb790310fdcdfffcf281f908c8ed028ffe74cff9bfe9a38f",
-      "size": 8379
+      "sha256": "22c4580ac8ffe03daad76d75ca9a02cf0ebbb8b90db55c71ddaf4b2f408f9678",
+      "size": 8284
     },
     {
       "exists": true,
@@ -33,20 +33,20 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "c4e7d379b88cb21b4412b1fec09d0f82624f5fae7eca9cc809968b7c5e5caf5a",
-      "size": 49803
+      "sha256": "4e4867b22f6e4730c6928f717f3e121c30347143ad097629b7b9b6af90ba2f0c",
+      "size": 49753
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "4e98374c4e952351bd7a37504994b7518fef1684a5e5cd44c888137edb1dc0c5",
-      "size": 22672
+      "sha256": "d1a4905f6c14b848df30a6f60c2ff29925d5963f8902a42ac80585e388c4952b",
+      "size": 22642
     },
     {
       "exists": true,
       "path": "docs/FFI_HOSTILE_CALLER.md",
-      "sha256": "b52b73d8e32b0c63da03a3593b3050df51e79dc2db293d2eb34ca1e6fe711b74",
-      "size": 10922
+      "sha256": "f6db73982f4eed2142fdf0665304871a17f1ee79984779b28f6b047664e60d59",
+      "size": 10917
     },
     {
       "exists": true,
@@ -211,7 +211,7 @@
           {
             "findings": [
               {
-                "message": "177 files modified/deleted since graph build (2026-04-28T13:16:39)",
+                "message": "283 files modified/deleted since graph build (2026-04-28T13:16:39)",
                 "severity": "WARN"
               },
               {
@@ -251,7 +251,7 @@
           {
             "findings": [
               {
-                "message": "23 CTest targets not in TEST_MATRIX.md: bip324_kat_cuda, exploit_batch_verify_malleability, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_blinding_recovery_hnp",
+                "message": "27 CTest targets not in TEST_MATRIX.md: bip324_kat_cuda, exploit_batch_verify_malleability, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_blinding_recovery_hnp",
                 "severity": "WARN"
               }
             ],
@@ -383,7 +383,7 @@
           {
             "findings": [
               {
-                "message": "17 changed files have matching docs",
+                "message": "91 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -533,7 +533,7 @@
                 "severity": "PASS"
               },
               {
-                "message": "scripts/verify_external_audit_bundle.py present",
+                "message": "ci/verify_external_audit_bundle.py present",
                 "severity": "PASS"
               }
             ],
@@ -621,33 +621,33 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "d922d65da000ec31a37180f19dad5863d9e79b8b",
-            "short": "d922d65da0"
+            "sha": "bfb17e09427008abc1b7a550f0f21398d6041fd9",
+            "short": "bfb17e0942"
           }
         },
-        "generated_at": "2026-05-01T18:43:33.875251+00:00",
+        "generated_at": "2026-05-01T19:04:53.261875+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
             "available": true,
-            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/build",
+            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/build_rel",
             "flags": {
               "CMAKE_BUILD_TYPE": "Release",
-              "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+              "CMAKE_CXX_COMPILER": "clang++-19",
               "CMAKE_CXX_FLAGS": "",
               "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
-              "CMAKE_C_COMPILER": "/usr/bin/cc",
+              "CMAKE_C_COMPILER": "clang-19",
               "CMAKE_C_FLAGS": "",
               "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG"
             },
-            "flags_hash": "b08a96ecab2b5a95"
+            "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-01T18:43:33.875193+00:00",
+          "collected_at": "2026-05-01T19:04:53.261836+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "d922d65da000ec31a37180f19dad5863d9e79b8b",
-            "short": "d922d65da0"
+            "sha": "bfb17e09427008abc1b7a550f0f21398d6041fd9",
+            "short": "bfb17e0942"
           },
           "platform": {
             "machine": "x86_64",
@@ -668,7 +668,7 @@
           },
           "version": "3.69.0"
         },
-        "run_id": "audit_gate-d922d65da0-20260501T184333",
+        "run_id": "audit_gate-bfb17e0942-20260501T190453",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "summary": {
@@ -683,8 +683,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "5231c136a0f530a3f25dc02d9b9908fa881ebe806cfe26ed889ff7cd35b3c5ec",
-      "stdout_sha256": "17ffe32734a56ba8448c9276e0136429af42a84f7893496aff072a968cc92b69"
+      "stderr_sha256": "1e9129b4620d732c8d1b8a905c24d3214b249de95df0db6365f3343eb0907a7b",
+      "stdout_sha256": "65421a33c1957dacb5bb8b9f4f8624d41215ce0de04b81afac6dfbfe7c495aec"
     },
     {
       "name": "audit_gap_report_strict",
@@ -721,9 +721,9 @@
               "audit/test_adversarial_protocol.cpp",
               "audit/test_fuzz_address_bip32_ffi.cpp",
               "audit/test_fuzz_parsers.cpp",
-              "docs/AUDIT_SCOPE.md",
-              "scripts/audit_gate.py",
-              "scripts/invalid_input_grammar.py"
+              "ci/audit_gate.py",
+              "ci/invalid_input_grammar.py",
+              "docs/AUDIT_SCOPE.md"
             ],
             "status": "covered"
           },
@@ -748,10 +748,10 @@
             "resolved_surfaces": [
               "audit/test_adversarial_protocol.cpp",
               "audit/test_musig2_frost_advanced.cpp",
+              "ci/audit_gate.py",
+              "ci/stateful_sequences.py",
               "docs/AI_REVIEW_EVENTS.json",
-              "docs/AUDIT_TRACEABILITY.md",
-              "scripts/audit_gate.py",
-              "scripts/stateful_sequences.py"
+              "docs/AUDIT_TRACEABILITY.md"
             ],
             "status": "covered"
           },
@@ -764,8 +764,8 @@
               "audit/test_adversarial_protocol.cpp",
               "audit/test_gpu_abi_gate.cpp",
               "audit/test_gpu_host_api_negative.cpp",
-              "docs/FFI_HOSTILE_CALLER.md",
-              "scripts/audit_gate.py"
+              "ci/audit_gate.py",
+              "docs/FFI_HOSTILE_CALLER.md"
             ],
             "status": "covered"
           },
@@ -789,11 +789,11 @@
             "missing_surfaces": [],
             "residual_risk": "More subsystem docs still need the same claim-ID and stale-drift discipline as top-level docs",
             "resolved_surfaces": [
+              "ci/preflight.py",
+              "ci/validate_assurance.py",
               "docs/AI_REVIEW_EVENTS.json",
               "docs/ASSURANCE_CLAIMS.json",
-              "docs/ASSURANCE_LEDGER.md",
-              "scripts/preflight.py",
-              "scripts/validate_assurance.py"
+              "docs/ASSURANCE_LEDGER.md"
             ],
             "status": "covered"
           },
@@ -804,9 +804,9 @@
             "residual_risk": "Mutation kill remains the heavier batch lane; keep its report cadence current when touching core arithmetic or audit harnesses",
             "resolved_surfaces": [
               "audit/test_mutation_kill_rate.cpp",
-              "scripts/audit_gate.py",
-              "scripts/audit_test_quality_scanner.py",
-              "scripts/mutation_kill_rate.py"
+              "ci/audit_gate.py",
+              "ci/audit_test_quality_scanner.py",
+              "ci/mutation_kill_rate.py"
             ],
             "status": "covered"
           },
@@ -816,10 +816,10 @@
             "missing_surfaces": [],
             "residual_risk": "GPU reproducibility and artifact retention should keep expanding alongside backend docs",
             "resolved_surfaces": [
+              "ci/preflight.py",
               "docs/BENCHMARK_POLICY.md",
               "docs/GPU_BACKEND_EVIDENCE.json",
-              "docs/PERFORMANCE_REGRESSION.md",
-              "scripts/preflight.py"
+              "docs/PERFORMANCE_REGRESSION.md"
             ],
             "status": "covered"
           },
@@ -829,9 +829,9 @@
             "missing_surfaces": [],
             "residual_risk": "Any new path class missing from the graph remains an assurance gap until indexed; library audit scripts and harnesses must stay visible in both the library-local graph and the workspace root graph",
             "resolved_surfaces": [
+              "ci/validate_assurance.py",
               "docs/AUDIT_MANIFEST.md",
               "docs/PROJECT_GRAPH_REASONING.md",
-              "scripts/validate_assurance.py",
               "tools/source_graph_kit/source_graph.py"
             ],
             "status": "covered"
@@ -843,10 +843,10 @@
             "residual_risk": "GitHub-native services and some platform-specific integrations still sit outside pure local reproduction, but the repository-maintained local parity and workflow inventory provide deterministic owner-grade coverage for drift in tracked surfaces",
             "resolved_surfaces": [
               "AUDIT_COVERAGE.md",
+              "ci/evidence_governance.py",
+              "ci/supply_chain_gate.py",
               "docs/CI_ENFORCEMENT.md",
-              "docs/LOCAL_CI.md",
-              "scripts/evidence_governance.py",
-              "scripts/supply_chain_gate.py"
+              "docs/LOCAL_CI.md"
             ],
             "status": "covered"
           },
@@ -869,10 +869,10 @@
             "missing_surfaces": [],
             "residual_risk": "Automated via `check_formal_invariants.py`; 7 critical operations with preconditions, postconditions, and CT linkage validated",
             "resolved_surfaces": [
+              "ci/check_formal_invariants.py",
               "docs/CRYPTO_INVARIANTS.md",
               "docs/FORMAL_INVARIANTS_SPEC.json",
-              "docs/INVARIANTS.md",
-              "scripts/check_formal_invariants.py"
+              "docs/INVARIANTS.md"
             ],
             "status": "covered"
           },
@@ -882,10 +882,10 @@
             "missing_surfaces": [],
             "residual_risk": "SLA enforcement infra complete; `DETERMINISM_GOLDEN.json` generated and validated; `audit_sla_check.py` returns `release_ready: True`; `check_determinism_gate.py` returns `overall_pass: True",
             "resolved_surfaces": [
+              "ci/audit_sla_check.py",
               "docs/AUDIT_SLA.json",
               "docs/DETERMINISM_GOLDEN.json",
-              "docs/SECURITY_AUTONOMY_KPI.json",
-              "scripts/audit_sla_check.py"
+              "docs/SECURITY_AUTONOMY_KPI.json"
             ],
             "status": "covered"
           },
@@ -895,8 +895,8 @@
             "missing_surfaces": [],
             "residual_risk": "Three automated drills (key compromise, CI poisoning, dependency compromise) run as preflight step 20/20",
             "resolved_surfaces": [
-              "docs/INCIDENT_RESPONSE.md",
-              "scripts/incident_drills.py"
+              "ci/incident_drills.py",
+              "docs/INCIDENT_RESPONSE.md"
             ],
             "status": "covered"
           }
@@ -908,7 +908,7 @@
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "66e1a6ccec3bcf5c1af0c63311a44358588490a85e186421e6fe6c959373ed41"
+      "stdout_sha256": "faa58524c14a57c00ac75fdeffde63b37df546d2afbddc6b2b1df7ab5c65f17b"
     },
     {
       "name": "security_autonomy_check",
@@ -984,13 +984,13 @@
         "gates_passing": 8,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-01T18:43:34.653784+00:00"
+        "timestamp": "2026-05-01T19:04:54.032382+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "5ade6bd203813c28a1aa53918e0190daf5521d9b4c63d599cbedeb2a6613d38b"
+      "stdout_sha256": "5c0be54b6c74940e5fd253c99baded03b04c8a071548edc4134c633d8f3d4b57"
     },
     {
       "name": "supply_chain_gate",
@@ -1036,19 +1036,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-01T18:43:34.694197+00:00"
+        "timestamp": "2026-05-01T19:04:54.067392+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "bb0393ba6b08b2ef57d219f0be8b27dcad91f64c373374e598316b660b2efaa2"
+      "stdout_sha256": "b52b403f8159b4e20744576d0a562efc484359d48d1d0b62471875759f9516fa"
     }
   ],
-  "generated_at": "2026-05-01T18:43:34.706537+00:00",
+  "generated_at": "2026-05-01T19:04:54.083046+00:00",
   "git": {
     "branch": "dev",
-    "commit": "d922d65da000ec31a37180f19dad5863d9e79b8b",
+    "commit": "bfb17e09427008abc1b7a550f0f21398d6041fd9",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

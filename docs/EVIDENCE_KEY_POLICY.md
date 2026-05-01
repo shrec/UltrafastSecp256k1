@@ -7,7 +7,7 @@
 
 The evidence chain in
 [docs/EVIDENCE_CHAIN.json](EVIDENCE_CHAIN.json) is signed using a constant
-HMAC key embedded in `scripts/evidence_governance.py`:
+HMAC key embedded in `ci/evidence_governance.py`:
 
 ```python
 # HMAC key derived from repository identity (not a secret — tamper detection only)
@@ -19,7 +19,7 @@ tampering of evidence records (truncation, partial corruption, replay across
 incompatible schemas). It is **not** a defence against an attacker with write
 access to the repository. Anyone with the source tree can re-sign any record.
 
-This is by design and consistent with `scripts/evidence_governance.py` line
+This is by design and consistent with `ci/evidence_governance.py` line
 33's own comment. Past audit-manifest claims that the chain is
 "HMAC-verified tamper-resistant" must be read with this scope in mind:
 the chain is tamper-*evident* against accidental drift, not tamper-*resistant*
@@ -73,7 +73,7 @@ the chain (which is governed by repo write access).
    ```bash
    EVIDENCE_HMAC_KEY=<new-key> \
    EVIDENCE_HMAC_KEY_OLD=<old-key> \
-   python3 scripts/rotate_evidence_key.py
+   python3 ci/rotate_evidence_key.py
    ```
 
    The script reads each record, verifies it under the old key, re-signs it
@@ -90,7 +90,7 @@ the chain (which is governed by repo write access).
 
    ```bash
    EVIDENCE_HMAC_KEY=<new-key> \
-   python3 scripts/evidence_governance.py validate --json
+   python3 ci/evidence_governance.py validate --json
    ```
 
    Expected: `overall_pass=True`, last record is the `key_rotation` event.
@@ -108,14 +108,14 @@ If the secret key is suspected compromised:
    **untrusted** until re-verified by hash against external evidence.
 2. Run rotation immediately (steps 1–5 above).
 3. File an incident drill record via
-   `python3 scripts/incident_drills.py --drill evidence_key_compromise --record`.
+   `python3 ci/incident_drills.py --drill evidence_key_compromise --record`.
 4. Review the previous 30 days of chain records against any external mirror
    of the bundle (`docs/EXTERNAL_AUDIT_BUNDLE.json` is timestamp-pinned and
    externally verifiable independent of the chain key).
 
 ## Implementation Status
 
-- [ ] `scripts/rotate_evidence_key.py` — to be added when promotion is needed.
+- [ ] `ci/rotate_evidence_key.py` — to be added when promotion is needed.
 - [ ] `incident_drills.py` `evidence_key_compromise` drill — to be added when
       promotion is needed.
 - [x] This policy document exists and accurately describes the current state.
@@ -131,4 +131,4 @@ the actual scope of the integrity guarantee explicit, instead of leaving the
 
 See also:
 - [docs/CAAS_HARDENING_TODO.md](CAAS_HARDENING_TODO.md) item H-2.
-- `scripts/evidence_governance.py`.
+- `ci/evidence_governance.py`.

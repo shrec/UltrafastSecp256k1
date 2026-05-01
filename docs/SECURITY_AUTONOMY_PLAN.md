@@ -26,13 +26,13 @@
 ## Week 1 (Days 1-7): Foundation Gates
 
 ### Day 1-2: Risk-Surface Coverage Matrix
-- **Deliverable**: `scripts/risk_surface_coverage.py`
+- **Deliverable**: `ci/risk_surface_coverage.py`
 - **What**: Define 7 risk classes (CT, parser-boundary, ABI-boundary, GPU-parity, secret-lifecycle, determinism, fuzz-corpus). Query graph + test registry to compute coverage per class.
 - **Gate**: Each critical class must have ≥ 80% symbol coverage. Fail-closed.
 - **KPI**: `risk_coverage_percent` per class, `risk_classes_passing` count.
 
 ### Day 2-3: Audit SLA/SLO Framework
-- **Deliverable**: `scripts/audit_sla_check.py`, `docs/AUDIT_SLA.json`
+- **Deliverable**: `ci/audit_sla_check.py`, `docs/AUDIT_SLA.json`
 - **What**: Define measurable SLOs:
   - Max stale evidence age: 30 days
   - Max unresolved HIGH finding window: 7 days
@@ -43,7 +43,7 @@
 - **KPI**: `sla_violations` count, `release_ready` boolean.
 
 ### Day 3-4: Formal Invariant Spec Layer
-- **Deliverable**: `docs/FORMAL_INVARIANTS_SPEC.json`, `scripts/check_formal_invariants.py`
+- **Deliverable**: `docs/FORMAL_INVARIANTS_SPEC.json`, `ci/check_formal_invariants.py`
 - **What**: For each critical operation (ecdsa_sign, ecdsa_verify, schnorr_sign, schnorr_verify, ecdh, bip32_derive, bip340_verify), define:
   - Preconditions (input domain constraints)
   - Postconditions (output guarantees)
@@ -54,7 +54,7 @@
 - **KPI**: `invariants_proven` / `invariants_total`, `operations_fully_covered`.
 
 ### Day 5-7: Cross-Architecture Determinism Gate Enhancement
-- **Deliverable**: Enhanced `scripts/check_determinism_gate.py`
+- **Deliverable**: Enhanced `ci/check_determinism_gate.py`
 - **What**: Extend current gate to:
   - Produce per-vector canonical digests (SHA-256 of outputs)
   - Compare against golden reference file (`docs/DETERMINISM_GOLDEN.json`)
@@ -67,7 +67,7 @@
 ## Week 2 (Days 8-14): Hardening Gates
 
 ### Day 8-9: Supply-Chain Fail-Closed Gate
-- **Deliverable**: `scripts/supply_chain_gate.py`
+- **Deliverable**: `ci/supply_chain_gate.py`
 - **What**: Unified gate checking:
   - Build-input pinning (CMake version, compiler hash, dependency lockfile)
   - Reproducible-build digest comparison (existing `verify_reproducible_build.sh` output)
@@ -78,7 +78,7 @@
 - **KPI**: `supply_chain_checks_passing` / 5, `pinned_inputs_verified`.
 
 ### Day 10-11: Performance-Security Co-Gating
-- **Deliverable**: `scripts/perf_security_cogate.py`
+- **Deliverable**: `ci/perf_security_cogate.py`
 - **What**: Before any optimization merges:
   - CT evidence must not regress (dudect, valgrind-ct, cachegrind)
   - Determinism gate must still pass
@@ -88,7 +88,7 @@
 - **KPI**: `cogate_pass` boolean, `security_regressions_blocked` count.
 
 ### Day 12-13: Misuse-Resistance Gate Expansion
-- **Deliverable**: `scripts/check_misuse_resistance.py`, expand `test_c_abi_negative.cpp`
+- **Deliverable**: `ci/check_misuse_resistance.py`, expand `test_c_abi_negative.cpp`
 - **What**: Systematic hostile-caller patterns for every `ufsecp_*` function:
   - NULL pointers for all pointer args
   - Zero-length buffers
@@ -101,7 +101,7 @@
 - **KPI**: `abi_functions_covered` / `abi_functions_total`, `negative_tests_total`.
 
 ### Day 14: Fuzz Infrastructure Upgrade Spec
-- **Deliverable**: `docs/FUZZ_INFRASTRUCTURE.md`, `scripts/fuzz_campaign_manager.py`
+- **Deliverable**: `docs/FUZZ_INFRASTRUCTURE.md`, `ci/fuzz_campaign_manager.py`
 - **What**: Design:
   - Seed replay framework (corpus → CTest registration)
   - Crash triage automation (dedup, severity classify, auto-file)
@@ -114,7 +114,7 @@
 ## Week 3 (Days 15-21): Evidence & Governance
 
 ### Day 15-17: Evidence Governance Framework
-- **Deliverable**: `scripts/evidence_governance.py`, `docs/EVIDENCE_CHAIN.json`
+- **Deliverable**: `ci/evidence_governance.py`, `docs/EVIDENCE_CHAIN.json`
 - **What**: Every critical verdict must record:
   - `who`: script/tool that produced it
   - `what`: exact check performed
@@ -127,12 +127,12 @@
 - **KPI**: `evidence_records_total`, `evidence_chain_valid` boolean, `orphaned_verdicts` count.
 
 ### Day 18-19: Fuzz Infrastructure Implementation
-- **Deliverable**: Implement `scripts/fuzz_campaign_manager.py`
+- **Deliverable**: Implement `ci/fuzz_campaign_manager.py`
 - **What**: Working seed replay, corpus minimization wrapper, crash→regression converter.
 - **KPI**: `active_corpus_size`, `regressions_from_crashes`, `corpus_coverage_delta`.
 
 ### Day 20-21: Integration Testing
-- **Deliverable**: All new gates integrated into `scripts/preflight.py`
+- **Deliverable**: All new gates integrated into `ci/preflight.py`
 - **What**: Preflight runs all new gates. Any single gate failure = overall fail.
 - **KPI**: `preflight_gates_total`, `preflight_gates_passing`.
 
@@ -141,7 +141,7 @@
 ## Week 4 (Days 22-30): Drill & Certification
 
 ### Day 22-24: Incident Drill Framework
-- **Deliverable**: `scripts/incident_drills.py`, `docs/DRILL_RESULTS.json`
+- **Deliverable**: `ci/incident_drills.py`, `docs/DRILL_RESULTS.json`
 - **What**: Automated simulation scenarios:
   - **Key compromise drill**: inject known-weak key, verify detection pipeline catches it
   - **CI poisoning drill**: simulate tampered build output, verify provenance check catches it
@@ -150,10 +150,10 @@
 - **KPI**: `drills_passed` / `drills_total`, `drill_response_time_seconds`.
 
 ### Day 25-27: Full System Integration Test
-- **Deliverable**: `scripts/security_autonomy_check.py` — master orchestrator
+- **Deliverable**: `ci/security_autonomy_check.py` — master orchestrator
 - **What**: Single command that runs ALL gates and produces unified verdict:
   ```bash
-  python3 scripts/security_autonomy_check.py --json -o autonomy_report.json
+  python3 ci/security_autonomy_check.py --json -o autonomy_report.json
   ```
 - **KPI**: `autonomy_score` (0-100), `gates_passing` / `gates_total`, `autonomy_ready` boolean.
 

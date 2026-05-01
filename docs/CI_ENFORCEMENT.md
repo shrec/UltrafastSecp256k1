@@ -114,8 +114,8 @@ The following `|| true` patterns exist in local scripts. They are mitigated by p
 | File | Pattern | Mitigation |
 |------|---------|------------|
 | `docker/run_ci.sh:602,663` | `unified_audit_runner ... \|\| true` | JSON verdict checked via jq afterward |
-| `scripts/local-ci.sh:432` | `unified_audit_runner ... \|\| true` | JSON verdict checked via grep afterward |
-| `scripts/local-ci.sh:184` | `ctest -T MemCheck \|\| true` | Valgrind log content parsed afterward |
+| `ci/local-ci.sh:432` | `unified_audit_runner ... \|\| true` | JSON verdict checked via grep afterward |
+| `ci/local-ci.sh:184` | `ctest -T MemCheck \|\| true` | Valgrind log content parsed afterward |
 
 These are acceptable for local development (the exit code swallowing prevents noisy false-fail on segfault during memcheck), but the verdict/log parsing afterward ensures real failures are caught.
 
@@ -153,21 +153,21 @@ All other tests are deterministic and must always pass.
 
 The AI review-event log is enforced locally through:
 
-- `python3 scripts/preflight.py --ai-review`
+- `python3 ci/preflight.py --ai-review`
 
 and schema-validated through:
 
-- `python3 scripts/validate_assurance.py`
+- `python3 ci/validate_assurance.py`
 
 GPU backend publishability is enforced locally through:
 
-- `python3 scripts/preflight.py --gpu-evidence`
+- `python3 ci/preflight.py --gpu-evidence`
 
 Security autonomy gates are enforced locally through:
 
-- `python3 scripts/preflight.py --autonomy`
-- `python3 scripts/security_autonomy_check.py --json`
+- `python3 ci/preflight.py --autonomy`
+- `python3 ci/security_autonomy_check.py --json`
 
 and schema/policy-validated through:
 
-- `python3 scripts/validate_assurance.py`
+- `python3 ci/validate_assurance.py`

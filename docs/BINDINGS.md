@@ -122,7 +122,7 @@ This document tracks the **stable (ufsecp)** bindings only.
 
 ```
 Shared validation entrypoint:
-  scripts/validate_bindings.sh
+  ci/validate_bindings.sh
 
 Smoke suites covered by the shared validator:
   csharp, java, swift, python, go, rust, nodejs, php, ruby, dart

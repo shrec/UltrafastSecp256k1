@@ -13,7 +13,7 @@ This manifest exists so that audit quality is **systematic and reproducible**,
 not dependent on any single person remembering to run the right checks.
 
 Every principle below maps to at least one automated check in
-`scripts/audit_gate.py`. If a principle cannot be checked automatically, it is
+`ci/audit_gate.py`. If a principle cannot be checked automatically, it is
 documented with a manual verification procedure.
 
 ---
@@ -138,7 +138,7 @@ per-commit path inside the full gate.
 - Canonical local command before release:
 
 ```bash
-python3 scripts/mutation_kill_rate.py \
+python3 ci/mutation_kill_rate.py \
   --build-dir build_rel \
   --ctest-mode \
   --count 20 \
@@ -366,7 +366,7 @@ Checks:
 
 All five stages are **blocking** — a PR cannot be merged if any stage fails.
 
-Local enforcement: install with `python3 scripts/install_caas_hooks.py` (pre-push hook)
+Local enforcement: install with `python3 ci/install_caas_hooks.py` (pre-push hook)
 
 ---
 
@@ -386,7 +386,7 @@ Checks:
   CAAS_REVIEWER_QUICKSTART.md, CAAS_FAQ.md, CAAS_THREAT_MODEL.md,
   NEGATIVE_RESULTS_LEDGER.md, THREAD_SAFETY.md, ABI_VERSIONING.md,
   SECURITY_INCIDENT_TIMELINE.md, AUDIT_PHILOSOPHY.md,
-  `scripts/verify_external_audit_bundle.py`)
+  `ci/verify_external_audit_bundle.py`)
 - Failure: any required document absent blocks the pipeline.
 
 **Status:** All 15 required documents present as of 2026-04-28.
@@ -432,51 +432,51 @@ See `docs/CAAS_GAP_CLOSURE_ROADMAP.md` and `docs/CAAS_HARDENING_TODO.md`.
 
 ```bash
 # Full audit gate (all principles)
-python3 scripts/audit_gate.py
+python3 ci/audit_gate.py
 
 # Individual checks
-python3 scripts/audit_gate.py --failure-matrix
-python3 scripts/audit_gate.py --abi-negative-tests
-python3 scripts/audit_gate.py --invalid-inputs
-python3 scripts/audit_gate.py --stateful-sequences
-python3 scripts/audit_gate.py --secret-paths
-python3 scripts/audit_gate.py --abi-completeness
-python3 scripts/audit_gate.py --test-coverage
-python3 scripts/audit_gate.py --audit-test-quality
-python3 scripts/audit_gate.py --security-patterns
-python3 scripts/audit_gate.py --ct-integrity
-python3 scripts/audit_gate.py --narrative
-python3 scripts/audit_gate.py --freshness
-python3 scripts/audit_gate.py --gpu-parity
-python3 scripts/audit_gate.py --test-docs
-python3 scripts/audit_gate.py --routing
-python3 scripts/audit_gate.py --doc-pairing
-python3 scripts/audit_gate.py --mutation-kill
-python3 scripts/audit_gate.py --mutation-freshness
-python3 scripts/audit_gate.py --crash-risks
-python3 scripts/audit_gap_report.py
-python3 scripts/audit_gap_report.py --strict
+python3 ci/audit_gate.py --failure-matrix
+python3 ci/audit_gate.py --abi-negative-tests
+python3 ci/audit_gate.py --invalid-inputs
+python3 ci/audit_gate.py --stateful-sequences
+python3 ci/audit_gate.py --secret-paths
+python3 ci/audit_gate.py --abi-completeness
+python3 ci/audit_gate.py --test-coverage
+python3 ci/audit_gate.py --audit-test-quality
+python3 ci/audit_gate.py --security-patterns
+python3 ci/audit_gate.py --ct-integrity
+python3 ci/audit_gate.py --narrative
+python3 ci/audit_gate.py --freshness
+python3 ci/audit_gate.py --gpu-parity
+python3 ci/audit_gate.py --test-docs
+python3 ci/audit_gate.py --routing
+python3 ci/audit_gate.py --doc-pairing
+python3 ci/audit_gate.py --mutation-kill
+python3 ci/audit_gate.py --mutation-freshness
+python3 ci/audit_gate.py --crash-risks
+python3 ci/audit_gap_report.py
+python3 ci/audit_gap_report.py --strict
 
 # Security Autonomy gates (P12–P18, standalone scripts)
-python3 scripts/check_formal_invariants.py --json
-python3 scripts/risk_surface_coverage.py --json
-python3 scripts/audit_sla_check.py --json
-python3 scripts/supply_chain_gate.py --json
-python3 scripts/evidence_governance.py validate --json
-python3 scripts/check_misuse_resistance.py --json
-python3 scripts/perf_security_cogate.py --json
-python3 scripts/external_audit_bundle.py
-python3 scripts/verify_external_audit_bundle.py --json
-python3 scripts/verify_external_audit_bundle.py --replay-commands --json
+python3 ci/check_formal_invariants.py --json
+python3 ci/risk_surface_coverage.py --json
+python3 ci/audit_sla_check.py --json
+python3 ci/supply_chain_gate.py --json
+python3 ci/evidence_governance.py validate --json
+python3 ci/check_misuse_resistance.py --json
+python3 ci/perf_security_cogate.py --json
+python3 ci/external_audit_bundle.py
+python3 ci/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --replay-commands --json
 
 # Master orchestrator (runs all P12–P18 gates)
-python3 scripts/security_autonomy_check.py
+python3 ci/security_autonomy_check.py
 
 # JSON output for CI
-python3 scripts/audit_gate.py --json
+python3 ci/audit_gate.py --json
 
 # Generate report file
-python3 scripts/audit_gate.py --json -o audit_gate_report.json
+python3 ci/audit_gate.py --json -o audit_gate_report.json
 ```
 
 ---
@@ -511,7 +511,7 @@ python3 scripts/audit_gate.py --json -o audit_gate_report.json
 To add a new audit principle:
 
 1. Define the principle (P*N*) with a clear invariant statement
-2. Implement the check in `scripts/audit_gate.py`
+2. Implement the check in `ci/audit_gate.py`
 3. Add the `--flag` to the CLI
 4. Define severity (FAIL/WARN/INFO)
 5. Add a "When to run" trigger

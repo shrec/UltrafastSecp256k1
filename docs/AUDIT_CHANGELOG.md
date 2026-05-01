@@ -367,12 +367,12 @@ evidence upgrades, and changes to what the repository can honestly claim.
 ### Security Autonomy: 100/100 (all 8 gates passing)
 
 - **misuse_resistance gate**: Fixed phantom export `ufsecp_gpu_context_create` (docstring typo in `ufsecp_gpu.h`) and `ufsecp_abi_version` (1 → 7 negative tests). Score: 10/10.
-- **supply_chain gate**: Added `-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, `-fPIE`, `-pie` to `CMakeLists.txt`; created `scripts/generate_slsa_provenance.py` and generated `docs/slsa_provenance.json`. Score: 15/15.
+- **supply_chain gate**: Added `-fstack-protector-strong`, `-D_FORTIFY_SOURCE=2`, `-fPIE`, `-pie` to `CMakeLists.txt`; created `ci/generate_slsa_provenance.py` and generated `docs/slsa_provenance.json`. Score: 15/15.
 
 ### Audit Gate: PASS (0 blocking findings, 2 advisory warnings)
 
 - **G-10 Spec Traceability**: Added DER/BIP-66, libsecp/compat, x-only/xonly sections to `docs/SPEC_TRACEABILITY_MATRIX.md` (now 101 rows). Previously 3 WARNs.
-- **P0 Invalid-Input Grammar + Stateful Sequences**: Fixed `scripts/_ufsecp.py` find_lib() to skip unloadable CUDA-linked libraries and probe `build-shim-v3`/`build_test`. Both harnesses now find a working library automatically.
+- **P0 Invalid-Input Grammar + Stateful Sequences**: Fixed `ci/_ufsecp.py` find_lib() to skip unloadable CUDA-linked libraries and probe `build-shim-v3`/`build_test`. Both harnesses now find a working library automatically.
 - **P0 Secret-Path Change Gate**: Updated `docs/SECURITY_CLAIMS.md` and `docs/FFI_HOSTILE_CALLER.md` to pair with `ufsecp_gpu.h` docstring fix. Gate now passes.
 - **P1 ABI Completeness**: Added `ufsecp_context_randomize` and `ufsecp_gpu_is_ready` to `docs/FEATURE_ASSURANCE_LEDGER.md`.
 - **P8 Test Documentation**: Added 22 (batch 2) + 6 (batch 3) CTest targets to `docs/TEST_MATRIX.md` (804 entries total).
@@ -456,7 +456,7 @@ Updated `docs/FFI_HOSTILE_CALLER.md` Section J to explicitly document coverage.
 
 **P2 Test Coverage — 10 coverage gaps**: `cpu/src/impl/*.cpp` wrapper files (B-04 split)
 and `cpu/src/ufsecp_impl.cpp` had no `covers` edges because `test_coverage` dict in
-`scripts/build_project_graph.py` had stale `include/ufsecp/ufsecp_impl.cpp` paths.
+`ci/build_project_graph.py` had stale `include/ufsecp/ufsecp_impl.cpp` paths.
 Fixed by adding a `monolith_split` test target covering all 8 impl files + aggregator,
 and correcting the `abi_gate` and `gpu_bip352_scan` paths.
 
@@ -471,7 +471,7 @@ function. Added `test_i6_context_randomize()` and `test_i7_ecdsa_sign_noncefp()`
 
 ### CAAS Stage 2e: Bitcoin Core test_bitcoin gate added
 
-`scripts/check_bitcoin_core_test_results.py` validates `docs/BITCOIN_CORE_TEST_RESULTS.json`
+`ci/check_bitcoin_core_test_results.py` validates `docs/BITCOIN_CORE_TEST_RESULTS.json`
 (total≥693, failed=0, commit present). Wired into `preflight.yml` as Stage 2e.
 Current status: 5/5 PASS against the 693/693 evidence from commit `c1df659e`.
 
@@ -710,7 +710,7 @@ Total exploit tests: 203 (wiring gate: all pass).
 
 ### New CAAS pipeline integrity tests added
 
-- `scripts/test_caas_integrity.py` — CAAS-GATE-1..3, CAAS-HMAC-1..4, CAAS-KEY-1..2:
+- `ci/test_caas_integrity.py` — CAAS-GATE-1..3, CAAS-HMAC-1..4, CAAS-KEY-1..2:
   Verifies C-2 (stunt-double gates fixed), C-3 (HMAC includes reason field), H-3 (env-var key).
 
 ---
@@ -804,7 +804,7 @@ and `musig2_partial_verify` (which both use even-Y form of P_i).
 
 ### Scanner false-positive fix
 
-- **`scripts/dev_bug_scanner.py` — `check_missing_low_s`**: fixed false positive on
+- **`ci/dev_bug_scanner.py` — `check_missing_low_s`**: fixed false positive on
   `batch_verify.hpp:72` (the declaration `bool ecdsa_batch_verify(...);`). The checker
   was scanning header files that contain declarations, not implementations. Updated to
   skip `.hpp`/`.h` files and to skip forward declarations (lines ending in `;` with no
@@ -1104,7 +1104,7 @@ pass=14 fail=0.
 
 ### Scanner Improvements
 
-Seven false-positive categories fixed in `scripts/dev_bug_scanner.py`:
+Seven false-positive categories fixed in `ci/dev_bug_scanner.py`:
 UNREACH (C#/Dart `finally` blocks), BINDING_NO_VALIDATION (PHP FFI declarations),
 ASSERT_SIDE (Node.js `assert(buf.equals(...))`), CPASTE (Python/Ruby OS-branch resets),
 POINT_NO_VALIDATION (non-C/C++ binding wrappers), SCALAR_NOT_REDUCED (header decl lines).
@@ -1171,7 +1171,7 @@ hardware-wallet and ZK-proof attack classes frequently cited in high-end audits:
 
 All three PoCs are wired into `audit/unified_audit_runner.cpp` (ALL_MODULES entries)
 and `audit/CMakeLists.txt` (unified_audit_runner source list + standalone CTest targets).
-CI gate `python3 scripts/check_exploit_wiring.py` passes with all three registered.
+CI gate `python3 ci/check_exploit_wiring.py` passes with all three registered.
 
 Docs updated: `EXPLOIT_TEST_CATALOG.md` (3 new rows + changelog entry),
 `AUDIT_CHANGELOG.md` (this entry), `RESEARCH_SIGNAL_MATRIX.json` (2 new class entries
@@ -1227,7 +1227,7 @@ and will land one per commit.
 
 
 Promotes the four CAAS roadmap docs from documentation-only to
-enforced gates inside `scripts/audit_gate.py`:
+enforced gates inside `ci/audit_gate.py`:
 
 - `--threat-model` (G-1): verifies THREAT_MODEL.md covers all 6
   STRIDE categories (with the "Info-disclosure" / "DoS" variants
@@ -1252,8 +1252,8 @@ enforced gates inside `scripts/audit_gate.py`:
 All four sub-gates are now members of `ALL_CHECKS` and run as part
 of the default `audit_gate.py` invocation that CAAS Stage 2 calls.
 
-Verified: `python3 scripts/audit_gate.py` PASS,
-`python3 scripts/caas_runner.py` 6/6 PASS in 6.1s.
+Verified: `python3 ci/audit_gate.py` PASS,
+`python3 ci/caas_runner.py` 6/6 PASS in 6.1s.
 
 This closes the "Implement the planned `audit_gate.py` sub-gates"
 remaining item from the 2026-04-21 post-roadmap entry.
@@ -1273,18 +1273,18 @@ Post-batch-3 cleanup lands the final piece promised in the
   BIP-39, and the Wycheproof coverage table (now lists all 8
   indexed Wycheproof JSON files).
 
-- `scripts/exploit_traceability_join.py` — flipped default from
+- `ci/exploit_traceability_join.py` — flipped default from
   advisory to **strict**. `--no-strict` is an escape hatch for
   incremental path reconciliation; CI now calls the script without
   arguments so any new row that references a non-existent path
   fails the build.
 
-- `scripts/caas_runner.py` — new Stage `traceability` runs
+- `ci/caas_runner.py` — new Stage `traceability` runs
   `exploit_traceability_join.py` (strict by default) between the
   scanner and the audit gate. CAAS pipeline goes from 5 stages to
   6; the additional stage adds ~30ms to the run.
 
-Verified: `python3 scripts/caas_runner.py` → 6/6 PASS, total 6.5s.
+Verified: `python3 ci/caas_runner.py` → 6/6 PASS, total 6.5s.
 
 CAAS roadmap state post-fix:
 
@@ -1388,7 +1388,7 @@ work, not new docs.
   level, constant-time guarantees, failure model, versioning
   policy, and out-of-scope items. Explicit citation block added.
 
-- `scripts/exploit_traceability_join.py` (G-9b) — joins
+- `ci/exploit_traceability_join.py` (G-9b) — joins
   EXPLOIT_TEST_CATALOG ↔ THREAT_MODEL ↔ SPEC_TRACEABILITY_MATRIX ↔
   RESIDUAL_RISK_REGISTER ↔ unified_audit_runner. Hard joins
   (exploit-on-disk vs catalog, RR-* defined-vs-cited, AM-* defined-
@@ -1500,7 +1500,7 @@ Existing-as-correct (no change required):
 Reconciled exploit-PoC counts across every live audit document against
 the actual on-disk inventory (`audit/test_exploit_*.cpp` = 189 files,
 all 189 wired in `unified_audit_runner.cpp`, parity enforced by
-`scripts/check_exploit_wiring.py`).
+`ci/check_exploit_wiring.py`).
 
 Updated headline numbers in:
 
@@ -1563,17 +1563,17 @@ P1 (assurance depth) — closed:
 P2 (visibility & hygiene) — closed:
 
 - **H-7** Review-queue aging SLA —
-  [`scripts/review_queue_age_check.py`](../scripts/review_queue_age_check.py)
+  [`ci/review_queue_age_check.py`](../scripts/review_queue_age_check.py)
   + new `review_queue_max_open_days` SLO (90 days, warning) in
   [`docs/AUDIT_SLA.json`](AUDIT_SLA.json). Current run: 23 review-queue
   rows, 0 over SLA.
 - **H-8** TODO/FIXME age tracker —
-  [`scripts/todo_age_check.py`](../scripts/todo_age_check.py)
+  [`ci/todo_age_check.py`](../scripts/todo_age_check.py)
   + new `todo_max_open_days` SLO (180 days, warning). Uses `git blame` and
   honours `DEFERRED:` / `(tracked: …)` annotations. Current run:
   61 markers, 0 over SLA.
 - **H-9** Audit dashboard generator —
-  [`scripts/render_audit_dashboard.py`](../scripts/render_audit_dashboard.py)
+  [`ci/render_audit_dashboard.py`](../scripts/render_audit_dashboard.py)
   emits [`docs/AUDIT_DASHBOARD.md`](AUDIT_DASHBOARD.md). Designed to run
   inside the H-1 nightly job so the dashboard is regenerated daily.
 - **H-10** Reviewer prompt templates —
@@ -1760,7 +1760,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   `exploit_scalar_mul`, `exploit_schnorr_nonce_reuse`. Runner build is
   green (288/288 objects).
 
-- **Added** `scripts/check_exploit_wiring.py` (CAAS Stage 0) as a CI gate
+- **Added** `ci/check_exploit_wiring.py` (CAAS Stage 0) as a CI gate
   that refuses merges when an on-disk `test_exploit_*.cpp` defines a
   `_run()` entry point but is not referenced by `unified_audit_runner.cpp`.
   Wired into `.github/workflows/preflight.yml` and
@@ -1772,7 +1772,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   participates in the aggregated verdict when built without
   `STANDALONE_TEST`.
 
-- **Fixed BUG-A2 (mutation false-green).** `scripts/mutation_kill_rate.py`
+- **Fixed BUG-A2 (mutation false-green).** `ci/mutation_kill_rate.py`
   now enforces:
   - minimum testable sample (`UFSECP_MUTATION_MIN_SAMPLE`, default 20);
     kill-rate over < 20 testable mutations can no longer report `passed =
@@ -1790,7 +1790,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   a new value `AUDIT-READY-DEGRADED` used when mandatory modules pass but
   one or more advisory modules actually failed.
 
-- **Fixed BUG-A5 (static-only scanner).** `scripts/audit_test_quality_scanner.py`
+- **Fixed BUG-A5 (static-only scanner).** `ci/audit_test_quality_scanner.py`
   gained **Category G** — "unwired exploit PoC". The scanner now
   cross-checks every `audit/test_exploit_*.cpp` against
   `unified_audit_runner.cpp` and reports high-severity findings when a
@@ -1815,7 +1815,7 @@ already use `std::make_unique` / matching `delete` and are safe.
 - **Updated** `docs/AUDIT_MANIFEST.md` (P2b) and
   `docs/PRE_RELEASE_CHECKLIST.md` with a strict requirement that heavy mutation
   kill-rate runs execute **locally before release** using
-  `scripts/mutation_kill_rate.py`.
+  `ci/mutation_kill_rate.py`.
 
 - **Rationale:** prevent recurring hosted-CI runtime spend and timeout churn
   while preserving mutation assurance as an explicit pre-release gate.
@@ -1838,7 +1838,7 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-15 (CI stability: nonce-bias statistical gate)
 
-- **Updated** `scripts/nonce_bias_detector.py` KS decision logic to reduce
+- **Updated** `ci/nonce_bias_detector.py` KS decision logic to reduce
   statistical flakiness in CI: values just above the 1% critical threshold are
   now recorded as **WARN** (still visible in report), while only materially
   larger deviations (`D >= 1.25 * D_crit(1%)`) trigger a hard **FAIL**.
@@ -1861,12 +1861,12 @@ already use `std::make_unique` / matching `delete` and are safe.
   wall-clock instability and external Python dependency drift (`coincurve`) in
   the Valgrind lane.
 
-- **Added** `scripts/caas_runner.py` — local unified CAAS runner that executes
+- **Added** `ci/caas_runner.py` — local unified CAAS runner that executes
   all five audit stages in sequence (scanner → gate → autonomy → bundle produce
   → bundle verify). Fail-fast by default; `--no-fail-fast` for full reporting.
   Supports `--skip-bundle` for fast iteration, `--stage <id>` for single-stage
   runs, and `--json` output for machine consumption.
-- **Added** `scripts/install_caas_hooks.py` — installs/removes a git pre-push
+- **Added** `ci/install_caas_hooks.py` — installs/removes a git pre-push
   hook that runs `caas_runner.py --skip-bundle` before every push. Hook backs
   up any existing pre-push hook and can be restored on removal.
 - **Added** `.github/workflows/caas.yml` — five-job blocking CI workflow. Each
@@ -1882,17 +1882,17 @@ already use `std::make_unique` / matching `delete` and are safe.
   gates run automatically on every push/PR, any regression is caught before
   reaching the repository, and manual audit runs supplement (not substitute)
   continuous automation.
-- **Updated** `scripts/test_audit_scripts.py` — registered `caas_runner.py`
+- **Updated** `ci/test_audit_scripts.py` — registered `caas_runner.py`
   and `install_caas_hooks.py` in `AUDIT_SCRIPTS` and `HELPABLE_SCRIPTS`.
 
 ---
 
 ## 2026-04-14 (Security Autonomy Program — infrastructure foundations)
 
-- **Added** `scripts/external_audit_bundle.py` — fail-closed producer for
+- **Added** `ci/external_audit_bundle.py` — fail-closed producer for
   external-audit evidence bundle with pinned SHA-256 hashes, commit metadata,
   critical gate outputs, and detached bundle digest.
-- **Added** `scripts/verify_external_audit_bundle.py` — independent verifier
+- **Added** `ci/verify_external_audit_bundle.py` — independent verifier
   for bundle digest, evidence hashes, commit consistency, and optional command
   replay hash-matching.
 - **Added** `docs/EXTERNAL_AUDIT_BUNDLE_SPEC.md` — formal format and
@@ -1909,28 +1909,28 @@ already use `std::make_unique` / matching `delete` and are safe.
 - **Added** `docs/AUDIT_SLA.json` — measurable SLA/SLO definitions: max stale
   evidence age (30d), max unresolved HIGH window (7d), CI flake budget (≤2%),
   critical evidence freshness (14d), exploit-to-regression max (48h).
-- **Added** `scripts/risk_surface_coverage.py` — risk-class coverage matrix
+- **Added** `ci/risk_surface_coverage.py` — risk-class coverage matrix
   measuring 7 classes (ct_paths, parser_boundary, abi_boundary, gpu_parity,
   secret_lifecycle, determinism, fuzz_corpus) with fail-closed thresholds.
-- **Added** `scripts/audit_sla_check.py` — SLA/SLO compliance gate checking
+- **Added** `ci/audit_sla_check.py` — SLA/SLO compliance gate checking
   evidence staleness, freshness, and determinism golden reference.
-- **Added** `scripts/check_formal_invariants.py` — formal invariant spec
+- **Added** `ci/check_formal_invariants.py` — formal invariant spec
   completeness checker (prove-or-block gate).
-- **Added** `scripts/supply_chain_gate.py` — supply-chain fail-closed gate
+- **Added** `ci/supply_chain_gate.py` — supply-chain fail-closed gate
   (build pinning, reproducible build, SLSA provenance, artifact hash, hardening).
-- **Added** `scripts/perf_security_cogate.py` — performance-security co-gating
+- **Added** `ci/perf_security_cogate.py` — performance-security co-gating
   that blocks optimizations if CT/determinism/secret-lifecycle regresses.
-- **Added** `scripts/check_misuse_resistance.py` — hostile-caller coverage gate
+- **Added** `ci/check_misuse_resistance.py` — hostile-caller coverage gate
   requiring ≥3 negative tests per ufsecp_* ABI function.
-- **Added** `scripts/evidence_governance.py` — tamper-resistant evidence chain
+- **Added** `ci/evidence_governance.py` — tamper-resistant evidence chain
   with HMAC-verified records (who/what/when/commit/binary_hash/verdict).
-- **Added** `scripts/incident_drills.py` — automated incident drill simulations
+- **Added** `ci/incident_drills.py` — automated incident drill simulations
   (key compromise, CI poisoning, dependency compromise).
-- **Added** `scripts/fuzz_campaign_manager.py` — fuzz infrastructure upgrade
+- **Added** `ci/fuzz_campaign_manager.py` — fuzz infrastructure upgrade
   (seed replay, crash triage, corpus minimization, crash-to-regression pipeline).
-- **Added** `scripts/security_autonomy_check.py` — master orchestrator running
+- **Added** `ci/security_autonomy_check.py` — master orchestrator running
   all 8 security gates with weighted scoring (autonomy_score 0-100).
-- **Integrated** new autonomy gates into `scripts/preflight.py` as informational
+- **Integrated** new autonomy gates into `ci/preflight.py` as informational
   steps [18/20], [19/20], [20/20].
 - **Initial autonomy score**: 65/100 (5/8 gates passing). Three gaps to close:
   audit_sla (missing DETERMINISM_GOLDEN.json), supply_chain (release hash policy),
@@ -1974,32 +1974,32 @@ already use `std::make_unique` / matching `delete` and are safe.
   in-place (no temporary `seen_*` vectors). Hot-path allocation scanner delta
   for `cpu/src/frost.cpp`: **13 -> 2** findings.
 
-- **Preflight hardening**: `scripts/preflight.py` now includes
+- **Preflight hardening**: `ci/preflight.py` now includes
   `--ctest-registry` (also in `--all`) to detect stale CTest entries that
   reference missing executables without matching build targets. This prevents
   recurring "Not Run / executable not found" surprises from stale build trees.
 
-- **Audit-of-audit bug fix**: `scripts/test_audit_scripts.py`
+- **Audit-of-audit bug fix**: `ci/test_audit_scripts.py`
   `check_preflight_step_count()` no longer hardcodes `[1/14]..[14/14]`.
   It now validates contiguous dynamic `[i/N]` markers, preventing false
   failures whenever preflight adds/removes checks.
 
-- **Audit-of-audit coverage expansion**: `scripts/test_audit_scripts.py`
+- **Audit-of-audit coverage expansion**: `ci/test_audit_scripts.py`
   now smoke-tests `preflight.py --ctest-registry`, so the new registry-health
   mode is continuously exercised by the Python audit self-test suite.
 
-- **Audit-of-audit classification guard**: `scripts/test_audit_scripts.py`
+- **Audit-of-audit classification guard**: `ci/test_audit_scripts.py`
   now uses a synthetic fixture build-tree to verify
   `check_ctest_registry_health()` keeps distinguishing `UNBUILT-TEST`
   (target exists, executable missing) from `STALE-CTEST`
   (no executable and no matching build target). Launcher-style commands are
   explicitly ignored in the regression test.
 
-- **Audit verdict fail-closed hardening**: `scripts/audit_verdict.py` now
+- **Audit verdict fail-closed hardening**: `ci/audit_verdict.py` now
   fails when no platform produces any usable `audit_report.json` artifact at
   all, even if every missing platform is marked `cancelled`/`skipped`. This
   prevents CI from reporting a false PASS when aggregate audit evidence is
-  completely absent. `scripts/test_audit_scripts.py` now covers both the
+  completely absent. `ci/test_audit_scripts.py` now covers both the
   non-fatal cancelled-platform case and the all-missing no-evidence failure.
 
 - **Residual hot-path debt closure**: `cpu/src/batch_verify.cpp` now reuses
@@ -2008,7 +2008,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   field batch inversions. This removes repeated heap construction on these
   steady-state public-data hot paths after initial capacity growth.
 
-- **Scanner truthfulness update**: `scripts/hot_path_alloc_scanner.py` now
+- **Scanner truthfulness update**: `ci/hot_path_alloc_scanner.py` now
   treats `identify_invalid` diagnostic helpers and FROST
   `keygen_begin`/`keygen_finalize` DKG setup paths as non-hot for allocation
   reporting. This keeps the HIGH hot-path backlog focused on steady-state
@@ -2021,13 +2021,13 @@ already use `std::make_unique` / matching `delete` and are safe.
   before emitting the final return vector. This removes repeated growth-driven
   heap work from the main loops while preserving existing public APIs.
 
-- **Scanner one-time/benchmark awareness**: `scripts/hot_path_alloc_scanner.py`
+- **Scanner one-time/benchmark awareness**: `ci/hot_path_alloc_scanner.py`
   now scans farther backward for static one-time initializer context and skips
   vector-return findings in benchmark/example helper files and GPU marshalling
   surfaces, preventing false HIGH findings from static table builders and
   non-library measurement helpers.
 
-- **Scanner quality self-test added**: `scripts/test_audit_scripts.py` now
+- **Scanner quality self-test added**: `ci/test_audit_scripts.py` now
   includes `QUALITY:hot_path_alloc_scanner`, a synthetic fixture test that
   verifies three invariants together: one-time static initializer allocations
   are not flagged as hot-path debt, benchmark/GPU helper vector-return patterns
@@ -2035,30 +2035,30 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 - **API contract gate introduced**: added machine-readable
   `docs/API_SECURITY_CONTRACTS.json` plus
-  `scripts/check_api_contracts.py` fail-closed validation. The gate enforces
+  `ci/check_api_contracts.py` fail-closed validation. The gate enforces
   schema correctness for critical `ufsecp_*` contracts, validates linked
   docs/tests, and blocks when sensitive API/security files change without
   updating the contract manifest.
 
-- **Preflight integration**: `scripts/preflight.py` now includes
+- **Preflight integration**: `ci/preflight.py` now includes
   `[11/16] API Security Contracts` (CLI: `--api-contracts`) so contract drift
   is enforced in `--all` runs.
 
-- **Audit-of-audit coverage**: `scripts/test_audit_scripts.py` now includes
+- **Audit-of-audit coverage**: `ci/test_audit_scripts.py` now includes
   `SMOKE:api_contracts` to verify checker stability (`--json` output schema,
   non-empty contract entries, and zero unexpected contract issues).
 
 - **Determinism gate introduced**: added fail-closed
-  `scripts/check_determinism_gate.py` to lock deterministic behavior of core
+  `ci/check_determinism_gate.py` to lock deterministic behavior of core
   API surfaces using fixed vectors (ECDSA repeat-sign, ECDH symmetry/repeat,
   BIP-32 repeat path derivation). Any drift now yields a blocking failure.
 
-- **Preflight integration**: `scripts/preflight.py` now includes
+- **Preflight integration**: `ci/preflight.py` now includes
   `[12/17] Determinism Gate` (CLI: `--determinism`) so deterministic behavior
   checks run automatically in `--all`.
 
 - **Audit-of-audit coverage expansion**:
-  `scripts/test_audit_scripts.py` now includes `SMOKE:determinism_gate` to
+  `ci/test_audit_scripts.py` now includes `SMOKE:determinism_gate` to
   validate checker JSON schema and pass/fail semantics against locked vectors.
 
 ## 2026-04-11 (Dual-prover formal verification: Z3 SMT + Lean 4)
@@ -2081,26 +2081,26 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-11 (Audit infrastructure overhaul + workflow fix)
 
-- **Added** Unified report schema v1.0.0 (`scripts/report_schema.py`):
+- **Added** Unified report schema v1.0.0 (`ci/report_schema.py`):
   `NullableField` replaces `"unknown"` strings with `{value, status, reason}`.
   `SkipReason` provides structured skip records. `Severity` enum classifies
   findings as blocking (critical/high) or advisory (medium/low/info).
   `ReportBuilder` enforces schema compliance for all audit reports.
 
-- **Added** Build provenance (`scripts/report_provenance.py`) integrated into
+- **Added** Build provenance (`ci/report_provenance.py`) integrated into
   `audit_gate.py` and `export_assurance.py`. Every report now carries git SHA,
   dirty flag, toolchain versions, build flags hash, and platform info.
 
-- **Added** Artifact analyzer MVP (`scripts/artifact_analyzer.py`):
+- **Added** Artifact analyzer MVP (`ci/artifact_analyzer.py`):
   multi-report ingestion, regression diff (before/after), platform divergence
   detection, flake detection, with SARIF 2.1.0 / Markdown / timeline exports.
 
 - **Added** Bug capsule format (`schemas/bug_capsule.schema.json`) + generator
-  (`scripts/bug_capsule_gen.py`) — JSON-defined bugs automatically produce
+  (`ci/bug_capsule_gen.py`) — JSON-defined bugs automatically produce
   regression tests, exploit PoC C++, and CMake fragments.
 
 - **Added** CI gating policy (`docs/CI_GATING_POLICY.md`) + impact-based gate
-  detector (`scripts/ci_gate_detect.py`) — Tier0/Tier1/Tier2 architecture.
+  detector (`ci/ci_gate_detect.py`) — Tier0/Tier1/Tier2 architecture.
   Crypto/CT/ABI changes trigger hard gate; docs/bindings trigger light gate.
 
 - **Added** Auditor quickstart guide (`docs/AUDITOR_QUICKSTART.md`) —
@@ -2268,19 +2268,19 @@ already use `std::make_unique` / matching `delete` and are safe.
   position pinpointing (first/last/multiple/all), wrong pk/msg rejection,
   empty/single/1024-entry batch scaling.
 
-- **Added** 5 crypto-specific checkers to `scripts/dev_bug_scanner.py`:
+- **Added** 5 crypto-specific checkers to `ci/dev_bug_scanner.py`:
   SECRET_UNERASED, CT_VIOLATION, TAGGED_HASH_BYPASS, RANDOM_IN_SIGNING,
   BINDING_NO_VALIDATION — Trail-of-Bits/NCC-style static analysis layer
   for crypto hygiene enforcement.
 
-- **Integrated** dev_bug_scanner into `scripts/preflight.py` as [13/14]
+- **Integrated** dev_bug_scanner into `ci/preflight.py` as [13/14]
   check — crypto-specific HIGH findings are now surfaced in preflight gate.
 
-- **Added** `scripts/test_audit_scripts.py` — Python audit infrastructure
+- **Added** `ci/test_audit_scripts.py` — Python audit infrastructure
   self-test: validates syntax, shebang, docstring, `--help` exit codes,
   structural integrity (category coverage, step count), and smoke tests
   for all 31 audit Python scripts. 99/99 checks pass. Integrated into
-  `scripts/preflight.py` as [14/14] and into `preflight.yml` CI workflow
+  `ci/preflight.py` as [14/14] and into `preflight.yml` CI workflow
   as a hard-fail gate.
 
 ## 2026-04-13 (6 new ePrint/CVE exploit PoCs: ZVP-DCP, lattice HNP, DFA, type confusion, ROS, FROST binding)
@@ -2421,10 +2421,10 @@ already use `std::make_unique` / matching `delete` and are safe.
   `fuzz_bip324_frame.cpp` (BIP-324 AEAD frame decrypt).
   Total LibFuzzer harnesses: 3 → **11** (5 `cpu/fuzz/` + 6 `audit/`). Committed `38108b89`.
 
-- **Added** `scripts/mutation_kill_rate.py` — stochastic mutation engine; 50 mutations/run,
+- **Added** `ci/mutation_kill_rate.py` — stochastic mutation engine; 50 mutations/run,
   threshold 60%. Committed `38108b89`.
 
-- **Added** `scripts/verify_slsa_provenance.py` — checks `cosign` bundle validity, subject
+- **Added** `ci/verify_slsa_provenance.py` — checks `cosign` bundle validity, subject
   digest, and builder identity for release artefacts. Committed `38108b89`.
 
 - **Added** `formal/cryptol/` — 4 machine-checkable Cryptol property files:
@@ -2438,7 +2438,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   - `libfuzzer_unified` (**CI-blocking**): deterministic regression over all 6 audit LibFuzzer
     domains (DER, pubkey, Schnorr, ECDSA, BIP-32, BIP-324). 12,097 checks in <250 ms.
     `#ifdef SECP256K1_BIP324` guard protects AEAD domain in BIP-324-disabled builds.
-  - `mutation_kill_rate` (advisory): popen() bridge to `scripts/mutation_kill_rate.py`;
+  - `mutation_kill_rate` (advisory): popen() bridge to `ci/mutation_kill_rate.py`;
     `--ctest-mode --count 50 --threshold 60`; skips gracefully if python3 absent.
   - `cryptol_specs` (advisory): popen() bridge to `cryptol --batch`; 28 formal properties
     across 4 spec files; skips gracefully if cryptol not installed.
@@ -2450,13 +2450,13 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 **Running total after this wave: unified_audit_runner fuzzing section 11/11 PASS.
 Full audit 221/221 PASS. LibFuzzer harness count: 11. Cryptol formal properties: 28.
-SLSA provenance verifier in scripts/.**
+SLSA provenance verifier in ci/.**
 
 ---
 
 ## 2026-04-03 (Python audit script suite + static analysis scanners — commits `e94523bb`, `ad32e1d1`, `bdc00c6b`, `79f83220`)
 
-- **Added** `scripts/dev_bug_scanner.py` (15 categories): classic C++ development bug detector
+- **Added** `ci/dev_bug_scanner.py` (15 categories): classic C++ development bug detector
   scanning 221 library source files (cpu/src, gpu/src, opencl, metal, bindings, include). Finds
   bugs that code review and LLM analysis typically miss. Results: **182 findings (82 HIGH,
   100 MEDIUM)** — NULL 51, CPASTE 45, SIG 31, RETVAL 30, MSET 19, OB1 5, ZEROIZE 1. Precision
@@ -2464,57 +2464,57 @@ SLSA provenance verifier in scripts/.**
   case-grouping MBREAK. Third-party dirs excluded (node_modules, _deps, vendor). Registered as
   CTest `py_dev_bug_scan`. Committed `79f83220`.
 
-- **Added** `scripts/audit_test_quality_scanner.py` (6 categories): static analyzer for audit
+- **Added** `ci/audit_test_quality_scanner.py` (6 categories): static analyzer for audit
   C++ test files detecting patterns that cause tests to vacuously pass. Categories:
   A=`CHECK(true,...)` always-pass, B=security rejection gap, C=condition/message polarity
   mismatch, D=weak statistical thresholds, E=`ufsecp_*` return value silently discarded,
   F=missing unconditional reject in adversarial test. Manual audit found 17+ instances across
   KR-5/6, FAC-5/7, PSM-2/6, HB-5. Committed `79f83220`.
 
-- **Added** `scripts/semantic_props.py` (1450+ checks): algebraic and curve property test harness
+- **Added** `ci/semantic_props.py` (1450+ checks): algebraic and curve property test harness
   — kG+lG==(k+l)G, k(lG)==(kl)G (scalar linearity vs coincurve), sign/verify roundtrip,
   determinism (RFC6979), low-S, wrong-msg/wrong-key/tampered-r/s all reject, ECDH symmetry,
   BIP-32 path equivalence. Hypothesis integration when installed. CTest `py_semantic_props`.
   Committed `bdc00c6b`.
 
-- **Added** `scripts/invalid_input_grammar.py` (37 checks): structured invalid-input rejection
+- **Added** `ci/invalid_input_grammar.py` (37 checks): structured invalid-input rejection
   verifier — wrong pubkey prefix, x≥p, not-on-curve, sk=0/n/overrange, r=0/n/2^256-1, s=0/n,
   zero ECDH, invalid BIP-32 seed length, invalid path, hardened-from-xpub rejection. CTest
   `py_invalid_input_grammar`. Committed `bdc00c6b`.
 
-- **Added** `scripts/stateful_sequences.py` (401+ checks): stateful API call sequence verifier —
+- **Added** `ci/stateful_sequences.py` (401+ checks): stateful API call sequence verifier —
   interleaved sign/verify/ecdh on one context, error-injection recovery, 2+3 level BIP-32 path
   consistency, dual-context independence, context destroy+recreate determinism, 5000-op
   endurance. CTest `py_stateful_sequences`. Committed `bdc00c6b`.
 
-- **Added** `scripts/differential_cross_impl.py` (1000+ checks): cross-implementation
+- **Added** `ci/differential_cross_impl.py` (1000+ checks): cross-implementation
   differential test driving library alongside coincurve (libsecp256k1) and python-ecdsa for
   random (sk, msg) pairs. Catches wrong low-S normalization, pubkey parity bugs, ECDH
   mismatches, r/s range violations, cross-verify failures. CTest `py_differential_crossimpl`.
   Committed `e94523bb` / `ad32e1d1`.
 
-- **Added** `scripts/nonce_bias_detector.py` (10,000+ ops): statistical nonce bias detection via
+- **Added** `ci/nonce_bias_detector.py` (10,000+ ops): statistical nonce bias detection via
   chi-squared, Kolmogorov-Smirnov, per-bit frequency sweep (all 256 bits), collision detection,
   single-key diversity check. Catches Minerva/TPM-FAIL-class biases invisible to code review.
   KS D=0.017 < 0.036 (5% significance). CTest `py_nonce_bias`. Committed `e94523bb` / `ad32e1d1`.
 
-- **Added** `scripts/rfc6979_spec_verifier.py` (200+ checks): independent pure-Python RFC 6979
+- **Added** `ci/rfc6979_spec_verifier.py` (200+ checks): independent pure-Python RFC 6979
   §3.2 HMAC-SHA256 nonce derivation compared against library r-values for 200+ random (sk, msg)
   pairs plus RFC 6979 Appendix A.2.5 known vectors. Catches HMAC step ordering bugs,
   endianness errors, missing k<n check. CTest `py_rfc6979_spec`. Committed `e94523bb` / `ad32e1d1`.
 
-- **Added** `scripts/bip32_cka_demo.py`: live BIP-32 Child Key Attack demo — performs
+- **Added** `ci/bip32_cka_demo.py`: live BIP-32 Child Key Attack demo — performs
   non-hardened parent key recovery (child_sk - HMAC_IL mod n) using library's actual output.
   Validates algebraic correctness of BIP-32 HMAC-SHA512 computation. Also proves hardened
   derivation is correctly immune. Chained upward attacks (grandchild→child→master) verified.
   CTest `py_bip32_cka`. Committed `e94523bb` / `ad32e1d1`.
 
-- **Added** `scripts/glv_exhaustive_check.py` (5000+ scalars): GLV decomposition algebraic
+- **Added** `ci/glv_exhaustive_check.py` (5000+ scalars): GLV decomposition algebraic
   verifier — adversarial scalars stressing Babai rounding near n/2, λ, 2^127, 2^128 and lattice
   boundaries, compared against coincurve reference. Catches off-by-one Babai rounding errors
   invisible to code review. CTest `py_glv_exhaustive`. Committed `e94523bb` / `ad32e1d1`.
 
-- **Added** `scripts/_ufsecp.py`: canonical ctypes wrapper for the `ufsecp_*` API (context-based,
+- **Added** `ci/_ufsecp.py`: canonical ctypes wrapper for the `ufsecp_*` API (context-based,
   correct symbol names, BIP32Key 82-byte struct). Shared by all Python audit scripts.
   Committed `ad32e1d1`.
 
@@ -2660,7 +2660,7 @@ tests PASS.**
   hostile-caller coverage, CT route documentation, failure-matrix promotion,
   and owner bundle generation.
 - `build/owner_audit/owner_audit_bundle.json` reached `overall_status: ready`.
-- `scripts/audit_gate.py` passed with no blocking findings for the started
+- `ci/audit_gate.py` passed with no blocking findings for the started
   owner-grade audit track.
 
 ## 2026-03-25

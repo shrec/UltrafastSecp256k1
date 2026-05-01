@@ -27,11 +27,11 @@ to work without modification.
 
 | Claim | Verification command | Evidence |
 |-------|----------------------|----------|
-| 693/693 `make check` tests pass | `python3 scripts/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
-| All signing paths constant-time | `python3 scripts/audit_gate.py --ct-integrity` | `docs/CT_SIGNING_PATHS.md` |
+| 693/693 `make check` tests pass | `python3 ci/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| All signing paths constant-time | `python3 ci/audit_gate.py --ct-integrity` | `docs/CT_SIGNING_PATHS.md` |
 | Differential parity with libsecp256k1 | CTest `differential_*` targets | `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2` |
-| 232 exploit PoC tests, 0 failures | `python3 scripts/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
-| Reproducible evidence bundle | `python3 scripts/verify_external_audit_bundle.py` | `docs/EXTERNAL_AUDIT_BUNDLE.json` |
+| 232 exploit PoC tests, 0 failures | `python3 ci/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
+| Reproducible evidence bundle | `python3 ci/verify_external_audit_bundle.py` | `docs/EXTERNAL_AUDIT_BUNDLE.json` |
 
 ### Constant-time guarantee
 
@@ -74,10 +74,10 @@ git checkout <commit>
 # Reproduce the evidence bundle
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
-python3 scripts/caas_runner.py --profile bitcoin-core-backend --json
+python3 ci/caas_runner.py --profile bitcoin-core-backend --json
 
 # Verify bundle integrity
-python3 scripts/verify_external_audit_bundle.py
+python3 ci/verify_external_audit_bundle.py
 ```
 
 Full evidence document: [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](BITCOIN_CORE_BACKEND_EVIDENCE.md)

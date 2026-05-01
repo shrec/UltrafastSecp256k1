@@ -80,7 +80,7 @@ jobs:
 
       - name: Run auditor-mode automation (advisory)
         run: |
-          python3 scripts/auditor_mode.py \
+          python3 ci/auditor_mode.py \
             --output-dir ./audit-output/auditor-mode
 
       - name: Upload audit reports
@@ -367,7 +367,7 @@ jobs:
           WINDOWS_MSVC_RESULT: ${{ needs.windows-msvc.result }}
         run: |
           set -u
-          python3 scripts/audit_verdict.py \
+          python3 ci/audit_verdict.py \
             --artifact-root audit-artifacts \
             --summary-file "$GITHUB_STEP_SUMMARY" \
             --platform "audit-report-linux-gcc13=$LINUX_GCC_RESULT" \

@@ -59,7 +59,7 @@ ROCm/HIP promotion requirements are strict:
 1. Produce `benchmark_json`, `benchmark_text`, `audit_log`, `driver_version`, and `device_model` artifacts on real AMD hardware.
 2. Update `docs/GPU_BACKEND_EVIDENCE.json` in the same change that archives those artifacts.
 3. Keep published benchmark labels backend-accurate; CUDA evidence cannot be relabeled as ROCm/HIP evidence.
-4. Re-run `python3 scripts/preflight.py --gpu-evidence` and `python3 scripts/validate_assurance.py` after the registry change.
+4. Re-run `python3 ci/preflight.py --gpu-evidence` and `python3 ci/validate_assurance.py` after the registry change.
 
 If any of those conditions are missing, ROCm/HIP remains non-publishable. That
 state is expected until AMD hardware is available and should be treated as an
@@ -69,8 +69,8 @@ governance model.
 Local enforcement:
 
 ```bash
-python3 scripts/preflight.py --gpu-evidence
-python3 scripts/validate_assurance.py
+python3 ci/preflight.py --gpu-evidence
+python3 ci/validate_assurance.py
 ```
 
 ---

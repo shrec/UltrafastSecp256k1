@@ -7,7 +7,7 @@ Documents the hostile-caller test coverage for the C ABI (`ufsecp_*` functions).
 - Section H (New ABI Surface Edge Cases) — 26 additional functions added in v3.22+
 
 Secret-bearing ABI boundary changes are under stricter change control:
-`scripts/check_secret_path_changes.py` requires paired updates to this document
+`ci/check_secret_path_changes.py` requires paired updates to this document
 and `docs/SECURITY_CLAIMS.md` whenever secret-bearing ABI surfaces change.
 
 ---

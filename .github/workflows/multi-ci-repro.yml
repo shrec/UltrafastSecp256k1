@@ -19,7 +19,7 @@
 # physical host, CPU, or glibc ABI path — this is sufficient evidence that
 # the build is supply-chain reproducible within the supported toolchain.
 #
-# The comparison uses scripts/multi_ci_repro_check.py (G-7 gate script).
+# The comparison uses ci/multi_ci_repro_check.py (G-7 gate script).
 # ============================================================================
 
 name: Multi-CI Reproducible Build
@@ -204,7 +204,7 @@ jobs:
 
       - name: Compare hashes (G-7 gate)
         run: |
-          python3 scripts/multi_ci_repro_check.py \
+          python3 ci/multi_ci_repro_check.py \
             attestation/hashes-provider-a.txt \
             attestation/hashes-provider-b.txt
 
@@ -219,7 +219,7 @@ jobs:
           echo "| B | ubuntu-24.04 | gcc-14 |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f attestation/hashes-provider-a.txt ] && [ -f attestation/hashes-provider-b.txt ]; then
-            python3 scripts/multi_ci_repro_check.py \
+            python3 ci/multi_ci_repro_check.py \
               attestation/hashes-provider-a.txt \
               attestation/hashes-provider-b.txt >> $GITHUB_STEP_SUMMARY 2>&1 || true
           fi

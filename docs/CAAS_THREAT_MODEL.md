@@ -44,7 +44,7 @@ The stale evidence is bundled and shipped, claiming CT compliance that no longer
 exists for the current code.
 
 **Mitigations**:
-- `scripts/audit_gate.py` `check_freshness()` function enforces a maximum
+- `ci/audit_gate.py` `check_freshness()` function enforces a maximum
   evidence age of 7 days. Evidence older than this causes a hard gate failure
   regardless of content.
 - A dedicated `caas-evidence-refresh` CI workflow runs nightly, unconditionally
@@ -76,13 +76,13 @@ but the graph is not rebuilt. The graph still reports full coverage. The audit
 gate passes because it queries the graph, not the source files directly.
 
 **Mitigations**:
-- `scripts/check_source_graph_quality.py` runs as CAAS Stage 0. It compares
+- `ci/check_source_graph_quality.py` runs as CAAS Stage 0. It compares
   the graph's indexed file list against the current working tree and fails if
   any `.cpp` or `.hpp` file in audited directories is absent from the graph
   or has a graph mtime older than its filesystem mtime.
 - Gate check P6 ("graph freshness") enforces that the graph was rebuilt after
   the most recent modification to any file in `cpu/`, `include/`, `audit/`, or
-  `scripts/`.
+  `ci/`.
 - The graph rebuild is a required step in the evidence refresh workflow. It
   cannot be skipped without failing the freshness check.
 
@@ -112,7 +112,7 @@ the code, including versions that are still vulnerable. The audit gate reports
 the exploit as covered.
 
 **Mitigations**:
-- `scripts/audit_test_quality_scanner.py` performs static analysis on all
+- `ci/audit_test_quality_scanner.py` performs static analysis on all
   registered exploit PoC files. It checks for: at least one assertion-level
   call (`ASSERT_*`, `REQUIRE_*`, `CHECK_*`, or explicit abort), no unreachable
   assertion patterns (assertion inside dead branch), and no trivially constant
@@ -152,7 +152,7 @@ uses the runner registration list, not the file list. The test is not wired.
 The bias class is not actually verified by the CAAS pipeline.
 
 **Mitigations**:
-- `scripts/check_exploit_wiring.py` runs as CAAS Stage 0 (before any other
+- `ci/check_exploit_wiring.py` runs as CAAS Stage 0 (before any other
   check). For every file matching `audit/test_exploit_*.cpp`, it checks that
   the corresponding `_run()` symbol appears in
   `audit/unified_audit_runner.cpp`. Any missing registration causes an
@@ -223,7 +223,7 @@ with falsified assurance.
 - Every bundle produced by Stage 4 (Bundle Produce) includes a
   `EXTERNAL_AUDIT_BUNDLE.sha256` file containing the SHA-256 hash of every
   file in the bundle, computed at the time of production.
-- `scripts/verify_external_audit_bundle.py` recomputes the hashes at verify
+- `ci/verify_external_audit_bundle.py` recomputes the hashes at verify
   time (Stage 5) and fails if any hash does not match. This is the mandatory
   final step before a bundle is attached to a release.
 - The bundle manifest includes the git commit SHA, the CI run ID, and the
@@ -361,7 +361,7 @@ concludes evidence is current.
 
 **Mitigations**:
 - All evidence files contain embedded timestamps. The age gate in
-  `scripts/audit_gate.py` reads the timestamp from each evidence file directly,
+  `ci/audit_gate.py` reads the timestamp from each evidence file directly,
   not from the dashboard metadata. A hard failure occurs if any evidence file
   is older than 7 days at gate evaluation time.
 - The dashboard generation step reads evidence file timestamps, not a separate
@@ -436,9 +436,9 @@ its output, should take the following steps:
    ctest --test-dir build-ci-audit`. Compare results to the released bundle.
    Any divergence is a finding.
 
-2. **Inspect the gate scripts.** `scripts/audit_gate.py`,
-   `scripts/check_exploit_wiring.py`, `scripts/check_source_graph_quality.py`,
-   and `scripts/verify_external_audit_bundle.py` are the primary controls.
+2. **Inspect the gate scripts.** `ci/audit_gate.py`,
+   `ci/check_exploit_wiring.py`, `ci/check_source_graph_quality.py`,
+   and `ci/verify_external_audit_bundle.py` are the primary controls.
    They are pure Python, readable, and have no external dependencies beyond
    the standard library.
 
@@ -451,7 +451,7 @@ its output, should take the following steps:
    that the timestamps in the evidence files match the CI run timestamps in the
    GitHub Actions log.
 
-5. **Verify the bundle hash.** Run `python3 scripts/verify_external_audit_bundle.py
+5. **Verify the bundle hash.** Run `python3 ci/verify_external_audit_bundle.py
    <bundle_path>`. Confirm the exit code is 0 and all hashes match.
 
 6. **Read the scope definition.** `docs/AUDIT_SCOPE.md` lists in-scope and

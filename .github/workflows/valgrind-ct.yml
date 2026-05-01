@@ -5,7 +5,7 @@
 # that depends on secret key material. Zero reports = CT proven at binary
 # level for the tested paths.
 #
-# Wraps scripts/valgrind_ct_check.sh which:
+# Wraps ci/valgrind_ct_check.sh which:
 #   1. Builds with -DVALGRIND_CT_CHECK=1 (marks secrets as undefined)
 #   2. Runs CT ops under valgrind --tool=memcheck --track-origins=yes
 #   3. Reports "Conditional jump depends on uninitialised value" as FAIL
@@ -27,7 +27,7 @@ on:
       - 'cpu/src/**'
       - 'cpu/include/**'
       - 'audit/**'
-      - 'scripts/valgrind_ct_check.sh'
+      - 'ci/valgrind_ct_check.sh'
   pull_request:
     branches: [main]
     paths:
@@ -63,7 +63,7 @@ jobs:
 
     - name: Run Valgrind CT analysis
       run: |
-        chmod +x scripts/valgrind_ct_check.sh
+        chmod +x ci/valgrind_ct_check.sh
         ./scripts/valgrind_ct_check.sh build/valgrind-ct
 
     - name: Upload Valgrind reports

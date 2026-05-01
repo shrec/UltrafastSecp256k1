@@ -1,0 +1,78 @@
+# =============================================================================
+# UltrafastSecp256k1 -- Local CI Docker Image
+# =============================================================================
+# Replicates ALL CI jobs locally.  Build once, test instantly.
+# Includes ccache support for fast rebuilds (~seconds after first build).
+#
+# Build:
+#   docker build -f docker/Dockerfile.ci -t ufsecp-ci docker/
+#
+# Usage (docker-compose -- recommended):
+#   docker compose -f docker-compose.ci.yml run --rm pre-push   # ~5 min gate
+#   docker compose -f docker-compose.ci.yml run --rm all         # Full CI
+#
+# Usage (standalone):
+#   docker run --rm -v "${PWD}:/src" -v uf-ccache:/ccache -w /src ufsecp-ci ./docker/run_ci.sh all
+#   docker run --rm -v "${PWD}:/src" -w /src ufsecp-ci ./docker/run_ci.sh pre-push
+# =============================================================================
+
+FROM ubuntu:24.04@sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9 AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# -- System packages ----------------------------------------------------------
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+    # Build essentials
+    build-essential cmake ninja-build git ca-certificates curl wget \
+    # GCC 13
+    gcc-13 g++-13 \
+    # Clang 17
+    clang-17 clang++-17 lld-17 clang-tidy-17 llvm-17 \
+    # Clang sanitizer runtimes (ASan, UBSan, TSan, MSan)
+    libclang-rt-17-dev \
+    # ARM64 cross-compiler
+    gcc-13-aarch64-linux-gnu g++-13-aarch64-linux-gnu \
+    # Analysis tools
+    valgrind cppcheck ccache jq \
+    # Python (for Emscripten + scripts)
+    python3 python3-pip \
+    # Node.js 20 (for WASM tests) -- download script to file, then run
+    && curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh \
+    && bash /tmp/nodesource_setup.sh \
+    && rm -f /tmp/nodesource_setup.sh \
+    && apt-get install -y --no-install-recommends nodejs \
+    # Cleanup
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# -- Emscripten SDK -----------------------------------------------------------
+ENV EMSDK=/emsdk
+ENV EMSDK_VERSION=3.1.51
+RUN git clone https://github.com/emscripten-core/emsdk.git ${EMSDK} \
+    && cd ${EMSDK} \
+    && ./emsdk install ${EMSDK_VERSION} \
+    && ./emsdk activate ${EMSDK_VERSION} \
+    && echo "source ${EMSDK}/emsdk_env.sh 2>/dev/null" >> /etc/bash.bashrc
+
+# -- Convenience aliases ------------------------------------------------------
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100
+
+# -- ccache setup (persistent via Docker volume mount) -------------------------
+ENV CCACHE_DIR=/ccache \
+    CCACHE_MAXSIZE=5G \
+    CCACHE_COMPRESS=1 \
+    CCACHE_COMPRESSLEVEL=6
+
+RUN mkdir -p /usr/lib/ccache && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/g++-13 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/gcc-13 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/clang-17 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/clang++-17 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/aarch64-linux-gnu-g++-13 && \
+    ln -sf /usr/bin/ccache /usr/lib/ccache/aarch64-linux-gnu-gcc-13
+ENV PATH="/usr/lib/ccache:${PATH}"
+
+WORKDIR /src

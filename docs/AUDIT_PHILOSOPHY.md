@@ -170,7 +170,7 @@ The graph allows machine-readable queries: "Which functions have CT coverage?",
 
 ### 4. Always Audit-Ready
 
-`scripts/external_audit_prep.sh` produces in a single command:
+`ci/external_audit_prep.sh` produces in a single command:
 - preflight output (platform and toolchain verification)
 - assurance export (machine-readable coverage and risk matrix)
 - traceability artifacts (claim → test → evidence links)
@@ -239,7 +239,7 @@ Honesty is as important as coverage:
   CT) tested by per-backend smoke tests. Vendor JIT may still introduce branches in compiled
   kernels. The 3-pipeline formal CT verification (ct-verif LLVM + Valgrind + dudect) applies
   to the CPU path only. Production signing is CPU-only.
-- **External reviewer support:** The system is designed so outside reviewers can replay all evidence — `bash scripts/external_audit_prep.sh` produces a reproducible auditor-facing bundle with preflight outputs, assurance export, and traceability artifacts.
+- **External reviewer support:** The system is designed so outside reviewers can replay all evidence — `bash ci/external_audit_prep.sh` produces a reproducible auditor-facing bundle with preflight outputs, assurance export, and traceability artifacts.
 
 ---
 
@@ -261,7 +261,7 @@ Full transparency means known gaps are visible too:
 
 | Question | Status |
 |----------|--------|
-| External reviewer support | Full reproducible evidence bundle available via `bash scripts/external_audit_prep.sh` |
+| External reviewer support | Full reproducible evidence bundle available via `bash ci/external_audit_prep.sh` |
 | ROCm/AMD hardware validation | Experimental |
 | GPU CT formal guarantees | Code-discipline branchless CT + smoke tests on all 3 backends; 3-pipeline formal verification (ct-verif LLVM/Valgrind/dudect) is CPU-only — vendor JIT caveat applies to GPU |
 | Differential fuzzing vs libsecp256k1 | Partial, not exhaustive |
@@ -281,7 +281,7 @@ the system substantially reduces the cost and time of that engagement:
   to a test. An auditor starts from this list, not from scratch.
 - **Machine-readable index** — the source graph covers 9,071 functions with
   coverage scores, audit gaps, and dependency chains queryable in seconds.
-- **Evidence artifacts** — `scripts/external_audit_prep.sh` produces a full
+- **Evidence artifacts** — `ci/external_audit_prep.sh` produces a full
   audit package (source, tests, coverage, SLSA provenance) in one command.
 - **Attack surface** — `docs/ATTACK_GUIDE.md` and the 189 PoC modules show
   exactly which attack vectors are already covered. An auditor verifies
@@ -401,7 +401,7 @@ GPU for batch verification and chain scanning — which is how wallets like Frig
 actually use this library. The characterisation "cannot be used as primary signer
 core" is factually incorrect for the CPU signing path.
 
-The reproducible evidence bundle (`scripts/external_audit_prep.sh`) and structured traceability artifacts (`docs/AUDIT_TRACEABILITY.md`, source graph) are designed so reviewers can engage with the implementation at any depth without waiting on any intermediary.
+The reproducible evidence bundle (`ci/external_audit_prep.sh`) and structured traceability artifacts (`docs/AUDIT_TRACEABILITY.md`, source graph) are designed so reviewers can engage with the implementation at any depth without waiting on any intermediary.
 
 ### "Backend parity is not fully proven"
 
@@ -786,7 +786,7 @@ structurally different from a typical solo project:
 | Strength | Mechanism | Evidence |
 |----------|-----------|---------|
 | Attack-first culture | 189 exploit PoC modules, CVE/ePrint cascade | `audit/exploits/` directory, `EXPLOIT_TEST_CATALOG.md` |
-| Formal CT verification | ct-verif LLVM + Valgrind taint + dudect (3 pipelines) | `ct/`, `scripts/`, CI workflow |
+| Formal CT verification | ct-verif LLVM + Valgrind taint + dudect (3 pipelines) | `ct/`, `ci/`, CI workflow |
 | Continuous semantic equivalence | 1.3M nightly differential checks vs reference | Nightly CI, `AUDIT_TRACEABILITY.md` |
 | Formal algebraic verification | 45 Cryptol properties covering group law + edge cases | `formal/`, Cryptol CI job |
 | Fuzz coverage | 11 libFuzzer harnesses with sanitizers, continuous | `fuzz/`, CI fuzzer job |
@@ -795,7 +795,7 @@ structurally different from a typical solo project:
 | Persistent institutional memory | AI Memory: cross-session context, decision rationale | `tools/ai_memory/` |
 | Daily attack-signal integration | ePrint/CVE scan → PoC → instrument update cycle | `docs/AUDIT_CHANGELOG.md` |
 | LLM multi-role adversarial review | 6 distinct adversarial roles per major change | This document, per-session workflow |
-| Bus-factor mitigation | Full audit state reproducible from repo alone | `scripts/external_audit_prep.sh` |
+| Bus-factor mitigation | Full audit state reproducible from repo alone | `ci/external_audit_prep.sh` |
 | Supply chain integrity | SLSA Level 3 provenance on every release | CI provenance attestations |
 | Documentation truth enforcement | Docs treated as security artifacts; inaccuracy = vulnerability | Documentation Reviewer LLM role |
 

@@ -8,7 +8,7 @@ Use the SQLite project graph before broad file search.
 - Rebuild:
 
 ```bash
-python3 scripts/build_project_graph.py --rebuild
+python3 ci/build_project_graph.py --rebuild
 ```
 
 ## Preferred Workflow
@@ -53,18 +53,18 @@ secrets, private keys, credentials, or tokens.
 ## Most Useful Commands
 
 ```bash
-python3 scripts/query_graph.py context cpu/src/ct_sign.cpp
-python3 scripts/query_graph.py impact cpu/src/ecdh.cpp
-python3 scripts/query_graph.py routing ecdsa_sign
-python3 scripts/query_graph.py tags
-python3 scripts/query_graph.py tag constant_time
-python3 scripts/query_graph.py symbol ecdsa_sign
-python3 scripts/query_graph.py optimize 15
-python3 scripts/query_graph.py risk 15
-python3 scripts/query_graph.py gpuwork 15
-python3 scripts/query_graph.py fragile 15
-python3 scripts/query_graph.py hotspots 20
-python3 scripts/query_graph.py coverage ecdsa_sign
+python3 ci/query_graph.py context cpu/src/ct_sign.cpp
+python3 ci/query_graph.py impact cpu/src/ecdh.cpp
+python3 ci/query_graph.py routing ecdsa_sign
+python3 ci/query_graph.py tags
+python3 ci/query_graph.py tag constant_time
+python3 ci/query_graph.py symbol ecdsa_sign
+python3 ci/query_graph.py optimize 15
+python3 ci/query_graph.py risk 15
+python3 ci/query_graph.py gpuwork 15
+python3 ci/query_graph.py fragile 15
+python3 ci/query_graph.py hotspots 20
+python3 ci/query_graph.py coverage ecdsa_sign
 ```
 
 ## Reasoning Layers

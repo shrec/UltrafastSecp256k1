@@ -38,37 +38,37 @@ jobs:
           python-version: '3.12'
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Preflight -- Security invariants (hard-fail)
-        run: python3 scripts/preflight.py --security
+        run: python3 ci/preflight.py --security
 
       - name: Preflight -- CUDA/MSVC portability (hard-fail)
-        run: python3 scripts/preflight.py --cuda-msvc
+        run: python3 ci/preflight.py --cuda-msvc
 
       - name: Preflight -- ABI surface (hard-fail)
-        run: python3 scripts/preflight.py --abi
+        run: python3 ci/preflight.py --abi
 
       - name: Preflight -- Coverage gaps (advisory)
-        run: python3 scripts/preflight.py --coverage || true
+        run: python3 ci/preflight.py --coverage || true
 
       - name: Preflight -- Graph freshness (hard-fail)
-        run: python3 scripts/preflight.py --freshness
+        run: python3 ci/preflight.py --freshness
 
       - name: Preflight -- Changed files impact (advisory)
-        run: python3 scripts/preflight.py --changed || true
+        run: python3 ci/preflight.py --changed || true
 
       - name: Preflight -- Code quality gate (hard-fail on regression)
-        run: python3 scripts/preflight.py --bug-scan
+        run: python3 ci/preflight.py --bug-scan
 
       - name: Python audit infrastructure self-test (hard-fail)
-        run: python3 scripts/test_audit_scripts.py --quick
+        run: python3 ci/test_audit_scripts.py --quick
 
       - name: Assurance docs validation (hard-fail)
-        run: python3 scripts/validate_assurance.py
+        run: python3 ci/validate_assurance.py
 
       # -----------------------------------------------------------------------
       # CAAS gates — all four stages run here as a fast preflight guard.
@@ -94,11 +94,11 @@ jobs:
         # that exposes a *_run() entry point must be registered in
         # unified_audit_runner.cpp. Added 2026-04-17 after BUG-A1 where 16
         # on-disk PoCs bypassed the aggregated audit verdict.
-        run: python3 scripts/check_exploit_wiring.py
+        run: python3 ci/check_exploit_wiring.py
 
       - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
         run: |
-          python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
+          python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
           python3 - <<'EOF'
           import json, sys
           with open("caas_scanner.json") as f:
@@ -113,23 +113,23 @@ jobs:
           EOF
 
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
-        run: python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+        run: python3 ci/audit_gate.py --json -o caas_audit_gate.json
 
       - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)
-        run: python3 scripts/check_libsecp_shim_parity.py
+        run: python3 ci/check_libsecp_shim_parity.py
 
       - name: CAAS Stage 2c — Core Build Mode (hard-fail)
-        run: python3 scripts/check_core_build_mode.py
+        run: python3 ci/check_core_build_mode.py
 
       - name: CAAS Stage 2d — Source Graph Quality (hard-fail)
-        run: python3 scripts/check_source_graph_quality.py
+        run: python3 ci/check_source_graph_quality.py
 
       - name: CAAS Stage 2e — Bitcoin Core test_bitcoin Gate (hard-fail)
-        run: python3 scripts/check_bitcoin_core_test_results.py
+        run: python3 ci/check_bitcoin_core_test_results.py
 
       - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
         run: |
-          python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
           python3 - <<'EOF'
           import json, sys
           with open("caas_autonomy.json") as f:
@@ -143,10 +143,10 @@ jobs:
           EOF
 
       - name: Export assurance report (JSON)
-        run: python3 scripts/export_assurance.py -o assurance_report.json
+        run: python3 ci/export_assurance.py -o assurance_report.json
 
       - name: Coverage gaps summary
-        run: python3 scripts/query_graph.py gaps || true
+        run: python3 ci/query_graph.py gaps || true
 
       - name: Upload assurance artifacts
         if: always()

@@ -39,7 +39,7 @@
 
 ### Infrastructure
 
-#### scripts/update_required_checks.sh (NEW)
+#### ci/update_required_checks.sh (NEW)
 - Script to update GitHub branch protection required status checks via API.
 - Adds: security-audit, ct-verif, Benchmark Regression Check, CodeQL to blocking checks.
 - Must be run by admin after branch protection is configured.
@@ -108,7 +108,7 @@ To verify these changes:
 3. For ct-verif: push code with a switch in CT path and verify job fails
 4. For bench-regression: create a PR with intentional regression and verify it blocks
 5. For audit-report: if audit runner returns non-zero, verify workflow fails
-6. Run `scripts/update_required_checks.sh` with admin access to update branch protection
+6. Run `ci/update_required_checks.sh` with admin access to update branch protection
 
 ---
 

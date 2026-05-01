@@ -58,7 +58,7 @@ jobs:
           THRESHOLD: ${{ github.event.inputs.threshold || '75' }}
         run: |
           set +e
-          python3 scripts/mutation_kill_rate.py \
+          python3 ci/mutation_kill_rate.py \
               --build-dir build_rel \
               --threshold "$THRESHOLD" \
               --json -o mutation_report.json

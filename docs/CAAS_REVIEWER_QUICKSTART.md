@@ -44,14 +44,14 @@ exactly what to run and what to expect.
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
 # Recommended: canonical audit profile under out/audit
-python3 scripts/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
+python3 ci/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C out/audit
 
 # 2. Run the full CAAS pipeline (all 5 stages)
-python3 scripts/caas_runner.py --no-fail-fast --json -o caas_report.json
+python3 ci/caas_runner.py --no-fail-fast --json -o caas_report.json
 
 # 3. Open the interactive audit dashboard in your browser
-python3 scripts/audit_viewer.py
+python3 ci/audit_viewer.py
 ```
 
 Expected result: all stages PASS, JSON report written. The audit viewer
@@ -65,16 +65,16 @@ For reviewers evaluating the Bitcoin Core alternative-backend proposal:
 
 ```bash
 # Run the Bitcoin Core profile only
-python3 scripts/caas_runner.py --profile bitcoin-core-backend --json -o btc_core_report.json
+python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc_core_report.json
 
 # Check shim parser parity (strict accept/reject matching libsecp)
-python3 scripts/check_libsecp_shim_parity.py
+python3 ci/check_libsecp_shim_parity.py
 
 # Check build-mode determinism (no FetchContent, no config.ini required)
-python3 scripts/check_core_build_mode.py
+python3 ci/check_core_build_mode.py
 
 # Verify the evidence bundle cryptographic integrity
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 The `bitcoin-core-backend` profile verifies:
@@ -130,14 +130,14 @@ The current evidence bundle is at:
 Verify integrity independently:
 
 ```bash
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 Regenerate from scratch:
 
 ```bash
-python3 scripts/external_audit_bundle.py
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/external_audit_bundle.py
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 The bundle is regenerated on every push to `dev` by the `caas-evidence-refresh` CI workflow.
@@ -150,13 +150,13 @@ If you want to verify how a specific function (e.g. `secp256k1_ecdsa_sign`) is h
 
 ```bash
 # Query the source graph
-python3 scripts/query_graph.py "secp256k1_ecdsa_sign"
+python3 ci/query_graph.py "secp256k1_ecdsa_sign"
 
 # Check CT coverage for the signing path
-python3 scripts/audit_gate.py --ct-integrity
+python3 ci/audit_gate.py --ct-integrity
 
 # Check shim parser parity for the function
-python3 scripts/check_libsecp_shim_parity.py --function secp256k1_ecdsa_sign
+python3 ci/check_libsecp_shim_parity.py --function secp256k1_ecdsa_sign
 ```
 
 ---
@@ -166,14 +166,14 @@ python3 scripts/check_libsecp_shim_parity.py --function secp256k1_ecdsa_sign
 The source graph powers most CAAS analysis. Verify it covers the key directories:
 
 ```bash
-python3 scripts/check_source_graph_quality.py
+python3 ci/check_source_graph_quality.py
 ```
 
 If stale, rebuild:
 
 ```bash
-python3 scripts/build_project_graph.py --rebuild
-python3 scripts/check_source_graph_quality.py
+python3 ci/build_project_graph.py --rebuild
+python3 ci/check_source_graph_quality.py
 ```
 
 ---
@@ -181,7 +181,7 @@ python3 scripts/check_source_graph_quality.py
 ## Interactive Audit Dashboard
 
 ```bash
-python3 scripts/audit_viewer.py
+python3 ci/audit_viewer.py
 # Opens http://localhost:8765
 ```
 
@@ -199,7 +199,7 @@ The viewer shows:
 ## Common Reviewer Questions
 
 **"How do I know the CI results match what I can run locally?"**
-Run `python3 scripts/caas_runner.py` — it executes the same gates as CI.
+Run `python3 ci/caas_runner.py` — it executes the same gates as CI.
 The evidence bundle contains git commit hash and dirty-state flag.
 
 **"What if I find a bug in CAAS itself?"**
@@ -215,6 +215,6 @@ recorded hash. Then regenerate from scratch and compare.
 - [`SECURITY_CLAIMS.md`](SECURITY_CLAIMS.md) — what is claimed (5 min)
 - [`RESIDUAL_RISK_REGISTER.md`](RESIDUAL_RISK_REGISTER.md) — what is not (5 min)
 - [`CAAS_FAQ.md`](CAAS_FAQ.md) — common objections (10 min)
-- Run `python3 scripts/caas_runner.py --profile bitcoin-core-backend` (10 min)
+- Run `python3 ci/caas_runner.py --profile bitcoin-core-backend` (10 min)
 
 Total: ~30 minutes to a well-grounded first opinion.

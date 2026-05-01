@@ -193,10 +193,10 @@ ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 ctest --test-dir build_audit -R exploit -V
 
 # Machine-readable assurance artifact
-python3 scripts/export_assurance.py -o assurance_report.json
+python3 ci/export_assurance.py -o assurance_report.json
 
 # Security autonomy gate orchestrator
-python3 scripts/security_autonomy_check.py --json
+python3 ci/security_autonomy_check.py --json
 ```
 
 ---

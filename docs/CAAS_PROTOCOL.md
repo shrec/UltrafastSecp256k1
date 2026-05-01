@@ -245,13 +245,13 @@ short-circuits the same way.
 
 | Field | Value |
 |-------|-------|
-| Tool | `scripts/audit_test_quality_scanner.py` |
-| Pre-step | `scripts/check_exploit_wiring.py` (CAAS Stage 0 wiring gate) |
+| Tool | `ci/audit_test_quality_scanner.py` |
+| Pre-step | `ci/check_exploit_wiring.py` (CAAS Stage 0 wiring gate) |
 | Input | full source tree |
 | Output | `caas_scanner.json` with `total_findings`, `findings[]` |
 | Exit code | 0 iff `total_findings == 0` |
 | Blocking? | Yes |
-| Local replay | `python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json` |
+| Local replay | `python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json` |
 | Artifact retention (CI) | 30 days |
 
 Severity mapping: every scanner finding is treated as blocking. There is no
@@ -261,32 +261,32 @@ Severity mapping: every scanner finding is treated as blocking. There is no
 
 | Field | Value |
 |-------|-------|
-| Tool | `scripts/audit_gate.py` |
-| Pre-deps | project graph (`scripts/build_project_graph.py --rebuild`), source graph (`tools/source_graph_kit/source_graph.py build -i`), `ufsecp_shared` built |
+| Tool | `ci/audit_gate.py` |
+| Pre-deps | project graph (`ci/build_project_graph.py --rebuild`), source graph (`tools/source_graph_kit/source_graph.py build -i`), `ufsecp_shared` built |
 | Input | both graphs, headers, source, tests, docs |
 | Output | `caas_audit_gate.json` with `verdict`, `checks[]` |
 | Exit code | 0 iff `verdict in {"PASS", "PASS with advisory"}` |
 | Principles enforced | P0, P0a–P0d, P1–P11 |
 | Blocking? | Yes |
-| Local replay | `python3 scripts/audit_gate.py --json -o caas_audit_gate.json` |
+| Local replay | `python3 ci/audit_gate.py --json -o caas_audit_gate.json` |
 | Artifact retention (CI) | 30 days |
 
 Per-principle checks are also runnable in isolation, e.g.
-`python3 scripts/audit_gate.py --gpu-parity`. See
+`python3 ci/audit_gate.py --gpu-parity`. See
 [AUDIT_MANIFEST.md](AUDIT_MANIFEST.md) for the full P0–P11 list.
 
 ### Stage 3 — Security Autonomy
 
 | Field | Value |
 |-------|-------|
-| Tool | `scripts/security_autonomy_check.py` |
+| Tool | `ci/security_autonomy_check.py` |
 | Sub-gates | formal_invariants, risk_surface_coverage, audit_sla, supply_chain, perf_security_cogate, misuse_resistance, evidence_governance, incident_drills |
 | Input | both graphs, evidence files, `docs/AUDIT_SLA.json`, `docs/SECURITY_AUTONOMY_KPI.json` |
 | Output | `caas_autonomy.json` with `autonomy_score` (0–100), `autonomy_ready` (bool), `gates[]` |
 | Exit code | 0 iff `autonomy_score == 100` and `autonomy_ready == true` |
 | Principles enforced | P12–P18 |
 | Blocking? | Yes |
-| Local replay | `python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json` |
+| Local replay | `python3 ci/security_autonomy_check.py --json -o caas_autonomy.json` |
 | Artifact retention (CI) | 30 days |
 
 Common silent failure: `audit_sla` sub-gate flips to fail when
@@ -298,13 +298,13 @@ nightly bot is the structural fix (CAAS Hardening TODO H-1).
 
 | Field | Value |
 |-------|-------|
-| Tool | `scripts/external_audit_bundle.py` |
+| Tool | `ci/external_audit_bundle.py` |
 | Input | live repo state + previous stage outputs |
 | Output | `docs/EXTERNAL_AUDIT_BUNDLE.json`, `docs/EXTERNAL_AUDIT_BUNDLE.sha256` |
 | Exit code | 0 on successful bundle write |
 | Principles enforced | P19 (External Auditor Reproducibility Bundle) |
 | Blocking? | Yes |
-| Local replay | `python3 scripts/external_audit_bundle.py` |
+| Local replay | `python3 ci/external_audit_bundle.py` |
 | Artifact retention (CI) | 90 days |
 
 The bundle pins:
@@ -317,13 +317,13 @@ The bundle pins:
 
 | Field | Value |
 |-------|-------|
-| Tool | `scripts/verify_external_audit_bundle.py` |
+| Tool | `ci/verify_external_audit_bundle.py` |
 | Input | the bundle produced in Stage 4 |
 | Output | `caas_bundle_verify.json` with `overall_pass`, `checks[]` |
 | Exit code | 0 iff `overall_pass == true` |
 | Blocking? | Yes |
-| Local replay | `python3 scripts/verify_external_audit_bundle.py --json` |
-| Local deep replay | `python3 scripts/verify_external_audit_bundle.py --replay-commands --json` |
+| Local replay | `python3 ci/verify_external_audit_bundle.py --json` |
+| Local deep replay | `python3 ci/verify_external_audit_bundle.py --replay-commands --json` |
 | Artifact retention (CI) | 90 days |
 
 The deep-replay mode re-executes every captured gate command and verifies the
@@ -345,14 +345,14 @@ slow.
 
 To add a new gate without breaking the protocol:
 
-1. Implement the gate as a standalone script in `scripts/` with `--json -o`
+1. Implement the gate as a standalone script in `ci/` with `--json -o`
    output and exit code 0/1.
-2. Add a check function to `scripts/audit_gate.py` (for P0–P11 territory) or
-   register the gate in `scripts/security_autonomy_check.py` (for P12–P18
+2. Add a check function to `ci/audit_gate.py` (for P0–P11 territory) or
+   register the gate in `ci/security_autonomy_check.py` (for P12–P18
    territory) with a `weight` summing to 100 across all gates.
 3. Document the principle in `AUDIT_MANIFEST.md`.
 4. Add a row in the per-stage table in this document.
-5. Verify locally: `python3 scripts/caas_runner.py --json` shows the new
+5. Verify locally: `python3 ci/caas_runner.py --json` shows the new
    gate's score.
 6. Commit + push to `dev` together with the gate code.
 
@@ -360,17 +360,17 @@ To add a new gate without breaking the protocol:
 
 ```bash
 # Full pipeline (all 5 stages, fail-fast)
-python3 scripts/caas_runner.py --json -o caas_local.json
+python3 ci/caas_runner.py --json -o caas_local.json
 
 # Individual stages
-python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
-python3 scripts/audit_gate.py --json -o caas_audit_gate.json
-python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
-python3 scripts/external_audit_bundle.py
-python3 scripts/verify_external_audit_bundle.py --json -o caas_bundle_verify.json
+python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
+python3 ci/audit_gate.py --json -o caas_audit_gate.json
+python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+python3 ci/external_audit_bundle.py
+python3 ci/verify_external_audit_bundle.py --json -o caas_bundle_verify.json
 
 # Pre-push hook (one-time install)
-python3 scripts/install_caas_hooks.py
+python3 ci/install_caas_hooks.py
 ```
 
 ## CI Topology
@@ -406,9 +406,9 @@ Bypass is owner-only via repo ruleset disable/enable as documented in
 | Symptom | Most likely cause | Fix |
 |---------|-------------------|-----|
 | Stage 1 fail with finding count > 0 | Vacuous test, polarity bug, ignored return | Fix the audit/test_*.cpp |
-| Stage 2 P6 freshness WARN | Source modified after graph build | `python3 scripts/build_project_graph.py --rebuild` |
-| Stage 3 score = 90 | `audit_sla` sub-gate failed | `python3 scripts/export_assurance.py -o ../../assurance_report.json` |
-| Stage 3 incident_drills WARN | Drill cadence exceeded | `python3 scripts/incident_drills.py --record-all` |
+| Stage 2 P6 freshness WARN | Source modified after graph build | `python3 ci/build_project_graph.py --rebuild` |
+| Stage 3 score = 90 | `audit_sla` sub-gate failed | `python3 ci/export_assurance.py -o ../../assurance_report.json` |
+| Stage 3 incident_drills WARN | Drill cadence exceeded | `python3 ci/incident_drills.py --record-all` |
 | Stage 5 bundle digest mismatch | Manual edit of bundle file | Re-run Stage 4 |
 
 ## Done Criteria For The Protocol Itself
@@ -420,7 +420,7 @@ Bypass is owner-only via repo ruleset disable/enable as documented in
 - [ ] Evidence age cannot silently fail the pipeline (requires H-1 deployed
       and observed for one full month).
 - [x] Audit dashboard exists (H-9) — `docs/AUDIT_DASHBOARD.md` generated by
-      `scripts/render_audit_dashboard.py` and refreshed nightly in CI (2026-04-21).
+      `ci/render_audit_dashboard.py` and refreshed nightly in CI (2026-04-21).
 
 See [docs/CAAS_HARDENING_TODO.md](CAAS_HARDENING_TODO.md) for the open
 hardening backlog.
@@ -434,7 +434,7 @@ hardening backlog.
 Run a specific profile:
 
 ```bash
-python3 scripts/caas_runner.py --profile <profile-id> --auditor-mode
+python3 ci/caas_runner.py --profile <profile-id> --auditor-mode
 ```
 
 Available profile IDs:
@@ -451,14 +451,14 @@ Available profile IDs:
 
 ### Evidence Freshness
 
-SLA: critical evidence must be < 14 days old (enforced by `scripts/audit_sla_check.py`).
+SLA: critical evidence must be < 14 days old (enforced by `ci/audit_sla_check.py`).
 
 Regenerate CI evidence: create new files in `audit/ci-evidence/` with today's date suffix.
 
 ### Bundle Lifecycle
 
-Generate: `python3 scripts/external_audit_bundle.py`
-Verify: `python3 scripts/verify_external_audit_bundle.py`
+Generate: `python3 ci/external_audit_bundle.py`
+Verify: `python3 ci/verify_external_audit_bundle.py`
 
 The bundle must be regenerated after any evidence file changes.
 Note: `docs/SECURITY_AUTONOMY_KPI.json` is intentionally excluded from bundle evidence

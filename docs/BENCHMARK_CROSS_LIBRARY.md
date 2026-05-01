@@ -126,7 +126,7 @@ SECP256K1_CACHE_PATH=cache_w18.bin ./build-bench/cpu/bench_unified --suite core
 
 # Knuth secp256k1
 git clone https://github.com/k-nuth/secp256k1
-# build both natively and with shim — see scripts/bench_knuth.sh (TODO)
+# build both natively and with shim — see ci/bench_knuth.sh (TODO)
 ```
 
 GPU benchmarks: see `docs/BENCHMARKS.md` (CUDA/OpenCL/Metal BIP-352 scanning).

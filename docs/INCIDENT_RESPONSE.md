@@ -95,7 +95,7 @@ Automated incident response drills run as preflight step [20/20] and validate
 triage readiness, fix-time targets, and disclosure process completeness.
 
 ```bash
-python3 scripts/incident_drills.py --json
+python3 ci/incident_drills.py --json
 ```
 
 Three drill scenarios are exercised:
@@ -107,7 +107,7 @@ Three drill scenarios are exercised:
 | `dependency_compromise` | Lock-file presence, dependency-review gate |
 
 Drill results feed into the Security Autonomy orchestrator
-(`scripts/security_autonomy_check.py`) and are tracked in
+(`ci/security_autonomy_check.py`) and are tracked in
 `docs/SECURITY_AUTONOMY_KPI.json`.
 
 ---
@@ -125,4 +125,4 @@ Drill results feed into the Security Autonomy orchestrator
 | Date       | Change                          |
 |------------|---------------------------------|
 | 2025-01-XX | Initial runbook created         |
-| 2026-04-14 | Added Section 6: Periodic Drills (`scripts/incident_drills.py`) |
+| 2026-04-14 | Added Section 6: Periodic Drills (`ci/incident_drills.py`) |

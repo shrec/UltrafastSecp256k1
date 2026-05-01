@@ -232,7 +232,7 @@ can run:
 
 ```bash
 # Full audit package in one command
-python3 scripts/external_audit_prep.sh
+python3 ci/external_audit_prep.sh
 
 # Source graph with current coverage scores
 python3 tools/source_graph_kit/source_graph.py hotspots 20
@@ -242,14 +242,14 @@ python3 tools/source_graph_kit/source_graph.py coverage ecdsa_sign
 ./build/unified_audit_runner --all
 
 # CT verification pipeline
-python3 scripts/run_ct_verif.py
-python3 scripts/run_dudect.py
+python3 ci/run_ct_verif.py
+python3 ci/run_dudect.py
 
 # Differential suite
-python3 scripts/run_differential.py --count 1000000
+python3 ci/run_differential.py --count 1000000
 
 # Assurance export (machine-readable)
-python3 scripts/export_assurance.py -o assurance_report.json
+python3 ci/export_assurance.py -o assurance_report.json
 ```
 
 Every claim in this document is backed by an artifact that a reviewer can
@@ -293,8 +293,8 @@ These are not aspirational — they are operational, run on CI or on demand.
 | Script / Tool | What It Does |
 |--------------|-------------|
 | `tools/ai_memory/ai_memory.py` | Persistent SQLite-backed cross-session memory. Every architectural decision, bug root-cause, dead-end, and ePrint evaluation is stored permanently. Each session begins with full institutional context, not a blank slate. |
-| `scripts/log_ai_review_event.py` | Records structured LLM review events to `docs/AI_REVIEW_EVENTS.json` with role (`auditor`, `attacker`, `bug-bounty`, `performance-skeptic`, `documentation-skeptic`), finding class, and acceptance status. |
-| `scripts/audit_ai_findings.py` | Separates AI-suggested tests from manually confirmed tests. AI findings are kept in a quarantine bucket, excluded from official audit score totals until confirmed. |
+| `ci/log_ai_review_event.py` | Records structured LLM review events to `docs/AI_REVIEW_EVENTS.json` with role (`auditor`, `attacker`, `bug-bounty`, `performance-skeptic`, `documentation-skeptic`), finding class, and acceptance status. |
+| `ci/audit_ai_findings.py` | Separates AI-suggested tests from manually confirmed tests. AI findings are kept in a quarantine bucket, excluded from official audit score totals until confirmed. |
 
 ---
 
@@ -302,9 +302,9 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 | Script / Tool | What It Does |
 |--------------|-------------|
-| `scripts/research_monitor.py` | Fetches ePrint and NVD feeds daily. Filters for secp256k1-relevant signals (`attack`, `nonce`, `ecdsa`, `schnorr`, `frost`, `timing`, `side-channel`, `break`, `exploit`). Compares against `docs/RESEARCH_SIGNAL_MATRIX.json`. Output: new signals not yet evaluated. |
-| `scripts/nonce_bias_detector.py` | Statistical nonce-bias measurement: MSB/LSB frequency test, chi-squared across all 256 bit positions, Kolmogorov-Smirnov uniformity test, nonce collision detection over 50,000 signatures. Catches Minerva (2020), TPM-FAIL (2019), and lattice-reduction attack preconditions. |
-| `scripts/rfc6979_spec_verifier.py` | Verifies deterministic nonce derivation against the RFC 6979 test vectors and edge-case spec requirements. |
+| `ci/research_monitor.py` | Fetches ePrint and NVD feeds daily. Filters for secp256k1-relevant signals (`attack`, `nonce`, `ecdsa`, `schnorr`, `frost`, `timing`, `side-channel`, `break`, `exploit`). Compares against `docs/RESEARCH_SIGNAL_MATRIX.json`. Output: new signals not yet evaluated. |
+| `ci/nonce_bias_detector.py` | Statistical nonce-bias measurement: MSB/LSB frequency test, chi-squared across all 256 bit positions, Kolmogorov-Smirnov uniformity test, nonce collision detection over 50,000 signatures. Catches Minerva (2020), TPM-FAIL (2019), and lattice-reduction attack preconditions. |
+| `ci/rfc6979_spec_verifier.py` | Verifies deterministic nonce derivation against the RFC 6979 test vectors and edge-case spec requirements. |
 
 ---
 
@@ -312,15 +312,15 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 | Script / Tool | What It Does |
 |--------------|-------------|
-| `scripts/dev_bug_scanner.py` | 28-class static bug scanner. Detects: `CT_VIOLATION` (fast:: in secret path), `SECRET_UNERASED` (scalar without secure_erase), `RANDOM_IN_SIGNING` (non-deterministic RNG in RFC 6979 path), `TAGGED_HASH_BYPASS` (plain sha256 where BIP-340 tagged_hash required), `BINDING_NO_VALIDATION` (public ABI without NULL-check), `DANGLING_ELSE` (goto-fail pattern), `SHIFT_UB`, `DOUBLE_LOCK`, `HARDCODED_SECRET`, `UNSAFE_FMT`, and 18 others. |
-| `scripts/bug_capsule_gen.py` | Converts bug capsule JSON into: (a) permanent regression test, (b) exploit PoC test, (c) CMakeLists.txt CTest integration. Every discovered bug becomes an executable, permanent CI gate. |
-| `scripts/auditor_mode.py` | Emulates external auditor first-pass: extracts all registered exploit probes from the audit runner, compares against a curated high-risk attack vector baseline, emits machine-readable gap reports. |
-| `scripts/mutation_kill_rate.py` | Applies AOR / ROR / COR / LOR / BIT mutation operators to `cpu/src/`, rebuilds, runs the audit binary. Kill Rate = killed / total. Rate below 80% on any critical subsystem = documented test gap. |
-| `scripts/stateful_sequences.py` | Stateful API sequence verifier. Tests use-after-error, context reuse across many operations, BIP-32 chained derivation consistency, context destroy/recreate clearing. Finds state-machine bugs invisible to unit tests. |
-| `scripts/generate_abi_negative_tests.py` | Generates negative tests for every public ABI entry point: null pointers, wrong buffer sizes, out-of-range scalars, invalid pubkey encodings. |
-| `scripts/invalid_input_grammar.py` | Grammar-based fuzzing input generation for parser entry points. |
-| `scripts/glv_exhaustive_check.py` | Exhaustive correctness check of the GLV endomorphism decomposition on sampled inputs. |
-| `scripts/semantic_props.py` | Semantic property tests: commutativity, associativity, identity, inverse, cofactor handling. |
+| `ci/dev_bug_scanner.py` | 28-class static bug scanner. Detects: `CT_VIOLATION` (fast:: in secret path), `SECRET_UNERASED` (scalar without secure_erase), `RANDOM_IN_SIGNING` (non-deterministic RNG in RFC 6979 path), `TAGGED_HASH_BYPASS` (plain sha256 where BIP-340 tagged_hash required), `BINDING_NO_VALIDATION` (public ABI without NULL-check), `DANGLING_ELSE` (goto-fail pattern), `SHIFT_UB`, `DOUBLE_LOCK`, `HARDCODED_SECRET`, `UNSAFE_FMT`, and 18 others. |
+| `ci/bug_capsule_gen.py` | Converts bug capsule JSON into: (a) permanent regression test, (b) exploit PoC test, (c) CMakeLists.txt CTest integration. Every discovered bug becomes an executable, permanent CI gate. |
+| `ci/auditor_mode.py` | Emulates external auditor first-pass: extracts all registered exploit probes from the audit runner, compares against a curated high-risk attack vector baseline, emits machine-readable gap reports. |
+| `ci/mutation_kill_rate.py` | Applies AOR / ROR / COR / LOR / BIT mutation operators to `cpu/src/`, rebuilds, runs the audit binary. Kill Rate = killed / total. Rate below 80% on any critical subsystem = documented test gap. |
+| `ci/stateful_sequences.py` | Stateful API sequence verifier. Tests use-after-error, context reuse across many operations, BIP-32 chained derivation consistency, context destroy/recreate clearing. Finds state-machine bugs invisible to unit tests. |
+| `ci/generate_abi_negative_tests.py` | Generates negative tests for every public ABI entry point: null pointers, wrong buffer sizes, out-of-range scalars, invalid pubkey encodings. |
+| `ci/invalid_input_grammar.py` | Grammar-based fuzzing input generation for parser entry points. |
+| `ci/glv_exhaustive_check.py` | Exhaustive correctness check of the GLV endomorphism decomposition on sampled inputs. |
+| `ci/semantic_props.py` | Semantic property tests: commutativity, associativity, identity, inverse, cofactor handling. |
 
 ---
 
@@ -328,13 +328,13 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 | Script / Tool | What It Does |
 |--------------|-------------|
-| `scripts/collect_ct_evidence.py` | Collects and summarizes evidence from all three CT pipelines into a single artifact for traceability. |
-| `scripts/valgrind_ct_check.sh` | Valgrind Memcheck taint propagation — marks secret bytes undefined, runs signing path, catches any branch or memory address derived from secret data at runtime. |
-| `scripts/ctgrind_validate.sh` | Ctgrind validation (Valgrind-based CT tool). |
-| `scripts/verify_ct_disasm.sh` | Disassembly-level CT verification — inspects compiled output for conditional branches on secret-derived values. |
-| `scripts/cachegrind_ct_analysis.sh` | Cachegrind cache-access timing analysis for cache-timing side-channels. |
-| `scripts/cross_compiler_ct_stress.sh` | CT stress test across multiple compilers and optimization levels. Catches optimizer-introduced branches. |
-| `scripts/check_secret_path_changes.py` | Pre-commit enforcement: any change to a CT-annotated file requires simultaneous update to `CT_VERIFICATION.md`, `SECRET_LIFECYCLE.md`, or `SECURITY_CLAIMS.md`. No silent changes to the secret-bearing path. |
+| `ci/collect_ct_evidence.py` | Collects and summarizes evidence from all three CT pipelines into a single artifact for traceability. |
+| `ci/valgrind_ct_check.sh` | Valgrind Memcheck taint propagation — marks secret bytes undefined, runs signing path, catches any branch or memory address derived from secret data at runtime. |
+| `ci/ctgrind_validate.sh` | Ctgrind validation (Valgrind-based CT tool). |
+| `ci/verify_ct_disasm.sh` | Disassembly-level CT verification — inspects compiled output for conditional branches on secret-derived values. |
+| `ci/cachegrind_ct_analysis.sh` | Cachegrind cache-access timing analysis for cache-timing side-channels. |
+| `ci/cross_compiler_ct_stress.sh` | CT stress test across multiple compilers and optimization levels. Catches optimizer-introduced branches. |
+| `ci/check_secret_path_changes.py` | Pre-commit enforcement: any change to a CT-annotated file requires simultaneous update to `CT_VERIFICATION.md`, `SECRET_LIFECYCLE.md`, or `SECURITY_CLAIMS.md`. No silent changes to the secret-bearing path. |
 
 ---
 
@@ -354,18 +354,18 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 | Script / Tool | What It Does |
 |--------------|-------------|
-| `scripts/export_assurance.py` | Machine-readable assurance report: coverage by dimension, risk matrix, backend parity status, claim→evidence links. Output: `assurance_report.json`. |
-| `scripts/external_audit_prep.sh` | One command produces the full external audit package: preflight verification, assurance export, traceability artifacts, SBOM, full source archive. Starting point for any external reviewer. |
-| `scripts/generate_traceability.sh` | Generates `AUDIT_TRACEABILITY.md`: claim → test function → CI workflow → evidence artifact. |
-| `scripts/generate_self_audit_report.sh` | Full self-audit narrative report. |
-| `scripts/audit_gap_report.py` | Queries the source graph for functions with audit scores below risk-tier thresholds. Output: prioritized gap list. |
-| `scripts/audit_gate.py` | CI gate: compares live audit score against the minimum threshold. Fails the build if the score drops. |
-| `scripts/auditor_kit.sh` | One-command toolkit for external auditors: environment check + evidence collection + gap report. |
-| `scripts/audit_test_quality_scanner.py` | Scans each audit test for assertion density and coverage depth. Flags tests that are too shallow to be meaningful. |
-| `scripts/validate_assurance.py` | Validates `assurance_report.json` against the schema. Catches stale or malformed assurance output. |
-| `scripts/preflight.py` | Platform and toolchain verification before any audit run. |
-| `scripts/sync_audit_report_version.py` | Keeps version references consistent across all audit artifacts. |
-| `scripts/sync_module_count.py` | Keeps exploit module count in sync across docs and the audit runner. |
+| `ci/export_assurance.py` | Machine-readable assurance report: coverage by dimension, risk matrix, backend parity status, claim→evidence links. Output: `assurance_report.json`. |
+| `ci/external_audit_prep.sh` | One command produces the full external audit package: preflight verification, assurance export, traceability artifacts, SBOM, full source archive. Starting point for any external reviewer. |
+| `ci/generate_traceability.sh` | Generates `AUDIT_TRACEABILITY.md`: claim → test function → CI workflow → evidence artifact. |
+| `ci/generate_self_audit_report.sh` | Full self-audit narrative report. |
+| `ci/audit_gap_report.py` | Queries the source graph for functions with audit scores below risk-tier thresholds. Output: prioritized gap list. |
+| `ci/audit_gate.py` | CI gate: compares live audit score against the minimum threshold. Fails the build if the score drops. |
+| `ci/auditor_kit.sh` | One-command toolkit for external auditors: environment check + evidence collection + gap report. |
+| `ci/audit_test_quality_scanner.py` | Scans each audit test for assertion density and coverage depth. Flags tests that are too shallow to be meaningful. |
+| `ci/validate_assurance.py` | Validates `assurance_report.json` against the schema. Catches stale or malformed assurance output. |
+| `ci/preflight.py` | Platform and toolchain verification before any audit run. |
+| `ci/sync_audit_report_version.py` | Keeps version references consistent across all audit artifacts. |
+| `ci/sync_module_count.py` | Keeps exploit module count in sync across docs and the audit runner. |
 
 ---
 
@@ -374,9 +374,9 @@ These are not aspirational — they are operational, run on CI or on demand.
 | Script / Tool | What It Does |
 |--------------|-------------|
 | `tools/source_graph_kit/source_graph.py` | Live engineering index: 9,071 functions, 8,638 symbol-level audit scores across 17 dimensions, 4,766 test→function mappings, call graph, backend parity tracking, hotspot and bottleneck data, `bodygrep` for literal search inside function bodies. Queryable from CI and from any LLM session. |
-| `scripts/audit_gap_report.py` | Source-graph-driven gap report: which functions have no CT annotation, no test mapping, or audit score below tier threshold. |
-| `scripts/ci_gate_detect.py` | Detects CI environment and enforces the appropriate gate set for the detected platform. |
-| `scripts/query_graph.py` | Direct SQL query interface to the source graph database. |
+| `ci/audit_gap_report.py` | Source-graph-driven gap report: which functions have no CT annotation, no test mapping, or audit score below tier threshold. |
+| `ci/ci_gate_detect.py` | Detects CI environment and enforces the appropriate gate set for the detected platform. |
+| `ci/query_graph.py` | Direct SQL query interface to the source graph database. |
 
 ---
 
@@ -384,12 +384,12 @@ These are not aspirational — they are operational, run on CI or on demand.
 
 | Script / Tool | What It Does |
 |--------------|-------------|
-| `scripts/verify_slsa_provenance.py` | Verifies SLSA Level 3 provenance attestations for every release artifact. |
-| `scripts/verify_reproducible_build.sh` | Bit-for-bit reproducible build verification. |
-| `scripts/generate_sbom.sh` | SBOM (Software Bill of Materials) generation in CycloneDX format. |
-| `scripts/report_provenance.py` | Provenance chain reporting for release artifacts. |
-| `scripts/perf_regression_check.sh` | Performance regression detection — blocks commits that regress benchmark results beyond a tolerance band. |
-| `scripts/generate_dudect_badge.sh` | Generates a machine-readable dudect status badge from the latest CT run. |
+| `ci/verify_slsa_provenance.py` | Verifies SLSA Level 3 provenance attestations for every release artifact. |
+| `ci/verify_reproducible_build.sh` | Bit-for-bit reproducible build verification. |
+| `ci/generate_sbom.sh` | SBOM (Software Bill of Materials) generation in CycloneDX format. |
+| `ci/report_provenance.py` | Provenance chain reporting for release artifacts. |
+| `ci/perf_regression_check.sh` | Performance regression detection — blocks commits that regress benchmark results beyond a tolerance band. |
+| `ci/generate_dudect_badge.sh` | Generates a machine-readable dudect status badge from the latest CT run. |
 
 ---
 

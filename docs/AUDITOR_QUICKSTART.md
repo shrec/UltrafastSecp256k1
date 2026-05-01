@@ -11,7 +11,7 @@
 ## Option A: Docker (recommended)
 
 ```bash
-bash scripts/auditor_kit.sh
+bash ci/auditor_kit.sh
 ```
 
 Output appears in `./audit_output/`:
@@ -26,16 +26,16 @@ Output appears in `./audit_output/`:
 
 ```bash
 # 1. Build (canonical audit profile — out/audit)
-python3 scripts/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
+python3 ci/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C out/audit
 
 # 2. Run audit tests
 ctest --test-dir out/audit -L audit --output-on-failure --timeout 300
 
 # 3. Generate reports
-python3 scripts/audit_gate.py --json -o audit_gate_report.json
-python3 scripts/export_assurance.py -o assurance_report.json
-python3 scripts/auditor_mode.py --sarif --json
+python3 ci/audit_gate.py --json -o audit_gate_report.json
+python3 ci/export_assurance.py -o assurance_report.json
+python3 ci/auditor_mode.py --sarif --json
 ```
 
 Output:
@@ -94,21 +94,21 @@ All JSON reports follow the **unified report schema v1.0.0**:
 
 ```bash
 # Regression diff (before/after)
-python3 scripts/artifact_analyzer.py diff --before old_report.json --after new_report.json
+python3 ci/artifact_analyzer.py diff --before old_report.json --after new_report.json
 
 # Platform divergence
-python3 scripts/artifact_analyzer.py divergence linux_report.json arm_report.json riscv_report.json
+python3 ci/artifact_analyzer.py divergence linux_report.json arm_report.json riscv_report.json
 
 # Bug capsule → regression test
-python3 scripts/bug_capsule_gen.py --list schemas/bug_capsules/
+python3 ci/bug_capsule_gen.py --list schemas/bug_capsules/
 
 # Security autonomy gate orchestrator
-python3 scripts/security_autonomy_check.py --json
+python3 ci/security_autonomy_check.py --json
 
 # Build and verify an external-audit reproducibility bundle
-python3 scripts/external_audit_bundle.py
-python3 scripts/verify_external_audit_bundle.py --json
-python3 scripts/verify_external_audit_bundle.py --replay-commands --json
+python3 ci/external_audit_bundle.py
+python3 ci/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --replay-commands --json
 ```
 
 ## Further reading

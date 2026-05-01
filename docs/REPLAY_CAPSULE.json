@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-01T18:45:19.372582+00:00",
-  "commit_hash": "4e7f6da4c300136c67522cb26b72bc05ab676b5a",
+  "generated_at": "2026-05-01T19:05:01.561614+00:00",
+  "commit_hash": "bfb17e09427008abc1b7a550f0f21398d6041fd9",
   "dirty": true,
   "profile": "default",
   "build_flags": {
@@ -15,12 +15,12 @@
     "git": "git version 2.43.0"
   },
   "graph_hash": "6fe65ccf98de93d6afde8451c20d745396fc0123d25ed5d023c248692f59b6ef",
-  "evidence_bundle_hash": "a9fc9e33018eee43a8a37dd49ee4bf7a3db44d449a78d59ac02e2e3dd69b0776",
+  "evidence_bundle_hash": "5cc94bc38f53d351a8cde6f7317edefbc3120502485b4fea01bf2a5f22c9ba91",
   "replay_commands": [
     "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release",
     "ninja -C build",
-    "python3 scripts/caas_runner.py --profile default --json -o caas_report.json",
-    "python3 scripts/verify_external_audit_bundle.py --json"
+    "python3 ci/caas_runner.py --profile default --json -o caas_report.json",
+    "python3 ci/verify_external_audit_bundle.py --json"
   ],
   "known_residuals": [
     "RR-001",

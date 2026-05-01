@@ -18,8 +18,8 @@
 | [RISC-V Optimizations](../RISCV_OPTIMIZATIONS.md) | RISC-V assembly & RVV details |
 | [Porting Guide](../PORTING.md) | Add new platforms, architectures, GPU backends |
 | [Project Graph Reasoning](PROJECT_GRAPH_REASONING.md) | SQLite code graph, semantic tags, symbol reasoning, and optimization/audit workflows |
-| `scripts/query_graph.py tags` | Semantic tag inventory from the repository knowledge graph |
-| `scripts/query_graph.py symbol/optimize/risk` | Symbol-level crypto reasoning, gain/risk scoring, and optimization candidates |
+| `ci/query_graph.py tags` | Semantic tag inventory from the repository knowledge graph |
+| `ci/query_graph.py symbol/optimize/risk` | Symbol-level crypto reasoning, gain/risk scoring, and optimization candidates |
 
 ## Security & Audit
 
@@ -159,7 +159,7 @@ UltrafastSecp256k1/
 |   +-- version.hpp.in           #   Auto-generated version header
 |   +-- ios.toolchain.cmake      #   iOS cross-compilation toolchain
 |
-+-- scripts/
++-- ci/
 |   +-- build_wasm.sh            #   Emscripten WASM build
 |   +-- build_xcframework.sh     #   iOS XCFramework build
 |

@@ -11,7 +11,7 @@
 >
 > **Current state (2026-04-21):** matrix paths reconciled against the
 > on-disk tree; every `Impl` / `Test` cell points at a real file. The
-> verification script `scripts/exploit_traceability_join.py --strict`
+> verification script `ci/exploit_traceability_join.py --strict`
 > is wired in CAAS Stage 2 and rejects any row whose path no longer
 > exists. See G-9b in `docs/AUDIT_CHANGELOG.md` for the gate.
 
@@ -25,7 +25,7 @@
 | Test | Audit module(s) or exploit PoC(s) verifying the clause |
 | Status | `OK` = implemented + tested; `Partial` = tested but not exhaustive; `N/A` = not applicable to this library |
 
-CI gate `scripts/spec_traceability_check.py` (planned, see G-9b) walks
+CI gate `ci/spec_traceability_check.py` (planned, see G-9b) walks
 this file and refuses any row whose `Impl` or `Test` column points at
 a non-existent path.
 

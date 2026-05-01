@@ -93,7 +93,7 @@ acceptance criterion).
 | `ufsecp_context_*` | n/a | Lifecycle state machine | n/a | Erased on `ufsecp_context_destroy` | Re-init bounded | n/a |
 
 Coverage of every `UFSECP_API` export is verified by
-`scripts/audit_gate.py --threat-model`.
+`ci/audit_gate.py --threat-model`.
 
 ## 5. Residual risks
 
@@ -132,7 +132,7 @@ silently regress them.
 |----------|-------------|-------|
 | Every ABI export has a STRIDE row | `audit_gate.py --threat-model` | CI Stage 2 |
 | Every residual has an `RR-NNN` entry | `audit_gate.py --residual-risk-register` | CI Stage 2 |
-| Each STRIDE control points to a real test | `scripts/exploit_traceability_join.py` | G-9b |
+| Each STRIDE control points to a real test | `ci/exploit_traceability_join.py` | G-9b |
 | AM-* attacker models exercised by PoCs | `EXPLOIT_TEST_CATALOG.md` (189 PoCs) | static |
 
 ## 8. Change discipline

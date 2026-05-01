@@ -46,7 +46,7 @@ We deliberately avoid these claims because:
 | FROST (RFC 9591) conformance | `audit/test_frost_*` |
 | Constant-time on tested platforms | `gpu_ct_leakage_report.json`, dudect, Valgrind CT, ct-verif (3-tool) |
 | Strict parser behaviour for ECDSA, DER, BIP-340, point encodings | 189 exploit PoC tests; full Wycheproof |
-| Reproducible build | SLSA Level 3 provenance + `scripts/check_reproducibility.sh` |
+| Reproducible build | SLSA Level 3 provenance + `ci/check_reproducibility.sh` |
 | 1.3M+ nightly differential checks vs libsecp256k1 + libtomcrypt | `differential` audit section |
 
 ## 3. Algorithm scope
@@ -91,7 +91,7 @@ Independent of any compliance scheme, UltrafastSecp256k1 publishes:
 | SPDX SBOM | CI artefact `sbom-spdx.json` per release |
 | SLSA Level 3 provenance | GitHub attestations API |
 | Cosign-signed release artifacts | `.sig` next to each release file |
-| Reproducible build attestation | `scripts/check_reproducibility.sh` log |
+| Reproducible build attestation | `ci/check_reproducibility.sh` log |
 
 These satisfy NIST SSDF / EO-14028-style supply-chain requirements
 even though we make no FIPS 140-3 claim.
@@ -100,5 +100,5 @@ even though we make no FIPS 140-3 claim.
 
 If the compliance posture ever changes (e.g. a CMVP submission is
 filed), this document and `docs/AUDIT_MANIFEST.md` must be updated in
-the same commit, and a sub-gate in `scripts/audit_gate.py` must
+the same commit, and a sub-gate in `ci/audit_gate.py` must
 verify the claim against an evidence file.

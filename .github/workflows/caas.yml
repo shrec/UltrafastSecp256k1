@@ -72,26 +72,26 @@ jobs:
         # Enforces the Conversion Standard: every audit/test_exploit_*.cpp
         # with a *_run() entry point must be registered in
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
-        run: python3 scripts/check_exploit_wiring.py
+        run: python3 ci/check_exploit_wiring.py
 
       - name: Canonical data + doc sync check
         # Rebuilds canonical_data.json from source-of-truth and checks that
         # all documentation files match it. Fails on any numeric drift.
         run: |
-          python3 scripts/build_canonical_data.py --dry-run
-          python3 scripts/sync_docs_from_canonical.py --dry-run
-          python3 scripts/sync_module_count.py --dry-run
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
 
       - name: Exploit traceability join (G-9b / CAAS Stage 2)
         # G-9b: Joins exploit catalog, threat model, and spec traceability matrix.
         # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or
         # any spec row points at a non-existent path.
-        run: python3 scripts/exploit_traceability_join.py
+        run: python3 ci/exploit_traceability_join.py
 
       - name: Run audit test quality scanner
         id: scanner
         run: |
-          python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
+          python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
           echo "Exit code: $?"
           python3 - <<'EOF'
           import json, sys
@@ -170,14 +170,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph (required by audit_gate.py)
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run audit gate
         run: |
-          python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
           GATE_EXIT=$?
           python3 - <<'EOF'
           import json, sys
@@ -224,7 +224,7 @@ jobs:
         run: |
           echo "## CAAS Stage 2 — Audit Gate (P0–P18)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 scripts/audit_gate.py 2>&1 | tail -40 || true
+          python3 ci/audit_gate.py 2>&1 | tail -40 || true
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -274,14 +274,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run security autonomy check
         run: |
-          python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
           python3 - <<'EOF'
           import json, sys
           try:
@@ -370,14 +370,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Produce audit bundle (Stage 4)
         run: |
-          python3 scripts/external_audit_bundle.py
+          python3 ci/external_audit_bundle.py
           echo "Bundle produced at docs/EXTERNAL_AUDIT_BUNDLE.json"
           python3 -c "
           import json
@@ -391,7 +391,7 @@ jobs:
 
       - name: Verify audit bundle (Stage 5)
         run: |
-          python3 scripts/verify_external_audit_bundle.py --json > caas_bundle_verify.json
+          python3 ci/verify_external_audit_bundle.py --json > caas_bundle_verify.json
           python3 - <<'EOF'
           import json, sys
           try:
@@ -427,7 +427,7 @@ jobs:
         run: |
           echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 scripts/verify_external_audit_bundle.py 2>&1 | tail -20 || true
+          python3 ci/verify_external_audit_bundle.py 2>&1 | tail -20 || true
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -456,26 +456,26 @@ jobs:
           python-version: '3.12'
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Shim Parser Parity Gate (hard-fail)
-        run: python3 scripts/check_libsecp_shim_parity.py
+        run: python3 ci/check_libsecp_shim_parity.py
 
       - name: Core Build Mode Gate (hard-fail)
-        run: python3 scripts/check_core_build_mode.py
+        run: python3 ci/check_core_build_mode.py
 
       - name: Bitcoin Core Test Results Gate (hard-fail)
         # Validates docs/BITCOIN_CORE_TEST_RESULTS.json: 693/693 tests,
         # 0 failures, backend_commit recorded.
         # Also runs in preflight.yml (CAAS Stage 2e); wired here so the
         # bitcoin_core_profile job is self-contained and can block PRs.
-        run: python3 scripts/check_bitcoin_core_test_results.py
+        run: python3 ci/check_bitcoin_core_test_results.py
 
       - name: Source Graph Quality Gate (advisory — not a hard gate)
         # advisory: || true intentional — source_graph.db may be absent in
         # lightweight CI clones.  Hard-fail version runs in preflight.yml
         # (CAAS Stage 2d) and in the audit_gate G-12 check.
-        run: python3 scripts/check_source_graph_quality.py || true
+        run: python3 ci/check_source_graph_quality.py || true
 
       - name: Bitcoin Core Profile Summary
         if: always()

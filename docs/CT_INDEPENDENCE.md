@@ -18,7 +18,7 @@ JSON, and asserts that no tool reports leakage.
 
 | Tool | Methodology | Job | Source |
 |------|-------------|-----|--------|
-| Valgrind memcheck | Binary-level taint: marks secret bytes `MAKE_MEM_UNDEFINED`, fails on any conditional jump or load that depends on them | `ct-tool-valgrind` | `scripts/valgrind_ct_check.sh` |
+| Valgrind memcheck | Binary-level taint: marks secret bytes `MAKE_MEM_UNDEFINED`, fails on any conditional jump or load that depends on them | `ct-tool-valgrind` | `ci/valgrind_ct_check.sh` |
 | dudect | Statistical timing: measures CPU cycle distributions for two input classes, rejects null hypothesis of equal timing via Welch t-test | `ct-tool-dudect` | Built with `DUDECT_CT_CHECK=ON` |
 
 The two methodologies are **orthogonal**:
@@ -56,7 +56,7 @@ Valid verdicts: `PASS`, `FAIL`, `SKIP`.
 
 ## 4. Agreement gate
 
-The `ct-agree` job runs `scripts/ct_independence_check.py` which:
+The `ct-agree` job runs `ci/ct_independence_check.py` which:
 
 1. Loads all downloaded verdict files.
 2. Returns exit 0 only if there are no `FAIL` verdicts and at least one `PASS`.

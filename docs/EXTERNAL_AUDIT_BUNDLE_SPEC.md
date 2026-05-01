@@ -17,7 +17,7 @@ verified without trusting repository maintainers' manual summaries.
 Run:
 
 ```bash
-python3 scripts/external_audit_bundle.py
+python3 ci/external_audit_bundle.py
 ```
 
 This executes critical gates, captures command-output hashes, snapshots commit
@@ -28,13 +28,13 @@ metadata, and records SHA-256 hashes for required evidence files.
 Run:
 
 ```bash
-python3 scripts/verify_external_audit_bundle.py --json
+python3 ci/verify_external_audit_bundle.py --json
 ```
 
 Optional strict replay mode:
 
 ```bash
-python3 scripts/verify_external_audit_bundle.py --replay-commands --json
+python3 ci/verify_external_audit_bundle.py --replay-commands --json
 ```
 
 Replay mode re-runs bundled gate commands and verifies return codes and output
@@ -58,10 +58,10 @@ The bundle currently pins these files (SHA-256):
 
 ## Gate Commands Embedded In Bundle
 
-- python3 scripts/audit_gate.py --json
-- python3 scripts/audit_gap_report.py --json --strict
-- python3 scripts/security_autonomy_check.py --json
-- python3 scripts/supply_chain_gate.py --json
+- python3 ci/audit_gate.py --json
+- python3 ci/audit_gap_report.py --json --strict
+- python3 ci/security_autonomy_check.py --json
+- python3 ci/supply_chain_gate.py --json
 
 ## Fail-Closed Rules
 

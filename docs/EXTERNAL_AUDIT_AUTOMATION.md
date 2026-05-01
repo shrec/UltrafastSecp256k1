@@ -13,7 +13,7 @@ The objective is to make their first hour productive instead of administrative.
 The repository now has a single auditor-prep entry point:
 
 ```bash
-bash scripts/external_audit_prep.sh
+bash ci/external_audit_prep.sh
 ```
 
 That command can:
@@ -47,25 +47,25 @@ This automation reduces that setup cost.
 Minimal run:
 
 ```bash
-bash scripts/external_audit_prep.sh
+bash ci/external_audit_prep.sh
 ```
 
 Include a full audit evidence package:
 
 ```bash
-bash scripts/external_audit_prep.sh --with-package --build-dir build-audit
+bash ci/external_audit_prep.sh --with-package --build-dir build-audit
 ```
 
 Use an existing build for traceability:
 
 ```bash
-bash scripts/external_audit_prep.sh --traceability-build build
+bash ci/external_audit_prep.sh --traceability-build build
 ```
 
 Skip graph rebuild when the graph is already fresh:
 
 ```bash
-bash scripts/external_audit_prep.sh --skip-graph
+bash ci/external_audit_prep.sh --skip-graph
 ```
 
 ---

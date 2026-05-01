@@ -76,14 +76,14 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 
 #### 3b. H-9: Audit Dashboard Exists ⚠️ PARTIAL
 
-**არსებობს** `scripts/render_audit_dashboard.py`. **მაგრამ:**
+**არსებობს** `ci/render_audit_dashboard.py`. **მაგრამ:**
 - CI-ში dashboard **არ გამოიყენება** (არ არის caas.yml-ის ნაწილი)
 - Dashboard-ის HTML output **არ არის GitHub Pages-ზე**
 - `audit_gate.py`-ში `--audit-dashboard` sub-gate **არ არის**
 
 ### 4. G-9b: Exploit Traceability Join — Script Exists, Gate Missing
 
-`scripts/exploit_traceability_join.py` ✅ exists, **მაგრამ**:
+`ci/exploit_traceability_join.py` ✅ exists, **მაგრამ**:
 - `audit_gate.py`-ში `--exploit-traceability` gate **არ არის**
 - CI-ში **არ გაეშვება**
 - Join output (`docs/EXPLOIT_TRACEABILITY_JOIN.md`) **არ წარმოიქმნება** ავტომატურად
@@ -91,7 +91,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 ### 5. G-7: Multi-CI Reproducible Build — Partial
 
 `docs/MULTI_CI_REPRODUCIBLE_BUILD.md` ✅ exists (methodology doc).
-**Second CI provider workflow: ❌** — `reproducible-build.yml` exists but only on Ubuntu 24.04. Second provider (NixOS, CircleCI, etc.) **არ არის**. `scripts/multi_ci_repro_check.py` **არ არსებობს**.
+**Second CI provider workflow: ❌** — `reproducible-build.yml` exists but only on Ubuntu 24.04. Second provider (NixOS, CircleCI, etc.) **არ არის**. `ci/multi_ci_repro_check.py` **არ არსებობს**.
 
 ### 6. G-8: Two-Tool CT Independence — Partial
 

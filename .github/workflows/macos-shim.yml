@@ -24,7 +24,7 @@ on:
       - 'include/ufsecp/**'
       - 'cpu/src/**'
       - 'cpu/include/**'
-      - 'scripts/check_libsecp_shim_parity.py'
+      - 'ci/check_libsecp_shim_parity.py'
       - '.github/workflows/macos-shim.yml'
   pull_request:
     branches: [main, dev]
@@ -32,7 +32,7 @@ on:
       - 'compat/libsecp256k1_shim/**'
       - 'include/ufsecp/**'
       - 'cpu/src/**'
-      - 'scripts/check_libsecp_shim_parity.py'
+      - 'ci/check_libsecp_shim_parity.py'
       - '.github/workflows/macos-shim.yml'
   workflow_dispatch:
 
@@ -86,7 +86,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure -R "shim_test" -j$(sysctl -n hw.logicalcpu)
 
       - name: Shim API surface parity check
-        run: python3 scripts/check_libsecp_shim_parity.py
+        run: python3 ci/check_libsecp_shim_parity.py
 
       - name: C++17 isolation check (shim headers must not require C++20)
         run: |

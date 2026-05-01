@@ -3,7 +3,7 @@
 > **Generated**: 2026-03-29 | **Library**: UltrafastSecp256k1 | **Current Validation Surface**: 182 active CTest targets
 >
 > ეს დოკი წარმოადგენს cross-platform მაღალი-სიგნალის portability subset-ს და არა სრულ 182-target inventory-ს.
-> სრული აქტიური ზედაპირისთვის authoritative წყაროებია `docs/TEST_MATRIX.md` და `scripts/validate_assurance.py`.
+> სრული აქტიური ზედაპირისთვის authoritative წყაროებია `docs/TEST_MATRIX.md` და `ci/validate_assurance.py`.
 > მიზანი უცვლელია: ერთი და იგივე ფუნქციური ინვარიანტები ყველა მხარდაჭერილ პლატფორმაზე უნდა გადიოდეს. ნებისმიერი განსხვავება = **BUG**.
 
 ---
@@ -210,16 +210,16 @@ Individual check counts:
 
 | Script                          | Purpose                                           | Platform    |
 |--------------------------------|---------------------------------------------------|-------------|
-| scripts/verify_ct_disasm.sh    | Disassembly scan for CT branches                  | Linux       |
-| scripts/valgrind_ct_check.sh   | Valgrind memcheck on CT paths                     | Linux       |
-| scripts/ctgrind_validate.sh    | CTGRIND-style validation (secret-as-undefined)    | Linux       |
-| scripts/generate_coverage.sh   | LLVM source-based code coverage                   | Linux/macOS |
-| scripts/cross_compiler_ct_stress.sh | Multi-compiler CT verification              | Linux       |
-| scripts/generate_selftest_report.sh | JSON self-test evidence report               | Any         |
-| scripts/generate_dudect_badge.sh | Dudect timing badge generation                  | Linux       |
-| scripts/cachegrind_ct_analysis.sh | Cache-line timing analysis                     | Linux       |
-| scripts/perf_regression_check.sh | Benchmark regression tracking                   | Linux       |
-| scripts/generate_self_audit_report.sh | Comprehensive audit evidence JSON          | Linux       |
+| ci/verify_ct_disasm.sh    | Disassembly scan for CT branches                  | Linux       |
+| ci/valgrind_ct_check.sh   | Valgrind memcheck on CT paths                     | Linux       |
+| ci/ctgrind_validate.sh    | CTGRIND-style validation (secret-as-undefined)    | Linux       |
+| ci/generate_coverage.sh   | LLVM source-based code coverage                   | Linux/macOS |
+| ci/cross_compiler_ct_stress.sh | Multi-compiler CT verification              | Linux       |
+| ci/generate_selftest_report.sh | JSON self-test evidence report               | Any         |
+| ci/generate_dudect_badge.sh | Dudect timing badge generation                  | Linux       |
+| ci/cachegrind_ct_analysis.sh | Cache-line timing analysis                     | Linux       |
+| ci/perf_regression_check.sh | Benchmark regression tracking                   | Linux       |
+| ci/generate_self_audit_report.sh | Comprehensive audit evidence JSON          | Linux       |
 
 ---
 

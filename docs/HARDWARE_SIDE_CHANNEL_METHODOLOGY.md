@@ -34,7 +34,7 @@ must agree:
    control flow or memory address (`tools/ct_verif/`).
 
 A CT property is only marked verified when **all three** tools agree.
-This is enforced by the P11 sub-gate in `scripts/audit_gate.py`.
+This is enforced by the P11 sub-gate in `ci/audit_gate.py`.
 
 ## 3. What is NOT verified — and why
 
@@ -81,7 +81,7 @@ attacker access):
 If a future release adds hardware-side-channel claims (e.g. via
 masking, threshold implementations, or co-published lab evaluation),
 this document and `docs/COMPLIANCE_STANCE.md` must be updated in the
-same commit, with a sub-gate added to `scripts/audit_gate.py`.
+same commit, with a sub-gate added to `ci/audit_gate.py`.
 
 Until then, the position is unchanged: software side channels yes,
 hardware side channels no.

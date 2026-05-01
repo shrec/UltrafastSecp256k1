@@ -80,7 +80,7 @@ run CAAS without GitHub Actions access.
 
 ### H-7 — Review-queue aging SLA ✅ CLOSED 2026-04-21
 
-**Artifact:** `scripts/review_queue_age_check.py` + `docs/AUDIT_SLA.json`
+**Artifact:** `ci/review_queue_age_check.py` + `docs/AUDIT_SLA.json`
 
 `review_queue_max_open_days` SLO (90 days, warning) added. Current run at
 close: 23 review-queue rows, 0 over SLA.
@@ -89,7 +89,7 @@ close: 23 review-queue rows, 0 over SLA.
 
 ### H-8 — TODO/FIXME age tracker ✅ CLOSED 2026-04-21
 
-**Artifact:** `scripts/todo_age_check.py` + `docs/AUDIT_SLA.json`
+**Artifact:** `ci/todo_age_check.py` + `docs/AUDIT_SLA.json`
 
 `todo_max_open_days` SLO (180 days, warning). Uses `git blame` and honours
 `DEFERRED:` / `(tracked: …)` annotations. Current run at close: 61 markers,
@@ -99,7 +99,7 @@ close: 23 review-queue rows, 0 over SLA.
 
 ### H-9 — Audit dashboard generator ✅ CLOSED 2026-04-21
 
-**Artifact:** `scripts/render_audit_dashboard.py` → `docs/AUDIT_DASHBOARD.md`
+**Artifact:** `ci/render_audit_dashboard.py` → `docs/AUDIT_DASHBOARD.md`
 
 Emits a human-readable audit status dashboard. Designed to run inside the
 H-1 nightly job so the dashboard is regenerated daily.
@@ -132,7 +132,7 @@ in place when hardware becomes available.
 
 ### H-12 — dev_bug_scanner CVE-grounded checkers ✅ CLOSED 2026-04-21
 
-**Artifact:** `scripts/dev_bug_scanner.py` (13 new checkers)
+**Artifact:** `ci/dev_bug_scanner.py` (13 new checkers)
 
 Extended dev_bug_scanner with 13 CVE-grounded crypto-specific checkers
 covering nonce reuse, missing low-S normalization, unsafe scalar parsing,
@@ -151,12 +151,12 @@ zero HIGH false positives.
 | H-4 | P1: Depth | `.github/workflows/mutation-weekly.yml` | ✅ 2026-04-21 |
 | H-5 | P1: Depth | `docs/RESIDUAL_RISK_REGISTER.md` (RR-005) | ✅ 2026-04-21 |
 | H-6 | P1: Depth | `docs/SUPPLY_CHAIN_LOCAL_PARITY.md` | ✅ 2026-04-21 |
-| H-7 | P2: Visibility | `scripts/review_queue_age_check.py` | ✅ 2026-04-21 |
-| H-8 | P2: Visibility | `scripts/todo_age_check.py` | ✅ 2026-04-21 |
-| H-9 | P2: Visibility | `scripts/render_audit_dashboard.py` | ✅ 2026-04-21 |
+| H-7 | P2: Visibility | `ci/review_queue_age_check.py` | ✅ 2026-04-21 |
+| H-8 | P2: Visibility | `ci/todo_age_check.py` | ✅ 2026-04-21 |
+| H-9 | P2: Visibility | `ci/render_audit_dashboard.py` | ✅ 2026-04-21 |
 | H-10 | P2: Visibility | `docs/REVIEWER_PROMPTS/` | ✅ 2026-04-21 |
 | H-11 | P2: Visibility | `.github/workflows/rocm-smoke.yml` | ✅ 2026-04-21 |
-| H-12 | P2: Visibility | `scripts/dev_bug_scanner.py` (+13 checkers) | ✅ 2026-04-21 |
+| H-12 | P2: Visibility | `ci/dev_bug_scanner.py` (+13 checkers) | ✅ 2026-04-21 |
 
 All 12 items are closed. No open hardening items remain.
 

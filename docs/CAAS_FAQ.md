@@ -50,9 +50,9 @@ you cannot.
 
 CAAS reproducibility means a new maintainer can:
 1. Clone the repository.
-2. Run `python3 scripts/caas_runner.py` and get the same results.
+2. Run `python3 ci/caas_runner.py` and get the same results.
 3. Inspect every claim via the source graph and exploit catalog.
-4. Run `python3 scripts/audit_viewer.py` and browse the full evidence tree.
+4. Run `python3 ci/audit_viewer.py` and browse the full evidence tree.
 
 Nothing is in the maintainer's head that is not also in a test, a doc, or
 a gate. The CAAS pipeline is the bus-factor mitigation — it is the
@@ -172,10 +172,10 @@ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 
 # Run full CAAS pipeline
-python3 scripts/caas_runner.py --json -o caas_report.json
+python3 ci/caas_runner.py --json -o caas_report.json
 
 # Open interactive dashboard
-python3 scripts/audit_viewer.py
+python3 ci/audit_viewer.py
 ```
 
 The pipeline runs the same gates as CI. The JSON report includes:
@@ -187,8 +187,8 @@ The pipeline runs the same gates as CI. The JSON report includes:
 If you want to verify the published bundle matches what you can generate:
 
 ```bash
-python3 scripts/external_audit_bundle.py        # regenerate
-python3 scripts/verify_external_audit_bundle.py # verify
+python3 ci/external_audit_bundle.py        # regenerate
+python3 ci/verify_external_audit_bundle.py # verify
 # Compare docs/EXTERNAL_AUDIT_BUNDLE.sha256 with the published value
 ```
 
