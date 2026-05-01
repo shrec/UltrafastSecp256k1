@@ -168,9 +168,11 @@ jobs:
     - name: Install ccache (Windows)
       run: choco install ccache --no-progress -y
 
-    # Note: libsecp256k1 comparison clone is skipped on Windows.
-    # The comparison is done on Linux (benchmark job above).
-    # Windows only measures UltrafastSecp256k1's own throughput.
+    # bench_unified requires libsecp256k1 source for apple-to-apple comparison.
+    # Clone it here so the CMake configure does not skip the benchmark target.
+    - name: Clone libsecp256k1 (apple-to-apple comparison)
+      run: |
+        git clone --depth 1 https://github.com/bitcoin-core/secp256k1.git "$env:GITHUB_WORKSPACE\_libsecp256k1"
 
     - name: Configure (Release, MSVC)
       run: |
@@ -181,7 +183,8 @@ jobs:
           -DSECP256K1_BUILD_TESTS=OFF `
           -DSECP256K1_BUILD_EXAMPLES=OFF `
           -DSECP256K1_BUILD_JAVA=OFF `
-          -DUFSECP_REFRESH_SOURCE_GRAPH=OFF
+          -DUFSECP_REFRESH_SOURCE_GRAPH=OFF `
+          -DLIBSECP_SRC_DIR="$env:GITHUB_WORKSPACE\_libsecp256k1\src"
 
     - name: Build
       run: cmake --build build/bench --config Release -j $env:NUMBER_OF_PROCESSORS
