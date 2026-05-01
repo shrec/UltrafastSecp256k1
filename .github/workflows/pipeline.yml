@@ -41,8 +41,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
   # Per-SHA group: each commit gets its own Pipeline that runs to completion.
