@@ -42,7 +42,7 @@
 
 ## 🔴 B‑01: `eth_signing.cpp:71` — Variable-Time Recovery Signing (CRITICAL) ✅ FIXED
 
-**ფაილი:** `cpu/src/eth_signing.cpp:71`  
+**ფაილი:** `src/cpu/src/eth_signing.cpp:71`  
 **სიმძიმე:** **CRITICAL**  
 **Fix commit:** `c0e49139`
 
@@ -65,7 +65,7 @@ auto rsig = secp256k1::ct::ecdsa_sign_recoverable(hash, private_key);
 
 ## 🟠 B‑02: `wallet.cpp:177` — Variable-Time Recovery Signing (HIGH) ✅ FIXED
 
-**ფაილი:** `cpu/src/wallet.cpp:177`  
+**ფაილი:** `src/cpu/src/wallet.cpp:177`  
 **სიმძიმე:** **HIGH**  
 **Fix commit:** `c0e49139`
 
@@ -88,7 +88,7 @@ auto rsig = ct::ecdsa_sign_recoverable(hash, key.priv);
 
 ## 🟠 B‑03: Metal Backend — `compute_units` / `max_clock_mhz` = 0 (HIGH) ✅ FIXED
 
-**ფაილი:** `gpu/src/gpu_backend_metal.mm:329-330`  
+**ფაილი:** `src/gpu/src/gpu_backend_metal.mm:329-330`  
 **სიმძიმე:** **HIGH**  
 **Fix commit:** `c0e49139`
 
@@ -154,7 +154,7 @@ include/ufsecp/impl/
 
 ## 🟡 B‑06: Pippenger Batch Regression N=64 (-32%) (MEDIUM) ✅ FIXED
 
-**ფაილი:** `cpu/src/pippenger.cpp`  
+**ფაილი:** `src/cpu/src/pippenger.cpp`  
 **Fix commit:** `9be083b9`
 
 ### Original Problem

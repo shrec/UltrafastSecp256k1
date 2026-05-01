@@ -224,7 +224,7 @@ and the number of point additions during scalar multiplication (k*P):
 | w=6 | 16 | ~21 | ~42 | Large L1 cache, diminishing returns |
 | w=7 | 32 | ~18 | ~36 | Rarely beneficial (table pressure) |
 
-**Platform defaults** (set in `cpu/include/secp256k1/point.hpp`):
+**Platform defaults** (set in `src/cpu/include/secp256k1/point.hpp`):
 
 | Platform | Default | Rationale |
 |----------|---------|-----------|

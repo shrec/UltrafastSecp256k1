@@ -58,7 +58,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
 | `unified_audit_runner.cpp` | 249 modules (60 non-exploit + 189 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
-### CPU Unit Tests (`cpu/tests/`)
+### CPU Unit Tests (`src/cpu/tests/`)
 
 | File | Focus Area | Status |
 |------|------------|--------|
@@ -89,7 +89,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_edge_cases.cpp` | Edge cases: scalar zero, infinity arithmetic, BIP-32 IL>=n, cache corruption | [OK] |
 | `test_point_edge_cases.cpp` | Point edge cases: infinity, Z=0 guards, roundtrip encoding | [OK] |
 
-### Fuzz Harnesses (`cpu/fuzz/`)
+### Fuzz Harnesses (`src/cpu/fuzz/`)
 
 | File | Operations Fuzzed | Input |
 |------|-------------------|-------|
@@ -106,10 +106,10 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit (27 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
 | `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit (27 modules, 8 sections) |
-| `cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
-| `cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
-| `cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit (27 modules, 8 sections) |
+| `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
+| `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
+| `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit (27 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -524,19 +524,19 @@ ctest --test-dir build --output-on-failure
 
 # Fuzzing (clang required)
 clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
-  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp \
+  -I src/cpu/include src/cpu/fuzz/fuzz_field.cpp src/cpu/src/field.cpp \
   -o fuzz_field
 ./fuzz_field -max_len=64 -runs=10000000
 
 # Selftest (smoke/ci/stress modes)
-./build/cpu/tests/run_selftest
+./build/src/cpu/tests/run_selftest
 
 # Linux ARM64 smoke under QEMU (cross-compiled)
 bash ./scripts/run-qemu-smoke.sh arm64
 
 # Or run the commands manually
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/run_selftest smoke
-qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/test_bip324_standalone
+qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/src/cpu/test_bip324_standalone
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/bench_kP
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/bench_bip324
 
@@ -545,7 +545,7 @@ bash ./scripts/run-qemu-smoke.sh riscv64
 
 # Or run the commands manually
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/run_selftest smoke
-qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/test_bip324_standalone
+qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/src/cpu/test_bip324_standalone
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_kP
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/bench_bip324
 ```

@@ -37,7 +37,7 @@ those paths.
 | FreeBSD/OpenBSD | `getentropy` | `/dev/urandom` | Same |
 | RISC-V (Linux) | `getrandom` | `/dev/urandom` | Same |
 
-Implemented in `cpu/src/random.cpp`. Tested by:
+Implemented in `src/cpu/src/random.cpp`. Tested by:
 `audit/test_random_oracle.cpp`, `audit/test_oracle_separation.cpp`,
 exploit PoCs `test_exploit_rng_*` series.
 
@@ -82,7 +82,7 @@ in `unified_audit_runner.cpp` under `memory_safety`).
 | All-zero RNG output rejected | `audit/test_random_oracle.cpp` |
 | RFC 6979 sign path deterministic regardless of RNG | `audit/test_rfc6979_*` |
 | MuSig2/FROST refuse to proceed if RNG draw fails | `audit/test_exploit_musig2_*`, `test_exploit_frost_*` |
-| Cross-platform RNG syscall present | `cpu/tests/test_random_platform.cpp` |
+| Cross-platform RNG syscall present | `src/cpu/tests/test_random_platform.cpp` |
 | Self-test SP 800-90B repetition | `audit/test_random_health.cpp` (advisory) |
 
 ## 6. What this attestation is NOT

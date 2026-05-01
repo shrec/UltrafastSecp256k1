@@ -202,12 +202,12 @@ Each row in this matrix links:
 
 | ID | Invariant | Implementation | Validation | Test Location | Status |
 |----|-----------|---------------|------------|---------------|--------|
-| **T3241** | Initiator/responder derive matching session state from the same handshake transcript | `cpu/include/secp256k1/bip324.hpp`, `cpu/src/bip324.cpp` | Deterministic handshake round-trip | `cpu/tests/test_bip324.cpp` -> `test_bip324_session()` | [OK] |
-| **T3242** | Post-handshake encrypt/decrypt are inverse operations across message sequences | `cpu/include/secp256k1/bip324.hpp`, `cpu/src/bip324.cpp` | Multi-message round-trip | `cpu/tests/test_bip324.cpp` -> `test_bip324_sequence()` | [OK] |
-| **T3243** | Fixed-key sessions remain deterministic across repeated runs | `cpu/include/secp256k1/bip324.hpp`, `cpu/src/bip324.cpp` | Repeatability check | `cpu/tests/test_bip324.cpp` -> `test_bip324_determinism()` | [OK] |
-| **T3244** | Empty, short, and 4 KiB payloads survive transport round-trip | `cpu/include/secp256k1/bip324.hpp`, `cpu/src/bip324.cpp` | Size sweep | `cpu/tests/test_bip324.cpp` -> `test_bip324_sizes()` | [OK] |
-| **T3245** | Tampered ciphertext, tag, or transcript inputs are rejected | `cpu/include/secp256k1/bip324.hpp`, `cpu/src/bip324.cpp` | Tamper matrix + wrong-peer checks | `cpu/tests/test_bip324.cpp` -> `test_bip324_tamper()` | [OK] |
-| **T3246** | Public C ABI create/handshake/encrypt/decrypt surface matches C++ transport behavior | `include/ufsecp/ufsecp.h`, `include/ufsecp/ufsecp_impl.cpp` | FFI round-trip coverage | `cpu/tests/test_ffi_coverage.cpp` -> `test_bip324_session()` | [OK] |
+| **T3241** | Initiator/responder derive matching session state from the same handshake transcript | `src/cpu/include/secp256k1/bip324.hpp`, `src/cpu/src/bip324.cpp` | Deterministic handshake round-trip | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_session()` | [OK] |
+| **T3242** | Post-handshake encrypt/decrypt are inverse operations across message sequences | `src/cpu/include/secp256k1/bip324.hpp`, `src/cpu/src/bip324.cpp` | Multi-message round-trip | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_sequence()` | [OK] |
+| **T3243** | Fixed-key sessions remain deterministic across repeated runs | `src/cpu/include/secp256k1/bip324.hpp`, `src/cpu/src/bip324.cpp` | Repeatability check | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_determinism()` | [OK] |
+| **T3244** | Empty, short, and 4 KiB payloads survive transport round-trip | `src/cpu/include/secp256k1/bip324.hpp`, `src/cpu/src/bip324.cpp` | Size sweep | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_sizes()` | [OK] |
+| **T3245** | Tampered ciphertext, tag, or transcript inputs are rejected | `src/cpu/include/secp256k1/bip324.hpp`, `src/cpu/src/bip324.cpp` | Tamper matrix + wrong-peer checks | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_tamper()` | [OK] |
+| **T3246** | Public C ABI create/handshake/encrypt/decrypt surface matches C++ transport behavior | `include/ufsecp/ufsecp.h`, `include/ufsecp/ufsecp_impl.cpp` | FFI round-trip coverage | `src/cpu/tests/test_ffi_coverage.cpp` -> `test_bip324_session()` | [OK] |
 
 **BIP-324 Subtotal: 6/6 [OK]**
 
@@ -305,14 +305,14 @@ Each row in this matrix links:
 
 | ID | Invariant | Implementation | Validation | Test Location | Status |
 |----|-----------|---------------|------------|---------------|--------|
-| **EC1** | Encrypt->decrypt round-trip (1, 13, 32 byte plaintexts) | `cpu/src/ecies.cpp` | KAT with 3 sizes, wrong-key rejection | `test_ecies_regression.cpp` -> `test_ecies_roundtrip_kat()` | [OK] |
-| **EC2** | Parity tamper: flip 0x02/0x03 on ephemeral pubkey -> decrypt fails | `cpu/src/ecies.cpp` | Deterministic bit-flip | `test_ecies_regression.cpp` -> `test_ecies_parity_tamper()` | [OK] |
-| **EC3** | Invalid prefix (0x00, 0x04, 0xFF) -> clean error | `cpu/src/ecies.cpp` | 3 bad prefix checks | `test_ecies_regression.cpp` -> `test_ecies_invalid_prefix()` | [OK] |
-| **EC4** | Truncated envelope (0-81 bytes) -> clean error, no crash | `cpu/src/ecies.cpp` | 6 truncated sizes | `test_ecies_regression.cpp` -> `test_ecies_truncated_envelope()` | [OK] |
-| **EC5** | Single-bit tamper in any field (pubkey/IV/ct/HMAC) -> decrypt fails | `cpu/src/ecies.cpp` | Tamper matrix: 4 fields x bit-flip | `test_ecies_regression.cpp` -> `test_ecies_tamper_matrix()` | [OK] |
+| **EC1** | Encrypt->decrypt round-trip (1, 13, 32 byte plaintexts) | `src/cpu/src/ecies.cpp` | KAT with 3 sizes, wrong-key rejection | `test_ecies_regression.cpp` -> `test_ecies_roundtrip_kat()` | [OK] |
+| **EC2** | Parity tamper: flip 0x02/0x03 on ephemeral pubkey -> decrypt fails | `src/cpu/src/ecies.cpp` | Deterministic bit-flip | `test_ecies_regression.cpp` -> `test_ecies_parity_tamper()` | [OK] |
+| **EC3** | Invalid prefix (0x00, 0x04, 0xFF) -> clean error | `src/cpu/src/ecies.cpp` | 3 bad prefix checks | `test_ecies_regression.cpp` -> `test_ecies_invalid_prefix()` | [OK] |
+| **EC4** | Truncated envelope (0-81 bytes) -> clean error, no crash | `src/cpu/src/ecies.cpp` | 6 truncated sizes | `test_ecies_regression.cpp` -> `test_ecies_truncated_envelope()` | [OK] |
+| **EC5** | Single-bit tamper in any field (pubkey/IV/ct/HMAC) -> decrypt fails | `src/cpu/src/ecies.cpp` | Tamper matrix: 4 fields x bit-flip | `test_ecies_regression.cpp` -> `test_ecies_tamper_matrix()` | [OK] |
 | **EC6** | ABI prefix rejection: 6 bad prefixes x 5 endpoints -> consistent ERR | `include/ufsecp/ufsecp_impl.cpp` | 30 ABI boundary checks | `test_ecies_regression.cpp` -> `test_abi_prefix_rejection()` | [OK] |
 | **EC7** | Pubkey parser consistency: malformed x-coords -> same error across all parsers | `include/ufsecp/ufsecp_impl.cpp` | 3 malformed coords x 3 functions | `test_ecies_regression.cpp` -> `test_pubkey_parser_consistency()` | [OK] |
-| **EC8** | RNG fail-closed: blocked `getrandom` -> process SIGABRT (no silent fallback) | `cpu/src/random.cpp` | fork + seccomp filter (Linux x86-64) | `test_ecies_regression.cpp` -> `test_rng_fail_closed()` | [OK] |
+| **EC8** | RNG fail-closed: blocked `getrandom` -> process SIGABRT (no silent fallback) | `src/cpu/src/random.cpp` | fork + seccomp filter (Linux x86-64) | `test_ecies_regression.cpp` -> `test_rng_fail_closed()` | [OK] |
 
 **ECIES Subtotal: 8/8 [OK]**
 
@@ -347,11 +347,11 @@ All core arithmetic operations are tested on boundary values:
 
 | Harness | Target | Iterations (Nightly) | Location |
 |---------|--------|---------------------|----------|
-| `fuzz_field` | Field arithmetic | 100K+ | `cpu/fuzz/fuzz_field.cpp` |
-| `fuzz_scalar` | Scalar arithmetic | 100K+ | `cpu/fuzz/fuzz_scalar.cpp` |
-| `fuzz_point` | Point operations | 100K+ | `cpu/fuzz/fuzz_point.cpp` |
-| `fuzz_ecdsa` | ECDSA sign→verify invariant, wrong-msg | 100K+ | `cpu/fuzz/fuzz_ecdsa.cpp` |
-| `fuzz_schnorr` | BIP-340 sign→verify, adversarial verify | 100K+ | `cpu/fuzz/fuzz_schnorr.cpp` |
+| `fuzz_field` | Field arithmetic | 100K+ | `src/cpu/fuzz/fuzz_field.cpp` |
+| `fuzz_scalar` | Scalar arithmetic | 100K+ | `src/cpu/fuzz/fuzz_scalar.cpp` |
+| `fuzz_point` | Point operations | 100K+ | `src/cpu/fuzz/fuzz_point.cpp` |
+| `fuzz_ecdsa` | ECDSA sign→verify invariant, wrong-msg | 100K+ | `src/cpu/fuzz/fuzz_ecdsa.cpp` |
+| `fuzz_schnorr` | BIP-340 sign→verify, adversarial verify | 100K+ | `src/cpu/fuzz/fuzz_schnorr.cpp` |
 | `fuzz_der_parse` | DER signature parse + round-trip | 100K+ | `audit/fuzz_der_parse.cpp` |
 | `fuzz_pubkey_parse` | Pubkey parse, tweak_add, encoding | 100K+ | `audit/fuzz_pubkey_parse.cpp` |
 | `fuzz_schnorr_verify` | BIP-340 sign→verify + forged-sig rejection | 100K+ | `audit/fuzz_schnorr_verify.cpp` |
@@ -364,7 +364,7 @@ All core arithmetic operations are tested on boundary values:
 | Address encoder fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 1-4 |
 | BIP32 path fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 5-7 |
 | FFI boundary fuzz | `test_fuzz_address_bip32_ffi.cpp` | 10K per suite | Suites 8-13 |
-| BIP-324 transport checks | `cpu/tests/test_bip324.cpp` | 62 checks | handshake, sequence, determinism, sizes, tamper, random-key paths |
+| BIP-324 transport checks | `src/cpu/tests/test_bip324.cpp` | 62 checks | handshake, sequence, determinism, sizes, tamper, random-key paths |
 | ECIES regression | `test_ecies_regression.cpp` | 85 tests | Categories A-H |
 
 ### Negative Testing (Adversarial Inputs)
@@ -386,7 +386,7 @@ All core arithmetic operations are tested on boundary values:
 | MuSig2 malicious aggregator | Tampered aggnonce | `test_adversarial_protocol.cpp` A.7 |
 | FROST malicious coordinator | Inconsistent commit sets to signers | `test_adversarial_protocol.cpp` B.4 |
 | FROST duplicate nonce | Same commitment submitted twice | `test_adversarial_protocol.cpp` B.5 |
-| BIP-324 tampered packet | Ciphertext/tag/transcript mutation must fail | `cpu/tests/test_bip324.cpp` -> `test_bip324_tamper()` |
+| BIP-324 tampered packet | Ciphertext/tag/transcript mutation must fail | `src/cpu/tests/test_bip324.cpp` -> `test_bip324_tamper()` |
 | Adaptor transcript mismatch | Sign msg1, verify msg2 -> reject | `test_adversarial_protocol.cpp` D.5 |
 | Adaptor extraction misuse | Extract from unrelated sig pair | `test_adversarial_protocol.cpp` D.6 |
 | DLEQ malformed proof | 6 corruption strategies + zero proof | `test_adversarial_protocol.cpp` E.4 |
@@ -443,12 +443,12 @@ ctest --test-dir build --output-on-failure
 ./build/cpu/audit_integration    # end-to-end flows
 
 # Differential testing (requires libsecp256k1)
-./build/cpu/test_cross_libsecp256k1    # 7,860 baseline checks
-DIFFERENTIAL_MULTIPLIER=100 ./build/cpu/test_cross_libsecp256k1  # 1.3M checks
+./build/src/cpu/test_cross_libsecp256k1    # 7,860 baseline checks
+DIFFERENTIAL_MULTIPLIER=100 ./build/src/cpu/test_cross_libsecp256k1  # 1.3M checks
 
 # dudect side-channel (statistical)
-./build/cpu/test_ct_sidechannel        # full mode (~30 min)
-./build/cpu/test_ct_sidechannel_smoke  # smoke mode (~2 min)
+./build/src/cpu/test_ct_sidechannel        # full mode (~30 min)
+./build/src/cpu/test_ct_sidechannel_smoke  # smoke mode (~2 min)
 ```
 
 ---
@@ -463,7 +463,7 @@ DIFFERENTIAL_MULTIPLIER=100 ./build/cpu/test_cross_libsecp256k1  # 1.3M checks
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | `audit/test_gpu_backend_matrix.cpp` |
 
 Backend-specific internal audit runners:
-- CUDA: `cuda/src/gpu_audit_runner.cu` (27 modules)
+- CUDA: `src/cuda/src/gpu_audit_runner.cu` (27 modules)
 - OpenCL: `opencl/src/opencl_audit_runner.cpp` (27 modules)
 - Metal: `metal/src/metal_audit_runner.mm` (27 modules)
 

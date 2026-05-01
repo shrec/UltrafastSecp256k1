@@ -1,16 +1,16 @@
-# External Audit Automation
+# Evidence Replay Automation
 
-This document describes how UltrafastSecp256k1 automates as much of the
-external-auditor workflow as possible before a human reviewer arrives.
+This document describes how UltrafastSecp256k1 automates evidence collection,
+claim mapping, and replay setup before a human reviewer arrives.
 
-The objective is not to replace auditors.
-The objective is to make their first hour productive instead of administrative.
+The objective is to make the reviewer's first hour productive instead of
+administrative.
 
 ---
 
 ## What Is Automated
 
-The repository now has a single auditor-prep entry point:
+The repository now has a single evidence-prep entry point:
 
 ```bash
 bash ci/external_audit_prep.sh
@@ -30,7 +30,7 @@ That command can:
 
 ## Why This Exists
 
-An external auditor should not need to manually reconstruct:
+An independent reviewer should not need to manually reconstruct:
 
 1. Which claims are current
 2. Which checks are hard gates vs advisory

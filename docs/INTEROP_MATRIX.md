@@ -5,7 +5,7 @@
 >
 > This matrix records which cross-implementation interop surfaces
 > UltrafastSecp256k1 is exercised against, what kind of cross-check
-> happens, and where the evidence lives. An external auditor can
+> happens, and where the evidence lives. An independent reviewer can
 > verify a claim of "matches reference X" by running the row's test
 > command without source archeology.
 
@@ -66,7 +66,7 @@ The differential suite executes ~1.3M assertions per nightly run
 
 | Counterparty | Protocol | Test | Status |
 |--------------|----------|------|--------|
-| Self-against-self with two independent contexts | BIP-324 v2 transport handshake + AEAD | `audit/test_bip324_handshake.cpp` + `cpu/tests/test_bip324_standalone.cpp` | OK |
+| Self-against-self with two independent contexts | BIP-324 v2 transport handshake + AEAD | `audit/test_bip324_handshake.cpp` + `src/cpu/tests/test_bip324_standalone.cpp` | OK |
 | Self-against-self | MuSig2 (BIP-327) full round protocol | `audit/test_musig2_round.cpp` | OK |
 | Self-against-self | FROST (RFC 9591) DKG + sign | `audit/test_frost_dkg.cpp`, `audit/test_frost_round.cpp` | OK |
 | Bitcoin Core test vectors | BIP-324 handshake transcripts | `audit/test_bip324_kdf_vectors.cpp` | OK |
@@ -94,7 +94,7 @@ separate `feat(interop): add <reference>` commit with an
 
 ## 4. Verification commands
 
-For an external auditor to reproduce every §2 row:
+For an independent reviewer to reproduce every §2 row:
 
 ```bash
 # Build with interop deps

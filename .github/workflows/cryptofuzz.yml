@@ -21,8 +21,8 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'include/ufsecp/**'
       - '.github/workflows/cryptofuzz.yml'
   schedule:
@@ -71,7 +71,7 @@ jobs:
           path: ~/.cache/ccache
           # Cache key includes arch level so -march=native from a previous run
           # (compiled on a different physical runner) never poisons this cache.
-          key: ccache-cryptofuzz-x86-64-v2-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-cryptofuzz-x86-64-v2-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-cryptofuzz-x86-64-v2-
 

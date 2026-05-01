@@ -1394,7 +1394,7 @@ static void write_sarif_report(const char* path,
         (void)std::fprintf(f, "          \"ruleId\": \"AUDIT/selftest\",\n");
         (void)std::fprintf(f, "          \"level\": \"error\",\n");
         (void)std::fprintf(f, "          \"message\": { \"text\": \"Library selftest (core KAT) FAILED\" },\n");
-        (void)std::fprintf(f, "          \"locations\": [{ \"physicalLocation\": { \"artifactLocation\": { \"uri\": \"cpu/include/secp256k1/selftest.hpp\" } } }]\n");
+        (void)std::fprintf(f, "          \"locations\": [{ \"physicalLocation\": { \"artifactLocation\": { \"uri\": \"src/cpu/include/secp256k1/selftest.hpp\" } } }]\n");
         (void)std::fprintf(f, "        }");
         first_result = false;
         ++result_count;
@@ -1415,19 +1415,19 @@ static void write_sarif_report(const char* path,
         // Map section to a representative source file
         const char* uri = "audit/unified_audit_runner.cpp";
         if (std::strcmp(r.section, "math_invariants") == 0) {
-            uri = "cpu/src/field.cpp";
+            uri = "src/cpu/src/field.cpp";
         } else if (std::strcmp(r.section, "ct_analysis") == 0) {
-            uri = "cpu/include/secp256k1/ct/ops.hpp";
+            uri = "src/cpu/include/secp256k1/ct/ops.hpp";
         } else if (std::strcmp(r.section, "standard_vectors") == 0) {
             uri = "audit/test_cross_platform_kat.cpp";
         } else if (std::strcmp(r.section, "protocol_security") == 0) {
-            uri = "cpu/src/musig2.cpp";
+            uri = "src/cpu/src/musig2.cpp";
         } else if (std::strcmp(r.section, "fuzzing") == 0) {
             uri = "audit/audit_fuzz.cpp";
         } else if (std::strcmp(r.section, "memory_safety") == 0) {
             uri = "audit/test_abi_gate.cpp";
         } else if (std::strcmp(r.section, "performance") == 0) {
-            uri = "cpu/bench/bench_unified.cpp";
+            uri = "src/cpu/bench/bench_unified.cpp";
         } else if (std::strcmp(r.section, "differential") == 0) {
             uri = "audit/test_fiat_crypto_vectors.cpp";
         } else if (std::strcmp(r.section, "exploit_poc") == 0) {

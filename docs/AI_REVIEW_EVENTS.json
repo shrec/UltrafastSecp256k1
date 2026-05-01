@@ -55,16 +55,16 @@
       "summary": "Local CI failures were traced to stale FROST exploit PoCs plus inconsistent ECDSA adaptor semantics, then converted into deterministic regressions and a code fix.",
       "reproduced": true,
       "repository_evidence": [
-        "cpu/src/frost.cpp",
-        "cpu/src/adaptor.cpp",
+        "src/cpu/src/frost.cpp",
+        "src/cpu/src/adaptor.cpp",
         "audit/test_exploit_frost_index.cpp",
         "audit/test_exploit_frost_participant_zero.cpp",
         "audit/test_exploit_frost_lagrange_duplicate.cpp",
         "audit/test_exploit_adaptor_extended.cpp"
       ],
       "resulting_changes": [
-        "cpu/src/frost.cpp",
-        "cpu/src/adaptor.cpp",
+        "src/cpu/src/frost.cpp",
+        "src/cpu/src/adaptor.cpp",
         "audit/test_exploit_frost_index.cpp",
         "audit/test_exploit_frost_participant_zero.cpp",
         "audit/test_exploit_frost_lagrange_duplicate.cpp"

@@ -258,7 +258,7 @@ def generate_cmake_fragment(capsules: list[dict]) -> str:
         # Regression test
         lines.extend([
             f'if(EXISTS "${{CMAKE_CURRENT_SOURCE_DIR}}/cpu/tests/regression/test_regression_{name}.cpp")',
-            f'  add_executable(test_regression_{name}_standalone cpu/tests/regression/test_regression_{name}.cpp)',
+            f'  add_executable(test_regression_{name}_standalone src/cpu/tests/regression/test_regression_{name}.cpp)',
             f'  target_link_libraries(test_regression_{name}_standalone PRIVATE ufsecp)',
             f'  add_test(NAME test_regression_{name} COMMAND test_regression_{name}_standalone)',
             f'  set_tests_properties(test_regression_{name} PROPERTIES LABELS "{";".join(labels)}")',

@@ -4,7 +4,7 @@
 //
 // BACKGROUND:
 //   Two bugs were found and fixed in musig2_partial_verify() in
-//   cpu/src/musig2.cpp (commit after 2026-04-23):
+//   src/cpu/src/musig2.cpp (commit after 2026-04-23):
 //
 //   BUG-1 — Missing bounds check on signer_index:
 //     musig2_partial_sign() rejected out-of-range signer_index with a guard:

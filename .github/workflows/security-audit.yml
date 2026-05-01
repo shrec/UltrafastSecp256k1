@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-werror-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-werror-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-werror-
 
@@ -86,7 +86,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-asan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-asan-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-asan-
 
@@ -177,7 +177,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-msan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-msan-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-msan-
 
@@ -244,7 +244,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-tsan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-tsan-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-tsan-
 
@@ -301,7 +301,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-valgrind-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-valgrind-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-valgrind-
 
@@ -373,7 +373,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sa-dudect-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sa-dudect-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sa-dudect-
 
@@ -443,7 +443,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-cross-libsecp-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-cross-libsecp-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-cross-libsecp-
 

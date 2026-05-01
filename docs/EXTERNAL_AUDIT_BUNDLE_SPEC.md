@@ -1,6 +1,6 @@
-# External Audit Bundle Spec
+# Reproducible Evidence Bundle Spec
 
-Machine-verifiable evidence contract for independent external auditors.
+Machine-verifiable evidence contract for independent reviewers.
 
 ## Goal
 

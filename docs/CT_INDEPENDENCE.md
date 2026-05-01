@@ -77,8 +77,8 @@ PASS: 2 independent CT tool(s) found no timing leakage
 ## 5. Trigger policy
 
 The workflow runs on:
-- Push to `main` or `dev` touching CT source paths (`cpu/src/ct_*.cpp`,
-  `cpu/src/ecdsa.cpp`, `cpu/src/schnorr.cpp`, `include/**`, `audit/**`)
+- Push to `main` or `dev` touching CT source paths (`src/cpu/src/ct_*.cpp`,
+  `src/cpu/src/ecdsa.cpp`, `src/cpu/src/schnorr.cpp`, `include/**`, `audit/**`)
 - Pull requests to `main` touching the same paths
 - Weekly schedule (Sunday 06:00 UTC) to catch toolchain drift
 

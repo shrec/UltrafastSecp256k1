@@ -11,7 +11,7 @@
       "primary_evidence": [
         "SECURITY.md",
         "docs/BACKEND_ASSURANCE_MATRIX.md",
-        "cpu/src/ct_sign.cpp"
+        "src/cpu/src/ct_sign.cpp"
       ],
       "enforcing_workflows": [
         "ct-verif.yml",
@@ -27,7 +27,7 @@
       "current_status": "Active",
       "stale_risk": "Medium",
       "owner_surface": [
-        "cpu/src/ct_*",
+        "src/cpu/src/ct_*",
         "SECURITY.md",
         "docs/BACKEND_ASSURANCE_MATRIX.md"
       ]
@@ -55,7 +55,7 @@
       "stale_risk": "Medium",
       "owner_surface": [
         "include/ufsecp/ufsecp_gpu.h",
-        "gpu/src/*",
+        "src/gpu/src/*",
         "docs/BACKEND_ASSURANCE_MATRIX.md"
       ]
     },
@@ -80,7 +80,7 @@
       "current_status": "Active",
       "stale_risk": "Medium",
       "owner_surface": [
-        "gpu/src/*",
+        "src/gpu/src/*",
         "metal/*",
         "opencl/*",
         "docs/BACKEND_ASSURANCE_MATRIX.md"

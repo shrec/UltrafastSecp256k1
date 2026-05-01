@@ -40,7 +40,7 @@ against a hostile committer.
 Promote the HMAC key from public-constant → repository secret only when one of
 the following is true:
 
-1. The chain is consumed by an external auditor who needs cryptographic proof
+1. The chain is consumed by an independent reviewer who needs cryptographic proof
    that the maintainer did not rewrite the chain after the fact.
 2. The repo moves to a multi-party governance model where some committers
    should not be able to forge chain records.
@@ -84,7 +84,7 @@ the chain (which is governed by repo write access).
 
    - Update the workflow secret.
    - Push a new repo tag `evidence-key-v<N+1>` pointing at the rotation
-     commit so external auditors can pin the new key generation.
+     commit so independent reviewers can pin the new key generation.
 
 5. **Verify** post-rotation:
 

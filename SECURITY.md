@@ -52,7 +52,7 @@ The project is designed to make external review as efficient as possible: reprod
 >
 > The project prioritizes transparent audit artifacts, reproducible commands,
 > public traceability documents, and CI-backed verification that other engineers
-> can independently rerun without waiting for a formal audit engagement.
+> can independently rerun as part of the CAAS model.
 > The model is deliberately Bitcoin-style: don't trust, verify.
 > That includes graph-backed code navigation, continuously expanding adversarial
 > tests, and frequent external-style review passes that feed new edge cases back
@@ -124,8 +124,8 @@ The following automated security measures are in place:
 - [x] FROST / MuSig2 reference test vectors from BIP-327/RFC-9591 implementations
 - [x] Cross-ABI / FFI hostile-caller and thread-stress validation across the public C ABI
 
-For production cryptographic systems, prefer audited libraries such as
-[libsecp256k1](https://github.com/bitcoin-core/secp256k1).
+For production cryptographic systems, verify the exact build, feature profile,
+and CAAS evidence bundle you intend to rely on.
 
 See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 

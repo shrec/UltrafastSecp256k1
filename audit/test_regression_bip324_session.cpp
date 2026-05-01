@@ -3,11 +3,11 @@
 // =============================================================================
 //
 // BACKGROUND:
-//   Two bugs were found and fixed in Bip324Session / cpu/src/bip324.cpp
-//   and cpu/include/secp256k1/bip324.hpp (commit after 2026-04-23):
+//   Two bugs were found and fixed in Bip324Session / src/cpu/src/bip324.cpp
+//   and src/cpu/include/secp256k1/bip324.hpp (commit after 2026-04-23):
 //
 //   BUG-3 — complete_handshake early-return without zeroizing sk
-//     (cpu/src/bip324.cpp):
+//     (src/cpu/src/bip324.cpp):
 //     When ellswift_xdh() returns an all-zeros shared secret (possible with
 //     a specially crafted peer_encoding), the function returned false without
 //     calling detail::secure_erase(&sk, sizeof(sk)).  The ephemeral private
@@ -17,7 +17,7 @@
 //     return on the all_zero path.
 //
 //   BUG-4 — ~Bip324Session used raw volatile loop instead of
-//     detail::secure_erase (cpu/include/secp256k1/bip324.hpp):
+//     detail::secure_erase (src/cpu/include/secp256k1/bip324.hpp):
 //     Bip324Cipher::~Bip324Cipher() called detail::secure_erase() (which
 //     includes an atomic_signal_fence(memory_order_seq_cst) barrier), but
 //     Bip324Session::~Bip324Session() used a raw volatile loop, missing the

@@ -68,11 +68,11 @@ cmake --build "$BUILD_DIR" --target test_ct_sidechannel_standalone -j"$(nproc)" 
 
 TEST_BIN="$BUILD_DIR/audit/test_ct_sidechannel_standalone"
 if [[ ! -x "$TEST_BIN" ]]; then
-    # Fallback: some CMake configs place it under cpu/
-    TEST_BIN="$BUILD_DIR/cpu/test_ct_sidechannel_standalone"
+    # Fallback: some CMake configs place it under src/cpu/
+    TEST_BIN="$BUILD_DIR/src/cpu/test_ct_sidechannel_standalone"
 fi
 if [[ ! -x "$TEST_BIN" ]]; then
-    echo "ERROR: Test binary not found in audit/ or cpu/ under $BUILD_DIR"
+    echo "ERROR: Test binary not found in audit/ or src/cpu/ under $BUILD_DIR"
     exit 2
 fi
 

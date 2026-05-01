@@ -5,7 +5,7 @@ mutation_kill_rate.py — Mutation testing: measure audit test suite kill rate
 
 What this does
 --------------
-Applies simple source-code mutations to the library core (cpu/src/) one at a
+Applies simple source-code mutations to the library core (src/cpu/src/) one at a
 time, rebuilds the library, runs the audit test binary (unified_audit_runner),
 and records whether the mutation is "killed" (test fails) or "survives"
 (test passes despite the code being wrong).
@@ -40,7 +40,7 @@ Usage
   python3 ci/mutation_kill_rate.py \\
       --build-dir build_opencl \\
       --test-cmd  "ctest --test-dir build_opencl -R unified_audit -j1 -Q" \\
-      --targets cpu/src/field.cpp cpu/src/scalar.cpp \\
+      --targets src/cpu/src/field.cpp src/cpu/src/scalar.cpp \\
       --count 50 --seed 42
 
   # Full run with JSON report
@@ -118,13 +118,13 @@ signal.signal(signal.SIGINT, _signal_handler)
 # Default high-value mutation targets (relative to LIB_ROOT)
 # ---------------------------------------------------------------------------
 DEFAULT_TARGETS = [
-    "cpu/src/field.cpp",
-    "cpu/src/scalar.cpp",
-    "cpu/src/point.cpp",
-    "cpu/src/ecdsa.cpp",
-    "cpu/src/schnorr.cpp",
-    "cpu/src/ct_sign.cpp",
-    "cpu/src/recovery.cpp",
+    "src/cpu/src/field.cpp",
+    "src/cpu/src/scalar.cpp",
+    "src/cpu/src/point.cpp",
+    "src/cpu/src/ecdsa.cpp",
+    "src/cpu/src/schnorr.cpp",
+    "src/cpu/src/ct_sign.cpp",
+    "src/cpu/src/recovery.cpp",
 ]
 
 # Fast standalone suite for --ctest-mode. This avoids running the full

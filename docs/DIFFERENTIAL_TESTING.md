@@ -46,7 +46,7 @@ Manual trigger:  M=N    ->  custom (workflow_dispatch)
 ```yaml
 # .github/workflows/ci.yml
 - name: Run cross-library test
-  run: ./build/cpu/test_cross_libsecp256k1
+  run: ./build/src/cpu/test_cross_libsecp256k1
   # M=1, ~8K checks in <10s
 ```
 
@@ -55,13 +55,13 @@ Manual trigger:  M=N    ->  custom (workflow_dispatch)
 # .github/workflows/nightly.yml -- differential job
 env:
   DIFFERENTIAL_MULTIPLIER: 100  # ~=1.3M checks
-run: ./build/cpu/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
+run: ./build/src/cpu/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
 ```
 
 ### Manual
 ```bash
 # Run with arbitrary multiplier
-./build/cpu/test_cross_libsecp256k1 200  # 200x = ~2.6M checks
+./build/src/cpu/test_cross_libsecp256k1 200  # 200x = ~2.6M checks
 ```
 
 ---
@@ -171,10 +171,10 @@ cmake -S . -B build -DSECP256K1_BUILD_CROSS_TESTS=ON
 cmake --build build --target test_cross_libsecp256k1 -j$(nproc)
 
 # Default run (M=1, ~8K checks)
-./build/cpu/test_cross_libsecp256k1
+./build/src/cpu/test_cross_libsecp256k1
 
 # Extended run (M=100, ~1.3M checks)
-./build/cpu/test_cross_libsecp256k1 100
+./build/src/cpu/test_cross_libsecp256k1 100
 
 # Via CTest
 ctest --test-dir build -R cross_libsecp

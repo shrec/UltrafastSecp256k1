@@ -26,7 +26,7 @@ documentation lies — usually because the code moved and the doc didn't.
    - `README.md` and any `BUILD_GUIDE.md`
 2. For each claim, verify against the code with the source graph. Examples:
    - "Function X is constant-time" → `bodygrep` for branches on secret;
-     check `cpu/include/secp256k1/ct/`.
+     check `src/cpu/include/secp256k1/ct/`.
    - "Backend Y supports operation Z" → `focus Z 24 --core`; confirm a
      real implementation exists, not a `GpuError::Unsupported` stub.
    - "Threshold N enforced" → `bodygrep` for the literal value.

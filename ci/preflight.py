@@ -56,13 +56,13 @@ RESET = '\033[0m'
 _VALIDATE_ASSURANCE_CACHE = None
 
 CUDA_MSVC_SENSITIVE_HEADERS = [
-    'cuda/include/secp256k1.cuh',
-    'cuda/include/ecdsa.cuh',
-    'cuda/include/recovery.cuh',
-    'cuda/include/schnorr.cuh',
-    'cuda/include/bip32.cuh',
-    'cuda/include/zk.cuh',
-    'cuda/include/host_helpers.cuh',
+    'src/cuda/include/secp256k1.cuh',
+    'src/cuda/include/ecdsa.cuh',
+    'src/cuda/include/recovery.cuh',
+    'src/cuda/include/schnorr.cuh',
+    'src/cuda/include/bip32.cuh',
+    'src/cuda/include/zk.cuh',
+    'src/cuda/include/host_helpers.cuh',
 ]
 
 def get_conn():
@@ -321,7 +321,7 @@ def check_freshness():
             stale.append(('MODIFIED', r['path'], r['lines']))
 
     # Check for new files not in graph
-    scan_dirs = ['cpu/src', 'cpu/include', 'include/ufsecp']
+    scan_dirs = ['src/cpu/src', 'src/cpu/include', 'include/ufsecp']
     known_paths = {r['path'] for r in rows}
     for scan_dir in scan_dirs:
         dirpath = LIB_ROOT / scan_dir
@@ -349,28 +349,28 @@ DOC_PAIRS = {
     # Build system
     'CMakeLists.txt':                  ['docs/BUILDING.md', 'README.md'],
     # Benchmark
-    'cpu/bench/bench_unified.cpp':     ['docs/BENCHMARKS.md', 'docs/BENCHMARK_METHODOLOGY.md'],
+    'src/cpu/bench/bench_unified.cpp':     ['docs/BENCHMARKS.md', 'docs/BENCHMARK_METHODOLOGY.md'],
     # Audit
     'audit/unified_audit_runner.cpp':  ['docs/TEST_MATRIX.md', 'docs/AUDIT_GUIDE.md'],
     # Protocol implementations
-    'cpu/src/musig2.cpp':              ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
-    'cpu/src/frost.cpp':               ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
-    'cpu/src/adaptor.cpp':             ['docs/API_REFERENCE.md'],
-    'cpu/src/silent_payments.cpp':     ['docs/API_REFERENCE.md'],
-    'cpu/src/ecies.cpp':               ['docs/API_REFERENCE.md'],
+    'src/cpu/src/musig2.cpp':              ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
+    'src/cpu/src/frost.cpp':               ['docs/API_REFERENCE.md', 'docs/SECRET_LIFECYCLE.md'],
+    'src/cpu/src/adaptor.cpp':             ['docs/API_REFERENCE.md'],
+    'src/cpu/src/silent_payments.cpp':     ['docs/API_REFERENCE.md'],
+    'src/cpu/src/ecies.cpp':               ['docs/API_REFERENCE.md'],
     # CT layer
-    'cpu/src/ct_sign.cpp':             ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md', 'docs/SECRET_LIFECYCLE.md'],
-    'cpu/src/ct_field.cpp':            ['docs/CT_VERIFICATION.md'],
-    'cpu/src/ct_scalar.cpp':           ['docs/CT_VERIFICATION.md'],
-    'cpu/src/ct_point.cpp':            ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/ct_sign.cpp':             ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md', 'docs/SECRET_LIFECYCLE.md'],
+    'src/cpu/src/ct_field.cpp':            ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/ct_scalar.cpp':           ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/ct_point.cpp':            ['docs/CT_VERIFICATION.md'],
     # GPU backends
-    'cuda/secp256k1_cuda.cu':          ['docs/COMPATIBILITY.md'],
-    'opencl/secp256k1_opencl.cpp':     ['docs/COMPATIBILITY.md'],
-    'metal/secp256k1_metal.mm':        ['docs/COMPATIBILITY.md'],
+    'src/cuda/secp256k1_cuda.cu':          ['docs/COMPATIBILITY.md'],
+    'src/opencl/secp256k1_opencl.cpp':     ['docs/COMPATIBILITY.md'],
+    'src/metal/secp256k1_metal.mm':        ['docs/COMPATIBILITY.md'],
     # Core headers
-    'cpu/include/secp256k1/field.hpp': ['docs/API_REFERENCE.md'],
-    'cpu/include/secp256k1/scalar.hpp':['docs/API_REFERENCE.md'],
-    'cpu/include/secp256k1/point.hpp': ['docs/API_REFERENCE.md'],
+    'src/cpu/include/secp256k1/field.hpp': ['docs/API_REFERENCE.md'],
+    'src/cpu/include/secp256k1/scalar.hpp':['docs/API_REFERENCE.md'],
+    'src/cpu/include/secp256k1/point.hpp': ['docs/API_REFERENCE.md'],
     # Release workflow
     '.github/workflows/release.yml':   ['docs/LOCAL_CI.md'],
     '.github/workflows/auditor-prep.yml': ['docs/EXTERNAL_AUDIT_AUTOMATION.md', 'AUDIT_GUIDE.md'],

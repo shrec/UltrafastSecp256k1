@@ -366,7 +366,7 @@ run_category_c() {
     if command -v clang-tidy &>/dev/null; then
         info "Running clang-tidy..."
         local ctidy_log="${ARTIFACTS_DIR}/static_analysis/clang_tidy.log"
-        find "${ROOT_DIR}/cpu/include/secp256k1" -name '*.hpp' ! -name 'test_*' ! -name 'benchmark_*' -print0 2>/dev/null \
+        find "${ROOT_DIR}/src/cpu/include/secp256k1" -name '*.hpp' ! -name 'test_*' ! -name 'benchmark_*' -print0 2>/dev/null \
             | xargs -0 clang-tidy -- -std=c++20 "-I${ROOT_DIR}/cpu/include" > "${ctidy_log}" 2>&1 || true
         local warnings=$(grep -c 'warning:' "${ctidy_log}" 2>/dev/null || echo 0)
         local errors=$(grep -c 'error:' "${ctidy_log}" 2>/dev/null || echo 0)
@@ -384,7 +384,7 @@ run_category_c() {
         info "Running cppcheck..."
         local cppcheck_log="${ARTIFACTS_DIR}/static_analysis/cppcheck.log"
         cppcheck --enable=all --std=c++20 --suppress=missingInclude --suppress=unusedFunction \
-            --quiet "${ROOT_DIR}/cpu/include/secp256k1/" > "${cppcheck_log}" 2>&1 || true
+            --quiet "${ROOT_DIR}/src/cpu/include/secp256k1/" > "${cppcheck_log}" 2>&1 || true
         local cpp_errors=$(grep -c '(error)' "${cppcheck_log}" 2>/dev/null || echo 0)
         if [[ "${cpp_errors}" -gt 0 ]]; then
             fail "cppcheck: ${cpp_errors} errors"
@@ -816,7 +816,7 @@ EOF
 | A3: Arithmetic Errors | Field/scalar/point audit, property tests | unified runner (math_invariants) |
 | A4: Memory Safety | ASan/UBSan, fault injection | sanitizer build + fault_injection test |
 | A5: Supply Chain | SBOM, provenance, dependency scan | artifacts/ |
-| A6: GPU-Specific | GPU tests (CUDA, OpenCL, Metal) | CI: gpu-selfhosted.yml + opencl/metal audit runners |
+| A6: GPU-Specific | GPU tests (CUDA, OpenCL, Metal) | CI: gpu-selfhosted.yml + src/opencl/metal audit runners |
 
 ### Not Covered
 

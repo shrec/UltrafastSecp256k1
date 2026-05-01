@@ -168,7 +168,7 @@ the stable ABI. Currently 41 functions across these categories:
 
 ### Unstable / Internal
 
-- C++ headers under `cpu/include/secp256k1/` (`secp256k1::fast::*`, `secp256k1::ct::*`)
+- C++ headers under `src/cpu/include/secp256k1/` (`secp256k1::fast::*`, `secp256k1::ct::*`)
   are **internal** and may change without notice between any versions.
 - Struct internals of opaque types (`ufsecp_ctx`) are not part of the ABI.
 - Functions not marked `UFSECP_API` may be removed or changed freely.

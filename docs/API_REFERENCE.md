@@ -1861,7 +1861,7 @@ __global__ void ct_dleq_prove_batch_kernel(
 
 ### OpenCL ZK Operations
 
-**Kernel file:** `opencl/kernels/secp256k1_zk.cl`
+**Kernel file:** `src/opencl/kernels/secp256k1_zk.cl`
 
 OpenCL ZK operations use the fast-path scalar multiplication (wNAF-5). OpenCL has no
 separate CT layer -- all operations are uniform across work-items by design.
@@ -1884,8 +1884,8 @@ __kernel void zk_dleq_verify_batch(...);
 
 ### Metal ZK Operations
 
-**Shader file:** `metal/shaders/secp256k1_zk.h`
-**Kernel file:** `metal/shaders/secp256k1_kernels.metal` (Kernels 19-22)
+**Shader file:** `src/metal/shaders/secp256k1_zk.h`
+**Kernel file:** `src/metal/shaders/secp256k1_kernels.metal` (Kernels 19-22)
 
 Metal ZK uses branchless `affine_select` in scalar multiplication (semi-CT).
 8x32 limb representation.
@@ -1934,7 +1934,7 @@ const lib = await Secp256k1.create();
 
 ### C API
 
-For direct C/C++ or custom WASM bindings, see [secp256k1_wasm.h](../wasm/secp256k1_wasm.h).
+For direct C/C++ or custom WASM bindings, see [secp256k1_wasm.h](../bindings/wasm/secp256k1_wasm.h).
 
 ### Example
 
@@ -1951,7 +1951,7 @@ const sig = lib.ecdsaSign(msgHash, privkey);
 const valid = lib.ecdsaVerify(msgHash, x, y, sig);
 ```
 
-See [wasm/README.md](../wasm/README.md) for detailed build and usage instructions.
+See [bindings/wasm/README.md](../bindings/wasm/README.md) for detailed build and usage instructions.
 
 ---
 

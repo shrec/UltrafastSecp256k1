@@ -6,9 +6,10 @@
 
 ---
 
-## "There is no external audit."
+## "Why CAAS instead of a snapshot PDF?"
 
-**Correct. Here is what CAAS provides instead — and what it does not.**
+**Because CAAS makes the verifiable parts of review continuous, replayable, and
+regression-protected.**
 
 A traditional audit produces a PDF snapshot taken at a specific commit, by a
 specific firm, at a specific date. That snapshot has three properties:

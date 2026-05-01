@@ -80,15 +80,15 @@ jobs:
           # Mutation scope: core cryptographic sources
           # These are the files where a missed mutation = potential vulnerability
           CORE_SOURCES=(
-            "cpu/src/field.cpp"
-            "cpu/src/scalar.cpp"
-            "cpu/src/point.cpp"
-            "cpu/src/ecdsa.cpp"
-            "cpu/src/schnorr.cpp"
-            "cpu/src/ct_field.cpp"
-            "cpu/src/ct_scalar.cpp"
-            "cpu/src/ct_point.cpp"
-            "cpu/src/ct_sign.cpp"
+            "src/cpu/src/field.cpp"
+            "src/cpu/src/scalar.cpp"
+            "src/cpu/src/point.cpp"
+            "src/cpu/src/ecdsa.cpp"
+            "src/cpu/src/schnorr.cpp"
+            "src/cpu/src/ct_field.cpp"
+            "src/cpu/src/ct_scalar.cpp"
+            "src/cpu/src/ct_point.cpp"
+            "src/cpu/src/ct_sign.cpp"
           )
 
           echo "=== Mutation Testing: UltrafastSecp256k1 ==="

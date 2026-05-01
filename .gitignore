@@ -225,3 +225,10 @@ assurance_report.json
 ocl_audit_report.json
 ocl_audit_report.txt
 risk_surface_report.json
+
+# Remaining local-only dirs (not source)
+artifacts/
+benchmark_results/
+local-ci-output/
+Testing/
+scripts/

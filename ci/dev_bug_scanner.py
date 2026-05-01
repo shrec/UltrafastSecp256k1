@@ -61,8 +61,8 @@ Usage examples
   # Scan everything under the default paths, human-readable output:
   python3 ci/dev_bug_scanner.py
 
-  # Scan just cpu/src, emit JSON, write to file:
-  python3 ci/dev_bug_scanner.py --src-dir cpu/src --json -o findings.json
+  # Scan just src/cpu/src, emit JSON, write to file:
+  python3 ci/dev_bug_scanner.py --src-dir src/cpu/src --json -o findings.json
 
   # Only show HIGH/MEDIUM severity:
   python3 ci/dev_bug_scanner.py --min-severity MEDIUM
@@ -2544,7 +2544,7 @@ def check_parse_retval_ignored(path: str, lines: List[str]) -> List[Finding]:
     (>= curve order) or zero.  Ignoring the return leaves the output Scalar in an
     indeterminate state and can cause silent key-derivation or signature failures.
     SonarCloud flags this as a MAJOR C Reliability bug (new_reliability_rating < A).
-    Two such bugs were found and fixed in cpu/src/address.cpp on 2026-04-26.
+    Two such bugs were found and fixed in src/cpu/src/address.cpp on 2026-04-26.
     """
     _C_EXT = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp'}
     if not any(path.endswith(ext) for ext in _C_EXT):

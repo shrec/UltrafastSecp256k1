@@ -27,27 +27,27 @@ ABI_DOCS = [
 ]
 
 FALLBACK_CT_PREFIXES = (
-    "cpu/src/ct_",
-    "cpu/include/secp256k1/ct_",
+    "src/cpu/src/ct_",
+    "src/cpu/include/secp256k1/ct_",
     "include/ct/",
 )
 FALLBACK_SECURITY_FILES = {
-    "cpu/include/secp256k1/detail/secure_erase.hpp",
-    "cpu/include/secp256k1/private_key.hpp",
-    "cpu/src/bip32.cpp",
-    "cpu/src/bip39.cpp",
-    "cpu/src/ecdh.cpp",
-    "cpu/src/ecdsa.cpp",
-    "cpu/src/ecies.cpp",
-    "cpu/src/frost.cpp",
-    "cpu/src/musig2.cpp",
-    "cpu/src/address.cpp",
-    "cpu/src/ufsecp_impl.cpp",
+    "src/cpu/include/secp256k1/detail/secure_erase.hpp",
+    "src/cpu/include/secp256k1/private_key.hpp",
+    "src/cpu/src/bip32.cpp",
+    "src/cpu/src/bip39.cpp",
+    "src/cpu/src/ecdh.cpp",
+    "src/cpu/src/ecdsa.cpp",
+    "src/cpu/src/ecies.cpp",
+    "src/cpu/src/frost.cpp",
+    "src/cpu/src/musig2.cpp",
+    "src/cpu/src/address.cpp",
+    "src/cpu/src/ufsecp_impl.cpp",
 }
 SECRET_ABI_FILES = {
     "include/ufsecp/ufsecp.h",
     "include/ufsecp/ufsecp_gpu.h",
-    "cpu/src/ufsecp_impl.cpp",
+    "src/cpu/src/ufsecp_impl.cpp",
 }
 
 

@@ -83,7 +83,7 @@ static void check_present(const std::string& contents, const std::string& filena
 static void test_point_wnaf_trim() {
     std::printf("[MA-1] point.cpp wNAF trim loop integrity\n");
 
-    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/cpu/src/point.cpp";
+    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/src/cpu/src/point.cpp";
     std::string contents = read_file_contents(path);
 
     if (contents.empty()) {
@@ -94,12 +94,12 @@ static void test_point_wnaf_trim() {
     // BAD: len_a_hi >= 0 (or len_a_lo >= 0, len_b_lo >= 0, len_b_hi >= 0)
     // These are the wNAF trim loops — they MUST use > 0, never >= 0
     std::regex bad_trim(R"(while\s*\(\s*len_[ab]_(hi|lo)\s*>=\s*0)");
-    check_absent(contents, "cpu/src/point.cpp", bad_trim,
+    check_absent(contents, "src/cpu/src/point.cpp", bad_trim,
                  "MA-1a: no wNAF trim loop uses >= 0 (OOB guard)");
 
     // GOOD: len_a_hi > 0 pattern must be present
     std::regex good_trim(R"(while\s*\(\s*len_a_hi\s*>\s*0)");
-    check_present(contents, "cpu/src/point.cpp", good_trim,
+    check_present(contents, "src/cpu/src/point.cpp", good_trim,
                   "MA-1b: wNAF trim loop uses > 0 (correct pattern present)");
 }
 
@@ -114,7 +114,7 @@ static void test_point_wnaf_trim() {
 static void test_scalar_divsteps_mask() {
     std::printf("[MA-2] scalar.cpp divsteps mask integrity\n");
 
-    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/cpu/src/scalar.cpp";
+    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/src/cpu/src/scalar.cpp";
     std::string contents = read_file_contents(path);
 
     if (contents.empty()) {
@@ -124,12 +124,12 @@ static void test_scalar_divsteps_mask() {
 
     // BAD: "f * f - 2)) | m" — the mask must be AND, not OR
     std::regex bad_mask(R"(\(f\s*\*\s*f\s*-\s*2\)\)\s*\|\s*m\s*\))");
-    check_absent(contents, "cpu/src/scalar.cpp", bad_mask,
+    check_absent(contents, "src/cpu/src/scalar.cpp", bad_mask,
                  "MA-2a: divsteps mask uses & not | (inverse integrity)");
 
     // GOOD: "f * f - 2)) & m" pattern must be present
     std::regex good_mask(R"(\(f\s*\*\s*f\s*-\s*2\)\)\s*&\s*m\s*\))");
-    check_present(contents, "cpu/src/scalar.cpp", good_mask,
+    check_present(contents, "src/cpu/src/scalar.cpp", good_mask,
                   "MA-2b: divsteps mask uses & m (correct pattern present)");
 }
 
@@ -141,7 +141,7 @@ static void test_scalar_divsteps_mask() {
 static void test_field_divsteps_mask() {
     std::printf("[MA-3] field.cpp divsteps mask integrity\n");
 
-    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/cpu/src/field.cpp";
+    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/src/cpu/src/field.cpp";
     std::string contents = read_file_contents(path);
 
     if (contents.empty()) {
@@ -151,7 +151,7 @@ static void test_field_divsteps_mask() {
 
     // BAD: same | m pattern in field divsteps
     std::regex bad_mask(R"(\(f\s*\*\s*f\s*-\s*2\)\)\s*\|\s*m\s*\))");
-    check_absent(contents, "cpu/src/field.cpp", bad_mask,
+    check_absent(contents, "src/cpu/src/field.cpp", bad_mask,
                  "MA-3a: field divsteps mask uses & not | (field inverse integrity)");
 }
 
@@ -163,7 +163,7 @@ static void test_field_divsteps_mask() {
 static void test_point_generic_relational() {
     std::printf("[MA-4] point.cpp generic relational guards\n");
 
-    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/cpu/src/point.cpp";
+    std::string path = std::string(UFSECP_SOURCE_ROOT) + "/src/cpu/src/point.cpp";
     std::string contents = read_file_contents(path);
 
     if (contents.empty()) {
@@ -175,7 +175,7 @@ static void test_point_generic_relational() {
     // This specific pattern (variable >= 0 && array[variable - 1]) is always
     // a bug because it allows variable=0 → array[-1] = OOB.
     std::regex bad_guard(R"(len_\w+\s*>=\s*0\s*&&\s*\w+\[len_\w+\s*-\s*1\])");
-    check_absent(contents, "cpu/src/point.cpp", bad_guard,
+    check_absent(contents, "src/cpu/src/point.cpp", bad_guard,
                  "MA-4a: no len_X >= 0 && arr[len_X-1] pattern (OOB guard)");
 }
 

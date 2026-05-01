@@ -22,8 +22,8 @@ on:
     paths:
       - 'compat/libsecp256k1_shim/**'
       - 'include/ufsecp/**'
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'ci/check_libsecp_shim_parity.py'
       - '.github/workflows/macos-shim.yml'
   pull_request:
@@ -31,7 +31,7 @@ on:
     paths:
       - 'compat/libsecp256k1_shim/**'
       - 'include/ufsecp/**'
-      - 'cpu/src/**'
+      - 'src/cpu/src/**'
       - 'ci/check_libsecp_shim_parity.py'
       - '.github/workflows/macos-shim.yml'
   workflow_dispatch:

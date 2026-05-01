@@ -792,7 +792,7 @@ survives compiler dead-store elimination optimisations (volatile-pointer readbac
 
 Source-level static analysis verifying every code path handling secret data uses `secp256k1::ct::` (constant-time) operations and not `secp256k1::fast::` (variable-time):
 
-- Opens `cpu/src/ct_sign.cpp`, `ecdh.cpp`, `bip32.cpp`, `taproot.cpp`, `musig2.cpp` at runtime
+- Opens `src/cpu/src/ct_sign.cpp`, `ecdh.cpp`, `bip32.cpp`, `taproot.cpp`, `musig2.cpp` at runtime
 - Strips C++ comments before scanning to eliminate false positives in comment text
 - **Required patterns**: `ct::generator_mul`, `ct::scalar_inverse`, `secure_erase`, `ct::scalar_mul`, `secp256k1/ct/`
 - **Prohibited patterns**: `fast::generator_mul`, `fast::scalar_mul`, `fast::point_mul`
@@ -871,7 +871,7 @@ The following gaps are acknowledged, tracked, and have documented mitigations:
 | Gap | Scope | Mitigation | Planned Fix |
 |-----|-------|------------|-------------|
 | **ct_point.cpp** not analyzed by ct-verif LLVM pass | CPU CT point ops (`point_add_complete`, `point_double`, `scalar_mul`) | Manual code review + dudect timing tests (all pass) + Valgrind taint via `valgrind_ct_check.sh` | Add to ct-verif workflow; tracked in `docs/CT_VERIFICATION.md §Known Limitations §1` |
-| FROST / MuSig2 not CT-audited | Multi-party protocols; nonce generation under review | API labeled experimental; unit tests cover functional correctness | Full CT audit once API stabilizes |
+| FROST / MuSig2 protocol-grade CT evidence still maturing | Multi-party protocols; nonce generation under review | API labeled experimental; unit tests cover functional correctness | Expand CAAS protocol-level CT evidence as APIs stabilize |
 | GPU backends (CUDA/OpenCL/Metal) CT is algorithmic only | SIMT hardware may exhibit microarchitectural side-channels | GPU CT leakage probe (`cuda/gpu_ct_leakage_probe.cu`, t=0.0 on RTX 5060 Ti); hardware-level attacks require physical access | Oscilloscope-level measurement on production hardware |
 | `batch_verify` first weight `a_0 = 1` (deterministic) | Schnorr batch verifier optimization (saves one scalar_mul) | The batch seed SHA-256 covers ALL entries so `a_1…a_{n-1}` remain unpredictable; soundness proof holds even with fixed `a_0`. Audited in `test_batch_randomness.cpp` §5. | No fix needed; documented design decision |
 
@@ -1007,7 +1007,7 @@ ctest --test-dir build_rel --output-on-failure
 
 ### Coverage-Guided Fuzzing (libFuzzer)
 
-3 libFuzzer harnesses in `cpu/fuzz/`:
+3 libFuzzer harnesses in `src/cpu/fuzz/`:
 
 | Harness | Target | Input Size | Invariants Checked |
 |---------|--------|------------|-------------------|
@@ -1160,7 +1160,7 @@ APT install: `sudo apt install libufsecp-dev`
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| Cross-library differential (vs bitcoin-core/libsecp256k1) | NOT YET | Would be strongest credibility signal for external auditors; nightly has `test_cross_libsecp256k1` but not in unified runner |
+| Cross-library differential (vs bitcoin-core/libsecp256k1) | NOT YET | Strong credibility signal for independent replay; `test_cross_libsecp256k1` exists but is not in the unified runner |
 | GPU correctness audit | DEFERRED | Separate report when GPU side is complete |
 | GPU memory safety (compute-sanitizer) | DEFERRED | Separate report |
 | Reproducible build proof | NOT YET | Two independent machines -> identical binary hash |

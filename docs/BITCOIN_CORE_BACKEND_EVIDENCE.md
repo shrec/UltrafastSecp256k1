@@ -217,7 +217,7 @@ integrity-pinned in `docs/EXTERNAL_AUDIT_BUNDLE.json` with a SHA-256 hash.
 | `docs/ABI_VERSIONING.md` | ABI stability policy, version bump rules, and migration guidance. Relevant to Core's binary compatibility requirements. |
 | `docs/RESIDUAL_RISK_REGISTER.md` | Exhaustive list of open residual risks with justification, status, and owner. Entries RR-001, RR-002, and RR-003 are relevant to this profile. |
 | `docs/SECURITY_CLAIMS.md` | Full security claims document including the FAST/CT dual-layer architecture, fail-closed assurance perimeter, and non-claim statements. |
-| `docs/AUDIT_SCOPE.md` | External audit engagement scope including in-scope component list and line counts. |
+| `docs/AUDIT_SCOPE.md` | Independent review scope including in-scope component list and line counts. |
 | `docs/BACKEND_ASSURANCE_MATRIX.md` | Per-backend assurance level ratings. The CPU fast path and CPU CT path both carry HIGH assurance. |
 | `docs/SELF_AUDIT_FAILURE_MATRIX.md` | Self-audit failure-class matrix documenting every failure class, its current status, and the CI gate that enforces it. |
 | `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md` | Scope statement for hardware side-channel claims (power/EM/fault). The library makes software-side-channel claims only. |
@@ -232,7 +232,7 @@ integrity-pinned in `docs/EXTERNAL_AUDIT_BUNDLE.json` with a SHA-256 hash.
 Questions about specific evidence entries or CI gate behavior can be directed to
 `payysoon@gmail.com`.
 
-This document does not constitute a finished external audit. It is a structured
-evidence presentation intended to reduce the time an independent reviewer spends
+This document is a structured CAAS evidence presentation intended to reduce the
+time an independent reviewer spends
 locating and cross-referencing evidence. The reviewer's own judgment supersedes
 every claim made here.

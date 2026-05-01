@@ -12,13 +12,13 @@
   "baseline_test_ok": true,
   "baseline_note": "baseline build + quick suite passed",
   "targets": [
-    "cpu/src/field.cpp",
-    "cpu/src/scalar.cpp",
-    "cpu/src/point.cpp",
-    "cpu/src/ecdsa.cpp",
-    "cpu/src/schnorr.cpp",
-    "cpu/src/ct_sign.cpp",
-    "cpu/src/recovery.cpp"
+    "src/cpu/src/field.cpp",
+    "src/cpu/src/scalar.cpp",
+    "src/cpu/src/point.cpp",
+    "src/cpu/src/ecdsa.cpp",
+    "src/cpu/src/schnorr.cpp",
+    "src/cpu/src/ct_sign.cpp",
+    "src/cpu/src/recovery.cpp"
   ],
   "test_commands": [
     "./cpu/test_comprehensive_standalone",
@@ -35,7 +35,7 @@
   "mutations": [
     {
       "mutation_id": 1,
-      "file": "cpu/src/field.cpp",
+      "file": "src/cpu/src/field.cpp",
       "line": 2399,
       "col": 44,
       "op_name": "AOR_sub_to_add",
@@ -47,7 +47,7 @@
     },
     {
       "mutation_id": 2,
-      "file": "cpu/src/scalar.cpp",
+      "file": "src/cpu/src/scalar.cpp",
       "line": 636,
       "col": 76,
       "op_name": "BIT_and_to_or",
@@ -59,7 +59,7 @@
     },
     {
       "mutation_id": 3,
-      "file": "cpu/src/point.cpp",
+      "file": "src/cpu/src/point.cpp",
       "line": 936,
       "col": 32,
       "op_name": "AOR_add_to_sub",
@@ -71,7 +71,7 @@
     },
     {
       "mutation_id": 4,
-      "file": "cpu/src/point.cpp",
+      "file": "src/cpu/src/point.cpp",
       "line": 2544,
       "col": 34,
       "op_name": "AOR_div_to_mul",
@@ -83,7 +83,7 @@
     },
     {
       "mutation_id": 5,
-      "file": "cpu/src/scalar.cpp",
+      "file": "src/cpu/src/scalar.cpp",
       "line": 636,
       "col": 35,
       "op_name": "BIT_and_to_or",

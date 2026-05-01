@@ -100,7 +100,7 @@ cmake -DSECP256K1_USE_NEON=ON -DSECP256K1_TEST_NEON_EQUIVALENCE=ON
 
 ### Priority 1: NEON Batch Operations [G-arm-1]
 
-**File:** `cpu/src/field_asm52_arm64_v2.cpp` (stub declared, not implemented)
+**File:** `src/cpu/src/field_asm52_arm64_v2.cpp` (stub declared, not implemented)
 
 **Current Performance:**
 - Batch verify (N=32): 0.78× per-signature cost (scalar fallback)
@@ -130,7 +130,7 @@ cmake -DSECP256K1_USE_NEON=ON -DSECP256K1_TEST_NEON_EQUIVALENCE=ON
 
 ### Priority 2: ARM64 Stack Round-Trip Elimination [G-arm-2]
 
-**File:** `cpu/src/field.cpp` (4×64 field_mul implementation)
+**File:** `src/cpu/src/field.cpp` (4×64 field_mul implementation)
 
 **Current Performance:**
 - 4×64 field_mul: 69.9 ns (Cortex-A55, 10×26 is default)

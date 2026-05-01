@@ -64,9 +64,9 @@ Reduction: After arithmetic, normalize() ensures 0 <= result < p
 
 | File | Purpose |
 |------|---------|
-| `cpu/include/secp256k1/field.hpp` | Class declaration, `from_limbs`, `from_bytes` |
-| `cpu/src/field.cpp` | `add_impl`, `sub_impl`, `mul_impl`, `square_impl`, `normalize` |
-| `cpu/include/secp256k1/field_branchless.hpp` | `field_select` -- branchless cmov |
+| `src/cpu/include/secp256k1/field.hpp` | Class declaration, `from_limbs`, `from_bytes` |
+| `src/cpu/src/field.cpp` | `add_impl`, `sub_impl`, `mul_impl`, `square_impl`, `normalize` |
+| `src/cpu/include/secp256k1/field_branchless.hpp` | `field_select` -- branchless cmov |
 
 ### MidFieldElement (32-bit View)
 
@@ -222,10 +222,10 @@ fe_batch_inverse(elements[], count):
 
 | Platform | File | Key Operations |
 |----------|------|----------------|
-| x86-64 | `field_asm_x64.asm` | BMI2 `MULX`, ADX `ADCX`/`ADOX` for carry-free mul |
-| ARM64 | `field_asm_arm64.cpp` | `MUL`/`UMULH` intrinsics for 64x64->128 |
-| RISC-V | `field_asm_riscv64.S` | `MUL`/`MULHU` for 64x64->128 |
-| ESP32 | `field.cpp` (generic) | 32-bit portable path |
+| x86-64 | `src/cpu/src/field_asm_x64.asm` | BMI2 `MULX`, ADX `ADCX`/`ADOX` for carry-free mul |
+| ARM64 | `src/cpu/src/field_asm_arm64.cpp` | `MUL`/`UMULH` intrinsics for 64x64->128 |
+| RISC-V | `src/cpu/src/field_asm_riscv64.S` | `MUL`/`MULHU` for 64x64->128 |
+| ESP32 | `src/cpu/src/field.cpp` (generic) | 32-bit portable path |
 
 Assembly dispatch is compile-time: preprocessor selects the optimal path based on `__x86_64__`, `__aarch64__`, `__riscv`, or falls back to portable C++.
 
@@ -236,7 +236,7 @@ Assembly dispatch is compile-time: preprocessor selects the optimal path based o
 ### CUDA
 
 ```
-cuda/
+src/cuda/
 +-- include/
 |   +-- secp256k1.cuh           -- All device functions
 |   +-- ptx_math.cuh            -- PTX inline asm (with __int128 fallback)
@@ -257,7 +257,7 @@ cuda/
 ### OpenCL
 
 ```
-opencl/kernels/
+src/opencl/kernels/
 +-- secp256k1_field.cl          -- Field arithmetic
 +-- secp256k1_extended.cl       -- GLV, signatures
 +-- ...
@@ -266,7 +266,7 @@ opencl/kernels/
 ### Metal
 
 ```
-metal/shaders/
+src/metal/shaders/
 +-- secp256k1_field.h           -- 8x32-bit limbs (Metal uint)
 +-- ...
 ```
@@ -347,7 +347,7 @@ sign(hash, privkey):
 - **FROST**: Threshold signature (t-of-n)
 - **Adaptor**: Signature adaptors for atomic swaps
 
-All marked **Experimental** -- covered by PoC exploit tests and CT verification, but not yet externally audited. APIs may change.
+All marked **Experimental** -- covered by PoC exploit tests and CT verification, with APIs still allowed to change while CAAS evidence matures.
 
 ---
 
@@ -356,9 +356,9 @@ All marked **Experimental** -- covered by PoC exploit tests and CT verification,
 ```
 CMakeLists.txt
 +-- lib: UltrafastSecp256k1 (STATIC)
-|   +-- cpu/src/*.cpp
+|   +-- src/cpu/src/*.cpp
 |   +-- platform-specific ASM (conditional)
-|   +-- Public headers in cpu/include/
+|   +-- Public headers in src/cpu/include/
 +-- tests/ (CTest targets)
 +-- bench/ (benchmark targets)
 +-- fuzz/ (libFuzzer targets, clang only)

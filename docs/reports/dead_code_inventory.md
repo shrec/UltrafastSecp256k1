@@ -11,19 +11,19 @@
 
 | File | Evidence | Action |
 |------|----------|--------|
-| ~~`cpu/src/decomposition_optimized.hpp`~~ | Not compiled or #included. Dead GLV code. | **DELETED** |
-| ~~`cpu/src/field_asm_x64.cpp`~~ | Not in CMakeLists. MSVC uses `.asm`, Clang uses `.S`. | **DELETED** |
-| ~~`cpu/src/modinv_shim.h`~~ | Not #included anywhere | **DELETED** |
-| ~~`cpu/bench/bench_field_operations.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_glv_cache_analysis.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_glv_cache_test.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_h_based_inversion.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_kg_glv_noglv.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_lazy_reduction.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_montgomery.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_mutable_vs_immutable.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_point_serialization.cpp`~~ | Not in CMakeLists | **DELETED** |
-| ~~`cpu/bench/bench_turbo_intensive.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/src/decomposition_optimized.hpp`~~ | Not compiled or #included. Dead GLV code. | **DELETED** |
+| ~~`src/cpu/src/field_asm_x64.cpp`~~ | Not in CMakeLists. MSVC uses `.asm`, Clang uses `.S`. | **DELETED** |
+| ~~`src/cpu/src/modinv_shim.h`~~ | Not #included anywhere | **DELETED** |
+| ~~`src/cpu/bench/bench_field_operations.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_glv_cache_analysis.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_glv_cache_test.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_h_based_inversion.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_kg_glv_noglv.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_lazy_reduction.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_montgomery.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_mutable_vs_immutable.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_point_serialization.cpp`~~ | Not in CMakeLists | **DELETED** |
+| ~~`src/cpu/bench/bench_turbo_intensive.cpp`~~ | Not in CMakeLists | **DELETED** |
 | ~~`cpu/fuzz/fuzz_field.cpp`~~ | Not in CMakeLists (audit/ has own fuzz) | **DELETED** |
 | ~~`cpu/fuzz/fuzz_point.cpp`~~ | Not in CMakeLists | **DELETED** |
 | ~~`cpu/fuzz/fuzz_scalar.cpp`~~ | Not in CMakeLists | **DELETED** |

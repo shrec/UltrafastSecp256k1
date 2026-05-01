@@ -7,15 +7,15 @@ name: CUDA Intrinsic Constant Check
 on:
   push:
     paths:
-      - 'cuda/**/*.cu'
-      - 'cuda/**/*.cuh'
-      - 'opencl/**/*.cl'
+      - 'src/cuda/**/*.cu'
+      - 'src/cuda/**/*.cuh'
+      - 'src/opencl/**/*.cl'
       - 'tools/cuda_intrinsic_checker.py'
   pull_request:
     paths:
-      - 'cuda/**/*.cu'
-      - 'cuda/**/*.cuh'
-      - 'opencl/**/*.cl'
+      - 'src/cuda/**/*.cu'
+      - 'src/cuda/**/*.cuh'
+      - 'src/opencl/**/*.cl'
       - 'tools/cuda_intrinsic_checker.py'
 
 permissions:

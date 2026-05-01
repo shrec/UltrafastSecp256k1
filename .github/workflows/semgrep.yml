@@ -149,7 +149,7 @@ jobs:
             --error \
             --json \
             -o semgrep-report.json \
-            cpu/src cpu/include include cuda/src cuda/include bindings \
+            src/cpu/src src/cpu/include include src/cuda/src src/cuda/include bindings \
           ; EXIT=$?
           echo "Semgrep exit: $EXIT"
           # Show human-readable summary
@@ -185,7 +185,7 @@ jobs:
             --exclude 'audit/*' \
             --sarif \
             -o semgrep.sarif \
-            cpu/src cpu/include include cuda/src cuda/include bindings \
+            src/cpu/src src/cpu/include include src/cuda/src src/cuda/include bindings \
           || true
 
       - name: Upload SARIF to GitHub Security
@@ -217,7 +217,7 @@ jobs:
             --exclude 'build*' \
             --json \
             -o semgrep-community.json \
-            cpu/src include bindings \
+            src/cpu/src include bindings \
           || true
           python3 -c "
           import json

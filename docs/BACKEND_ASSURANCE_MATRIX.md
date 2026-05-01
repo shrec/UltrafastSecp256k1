@@ -29,7 +29,7 @@ Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
 | `bitcoin-core-backend` (CPU + libsecp256k1 shim) | `production` | Full CT via `secp256k1::ct::*` as of 2026-04-28/2026-05-01 | Hard (audit_gate + security_autonomy + bundle_verify) |
 | `cpu-signing` (public C++ API) | `production` | `signing_generator_mul()` → `ct::generator_mul_blinded()` | Hard |
 | `ffi-bindings` (legacy C API + bindings) | `beta` | CT signing as of 2026-05-01; bindings inherit from C API | Partial |
-| `wasm` | `experimental` | Prebuilt artifact — no WASM-specific CT audit | None — do not claim production-CT without CI rebuild + timing analysis |
+| `wasm` | `experimental` | Prebuilt artifact — WASM-specific CT evidence is incomplete | None — do not claim production-CT without CI rebuild + timing analysis |
 | `bchn-compat` | `compat-only` | CT generator mul + strict key parsing as of 2026-05-01 | Advisory only — NOT Bitcoin Core, NOT BIP-340 |
 
 ## Assurance Levels
@@ -129,9 +129,9 @@ No partial stubs or CPU fallbacks remain for any of them. Last resolved: 2026-04
 
 `ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
 added 2026-04-24): native device kernels now exist on all three backends
-(CUDA: `schnorr_snark_witness_batch_kernel` in `cuda/src/secp256k1.cu`;
-OpenCL: `schnorr_snark_witness_batch` in `opencl/kernels/secp256k1_extended.cl`;
-Metal: `schnorr_snark_witness_batch` in `metal/shaders/secp256k1_kernels.metal`).
+(CUDA: `schnorr_snark_witness_batch_kernel` in `src/cuda/src/secp256k1.cu`;
+OpenCL: `schnorr_snark_witness_batch` in `src/opencl/kernels/secp256k1_extended.cl`;
+Metal: `schnorr_snark_witness_batch` in `src/metal/shaders/secp256k1_kernels.metal`).
 The CPU fallback in `gpu_backend_fallback.cpp` is retained for reference and as a
 correctness baseline, but no backend dispatches through it any longer.
 CPU-side `ufsecp_zk_schnorr_snark_witness()` is fully functional.

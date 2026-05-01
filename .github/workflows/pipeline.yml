@@ -23,15 +23,14 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/**'
-      - 'gpu/**'
-      - 'cuda/**'
-      - 'opencl/**'
-      - 'metal/**'
+      - 'src/cpu/**'
+      - 'src/gpu/**'
+      - 'src/cuda/**'
+      - 'src/opencl/**'
+      - 'src/metal/**'
       - 'include/**'
       - 'audit/**'
       - 'compat/**'
-      - 'wasm/**'
       - 'bindings/**'
       - 'ci/**'
       - 'CMakeLists.txt'

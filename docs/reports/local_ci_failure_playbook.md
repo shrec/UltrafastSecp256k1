@@ -33,7 +33,7 @@ docker compose -f docker-compose.ci.yml run linux-clang
 ```
 
 **Common causes:**
-- Missing include: check `cpu/include/secp256k1/` headers
+- Missing include: check `src/cpu/include/secp256k1/` headers
 - C++20 feature gap between GCC/Clang: use `#if __has_include` or feature macros
 - LTO failures (GCC): check for ODR violations, symbol visibility
 

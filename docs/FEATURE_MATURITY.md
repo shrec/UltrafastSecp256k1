@@ -8,9 +8,9 @@ Each feature is rated by: implementation status, threat model coverage, test vec
 
 | Tier | Meaning |
 |------|---------|
-| **Production** | Fully audited, fuzzed, differential-tested, CT-verified (where applicable), standard test vectors pass |
+| **Production** | CAAS-hardened, fuzzed, differential-tested, CT-verified (where applicable), standard test vectors pass |
 | **Hardened** | Production + adversarial protocol tests + Wycheproof + fault injection |
-| **Experimental** | Implemented and tested but limited external vectors or fewer audit passes |
+| **Experimental** | Implemented and tested but limited independent vectors or fewer CAAS evidence passes |
 
 ## Status Legend
 

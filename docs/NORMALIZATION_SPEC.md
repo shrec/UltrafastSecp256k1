@@ -37,7 +37,7 @@ the signature, changing the transaction hash (txid).
 | `ECDSASignature::normalize()` | If `s > n/2`, replaces with `n - s` |
 | `ECDSASignature::is_low_s()` | Returns `true` iff `s <= n/2` |
 
-**Implementation** ([ecdsa.cpp](../cpu/src/ecdsa.cpp)):
+**Implementation** ([ecdsa.cpp](../src/cpu/src/ecdsa.cpp)):
 
 ```cpp
 // HALF_ORDER = n/2
@@ -96,7 +96,7 @@ ECDSA signatures are DER-encoded as:
 
 ### 3.2 Implementation
 
-`ECDSASignature::to_der()` ([ecdsa.cpp](../cpu/src/ecdsa.cpp)):
+`ECDSASignature::to_der()` ([ecdsa.cpp](../src/cpu/src/ecdsa.cpp)):
 
 - Strips leading zeros from `r` and `s` byte arrays
 - Adds `0x00` padding when high bit is set (prevents DER negative interpretation)

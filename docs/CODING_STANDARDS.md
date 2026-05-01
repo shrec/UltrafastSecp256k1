@@ -108,7 +108,7 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b);
 ## 10. Testing Requirements
 
 - Every runtime-affecting change MUST include a test or deterministic repro command
-- Place tests in `cpu/tests/` or `cuda/tests/`
+- Place tests in `src/cpu/tests/` or `cuda/tests/`
 - Use descriptive test names
 - Test edge cases (zero, identity, order boundary, max limb values)
 - Include performance regression tests for hot-path changes

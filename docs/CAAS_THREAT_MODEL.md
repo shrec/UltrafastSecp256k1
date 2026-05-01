@@ -71,7 +71,7 @@ after code changes, queries return stale symbol maps. A new function may not
 appear in the graph, an old function that was deleted may still appear, or
 coverage entries may point to tests that no longer exist.
 
-**Attack scenario**: A new signing entry point is added to `cpu/src/ecdsa.cpp`
+**Attack scenario**: A new signing entry point is added to `src/cpu/src/ecdsa.cpp`
 but the graph is not rebuilt. The graph still reports full coverage. The audit
 gate passes because it queries the graph, not the source files directly.
 
@@ -286,7 +286,7 @@ technically accurate but misleading. A consumer who reads "CAAS passed" may
 infer full coverage when coverage is partial.
 
 **Attack scenario**: A new signing function `ecdsa_sign_batch_streaming` is
-added to `cpu/src/ecdsa.cpp`. It is not included in the CAAS scope definition.
+added to `src/cpu/src/ecdsa.cpp`. It is not included in the CAAS scope definition.
 The pipeline passes with no reference to this function. The function has a
 timing vulnerability. The pipeline result is cited as evidence of CT compliance.
 
@@ -300,7 +300,7 @@ timing vulnerability. The pipeline result is cited as evidence of CT compliance.
   functions it contains must appear in the graph, and the coverage map must
   account for each one (either covered or explicitly marked `NOT_IN_SCOPE`).
 - `AUDIT_SCOPE.md` is a required document that explicitly lists in-scope and
-  out-of-scope components. Any new source file in `cpu/src/` must be added to
+  out-of-scope components. Any new source file in `src/cpu/src/` must be added to
   this document before it can land in `main`.
 
 **Residual risk**: The scope definition itself may omit components. The
@@ -339,8 +339,8 @@ independent reference.
 **Residual risk**: The absolute timing thresholds in `timing_thresholds.json`
 were originally calibrated against a reference machine. If that machine's
 timing behavior was itself compromised at calibration time, the thresholds
-could be set too loosely. Thresholds should be reviewed by an independent
-auditor at first engagement.
+could be set too loosely. Threshold calibration should be replayable and
+periodically reviewed as part of CAAS evidence governance.
 
 ---
 
@@ -396,9 +396,9 @@ to detect the specific vulnerability it is supposed to cover. This requires
 sustained intentional effort and would survive only if code review also failed
 to catch it.
 
-**CAAS cannot protect against this.** The mitigation is external: independent
-code review, external audit, and transparency of the test source in the public
-repository.
+**CAAS cannot fully protect against this alone.** The mitigation is independent
+review of the CAAS methodology, reproducible replay, and transparency of the
+test source in the public repository.
 
 ### 3.2 Nation-State CI Infrastructure Compromise
 

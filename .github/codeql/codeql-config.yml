@@ -6,7 +6,7 @@ name: "UltrafastSecp256k1 CodeQL Config"
 
 paths-ignore:
   - audit/**
-  - cpu/tests/**
+  - src/cpu/tests/**
   - bindings/java/**
   - examples/**
 

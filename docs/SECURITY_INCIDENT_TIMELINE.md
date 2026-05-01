@@ -33,7 +33,7 @@ auditors, downstream integrators, and contributors evaluating the project.
 
 **Discovery**: During review of Wycheproof ECDSA test vector coverage, test
 case `tcId 346` was found to fail. Investigation traced the failure to the
-`r_less_than_pmn` check in `cpu/src/ecdsa.cpp`. The constants used in the
+`r_less_than_pmn` check in `src/cpu/src/ecdsa.cpp`. The constants used in the
 comparison were incorrect: the `p minus n` (PMN) values were wrong in both the
 FE52 (52-bit limb) and 4x64 (64-bit limb) field paths.
 
@@ -60,7 +60,7 @@ test set includes a deliberately constructed test vector for this case
 (tcId 346), which is why the failure was detectable in CI.
 
 **Fix**: Corrected PMN constants in both `fe52` and `4x64` field paths in
-`cpu/src/ecdsa.cpp`. Commit `ea8cfb3c`.
+`src/cpu/src/ecdsa.cpp`. Commit `ea8cfb3c`.
 
 **Regression test**: Wycheproof tcId 346 is now passing and is included in
 the permanent Wycheproof test suite run in CI. Exploit PoC
@@ -140,8 +140,8 @@ testing.
 
 ### 2026-04-27 — CT default cleanup: non-CT signing paths on non-MSVC
 
-**Discovery**: Inspection of `cpu/src/ecdsa.cpp`, `cpu/src/recovery.cpp`,
-and `cpu/src/schnorr.cpp` found that the public C++ signing APIs used an
+**Discovery**: Inspection of `src/cpu/src/ecdsa.cpp`, `src/cpu/src/recovery.cpp`,
+and `src/cpu/src/schnorr.cpp` found that the public C++ signing APIs used an
 `#ifdef _MSC_VER` guard. On MSVC builds, signing was routed through
 `ct::generator_mul_blinded` and `ct::scalar_inverse`. On GCC and Clang
 builds — the majority of production deployments — signing used the
@@ -184,7 +184,7 @@ imports `secp256k1/ecdsa.hpp` or `secp256k1/schnorr.hpp` directly.
 `ct::generator_mul` for nonce-to-point and secret-key-to-pubkey multiplications,
 and `ct::scalar_inverse` for the nonce inverse in ECDSA. The compiler
 interaction that caused the original performance regression was resolved by
-adjusting inlining hints in `cpu/include/secp256k1/ct/select.hpp`. The
+adjusting inlining hints in `src/cpu/include/secp256k1/ct/select.hpp`. The
 resulting performance on GCC/Clang is within acceptable bounds (no measurable
 regression versus the prior non-CT path in the common case, because the
 blinding branch is unpredictable to the compiler).

@@ -25,9 +25,9 @@ n/2 = 7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
 
 | Function | Location | Behavior |
 |----------|----------|----------|
-| `ECDSASignature::is_low_s()` | `cpu/src/ecdsa.cpp:75` | Returns `true` iff `s <= n/2` (byte-wise comparison) |
-| `ECDSASignature::normalize()` | `cpu/src/ecdsa.cpp:70` | If `s > n/2`, returns `{r, n - s}`; otherwise returns `*this` |
-| `ecdsa_sign()` | `cpu/src/ecdsa.cpp:305` | **Always** normalizes output: `return sig.normalize()` |
+| `ECDSASignature::is_low_s()` | `src/cpu/src/ecdsa.cpp:75` | Returns `true` iff `s <= n/2` (byte-wise comparison) |
+| `ECDSASignature::normalize()` | `src/cpu/src/ecdsa.cpp:70` | If `s > n/2`, returns `{r, n - s}`; otherwise returns `*this` |
+| `ecdsa_sign()` | `src/cpu/src/ecdsa.cpp:305` | **Always** normalizes output: `return sig.normalize()` |
 
 ### Guarantees
 
@@ -112,7 +112,7 @@ if R.y is odd:
     R = -R       (now R.y is even)
 ```
 
-This is enforced in `schnorr_sign()` (cpu/src/schnorr.cpp). There is no
+This is enforced in `schnorr_sign()` (src/cpu/src/schnorr.cpp). There is no
 malleability in BIP-340 because the nonce commitment binds to `R.x` and the
 even-y convention is deterministic.
 

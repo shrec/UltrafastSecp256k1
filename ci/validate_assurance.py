@@ -107,7 +107,7 @@ def scan_test_matrix_targets():
     if not matrix.exists():
         return set()
     targets = set()
-    # Match backtick-wrapped filenames (with optional path prefix): `audit_field.cpp`, `metal/tests/test_metal_host.cpp`
+    # Match backtick-wrapped filenames (with optional path prefix): `audit_field.cpp`, `src/metal/tests/test_metal_host.cpp`
     file_re = re.compile(r'`(?:[\w./-]*/)?([\w_-]+\.(?:cpp|cu|hpp|mm))`')
     # Also match bare CTest target names in backtick table cells: `cuda_selftest`
     target_re = re.compile(r'`([\w_-]+)`')

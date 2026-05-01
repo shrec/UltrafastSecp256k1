@@ -19,7 +19,7 @@ endif()
 find_package(Threads REQUIRED)
 
 # Shorthand for cpu/tests/ -- core library test sources reused by unified runner
-set(CPU_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/tests)
+set(CPU_TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/tests)
 
 # -- Helper: common link + stack options ------------------------------------
 macro(audit_target_defaults target_name)
@@ -283,15 +283,15 @@ set_tests_properties(audit_invariants PROPERTIES TIMEOUT 300)
 # -- C ABI negative contract tests ----------------------------------------
 add_executable(test_c_abi_negative_standalone
     test_c_abi_negative.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_c_abi_negative_standalone)
 target_include_directories(test_c_abi_negative_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_c_abi_negative_standalone PRIVATE UFSECP_BUILDING)
 add_test(NAME c_abi_negative COMMAND test_c_abi_negative_standalone)
@@ -300,7 +300,7 @@ set_tests_properties(c_abi_negative PROPERTIES TIMEOUT 120)
 # -- Secure memory erasure verification -----------------------------------
 add_executable(test_audit_secure_erase_standalone
     audit_secure_erase.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_audit_secure_erase_standalone)
 target_include_directories(test_audit_secure_erase_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -319,7 +319,7 @@ set_tests_properties(audit_ct_namespace PROPERTIES TIMEOUT 60)
 # -- KAT for all operations (ECDH/WIF/addresses/hash/arithmetic) ----------
 add_executable(test_kat_all_operations_standalone
     test_kat_all_operations.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_kat_all_operations_standalone)
 target_include_directories(test_kat_all_operations_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -332,7 +332,7 @@ set_tests_properties(kat_all_operations PROPERTIES TIMEOUT 120)
 # -- Public parse path strictness audit -----------------------------------
 add_executable(test_parse_strictness_standalone
     test_parse_strictness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_parse_strictness_standalone)
 target_include_directories(test_parse_strictness_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -345,7 +345,7 @@ set_tests_properties(parse_strictness PROPERTIES TIMEOUT 120)
 # -- RFC 6979 nonce determinism + uniqueness monitor ----------------------
 add_executable(test_nonce_uniqueness_standalone
     test_nonce_uniqueness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_nonce_uniqueness_standalone)
 target_include_directories(test_nonce_uniqueness_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -358,7 +358,7 @@ set_tests_properties(nonce_uniqueness PROPERTIES TIMEOUT 120)
 # -- C ABI thread stress audit ---------------------------------------------
 add_executable(test_c_abi_thread_stress_standalone
     test_c_abi_thread_stress.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_c_abi_thread_stress_standalone)
 target_link_libraries(test_c_abi_thread_stress_standalone PRIVATE Threads::Threads)
 target_include_directories(test_c_abi_thread_stress_standalone PRIVATE
@@ -391,7 +391,7 @@ set_tests_properties(audit_fuzz PROPERTIES TIMEOUT 600)
 
 # -- Adversarial protocol & FFI hostile-caller tests -----------------------
 add_executable(test_adversarial_protocol_standalone test_adversarial_protocol.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_adversarial_protocol_standalone)
 target_include_directories(test_adversarial_protocol_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -545,7 +545,7 @@ set_tests_properties(exploit_ecdsa_edge_cases PROPERTIES TIMEOUT 60 LABELS "audi
 # -- PoC: ECDSA DER canonicality / alternate-encoding confusion
 add_executable(test_exploit_ecdsa_der_confusion_standalone
     test_exploit_ecdsa_der_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdsa_der_confusion_standalone)
 target_include_directories(test_exploit_ecdsa_der_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -596,7 +596,7 @@ set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABEL
 # -- PoC: FROST participant-set malleability (Wagner attack, 2024 research)
 add_executable(test_exploit_frost_participant_set_malleability_standalone
     test_exploit_frost_participant_set_malleability.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_participant_set_malleability_standalone)
 target_include_directories(test_exploit_frost_participant_set_malleability_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -609,7 +609,7 @@ set_tests_properties(exploit_frost_participant_set_malleability PROPERTIES TIMEO
 # -- PoC: FROST/MuSig2 constant-time nonce audit (C1 gap)
 add_executable(test_exploit_frost_ct_nonce_standalone
     test_exploit_frost_ct_nonce.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_ct_nonce_standalone)
 target_include_directories(test_exploit_frost_ct_nonce_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -622,7 +622,7 @@ set_tests_properties(exploit_frost_ct_nonce PROPERTIES TIMEOUT 120 LABELS "audit
 # -- PoC: Binding-layer invalid-curve attack (CVE-2024-48930 class)
 add_executable(test_exploit_binding_invalid_curve_standalone
     test_exploit_binding_invalid_curve.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_binding_invalid_curve_standalone)
 target_include_directories(test_exploit_binding_invalid_curve_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -635,7 +635,7 @@ set_tests_properties(exploit_binding_invalid_curve PROPERTIES TIMEOUT 120 LABELS
 # -- PoC: MuSig2 parallel session cross-signing attack
 add_executable(test_exploit_musig2_parallel_session_cross_standalone
     test_exploit_musig2_parallel_session_cross.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_musig2_parallel_session_cross_standalone)
 target_include_directories(test_exploit_musig2_parallel_session_cross_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -997,7 +997,7 @@ set_tests_properties(exploit_point_serialization PROPERTIES TIMEOUT 60 LABELS "a
 # -- Point-at-Infinity edge cases (INF-1..INF-28: cancellation, serial, tweak) -
 add_executable(test_infinity_edge_cases_standalone
     test_infinity_edge_cases.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_infinity_edge_cases_standalone)
 target_include_directories(test_infinity_edge_cases_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1045,15 +1045,15 @@ set_tests_properties(exploit_ecdsa_malleability PROPERTIES TIMEOUT 60 LABELS "au
 # -- PoC: ECDSA batch verify low-S enforcement (regression, 2026-04-27)
 add_executable(test_exploit_batch_verify_low_s_standalone
     test_exploit_batch_verify_low_s.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_batch_verify_low_s_standalone)
 target_include_directories(test_exploit_batch_verify_low_s_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_batch_verify_low_s_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_batch_verify_low_s COMMAND test_exploit_batch_verify_low_s_standalone)
@@ -1062,15 +1062,15 @@ set_tests_properties(exploit_batch_verify_low_s PROPERTIES TIMEOUT 60 LABELS "au
 # -- PoC: ABI return-value coverage — binding regression guard (2026-04-27)
 add_executable(test_exploit_binding_retval_standalone
     test_exploit_binding_retval.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_binding_retval_standalone)
 target_include_directories(test_exploit_binding_retval_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_binding_retval_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_binding_retval COMMAND test_exploit_binding_retval_standalone)
@@ -1114,7 +1114,7 @@ set_tests_properties(exploit_zk_adversarial PROPERTIES TIMEOUT 120 LABELS "audit
 # -- PoC: fe_set_b32_limit uninitialized overflow flag regression (PR #1839) --
 add_executable(test_exploit_fe_set_b32_limit_uninit_standalone
     test_exploit_fe_set_b32_limit_uninit.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_fe_set_b32_limit_uninit_standalone)
 target_include_directories(test_exploit_fe_set_b32_limit_uninit_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1167,7 +1167,7 @@ target_link_libraries(test_fuzz_musig2_frost_standalone PRIVATE ufsecp_static)
 target_include_directories(test_fuzz_musig2_frost_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include/ufsecp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
 )
 target_compile_definitions(test_fuzz_musig2_frost_standalone PRIVATE
     STANDALONE_TEST "UFSECP_API=")
@@ -1292,7 +1292,7 @@ set_tests_properties(exploit_wallet_cross_domain_replay PROPERTIES TIMEOUT 60 LA
 
 # -- PoC: GPU host API shape (hostile caller) --------------------------------
 add_executable(test_exploit_gpu_host_api_shape_standalone test_exploit_gpu_host_api_shape.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_gpu_host_api_shape_standalone)
 target_include_directories(test_exploit_gpu_host_api_shape_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1304,7 +1304,7 @@ set_tests_properties(exploit_gpu_host_api_shape PROPERTIES TIMEOUT 60 LABELS "au
 
 # -- PoC: Silent Payment confusion (BIP-352 key role / output isolation) -----
 add_executable(test_exploit_silent_payment_confusion_standalone test_exploit_silent_payment_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_silent_payment_confusion_standalone)
 target_include_directories(test_exploit_silent_payment_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1330,7 +1330,7 @@ set_tests_properties(exploit_pedersen_switch_misuse PROPERTIES TIMEOUT 60 LABELS
 
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_ecies_regression_standalone)
 target_include_directories(test_ecies_regression_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1348,7 +1348,7 @@ set_tests_properties(ecies_regression PROPERTIES TIMEOUT 600 LABELS "audit")
 # -- PoC: P2SH / P2SH-P2WPKH address type confusion -------------------------
 add_executable(test_exploit_p2sh_address_confusion_standalone
     test_exploit_p2sh_address_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_p2sh_address_confusion_standalone)
 target_include_directories(test_exploit_p2sh_address_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1364,7 +1364,7 @@ set_tests_properties(exploit_p2sh_address_confusion PROPERTIES
 # -- PoC: BIP-85 path collision and entropy security -------------------------
 add_executable(test_exploit_bip85_path_collision_standalone
     test_exploit_bip85_path_collision.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_bip85_path_collision_standalone)
 target_include_directories(test_exploit_bip85_path_collision_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1380,7 +1380,7 @@ set_tests_properties(exploit_bip85_path_collision PROPERTIES
 # -- PoC: Schnorr variable-length message length confusion -------------------
 add_executable(test_exploit_schnorr_msg_length_confusion_standalone
     test_exploit_schnorr_msg_length_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_schnorr_msg_length_confusion_standalone)
 target_include_directories(test_exploit_schnorr_msg_length_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1396,7 +1396,7 @@ set_tests_properties(exploit_schnorr_msg_length_confusion PROPERTIES
 # -- PoC: BIP-322 generic message signing type confusion ---------------------
 add_executable(test_exploit_bip322_type_confusion_standalone
     test_exploit_bip322_type_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_bip322_type_confusion_standalone)
 target_include_directories(test_exploit_bip322_type_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1412,7 +1412,7 @@ set_tests_properties(exploit_bip322_type_confusion PROPERTIES
 # -- PoC: BIP-158 GCS filter false positive and correctness ------------------
 add_executable(test_exploit_gcs_false_positive_standalone
     test_exploit_gcs_false_positive.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_gcs_false_positive_standalone)
 target_include_directories(test_exploit_gcs_false_positive_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1428,7 +1428,7 @@ set_tests_properties(exploit_gcs_false_positive PROPERTIES
 # -- PoC: PSBT input type confusion (BIP-174/370) ----------------------------
 add_executable(test_exploit_psbt_input_confusion_standalone
     test_exploit_psbt_input_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_psbt_input_confusion_standalone)
 target_include_directories(test_exploit_psbt_input_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1444,7 +1444,7 @@ set_tests_properties(exploit_psbt_input_confusion PROPERTIES
 # -- PoC: Output descriptor injection and type confusion (BIP-380-386) -------
 add_executable(test_exploit_descriptor_injection_standalone
     test_exploit_descriptor_injection.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_descriptor_injection_standalone)
 target_include_directories(test_exploit_descriptor_injection_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1460,7 +1460,7 @@ set_tests_properties(exploit_descriptor_injection PROPERTIES
 # -- PoC: Secret key arithmetic (tweak_add/mul, negate, cross-check) --------
 add_executable(test_exploit_seckey_arith_standalone
     test_exploit_seckey_arith.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_seckey_arith_standalone)
 target_include_directories(test_exploit_seckey_arith_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1473,7 +1473,7 @@ set_tests_properties(exploit_seckey_arith PROPERTIES TIMEOUT 60 LABELS "audit;ex
 # -- PoC: Context clone isolation (CLN-1..CLN-6) ----------------------------
 add_executable(test_exploit_ctx_clone_standalone
     test_exploit_ctx_clone.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ctx_clone_standalone)
 target_include_directories(test_exploit_ctx_clone_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1487,7 +1487,7 @@ set_tests_properties(exploit_ctx_clone PROPERTIES TIMEOUT 60 LABELS "audit;explo
 # -- PoC: Public key arithmetic (PUB-1..PUB-9: negate, tweak_add/mul, combine) -
 add_executable(test_exploit_pubkey_arith_standalone
     test_exploit_pubkey_arith.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_pubkey_arith_standalone)
 target_include_directories(test_exploit_pubkey_arith_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1500,7 +1500,7 @@ set_tests_properties(exploit_pubkey_arith PROPERTIES TIMEOUT 60 LABELS "audit;ex
 # -- PoC: Batch signing edge cases (BSG-1..BSG-9) ----------------------------
 add_executable(test_exploit_batch_sign_standalone
     test_exploit_batch_sign.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_batch_sign_standalone)
 target_include_directories(test_exploit_batch_sign_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1585,7 +1585,7 @@ set_tests_properties(exploit_schnorr_hash_order PROPERTIES TIMEOUT 120 LABELS "a
 # -- PoC: Cross-scheme pubkey consistency (CSP-1..CSP-8) -------------------
 add_executable(test_exploit_cross_scheme_pubkey_standalone
     test_exploit_cross_scheme_pubkey.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_cross_scheme_pubkey_standalone)
 target_include_directories(test_exploit_cross_scheme_pubkey_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1598,7 +1598,7 @@ set_tests_properties(exploit_cross_scheme_pubkey PROPERTIES TIMEOUT 60 LABELS "a
 # -- PoC: WIF key format security (WIF-1..WIF-10) -------------------------
 add_executable(test_exploit_wif_security_standalone
     test_exploit_wif_security.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_wif_security_standalone)
 target_include_directories(test_exploit_wif_security_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -1611,7 +1611,7 @@ set_tests_properties(exploit_wif_security PROPERTIES TIMEOUT 60 LABELS "audit;ex
 # -- PoC: Buffer / type-confusion attack vectors (CVE-2024-49364 class, A2 gap)
 add_executable(test_exploit_buffer_type_confusion_standalone
     test_exploit_buffer_type_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_buffer_type_confusion_standalone)
 target_include_directories(test_exploit_buffer_type_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1622,7 +1622,7 @@ set_tests_properties(exploit_buffer_type_confusion PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: Differential correctness harness (Cryptofuzz++ style, B2 gap)
 add_executable(test_exploit_differential_libsecp_standalone
     test_exploit_differential_libsecp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_differential_libsecp_standalone)
 target_include_directories(test_exploit_differential_libsecp_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1633,7 +1633,7 @@ set_tests_properties(exploit_differential_libsecp PROPERTIES TIMEOUT 120 LABELS 
 # -- PoC: INTEROP differential vs OpenSSL libcrypto (advisory; G-9 / INTEROP §3)
 add_executable(test_exploit_differential_openssl_standalone
     test_exploit_differential_openssl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_differential_openssl_standalone)
 target_include_directories(test_exploit_differential_openssl_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1651,7 +1651,7 @@ set_tests_properties(exploit_differential_openssl PROPERTIES TIMEOUT 120 LABELS 
 # -- PoC: BIP-352 scanning DoS prevention (A6 gap)
 add_executable(test_exploit_bip352_scan_dos_standalone
     test_exploit_bip352_scan_dos.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_bip352_scan_dos_standalone)
 target_include_directories(test_exploit_bip352_scan_dos_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1662,7 +1662,7 @@ set_tests_properties(exploit_bip352_scan_dos PROPERTIES TIMEOUT 120 LABELS "audi
 # -- PoC: Taproot commitment adversarial (ePrint 2025/1307, A7 gap)
 add_executable(test_exploit_taproot_commitment_adversarial_standalone
     test_exploit_taproot_commitment_adversarial.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_taproot_commitment_adversarial_standalone)
 target_include_directories(test_exploit_taproot_commitment_adversarial_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1673,7 +1673,7 @@ set_tests_properties(exploit_taproot_commitment_adversarial PROPERTIES TIMEOUT 6
 # -- PoC: BIP-352 parity confusion in ECDH (C2 gap)
 add_executable(test_exploit_bip352_parity_confusion_standalone
     test_exploit_bip352_parity_confusion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_bip352_parity_confusion_standalone)
 target_include_directories(test_exploit_bip352_parity_confusion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1692,7 +1692,7 @@ set_tests_properties(exploit_bip352_batch_correctness PROPERTIES TIMEOUT 120 LAB
 # -- BIP-352 Known-Answer Tests (create_output byte-exact + full round-trip)
 add_executable(test_bip352_kat_standalone
     test_bip352_kat.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_bip352_kat_standalone)
 target_include_directories(test_bip352_kat_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1703,7 +1703,7 @@ set_tests_properties(bip352_kat PROPERTIES TIMEOUT 60 LABELS "audit;kat;bip352;s
 # -- PoC: RFC 6979 nonce truncation bias (C5 gap)
 add_executable(test_exploit_rfc6979_truncation_bias_standalone
     test_exploit_rfc6979_truncation_bias.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_rfc6979_truncation_bias_standalone)
 target_include_directories(test_exploit_rfc6979_truncation_bias_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1714,7 +1714,7 @@ set_tests_properties(exploit_rfc6979_truncation_bias PROPERTIES TIMEOUT 60 LABEL
 # -- PoC: Binding adversarial API (D6 gap)
 add_executable(test_exploit_binding_adversarial_api_standalone
     test_exploit_binding_adversarial_api.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_binding_adversarial_api_standalone)
 target_include_directories(test_exploit_binding_adversarial_api_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1725,7 +1725,7 @@ set_tests_properties(exploit_binding_adversarial_api PROPERTIES TIMEOUT 60 LABEL
 # -- PoC: Quantum exposure surface audit (LOW)
 add_executable(test_exploit_quantum_exposure_standalone
     test_exploit_quantum_exposure.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_quantum_exposure_standalone)
 target_include_directories(test_exploit_quantum_exposure_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1736,7 +1736,7 @@ set_tests_properties(exploit_quantum_exposure PROPERTIES TIMEOUT 60 LABELS "audi
 # -- PoC: ECIES ephemeral key reuse detection (LOW)
 add_executable(test_exploit_ecies_ephemeral_reuse_standalone
     test_exploit_ecies_ephemeral_reuse.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecies_ephemeral_reuse_standalone)
 target_include_directories(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1747,7 +1747,7 @@ set_tests_properties(exploit_ecies_ephemeral_reuse PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: Address prefix collision resistance (LOW)
 add_executable(test_exploit_address_prefix_collision_standalone
     test_exploit_address_prefix_collision.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_address_prefix_collision_standalone)
 target_include_directories(test_exploit_address_prefix_collision_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1758,7 +1758,7 @@ set_tests_properties(exploit_address_prefix_collision PROPERTIES TIMEOUT 60 LABE
 # -- PoC: ECDH ZVP/GLV static-key regression surface ------------------------
 add_executable(test_exploit_ecdh_zvp_glv_static_standalone
     test_exploit_ecdh_zvp_glv_static.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdh_zvp_glv_static_standalone)
 target_include_directories(test_exploit_ecdh_zvp_glv_static_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1769,7 +1769,7 @@ set_tests_properties(exploit_ecdh_zvp_glv_static PROPERTIES TIMEOUT 60 LABELS "a
 # -- PoC: FROST adaptive corruption misuse regression -----------------------
 add_executable(test_exploit_frost_adaptive_corruption_standalone
     test_exploit_frost_adaptive_corruption.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_adaptive_corruption_standalone)
 target_include_directories(test_exploit_frost_adaptive_corruption_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1780,7 +1780,7 @@ set_tests_properties(exploit_frost_adaptive_corruption PROPERTIES TIMEOUT 60 LAB
 # -- PoC: Point::scalar_mul edge-case and correctness attack surface --------
 add_executable(test_exploit_scalar_mul_standalone
     test_exploit_scalar_mul.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_scalar_mul_standalone)
 target_include_directories(test_exploit_scalar_mul_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1791,7 +1791,7 @@ set_tests_properties(exploit_scalar_mul PROPERTIES TIMEOUT 60 LABELS "audit;expl
 # -- PoC: Deterministic ECDSA fault-injection regression --------------------
 add_executable(test_exploit_ecdsa_fault_injection_standalone
     test_exploit_ecdsa_fault_injection.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdsa_fault_injection_standalone)
 target_include_directories(test_exploit_ecdsa_fault_injection_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1802,7 +1802,7 @@ set_tests_properties(exploit_ecdsa_fault_injection PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: Cache side-channel amplification regression -----------------------
 add_executable(test_exploit_cache_sidechannel_amplification_standalone
     test_exploit_cache_sidechannel_amplification.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_cache_sidechannel_amplification_standalone)
 target_include_directories(test_exploit_cache_sidechannel_amplification_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1813,7 +1813,7 @@ set_tests_properties(exploit_cache_sidechannel_amplification PROPERTIES TIMEOUT 
 # -- PoC: LadderLeak-style sub-bit nonce leakage regression -----------------
 add_executable(test_exploit_ladderleak_subbit_nonce_standalone
     test_exploit_ladderleak_subbit_nonce.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ladderleak_subbit_nonce_standalone)
 target_include_directories(test_exploit_ladderleak_subbit_nonce_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1824,7 +1824,7 @@ set_tests_properties(exploit_ladderleak_subbit_nonce PROPERTIES TIMEOUT 60 LABEL
 # -- PoC: Minerva-style noisy HNP leakage regression ------------------------
 add_executable(test_exploit_minerva_noisy_hnp_standalone
     test_exploit_minerva_noisy_hnp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_minerva_noisy_hnp_standalone)
 target_include_directories(test_exploit_minerva_noisy_hnp_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1835,7 +1835,7 @@ set_tests_properties(exploit_minerva_noisy_hnp PROPERTIES TIMEOUT 60 LABELS "aud
 # -- PoC: Hertzbleed-style DVFS timing regression ---------------------------
 add_executable(test_exploit_hertzbleed_dvfs_timing_standalone
     test_exploit_hertzbleed_dvfs_timing.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_hertzbleed_dvfs_timing_standalone)
 target_include_directories(test_exploit_hertzbleed_dvfs_timing_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1846,7 +1846,7 @@ set_tests_properties(exploit_hertzbleed_dvfs_timing PROPERTIES TIMEOUT 60 LABELS
 # -- PoC: Biased nonce chain-scale scan regression --------------------------
 add_executable(test_exploit_biased_nonce_chain_scan_standalone
     test_exploit_biased_nonce_chain_scan.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_biased_nonce_chain_scan_standalone)
 target_include_directories(test_exploit_biased_nonce_chain_scan_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1857,7 +1857,7 @@ set_tests_properties(exploit_biased_nonce_chain_scan PROPERTIES TIMEOUT 60 LABEL
 # -- PoC: KR-ECDSA/BUFF binding regression ----------------------------------
 add_executable(test_exploit_kr_ecdsa_buff_binding_standalone
     test_exploit_kr_ecdsa_buff_binding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_kr_ecdsa_buff_binding_standalone)
 target_include_directories(test_exploit_kr_ecdsa_buff_binding_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1868,7 +1868,7 @@ set_tests_properties(exploit_kr_ecdsa_buff_binding PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: ellswift_xdh overflow scalar rejection — upstream PR #1821 ---------
 add_executable(test_exploit_ellswift_xdh_overflow_standalone
     test_exploit_ellswift_xdh_overflow.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ellswift_xdh_overflow_standalone)
 target_include_directories(test_exploit_ellswift_xdh_overflow_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1880,7 +1880,7 @@ set_tests_properties(exploit_ellswift_xdh_overflow PROPERTIES TIMEOUT 60 LABELS 
 # -- PoC: BUFF / KR-ECDSA weak non-resignability (eprint 2024/2018) ----------
 add_executable(test_exploit_buff_kr_ecdsa_standalone
     test_exploit_buff_kr_ecdsa.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_buff_kr_ecdsa_standalone)
 target_include_directories(test_exploit_buff_kr_ecdsa_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1892,7 +1892,7 @@ set_tests_properties(exploit_buff_kr_ecdsa PROPERTIES TIMEOUT 120 LABELS "audit;
 # -- PoC: CVE-2024-23342 Minerva bit-length timing regression ----------------
 add_executable(test_exploit_minerva_cve_2024_23342_standalone
     test_exploit_minerva_cve_2024_23342.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_minerva_cve_2024_23342_standalone)
 target_include_directories(test_exploit_minerva_cve_2024_23342_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1903,7 +1903,7 @@ set_tests_properties(exploit_minerva_cve_2024_23342 PROPERTIES TIMEOUT 120 LABEL
 # -- PoC: RFC6979 + Minerva amplified timing regression ----------------------
 add_executable(test_exploit_rfc6979_minerva_amplified_standalone
     test_exploit_rfc6979_minerva_amplified.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_rfc6979_minerva_amplified_standalone)
 target_include_directories(test_exploit_rfc6979_minerva_amplified_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1914,7 +1914,7 @@ set_tests_properties(exploit_rfc6979_minerva_amplified PROPERTIES TIMEOUT 120 LA
 # -- PoC: EllSwift bad scalar — ECDH/XDH rejection consistency ---------------
 add_executable(test_exploit_ellswift_bad_scalar_ecdh_standalone
     test_exploit_ellswift_bad_scalar_ecdh.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ellswift_bad_scalar_ecdh_standalone)
 target_include_directories(test_exploit_ellswift_bad_scalar_ecdh_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -1934,7 +1934,7 @@ set_tests_properties(exploit_ecdsa_r_overflow PROPERTIES TIMEOUT 60 LABELS "audi
 # -- ECDSA sign sentinel paths: r=0 / s=0 / sk=0 guards (X-1, X-2, X-4) ---
 add_executable(test_exploit_ecdsa_sign_sentinels_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_sign_sentinels.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdsa_sign_sentinels_standalone)
 target_include_directories(test_exploit_ecdsa_sign_sentinels_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_BINARY_DIR}/include)
@@ -2075,7 +2075,7 @@ set_tests_properties(exploit_metal_field_reduce PROPERTIES TIMEOUT 60 LABELS "au
 # -- PoC: Network selector validation bypass (all address/WIF ABI) ----------
 add_executable(test_exploit_network_validation_bypass_standalone
     test_exploit_network_validation_bypass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_network_validation_bypass_standalone)
 target_include_directories(test_exploit_network_validation_bypass_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2088,7 +2088,7 @@ set_tests_properties(exploit_network_validation_bypass PROPERTIES TIMEOUT 60 LAB
 # -- ePrint 2025/076: ZVP-DCP attack on GLV multiscalar multiplication ------
 add_executable(test_exploit_zvp_glv_dcp_multiscalar_standalone
     test_exploit_zvp_glv_dcp_multiscalar.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_zvp_glv_dcp_multiscalar_standalone)
 target_include_directories(test_exploit_zvp_glv_dcp_multiscalar_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2101,7 +2101,7 @@ set_tests_properties(exploit_zvp_glv_dcp_multiscalar PROPERTIES TIMEOUT 60 LABEL
 # -- ePrint 2024/296: Lattice sieve HNP with sub-bit nonce leakage ----------
 add_executable(test_exploit_lattice_sieve_hnp_standalone
     test_exploit_lattice_sieve_hnp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_lattice_sieve_hnp_standalone)
 target_include_directories(test_exploit_lattice_sieve_hnp_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2114,7 +2114,7 @@ set_tests_properties(exploit_lattice_sieve_hnp PROPERTIES TIMEOUT 60 LABELS "aud
 # -- ePrint 2017/975: DFA on RFC 6979 deterministic signatures ---------------
 add_executable(test_exploit_deterministic_sig_dfa_standalone
     test_exploit_deterministic_sig_dfa.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_deterministic_sig_dfa_standalone)
 target_include_directories(test_exploit_deterministic_sig_dfa_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2127,7 +2127,7 @@ set_tests_properties(exploit_deterministic_sig_dfa PROPERTIES TIMEOUT 60 LABELS 
 # -- CVE-2024-49364/49365/2022-41340: Type confusion → k-reuse & verify bypass
 add_executable(test_exploit_sign_type_confusion_kreuse_standalone
     test_exploit_sign_type_confusion_kreuse.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_sign_type_confusion_kreuse_standalone)
 target_include_directories(test_exploit_sign_type_confusion_kreuse_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2140,7 +2140,7 @@ set_tests_properties(exploit_sign_type_confusion_kreuse PROPERTIES TIMEOUT 60 LA
 # -- ePrint 2020/945: ROS problem → concurrent blind Schnorr forgery --------
 add_executable(test_exploit_ros_concurrent_schnorr_standalone
     test_exploit_ros_concurrent_schnorr.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ros_concurrent_schnorr_standalone)
 target_include_directories(test_exploit_ros_concurrent_schnorr_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2153,7 +2153,7 @@ set_tests_properties(exploit_ros_concurrent_schnorr PROPERTIES TIMEOUT 60 LABELS
 # -- ePrint 2026/075, 2025/1001: FROST weak binding & adaptive corruption ----
 add_executable(test_exploit_frost_weak_binding_standalone
     test_exploit_frost_weak_binding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_weak_binding_standalone)
 target_include_directories(test_exploit_frost_weak_binding_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2166,7 +2166,7 @@ set_tests_properties(exploit_frost_weak_binding PROPERTIES TIMEOUT 60 LABELS "au
 # -- ePrint 2024/589, 2025/935: Blind-Folded SPA & CT cmov/cswap leak ------
 add_executable(test_exploit_blind_spa_cmov_leak_standalone
     test_exploit_blind_spa_cmov_leak.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_blind_spa_cmov_leak_standalone)
 target_include_directories(test_exploit_blind_spa_cmov_leak_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2179,7 +2179,7 @@ set_tests_properties(exploit_blind_spa_cmov_leak PROPERTIES TIMEOUT 60 LABELS "a
 # -- ePrint 2025/1293: ECTester point order/infinity validation -------------
 add_executable(test_exploit_ectester_point_validation_standalone
     test_exploit_ectester_point_validation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ectester_point_validation_standalone)
 target_include_directories(test_exploit_ectester_point_validation_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2192,7 +2192,7 @@ set_tests_properties(exploit_ectester_point_validation PROPERTIES TIMEOUT 60 LAB
 # -- ePrint 2025/306, 2025/1353: Dimensional eROS & BZ blind sig forgery ----
 add_executable(test_exploit_ros_dimensional_erosion_standalone
     test_exploit_ros_dimensional_erosion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ros_dimensional_erosion_standalone)
 target_include_directories(test_exploit_ros_dimensional_erosion_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2205,7 +2205,7 @@ set_tests_properties(exploit_ros_dimensional_erosion PROPERTIES TIMEOUT 120 LABE
 # -- ePrint 2026/663: Modified ECDSA batch verification randomization -------
 add_executable(test_exploit_ecdsa_batch_verify_rand_standalone
     test_exploit_ecdsa_batch_verify_rand.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdsa_batch_verify_rand_standalone)
 target_include_directories(test_exploit_ecdsa_batch_verify_rand_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2218,7 +2218,7 @@ set_tests_properties(exploit_ecdsa_batch_verify_rand PROPERTIES TIMEOUT 120 LABE
 # -- BIP-324 AEAD forgery & ChaCha20-Poly1305 boundary (BIP-324, RFC 8439) --
 add_executable(test_exploit_bip324_aead_forgery_standalone
     test_exploit_bip324_aead_forgery.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_bip324_aead_forgery_standalone)
 target_include_directories(test_exploit_bip324_aead_forgery_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2231,7 +2231,7 @@ set_tests_properties(exploit_bip324_aead_forgery PROPERTIES TIMEOUT 120 LABELS "
 # -- FROST rogue-key / key-cancellation (ePrint 2020/852, 2023/899) --
 add_executable(test_exploit_frost_rogue_key_standalone
     test_exploit_frost_rogue_key.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_frost_rogue_key_standalone)
 target_include_directories(test_exploit_frost_rogue_key_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2244,7 +2244,7 @@ set_tests_properties(exploit_frost_rogue_key PROPERTIES TIMEOUT 120 LABELS "audi
 # -- MuSig2 partial signature forgery & session binding (ePrint 2020/1261) --
 add_executable(test_exploit_musig2_partial_forgery_standalone
     test_exploit_musig2_partial_forgery.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_musig2_partial_forgery_standalone)
 target_include_directories(test_exploit_musig2_partial_forgery_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2257,7 +2257,7 @@ set_tests_properties(exploit_musig2_partial_forgery PROPERTIES TIMEOUT 120 LABEL
 # -- Schnorr adaptor extraction soundness (ePrint 2020/476, 2021/150) --
 add_executable(test_exploit_adaptor_extraction_soundness_standalone
     test_exploit_adaptor_extraction_soundness.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_adaptor_extraction_soundness_standalone)
 target_include_directories(test_exploit_adaptor_extraction_soundness_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2270,7 +2270,7 @@ set_tests_properties(exploit_adaptor_extraction_soundness PROPERTIES TIMEOUT 120
 # -- ECDH twist point injection / Pohlig-Hellman (ePrint 2015/1233) --
 add_executable(test_exploit_ecdh_twist_injection_standalone
     test_exploit_ecdh_twist_injection.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_ecdh_twist_injection_standalone)
 target_include_directories(test_exploit_ecdh_twist_injection_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2283,7 +2283,7 @@ set_tests_properties(exploit_ecdh_twist_injection PROPERTIES TIMEOUT 120 LABELS 
 # -- Schnorr batch verify inflation / mix attack (BIP-340, ePrint 2012/549) --
 add_executable(test_exploit_schnorr_batch_inflation_standalone
     test_exploit_schnorr_batch_inflation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_schnorr_batch_inflation_standalone)
 target_include_directories(test_exploit_schnorr_batch_inflation_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2308,7 +2308,7 @@ set_tests_properties(exploit_safegcd_divsteps PROPERTIES TIMEOUT 60 LABELS "audi
 # -- Nonce edge cases: null / zero-key / n / n-1 / determinism (NIN-1..15) --
 add_executable(test_exploit_custom_nonce_injection_standalone
     test_exploit_custom_nonce_injection.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_custom_nonce_injection_standalone)
 target_include_directories(test_exploit_custom_nonce_injection_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2327,7 +2327,7 @@ target_include_directories(test_exploit_jni_retval_ignored_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
 )
 target_compile_definitions(test_exploit_jni_retval_ignored_standalone PRIVATE
     STANDALONE_TEST ULTRAFAST_SECP256K1_BUILDING)
@@ -2337,7 +2337,7 @@ set_tests_properties(exploit_jni_retval_ignored PROPERTIES TIMEOUT 30 LABELS "au
 # -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 ---------
 add_executable(test_exploit_dark_skippy_exfil_standalone
     test_exploit_dark_skippy_exfil.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_dark_skippy_exfil_standalone)
 target_include_directories(test_exploit_dark_skippy_exfil_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2350,7 +2350,7 @@ set_tests_properties(exploit_dark_skippy_exfil PROPERTIES TIMEOUT 30 LABELS "aud
 # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 -
 add_executable(test_exploit_fiat_shamir_frozen_heart_standalone
     test_exploit_fiat_shamir_frozen_heart.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_fiat_shamir_frozen_heart_standalone)
 target_include_directories(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2363,7 +2363,7 @@ set_tests_properties(exploit_fiat_shamir_frozen_heart PROPERTIES TIMEOUT 30 LABE
 # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 -
 add_executable(test_exploit_hertzbleed_scalar_blind_standalone
     test_exploit_hertzbleed_scalar_blind.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
 audit_target_defaults(test_exploit_hertzbleed_scalar_blind_standalone)
 target_include_directories(test_exploit_hertzbleed_scalar_blind_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2376,15 +2376,15 @@ set_tests_properties(exploit_hertzbleed_scalar_blind PROPERTIES TIMEOUT 30 LABEL
 # -- Thread-safe lazy init regression (TIR-1..5) — 2026-04-27 ----------------
 add_executable(test_exploit_thread_unsafe_lazy_init_standalone
     test_exploit_thread_unsafe_lazy_init.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_thread_unsafe_lazy_init_standalone)
 target_include_directories(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 find_package(Threads REQUIRED)
@@ -2395,15 +2395,15 @@ set_tests_properties(exploit_thread_unsafe_lazy_init PROPERTIES TIMEOUT 60 LABEL
 # -- z_fe_nonzero | vs & correctness regression (ZFN-1..6) — 2026-04-27 ---
 add_executable(test_regression_z_fe_nonzero_standalone
     test_regression_z_fe_nonzero.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_z_fe_nonzero_standalone)
 target_include_directories(test_regression_z_fe_nonzero_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_regression_z_fe_nonzero_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME regression_z_fe_nonzero COMMAND test_regression_z_fe_nonzero_standalone)
@@ -2426,7 +2426,7 @@ add_executable(test_regression_musig2_verify_standalone
     test_regression_musig2_verify.cpp)
 audit_target_defaults(test_regression_musig2_verify_standalone)
 target_include_directories(test_regression_musig2_verify_standalone PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
@@ -2439,7 +2439,7 @@ add_executable(test_regression_bip324_session_standalone
     test_regression_bip324_session.cpp)
 audit_target_defaults(test_regression_bip324_session_standalone)
 target_include_directories(test_regression_bip324_session_standalone PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
@@ -2459,15 +2459,15 @@ set_tests_properties(regression_bip324_session PROPERTIES TIMEOUT 30 LABELS "aud
 # -- C-1 fix: C ABI recovery signing CT path (RCTX-1..8) — 2026-04-27 -------
 add_executable(test_exploit_recoverable_sign_ct_standalone
     test_exploit_recoverable_sign_ct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_recoverable_sign_ct_standalone)
 target_include_directories(test_exploit_recoverable_sign_ct_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_recoverable_sign_ct_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_recoverable_sign_ct COMMAND test_exploit_recoverable_sign_ct_standalone)
@@ -2476,15 +2476,15 @@ set_tests_properties(exploit_recoverable_sign_ct PROPERTIES TIMEOUT 60 LABELS "a
 # -- M-6 fix: Pippenger batch verify regression guard (PIPBATCH-1..8) — 2026-04-27 ---
 add_executable(test_exploit_pippenger_batch_regression_standalone
     test_exploit_pippenger_batch_regression.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_pippenger_batch_regression_standalone)
 target_include_directories(test_exploit_pippenger_batch_regression_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_pippenger_batch_regression_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_pippenger_batch_regression COMMAND test_exploit_pippenger_batch_regression_standalone)
@@ -2493,8 +2493,8 @@ set_tests_properties(exploit_pippenger_batch_regression PROPERTIES TIMEOUT 120 L
 # -- B-01 fix: Ethereum signing CT path (ETHCT-1..8) — 2026-04-27 ----------
 add_executable(test_exploit_eth_signing_ct_standalone
     test_exploit_eth_signing_ct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/eth_signing.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/keccak256.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/eth_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/keccak256.cpp)
 audit_target_defaults(test_exploit_eth_signing_ct_standalone)
 target_include_directories(test_exploit_eth_signing_ct_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2507,11 +2507,11 @@ set_tests_properties(exploit_eth_signing_ct PROPERTIES TIMEOUT 60 LABELS "audit;
 # -- B-02 fix: Wallet sign_hash CT path (WALCT-1..8) — 2026-04-27 ----------
 add_executable(test_exploit_wallet_sign_ct_standalone
     test_exploit_wallet_sign_ct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/wallet.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/coin_address.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/message_signing.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/eth_signing.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/keccak256.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/wallet.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/coin_address.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/message_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/eth_signing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/keccak256.cpp)
 audit_target_defaults(test_exploit_wallet_sign_ct_standalone)
 target_include_directories(test_exploit_wallet_sign_ct_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -2524,15 +2524,15 @@ set_tests_properties(exploit_wallet_sign_ct PROPERTIES TIMEOUT 60 LABELS "audit;
 # -- B-04 fix: Monolith split integrity (MONO-1..12) — 2026-04-27 -----------
 add_executable(test_exploit_monolith_split_standalone
     test_exploit_monolith_split.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_monolith_split_standalone)
 target_include_directories(test_exploit_monolith_split_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_monolith_split_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING SECP256K1_BUILD_ETHEREUM)
 add_test(NAME exploit_monolith_split COMMAND test_exploit_monolith_split_standalone)
@@ -2541,15 +2541,15 @@ set_tests_properties(exploit_monolith_split PROPERTIES TIMEOUT 60 LABELS "audit;
 # -- B-08/B-09 fix: GPU secret erase + batch sign partial — 2026-04-27 ------
 add_executable(test_exploit_gpu_secret_erase_standalone
     test_exploit_gpu_secret_erase.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_gpu_secret_erase_standalone)
 target_include_directories(test_exploit_gpu_secret_erase_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_gpu_secret_erase_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING SECP256K1_BUILD_ETHEREUM)
 add_test(NAME exploit_gpu_secret_erase COMMAND test_exploit_gpu_secret_erase_standalone)
@@ -2558,15 +2558,15 @@ set_tests_properties(exploit_gpu_secret_erase PROPERTIES TIMEOUT 60 LABELS "audi
 # -- L-01: libsecp256k1 EC key API compatibility (ECKEY-1..17) — 2026-04-27 --
 add_executable(test_exploit_libsecp_eckey_api_standalone
     test_exploit_libsecp_eckey_api.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_libsecp_eckey_api_standalone)
 target_include_directories(test_exploit_libsecp_eckey_api_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
 )
 target_compile_definitions(test_exploit_libsecp_eckey_api_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_libsecp_eckey_api COMMAND test_exploit_libsecp_eckey_api_standalone)
@@ -2706,15 +2706,15 @@ set_tests_properties(exploit_batch_verify_malleability PROPERTIES TIMEOUT 60 LAB
 # shared ctx must produce correct, verifiable signatures for each thread.
 add_executable(test_exploit_thread_local_blinding_standalone
     test_exploit_thread_local_blinding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_thread_local_blinding_standalone)
 target_include_directories(test_exploit_thread_local_blinding_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_thread_local_blinding_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 find_package(Threads REQUIRED)
 target_link_libraries(test_exploit_thread_local_blinding_standalone PRIVATE Threads::Threads)
@@ -2740,15 +2740,15 @@ set_tests_properties(exploit_hedged_return_value PROPERTIES TIMEOUT 60 LABELS "a
 # Skips gracefully when no GPU backend is compiled or device is unavailable.
 add_executable(test_exploit_gpu_memory_safety_standalone
     test_exploit_gpu_memory_safety.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_gpu_memory_safety_standalone)
 target_include_directories(test_exploit_gpu_memory_safety_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_gpu_memory_safety_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_gpu_memory_safety COMMAND test_exploit_gpu_memory_safety_standalone)
 set_tests_properties(exploit_gpu_memory_safety PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;memory;boundary")
@@ -2757,15 +2757,15 @@ set_tests_properties(exploit_gpu_memory_safety PROPERTIES TIMEOUT 60 LABELS "aud
 # CVE-2022-39272-class: verify must reject r=0, s=0, r=p (out-of-range).
 add_executable(test_exploit_rs_zero_check_standalone
     test_exploit_rs_zero_check.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_rs_zero_check_standalone)
 target_include_directories(test_exploit_rs_zero_check_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_rs_zero_check_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_rs_zero_check COMMAND test_exploit_rs_zero_check_standalone)
 set_tests_properties(exploit_rs_zero_check PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;schnorr;zero;cve")
@@ -2775,15 +2775,15 @@ set_tests_properties(exploit_rs_zero_check PROPERTIES TIMEOUT 60 LABELS "audit;e
 # must produce unique Silent Payment addresses.
 add_executable(test_exploit_bip352_address_collision_standalone
     test_exploit_bip352_address_collision.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bip352_address_collision_standalone)
 target_include_directories(test_exploit_bip352_address_collision_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_bip352_address_collision_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bip352_address_collision COMMAND test_exploit_bip352_address_collision_standalone)
 set_tests_properties(exploit_bip352_address_collision PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;silent-payments;collision")
@@ -2791,15 +2791,15 @@ set_tests_properties(exploit_bip352_address_collision PROPERTIES TIMEOUT 120 LAB
 # -- BUG-001/007: addr off-by-one overflow + p2sh null ---------------------
 add_executable(test_exploit_bug001_addr_overflow_standalone
     test_exploit_bug001_addr_overflow.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bug001_addr_overflow_standalone)
 target_include_directories(test_exploit_bug001_addr_overflow_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_bug001_addr_overflow_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bug001_addr_overflow COMMAND test_exploit_bug001_addr_overflow_standalone)
 set_tests_properties(exploit_bug001_addr_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;abi;buffer")
@@ -2823,15 +2823,15 @@ set_tests_properties(exploit_bug003_normalize_ct PROPERTIES TIMEOUT 60 LABELS "a
 # -- BUG-004: Schnorr batch sign fail-closed --------------------------------
 add_executable(test_exploit_bug004_batch_failclosed_standalone
     test_exploit_bug004_batch_failclosed.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bug004_batch_failclosed_standalone)
 target_include_directories(test_exploit_bug004_batch_failclosed_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_bug004_batch_failclosed_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bug004_batch_failclosed COMMAND test_exploit_bug004_batch_failclosed_standalone)
 set_tests_properties(exploit_bug004_batch_failclosed PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;batch;failclosed")
@@ -2930,7 +2930,7 @@ if(SECP256K1_BUILD_CROSS_TESTS)
     set_tests_properties(cross_libsecp256k1 PROPERTIES TIMEOUT 900 LABELS "audit;exploit;differential;libsecp")
     message(STATUS "  Cross-test vs libsecp256k1: ON (ref: v0.6.0)")
 
-    # NOTE: CT vs libsecp benchmark removed -- use cpu/bench/bench_unified instead
+    # NOTE: CT vs libsecp benchmark removed -- use src/cpu/bench/bench_unified instead
     #       (bench_unified Section 8 has full CT-vs-CT apple-to-apple ratios)
 endif()
 
@@ -2946,7 +2946,7 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND TARGET ufsecp_static)
     target_include_directories(test_fuzz_parsers PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     target_compile_definitions(test_fuzz_parsers PRIVATE "UFSECP_API=")
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
@@ -2962,7 +2962,7 @@ if(SECP256K1_BUILD_FUZZ_TESTS AND TARGET ufsecp_static)
     target_include_directories(test_fuzz_address_bip32_ffi PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     target_compile_definitions(test_fuzz_address_bip32_ffi PRIVATE "UFSECP_API=")
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
@@ -2991,7 +2991,7 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     add_executable(test_musig2_frost test_musig2_frost.cpp)
     target_link_libraries(test_musig2_frost PRIVATE fastsecp256k1)
     target_include_directories(test_musig2_frost PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(test_musig2_frost PRIVATE "LINKER:/STACK:8388608")
@@ -3004,7 +3004,7 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     add_executable(test_musig2_frost_advanced test_musig2_frost_advanced.cpp)
     target_link_libraries(test_musig2_frost_advanced PRIVATE fastsecp256k1)
     target_include_directories(test_musig2_frost_advanced PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(test_musig2_frost_advanced PRIVATE "LINKER:/STACK:8388608")
@@ -3017,7 +3017,7 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     add_executable(test_frost_kat test_frost_kat.cpp)
     target_link_libraries(test_frost_kat PRIVATE fastsecp256k1)
     target_include_directories(test_frost_kat PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(test_frost_kat PRIVATE "LINKER:/STACK:8388608")
@@ -3030,7 +3030,7 @@ if(SECP256K1_BUILD_PROTOCOL_TESTS)
     add_executable(test_musig2_bip327_vectors test_musig2_bip327_vectors.cpp)
     target_link_libraries(test_musig2_bip327_vectors PRIVATE fastsecp256k1)
     target_include_directories(test_musig2_bip327_vectors PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(test_musig2_bip327_vectors PRIVATE "LINKER:/STACK:8388608")
@@ -3134,11 +3134,11 @@ add_executable(unified_audit_runner
     test_nonce_uniqueness.cpp
     test_parse_strictness.cpp
     # -- ufsecp FFI implementation (needed by fuzz_parsers + fuzz_address) --
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
     # -- ufsecp GPU ABI implementation + tests (null-guard paths work without hardware) --
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/src/ufsecp_gpu_impl.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_registry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/src/gpu_backend_fallback.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp
     test_gpu_host_api_negative.cpp
     test_gpu_abi_gate.cpp
     # -- field representation tests --
@@ -3478,7 +3478,7 @@ target_include_directories(unified_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp   # for ufsecp_impl.cpp "#include ufsecp.h"
     ${CMAKE_CURRENT_BINARY_DIR}/../include   # for generated version.hpp
     ${CMAKE_BINARY_DIR}/include              # fallback for version.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../gpu/include  # for gpu_backend.hpp (gpu_registry.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include  # for gpu_backend.hpp (gpu_registry.cpp)
     ${CMAKE_CURRENT_SOURCE_DIR}/../bindings/c_api  # for ultrafast_secp256k1.h (jni_retval test)
 )
 # Inject git hash at compile time (short hash, 8 chars)
@@ -3824,7 +3824,7 @@ macro(fuzz_target_defaults target_name)
     target_include_directories(${target_name} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
     )
     target_compile_definitions(${target_name} PRIVATE "UFSECP_API=")
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))

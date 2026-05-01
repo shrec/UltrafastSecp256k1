@@ -195,7 +195,7 @@ val secret = Secp256k1.ctEcdh(myPrivkey, theirPubkey)
 
 ### ARM64 Optimizations
 
-**Inline Assembly** (`cpu/src/field_asm_arm64.cpp`):
+**Inline Assembly** (`src/cpu/src/field_asm_arm64.cpp`):
 - **`field_mul_arm64`** -- 4x4 schoolbook MUL/UMULH + secp256k1 fast reduction (85 ns/op)
 - **`field_sqr_arm64`** -- Optimized squaring (10 mul vs 16) (66 ns/op)
 - **`field_add_arm64`** -- ADDS/ADCS + branchless normalization (18 ns/op)

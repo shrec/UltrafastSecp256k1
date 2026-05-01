@@ -21,32 +21,32 @@
 ## 1. File Inventory (What Was Created)
 
 ### CUDA (reference -- already complete)
-- `cuda/include/hash160.cuh` -- SHA-256 + RIPEMD-160 + Hash160
-- `cuda/include/ecdsa.cuh` -- ECDSA sign/verify
-- `cuda/include/schnorr.cuh` -- Schnorr BIP-340
-- `cuda/include/ecdh.cuh` -- ECDH shared secret
-- `cuda/include/recovery.cuh` -- Key recovery
-- `cuda/include/msm.cuh` -- Multi-scalar multiplication
-- `cuda/src/test_suite.cu` -- Full test suite
+- `src/cuda/include/hash160.cuh` -- SHA-256 + RIPEMD-160 + Hash160
+- `src/cuda/include/ecdsa.cuh` -- ECDSA sign/verify
+- `src/cuda/include/schnorr.cuh` -- Schnorr BIP-340
+- `src/cuda/include/ecdh.cuh` -- ECDH shared secret
+- `src/cuda/include/recovery.cuh` -- Key recovery
+- `src/cuda/include/msm.cuh` -- Multi-scalar multiplication
+- `src/cuda/src/test_suite.cu` -- Full test suite
 
 ### OpenCL
-- `opencl/kernels/secp256k1_field.cl` -- Field arithmetic (4x64-bit)
-- `opencl/kernels/secp256k1_point.cl` -- EC point operations
-- `opencl/kernels/secp256k1_batch.cl` -- Batch operations
-- `opencl/kernels/secp256k1_affine.cl` -- Affine conversions
-- `opencl/kernels/secp256k1_extended.cl` -- Scalar, SHA-256, HMAC, RFC6979, ECDSA, Schnorr, ECDH, Recovery, MSM (~1370 lines)
-- `opencl/kernels/secp256k1_hash160.cl` -- **NEW** -- SHA-256 one-shot + RIPEMD-160 + Hash160
+- `src/opencl/kernels/secp256k1_field.cl` -- Field arithmetic (4x64-bit)
+- `src/opencl/kernels/secp256k1_point.cl` -- EC point operations
+- `src/opencl/kernels/secp256k1_batch.cl` -- Batch operations
+- `src/opencl/kernels/secp256k1_affine.cl` -- Affine conversions
+- `src/opencl/kernels/secp256k1_extended.cl` -- Scalar, SHA-256, HMAC, RFC6979, ECDSA, Schnorr, ECDH, Recovery, MSM (~1370 lines)
+- `src/opencl/kernels/secp256k1_hash160.cl` -- **NEW** -- SHA-256 one-shot + RIPEMD-160 + Hash160
 - `opencl/tests/opencl_extended_test.cpp` -- **NEW** -- Host-side test+bench
 - `opencl/src/opencl_selftest.cpp` -- Existing 40-test suite (field/point)
 
 ### Metal
-- `metal/shaders/secp256k1_field.h` -- Field arithmetic (8x32-bit)
-- `metal/shaders/secp256k1_point.h` -- EC point operations
-- `metal/shaders/secp256k1_affine.h` -- Affine conversions
-- `metal/shaders/secp256k1_bloom.h` -- Bloom filter (external -- not part of this project)
-- `metal/shaders/secp256k1_extended.h` -- Scalar, SHA-256, HMAC, RFC6979, ECDSA, Schnorr, ECDH, Recovery, MSM (~680 lines)
-- `metal/shaders/secp256k1_hash160.h` -- **NEW** -- SHA-256 one-shot + RIPEMD-160 + Hash160
-- `metal/shaders/secp256k1_kernels.metal` -- **UPDATED** -- Now includes extended.h + hash160.h, 18 kernels total
+- `src/metal/shaders/secp256k1_field.h` -- Field arithmetic (8x32-bit)
+- `src/metal/shaders/secp256k1_point.h` -- EC point operations
+- `src/metal/shaders/secp256k1_affine.h` -- Affine conversions
+- `src/metal/shaders/secp256k1_bloom.h` -- Bloom filter (external -- not part of this project)
+- `src/metal/shaders/secp256k1_extended.h` -- Scalar, SHA-256, HMAC, RFC6979, ECDSA, Schnorr, ECDH, Recovery, MSM (~680 lines)
+- `src/metal/shaders/secp256k1_hash160.h` -- **NEW** -- SHA-256 one-shot + RIPEMD-160 + Hash160
+- `src/metal/shaders/secp256k1_kernels.metal` -- **UPDATED** -- Now includes extended.h + hash160.h, 18 kernels total
 - `metal/tests/metal_extended_test.mm` -- **NEW** -- Host-side test+bench
 - `metal/src/metal_runtime.mm` -- Existing Metal runtime
 

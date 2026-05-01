@@ -380,11 +380,11 @@ job_ct_verif() {
     fi
 
     local cxxflags="-std=c++20 -O2 -emit-llvm -S -fno-exceptions -fno-rtti"
-    local includes="-I cpu/include -I cpu/include/secp256k1 -I cpu"
+    local includes="-I src/cpu/include -I src/cpu/include/secp256k1 -I cpu"
     local sources=(
-        "cpu/src/ct_field.cpp"
-        "cpu/src/ct_scalar.cpp"
-        "cpu/src/ct_sign.cpp"
+        "src/cpu/src/ct_field.cpp"
+        "src/cpu/src/ct_scalar.cpp"
+        "src/cpu/src/ct_sign.cpp"
     )
     for src in "${sources[@]}"; do
         local base

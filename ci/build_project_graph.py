@@ -678,23 +678,23 @@ def classify_file(rel_path: str):
     p = rel_path.lower()
     
     # Category
-    if p.startswith('cpu/src/'):
+    if p.startswith('src/cpu/src/'):
         cat = 'cpu_core'
-    elif p.startswith('cpu/include/'):
+    elif p.startswith('src/cpu/include/'):
         cat = 'cpu_header'
-    elif p.startswith('cpu/tests/') or p.startswith('cpu/test'):
+    elif p.startswith('src/cpu/tests/') or p.startswith('src/cpu/test'):
         cat = 'cpu_test'
-    elif p.startswith('cpu/bench/'):
+    elif p.startswith('src/cpu/bench/'):
         cat = 'benchmark'
-    elif p.startswith('cpu/fuzz/'):
+    elif p.startswith('src/cpu/fuzz/'):
         cat = 'fuzz'
     elif p.startswith('audit/'):
         cat = 'audit'
-    elif p.startswith('cuda/'):
+    elif p.startswith('src/cuda/'):
         cat = 'cuda'
-    elif p.startswith('opencl/'):
+    elif p.startswith('src/opencl/'):
         cat = 'opencl'
-    elif p.startswith('metal/'):
+    elif p.startswith('src/metal/'):
         cat = 'metal'
     elif p.startswith('include/ufsecp/'):
         cat = 'abi'
@@ -706,9 +706,9 @@ def classify_file(rel_path: str):
         cat = 'script'
     elif p.startswith('compat/'):
         cat = 'compat'
-    elif p.startswith('wasm/'):
+    elif p.startswith('bindings/wasm/'):
         cat = 'wasm'
-    elif p.startswith('android/'):
+    elif p.startswith('bindings/android/'):
         cat = 'android'
     elif p.startswith('tests/'):
         cat = 'test_integration'
@@ -869,7 +869,7 @@ def derive_semantic_tags_for_source(path: str, category: str, subsystem: str, la
         add('audit_evidence', 0.95)
     if category == 'benchmark' or 'bench' in p:
         add('benchmarking', 0.95)
-    if category in ('cuda', 'opencl', 'metal') or p.startswith('gpu/'):
+    if category in ('cuda', 'opencl', 'metal') or p.startswith('src/gpu/'):
         add('gpu_acceleration', 1.0)
     if category in ('compat', 'android', 'wasm') or any(x in p for x in ('arm64', 'riscv', 'esp32', 'wasm', 'msvc', 'cross_platform')):
         add('cross_platform', 0.9)
@@ -948,13 +948,13 @@ def derive_semantic_tags_for_abi(name: str, category: str, layer: str):
 
 def infer_backend_from_path(path: str) -> str:
     p = path.lower()
-    if p.startswith('cuda/') or p.startswith('gpu/'):
+    if p.startswith('src/cuda/') or p.startswith('src/gpu/'):
         return 'cuda'
-    if p.startswith('opencl/'):
+    if p.startswith('src/opencl/'):
         return 'opencl'
-    if p.startswith('metal/'):
+    if p.startswith('src/metal/'):
         return 'metal'
-    if p.startswith('wasm/'):
+    if p.startswith('bindings/wasm/'):
         return 'wasm'
     if p.startswith('ci/'):
         return 'script'
@@ -1425,9 +1425,9 @@ def populate_constants(cur: sqlite3.Cursor):
 def populate_gpu_backends(cur: sqlite3.Cursor):
     backends = [
         ('cuda',
-         json.dumps(['cuda/src/secp256k1.cu','cuda/src/test_suite.cu','cuda/src/gpu_audit_runner.cu',
-                      'cuda/src/gpu_bench_unified.cu','cuda/src/bench_compare.cu','cuda/src/bench_bip352.cu',
-                      'cuda/src/bench_zk.cu','cuda/src/test_ct_smoke.cu','cuda/src/bench_cuda.cu']),
+         json.dumps(['src/cuda/src/secp256k1.cu','src/cuda/src/test_suite.cu','src/cuda/src/gpu_audit_runner.cu',
+                      'src/cuda/src/gpu_bench_unified.cu','src/cuda/src/bench_compare.cu','src/cuda/src/bench_bip352.cu',
+                      'src/cuda/src/bench_zk.cu','src/cuda/src/test_ct_smoke.cu','src/cuda/src/bench_cuda.cu']),
          json.dumps([]),  # CUDA uses header-only kernels
          json.dumps(['secp256k1_cuda_lib','secp256k1_cuda_test','gpu_audit_runner','gpu_bench_unified',
                       'bench_compare','test_ct_smoke','bench_zk','bench_bip352']),
@@ -1436,9 +1436,9 @@ def populate_gpu_backends(cur: sqlite3.Cursor):
                       'pedersen':True,'zk':True,'msm':True,'ct_field':True,'ct_scalar':True,
                       'ct_point':True,'ct_sign':True,'ct_zk':True,'bloom':True,'recovery':True})),
         ('opencl',
-         json.dumps(['opencl/src/opencl_context.cpp','opencl/src/opencl_field.cpp',
-                      'opencl/src/opencl_point.cpp','opencl/src/opencl_batch.cpp',
-                      'opencl/src/opencl_selftest.cpp','opencl/src/opencl_audit_runner.cpp']),
+         json.dumps(['src/opencl/src/opencl_context.cpp','src/opencl/src/opencl_field.cpp',
+                      'src/opencl/src/opencl_point.cpp','src/opencl/src/opencl_batch.cpp',
+                      'src/opencl/src/opencl_selftest.cpp','src/opencl/src/opencl_audit_runner.cpp']),
          json.dumps(['secp256k1_field.cl','secp256k1_point.cl','secp256k1_batch.cl',
                       'secp256k1_affine.cl','secp256k1_extended.cl','secp256k1_hash160.cl',
                       'secp256k1_keccak256.cl','secp256k1_msm.cl','secp256k1_pedersen.cl',
@@ -1453,9 +1453,9 @@ def populate_gpu_backends(cur: sqlite3.Cursor):
                       'pedersen':True,'zk':True,'msm':True,'ct_field':True,'ct_scalar':True,
                       'ct_point':True,'ct_sign':True,'ct_zk':True,'bloom':True,'recovery':True})),
         ('metal',
-         json.dumps(['metal/src/metal_runtime.mm','metal/src/metal_audit_runner.mm',
-                      'metal/app/bench_metal.mm','metal/app/metal_test.mm',
-                      'metal/tests/test_metal_host.cpp','metal/tests/metal_extended_test.mm']),
+         json.dumps(['src/metal/src/metal_runtime.mm','src/metal/src/metal_audit_runner.mm',
+                      'src/metal/app/bench_metal.mm','src/metal/app/metal_test.mm',
+                      'src/metal/tests/test_metal_host.cpp','src/metal/tests/metal_extended_test.mm']),
          json.dumps(['secp256k1_field.h','secp256k1_point.h','secp256k1_affine.h',
                       'secp256k1_extended.h','secp256k1_hash160.h','secp256k1_keccak256.h',
                       'secp256k1_msm.h','secp256k1_pedersen.h','secp256k1_recovery.h',
@@ -1518,26 +1518,26 @@ def populate_namespaces(cur: sqlite3.Cursor):
 
 def populate_cpp_types(cur: sqlite3.Cursor):
     types = [
-        ('FieldElement', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/field.hpp', 'Prime field element mod p (4x64 or 5x52 limbs)'),
-        ('Scalar', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/scalar.hpp', 'Scalar mod n (4x64 limbs)'),
-        ('Point', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/point.hpp', 'Affine/Jacobian point on secp256k1'),
-        ('ECDSASignature', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/ecdsa.hpp', 'ECDSA (r,s) signature'),
-        ('SchnorrSignature', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/schnorr.hpp', 'Schnorr/BIP-340 (R,s) signature'),
-        ('ExtendedKey', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/bip32.hpp', 'BIP-32 extended key (xpub/xprv)'),
-        ('RecoverableSignature', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/recovery.hpp', 'ECDSA signature with recovery id'),
-        ('AdaptorSignature', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/adaptor.hpp', 'Adaptor (pre-)signature'),
-        ('PedersenCommitment', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/pedersen.hpp', 'Pedersen commitment (point)'),
-        ('RangeProof', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/zk.hpp', 'Zero-knowledge range proof'),
-        ('DLEQProof', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/zk.hpp', 'DLEQ proof'),
-        ('KnowledgeProof', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/zk.hpp', 'ZK knowledge proof'),
-        ('MuSig2KeyAggContext', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/musig2.hpp', 'MuSig2 key aggregation context'),
-        ('MuSig2Session', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/musig2.hpp', 'MuSig2 signing session'),
-        ('FROSTKeygenResult', 'struct', 'secp256k1::fast', 'cpu/include/secp256k1/frost.hpp', 'FROST DKG result'),
-        ('CoinParams', 'struct', 'secp256k1::coins', 'cpu/include/secp256k1/coins/coin_params.hpp', 'Per-coin address parameters'),
-        ('FieldElement', 'class', 'secp256k1::ct', 'cpu/include/secp256k1/ct/field.hpp', 'CT field element (constant-time ops)'),
-        ('Scalar', 'class', 'secp256k1::ct', 'cpu/include/secp256k1/ct/scalar.hpp', 'CT scalar (constant-time ops)'),
-        ('SHA256', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/sha256.hpp', 'SHA-256 hasher (hardware-accelerated)'),
-        ('SHA512', 'class', 'secp256k1::fast', 'cpu/include/secp256k1/sha512.hpp', 'SHA-512 hasher'),
+        ('FieldElement', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/field.hpp', 'Prime field element mod p (4x64 or 5x52 limbs)'),
+        ('Scalar', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/scalar.hpp', 'Scalar mod n (4x64 limbs)'),
+        ('Point', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/point.hpp', 'Affine/Jacobian point on secp256k1'),
+        ('ECDSASignature', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/ecdsa.hpp', 'ECDSA (r,s) signature'),
+        ('SchnorrSignature', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/schnorr.hpp', 'Schnorr/BIP-340 (R,s) signature'),
+        ('ExtendedKey', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/bip32.hpp', 'BIP-32 extended key (xpub/xprv)'),
+        ('RecoverableSignature', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/recovery.hpp', 'ECDSA signature with recovery id'),
+        ('AdaptorSignature', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/adaptor.hpp', 'Adaptor (pre-)signature'),
+        ('PedersenCommitment', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/pedersen.hpp', 'Pedersen commitment (point)'),
+        ('RangeProof', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/zk.hpp', 'Zero-knowledge range proof'),
+        ('DLEQProof', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/zk.hpp', 'DLEQ proof'),
+        ('KnowledgeProof', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/zk.hpp', 'ZK knowledge proof'),
+        ('MuSig2KeyAggContext', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/musig2.hpp', 'MuSig2 key aggregation context'),
+        ('MuSig2Session', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/musig2.hpp', 'MuSig2 signing session'),
+        ('FROSTKeygenResult', 'struct', 'secp256k1::fast', 'src/cpu/include/secp256k1/frost.hpp', 'FROST DKG result'),
+        ('CoinParams', 'struct', 'secp256k1::coins', 'src/cpu/include/secp256k1/coins/coin_params.hpp', 'Per-coin address parameters'),
+        ('FieldElement', 'class', 'secp256k1::ct', 'src/cpu/include/secp256k1/ct/field.hpp', 'CT field element (constant-time ops)'),
+        ('Scalar', 'class', 'secp256k1::ct', 'src/cpu/include/secp256k1/ct/scalar.hpp', 'CT scalar (constant-time ops)'),
+        ('SHA256', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/sha256.hpp', 'SHA-256 hasher (hardware-accelerated)'),
+        ('SHA512', 'class', 'secp256k1::fast', 'src/cpu/include/secp256k1/sha512.hpp', 'SHA-512 hasher'),
     ]
     for name, kind, ns, header, desc in types:
         cur.execute("""INSERT OR IGNORE INTO cpp_types
@@ -1547,25 +1547,25 @@ def populate_cpp_types(cur: sqlite3.Cursor):
 
 def populate_platform_dispatch(cur: sqlite3.Cursor):
     dispatches = [
-        ('cpu/src/field.cpp', 'x86_64', 'ifdef', '__SIZEOF_INT128__ -> FE52 5x52 inline mul/sqr'),
-        ('cpu/src/field.cpp', 'arm64', 'ifdef', '__SIZEOF_INT128__ -> FE52 5x52 inline mul/sqr'),
-        ('cpu/src/field.cpp', 'riscv64', 'ifdef', '__SIZEOF_INT128__ + optional asm mul/sqr'),
-        ('cpu/src/field.cpp', 'msvc', 'ifdef', 'No __int128 -> 4x64 Comba fallback'),
-        ('cpu/src/field.cpp', 'esp32', 'ifdef', 'No __int128 -> 4x64 Comba fallback'),
-        ('cpu/src/ct_field.cpp', 'x86_64', 'ifdef', 'FE52 constant-time field ops w/ 5x52'),
-        ('cpu/src/ct_field.cpp', 'msvc', 'ifdef', 'SafeGCD30 25x30 (no __int128)'),
-        ('cpu/src/ct_scalar.cpp', 'x86_64', 'ifdef', 'SafeGCD 10x59 limbs for inversion'),
-        ('cpu/src/ct_scalar.cpp', 'msvc', 'ifdef', 'SafeGCD30 25x30 limbs for inversion'),
-        ('cpu/src/field_asm.cpp', 'x86_64', 'asm_file', 'ADX/MULX inline assembly mul/sqr'),
-        ('cpu/src/field_asm_arm64.cpp', 'arm64', 'asm_file', 'NEON/MUL inline assembly'),
-        ('cpu/src/field_asm_riscv64.S', 'riscv64', 'asm_file', 'RV64 assembly field mul/sqr'),
-        ('cpu/src/field_asm52_riscv64.S', 'riscv64', 'asm_file', 'RV64 5x52 assembly'),
-        ('cpu/src/field_asm_x64.asm', 'x86_64', 'asm_file', 'MASM x64 assembly (Windows)'),
-        ('cpu/src/field_asm_x64_gas.S', 'x86_64', 'asm_file', 'GAS x64 assembly (Linux)'),
-        ('cpu/src/hash_accel.cpp', 'x86_64', 'ifdef', 'SHA-NI intrinsics'),
-        ('cpu/src/hash_accel.cpp', 'arm64', 'ifdef', 'ARMv8 CE SHA intrinsics'),
-        ('cpu/src/ct_point.cpp', 'x86_64', 'ifdef', 'SSE2/AVX2 constant-time conditional move'),
-        ('cpu/src/glv.cpp', 'all', 'constexpr_if', 'GLV endomorphism beta/lambda decomposition'),
+        ('src/cpu/src/field.cpp', 'x86_64', 'ifdef', '__SIZEOF_INT128__ -> FE52 5x52 inline mul/sqr'),
+        ('src/cpu/src/field.cpp', 'arm64', 'ifdef', '__SIZEOF_INT128__ -> FE52 5x52 inline mul/sqr'),
+        ('src/cpu/src/field.cpp', 'riscv64', 'ifdef', '__SIZEOF_INT128__ + optional asm mul/sqr'),
+        ('src/cpu/src/field.cpp', 'msvc', 'ifdef', 'No __int128 -> 4x64 Comba fallback'),
+        ('src/cpu/src/field.cpp', 'esp32', 'ifdef', 'No __int128 -> 4x64 Comba fallback'),
+        ('src/cpu/src/ct_field.cpp', 'x86_64', 'ifdef', 'FE52 constant-time field ops w/ 5x52'),
+        ('src/cpu/src/ct_field.cpp', 'msvc', 'ifdef', 'SafeGCD30 25x30 (no __int128)'),
+        ('src/cpu/src/ct_scalar.cpp', 'x86_64', 'ifdef', 'SafeGCD 10x59 limbs for inversion'),
+        ('src/cpu/src/ct_scalar.cpp', 'msvc', 'ifdef', 'SafeGCD30 25x30 limbs for inversion'),
+        ('src/cpu/src/field_asm.cpp', 'x86_64', 'asm_file', 'ADX/MULX inline assembly mul/sqr'),
+        ('src/cpu/src/field_asm_arm64.cpp', 'arm64', 'asm_file', 'NEON/MUL inline assembly'),
+        ('src/cpu/src/field_asm_riscv64.S', 'riscv64', 'asm_file', 'RV64 assembly field mul/sqr'),
+        ('src/cpu/src/field_asm52_riscv64.S', 'riscv64', 'asm_file', 'RV64 5x52 assembly'),
+        ('src/cpu/src/field_asm_x64.asm', 'x86_64', 'asm_file', 'MASM x64 assembly (Windows)'),
+        ('src/cpu/src/field_asm_x64_gas.S', 'x86_64', 'asm_file', 'GAS x64 assembly (Linux)'),
+        ('src/cpu/src/hash_accel.cpp', 'x86_64', 'ifdef', 'SHA-NI intrinsics'),
+        ('src/cpu/src/hash_accel.cpp', 'arm64', 'ifdef', 'ARMv8 CE SHA intrinsics'),
+        ('src/cpu/src/ct_point.cpp', 'x86_64', 'ifdef', 'SSE2/AVX2 constant-time conditional move'),
+        ('src/cpu/src/glv.cpp', 'all', 'constexpr_if', 'GLV endomorphism beta/lambda decomposition'),
     ]
     for src, plat, mech, desc in dispatches:
         cur.execute("""INSERT OR IGNORE INTO platform_dispatch
@@ -1669,84 +1669,84 @@ def populate_edges(cur: sqlite3.Cursor):
     
     # Test -> source file coverage edges
     test_coverage = {
-        'field_52': ['cpu/src/field_52.cpp', 'cpu/src/field.cpp'],
-        'field_26': ['cpu/src/field_26.cpp'],
-        'selftest': ['cpu/src/selftest.cpp', 'cpu/src/precompute.cpp'],
+        'field_52': ['src/cpu/src/field_52.cpp', 'src/cpu/src/field.cpp'],
+        'field_26': ['src/cpu/src/field_26.cpp'],
+        'selftest': ['src/cpu/src/selftest.cpp', 'src/cpu/src/precompute.cpp'],
         'comprehensive': [
-            'cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp', 'cpu/src/point.cpp',
-            'cpu/src/glv.cpp', 'cpu/src/ecmult_gen_comb.cpp', 'cpu/src/precompute.cpp',
+            'src/cpu/src/ecdsa.cpp', 'src/cpu/src/schnorr.cpp', 'src/cpu/src/point.cpp',
+            'src/cpu/src/glv.cpp', 'src/cpu/src/ecmult_gen_comb.cpp', 'src/cpu/src/precompute.cpp',
         ],
         'exhaustive': [
-            'cpu/src/field.cpp', 'cpu/src/scalar.cpp', 'cpu/src/point.cpp',
-            'cpu/src/field_asm.cpp', 'cpu/src/field_asm_arm64.cpp',
-            'cpu/src/field_asm_riscv64.cpp',
+            'src/cpu/src/field.cpp', 'src/cpu/src/scalar.cpp', 'src/cpu/src/point.cpp',
+            'src/cpu/src/field_asm.cpp', 'src/cpu/src/field_asm_arm64.cpp',
+            'src/cpu/src/field_asm_riscv64.cpp',
         ],
-        'bip340_vectors': ['cpu/src/schnorr.cpp'],
-        'bip340_strict': ['cpu/src/schnorr.cpp'],
-        'bip32_vectors': ['cpu/src/bip32.cpp'],
-        'bip39': ['cpu/src/bip39.cpp'],
-        'rfc6979_vectors': ['cpu/src/ecdsa.cpp'],
-        'ecc_properties': ['cpu/src/point.cpp', 'cpu/src/scalar.cpp'],
+        'bip340_vectors': ['src/cpu/src/schnorr.cpp'],
+        'bip340_strict': ['src/cpu/src/schnorr.cpp'],
+        'bip32_vectors': ['src/cpu/src/bip32.cpp'],
+        'bip39': ['src/cpu/src/bip39.cpp'],
+        'rfc6979_vectors': ['src/cpu/src/ecdsa.cpp'],
+        'ecc_properties': ['src/cpu/src/point.cpp', 'src/cpu/src/scalar.cpp'],
         'ethereum': [
-            'cpu/src/ethereum.cpp', 'cpu/src/eth_signing.cpp',
-            'cpu/src/keccak256.cpp', 'cpu/src/message_signing.cpp',
+            'src/cpu/src/ethereum.cpp', 'src/cpu/src/eth_signing.cpp',
+            'src/cpu/src/keccak256.cpp', 'src/cpu/src/message_signing.cpp',
         ],
-        'zk_proofs': ['cpu/src/zk.cpp', 'cpu/src/pedersen.cpp'],
-        'wallet': ['cpu/src/wallet.cpp', 'cpu/src/coin_address.cpp', 'cpu/src/coin_hd.cpp', 'cpu/src/address.cpp'],
-        'ct_equivalence': ['cpu/src/ct_field.cpp', 'cpu/src/ct_scalar.cpp', 'cpu/src/ct_point.cpp', 'cpu/src/ct_sign.cpp'],
-        'ct_sidechannel': ['cpu/src/ct_sign.cpp', 'cpu/src/ct_point.cpp'],
+        'zk_proofs': ['src/cpu/src/zk.cpp', 'src/cpu/src/pedersen.cpp'],
+        'wallet': ['src/cpu/src/wallet.cpp', 'src/cpu/src/coin_address.cpp', 'src/cpu/src/coin_hd.cpp', 'src/cpu/src/address.cpp'],
+        'ct_equivalence': ['src/cpu/src/ct_field.cpp', 'src/cpu/src/ct_scalar.cpp', 'src/cpu/src/ct_point.cpp', 'src/cpu/src/ct_sign.cpp'],
+        'ct_sidechannel': ['src/cpu/src/ct_sign.cpp', 'src/cpu/src/ct_point.cpp'],
         'adversarial_protocol': [
-            'cpu/src/musig2.cpp', 'cpu/src/frost.cpp', 'cpu/src/adaptor.cpp',
-            'cpu/src/ecdsa.cpp', 'cpu/src/ecdh.cpp', 'cpu/src/recovery.cpp',
+            'src/cpu/src/musig2.cpp', 'src/cpu/src/frost.cpp', 'src/cpu/src/adaptor.cpp',
+            'src/cpu/src/ecdsa.cpp', 'src/cpu/src/ecdh.cpp', 'src/cpu/src/recovery.cpp',
             # H.2: chacha20-poly1305 AEAD
-            'cpu/src/chacha20_poly1305.cpp',
+            'src/cpu/src/chacha20_poly1305.cpp',
             # H.4: ElligatorSwift / EllSwift
-            'cpu/src/ellswift.cpp',
+            'src/cpu/src/ellswift.cpp',
             # H.9: BIP-143 sighash
-            'cpu/src/bip143.cpp',
+            'src/cpu/src/bip143.cpp',
             # H.10: BIP-144 txid / wtxid / witness commitment
-            'cpu/src/bip144.cpp',
+            'src/cpu/src/bip144.cpp',
             # H.11: SegWit program helpers
-            'cpu/src/segwit.cpp',
+            'src/cpu/src/segwit.cpp',
             # H.12 + K.4-K.5: Taproot keypath / tapscript sighash
-            'cpu/src/taproot.cpp',
+            'src/cpu/src/taproot.cpp',
             # K.1-K.3: BIP-324 session protocol
-            'cpu/src/bip324.cpp',
+            'src/cpu/src/bip324.cpp',
             # BIP-324 / EllSwift uses HKDF internally
-            'cpu/src/hkdf.cpp',
+            'src/cpu/src/hkdf.cpp',
             # I.5: batch verify paths
-            'cpu/src/batch_verify.cpp',
+            'src/cpu/src/batch_verify.cpp',
         ],
-        'ecies_regression': ['cpu/src/ecies.cpp'],
-        'musig2_frost': ['cpu/src/musig2.cpp', 'cpu/src/frost.cpp'],
-        'abi_gate': ['cpu/src/ufsecp_impl.cpp'],
-        'gpu_bip352_scan': ['cpu/src/ufsecp_gpu_impl.cpp'],
-        'gpu_abi_gate': ['cpu/src/ufsecp_gpu_impl.cpp'],
-        'gpu_api_negative': ['cpu/src/ufsecp_gpu_impl.cpp'],
+        'ecies_regression': ['src/cpu/src/ecies.cpp'],
+        'musig2_frost': ['src/cpu/src/musig2.cpp', 'src/cpu/src/frost.cpp'],
+        'abi_gate': ['src/cpu/src/ufsecp_impl.cpp'],
+        'gpu_bip352_scan': ['src/cpu/src/ufsecp_gpu_impl.cpp'],
+        'gpu_abi_gate': ['src/cpu/src/ufsecp_gpu_impl.cpp'],
+        'gpu_api_negative': ['src/cpu/src/ufsecp_gpu_impl.cpp'],
         # B-04 monolith split: monolith_split exercises one function from each domain wrapper
         'monolith_split': [
-            'cpu/src/ufsecp_impl.cpp',
-            'cpu/src/impl/ufsecp_address.cpp',
-            'cpu/src/impl/ufsecp_bip322.cpp',
-            'cpu/src/impl/ufsecp_coins.cpp',
-            'cpu/src/impl/ufsecp_core.cpp',
-            'cpu/src/impl/ufsecp_ecdsa.cpp',
-            'cpu/src/impl/ufsecp_musig2.cpp',
-            'cpu/src/impl/ufsecp_taproot.cpp',
-            'cpu/src/impl/ufsecp_zk.cpp',
+            'src/cpu/src/ufsecp_impl.cpp',
+            'src/cpu/src/impl/ufsecp_address.cpp',
+            'src/cpu/src/impl/ufsecp_bip322.cpp',
+            'src/cpu/src/impl/ufsecp_coins.cpp',
+            'src/cpu/src/impl/ufsecp_core.cpp',
+            'src/cpu/src/impl/ufsecp_ecdsa.cpp',
+            'src/cpu/src/impl/ufsecp_musig2.cpp',
+            'src/cpu/src/impl/ufsecp_taproot.cpp',
+            'src/cpu/src/impl/ufsecp_zk.cpp',
         ],
-        'wycheproof_ecdsa': ['cpu/src/ecdsa.cpp'],
-        'wycheproof_ecdh': ['cpu/src/ecdh.cpp'],
-        'fault_injection': ['cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp'],
+        'wycheproof_ecdsa': ['src/cpu/src/ecdsa.cpp'],
+        'wycheproof_ecdh': ['src/cpu/src/ecdh.cpp'],
+        'fault_injection': ['src/cpu/src/ecdsa.cpp', 'src/cpu/src/schnorr.cpp'],
         'batch_add_affine': [
-            'cpu/src/batch_add_affine.cpp',
-            'cpu/src/multiscalar.cpp',
-            'cpu/src/pippenger.cpp',
-            'cpu/src/batch_verify.cpp',
+            'src/cpu/src/batch_add_affine.cpp',
+            'src/cpu/src/multiscalar.cpp',
+            'src/cpu/src/pippenger.cpp',
+            'src/cpu/src/batch_verify.cpp',
         ],
-        'hash_accel': ['cpu/src/hash_accel.cpp'],
-        'message_signing': ['cpu/src/message_signing.cpp'],
-        'exploit_bip39_nfkd': ['cpu/src/unicode_nfkd.cpp', 'cpu/src/bip39.cpp'],
+        'hash_accel': ['src/cpu/src/hash_accel.cpp'],
+        'message_signing': ['src/cpu/src/message_signing.cpp'],
+        'exploit_bip39_nfkd': ['src/cpu/src/unicode_nfkd.cpp', 'src/cpu/src/bip39.cpp'],
     }
     for test, files in test_coverage.items():
         for f in files:
@@ -1757,33 +1757,33 @@ def populate_edges(cur: sqlite3.Cursor):
             count += 1
     
     # C ABI -> source implementation edges
-    # Note: after B-04 monolith split, ABI wrapper layer lives in cpu/src/impl/ufsecp_*.cpp.
+    # Note: after B-04 monolith split, ABI wrapper layer lives in src/cpu/src/impl/ufsecp_*.cpp.
     # Map both the deep implementation file and the wrapper file so neither is flagged as uncovered.
     abi_impl = {
-        'ecdsa': 'cpu/src/ecdsa.cpp', 'schnorr': 'cpu/src/schnorr.cpp',
-        'ecdh': 'cpu/src/ecdh.cpp', 'bip32': 'cpu/src/bip32.cpp',
-        'bip39': 'cpu/src/bip39.cpp', 'musig2': 'cpu/src/musig2.cpp',
-        'frost': 'cpu/src/frost.cpp', 'adaptor': 'cpu/src/adaptor.cpp',
-        'taproot': 'cpu/src/taproot.cpp', 'pedersen': 'cpu/src/pedersen.cpp',
-        'zk': 'cpu/src/zk.cpp', 'ecies': 'cpu/src/ecies.cpp',
-        'ethereum': 'cpu/src/ethereum.cpp', 'hash': 'cpu/src/hash_accel.cpp',
-        'wallet': 'cpu/src/wallet.cpp', 'address': 'cpu/src/address.cpp',
-        'multiscalar': 'cpu/src/multiscalar.cpp',
-        # B-04 wrapper layer (cpu/src/impl/): categories that don't map to a deep impl file
-        'coins': 'cpu/src/impl/ufsecp_coins.cpp',
-        'pubkey': 'cpu/src/impl/ufsecp_core.cpp',
-        'seckey': 'cpu/src/impl/ufsecp_core.cpp',
-        'context': 'cpu/src/impl/ufsecp_core.cpp',
-        'other': 'cpu/src/impl/ufsecp_core.cpp',
-        'silent_payments': 'cpu/src/impl/ufsecp_core.cpp',
-        'error': 'cpu/src/impl/ufsecp_core.cpp',
-        'wif': 'cpu/src/impl/ufsecp_core.cpp',
+        'ecdsa': 'src/cpu/src/ecdsa.cpp', 'schnorr': 'src/cpu/src/schnorr.cpp',
+        'ecdh': 'src/cpu/src/ecdh.cpp', 'bip32': 'src/cpu/src/bip32.cpp',
+        'bip39': 'src/cpu/src/bip39.cpp', 'musig2': 'src/cpu/src/musig2.cpp',
+        'frost': 'src/cpu/src/frost.cpp', 'adaptor': 'src/cpu/src/adaptor.cpp',
+        'taproot': 'src/cpu/src/taproot.cpp', 'pedersen': 'src/cpu/src/pedersen.cpp',
+        'zk': 'src/cpu/src/zk.cpp', 'ecies': 'src/cpu/src/ecies.cpp',
+        'ethereum': 'src/cpu/src/ethereum.cpp', 'hash': 'src/cpu/src/hash_accel.cpp',
+        'wallet': 'src/cpu/src/wallet.cpp', 'address': 'src/cpu/src/address.cpp',
+        'multiscalar': 'src/cpu/src/multiscalar.cpp',
+        # B-04 wrapper layer (src/cpu/src/impl/): categories that don't map to a deep impl file
+        'coins': 'src/cpu/src/impl/ufsecp_coins.cpp',
+        'pubkey': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'seckey': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'context': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'other': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'silent_payments': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'error': 'src/cpu/src/impl/ufsecp_core.cpp',
+        'wif': 'src/cpu/src/impl/ufsecp_core.cpp',
     }
     cur.execute("SELECT name, category FROM c_abi_functions")
     for fname, cat in cur.fetchall():
         target_file = None
         if fname.startswith('ufsecp_gpu_') or fname == 'ufsecp_bip352_prepare_scan_plan':
-            target_file = 'cpu/src/ufsecp_gpu_impl.cpp'
+            target_file = 'src/cpu/src/ufsecp_gpu_impl.cpp'
         elif cat in abi_impl:
             target_file = abi_impl[cat]
 
@@ -1805,14 +1805,14 @@ def populate_edges(cur: sqlite3.Cursor):
     
     # ABI routing -> source file edges (routes_through)
     ct_impl_map = {
-        'ct::ecdsa_sign': 'cpu/src/ct_sign.cpp',
-        'ct::schnorr_sign': 'cpu/src/ct_sign.cpp',
-        'ct::generator_mul': 'cpu/src/ct_point.cpp',
-        'ct::scalar_mul': 'cpu/src/ct_point.cpp',
-        'ct::musig2_partial_sign': 'cpu/src/musig2.cpp',
-        'ct::frost_sign': 'cpu/src/frost.cpp',
-        'ct::ecdsa_adaptor_sign': 'cpu/src/adaptor.cpp',
-        'ct::adaptor_sign': 'cpu/src/adaptor.cpp',
+        'ct::ecdsa_sign': 'src/cpu/src/ct_sign.cpp',
+        'ct::schnorr_sign': 'src/cpu/src/ct_sign.cpp',
+        'ct::generator_mul': 'src/cpu/src/ct_point.cpp',
+        'ct::scalar_mul': 'src/cpu/src/ct_point.cpp',
+        'ct::musig2_partial_sign': 'src/cpu/src/musig2.cpp',
+        'ct::frost_sign': 'src/cpu/src/frost.cpp',
+        'ct::ecdsa_adaptor_sign': 'src/cpu/src/adaptor.cpp',
+        'ct::adaptor_sign': 'src/cpu/src/adaptor.cpp',
     }
     cur.execute("SELECT abi_function, internal_call, layer FROM abi_routing")
     for abi_fn, internal, layer in cur.fetchall():
@@ -1926,91 +1926,91 @@ def populate_cpp_methods(cur: sqlite3.Cursor):
     """Extract public C++ methods from core headers."""
     methods = [
         # FieldElement (fast)
-        ('FieldElement', 'zero', 'static FieldElement zero()', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 35, 'fast'),
-        ('FieldElement', 'one', 'static FieldElement one()', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 36, 'fast'),
-        ('FieldElement', 'from_uint64', 'static FieldElement from_uint64(uint64_t)', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 37, 'fast'),
-        ('FieldElement', 'from_limbs', 'static FieldElement from_limbs(const limbs_type&)', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 38, 'fast'),
-        ('FieldElement', 'from_bytes', 'static FieldElement from_bytes(const array<uint8_t,32>&)', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 39, 'fast'),
-        ('FieldElement', 'parse_bytes_strict', 'static bool parse_bytes_strict(const uint8_t*, FieldElement&) noexcept', 1, 0, 1, 'cpu/include/secp256k1/field.hpp', 45, 'fast'),
-        ('FieldElement', 'from_mont', 'static FieldElement from_mont(const FieldElement&)', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 50, 'fast'),
-        ('FieldElement', 'from_hex', 'static FieldElement from_hex(const string&)', 1, 0, 0, 'cpu/include/secp256k1/field.hpp', 54, 'fast'),
-        ('FieldElement', 'to_bytes', 'array<uint8_t,32> to_bytes() const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 58, 'fast'),
-        ('FieldElement', 'to_bytes_into', 'void to_bytes_into(uint8_t*) const noexcept', 0, 1, 1, 'cpu/include/secp256k1/field.hpp', 60, 'fast'),
-        ('FieldElement', 'to_hex', 'string to_hex() const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 61, 'fast'),
-        ('FieldElement', 'limbs', 'const limbs_type& limbs() const noexcept', 0, 1, 1, 'cpu/include/secp256k1/field.hpp', 62, 'fast'),
-        ('FieldElement', 'limbs_mut', 'limbs_type& limbs_mut() noexcept', 0, 0, 1, 'cpu/include/secp256k1/field.hpp', 66, 'fast'),
-        ('FieldElement', 'operator+', 'FieldElement operator+(const FieldElement&) const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 74, 'fast'),
-        ('FieldElement', 'operator-', 'FieldElement operator-(const FieldElement&) const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 75, 'fast'),
-        ('FieldElement', 'operator*', 'FieldElement operator*(const FieldElement&) const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 76, 'fast'),
-        ('FieldElement', 'square', 'FieldElement square() const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 77, 'fast'),
-        ('FieldElement', 'inverse', 'FieldElement inverse() const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 78, 'fast'),
-        ('FieldElement', 'sqrt', 'FieldElement sqrt() const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 84, 'fast'),
-        ('FieldElement', 'negate', 'FieldElement negate(unsigned=1) const', 0, 1, 0, 'cpu/include/secp256k1/field.hpp', 95, 'fast'),
-        ('FieldElement', 'square_inplace', 'void square_inplace()', 0, 0, 0, 'cpu/include/secp256k1/field.hpp', 99, 'fast'),
-        ('FieldElement', 'inverse_inplace', 'void inverse_inplace()', 0, 0, 0, 'cpu/include/secp256k1/field.hpp', 100, 'fast'),
-        ('FieldElement', 'operator==', 'bool operator==(const FieldElement&) const noexcept', 0, 1, 1, 'cpu/include/secp256k1/field.hpp', 102, 'fast'),
+        ('FieldElement', 'zero', 'static FieldElement zero()', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 35, 'fast'),
+        ('FieldElement', 'one', 'static FieldElement one()', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 36, 'fast'),
+        ('FieldElement', 'from_uint64', 'static FieldElement from_uint64(uint64_t)', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 37, 'fast'),
+        ('FieldElement', 'from_limbs', 'static FieldElement from_limbs(const limbs_type&)', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 38, 'fast'),
+        ('FieldElement', 'from_bytes', 'static FieldElement from_bytes(const array<uint8_t,32>&)', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 39, 'fast'),
+        ('FieldElement', 'parse_bytes_strict', 'static bool parse_bytes_strict(const uint8_t*, FieldElement&) noexcept', 1, 0, 1, 'src/cpu/include/secp256k1/field.hpp', 45, 'fast'),
+        ('FieldElement', 'from_mont', 'static FieldElement from_mont(const FieldElement&)', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 50, 'fast'),
+        ('FieldElement', 'from_hex', 'static FieldElement from_hex(const string&)', 1, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 54, 'fast'),
+        ('FieldElement', 'to_bytes', 'array<uint8_t,32> to_bytes() const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 58, 'fast'),
+        ('FieldElement', 'to_bytes_into', 'void to_bytes_into(uint8_t*) const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/field.hpp', 60, 'fast'),
+        ('FieldElement', 'to_hex', 'string to_hex() const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 61, 'fast'),
+        ('FieldElement', 'limbs', 'const limbs_type& limbs() const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/field.hpp', 62, 'fast'),
+        ('FieldElement', 'limbs_mut', 'limbs_type& limbs_mut() noexcept', 0, 0, 1, 'src/cpu/include/secp256k1/field.hpp', 66, 'fast'),
+        ('FieldElement', 'operator+', 'FieldElement operator+(const FieldElement&) const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 74, 'fast'),
+        ('FieldElement', 'operator-', 'FieldElement operator-(const FieldElement&) const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 75, 'fast'),
+        ('FieldElement', 'operator*', 'FieldElement operator*(const FieldElement&) const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 76, 'fast'),
+        ('FieldElement', 'square', 'FieldElement square() const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 77, 'fast'),
+        ('FieldElement', 'inverse', 'FieldElement inverse() const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 78, 'fast'),
+        ('FieldElement', 'sqrt', 'FieldElement sqrt() const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 84, 'fast'),
+        ('FieldElement', 'negate', 'FieldElement negate(unsigned=1) const', 0, 1, 0, 'src/cpu/include/secp256k1/field.hpp', 95, 'fast'),
+        ('FieldElement', 'square_inplace', 'void square_inplace()', 0, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 99, 'fast'),
+        ('FieldElement', 'inverse_inplace', 'void inverse_inplace()', 0, 0, 0, 'src/cpu/include/secp256k1/field.hpp', 100, 'fast'),
+        ('FieldElement', 'operator==', 'bool operator==(const FieldElement&) const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/field.hpp', 102, 'fast'),
         # Scalar (fast)
-        ('Scalar', 'zero', 'static Scalar zero()', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 18, 'fast'),
-        ('Scalar', 'one', 'static Scalar one()', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 19, 'fast'),
-        ('Scalar', 'from_uint64', 'static Scalar from_uint64(uint64_t)', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 20, 'fast'),
-        ('Scalar', 'from_limbs', 'static Scalar from_limbs(const limbs_type&)', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 21, 'fast'),
-        ('Scalar', 'from_bytes', 'static Scalar from_bytes(const array<uint8_t,32>&)', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 22, 'fast'),
-        ('Scalar', 'parse_bytes_strict', 'static bool parse_bytes_strict(const uint8_t*, Scalar&) noexcept', 1, 0, 1, 'cpu/include/secp256k1/scalar.hpp', 27, 'fast'),
-        ('Scalar', 'parse_bytes_strict_nonzero', 'static bool parse_bytes_strict_nonzero(const uint8_t*, Scalar&) noexcept', 1, 0, 1, 'cpu/include/secp256k1/scalar.hpp', 31, 'fast'),
-        ('Scalar', 'from_hex', 'static Scalar from_hex(const string&)', 1, 0, 0, 'cpu/include/secp256k1/scalar.hpp', 37, 'fast'),
-        ('Scalar', 'to_bytes', 'array<uint8_t,32> to_bytes() const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 39, 'fast'),
-        ('Scalar', 'to_hex', 'string to_hex() const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 40, 'fast'),
-        ('Scalar', 'limbs', 'const limbs_type& limbs() const noexcept', 0, 1, 1, 'cpu/include/secp256k1/scalar.hpp', 41, 'fast'),
-        ('Scalar', 'operator+', 'Scalar operator+(const Scalar&) const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 43, 'fast'),
-        ('Scalar', 'operator-', 'Scalar operator-(const Scalar&) const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 44, 'fast'),
-        ('Scalar', 'operator*', 'Scalar operator*(const Scalar&) const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 45, 'fast'),
-        ('Scalar', 'is_zero', 'bool is_zero() const noexcept', 0, 1, 1, 'cpu/include/secp256k1/scalar.hpp', 51, 'fast'),
-        ('Scalar', 'operator==', 'bool operator==(const Scalar&) const noexcept', 0, 1, 1, 'cpu/include/secp256k1/scalar.hpp', 52, 'fast'),
-        ('Scalar', 'inverse', 'Scalar inverse() const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 56, 'fast'),
-        ('Scalar', 'negate', 'Scalar negate() const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 60, 'fast'),
-        ('Scalar', 'is_even', 'bool is_even() const noexcept', 0, 1, 1, 'cpu/include/secp256k1/scalar.hpp', 63, 'fast'),
-        ('Scalar', 'bit', 'uint8_t bit(size_t) const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 76, 'fast'),
-        ('Scalar', 'to_wnaf', 'vector<int8_t> to_wnaf(unsigned) const', 0, 1, 0, 'cpu/include/secp256k1/scalar.hpp', 95, 'fast'),
+        ('Scalar', 'zero', 'static Scalar zero()', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 18, 'fast'),
+        ('Scalar', 'one', 'static Scalar one()', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 19, 'fast'),
+        ('Scalar', 'from_uint64', 'static Scalar from_uint64(uint64_t)', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 20, 'fast'),
+        ('Scalar', 'from_limbs', 'static Scalar from_limbs(const limbs_type&)', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 21, 'fast'),
+        ('Scalar', 'from_bytes', 'static Scalar from_bytes(const array<uint8_t,32>&)', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 22, 'fast'),
+        ('Scalar', 'parse_bytes_strict', 'static bool parse_bytes_strict(const uint8_t*, Scalar&) noexcept', 1, 0, 1, 'src/cpu/include/secp256k1/scalar.hpp', 27, 'fast'),
+        ('Scalar', 'parse_bytes_strict_nonzero', 'static bool parse_bytes_strict_nonzero(const uint8_t*, Scalar&) noexcept', 1, 0, 1, 'src/cpu/include/secp256k1/scalar.hpp', 31, 'fast'),
+        ('Scalar', 'from_hex', 'static Scalar from_hex(const string&)', 1, 0, 0, 'src/cpu/include/secp256k1/scalar.hpp', 37, 'fast'),
+        ('Scalar', 'to_bytes', 'array<uint8_t,32> to_bytes() const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 39, 'fast'),
+        ('Scalar', 'to_hex', 'string to_hex() const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 40, 'fast'),
+        ('Scalar', 'limbs', 'const limbs_type& limbs() const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/scalar.hpp', 41, 'fast'),
+        ('Scalar', 'operator+', 'Scalar operator+(const Scalar&) const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 43, 'fast'),
+        ('Scalar', 'operator-', 'Scalar operator-(const Scalar&) const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 44, 'fast'),
+        ('Scalar', 'operator*', 'Scalar operator*(const Scalar&) const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 45, 'fast'),
+        ('Scalar', 'is_zero', 'bool is_zero() const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/scalar.hpp', 51, 'fast'),
+        ('Scalar', 'operator==', 'bool operator==(const Scalar&) const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/scalar.hpp', 52, 'fast'),
+        ('Scalar', 'inverse', 'Scalar inverse() const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 56, 'fast'),
+        ('Scalar', 'negate', 'Scalar negate() const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 60, 'fast'),
+        ('Scalar', 'is_even', 'bool is_even() const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/scalar.hpp', 63, 'fast'),
+        ('Scalar', 'bit', 'uint8_t bit(size_t) const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 76, 'fast'),
+        ('Scalar', 'to_wnaf', 'vector<int8_t> to_wnaf(unsigned) const', 0, 1, 0, 'src/cpu/include/secp256k1/scalar.hpp', 95, 'fast'),
         # Point (fast)
-        ('Point', 'generator', 'static Point generator()', 1, 0, 0, 'cpu/include/secp256k1/point.hpp', 84, 'fast'),
-        ('Point', 'infinity', 'static Point infinity()', 1, 0, 0, 'cpu/include/secp256k1/point.hpp', 85, 'fast'),
-        ('Point', 'from_affine', 'static Point from_affine(const FieldElement&, const FieldElement&)', 1, 0, 0, 'cpu/include/secp256k1/point.hpp', 86, 'fast'),
-        ('Point', 'from_hex', 'static Point from_hex(const string&, const string&)', 1, 0, 0, 'cpu/include/secp256k1/point.hpp', 90, 'fast'),
-        ('Point', 'x', 'FieldElement x() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 93, 'fast'),
-        ('Point', 'y', 'FieldElement y() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 94, 'fast'),
-        ('Point', 'is_infinity', 'bool is_infinity() const noexcept', 0, 1, 1, 'cpu/include/secp256k1/point.hpp', 95, 'fast'),
-        ('Point', 'add', 'Point add(const Point&) const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 120, 'fast'),
-        ('Point', 'dbl', 'Point dbl() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 121, 'fast'),
-        ('Point', 'scalar_mul', 'Point scalar_mul(const Scalar&) const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 122, 'fast'),
-        ('Point', 'scalar_mul_precomputed_k', 'Point scalar_mul_precomputed_k(const Scalar&) const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 126, 'fast'),
-        ('Point', 'negate', 'Point negate() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 145, 'fast'),
-        ('Point', 'next', 'Point next() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 148, 'fast'),
-        ('Point', 'prev', 'Point prev() const', 0, 1, 0, 'cpu/include/secp256k1/point.hpp', 149, 'fast'),
-        ('Point', 'add_inplace', 'void add_inplace(const Point&)', 0, 0, 0, 'cpu/include/secp256k1/point.hpp', 154, 'fast'),
+        ('Point', 'generator', 'static Point generator()', 1, 0, 0, 'src/cpu/include/secp256k1/point.hpp', 84, 'fast'),
+        ('Point', 'infinity', 'static Point infinity()', 1, 0, 0, 'src/cpu/include/secp256k1/point.hpp', 85, 'fast'),
+        ('Point', 'from_affine', 'static Point from_affine(const FieldElement&, const FieldElement&)', 1, 0, 0, 'src/cpu/include/secp256k1/point.hpp', 86, 'fast'),
+        ('Point', 'from_hex', 'static Point from_hex(const string&, const string&)', 1, 0, 0, 'src/cpu/include/secp256k1/point.hpp', 90, 'fast'),
+        ('Point', 'x', 'FieldElement x() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 93, 'fast'),
+        ('Point', 'y', 'FieldElement y() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 94, 'fast'),
+        ('Point', 'is_infinity', 'bool is_infinity() const noexcept', 0, 1, 1, 'src/cpu/include/secp256k1/point.hpp', 95, 'fast'),
+        ('Point', 'add', 'Point add(const Point&) const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 120, 'fast'),
+        ('Point', 'dbl', 'Point dbl() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 121, 'fast'),
+        ('Point', 'scalar_mul', 'Point scalar_mul(const Scalar&) const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 122, 'fast'),
+        ('Point', 'scalar_mul_precomputed_k', 'Point scalar_mul_precomputed_k(const Scalar&) const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 126, 'fast'),
+        ('Point', 'negate', 'Point negate() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 145, 'fast'),
+        ('Point', 'next', 'Point next() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 148, 'fast'),
+        ('Point', 'prev', 'Point prev() const', 0, 1, 0, 'src/cpu/include/secp256k1/point.hpp', 149, 'fast'),
+        ('Point', 'add_inplace', 'void add_inplace(const Point&)', 0, 0, 0, 'src/cpu/include/secp256k1/point.hpp', 154, 'fast'),
         # ECDSASignature
-        ('ECDSASignature', 'to_der', 'pair<array<uint8_t,72>,size_t> to_der() const', 0, 1, 0, 'cpu/include/secp256k1/ecdsa.hpp', 32, 'fast'),
-        ('ECDSASignature', 'to_compact', 'array<uint8_t,64> to_compact() const', 0, 1, 0, 'cpu/include/secp256k1/ecdsa.hpp', 35, 'fast'),
-        ('ECDSASignature', 'from_compact', 'static ECDSASignature from_compact(const uint8_t*)', 1, 0, 0, 'cpu/include/secp256k1/ecdsa.hpp', 38, 'fast'),
-        ('ECDSASignature', 'parse_compact_strict', 'static bool parse_compact_strict(const uint8_t*, ECDSASignature&) noexcept', 1, 0, 1, 'cpu/include/secp256k1/ecdsa.hpp', 42, 'fast'),
-        ('ECDSASignature', 'normalize', 'ECDSASignature normalize() const', 0, 1, 0, 'cpu/include/secp256k1/ecdsa.hpp', 46, 'fast'),
-        ('ECDSASignature', 'is_low_s', 'bool is_low_s() const', 0, 1, 0, 'cpu/include/secp256k1/ecdsa.hpp', 49, 'fast'),
+        ('ECDSASignature', 'to_der', 'pair<array<uint8_t,72>,size_t> to_der() const', 0, 1, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 32, 'fast'),
+        ('ECDSASignature', 'to_compact', 'array<uint8_t,64> to_compact() const', 0, 1, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 35, 'fast'),
+        ('ECDSASignature', 'from_compact', 'static ECDSASignature from_compact(const uint8_t*)', 1, 0, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 38, 'fast'),
+        ('ECDSASignature', 'parse_compact_strict', 'static bool parse_compact_strict(const uint8_t*, ECDSASignature&) noexcept', 1, 0, 1, 'src/cpu/include/secp256k1/ecdsa.hpp', 42, 'fast'),
+        ('ECDSASignature', 'normalize', 'ECDSASignature normalize() const', 0, 1, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 46, 'fast'),
+        ('ECDSASignature', 'is_low_s', 'bool is_low_s() const', 0, 1, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 49, 'fast'),
         # Free functions
-        ('', 'ecdsa_sign', 'ECDSASignature ecdsa_sign(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ecdsa.hpp', 57, 'fast'),
-        ('', 'ecdsa_sign_verified', 'ECDSASignature ecdsa_sign_verified(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ecdsa.hpp', 62, 'fast'),
-        ('', 'ecdsa_verify', 'bool ecdsa_verify(const uint8_t*, const fast::Point&, const ECDSASignature&)', 0, 0, 0, 'cpu/include/secp256k1/ecdsa.hpp', 81, 'fast'),
-        ('', 'rfc6979_nonce', 'fast::Scalar rfc6979_nonce(const fast::Scalar&, const array<uint8_t,32>&)', 0, 0, 0, 'cpu/include/secp256k1/ecdsa.hpp', 95, 'fast'),
-        ('', 'schnorr_sign', 'SchnorrSignature schnorr_sign(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/schnorr.hpp', 77, 'fast'),
-        ('', 'schnorr_verify', 'bool schnorr_verify(const array<uint8_t,32>&, const array<uint8_t,32>&, const SchnorrSignature&)', 0, 0, 0, 'cpu/include/secp256k1/schnorr.hpp', 82, 'fast'),
-        ('', 'generate_schnorr_keypair', 'SchnorrKeypair generate_schnorr_keypair(const fast::Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/schnorr.hpp', 63, 'fast'),
+        ('', 'ecdsa_sign', 'ECDSASignature ecdsa_sign(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 57, 'fast'),
+        ('', 'ecdsa_sign_verified', 'ECDSASignature ecdsa_sign_verified(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 62, 'fast'),
+        ('', 'ecdsa_verify', 'bool ecdsa_verify(const uint8_t*, const fast::Point&, const ECDSASignature&)', 0, 0, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 81, 'fast'),
+        ('', 'rfc6979_nonce', 'fast::Scalar rfc6979_nonce(const fast::Scalar&, const array<uint8_t,32>&)', 0, 0, 0, 'src/cpu/include/secp256k1/ecdsa.hpp', 95, 'fast'),
+        ('', 'schnorr_sign', 'SchnorrSignature schnorr_sign(const array<uint8_t,32>&, const fast::Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/schnorr.hpp', 77, 'fast'),
+        ('', 'schnorr_verify', 'bool schnorr_verify(const array<uint8_t,32>&, const array<uint8_t,32>&, const SchnorrSignature&)', 0, 0, 0, 'src/cpu/include/secp256k1/schnorr.hpp', 82, 'fast'),
+        ('', 'generate_schnorr_keypair', 'SchnorrKeypair generate_schnorr_keypair(const fast::Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/schnorr.hpp', 63, 'fast'),
         # CT layer  
-        ('', 'ct::ecdsa_sign', 'ECDSASignature ct::ecdsa_sign(const array<uint8_t,32>&, const Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ct/sign.hpp', 0, 'ct'),
-        ('', 'ct::schnorr_sign', 'SchnorrSignature ct::schnorr_sign(const array<uint8_t,32>&, const Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ct/sign.hpp', 0, 'ct'),
-        ('', 'ct::generator_mul', 'Point ct::generator_mul(const Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ct/point.hpp', 0, 'ct'),
-        ('', 'ct::scalar_mul', 'Point ct::scalar_mul(const Point&, const Scalar&)', 0, 0, 0, 'cpu/include/secp256k1/ct/point.hpp', 0, 'ct'),
+        ('', 'ct::ecdsa_sign', 'ECDSASignature ct::ecdsa_sign(const array<uint8_t,32>&, const Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ct/sign.hpp', 0, 'ct'),
+        ('', 'ct::schnorr_sign', 'SchnorrSignature ct::schnorr_sign(const array<uint8_t,32>&, const Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ct/sign.hpp', 0, 'ct'),
+        ('', 'ct::generator_mul', 'Point ct::generator_mul(const Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ct/point.hpp', 0, 'ct'),
+        ('', 'ct::scalar_mul', 'Point ct::scalar_mul(const Point&, const Scalar&)', 0, 0, 0, 'src/cpu/include/secp256k1/ct/point.hpp', 0, 'ct'),
         # SHA256
-        ('SHA256', 'update', 'void update(const uint8_t*, size_t)', 0, 0, 0, 'cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
-        ('SHA256', 'finalize', 'array<uint8_t,32> finalize()', 0, 0, 0, 'cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
-        ('SHA256', 'digest', 'static array<uint8_t,32> digest(const uint8_t*, size_t)', 1, 0, 0, 'cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
+        ('SHA256', 'update', 'void update(const uint8_t*, size_t)', 0, 0, 0, 'src/cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
+        ('SHA256', 'finalize', 'array<uint8_t,32> finalize()', 0, 0, 0, 'src/cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
+        ('SHA256', 'digest', 'static array<uint8_t,32> digest(const uint8_t*, size_t)', 1, 0, 0, 'src/cpu/include/secp256k1/sha256.hpp', 0, 'fast'),
     ]
     for cls, meth, sig, is_s, is_c, is_n, hdr, ln, layer in methods:
         cur.execute("""INSERT OR IGNORE INTO cpp_methods
@@ -2028,7 +2028,7 @@ def populate_security_patterns(cur: sqlite3.Cursor):
         ('CLASSIFY', re.compile(r'SECP256K1_CLASSIFY\s*\(')),
         ('DECLASSIFY', re.compile(r'SECP256K1_DECLASSIFY\s*\(')),
     ]
-    scan_dirs = ['cpu/src', 'cpu/include', 'include/ufsecp', 'audit']
+    scan_dirs = ['src/cpu/src', 'src/cpu/include', 'include/ufsecp', 'audit']
     count = 0
     for scan_dir in scan_dirs:
         dirpath = LIB_ROOT / scan_dir
@@ -2229,9 +2229,9 @@ def populate_macros(cur: sqlite3.Cursor):
     """Insert known compile-time macros and defines."""
     macros = [
         # Platform guards
-        ('SECP256K1_FAST_52BIT', '1', 'cpu/include/secp256k1/point.hpp', 10, 'platform_guard'),
-        ('SECP256K1_PLATFORM_X86_64', None, 'cpu/include/secp256k1/config.hpp', 0, 'platform_guard'),
-        ('__SIZEOF_INT128__', None, 'cpu/src/field.cpp', 0, 'platform_guard'),
+        ('SECP256K1_FAST_52BIT', '1', 'src/cpu/include/secp256k1/point.hpp', 10, 'platform_guard'),
+        ('SECP256K1_PLATFORM_X86_64', None, 'src/cpu/include/secp256k1/config.hpp', 0, 'platform_guard'),
+        ('__SIZEOF_INT128__', None, 'src/cpu/src/field.cpp', 0, 'platform_guard'),
         # Size constants
         ('UFSECP_PRIVKEY_LEN', '32', 'include/ufsecp/ufsecp.h', 45, 'size_constant'),
         ('UFSECP_PUBKEY_COMPRESSED_LEN', '33', 'include/ufsecp/ufsecp.h', 46, 'size_constant'),
@@ -2246,17 +2246,17 @@ def populate_macros(cur: sqlite3.Cursor):
         ('UFSECP_NET_MAINNET', '0', 'include/ufsecp/ufsecp.h', 57, 'size_constant'),
         ('UFSECP_NET_TESTNET', '1', 'include/ufsecp/ufsecp.h', 58, 'size_constant'),
         # Feature flags
-        ('SECP256K1_CT_VALGRIND', '1', 'cpu/include/secp256k1/ct/ops.hpp', 0, 'feature_flag'),
+        ('SECP256K1_CT_VALGRIND', '1', 'src/cpu/include/secp256k1/ct/ops.hpp', 0, 'feature_flag'),
         ('SECP256K1_BUILD_ETHEREUM', None, 'CMakeLists.txt', 0, 'feature_flag'),
         ('UFSECP_BITCOIN_STRICT', None, 'CMakeLists.txt', 0, 'feature_flag'),
         ('SECP256K1_USE_ASM', None, 'CMakeLists.txt', 0, 'feature_flag'),
         # CT markers
-        ('SECP256K1_CLASSIFY', 'VALGRIND_MAKE_MEM_UNDEFINED', 'cpu/include/secp256k1/ct/ops.hpp', 49, 'ct_marker'),
-        ('SECP256K1_DECLASSIFY', 'VALGRIND_MAKE_MEM_DEFINED', 'cpu/include/secp256k1/ct/ops.hpp', 50, 'ct_marker'),
+        ('SECP256K1_CLASSIFY', 'VALGRIND_MAKE_MEM_UNDEFINED', 'src/cpu/include/secp256k1/ct/ops.hpp', 49, 'ct_marker'),
+        ('SECP256K1_DECLASSIFY', 'VALGRIND_MAKE_MEM_DEFINED', 'src/cpu/include/secp256k1/ct/ops.hpp', 50, 'ct_marker'),
         # Debug
-        ('SCALED', 'ternary(normal,reduced)', 'cpu/include/secp256k1/sanitizer_scale.hpp', 37, 'debug'),
-        ('SECP256K1_INIT', 'init_macro', 'cpu/include/secp256k1/init.hpp', 42, 'debug'),
-        ('SECP256K1_INIT_VERBOSE', 'verbose_init_macro', 'cpu/include/secp256k1/init.hpp', 45, 'debug'),
+        ('SCALED', 'ternary(normal,reduced)', 'src/cpu/include/secp256k1/sanitizer_scale.hpp', 37, 'debug'),
+        ('SECP256K1_INIT', 'init_macro', 'src/cpu/include/secp256k1/init.hpp', 42, 'debug'),
+        ('SECP256K1_INIT_VERBOSE', 'verbose_init_macro', 'src/cpu/include/secp256k1/init.hpp', 45, 'debug'),
     ]
     for name, val, fp, ln, cat in macros:
         cur.execute("""INSERT OR IGNORE INTO macros
@@ -2272,82 +2272,82 @@ def populate_macros(cur: sqlite3.Cursor):
 def populate_file_summaries(cur):
     """Hardcoded one-line descriptions for core source files."""
     summaries = [
-        # ---- cpu/src core implementations ----
-        ('cpu/src/field.cpp', 'Fast-layer 4-limb/5-limb field element arithmetic (mul, sqr, inv, add, reduce) mod secp256k1 prime p'),
-        ('cpu/src/field_52.cpp', 'FE52 5x52-bit field representation: mul/sqr via 128-bit intermediates'),
-        ('cpu/src/field_26.cpp', 'FE26 10x26-bit field representation for platforms without __int128'),
-        ('cpu/src/field_asm.cpp', 'x86-64 inline assembly field_mul/field_sqr using mulx/adcx/adox'),
-        ('cpu/src/field_asm_arm64.cpp', 'ARM64 NEON inline assembly for field arithmetic'),
-        ('cpu/src/field_asm_riscv64.cpp', 'RISC-V 64-bit inline assembly for field multiplication'),
-        ('cpu/src/field_asm_x64.asm', 'Standalone x86-64 NASM assembly for field_mul_asm/field_sqr_asm'),
-        ('cpu/src/scalar.cpp', 'Scalar arithmetic mod group order n: mul, inv (modinv64), add, negate, split_lambda (GLV)'),
-        ('cpu/src/point.cpp', 'Jacobian point operations: add, double, mul (GLV+comb), to_affine, batch_normalize'),
-        ('cpu/src/ecdsa.cpp', 'Fast-layer ECDSA: sign (RFC-6979 nonce), verify (Shamir multi-scalar), DER/compact parse'),
-        ('cpu/src/schnorr.cpp', 'Fast-layer BIP-340 Schnorr: keypair_create, sign, verify, batch_verify'),
-        ('cpu/src/precompute.cpp', 'Comb table precomputation for k*G: build/serialize 16K-entry generator table'),
-        ('cpu/src/ecmult_gen_comb.cpp', 'Comb-based ecmult_gen: fixed-base scalar multiplication using precomputed table'),
-        ('cpu/src/glv.cpp', 'GLV endomorphism: lambda/beta constants, scalar decomposition, w-NAF recoding'),
-        ('cpu/src/selftest.cpp', 'Runtime self-test suite (21 modules): field, scalar, point, ECDSA, Schnorr, BIP-32/39'),
-        ('cpu/src/hash_accel.cpp', 'Hardware-accelerated SHA-256: SHA-NI (x86), SHA2 (ARM), Zba (RISC-V) dispatch'),
-        ('cpu/src/recovery.cpp', 'ECDSA public key recovery from signature + recovery id (ecrecover)'),
-        ('cpu/src/adaptor.cpp', 'Adaptor signatures: pre-sign, adapt, extract for atomic swaps'),
-        ('cpu/src/musig2.cpp', 'MuSig2 multi-signature protocol: key aggregation, nonce gen, partial sign, combine'),
-        ('cpu/src/frost.cpp', 'FROST threshold signatures: key generation, signing shares, aggregation'),
-        ('cpu/src/taproot.cpp', 'BIP-341 Taproot: tweak_pubkey, check_output, script path spending'),
-        ('cpu/src/bip32.cpp', 'BIP-32 HD key derivation: master_key_generate, ckd_priv, ckd_pub, path parsing'),
-        ('cpu/src/bip39.cpp', 'BIP-39 mnemonic: entropy_to_mnemonic, mnemonic_to_seed, wordlist validation'),
-        ('cpu/src/ecdh.cpp', 'ECDH key exchange: shared_secret = SHA-256(x-only of k*P)'),
-        ('cpu/src/ecies.cpp', 'ECIES encryption/decryption: ephemeral ECDH + AES-256-GCM'),
-        ('cpu/src/pedersen.cpp', 'Pedersen commitments: commit(v,r) = v*H + r*G, verify, add/sub homomorphic'),
-        ('cpu/src/multiscalar.cpp', 'Multi-scalar multiplication: Strauss/Shamir for a*G + b*P and vectorized sums'),
-        ('cpu/src/pippenger.cpp', 'Pippenger bucket method: multi-scalar multiplication for large input vectors'),
-        ('cpu/src/zk.cpp', 'Zero-knowledge proofs: range proofs, Schnorr DLEQ, Pedersen opening proofs'),
-        ('cpu/src/address.cpp', 'Address generation: P2PKH, P2SH, Bech32/Bech32m encoding, RIPEMD-160'),
-        ('cpu/src/wallet.cpp', 'High-level wallet: derive path, sign tx, serialize privkey/pubkey'),
-        ('cpu/src/coin_address.cpp', 'Multi-coin address derivation with coin-specific parameters'),
-        ('cpu/src/coin_hd.cpp', 'Multi-coin HD key derivation with slip44 coin types'),
-        ('cpu/src/message_signing.cpp', 'Bitcoin message signing/verification (BIP-137 format)'),
-        ('cpu/src/eth_signing.cpp', 'Ethereum transaction signing: EIP-155 chain ID, v/r/s encoding'),
-        ('cpu/src/ethereum.cpp', 'Ethereum address derivation: Keccak-256 of uncompressed pubkey'),
-        ('cpu/src/keccak256.cpp', 'Keccak-256 hash implementation for Ethereum compatibility'),
-        ('cpu/src/batch_add_affine.cpp', 'Batch affine addition: Montgomery batch inversion for parallel point adds'),
-        ('cpu/src/batch_verify.cpp', 'Batch ECDSA/Schnorr verification: random-linear-combination method'),
+        # ---- src/cpu/src core implementations ----
+        ('src/cpu/src/field.cpp', 'Fast-layer 4-limb/5-limb field element arithmetic (mul, sqr, inv, add, reduce) mod secp256k1 prime p'),
+        ('src/cpu/src/field_52.cpp', 'FE52 5x52-bit field representation: mul/sqr via 128-bit intermediates'),
+        ('src/cpu/src/field_26.cpp', 'FE26 10x26-bit field representation for platforms without __int128'),
+        ('src/cpu/src/field_asm.cpp', 'x86-64 inline assembly field_mul/field_sqr using mulx/adcx/adox'),
+        ('src/cpu/src/field_asm_arm64.cpp', 'ARM64 NEON inline assembly for field arithmetic'),
+        ('src/cpu/src/field_asm_riscv64.cpp', 'RISC-V 64-bit inline assembly for field multiplication'),
+        ('src/cpu/src/field_asm_x64.asm', 'Standalone x86-64 NASM assembly for field_mul_asm/field_sqr_asm'),
+        ('src/cpu/src/scalar.cpp', 'Scalar arithmetic mod group order n: mul, inv (modinv64), add, negate, split_lambda (GLV)'),
+        ('src/cpu/src/point.cpp', 'Jacobian point operations: add, double, mul (GLV+comb), to_affine, batch_normalize'),
+        ('src/cpu/src/ecdsa.cpp', 'Fast-layer ECDSA: sign (RFC-6979 nonce), verify (Shamir multi-scalar), DER/compact parse'),
+        ('src/cpu/src/schnorr.cpp', 'Fast-layer BIP-340 Schnorr: keypair_create, sign, verify, batch_verify'),
+        ('src/cpu/src/precompute.cpp', 'Comb table precomputation for k*G: build/serialize 16K-entry generator table'),
+        ('src/cpu/src/ecmult_gen_comb.cpp', 'Comb-based ecmult_gen: fixed-base scalar multiplication using precomputed table'),
+        ('src/cpu/src/glv.cpp', 'GLV endomorphism: lambda/beta constants, scalar decomposition, w-NAF recoding'),
+        ('src/cpu/src/selftest.cpp', 'Runtime self-test suite (21 modules): field, scalar, point, ECDSA, Schnorr, BIP-32/39'),
+        ('src/cpu/src/hash_accel.cpp', 'Hardware-accelerated SHA-256: SHA-NI (x86), SHA2 (ARM), Zba (RISC-V) dispatch'),
+        ('src/cpu/src/recovery.cpp', 'ECDSA public key recovery from signature + recovery id (ecrecover)'),
+        ('src/cpu/src/adaptor.cpp', 'Adaptor signatures: pre-sign, adapt, extract for atomic swaps'),
+        ('src/cpu/src/musig2.cpp', 'MuSig2 multi-signature protocol: key aggregation, nonce gen, partial sign, combine'),
+        ('src/cpu/src/frost.cpp', 'FROST threshold signatures: key generation, signing shares, aggregation'),
+        ('src/cpu/src/taproot.cpp', 'BIP-341 Taproot: tweak_pubkey, check_output, script path spending'),
+        ('src/cpu/src/bip32.cpp', 'BIP-32 HD key derivation: master_key_generate, ckd_priv, ckd_pub, path parsing'),
+        ('src/cpu/src/bip39.cpp', 'BIP-39 mnemonic: entropy_to_mnemonic, mnemonic_to_seed, wordlist validation'),
+        ('src/cpu/src/ecdh.cpp', 'ECDH key exchange: shared_secret = SHA-256(x-only of k*P)'),
+        ('src/cpu/src/ecies.cpp', 'ECIES encryption/decryption: ephemeral ECDH + AES-256-GCM'),
+        ('src/cpu/src/pedersen.cpp', 'Pedersen commitments: commit(v,r) = v*H + r*G, verify, add/sub homomorphic'),
+        ('src/cpu/src/multiscalar.cpp', 'Multi-scalar multiplication: Strauss/Shamir for a*G + b*P and vectorized sums'),
+        ('src/cpu/src/pippenger.cpp', 'Pippenger bucket method: multi-scalar multiplication for large input vectors'),
+        ('src/cpu/src/zk.cpp', 'Zero-knowledge proofs: range proofs, Schnorr DLEQ, Pedersen opening proofs'),
+        ('src/cpu/src/address.cpp', 'Address generation: P2PKH, P2SH, Bech32/Bech32m encoding, RIPEMD-160'),
+        ('src/cpu/src/wallet.cpp', 'High-level wallet: derive path, sign tx, serialize privkey/pubkey'),
+        ('src/cpu/src/coin_address.cpp', 'Multi-coin address derivation with coin-specific parameters'),
+        ('src/cpu/src/coin_hd.cpp', 'Multi-coin HD key derivation with slip44 coin types'),
+        ('src/cpu/src/message_signing.cpp', 'Bitcoin message signing/verification (BIP-137 format)'),
+        ('src/cpu/src/eth_signing.cpp', 'Ethereum transaction signing: EIP-155 chain ID, v/r/s encoding'),
+        ('src/cpu/src/ethereum.cpp', 'Ethereum address derivation: Keccak-256 of uncompressed pubkey'),
+        ('src/cpu/src/keccak256.cpp', 'Keccak-256 hash implementation for Ethereum compatibility'),
+        ('src/cpu/src/batch_add_affine.cpp', 'Batch affine addition: Montgomery batch inversion for parallel point adds'),
+        ('src/cpu/src/batch_verify.cpp', 'Batch ECDSA/Schnorr verification: random-linear-combination method'),
         # ---- CT (constant-time) layer ----
-        ('cpu/src/ct_field.cpp', 'CT field arithmetic: constant-time mul/sqr/inv with value_barrier, no branching'),
-        ('cpu/src/ct_scalar.cpp', 'CT scalar arithmetic: constant-time inverse (SafeGCD), negate, cmov operations'),
-        ('cpu/src/ct_point.cpp', 'CT point operations: constant-time mul, add, double with uniform memory access'),
-        ('cpu/src/ct_sign.cpp', 'CT ECDSA+Schnorr signing: constant-time nonce gen, signing, secure_erase cleanup'),
+        ('src/cpu/src/ct_field.cpp', 'CT field arithmetic: constant-time mul/sqr/inv with value_barrier, no branching'),
+        ('src/cpu/src/ct_scalar.cpp', 'CT scalar arithmetic: constant-time inverse (SafeGCD), negate, cmov operations'),
+        ('src/cpu/src/ct_point.cpp', 'CT point operations: constant-time mul, add, double with uniform memory access'),
+        ('src/cpu/src/ct_sign.cpp', 'CT ECDSA+Schnorr signing: constant-time nonce gen, signing, secure_erase cleanup'),
         # ---- Headers (key subset) ----
-        ('cpu/include/secp256k1/field.hpp', 'FieldElement class: 4x64 limb storage, normalize, is_zero, to_bytes, from_bytes'),
-        ('cpu/include/secp256k1/scalar.hpp', 'Scalar class: mod-n arithmetic, parse/serialize, is_zero, negate, inverse'),
-        ('cpu/include/secp256k1/point.hpp', 'Point/JacobianPoint classes: affine/jacobian coords, infinity, compress/decompress'),
-        ('cpu/include/secp256k1/ecdsa.hpp', 'ECDSA public API: sign, verify, parse/serialize DER and compact signatures'),
-        ('cpu/include/secp256k1/schnorr.hpp', 'BIP-340 Schnorr API: keypair, sign, verify, batch_verify declarations'),
-        ('cpu/include/secp256k1/precompute.hpp', 'Comb precomputation table layout, serialize/deserialize declarations'),
-        ('cpu/include/secp256k1/ct/ops.hpp', 'CT operations: ct_select, ct_equal, value_barrier, CLASSIFY/DECLASSIFY macros'),
-        ('cpu/include/secp256k1/ct/sign.hpp', 'CT signing API: ct_ecdsa_sign, ct_schnorr_sign, ct_nonce_function declarations'),
-        ('cpu/include/secp256k1/ct/field.hpp', 'CT FieldElement class: same API as fast::FieldElement, constant-time guarantees'),
-        ('cpu/include/secp256k1/ct/scalar.hpp', 'CT Scalar class: constant-time inverse, negate, cmov declarations'),
-        ('cpu/include/secp256k1/ct/point.hpp', 'CT Point class: constant-time scalar multiplication declarations'),
-        ('cpu/include/secp256k1/ct_utils.hpp', 'CT utility functions: secure_erase, ct_memcmp, ct_cswap, timing annotations'),
-        ('cpu/include/secp256k1/glv.hpp', 'GLV decomposition header: split_scalar, beta constant, window width config'),
-        ('cpu/include/secp256k1/sha256.hpp', 'SHA-256 class: init, update, finalize, HMAC-SHA256, double-SHA256'),
-        ('cpu/include/secp256k1/sha512.hpp', 'SHA-512 class: init, update, finalize, HMAC-SHA512 for PBKDF2'),
-        ('cpu/include/secp256k1/hash_accel.hpp', 'Hash acceleration dispatch: SHA-NI, ARM SHA2, software fallback detection'),
-        ('cpu/include/secp256k1/bip32.hpp', 'BIP-32 HD derivation API: ExtendedKey struct, ckd_priv, ckd_pub, from_seed'),
-        ('cpu/include/secp256k1/bip39.hpp', 'BIP-39 mnemonic API: generate, validate, to_seed declarations'),
-        ('cpu/include/secp256k1/musig2.hpp', 'MuSig2 API: key aggregation, nonce commitment, partial sign, aggregate'),
-        ('cpu/include/secp256k1/frost.hpp', 'FROST threshold API: keygen, sign_share, aggregate, verify_share'),
-        ('cpu/include/secp256k1/taproot.hpp', 'Taproot API: tweak_pubkey, check_output, control_block verification'),
-        ('cpu/include/secp256k1/recovery.hpp', 'ECDSA recovery API: recover_pubkey from signature + recid'),
-        ('cpu/include/secp256k1/pedersen.hpp', 'Pedersen commitment API: commit, verify, add, sub declarations'),
-        ('cpu/include/secp256k1/zk.hpp', 'ZK proof API: range_proof, dleq_prove, dleq_verify, opening_proof'),
-        ('cpu/include/secp256k1/ecdh.hpp', 'ECDH API: shared_secret computation declaration'),
-        ('cpu/include/secp256k1/ecies.hpp', 'ECIES API: encrypt, decrypt with ephemeral ECDH + AES-GCM'),
-        ('cpu/include/secp256k1/config.hpp', 'Compile-time platform detection: __int128, ASM, SIMD, cache sizes'),
-        ('cpu/include/secp256k1/context.hpp', 'Library context: init, destroy, precomp table pointer, allocator config'),
-        ('cpu/include/secp256k1/field_52.hpp', 'FE52 representation header: 5x52 limb layout, mul/sqr/inv declarations'),
-        ('cpu/include/secp256k1/field_26.hpp', 'FE26 representation header: 10x26 limb layout for 32-bit platforms'),
+        ('src/cpu/include/secp256k1/field.hpp', 'FieldElement class: 4x64 limb storage, normalize, is_zero, to_bytes, from_bytes'),
+        ('src/cpu/include/secp256k1/scalar.hpp', 'Scalar class: mod-n arithmetic, parse/serialize, is_zero, negate, inverse'),
+        ('src/cpu/include/secp256k1/point.hpp', 'Point/JacobianPoint classes: affine/jacobian coords, infinity, compress/decompress'),
+        ('src/cpu/include/secp256k1/ecdsa.hpp', 'ECDSA public API: sign, verify, parse/serialize DER and compact signatures'),
+        ('src/cpu/include/secp256k1/schnorr.hpp', 'BIP-340 Schnorr API: keypair, sign, verify, batch_verify declarations'),
+        ('src/cpu/include/secp256k1/precompute.hpp', 'Comb precomputation table layout, serialize/deserialize declarations'),
+        ('src/cpu/include/secp256k1/ct/ops.hpp', 'CT operations: ct_select, ct_equal, value_barrier, CLASSIFY/DECLASSIFY macros'),
+        ('src/cpu/include/secp256k1/ct/sign.hpp', 'CT signing API: ct_ecdsa_sign, ct_schnorr_sign, ct_nonce_function declarations'),
+        ('src/cpu/include/secp256k1/ct/field.hpp', 'CT FieldElement class: same API as fast::FieldElement, constant-time guarantees'),
+        ('src/cpu/include/secp256k1/ct/scalar.hpp', 'CT Scalar class: constant-time inverse, negate, cmov declarations'),
+        ('src/cpu/include/secp256k1/ct/point.hpp', 'CT Point class: constant-time scalar multiplication declarations'),
+        ('src/cpu/include/secp256k1/ct_utils.hpp', 'CT utility functions: secure_erase, ct_memcmp, ct_cswap, timing annotations'),
+        ('src/cpu/include/secp256k1/glv.hpp', 'GLV decomposition header: split_scalar, beta constant, window width config'),
+        ('src/cpu/include/secp256k1/sha256.hpp', 'SHA-256 class: init, update, finalize, HMAC-SHA256, double-SHA256'),
+        ('src/cpu/include/secp256k1/sha512.hpp', 'SHA-512 class: init, update, finalize, HMAC-SHA512 for PBKDF2'),
+        ('src/cpu/include/secp256k1/hash_accel.hpp', 'Hash acceleration dispatch: SHA-NI, ARM SHA2, software fallback detection'),
+        ('src/cpu/include/secp256k1/bip32.hpp', 'BIP-32 HD derivation API: ExtendedKey struct, ckd_priv, ckd_pub, from_seed'),
+        ('src/cpu/include/secp256k1/bip39.hpp', 'BIP-39 mnemonic API: generate, validate, to_seed declarations'),
+        ('src/cpu/include/secp256k1/musig2.hpp', 'MuSig2 API: key aggregation, nonce commitment, partial sign, aggregate'),
+        ('src/cpu/include/secp256k1/frost.hpp', 'FROST threshold API: keygen, sign_share, aggregate, verify_share'),
+        ('src/cpu/include/secp256k1/taproot.hpp', 'Taproot API: tweak_pubkey, check_output, control_block verification'),
+        ('src/cpu/include/secp256k1/recovery.hpp', 'ECDSA recovery API: recover_pubkey from signature + recid'),
+        ('src/cpu/include/secp256k1/pedersen.hpp', 'Pedersen commitment API: commit, verify, add, sub declarations'),
+        ('src/cpu/include/secp256k1/zk.hpp', 'ZK proof API: range_proof, dleq_prove, dleq_verify, opening_proof'),
+        ('src/cpu/include/secp256k1/ecdh.hpp', 'ECDH API: shared_secret computation declaration'),
+        ('src/cpu/include/secp256k1/ecies.hpp', 'ECIES API: encrypt, decrypt with ephemeral ECDH + AES-GCM'),
+        ('src/cpu/include/secp256k1/config.hpp', 'Compile-time platform detection: __int128, ASM, SIMD, cache sizes'),
+        ('src/cpu/include/secp256k1/context.hpp', 'Library context: init, destroy, precomp table pointer, allocator config'),
+        ('src/cpu/include/secp256k1/field_52.hpp', 'FE52 representation header: 5x52 limb layout, mul/sqr/inv declarations'),
+        ('src/cpu/include/secp256k1/field_26.hpp', 'FE26 representation header: 10x26 limb layout for 32-bit platforms'),
         # ---- C ABI ----
         ('include/ufsecp/ufsecp.h', 'Stable C ABI header: all ufsecp_* function declarations, opaque context, error codes'),
         ('include/ufsecp/ufsecp_impl.cpp', 'C ABI implementation: routes 108 ufsecp_* functions to fast/CT internal calls'),
@@ -2379,20 +2379,20 @@ def populate_function_index(cur):
     
     # Files to scan (core .cpp files where agents most often need line ranges)
     scan_paths = [
-        'cpu/src/field.cpp', 'cpu/src/scalar.cpp', 'cpu/src/point.cpp',
-        'cpu/src/ecdsa.cpp', 'cpu/src/schnorr.cpp', 'cpu/src/precompute.cpp',
-        'cpu/src/ct_field.cpp', 'cpu/src/ct_scalar.cpp', 'cpu/src/ct_point.cpp',
-        'cpu/src/ct_sign.cpp', 'cpu/src/glv.cpp', 'cpu/src/selftest.cpp',
-        'cpu/src/hash_accel.cpp', 'cpu/src/recovery.cpp', 'cpu/src/musig2.cpp',
-        'cpu/src/frost.cpp', 'cpu/src/taproot.cpp', 'cpu/src/bip32.cpp',
-        'cpu/src/bip39.cpp', 'cpu/src/ecdh.cpp', 'cpu/src/ecies.cpp',
-        'cpu/src/pedersen.cpp', 'cpu/src/batch_add_affine.cpp',
-        'cpu/src/batch_verify.cpp', 'cpu/src/zk.cpp', 'cpu/src/adaptor.cpp',
-        'cpu/src/address.cpp', 'cpu/src/wallet.cpp',
-        'cpu/src/multiscalar.cpp', 'cpu/src/pippenger.cpp',
-        'cpu/src/ecmult_gen_comb.cpp',
-        'cpu/src/eth_signing.cpp', 'cpu/src/ethereum.cpp',
-        'cpu/src/keccak256.cpp', 'cpu/src/message_signing.cpp',
+        'src/cpu/src/field.cpp', 'src/cpu/src/scalar.cpp', 'src/cpu/src/point.cpp',
+        'src/cpu/src/ecdsa.cpp', 'src/cpu/src/schnorr.cpp', 'src/cpu/src/precompute.cpp',
+        'src/cpu/src/ct_field.cpp', 'src/cpu/src/ct_scalar.cpp', 'src/cpu/src/ct_point.cpp',
+        'src/cpu/src/ct_sign.cpp', 'src/cpu/src/glv.cpp', 'src/cpu/src/selftest.cpp',
+        'src/cpu/src/hash_accel.cpp', 'src/cpu/src/recovery.cpp', 'src/cpu/src/musig2.cpp',
+        'src/cpu/src/frost.cpp', 'src/cpu/src/taproot.cpp', 'src/cpu/src/bip32.cpp',
+        'src/cpu/src/bip39.cpp', 'src/cpu/src/ecdh.cpp', 'src/cpu/src/ecies.cpp',
+        'src/cpu/src/pedersen.cpp', 'src/cpu/src/batch_add_affine.cpp',
+        'src/cpu/src/batch_verify.cpp', 'src/cpu/src/zk.cpp', 'src/cpu/src/adaptor.cpp',
+        'src/cpu/src/address.cpp', 'src/cpu/src/wallet.cpp',
+        'src/cpu/src/multiscalar.cpp', 'src/cpu/src/pippenger.cpp',
+        'src/cpu/src/ecmult_gen_comb.cpp',
+        'src/cpu/src/eth_signing.cpp', 'src/cpu/src/ethereum.cpp',
+        'src/cpu/src/keccak256.cpp', 'src/cpu/src/message_signing.cpp',
         'include/ufsecp/ufsecp_impl.cpp',
     ]
     
@@ -2495,9 +2495,9 @@ def populate_call_edges(cur: sqlite3.Cursor):
     for name, category in cur.fetchall():
         if name not in known:
             if category == 'gpu' or name.startswith('ufsecp_gpu_') or name == 'ufsecp_bip352_prepare_scan_plan':
-                known[name] = 'cpu/src/ufsecp_gpu_impl.cpp'
+                known[name] = 'src/cpu/src/ufsecp_gpu_impl.cpp'
             else:
-                known[name] = 'cpu/src/ufsecp_impl.cpp'
+                known[name] = 'src/cpu/src/ufsecp_impl.cpp'
 
     # Build file -> sorted list of (start_line, end_line, func_name)
     ranges: dict = {}
@@ -2586,7 +2586,7 @@ def populate_call_edges(cur: sqlite3.Cursor):
                         continue
                     if callee in SKIP_WORDS:
                         continue
-                    callee_file = known.get(callee, 'cpu/src/ufsecp_impl.cpp')
+                    callee_file = known.get(callee, 'src/cpu/src/ufsecp_impl.cpp')
                     try:
                         cur.execute("""INSERT OR IGNORE INTO call_edges
                             (caller_file, caller_func, callee_func, callee_file, call_line)
@@ -2832,7 +2832,7 @@ def populate_reachability(cur: sqlite3.Cursor):
 def populate_runtime_entrypoints(cur: sqlite3.Cursor):
     """Find main() entrypoints and config-loading patterns in app source files."""
     count = 0
-    app_dirs = ['apps', 'cpu/tests', 'cpu/bench', 'audit', 'examples']
+    app_dirs = ['apps', 'src/cpu/tests', 'src/cpu/bench', 'audit', 'examples']
     main_re = re.compile(r'\bint\s+main\s*\(')
     config_re = re.compile(r'"config\.json"|"config_path"|"database"|fopen\s*\(')
 
@@ -2946,7 +2946,7 @@ def populate_function_test_map(cur: sqlite3.Cursor):
                    WHERE callee_func LIKE 'ufsecp_%'
                      AND (
                          caller_file LIKE 'audit/%' OR
-                         caller_file LIKE 'cpu/tests/%' OR
+                         caller_file LIKE 'src/cpu/tests/%' OR
                          caller_file LIKE 'tests/%'
                      )""")
     for caller_file, callee_func, callee_file in cur.fetchall():

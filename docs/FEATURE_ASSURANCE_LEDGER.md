@@ -91,7 +91,7 @@
 - Cross-lib: `audit/test_cross_libsecp256k1.cpp`
 
 **CT:** Signing via `ct_sign.cpp` with `secure_erase` of nonce/key/intermediate. Verification uses fast path (public data).
-**GPU:** CUDA sign+verify (`cuda/include/ecdsa.cuh`), batch verify (`cuda/include/batch_verify.cuh`), recovery (`cuda/include/recovery.cuh`)
+**GPU:** CUDA sign+verify (`src/cuda/include/ecdsa.cuh`), batch verify (`src/cuda/include/batch_verify.cuh`), recovery (`src/cuda/include/recovery.cuh`)
 **Zeroization:** 10 `secure_erase` calls in `ct_sign.cpp` covering nonce (k), private key bytes, challenge hash, aux rand XOR
 
 ---
@@ -111,7 +111,7 @@
 - Fault injection: `audit/test_fault_injection.cpp` (schnorr sig bit-flip)
 - CT sidechannel: `audit/test_ct_sidechannel.cpp` (dudect timing on Schnorr sign)
 
-**GPU:** CUDA sign+verify (`cuda/include/schnorr.cuh`) with BIP-340 midstate optimization. Batch verify (`cuda/include/batch_verify.cuh`).
+**GPU:** CUDA sign+verify (`src/cuda/include/schnorr.cuh`) with BIP-340 midstate optimization. Batch verify (`src/cuda/include/batch_verify.cuh`).
 
 ---
 
@@ -128,8 +128,8 @@
 - Adversarial: `audit/test_adversarial_protocol.cpp`
 - FFI: `audit/test_ffi_round_trip.cpp`
 
-**GPU:** CUDA (`cuda/include/ecdh.cuh`), OpenCL (`opencl/kernels/secp256k1_ecdh.cl`), Metal (`metal/shaders/secp256k1_ecdh.h`)
-**Zeroization:** `secure_erase` in `cpu/src/ecdh.cpp`
+**GPU:** CUDA (`src/cuda/include/ecdh.cuh`), OpenCL (`src/opencl/kernels/secp256k1_ecdh.cl`), Metal (`src/metal/shaders/secp256k1_ecdh.h`)
+**Zeroization:** `secure_erase` in `src/cpu/src/ecdh.cpp`
 
 ---
 
@@ -180,7 +180,7 @@
 | `ufsecp_bip32_pubkey` | Y | Y | - | - | N/A (public) | - | - | N/A |
 
 **Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp`, `audit/test_fuzz_address_bip32_ffi.cpp`
-**GPU:** CUDA (`cuda/include/bip32.cuh`), OpenCL (`opencl/kernels/secp256k1_bip32.cl`), Metal (`metal/shaders/secp256k1_bip32.h`)
+**GPU:** CUDA (`src/cuda/include/bip32.cuh`), OpenCL (`src/opencl/kernels/secp256k1_bip32.cl`), Metal (`src/metal/shaders/secp256k1_bip32.h`)
 
 ---
 
@@ -233,7 +233,7 @@
 | `ufsecp_ecdsa_batch_identify_invalid` | Y | - | Y | - | N/A | Y (CUDA) | - | N/A |
 
 **Test files:** `audit/test_adversarial_protocol.cpp`, `audit/test_batch_randomness.cpp`
-**GPU:** CUDA batch verify kernels (`cuda/include/batch_verify.cuh`) -- parallel per-thread verification
+**GPU:** CUDA batch verify kernels (`src/cuda/include/batch_verify.cuh`) -- parallel per-thread verification
 
 ---
 
@@ -245,7 +245,7 @@
 | `ufsecp_multi_scalar_mul` | Y | - | Y | - | N/A | Y (CUDA/OCL/Metal) | - | N/A |
 
 **Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp`
-**GPU:** MSM (Pippenger) on CUDA (`cuda/include/msm.cuh`), OpenCL (`opencl/kernels/secp256k1_msm.cl`), Metal (`metal/shaders/secp256k1_msm.h`)
+**GPU:** MSM (Pippenger) on CUDA (`src/cuda/include/msm.cuh`), OpenCL (`src/opencl/kernels/secp256k1_msm.cl`), Metal (`src/metal/shaders/secp256k1_msm.h`)
 
 ---
 
@@ -269,7 +269,7 @@
 - CT sidechannel: `audit/test_ct_sidechannel.cpp` (MuSig2 timing)
 
 **Nonce safety:** `secnonce` is zeroed after `partial_sign` to prevent reuse. Second call fails.
-**Zeroization:** `secure_erase` in `cpu/src/musig2.cpp`
+**Zeroization:** `secure_erase` in `src/cpu/src/musig2.cpp`
 
 ---
 
@@ -328,7 +328,7 @@
 | `ufsecp_pedersen_switch_commit` | Y | - | - | - | Y | - | - | N/A |
 
 **Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp`
-**GPU:** CUDA (`cuda/include/pedersen.cuh`), OpenCL (`opencl/kernels/secp256k1_pedersen.cl`), Metal (`metal/shaders/secp256k1_pedersen.h`)
+**GPU:** CUDA (`src/cuda/include/pedersen.cuh`), OpenCL (`src/opencl/kernels/secp256k1_pedersen.cl`), Metal (`src/metal/shaders/secp256k1_pedersen.h`)
 
 ---
 
@@ -344,7 +344,7 @@
 | `ufsecp_zk_range_verify` | Y | - | - | - | N/A | Y | - | N/A |
 
 **Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_adversarial_protocol.cpp`
-**GPU:** CUDA (`cuda/include/zk.cuh`), OpenCL (`opencl/kernels/secp256k1_zk.cl`, `secp256k1_ct_zk.cl`), Metal (`metal/shaders/secp256k1_zk.h`, `secp256k1_ct_zk.h`)
+**GPU:** CUDA (`src/cuda/include/zk.cuh`), OpenCL (`src/opencl/kernels/secp256k1_zk.cl`, `secp256k1_ct_zk.cl`), Metal (`src/metal/shaders/secp256k1_zk.h`, `secp256k1_ct_zk.h`)
 **Bulletproof generator table:** CUDA (`bp_gen_table.cuh`), OpenCL (`secp256k1_bp_gen_table.cl`), Metal (`secp256k1_bp_gen_table.h`)
 
 ---
@@ -403,7 +403,7 @@
 - (F) ABI prefix rejection: 6 bad prefixes x 5 ABI endpoints = 30 checks
 - (G) Pubkey parser consistency: 3 malformed x-coords -> consistent `BAD_PUBKEY` across `pubkey_parse`, `ecdh`, `ecies_encrypt`
 - (H) RNG fail-closed: fork + seccomp blocks `getrandom` -> process must SIGABRT (Linux x86-64 only)
-**Zeroization:** Extensive -- 14+ `secure_erase` calls in `cpu/src/ecies.cpp` covering ephemeral key, shared secret, KDF output, AES keystream, HMAC pads
+**Zeroization:** Extensive -- 14+ `secure_erase` calls in `src/cpu/src/ecies.cpp` covering ephemeral key, shared secret, KDF output, AES keystream, HMAC pads
 
 ---
 
@@ -571,7 +571,7 @@ closure pass on 2026-04-06.
 | `ufsecp_zk_ecdsa_snark_witness` | Y | - | Y | Y | N/A | Y (CUDA/OCL/Metal batch parity) | N/A | N/A |
 | `ufsecp_zk_schnorr_snark_witness` | Y | - | Y | - | N/A | Y (GPU batch via `ufsecp_gpu_zk_schnorr_snark_witness_batch`) | N/A | N/A |
 
-**Test files:** `audit/test_exploit_gcs_false_positive.cpp`, `audit/test_gpu_bip352_scan.cpp`, `audit/test_gpu_ecdsa_snark_witness.cpp`, `cpu/tests/test_ffi_coverage.cpp`
+**Test files:** `audit/test_exploit_gcs_false_positive.cpp`, `audit/test_gpu_bip352_scan.cpp`, `audit/test_gpu_ecdsa_snark_witness.cpp`, `src/cpu/tests/test_ffi_coverage.cpp`
 
 ---
 
@@ -654,11 +654,11 @@ Files with `secure_erase` for secret data cleanup:
 
 | File | # Erase calls | Secrets covered |
 |------|--------------|-----------------|
-| `cpu/src/ct_sign.cpp` | 10 | Private key bytes, nonce (k, k'), challenge hash, aux XOR, tag hash |
-| `cpu/src/ecies.cpp` | 14+ | Ephemeral privkey, shared secret X, KDF output, AES keystream, HMAC ipad/opad |
-| `cpu/src/ecdh.cpp` | Multiple | Shared secret intermediate values |
-| `cpu/src/ecdsa.cpp` | Multiple | RFC 6979 nonce intermediates |
-| `cpu/src/musig2.cpp` | Multiple | Secret nonce (consumed after sign), partial sign intermediates |
+| `src/cpu/src/ct_sign.cpp` | 10 | Private key bytes, nonce (k, k'), challenge hash, aux XOR, tag hash |
+| `src/cpu/src/ecies.cpp` | 14+ | Ephemeral privkey, shared secret X, KDF output, AES keystream, HMAC ipad/opad |
+| `src/cpu/src/ecdh.cpp` | Multiple | Shared secret intermediate values |
+| `src/cpu/src/ecdsa.cpp` | Multiple | RFC 6979 nonce intermediates |
+| `src/cpu/src/musig2.cpp` | Multiple | Secret nonce (consumed after sign), partial sign intermediates |
 | `include/ufsecp/ufsecp_impl.cpp` | Multiple | ABI boundary cleanup of parsed secrets |
 
 **Implementation:** `secp256k1::detail::secure_erase` (compiler-barrier-protected memset that cannot be optimized away).
@@ -689,4 +689,4 @@ Files with `secure_erase` for secret data cleanup:
 4. ~~**Ethereum functions:** No differential testing against reference (e.g., ethers.js)~~ **RESOLVED** -- `audit/test_exploit_ethereum_differential.cpp` (10 tests, 15 sub-checks: address derivation go-ethereum KAT, privkey=1 canonical address, ecrecover vs ADDR_GOETH with go-ethereum test msg, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") go-ethereum KAT, anti-collision)
 5. ~~**GPU sign (CUDA-only):** ECDSA/Schnorr signing only on CUDA, not on OpenCL/Metal~~ **PARTIALLY RESOLVED** -- OpenCL: wired `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch` (4 new kernels); `bulletproof_verify_batch` has PARITY-EXCEPTION (no OpenCL WNAF multi-scalar). Metal: stubs documented with PARITY-EXCEPTION/TODO markers pointing to OpenCL path. See `docs/BACKEND_ASSURANCE_MATRIX.md`.
 6. ~~**Batch verify GPU:** Only CUDA has batch verify kernels; OpenCL/Metal missing~~ **PARTIALLY RESOLVED** -- see Gap #5 above; CUDA+OpenCL now have 4 matching ZK/BIP-324 batch ops. Bulletproof batch on OpenCL/Metal remains PARITY-EXCEPTION.
-7. ~~**Parser fuzzing for advanced protocols:** MuSig2/FROST/adaptor have null-arg testing but no random-byte fuzz~~ **RESOLVED** -- `audit/test_fuzz_musig2_frost.cpp` (15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg random inputs, FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary n_signers=0 → must error). Also added ClusterFuzzLite harnesses: `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign/verify invariants) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 Schnorr invariants) — total ClusterFuzzLite targets now 5.
+7. ~~**Parser fuzzing for advanced protocols:** MuSig2/FROST/adaptor have null-arg testing but no random-byte fuzz~~ **RESOLVED** -- `audit/test_fuzz_musig2_frost.cpp` (15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg random inputs, FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary n_signers=0 → must error). Also added ClusterFuzzLite harnesses: `src/cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign/verify invariants) and `src/cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 Schnorr invariants) — total ClusterFuzzLite targets now 5.

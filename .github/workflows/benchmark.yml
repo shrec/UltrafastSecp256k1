@@ -20,11 +20,11 @@ on:
   push:
     branches: [dev, main]
     paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'include/**'
-      - 'cuda/src/**'
-      - 'cuda/include/**'
+      - 'src/cuda/src/**'
+      - 'src/cuda/include/**'
       - 'benchmarks/**'
       - '.github/workflows/benchmark.yml'
   pull_request:
@@ -68,7 +68,7 @@ jobs:
       uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
       with:
         path: ~/.cache/ccache
-        key: ccache-bench-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+        key: ccache-bench-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
         restore-keys: |
           ccache-bench-
 
@@ -161,7 +161,7 @@ jobs:
       uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
       with:
         path: C:\Users\runneradmin\AppData\Local\ccache
-        key: ccache-bench-win-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+        key: ccache-bench-win-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
         restore-keys: |
           ccache-bench-win-
 

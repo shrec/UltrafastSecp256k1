@@ -361,7 +361,7 @@ def check_test_coverage(conn):
            WHERE callee_func LIKE 'ufsecp_%'
              AND (
                  caller_file LIKE 'audit/%' OR
-                 caller_file LIKE 'cpu/tests/%' OR
+                 caller_file LIKE 'src/cpu/tests/%' OR
                  caller_file LIKE 'tests/%'
              )"""
     ).fetchall()}
@@ -741,12 +741,12 @@ DOC_PAIRS = {
     'include/ufsecp/ufsecp.h': ['docs/API_REFERENCE.md', 'docs/USER_GUIDE.md'],
     'include/ufsecp/ufsecp_impl.cpp': ['docs/API_REFERENCE.md'],
     'CMakeLists.txt': ['docs/BUILDING.md'],
-    'cpu/src/musig2.cpp': ['docs/API_REFERENCE.md'],
-    'cpu/src/frost.cpp': ['docs/API_REFERENCE.md'],
-    'cpu/src/ct_sign.cpp': ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md'],
-    'cpu/src/ct_field.cpp': ['docs/CT_VERIFICATION.md'],
-    'cpu/src/ct_scalar.cpp': ['docs/CT_VERIFICATION.md'],
-    'cpu/src/ct_point.cpp': ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/musig2.cpp': ['docs/API_REFERENCE.md'],
+    'src/cpu/src/frost.cpp': ['docs/API_REFERENCE.md'],
+    'src/cpu/src/ct_sign.cpp': ['docs/CT_VERIFICATION.md', 'docs/SECURITY_CLAIMS.md'],
+    'src/cpu/src/ct_field.cpp': ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/ct_scalar.cpp': ['docs/CT_VERIFICATION.md'],
+    'src/cpu/src/ct_point.cpp': ['docs/CT_VERIFICATION.md'],
 }
 
 
@@ -1333,8 +1333,8 @@ def check_source_graph_quality(conn):
 
     findings.append(('PASS', f'Source graph DB exists: {sg_db.relative_to(LIB_ROOT)}'))
 
-    # Check DB staleness vs any .cpp file under cpu/
-    cpu_dir = LIB_ROOT / 'cpu'
+    # Check DB staleness vs any .cpp file under src/cpu/
+    cpu_dir = LIB_ROOT / 'src/cpu'
     db_mtime = sg_db.stat().st_mtime
     stale_files = []
     if cpu_dir.exists():
@@ -1346,10 +1346,10 @@ def check_source_graph_quality(conn):
                 pass
     if stale_files:
         findings.append(('WARN',
-                         f'{len(stale_files)} cpu/*.cpp file(s) newer than source graph DB '
+                         f'{len(stale_files)} src/cpu/*.cpp file(s) newer than source graph DB '
                          f'(rebuild recommended): {stale_files[:3]}'))
     else:
-        findings.append(('PASS', 'Source graph DB is up-to-date relative to cpu/ sources'))
+        findings.append(('PASS', 'Source graph DB is up-to-date relative to src/cpu/ sources'))
 
     # Count rows in a well-known source-graph table
     try:

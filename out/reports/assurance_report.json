@@ -4079,93 +4079,93 @@
       "DECLASSIFY": 44,
       "value_barrier": 4
     },
-    "cpu/include/secp256k1/bip324.hpp": {
+    "src/cpu/include/secp256k1/bip324.hpp": {
       "secure_erase": 1
     },
-    "cpu/include/secp256k1/ct/ops.hpp": {
+    "src/cpu/include/secp256k1/ct/ops.hpp": {
       "CLASSIFY": 4,
       "DECLASSIFY": 4,
       "value_barrier": 12
     },
-    "cpu/include/secp256k1/ct_utils.hpp": {
+    "src/cpu/include/secp256k1/ct_utils.hpp": {
       "value_barrier": 25
     },
-    "cpu/include/secp256k1/detail/secure_erase.hpp": {
+    "src/cpu/include/secp256k1/detail/secure_erase.hpp": {
       "secure_erase": 1
     },
-    "cpu/include/secp256k1/private_key.hpp": {
+    "src/cpu/include/secp256k1/private_key.hpp": {
       "secure_erase": 7
     },
-    "cpu/src/adaptor.cpp": {
+    "src/cpu/src/adaptor.cpp": {
       "secure_erase": 10
     },
-    "cpu/src/address.cpp": {
+    "src/cpu/src/address.cpp": {
       "secure_erase": 9
     },
-    "cpu/src/bip32.cpp": {
+    "src/cpu/src/bip32.cpp": {
       "secure_erase": 14
     },
-    "cpu/src/bip324.cpp": {
+    "src/cpu/src/bip324.cpp": {
       "secure_erase": 7
     },
-    "cpu/src/bip39.cpp": {
+    "src/cpu/src/bip39.cpp": {
       "secure_erase": 12
     },
-    "cpu/src/chacha20_poly1305.cpp": {
+    "src/cpu/src/chacha20_poly1305.cpp": {
       "secure_erase": 10
     },
-    "cpu/src/coin_hd.cpp": {
+    "src/cpu/src/coin_hd.cpp": {
       "secure_erase": 2
     },
-    "cpu/src/ct_field.cpp": {
+    "src/cpu/src/ct_field.cpp": {
       "value_barrier": 8
     },
-    "cpu/src/ct_point.cpp": {
+    "src/cpu/src/ct_point.cpp": {
       "DECLASSIFY": 8
     },
-    "cpu/src/ct_scalar.cpp": {
+    "src/cpu/src/ct_scalar.cpp": {
       "value_barrier": 13
     },
-    "cpu/src/ct_sign.cpp": {
+    "src/cpu/src/ct_sign.cpp": {
       "secure_erase": 21
     },
-    "cpu/src/ecdh.cpp": {
+    "src/cpu/src/ecdh.cpp": {
       "secure_erase": 5
     },
-    "cpu/src/ecdsa.cpp": {
+    "src/cpu/src/ecdsa.cpp": {
       "secure_erase": 28
     },
-    "cpu/src/ecies.cpp": {
+    "src/cpu/src/ecies.cpp": {
       "secure_erase": 15
     },
-    "cpu/src/ellswift.cpp": {
+    "src/cpu/src/ellswift.cpp": {
       "secure_erase": 3
     },
-    "cpu/src/frost.cpp": {
+    "src/cpu/src/frost.cpp": {
       "secure_erase": 10
     },
-    "cpu/src/hkdf.cpp": {
+    "src/cpu/src/hkdf.cpp": {
       "secure_erase": 11
     },
-    "cpu/src/keccak256.cpp": {
+    "src/cpu/src/keccak256.cpp": {
       "secure_erase": 2
     },
-    "cpu/src/message_signing.cpp": {
+    "src/cpu/src/message_signing.cpp": {
       "secure_erase": 3
     },
-    "cpu/src/musig2.cpp": {
+    "src/cpu/src/musig2.cpp": {
       "secure_erase": 11
     },
-    "cpu/src/schnorr.cpp": {
+    "src/cpu/src/schnorr.cpp": {
       "secure_erase": 8
     },
-    "cpu/src/taproot.cpp": {
+    "src/cpu/src/taproot.cpp": {
       "secure_erase": 1
     },
-    "cpu/src/wallet.cpp": {
+    "src/cpu/src/wallet.cpp": {
       "secure_erase": 2
     },
-    "cpu/src/zk.cpp": {
+    "src/cpu/src/zk.cpp": {
       "secure_erase": 15
     },
     "include/ufsecp/ufsecp_impl.cpp": {
@@ -4176,12 +4176,12 @@
     "musig2": {
       "files": [
         {
-          "path": "cpu/include/secp256k1/musig2.hpp",
+          "path": "src/cpu/include/secp256k1/musig2.hpp",
           "lines": 137,
           "layer": "fast"
         },
         {
-          "path": "cpu/src/musig2.cpp",
+          "path": "src/cpu/src/musig2.cpp",
           "lines": 457,
           "layer": "fast"
         },
@@ -4246,7 +4246,7 @@
           "layer": "test"
         },
         {
-          "path": "cpu/tests/test_musig2.cpp",
+          "path": "src/cpu/tests/test_musig2.cpp",
           "lines": 305,
           "layer": "test"
         }
@@ -4269,17 +4269,17 @@
     "frost": {
       "files": [
         {
-          "path": "cpu/include/secp256k1/frost.hpp",
+          "path": "src/cpu/include/secp256k1/frost.hpp",
           "lines": 153,
           "layer": "fast"
         },
         {
-          "path": "cpu/src/frost.cpp",
+          "path": "src/cpu/src/frost.cpp",
           "lines": 541,
           "layer": "fast"
         },
         {
-          "path": "opencl/kernels/secp256k1_frost.cl",
+          "path": "src/opencl/kernels/secp256k1_frost.cl",
           "lines": 158,
           "layer": "gpu"
         },
@@ -4397,12 +4397,12 @@
     "adaptor": {
       "files": [
         {
-          "path": "cpu/include/secp256k1/adaptor.hpp",
+          "path": "src/cpu/include/secp256k1/adaptor.hpp",
           "lines": 105,
           "layer": "fast"
         },
         {
-          "path": "cpu/src/adaptor.cpp",
+          "path": "src/cpu/src/adaptor.cpp",
           "lines": 288,
           "layer": "fast"
         },
@@ -4436,12 +4436,12 @@
     "ecies": {
       "files": [
         {
-          "path": "cpu/include/secp256k1/ecies.hpp",
+          "path": "src/cpu/include/secp256k1/ecies.hpp",
           "lines": 46,
           "layer": "fast"
         },
         {
-          "path": "cpu/src/ecies.cpp",
+          "path": "src/cpu/src/ecies.cpp",
           "lines": 365,
           "layer": "fast"
         },
@@ -4476,7 +4476,7 @@
           "layer": "test"
         },
         {
-          "path": "cpu/tests/test_ecies.cpp",
+          "path": "src/cpu/tests/test_ecies.cpp",
           "lines": 217,
           "layer": "test"
         }
@@ -4684,7 +4684,7 @@
       },
       {
         "entity_type": "source_file",
-        "entity_id": "metal/shaders/secp256k1_keccak256.h",
+        "entity_id": "src/metal/shaders/secp256k1_keccak256.h",
         "tag_count": 4,
         "tags": "ethereum_stack, gpu_acceleration, hashing, parser_boundary"
       },
@@ -4859,7 +4859,7 @@
     "optimization_candidates": [
       {
         "symbol_name": "precompute_point_multiples",
-        "file_path": "cpu/src/batch_add_affine.cpp",
+        "file_path": "src/cpu/src/batch_add_affine.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 28.0,
@@ -4868,7 +4868,7 @@
       },
       {
         "symbol_name": "msm",
-        "file_path": "cpu/src/pippenger.cpp",
+        "file_path": "src/cpu/src/pippenger.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 31.07,
@@ -4877,7 +4877,7 @@
       },
       {
         "symbol_name": "pippenger_msm",
-        "file_path": "cpu/src/pippenger.cpp",
+        "file_path": "src/cpu/src/pippenger.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 31.07,
@@ -4886,7 +4886,7 @@
       },
       {
         "symbol_name": "test_batch_inverse",
-        "file_path": "cpu/src/selftest.cpp",
+        "file_path": "src/cpu/src/selftest.cpp",
         "category": "modinv",
         "backend": "cpu",
         "risk_score": 37.49,
@@ -4895,7 +4895,7 @@
       },
       {
         "symbol_name": "test_batch_inverse_expanded",
-        "file_path": "cpu/src/selftest.cpp",
+        "file_path": "src/cpu/src/selftest.cpp",
         "category": "modinv",
         "backend": "cpu",
         "risk_score": 37.49,
@@ -4904,7 +4904,7 @@
       },
       {
         "symbol_name": "test_batch_inverse_sweep",
-        "file_path": "cpu/src/selftest.cpp",
+        "file_path": "src/cpu/src/selftest.cpp",
         "category": "modinv",
         "backend": "cpu",
         "risk_score": 37.49,
@@ -4913,7 +4913,7 @@
       },
       {
         "symbol_name": "test_batch_inverse_zero_safe",
-        "file_path": "cpu/src/selftest.cpp",
+        "file_path": "src/cpu/src/selftest.cpp",
         "category": "modinv",
         "backend": "cpu",
         "risk_score": 37.49,
@@ -4922,7 +4922,7 @@
       },
       {
         "symbol_name": "fe_batch_inverse",
-        "file_path": "cpu/src/field.cpp",
+        "file_path": "src/cpu/src/field.cpp",
         "category": "field_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -4931,7 +4931,7 @@
       },
       {
         "symbol_name": "fe_batch_inverse_with_scratch",
-        "file_path": "cpu/src/field.cpp",
+        "file_path": "src/cpu/src/field.cpp",
         "category": "field_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -4940,7 +4940,7 @@
       },
       {
         "symbol_name": "batch_inverse",
-        "file_path": "cpu/src/precompute.cpp",
+        "file_path": "src/cpu/src/precompute.cpp",
         "category": "modinv",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -4949,7 +4949,7 @@
       },
       {
         "symbol_name": "fe52_batch_inverse",
-        "file_path": "cpu/src/ct_point.cpp",
+        "file_path": "src/cpu/src/ct_point.cpp",
         "category": "field_arithmetic",
         "backend": "cpu",
         "risk_score": 45.5,
@@ -4958,7 +4958,7 @@
       },
       {
         "symbol_name": "fe_batch_inverse",
-        "file_path": "cpu/src/ct_point.cpp",
+        "file_path": "src/cpu/src/ct_point.cpp",
         "category": "field_arithmetic",
         "backend": "cpu",
         "risk_score": 45.5,
@@ -4976,7 +4976,7 @@
       },
       {
         "symbol_name": "batch_normalize",
-        "file_path": "cpu/src/point.cpp",
+        "file_path": "src/cpu/src/point.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -4985,7 +4985,7 @@
       },
       {
         "symbol_name": "batch_to_compressed",
-        "file_path": "cpu/src/point.cpp",
+        "file_path": "src/cpu/src/point.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -4994,7 +4994,7 @@
       },
       {
         "symbol_name": "batch_x_only_bytes",
-        "file_path": "cpu/src/point.cpp",
+        "file_path": "src/cpu/src/point.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -5003,7 +5003,7 @@
       },
       {
         "symbol_name": "batch_z_inv",
-        "file_path": "cpu/src/point.cpp",
+        "file_path": "src/cpu/src/point.cpp",
         "category": "point_arithmetic",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -5012,7 +5012,7 @@
       },
       {
         "symbol_name": "precompute_g_multiples",
-        "file_path": "cpu/src/batch_add_affine.cpp",
+        "file_path": "src/cpu/src/batch_add_affine.cpp",
         "category": "ffi_abi",
         "backend": "cpu",
         "risk_score": 28.0,
@@ -5021,7 +5021,7 @@
       },
       {
         "symbol_name": "hash160_33_batch",
-        "file_path": "cpu/src/hash_accel.cpp",
+        "file_path": "src/cpu/src/hash_accel.cpp",
         "category": "hashing",
         "backend": "cpu",
         "risk_score": 36.32,
@@ -5030,7 +5030,7 @@
       },
       {
         "symbol_name": "ripemd160_32_batch",
-        "file_path": "cpu/src/hash_accel.cpp",
+        "file_path": "src/cpu/src/hash_accel.cpp",
         "category": "hashing",
         "backend": "cpu",
         "risk_score": 36.32,
@@ -5039,7 +5039,7 @@
       },
       {
         "symbol_name": "sha256_33_batch",
-        "file_path": "cpu/src/hash_accel.cpp",
+        "file_path": "src/cpu/src/hash_accel.cpp",
         "category": "hashing",
         "backend": "cpu",
         "risk_score": 36.32,
@@ -5048,7 +5048,7 @@
       },
       {
         "symbol_name": "_BitScanReverse64",
-        "file_path": "cpu/src/precompute.cpp",
+        "file_path": "src/cpu/src/precompute.cpp",
         "category": "general",
         "backend": "cpu",
         "risk_score": 38.5,
@@ -5057,7 +5057,7 @@
       },
       {
         "symbol_name": "verify_endomorphism",
-        "file_path": "cpu/src/glv.cpp",
+        "file_path": "src/cpu/src/glv.cpp",
         "category": "general",
         "backend": "cpu",
         "risk_score": 39.24,
@@ -5066,7 +5066,7 @@
       },
       {
         "symbol_name": "eip55_verify",
-        "file_path": "cpu/src/ethereum.cpp",
+        "file_path": "src/cpu/src/ethereum.cpp",
         "category": "general",
         "backend": "cpu",
         "risk_score": 39.82,
@@ -5075,7 +5075,7 @@
       },
       {
         "symbol_name": "pedersen_verify",
-        "file_path": "cpu/src/pedersen.cpp",
+        "file_path": "src/cpu/src/pedersen.cpp",
         "category": "general",
         "backend": "cpu",
         "risk_score": 39.82,
@@ -5110,7 +5110,7 @@
       },
       {
         "symbol_name": "negate_assign",
-        "file_path": "cpu/src/field.cpp",
+        "file_path": "src/cpu/src/field.cpp",
         "category": "field_arithmetic",
         "secret_class": "ct_sensitive",
         "risk_score": 70.0,
@@ -5118,7 +5118,7 @@
       },
       {
         "symbol_name": "uint320_add_assign",
-        "file_path": "cpu/src/field.cpp",
+        "file_path": "src/cpu/src/field.cpp",
         "category": "field_arithmetic",
         "secret_class": "ct_sensitive",
         "risk_score": 70.0,
@@ -5126,7 +5126,7 @@
       },
       {
         "symbol_name": "uint320_sub_assign",
-        "file_path": "cpu/src/field.cpp",
+        "file_path": "src/cpu/src/field.cpp",
         "category": "field_arithmetic",
         "secret_class": "ct_sensitive",
         "risk_score": 70.0,

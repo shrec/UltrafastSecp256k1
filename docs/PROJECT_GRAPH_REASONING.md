@@ -155,8 +155,8 @@ proof of correctness. It is useful for answering:
 ### Structural
 
 ```bash
-python3 ci/query_graph.py context cpu/src/ct_sign.cpp
-python3 ci/query_graph.py impact cpu/src/ecdh.cpp
+python3 ci/query_graph.py context src/cpu/src/ct_sign.cpp
+python3 ci/query_graph.py impact src/cpu/src/ecdh.cpp
 python3 ci/query_graph.py callgraph pippenger_msm
 python3 ci/query_graph.py coverage ecdsa_sign
 ```

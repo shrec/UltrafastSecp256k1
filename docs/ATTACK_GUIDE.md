@@ -1,4 +1,4 @@
-# Attack Me: External Auditor's Guide to UltrafastSecp256k1
+# Attack Me: Independent Review Guide to UltrafastSecp256k1
 
 > This document is written *for attackers*. If you want to break this library —
 > or prove we missed something — start here. We want you to find real bugs more
@@ -65,7 +65,7 @@ These are ordered by our best guess of risk-vs-effort ratio for an external atta
 
 ### Attack 1 — Constant-Time Violations in Field Inversion (HIGH RISK)
 
-**Target**: `cpu/src/fe_inv.cpp`, `cpu/src/fe_inv_4x64.cpp`  
+**Target**: `src/cpu/src/fe_inv.cpp`, `src/cpu/src/fe_inv_4x64.cpp`  
 **Entry**: `ufsecp_pubkey_create`, `ufsecp_ecdsa_sign`, any path that calls `field_inv`
 
 Field inversion (needed for projective-to-affine conversion) is the most likely
@@ -75,7 +75,7 @@ transformations. The current implementation uses constant-time exponentiation
 
 - Compiler auto-vectorisation can lift conditional moves back to branches
 - The `ASAN + UBSAN` build may differ from the `-O3 -march=native` build
-- GLV decomposition of the scalar (in `cpu/src/scalar_decomp.cpp`) produces
+- GLV decomposition of the scalar (in `src/cpu/src/scalar_decomp.cpp`) produces
   `k1`, `k2` with conditional negation — verify the negate is branchless
 
 **How to probe**: run `valgrind --tool=memcheck` against `test_ct_sidechannel`,
@@ -86,7 +86,7 @@ usage with and without LTO.
 
 ### Attack 2 — RFC 6979 Nonce Hedging and Re-Use (HIGH RISK)
 
-**Target**: `cpu/src/rfc6979.cpp`  
+**Target**: `src/cpu/src/rfc6979.cpp`  
 **Entry**: `ufsecp_ecdsa_sign`
 
 RFC 6979 is deterministic nonce generation. If the implementation:
@@ -97,7 +97,7 @@ RFC 6979 is deterministic nonce generation. If the implementation:
 **Attack vector**: generate two signatures with the same (sk, msg) and verify the
 nonces are identical. Generate signatures with distinct messages and verify k
 differs. Extract k from the HMAC chain and verify it matches the standard test
-vectors in `cpu/tests/test_rfc6979.cpp`.
+vectors in `src/cpu/tests/test_rfc6979.cpp`.
 
 Known-good: Wycheproof RFC 6979 vectors at `audit/test_exploit_wycheproof_*.cpp`.
 
@@ -140,7 +140,7 @@ to produce identical results across repeated calls.
 
 ### Attack 3 — Scalar Range Boundary Cases: k = 0, k = n, k near n (MEDIUM-HIGH)
 
-**Target**: `cpu/src/scalar.cpp`, `cpu/src/ecdsa.cpp`  
+**Target**: `src/cpu/src/scalar.cpp`, `src/cpu/src/ecdsa.cpp`  
 **Entry**: `ufsecp_ecdsa_sign`, `ufsecp_schnorr_sign`
 
 The secp256k1 group order is:
@@ -164,7 +164,7 @@ Vulnerable edge cases:
 
 ### Attack 4 — BIP-340 Schnorr Even-Y Key Normalisation (MEDIUM)
 
-**Target**: `cpu/src/schnorr.cpp`  
+**Target**: `src/cpu/src/schnorr.cpp`  
 **Entry**: `ufsecp_schnorr_sign`, `ufsecp_schnorr_verify`
 
 BIP-340 requires the public key's Y coordinate to be even. If the signer's
@@ -182,7 +182,7 @@ Formal coverage: `normalised_key_has_even_y`, `normalise_key_idempotent` in
 
 ### Attack 5 — MuSig2 Nonce Reuse and Rogue-Key Attack (MEDIUM)
 
-**Target**: `cpu/src/musig2.cpp`, `cpu/src/musig2_session.cpp`  
+**Target**: `src/cpu/src/musig2.cpp`, `src/cpu/src/musig2_session.cpp`  
 **Entry**: `ufsecp_musig2_*`
 
 MuSig2 is the most complex multi-signature protocol in the library.
@@ -192,7 +192,7 @@ MuSig2 is the most complex multi-signature protocol in the library.
   recovery is trivial with two conflicting partial signatures
 - **Rogue-key attack**: without MuSig2's key aggregation coefficient, a
   participant can choose a public key that cancels another participant's key out.
-  Verify the aggregation hash in `cpu/src/musig2.cpp` matches BIP-327.
+  Verify the aggregation hash in `src/cpu/src/musig2.cpp` matches BIP-327.
 - **Round ordering**: session state machine — can a partial signature be injected
   if the session skips a round?
 
@@ -203,7 +203,7 @@ against the library's MuSig2 implementation.
 
 ### Attack 6 — DER Parser: ASN.1 Boundary and Strict-Mode Bypass (MEDIUM)
 
-**Target**: `cpu/src/der.cpp`  
+**Target**: `src/cpu/src/der.cpp`  
 **Entry**: `ufsecp_ecdsa_sign_der`, `ufsecp_ecdsa_verify_der`
 
 Classic DER parser bugs:
@@ -219,7 +219,7 @@ The parser should be strict: reject all of these.
 
 ### Attack 7 — BIP-352 Silent Payments: Diffie-Hellman Point Clamping (MEDIUM)
 
-**Target**: `cpu/src/bip352.cpp`  
+**Target**: `src/cpu/src/bip352.cpp`  
 **Entry**: `ufsecp_bip352_*`
 
 Silent payments use a shared secret derived from Diffie-Hellman:
@@ -234,7 +234,7 @@ These are the same attacks that took down early ECC implementations.
 
 ### Attack 8 — BIP-32 CKA_pub (Non-Hardened) Child Key Derivation (MEDIUM)
 
-**Target**: `cpu/src/bip32.cpp`  
+**Target**: `src/cpu/src/bip32.cpp`  
 **Entry**: `ufsecp_bip32_derive_child`
 
 Non-hardened BIP-32 derivation leaks the **parent private key** if the attacker
@@ -245,14 +245,14 @@ documentation should clearly warn against:
 - exposing any non-hardened child's private key
 
 **Attack**: given `child_priv[i]` and `parent_pub`, demonstrate parent private
-key recovery. Verify the library documentation warns about this in `cpu/src/bip32.cpp`
+key recovery. Verify the library documentation warns about this in `src/cpu/src/bip32.cpp`
 or the public header.
 
 ---
 
 ### Attack 9 — GPU Batch Sign: Memory Aliasing and Race Conditions (LOWER RISK, HIGH IMPACT)
 
-**Target**: `gpu/src/`, `opencl/src/`, `metal/src/`  
+**Target**: `src/gpu/src/`, `opencl/src/`, `metal/src/`  
 **Entry**: `ufsecp_gpu_ecdsa_batch_sign`, `ufsecp_gpu_schnorr_batch_sign`
 
 GPU batch operations process thousands of inputs concurrently. Attack surface:
@@ -269,7 +269,7 @@ the error code is correct and all output bytes are zeroed.
 
 ### Attack 10 — FROST Identifiable Abort: Byzantine Coordinator Injection (LOWER RISK)
 
-**Target**: `cpu/src/frost.cpp`  
+**Target**: `src/cpu/src/frost.cpp`  
 **Entry**: `ufsecp_frost_*`
 
 FROST (Flexible Round-Optimized Schnorr Threshold) signatures support
@@ -289,14 +289,14 @@ These are the areas where a subtle bug is most likely to be non-obvious:
 
 | Area | File | Why It's Hard |
 |------|------|---------------|
-| GLV scalar decomposition | `cpu/src/scalar_decomp.cpp` | Endomorphism splits scalar into `k1`, `k2`; conditional negation must be branchless; off-by-one in the lattice basis breaks all ECDSA |
-| Field inversion chain | `cpu/src/fe_inv.cpp` | Exponent is `p-2 = 0xFFFF...FFFD`; wrong chain = wrong inverse = wrong pubkey |
-| Low-S normalisation | `cpu/src/ecdsa.cpp` | `normalize_s` must be constant-time — comparison `s > n/2` must not branch on `s` |
-| MuSig2 key aggregation | `cpu/src/musig2.cpp` | Aggregation coefficient `a_i = H(agg_pk, P_i)` — wrong hash input domain = rogue-key vulnerability |
-| BIP-340 challenge hash | `cpu/src/schnorr.cpp` | Tagged hash with `"BIP0340/challenge"` tag; double-SHA256 prefix; wrong domain = forged sig accepted |
-| RFC 6979 HMAC chain | `cpu/src/rfc6979.cpp` | V, K iteration; truncation; retry-if-zero loop — subtle state machine bugs are hard to spot |
-| FROST Lagrange coefficients | `cpu/src/frost.cpp` | Lagrange interpolation in the exponent; zero denominator must be caught; wrong participant index = wrong coefficient |
-| DER length encoding | `cpu/src/der.cpp` | Strict vs BER parsing; leading-zero rules for integer encoding; consensus-critical in Bitcoin context |
+| GLV scalar decomposition | `src/cpu/src/scalar_decomp.cpp` | Endomorphism splits scalar into `k1`, `k2`; conditional negation must be branchless; off-by-one in the lattice basis breaks all ECDSA |
+| Field inversion chain | `src/cpu/src/fe_inv.cpp` | Exponent is `p-2 = 0xFFFF...FFFD`; wrong chain = wrong inverse = wrong pubkey |
+| Low-S normalisation | `src/cpu/src/ecdsa.cpp` | `normalize_s` must be constant-time — comparison `s > n/2` must not branch on `s` |
+| MuSig2 key aggregation | `src/cpu/src/musig2.cpp` | Aggregation coefficient `a_i = H(agg_pk, P_i)` — wrong hash input domain = rogue-key vulnerability |
+| BIP-340 challenge hash | `src/cpu/src/schnorr.cpp` | Tagged hash with `"BIP0340/challenge"` tag; double-SHA256 prefix; wrong domain = forged sig accepted |
+| RFC 6979 HMAC chain | `src/cpu/src/rfc6979.cpp` | V, K iteration; truncation; retry-if-zero loop — subtle state machine bugs are hard to spot |
+| FROST Lagrange coefficients | `src/cpu/src/frost.cpp` | Lagrange interpolation in the exponent; zero denominator must be caught; wrong participant index = wrong coefficient |
+| DER length encoding | `src/cpu/src/der.cpp` | Strict vs BER parsing; leading-zero rules for integer encoding; consensus-critical in Bitcoin context |
 
 ---
 
@@ -362,13 +362,13 @@ spec or exploit test, and a bug here would be critical:
 
 | Priority | File | Lines | Why |
 |----------|------|-------|-----|
-| 1 | `cpu/src/ecdsa.cpp` | ~600 | Sign + verify core; RR-004 was here |
-| 2 | `cpu/src/schnorr.cpp` | ~450 | BIP-340; even-Y normalisation |
-| 3 | `cpu/src/rfc6979.cpp` | ~200 | Nonce generation; determinism |
-| 4 | `cpu/src/scalar_decomp.cpp` | ~300 | GLV decomposition; CT-critical |
-| 5 | `cpu/src/fe_inv.cpp` | ~180 | Field inversion; exponent chain |
-| 6 | `cpu/src/der.cpp` | ~350 | DER/ASN.1 parser; consensus-critical |
-| 7 | `cpu/src/musig2.cpp` | ~800 | MuSig2 aggregation; rogue-key |
+| 1 | `src/cpu/src/ecdsa.cpp` | ~600 | Sign + verify core; RR-004 was here |
+| 2 | `src/cpu/src/schnorr.cpp` | ~450 | BIP-340; even-Y normalisation |
+| 3 | `src/cpu/src/rfc6979.cpp` | ~200 | Nonce generation; determinism |
+| 4 | `src/cpu/src/scalar_decomp.cpp` | ~300 | GLV decomposition; CT-critical |
+| 5 | `src/cpu/src/fe_inv.cpp` | ~180 | Field inversion; exponent chain |
+| 6 | `src/cpu/src/der.cpp` | ~350 | DER/ASN.1 parser; consensus-critical |
+| 7 | `src/cpu/src/musig2.cpp` | ~800 | MuSig2 aggregation; rogue-key |
 | 8 | `include/ufsecp/ufsecp.h` | ~400 | Public ABI; contract specification |
 
 Run just the exploit tests covering these:
@@ -393,10 +393,10 @@ ctest -R "exploit" -j$(nproc) --output-on-failure
 
 ```bash
 # Run one harness for 60 seconds
-./build/cpu/fuzz/fuzz_ecdsa_sign -max_total_time=60 -print_final_stats=1
+./build/src/cpu/fuzz/fuzz_ecdsa_sign -max_total_time=60 -print_final_stats=1
 
 # All harnesses:
-ls cpu/fuzz/fuzz_* build/audit/fuzz_*
+ls src/cpu/fuzz/fuzz_* build/audit/fuzz_*
 ```
 
 ### Differential oracle (cross-library comparison)
@@ -453,7 +453,7 @@ Run it standalone:
 Or fuzz both simultaneously to find divergence:
 
 ```bash
-./build/cpu/fuzz/fuzz_differential -max_total_time=300
+./build/src/cpu/fuzz/fuzz_differential -max_total_time=300
 ```
 
 A divergence between this library and libsecp256k1 on a valid input is a

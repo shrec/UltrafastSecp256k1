@@ -9,8 +9,8 @@ Signatures)** as described in:
 - **Draft BIP-FROST** (Bitcoin threshold signing) -- partial alignment
 
 Source files:
-- `cpu/include/secp256k1/frost.hpp` -- public API
-- `cpu/src/frost.cpp` -- implementation
+- `src/cpu/include/secp256k1/frost.hpp` -- public API
+- `src/cpu/src/frost.cpp` -- implementation
 
 ## Protocol Checkpoint Matrix
 

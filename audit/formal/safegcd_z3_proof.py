@@ -3,7 +3,7 @@
 Formal verification of SafeGCD / Bernstein-Yang divstep properties using Z3 SMT.
 
 This script formally proves the following properties of the divstep function
-as implemented in cpu/src/ct_field.cpp (ct_divsteps_59):
+as implemented in src/cpu/src/ct_field.cpp (ct_divsteps_59):
 
   THEOREM 1 — GCD preservation:
       gcd(f, g) is invariant under each divstep transition.

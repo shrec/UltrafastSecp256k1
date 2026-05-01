@@ -15,7 +15,7 @@ cd "$SRC/ultrafast"
 # -- Step 1: Build the static library WITH sanitizer flags --------------------
 # CMAKE_CXX_FLAGS_RELEASE is set to "-DNDEBUG" only (no -O3) so that
 # the sanitizer optimization level from $CXXFLAGS is not overridden.
-# The cpu/CMakeLists.txt detects -fsanitize in CMAKE_CXX_FLAGS and skips
+# The src/cpu/CMakeLists.txt detects -fsanitize in CMAKE_CXX_FLAGS and skips
 # its own -O3/-fomit-frame-pointer overrides automatically.
 cmake -S . -B build-fuzz -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
@@ -35,55 +35,55 @@ cmake -S . -B build-fuzz -G Ninja \
 cmake --build build-fuzz -j"$(nproc)" --target fastsecp256k1
 
 LIB="build-fuzz/cpu/libfastsecp256k1.a"
-INC="cpu/include"
+INC="src/cpu/include"
 
 # -- Step 2: Compile each fuzz harness and link against the library ----------
 
 # fuzz_field: field arithmetic invariants (64 bytes input)
 $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
-    cpu/fuzz/fuzz_field.cpp \
+    src/cpu/fuzz/fuzz_field.cpp \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_field"
 
 # fuzz_scalar: scalar ring properties (64 bytes input)
 $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
-    cpu/fuzz/fuzz_scalar.cpp \
+    src/cpu/fuzz/fuzz_scalar.cpp \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_scalar"
 
 # fuzz_point: curve point operations (32 bytes input)
 $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
-    cpu/fuzz/fuzz_point.cpp \
+    src/cpu/fuzz/fuzz_point.cpp \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_point"
 
 # fuzz_ecdsa: ECDSA sign/verify invariants (64 bytes: 32 privkey + 32 msg)
 $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
-    cpu/fuzz/fuzz_ecdsa.cpp \
+    src/cpu/fuzz/fuzz_ecdsa.cpp \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_ecdsa"
 
 # fuzz_schnorr: BIP-340 Schnorr sign/verify invariants (96 bytes: 32 key + 32 msg + 32 aux)
 $CXX $CXXFLAGS -std=c++20 -O2 -I "$INC" \
-    cpu/fuzz/fuzz_schnorr.cpp \
+    src/cpu/fuzz/fuzz_schnorr.cpp \
     $LIB_FUZZING_ENGINE "$LIB" \
     -o "$OUT/fuzz_schnorr"
 
 # -- Step 3: Copy seed corpora (zip per target) -----------------------------
-if [ -d "cpu/fuzz/corpus/fuzz_field" ]; then
-    zip -j "$OUT/fuzz_field_seed_corpus.zip" cpu/fuzz/corpus/fuzz_field/* 2>/dev/null || true
+if [ -d "src/cpu/fuzz/corpus/fuzz_field" ]; then
+    zip -j "$OUT/fuzz_field_seed_corpus.zip" src/cpu/fuzz/corpus/fuzz_field/* 2>/dev/null || true
 fi
-if [ -d "cpu/fuzz/corpus/fuzz_scalar" ]; then
-    zip -j "$OUT/fuzz_scalar_seed_corpus.zip" cpu/fuzz/corpus/fuzz_scalar/* 2>/dev/null || true
+if [ -d "src/cpu/fuzz/corpus/fuzz_scalar" ]; then
+    zip -j "$OUT/fuzz_scalar_seed_corpus.zip" src/cpu/fuzz/corpus/fuzz_scalar/* 2>/dev/null || true
 fi
-if [ -d "cpu/fuzz/corpus/fuzz_point" ]; then
-    zip -j "$OUT/fuzz_point_seed_corpus.zip" cpu/fuzz/corpus/fuzz_point/* 2>/dev/null || true
+if [ -d "src/cpu/fuzz/corpus/fuzz_point" ]; then
+    zip -j "$OUT/fuzz_point_seed_corpus.zip" src/cpu/fuzz/corpus/fuzz_point/* 2>/dev/null || true
 fi
-if [ -d "cpu/fuzz/corpus/fuzz_ecdsa" ]; then
-    zip -j "$OUT/fuzz_ecdsa_seed_corpus.zip" cpu/fuzz/corpus/fuzz_ecdsa/* 2>/dev/null || true
+if [ -d "src/cpu/fuzz/corpus/fuzz_ecdsa" ]; then
+    zip -j "$OUT/fuzz_ecdsa_seed_corpus.zip" src/cpu/fuzz/corpus/fuzz_ecdsa/* 2>/dev/null || true
 fi
-if [ -d "cpu/fuzz/corpus/fuzz_schnorr" ]; then
-    zip -j "$OUT/fuzz_schnorr_seed_corpus.zip" cpu/fuzz/corpus/fuzz_schnorr/* 2>/dev/null || true
+if [ -d "src/cpu/fuzz/corpus/fuzz_schnorr" ]; then
+    zip -j "$OUT/fuzz_schnorr_seed_corpus.zip" src/cpu/fuzz/corpus/fuzz_schnorr/* 2>/dev/null || true
 fi
 
 # -- Step 4: Copy fuzzer options (max_len limits) ----------------------------

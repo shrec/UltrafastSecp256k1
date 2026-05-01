@@ -19,8 +19,8 @@
 | Tier | Meaning |
 |---|---|
 | `production` | Full CT, CAAS-hard-gated, production-safe |
-| `beta` | Feature-complete, CAAS partial, pending final audit |
-| `experimental` | Not formally CT-audited; not for production secrets |
+| `beta` | Feature-complete, CAAS partial, promotion depends on evidence closure |
+| `experimental` | CAAS evidence incomplete; not for production secrets |
 | `compat-only` | Backward-compat only; do not use in new code |
 | `deprecated` | Scheduled for removal |
 
@@ -29,7 +29,7 @@
 ### 1. Canonical CPU C ABI (`ufsecp_*`)
 - **Profile:** `bitcoin-core-backend`, `cpu-signing`, `release/full-engine`
 - **Tier:** `production`
-- **Files:** `cpu/src/impl/ufsecp_*.cpp`
+- **Files:** `src/cpu/src/impl/ufsecp_*.cpp`
 - **CT:** All secret-bearing paths → `secp256k1::ct::*`
 - **CAAS:** audit_gate + security_autonomy + bundle_verify (all hard)
 
@@ -43,7 +43,7 @@
 ### 3. Public C++ API (`secp256k1::ecdsa_sign`, `schnorr_sign`)
 - **Profile:** `cpu-signing`
 - **Tier:** `production`
-- **Files:** `cpu/include/secp256k1/ecdsa.hpp`, `schnorr.hpp`, `recovery.hpp`
+- **Files:** `src/cpu/include/secp256k1/ecdsa.hpp`, `schnorr.hpp`, `recovery.hpp`
 - **CT:** `signing_generator_mul()` aliases `ct::generator_mul_blinded()` — CT internally
 - **Note:** For new code, prefer the canonical `ufsecp_*` ABI or `secp256k1::ct::*` directly
 
@@ -63,13 +63,13 @@
 - **Profile:** `wasm`
 - **Tier:** `experimental`
 - **Files:** `bindings/wasm/`
-- **CT:** Prebuilt artifact — no WASM-specific CT audit performed
+- **CT:** Prebuilt artifact — WASM-specific CT evidence is not yet sufficient for production-CT claims
 - **Restriction:** Do not claim WASM production-CT without CI rebuild + timing analysis
 
 ### 7. GPU Backend — Public Data
 - **Profile:** `gpu-public-data`
 - **Tier:** `beta` (verify/scan), `experimental` (GPU signing)
-- **Files:** `gpu/`, `cuda/`, `opencl/`, `metal/`
+- **Files:** `src/gpu/`, `src/cuda/`, `src/opencl/`, `src/metal/`
 - **CT:** GPU signing CT paths added 2026-05-01; key erasure added 2026-05-01
 - **Restriction:** GPU signing tier is `experimental` pending timing analysis
 
@@ -88,7 +88,7 @@
 ### 10. FROST
 - **Profile:** `cpu-signing` (via `release`)
 - **Tier:** `beta`
-- **CT:** Not individually audited in this cycle
+- **CT:** Covered by shared CAAS CT gates; feature-specific protocol evidence is still maturing
 
 ## Claims Wording Policy
 

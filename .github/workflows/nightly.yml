@@ -4,21 +4,21 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/**'
+      - 'src/cpu/**'
       - 'include/**'
-      - 'gpu/**'
-      - 'opencl/**'
-      - 'metal/**'
+      - 'src/gpu/**'
+      - 'src/opencl/**'
+      - 'src/metal/**'
       - 'CMakeLists.txt'
       - '.github/workflows/nightly.yml'
   pull_request:
     branches: [main, dev]
     paths:
-      - 'cpu/**'
+      - 'src/cpu/**'
       - 'include/**'
-      - 'gpu/**'
-      - 'opencl/**'
-      - 'metal/**'
+      - 'src/gpu/**'
+      - 'src/opencl/**'
+      - 'src/metal/**'
       - 'CMakeLists.txt'
       - '.github/workflows/nightly.yml'
   workflow_dispatch:

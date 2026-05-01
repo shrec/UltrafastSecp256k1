@@ -83,7 +83,7 @@ cmake --build build -j
 
 ### Inline Assembly
 
-The ARM64 implementation includes hand-optimized inline assembly (`cpu/src/field_asm_arm64.cpp`):
+The ARM64 implementation includes hand-optimized inline assembly (`src/cpu/src/field_asm_arm64.cpp`):
 
 - **`field_mul_arm64`** -- 4x4 schoolbook MUL/UMULH + secp256k1 fast reduction
 - **`field_sqr_arm64`** -- Optimized squaring (10 mul vs 16)

@@ -515,7 +515,7 @@ function Run-CategoryC {
     if ($clangTidy) {
         Write-SubStep "Running clang-tidy..." "..."
         $ctidyLog = "$ArtifactsDir/static_analysis/clang_tidy.log"
-        $cpuSources = Get-ChildItem "$RootDir/cpu/include/secp256k1/*.hpp" -File |
+        $cpuSources = Get-ChildItem "$RootDir/src/cpu/include/secp256k1/*.hpp" -File |
             Where-Object { $_.Name -notmatch "test_|benchmark_" } |
             Select-Object -First 20 -ExpandProperty FullName
 
@@ -545,7 +545,7 @@ function Run-CategoryC {
         $cppcheckLog = "$ArtifactsDir/static_analysis/cppcheck.log"
         $cppcheckOut = & cppcheck --enable=all --std=c++20 --suppress=missingInclude `
             --suppress=unusedFunction --quiet `
-            "$RootDir/cpu/include/secp256k1/" 2>&1
+            "$RootDir/src/cpu/include/secp256k1/" 2>&1
         $cppcheckOut | Out-File $cppcheckLog -Encoding utf8
         $cppErrors = ($cppcheckOut | Where-Object { $_ -match '\(error\)' }).Count
         if ($cppErrors -gt 0) {
@@ -569,7 +569,7 @@ function Run-CategoryC {
     )
     $dangerLog = "$ArtifactsDir/static_analysis/dangerous_patterns.log"
     $patternFindings = @()
-    $cpuHeaders = Get-ChildItem "$RootDir/cpu/include/secp256k1/*.hpp" -File
+    $cpuHeaders = Get-ChildItem "$RootDir/src/cpu/include/secp256k1/*.hpp" -File
     foreach ($pat in $dangerousPatterns) {
         foreach ($file in $cpuHeaders) {
             $matches = Select-String -Path $file.FullName -Pattern $pat.Pattern -AllMatches
@@ -1182,7 +1182,7 @@ function Generate-AuditReportMd {
     [void]$sb.AppendLine("| A3: Arithmetic Errors | Field/scalar/point audit, property tests | unified runner (math_invariants) |")
     [void]$sb.AppendLine("| A4: Memory Safety | ASan/UBSan, fault injection | sanitizer build + fault_injection test |")
     [void]$sb.AppendLine("| A5: Supply Chain | SBOM, provenance, dependency scan | artifacts/ |")
-    [void]$sb.AppendLine("| A6: GPU-Specific | GPU tests (CUDA, OpenCL, Metal) | CI: gpu-selfhosted.yml + opencl/metal audit runners |")
+    [void]$sb.AppendLine("| A6: GPU-Specific | GPU tests (CUDA, OpenCL, Metal) | CI: gpu-selfhosted.yml + src/opencl/metal audit runners |")
     [void]$sb.AppendLine("")
 
     [void]$sb.AppendLine("### Not Covered")

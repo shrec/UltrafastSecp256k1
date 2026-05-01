@@ -12,8 +12,9 @@ test modules and produces a structured JSON + TXT audit report. It covers
 cryptographic correctness, constant-time behavior, cross-platform KATs
 (Known Answer Tests), fault injection, differential testing, and more.
 
-The project is open to external audit and keeps these audit surfaces reproducible for outside reviewers.
-It does not wait for a formal third-party engagement before strengthening assurance internally.
+The project keeps audit surfaces reproducible for outside reviewers.
+The security model is CAAS-first: claims are strengthened by executable
+evidence and permanent regression tests.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
 ### What It Tests (60 non-exploit modules + 189 exploit PoC tests + standalone audit surfaces)

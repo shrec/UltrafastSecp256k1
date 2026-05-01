@@ -85,9 +85,9 @@ for f in "$TESTS_DIR"/test_*.cpp; do
 done
 echo ""
 
-# Scan test files in cpu/tests/
+# Scan test files in src/cpu/tests/
 if [ -d "$CPU_TESTS_DIR" ]; then
-    echo "-- Test Files (cpu/tests/) --"
+    echo "-- Test Files (src/cpu/tests/) --"
     for f in "$CPU_TESTS_DIR"/test_*.cpp; do
         [ -f "$f" ] && scan_file "$f"
     done

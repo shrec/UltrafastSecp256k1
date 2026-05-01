@@ -5,7 +5,7 @@
 ## Operating Assumption
 
 This document is written for owner-grade deployment standards, not just
-third-party evaluation.
+outside evaluation.
 
 The working question is not "will outsiders trust this?" The working question
 is "if this engine had to satisfy the same standard we would demand for
@@ -70,9 +70,9 @@ mathematical semantics. They differ **only** in execution profile:
 > `secp256k1::ecdsa_sign_recoverable` were found to internally call
 > `ct::generator_mul_blinded` and `ct::scalar_inverse`, making them CT-equivalent
 > in practice. The previous documentation describing them as "variable-time" was
-> incorrect. See `cpu/src/ecdsa.cpp:signing_generator_mul` and
-> `cpu/src/recovery.cpp:signing_generator_mul` (both alias `ct::generator_mul_blinded`),
-> and `cpu/src/schnorr.cpp` (calls `ct::generator_mul_blinded` directly).
+> incorrect. See `src/cpu/src/ecdsa.cpp:signing_generator_mul` and
+> `src/cpu/src/recovery.cpp:signing_generator_mul` (both alias `ct::generator_mul_blinded`),
+> and `src/cpu/src/schnorr.cpp` (calls `ct::generator_mul_blinded` directly).
 > The canonical explicit CT path (`secp256k1::ct::ecdsa_sign`) remains preferred
 > for audits and new code because it carries explicit CT intent.
 
@@ -152,7 +152,7 @@ timing side-channel risk.
 auto sig = secp256k1::ct::ecdsa_sign(msg_hash, private_key);
 
 // [OK] ALSO CORRECT: secp256k1::ecdsa_sign routes through ct::generator_mul_blinded
-// and ct::scalar_inverse (see cpu/src/ecdsa.cpp:signing_generator_mul).
+// and ct::scalar_inverse (see src/cpu/src/ecdsa.cpp:signing_generator_mul).
 // Use this only when you have confirmed CT coverage via the source graph.
 // For new code, prefer the explicit ct:: namespace for audit clarity.
 #include <secp256k1/ecdsa.hpp>
@@ -243,7 +243,7 @@ cryptographic implementations, including libsecp256k1.
 - **Scalar multiplications in signing**: use `ct::` namespace — CT-protected
 - **Nonce generation**: RFC 6979-based — CT-protected
 - **Protocol-level timing**: added to dudect in v3.16.0
-- **Status**: Early implementation. API may change. Not externally audited.
+- **Status**: Early implementation. API may change while CAAS protocol evidence matures.
 
 ### FROST (RFC 9591)
 

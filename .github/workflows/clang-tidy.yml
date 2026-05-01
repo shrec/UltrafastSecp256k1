@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-tidy-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-tidy-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-tidy-
 
@@ -72,7 +72,7 @@ jobs:
           # Filter out .S assembly files (clang-tidy cannot process them)
           jq -r '.[].file' build/compile_commands.json \
             | grep -E '\.(cpp|cc|cxx)$' \
-            | grep -E '/(cpu/src|cpu/include|include/ufsecp|include/secp256k1|gpu/src|gpu/include|opencl|metal)/' \
+            | grep -E '/(src/cpu/src|src/cpu/include|include/ufsecp|include/secp256k1|src/gpu/src|src/gpu/include|src/opencl|src/metal)/' \
             | sort -u \
             | xargs -P "$(nproc)" -n 4 \
               clang-tidy-17 -p build --warnings-as-errors='' --quiet 2>&1 \

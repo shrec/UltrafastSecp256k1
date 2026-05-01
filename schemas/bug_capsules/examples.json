@@ -8,7 +8,7 @@
     "discovered_at": "2026-04-09",
     "fixed_at": "2026-04-09",
     "fix_commit": "0a93ff4b",
-    "affected_files": ["cpu/src/ct_sign.cpp"],
+    "affected_files": ["src/cpu/src/ct_sign.cpp"],
     "affected_functions": ["ct::ecdsa_sign_recoverable"],
     "inputs": {
       "hex_values": {
@@ -33,7 +33,7 @@
     "discovered_at": "2026-04-09",
     "fixed_at": "2026-04-09",
     "fix_commit": "0a93ff4b",
-    "affected_files": ["opencl/kernels/secp256k1_field.cl"],
+    "affected_files": ["src/opencl/kernels/secp256k1_field.cl"],
     "affected_functions": ["field_reduce"],
     "inputs": {
       "hex_values": {

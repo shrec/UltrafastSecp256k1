@@ -436,7 +436,7 @@ cmake --build build-wasm -j
 | `build-wasm/dist/secp256k1.mjs` | High-level JS wrapper |
 | `build-wasm/dist/secp256k1.d.ts` | TypeScript declarations |
 
-See [wasm/README.md](../wasm/README.md) for JS/TS usage and npm publishing.
+See [bindings/wasm/README.md](../bindings/bindings/wasm/README.md) for JS/TS usage and npm publishing.
 
 ---
 

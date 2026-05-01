@@ -91,14 +91,14 @@ This status is intentionally fail-closed in `docs/GPU_BACKEND_EVIDENCE.json`: RO
 
 ### Main Entry Points
 
-- Benchmark: [gpu_bench_unified.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256k1/cuda/src/gpu_bench_unified.cu)
-- Audit runner: [gpu_audit_runner.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/gpu_audit_runner.cu)
-- Full test suite: [test_suite.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/test_suite.cu)
-- CT smoke: [test_ct_smoke.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/test_ct_smoke.cu)
+- Benchmark: [gpu_bench_unified.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256k1/src/cuda/src/gpu_bench_unified.cu)
+- Audit runner: [gpu_audit_runner.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/gpu_audit_runner.cu)
+- Full test suite: [test_suite.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/test_suite.cu)
+- CT smoke: [test_ct_smoke.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/test_ct_smoke.cu)
 - Specialized benches:
-  - [bench_bip352.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/bench_bip352.cu)
-  - [bench_zk.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/bench_zk.cu)
-  - [bench_cuda.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/cuda/src/bench_cuda.cu)
+  - [bench_bip352.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_bip352.cu)
+  - [bench_zk.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_zk.cu)
+  - [bench_cuda.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_cuda.cu)
 
 ### Coverage
 

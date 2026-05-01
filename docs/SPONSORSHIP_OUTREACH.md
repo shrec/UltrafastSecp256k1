@@ -24,7 +24,7 @@ were guessed or scraped from third-party lists.
 | 1 | **NLnet Foundation** (NL — NGI Zero) | `--- (use form)` | <https://nlnet.nl/propose/> | Use the proposal form, not email. Round closes **June 1, 2026**. Best fit for CAAS pipeline + open infra. |
 | 2 | **Sovereign Tech Agency** (DE — STF, STR, STC) | `info@sovereign.tech` | <https://www.sovereign.tech/programs/fund> | Best fit for "critical open digital infrastructure" framing. Mention CAAS as resilience tooling. |
 | 3 | **OpenSats** (US — Bitcoin/Nostr 501c3) | `support@opensats.org`, `partnerships@opensats.org` | <https://opensats.org/apply> | Best fit for Bitcoin engine angle. Apply form preferred; email partnerships for follow-up. |
-| 4 | **OSTIF** (US — Open Source Technology Improvement Fund) | `ContactUs@ostif.org` | <https://ostif.org/get-an-audit/> | Specialises in security audits of OSS — they could *fund* an external audit of ufsecp, not just CAAS. |
+| 4 | **OSTIF** (US — Open Source Technology Improvement Fund) | `ContactUs@ostif.org` | <https://ostif.org/get-an-audit/> | Open-source security funding contact; pitch CAAS reproducible evidence infrastructure and independent replay. |
 | 5 | **Brink** (UK/US — Bitcoin protocol R&D) | `info@brink.dev` | <https://brink.dev/programs#grants> | Best fit for "improves Bitcoin protocol stack" angle. Their grants go to Bitcoin Core/LDK/BDK contributors. |
 | 6 | **Spiral** (US — Block-funded Bitcoin grants) | `--- (use form)` | <https://spiral.xyz/#grants> ("APPLY NOW") | Funds FOSS Bitcoin work. Apply form only — no public email. |
 | 7 | **HRF Bitcoin Development Fund** (US — Human Rights Foundation) | `donations@hrf.org` (general) | <http://hrf.org/bdfapply> | Year-round applications. Best fit for "uncensorable money infrastructure" angle. |
@@ -151,7 +151,7 @@ Thank you for your time.
 | Sovereign Tech | "Both the engine and the audit pipeline are open under BSD-2-Clause; sponsorship buys acceleration, not exclusivity." |
 | OpenSats | "Drop-in C-ABI-compatible with libsecp256k1; complementary scope (batch / GPU / embedded) priorities for Bitcoin tooling that libsecp does not cover." |
 | Brink | "Improves the broader Bitcoin developer toolchain by giving wallet, indexer, and validator builders a permissively-licensed alternative engine with batch-verify and GPU paths." |
-| OSTIF | "I am not asking OSTIF to fund engine development — I am asking whether OSTIF can sponsor an external audit engagement of ufsecp by one of your audit partners. The CAAS evidence bundle is ready to hand to an auditor." |
+| OSTIF | "I am not asking OSTIF to fund engine development — I am asking whether OSTIF can support reproducible CAAS evidence work, independent replay, and security methodology review for ufsecp." |
 | HRF BDF | "Faster on-chain verification and key generation help wallets and recovery services that human rights defenders rely on, especially on low-end hardware (RISC-V / ESP32 / STM32 / Android)." |
 | Spiral | "Permissively-licensed alternative secp256k1 engine usable by BDK, LDK, and any downstream Bitcoin tool — complementary to libsecp, not competing." |
 | Blockstream | "Liquid and Greenlight workloads benefit directly from batch verify; AMD and Apple Silicon parity (currently unfunded) is the remaining blocker for some of your enterprise customers." |

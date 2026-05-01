@@ -89,7 +89,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | 📊 Understand the guarantees | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) |
 | 🧠 Audit philosophy & design rationale | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) |
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
-| 🚀 External auditor quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
+| 🚀 Independent reviewer quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) |
 | � Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
@@ -212,7 +212,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 51-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
 
-> **External auditor prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible auditor-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full audit package.
+> **Evidence replay prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible reviewer-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full evidence package.
 
 > **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
 
@@ -386,7 +386,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | [AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) | Per-module coverage matrix |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | Layer-by-layer risk analysis |
 | [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |
-| [docs/AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md) | Navigation guide for external auditors |
+| [docs/AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md) | Navigation guide for independent reviewers |
 | [docs/CI_ENFORCEMENT.md](docs/CI_ENFORCEMENT.md) | Full CI enforcement policy |
 | [docs/BACKEND_ASSURANCE_MATRIX.md](docs/BACKEND_ASSURANCE_MATRIX.md) | Per-backend assurance matrix |
 | [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) | Requirement-to-test traceability map |

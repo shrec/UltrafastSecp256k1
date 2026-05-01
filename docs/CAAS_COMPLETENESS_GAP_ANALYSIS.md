@@ -13,7 +13,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 > "Every claim made about the project must be expressed as an executable test, every test must run on every commit, every result must be reproducible by an independent third party, and every fixed bug must become a permanent regression test."
 
 **საბოლოო მიზანი (Gap Closure Roadmap-დან):**
-> "when this file is fully checked, an external audit firm has nothing to find that the CAAS pipeline did not already find, document, and pin. External audit becomes a verification of methodology, not a bug-hunt."
+> "when this file is fully checked, CAAS has enough executable evidence that independent reviewers focus on methodology, replay, and novel hypotheses rather than rediscovering known bug classes."
 
 ---
 
@@ -124,7 +124,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 
 **CAAS-ს 85% მიღწეული აქვს თავისი ორიგინალი ხედვიდან.** 12 CAAS pipeline bug-ის fix-ის შემდეგ (d0da0c38), pipeline სტაბილურია, მაგრამ **6 structural gap** რჩება:
 
-**What's missing for "external audit is a formality" (P21):**
+**What's missing for self-contained CAAS evidence (P21):**
 
 1. **P21 principle not registered** → no formal gate prevents regression
 2. **SECURITY_INCIDENT_TIMELINE.md doesn't exist** → one auditor-expected doc missing
@@ -135,7 +135,7 @@ CAAS შეიქმნა იმისთვის, რომ **მთლია
 
 **Total remaining effort to fully close all gaps:** ~20-30 hours
 
-**After closing these gaps, CAAS will truly be:** a complete, self-contained audit infrastructure that travels with the code, catches every regression, and makes external audit a methodology verification rather than a bug hunt.
+**After closing these gaps, CAAS will truly be:** a complete, self-contained audit infrastructure that travels with the code, catches every regression, and turns review into methodology replay plus novel-hypothesis testing.
 
 ---
 

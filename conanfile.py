@@ -30,8 +30,8 @@ class UltrafastSecp256k1Conan(ConanFile):
 
     exports_sources = (
         "CMakeLists.txt",
-        "cpu/*",
-        "cuda/*",
+        "src/cpu/*",
+        "src/cuda/*",
         "include/*",
         "cmake/*",
     )

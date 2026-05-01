@@ -453,7 +453,7 @@ Human-readable summary with pass/fail status for each module.
 | Document | Description |
 |----------|------------|
 | [AUDIT_GUIDE.md](../AUDIT_GUIDE.md) | Build/run instructions for all platforms, report format, verdict logic |
-| [AUDIT_SCOPE.md](../AUDIT_SCOPE.md) | External audit engagement scope: in/out of scope, objectives, deliverables |
+| [AUDIT_SCOPE.md](../AUDIT_SCOPE.md) | Independent review scope: in/out of scope, objectives, evidence outputs |
 | [AUDIT_TEST_PLAN.md](../../audit/AUDIT_TEST_PLAN.md) | A-M category breakdown, test-to-evidence map, threat model traceability |
 | [TEST_MATRIX.md](../TEST_MATRIX.md) | API function-to-test coverage map |
 | [CROSS_PLATFORM_TEST_MATRIX.md](../CROSS_PLATFORM_TEST_MATRIX.md) | 22 CTest targets x 9 platforms |

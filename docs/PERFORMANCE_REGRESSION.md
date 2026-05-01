@@ -156,7 +156,7 @@ benchmark-data-dir-path: 'dev/bench-v3'  # bump version
 
 ### Adding New Metrics
 
-1. Add operation to `cpu/bench/bench_unified.cpp`
+1. Add operation to `src/cpu/bench/bench_unified.cpp`
 2. Follow existing output format: `[name]  value unit`
 3. Update `parse_benchmark.py` if format differs
 4. CI will auto-discover the new metric

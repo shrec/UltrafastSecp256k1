@@ -37,7 +37,7 @@ let package = Package(
     targets: [
         .target(
             name: "UltrafastSecp256k1",
-            path: "cpu",
+            path: "src/cpu",
             exclude: [
                 // ── x86_64 assembly (not needed on Apple ARM64) ──
                 "src/field_asm_x64.asm",

@@ -118,7 +118,7 @@ def check_no_fetchcontent_in_core() -> dict:
     # Core library files (not test/optional/tool files)
     core_files = [
         LIB_ROOT / "CMakeLists.txt",
-        LIB_ROOT / "cpu" / "CMakeLists.txt",
+        LIB_ROOT / "src" / "cpu" / "CMakeLists.txt",
         LIB_ROOT / "compat" / "libsecp256k1_shim" / "CMakeLists.txt",
     ]
 
@@ -191,7 +191,7 @@ def check_no_config_ini_required() -> dict:
     # Files to check: all CMakeLists in lib root + cpu/, shim/
     cmake_files = [
         LIB_ROOT / "CMakeLists.txt",
-        LIB_ROOT / "cpu" / "CMakeLists.txt",
+        LIB_ROOT / "src" / "cpu" / "CMakeLists.txt",
         LIB_ROOT / "compat" / "libsecp256k1_shim" / "CMakeLists.txt",
     ]
 
@@ -213,7 +213,7 @@ def check_no_config_ini_required() -> dict:
             violations.append(f"{rel}:{line_no}: config.ini reference: {line_text.strip()}")
 
     # Also scan core C++ source headers/files for config.ini reads
-    for src_dir in [LIB_ROOT / "cpu" / "src", LIB_ROOT / "include"]:
+    for src_dir in [LIB_ROOT / "src" / "cpu" / "src", LIB_ROOT / "include"]:
         if not src_dir.exists():
             continue
         for src_file in src_dir.rglob("*"):

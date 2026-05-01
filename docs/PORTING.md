@@ -28,7 +28,7 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
    ```
    If all 35+ tests pass, the portable path works. You're done for basic support.
 
-2. **Add architecture detection** to `cpu/include/secp256k1/platform_detect.hpp`:
+2. **Add architecture detection** to `src/cpu/include/secp256k1/platform_detect.hpp`:
    ```cpp
    #elif defined(__loongarch64)
    #define SECP256K1_ARCH_LOONGARCH64 1
@@ -36,7 +36,7 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
    ```
 
 3. **Optional: Add assembly optimizations**
-   - Create `cpu/src/field_asm_<arch>.S` (GAS syntax) or `.asm` (MASM)
+   - Create `src/cpu/src/field_asm_<arch>.S` (GAS syntax) or `.asm` (MASM)
    - Implement at minimum: `field_mul_asm`, `field_sqr_asm`, `field_add_asm`
    - Guard with `#ifdef SECP256K1_ARCH_<ARCH>` preprocessor checks
    - Add to `cpu/CMakeLists.txt` with architecture detection
@@ -56,8 +56,8 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
 
 | File | Change |
 |------|--------|
-| `cpu/include/secp256k1/platform_detect.hpp` | Architecture detection macro |
-| `cpu/src/field_asm_<arch>.S` | Assembly (optional) |
+| `src/cpu/include/secp256k1/platform_detect.hpp` | Architecture detection macro |
+| `src/cpu/src/field_asm_<arch>.S` | Assembly (optional) |
 | `cpu/CMakeLists.txt` | Source file + flag guards |
 | `.github/workflows/ci.yml` | CI job |
 | `README.md` | Badge + benchmark table entry |
@@ -155,12 +155,12 @@ UltrafastSecp256k1 is designed for portability. The core library is pure C++20 w
 
 | File | Purpose |
 |------|---------|
-| `cuda/include/field_ops.cuh` | Device-side field arithmetic |
-| `cuda/include/point_ops.cuh` | Device-side point operations |
-| `cuda/include/batch_inversion.cuh` | Montgomery batch inverse kernel |
-| `cuda/include/scalar_mul.cuh` | Scalar multiplication kernel |
-| `metal/shaders/secp256k1_kernels.metal` | Metal equivalent |
-| `opencl/kernels/secp256k1_field.cl` | OpenCL equivalent |
+| `src/cuda/include/field_ops.cuh` | Device-side field arithmetic |
+| `src/cuda/include/point_ops.cuh` | Device-side point operations |
+| `src/cuda/include/batch_inversion.cuh` | Montgomery batch inverse kernel |
+| `src/cuda/include/scalar_mul.cuh` | Scalar multiplication kernel |
+| `src/metal/shaders/secp256k1_kernels.metal` | Metal equivalent |
+| `src/opencl/kernels/secp256k1_field.cl` | OpenCL equivalent |
 
 ---
 

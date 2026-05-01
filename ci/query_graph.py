@@ -6,9 +6,9 @@ Lightweight CLI for AI agents and developers to query the SQLite project graph.
 
 Usage Examples:
     python3 ci/query_graph.py search "schnorr sign"
-    python3 ci/query_graph.py file cpu/src/ecdsa.cpp
+    python3 ci/query_graph.py file src/cpu/src/ecdsa.cpp
     python3 ci/query_graph.py subsystem ecdsa
-    python3 ci/query_graph.py deps cpu/src/musig2.cpp
+    python3 ci/query_graph.py deps src/cpu/src/musig2.cpp
     python3 ci/query_graph.py rdeps secp256k1/schnorr.hpp
     python3 ci/query_graph.py abi ecdsa
     python3 ci/query_graph.py test ethereum
@@ -21,8 +21,8 @@ Usage Examples:
     python3 ci/query_graph.py routing ecdsa_sign
     python3 ci/query_graph.py bindings rust
     python3 ci/query_graph.py macros size_constant
-    python3 ci/query_graph.py impact cpu/src/ct_sign.cpp
-    python3 ci/query_graph.py context cpu/src/ecdsa.cpp
+    python3 ci/query_graph.py impact src/cpu/src/ct_sign.cpp
+    python3 ci/query_graph.py context src/cpu/src/ecdsa.cpp
     python3 ci/query_graph.py gaps
     python3 ci/query_graph.py summary
     python3 ci/query_graph.py sql "SELECT * FROM error_codes"

@@ -5,8 +5,8 @@
 > audit modules, and 14 CI workflows validate on every push.
 > See `docs/CT_VERIFICATION.md` and `docs/SECURITY_CLAIMS.md` for current state.
 
-**Status: NOT externally audited.**  
-**Verification artifacts published for independent review.**
+**Status: CAAS-backed verification transparency report.**  
+**Executable evidence is published for independent replay and review.**
 
 ---
 
@@ -34,7 +34,7 @@ from source using the commands in [How to Reproduce](#how-to-reproduce).
 | **Extended test checks** | **~820,000+** (protocols, KAT, fuzz, differential) |
 | **CTest targets** | 25+ |
 | **Standard test vector suites** | BIP-340 (15), RFC 6979 (6), BIP-32 (90) |
-| **libFuzzer harnesses** | 11 (5 `cpu/fuzz/`: field, scalar, point, ecdsa, schnorr; 6 `audit/`: der_parse, pubkey_parse, schnorr_verify, ecdsa_verify, bip32_path, bip324_frame) |
+| **libFuzzer harnesses** | 11 (5 `src/cpu/fuzz/`: field, scalar, point, ecdsa, schnorr; 6 `audit/`: der_parse, pubkey_parse, schnorr_verify, ecdsa_verify, bip32_path, bip324_frame) |
 | **Structured fuzz suites** | 2 (parser + address/BIP32/FFI) — plus `unified_audit_runner` `libfuzzer_unified` CI-blocking module (12,097 checks) |
 | **Fuzz regression corpus** | 31 pinned inputs (6 categories) |
 | **CI workflows** | 14 automated pipelines |
@@ -261,8 +261,8 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 
 | Claim | Status |
 |-------|--------|
-| "Formally audited by PDF firm" | No — CAAS continuous evidence instead. |
-| "Production ready" | **Yes** for single-signer operations. MuSig2/FROST require external protocol review for adversarial multi-party use. |
+| "Snapshot-PDF certified" | CAAS continuous evidence is the project model instead. |
+| "Production ready" | **Yes** for single-signer operations. MuSig2/FROST require stronger CAAS protocol evidence before adversarial multi-party production claims. |
 | "Provably secure" | **No.** No machine-checked cryptographic proofs (Coq/F*/Jasmin). CT properties are verified by ct-verif (LLVM IR) + Valgrind CT + dudect — all CI-enforced. |
 | "Constant-time guaranteed" | **Three-tier verified**: ct-verif (IR-level), Valgrind CT (memory-origin), dudect (statistical timing). Not machine-checked proofs. |
 | "Side-channel free" | **No.** No power analysis, EM, or fault injection testing. |
@@ -370,4 +370,4 @@ ctest --test-dir build-san --output-on-failure
 ---
 
 *UltrafastSecp256k1 v3.68.0 -- Verification Transparency Report*  
-*Not audited. Verification artifacts published for independent review.*
+*CAAS evidence is published for independent replay and review.*

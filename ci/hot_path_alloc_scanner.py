@@ -18,7 +18,7 @@ Findings
 
 Hot-path classification (two complementary criteria)
 -----------------------------------------------------
-  A. File is in the hot-path file set (cpu/src/ecdsa.cpp, schnorr.cpp, ecdh.cpp,
+  A. File is in the hot-path file set (src/cpu/src/ecdsa.cpp, schnorr.cpp, ecdh.cpp,
      point.cpp, scalar.cpp, ct_sign.cpp, bip32.cpp, address.cpp, musig2.cpp,
      frost.cpp, and GPU equivalents).
   B. Function name contains a hot-path keyword: sign, verify, ecdh, scalar_mul,
@@ -39,8 +39,8 @@ Usage examples
   # Scan everything (auto-detect source dirs), human-readable:
   python3 ci/hot_path_alloc_scanner.py
 
-  # Scan just cpu/src:
-  python3 ci/hot_path_alloc_scanner.py --src-dir cpu/src
+  # Scan just src/cpu/src:
+  python3 ci/hot_path_alloc_scanner.py --src-dir src/cpu/src
 
   # JSON output to file:
   python3 ci/hot_path_alloc_scanner.py --json -o report.json
@@ -85,20 +85,20 @@ class Finding:
 
 # Source files whose *entire contents* are considered hot-path (relative suffix match)
 HOT_PATH_FILES: frozenset[str] = frozenset({
-    "cpu/src/ecdsa.cpp",
-    "cpu/src/schnorr.cpp",
-    "cpu/src/ecdh.cpp",
-    "cpu/src/point.cpp",
-    "cpu/src/scalar.cpp",
-    "cpu/src/field.cpp",
-    "cpu/src/ct_sign.cpp",
-    "cpu/src/bip32.cpp",
-    "cpu/src/address.cpp",
-    "cpu/src/musig2.cpp",
-    "cpu/src/frost.cpp",
-    "cpu/src/adaptor.cpp",
-    "cpu/src/ecmult.cpp",
-    "cpu/src/group.cpp",
+    "src/cpu/src/ecdsa.cpp",
+    "src/cpu/src/schnorr.cpp",
+    "src/cpu/src/ecdh.cpp",
+    "src/cpu/src/point.cpp",
+    "src/cpu/src/scalar.cpp",
+    "src/cpu/src/field.cpp",
+    "src/cpu/src/ct_sign.cpp",
+    "src/cpu/src/bip32.cpp",
+    "src/cpu/src/address.cpp",
+    "src/cpu/src/musig2.cpp",
+    "src/cpu/src/frost.cpp",
+    "src/cpu/src/adaptor.cpp",
+    "src/cpu/src/ecmult.cpp",
+    "src/cpu/src/group.cpp",
     # GPU backends are NOT hot-path for allocation purposes: vectors there are
     # marshalling buffers created *before* kernel launch.  The kernel launch
     # cost (hundreds of µs) dwarfs any host-side vector allocation.

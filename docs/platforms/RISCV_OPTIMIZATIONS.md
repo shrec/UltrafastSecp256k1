@@ -188,7 +188,7 @@ Eliminates 2x `normalize()` + 2x `memcpy` per mul/square call.
 
 ## 4. wNAF Window Width (w=4 -> w=5)
 
-**File:** `cpu/src/point.cpp`
+**File:** `src/cpu/src/point.cpp`
 
 On RISC-V (not ESP32/STM32), scalar_mul uses wNAF with w=5:
 - 16 precomputed points: [1P, 3P, 5P, ..., 31P]
@@ -254,11 +254,11 @@ All 29+ tests pass [OK]
 
 | File | Role |
 |------|------|
-| `cpu/src/field_asm_riscv64.S` | Assembly: mul, square, add, sub, negate |
-| `cpu/src/field_asm_riscv64.cpp` | C++ wrappers (mul/square wrappers unused now) |
-| `cpu/src/field.cpp` | Branchless ge/add/sub/normalize, direct asm calls |
-| `cpu/src/point.cpp` | GLV + Shamir + wNAF(w=5) scalar mul |
-| `cpu/src/scalar.cpp` | Scalar arithmetic (pure C++) |
+| `src/cpu/src/field_asm_riscv64.S` | Assembly: mul, square, add, sub, negate |
+| `src/cpu/src/field_asm_riscv64.cpp` | C++ wrappers (mul/square wrappers unused now) |
+| `src/cpu/src/field.cpp` | Branchless ge/add/sub/normalize, direct asm calls |
+| `src/cpu/src/point.cpp` | GLV + Shamir + wNAF(w=5) scalar mul |
+| `src/cpu/src/scalar.cpp` | Scalar arithmetic (pure C++) |
 
 ---
 

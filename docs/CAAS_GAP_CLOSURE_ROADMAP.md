@@ -1,23 +1,23 @@
-# CAAS Gap-Closure Roadmap — Make External Audit a Formality
+# CAAS Gap-Closure Roadmap — Self-Contained Evidence
 
 > Version: 1.1 — 2026-04-26
 > Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). G-1..G-4
 > closed 2026-04-26 (docs created). G-5..G-6 partial. This file
-> identifies the **structural gaps that prevent CAAS from fully replacing
-> a paid external audit engagement** and the work needed to close each one.
+> identifies the **structural gaps that prevent CAAS from being fully
+> self-contained, replayable evidence infrastructure** and the work needed to
+> close each one.
 >
-> Goal: when this file is fully checked, an external audit firm has
-> nothing to find that the CAAS pipeline did not already find, document,
-> and pin. External audit becomes a verification of methodology, not a
-> bug-hunt.
+> Goal: when this file is fully checked, CAAS has enough executable evidence
+> that independent reviewers focus on methodology, replay, and novel hypotheses
+> rather than rediscovering known bug classes.
 
 ## Why this file exists
 
-CAAS today (P0–P20, autonomy 100/100) catches what an automated review
-catches. Paid auditors still find gaps in **areas automation has not yet
-automated**:
+CAAS today (P0–P20, autonomy 100/100) catches what the current automated
+evidence suite knows how to check. Remaining gaps are **areas the CAAS model
+has not yet automated or pinned as replayable evidence**:
 
-| What auditors typically deliver | Currently in CAAS? |
+| Review / assurance deliverable | Currently in CAAS? |
 |---------------------------------|--------------------|
 | Source code review | ✓ scanner + audit_gate |
 | Memory-safety sanitizer matrix | ✓ ASan/UBSan/TSan/MSan/Valgrind in CI |
@@ -40,15 +40,15 @@ automated**:
 | Multi-CI / clean-room reproducible-build attestation | **partial** (single provider) |
 | Two-tool independence for CT verification | **partial** (one CT-verif chain) |
 | Public security disclosure / VDP | ✓ SECURITY.md + BUG_BOUNTY.md |
-| Auditor-grade reproducibility bundle | ✓ EXTERNAL_AUDIT_BUNDLE (P19) |
+| Reviewer-grade reproducibility bundle | ✓ EXTERNAL_AUDIT_BUNDLE (P19) |
 | Exploit PoC catalog (per-CVE / per-ePrint) | ✓ 189 PoCs in `EXPLOIT_TEST_CATALOG.md` + `EXPLOIT_COVERAGE_MAP.md` |
 | Attack class taxonomy doc | ✓ `ATTACK_GUIDE.md` (541 lines, 30+ classes) |
 | Research-signal tracking (CVE / ePrint mapping) | ✓ `RESEARCH_SIGNAL_MATRIX.json` (578 entries) |
 | Exploit backlog tracking | ✓ `EXPLOIT_BACKLOG.md` (cleared, all 7 PoCs landed) |
 
-Every row marked **missing** or **partial** is a deliverable an external
-auditor would still produce. Closing these rows turns external audit into
-a formality.
+Every row marked **missing** or **partial** is a CAAS evidence gap. Closing
+these rows turns the repository into self-contained, replayable assurance
+infrastructure.
 
 ### What is already CAAS-strong (do not duplicate)
 
@@ -329,15 +329,14 @@ the repo.
 
 ---
 
-## CAAS gate extension: P21 — External-Audit Replacement Completeness
+## CAAS gate extension: P21 — CAAS Completeness
 
 After all G-1..G-10 land, register a new audit principle in
 `AUDIT_MANIFEST.md`:
 
-> **P21 — External-Audit Replacement Completeness.** Every gap that an
-> external audit engagement would normally close is closed by an
-> automated CAAS gate or by a published CAAS-pinned document. The set
-> of such gaps and gates is enumerated in
+> **P21 — CAAS Completeness.** Every known review gap is closed by an automated
+> CAAS gate or by a published CAAS-pinned document. The set of such gaps and
+> gates is enumerated in
 > `docs/CAAS_GAP_CLOSURE_ROADMAP.md`.
 
 The gate:
@@ -347,8 +346,8 @@ The gate:
   audit_gate sub-check.
 - Fails if any G-N is regressed.
 
-This is the formal statement that lets us say "external audit is a
-formality": every line item is enumerated, automated, and CI-blocked.
+This is the formal statement that every known line item is enumerated,
+automated, and CI-blocked.
 
 ---
 
@@ -373,12 +372,11 @@ After all 10 close, register P21 in AUDIT_MANIFEST.md and the
 
 ---
 
-## Done criteria for "external audit is a formality"
+## Done criteria for self-contained CAAS evidence
 
 - [ ] G-1..G-10 plus G-9b all closed (per acceptance criteria above).
 - [ ] P21 registered and CI-enforced.
 - [ ] Existing scorecard score ≥ 9.5 (currently 9.0; OpenSSF dashboard).
-- [ ] An external auditor presented with the bundle, the threat model,
-      the spec, the traceability matrix, and the methodology docs has
-      no in-scope source-code finding to report — only methodology
-      review of the published claims.
+- [ ] An independent reviewer presented with the bundle, the threat model,
+      the spec, the traceability matrix, and the methodology docs can replay
+      the published claims and focus on methodology or novel hypotheses.

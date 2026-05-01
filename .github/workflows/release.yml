@@ -1767,7 +1767,7 @@ jobs:
             LIB=$(find build -name 'libfastsecp256k1.a' -print -quit 2>/dev/null || true)
             if [ -n "$LIB" ]; then
               ${CXX:-g++} -std=c++20 -O2 \
-                -I cpu/include -I staging/include \
+                -I src/cpu/include -I staging/include \
                 /tmp/selftest_json_gen.cpp "$LIB" \
                 -o /tmp/selftest_json_gen 2>/dev/null && \
               /tmp/selftest_json_gen > selftest_report.json 2>/dev/null || \

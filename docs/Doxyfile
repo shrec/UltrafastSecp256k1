@@ -14,14 +14,14 @@ OUTPUT_DIRECTORY       = docs/generated
 CREATE_SUBDIRS         = NO
 
 # ── Input ─────────────────────────────────────────────────────────────────────
-INPUT                  = cpu/include \
+INPUT                  = src/cpu/include \
                          include \
-                         wasm/secp256k1_wasm.h \
+                         bindings/wasm/secp256k1_wasm.h \
                          README.md
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.hpp *.h *.cpp *.md
 RECURSIVE              = YES
-EXCLUDE                = cpu/include/secp256k1/config.hpp
+EXCLUDE                = src/cpu/include/secp256k1/config.hpp
 USE_MDFILE_AS_MAINPAGE = README.md
 
 # ── Extraction ────────────────────────────────────────────────────────────────

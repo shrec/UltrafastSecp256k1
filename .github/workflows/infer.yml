@@ -88,7 +88,7 @@ jobs:
           with open("infer-out/report.json") as f:
               bugs = json.load(f)
           # Filter to files in our source dirs (skip external/build)
-          SOURCE_DIRS = ("cpu/", "include/", "cuda/", "opencl/", "bindings/")
+          SOURCE_DIRS = ("src/cpu/", "include/", "src/cuda/", "src/opencl/", "bindings/")
           relevant = [b for b in bugs
                       if any(b.get("file","").startswith(d) for d in SOURCE_DIRS)]
           by_type = {}

@@ -266,7 +266,7 @@ cmake --build build_<platform> -j
 ctest --test-dir build_<platform> --output-on-failure
 
 # 4. Verify KAT equivalence (golden vectors must match exactly)
-./build_<platform>/cpu/test_cross_platform_kat
+./build_<platform>/src/cpu/test_cross_platform_kat
 
 # 5. Generate audit report
 ./scripts/generate_self_audit_report.sh build_<platform>

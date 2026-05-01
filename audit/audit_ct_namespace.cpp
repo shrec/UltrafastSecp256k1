@@ -20,11 +20,11 @@
 // binary. It runs on every CI build — no separate tooling required.
 //
 // Files audited:
-//   cpu/src/ct_sign.cpp     -- CT ECDSA + Schnorr signing
-//   cpu/src/ecdh.cpp        -- ECDH key agreement
-//   cpu/src/bip32.cpp       -- BIP-32 HD key derivation
-//   cpu/src/taproot.cpp     -- Taproot key tweak
-//   cpu/src/musig2.cpp      -- MuSig2 nonce & signing
+//   src/cpu/src/ct_sign.cpp     -- CT ECDSA + Schnorr signing
+//   src/cpu/src/ecdh.cpp        -- ECDH key agreement
+//   src/cpu/src/bip32.cpp       -- BIP-32 HD key derivation
+//   src/cpu/src/taproot.cpp     -- Taproot key tweak
+//   src/cpu/src/musig2.cpp      -- MuSig2 nonce & signing
 //
 // CNS-1  … CNS-5  : ct_sign.cpp — CT call pattern verification
 // CNS-6  … CNS-8  : ecdh.cpp — CT usage for secret scalar multiply
@@ -132,7 +132,7 @@ static std::string find_source_root() {
     };
     for (const char* c : candidates) {
         // Try to open a sentinel file
-        std::string test = std::string(c) + "/cpu/src/ct_sign.cpp";
+        std::string test = std::string(c) + "/src/cpu/src/ct_sign.cpp";
         FILE* f = std::fopen(test.c_str(), "rb");
         if (f) {
             (void)std::fclose(f);
@@ -209,35 +209,35 @@ static const FileAudit AUDITS[] = {
     // ct_sign.cpp: CT ECDSA + Schnorr
     {
         "ct_sign.cpp",
-        "cpu/src/ct_sign.cpp",
+        "src/cpu/src/ct_sign.cpp",
         /* required  */ { "ct::generator_mul", "ct::scalar_inverse", "secure_erase" },
         /* prohibited */ { "fast::generator_mul", "fast::scalar_mul", "fast::point_mul" }
     },
     // ecdh.cpp: ECDH uses CT for secret scalar multiply
     {
         "ecdh.cpp",
-        "cpu/src/ecdh.cpp",
+        "src/cpu/src/ecdh.cpp",
         /* required  */ { "ct::scalar_mul" },
         /* prohibited */ { "fast::scalar_mul" }
     },
     // bip32.cpp: Child key derivation must use CT for scalar addition
     {
         "bip32.cpp",
-        "cpu/src/bip32.cpp",
+        "src/cpu/src/bip32.cpp",
         /* required  */ { "secp256k1/ct/" },
         /* prohibited */ { "fast::generator_mul", "fast::scalar_mul" }
     },
     // taproot.cpp: Key tweak must use CT
     {
         "taproot.cpp",
-        "cpu/src/taproot.cpp",
+        "src/cpu/src/taproot.cpp",
         /* required  */ { "secp256k1/ct/" },
         /* prohibited */ { "fast::scalar_mul", "fast::generator_mul" }
     },
     // musig2.cpp: Nonce generation and partial signing must use CT
     {
         "musig2.cpp",
-        "cpu/src/musig2.cpp",
+        "src/cpu/src/musig2.cpp",
         /* required  */ { "secp256k1/ct/" },
         /* prohibited */ { "fast::generator_mul" }
     },
@@ -252,7 +252,7 @@ static void run_structural_checks(const std::string& root, int& check_num) {
 
     // ct_sign.cpp must NOT include fast.hpp directly (would pull in fast:: ADL)
     {
-        std::string path = root + "/cpu/src/ct_sign.cpp";
+        std::string path = root + "/src/cpu/src/ct_sign.cpp";
         ScanResult r = read_source_file(path.c_str());
         if (r.opened) {
             std::string code = strip_comments(r.content);
@@ -275,7 +275,7 @@ static void run_structural_checks(const std::string& root, int& check_num) {
 
     // ecdh.cpp must include ct/point.hpp (its CT scalar_mul lives there)
     {
-        std::string path = root + "/cpu/src/ecdh.cpp";
+        std::string path = root + "/src/cpu/src/ecdh.cpp";
         ScanResult r = read_source_file(path.c_str());
         if (r.opened) {
             char msg[256];
@@ -290,7 +290,7 @@ static void run_structural_checks(const std::string& root, int& check_num) {
 
     // ct_sign.cpp must include detail/secure_erase.hpp
     {
-        std::string path = root + "/cpu/src/ct_sign.cpp";
+        std::string path = root + "/src/cpu/src/ct_sign.cpp";
         ScanResult r = read_source_file(path.c_str());
         if (r.opened) {
             char msg[256];
@@ -305,7 +305,7 @@ static void run_structural_checks(const std::string& root, int& check_num) {
 
     // ecdh.cpp must erase intermediate shared point
     {
-        std::string path = root + "/cpu/src/ecdh.cpp";
+        std::string path = root + "/src/cpu/src/ecdh.cpp";
         ScanResult r = read_source_file(path.c_str());
         if (r.opened) {
             char msg[256];

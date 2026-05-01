@@ -25,10 +25,10 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/src/ct_*.cpp'
-      - 'cpu/src/ct_*.hpp'
-      - 'cpu/src/ecdsa.cpp'
-      - 'cpu/src/schnorr.cpp'
+      - 'src/cpu/src/ct_*.cpp'
+      - 'src/cpu/src/ct_*.hpp'
+      - 'src/cpu/src/ecdsa.cpp'
+      - 'src/cpu/src/schnorr.cpp'
       - 'include/**'
       - 'audit/**'
       - 'ci/valgrind_ct_check.sh'
@@ -37,10 +37,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'cpu/src/ct_*.cpp'
-      - 'cpu/src/ct_*.hpp'
-      - 'cpu/src/ecdsa.cpp'
-      - 'cpu/src/schnorr.cpp'
+      - 'src/cpu/src/ct_*.cpp'
+      - 'src/cpu/src/ct_*.hpp'
+      - 'src/cpu/src/ecdsa.cpp'
+      - 'src/cpu/src/schnorr.cpp'
   schedule:
     # Weekly on Sunday at 06:00 UTC — catches CT regressions from toolchain drift
     - cron: '0 6 * * 0'
@@ -78,7 +78,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-vg-ct-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-vg-ct-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: ccache-vg-ct-
 
       - name: Configure ccache

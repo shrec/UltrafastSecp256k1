@@ -9,7 +9,7 @@
 This policy covers:
 
 - All `ufsecp_*` functions exported via `UFSECP_API` in `ufsecp.h`
-- Public C++ headers in `cpu/include/secp256k1/*.hpp`
+- Public C++ headers in `src/cpu/include/secp256k1/*.hpp`
 - Configuration keys in `config.json` schema
 - Command-line interfaces of shipped tools
 - Package names and import paths in language bindings

@@ -48,7 +48,7 @@
 | Document | Description |
 |----------|-------------|
 | [CUDA / ROCm GPU](../cuda/README.md) | CUDA + HIP/ROCm architecture, kernels, benchmarks |
-| [WebAssembly](../wasm/README.md) | WASM build, JS/TS API, npm package |
+| [WebAssembly](../bindings/bindings/wasm/README.md) | WASM build, JS/TS API, npm package |
 | [Contributing](../CONTRIBUTING.md) | Development workflow, coding standards, PR process |
 | [Security](../SECURITY.md) | Vulnerability reporting, security model |
 | [Changelog](../CHANGELOG.md) | Version history |

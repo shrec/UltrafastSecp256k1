@@ -140,7 +140,7 @@ No regressions vs 2026-03-24 baseline.
 ### x86-64 Batch Verify Rerun (2026-03-17)
 
 A retained low-risk x86 CPU improvement was keeping the Schnorr batch pubkey cache
-capacity aligned with the full batch size in `cpu/src/batch_verify.cpp` instead of
+capacity aligned with the full batch size in `src/cpu/src/batch_verify.cpp` instead of
 clamping reserve capacity to 64 entries. This avoids avoidable vector reallocations
 when uncached batches grow beyond 64 signatures.
 

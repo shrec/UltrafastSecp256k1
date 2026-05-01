@@ -1,7 +1,7 @@
 /-!
 # SafeGCD — Constant-Time Mask Correctness
 
-Proves that the CT masks used in `ct_divsteps_59` (cpu/src/ct_field.cpp) are
+Proves that the CT masks used in `ct_divsteps_59` (src/cpu/src/ct_field.cpp) are
 exactly 0 or all-ones, with no partial/intermediate bit patterns.
 
 Hardware encoding:

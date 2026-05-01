@@ -105,7 +105,7 @@ adb push build-android-ndk-arm64/bench_hornet /data/local/tmp/ufsecp/bench_horne
 adb shell 'chmod 755 /data/local/tmp/ufsecp/bench_hornet && /data/local/tmp/ufsecp/bench_hornet'
 ```
 
-Measured Android rerun retained the ARMv8 SHA2 dispatch path in `cpu/src/hash_accel.cpp`.
+Measured Android rerun retained the ARMv8 SHA2 dispatch path in `src/cpu/src/hash_accel.cpp`.
 On RK3588 big cores this moved the signing-heavy hot path materially while leaving verify
 and point arithmetic essentially flat:
 
@@ -298,12 +298,12 @@ by the benchmark infrastructure scripts -- see `audit/platform-reports/`.
 
 | File | Purpose |
 |------|---------|
-| `cpu/bench/bench_unified.cpp` | THE standard: full apple-to-apple benchmark |
-| `cpu/bench/bench_ct.cpp` | CT-layer benchmarks |
-| `cpu/bench/bench_field_52.cpp` | 5x52 field arithmetic micro-benchmarks |
-| `cpu/bench/bench_field_26.cpp` | 10x26 field arithmetic micro-benchmarks |
-| `cpu/bench/libsecp_provider.c` | libsecp256k1 apple-to-apple provider |
-| `cuda/src/gpu_bench_unified.cu` | GPU unified benchmark (FAST + CT) |
+| `src/cpu/bench/bench_unified.cpp` | THE standard: full apple-to-apple benchmark |
+| `src/cpu/bench/bench_ct.cpp` | CT-layer benchmarks |
+| `src/cpu/bench/bench_field_52.cpp` | 5x52 field arithmetic micro-benchmarks |
+| `src/cpu/bench/bench_field_26.cpp` | 10x26 field arithmetic micro-benchmarks |
+| `src/cpu/bench/libsecp_provider.c` | libsecp256k1 apple-to-apple provider |
+| `src/cuda/src/gpu_bench_unified.cu` | GPU unified benchmark (FAST + CT) |
 | `android/test/bench_hornet_android.cpp` | ARM64 Android port |
 | `android/test/libsecp_bench.c` | libsecp256k1 apple-to-apple (ARM64) |
 | `examples/esp32_bench_hornet/` | ESP32-S3 bench_hornet example |

@@ -4,7 +4,7 @@
 > Closes CAAS gap **G-9**.
 >
 > This document is the citation-ready specification of the library's
-> public ABI surface. External auditors and downstream implementers
+> public ABI surface. Independent reviewers and downstream implementers
 > can read this without reading source. Source-level evidence for each
 > clause is in [SPEC_TRACEABILITY_MATRIX.md](SPEC_TRACEABILITY_MATRIX.md).
 >

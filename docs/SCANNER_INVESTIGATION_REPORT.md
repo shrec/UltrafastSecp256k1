@@ -22,8 +22,8 @@
    (`focus`, `bodygrep`, `find`) before opening any file.
 3. Cross-checked each finding against
    - `docs/NORMALIZATION_SPEC.md` (low-S contract)
-   - `cpu/src/ecdsa.cpp` (single-sig verifier behaviour)
-   - `cpu/src/ct_scalar.cpp` (scalar invariants)
+   - `src/cpu/src/ecdsa.cpp` (single-sig verifier behaviour)
+   - `src/cpu/src/ct_scalar.cpp` (scalar invariants)
    - `include/ufsecp/ufsecp_impl.cpp` (ABI null-check patterns)
 4. Hardened scanner regexes for the three remaining FP patterns
    (BIP-32 magic ternary, BIP-324 protocol-header memcpy, compound
@@ -42,8 +42,8 @@
 
 ### MEDIUM × 2 — `MISSING_LOW_S_CHECK` in `ecdsa_batch_verify`
 
-**Locations.** `cpu/include/secp256k1/batch_verify.hpp:72`,
-`cpu/src/batch_verify.cpp:271`.
+**Locations.** `src/cpu/include/secp256k1/batch_verify.hpp:72`,
+`src/cpu/src/batch_verify.cpp:271`.
 
 **Verdict.** **Not a bug.** Documented design.
 
@@ -70,7 +70,7 @@ to make the design intent local to the code site.
 
 ### MEDIUM × 1 — `SCALAR_NOT_REDUCED` in `scalar_inverse`
 
-**Location.** `cpu/include/secp256k1/ct/scalar.hpp:38`.
+**Location.** `src/cpu/include/secp256k1/ct/scalar.hpp:38`.
 
 **Verdict.** **Not a bug.** Class invariant precondition.
 
@@ -81,7 +81,7 @@ The signature is `Scalar scalar_inverse(const Scalar& a) noexcept;`. The
 constructor (`from_bytes_be`, `from_hex`, `from_uint64`, `random`,
 arithmetic operators) maintains `0 ≤ value < n` as a class invariant.
 
-The implementation in `cpu/src/ct_scalar.cpp:424–427` is:
+The implementation in `src/cpu/src/ct_scalar.cpp:424–427` is:
 
 ```cpp
 Scalar scalar_inverse(const Scalar& a) noexcept {
@@ -103,10 +103,10 @@ argument (only flag those that take raw bytes / `uint8_t[32]`).
 
 ### LOW × 81 — `DBLINIT` in arithmetic-heavy paths
 
-**Locations.** Distributed across `cpu/src/field_26.cpp`,
-`cpu/src/field.cpp`, `cpu/src/scalar.cpp`, `cpu/src/ct_field.cpp`,
-`cpu/src/ct_scalar.cpp`, GPU shader code (`metal/shaders/`,
-`opencl/kernels/`, `gpu/src/*.cu`).
+**Locations.** Distributed across `src/cpu/src/field_26.cpp`,
+`src/cpu/src/field.cpp`, `src/cpu/src/scalar.cpp`, `src/cpu/src/ct_field.cpp`,
+`src/cpu/src/ct_scalar.cpp`, GPU shader code (`src/metal/shaders/`,
+`src/opencl/kernels/`, `src/gpu/src/*.cu`).
 
 **Verdict.** **Not bugs.** Limb-arithmetic carry-propagation patterns.
 

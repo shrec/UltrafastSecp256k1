@@ -3,7 +3,7 @@
 // =============================================================================
 //
 // BACKGROUND:
-//   cpu/src/point.cpp commit 81876d85 (2026-04-27) introduced a typo in
+//   src/cpu/src/point.cpp commit 81876d85 (2026-04-27) introduced a typo in
 //   Point::z_fe_nonzero() guarded by SECP256K1_FAST_52BIT:
 //
 //     BROKEN:  return SECP256K1_LIKELY((zL[0] | zL[1] | zL[2] & zL[3]) != 0);

@@ -53,8 +53,8 @@ secrets, private keys, credentials, or tokens.
 ## Most Useful Commands
 
 ```bash
-python3 ci/query_graph.py context cpu/src/ct_sign.cpp
-python3 ci/query_graph.py impact cpu/src/ecdh.cpp
+python3 ci/query_graph.py context src/cpu/src/ct_sign.cpp
+python3 ci/query_graph.py impact src/cpu/src/ecdh.cpp
 python3 ci/query_graph.py routing ecdsa_sign
 python3 ci/query_graph.py tags
 python3 ci/query_graph.py tag constant_time
@@ -111,7 +111,7 @@ These rules apply to every model and every agent working in this library.
    or branchy recovery-ID logic on secrets.
 
 2. **Non-CT public C++ signing is a security finding.**
-   If `cpu/src/ecdsa.cpp`, `cpu/src/recovery.cpp`, or public headers expose a
+   If `src/cpu/src/ecdsa.cpp`, `src/cpu/src/recovery.cpp`, or public headers expose a
    normal-looking non-CT signing API, either make CT the default or add an explicit
    opt-in guard, warning, deprecation, or compile-time restriction. Never claim
    production-safe signing while default public C++ signing is non-CT.

@@ -88,7 +88,7 @@ def categorize_changes(changed_files):
                 categories['ct_layer'].append(entry)
             elif any(p in f for p in ['musig', 'frost', 'adaptor', 'silent_pay', 'ecies', 'dleq']):
                 categories['protocol'].append(entry)
-            elif any(p in f for p in ['cuda/', 'opencl/', 'metal/']):
+            elif any(p in f for p in ['src/cuda/', 'src/opencl/', 'src/metal/']):
                 categories['gpu'].append(entry)
             elif any(p in f for p in ['test', 'audit/', 'fuzz']):
                 categories['tests'].append(entry)

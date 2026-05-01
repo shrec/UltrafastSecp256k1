@@ -16,12 +16,11 @@ Every security claim — "constant-time", "NULL-safe", "reject invalid inputs",
 "matches reference implementation" — is tied to a specific, executable test.
 Code and evidence evolve together and are verified together.
 
-This does not make formal external audit redundant — quite the opposite.
-Full transparency means that every claim, every test mapping, and every
-coverage gap is already documented and machine-readable. If anyone ever
-wants or needs a formal engagement, they arrive at a fully evidenced system,
-not a blank canvas. The claim→test→evidence chain is already in place.
-That substantially reduces the cost and duration of any external review.
+This is the audit model: continuous, executable, and replayable. Full
+transparency means that every claim, every test mapping, and every coverage
+gap is already documented and machine-readable. Reviewers arrive at a fully
+evidenced system, not a blank canvas. The claim→test→evidence chain is
+already in place.
 
 ---
 
@@ -205,9 +204,9 @@ reviewer. This is not autocomplete — it is a deliberate workflow:
   infrastructure, making its review as wide as the codebase, not just the diff.
 
 The result is a review cycle that runs on every change, not periodically.
-It is not a replacement for human cryptographic expertise or for formal
-third-party engagement — but it is a qualitatively different security posture
-from a solo developer committing code without review.
+It is not a replacement for human cryptographic expertise, but it is a
+qualitatively different security posture from a solo developer committing code
+without review.
 
 Practically, this means:
 
@@ -220,7 +219,7 @@ Practically, this means:
 
 The CI pipelines, audit runner, source graph, exploit PoC suite, and
 traceability documents are all self-contained and documented.
-A successor or external auditor can reproduce the full audit state from the
+A successor or independent reviewer can reproduce the full audit state from the
 repository alone, without any knowledge transfer from the original maintainer.
 
 That is the deeper purpose of "audit-as-code": it is also bus-factor mitigation.
@@ -272,10 +271,10 @@ precisely where it adds the most value, without redundant discovery work.
 
 ---
 
-## How This Simplifies External Engagement
+## How This Simplifies Independent Review
 
-If anyone ever wants or needs a formal third-party audit of this library,
-the system substantially reduces the cost and time of that engagement:
+CAAS is designed so independent reviewers can start from executable evidence
+instead of reconstructing the project from scratch:
 
 - **Claim inventory** — `docs/AUDIT_TRACEABILITY.md` maps every security claim
   to a test. An auditor starts from this list, not from scratch.

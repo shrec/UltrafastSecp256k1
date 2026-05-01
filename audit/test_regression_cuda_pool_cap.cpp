@@ -3,7 +3,7 @@
 // =============================================================================
 //
 // BACKGROUND:
-//   gpu/src/gpu_backend_cuda.cu commit 81876d85 (2026-04-27) fixed a
+//   src/gpu/src/gpu_backend_cuda.cu commit 81876d85 (2026-04-27) fixed a
 //   minimum-capacity bug in the CUDA operation pool allocator:
 //
 //     BROKEN:

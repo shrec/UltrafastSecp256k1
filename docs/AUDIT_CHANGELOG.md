@@ -10,8 +10,8 @@ evidence upgrades, and changes to what the repository can honestly claim.
 ## 2026-05-01 — Security Audit Cycle: Red Team Findings Fixed
 
 ### CRITICAL Fixes
-- **CRITICAL-1 Metal Schnorr aux_rand**: `metal/shaders/secp256k1_extended.h` — Schnorr batch adapter was passing private key as `aux_rand` (BIP-340 violation). Fixed: zero aux for deterministic nonce.
-- **CRITICAL-2 Metal batch fail-open**: `metal/shaders/secp256k1_kernels.metal` — both `ecdsa_sign_batch` and `schnorr_sign_batch` ignored sign return value. Fixed: routed through `ct_ecdsa_sign_metal`/`ct_schnorr_sign_metal`; output cleared on failure.
+- **CRITICAL-1 Metal Schnorr aux_rand**: `src/metal/shaders/secp256k1_extended.h` — Schnorr batch adapter was passing private key as `aux_rand` (BIP-340 violation). Fixed: zero aux for deterministic nonce.
+- **CRITICAL-2 Metal batch fail-open**: `src/metal/shaders/secp256k1_kernels.metal` — both `ecdsa_sign_batch` and `schnorr_sign_batch` ignored sign return value. Fixed: routed through `ct_ecdsa_sign_metal`/`ct_schnorr_sign_metal`; output cleared on failure.
 
 ### HIGH Fixes
 - **HIGH-1 Metal non-CT scalar mul**: Batch kernels now use CT signing path (combined with CRITICAL-2 fix).
@@ -22,8 +22,8 @@ evidence upgrades, and changes to what the repository can honestly claim.
 ### MEDIUM Fixes
 - **MEDIUM-1 Schnorr R zero check**: `ufsecp_ecdsa.cpp`, `shim_schnorr.cpp` — Schnorr ABI checked only `s==0`, not R x-coord. Fixed: both components now checked.
 - **MEDIUM-2 MuSig2 CT partial sign**: `musig2.cpp` — partial sign computation used `fast::Scalar`. Fixed: new `ct::scalar_mul` implementation added to `ct_scalar.cpp`; partial sign now uses CT arithmetic.
-- **MEDIUM-3 OpenCL/Metal Schnorr s==0**: `secp256k1_extended.cl`, `secp256k1_extended.h` — non-CT Schnorr returned 1 without checking `s==0`. Fixed.
-- **MEDIUM-4 GPU Schnorr warp divergence**: `schnorr.cuh`, `secp256k1_extended.cl` — branchy parity flip on secret. Fixed: branchless `scalar_cmov`.
+- **MEDIUM-3 OpenCL/Metal Schnorr s==0**: `src/opencl/kernels/secp256k1_extended.cl`, `src/metal/shaders/secp256k1_extended.h` — non-CT Schnorr returned 1 without checking `s==0`. Fixed.
+- **MEDIUM-4 GPU Schnorr warp divergence**: `src/cuda/include/schnorr.cuh`, `src/opencl/kernels/secp256k1_extended.cl` — branchy parity flip on secret. Fixed: branchless `scalar_cmov`.
 - **MEDIUM-5 Advisory skip sentinel**: `unified_audit_runner.cpp` + advisory modules — `elapsed_ms < 1.0` heuristic replaced with `ADVISORY_SKIP_CODE` (77) sentinel.
 - **MEDIUM-6 CAAS/CI structural gates**: Added `check_bitcoin_core_test_results.py` to CAAS profile; fixed `audit_gate.py` exit propagation; clarified advisory `|| true` steps.
 
@@ -54,7 +54,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   Zero `psig` return from `musig2_partial_sign` is now fail-closed.
 
 ### CRIT-2: Guardrail #4 — zero signatures silently serialized as success
-- **Files:** `cpu/src/impl/ufsecp_ecdsa.cpp` (7 ABI signing functions)
+- **Files:** `src/cpu/src/impl/ufsecp_ecdsa.cpp` (7 ABI signing functions)
 - **Issue:** `ct::ecdsa_sign` / `ct::schnorr_sign` can return degenerate (zero)
   output on negligible-probability edge cases. None of the ABI wrappers checked
   for this before copying to output and returning `UFSECP_OK`.
@@ -94,9 +94,9 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### UTF-8 NFKD normalization added to BIP-39 seed derivation
 
-- **Files added:** `cpu/include/secp256k1/unicode_nfkd.hpp`,
-  `cpu/src/unicode_nfkd.cpp`
-- **Files modified:** `cpu/src/bip39.cpp`, `cpu/CMakeLists.txt`
+- **Files added:** `src/cpu/include/secp256k1/unicode_nfkd.hpp`,
+  `src/cpu/src/unicode_nfkd.cpp`
+- **Files modified:** `src/cpu/src/bip39.cpp`, `src/cpu/CMakeLists.txt`
 - **Audit test added:** `audit/test_exploit_bip39_nfkd.cpp`
 - **Issue:** BIP-39 spec mandates `PBKDF2(password=NFKD(mnemonic),
   salt="mnemonic"+NFKD(passphrase))`. The previous implementation passed
@@ -128,13 +128,13 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### [N7] RIPEMD-160 right-chain message schedule: r2[46] and r2[47] swapped in OpenCL + Metal
 
-- **Files:** `opencl/kernels/secp256k1_hash160.cl:148`, `metal/shaders/secp256k1_hash160.h:145`
+- **Files:** `src/opencl/kernels/secp256k1_hash160.cl:148`, `src/metal/shaders/secp256k1_hash160.h:145`
 - **Bug:** The third segment of the RIPEMD-160 right-chain selection array (`RIPEMD_R2` /
   `RMD_R2`) ended with `10,0,13,4` instead of the spec-correct `10,0,4,13`.
   r2[46]=13 and r2[47]=4 when both should be r2[46]=4, r2[47]=13.
 - **Standard reference:** ISO/IEC 10118-3, Round 3 right-chain schedule (positions 32–47):
   `15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13`. Position 46=4, 47=13.
-- **CPU and CUDA unaffected:** `cpu/src/hash_accel.cpp` and `cuda/include/hash160.cuh`
+- **CPU and CUDA unaffected:** `src/cpu/src/hash_accel.cpp` and `src/cuda/include/hash160.cuh`
   had the correct values `10,0,4,13`.
 - **Impact:** All hash160 = RIPEMD-160(SHA256(x)) computations on OpenCL and Metal backends
   produced wrong hashes. Any public-key-to-address derivation via OpenCL/Metal would yield
@@ -150,11 +150,11 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### [N6] Second instance of issue #256: wrong `__byte_perm` selector in bench
 
-- **File:** `cuda/src/bench_bip324_transport.cu:111`
+- **File:** `src/cuda/src/bench_bip324_transport.cu:111`
 - **Bug:** `__byte_perm(d, 0, 0x0321)` (produces `rotl32(24)`) used instead of
   `0x2103` (`rotl32(8)`) in the standalone ChaCha20 quarter-round copy inside
   the BIP-324 CUDA benchmark. The benchmark's own copy was not updated when
-  `cuda/include/bip324.cuh` was fixed for issue #256.
+  `src/cuda/include/bip324.cuh` was fixed for issue #256.
 - **Root cause class:** Round-trip tests (encrypt→decrypt) cannot detect this;
   both sides share the same broken quarter-round and always agree. Only an RFC
   8439 §2.3.2 keystream KAT against an external reference exposes the mismatch.
@@ -167,7 +167,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   selector constants against adjacent rotation comments; auto-fix mode.
 - `.github/workflows/cuda-intrinsic-check.yml` — CI gate on every `.cu`/`.cuh`
   change; exits 1 on any ERROR-level mismatch.
-- `audit_gpu_chacha20_kat()` in `cuda/src/gpu_audit_runner.cu` — RFC 8439 §2.3.2
+- `audit_gpu_chacha20_kat()` in `src/cuda/src/gpu_audit_runner.cu` — RFC 8439 §2.3.2
   known-answer test executed on actual GPU hardware (section `kat`, advisory).
   This is the test that would have caught both instances of the bug on day one.
 
@@ -226,7 +226,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### Security / Correctness Fixes
 
-- **MuSig2 partial sign BIP-327 violation (HIGH)** — `cpu/src/musig2.cpp` `musig2_partial_sign`: step 2 incorrectly negated `d_i` based on individual P_i's Y parity. BIP-327 §signing formula is `s_i = k_i_eff + e * a_i * g * d_i` where `g` adjusts for Q's parity only — no per-signer parity adjustment. This made aggregate signatures invalid whenever any signer had odd-Y pubkey (tests [1], [3], [12] of 19 were failing). Fix: removed step 2 and the now-unused `ct::generator_mul(d)` call.
+- **MuSig2 partial sign BIP-327 violation (HIGH)** — `src/cpu/src/musig2.cpp` `musig2_partial_sign`: step 2 incorrectly negated `d_i` based on individual P_i's Y parity. BIP-327 §signing formula is `s_i = k_i_eff + e * a_i * g * d_i` where `g` adjusts for Q's parity only — no per-signer parity adjustment. This made aggregate signatures invalid whenever any signer had odd-Y pubkey (tests [1], [3], [12] of 19 were failing). Fix: removed step 2 and the now-unused `ct::generator_mul(d)` call.
 - **MuSig2 partial verify Y-parity assumption** — `musig2_partial_verify` forced even-Y via BIP-340 lift (`if (y.limbs()[0] & 1) y = y.negate()`). After the signing fix, partial sign uses the original d_i (either parity), so verify must accept both Y candidates. Fix: compute `eaP` for both even and odd Y, return true if either matches `s_i * G`.
 
 ### Audit Wiring / Test Fixes
@@ -250,7 +250,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### False-Alarm Investigation Results (punch list items)
 
-- **M8** (`1 << 31` UB): Not found in any source file. Punch list referenced `cpu/src/field_52.hpp:89` which is a function declaration, not a bit-shift.
+- **M8** (`1 << 31` UB): Not found in any source file. Punch list referenced `src/cpu/src/field_52.hpp:89` which is a function declaration, not a bit-shift.
 - **M7** (malformed bench JSON): All JSON files parse cleanly with no zero timings. False alarm.
 - **M13** (ndata when noncefp=NULL): Correct by design — libsecp256k1 itself uses ndata for hedged RFC 6979 when noncefp=NULL. Not a bug.
 - **M21** (thread safety): `shim_ensure_fixed_base()` uses `std::call_once` — standard C++11 thread-safe one-time initialization. No issue.
@@ -263,7 +263,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### Security / Correctness Fixes
 
-- **MuSig2 wrong tagged hash tag** — `cpu/src/musig2.cpp`: nonce blinding factor `b` was computed with `tagged_hash("MuSig/noncecoef", ...)` instead of the BIP-327 §GetSessionValues required `"MuSig/nonceblinding"`. Wrong tag → wrong b → wrong R → wrong challenge e → all partial sigs invalid. Tests: 19/19 pass (was 16/19). All 2-of-2, 3-of-3, and 1-of-1 roundtrips verified.
+- **MuSig2 wrong tagged hash tag** — `src/cpu/src/musig2.cpp`: nonce blinding factor `b` was computed with `tagged_hash("MuSig/noncecoef", ...)` instead of the BIP-327 §GetSessionValues required `"MuSig/nonceblinding"`. Wrong tag → wrong b → wrong R → wrong challenge e → all partial sigs invalid. Tests: 19/19 pass (was 16/19). All 2-of-2, 3-of-3, and 1-of-1 roundtrips verified.
 - **noncefp silent bypass** — `shim_ecdsa.cpp` had `(void)noncefp;` silently ignoring custom nonce callbacks and always using RFC 6979. Fail-closed guard added: returns 0 when a non-standard noncefp is passed. Same fix applied to `shim_recovery.cpp`.
 - **catch(...)×28 swallows removed** — All `try { ... } catch (...) { return 0; }` blocks removed from 9 compat shim files (shim_ecdh, shim_ecdsa, shim_ellswift, shim_extrakeys, shim_pubkey, shim_recovery, shim_schnorr, shim_seckey, shim_tagged_hash). Each extern "C" function now marked `noexcept`: unexpected exceptions (including std::bad_alloc) call `std::terminate()` instead of silently returning 0 — eliminating ambiguity with "invalid arguments" error.
 - **catch(...)×4 removed from GPU impl** — `ufsecp_gpu_impl.cpp`: 4 bare `catch(...){return 0;}` removed; functions now `noexcept`. Returning 0 was ambiguous with legitimate "no backends" / "not available" states.
@@ -399,7 +399,7 @@ Total PoC files wired: **213/213** (0 unwired, 0 catalog gaps).
 ### CAAS-08: Build caching added to all three CAAS jobs
 
 `caas.yml`: All three jobs that rebuild `libufsecp.so` (`audit_gate`, `security_autonomy`,
-`bundle`) now use `actions/cache` keyed on `hashFiles('cpu/src/**', 'cpu/include/**',
+`bundle`) now use `actions/cache` keyed on `hashFiles('src/cpu/src/**', 'src/cpu/include/**',
 'include/**', 'CMakeLists.txt')`. On cache hit, the ~5-minute CMake build is skipped.
 Estimated savings: ~10 minutes per pipeline run when source files are unchanged.
 
@@ -454,8 +454,8 @@ Three CAAS/Audit Gate P0/P2 blockers resolved after the B-04 monolith split:
 calls in `test_gpu_abi_gate.cpp` (`test_context_lifecycle`, `test_gpu_ops_if_available`).
 Updated `docs/FFI_HOSTILE_CALLER.md` Section J to explicitly document coverage.
 
-**P2 Test Coverage — 10 coverage gaps**: `cpu/src/impl/*.cpp` wrapper files (B-04 split)
-and `cpu/src/ufsecp_impl.cpp` had no `covers` edges because `test_coverage` dict in
+**P2 Test Coverage — 10 coverage gaps**: `src/cpu/src/impl/*.cpp` wrapper files (B-04 split)
+and `src/cpu/src/ufsecp_impl.cpp` had no `covers` edges because `test_coverage` dict in
 `ci/build_project_graph.py` had stale `include/ufsecp/ufsecp_impl.cpp` paths.
 Fixed by adding a `monolith_split` test target covering all 8 impl files + aggregator,
 and correcting the `abi_gate` and `gpu_bip352_scan` paths.
@@ -512,7 +512,7 @@ specifies `cpoint(P_i)` — full compressed decompression respecting Y parity.
 This produced wrong aggregate pubkeys for any 33-byte key with `0x03` prefix,
 failing all BIP-328 test vectors and all 64 Taproot descriptor tests.
 
-Fix: `cpu/src/musig2.cpp` uses `decompress_point(pubkeys[i])` directly,
+Fix: `src/cpu/src/musig2.cpp` uses `decompress_point(pubkeys[i])` directly,
 removing the forced even-Y. Partial signing's d-adjustment handles individual
 P_i parity independently, so this is safe.
 
@@ -543,11 +543,11 @@ secret nonce k. Only MSVC builds fell back to the CT path.
 
 **Changes:**
 
-- `cpu/src/ecdsa.cpp`: `signing_generator_mul` → `ct::generator_mul_blinded`;
+- `src/cpu/src/ecdsa.cpp`: `signing_generator_mul` → `ct::generator_mul_blinded`;
   `k.inverse()` → `ct::scalar_inverse(k)` in both `ecdsa_sign` and
   `ecdsa_sign_hedged`.
-- `cpu/src/recovery.cpp`: same changes for `ecdsa_sign_recoverable`.
-- `cpu/src/schnorr.cpp`: added `ct/point.hpp` include; all four secret-key
+- `src/cpu/src/recovery.cpp`: same changes for `ecdsa_sign_recoverable`.
+- `src/cpu/src/schnorr.cpp`: added `ct/point.hpp` include; all four secret-key
   generator multiplications (`schnorr_pubkey`, `schnorr_keypair_create`,
   nonce R = k'*G in `schnorr_sign`, and `schnorr_xonly_from_keypair`) changed
   to `ct::generator_mul` / `ct::generator_mul_blinded`.
@@ -575,7 +575,7 @@ changing the output signature. Passing NULL clears the blinding state.
 Blinding state is thread-local. Performance overhead when active:
 ~286 ns/sign (one `scalar_add` + one `point_add_mixed_complete`), ~3% on k·G.
 
-**Files changed:** `cpu/src/ct_point.cpp`, `cpu/include/secp256k1/ct/point.hpp`,
+**Files changed:** `src/cpu/src/ct_point.cpp`, `src/cpu/include/secp256k1/ct/point.hpp`,
 `include/ufsecp/ufsecp.h`, `include/ufsecp/impl/ufsecp_core.cpp`.
 
 ### Minor fixes (evaluation report items)
@@ -590,7 +590,7 @@ Blinding state is thread-local. Performance overhead when active:
 ### Bugs fixed
 
 **LOW (B-11) — C ABI wrapper functions had no branch-prediction hints on error-guard paths:**
-- Added `SECP256K1_UNLIKELY()` (defined in `cpu/include/secp256k1/config.hpp` as
+- Added `SECP256K1_UNLIKELY()` (defined in `src/cpu/include/secp256k1/config.hpp` as
   `__builtin_expect(!!(x), 0)` on GCC/Clang, identity on MSVC) to 297 argument-guard
   and key-parse-failure branches across all 9 implementation files:
   `impl/ufsecp_core.cpp` (21), `impl/ufsecp_ecdsa.cpp` (28), `impl/ufsecp_address.cpp` (23),
@@ -650,14 +650,14 @@ Blinding state is thread-local. Performance overhead when active:
 - `include/ufsecp/ufsecp_impl.cpp` line 878: `secp256k1::ecdsa_sign_recoverable(msg, sk)`
   → `secp256k1::ct::ecdsa_sign_recoverable(msg, sk)`.
 - The ARCH DECISION comment incorrectly stated `ct::ecdsa_sign_recoverable` does not exist.
-  In fact, `cpu/src/ct_sign.cpp:289-361` contains the full CT implementation with:
+  In fact, `src/cpu/src/ct_sign.cpp:289-361` contains the full CT implementation with:
   branchless R.y parity extraction, CT branchless byte comparison for overflow bit,
   `ct::scalar_inverse(k)` (SafeGCD Bernstein-Yang divsteps-59), and `secure_erase` of
   all secret stack buffers. Impact: wNAF nonce k*G leaks nonce k via timing
   → full private key recovery in ~10^4–10^6 signatures.
 
 **MEDIUM (M-6) — Pippenger scatter loop lacked prefetch + branch hints:**
-- `cpu/src/pippenger.cpp`: Added `__builtin_prefetch(&points[i+8], 0, 1)` in both
+- `src/cpu/src/pippenger.cpp`: Added `__builtin_prefetch(&points[i+8], 0, 1)` in both
   affine and non-affine scatter loops + `SECP256K1_LIKELY/UNLIKELY` branch hints.
 - Measured improvement: N=64 cached batch: 2994540→1547857 ns (48% faster),
   N=128: 5405628→2919917 ns (46%), N=192: 7363274→3957681 ns (46%).
@@ -680,17 +680,17 @@ Total exploit tests: 203 (wiring gate: all pass).
 ### Bugs fixed (B-01..B-12 quality audit wave)
 
 **CRITICAL (B-01) — `eth_sign_hash()` used variable-time signing path:**
-- `cpu/src/eth_signing.cpp` line 72: `secp256k1::ecdsa_sign_recoverable()` →
+- `src/cpu/src/eth_signing.cpp` line 72: `secp256k1::ecdsa_sign_recoverable()` →
   `secp256k1::ct::ecdsa_sign_recoverable()`.
 - Impact: timing leak on k*G reveals nonce k → full private key recovery on EIP-155 endpoints.
 
 **HIGH (B-02) — `wallet::sign_hash()` Bitcoin-family path used variable-time signing:**
-- `cpu/src/wallet.cpp` line 177: unqualified `ecdsa_sign_recoverable()` (resolves to variable-time)
+- `src/cpu/src/wallet.cpp` line 177: unqualified `ecdsa_sign_recoverable()` (resolves to variable-time)
   → `ct::ecdsa_sign_recoverable()`.
 - Impact: same k*G timing leak for all BTC/LTC/DOGE/BCH wallet sign_hash callers.
 
 **HIGH (B-03) — Metal `compute_units` always 0 (no GPU family heuristic):**
-- `gpu/src/gpu_backend_metal.mm`: Added GPU family heuristic: Apple7→8 CU, Apple8→8 CU, Apple9→10 CU.
+- `src/gpu/src/gpu_backend_metal.mm`: Added GPU family heuristic: Apple7→8 CU, Apple8→8 CU, Apple9→10 CU.
 - `max_clock_mhz` remains 0 (Metal API does not expose clock frequency).
 
 **MEDIUM (B-05) — Stale version strings in active documentation:**
@@ -715,18 +715,18 @@ Total exploit tests: 203 (wiring gate: all pass).
 
 ---
 
-## 2026-04-26e (fix: 6 security bugs from external audit — CRITICAL/HIGH/MEDIUM)
+## 2026-04-26e (fix: 6 security bugs from independent review — CRITICAL/HIGH/MEDIUM)
 
 ### Bugs fixed in this commit
 
-**CRITICAL — bech32_decode integer underflow → SIZE_MAX OOB read** (`cpu/src/address.cpp`):
+**CRITICAL — bech32_decode integer underflow → SIZE_MAX OOB read** (`src/cpu/src/address.cpp`):
 - Line 372: `sep + 7 > addr.size()` → `sep + 8 > addr.size()` (ensures data5.size() ≥ 7)
 - Line 391: `data5.size() < 6` → `data5.size() < 7` (defense in depth)
 - With data5.size() == 6, line 412's `data5.size() - 7` wraps to SIZE_MAX, causing
   `convert_bits()` to read ~18 exabytes. Requires valid Bech32 checksum so exploit
   probability is ~2^-32 per attempt, but deterministic if collision found.
 
-**HIGH — address.cpp:773 const_cast UB on secure_erase** (`cpu/src/address.cpp`):
+**HIGH — address.cpp:773 const_cast UB on secure_erase** (`src/cpu/src/address.cpp`):
 - `auto const S_comp` → `auto S_comp` (removes const), enabling direct `secure_erase`
   without `const_cast`. Modifying a truly-const object via `const_cast` is UB; the
   compiler may place it in read-only memory or elide the erase.
@@ -737,7 +737,7 @@ Total exploit tests: 203 (wiring gate: all pass).
 - `ecdsa_adaptor_sign` line 228: `k.inverse()` → `ct::scalar_inverse(k)`
 - Full private key recovery via nonce timing was possible via lattice attack.
 
-**MEDIUM — DLEQProof::deserialize always returns true** (`cpu/src/zk.cpp`):
+**MEDIUM — DLEQProof::deserialize always returns true** (`src/cpu/src/zk.cpp`):
 - Added `if (out.e.is_zero() || out.s.is_zero()) return false;`
 - Zero scalars are trivially invalid proofs; accepting them lets verification
   proceed to dleq_verify which may produce misleading error messages.
@@ -776,7 +776,7 @@ actual parity (02/03 prefix) when building the aggregate point Q. However,
 `a_i * P_i_actual` into Q. For odd-Y keys, `P_i_actual ≠ P_i_even`, so
 `s * G ≠ R + e * Q`.
 
-**Fix** (`cpu/src/musig2.cpp`): Force the 02 prefix before `decompress_point`
+**Fix** (`src/cpu/src/musig2.cpp`): Force the 02 prefix before `decompress_point`
 in the point-caching loop of `musig2_key_agg`. This implements BIP-327's
 `lift_x` semantics: the full 33-byte compressed key (with parity prefix) still
 feeds the L hash and per-key coefficient hash unchanged; only the EC point
@@ -813,7 +813,7 @@ and `musig2_partial_verify` (which both use even-Y form of P_i).
 
 ### Deep audit: all parse_bytes_strict call sites clean
 
-Full grep of `cpu/src`, `cpu/include`, `include`, `bindings` — all 47
+Full grep of `src/cpu/src`, `src/cpu/include`, `include`, `bindings` — all 47
 `parse_bytes_strict`/`parse_bytes_strict_nonzero` call sites are properly checked
 (every call wrapped in `if (!...)`, `return`, or `if (...)` condition).
 MuSig2, FROST, ECIES, schnorr, ECDSA, BIP-32, taproot: no unchecked returns remain.
@@ -1006,7 +1006,7 @@ registered in `unified_audit_runner` under section `memory_safety`.
 
 ## 2026-04-23 (BIP-324 Bip324Session secure-erase bugs fixed: BPS-1..8)
 
-### Fixed: `cpu/src/bip324.cpp` + `cpu/include/secp256k1/bip324.hpp`
+### Fixed: `src/cpu/src/bip324.cpp` + `src/cpu/include/secp256k1/bip324.hpp`
 
 Two latent memory-safety bugs found during deep hotspot audit scan:
 
@@ -1037,7 +1037,7 @@ pass=36 fail=0.
 
 ### New Regression Test
 
-**`test_regression_musig2_verify` (MVV-1..6)** — `cpu/src/musig2.cpp`
+**`test_regression_musig2_verify` (MVV-1..6)** — `src/cpu/src/musig2.cpp`
 `musig2_partial_verify()` had two latent bugs found during deep audit scan:
 
 1. **Missing signer_index bounds check (BUG-1)**:
@@ -1066,7 +1066,7 @@ pass=14 fail=0.
 
 ### New Regression Tests
 
-1. **`test_regression_z_fe_nonzero` (ZFN-1..6)** — `cpu/src/point.cpp` `z_fe_nonzero()`
+1. **`test_regression_z_fe_nonzero` (ZFN-1..6)** — `src/cpu/src/point.cpp` `z_fe_nonzero()`
    `& zL[3]` typo introduced in commit `81876d85` and fixed in `c085dba2`.
    C operator-precedence bug (`&` binds tighter than `|`) caused the projective-Z
    non-zero check to return wrong results for points where limb[2]≠0 and limb[3]=0.
@@ -1075,7 +1075,7 @@ pass=14 fail=0.
    multiples (sk=1,2,7,255), Schnorr sign/verify round-trip on 5 keys, 100× consistency check.
    Section: `math_invariants`. Advisory: false.
 
-2. **`test_regression_cuda_pool_cap` (CAP-1..4)** — `gpu/src/gpu_backend_cuda.cu` pool
+2. **`test_regression_cuda_pool_cap` (CAP-1..4)** — `src/gpu/src/gpu_backend_cuda.cu` pool
    minimum-capacity underflow fixed in commit `81876d85`.  Pool allocator for small
    batches (n<256) started `cap` from 1 without clamping the target to 256 first,
    leaving the pool 1 element wide and causing OOB writes on any batch of ≥2 ops.
@@ -1090,7 +1090,7 @@ pass=14 fail=0.
 ### Real Bugs Fixed
 
 1. **ECDSA batch verify missing low-S enforcement** (BIP-62 / BIP-146)
-   `cpu/src/batch_verify.cpp` — the `n==1` shortcut in `ecdsa_batch_verify` bypassed
+   `src/cpu/src/batch_verify.cpp` — the `n==1` shortcut in `ecdsa_batch_verify` bypassed
    the BIP-62 pre-validation loop, allowing a high-S (malleable) signature to pass
    when the batch contained exactly one entry.  Fix: moved pre-validation before the
    `n==1` shortcut.  Also added `is_low_s()` check to `ufsecp_ecdsa_verify` (single)
@@ -1446,7 +1446,7 @@ CAAS gaps from `docs/CAAS_GAP_CLOSURE_ROADMAP.md`:
 cover the residuals referenced by THREAT_MODEL.md §5.
 
 These four docs do not change code behaviour. They change what an
-external auditor has to reconstruct: previously they would have had
+independent reviewer has to reconstruct: previously they would have had
 to derive STRIDE coverage, RNG attestation, and compliance scope
 themselves; now they verify a claim against an evidence pointer.
 
@@ -1490,7 +1490,7 @@ modules", "53/54 modules") are intentionally preserved because they
 correctly represent the runner state at the time of that benchmark run.
 
 Existing-as-correct (no change required):
-- 11 fuzzer harnesses (`audit/fuzz_*.cpp` 6 + `cpu/fuzz/fuzz_*.cpp` 5)
+- 11 fuzzer harnesses (`audit/fuzz_*.cpp` 6 + `src/cpu/fuzz/fuzz_*.cpp` 5)
 - 39 Cryptol properties (`grep -rE 'property\s+\w+' --include='*.cry'`)
 
 ---
@@ -1684,12 +1684,12 @@ inline body. Callers asking for the GPU batch path therefore got a hard error
 even though the CPU C ABI (`ufsecp_zk_schnorr_snark_witness`) was fully
 functional.
 
-- Added [gpu/src/gpu_backend_fallback.cpp](../gpu/src/gpu_backend_fallback.cpp)
+- Added [src/gpu/src/gpu_backend_fallback.cpp](../src/gpu/src/gpu_backend_fallback.cpp)
   with `schnorr_snark_witness_batch_cpu_fallback`, a deterministic host-side
   loop that produces byte-identical 472-byte witness records (matches
   `ufsecp_schnorr_snark_witness_t` and `SCHNORR_SNARK_WITNESS_BYTES`).
 - Wired the new helper as the default `GpuBackend::schnorr_snark_witness_batch`
-  body in [gpu/include/gpu_backend.hpp](../gpu/include/gpu_backend.hpp) so
+  body in [src/gpu/include/gpu_backend.hpp](../src/gpu/include/gpu_backend.hpp) so
   every backend (and any future backend) returns correct results out of the
   box. Backends are still free to override with a native device kernel for
   higher throughput.
@@ -1718,14 +1718,14 @@ Closed all `new`-without-matching-`delete` heuristic hits flagged by the
 source-graph `leak_risks` table (risk_score > 0) where the pairing was
 either genuinely missing on failure paths or merely not exception-safe.
 
-- **`gpu/src/gpu_backend_cuda.cu`** — three real leak paths fixed.
+- **`src/gpu/src/gpu_backend_cuda.cu`** — three real leak paths fixed.
   `ecdh_xdh_batch`, `dleq_verify_batch`, and `bulletproof_verify_batch`
   allocated `new bool[count]` for the device→host result copy. The
   subsequent `CUDA_TRY(cudaMemcpy(...))` early-returns a `GpuError::Launch`
   on failure, which skipped the paired `delete[]` **and** every `cudaFree`
   below it. Replaced the raw heap buffer with `std::vector<uint8_t>` so
   the host buffer is now reclaimed by RAII on any failure path.
-- **`cpu/src/message_signing.cpp`** — `bitcoin_msg_hash` allocated
+- **`src/cpu/src/message_signing.cpp`** — `bitcoin_msg_hash` allocated
   `new std::uint8_t[total]` for messages larger than 512 bytes. The paired
   `delete[]` was reached in the happy path but any exception propagating
   from `sha256()` would have leaked the buffer **and** skipped
@@ -1733,12 +1733,12 @@ either genuinely missing on failure paths or merely not exception-safe.
   is still called explicitly before the vector deallocator reclaims
   memory, so the confidentiality guarantee is unchanged.
 
-Four remaining `leak_risks` hits (`cpu/src/field.cpp`, `cpu/src/ct_point.cpp`,
-`cpu/bench/bench_unified.cpp`, `cuda/src/test_suite.cu`) were triaged as
+Four remaining `leak_risks` hits (`src/cpu/src/field.cpp`, `src/cpu/src/ct_point.cpp`,
+`src/cpu/bench/bench_unified.cpp`, `src/cuda/src/test_suite.cu`) were triaged as
 false positives: the heuristic matched the word `new` in comments
 (`new overflow`, `new lo`, `new Point`, `new scalar operations`), not in
 allocation expressions. Two additional hits with negative risk_score
-(`cpu/src/point.cpp`, `cpu/src/precompute.cpp`, `opencl/src/opencl_context.cpp`)
+(`src/cpu/src/point.cpp`, `src/cpu/src/precompute.cpp`, `opencl/src/opencl_context.cpp`)
 already use `std::make_unique` / matching `delete` and are safe.
 
 ---
@@ -1896,9 +1896,9 @@ already use `std::make_unique` / matching `delete` and are safe.
   for bundle digest, evidence hashes, commit consistency, and optional command
   replay hash-matching.
 - **Added** `docs/EXTERNAL_AUDIT_BUNDLE_SPEC.md` — formal format and
-  verification contract for external auditors.
+  verification contract for reproducible evidence replay.
 - **Updated** `docs/AUDIT_MANIFEST.md` to v2.1 with P19
-  (External Auditor Reproducibility Bundle) and explicit external sign-off flow.
+  (Reproducibility Bundle) and explicit evidence replay flow.
 
 - **Added** `docs/SECURITY_AUTONOMY_PLAN.md` — 30-day execution plan for full
   security autonomy with concrete KPIs and weekly milestones.
@@ -1938,7 +1938,7 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-13 (Adaptor signature parity validation)
 
-- **Fixed** `cpu/src/adaptor.cpp` `schnorr_adaptor_verify()` — reconstructed
+- **Fixed** `src/cpu/src/adaptor.cpp` `schnorr_adaptor_verify()` — reconstructed
   `R = R^ + T_adj` now rejects odd-Y points before deriving the BIP-340
   challenge. Previously the verifier accepted malformed pre-signatures where
   the algebraic equation held but the final adapted signature was invalid due
@@ -1951,13 +1951,13 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-14 (Hot-path allocation debt reduction: FROST + multiscalar)
 
-- **Optimized** `cpu/src/frost.cpp` signing/verification/aggregation paths:
+- **Optimized** `src/cpu/src/frost.cpp` signing/verification/aggregation paths:
   removed temporary `binding_factors` heap vectors in `frost_sign`,
   `frost_verify_partial`, and `frost_aggregate` by computing binding factors
   inline while building group commitment. Behavior is unchanged; allocation
   pressure on these hot paths is reduced.
 
-- **Optimized** `cpu/src/multiscalar.cpp` FE52 affine-table conversion:
+- **Optimized** `src/cpu/src/multiscalar.cpp` FE52 affine-table conversion:
   removed temporary `z_vals` heap vector in Montgomery batch inversion and
   reused table Z reads during prefix/backward passes. Behavior is unchanged;
   one per-call heap vector allocation was eliminated from `multi_scalar_mul`.
@@ -1972,7 +1972,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   Lagrange coefficient derivation now use allocation-free commitment traversal.
   Plus `frost_keygen_finalize` now validates commitment/share sender uniqueness
   in-place (no temporary `seen_*` vectors). Hot-path allocation scanner delta
-  for `cpu/src/frost.cpp`: **13 -> 2** findings.
+  for `src/cpu/src/frost.cpp`: **13 -> 2** findings.
 
 - **Preflight hardening**: `ci/preflight.py` now includes
   `--ctest-registry` (also in `--all`) to detect stale CTest entries that
@@ -2002,9 +2002,9 @@ already use `std::make_unique` / matching `delete` and are safe.
   completely absent. `ci/test_audit_scripts.py` now covers both the
   non-fatal cancelled-platform case and the all-missing no-evidence failure.
 
-- **Residual hot-path debt closure**: `cpu/src/batch_verify.cpp` now reuses
+- **Residual hot-path debt closure**: `src/cpu/src/batch_verify.cpp` now reuses
   thread-local scratch for Schnorr pubkey caches and ECDSA batch-inversion
-  products, and `cpu/src/field.cpp` now reuses thread-local scratch for large
+  products, and `src/cpu/src/field.cpp` now reuses thread-local scratch for large
   field batch inversions. This removes repeated heap construction on these
   steady-state public-data hot paths after initial capacity growth.
 
@@ -2014,10 +2014,10 @@ already use `std::make_unique` / matching `delete` and are safe.
   reporting. This keeps the HIGH hot-path backlog focused on steady-state
   throughput-sensitive code instead of setup/error-path wrappers.
 
-- **Second-pass allocation cleanup**: `cpu/src/multiscalar.cpp` and
-  `cpu/src/musig2.cpp` now reuse thread-local scratch for per-call working
+- **Second-pass allocation cleanup**: `src/cpu/src/multiscalar.cpp` and
+  `src/cpu/src/musig2.cpp` now reuse thread-local scratch for per-call working
   arenas instead of reconstructing vectors on each hot invocation, while
-  `cpu/src/scalar.cpp` now builds NAF/wNAF digits in fixed-size stack arrays
+  `src/cpu/src/scalar.cpp` now builds NAF/wNAF digits in fixed-size stack arrays
   before emitting the final return vector. This removes repeated growth-driven
   heap work from the main loops while preserving existing public APIs.
 
@@ -2104,7 +2104,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   Crypto/CT/ABI changes trigger hard gate; docs/bindings trigger light gate.
 
 - **Added** Auditor quickstart guide (`docs/AUDITOR_QUICKSTART.md`) —
-  "3 commands, 3 artifacts" onboarding for external auditors.
+  "3 commands, 3 artifacts" onboarding for independent reviewers.
 
 - **Added** Layer routing matrix (`docs/LAYER_ROUTING_MATRIX.md`) — complete
   CT/FAST routing table for all ~103 ABI functions with rationale.
@@ -2113,21 +2113,21 @@ already use `std::make_unique` / matching `delete` and are safe.
   GitHub Actions parse error ("`Unrecognized named-value: 'secrets'`").
   All scheduled runs were silently blocked. Replaced with `env.*` references.
 
-- **Fixed** Dead code in `cpu/src/scalar.cpp` — unused `carry_hi` declaration
+- **Fixed** Dead code in `src/cpu/src/scalar.cpp` — unused `carry_hi` declaration
   in 32-bit fallback schoolbook multiply.
 
 ---
 
 ## 2026-04-09 (Critical CT fix + OpenCL field reduction correctness)
 
-- **Fixed** `cpu/src/ct_sign.cpp` `ct::ecdsa_sign_recoverable()` — **CT violation**:
+- **Fixed** `src/cpu/src/ct_sign.cpp` `ct::ecdsa_sign_recoverable()` — **CT violation**:
   Recovery-ID low-S flip used branchy `is_low_s()` + `if (was_high) recid ^= 1`
   on secret-derived data. Replaced with branchless `ct::scalar_is_high()` (value-
   barrier protected) + mask-based XOR. This eliminates a timing side-channel that
   leaked whether the nonce-derived `s` exceeded `n/2`. Severity: **Critical**.
   Verified by `test_exploit_ct_recov` phases A/B/C (5/5 pass, |t|=0.21 < 10.0).
 
-- **Fixed** `opencl/kernels/secp256k1_field.cl` `field_reduce()` — missing rare
+- **Fixed** `src/opencl/kernels/secp256k1_field.cl` `field_reduce()` — missing rare
   carry handler in second reduction fold. CUDA had step 4 (`if (c) add K_MOD`),
   Metal used a `while` loop, but OpenCL silently dropped the overflow bit.
   Probability ≈ 2^{-190} per reduction but correctness must hold for all inputs.
@@ -2379,7 +2379,7 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-07 (CT scalar_inverse(0) fix + boundary sentinel test suite)
 
-- **Fixed** `cpu/src/ct_scalar.cpp`: both SafeGCD and Fermat fallback `ct::scalar_inverse`
+- **Fixed** `src/cpu/src/ct_scalar.cpp`: both SafeGCD and Fermat fallback `ct::scalar_inverse`
   paths now return `Scalar::zero()` for zero input. Previously only the FAST-path
   `Scalar::inverse()` had this guard; the CT paths had undefined behavior on zero.
   Defense-in-depth fix — the zero check is on the input scalar (not secret-derived data),
@@ -2408,7 +2408,7 @@ already use `std::make_unique` / matching `delete` and are safe.
 
 ## 2026-04-05 (LibFuzzer harnesses, mutation tracker, Cryptol specs, SLSA verifier, unified_audit_runner 3 new modules — commits `38108b89`, `00522b57`)
 
-- **Added** `cpu/fuzz/fuzz_ecdsa.cpp` + `cpu/fuzz/fuzz_schnorr.cpp` (ClusterFuzzLite, ECDSA and BIP-340
+- **Added** `src/cpu/fuzz/fuzz_ecdsa.cpp` + `src/cpu/fuzz/fuzz_schnorr.cpp` (ClusterFuzzLite, ECDSA and BIP-340
   Schnorr sign→verify invariants + forged-sig rejection). ClusterFuzzLite targets: 3 → **5**.
   Committed `38108b89`.
 
@@ -2419,7 +2419,7 @@ already use `std::make_unique` / matching `delete` and are safe.
   `fuzz_ecdsa_verify.cpp` (ECDSA sign→verify round-trip),
   `fuzz_bip32_path.cpp` (BIP-32 path parser, boundary + overflow),
   `fuzz_bip324_frame.cpp` (BIP-324 AEAD frame decrypt).
-  Total LibFuzzer harnesses: 3 → **11** (5 `cpu/fuzz/` + 6 `audit/`). Committed `38108b89`.
+  Total LibFuzzer harnesses: 3 → **11** (5 `src/cpu/fuzz/` + 6 `audit/`). Committed `38108b89`.
 
 - **Added** `ci/mutation_kill_rate.py` — stochastic mutation engine; 50 mutations/run,
   threshold 60%. Committed `38108b89`.
@@ -2457,7 +2457,7 @@ SLSA provenance verifier in ci/.**
 ## 2026-04-03 (Python audit script suite + static analysis scanners — commits `e94523bb`, `ad32e1d1`, `bdc00c6b`, `79f83220`)
 
 - **Added** `ci/dev_bug_scanner.py` (15 categories): classic C++ development bug detector
-  scanning 221 library source files (cpu/src, gpu/src, opencl, metal, bindings, include). Finds
+  scanning 221 library source files (src/cpu/src, src/gpu/src, src/opencl, src/metal, bindings, include). Finds
   bugs that code review and LLM analysis typically miss. Results: **182 findings (82 HIGH,
   100 MEDIUM)** — NULL 51, CPASTE 45, SIG 31, RETVAL 30, MSET 19, OB1 5, ZEROIZE 1. Precision
   mitigations: balanced-paren SEMI, brace-depth UNREACH, preprocessor-reset CPASTE,
@@ -2612,7 +2612,7 @@ tests PASS.**
 ## 2026-04-03
 
 - **Security fix**: discovered and corrected `ecdsa_verify` `r_less_than_pmn` comparison bug in
-  `cpu/src/ecdsa.cpp`. The PMN constants were numerically wrong — the code used
+  `src/cpu/src/ecdsa.cpp`. The PMN constants were numerically wrong — the code used
   `PMN_1 = 0x14551231950b75fc` (the full high 64-bit word of p-n treated as if p-n < 2^128),
   whereas actual p-n = `0x14551231950b75fc4402da1722fc9baee` has limb[2]=1, not 0.
   The old guard `if (rl[2] != 0) r_less_than_pmn = false` mistakenly declared any r with
@@ -2637,7 +2637,7 @@ tests PASS.**
 - **Corrected** three embedded Wycheproof pubkey hex vectors in `test_wycheproof_ecdsa_bitcoin.cpp`
   that had wrong lengths (63 or 65 hex chars instead of 64) due to JSON leading-zero stripping.
   Fixed from local canonical JSON at
-  `_deps/libsecp256k1_ref-src/src/wycheproof/ecdsa_secp256k1_sha256_bitcoin_test.json`:
+  `_deps/libsecp256k1_ref-src/wycheproof/ecdsa_secp256k1_sha256_bitcoin_test.json`:
   tcId 348 (wy missing leading `7`), tcId 351 wx/wy, tcId 386 (entirely different pubkey).
 
 - CMakeLists.txt in `audit/` wired with labels `audit;exploit;ecdsa;wycheproof` and

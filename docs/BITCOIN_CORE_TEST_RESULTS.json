@@ -34,7 +34,7 @@
     },
     {
       "issue": "musig2_key_agg forced even-Y on all input keys (BIP-327 violation)",
-      "fix": "cpu/src/musig2.cpp: use decompress_point respecting 33-byte prefix Y parity",
+      "fix": "src/cpu/src/musig2.cpp: use decompress_point respecting 33-byte prefix Y parity",
       "failures_closed": 70
     }
   ],

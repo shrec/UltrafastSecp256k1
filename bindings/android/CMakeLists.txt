@@ -16,7 +16,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 # Read version from VERSION.txt (single source of truth)
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../VERSION.txt" _version_raw)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../VERSION.txt" _version_raw)
 string(STRIP "${_version_raw}" UFSECP_VERSION)
 
 project(UltrafastSecp256k1Android
@@ -44,7 +44,7 @@ message(STATUS "======================================")
 
 # Include the CPU library (it handles Android detection internally)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cpu ${CMAKE_CURRENT_BINARY_DIR}/cpu)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu ${CMAKE_CURRENT_BINARY_DIR}/cpu)
 
 # ============================================================================
 # JNI Shared Library (for Java/Kotlin apps)
@@ -59,7 +59,7 @@ target_link_libraries(secp256k1_jni PRIVATE
 )
 
 target_include_directories(secp256k1_jni PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
 )
 
 target_compile_features(secp256k1_jni PRIVATE cxx_std_20)
@@ -84,7 +84,7 @@ set_target_properties(secp256k1_jni PROPERTIES
 add_executable(android_test test/android_test.cpp)
 target_link_libraries(android_test PRIVATE fastsecp256k1)
 target_include_directories(android_test PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
 )
 target_compile_features(android_test PRIVATE cxx_std_20)
 target_compile_options(android_test PRIVATE -O3)
@@ -94,19 +94,19 @@ target_link_options(android_test PRIVATE -static-libstdc++)
 # ============================================================================
 # On-device focused CPU hotspot benchmarks
 # ============================================================================
-add_executable(bench_kP ../cpu/tests/bench_kP.cpp)
+add_executable(bench_kP ../../src/cpu/tests/bench_kP.cpp)
 target_link_libraries(bench_kP PRIVATE fastsecp256k1)
 target_include_directories(bench_kP PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
 )
 target_compile_features(bench_kP PRIVATE cxx_std_20)
 target_compile_options(bench_kP PRIVATE -O3)
 target_link_options(bench_kP PRIVATE -static-libstdc++)
 
-add_executable(bench_bip324 ../cpu/bench/bench_bip324.cpp)
+add_executable(bench_bip324 ../../src/cpu/bench/bench_bip324.cpp)
 target_link_libraries(bench_bip324 PRIVATE fastsecp256k1)
 target_include_directories(bench_bip324 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
 )
 target_compile_features(bench_bip324 PRIVATE cxx_std_20)
 target_compile_options(bench_bip324 PRIVATE -O3)
@@ -127,8 +127,8 @@ if(EXISTS "${LIBSECP_SRC_DIR}/secp256k1.c")
     )
     target_link_libraries(bench_hornet PRIVATE fastsecp256k1)
     target_include_directories(bench_hornet PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/include
         ${LIBSECP_SRC_DIR}
     )

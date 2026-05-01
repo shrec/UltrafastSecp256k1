@@ -103,7 +103,7 @@
         "invalid signature identification"
       ],
       "repo_evidence": [
-        "cpu/src/batch_verify.cpp",
+        "src/cpu/src/batch_verify.cpp",
         "audit/test_exploit_batch_verify_correctness.cpp",
         "audit/test_exploit_batch_verify_poison.cpp"
       ],
@@ -163,7 +163,7 @@
         "recoverable batch verification"
       ],
       "repo_evidence": [
-        "cpu/src/batch_verify.cpp",
+        "src/cpu/src/batch_verify.cpp",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
       "reason": "Research on modified ECDSA batch verification is interesting, but it targets non-standard signature variants rather than the standard compatibility surface this repository currently ships."
@@ -184,7 +184,7 @@
         "native_decide"
       ],
       "repo_evidence": [
-        "cpu/src/ct_field.cpp",
+        "src/cpu/src/ct_field.cpp",
         "audit/test_exploit_safegcd_divsteps.cpp",
         "audit/formal/safegcd_z3_proof.py",
         "audit/formal/lean/SafeGCD/Divstep.lean",
@@ -207,8 +207,8 @@
         "memory saving"
       ],
       "repo_evidence": [
-        "cpu/src/precompute.cpp",
-        "cpu/src/pippenger.cpp",
+        "src/cpu/src/precompute.cpp",
+        "src/cpu/src/pippenger.cpp",
         "docs/BENCHMARKS.md"
       ],
       "reason": "This class is not a security gap by itself, but fresh M-ary/precompute results may be worth benchmarking against the current precompute and multiscalar pipeline."
@@ -245,7 +245,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_affine_nonce_relation.cpp",
-        "cpu/src/ecdsa.cpp"
+        "src/cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2025/705 shows algebraic key recovery when two nonces have an affine relation. RFC 6979 deterministic nonces are immune. PoC validates both the attack and the library's immunity."
     },
@@ -263,7 +263,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_half_half_nonce.cpp",
-        "cpu/src/ecdsa.cpp"
+        "src/cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2023/841 documents real-world Bitcoin key recovery when nonces are composed from hash and key halves. RFC 6979 is immune by design. PoC validates the attack vector and immunity."
     },
@@ -283,7 +283,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_nonce_modular_bias.cpp",
-        "cpu/src/ecdsa.cpp"
+        "src/cpu/src/ecdsa.cpp"
       ],
       "reason": "CVE-2024-31497 (PuTTY) and CVE-2024-1544 (wolfSSL) show key recovery from nonce bias caused by oversized random mod n. RFC 6979 HMAC-DRBG is immune. PoC validates the bias mechanism and immunity."
     },
@@ -301,7 +301,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_differential_fault.cpp",
-        "cpu/src/ecdsa.cpp"
+        "src/cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency."
     },
@@ -321,8 +321,8 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_eucleak_inversion_timing.cpp",
-        "cpu/src/ct_scalar.cpp",
-        "cpu/src/scalar.cpp"
+        "src/cpu/src/ct_scalar.cpp",
+        "src/cpu/src/scalar.cpp"
       ],
       "reason": "ePrint 2024/1380 documents a 14-year Infineon vulnerability where non-CT Extended Euclidean Algorithm for modular inversion leaked key material via EM side-channel. PoC verifies SafeGCD and Fermat paths produce correct and consistent results across pathological inputs."
     },
@@ -340,7 +340,7 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp",
-        "cpu/src/ecdsa.cpp"
+        "src/cpu/src/ecdsa.cpp"
       ],
       "reason": "ePrint 2025/654 shows cascading key compromise when multiple keys share the same nonce via weak PRNG. One compromised key reveals all others. RFC 6979 derives nonces from (key, msg) making cross-key sharing impossible. PoC validates the attack and RFC 6979 immunity."
     },
@@ -359,8 +359,8 @@
       ],
       "repo_evidence": [
         "audit/test_exploit_schnorr_hash_order.cpp",
-        "cpu/include/secp256k1/tagged_hash.hpp",
-        "cpu/src/schnorr.cpp"
+        "src/cpu/include/secp256k1/tagged_hash.hpp",
+        "src/cpu/src/schnorr.cpp"
       ],
       "reason": "ePrint 2025/1846 proves that hash input ordering in Fiat-Shamir schemes affects multi-user security. BIP-340 uses R||P||msg (correct: commitment before message). PoC verifies all 4 wrong orderings produce different challenges and fail verification."
     },

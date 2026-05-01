@@ -6568,10 +6568,10 @@ def scan_invariants(conn):
 
 # Backend directory patterns relative to project root
 _BACKEND_DIRS = {
-    "cpu":    ["cpu/src", "cpu/include"],
-    "cuda":   ["gpu/src", "gpu/include", "gpu/kernels"],
-    "opencl": ["opencl", "opencl/kernels", "opencl/src"],
-    "metal":  ["metal", "metal/src", "metal/kernels", "shaders"],
+    "cpu":    ["src/cpu/src", "src/cpu/include"],
+    "cuda":   ["src/cuda/src", "src/cuda/include", "src/gpu/src", "src/gpu/include"],
+    "opencl": ["src/opencl", "src/opencl/kernels", "src/opencl/src"],
+    "metal":  ["src/metal", "src/metal/src", "src/metal/kernels", "src/metal/shaders"],
 }
 
 # Direct project label → backend mapping (overrides path/extension heuristics)
@@ -8210,7 +8210,7 @@ def _file_focus_penalty(file_name):
         return 35
     if lowered.startswith(("dist/", "out/", "node_modules/", ".git/")):
         return 30
-    if file_name.startswith(("src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/", "compat/")):
+    if file_name.startswith(("src/", "include/", "ufsecp/", "compat/")):
         return 0
     if file_name.startswith(("audit/", "scripts/", "tools/", ".github/", "cmake/")):
         return 1
@@ -8227,7 +8227,7 @@ def _is_core_file(file_name):
     if not file_name:
         return False
     return file_name.startswith((
-        "src/", "include/", "ufsecp/", "cpu/", "gpu/", "opencl/", "compat/",
+        "src/", "include/", "ufsecp/", "compat/",
         "audit/", "tests/", "docs/", "scripts/", "tools/", ".github/", "cmake/"
     ))
 

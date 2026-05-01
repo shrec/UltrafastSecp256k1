@@ -11,7 +11,7 @@ attached to it is honest, repeatable, and stated against the right baseline.
 - The diff and commit message.
 - Built binaries under `build_rel/` and `build-cuda/` (CMake release).
 - `apps/cpu_megabatch`, `apps/secp256k1_search_gpu`, microbench harnesses
-  under `cpu/benchmarks/`, `gpu/benchmarks/`, and `benchmarks/comparison/`.
+  under `src/cpu/benchmarks/`, `src/gpu/benchmarks/`, and `benchmarks/comparison/`.
 - The source graph: `hotspots`, `bottlenecks`, `coverage`.
 
 ## What to do

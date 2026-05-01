@@ -186,7 +186,7 @@ metric is flagged.
 
 ## Adding New Benchmarks
 
-1. Add the benchmark to `cpu/bench/bench_unified.cpp`
+1. Add the benchmark to `src/cpu/bench/bench_unified.cpp`
 2. Use the standard timing pattern (warmup + DoNotOptimize + median)
 3. Output format: `[operation_name]  <value> <unit>`
 4. Update `.github/scripts/parse_benchmark.py` if the output format changes

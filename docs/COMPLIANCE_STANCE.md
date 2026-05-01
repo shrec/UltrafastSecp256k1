@@ -5,7 +5,7 @@
 >
 > This document states what compliance frameworks UltrafastSecp256k1
 > claims and does not claim, with verifiable rationale. It exists so
-> external auditors do not have to reverse-engineer our position.
+> independent reviewers do not have to reverse-engineer our position.
 
 ## 1. Position summary
 
@@ -74,9 +74,9 @@ certification, the conceptual cryptographic boundary is:
 
 ```
 include/ufsecp/*.h            (public ABI)
-cpu/src/ct_*                  (constant-time secret-bearing core)
-cpu/src/{field,scalar,group}* (math primitives)
-cpu/src/random.cpp            (OS RNG bridge)
+src/cpu/src/ct_*                  (constant-time secret-bearing core)
+src/cpu/src/{field,scalar,group}* (math primitives)
+src/cpu/src/random.cpp            (OS RNG bridge)
 ```
 
 GPU code is **outside** this boundary by construction.

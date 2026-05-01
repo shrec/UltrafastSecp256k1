@@ -29,27 +29,27 @@ coverage:
   # (exclude tests, benchmarks, examples, third-party, build artifacts)
 
 ignore:
-  - "cpu/tests/**"
-  - "cpu/bench/**"
-  - "cpu/examples/**"
+  - "src/cpu/tests/**"
+  - "src/cpu/bench/**"
+  - "src/cpu/examples/**"
   - "tests/**"
   - "bench/**"
   - "examples/**"
   - "audit/**"
-  - "wasm/**"
-  - "android/**"
+  - "bindings/wasm/**"
+  - "bindings/android/**"
   - "bindings/**"
   - "scripts/**"
   - "cmake/**"
   - "docs/**"
   # Platform-specific code never compiled on Linux coverage runner
-  - "metal/**"
-  - "gpu/src/gpu_backend_metal.mm"
+  - "src/metal/**"
+  - "src/gpu/src/gpu_backend_metal.mm"
   # Unicode NFKD: platform-dispatcher (Windows/macOS/Linux branches).
   # Only the generic Linux path runs on the coverage runner; the other
   # 2/3 of the file are OS-API wrappers never compiled on Linux.
   # BIP-39 NFKD correctness is verified by test_exploit_bip39_nfkd.
-  - "cpu/src/unicode_nfkd.cpp"
+  - "src/cpu/src/unicode_nfkd.cpp"
 
 comment:
   layout: "reach,diff,flags,files"
@@ -61,6 +61,6 @@ comment:
 flags:
   cpu:
     paths:
-      - cpu/src/
-      - cpu/include/
+      - src/cpu/src/
+      - src/cpu/include/
     carryforward: true

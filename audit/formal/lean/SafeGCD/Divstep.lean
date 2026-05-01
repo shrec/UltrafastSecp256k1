@@ -2,7 +2,7 @@
 # SafeGCD Divstep — Core Definitions and GCD Preservation
 
 Formal verification of the Bernstein-Yang divstep function as used in
-UltrafastSecp256k1's constant-time field inversion (`cpu/src/ct_field.cpp`).
+UltrafastSecp256k1's constant-time field inversion (`src/cpu/src/ct_field.cpp`).
 
 Reference: Bernstein & Yang, "Fast constant-time gcd computation and modular
 inversion", ePrint 2019/266.

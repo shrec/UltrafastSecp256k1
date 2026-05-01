@@ -190,7 +190,7 @@ Honesty is as important as coverage. CAAS does not claim:
 
 | Approach | Coverage Type | Continuous? | Learns? | Adversarial? | Executable Evidence? |
 |----------|--------------|-------------|---------|--------------|---------------------|
-| Traditional third-party audit | Code review + some fuzzing | No (snapshot) | No | Partially | PDF (not executable) |
+| Snapshot PDF review | Code review + some fuzzing | No (snapshot) | No | Partially | PDF (not executable) |
 | Bug bounty platforms | Adversarial input | No (event-driven) | No (per-researcher) | Yes | Partial |
 | Formal verification (Coq, K, Certora) | Mathematical correctness | Depends | No | No | Yes (proofs) |
 | Continuous fuzzing (OSS-Fuzz) | Input space / memory safety | Yes | No | No | Crash reproducers |
@@ -257,29 +257,27 @@ inspect, run, and independently evaluate. That is what "audit" means here.
 
 ---
 
-## Relationship to External Audit
+## Relationship to Independent Human Review
 
-CAAS does not argue that external audit is useless. It argues that:
+CAAS treats human review as most valuable when it is replayable, evidence-driven,
+and converted into permanent regression protection:
 
-1. External audit should be evaluated by the same metrics as any other audit
-   input: how much attack surface does it cover, what executable evidence
-   does it produce, how durable is the regression protection it creates?
+1. Any review input should be evaluated by the same metrics: how much attack
+   surface does it cover, what executable evidence does it produce, and how
+   durable is the regression protection it creates?
 
-2. The value of external engagement is highest for novel, non-pattern-based
-   reasoning and for hypothesis-breaking review — areas where a completely
-   different mental model surfaces attack paths that no existing pattern
-   would identify.
+2. Human review is highest leverage for novel, non-pattern-based reasoning and
+   hypothesis-breaking analysis — areas where a different mental model surfaces
+   attack paths that no existing pattern would identify.
 
-3. CAAS narrows the gap that external audit is needed to fill. A reviewer
-   engaging with this project does not start from scratch — they start from
-   a system that has already systematically evaluated 171 known attack
-   classes, run 1.3M differential checks, and verified CT correctness on
-   three independent pipelines.
+3. A reviewer engaging with this project does not start from scratch — they
+   start from a system that has already systematically evaluated 171 known
+   attack classes, run 1.3M differential checks, and verified CT correctness
+   on three independent pipelines.
 
-The practical result: external engagement on a CAAS project is shorter,
-cheaper, and more targeted than on a project without this infrastructure.
-The reviewer's time is spent on what only they can find, not on what the
-system could have found itself.
+The practical result: review on a CAAS project is targeted at gaps, methodology,
+and novel attack hypotheses. Anything accepted as a finding is converted into
+executable evidence so the same class cannot silently regress.
 
 ---
 
@@ -314,8 +312,8 @@ These are not aspirational — they are operational, run on CI or on demand.
 |--------------|-------------|
 | `ci/dev_bug_scanner.py` | 28-class static bug scanner. Detects: `CT_VIOLATION` (fast:: in secret path), `SECRET_UNERASED` (scalar without secure_erase), `RANDOM_IN_SIGNING` (non-deterministic RNG in RFC 6979 path), `TAGGED_HASH_BYPASS` (plain sha256 where BIP-340 tagged_hash required), `BINDING_NO_VALIDATION` (public ABI without NULL-check), `DANGLING_ELSE` (goto-fail pattern), `SHIFT_UB`, `DOUBLE_LOCK`, `HARDCODED_SECRET`, `UNSAFE_FMT`, and 18 others. |
 | `ci/bug_capsule_gen.py` | Converts bug capsule JSON into: (a) permanent regression test, (b) exploit PoC test, (c) CMakeLists.txt CTest integration. Every discovered bug becomes an executable, permanent CI gate. |
-| `ci/auditor_mode.py` | Emulates external auditor first-pass: extracts all registered exploit probes from the audit runner, compares against a curated high-risk attack vector baseline, emits machine-readable gap reports. |
-| `ci/mutation_kill_rate.py` | Applies AOR / ROR / COR / LOR / BIT mutation operators to `cpu/src/`, rebuilds, runs the audit binary. Kill Rate = killed / total. Rate below 80% on any critical subsystem = documented test gap. |
+| `ci/auditor_mode.py` | Emulates independent reviewer first-pass: extracts all registered exploit probes from the audit runner, compares against a curated high-risk attack vector baseline, emits machine-readable gap reports. |
+| `ci/mutation_kill_rate.py` | Applies AOR / ROR / COR / LOR / BIT mutation operators to `src/cpu/src/`, rebuilds, runs the audit binary. Kill Rate = killed / total. Rate below 80% on any critical subsystem = documented test gap. |
 | `ci/stateful_sequences.py` | Stateful API sequence verifier. Tests use-after-error, context reuse across many operations, BIP-32 chained derivation consistency, context destroy/recreate clearing. Finds state-machine bugs invisible to unit tests. |
 | `ci/generate_abi_negative_tests.py` | Generates negative tests for every public ABI entry point: null pointers, wrong buffer sizes, out-of-range scalars, invalid pubkey encodings. |
 | `ci/invalid_input_grammar.py` | Grammar-based fuzzing input generation for parser entry points. |
@@ -346,7 +344,7 @@ These are not aspirational — they are operational, run on CI or on demand.
 | `audit/formal/lean/SafeGCD/Divstep.lean` | Lean 4 core divstep theorems: g_sum evenness, absorbing state, zeta bounds, 9 computational 590-step witnesses for secp256k1 prime boundary values via `native_decide`. |
 | `audit/formal/lean/SafeGCD/CTMasks.lean` | Lean 4 CT mask proofs: arithmetic-shift mask binary, negated-parity mask binary, combined mask binary, XOR-negate/identity — 8-bit exhaustive via `native_decide`. |
 | `audit/formal/lean/SafeGCD/Equivalence.lean` | Lean 4 CT≡branching equivalence: branchless mask-based divstep = branching reference for all 2²⁴ 8-bit inputs via `native_decide`. |
-| `.github/workflows/formal-verification.yml` | CI gate: runs Z3 SMT and Lean 4 prover jobs in parallel on every push/PR touching `cpu/src/ct_field.cpp` or `audit/formal/**`. |
+| `.github/workflows/formal-verification.yml` | CI gate: runs Z3 SMT and Lean 4 prover jobs in parallel on every push/PR touching `src/cpu/src/ct_field.cpp` or `audit/formal/**`. |
 
 ---
 
@@ -355,12 +353,12 @@ These are not aspirational — they are operational, run on CI or on demand.
 | Script / Tool | What It Does |
 |--------------|-------------|
 | `ci/export_assurance.py` | Machine-readable assurance report: coverage by dimension, risk matrix, backend parity status, claim→evidence links. Output: `assurance_report.json`. |
-| `ci/external_audit_prep.sh` | One command produces the full external audit package: preflight verification, assurance export, traceability artifacts, SBOM, full source archive. Starting point for any external reviewer. |
+| `ci/external_audit_prep.sh` | One command produces the full evidence package: preflight verification, assurance export, traceability artifacts, SBOM, full source archive. Starting point for any independent reviewer. |
 | `ci/generate_traceability.sh` | Generates `AUDIT_TRACEABILITY.md`: claim → test function → CI workflow → evidence artifact. |
 | `ci/generate_self_audit_report.sh` | Full self-audit narrative report. |
 | `ci/audit_gap_report.py` | Queries the source graph for functions with audit scores below risk-tier thresholds. Output: prioritized gap list. |
 | `ci/audit_gate.py` | CI gate: compares live audit score against the minimum threshold. Fails the build if the score drops. |
-| `ci/auditor_kit.sh` | One-command toolkit for external auditors: environment check + evidence collection + gap report. |
+| `ci/auditor_kit.sh` | One-command toolkit for independent reviewers: environment check + evidence collection + gap report. |
 | `ci/audit_test_quality_scanner.py` | Scans each audit test for assertion density and coverage depth. Flags tests that are too shallow to be meaningful. |
 | `ci/validate_assurance.py` | Validates `assurance_report.json` against the schema. Catches stale or malformed assurance output. |
 | `ci/preflight.py` | Platform and toolchain verification before any audit run. |

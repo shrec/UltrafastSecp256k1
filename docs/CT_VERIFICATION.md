@@ -8,10 +8,10 @@
 
 The constant-time (CT) layer provides side-channel resistant operations for secret key material. It is available on **all backends**:
 
-- **CPU**: `secp256k1::ct::` namespace (headers in `cpu/include/secp256k1/ct/`)
-- **CUDA GPU**: `secp256k1::cuda::ct::` namespace (headers in `cuda/include/ct/`)
-- **OpenCL GPU**: CT kernels in `opencl/kernels/` (`secp256k1_ct_sign.cl`, `secp256k1_ct_zk.cl`)
-- **Metal GPU**: CT shaders in `metal/shaders/` (`secp256k1_ct_sign.metal`, `secp256k1_ct_zk.metal`)
+- **CPU**: `secp256k1::ct::` namespace (headers in `src/cpu/include/secp256k1/ct/`)
+- **CUDA GPU**: `secp256k1::cuda::ct::` namespace (headers in `src/cuda/include/ct/`)
+- **OpenCL GPU**: CT kernels in `src/opencl/kernels/` (`secp256k1_ct_sign.cl`, `secp256k1_ct_zk.cl`)
+- **Metal GPU**: CT shaders in `src/metal/shaders/` (`secp256k1_ct_sign.metal`, `secp256k1_ct_zk.metal`)
 
 The FAST layer (`secp256k1::fast::` on CPU, `secp256k1::cuda::` on GPU) is explicitly variable-time for maximum throughput.
 
@@ -182,7 +182,7 @@ CT DLEQ prove + verify round-trips on GPU. All 9/9 tests pass.
 ### OpenCL CT Layer
 
 ```
-opencl/kernels/
+src/opencl/kernels/
 +-- secp256k1_ct_sign.cl    -- CT ECDSA sign, CT Schnorr sign, CT keypair create
 +-- secp256k1_ct_zk.cl      -- CT ZK proving: knowledge proof, DLEQ proof
 ```
@@ -196,7 +196,7 @@ The OpenCL CT layer mirrors the CUDA CT implementation with OpenCL-native barrie
 ### Metal CT Layer
 
 ```
-metal/shaders/
+src/metal/shaders/
 +-- secp256k1_ct_sign.metal -- CT ECDSA sign, CT Schnorr sign, CT keypair create
 +-- secp256k1_ct_zk.metal   -- CT ZK proving: knowledge proof, DLEQ proof
 ```
@@ -240,7 +240,7 @@ The Metal CT layer uses Metal Shading Language (MSL) with:
 The fundamental building block of CT operations:
 
 ```cpp
-// cpu/include/secp256k1/field_branchless.hpp
+// src/cpu/include/secp256k1/field_branchless.hpp
 
 inline FieldElement field_select(const FieldElement& a,
                                   const FieldElement& b,
@@ -444,10 +444,10 @@ The GPU CT layers are tested via:
 
 ### 5. Experimental Protocols
 
-FROST and MuSig2 remain broader experimental protocol surfaces, but the repo no longer treats them as completely unaudited:
+FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tracks their protocol evidence explicitly:
 - Secret-bearing `musig2_partial_sign` and `frost_sign` have protocol-level dudect coverage in `audit/test_ct_sidechannel.cpp`
 - `frost_lagrange_coefficient` is tracked as advisory timing-only because it operates on public participant indices
-- Multi-party orchestration, session setup, and misuse-boundary analysis still need deeper protocol-grade review before the full stacks can be promoted to strong CT claims
+- Multi-party orchestration, session setup, and misuse-boundary analysis need more CAAS protocol-grade evidence before the full stacks can be promoted to strong CT claims
 
 ---
 

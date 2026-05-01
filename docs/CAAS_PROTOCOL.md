@@ -82,7 +82,7 @@ pattern — adopt it, fork it, adapt it.
 
 CAAS is misread if it is treated only as an audit mechanism. In daily
 practice it functions as a **developer safety net** that pays for
-itself long before any external auditor looks at the code. The pipeline
+itself long before any independent reviewer looks at the code. The pipeline
 catches regressions, platform-specific compiler behaviour, and silent
 correctness drift the moment they are introduced — not weeks later when
 a user files a bug.
@@ -302,7 +302,7 @@ nightly bot is the structural fix (CAAS Hardening TODO H-1).
 | Input | live repo state + previous stage outputs |
 | Output | `docs/EXTERNAL_AUDIT_BUNDLE.json`, `docs/EXTERNAL_AUDIT_BUNDLE.sha256` |
 | Exit code | 0 on successful bundle write |
-| Principles enforced | P19 (External Auditor Reproducibility Bundle) |
+| Principles enforced | P19 (Reproducible Evidence Bundle) |
 | Blocking? | Yes |
 | Local replay | `python3 ci/external_audit_bundle.py` |
 | Artifact retention (CI) | 90 days |
@@ -327,8 +327,8 @@ The bundle pins:
 | Artifact retention (CI) | 90 days |
 
 The deep-replay mode re-executes every captured gate command and verifies the
-output hashes match. This is the "external auditor" mode and is intentionally
-slow.
+output hashes match. This is the independent-review replay mode and is
+intentionally slow.
 
 ## Drift Policy
 

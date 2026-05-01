@@ -33,7 +33,7 @@ matrix) are now closed with documented evidence.
 
 | # | Item | Status | How Resolved |
 |---|------|--------|--------------|
-| 5 | `.cpp` implementation files in `include/` | ✅ **DONE** | Moved to `cpu/src/` — 0 `.cpp` files remain in `include/ufsecp/impl/` |
+| 5 | `.cpp` implementation files in `include/` | ✅ **DONE** | Moved to `src/cpu/src/` — 0 `.cpp` files remain in `include/ufsecp/impl/` |
 | 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current 232-test count |
 | 7 | `VERSION.txt` stale | ✅ **DONE** | `VERSION.txt` = `3.68.0` (matches release tag) |
 | 8 | Wycheproof CI not visible | ✅ **DONE** | `.github/workflows/wycheproof.yml` — 11 test targets, artifact upload, weekly schedule |
@@ -121,7 +121,7 @@ extended with a DER comparison section.
 
 Two fixes were required:
 1. **hybrid pubkey prefix**: shim rejected `0x06`/`0x07` prefixes in 65-byte parse path (`shim_pubkey.cpp`)
-2. **musig2 Y-parity**: `musig2_key_agg` forced even-Y on all input keys in violation of BIP-327 (`cpu/src/musig2.cpp`)
+2. **musig2 Y-parity**: `musig2_key_agg` forced even-Y on all input keys in violation of BIP-327 (`src/cpu/src/musig2.cpp`)
 
 ---
 

@@ -70,7 +70,7 @@ else()
 
     target_sources(ultrafast_secp256k1 PRIVATE ${CPU_SOURCES})
 
-    # cpu/src/ufsecp_gpu_impl.cpp references the GPU backend registry (backend_count,
+    # src/cpu/src/ufsecp_gpu_impl.cpp references the GPU backend registry (backend_count,
     # backend_ids, create_backend, is_available). In a CPU-only standalone build no
     # GPU CMake target is present, so we must compile gpu_registry.cpp directly.
     # Without any SECP256K1_HAVE_{CUDA,OPENCL,METAL} defines, the registry returns

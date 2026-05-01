@@ -89,16 +89,16 @@ jobs:
         run: |
           # Compile CT-critical source files to LLVM IR for analysis
           CXXFLAGS="-std=c++20 -O2 -emit-llvm -S -fno-exceptions -fno-rtti"
-          INCLUDES="-I cpu/include -I cpu/include/secp256k1 -I cpu"
+          INCLUDES="-I src/cpu/include -I src/cpu/include/secp256k1 -I src/cpu"
 
           mkdir -p ct-ir
 
           # Core CT modules -- these MUST be constant-time
           CT_SOURCES=(
-            "cpu/src/ct_field.cpp"
-            "cpu/src/ct_scalar.cpp"
-            "cpu/src/ct_point.cpp"
-            "cpu/src/ct_sign.cpp"
+            "src/cpu/src/ct_field.cpp"
+            "src/cpu/src/ct_scalar.cpp"
+            "src/cpu/src/ct_point.cpp"
+            "src/cpu/src/ct_sign.cpp"
           )
 
           for src in "${CT_SOURCES[@]}"; do

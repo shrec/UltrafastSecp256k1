@@ -336,10 +336,10 @@ Checks:
 - Secret lifecycle doc is present
 - No undocumented GPU parity stubs
 
-### P19 — External Auditor Reproducibility Bundle
+### P19 — Reproducible Evidence Bundle
 
-> External auditors must be able to verify repository claims from immutable,
-> hash-pinned evidence rather than maintainer narrative.
+> Independent reviewers must be able to verify repository claims from
+> immutable, hash-pinned evidence rather than maintainer narrative.
 
 **Automated gate:** `external_audit_bundle.py` + `verify_external_audit_bundle.py`
 
@@ -370,13 +370,14 @@ Local enforcement: install with `python3 ci/install_caas_hooks.py` (pre-push hoo
 
 ---
 
-### P21 — External-Audit Replacement Completeness
+### P21 — CAAS Completeness
 
-> Every gap that an external audit engagement would normally close is closed
-> by an automated CAAS gate or by a published CAAS-pinned document.
+> Every known review gap is closed by an automated CAAS gate or by a published
+> CAAS-pinned document.
 > The set of such gaps and gates is enumerated in
 > `docs/CAAS_GAP_CLOSURE_ROADMAP.md`.
-> External audit becomes a verification of methodology, not a bug-hunt.
+> Independent review becomes methodology replay and novel-hypothesis testing,
+> not rediscovery of known bug classes.
 
 **Automated gate:** `audit_gate.py --external-audit-replacement` (included in `ALL_CHECKS`)
 
@@ -424,7 +425,7 @@ See `docs/CAAS_GAP_CLOSURE_ROADMAP.md` and `docs/CAAS_HARDENING_TODO.md`.
 - Audit SLA warnings (P14) — tracked until evidence refreshed
 - Evidence governance warnings (P16) — tracked until chain repaired
 - Perf-security co-gating warnings (P18) — informational unless regression detected
-- External-audit bundle verification failures (P19) — blocking for external audit sign-off
+- Evidence bundle verification failures (P19) — blocking for release evidence
 
 ---
 
@@ -500,7 +501,7 @@ python3 ci/audit_gate.py --json -o audit_gate_report.json
 | After supply-chain or dependency changes | `supply_chain_gate.py --json` |
 | After evidence chain changes | `evidence_governance.py validate --json` |
 | After adding/removing ABI functions (misuse) | `check_misuse_resistance.py --json` |
-| Before handing repository to external auditors | `external_audit_bundle.py` + `verify_external_audit_bundle.py --replay-commands --json` |
+| Before independent evidence review | `external_audit_bundle.py` + `verify_external_audit_bundle.py --replay-commands --json` |
 | Periodic security autonomy check | `security_autonomy_check.py` |
 | Before release | Full gate + `export_assurance.py` + `validate_assurance.py` + `security_autonomy_check.py` |
 
@@ -537,7 +538,7 @@ To add a new audit principle:
 | `FORMAL_INVARIANTS_SPEC.json` | Machine-readable formal invariant specifications |
 | `AUDIT_SLA.json` | Measurable audit SLA/SLO definitions |
 | `SECURITY_AUTONOMY_KPI.json` | Auto-generated autonomy score and gate results |
-| `EXTERNAL_AUDIT_BUNDLE_SPEC.md` | Hash-pinned external auditor evidence format and verification rules |
+| `EXTERNAL_AUDIT_BUNDLE_SPEC.md` | Hash-pinned evidence bundle format and verification rules |
 | `.github/workflows/caas.yml` | Continuous Audit as a Service — five-stage blocking CI pipeline |
 
 ---
@@ -554,6 +555,6 @@ To add a new audit principle:
 | 2026-03-23 | Fixed preflight missing `ufsecp_gpu.h` scan | ABI drift detection was incomplete |
 | 2026-03-25 | Added `test_gpu_bip352_scan.cpp` (SW-BIP352-1..13) | BIP-352 Silent Payment GPU scan audit coverage |
 | 2026-04-14 | Security Autonomy Program: 10 scripts, 3 spec docs, preflight steps 18-20 | P12-P18 principles added; formal invariants, SLA, supply chain, misuse resistance, evidence governance, incident drills, fuzz campaigns, perf-security co-gating; master orchestrator `security_autonomy_check.py` |
-| 2026-04-14 | Added external-audit bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 external-auditor reproducibility principle added; external sign-off can be independently hash-verified and replay-validated |
+| 2026-04-14 | Added reproducible evidence bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 reproducibility principle added; evidence bundles can be independently hash-verified and replay-validated |
 | 2026-04-14 | Added CAAS infrastructure: `caas_runner.py`, `install_caas_hooks.py`, `.github/workflows/caas.yml`; added CAAS stages to `preflight.yml` | P20 added — all five audit stages now run automatically on every push and PR; pre-push hook available for local enforcement |
 | 2026-04-28 | Registered P21 External-Audit Replacement Completeness; created `docs/CAAS_HARDENING_TODO.md` (H-1..H-12 all closed); `check_external_audit_replacement` gate in ALL_CHECKS | P21 added — all 15 CAAS auditor-replacement documents verified present; CAAS hardening backlog formally documented and closed |

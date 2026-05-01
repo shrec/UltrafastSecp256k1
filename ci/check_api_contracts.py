@@ -35,13 +35,13 @@ ALLOWED_CT_CLASS = {"ct-required", "ct-adjacent", "public-only"}
 
 SENSITIVE_PREFIXES = (
     "include/ufsecp/",
-    "cpu/src/ecdsa.cpp",
-    "cpu/src/schnorr.cpp",
-    "cpu/src/musig2.cpp",
-    "cpu/src/frost.cpp",
-    "cpu/src/ecdh.cpp",
-    "cpu/src/bip32.cpp",
-    "cpu/src/batch_verify.cpp",
+    "src/cpu/src/ecdsa.cpp",
+    "src/cpu/src/schnorr.cpp",
+    "src/cpu/src/musig2.cpp",
+    "src/cpu/src/frost.cpp",
+    "src/cpu/src/ecdh.cpp",
+    "src/cpu/src/bip32.cpp",
+    "src/cpu/src/batch_verify.cpp",
 )
 
 

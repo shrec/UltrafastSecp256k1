@@ -259,12 +259,12 @@ endif()
 
 # Subdirectories
 if(SECP256K1_BUILD_CPU)
-    # Enable testing so cpu/CMakeLists.txt BUILD_TESTING guard works
+    # Enable testing so src/cpu/CMakeLists.txt BUILD_TESTING guard works
     if(SECP256K1_BUILD_TESTS OR SECP256K1_BUILD_BENCH)
         set(BUILD_TESTING ON CACHE BOOL "Enable testing" FORCE)
         include(CTest)   # generates DartConfiguration.tcl for -T MemCheck
     endif()
-    add_subdirectory(cpu)
+    add_subdirectory(src/cpu)
 endif()
 
 if(SECP256K1_BUILD_CUDA)
@@ -274,7 +274,7 @@ if(SECP256K1_BUILD_CUDA)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
-        add_subdirectory(cuda)
+        add_subdirectory(src/cuda)
     else()
         message(WARNING "SECP256K1_BUILD_CUDA=ON but CUDA toolchain was not found or failed to configure (e.g. nvcc cannot find cl.exe). Falling back to CPU-only build.")
     endif()
@@ -293,7 +293,7 @@ if(SECP256K1_BUILD_OPENCL)
         endif()
     endif()
     if(OpenCL_FOUND OR (WIN32 AND _OCL_FALLBACK))
-        add_subdirectory(opencl)
+        add_subdirectory(src/opencl)
     else()
         message(WARNING "SECP256K1_BUILD_OPENCL=ON but OpenCL not found. Skipping OpenCL build.")
     endif()
@@ -307,7 +307,7 @@ if(SECP256K1_BUILD_ROCM)
     if(hip_FOUND)
         message(STATUS "ROCm/HIP found: ${hip_VERSION}")
         enable_language(HIP)
-        add_subdirectory(cuda cuda_rocm)  # reuse sources, separate build dir
+        add_subdirectory(src/cuda cuda_rocm)  # reuse sources, separate build dir
     else()
         message(WARNING "SECP256K1_BUILD_ROCM=ON but HIP SDK not found. Skipping ROCm build.")
     endif()
@@ -322,14 +322,14 @@ if(SECP256K1_BUILD_METAL)
         find_library(_FOUNDATION_FW Foundation)
         if(_METAL_FW AND _FOUNDATION_FW)
             message(STATUS "Metal framework found -- building Metal backend (GPU + host tests)")
-            add_subdirectory(metal)
+            add_subdirectory(src/metal)
         else()
             message(WARNING "SECP256K1_BUILD_METAL=ON but Metal.framework not found. Building host tests only.")
-            add_subdirectory(metal)
+            add_subdirectory(src/metal)
         endif()
     else()
         message(STATUS "SECP256K1_BUILD_METAL=ON on non-Apple platform -- building host tests only")
-        add_subdirectory(metal)
+        add_subdirectory(src/metal)
     endif()
 endif()
 
@@ -340,7 +340,7 @@ endif()
 # -- GPU Host Ops Layer (Layer 2) -------------------------------------------
 # Must be after cuda/, opencl/, metal/ so backend targets exist.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR SECP256K1_BUILD_METAL)
-    add_subdirectory(gpu)
+    add_subdirectory(src/gpu)
 endif()
 
 # -- Stable C ABI layer (ufsecp_*) -----------------------------------------
@@ -373,7 +373,7 @@ if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
     add_subdirectory(compat/libsecp256k1_shim)
 endif()
 
-# NOTE: bench_compare removed -- use cpu/bench/bench_unified instead
+# NOTE: bench_compare removed -- use src/src/cpu/bench/bench_unified instead
 #       (bench_unified has full apple-to-apple in a single binary, no FetchContent)
 
 # -- Cross-library differential test -----------------------------------------
@@ -391,7 +391,7 @@ if(SECP256K1_INSTALL)
     include(CMakePackageConfigHelpers)
 
     # Install public headers
-    install(DIRECTORY cpu/include/secp256k1
+    install(DIRECTORY src/cpu/include/secp256k1
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.hpp"
     )

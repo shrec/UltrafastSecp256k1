@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     fragments from JSON bug capsule definitions.
   - `scripts/ci_gate_detect.py` — impact-based hard/light CI gate detection from changed files.
   - `schemas/bug_capsule.schema.json` — JSON Schema for structured bug records.
-  - `docs/AUDITOR_QUICKSTART.md` — "3 commands, 3 artifacts" guide for external auditors.
+  - `docs/AUDITOR_QUICKSTART.md` — "3 commands, 3 artifacts" guide for independent reviewers.
   - `docs/LAYER_ROUTING_MATRIX.md` — CT/FAST routing for all ~103 ABI functions.
   - `docs/CI_GATING_POLICY.md` — Tier0/Tier1/Tier2 CI architecture with impact-based gating.
 

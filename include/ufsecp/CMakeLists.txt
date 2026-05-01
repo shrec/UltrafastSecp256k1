@@ -39,7 +39,7 @@ configure_file(
 
 # -- Paths ------------------------------------------------------------------
 set(ULTRAFAST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")  # UltrafastSecp256k1/
-set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/cpu/include")
+set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/src/cpu/include")
 set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
 
 # -- Library target ---------------------------------------------------------
@@ -47,12 +47,12 @@ set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
 option(UFSECP_BUILD_SHARED "Build shared library" ON)
 option(UFSECP_BUILD_STATIC "Build static library" ON)
 
-set(UFSECP_IMPL_SRC "${ULTRAFAST_ROOT}/cpu/src/ufsecp_impl.cpp")
+set(UFSECP_IMPL_SRC "${ULTRAFAST_ROOT}/src/cpu/src/ufsecp_impl.cpp")
 
 # GPU C ABI implementation (only when gpu host layer is built)
 set(UFSECP_GPU_IMPL_SRC "")
 if(TARGET secp256k1_gpu_host)
-    set(UFSECP_GPU_IMPL_SRC "${ULTRAFAST_ROOT}/cpu/src/ufsecp_gpu_impl.cpp")
+    set(UFSECP_GPU_IMPL_SRC "${ULTRAFAST_ROOT}/src/cpu/src/ufsecp_gpu_impl.cpp")
 endif()
 
 # Helper: configure a target with the right includes/definitions
@@ -76,7 +76,7 @@ function(ufsecp_configure tgt)
         target_link_libraries(${tgt} PRIVATE secp256k1_cpu)
     else()
         # Standalone: gather all CPU .cpp sources
-        file(GLOB _CPU_SOURCES "${ULTRAFAST_ROOT}/cpu/src/*.cpp")
+        file(GLOB _CPU_SOURCES "${ULTRAFAST_ROOT}/src/cpu/src/*.cpp")
         # Exclude MSVC-incompatible 128-bit intrinsic path when needed
         if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             list(FILTER _CPU_SOURCES EXCLUDE REGEX "field_52\\.cpp$")
@@ -94,7 +94,7 @@ function(ufsecp_configure tgt)
     if(TARGET secp256k1_gpu_host)
         target_link_libraries(${tgt} PRIVATE secp256k1_gpu_host)
         target_include_directories(${tgt} PRIVATE
-            ${ULTRAFAST_ROOT}/gpu/include
+            ${ULTRAFAST_ROOT}/src/gpu/include
         )
     endif()
 endfunction()

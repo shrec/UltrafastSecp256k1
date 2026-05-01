@@ -566,7 +566,7 @@ def check_hot_path_alloc_scanner_quality() -> None:
             root = Path(tmpdir)
 
             # 1) One-time static initializer with new[] should be ignored.
-            one_time = root / "cpu/src/point.cpp"
+            one_time = root / "src/cpu/src/point.cpp"
             one_time.parent.mkdir(parents=True, exist_ok=True)
             one_time.write_text(
                 """
@@ -589,7 +589,7 @@ Point dual_scalar_mul_gen_point() {
                 return
 
             # 2) True positive in hot CPU path should still be flagged.
-            true_pos = root / "cpu/src/scalar.cpp"
+            true_pos = root / "src/cpu/src/scalar.cpp"
             true_pos.write_text(
                 """
 int scalar_mul_probe() {
@@ -606,7 +606,7 @@ int scalar_mul_probe() {
                 return
 
             # 3) Benchmark helper vector-return should be ignored.
-            bench = root / "opencl/benchmarks/bench_opencl.cpp"
+            bench = root / "src/opencl/benchmarks/bench_opencl.cpp"
             bench.parent.mkdir(parents=True, exist_ok=True)
             bench.write_text(
                 """
@@ -623,7 +623,7 @@ std::vector<int> zk_pubkeys() {
                 return
 
             # 4) GPU marshalling helper vector-return should be ignored.
-            gpu = root / "gpu/src/gpu_backend_cuda.cu"
+            gpu = root / "src/gpu/src/gpu_backend_cuda.cu"
             gpu.parent.mkdir(parents=True, exist_ok=True)
             gpu.write_text(
                 """

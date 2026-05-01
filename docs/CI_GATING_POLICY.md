@@ -95,16 +95,16 @@ Triggered when changes touch:
 
 | Path pattern | Reason |
 |---|---|
-| `cpu/src/ct_*.cpp` | CT-sensitive code |
-| `cpu/src/ecdsa.cpp` | Nonce generation |
-| `cpu/src/schnorr.cpp` | Schnorr signing |
-| `cpu/include/secp256k1/detail/secure_erase.hpp` | Zeroization |
-| `cpu/include/secp256k1/ct/*.hpp` | CT primitives |
-| `cpu/src/field_*.cpp` | Field arithmetic |
-| `cpu/src/scalar_*.cpp` | Scalar arithmetic |
-| `opencl/kernels/secp256k1_field.cl` | GPU field reduction |
-| `cuda/include/secp256k1.cuh` | GPU field reduction |
-| `metal/shaders/secp256k1_field.h` | GPU field reduction |
+| `src/cpu/src/ct_*.cpp` | CT-sensitive code |
+| `src/cpu/src/ecdsa.cpp` | Nonce generation |
+| `src/cpu/src/schnorr.cpp` | Schnorr signing |
+| `src/cpu/include/secp256k1/detail/secure_erase.hpp` | Zeroization |
+| `src/cpu/include/secp256k1/ct/*.hpp` | CT primitives |
+| `src/cpu/src/field_*.cpp` | Field arithmetic |
+| `src/cpu/src/scalar_*.cpp` | Scalar arithmetic |
+| `src/opencl/kernels/secp256k1_field.cl` | GPU field reduction |
+| `src/cuda/include/secp256k1.cuh` | GPU field reduction |
+| `src/metal/shaders/secp256k1_field.h` | GPU field reduction |
 | `include/ufsecp/ufsecp.h` | ABI surface |
 | `include/ufsecp/ufsecp_impl.cpp` | ABI dispatch |
 | `include/ufsecp/ufsecp_gpu.h` | GPU ABI |
@@ -139,10 +139,10 @@ CHANGED=$(git diff --name-only $(git merge-base HEAD origin/dev) HEAD)
 
 # Check if any hard-gate path is touched
 HARD_GATE=false
-for pattern in "cpu/src/ct_" "cpu/src/ecdsa" "cpu/src/schnorr" \
-               "secure_erase" "cpu/include/secp256k1/ct/" \
-               "cpu/src/field_" "cpu/src/scalar_" \
-               "opencl/kernels/" "cuda/include/" "metal/shaders/" \
+for pattern in "src/cpu/src/ct_" "src/cpu/src/ecdsa" "src/cpu/src/schnorr" \
+               "secure_erase" "src/cpu/include/secp256k1/ct/" \
+               "src/cpu/src/field_" "src/cpu/src/scalar_" \
+               "src/opencl/kernels/" "src/cuda/include/" "src/metal/shaders/" \
                "include/ufsecp/"; do
     if echo "$CHANGED" | grep -q "$pattern"; then
         HARD_GATE=true

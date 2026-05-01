@@ -16,13 +16,13 @@ on:
     branches: [dev, main]
     paths:
       - 'bindings/**'
-      - 'cpu/**'
+      - 'src/cpu/**'
       - 'include/**'
   pull_request:
     branches: [main, dev]
     paths:
       - 'bindings/**'
-      - 'cpu/**'
+      - 'src/cpu/**'
       - 'include/**'
   workflow_dispatch:
 

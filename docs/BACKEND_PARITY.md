@@ -189,7 +189,7 @@ All remaining gaps are **non-blocking** for release. The stable GPU ABI now expo
 ./build-cuda/cuda/gpu_audit_runner --report-dir reports/
 
 # OpenCL audit (requires --kernel-dir)
-./build-opencl/opencl/opencl_audit_runner --kernel-dir opencl/kernels/
+./build-opencl/opencl/opencl_audit_runner --kernel-dir src/opencl/kernels/
 
 # Metal audit (macOS only)
 ./build-metal/metal/metal_audit_runner --report-dir reports/

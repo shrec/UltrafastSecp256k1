@@ -164,11 +164,11 @@ def fix_ufsecp_impl():
 
 
 # ============================================================================
-# File: cpu/src/bip39.cpp
+# File: src/cpu/src/bip39.cpp
 # ============================================================================
 
 def fix_bip39():
-    path = 'cpu/src/bip39.cpp'
+    path = 'src/cpu/src/bip39.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -235,11 +235,11 @@ def fix_bip39():
 
 
 # ============================================================================
-# File: cpu/src/zk.cpp
+# File: src/cpu/src/zk.cpp
 # ============================================================================
 
 def fix_zk():
-    path = 'cpu/src/zk.cpp'
+    path = 'src/cpu/src/zk.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -255,11 +255,11 @@ def fix_zk():
 
 
 # ============================================================================
-# File: cpu/src/message_signing.cpp
+# File: src/cpu/src/message_signing.cpp
 # ============================================================================
 
 def fix_message_signing():
-    path = 'cpu/src/message_signing.cpp'
+    path = 'src/cpu/src/message_signing.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -274,11 +274,11 @@ def fix_message_signing():
 
 
 # ============================================================================
-# File: cpu/src/eth_signing.cpp
+# File: src/cpu/src/eth_signing.cpp
 # ============================================================================
 
 def fix_eth_signing():
-    path = 'cpu/src/eth_signing.cpp'
+    path = 'src/cpu/src/eth_signing.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -305,11 +305,11 @@ def fix_eth_signing():
 
 
 # ============================================================================
-# File: cpu/src/address.cpp
+# File: src/cpu/src/address.cpp
 # ============================================================================
 
 def fix_address():
-    path = 'cpu/src/address.cpp'
+    path = 'src/cpu/src/address.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -351,11 +351,11 @@ def fix_address():
 
 
 # ============================================================================
-# File: cpu/src/wallet.cpp
+# File: src/cpu/src/wallet.cpp
 # ============================================================================
 
 def fix_wallet():
-    path = 'cpu/src/wallet.cpp'
+    path = 'src/cpu/src/wallet.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -381,11 +381,11 @@ def fix_wallet():
 
 
 # ============================================================================
-# File: cpu/src/coin_address.cpp
+# File: src/cpu/src/coin_address.cpp
 # ============================================================================
 
 def fix_coin_address():
-    path = 'cpu/src/coin_address.cpp'
+    path = 'src/cpu/src/coin_address.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -398,7 +398,7 @@ def fix_coin_address():
 
 
 # ============================================================================
-# File: cpu/tests/test_bip39.cpp
+# File: src/cpu/tests/test_bip39.cpp
 # ============================================================================
 
 # Helper function for replacing sscanf with strtoul in hex_to_bytes
@@ -454,7 +454,7 @@ static std::string bytes_to_hex(const uint8_t* data, size_t len) {
 
 
 def fix_test_bip39():
-    path = 'cpu/tests/test_bip39.cpp'
+    path = 'src/cpu/tests/test_bip39.cpp'
     print(f'\n=== {path} ===')
     content = (BASE / path).read_text()
 
@@ -512,7 +512,7 @@ def fix_test_bip39():
 
 
 # ============================================================================
-# File: cpu/tests/test_ethereum.cpp
+# File: src/cpu/tests/test_ethereum.cpp
 # ============================================================================
 
 HEX_TO_BYTES_SSCANF_ETH = '''\
@@ -539,7 +539,7 @@ SNPRINTF_ETH_NEW = '        (void)std::snprintf(buf, sizeof(buf), "Round-trip ch
 
 
 def fix_test_ethereum():
-    path = 'cpu/tests/test_ethereum.cpp'
+    path = 'src/cpu/tests/test_ethereum.cpp'
     print(f'\n=== {path} ===')
     content = (BASE / path).read_text()
 
@@ -637,7 +637,7 @@ def fix_test_ethereum():
 
 
 # ============================================================================
-# File: cpu/tests/test_wallet.cpp
+# File: src/cpu/tests/test_wallet.cpp
 # ============================================================================
 
 HEX_TO_BYTES_SSCANF_WALLET = '''\
@@ -661,7 +661,7 @@ static void hex_to_bytes(const char* hex, uint8_t* out, size_t len) {
 
 
 def fix_test_wallet():
-    path = 'cpu/tests/test_wallet.cpp'
+    path = 'src/cpu/tests/test_wallet.cpp'
     print(f'\n=== {path} ===')
     content = (BASE / path).read_text()
 
@@ -741,11 +741,11 @@ def fix_test_wallet():
 
 
 # ============================================================================
-# File: cpu/tests/test_zk.cpp
+# File: src/cpu/tests/test_zk.cpp
 # ============================================================================
 
 def fix_test_zk():
-    path = 'cpu/tests/test_zk.cpp'
+    path = 'src/cpu/tests/test_zk.cpp'
     print(f'\n=== {path} ===')
     lines = read(path)
 
@@ -859,17 +859,17 @@ if __name__ == '__main__':
     print('Done. Check brace balance:')
     files = [
         'include/ufsecp/ufsecp_impl.cpp',
-        'cpu/src/bip39.cpp',
-        'cpu/src/zk.cpp',
-        'cpu/src/message_signing.cpp',
-        'cpu/src/eth_signing.cpp',
-        'cpu/src/address.cpp',
-        'cpu/src/wallet.cpp',
-        'cpu/src/coin_address.cpp',
-        'cpu/tests/test_bip39.cpp',
-        'cpu/tests/test_ethereum.cpp',
-        'cpu/tests/test_wallet.cpp',
-        'cpu/tests/test_zk.cpp',
+        'src/cpu/src/bip39.cpp',
+        'src/cpu/src/zk.cpp',
+        'src/cpu/src/message_signing.cpp',
+        'src/cpu/src/eth_signing.cpp',
+        'src/cpu/src/address.cpp',
+        'src/cpu/src/wallet.cpp',
+        'src/cpu/src/coin_address.cpp',
+        'src/cpu/tests/test_bip39.cpp',
+        'src/cpu/tests/test_ethereum.cpp',
+        'src/cpu/tests/test_wallet.cpp',
+        'src/cpu/tests/test_zk.cpp',
         'audit/test_ffi_round_trip.cpp',
     ]
     all_ok = True

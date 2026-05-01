@@ -11,7 +11,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 # Read version from VERSION.txt (single source of truth)
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../VERSION.txt" _version_raw)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../VERSION.txt" _version_raw)
 string(STRIP "${_version_raw}" UFSECP_VERSION)
 
 project(UltrafastSecp256k1Wasm
@@ -42,7 +42,7 @@ set(SECP256K1_USE_ASM OFF CACHE BOOL "" FORCE)
 set(SECP256K1_USE_FAST_REDUCTION OFF CACHE BOOL "" FORCE)
 set(SECP256K1_INSTALL OFF CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../cpu ${CMAKE_CURRENT_BINARY_DIR}/cpu)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu ${CMAKE_CURRENT_BINARY_DIR}/cpu)
 
 # WASM (wasm32): __int128 is defined by Emscripten's Clang but emulated via
 # compiler builtins (__multi3 etc.).  Empirically the emulated __int128
@@ -79,8 +79,8 @@ add_executable(secp256k1_wasm secp256k1_wasm.cpp)
 target_link_libraries(secp256k1_wasm PRIVATE fastsecp256k1)
 
 target_include_directories(secp256k1_wasm PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 # Emscripten link flags
@@ -148,12 +148,12 @@ message(STATUS "")
 # Compiles the golden-vector test to WASM, runnable via: node wasm_kat_test.js
 # Verifies byte-exact equivalence of field/scalar/point/ECDSA/Schnorr on WASM.
 add_executable(wasm_kat_test
-    ${CMAKE_CURRENT_SOURCE_DIR}/../audit/test_cross_platform_kat.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../audit/test_cross_platform_kat.cpp
 )
 target_link_libraries(wasm_kat_test PRIVATE fastsecp256k1)
 target_include_directories(wasm_kat_test PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 target_link_options(wasm_kat_test PRIVATE
     "SHELL:-s ENVIRONMENT=node"

@@ -27,7 +27,7 @@ exactly what to run and what to expect.
 | What is NOT in scope? | [`docs/RESIDUAL_RISK_REGISTER.md`](RESIDUAL_RISK_REGISTER.md) |
 | What passed/failed? | [`docs/AUDIT_DASHBOARD.md`](AUDIT_DASHBOARD.md) |
 | How does CAAS work? | [`docs/CAAS_PROTOCOL.md`](CAAS_PROTOCOL.md) |
-| Why no external audit? | [`docs/CAAS_FAQ.md`](CAAS_FAQ.md) |
+| Why CAAS instead of a snapshot PDF? | [`docs/CAAS_FAQ.md`](CAAS_FAQ.md) |
 | CT verification evidence | [`docs/CT_VERIFICATION.md`](CT_VERIFICATION.md) |
 | 205 exploit PoC catalog | [`docs/EXPLOIT_TEST_CATALOG.md`](EXPLOIT_TEST_CATALOG.md) |
 | libsecp parity status | [`docs/BACKEND_PARITY.md`](BACKEND_PARITY.md) |

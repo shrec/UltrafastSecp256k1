@@ -25,7 +25,7 @@ exclude_subdir_names = [
 
 [[source_dirs]]
 label = "cpu"
-path = "../cpu"
+path = "../src/cpu"
 extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
@@ -46,7 +46,7 @@ extensions = ["*.md", "*.txt", "*.json", "*.log"]
 
 [[source_dirs]]
 label = "cuda"
-path = "../cuda"
+path = "../src/cuda"
 optional = true
 extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
@@ -58,19 +58,19 @@ extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", 
 
 [[source_dirs]]
 label = "gpu"
-path = "../gpu"
+path = "../src/gpu"
 optional = true
 extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "metal"
-path = "../metal"
+path = "../src/metal"
 optional = true
 extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 
 [[source_dirs]]
 label = "opencl"
-path = "../opencl"
+path = "../src/opencl"
 optional = true
 extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", "*.cu", "*.cuh", "*.cl", "*.metal", "*.mm", "*.txt", "*.cmake"]
 

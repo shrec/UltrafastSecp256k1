@@ -38,9 +38,9 @@
 <text x="68" y="414" font-size="15" font-weight="800" fill="#334155">Primary paths</text>
 <text x="372" y="414" font-size="15" font-weight="800" fill="#334155">Signals</text>
 <circle cx="76" cy="440" r="3.2" fill="#64748b"/>
-<text x="88" y="444" font-size="14" fill="#0f172a">cpu/src/</text>
+<text x="88" y="444" font-size="14" fill="#0f172a">src/cpu/src/</text>
 <circle cx="76" cy="461" r="3.2" fill="#64748b"/>
-<text x="88" y="465" font-size="14" fill="#0f172a">cpu/include/secp256k1/</text>
+<text x="88" y="465" font-size="14" fill="#0f172a">src/cpu/include/secp256k1/</text>
 <circle cx="76" cy="482" r="3.2" fill="#64748b"/>
 <text x="88" y="486" font-size="14" fill="#0f172a">include/ufsecp/</text>
 <circle cx="380" cy="440" r="3.2" fill="#64748b"/>

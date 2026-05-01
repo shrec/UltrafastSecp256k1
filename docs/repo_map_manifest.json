@@ -9,8 +9,8 @@
       "tier": "production",
       "summary": "CPU scalar, field, point, ECDSA, Schnorr, ECDH, and CT primitives.",
       "paths": [
-        "cpu/src/",
-        "cpu/include/secp256k1/",
+        "src/cpu/src/",
+        "src/cpu/include/secp256k1/",
         "include/ufsecp/"
       ],
       "signals": [

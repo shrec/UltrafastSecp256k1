@@ -134,7 +134,7 @@ def _looks_like_repo_path(token: str) -> bool:
         return False
     if re.search(r'\.[A-Za-z0-9_+-]+$', normalized):
         return True
-    if normalized.startswith(('docs/', 'audit/', 'ci/', 'tools/', 'include/', 'cpu/', 'gpu/', 'opencl/', 'metal/')):
+    if normalized.startswith(('docs/', 'audit/', 'ci/', 'tools/', 'include/', 'src/cpu/', 'src/gpu/', 'src/opencl/', 'src/metal/')):
         return True
     return False
 

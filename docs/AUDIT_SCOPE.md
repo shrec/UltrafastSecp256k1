@@ -39,49 +39,49 @@ This document defines the scope and methodology of the internal CAAS audit syste
 
 | File | Component | Lines (approx) |
 |------|-----------|----------------|
-| `cpu/src/field.cpp` | Field arithmetic: add, sub, mul, square, inv, sqrt, normalize | ~600 |
-| `cpu/include/secp256k1/field.hpp` | FieldElement: from_limbs, from_bytes, to_bytes, comparison | ~200 |
-| `cpu/include/secp256k1/field_branchless.hpp` | Branchless cmov (field_select) | ~50 |
-| `cpu/src/scalar.cpp` | Scalar arithmetic mod n: add, sub, mul, inv, negate | ~500 |
-| `cpu/include/secp256k1/scalar.hpp` | Scalar class, from_limbs, from_bytes | ~200 |
-| `cpu/src/point.cpp` | Point operations: add, double, scalar_mul, to_affine | ~800 |
-| `cpu/include/secp256k1/point.hpp` | Point types (Affine, Jacobian), generator | ~200 |
-| `cpu/src/glv.cpp` | GLV endomorphism decomposition | ~300 |
+| `src/cpu/src/field.cpp` | Field arithmetic: add, sub, mul, square, inv, sqrt, normalize | ~600 |
+| `src/cpu/include/secp256k1/field.hpp` | FieldElement: from_limbs, from_bytes, to_bytes, comparison | ~200 |
+| `src/cpu/include/secp256k1/field_branchless.hpp` | Branchless cmov (field_select) | ~50 |
+| `src/cpu/src/scalar.cpp` | Scalar arithmetic mod n: add, sub, mul, inv, negate | ~500 |
+| `src/cpu/include/secp256k1/scalar.hpp` | Scalar class, from_limbs, from_bytes | ~200 |
+| `src/cpu/src/point.cpp` | Point operations: add, double, scalar_mul, to_affine | ~800 |
+| `src/cpu/include/secp256k1/point.hpp` | Point types (Affine, Jacobian), generator | ~200 |
+| `src/cpu/src/glv.cpp` | GLV endomorphism decomposition | ~300 |
 
 ### 3.2 Signature Schemes (CRITICAL)
 
 | File | Component |
 |------|-----------|
-| `cpu/src/ecdsa.cpp` | ECDSA sign/verify (RFC 6979 nonce) |
-| `cpu/include/secp256k1/ecdsa.hpp` | ECDSA interface |
-| `cpu/src/schnorr.cpp` | BIP-340 Schnorr sign/verify |
-| `cpu/include/secp256k1/schnorr.hpp` | Schnorr interface |
+| `src/cpu/src/ecdsa.cpp` | ECDSA sign/verify (RFC 6979 nonce) |
+| `src/cpu/include/secp256k1/ecdsa.hpp` | ECDSA interface |
+| `src/cpu/src/schnorr.cpp` | BIP-340 Schnorr sign/verify |
+| `src/cpu/include/secp256k1/schnorr.hpp` | Schnorr interface |
 
 ### 3.3 Constant-Time Layer (CRITICAL)
 
 | File | Component |
 |------|-----------|
-| `cpu/src/ct/ct_scalar_mul.cpp` | CT scalar multiplication (fixed-window) |
-| `cpu/include/secp256k1/ct/ct_ops.hpp` | CT operation interfaces |
-| `cpu/src/ct/ct_field.cpp` | CT field operations |
-| `cpu/include/secp256k1/ct/ct_sign.hpp` | CT sign wrappers |
+| `src/cpu/src/ct/ct_scalar_mul.cpp` | CT scalar multiplication (fixed-window) |
+| `src/cpu/include/secp256k1/ct/ct_ops.hpp` | CT operation interfaces |
+| `src/cpu/src/ct/ct_field.cpp` | CT field operations |
+| `src/cpu/include/secp256k1/ct/ct_sign.hpp` | CT sign wrappers |
 
 ### 3.4 Multi-Party Protocols (HIGH)
 
 | File | Component |
 |------|-----------|
-| `cpu/src/musig2.cpp` | MuSig2 key aggregation, nonce generation, partial sign, aggregate |
-| `cpu/include/secp256k1/musig2.hpp` | MuSig2 types and interfaces |
-| `cpu/src/frost.cpp` | FROST DKG (Feldman VSS), partial sign, aggregate |
-| `cpu/include/secp256k1/frost.hpp` | FROST types and interfaces |
+| `src/cpu/src/musig2.cpp` | MuSig2 key aggregation, nonce generation, partial sign, aggregate |
+| `src/cpu/include/secp256k1/musig2.hpp` | MuSig2 types and interfaces |
+| `src/cpu/src/frost.cpp` | FROST DKG (Feldman VSS), partial sign, aggregate |
+| `src/cpu/include/secp256k1/frost.hpp` | FROST types and interfaces |
 
 ### 3.5 Key Derivation & Address Generation (HIGH)
 
 | File | Component |
 |------|-----------|
-| `cpu/src/bip32.cpp` | BIP-32 master key derivation, child derivation, path parsing |
-| `cpu/src/address.cpp` | 27-coin address generation (Base58Check, Bech32, Bech32m) |
-| `cpu/src/wif.cpp` | WIF encode/decode |
+| `src/cpu/src/bip32.cpp` | BIP-32 master key derivation, child derivation, path parsing |
+| `src/cpu/src/address.cpp` | 27-coin address generation (Base58Check, Bech32, Bech32m) |
+| `src/cpu/src/wif.cpp` | WIF encode/decode |
 
 ### 3.6 C ABI Shim (MEDIUM)
 
@@ -95,8 +95,8 @@ This document defines the scope and methodology of the internal CAAS audit syste
 
 | File | Component |
 |------|-----------|
-| `cpu/src/sha256.cpp` | SHA-256 (used for RFC 6979, BIP-340 tagged hashes, BIP-32) |
-| `cpu/src/ripemd160.cpp` | RIPEMD-160 (P2PKH addresses) |
+| `src/cpu/src/sha256.cpp` | SHA-256 (used for RFC 6979, BIP-340 tagged hashes, BIP-32) |
+| `src/cpu/src/ripemd160.cpp` | RIPEMD-160 (P2PKH addresses) |
 
 ---
 
@@ -201,31 +201,30 @@ python3 ci/security_autonomy_check.py --json
 
 ---
 
-## 7. Deliverables Expected from Auditor
+## 7. Independent Review Output Schema
 
 | # | Deliverable | Format |
 |---|-------------|--------|
-| D1 | Findings report with severity classification (Critical/High/Medium/Low/Info) | PDF + Markdown |
+| D1 | Findings report with severity classification (Critical/High/Medium/Low/Info) | Markdown / JSON / PDF |
 | D2 | Specific file:line references for each finding | Included in D1 |
 | D3 | Reproduction steps for each finding | Included in D1 |
 | D4 | Recommendations for remediation | Included in D1 |
 | D5 | Assessment of CT layer effectiveness | Dedicated section in D1 |
 | D6 | Comparison against libsecp256k1 (bitcoin-core) where applicable | Dedicated section in D1 |
-| D7 | Re-test of fixes (if engagement includes fix verification) | Separate addendum |
+| D7 | Re-test of fixes, if findings land | Separate replay artifact |
 
 ---
 
-## 8. Engagement Timeline (Proposed)
+## 8. Suggested Review Flow
 
 | Phase | Duration | Activities |
 |-------|----------|------------|
-| Kickoff | 1 week | Code handoff, environment setup, architecture walkthrough |
-| Core review | 3 weeks | Field/scalar/point, signatures, CT layer |
-| Protocol review | 2 weeks | MuSig2, FROST, BIP-32, address generation |
-| API/boundary review | 1 week | C ABI, error handling, thread safety |
-| Report drafting | 1 week | Findings compilation, severity assignment |
-| Fix verification | 1 week | Re-test after remediation (optional) |
-| **Total** | **8-9 weeks** | |
+| Replay | As needed | Re-run CAAS, verify bundle hashes, inspect generated evidence |
+| Core review | As needed | Field/scalar/point, signatures, CT layer |
+| Protocol review | As needed | MuSig2, FROST, BIP-32, address generation |
+| API/boundary review | As needed | C ABI, error handling, thread safety |
+| Findings | As needed | Findings compilation, severity assignment |
+| Regression pinning | As needed | Convert accepted findings into permanent CAAS tests |
 
 ---
 

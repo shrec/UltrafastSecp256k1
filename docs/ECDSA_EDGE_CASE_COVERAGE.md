@@ -26,7 +26,7 @@ PMN limb[1]  = 0x4551231950B75FC4  (NOT: 0x14551231950B75FC)
 | # | Edge Case | Spec Reference | Expected Behaviour | Covered By |
 |---|-----------|----------------|--------------------|------------|
 | I-1 | k = 0 → sign must retry or return failure | RFC 6979 §3.2(h) | sign returns `(0,0)` sentinel; caller detects failure | `test_exploit_ecdsa_edge_cases` test-3 (zero sk → zero sig) |
-| I-2 | k ≥ n → sign must retry (no implicit mod-n) | RFC 6979 §3.2(h) | retry via HMAC-DRBG update; use `parse_bytes_strict_nonzero` | `cpu/src/ecdsa.cpp` `rfc6979_nonce` (fixed); `rfc6979_nonce_hedged` (fixed 2026-04-06) |
+| I-2 | k ≥ n → sign must retry (no implicit mod-n) | RFC 6979 §3.2(h) | retry via HMAC-DRBG update; use `parse_bytes_strict_nonzero` | `src/cpu/src/ecdsa.cpp` `rfc6979_nonce` (fixed); `rfc6979_nonce_hedged` (fixed 2026-04-06) |
 | I-3 | Hedged nonce k ≥ n silently reduced by `from_bytes` | RFC 6979 §3.6 | **BUG** — fixed 2026-04-06, commit d72453c9 | `test_exploit_ecdsa_edge_cases` test-8 (indirect), code fix |
 | I-4 | k = n−1 (maximum valid nonce) | ANSI X9.62 | R = (n−1)·G; r = R.x mod n; must produce valid sig | `test_exploit_ecdsa_nonce_reuse` NRR-7 |
 | I-5 | k and n−k produce same r (symmetry of R.x) | ECDSA math | `(k·G).x == ((n−k)·G).x`; different (r,s) if msg differs | `test_exploit_ecdsa_nonce_reuse` NRR-8 |
@@ -39,13 +39,13 @@ PMN limb[1]  = 0x4551231950B75FC4  (NOT: 0x14551231950B75FC)
 
 | # | Edge Case | Spec Reference | Expected Behaviour | Covered By |
 |---|-----------|----------------|--------------------|------------|
-| II-1 | r = 0 ⟺ R.x = n exactly; sign must retry | SEC1 §4.1.3 | `if r == 0: retry with next nonce` | `cpu/src/ecdsa.cpp` `ecdsa_sign`: `if (!r.is_zero())` guard |
-| II-2 | s = 0 ⟺ k⁻¹(z + r·d) = 0 mod n; sign must retry | SEC1 §4.1.3 | `if s == 0: retry with next nonce` | `cpu/src/ecdsa.cpp` `ecdsa_sign`: `if (!s.is_zero())` guard |
+| II-1 | r = 0 ⟺ R.x = n exactly; sign must retry | SEC1 §4.1.3 | `if r == 0: retry with next nonce` | `src/cpu/src/ecdsa.cpp` `ecdsa_sign`: `if (!r.is_zero())` guard |
+| II-2 | s = 0 ⟺ k⁻¹(z + r·d) = 0 mod n; sign must retry | SEC1 §4.1.3 | `if s == 0: retry with next nonce` | `src/cpu/src/ecdsa.cpp` `ecdsa_sign`: `if (!s.is_zero())` guard |
 | II-3 | Low-S normalization (BIP-62 rule 5) | BIP-62 | s > n/2 → replace s with n−s | `test_exploit_ecdsa_edge_cases` test-2; `test_exploit_ecdsa_malleability` test-1 |
 | II-4 | High-S raw (without normalize) still produces valid ECDSA sig | ECDSA spec | `ecdsa_verify` must accept s > n/2 (not Bitcoin-strict mode) | `test_exploit_ecdsa_edge_cases` test-2; `test_wycheproof_ecdsa_secp256k1_sha256` |
 | II-5 | Zero private key → return failure sentinel | SEC1 | `ecdsa_sign(msg, 0) == (0,0)` | `test_exploit_ecdsa_edge_cases` test-3 |
 | II-6 | Fault injection: corrupted s; sign_verified detects it | FIPS 186-4 | `ecdsa_sign_verified` verifies output before returning | `test_exploit_ecdsa_fault_injection` EFI-1..EFI-6 |
-| II-7 | R = point at infinity (impossible for secp256k1 since ord(G)=n is prime) | Group theory | Guarded by `!R.is_infinity()` check in sign | `cpu/src/ecdsa.cpp` implicit in generator mul |
+| II-7 | R = point at infinity (impossible for secp256k1 since ord(G)=n is prime) | Group theory | Guarded by `!R.is_infinity()` check in sign | `src/cpu/src/ecdsa.cpp` implicit in generator mul |
 
 **Gap check:** II-1..II-7 all covered. ✅
 
@@ -63,7 +63,7 @@ PMN limb[1]  = 0x4551231950B75FC4  (NOT: 0x14551231950B75FC)
 | III-6 | s = n → same as s = 0 after reduction → reject | Scalar arithmetic | same as III-5 | `test_exploit_ecdsa_malleability` test-7 |
 | III-7 | Public key = point at infinity → reject | SEC1 §4.1.4 | early rejection guard | `test_wycheproof_ecdsa_bitcoin` category-9; `test_wycheproof_ecdsa` cat-6 |
 | III-8 | Public key not on curve (invalid point) | SEC1 | curve membership check on import | `test_exploit_invalid_curve_twist` (full file) |
-| III-9 | R' = infinity during verification (u1·G + u2·Q = ∞) | SEC1 §4.1.4 | `R_prime.is_infinity()` guard → return false | `audit/audit_security.cpp` `test_infinity_edge_cases`; `cpu/src/ecdsa.cpp` |
+| III-9 | R' = infinity during verification (u1·G + u2·Q = ∞) | SEC1 §4.1.4 | `R_prime.is_infinity()` guard → return false | `audit/audit_security.cpp` `test_infinity_edge_cases`; `src/cpu/src/ecdsa.cpp` |
 | III-10 | High-S rejected in Bitcoin strict mode (s > (n−1)/2) | BIP-62 | Bitcoin verify rejects s > half_n | `test_wycheproof_ecdsa_bitcoin` category-6 |
 | III-11 | s = (n−1)/2 (boundary — max valid Bitcoin low-S) | BIP-62 | must ACCEPT | `test_wycheproof_ecdsa_bitcoin` category-7 |
 | III-12 | s = (n−1)/2 + 1 (boundary — min Bitcoin high-S) | BIP-62 | must REJECT in Bitcoin strict mode | `test_wycheproof_ecdsa_bitcoin` category-7 |

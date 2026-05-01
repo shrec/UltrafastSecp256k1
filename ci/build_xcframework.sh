@@ -91,7 +91,7 @@ echo "  Simulator: $SIM_LIB"
 # Prepare public headers for xcframework
 HEADERS_DIR="$BUILD_DIR/headers"
 mkdir -p "$HEADERS_DIR"
-cp -R "$ROOT_DIR/cpu/include/" "$HEADERS_DIR/"
+cp -R "$ROOT_DIR/src/cpu/include/" "$HEADERS_DIR/"
 
 # Also copy shared types header
 mkdir -p "$HEADERS_DIR/secp256k1"
