@@ -66,8 +66,14 @@ python -c "import ufsecp; ufsecp.selftest()"
 **Option D — Build from source**
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1.git && cd UltrafastSecp256k1
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
-./build/selftest          # Expected: "ALL TESTS PASSED"
+
+# Recommended: canonical build under out/release
+python3 scripts/configure_build.py release
+cmake --build out/release -j
+
+# Or classic one-liner:
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j
+./out/release/selftest    # Expected: "ALL TESTS PASSED"
 ```
 
 → [Full installation guide](#installation) · [Build from source](#building-secp256k1-from-source-cmake)
@@ -368,7 +374,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 232 exploit tests live in `audit/test_exploit_*.cpp`. Build with `cmake -S . -B build-audit -G Ninja -DCMAKE_BUILD_TYPE=Release` and run them standalone or via `ctest`.
+> All 232 exploit tests live in `audit/test_exploit_*.cpp`. Build with `python3 scripts/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 

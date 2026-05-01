@@ -51,6 +51,18 @@ def wrap_text(text: str, max_chars: int) -> list[str]:
     return lines
 
 
+def bullet_list(items: list[str], x: int, y: int, *, size: int = 14,
+                fill: str = "#0f172a", line_height: int = 19) -> str:
+    parts = []
+    for idx, item in enumerate(items):
+        parts.append(f'<circle cx="{x}" cy="{y + idx * line_height - 4}" r="3.2" fill="#64748b"/>')
+        parts.append(
+            f'<text x="{x + 12}" y="{y + idx * line_height}" font-size="{size}" '
+            f'fill="{fill}">{esc(item)}</text>'
+        )
+    return "\n".join(parts)
+
+
 def text_block(lines: list[str], x: int, y: int, *, size: int = 13, weight: str = "400",
                fill: str = "#334155", line_height: int = 18) -> str:
     parts = []
@@ -70,32 +82,25 @@ def render_card(profile: dict, x: int, y: int, width: int, height: int) -> str:
     paths = [str(p) for p in profile.get("paths", [])]
     signals = [str(s) for s in profile.get("signals", [])]
 
-    title_lines = wrap_text(title, 28)[:2]
-    summary_lines = wrap_text(summary, 42)[:3]
+    title_lines = wrap_text(title, 36)[:2]
+    summary_lines = wrap_text(summary, 62)[:3]
     path_lines = paths[:4]
     signal_lines = signals[:3]
+    column_w = (width - 64) // 2
 
     body = [
         f'<g id="profile-{esc(profile.get("id", title))}">',
-        f'<rect x="{x}" y="{y}" width="{width}" height="{height}" rx="18" fill="{fill}" stroke="{stroke}" stroke-width="2"/>',
-        f'<rect x="{x + 18}" y="{y + 18}" width="{min(210, width - 36)}" height="28" rx="14" fill="{stroke}"/>',
-        f'<text x="{x + 32}" y="{y + 37}" font-size="13" font-weight="700" fill="#ffffff">{esc(tier)}</text>',
-        text_block(title_lines, x + 22, y + 72, size=18, weight="800", fill="#0f172a", line_height=22),
-        text_block(summary_lines, x + 22, y + 116, size=13, fill="#334155", line_height=17),
-        f'<text x="{x + 22}" y="{y + 184}" font-size="12" font-weight="700" fill="#475569">Primary paths</text>',
+        f'<rect x="{x}" y="{y}" width="{width}" height="{height}" rx="22" fill="{fill}" stroke="{stroke}" stroke-width="3"/>',
+        f'<rect x="{x + 24}" y="{y + 22}" width="{min(250, width - 48)}" height="34" rx="17" fill="{stroke}"/>',
+        f'<text x="{x + 42}" y="{y + 45}" font-size="15" font-weight="800" fill="#ffffff">{esc(tier)}</text>',
+        text_block(title_lines, x + 26, y + 92, size=24, weight="900", fill="#0f172a", line_height=29),
+        text_block(summary_lines, x + 26, y + 148, size=16, fill="#334155", line_height=22),
+        f'<text x="{x + 26}" y="{y + 238}" font-size="15" font-weight="800" fill="#334155">Primary paths</text>',
+        f'<text x="{x + 42 + column_w}" y="{y + 238}" font-size="15" font-weight="800" fill="#334155">Signals</text>',
     ]
 
-    py = y + 206
-    for path in path_lines:
-        body.append(f'<text x="{x + 34}" y="{py}" font-size="12" fill="#0f172a">- {esc(path)}</text>')
-        py += 16
-
-    sy = y + 278
-    body.append(f'<text x="{x + 22}" y="{sy}" font-size="12" font-weight="700" fill="#475569">Signals</text>')
-    sy += 21
-    for signal in signal_lines:
-        body.append(f'<text x="{x + 34}" y="{sy}" font-size="12" fill="#0f172a">- {esc(signal)}</text>')
-        sy += 16
+    body.append(bullet_list(path_lines, x + 34, y + 268, size=14, line_height=21))
+    body.append(bullet_list(signal_lines, x + 50 + column_w, y + 268, size=14, line_height=21))
 
     body.append("</g>")
     return "\n".join(body)
@@ -104,13 +109,13 @@ def render_card(profile: dict, x: int, y: int, width: int, height: int) -> str:
 def render_svg(manifest: dict) -> str:
     profiles = list(manifest.get("profiles", []))
     width = 1400
-    card_w = 310
-    card_h = 360
-    gap_x = 28
-    gap_y = 32
-    left = 44
-    top = 178
-    cols = 4
+    card_w = 640
+    card_h = 350
+    gap_x = 36
+    gap_y = 34
+    left = 42
+    top = 176
+    cols = 2
     rows = (len(profiles) + cols - 1) // cols
     height = top + rows * card_h + (rows - 1) * gap_y + 80
 
@@ -130,10 +135,10 @@ def render_svg(manifest: dict) -> str:
         "</defs>",
         '<rect width="100%" height="100%" fill="url(#bg)"/>',
         '<g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">',
-        f'<text x="44" y="62" font-size="34" font-weight="900" fill="#0f172a">{esc(manifest.get("title", "Repository Map"))}</text>',
-        f'<text x="44" y="96" font-size="16" fill="#334155">{esc(manifest.get("subtitle", ""))}</text>',
-        f'<text x="44" y="126" font-size="13" fill="#64748b">{esc(manifest.get("generated_note", ""))}</text>',
-        '<text x="1110" y="62" font-size="13" fill="#475569">Scope legend</text>',
+        f'<text x="44" y="60" font-size="38" font-weight="950" fill="#0f172a">{esc(manifest.get("title", "Repository Map"))}</text>',
+        f'<text x="44" y="98" font-size="19" font-weight="500" fill="#334155">{esc(manifest.get("subtitle", ""))}</text>',
+        f'<text x="44" y="130" font-size="14" fill="#64748b">{esc(manifest.get("generated_note", ""))}</text>',
+        '<text x="980" y="54" font-size="15" font-weight="800" fill="#334155">Scope legend</text>',
     ]
 
     legend = [
@@ -143,12 +148,15 @@ def render_svg(manifest: dict) -> str:
         ("needs-hardening", "Needs hardening"),
         ("compat-only", "Compat only"),
     ]
-    lx, ly = 1110, 84
+    lx, ly = 980, 82
     for idx, (tier, label) in enumerate(legend):
         stroke, fill = TIER_COLORS[tier]
-        y = ly + idx * 24
-        parts.append(f'<rect x="{lx}" y="{y - 12}" width="14" height="14" rx="4" fill="{fill}" stroke="{stroke}" stroke-width="2"/>')
-        parts.append(f'<text x="{lx + 22}" y="{y}" font-size="12" fill="#334155">{esc(label)}</text>')
+        col = idx % 2
+        row = idx // 2
+        x = lx + col * 190
+        y = ly + row * 28
+        parts.append(f'<rect x="{x}" y="{y - 15}" width="18" height="18" rx="5" fill="{fill}" stroke="{stroke}" stroke-width="2.5"/>')
+        parts.append(f'<text x="{x + 28}" y="{y}" font-size="14" fill="#334155">{esc(label)}</text>')
 
     parts.append('<g filter="url(#shadow)">')
     for idx, profile in enumerate(profiles):

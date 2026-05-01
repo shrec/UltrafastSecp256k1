@@ -193,3 +193,21 @@ docs/*_TODO.md
 docs/INTERNAL_*.md
 docs/TASK[0-9]*.md
 WORK_ORDER_*.md
+
+# SQLite WAL/SHM sidecar files (runtime state, never committed)
+*.db-shm
+*.db-wal
+
+# Canonical build output root (all local builds should go here)
+# Run: python3 scripts/configure_build.py <profile>
+out/
+
+# Nested bindings build dirs not already covered above
+bindings/**/build/
+bindings/**/.build/
+bindings/**/dist/
+bindings/**/__pycache__/
+
+# Local developer overrides (machine-specific, never shared)
+local_settings.json
+.env.local

@@ -31,7 +31,7 @@
       "signals": [
         "CPU only",
         "Shim parity",
-        "FFI/GPU/WASM/BCHN out of scope"
+        "FFI/GPU/WASM/alt-shims out of scope"
       ]
     },
     {
@@ -87,17 +87,18 @@
       ]
     },
     {
-      "id": "bchn-compat",
-      "title": "BCHN Compat",
+      "id": "node-compat-shims",
+      "title": "Node Compatibility Shims",
       "tier": "compat-only",
-      "summary": "Bitcoin Cash Node compatibility shim; not part of Bitcoin Core scope.",
+      "summary": "Compatibility shims for Bitcoin-family nodes; separate from the Bitcoin Core backend profile.",
       "paths": [
+        "compat/libsecp256k1_shim/",
         "compat/libsecp256k1_bchn_shim/"
       ],
       "signals": [
-        "Compatibility surface",
-        "Opt-in or CT hardening",
-        "Not Core scope"
+        "Bitcoin/Litecoin/Dogecoin families",
+        "BCH node variants",
+        "Profile-gated compat surfaces"
       ]
     },
     {
