@@ -1,9 +1,18 @@
 # UltrafastSecp256k1
 
 <p align="center">
-  <a href="docs/ARCHITECTURE.md">
-    <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
-  </a>
+  <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
+</p>
+
+<p align="center">
+<a href="cpu/"><b>CPU</b></a> &nbsp;·&nbsp;
+<a href="cuda/"><b>GPU (CUDA/OpenCL/Metal)</b></a> &nbsp;·&nbsp;
+<a href="cpu/examples/"><b>Embedded/SBC</b></a> &nbsp;·&nbsp;
+<a href="compat/libsecp256k1_shim/"><b>libsecp256k1 shim</b></a> &nbsp;·&nbsp;
+<a href="bindings/"><b>Bindings</b></a> &nbsp;·&nbsp;
+<a href="audit/"><b>Audit PoC</b></a> &nbsp;·&nbsp;
+<a href="formal/"><b>Formal proofs</b></a> &nbsp;·&nbsp;
+<a href="docs/ARCHITECTURE.md"><b>Full diagram →</b></a>
 </p>
 
 [![CI](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
