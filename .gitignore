@@ -70,7 +70,6 @@ ehthumbs.db
 # Backup files
 *.bak
 *.backup
-*~
 
 # Package files
 *.tar.gz
@@ -186,6 +185,9 @@ audit/formal/lean/.lake/
 # Local scratch / generated binaries
 config.ini
 scan_lut_bench.bin
+found_keys.txt
+gpu_ct_leakage_report.json
+*.elf
 
 # Internal working documents — never commit to repo
 docs/WORK_ORDER_*.md
@@ -198,15 +200,7 @@ WORK_ORDER_*.md
 *.db-shm
 *.db-wal
 
-# Canonical output root — all local builds AND audit outputs go here
-# Builds:      out/<profile>/      (configure_build.py)
-# Audit output: out/audit-output/<compiler>/
-# Run: python3 scripts/configure_build.py <profile>
-# Clean: bash scripts/clean_local_artifacts.sh --delete
-out/
-
 # Legacy audit output dirs (migrated to out/audit-output/)
-audit-output-*/
 audit-evidence-*/
 
 # Nested bindings build dirs not already covered above
@@ -229,6 +223,4 @@ risk_surface_report.json
 # Remaining local-only dirs (not source)
 artifacts/
 benchmark_results/
-local-ci-output/
-Testing/
 scripts/

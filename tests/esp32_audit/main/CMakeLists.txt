@@ -3,8 +3,8 @@
 # Compiles all 40/48 audit modules for ESP32-S3 (Xtensa LX7)
 # ============================================================================
 
-set(CPU_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../../cpu/src")
-set(CPU_TESTS "${CMAKE_CURRENT_SOURCE_DIR}/../../../cpu/tests")
+set(CPU_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/cpu/src")
+set(CPU_TESTS "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/cpu/tests")
 set(AUDIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../audit")
 
 idf_component_register(
@@ -101,8 +101,8 @@ idf_component_register(
 
 # Add UltrafastSecp256k1 include paths
 target_include_directories(${COMPONENT_LIB} PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../cpu/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../cpu/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/cpu/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../src/cpu/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../audit"
 )
