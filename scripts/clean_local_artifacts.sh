@@ -62,6 +62,12 @@ for d in cmake-build-*; do
 done
 
 echo ""
+echo "-- Legacy audit output dirs (migrated to out/audit-output/) --"
+for d in audit-output-* audit-evidence-*; do
+    [[ -d "$d" ]] && _remove "$d"
+done
+
+echo ""
 echo "-- Nested bindings build dirs --"
 for d in bindings/*/build bindings/*/.build bindings/*/dist bindings/*/node_modules; do
     [[ -d "$d" ]] && _remove "$d"

@@ -25,11 +25,12 @@ Output appears in `./audit_output/`:
 ## Option B: Host build (3 commands)
 
 ```bash
-# 1. Build
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja -C build
+# 1. Build (canonical audit profile — out/audit)
+python3 scripts/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C out/audit
 
 # 2. Run audit tests
-ctest --test-dir build -L audit --output-on-failure --timeout 300
+ctest --test-dir out/audit -L audit --output-on-failure --timeout 300
 
 # 3. Generate reports
 python3 scripts/audit_gate.py --json -o audit_gate_report.json

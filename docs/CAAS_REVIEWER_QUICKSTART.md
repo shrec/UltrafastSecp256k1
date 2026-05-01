@@ -43,8 +43,9 @@ exactly what to run and what to expect.
 # 1. Clone and build
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-ninja -C build
+# Recommended: canonical audit profile under out/audit
+python3 scripts/configure_build.py audit   # or: cmake -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja -C out/audit
 
 # 2. Run the full CAAS pipeline (all 5 stages)
 python3 scripts/caas_runner.py --no-fail-fast --json -o caas_report.json

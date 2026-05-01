@@ -62,18 +62,26 @@ def _run_json_command(command: list[str]) -> dict:
 
 def _discover_latest_audit_summary() -> dict:
     candidates = []
-    for pattern in ('audit-output-*', 'audit-evidence-*'):
-        for directory in LIB_ROOT.glob(pattern):
-            if not directory.is_dir():
-                continue
-            report_json = directory / 'audit_report.json'
-            report_txt = directory / 'audit_report.txt'
-            if report_json.exists():
-                candidates.append((report_json.stat().st_mtime, directory, report_json, report_txt if report_txt.exists() else None))
+    # Search canonical location first (out/audit-output/<compiler>/),
+    # then fall back to legacy root-level dirs for backward compat.
+    search_roots = [LIB_ROOT / 'out' / 'audit-output', LIB_ROOT]
+    search_patterns = ('*', 'audit-output-*', 'audit-evidence-*')
+    for root in search_roots:
+        if not root.is_dir():
+            continue
+        pattern = '*' if root.name == 'audit-output' else None
+        for pat in (search_patterns if pattern is None else (pattern,)):
+            for directory in root.glob(pat):
+                if not directory.is_dir():
+                    continue
+                report_json = directory / 'audit_report.json'
+                report_txt = directory / 'audit_report.txt'
+                if report_json.exists():
+                    candidates.append((report_json.stat().st_mtime, directory, report_json, report_txt if report_txt.exists() else None))
     if not candidates:
         return {
             'status': 'missing',
-            'issues': ['no audit_report.json found under audit-output-* or audit-evidence-*'],
+            'issues': ['no audit_report.json found under out/audit-output/ or audit-output-*/audit-evidence-*'],
         }
 
     _, directory, report_json, report_txt = max(candidates, key=lambda item: item[0])

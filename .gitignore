@@ -198,9 +198,16 @@ WORK_ORDER_*.md
 *.db-shm
 *.db-wal
 
-# Canonical build output root (all local builds should go here)
+# Canonical output root — all local builds AND audit outputs go here
+# Builds:      out/<profile>/      (configure_build.py)
+# Audit output: out/audit-output/<compiler>/
 # Run: python3 scripts/configure_build.py <profile>
+# Clean: bash scripts/clean_local_artifacts.sh --delete
 out/
+
+# Legacy audit output dirs (migrated to out/audit-output/)
+audit-output-*/
+audit-evidence-*/
 
 # Nested bindings build dirs not already covered above
 bindings/**/build/

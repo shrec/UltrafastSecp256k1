@@ -4,6 +4,28 @@ Complete build guide for all supported platforms.
 
 ---
 
+## Recommended Build Layout (Updated 2026-05-01)
+
+All local builds should go under `out/<profile>` to keep the source tree clean:
+
+```bash
+# Configure a profile
+python3 scripts/configure_build.py release       # out/release
+python3 scripts/configure_build.py audit         # out/audit
+python3 scripts/configure_build.py debug         # out/debug
+
+# List all profiles
+python3 scripts/configure_build.py --list
+
+# Clean all local build artifacts (dry-run first)
+bash scripts/clean_local_artifacts.sh
+bash scripts/clean_local_artifacts.sh --delete
+```
+
+Migration: old `build/`, `build-*`, `build_*` dirs are safe to delete.
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
