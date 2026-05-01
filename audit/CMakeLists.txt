@@ -3642,7 +3642,7 @@ message(STATUS "  Full audit script (Linux):   audit/run_full_audit.sh")
 # ===========================================================================
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
-    set(_py_scripts_dir "${CMAKE_CURRENT_SOURCE_DIR}/../scripts")
+    set(_py_scripts_dir "${CMAKE_CURRENT_SOURCE_DIR}/../ci")
     set(_uf_lib "$<TARGET_FILE:ufsecp_shared>")
     set(_py_env "PYTHONPATH=${_py_scripts_dir}")
 
