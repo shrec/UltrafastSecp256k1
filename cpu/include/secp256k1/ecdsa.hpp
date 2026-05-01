@@ -14,6 +14,17 @@
 // WARNING: The nonce k MUST be cryptographically random or deterministic
 // (RFC 6979). Reusing k leaks the private key. This library provides a
 // deterministic nonce function (RFC 6979) for safety.
+//
+// SECP256K1_SIGNING_IS_CT: All signing functions in this header (ecdsa_sign,
+// ecdsa_sign_verified, ecdsa_sign_hedged, ecdsa_sign_hedged_verified) route
+// R = k*G through ct::generator_mul_blinded() and k^{-1} through
+// ct::scalar_inverse(). They are constant-time with respect to the private
+// key and nonce.
+//
+// For the canonical CT-validated ABI, prefer ufsecp_ecdsa_sign() (C ABI) or
+// secp256k1::ct::ecdsa_sign() (explicit CT C++ namespace).
+// Compile with -DSECP256K1_REQUIRE_CT=1 to get deprecation warnings if you
+// accidentally use the fast:: non-CT path for signing.
 // ============================================================================
 
 #include <array>
@@ -59,10 +70,15 @@ struct ECDSASignature {
 
 // -- ECDSA Operations ---------------------------------------------------------
 
-// Sign a 32-byte message hash with a private key (FAST, non-constant-time).
-// Uses RFC 6979 deterministic nonce generation, variable-time R=k*G.
-// For production signing where private_key/nonce must be secret:
-//   use secp256k1::ct::ecdsa_sign() from <secp256k1/ct/sign.hpp>.
+// Sign a 32-byte message hash with a private key.
+// Uses RFC 6979 deterministic nonce generation.
+//
+// NOTE: This function routes through ct::generator_mul_blinded (R = k*G) and
+// ct::scalar_inverse (k^{-1}) — it is constant-time with respect to the private
+// key and nonce. Sensitive stack data (k, k_inv, z) is erased before return.
+// For the canonical CT-validated ABI, prefer ufsecp_ecdsa_sign() or
+// secp256k1::ct::ecdsa_sign().
+//
 // Returns normalized (low-S) signature.
 // Returns {zero, zero} signature on failure (zero key, etc.)
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
@@ -71,6 +87,9 @@ ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
 // Sign + verify (FIPS 186-4 fault attack countermeasure).
 // Verifies the produced signature before returning it.
 // Use this when fault injection resistance is required.
+//
+// NOTE: CT — routes through ct::generator_mul_blinded and ct::scalar_inverse.
+// Constant-time with respect to the private key and nonce.
 ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
                                    const fast::Scalar& private_key);
 
@@ -80,11 +99,15 @@ ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
 // injection while maintaining deterministic fallback behavior.
 // The nonce is deterministic for a given (key, msg, aux_rand) triple.
 // Equivalent to libsecp256k1's secp256k1_ecdsa_sign() with ndata parameter.
+//
+// NOTE: CT — routes through ct::generator_mul_blinded and ct::scalar_inverse.
+// Constant-time with respect to the private key and nonce.
 ECDSASignature ecdsa_sign_hedged(const std::array<std::uint8_t, 32>& msg_hash,
                                   const fast::Scalar& private_key,
                                   const std::array<std::uint8_t, 32>& aux_rand);
 
 // Hedged sign + verify (FIPS 186-4 fault attack countermeasure).
+// NOTE: CT — routes through ct::generator_mul_blinded and ct::scalar_inverse.
 ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& msg_hash,
                                           const fast::Scalar& private_key,
                                           const std::array<std::uint8_t, 32>& aux_rand);

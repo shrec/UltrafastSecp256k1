@@ -1,5 +1,7 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "last_updated": "2026-05-01",
+  "update_note": "2026-05-01: strict key parsing (>=n rejected), CT pubkey derivation, MuSig signer-index fail-closed, Schnorr R zero check, batch count==0 rejection — see AUDIT_CHANGELOG.md",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",

@@ -56,14 +56,25 @@ Additional enforcement surfaces added in the 2026-04-07 CI hardening:
 Both layers implement the same secp256k1 elliptic curve operations with the same
 mathematical semantics. They differ **only** in execution profile:
 
-| Property | FAST (`secp256k1::fast::`, `secp256k1::`) | CT (`secp256k1::ct::`) |
-|----------|-------------------------------------------|------------------------|
-| **Throughput** | Maximum | ~1.8-3.2x slower |
-| **Timing** | Data-dependent (variable-time) | Data-independent (constant-time) |
-| **Branching** | May short-circuit on identity/zero | Never branches on secret data |
-| **Table Lookup** | Direct index | Scans all entries via cmov |
-| **Nonce Erasure** | Not erased | Intermediate nonces erased (volatile fn-ptr) |
-| **Side-Channel** | Not resistant | Resistant (CPU backend) |
+| Property | FAST (`secp256k1::fast::`) | Public-namespace signing (`secp256k1::`) | CT (`secp256k1::ct::`) |
+|----------|-----------------------------|------------------------------------------|------------------------|
+| **Throughput** | Maximum | ~same as CT for signing | ~1.8-3.2x slower than fast:: |
+| **Signing timing** | Data-dependent (variable-time) | **CT** — routes through `ct::generator_mul_blinded` + `ct::scalar_inverse` | Data-independent (constant-time) |
+| **Branching** | May short-circuit on identity/zero | No secret-dependent branches in signing | Never branches on secret data |
+| **Table Lookup** | Direct index | Blinded comb (same as ct::) for sign | Scans all entries via cmov |
+| **Nonce Erasure** | Not erased | Stack nonces erased (k, k_inv, z) | Intermediate nonces erased (volatile fn-ptr) |
+| **Side-Channel** | Not resistant | Resistant for signing paths | Resistant (CPU backend) |
+| **Audit/ABI backing** | No | Use `ct::` or ABI for explicit audit trail | Canonical CT-validated path |
+
+> **Note (2026-05-01):** `secp256k1::ecdsa_sign`, `secp256k1::schnorr_sign`, and
+> `secp256k1::ecdsa_sign_recoverable` were found to internally call
+> `ct::generator_mul_blinded` and `ct::scalar_inverse`, making them CT-equivalent
+> in practice. The previous documentation describing them as "variable-time" was
+> incorrect. See `cpu/src/ecdsa.cpp:signing_generator_mul` and
+> `cpu/src/recovery.cpp:signing_generator_mul` (both alias `ct::generator_mul_blinded`),
+> and `cpu/src/schnorr.cpp` (calls `ct::generator_mul_blinded` directly).
+> The canonical explicit CT path (`secp256k1::ct::ecdsa_sign`) remains preferred
+> for audits and new code because it carries explicit CT intent.
 
 ### CT Overhead by Platform (v3.4.0)
 
@@ -108,8 +119,8 @@ and multiscalar logic.
 
 | Operation | Why | Function |
 |-----------|-----|----------|
-| **ECDSA signing** | Private key enters scalar multiplication | `ct::ecdsa_sign()` |
-| **Schnorr signing** | Private key + nonce in scalar mul | `ct::schnorr_sign()` |
+| **ECDSA signing** | Private key enters scalar multiplication | `ct::ecdsa_sign()` (canonical); `secp256k1::ecdsa_sign()` also CT as of 2026-05-01 |
+| **Schnorr signing** | Private key + nonce in scalar mul | `ct::schnorr_sign()` (canonical); `secp256k1::schnorr_sign()` also CT as of 2026-05-01 |
 | **Key generation / derivation** | Secret scalar x G | `ct::generator_mul()` |
 | **Keypair creation** | Private key enters point mul | `ct::schnorr_keypair_create()` |
 | **X-only pubkey from privkey** | Secret scalar x G | `ct::schnorr_pubkey()` |
@@ -136,16 +147,24 @@ The performance cost is bounded (1.8-3.2x depending on platform) and eliminates
 timing side-channel risk.
 
 ```cpp
-// [OK] CORRECT: CT for signing (private key is secret)
+// [OK] CORRECT: explicit CT namespace for signing — canonical, auditable path
 #include <secp256k1/ct/sign.hpp>
 auto sig = secp256k1::ct::ecdsa_sign(msg_hash, private_key);
+
+// [OK] ALSO CORRECT: secp256k1::ecdsa_sign routes through ct::generator_mul_blinded
+// and ct::scalar_inverse (see cpu/src/ecdsa.cpp:signing_generator_mul).
+// Use this only when you have confirmed CT coverage via the source graph.
+// For new code, prefer the explicit ct:: namespace for audit clarity.
+#include <secp256k1/ecdsa.hpp>
+auto sig2 = secp256k1::ecdsa_sign(msg_hash, private_key);
 
 // [OK] CORRECT: FAST for verification (all inputs public)
 #include <secp256k1/ecdsa.hpp>
 bool ok = secp256k1::ecdsa_verify(msg_hash, pubkey, sig);
 
-// [FAIL] WRONG: FAST for signing (leaks private key timing)
-auto sig = secp256k1::ecdsa_sign(msg_hash, private_key);
+// [FAIL] WRONG: direct fast:: scalar_mul on generator with secret scalar —
+// variable-time, leaks private key timing.
+// Point::generator().scalar_mul(private_key)  <-- never do this for secrets
 ```
 
 ### Compile-Time Guardrail

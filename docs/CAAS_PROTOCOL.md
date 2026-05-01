@@ -424,3 +424,42 @@ Bypass is owner-only via repo ruleset disable/enable as documented in
 
 See [docs/CAAS_HARDENING_TODO.md](CAAS_HARDENING_TODO.md) for the open
 hardening backlog.
+
+---
+
+## Product Profiles
+
+**Added:** 2026-05-01. Full taxonomy in [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
+
+Run a specific profile:
+
+```bash
+python3 scripts/caas_runner.py --profile <profile-id> --auditor-mode
+```
+
+Available profile IDs:
+
+| Profile ID | Description |
+|---|---|
+| `bitcoin-core-backend` | CPU + libsecp256k1 shim for Bitcoin Core secondary backend |
+| `cpu-signing` | CPU ECDSA/Schnorr/CT layer standalone |
+| `ffi-bindings` | Legacy C API + language bindings |
+| `wasm` | WebAssembly browser/Node binding |
+| `gpu-public-data` | GPU batch verify + BIP-352 scan (public data) |
+| `bchn-compat` | Bitcoin Cash Node legacy Schnorr shim |
+| `release/full-engine` | All surfaces, release gate |
+
+### Evidence Freshness
+
+SLA: critical evidence must be < 14 days old (enforced by `scripts/audit_sla_check.py`).
+
+Regenerate CI evidence: create new files in `audit/ci-evidence/` with today's date suffix.
+
+### Bundle Lifecycle
+
+Generate: `python3 scripts/external_audit_bundle.py`
+Verify: `python3 scripts/verify_external_audit_bundle.py`
+
+The bundle must be regenerated after any evidence file changes.
+Note: `docs/SECURITY_AUTONOMY_KPI.json` is intentionally excluded from bundle evidence
+(auto-generated; captured in gate_results).

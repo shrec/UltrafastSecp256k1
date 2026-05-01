@@ -18,6 +18,13 @@
 //   // Recover public key
 //   auto [pk, ok] = ecdsa_recover(msg_hash, sig, recid);
 //   if (ok) { ... pk is the recovered public key ... }
+//
+// SECP256K1_SIGNING_IS_CT: ecdsa_sign_recoverable() routes R = k*G through
+// ct::generator_mul_blinded() and k^{-1} through ct::scalar_inverse().
+// It is constant-time with respect to the private key and nonce.
+// Recovery ID computation branches only on public data (r, R.y parity).
+// For the canonical CT-validated ABI, prefer ufsecp_ecdsa_sign_recoverable()
+// or secp256k1::ct::ecdsa_sign_recoverable().
 // ============================================================================
 
 #include <array>
@@ -45,6 +52,13 @@ struct RecoverableSignature {
 //   bit 0: parity of R.y (0 = even, 1 = odd)
 //   bit 1: whether R.x overflowed the curve order (almost never; r = R.x mod n
 //           and R.x could be >= n but < p, happens with probability ~2^-128)
+//
+// NOTE: This function routes through ct::generator_mul_blinded (R = k*G) and
+// ct::scalar_inverse (k^{-1}) — it is constant-time with respect to the private
+// key and nonce. Recovery ID computation branches only on public data (R.y
+// parity, r overflow), not on secret data.
+// For the canonical CT-validated ABI, prefer ufsecp_ecdsa_sign_recoverable()
+// or secp256k1::ct::ecdsa_sign_recoverable().
 RecoverableSignature ecdsa_sign_recoverable(
     const std::array<std::uint8_t, 32>& msg_hash,
     const Scalar& private_key);

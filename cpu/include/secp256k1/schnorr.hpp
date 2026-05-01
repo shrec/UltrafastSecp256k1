@@ -11,6 +11,14 @@
 //   - Tagged hashing per BIP-340 spec
 //
 // Reference: https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
+//
+// SECP256K1_SIGNING_IS_CT: All signing functions in this header (schnorr_sign,
+// schnorr_sign_verified) route R = k'*G through ct::generator_mul_blinded().
+// They are constant-time with respect to the private key and nonce.
+// Sensitive stack data (d, k, t, nonce_input) is erased before return.
+//
+// For the canonical CT-validated ABI, prefer ufsecp_schnorr_sign() (C ABI) or
+// secp256k1::ct::schnorr_sign() (explicit CT C++ namespace).
 // ============================================================================
 
 #include <array>
@@ -62,23 +70,32 @@ SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
 //   WARNING: Never reuse aux_rand across different messages with the same
 //   key -- while BIP-340 nonces remain safe, unique randomness per sign
 //   maximizes defense-in-depth.
+//
+// NOTE: CT — routes R = k'*G through ct::generator_mul_blinded().
+// Constant-time with respect to the private key and nonce.
+// Sensitive stack data (d_bytes, t, k_prime, k, nonce_input) is erased
+// before return. For the canonical CT-validated ABI, prefer
+// ufsecp_schnorr_sign() or secp256k1::ct::schnorr_sign().
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
 // Sign + verify (FIPS 186-4 fault attack countermeasure).
 // Verifies the produced Schnorr signature before returning it.
+// NOTE: CT — routes through ct::generator_mul_blinded (same as schnorr_sign above).
 SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
                                        const std::array<std::uint8_t, 32>& msg,
                                        const std::array<std::uint8_t, 32>& aux_rand);
 
 // Sign from raw private key (convenience: creates keypair internally).
 // See above for aux_rand entropy requirements.
+// NOTE: CT — same CT guarantees as the keypair overload above.
 SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
 // Raw key sign + verify (fault attack countermeasure).
+// NOTE: CT — same CT guarantees as the keypair overload above.
 SchnorrSignature schnorr_sign_verified(const fast::Scalar& private_key,
                                        const std::array<std::uint8_t, 32>& msg,
                                        const std::array<std::uint8_t, 32>& aux_rand);

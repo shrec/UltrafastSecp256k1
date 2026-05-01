@@ -20,6 +20,18 @@ Backend trust is measured, not assumed.
 | Metal | **MEDIUM** | ABI-complete, CI validated, hardware-level CT unprotected |
 | ROCm/HIP | **EXPERIMENTAL** | ABI partial, hardware-backed validation pending |
 
+### Non-GPU Product Profile Assurance (Added 2026-05-01)
+
+Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
+
+| Profile | Tier | CT Status | CAAS Gate |
+|---|---|---|---|
+| `bitcoin-core-backend` (CPU + libsecp256k1 shim) | `production` | Full CT via `secp256k1::ct::*` as of 2026-04-28/2026-05-01 | Hard (audit_gate + security_autonomy + bundle_verify) |
+| `cpu-signing` (public C++ API) | `production` | `signing_generator_mul()` → `ct::generator_mul_blinded()` | Hard |
+| `ffi-bindings` (legacy C API + bindings) | `beta` | CT signing as of 2026-05-01; bindings inherit from C API | Partial |
+| `wasm` | `experimental` | Prebuilt artifact — no WASM-specific CT audit | None — do not claim production-CT without CI rebuild + timing analysis |
+| `bchn-compat` | `compat-only` | CT generator mul + strict key parsing as of 2026-05-01 | Advisory only — NOT Bitcoin Core, NOT BIP-340 |
+
 ## Assurance Levels
 
 - **HIGH** — full audit coverage, CI-enforced, reproducible locally

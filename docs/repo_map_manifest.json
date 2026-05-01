@@ -1,0 +1,138 @@
+{
+  "title": "UltrafastSecp256k1 Repository Map",
+  "subtitle": "Generated map of product profiles, scope boundaries, and primary code surfaces.",
+  "generated_note": "Generated from docs/repo_map_manifest.json by tools/render_repo_map.py",
+  "profiles": [
+    {
+      "id": "core-engine",
+      "title": "Core Engine",
+      "tier": "production",
+      "summary": "CPU scalar, field, point, ECDSA, Schnorr, ECDH, and CT primitives.",
+      "paths": [
+        "cpu/src/",
+        "cpu/include/secp256k1/",
+        "include/ufsecp/"
+      ],
+      "signals": [
+        "CT signing primitives",
+        "Strict parsers",
+        "Fail-closed ABI"
+      ]
+    },
+    {
+      "id": "bitcoin-core-backend",
+      "title": "Bitcoin Core Backend",
+      "tier": "bitcoin-core-scope",
+      "summary": "Scoped libsecp256k1-compatible CPU backend for Bitcoin Core review.",
+      "paths": [
+        "compat/libsecp256k1_shim/",
+        "docs/BITCOIN_CORE_BACKEND_EVIDENCE.md"
+      ],
+      "signals": [
+        "CPU only",
+        "Shim parity",
+        "FFI/GPU/WASM/BCHN out of scope"
+      ]
+    },
+    {
+      "id": "gpu-public-data",
+      "title": "GPU Public Data",
+      "tier": "public-data-only",
+      "summary": "CUDA, OpenCL, and Metal acceleration for public-data workloads.",
+      "paths": [
+        "cuda/",
+        "opencl/",
+        "metal/",
+        "gpu/"
+      ],
+      "signals": [
+        "Batch verify/scanning",
+        "Backend parity",
+        "No Core PR dependency"
+      ]
+    },
+    {
+      "id": "ffi-bindings",
+      "title": "FFI / Bindings",
+      "tier": "needs-hardening",
+      "summary": "Language bindings and legacy C API product surface.",
+      "paths": [
+        "bindings/c_api/",
+        "bindings/nodejs/",
+        "bindings/python/",
+        "bindings/rust/",
+        "bindings/csharp/",
+        "bindings/go/",
+        "bindings/swift/",
+        "bindings/php/"
+      ],
+      "signals": [
+        "Separate product",
+        "Strict scalar parsing required",
+        "CT route required for signing"
+      ]
+    },
+    {
+      "id": "wasm",
+      "title": "WASM",
+      "tier": "needs-hardening",
+      "summary": "Browser and JavaScript runtime build target.",
+      "paths": [
+        "wasm/"
+      ],
+      "signals": [
+        "Separate product",
+        "CT signing gate required",
+        "Dedicated tests required"
+      ]
+    },
+    {
+      "id": "bchn-compat",
+      "title": "BCHN Compat",
+      "tier": "compat-only",
+      "summary": "Bitcoin Cash Node compatibility shim; not part of Bitcoin Core scope.",
+      "paths": [
+        "compat/libsecp256k1_bchn_shim/"
+      ],
+      "signals": [
+        "Compatibility surface",
+        "Opt-in or CT hardening",
+        "Not Core scope"
+      ]
+    },
+    {
+      "id": "caas-audit",
+      "title": "CAAS / Audit",
+      "tier": "evidence-system",
+      "summary": "Continuous Audit as a Service, exploit PoCs, source graph, and evidence bundles.",
+      "paths": [
+        "audit/",
+        "scripts/caas_runner.py",
+        "scripts/audit_gate.py",
+        "tools/source_graph_kit/",
+        ".github/workflows/"
+      ],
+      "signals": [
+        "Profile gates",
+        "Fresh evidence",
+        "Traceability"
+      ]
+    },
+    {
+      "id": "docs-evidence",
+      "title": "Docs / Evidence",
+      "tier": "claim-control",
+      "summary": "Security claims, API contracts, benchmarks, and reviewer-facing evidence.",
+      "paths": [
+        "docs/",
+        "SECURITY.md",
+        "AUDIT_REPORT.md"
+      ],
+      "signals": [
+        "No stale claims",
+        "Bench sanity",
+        "Reviewer map"
+      ]
+    }
+  ]
+}

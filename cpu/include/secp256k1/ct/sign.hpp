@@ -4,12 +4,12 @@
 // ============================================================================
 // Constant-Time Signing & Key Generation
 // ============================================================================
-// Drop-in CT replacements for secp256k1::ecdsa_sign() and schnorr_sign().
-// These use ct::generator_mul() (data-independent execution trace) instead of
-// the fast variable-time scalar_mul on the generator.
+// Canonical CT signing API for secp256k1. Uses ct::generator_mul()
+// (data-independent execution trace) for all secret-bearing point operations.
 //
 // For production signing where the private key/nonce must remain secret,
-// ALWAYS use these functions instead of the fast:: variants.
+// prefer these explicit ct:: functions over the secp256k1:: namespace
+// equivalents — they carry explicit CT intent and are the audited ABI path.
 //
 // Usage:
 //   #include <secp256k1/ct/sign.hpp>
@@ -17,7 +17,21 @@
 //   auto schnorr_sig = secp256k1::ct::schnorr_sign(keypair, msg, aux);
 //
 // Compile with -DSECP256K1_REQUIRE_CT=1 to deprecate non-CT sign functions.
+//
+// SECP256K1_SIGNING_IS_CT: defined below as a macro sentinel.
+// Both this ct:: namespace AND the secp256k1:: public namespace signing
+// functions (ecdsa_sign, schnorr_sign, ecdsa_sign_recoverable in ecdsa.hpp /
+// schnorr.hpp / recovery.hpp) route through ct::generator_mul_blinded and
+// ct::scalar_inverse. The ct:: namespace is preferred for explicit audit
+// evidence; the secp256k1:: namespace is confirmed-CT but without the
+// explicit ct:: annotation in the call site.
 // ============================================================================
+
+// Sentinel: confirms that all signing paths in this library (cpu layer) are CT.
+// Defined when <secp256k1/ct/sign.hpp> is included.
+#ifndef SECP256K1_SIGNING_IS_CT
+#  define SECP256K1_SIGNING_IS_CT 1
+#endif
 
 #include <array>
 #include <cstdint>

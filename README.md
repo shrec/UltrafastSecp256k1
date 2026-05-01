@@ -1,6 +1,12 @@
 # UltrafastSecp256k1
 
 <p align="center">
+  <a href="docs/repo_map_manifest.json">
+    <img src="docs/assets/repo-map.svg" alt="UltrafastSecp256k1 repository map: product profiles, scope boundaries, and primary paths" width="100%">
+  </a>
+</p>
+
+<p align="center">
   <a href="docs/ARCHITECTURE.md">
     <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
   </a>

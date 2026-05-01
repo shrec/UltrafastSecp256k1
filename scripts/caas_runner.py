@@ -177,6 +177,51 @@ PROFILES: dict[str, dict] = {
         "scope_description": "GPU batch verify, BIP-352 scanning — public data only, no secrets",
         "out_of_scope": ["CPU signing CT", "Shim parity", "Bindings"],
     },
+    "ffi-bindings": {
+        "name": "FFI Bindings",
+        "description": "Scoped to legacy C API and language bindings (Node, Python, Ruby, Go, Swift, Dart)",
+        "stages": ["scanner", "audit_gate", "security_autonomy"],
+        "extra_checks": [],
+        "scope_description": (
+            "bindings/c_api/ultrafast_secp256k1.cpp + language bindings; "
+            "strict key parsing, CT signing paths, degenerate sig rejection"
+        ),
+        "out_of_scope": [
+            "Bitcoin Core shim parity",
+            "GPU backends",
+            "WASM",
+            "BCHN shim",
+        ],
+    },
+    "wasm": {
+        "name": "WASM",
+        "description": "Scoped to WebAssembly browser/Node binding",
+        "stages": ["scanner", "audit_gate"],
+        "extra_checks": [],
+        "scope_description": "bindings/wasm/ — WASM binary target",
+        "out_of_scope": [
+            "CPU signing CT (inherited from canonical ufsecp_* layer)",
+            "GPU",
+            "FFI",
+            "Core shim",
+        ],
+    },
+    "bchn-compat": {
+        "name": "BCHN Compatibility",
+        "description": "Scoped to Bitcoin Cash Node legacy Schnorr shim",
+        "stages": ["scanner", "audit_gate"],
+        "extra_checks": [],
+        "scope_description": (
+            "compat/libsecp256k1_bchn_shim/ — BCH legacy Schnorr (NOT BIP-340); "
+            "CT generator mul, strict key parsing, key erasure"
+        ),
+        "out_of_scope": [
+            "Bitcoin Core profile",
+            "BIP-340 Schnorr",
+            "GPU",
+            "FFI bindings",
+        ],
+    },
     "release": {
         "name": "Release",
         "description": "Full pipeline including bundle produce — used for release preparation",

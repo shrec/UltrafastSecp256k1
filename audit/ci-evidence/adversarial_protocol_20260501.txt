@@ -1,0 +1,86 @@
+
+=== Adversarial Protocol & FFI Hostile-Caller Tests ===
+  [A.1] MuSig2: nonce reuse detection
+  [A.2] MuSig2: partial sig cross-session replay
+  [A.3] MuSig2: hostile null/junk arguments
+  [A.3c] MuSig2: partial_sig_agg rejects arity mismatch
+  [A.3b] MuSig2: keyagg participant overflow
+  [A.4] MuSig2: rogue-key / malformed participant
+  [A.5] MuSig2: transcript / keyagg mutation
+  [A.6] MuSig2: signer ordering mismatch
+  [A.7] MuSig2: malicious aggregator (tampered aggnonce)
+  [A.8] MuSig2: abort/restart session lifecycle
+  [B.1] FROST: below-threshold signing
+  [B.2] FROST: malformed nonce commitment
+  [B.3] FROST: truncated share blob
+  [B.3b] FROST: finalize count and sender uniqueness
+  [B.3] FROST: hostile null arguments
+  [B.4] FROST: malicious coordinator (inconsistent commits)
+  [B.5] FROST: duplicate nonce commitments
+  [B.5b] FROST: sign rejects malformed nonce signer sets
+  [B.5c] FROST: verify_partial rejects malformed signer sets
+  [B.5d] FROST: aggregate rejects malformed signer sets
+  [B.6] FROST: participant identity mismatch
+  [B.7] FROST: stale commitment replay across rounds
+  [C.1] Silent Payments: multiple output indices
+  [C.2] Silent Payments: invalid scan/spend keys
+  [C.3] Silent Payments: duplicate sender input keys
+  [C.4] Silent Payments: hostile null arguments
+  [D.1] ECDSA adaptor: sign -> verify -> adapt -> extract
+  [D.2] ECDSA adaptor: invalid adaptor point
+  [D.3] ECDSA adaptor: verify with wrong adaptor point
+  [D.4] ECDSA adaptor: hostile null arguments
+  [D.5] ECDSA adaptor: transcript mismatch (sign msg1, verify msg2)
+  [D.6] ECDSA adaptor: extraction from unrelated sig
+  [E.1] Schnorr adaptor: invalid adaptor point
+  [E.2] Schnorr adaptor: verify with wrong adaptor point
+  [E.3] Schnorr adaptor: adapt with wrong secret
+  [E.4] DLEQ: malformed proof must be rejected
+  [E.5] DLEQ: wrong generator pairs must fail verification
+  [F.1] BIP-32: invalid path strings
+  [F.2] BIP-32: invalid seed lengths
+  [F.3] BIP-32: hostile null arguments
+  [F.4] BIP-32: corrupted opaque key blob
+  [G.1] FFI hostile: hashing functions
+  [G.2] FFI hostile: address functions
+  [G.3] FFI hostile: Pedersen commitments
+  [G.4] FFI hostile: ZK proofs
+  [G.5] FFI hostile: multi-scalar multiplication
+  [G.6] FFI hostile: taproot functions
+  [G.7] FFI hostile: pubkey arithmetic
+  [G.8] FFI hostile: Bitcoin message signing
+  [G.9] FFI hostile: batch verification
+  [G.10] FFI hostile: ECDH
+  [G.11] FFI hostile: WIF encode/decode
+  [G.12] FFI hostile: BIP-39
+  [G.13] FFI hostile: secret key operations
+  [G.14] FFI hostile: ECDSA edge cases
+  [G.15] FFI hostile: Schnorr edge cases
+  [G.16] FFI hostile: multi-coin wallet
+  [G.18] FFI hostile: undersized output buffers
+  [G.19] FFI hostile: overlapping/aliased buffers
+  [G.20] FFI hostile: malformed array counts
+  [G.21] FFI hostile: invalid enum/flag values
+  [G.17] FFI hostile: Ethereum functions
+  [H.1] ctx_size edge cases
+  [H.3] ECIES edge cases
+  [H.5] ETH checksummed + personal_hash edge cases
+  [H.6] Pedersen switch commit edge cases
+  [H.7] Schnorr adaptor extract edge cases
+  [H.8] Batch sign edge cases
+  [H.9] BIP-143 edge cases
+  [H.10] BIP-144 edge cases
+  [H.11] SegWit edge cases
+  [H.12] Taproot/Tapscript sighash edge cases
+  [I.1] ctx_clone + last_error_msg edge cases
+  [I.2] pubkey_parse + pubkey_create_uncompressed edge cases
+  [I.3] ecdsa_sign_recoverable + ecdsa_recover round-trip
+  [I.4] ecdsa_sign_verified + schnorr_sign_verified edge cases
+  [I.5] Batch verify deep edge cases
+  [K.4] seckey_tweak_add arithmetic overflow
+  [K.5] seckey_tweak with out-of-range tweak
+  [K.6] ECDH semantic variant differentiation
+
+--- Adversarial Summary: 683 passed, 0 failed ---
+--- Updated: 2026-05-01 (security hardening cycle: 9 new exploit tests added) ---
+

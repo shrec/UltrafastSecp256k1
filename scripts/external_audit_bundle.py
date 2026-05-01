@@ -68,7 +68,13 @@ EVIDENCE_FILES: list[str] = [
     "docs/CT_VERIFICATION.md",
     "docs/FFI_HOSTILE_CALLER.md",
     "docs/BACKEND_ASSURANCE_MATRIX.md",
-    "docs/SECURITY_AUTONOMY_KPI.json",
+    # NOTE: SECURITY_AUTONOMY_KPI.json is intentionally excluded from EVIDENCE_FILES.
+    # Its content (autonomy score) is captured in gate_results via the
+    # security_autonomy_check gate command above, which is content-hashed there.
+    # Including it here causes a hash race: caas_runner.py re-runs the same gate
+    # (updating the file timestamp/nonce) immediately after bundle generation,
+    # making every subsequent verify fail on this single file. The gate_results
+    # entry already provides the tamper-evidence for this artifact.
     "mutation_kill_report.json",
 ]
 

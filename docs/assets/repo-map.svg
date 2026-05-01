@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1010" viewBox="0 0 1400 1010" role="img" aria-labelledby="title desc">
+<title id="title">UltrafastSecp256k1 Repository Map</title>
+<desc id="desc">Generated visual map of repository product profiles, tiers, and primary paths.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#f8fafc"/>
+<stop offset="100%" stop-color="#e0f2fe"/>
+</linearGradient>
+<filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+<feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.10"/>
+</filter>
+</defs>
+<rect width="100%" height="100%" fill="url(#bg)"/>
+<g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+<text x="44" y="62" font-size="34" font-weight="900" fill="#0f172a">UltrafastSecp256k1 Repository Map</text>
+<text x="44" y="96" font-size="16" fill="#334155">Generated map of product profiles, scope boundaries, and primary code surfaces.</text>
+<text x="44" y="126" font-size="13" fill="#64748b">Generated from docs/repo_map_manifest.json by tools/render_repo_map.py</text>
+<text x="1110" y="62" font-size="13" fill="#475569">Scope legend</text>
+<rect x="1110" y="72" width="14" height="14" rx="4" fill="#ecfeff" stroke="#0f766e" stroke-width="2"/>
+<text x="1132" y="84" font-size="12" fill="#334155">Production</text>
+<rect x="1110" y="96" width="14" height="14" rx="4" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2"/>
+<text x="1132" y="108" font-size="12" fill="#334155">Core scope</text>
+<rect x="1110" y="120" width="14" height="14" rx="4" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+<text x="1132" y="132" font-size="12" fill="#334155">Public data</text>
+<rect x="1110" y="144" width="14" height="14" rx="4" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+<text x="1132" y="156" font-size="12" fill="#334155">Needs hardening</text>
+<rect x="1110" y="168" width="14" height="14" rx="4" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<text x="1132" y="180" font-size="12" fill="#334155">Compat only</text>
+<g filter="url(#shadow)">
+<g id="profile-core-engine">
+<rect x="44" y="178" width="310" height="360" rx="18" fill="#ecfeff" stroke="#0f766e" stroke-width="2"/>
+<rect x="62" y="196" width="210" height="28" rx="14" fill="#0f766e"/>
+<text x="76" y="215" font-size="13" font-weight="700" fill="#ffffff">production</text>
+<text x="66" y="250" font-size="18" font-weight="800" fill="#0f172a">Core Engine</text>
+<text x="66" y="294" font-size="13" font-weight="400" fill="#334155">CPU scalar, field, point, ECDSA, Schnorr,</text>
+<text x="66" y="311" font-size="13" font-weight="400" fill="#334155">ECDH, and CT primitives.</text>
+<text x="66" y="362" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="78" y="384" font-size="12" fill="#0f172a">- cpu/src/</text>
+<text x="78" y="400" font-size="12" fill="#0f172a">- cpu/include/secp256k1/</text>
+<text x="78" y="416" font-size="12" fill="#0f172a">- include/ufsecp/</text>
+<text x="66" y="456" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="78" y="477" font-size="12" fill="#0f172a">- CT signing primitives</text>
+<text x="78" y="493" font-size="12" fill="#0f172a">- Strict parsers</text>
+<text x="78" y="509" font-size="12" fill="#0f172a">- Fail-closed ABI</text>
+</g>
+<g id="profile-bitcoin-core-backend">
+<rect x="382" y="178" width="310" height="360" rx="18" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="400" y="196" width="210" height="28" rx="14" fill="#1d4ed8"/>
+<text x="414" y="215" font-size="13" font-weight="700" fill="#ffffff">bitcoin-core-scope</text>
+<text x="404" y="250" font-size="18" font-weight="800" fill="#0f172a">Bitcoin Core Backend</text>
+<text x="404" y="294" font-size="13" font-weight="400" fill="#334155">Scoped libsecp256k1-compatible CPU backend</text>
+<text x="404" y="311" font-size="13" font-weight="400" fill="#334155">for Bitcoin Core review.</text>
+<text x="404" y="362" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="416" y="384" font-size="12" fill="#0f172a">- compat/libsecp256k1_shim/</text>
+<text x="416" y="400" font-size="12" fill="#0f172a">- docs/BITCOIN_CORE_BACKEND_EVIDENCE.md</text>
+<text x="404" y="456" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="416" y="477" font-size="12" fill="#0f172a">- CPU only</text>
+<text x="416" y="493" font-size="12" fill="#0f172a">- Shim parity</text>
+<text x="416" y="509" font-size="12" fill="#0f172a">- FFI/GPU/WASM/BCHN out of scope</text>
+</g>
+<g id="profile-gpu-public-data">
+<rect x="720" y="178" width="310" height="360" rx="18" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+<rect x="738" y="196" width="210" height="28" rx="14" fill="#7c3aed"/>
+<text x="752" y="215" font-size="13" font-weight="700" fill="#ffffff">public-data-only</text>
+<text x="742" y="250" font-size="18" font-weight="800" fill="#0f172a">GPU Public Data</text>
+<text x="742" y="294" font-size="13" font-weight="400" fill="#334155">CUDA, OpenCL, and Metal acceleration for</text>
+<text x="742" y="311" font-size="13" font-weight="400" fill="#334155">public-data workloads.</text>
+<text x="742" y="362" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="754" y="384" font-size="12" fill="#0f172a">- cuda/</text>
+<text x="754" y="400" font-size="12" fill="#0f172a">- opencl/</text>
+<text x="754" y="416" font-size="12" fill="#0f172a">- metal/</text>
+<text x="754" y="432" font-size="12" fill="#0f172a">- gpu/</text>
+<text x="742" y="456" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="754" y="477" font-size="12" fill="#0f172a">- Batch verify/scanning</text>
+<text x="754" y="493" font-size="12" fill="#0f172a">- Backend parity</text>
+<text x="754" y="509" font-size="12" fill="#0f172a">- No Core PR dependency</text>
+</g>
+<g id="profile-ffi-bindings">
+<rect x="1058" y="178" width="310" height="360" rx="18" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+<rect x="1076" y="196" width="210" height="28" rx="14" fill="#b45309"/>
+<text x="1090" y="215" font-size="13" font-weight="700" fill="#ffffff">needs-hardening</text>
+<text x="1080" y="250" font-size="18" font-weight="800" fill="#0f172a">FFI / Bindings</text>
+<text x="1080" y="294" font-size="13" font-weight="400" fill="#334155">Language bindings and legacy C API product</text>
+<text x="1080" y="311" font-size="13" font-weight="400" fill="#334155">surface.</text>
+<text x="1080" y="362" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="1092" y="384" font-size="12" fill="#0f172a">- bindings/c_api/</text>
+<text x="1092" y="400" font-size="12" fill="#0f172a">- bindings/nodejs/</text>
+<text x="1092" y="416" font-size="12" fill="#0f172a">- bindings/python/</text>
+<text x="1092" y="432" font-size="12" fill="#0f172a">- bindings/rust/</text>
+<text x="1080" y="456" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="1092" y="477" font-size="12" fill="#0f172a">- Separate product</text>
+<text x="1092" y="493" font-size="12" fill="#0f172a">- Strict scalar parsing required</text>
+<text x="1092" y="509" font-size="12" fill="#0f172a">- CT route required for signing</text>
+</g>
+<g id="profile-wasm">
+<rect x="44" y="570" width="310" height="360" rx="18" fill="#fffbeb" stroke="#b45309" stroke-width="2"/>
+<rect x="62" y="588" width="210" height="28" rx="14" fill="#b45309"/>
+<text x="76" y="607" font-size="13" font-weight="700" fill="#ffffff">needs-hardening</text>
+<text x="66" y="642" font-size="18" font-weight="800" fill="#0f172a">WASM</text>
+<text x="66" y="686" font-size="13" font-weight="400" fill="#334155">Browser and JavaScript runtime build</text>
+<text x="66" y="703" font-size="13" font-weight="400" fill="#334155">target.</text>
+<text x="66" y="754" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="78" y="776" font-size="12" fill="#0f172a">- wasm/</text>
+<text x="66" y="848" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="78" y="869" font-size="12" fill="#0f172a">- Separate product</text>
+<text x="78" y="885" font-size="12" fill="#0f172a">- CT signing gate required</text>
+<text x="78" y="901" font-size="12" fill="#0f172a">- Dedicated tests required</text>
+</g>
+<g id="profile-bchn-compat">
+<rect x="382" y="570" width="310" height="360" rx="18" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<rect x="400" y="588" width="210" height="28" rx="14" fill="#64748b"/>
+<text x="414" y="607" font-size="13" font-weight="700" fill="#ffffff">compat-only</text>
+<text x="404" y="642" font-size="18" font-weight="800" fill="#0f172a">BCHN Compat</text>
+<text x="404" y="686" font-size="13" font-weight="400" fill="#334155">Bitcoin Cash Node compatibility shim; not</text>
+<text x="404" y="703" font-size="13" font-weight="400" fill="#334155">part of Bitcoin Core scope.</text>
+<text x="404" y="754" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="416" y="776" font-size="12" fill="#0f172a">- compat/libsecp256k1_bchn_shim/</text>
+<text x="404" y="848" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="416" y="869" font-size="12" fill="#0f172a">- Compatibility surface</text>
+<text x="416" y="885" font-size="12" fill="#0f172a">- Opt-in or CT hardening</text>
+<text x="416" y="901" font-size="12" fill="#0f172a">- Not Core scope</text>
+</g>
+<g id="profile-caas-audit">
+<rect x="720" y="570" width="310" height="360" rx="18" fill="#fff1f2" stroke="#be123c" stroke-width="2"/>
+<rect x="738" y="588" width="210" height="28" rx="14" fill="#be123c"/>
+<text x="752" y="607" font-size="13" font-weight="700" fill="#ffffff">evidence-system</text>
+<text x="742" y="642" font-size="18" font-weight="800" fill="#0f172a">CAAS / Audit</text>
+<text x="742" y="686" font-size="13" font-weight="400" fill="#334155">Continuous Audit as a Service, exploit</text>
+<text x="742" y="703" font-size="13" font-weight="400" fill="#334155">PoCs, source graph, and evidence bundles.</text>
+<text x="742" y="754" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="754" y="776" font-size="12" fill="#0f172a">- audit/</text>
+<text x="754" y="792" font-size="12" fill="#0f172a">- scripts/caas_runner.py</text>
+<text x="754" y="808" font-size="12" fill="#0f172a">- scripts/audit_gate.py</text>
+<text x="754" y="824" font-size="12" fill="#0f172a">- tools/source_graph_kit/</text>
+<text x="742" y="848" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="754" y="869" font-size="12" fill="#0f172a">- Profile gates</text>
+<text x="754" y="885" font-size="12" fill="#0f172a">- Fresh evidence</text>
+<text x="754" y="901" font-size="12" fill="#0f172a">- Traceability</text>
+</g>
+<g id="profile-docs-evidence">
+<rect x="1058" y="570" width="310" height="360" rx="18" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+<rect x="1076" y="588" width="210" height="28" rx="14" fill="#047857"/>
+<text x="1090" y="607" font-size="13" font-weight="700" fill="#ffffff">claim-control</text>
+<text x="1080" y="642" font-size="18" font-weight="800" fill="#0f172a">Docs / Evidence</text>
+<text x="1080" y="686" font-size="13" font-weight="400" fill="#334155">Security claims, API contracts,</text>
+<text x="1080" y="703" font-size="13" font-weight="400" fill="#334155">benchmarks, and reviewer-facing evidence.</text>
+<text x="1080" y="754" font-size="12" font-weight="700" fill="#475569">Primary paths</text>
+<text x="1092" y="776" font-size="12" fill="#0f172a">- docs/</text>
+<text x="1092" y="792" font-size="12" fill="#0f172a">- SECURITY.md</text>
+<text x="1092" y="808" font-size="12" fill="#0f172a">- AUDIT_REPORT.md</text>
+<text x="1080" y="848" font-size="12" font-weight="700" fill="#475569">Signals</text>
+<text x="1092" y="869" font-size="12" fill="#0f172a">- No stale claims</text>
+<text x="1092" y="885" font-size="12" fill="#0f172a">- Bench sanity</text>
+<text x="1092" y="901" font-size="12" fill="#0f172a">- Reviewer map</text>
+</g>
+</g>
+</g>
+</svg>
