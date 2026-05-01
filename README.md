@@ -1,85 +1,82 @@
 # UltrafastSecp256k1
 
+UltrafastSecp256k1 is a high-performance, multi-backend secp256k1 engine with reproducible audit evidence, compatibility shims, and profile-based review scopes.
+
+It is not a trust request. It is a verification package.
+
 <p align="center">
   <a href="docs/repo_map_manifest.json">
     <img src="docs/assets/repo-map.svg" alt="UltrafastSecp256k1 repository map: product profiles, scope boundaries, and primary paths" width="100%">
   </a>
 </p>
 
-<p align="center">
-  <a href="docs/ARCHITECTURE.md">
-    <img src="docs/assets/ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
-  </a>
-</p>
-
 [![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
-[![Release](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/release.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/release.yml)
-[![Research Monitor](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
+[![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
-
-High-performance, multi-backend secp256k1 engine with continuous audit and adversarial verification.
+[![DOI](https://zenodo.org/badge/1148013745.svg)](https://doi.org/10.5281/zenodo.19685027)
 
 ---
 
-## What Is This?
+## What this repository contains
 
-UltrafastSecp256k1 is:
+- **Core engine** — CPU/GPU/embedded secp256k1 implementation (`src/cpu`, `src/cuda`, `src/opencl`, `src/metal`).
+- **Compatibility shims** — opt-in drop-in paths for existing projects (`compat/libsecp256k1_shim`, `compat/libsecp256k1_bchn_shim`).
+- **Bindings/FFI** — language integration surfaces (`bindings/`): C, Python, Node.js, Go, Swift, Rust, Java, Dart, C#, WASM, Android.
+- **CAAS** — continuous audit and evidence system (`audit/`, `ci/`); not runtime code.
+- **Reviewer docs** — scoped evidence, known limitations, replay commands (`docs/`).
 
-- ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
-- 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
-- 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 89 non-exploit modules + 237 exploit PoCs, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 235 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 5 independent CT pipelines
+---
 
-> Security is not assumed — it is continuously verified on every commit.
+## Review scope matters
 
-**11.00 M BIP352 scans/s** · **4.88 M ECDSA signs/s** · **4.05 M ECDSA verifies/s** · **3.66 M Schnorr signs/s** · **5.38 M Schnorr verifies/s** · **1.34 M FROST partial verifies/s** · **97.2 M point compressions/s** — RTX 5060 Ti (CUDA 12)
+The full repository is multi-platform and multi-product.
+The Bitcoin Core evaluation profile is intentionally narrow:
 
-Known production use: [Sparrow Wallet Frigate](https://github.com/sparrowwallet/frigate) — [Details →](docs/ADOPTION.md)
+**CPU secp256k1 operations · libsecp256k1-compatible shim · parser/DER parity · nonce/RFC 6979 behavior · constant-time signing evidence · Core test and benchmark evidence.**
 
-> **Using UltrafastSecp256k1 in production?** Open a PR adding your project to [docs/ADOPTION.md](docs/ADOPTION.md) — independent integrations are the strongest validation signal we can show.
->
-> **Foundation, exchange, or wallet sponsor?** See [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) for the project's funding playbook (HRF, OpenSats, Brink, Spiral, Ethereum Foundation ESP, NLnet, Sovereign Tech Fund, …) and 30-second / 5-minute pitches.
+GPU, FFI, bindings, WASM, ZK, wallet tooling, and alternate node shims are separate profiles.
+
+→ Scoped audit entry point: [`docs/CAAS_REVIEWER_QUICKSTART.md`](docs/CAAS_REVIEWER_QUICKSTART.md)  
+→ Profile definitions: [`docs/PRODUCT_PROFILES.md`](docs/PRODUCT_PROFILES.md)  
+→ Security claims: [`docs/SECURITY_CLAIMS.md`](docs/SECURITY_CLAIMS.md)
 
 ---
 
 ## Quick Start
 
-**Option A — Linux (apt)**
-```bash
-sudo apt install libufsecp3
-ufsecp_selftest          # Expected: "OK (version 3.x, backend CPU)"
-```
-
-**Option B — npm (any OS)**
-```bash
-npm i ufsecp
-node -e "require('ufsecp').selftest()"
-```
-
-**Option C — Python (any OS)**
-```bash
-pip install ufsecp
-python -c "import ufsecp; ufsecp.selftest()"
-```
-
-**Option D — Build from source**
+**Build from source**
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1.git && cd UltrafastSecp256k1
-
-# Recommended: canonical build under out/release
-python3 scripts/configure_build.py release
+python3 ci/configure_build.py release
 cmake --build out/release -j
-
-# Or classic one-liner:
-cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j
 ./out/release/selftest    # Expected: "ALL TESTS PASSED"
 ```
 
-→ [Full installation guide](#installation) · [Build from source](#building-secp256k1-from-source-cmake)
+**Package install**
+```bash
+sudo apt install libufsecp3        # Linux
+pip install ufsecp                 # Python
+npm i ufsecp                       # Node.js
+```
+
+→ [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/PLATFORM_SUPPORT.md)
 
 ---
 
 ## Where to Start
+
+**New here? Start with one of these:**
+
+| Goal | Entry point |
+|---|---|
+| Independent reviewer / auditor | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
+| Bitcoin Core evaluation | [docs/CAAS_REVIEWER_QUICKSTART.md](docs/CAAS_REVIEWER_QUICKSTART.md) |
+| Try to break the system | [docs/ATTACK_GUIDE.md](docs/ATTACK_GUIDE.md) |
+| Understand the security guarantees | [docs/SECURITY_CLAIMS.md](docs/SECURITY_CLAIMS.md) · [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md) |
+| Replay the audit evidence locally | [docs/CAAS_PROTOCOL.md](docs/CAAS_PROTOCOL.md) |
+| Integrate into your project | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) · [docs/BUILDING.md](docs/BUILDING.md) |
+
+**Full navigation:**
 
 | If you want to… | Go here |
 |---|---|
@@ -127,6 +124,20 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | �🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
 
 > **Claim map:** [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) · **Security policy:** [SECURITY.md](SECURITY.md) · **Discord:** [discord.gg/E4BK8SeMYU](https://discord.gg/E4BK8SeMYU)
+
+---
+
+## Review culture
+
+I welcome negative review.
+
+If you find a real issue, please open it with a reproducer or a clear test case.
+Valid findings are fixed, credited, and turned into permanent regression coverage.
+
+The goal is not to defend the code.
+The goal is to make the system stronger.
+
+→ Security policy: [SECURITY.md](SECURITY.md) · Exploit catalog: [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) · Residual risks: [docs/RESIDUAL_RISK_REGISTER.md](docs/RESIDUAL_RISK_REGISTER.md)
 
 ---
 

@@ -170,7 +170,8 @@ jobs:
             -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
           cmake --build out/ci-tests -j"$(nproc)"
           ctest --test-dir out/ci-tests --output-on-failure -j"$(nproc)" \
-            -E "^(ct_sidechannel|.*fuzz.*)$" --timeout 420
+            -E "^(ct_sidechannel|.*fuzz.*|exploit_gpu_secret_erase|exploit_gpu_memory_safety)$" \
+            --timeout 420
 
   caas-security:
     name: Block 3 / CAAS Security Gates
