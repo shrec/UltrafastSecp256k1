@@ -1,15 +1,19 @@
 # DER Parsing Parity Matrix
 
-**Last updated:** 2026-04-28 | Scope: `ufsecp_ecdsa_sig_from_der` / `ufsecp_ecdsa_sig_to_der`
+**Last updated:** 2026-05-01 | Scope: `ufsecp_ecdsa_sig_from_der` / `ufsecp_ecdsa_sig_to_der` AND `secp256k1_ecdsa_signature_parse_der` (shim)
 
 This document maps DER/ASN.1 edge cases for ECDSA signature parsing to:
 - Bitcoin consensus rule (BIP-66 strict DER, BIP-62 low-S)
 - libsecp256k1 reference behavior
-- UltrafastSecp256k1 behavior
+- UltrafastSecp256k1 behavior (native API + shim)
 - Test that covers the case
 
 All tests are in `audit/test_fuzz_parsers.cpp`, `audit/test_wycheproof_ecdsa.cpp`,
 and `audit/test_exploit_der_parsing_differential.cpp`.
+
+**2026-05-01 fix:** Two shim-layer BIP-66 deviations corrected — negative-integer
+rejection (`*p & 0x80`) and exact trailing-byte boundary (`!= end`) now match
+libsecp256k1 exactly. Both rows below updated to reflect the fixed behavior.
 
 ---
 
@@ -20,7 +24,7 @@ and `audit/test_exploit_der_parsing_differential.cpp`.
 | Empty buffer (len=0) | ❌ reject | reject | reject | `test_fuzz_parsers` — zero-length rejected |
 | Wrong outer tag (`0x31` instead of `0x30`) | ❌ reject | reject | reject | `test_fuzz_parsers` — wrong SEQUENCE tag rejected |
 | SEQUENCE length > remaining bytes | ❌ reject | reject | reject | `test_fuzz_parsers` — length overflow rejected |
-| Trailing bytes after valid SEQUENCE | ❌ reject | reject | reject | `test_fuzz_parsers` — trailing bytes rejected |
+| Trailing bytes after valid SEQUENCE | ❌ reject | reject | reject | `test_fuzz_parsers` — trailing bytes rejected; shim fixed 2026-05-01 (`!= end`) |
 | BER long-form length (`0x81 len`) | ❌ reject | reject | reject | `test_fuzz_parsers` — adversarial inputs |
 | Empty SEQUENCE (`0x30 0x00`) | ❌ reject | reject | reject | Structurally no r/s |
 
@@ -33,7 +37,7 @@ and `audit/test_exploit_der_parsing_differential.cpp`.
 | R length = 0 | ❌ reject | reject | reject | `test_fuzz_parsers` — zero R length rejected |
 | R or S > 32 bytes of scalar data | ❌ reject | reject | reject | `test_fuzz_parsers` — oversized R rejected |
 | R or S with unnecessary leading `0x00` pad for non-negative value | ❌ reject | reject | reject | `shim_test` — BUG-1 regression (DER leading-zero); `test_exploit_der_parsing_differential` test 13 (native C ABI) |
-| R or S missing required `0x00` pad (high bit set, would be negative) | ❌ reject | reject | reject | Wycheproof vectors |
+| R or S missing required `0x00` pad (high bit set, would be negative) | ❌ reject | reject | reject | Wycheproof vectors; shim fixed 2026-05-01 (`*p & 0x80` check added) |
 | R = 0 (scalar == 0) | ❌ reject | reject | reject | `test_exploit_der_parsing_differential` test 1 |
 | S = 0 (scalar == 0) | ❌ reject | reject | reject | `test_exploit_der_parsing_differential` test 2 |
 

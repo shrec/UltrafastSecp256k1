@@ -2836,6 +2836,38 @@ target_compile_definitions(test_exploit_bug004_batch_failclosed_standalone PRIVA
 add_test(NAME exploit_bug004_batch_failclosed COMMAND test_exploit_bug004_batch_failclosed_standalone)
 set_tests_properties(exploit_bug004_batch_failclosed PROPERTIES TIMEOUT 60 LABELS "audit;exploit;security;batch;failclosed")
 
+# -- HIGH-2/3: Shim DER Parser BIP-66 Compliance (DER66-1..8) --------------
+# Compiles shim_ecdsa directly so shim's parse_der_int is testable.
+add_executable(test_exploit_shim_der_bip66_standalone
+    test_exploit_shim_der_bip66.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
+audit_target_defaults(test_exploit_shim_der_bip66_standalone)
+target_include_directories(test_exploit_shim_der_bip66_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_shim_der_bip66_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_der_bip66 COMMAND test_exploit_shim_der_bip66_standalone)
+set_tests_properties(exploit_shim_der_bip66 PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;der;bip66")
+
+# -- CRIT-1: Shim MuSig2 Secnonce Reuse (MSN-1..6) -------------------------
+# Compiles shim_musig + shim_ecdsa + shim_extrakeys + shim_schnorr directly.
+add_executable(test_exploit_shim_musig_secnonce_standalone
+    test_exploit_shim_musig_secnonce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_musig.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_extrakeys.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_schnorr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_pubkey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_seckey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_tagged_hash.cpp)
+audit_target_defaults(test_exploit_shim_musig_secnonce_standalone)
+target_include_directories(test_exploit_shim_musig_secnonce_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_shim_musig_secnonce_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_musig_secnonce COMMAND test_exploit_shim_musig_secnonce_standalone)
+set_tests_properties(exploit_shim_musig_secnonce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;shim;musig;security;crit")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3416,6 +3448,9 @@ add_executable(unified_audit_runner
     test_exploit_bug002_recovery_ct.cpp
     test_exploit_bug003_normalize_ct.cpp
     test_exploit_bug004_batch_failclosed.cpp
+    # 2026-05-01 security audit fixes (shim layer — advisory-skip in unified runner)
+    test_exploit_shim_der_bip66.cpp
+    test_exploit_shim_musig_secnonce.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

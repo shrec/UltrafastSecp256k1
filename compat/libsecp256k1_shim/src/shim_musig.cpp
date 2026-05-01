@@ -129,8 +129,11 @@ static void sn_pack(secp256k1_musig_secnonce* out, const Scalar& k1, const Scala
 }
 
 static bool sn_unpack(const secp256k1_musig_secnonce* in, Scalar& k1, Scalar& k2) {
-    return Scalar::parse_bytes_strict(in->data,      k1) &&
-           Scalar::parse_bytes_strict(in->data + 32, k2);
+    // SECURITY: must use nonzero variant. A zeroed secnonce (after single-use
+    // consumption) would pass parse_bytes_strict with k1=k2=0, causing
+    // musig2_partial_sign to return e*a_i*d — leaking the effective signing key.
+    return Scalar::parse_bytes_strict_nonzero(in->data,      k1) &&
+           Scalar::parse_bytes_strict_nonzero(in->data + 32, k2);
 }
 
 // PubNonce: R1[33] | R2[33] = 66 bytes (inline, exact fit)
@@ -299,9 +302,10 @@ int secp256k1_musig_nonce_gen(
 
     Scalar sk;
     if (seckey) {
-        if (!Scalar::parse_bytes_strict(seckey, sk)) return 0;
+        if (!Scalar::parse_bytes_strict_nonzero(seckey, sk)) return 0;
     } else {
-        if (!Scalar::parse_bytes_strict(session_id32, sk)) return 0;
+        // session_id32 used as entropy seed — reject zero to avoid degenerate nonces.
+        if (!Scalar::parse_bytes_strict_nonzero(session_id32, sk)) return 0;
     }
 
     std::array<unsigned char, 32> pub_x = {};
@@ -405,12 +409,15 @@ int secp256k1_musig_partial_sign(
     std::memset(secnonce->data, 0, sizeof(secnonce->data)); // zeroize (single-use)
 
     Scalar sk;
-    if (!Scalar::parse_bytes_strict(keypair->data, sk)) return 0;
+    if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
 
     secp256k1::MuSig2SecNonce sn{ k1, k2 };
     auto s = sess_unpack(session);
     std::size_t idx = e->find_index(sk);
     auto psig = secp256k1::musig2_partial_sign(sn, sk, e->ctx, s, idx);
+    // Fail-closed: zero partial sig means degenerate nonce (k=0) or signer not
+    // found. Returning success with zeros would silently break the aggregation.
+    if (psig.is_zero()) return 0;
     auto b = psig.to_bytes();
     std::memcpy(partial_sig->data, b.data(), 32);
     std::memset(partial_sig->data + 32, 0, 4);

@@ -146,7 +146,7 @@ Two fixes were required:
 
 | Gate | Status | What it checks |
 |------|--------|---------------|
-| Stage 0 — exploit wiring | ✅ 228/228 | Every `test_exploit_*.cpp` has `_run()` in runner |
+| Stage 0 — exploit wiring | ✅ 235/235 | Every `test_exploit_*.cpp` has `_run()` in runner |
 | Stage 1 — CT analysis | ✅ PASS | Constant-time verification on signing paths |
 | Stage 2a — core build mode | ✅ PASS | CMake build config correctness |
 | Stage 2b — ABI stability | ✅ PASS | `static_assert` struct layout guards |
@@ -156,4 +156,4 @@ Two fixes were required:
 
 ---
 
-*Last updated: 2026-04-29 — BUG-1 DER leading-zero rejection (P0), BUG-2 pubkey_cmp null UB (P0), BUG-3 ellswift auxrnd32 ignored (P1) — all fixed in shim layer. CAAS-20..27 pipeline self-bugs fixed. All 10 original + 3 surface blockers remain closed. Audit gate CLEAR (312/313, 0 mandatory failures).*
+*Last updated: 2026-05-01 — Security audit fixes: CRIT-1 MuSig2 secnonce reuse protection (sn_unpack nonzero), CRIT-2 zero-sig guardrail #4 in 7 native ABI functions, HIGH-1 sign32 shim CT path, HIGH-2/3 DER negative-int + trailing-byte enforcement, MED-1 musig zero-key, MED-2 sign_custom CT nonce branch. Stage 0 updated 228→235. All 10 original + 3 surface blockers remain closed.*

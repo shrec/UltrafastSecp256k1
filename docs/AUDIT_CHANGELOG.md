@@ -7,6 +7,55 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-01 — Security Audit Fixes (Red Team / Bug Bounty Round)
+
+### CRIT-1: MuSig2 shim — secnonce reuse protection
+- **Files:** `compat/libsecp256k1_shim/src/shim_musig.cpp`
+- **Issue:** `sn_unpack` used `parse_bytes_strict` (accepts zero), allowing a
+  zeroed secnonce (after single-use consumption) to pass validation with k1=k2=0,
+  causing `musig2_partial_sign` to return `e·a_i·d` — leaking the effective
+  signing key to anyone observing the partial signature.
+- **Fix:** `sn_unpack` now uses `parse_bytes_strict_nonzero` for both k1 and k2.
+  `partial_sign` and `nonce_gen` also use `_nonzero` for the private key inputs.
+  Zero `psig` return from `musig2_partial_sign` is now fail-closed.
+
+### CRIT-2: Guardrail #4 — zero signatures silently serialized as success
+- **Files:** `cpu/src/impl/ufsecp_ecdsa.cpp` (7 ABI signing functions)
+- **Issue:** `ct::ecdsa_sign` / `ct::schnorr_sign` can return degenerate (zero)
+  output on negligible-probability edge cases. None of the ABI wrappers checked
+  for this before copying to output and returning `UFSECP_OK`.
+- **Fix:** All 7 functions (`ufsecp_ecdsa_sign`, `_verified`, `_recoverable`,
+  `ufsecp_schnorr_sign`, `_verified`, and both `_batch` variants) now call
+  `is_valid()` / `s.is_zero()` after signing and return `UFSECP_ERR_INTERNAL`
+  with the output buffer zeroed on degenerate output.
+
+### HIGH-1: Schnorr sign32 shim — non-CT path replaced with CT
+- **File:** `compat/libsecp256k1_shim/src/shim_schnorr.cpp`
+- **Issue:** `secp256k1_schnorrsig_sign32` called the non-CT convenience wrapper
+  `secp256k1::schnorr_sign(sk, msg, aux)` which contains two secret-dependent
+  conditional branches (keypair parity bit, nonce parity bit).
+- **Fix:** Now uses `ct::schnorr_keypair_create` + `ct::schnorr_sign` (branchless
+  `scalar_cneg` throughout). Zero-sig check added.
+
+### HIGH-2 + HIGH-3: Shim DER parser — BIP-66 compliance
+- **File:** `compat/libsecp256k1_shim/src/shim_ecdsa.cpp`
+- **HIGH-2:** `parse_der_int` did not reject negative DER integers (high bit set
+  without 0x00 prefix). Added `if (*p & 0x80) return 0;` before leading-zero check.
+- **HIGH-3:** `secp256k1_ecdsa_signature_parse_der` accepted trailing bytes after
+  the SEQUENCE. Changed `p + seqlen > end` to `p + seqlen != end`.
+- **Docs:** `docs/DER_PARITY_MATRIX.md` updated to reflect fixed behavior.
+
+### MED-1: MuSig2 shim — zero private key accepted
+- **File:** `compat/libsecp256k1_shim/src/shim_musig.cpp`
+- Covered by CRIT-1 fix (all musig key inputs now use `_nonzero`).
+
+### MED-2: sign_custom CT nonce branch
+- **File:** `compat/libsecp256k1_shim/src/shim_schnorr.cpp`
+- **Fix:** `r_y_odd ? k_prime.negate() : k_prime` replaced with branchless
+  `ct::scalar_cneg(k_prime, ct::bool_to_mask(r_y_odd))`.
+
+---
+
 ## 2026-04-30 — BIP-39 NFKD normalization (spec compliance)
 
 ### UTF-8 NFKD normalization added to BIP-39 seed derivation

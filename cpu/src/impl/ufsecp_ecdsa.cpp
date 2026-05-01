@@ -21,7 +21,11 @@ ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
 
     auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
-    // CT path returns already-normalized (low-S) signature
+    // Guardrail #4: CT path returns {0,0} on degenerate nonce (≈2^-256).
+    if (SECP256K1_UNLIKELY(!sig.is_valid())) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+    }
     auto compact = sig.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
     return UFSECP_OK;
@@ -43,6 +47,10 @@ ufsecp_error_t ufsecp_ecdsa_sign_verified(ufsecp_ctx* ctx,
 
     auto sig = secp256k1::ct::ecdsa_sign_verified(msg, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    if (SECP256K1_UNLIKELY(!sig.is_valid())) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+    }
     auto compact = sig.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
     return UFSECP_OK;
@@ -247,6 +255,11 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
     // erased inside ct::ecdsa_sign_recoverable before return.
     auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    if (SECP256K1_UNLIKELY(!rsig.sig.is_valid())) {
+        std::memset(sig64_out, 0, 64);
+        *recid_out = 0;
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+    }
     auto normalized = rsig.sig.normalize();
     auto compact = normalized.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
@@ -312,6 +325,10 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
     auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
+    if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+    }
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;
@@ -340,6 +357,10 @@ ufsecp_error_t ufsecp_schnorr_sign_verified(ufsecp_ctx* ctx,
     auto sig = secp256k1::ct::schnorr_sign_verified(kp, msg_arr, aux_arr);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
+    if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+    }
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;
@@ -374,6 +395,10 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
         }
         auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
+        if (SECP256K1_UNLIKELY(!sig.is_valid())) {
+            std::memset(sigs64_out, 0, count * 64);
+            return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+        }
         auto compact = sig.to_compact();
         std::memcpy(sigs64_out + i * 64, compact.data(), 64);
     }
@@ -418,7 +443,10 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
-
+        if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
+            std::memset(sigs64_out, 0, count * 64);
+            return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+        }
         auto sig_bytes = sig.to_bytes();
         std::memcpy(sigs64_out + i * 64, sig_bytes.data(), 64);
     }

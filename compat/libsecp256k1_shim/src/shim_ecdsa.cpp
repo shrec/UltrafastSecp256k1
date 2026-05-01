@@ -78,6 +78,10 @@ static int parse_der_int(const unsigned char *&p, const unsigned char *end,
     size_t len = *p++;
     if (len == 0 || p + len > end) return 0;
 
+    // BIP-66 strict DER: reject negative integers (high bit set without 0x00 prefix).
+    // In DER encoding a set high bit means a negative number — always invalid for r,s.
+    if (*p & 0x80) return 0;
+
     // BIP-66 strict DER: reject unnecessary leading zeros.
     // A leading 0x00 is only valid when the NEXT byte has its high bit set
     // (to distinguish a positive integer from a negative one in DER encoding).
@@ -106,7 +110,9 @@ int secp256k1_ecdsa_signature_parse_der(
 
     if (*p++ != 0x30) return 0;
     size_t seqlen = *p++;
-    if (seqlen > 70 || p + seqlen > end) return 0;
+    // BIP-66: reject if SEQUENCE content overflows OR if there are trailing
+    // bytes after the SEQUENCE (libsecp256k1 enforces exact boundary match).
+    if (seqlen > 70 || p + seqlen != end) return 0;
 
     unsigned char r[32]{}, s[32]{};
     if (!parse_der_int(p, end, r)) return 0;

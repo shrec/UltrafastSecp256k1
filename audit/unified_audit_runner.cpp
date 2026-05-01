@@ -469,7 +469,9 @@ int test_exploit_eip712_kat_run();
 int test_exploit_bug001_addr_overflow_run();  // BUG-001/007: addr off-by-one + p2sh null
 int test_exploit_bug002_recovery_ct_run();    // BUG-002: recovery.cpp CT recid overflow
 int test_exploit_bug003_normalize_ct_run();   // BUG-003/008: ECDSASignature::normalize() CT
-int test_exploit_bug004_batch_failclosed_run(); // BUG-004: schnorr batch sign fail-closed
+int test_exploit_bug004_batch_failclosed_run(); // BUG-004: schnorr batch sign fail-closed (BFC-1..9)
+int test_exploit_shim_der_bip66_run();        // HIGH-2/3: shim DER parser BIP-66 (DER66-1..8)
+int test_exploit_shim_musig_secnonce_run();   // CRIT-1: shim MuSig2 secnonce reuse (MSN-1..6)
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -894,7 +896,11 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bug001_addr_overflow",    "BUG-001/007: ufsecp_addr_* off-by-one overflow + p2sh null (AOF-1..15) — 2026-04-28", "exploit_poc", test_exploit_bug001_addr_overflow_run, false },
     { "exploit_bug002_recovery_ct",      "BUG-002: recovery.cpp CT recid overflow check (RCT-1..8) — 2026-04-28",               "exploit_poc", test_exploit_bug002_recovery_ct_run, false },
     { "exploit_bug003_normalize_ct",     "BUG-003/008: ECDSASignature::normalize() CT path (NCT-1..8) — 2026-04-28",            "exploit_poc", test_exploit_bug003_normalize_ct_run, false },
-    { "exploit_bug004_batch_failclosed", "BUG-004: Schnorr batch sign fail-closed (BFC-1..8) — 2026-04-28",                     "exploit_poc", test_exploit_bug004_batch_failclosed_run, false },
+    { "exploit_bug004_batch_failclosed", "BUG-004 + Guardrail #4: batch fail-closed + zero-sig ABI checks (BFC-1..9) — 2026-05-01", "exploit_poc", test_exploit_bug004_batch_failclosed_run, false },
+    // Section 14: 2026-05-01 security audit fixes (shim layer)
+    // ===================================================================
+    { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, false },
+    { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

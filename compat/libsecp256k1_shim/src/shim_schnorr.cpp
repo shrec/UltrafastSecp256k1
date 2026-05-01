@@ -45,7 +45,14 @@ int secp256k1_schnorrsig_sign32(
     std::array<uint8_t, 32> aux{};
     if (aux_rand32) std::memcpy(aux.data(), aux_rand32, 32);
 
-    auto sig = secp256k1::schnorr_sign(sk, msg, aux);
+    // CT path: use ct::schnorr_keypair_create + ct::schnorr_sign (branchless
+    // scalar_cneg) instead of the fast convenience wrapper which branches on
+    // the private key parity and nonce parity — both secret-derived.
+    auto kp  = secp256k1::ct::schnorr_keypair_create(sk);
+    auto sig = secp256k1::ct::schnorr_sign(kp, msg, aux);
+    secp256k1::detail::secure_erase(&sk,   sizeof(sk));
+    secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
+    if (sig.s.is_zero()) return 0;  // fail-closed: degenerate nonce (≈2^-256)
     auto sig_bytes = sig.to_bytes();
     std::memcpy(sig64, sig_bytes.data(), 64);
     return 1;
@@ -101,7 +108,8 @@ int secp256k1_schnorrsig_sign_custom(
     // R = k' * G (CT path)
     auto R = secp256k1::ct::generator_mul(k_prime);
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
-    auto k = r_y_odd ? k_prime.negate() : k_prime;
+    // CT: branchless conditional negate — r_y_odd is derived from secret nonce.
+    auto k = secp256k1::ct::scalar_cneg(k_prime, secp256k1::ct::bool_to_mask(r_y_odd));
     secp256k1::detail::secure_erase(&k_prime, sizeof(k_prime));
 
     // e = H_BIP0340/challenge(R_x || P_x || msg)
