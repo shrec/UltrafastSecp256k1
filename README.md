@@ -1,5 +1,11 @@
 # UltrafastSecp256k1
 
+<p align="center">
+  <a href="docs/ARCHITECTURE.md">
+    <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
+  </a>
+</p>
+
 [![CI](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
 [![ct-verif](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml)
 [![CodeQL](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml)
@@ -28,12 +34,6 @@ Known production use: [Sparrow Wallet Frigate](https://github.com/sparrowwallet/
 > **Using UltrafastSecp256k1 in production?** Open a PR adding your project to [docs/ADOPTION.md](docs/ADOPTION.md) — independent integrations are the strongest validation signal we can show.
 >
 > **Foundation, exchange, or wallet sponsor?** See [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) for the project's funding playbook (HRF, OpenSats, Brink, Spiral, Ethereum Foundation ESP, NLnet, Sovereign Tech Fund, …) and 30-second / 5-minute pitches.
-
-<p align="center">
-  <a href="docs/ARCHITECTURE.md">
-    <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
-  </a>
-</p>
 
 ---
 
