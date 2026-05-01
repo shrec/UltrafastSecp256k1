@@ -3,6 +3,11 @@ name: Clang Static Analyzer
 on:
   push:
     branches: [main, dev]
+  workflow_run:
+    workflows: ["Pipeline / Phase 1 — Fast Gates"]
+    types: [completed]
+    branches: [main, dev]
+
   pull_request:
     branches: [main, dev]
   schedule:
@@ -12,6 +17,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 concurrency:
   group: clang-sa-${{ github.ref }}

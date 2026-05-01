@@ -86,6 +86,16 @@ set_tests_properties(zeroization PROPERTIES TIMEOUT 900)
 add_executable(test_fault_zk_adaptor test_fault_zk_adaptor.cpp)
 audit_target_defaults(test_fault_zk_adaptor)
 target_compile_definitions(test_fault_zk_adaptor PRIVATE STANDALONE_TEST)
+# macOS only: Apple ld (ThinLTO) crashes with SIGABRT when linking this target
+# due to the very large ZK/adaptor template expansions (zk.hpp + adaptor.hpp).
+# The corrected mul_wide (j=0) changes the LTO code-size profile enough to
+# trigger Apple ld's internal OOM limit. Scope the fix to APPLE only — setting
+# INTERPROCEDURAL_OPTIMIZATION OFF globally causes GCC on Linux to mix LTO and
+# non-LTO objects in the same project, which emits SIGILL from the field-
+# arithmetic path in other (unrelated) targets built under the same CMake run.
+if(APPLE)
+    set_target_properties(test_fault_zk_adaptor PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+endif()
 add_test(NAME fault_zk_adaptor COMMAND test_fault_zk_adaptor)
 set_tests_properties(fault_zk_adaptor PROPERTIES TIMEOUT 1200)
 
@@ -859,6 +869,12 @@ target_compile_definitions(test_exploit_bip39_mnemonic_standalone PRIVATE STANDA
 add_test(NAME exploit_bip39_mnemonic COMMAND test_exploit_bip39_mnemonic_standalone)
 set_tests_properties(exploit_bip39_mnemonic PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip39")
 
+add_executable(test_exploit_bip39_nfkd_standalone test_exploit_bip39_nfkd.cpp)
+audit_target_defaults(test_exploit_bip39_nfkd_standalone)
+target_compile_definitions(test_exploit_bip39_nfkd_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bip39_nfkd COMMAND test_exploit_bip39_nfkd_standalone)
+set_tests_properties(exploit_bip39_nfkd PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip39;nfkd")
+
 add_executable(test_exploit_musig2_standalone test_exploit_musig2.cpp)
 audit_target_defaults(test_exploit_musig2_standalone)
 target_compile_definitions(test_exploit_musig2_standalone PRIVATE STANDALONE_TEST)
@@ -948,6 +964,28 @@ audit_target_defaults(test_exploit_chacha20_kat_standalone)
 target_compile_definitions(test_exploit_chacha20_kat_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_chacha20_kat COMMAND test_exploit_chacha20_kat_standalone)
 set_tests_properties(exploit_chacha20_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;chacha20;rfc8439")
+
+# -- KAT Corpus: runtime JSON vector loader -----------------------------------
+# Loads audit/kat_vectors/*.json at runtime. Add vectors by editing JSON.
+# No recompilation needed for new test vectors.
+add_executable(test_exploit_kat_corpus_standalone test_exploit_kat_corpus.cpp)
+audit_target_defaults(test_exploit_kat_corpus_standalone)
+target_compile_definitions(test_exploit_kat_corpus_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_kat_corpus COMMAND test_exploit_kat_corpus_standalone)
+# set_tests_properties must come AFTER add_test
+set_tests_properties(exploit_kat_corpus PROPERTIES
+    TIMEOUT 30
+    LABELS "audit;exploit;kat;corpus;chacha20;sha256;rfc8439;fips180"
+    ENVIRONMENT "KAT_VECTORS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/kat_vectors")
+
+# -- Primitive-layer KAT (bottom-up: bitops → quarter-round → block → AEAD) --
+# Every stream/hash/AEAD tested at the LOWEST layer against RFC/FIPS vectors.
+# Round-trip tests are insufficient — both sides share the bug (issue #256).
+add_executable(test_exploit_primitive_kat_standalone test_exploit_primitive_kat.cpp)
+audit_target_defaults(test_exploit_primitive_kat_standalone)
+target_compile_definitions(test_exploit_primitive_kat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_primitive_kat COMMAND test_exploit_primitive_kat_standalone)
+set_tests_properties(exploit_primitive_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;kat;chacha20;sha256;rfc8439;fips180")
 
 # -- EC point serialization (G coords, 2*G, infinity, parity, associativity) -
 add_executable(test_exploit_point_serialization_standalone test_exploit_point_serialization.cpp)
@@ -3100,9 +3138,12 @@ add_executable(unified_audit_runner
     test_exploit_bip32_path_overflow.cpp
     test_exploit_bip39_entropy.cpp
     test_exploit_bip39_mnemonic.cpp
+    test_exploit_bip39_nfkd.cpp
     test_exploit_bitcoin_message_signing.cpp
     test_exploit_chacha20_kat.cpp
     test_exploit_chacha20_nonce_reuse.cpp
+    test_exploit_kat_corpus.cpp
+    test_exploit_primitive_kat.cpp
     test_exploit_chacha20_poly1305.cpp
     test_exploit_coin_hd_derivation.cpp
     test_exploit_ct_fast_equivalence.cpp
@@ -3565,7 +3606,9 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 500
                 --json -o "${CMAKE_BINARY_DIR}/py_differential_report.json")
     if(WIN32)
-        set(_py_diff_timeout 360)
+        # Windows: ctypes DLL loading + Defender scan on first load adds 3-5min overhead.
+        # 360s was insufficient on CI (timed out). Raise to 600s.
+        set(_py_diff_timeout 600)
     else()
         set(_py_diff_timeout 180)
     endif()

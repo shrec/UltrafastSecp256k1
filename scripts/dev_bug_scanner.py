@@ -401,10 +401,23 @@ def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
         if raw.strip() == '}':
             dereffed.clear()
             continue
-        # Function definition line (top-level `T fn(...) {` or just `{`):
-        # any `{` at end of line is also a scope boundary worth resetting at.
-        if line.rstrip().endswith('{') and re.match(r'^\s*\S', raw):
-            dereffed.clear()
+        # C11 fix: only reset on genuine scope-opening braces, not on
+        # initializer lists (`= {`, `return Foo{`, `auto x = T{`).
+        # A genuine scope-opener has function/control-flow syntax before `{`:
+        #   - standalone `{`
+        #   - `if/while/for/else ... {`
+        #   - function signature: `type name(args) {`  (contains `(...)`)
+        # Do NOT reset on:
+        #   - `= {`   (aggregate initializer)
+        #   - `return T{` (constructed return)
+        #   - `auto x = T{` (CTAD)
+        stripped_line = line.rstrip()
+        if stripped_line.endswith('{') and re.match(r'^\s*\S', raw):
+            before_brace = stripped_line[:-1].rstrip()
+            is_init_list = before_brace.endswith('=') or before_brace.endswith(',') \
+                           or before_brace.endswith('(') or re.search(r'\breturn\s+\w', before_brace)
+            if not is_init_list:
+                dereffed.clear()
         # Clear old derefs outside window
         dereffed = {k: v for k, v in dereffed.items() if i - v <= 5}
 
@@ -451,12 +464,28 @@ def check_null_after_deref(path: str, lines: List[str]) -> List[Finding]:
 _ASSIGN_STMT = re.compile(r'^\s*([a-zA-Z_]\w*(?:\[[^\]]*\])?)\s*=\s*(?!=)', )
 # (not `==`, not `+=`, not `!=`, etc.)
 _PREPROC = re.compile(r'^\s*#\s*(if|elif|else|endif|define|undef)\b')
+# C7 fix: raw string delimiter detector — R"TAG(  …  )TAG"
+_RAW_STR_OPEN = re.compile(r'R"([^(]*)\(')
 
 def check_copypaste(path: str, lines: List[str]) -> List[Finding]:
     """Same variable assigned twice with no read in between — second assignment overwrites first."""
     findings: List[Finding] = []
-    last_assigned: dict[str, Tuple[int, str]] = {}   # name -> (lineno, snippet)
+    last_assigned: dict[str, tuple] = {}   # name -> (lineno, snippet)
+    # C7: track C++ raw string state so '#' inside R"(...)" is not treated as a
+    # preprocessor directive — fixes false resets when OpenCL kernels are embedded
+    # as raw-string literals in C++ host code.
+    in_raw_string: str | None = None   # close-tag expected; None = normal mode
     for i, raw in enumerate(lines):
+        if in_raw_string is not None:
+            if in_raw_string in raw:
+                in_raw_string = None   # raw string closed on this line
+            continue                   # skip lines inside raw string literal
+        m_open = _RAW_STR_OPEN.search(raw)
+        if m_open:
+            close_tag = ')' + m_open.group(1) + '"'
+            if close_tag not in raw[m_open.end():]:
+                in_raw_string = close_tag   # multi-line raw string started
+
         line = _strip_comments(raw).strip()
         # Indexed-assignment lines like `buf[32] = 0x01;` are byte writes,
         # not copy-paste candidates — different indices write different cells.

@@ -53,7 +53,11 @@ def _run_gate(gate: dict, timeout: int = 300) -> dict:
         }
 
     extra_args = gate.get("args", [])
-    cmd = [sys.executable, str(script)] + extra_args + ["--json"]
+    # CAAS-25 fix: only append --json when the gate script is known to support
+    # it. Unconditional --json caused scripts without that flag to exit non-zero,
+    # hiding real results behind a spurious argument-parse error.
+    json_flag = ["--json"] if gate.get("json_capable", True) else []
+    cmd = [sys.executable, str(script)] + extra_args + json_flag
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True,

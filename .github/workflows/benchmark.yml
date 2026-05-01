@@ -5,7 +5,13 @@
 # Uses github-action-benchmark to track performance regressions.
 #
 # Results published to GitHub Pages (gh-pages branch).
-# Alert threshold: 120% (warns if >20% slower than baseline).
+# Alert threshold: 150% (warns if >50% slower than baseline).
+#
+# Flow:
+#   benchmark        — Linux x86-64, full suite with libsecp comparison
+#   benchmark-windows — Windows MSVC, quick suite only (no comparison clone)
+#
+# Concurrency: cancel older runs on same branch so queue doesn't pile up.
 # ============================================================================
 
 name: Benchmark Dashboard
@@ -13,9 +19,23 @@ name: Benchmark Dashboard
 on:
   push:
     branches: [dev, main]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'include/**'
+      - 'cuda/src/**'
+      - 'cuda/include/**'
+      - 'benchmarks/**'
+      - '.github/workflows/benchmark.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+# Cancel older benchmark runs on the same branch — prevents queue pileup
+# when many commits arrive in a short window (e.g. during a CI fix sprint).
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -23,7 +43,7 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
       deployments: write
@@ -38,7 +58,6 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         persist-credentials: false
-
 
     - name: Install dependencies
       run: |
@@ -59,7 +78,7 @@ jobs:
         ccache --set-config=compression=true
         ccache -z
 
-    - name: Clone libsecp256k1 (for apple-to-apple comparison)
+    - name: Clone libsecp256k1 (apple-to-apple comparison)
       run: |
         git clone --depth 1 https://github.com/bitcoin-core/secp256k1.git \
           "$GITHUB_WORKSPACE/_libsecp256k1"
@@ -84,17 +103,12 @@ jobs:
     - name: Run benchmark suite
       run: |
         mkdir -p /tmp/benchmark_results
-
         bench_bin="$(find build/bench -type f -name bench_unified | head -n1)"
         if [ -z "$bench_bin" ]; then
           echo "bench_unified binary not found under build/bench" >&2
           exit 1
         fi
-        
-        # Run unified benchmark and capture output
         "$bench_bin" 2>&1 | tee /tmp/benchmark_results/raw_output.txt
-        
-        # Parse output into benchmark.js-compatible JSON
         python3 .github/scripts/parse_benchmark.py \
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json
@@ -111,20 +125,25 @@ jobs:
         alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: false
-        # v2: baseline reset after DoNotOptimize harness migration
-        # (old baseline had 0ns for optimized-away operations)
-        benchmark-data-dir-path: 'dev/bench-v2'
+        # Store data on gh-pages branch, NOT dev — keeping it on dev created an
+        # auto-commit that triggered cancel-in-progress on the Pipeline workflow,
+        # cancelling Preflight and other fast gates on every benchmark run.
+        gh-pages-branch: gh-pages
+        benchmark-data-dir-path: 'bench-v2'
 
     - name: Summary
+      if: always()
       run: |
-        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "## Benchmark Results (Linux)" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        cat /tmp/benchmark_results/raw_output.txt | head -60 >> $GITHUB_STEP_SUMMARY
+        head -60 /tmp/benchmark_results/raw_output.txt >> $GITHUB_STEP_SUMMARY || true
         echo '```' >> $GITHUB_STEP_SUMMARY
 
   benchmark-windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    # Increased from 30m: Windows MSVC build + benchmark takes 35-40 min.
+    # With ccache the steady-state is ~20min; 60m gives 50% headroom.
+    timeout-minutes: 60
 
     steps:
     - name: Harden the runner (Audit all outbound calls)
@@ -137,14 +156,32 @@ jobs:
       with:
         persist-credentials: false
 
+    # Windows ccache — significantly reduces rebuild time on repeated pushes
+    - name: Cache ccache (Windows)
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: C:\Users\runneradmin\AppData\Local\ccache
+        key: ccache-bench-win-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+        restore-keys: |
+          ccache-bench-win-
 
-    - name: Clone libsecp256k1 (for apple-to-apple comparison)
-      run: |
-        git clone --depth 1 https://github.com/bitcoin-core/secp256k1.git "$env:GITHUB_WORKSPACE\_libsecp256k1"
+    - name: Install ccache (Windows)
+      run: choco install ccache --no-progress -y
+
+    # Note: libsecp256k1 comparison clone is skipped on Windows.
+    # The comparison is done on Linux (benchmark job above).
+    # Windows only measures UltrafastSecp256k1's own throughput.
 
     - name: Configure (Release, MSVC)
       run: |
-        cmake -S . -B build/bench -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=OFF -DSECP256K1_BUILD_EXAMPLES=OFF -DSECP256K1_BUILD_JAVA=OFF -DUFSECP_REFRESH_SOURCE_GRAPH=OFF -DLIBSECP_SRC_DIR="$env:GITHUB_WORKSPACE\_libsecp256k1\src"
+        cmake -S . -B build/bench `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache `
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+          -DSECP256K1_BUILD_TESTS=OFF `
+          -DSECP256K1_BUILD_EXAMPLES=OFF `
+          -DSECP256K1_BUILD_JAVA=OFF `
+          -DUFSECP_REFRESH_SOURCE_GRAPH=OFF
 
     - name: Build
       run: cmake --build build/bench --config Release -j $env:NUMBER_OF_PROCESSORS
@@ -152,16 +189,20 @@ jobs:
     - name: Run benchmark suite
       run: |
         New-Item -Path benchmark_results -ItemType Directory -Force
-        $benchBin = Get-ChildItem -Path .\build\bench -Recurse -Filter bench_unified.exe | Select-Object -First 1
+        $benchBin = Get-ChildItem -Path .\build\bench -Recurse -Filter bench_unified.exe |
+                    Select-Object -First 1
         if (-not $benchBin) {
           Write-Error "bench_unified.exe not found under build/bench"
           exit 1
         }
-        & $benchBin.FullName --suite core --quick 2>&1 | Tee-Object -FilePath benchmark_results\raw_output.txt
+        & $benchBin.FullName --suite core --quick 2>&1 |
+          Tee-Object -FilePath benchmark_results\raw_output.txt
 
     - name: Summary
+      if: always()
       run: |
-        echo "## Windows Benchmark Results" >> $env:GITHUB_STEP_SUMMARY
+        echo "## Benchmark Results (Windows MSVC)" >> $env:GITHUB_STEP_SUMMARY
         echo '```' >> $env:GITHUB_STEP_SUMMARY
-        Get-Content benchmark_results\raw_output.txt | Select-Object -First 60 >> $env:GITHUB_STEP_SUMMARY
+        Get-Content benchmark_results\raw_output.txt |
+          Select-Object -First 60 >> $env:GITHUB_STEP_SUMMARY
         echo '```' >> $env:GITHUB_STEP_SUMMARY

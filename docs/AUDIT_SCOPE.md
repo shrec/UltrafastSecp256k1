@@ -13,7 +13,7 @@ Contact: payysoon@gmail.com
 
 UltrafastSecp256k1 is a high-performance elliptic curve cryptography library implementing secp256k1 operations for ECDSA (RFC 6979), Schnorr (BIP-340), MuSig2, FROST threshold signatures, Pedersen commitments, adaptor signatures, BIP-32 HD derivation, and 27-coin address generation. The library supports 13+ platforms (x86-64, ARM64, RISC-V, WASM, CUDA, OpenCL, Metal, ROCm/HIP, embedded).
 
-An independent security audit is requested to verify correctness, identify vulnerabilities, and validate constant-time claims before production deployment in wallet infrastructure.
+This document defines the scope and methodology of the internal CAAS audit system.
 
 ---
 
@@ -189,7 +189,7 @@ ctest --test-dir build_audit -R test_field_audit -V
 # dudect constant-time smoke test
 ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (187 probes)
+# Exploit PoC security probes (235 probes)
 ctest --test-dir build_audit -R exploit -V
 
 # Machine-readable assurance artifact

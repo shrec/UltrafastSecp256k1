@@ -76,6 +76,18 @@ if(SECP256K1_CORE_BACKEND_MODE)
     message(STATUS "secp256k1-fast: Bitcoin Core backend mode (CT enforce + strict ABI + RFC 6979)")
 endif()
 
+# -- Bitcoin Core single-flag entry point ---------------------------------------
+# This is THE flag that Bitcoin Core's CMakeLists.txt will set.
+# It activates the shim library + core backend mode together, so that a single
+# `-DSECP256K1_USE_ULTRAFAST=ON` is all Bitcoin Core needs to switch backends.
+option(SECP256K1_USE_ULTRAFAST
+       "[Bitcoin Core] Use UltrafastSecp256k1 as the secp256k1 backend (enables shim + CT + strict ABI)" OFF)
+if(SECP256K1_USE_ULTRAFAST)
+    set(SECP256K1_BUILD_SHIM ON CACHE BOOL "Enabled by SECP256K1_USE_ULTRAFAST" FORCE)
+    set(SECP256K1_CORE_BACKEND_MODE ON CACHE BOOL "Enabled by SECP256K1_USE_ULTRAFAST" FORCE)
+    message(STATUS "secp256k1-fast: ✅ SECP256K1_USE_ULTRAFAST=ON — Bitcoin Core secondary backend mode activated")
+endif()
+
 # x86-64 -march override: use "x86-64-v3" in CI with ccache to avoid SIGILL
 # when cached objects from a different runner CPU are reused.  Empty = native.
 set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect)")

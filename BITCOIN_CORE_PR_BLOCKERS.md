@@ -156,4 +156,4 @@ Two fixes were required:
 
 ---
 
-*Last updated: 2026-04-28 — all 10 original + 3 surface blockers closed; MuSig2 BIP-327 partial sign fix + audit gate CLEAR (312/313, 0 mandatory failures)*
+*Last updated: 2026-04-29 — BUG-1 DER leading-zero rejection (P0), BUG-2 pubkey_cmp null UB (P0), BUG-3 ellswift auxrnd32 ignored (P1) — all fixed in shim layer. CAAS-20..27 pipeline self-bugs fixed. All 10 original + 3 surface blockers remain closed. Audit gate CLEAR (312/313, 0 mandatory failures).*

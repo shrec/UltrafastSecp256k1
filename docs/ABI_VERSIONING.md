@@ -202,14 +202,14 @@ includedir=${prefix}/include
 
 Name: libufsecp
 Description: Ultra high-performance secp256k1 elliptic curve cryptography
-Version: 3.60.0
+Version: 3.68.0
 Libs: -L${libdir} -lfastsecp256k1
 Cflags: -I${includedir}
 ```
 
 Consumers should use:
 ```bash
-pkg-config --modversion ufsecp   # -> 3.60.0
+pkg-config --modversion ufsecp   # -> 3.68.0
 pkg-config --libs ufsecp         # -> -L/usr/local/lib -lfastsecp256k1
 ```
 

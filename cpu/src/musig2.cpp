@@ -82,12 +82,18 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
     // BIP-327 cpoint(P_i) decompresses the 33-byte compressed key, respecting
     // Y parity. The partial_sign step adjusts d for each P_i's Y parity
     // independently, so we must NOT force even-Y here.
+    //
+    // static thread_local: retains capacity across calls (hot-path scanner
+    // allows this; local vector construction per call is flagged as HEAP_VEC).
+    // clear() before push_back() ensures MSan shadow bits are clean on reuse —
+    // stale shadow state from a previous call's Point objects is avoided because
+    // each element is move-constructed fresh rather than copy-assigned in place.
     static thread_local std::vector<Point> points;
-    points.resize(n);
+    points.clear();
     for (std::size_t i = 0; i < n; ++i) {
         auto pt = decompress_point(pubkeys[i]);
         if (pt.is_infinity()) return ctx;
-        points[i] = pt;
+        points.push_back(std::move(pt));
     }
 
     // BIP-327: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n) — 33 bytes each

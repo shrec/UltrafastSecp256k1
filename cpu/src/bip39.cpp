@@ -6,6 +6,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/bip32.hpp"  // hmac_sha512
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/unicode_nfkd.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -242,15 +243,18 @@ bip39_mnemonic_to_seed(const std::string& mnemonic,
         return {seed, false};
     }
 
-    // salt = "mnemonic" + passphrase
-    std::string salt_str = "mnemonic" + passphrase;
+    // BIP-39 requires NFKD normalization of both mnemonic and passphrase
+    // before PBKDF2: PBKDF2(NFKD(mnemonic), "mnemonic" + NFKD(passphrase))
+    std::string norm_mnemonic = nfkd_normalize(mnemonic);
+    std::string salt_str      = "mnemonic" + nfkd_normalize(passphrase);
 
     pbkdf2_hmac_sha512(
-        reinterpret_cast<const uint8_t*>(mnemonic.data()), mnemonic.size(),
+        reinterpret_cast<const uint8_t*>(norm_mnemonic.data()), norm_mnemonic.size(),
         reinterpret_cast<const uint8_t*>(salt_str.data()), salt_str.size(),
         2048,
         seed.data(), 64);
 
+    detail::secure_erase(norm_mnemonic.data(), norm_mnemonic.size());
     detail::secure_erase(salt_str.data(), salt_str.size());
 
     return {seed, true};

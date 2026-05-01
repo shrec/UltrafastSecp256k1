@@ -12,11 +12,6 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/ct/sign.hpp"
 
-#ifdef SECP256K1_SHIM_GPU
-#  include "shim_gpu_state.hpp"
-#  include <mutex>
-#endif
-
 using namespace secp256k1::fast;
 
 // -- Internal: opaque sig stores r (32 BE) || s (32 BE) -------------------
@@ -154,7 +149,8 @@ int secp256k1_ecdsa_signature_serialize_der(
     (void)ctx;
     if (!output || !outputlen || !sig) return 0;
 
-    unsigned char r_der[34]{}, s_der[34]{};
+    // Max DER integer: 0x02 + len(1) + 0x00 pad(1) + 32 data = 35 bytes
+    unsigned char r_der[35]{}, s_der[35]{};
     size_t r_len = 0, s_len = 0;
     der_encode_int(r_der, &r_len, sig->data);
     der_encode_int(s_der, &s_len, sig->data + 32);
@@ -194,35 +190,6 @@ int secp256k1_ecdsa_verify(
 {
     (void)ctx;
     if (!sig || !msghash32 || !pubkey) return 0;
-
-#ifdef SECP256K1_SHIM_GPU
-    // GPU fast path (non-CT — verification is public-data only).
-    // Batch size = 1. Best on Intel iGPU/OpenCL (no PCIe) and Metal (unified mem).
-    // Falls through to CPU on any GPU error.
-    {
-        auto& gs = shim_gpu_state();
-        if (gs.enabled && gs.ctx) {
-            // Pack compressed pubkey (33 bytes)
-            uint8_t pub33[33];
-            bool y_odd = (pubkey->data[63] & 1) != 0;
-            pub33[0] = y_odd ? 0x03 : 0x02;
-            std::memcpy(pub33 + 1, pubkey->data, 32); // X coordinate
-
-            // Compact sig: r (32 BE) || s (32 BE)
-            uint8_t result = 0;
-            std::lock_guard<std::mutex> lk(gs.mu);
-            ufsecp_error_t rc = ufsecp_gpu_ecdsa_verify_batch(
-                gs.ctx,
-                reinterpret_cast<const uint8_t*>(msghash32),
-                pub33,
-                sig->data,  // r||s already in opaque sig->data[0..63]
-                1,
-                &result);
-            if (rc == UFSECP_OK) return result ? 1 : 0;
-            // GPU error: fall through to CPU
-        }
-    }
-#endif
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
     auto P = pubkey_data_to_point(pubkey->data);
@@ -270,7 +237,10 @@ int secp256k1_ecdsa_sign(
     } else {
         result = secp256k1::ct::ecdsa_sign(msg, k);
     }
-    if (result.r.is_zero() || result.s.is_zero()) return 0;
+    // C5: explicit error propagation via ECDSASignature::is_valid() rather than
+    // ad-hoc zero-checks. is_valid() ↔ (r ∈ [1,n-1] ∧ s ∈ [1,n-1]).
+    // CT signing returns zero (r,s) on any degenerate case (k≡0 mod n, etc.).
+    if (!result.is_valid()) return 0;
     ecdsa_sig_to_data(result, sig->data);
     return 1;
 }

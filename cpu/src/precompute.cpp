@@ -2226,6 +2226,9 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 // Cache System
 // ============================================================================
 
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 std::string get_default_cache_path(unsigned window_bits) {
     // Build cache filename with GLV suffix if enabled
     std::string filename = "cache_w" + std::to_string(window_bits);
@@ -2365,6 +2368,13 @@ bool save_precompute_cache_locked(const std::string& path) {
 }
 
 // Internal version without lock - must be called with g_mutex already locked
+// MSan note: std::string (uninstrumented libc++) triggers use-of-uninitialized-value
+// false positives in __is_long() / c_str() / data() when string SSO bits are not
+// tracked. These are file-path management functions (not crypto) so we suppress
+// MSan checking here — the underlying cryptographic code is checked normally.
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 bool load_precompute_cache_locked(const std::string& path, unsigned max_windows) {
 #if SECP256K1_DEBUG_GLV
     auto load_start = std::chrono::steady_clock::now();
@@ -2473,14 +2483,19 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
     return true;
 }
 
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 void ensure_built_locked() {
     if (!g_context) {
         // Try to load from cache if enabled
         if (g_config.use_cache) {
-            std::string cache_path = g_config.cache_path;
-            if (cache_path.empty()) {
-                cache_path = get_default_cache_path(g_config.window_bits);
-            }
+            // MSan-safe path selection: std::string::empty() reads SSO bits which
+            // are untracked under MSan with uninstrumented libc++, causing false
+            // positives. Use the scalar bool flag instead to avoid __is_long().
+            std::string cache_path = g_config.cache_path_set
+                                         ? g_config.cache_path
+                                         : get_default_cache_path(g_config.window_bits);
             
             // Try to load existing cache (using _locked version since we already have the mutex)
             if (load_precompute_cache_locked(cache_path, g_config.max_windows_to_load)) {
@@ -2555,6 +2570,7 @@ bool load_fixed_base_config_file(const std::string& path, FixedBaseConfig& out) 
             cfg.cache_dir = val;
         } else if (key == "cache_path") {
             cfg.cache_path = val;
+            cfg.cache_path_set = !val.empty();
         } else if (key == "window_bits") {
             unsigned u = 0; if (parse_uint(val, u)) cfg.window_bits = u;
         } else if (key == "enable_glv") {
@@ -2884,6 +2900,7 @@ bool auto_tune_fixed_base(FixedBaseConfig& best_out,
         }
         // Pin exact cache path to avoid accidental fallback
         cfg.cache_path = cache_path;
+        cfg.cache_path_set = !cache_path.empty();
 
         double ns = 0.0;
         try {
@@ -3181,6 +3198,13 @@ void compute_wnaf_into(const Scalar& scalar,
 // ESP32 simplified version - no mutex, no environment variables, minimal features
 void configure_fixed_base(const FixedBaseConfig& config) {
     g_config = config;
+    // Sync cache_path_set from cache_path so MSan-safe reads in ensure_built_locked
+    // don't need to call std::string::empty() (SSO bits untracked in uninstrumented libc++).
+    if (!g_config.cache_path_set) {
+        // Caller may have set cache_path without setting the flag; infer from the string.
+        // This runs in instrumented code so std::string operations are MSan-tracked here.
+        g_config.cache_path_set = !g_config.cache_path.empty();
+    }
     // Adaptive GLV override
     if (g_config.adaptive_glv && g_config.enable_glv && g_config.window_bits < g_config.glv_min_window_bits) {
         g_config.enable_glv = false;
@@ -3220,6 +3244,7 @@ void configure_fixed_base(const FixedBaseConfig& config) {
     if (const char* env_path = std::getenv("SECP256K1_CACHE_PATH")) {
         if (*env_path && std::string(env_path).find("..") == std::string::npos) { // lgtm[cpp/path-injection]
             g_config.cache_path = env_path;
+            g_config.cache_path_set = true;
         }
     }
     if (const char* env_maxw = std::getenv("SECP256K1_MAX_WINDOWS")) {

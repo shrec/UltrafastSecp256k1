@@ -134,6 +134,14 @@ SECP256K1_API int secp256k1_musig_partial_sig_parse(
     const unsigned char *in32
 ) SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(3);
 
+/* Optional shim extension: explicitly release the internal state for a
+ * keyagg_cache abandoned before partial_sig_agg (e.g. on protocol abort).
+ * Calling on an already-cleared or never-initialised cache is a no-op.
+ * No counterpart in upstream libsecp256k1; shim-only API. */
+SECP256K1_API void secp256k1_musig_keyagg_cache_clear(
+    secp256k1_musig_keyagg_cache *keyagg_cache
+) SECP256K1_ARG_NONNULL(1);
+
 #ifdef __cplusplus
 }
 #endif

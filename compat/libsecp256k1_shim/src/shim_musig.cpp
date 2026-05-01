@@ -496,4 +496,9 @@ int secp256k1_musig_partial_sig_parse(
     return 1;
 }
 
+void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache* keyagg_cache) {
+    if (!keyagg_cache) return;
+    ka_remove(keyagg_cache);
+}
+
 } // extern "C"

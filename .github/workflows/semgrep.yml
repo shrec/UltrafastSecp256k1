@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 concurrency:
   group: semgrep-${{ github.ref }}
@@ -33,7 +34,7 @@ jobs:
 
       - name: Install Semgrep
         run: |
-          pip3 install --quiet semgrep
+          pip3 install --quiet semgrep==1.102.0
 
       - name: Write custom crypto rules
         run: |

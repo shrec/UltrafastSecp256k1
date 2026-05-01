@@ -10,7 +10,7 @@
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
 | Audit modules | 247 across 9 failure classes |
-| Exploit PoC tests | 173 modules, 170+ attack vectors |
+| Exploit PoC tests | 315 modules, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | 530,000+ parser/adversarial |
 | CI workflows | 31 GitHub Actions workflows |
@@ -46,7 +46,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
 | Audit Modules        | 56 (55 + dedicated C ABI thread stress) |
-| **Exploit PoC Tests** | **78 tests across 14 attack categories** (`audit/test_exploit_*.cpp`) |
+| **Exploit PoC Tests** | **232 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 31 GitHub Actions workflows                 |
@@ -1230,4 +1230,4 @@ valgrind --leak-check=full --error-exitcode=1 ./build_rel/audit/unified_audit_ru
 
 ---
 
-*Generated from unified_audit_runner v3.60.0 output + CI workflow analysis. Last updated 2026-04-01.*
+*Generated from unified_audit_runner v3.68.0 output + CI workflow analysis. Last updated 2026-04-01.*

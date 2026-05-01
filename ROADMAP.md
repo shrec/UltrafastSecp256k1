@@ -53,7 +53,6 @@ This roadmap describes what the project intends to do -- and explicitly not do -
 
 ### Won't Do (Phase II)
 
-- External audit (Phase III)
 - LTS/deprecation policy (Phase III)
 - Embedded-specific certifications
 
@@ -86,7 +85,7 @@ Every operation in the C ABI (`ufsecp_*`) must produce **identical results** acr
 
 ---
 
-## Phase IV: Bug Bounty & External Audit (Q1-Q2 2027)
+## Phase IV: Advanced Assurance (Q1-Q2 2027)
 
 **Goal**: Achieve **external validation** and long-term community trust.
 
@@ -100,25 +99,11 @@ Every operation in the C ABI (`ufsecp_*`) must produce **identical results** acr
   - Low (documentation errors, non-security bugs): recognition
 - **Integration**: Link from SECURITY.md disclosure policy, responsible disclosure timeline (90 days)
 - **Platform**: GitHub Security Advisories + dedicated bug bounty email
-- **Duration**: Minimum 3 months before external audit engagement, to surface issues early
+- **Duration**: Minimum 3 months of bug bounty before broader ecosystem adoption
 
-### Stage 2: External Security Audit (Q2 2027)
+### Stage 2: Expanded Coverage
 
-- **Scope document**: Published as [AUDIT_SCOPE.md](docs/AUDIT_SCOPE.md) (already drafted)
-- **Audit firm selection**: Minimum 2 proposals from recognized cryptography audit firms (e.g., NCC Group, Trail of Bits, Cure53, Quarkslab)
-- **In-scope**:
-  - CT layer (scalar_inverse SafeGCD, field ops, signing)
-  - C ABI boundary (ufsecp_* functions, input validation, error handling)
-  - ECDSA + Schnorr signing/verification
-  - BIP-32 key derivation
-  - Parser/serializer (DER, compact, x-only)
-  - Memory safety and secret erasure
-- **Out-of-scope**: GPU backends (CUDA/OpenCL/Metal), build system, benchmark harness
-- **Deliverables**:
-  - Public audit report (PDF)
-  - All findings fixed with regression tests
-  - Re-audit of critical findings
-- **Timeline**: 4-6 week engagement, report published within 30 days of completion
+- Broader platform coverage and bug bounty continuation
 
 ### Stage 3: Post-Audit Governance
 
@@ -148,7 +133,7 @@ These items are **intentionally out of scope** for the 2026-2027 roadmap:
 | **Phase I** -- Core Assurance | **COMPLETE** | 49+ audit modules, 4-layer CT verification, SafeGCD, 1.2M+ automated checks |
 | **Phase II** -- Protocol Hardening | **ACTIVE (Q2 2026)** | CUDA w8 signing complete, infinity flag fixed, stable binding matrix validated; SBOM and remaining protocol hardening still open |
 | **Phase III** -- Platform Parity | **ACTIVE** | CUDA parity is ahead; OpenCL/Metal/WASM parity and native-device platform coverage remain open |
-| **Phase IV** -- Bug Bounty & Audit | **Planned (Q1-Q2 2027)** | Bug bounty first, then external audit engagement |
+| **Phase IV** -- Advanced Assurance | **Planned (Q1-Q2 2027)** | Bug bounty program + wider ecosystem adoption |
 
 ---
 

@@ -1,0 +1,52 @@
+{
+  "primitive": "rotl32",
+  "source": "Derived from RFC 8439 \u00a72.1",
+  "description": "32-bit left rotation. Tests rotl32(n) for n in {7,8,12,16,24}. The bug in issue #256 was using rotl32(24) instead of rotl32(8).",
+  "layer": 0,
+  "version": "1.0",
+  "vectors": [
+    {
+      "id": "rotl-8",
+      "comment": "rotl32(0x12345678,8)",
+      "x": "12345678",
+      "n": 8,
+      "result": "34567812"
+    },
+    {
+      "id": "rotl-16",
+      "comment": "rotl32(0x12345678,16)",
+      "x": "12345678",
+      "n": 16,
+      "result": "56781234"
+    },
+    {
+      "id": "rotl-24",
+      "comment": "rotl32(0x12345678,24)",
+      "x": "12345678",
+      "n": 24,
+      "result": "78123456"
+    },
+    {
+      "id": "rotl-7",
+      "comment": "rotl32(0x12345678,7)",
+      "x": "12345678",
+      "n": 7,
+      "result": "1a2b3c09"
+    },
+    {
+      "id": "rotl-12",
+      "comment": "rotl32(0x12345678,12)",
+      "x": "12345678",
+      "n": 12,
+      "result": "45678123"
+    },
+    {
+      "id": "rotl-8-ne-24",
+      "comment": "rotl32(8)!=rotl32(24)\u2014catchesselectorbugclass",
+      "x": "12345678",
+      "n_a": 8,
+      "n_b": 24,
+      "check": "not_equal"
+    }
+  ]
+}

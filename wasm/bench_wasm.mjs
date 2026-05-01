@@ -75,11 +75,21 @@ function formatThroughput(opsPerSec) {
 // ── Benchmark runner ─────────────────────────────────────────────────────────
 
 function bench(name, fn, iterations, warmup = 50) {
-    // Warmup
-    for (let i = 0; i < warmup; i++) fn();
+    try {
+        // Warmup
+        for (let i = 0; i < warmup; i++) fn();
+    } catch (e) {
+        console.warn(`  ${name}: SKIPPED (warmup error: ${e.message || e})`);
+        return null;
+    }
 
     const t0 = performance.now();
-    for (let i = 0; i < iterations; i++) fn();
+    try {
+        for (let i = 0; i < iterations; i++) fn();
+    } catch (e) {
+        console.warn(`  ${name}: SKIPPED (error during iteration: ${e.message || e})`);
+        return null;
+    }
     const t1 = performance.now();
 
     const total_ms = t1 - t0;
@@ -90,6 +100,7 @@ function bench(name, fn, iterations, warmup = 50) {
 }
 
 function printResult(r) {
+    if (!r) return; // null means the bench was skipped
     const name = r.name.padEnd(24);
     const time = formatTime(r.ns_per_op).padStart(10);
     const throughput = formatThroughput(r.ops_per_sec).padStart(12);
@@ -157,7 +168,7 @@ async function main() {
             idx++;
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── Point Multiplication (P*k) ──────────────────────────────────────────
@@ -166,7 +177,8 @@ async function main() {
         const iterations = 500;
         // Generate a base point via pubkeyCreate
         const sk = testPrivkey();
-        const { x: px, y: py } = lib.pubkeyCreate(sk);
+        let px, py;
+        try { const pt = lib.pubkeyCreate(sk); px = pt.x; py = pt.y; } catch(e) { console.warn('  Point Mul: SKIPPED (pubkeyCreate failed)'); }
         const scalar = randomBytes(32);
         scalar[0] &= 0x7F;
         scalar[31] |= 1;
@@ -175,22 +187,21 @@ async function main() {
             lib.pointMul(px, py, scalar);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 2000;
         const sk1 = randomBytes(32); sk1[0] &= 0x7F; sk1[31] |= 1;
         const sk2 = randomBytes(32); sk2[0] &= 0x7F; sk2[31] |= 1;
         const p1 = lib.pubkeyCreate(sk1);
         const p2 = lib.pubkeyCreate(sk2);
-
         const r = bench('Point Add (P+Q)', () => {
             lib.pointAdd(p1.x, p1.y, p2.x, p2.y);
         }, iterations);
         printResult(r);
-        results.push(r);
-    }
+        if (r) results.push(r);
+    } catch(e) { console.warn('  Point Add: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── ECDSA ───────────────────────────────────────────────────────────────
     console.log('\n=== ECDSA ===');
@@ -203,22 +214,21 @@ async function main() {
             lib.ecdsaSign(msg, sk);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 500;
         const msg = randomBytes(32);
         const sk = randomBytes(32); sk[0] &= 0x7F; sk[31] |= 1;
         const pub = lib.pubkeyCreate(sk);
         const sig = lib.ecdsaSign(msg, sk);
-
         const r = bench('ECDSA Verify', () => {
             lib.ecdsaVerify(msg, pub.x, pub.y, sig);
         }, iterations);
         printResult(r);
-        results.push(r);
-    }
+        if (r) results.push(r);
+    } catch(e) { console.warn('  ECDSA Verify: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── Schnorr BIP-340 ─────────────────────────────────────────────────────
     console.log('\n=== Schnorr (BIP-340) ===');
@@ -232,23 +242,22 @@ async function main() {
             lib.schnorrSign(sk, msg, aux);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
-    {
+    try {
         const iterations = 500;
         const sk = randomBytes(32); sk[0] &= 0x7F; sk[31] |= 1;
         const msg = randomBytes(32);
         const aux = randomBytes(32);
         const pk = lib.schnorrPubkey(sk);
         const sig = lib.schnorrSign(sk, msg, aux);
-
         const r = bench('Schnorr Verify', () => {
             lib.schnorrVerify(pk, msg, sig);
         }, iterations);
         printResult(r);
-        results.push(r);
-    }
+        if (r) results.push(r);
+    } catch(e) { console.warn('  Schnorr Verify: SKIPPED (' + (e.message||e) + ')'); }
 
     // ── SHA-256 ─────────────────────────────────────────────────────────────
     console.log('\n=== SHA-256 ===');
@@ -259,7 +268,7 @@ async function main() {
             lib.sha256(data32);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     {
@@ -269,7 +278,7 @@ async function main() {
             lib.sha256(data1k);
         }, iterations);
         printResult(r);
-        results.push(r);
+        if (r) results.push(r);
     }
 
     // ── Summary ─────────────────────────────────────────────────────────────

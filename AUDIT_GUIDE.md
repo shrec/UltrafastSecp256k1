@@ -1,6 +1,6 @@
 # Audit Guide
 
-**UltrafastSecp256k1 v3.66.0** -- Independent Auditor Navigation
+**UltrafastSecp256k1 v3.68.0** -- Independent Auditor Navigation
 
 > The audit is not a document.
 > It is a reproducible system: clone, build, run, verify.
@@ -43,7 +43,7 @@ No proprietary environment. No hidden pipeline. No special auditor toolchain.
 > This document is for auditors. Here you will find everything needed
 > to evaluate the library's security, correctness, and quality.
 >
-> The project is open to external audit and keeps the repository audit-ready,
+> The project keeps the repository audit-ready,
 > but it does not wait for a formal third-party engagement before improving assurance.
 > Internal audit and verification are expected to run continuously on every build and every commit.
 > The intended model is not "trust the report" but "rerun the evidence".
@@ -348,7 +348,7 @@ UltrafastSecp256k1/
 
 ## 6. Test Categories & Check Counts
 
-From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.66.0):
+From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.68.0):
 
 | Suite | Checks | Focus |
 |-------|--------|-------|
@@ -428,4 +428,4 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 
 ---
 
-*UltrafastSecp256k1 v3.66.0 -- Audit Guide*
+*UltrafastSecp256k1 v3.68.0 -- Audit Guide*

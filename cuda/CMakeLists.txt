@@ -101,6 +101,23 @@ target_link_libraries(secp256k1_cuda_bench PRIVATE secp256k1_cuda_lib)
 enable_testing()
 add_test(NAME cuda_selftest COMMAND secp256k1_cuda_test)
 
+# ===== BIP-324 / ChaCha20 GPU Known-Answer Test (RFC 8439) =====
+# Tests CUDA kernels at the lowest primitive layer against RFC 8439 vectors.
+# Catches GPU-specific bugs (e.g. wrong __byte_perm selector, issue #256)
+# that CPU tests cannot detect.
+add_executable(test_bip324_kat src/test_bip324_kat.cu)
+target_link_libraries(test_bip324_kat PRIVATE secp256k1_cuda_lib)
+target_include_directories(test_bip324_kat PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+)
+set_target_properties(test_bip324_kat PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)
+add_test(NAME bip324_kat_cuda COMMAND test_bip324_kat)
+set_tests_properties(bip324_kat_cuda PROPERTIES
+    TIMEOUT 60
+    LABELS "gpu;cuda;kat;bip324;chacha20;rfc8439")
+
 # ===== GPU Unified Audit Runner =====
 set(_AUDIT_SOURCES src/gpu_audit_runner.cu)
 if(_GPU_LANG STREQUAL "HIP")

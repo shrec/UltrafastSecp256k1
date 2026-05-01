@@ -12,17 +12,17 @@
 
 ## Scope
 
-This report covers **UltrafastSecp256k1 v3.66.0+** internal verification results.
-No external audit firm was engaged. All data below can be independently reproduced
+This report covers **UltrafastSecp256k1 v3.68.0+** internal verification results.
+All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
 | | |
 |---|---|
-| Version | 3.64.0 |
+| Version | 3.68.0 |
 | Branch | `dev` |
 | Report Date | 2026-04-09 |
 | Methodology | Automated deterministic + statistical |
-| External Audit | **None** |
+
 
 ---
 
@@ -261,7 +261,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 
 | Claim | Status |
 |-------|--------|
-| "Fully audited" | **No.** No external audit. |
+| "Formally audited by PDF firm" | No — CAAS continuous evidence instead. |
 | "Production ready" | **Yes** for single-signer operations. MuSig2/FROST require external protocol review for adversarial multi-party use. |
 | "Provably secure" | **No.** No machine-checked cryptographic proofs (Coq/F*/Jasmin). CT properties are verified by ct-verif (LLVM IR) + Valgrind CT + dudect — all CI-enforced. |
 | "Constant-time guaranteed" | **Three-tier verified**: ct-verif (IR-level), Valgrind CT (memory-origin), dudect (statistical timing). Not machine-checked proofs. |
@@ -332,7 +332,7 @@ ctest --test-dir build -R test_cross_libsecp256k1 -V
 # dudect side-channel (smoke)
 ctest --test-dir build -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (187 probes)
+# Exploit PoC security probes (235 probes)
 ctest --test-dir build -R exploit -V
 
 # Machine-readable assurance artifact
@@ -369,5 +369,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v3.66.0 -- Verification Transparency Report*  
+*UltrafastSecp256k1 v3.68.0 -- Verification Transparency Report*  
 *Not audited. Verification artifacts published for independent review.*

@@ -1,0 +1,88 @@
+# ============================================================================
+# CI Pipeline Orchestrator
+# ============================================================================
+# Sequences CI phases so heavy jobs only run after fast gates pass.
+# This prevents 50+ concurrent jobs from exhausting runner capacity.
+#
+# Phase 1 (this file, ~2-5 min):
+#   preflight + lint → fast fail before expensive work starts
+#
+# Phase 2 (triggered via workflow_run after Phase 1, ~15-30 min):
+#   CAAS, Wycheproof, CT-Verif, Security Audit
+#
+# Phase 3 (triggered via workflow_run after Phase 2, ~30-90 min):
+#   Sanitizers, CT Independence, TSan, Static Analysis, Valgrind
+#
+# Always-independent (GPU, nightly, scheduled):
+#   gpu-selfhosted, compute-sanitizer, nightly, audit-report
+# ============================================================================
+
+name: "Pipeline / Phase 1 — Fast Gates"
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'gpu/**'
+      - 'cuda/**'
+      - 'opencl/**'
+      - 'metal/**'
+      - 'include/**'
+      - 'audit/**'
+      - 'compat/**'
+      - 'wasm/**'
+      - 'bindings/**'
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  # Per-SHA group: each commit gets its own Pipeline that runs to completion.
+  # Using github.ref would make every new push cancel the previous Pipeline
+  # (which takes 15-20 min for Preflight), so it would never finish.
+  # With github.sha: different commits run independently; same SHA can't
+  # start duplicate Pipelines (cancel-in-progress handles re-triggers).
+  group: pipeline-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Phase 1a: Doc + wiring checks (< 2 min) ─────────────────────────────────
+  doc-gates:
+    name: "Phase 1 / Doc & Wiring Gates"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Exploit wiring parity check
+        run: python3 scripts/check_exploit_wiring.py
+      - name: Doc canonical sync check
+        run: |
+          python3 scripts/build_canonical_data.py --dry-run
+          python3 scripts/sync_docs_from_canonical.py --dry-run
+          python3 scripts/sync_module_count.py --dry-run
+
+  # ── Phase 1 Gate ──────────────────────────────────────────────────────────────
+  # Preflight (cmake build + code quality scans) runs as its own standalone
+  # workflow (preflight.yml) — duplicating it here took 20+ min and kept hitting
+  # the timeout. Phase 1 only gates on the fast doc/wiring checks (<2 min).
+  phase1-gate:
+    name: "Phase 1 / Gate"
+    needs: [doc-gates]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Phase 1 passed
+        run: echo "Phase 1 fast gates passed (doc + wiring checks OK)"
+

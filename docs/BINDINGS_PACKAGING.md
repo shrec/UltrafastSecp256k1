@@ -86,7 +86,7 @@ npm install @ultrafast/ufsecp
 ### 2.4 C# (NuGet)
 
 ```xml
-<PackageReference Include="UltrafastSecp256k1" Version="3.60.0" />
+<PackageReference Include="UltrafastSecp256k1" Version="3.68.0" />
 ```
 
 ```bash
@@ -113,7 +113,7 @@ dotnet add package UltrafastSecp256k1
 <dependency>
     <groupId>com.ultrafast</groupId>
     <artifactId>ufsecp</artifactId>
-    <version>3.60.0</version>
+    <version>3.68.0</version>
 </dependency>
 ```
 
@@ -162,7 +162,7 @@ pod 'Ufsecp', '~> 3.14.0'
 ### 2.7 Go (Go Modules)
 
 ```bash
-go get github.com/nicenemo/ufsecp@v3.60.0
+go get github.com/nicenemo/ufsecp@v3.68.0
 ```
 
 **CGo requirements**: Requires C compiler + `libufsecp` installed system-wide or via `CGO_LDFLAGS`/`CGO_CFLAGS`.
@@ -200,7 +200,7 @@ ufsecp = "3.14.0"
 
 ```toml
 [dependencies]
-ufsecp = { version = "3.60.0", features = ["vendored"] }
+ufsecp = { version = "3.68.0", features = ["vendored"] }
 ```
 
 ---

@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Fetch recent secp256k1-related external signals and compare them to repo evidence."""
+"""Fetch recent secp256k1-related external signals and compare them to repo evidence.
+
+Three-tier triage:
+  high_confidence  — score >= THRESHOLD_HIGH and passes crypto relevance gate
+  needs_review     — score >= THRESHOLD_REVIEW (log only, no issue)
+  discarded        — score < THRESHOLD_REVIEW or dominated by negative terms
+
+GitHub issues are opened ONLY for high_confidence items.
+"""
 
 from __future__ import annotations
 
@@ -26,60 +34,171 @@ DEFAULT_OUTPUT_DIR = LIB_ROOT / 'build' / 'research_monitor'
 DEFAULT_MATRIX = LIB_ROOT / 'docs' / 'RESEARCH_SIGNAL_MATRIX.json'
 USER_AGENT = 'UltrafastSecp256k1ResearchMonitor/1.0 (+https://github.com/shrec/UltrafastSecp256k1)'
 ARXIV_NS = {'atom': 'http://www.w3.org/2005/Atom'}
-FOCUS_TERMS = (
-    'attack',
-    'break',
-    'breaking',
-    'exploit',
-    'side-channel',
-    'side channel',
-    'timing',
-    'nonce',
+
+# Minimum score thresholds for triage buckets.
+# Score is computed by relevance_score() over title + abstract.
+THRESHOLD_HIGH   = 10   # high_confidence: score >= this AND mapped or hard focus term
+THRESHOLD_REVIEW = 4    # needs_review:    score >= this (logged but no issue)
+# Below THRESHOLD_REVIEW → discarded (not shown in issue, only in JSON artifact).
+
+# ---------------------------------------------------------------------------
+# Relevance scoring — crypto-domain positive terms
+# ---------------------------------------------------------------------------
+# Only terms that are unambiguously relevant to secp256k1 / ECC cryptography
+# receive high weight. Generic terms that also appear in unrelated fields
+# (microarchitecture, forgery, wallet, cache) are removed to prevent
+# medical/food/deepfake papers from scoring above zero.
+POSITIVE_TERMS: dict[str, int] = {
+    # Core ECC primitives
+    'secp256k1':              15,
+    'elliptic curve':         8,
+    'ecdsa':                  10,
+    'schnorr':                10,
+    'ecdh':                   8,
+    'ecies':                  8,
+    'bip-340':                10,
+    'bip340':                 10,
+    # Multi-party / threshold
+    'musig':                  9,
+    'frost':                  9,
+    'threshold signature':    8,
+    'distributed key':        7,
+    # Field / scalar arithmetic
+    'scalar multiplication':  9,
+    'field arithmetic':       8,
+    'modular inverse':        8,
+    'modular arithmetic':     7,
+    'glv endomorphism':       10,
+    'glv':                    7,
+    'safegcd':                10,
+    'divsteps':               10,
+    'montgomery multiplication': 8,
+    'barrett reduction':      7,
+    # Security / side-channel
+    'side-channel':           9,
+    'timing attack':          9,
+    'power analysis':         8,
+    'differential power':     9,
+    'fault injection':        8,
+    'nonce reuse':            10,
+    'nonce bias':             9,
+    'lattice attack':         9,
+    'hertzbleed':             10,
+    'constant-time':          8,
+    'constant time':          8,
+    # Zero-knowledge / proofs
+    'fiat-shamir':            8,
+    'fiat shamir':            8,
+    'zero-knowledge proof':   8,
+    'bulletproof':            8,
+    'pedersen commitment':    8,
+    'range proof':            7,
+    'dleq':                   8,
+    'sigma protocol':         7,
+    # GPU / acceleration
+    'cuda secp':              9,
+    'gpu elliptic':           8,
+    'simd elliptic':          8,
+    'batch verification':     8,
+    # Formal verification
+    'formal verification':    7,
+    'verified cryptography':  8,
+    'coq proof':              7,
+    # CVE/NVD (any CVE about crypto libs)
+    'cve-':                   6,
+    'libsecp256k1':           12,
+    'bitcoin core':           6,
+    'secp256r1':              5,
+    'curve25519':             5,
+    'ed25519':                5,
+}
+
+# Negative terms that strongly indicate the item is NOT about ECC/secp256k1.
+# A large negative score pushes even keyword-matching items into discard.
+NEGATIVE_TERMS: dict[str, int] = {
+    # Medical / biological
+    'depression':     -10,
+    'alzheimer':      -10,
+    'sleep':          -9,
+    'vitamin d':      -9,
+    'bone':           -8,
+    'dental':         -8,
+    'biofilm':        -8,
+    'pharmacolog':    -8,
+    'neuroblastoma':  -9,
+    'stem cell':      -8,
+    'aerogel':        -8,
+    'tissue':         -7,
+    'pregnancy':      -8,
+    'asthma':         -8,
+    'surgery':        -8,
+    'clinical':       -6,
+    'hospital':       -6,
+    # Food / materials
+    'food matrix':    -9,
+    'solute transport':-8,
+    'emulsion':       -8,
+    'porous':         -7,
+    'waterjet':       -8,
+    # Generic image processing / deepfake (not ECC)
+    'deepfake':       -8,
+    'face forgery':   -9,
+    'image forgery':  -9,
+    'facial':         -7,
+    'diffusion model':-6,   # image diffusion, not crypto
+    'watermark':      -5,
+    # E-wallet behavior (not crypto implementation)
+    'e-wallet adoption': -9,
+    'e-wallet perilaku': -10,
+    'konsumtif':      -10,
+    # Brake / mechanical
+    'wedge brake':    -10,
+    'brake-by-wire':  -10,
+    # Generic ML/NLP (not ECC)
+    'knowledge graph': -5,
+    'student attention': -8,
+    'language model': -5,
+    'reinforcement learning': -4,
+    # Unrelated microarchitecture (CPU but not crypto-specific)
+    'string search':  -7,
+    'hydropower':     -8,
+    'traffic volume': -8,
+    # Blockchain application-level analysis (uses secp256k1 but doesn't study it)
+    'fraudulent activity pattern': -12,
+    'suspicious wallet behavior':  -12,
+    'transaction graph':           -8,
+    'fraud detection':             -7,
+    'anomaly detection':           -5,
+}
+
+# Hard focus terms: an UNMAPPED item with one of these in the title is
+# still worth reviewing even without a signal-matrix match.
+# Kept narrow — only terms that are unambiguous in crypto context.
+HARD_FOCUS_TERMS = frozenset({
+    'secp256k1',
     'ecdsa',
     'schnorr',
-    'frost',
     'musig',
-    'ecdh',
-    'glv',
-    'zvp',
+    'frost threshold signature',
+    'side-channel elliptic',
+    'nonce reuse',
+    'lattice attack ecdsa',
+    'libsecp256k1',
+    'bip-340',
+    'bip340',
+    'glv endomorphism',
     'safegcd',
     'divsteps',
-    'formal verification',
-    'verifiable c',
-    'coq',
-    'fault',
-    'wallet',
-    'batch verification',
-    'precomputation',
-    'precompute',
-    'optimization',
-    'accelerat',
-    'performance',
-    'benchmark',
-    'cve',
-    'exfiltration',
-    'covert channel',
-    'subliminal channel',
-    'fiat-shamir',
-    'fiat shamir',
-    'zero-knowledge',
-    'bulletproofs',
-    'transcript',
-    'dvfs',
-    'power analysis',
     'hertzbleed',
-    'cache',
-    'microarchitecture',
-    'forgery',
-    'grinding',
-)
+    'scalar multiplication attack',
+})
 
 STATUS_RANK = {
-    'gap': 5,
-    'candidate': 4,
-    'partial': 3,
-    'covered': 2,
-    'out_of_scope': 1,
+    'gap':         5,
+    'candidate':   4,
+    'partial':     3,
+    'covered':     2,
+    'out_of_scope':1,
 }
 
 ACTIONABLE_STATUSES = {'gap', 'candidate', 'partial', 'unmapped'}
@@ -115,9 +234,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--output-dir', type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument('--matrix', type=Path, default=DEFAULT_MATRIX)
     parser.add_argument('--github-output', type=Path, help='Optional GitHub output file for workflow outputs.')
-    parser.add_argument('--fail-on-actionable', action='store_true', help='Return exit code 3 when actionable items are found.')
+    parser.add_argument('--fail-on-actionable', action='store_true', help='Return exit code 3 when high-confidence actionable items are found.')
     parser.add_argument('--open-issue', action='store_true',
-                        help='Open a GitHub issue via `gh` when actionable items are found. '
+                        help='Open a GitHub issue via `gh` when high-confidence items are found. '
                              'Requires `gh` CLI authenticated to the repo.')
     return parser.parse_args()
 
@@ -159,6 +278,33 @@ def short_summary(text: str, limit: int = 280) -> str:
     if len(compact) <= limit:
         return compact
     return compact[: limit - 3].rstrip() + '...'
+
+
+def relevance_score(item: SourceItem) -> int:
+    """Compute a relevance score for item based on positive/negative term weighting.
+
+    Score >= THRESHOLD_HIGH   → high_confidence bucket (issue-worthy)
+    Score >= THRESHOLD_REVIEW → needs_review bucket (log only)
+    Score <  THRESHOLD_REVIEW → discard
+    """
+    haystack = (item.title + ' ' + item.summary).lower()
+    score = 0
+    for term, weight in POSITIVE_TERMS.items():
+        if term in haystack:
+            score += weight
+    for term, weight in NEGATIVE_TERMS.items():
+        if term in haystack:
+            score += weight  # weight is already negative
+    # NVD items (CVEs) get a baseline boost — any matching CVE is worth reviewing.
+    if item.source == 'NVD':
+        score += 5
+    return score
+
+
+def has_hard_focus(item: SourceItem) -> bool:
+    """Return True if the item title/summary contains a hard-focus crypto term."""
+    haystack = (item.title + ' ' + item.summary).lower()
+    return any(term in haystack for term in HARD_FOCUS_TERMS)
 
 
 def load_signal_matrix(path: Path) -> list[SignalClass]:
@@ -209,7 +355,6 @@ def fetch_arxiv(query: str, max_results: int) -> list[SourceItem]:
         item_id = entry.findtext('atom:id', default='', namespaces=ARXIV_NS).strip()
         published = parse_timestamp(entry.findtext('atom:published', default='', namespaces=ARXIV_NS))
         updated = parse_timestamp(entry.findtext('atom:updated', default='', namespaces=ARXIV_NS))
-        url = item_id
         items.append(
             SourceItem(
                 source='arXiv',
@@ -218,7 +363,7 @@ def fetch_arxiv(query: str, max_results: int) -> list[SourceItem]:
                 summary=summary,
                 published=published,
                 updated=updated,
-                url=url,
+                url=item_id,
             )
         )
     return items
@@ -332,52 +477,102 @@ def dedupe_and_filter(items: Iterable[SourceItem], cutoff: datetime) -> list[Sou
 
 
 def classify_item(item: SourceItem, classes: Iterable[SignalClass]) -> dict:
+    """Classify an item and assign it to a triage bucket.
+
+    Bucket logic:
+      high_confidence  score >= THRESHOLD_HIGH  AND (mapped to signal OR hard focus term)
+      needs_review     score >= THRESHOLD_REVIEW (not high_confidence)
+      discard          score <  THRESHOLD_REVIEW
+    """
     haystack = f'{item.title} {item.summary}'.lower()
-    title_haystack = item.title.lower()
+    score = relevance_score(item)
+    hard_focus = has_hard_focus(item)
+
+    # Match against signal matrix
     matched: list[SignalClass] = []
     for signal in classes:
         if any(keyword in haystack for keyword in signal.keywords):
             matched.append(signal)
-    if not matched:
-        if item.source != 'NVD' and not any(term in title_haystack for term in FOCUS_TERMS):
-            return {
-                'status': 'out_of_scope',
-                'actionable': False,
-                'action': 'watch-only',
-                'reason': 'The item mentions secp256k1 but does not look like a direct security, correctness, protocol-misuse, or optimization signal for this repository.',
-                'matches': [],
-            }
-        return {
-            'status': 'unmapped',
-            'actionable': True,
-            'action': 'review',
-            'reason': 'No checked-in signal class matched this item. Review whether the taxonomy needs expansion or the repository needs a new deterministic audit surface.',
-            'matches': [],
-        }
 
-    strongest = max(matched, key=lambda entry: STATUS_RANK.get(entry.status, 0))
+    # Determine signal-matrix status
+    if not matched:
+        if score < THRESHOLD_REVIEW and not hard_focus:
+            bucket = 'discard'
+            status = 'out_of_scope'
+            action = 'watch-only'
+            reason = f'Score {score} below threshold — unrelated to secp256k1 ECC cryptography.'
+        elif score >= THRESHOLD_HIGH and hard_focus:
+            bucket = 'high_confidence'
+            status = 'unmapped'
+            action = 'review'
+            reason = (f'Score {score}: hard crypto focus term matched but no signal-matrix class. '
+                      'Review whether the taxonomy needs expansion or a new audit surface is required.')
+        elif score >= THRESHOLD_REVIEW:
+            bucket = 'needs_review'
+            status = 'unmapped'
+            action = 'review'
+            reason = (f'Score {score}: passes relevance threshold but no signal-matrix class. '
+                      'May need taxonomy expansion.')
+        else:
+            bucket = 'discard'
+            status = 'out_of_scope'
+            action = 'watch-only'
+            reason = f'Score {score}: not relevant enough without a hard focus term.'
+    else:
+        strongest = max(matched, key=lambda e: STATUS_RANK.get(e.status, 0))
+        status = strongest.status
+        action = strongest.action
+        reason = strongest.reason
+
+        # High-confidence requires score above THRESHOLD_HIGH
+        if score >= THRESHOLD_HIGH and status in ACTIONABLE_STATUSES:
+            bucket = 'high_confidence'
+        elif score >= THRESHOLD_REVIEW and status in ACTIONABLE_STATUSES:
+            bucket = 'needs_review'
+        elif status in ('covered', 'out_of_scope') and score < THRESHOLD_REVIEW:
+            bucket = 'discard'
+        elif status in ('covered', 'out_of_scope'):
+            bucket = 'needs_review'
+        else:
+            # mapped but low score — demote to needs_review max
+            bucket = 'needs_review' if score >= THRESHOLD_REVIEW else 'discard'
+
     return {
-        'status': strongest.status,
-        'actionable': strongest.status in ACTIONABLE_STATUSES,
-        'action': strongest.action,
-        'reason': strongest.reason,
+        'status': status,
+        'bucket': bucket,
+        'score': score,
+        'actionable': bucket == 'high_confidence',
+        'action': action,
+        'reason': reason,
         'matches': [
             {
-                'id': signal.signal_id,
-                'status': signal.status,
-                'priority': signal.priority,
-                'action': signal.action,
-                'repo_evidence': list(signal.repo_evidence),
-                'reason': signal.reason,
+                'id': s.signal_id,
+                'status': s.status,
+                'priority': s.priority,
+                'action': s.action,
+                'repo_evidence': list(s.repo_evidence),
+                'reason': s.reason,
             }
-            for signal in matched
+            for s in matched
         ],
     }
 
 
-def build_report(items: list[SourceItem], classes: list[SignalClass], query: str, lookback_days: int, source_stats: list[dict], source_errors: list[dict]) -> dict:
+def build_report(
+    items: list[SourceItem],
+    classes: list[SignalClass],
+    query: str,
+    lookback_days: int,
+    source_stats: list[dict],
+    source_errors: list[dict],
+) -> dict:
     classified_items = []
-    counts = {
+    counts: dict[str, int] = {
+        'total_fetched': 0,
+        'high_confidence': 0,
+        'needs_review': 0,
+        'discarded': 0,
+        # Legacy keys kept for backward compat with downstream parsers
         'total_items': 0,
         'actionable_items': 0,
         'covered_items': 0,
@@ -389,11 +584,18 @@ def build_report(items: list[SourceItem], classes: list[SignalClass], query: str
 
     for item in items:
         classification = classify_item(item, classes)
+        bucket = classification['bucket']
         status = classification['status']
+        counts['total_fetched'] += 1
         counts['total_items'] += 1
-        counts[f'{status}_items'] = counts.get(f'{status}_items', 0) + 1
-        if classification['actionable']:
+        counts[f'{bucket}s' if bucket != 'discard' else 'discarded'] = counts.get(
+            f'{bucket}s' if bucket != 'discard' else 'discarded', 0
+        ) + 1
+        # Update legacy bucket counters
+        if bucket == 'high_confidence':
             counts['actionable_items'] += 1
+        counts[f'{status}_items'] = counts.get(f'{status}_items', 0) + 1
+
         classified_items.append(
             {
                 'source': item.source,
@@ -406,6 +608,11 @@ def build_report(items: list[SourceItem], classes: list[SignalClass], query: str
                 **classification,
             }
         )
+
+    # Normalise bucket counter names
+    counts['high_confidence'] = sum(1 for c in classified_items if c['bucket'] == 'high_confidence')
+    counts['needs_review']    = sum(1 for c in classified_items if c['bucket'] == 'needs_review')
+    counts['discarded']       = sum(1 for c in classified_items if c['bucket'] == 'discard')
 
     generated_at = datetime.now(timezone.utc)
     return {
@@ -428,7 +635,15 @@ def render_markdown(report: dict) -> str:
         f"- Generated: {report['generated_at']}",
         f"- Query: {report['query']}",
         f"- Lookback: {report['lookback_days']} days",
-        f"- Actionable items: {counts['actionable_items']}",
+        '',
+        '## Triage Summary',
+        '',
+        f"| Bucket | Count |",
+        f"|--------|-------|",
+        f"| High confidence (issue-worthy) | {counts['high_confidence']} |",
+        f"| Needs review (log only) | {counts['needs_review']} |",
+        f"| Discarded (noise) | {counts['discarded']} |",
+        f"| **Total fetched** | **{counts['total_fetched']}** |",
         '',
         '## Source Status',
         '',
@@ -441,33 +656,41 @@ def render_markdown(report: dict) -> str:
         for error in report['source_errors']:
             lines.append(f"- {error['source']}: {error['error']}")
 
-    actionable = [item for item in report['items'] if item['actionable']]
-    informational = [item for item in report['items'] if not item['actionable']]
+    high_conf = [item for item in report['items'] if item['bucket'] == 'high_confidence']
+    review    = [item for item in report['items'] if item['bucket'] == 'needs_review']
+    discarded = [item for item in report['items'] if item['bucket'] == 'discard']
 
-    lines.extend(['', '## Actionable Findings', ''])
-    if not actionable:
-        lines.append('- No actionable items found in this window.')
-    for item in actionable:
+    lines.extend(['', '## High-Confidence Actionable Findings', ''])
+    if not high_conf:
+        lines.append('_No high-confidence findings in this window._')
+    for item in high_conf:
         lines.append(f"### {item['title']}")
-        lines.append(f"- Source: {item['source']}")
-        lines.append(f"- Status: {item['status']}")
-        lines.append(f"- Recommended action: {item['action']}")
-        lines.append(f"- Published: {item['published']}")
-        lines.append(f"- URL: {item['url']}")
-        lines.append(f"- Why flagged: {item['reason']}")
+        lines.append(f"- **Source:** {item['source']}  **Score:** {item['score']}  **Status:** {item['status']}")
+        lines.append(f"- **Recommended action:** {item['action']}")
+        lines.append(f"- **Published:** {item['published']}")
+        lines.append(f"- **URL:** {item['url']}")
+        lines.append(f"- **Why flagged:** {item['reason']}")
         if item['matches']:
-            lines.append('- Repo matches:')
+            lines.append('- **Repo matches:**')
             for match in item['matches']:
                 evidence = ', '.join(match['repo_evidence']) or 'none'
-                lines.append(f"  - {match['id']} [{match['status']}] -> {evidence}")
-        lines.append(f"- Summary: {item['summary']}")
+                lines.append(f"  - `{match['id']}` [{match['status']}] → {evidence}")
+        lines.append(f"- **Summary:** {item['summary']}")
         lines.append('')
 
-    lines.extend(['## Informational Findings', ''])
-    if not informational:
-        lines.append('- No informational items in this window.')
-    for item in informational:
-        lines.append(f"- [{item['source']}] {item['title']} ({item['status']})")
+    lines.extend(['## Needs Review (log only — no issue)', ''])
+    if not review:
+        lines.append('_None._')
+    for item in review:
+        lines.append(f"- [{item['source']}] **{item['title']}** (score={item['score']}, status={item['status']})")
+        lines.append(f"  {item['url']}")
+    lines.append('')
+
+    lines.extend(['## Discarded as Noise', ''])
+    if not discarded:
+        lines.append('_None._')
+    for item in discarded:
+        lines.append(f"- [{item['source']}] {item['title']} (score={item['score']})")
 
     return '\n'.join(lines).rstrip() + '\n'
 
@@ -481,26 +704,23 @@ def render_text(report: dict) -> str:
         f"Query: {report['query']}",
         f"Lookback: {report['lookback_days']} days",
         '',
-        'Counts:',
-        f"  total:       {counts['total_items']}",
-        f"  actionable:  {counts['actionable_items']}",
-        f"  covered:     {counts['covered_items']}",
-        f"  candidate:   {counts['candidate_items']}",
-        f"  gap:         {counts['gap_items']}",
-        f"  out_of_scope:{counts['out_of_scope_items']}",
-        f"  unmapped:    {counts['unmapped_items']}",
+        'Triage:',
+        f"  high_confidence (issue-worthy): {counts['high_confidence']}",
+        f"  needs_review    (log only):     {counts['needs_review']}",
+        f"  discarded       (noise):        {counts['discarded']}",
+        f"  total fetched:                  {counts['total_fetched']}",
         '',
     ]
-    actionable = [item for item in report['items'] if item['actionable']]
-    if actionable:
-        lines.append('Actionable findings:')
-        for item in actionable:
-            lines.append(f"- {item['title']} [{item['status']}] ({item['source']})")
+    high_conf = [item for item in report['items'] if item['bucket'] == 'high_confidence']
+    if high_conf:
+        lines.append('High-confidence findings:')
+        for item in high_conf:
+            lines.append(f"- [{item['score']:+d}] {item['title']} ({item['source']})")
             lines.append(f"  action: {item['action']}")
             lines.append(f"  url: {item['url']}")
             lines.append(f"  why: {item['reason']}")
     else:
-        lines.append('Actionable findings: none')
+        lines.append('High-confidence findings: none')
     if report['source_errors']:
         lines.extend(['', 'Source errors:'])
         for error in report['source_errors']:
@@ -510,12 +730,14 @@ def render_text(report: dict) -> str:
 
 def render_mail_subject(report: dict) -> str:
     counts = report['counts']
-    return f"[Research Monitor] {counts['actionable_items']} actionable / {counts['total_items']} total secp256k1 signals"
+    hc = counts['high_confidence']
+    nr = counts['needs_review']
+    return f"[Research Monitor] {hc} high-confidence / {nr} needs-review secp256k1 signals"
 
 
 def render_mail_body(report: dict) -> str:
     counts = report['counts']
-    actionable = [item for item in report['items'] if item['actionable']]
+    high_conf = [item for item in report['items'] if item['bucket'] == 'high_confidence']
     lines = [
         'UltrafastSecp256k1 external research monitor',
         '',
@@ -523,20 +745,18 @@ def render_mail_body(report: dict) -> str:
         f"Query: {report['query']}",
         f"Lookback: {report['lookback_days']} days",
         '',
-        f"Actionable items: {counts['actionable_items']}",
-        f"Covered items: {counts['covered_items']}",
-        f"Candidate items: {counts['candidate_items']}",
-        f"Gap items: {counts['gap_items']}",
-        f"Unmapped items: {counts['unmapped_items']}",
+        f"High-confidence (issue-worthy): {counts['high_confidence']}",
+        f"Needs review (log only):        {counts['needs_review']}",
+        f"Discarded as noise:             {counts['discarded']}",
         '',
     ]
-    if not actionable:
-        lines.append('No actionable items were detected in this window.')
-    for index, item in enumerate(actionable, start=1):
+    if not high_conf:
+        lines.append('No high-confidence items were detected in this window.')
+    for index, item in enumerate(high_conf, start=1):
         lines.extend(
             [
                 f"{index}. {item['title']}",
-                f"   Source: {item['source']}",
+                f"   Source: {item['source']}  Score: {item['score']}",
                 f"   Status: {item['status']}",
                 f"   Action: {item['action']}",
                 f"   Published: {item['published']}",
@@ -554,18 +774,18 @@ def render_mail_body(report: dict) -> str:
 
 
 def open_github_issue(report: dict) -> None:
-    """Open a GitHub issue with the research monitor findings using the `gh` CLI."""
+    """Open a GitHub issue ONLY for high-confidence findings."""
     counts = report['counts']
-    actionable = counts['actionable_items']
-    date_str = report['generated_at'][:10]  # YYYY-MM-DD
-    title = f"[Research Monitor] {actionable} actionable signal(s) — {date_str}"
+    hc = counts['high_confidence']
+    if hc == 0:
+        return
+    date_str = report['generated_at'][:10]
+    title = f"[Research Monitor] {hc} high-confidence signal(s) — {date_str}"
 
     body_lines = [
         '> Auto-opened by `scripts/research_monitor.py --open-issue`.',
-        '> Review each finding below, add a PoC / CI gate, then close this issue.',
-        '',
-        'Hey @shrec — The research monitor just caught some new actionable signals from external papers/DBs.',
-        'Please review these gaps. If they look real, wire a new test into `audit/unified_audit_runner.cpp` and document them.',
+        '> Only **high-confidence** items appear here (score ≥ 10 + crypto focus term).',
+        '> Needs-review and discarded items are in the build artifact only.',
         '',
         render_markdown(report),
     ]
@@ -584,7 +804,6 @@ def open_github_issue(report: dict) -> None:
     except FileNotFoundError:
         print('warning: `gh` CLI not found — skipping issue creation', file=sys.stderr)
     except subprocess.CalledProcessError as exc:
-        # Label may not exist yet; retry without labels
         if 'Label' in (exc.stderr or ''):
             cmd_no_label = [a for a in cmd if a not in ('--label', 'research-signal,security')]
             try:
@@ -608,8 +827,12 @@ def write_outputs(report: dict, output_dir: Path) -> None:
 def write_github_outputs(path: Path, report: dict) -> None:
     counts = report['counts']
     lines = [
-        f"actionable_count={counts['actionable_items']}",
-        f"total_count={counts['total_items']}",
+        f"high_confidence_count={counts['high_confidence']}",
+        f"needs_review_count={counts['needs_review']}",
+        f"discarded_count={counts['discarded']}",
+        # Legacy key for any downstream parsers
+        f"actionable_count={counts['high_confidence']}",
+        f"total_count={counts['total_fetched']}",
         f"source_error_count={len(report['source_errors'])}",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -623,12 +846,10 @@ def print_console_summary(report: dict) -> None:
         textwrap.dedent(
             f"""
             Research monitor completed.
-              total items:      {counts['total_items']}
-              actionable items: {counts['actionable_items']}
-              covered items:    {counts['covered_items']}
-              candidate items:  {counts['candidate_items']}
-              gap items:        {counts['gap_items']}
-              unmapped items:   {counts['unmapped_items']}
+              high-confidence (issue-worthy): {counts['high_confidence']}
+              needs-review    (log only):     {counts['needs_review']}
+              discarded       (noise):        {counts['discarded']}
+              total fetched:                  {counts['total_fetched']}
             """
         ).strip()
     )
@@ -645,22 +866,23 @@ def main() -> int:
 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=args.lookback_days)
-    
-    # Automatically expand default query into a comprehensive net
+
+    # Query expansion: only crypto-specific phrases to avoid broad noise.
+    # Each additional query targets a distinct attack class or optimization area
+    # that may not appear with "secp256k1" verbatim.
     queries = [args.query]
     if args.query == 'secp256k1':
         queries.extend([
-            'ecdsa side-channel',
-            'schnorr forgery',
-            'fiat-shamir zero-knowledge',
-            'wallet nonce exfiltration',
-            'microarchitecture dvfs',
-            'constant-time hertzbleed'
+            'ecdsa nonce bias lattice',
+            'schnorr signature forgery',
+            'elliptic curve side channel',
+            'scalar multiplication timing',
+            'libsecp256k1',
         ])
 
-    raw_items = []
-    source_stats = []
-    source_errors = []
+    raw_items: list[SourceItem] = []
+    source_stats: list[dict] = []
+    source_errors: list[dict] = []
 
     for q in queries:
         q_items, q_stats, q_errors = collect_items(q, args.max_results, cutoff)
@@ -678,9 +900,9 @@ def main() -> int:
         write_github_outputs(args.github_output, report)
     print_console_summary(report)
 
-    if args.open_issue and report['counts']['actionable_items'] > 0:
+    if args.open_issue and report['counts']['high_confidence'] > 0:
         open_github_issue(report)
-    if args.fail_on_actionable and report['counts']['actionable_items'] > 0:
+    if args.fail_on_actionable and report['counts']['high_confidence'] > 0:
         return 3
     return 0
 

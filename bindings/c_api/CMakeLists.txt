@@ -75,8 +75,12 @@ else()
     # GPU CMake target is present, so we must compile gpu_registry.cpp directly.
     # Without any SECP256K1_HAVE_{CUDA,OPENCL,METAL} defines, the registry returns
     # backend_count=0 and create_backend=nullptr — a safe CPU-only stub.
+    # gpu_backend_fallback.cpp provides schnorr_snark_witness_batch_cpu_fallback,
+    # called via the GpuBackend virtual dispatch in ufsecp_gpu_impl.cpp.
+    # Without it the .so has an undefined symbol that prevents loading.
     target_sources(ultrafast_secp256k1 PRIVATE
         "${ULTRAFAST_ROOT}/gpu/src/gpu_registry.cpp"
+        "${ULTRAFAST_ROOT}/gpu/src/gpu_backend_fallback.cpp"
     )
 endif()
 
@@ -97,6 +101,9 @@ elseif(APPLE)
     # Link Security framework for SecRandomCopyBytes (ECIES CSPRNG)
     find_library(SECURITY_FRAMEWORK Security REQUIRED)
     target_link_libraries(ultrafast_secp256k1 PRIVATE ${SECURITY_FRAMEWORK})
+    # Link CoreFoundation for CFStringNormalize (unicode_nfkd.cpp BIP-39 NFKD)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    target_link_libraries(ultrafast_secp256k1 PRIVATE ${COREFOUNDATION_FRAMEWORK})
 else()
     set_target_properties(ultrafast_secp256k1 PROPERTIES
         INSTALL_RPATH "$ORIGIN"

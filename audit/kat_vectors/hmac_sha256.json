@@ -1,0 +1,30 @@
+{
+  "primitive": "hmac_sha256",
+  "source": "RFC 4231",
+  "description": "HMAC-SHA-256 message authentication code.",
+  "layer": 3,
+  "version": "1.0",
+  "vectors": [
+    {
+      "id": "rfc4231-tc1",
+      "comment": "RFC4231TestCase1:key=0x0b*20,data=\"HiThere\"",
+      "key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "data": "4869205468657265",
+      "mac": "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
+    },
+    {
+      "id": "rfc4231-tc2",
+      "comment": "RFC4231TestCase2:key=\"Jefe\",data=\"whatdoyawantfornothing?\"",
+      "key": "4a656665",
+      "data": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+      "mac": "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+    },
+    {
+      "id": "rfc4231-tc3",
+      "comment": "RFC4231TestCase3:key=0xaa*20,data=0xdd*50",
+      "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "data": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "mac": "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe"
+    }
+  ]
+}

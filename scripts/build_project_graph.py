@@ -1746,6 +1746,7 @@ def populate_edges(cur: sqlite3.Cursor):
         ],
         'hash_accel': ['cpu/src/hash_accel.cpp'],
         'message_signing': ['cpu/src/message_signing.cpp'],
+        'exploit_bip39_nfkd': ['cpu/src/unicode_nfkd.cpp', 'cpu/src/bip39.cpp'],
     }
     for test, files in test_coverage.items():
         for f in files:

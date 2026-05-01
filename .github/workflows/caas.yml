@@ -74,6 +74,14 @@ jobs:
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
         run: python3 scripts/check_exploit_wiring.py
 
+      - name: Canonical data + doc sync check
+        # Rebuilds canonical_data.json from source-of-truth and checks that
+        # all documentation files match it. Fails on any numeric drift.
+        run: |
+          python3 scripts/build_canonical_data.py --dry-run
+          python3 scripts/sync_docs_from_canonical.py --dry-run
+          python3 scripts/sync_module_count.py --dry-run
+
       - name: Exploit traceability join (G-9b / CAAS Stage 2)
         # G-9b: Joins exploit catalog, threat model, and spec traceability matrix.
         # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or

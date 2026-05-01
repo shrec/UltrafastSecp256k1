@@ -49,6 +49,12 @@ struct ECDSASignature {
 
     // Check if signature has low-S
     bool is_low_s() const;
+
+    // C5: explicit validity predicate — propagates signing success/failure
+    // across the CT→ABI boundary without relying on implicit zero-detection.
+    // A valid ECDSA signature always satisfies r ∈ [1, n-1] and s ∈ [1, n-1].
+    // CT signing returns a zero (r,s) on any degenerate case (k≡0 mod n, etc.).
+    bool is_valid() const noexcept { return !r.is_zero() && !s.is_zero(); }
 };
 
 // -- ECDSA Operations ---------------------------------------------------------
