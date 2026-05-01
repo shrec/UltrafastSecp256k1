@@ -198,8 +198,10 @@ artifact should ever have.
 
 CAAS exists so that audit posture is **continuously verified**, not
 occasionally inspected. Every push and pull request to `dev` and `main`
-runs the full pipeline. Any failing stage blocks merge. Manual runs are a
-supplement, never a substitute.
+runs the block-based `gate.yml` pipeline, which selects the required CAAS
+checks from the impact profile. Release tags run the full release CAAS gate
+before build/package fan-out. Manual deep-assurance runs are a supplement,
+never a substitute for the required gate.
 
 ## Pipeline Topology
 
@@ -255,7 +257,7 @@ short-circuits the same way.
 | Artifact retention (CI) | 30 days |
 
 Severity mapping: every scanner finding is treated as blocking. There is no
-"low-severity" tier (`ლოუ პრიორიტი ჩვენთან არ არსებობს`).
+"low-severity" tier: low-priority security regressions do not exist in CAAS.
 
 ### Stage 2 — Audit Gate
 

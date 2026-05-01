@@ -13,20 +13,6 @@
 name: compute-sanitizer (GPU memory safety)
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/gpu/**'
-      - 'libs/UltrafastSecp256k1/opencl/**'
-      - 'libs/UltrafastSecp256k1/kernels/**'
-      - 'libs/UltrafastSecp256k1/cuda/**'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/gpu/**'
-      - 'libs/UltrafastSecp256k1/opencl/**'
-      - 'libs/UltrafastSecp256k1/kernels/**'
-      - 'libs/UltrafastSecp256k1/cuda/**'
   workflow_dispatch:
 
 permissions:

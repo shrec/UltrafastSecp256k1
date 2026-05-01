@@ -7,9 +7,6 @@ name: mutation-weekly
 # remains the owner-grade pre-release run.
 
 on:
-  schedule:
-    # Sunday 03:30 UTC — outside CI peak hours.
-    - cron: '30 3 * * 0'
   workflow_dispatch:
     inputs:
       threshold:

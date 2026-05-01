@@ -11,14 +11,6 @@
 name: Cycle-Level CT Verification
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/cpu/src/ct_*.cpp'
-      - 'libs/UltrafastSecp256k1/cpu/src/ct_*.hpp'
-      - 'libs/UltrafastSecp256k1/include/secp256k1/ct_*.hpp'
-  pull_request:
-    branches: [main, dev]
   workflow_dispatch:
 
 permissions:

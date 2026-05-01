@@ -22,28 +22,6 @@
 name: CT Tool Independence (G-8)
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/src/ct_*.cpp'
-      - 'src/cpu/src/ct_*.hpp'
-      - 'src/cpu/src/ecdsa.cpp'
-      - 'src/cpu/src/schnorr.cpp'
-      - 'include/**'
-      - 'audit/**'
-      - 'ci/valgrind_ct_check.sh'
-      - 'ci/ct_independence_check.py'
-      - '.github/workflows/ct-independence.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/cpu/src/ct_*.cpp'
-      - 'src/cpu/src/ct_*.hpp'
-      - 'src/cpu/src/ecdsa.cpp'
-      - 'src/cpu/src/schnorr.cpp'
-  schedule:
-    # Weekly on Sunday at 06:00 UTC — catches CT regressions from toolchain drift
-    - cron: '0 6 * * 0'
   workflow_dispatch:
 
 permissions:

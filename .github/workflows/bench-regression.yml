@@ -11,24 +11,6 @@
 name: Perf Regression Gate
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'src/cpu/bench/**'
-      - 'CMakeLists.txt'
-      - '.github/scripts/parse_benchmark.py'
-      - '.github/workflows/bench-regression.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'src/cpu/bench/**'
-      - 'CMakeLists.txt'
-      - '.github/scripts/parse_benchmark.py'
-      - '.github/workflows/bench-regression.yml'
   workflow_dispatch:
 
 permissions:

@@ -21,35 +21,6 @@
 name: GPU CI (Self-Hosted)
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - 'src/gpu/**'
-      - 'src/cuda/**'
-      - 'src/opencl/**'
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'include/ufsecp/**'
-      - 'audit/**'
-      - 'CMakeLists.txt'
-      - 'CMakePresets.json'
-      - '.github/workflows/gpu-selfhosted.yml'
-  pull_request:
-    branches: [dev, main]
-    paths:
-      - 'src/gpu/**'
-      - 'src/cuda/**'
-      - 'src/opencl/**'
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'include/ufsecp/**'
-      - 'audit/**'
-      - 'CMakeLists.txt'
-      - 'CMakePresets.json'
-      - '.github/workflows/gpu-selfhosted.yml'
-  schedule:
-    # Nightly 04:00 UTC -- full GPU validation + backend matrix
-    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       run_benchmarks:

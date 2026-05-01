@@ -11,8 +11,8 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Audit model | Continuous — every commit, not one-time |
 | Exploit tests | 235 PoC files, 235 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
-| Nightly checks | ~1,300,000+ random differential tests |
-| CI workflows | 53 workflows, 16 platform combinations |
+| Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
+| CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
 | CT verification | 5 independent pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) |
 | GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
 | Philosophy | Don't trust — reproduce |
@@ -58,8 +58,8 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | FROST / MuSig2 KAT | Protocol-level Known Answer Tests per BIP-327 and FROST spec | Full suite |
 | Fault injection | Tests behaviour under simulated hardware faults (bit flips, counter skips) | Full suite |
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
-| Performance regression | Automated micro-benchmark gate — fails CI if throughput regresses | Every push |
-| **Nightly differential** | Random round-trip differential tests against reference implementations | **~1,300,000+/night** |
+| Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
+| **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
 | **Total (audit runner)** | **unified_audit_runner** across 89 non-exploit modules + 237 exploit-PoC modules (326 total) | **~1,000,000+** |
 | **Total (exploit PoC tests)** | **237 exploit-style PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **237 modules, 0 failures** |
 
@@ -85,11 +85,12 @@ All 235 exploit-PoC modules pass. Zero failures across all 20+ coverage categori
 
 ---
 
-## 2. CI/CD Pipeline — 53 Automated Workflows
+## 2. CI/CD Pipeline — Block-Based CAAS Flow
 
-The continuous integration pipeline is not a basic build-and-test gate.
-It is a multi-layer quality enforcement system with 53 GitHub Actions workflows
-covering security, correctness, performance, supply chain, and formal analysis.
+The continuous integration pipeline is not a basic build-and-test gate. It is a
+block-based quality enforcement system: PR/push uses a small required gate,
+release uses a full CAAS preflight before packaging, and heavyweight evidence
+tools remain available as manual deep-assurance workflows.
 
 It is also only one part of the assurance model. The repository is routinely reviewed
 through external-style passes as if by auditors, attackers, and bug bounty hunters,
@@ -102,30 +103,10 @@ reproducible audit framework.
 
 | Workflow | What It Does | Trigger |
 |----------|-------------|---------|
-| `ci.yml` | Core build + full test suite across 17 configurations × 7 architectures × 5 OSes | Every push / PR |
-| `preflight.yml` | Fast pre-merge smoke check — blocks merge on basic failures | Every PR |
-| `nightly.yml` | Nightly stress: 1.3M+ differential checks, extended fuzz, full sanitizer run | Nightly |
-| `security-audit.yml` | Runs the full `unified_audit_runner` (89 non-exploit + 237 exploit-PoC modules, ~1M assertions) plus sanitizer and warning gates | Every push |
-| `audit-report.yml` | Generates and archives structured audit report artifacts | On release / manual |
-| `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
-| `ct-verif.yml` | Formal constant-time verification pass | Every push |
-| `valgrind-ct.yml` | Valgrind memcheck + CT analysis on Linux x64 | Every push |
-| `compute-sanitizer.yml` | NVIDIA compute-sanitizer GPU memory and race checks | Every push |
-| `bench-regression.yml` | Performance regression gate — CI fails if throughput drops | Every push |
-| `benchmark.yml` | Full benchmark suite — results published to live dashboard | On push to dev/main |
-| `codeql.yml` | GitHub CodeQL static analysis (C++) | Every push |
-| `clang-tidy.yml` | Clang-Tidy lint pass with project-specific rules | Every push |
-| `cppcheck.yml` | CPPCheck static analysis | Every push |
-| `sonarcloud.yml` | SonarCloud code quality and security rating | Every push |
-| `mutation.yml` | Mutation testing — verifies test suite kills injected faults | Scheduled |
-| `cflite.yml` | ClusterFuzz-Lite continuous fuzzing integration | Every push |
-| `bindings.yml` | Tests all 12 language bindings (Python, Rust, Node, Go, C#, Java, Swift, ...) | Every push |
-| `dependency-review.yml` | Scans dependency changes for known vulnerabilities | Every PR |
-| `scorecard.yml` | OpenSSF Scorecard supply-chain security scan | Weekly |
-| `klee.yml` | KLEE symbolic execution for reachability and path coverage | Scheduled |
-| `docs.yml` | Docs build and deployment validation | Every push |
-| `packaging.yml` | NuGet, vcpkg, Conan, Swift Package, CocoaPods packaging validation | On release |
-| `release.yml` | Full release pipeline: build, sign, attest, publish | On tag |
+| `gate.yml` | Impact detection, fast CAAS checks, selected profile gates, final verdict | Push / PR |
+| `release.yml` | Release CAAS gate, docs/version drift check, build/package fan-out, publish | Tag / manual |
+| `research-monitor.yml` | Research/CVE/ePrint intake; opens issues only for high-confidence signals | Scheduled / manual |
+| Deep assurance workflows | CT-Verif, Valgrind CT, sanitizers, fuzzing, mutation, benchmarks, GPU, CodeQL, Scorecard | Manual / release policy |
 
 ### Build Matrix Scale
 
@@ -222,14 +203,14 @@ Every benchmark number in this project is:
 
 The internal quality infrastructure described in this document represents a systematic, multi-layer correctness assurance program:
 
-- Over **1,000,000 internal audit assertions** executed on every build
-- **37 CI workflows** enforcing correctness, security, and performance on every push/PR plus scheduled assurance runs
+- Over **1,000,000 internal audit assertions** available in the CAAS evidence suite
+- A **block-based CI/CD flow** enforcing correctness and security on PR/push, with release-only full evidence fan-out
 - **Formal constant-time verification** on two independent platforms
 - **Supply-chain hardening** at the OpenSSF standard
-- **Nightly differential testing** at 1.3M+ additional random checks per night
+- **Deep differential testing** at 1.3M+ additional random checks per release/manual evidence run
 
 > The project relies on open self-audit, reproducible evidence, graph-assisted review, and reviewer-friendly verification so anyone can inspect and challenge the implementation.
-> Assurance work happens continuously through internal audit on every build, every push/PR gate, and every nightly extended run.
+> Assurance work happens continuously through internal audit, every push/PR gate, release CAAS gates, and manual deep-evidence runs.
 > The repository is structured so outside reviewers can step in and replay all evidence at any time.
 
 ---
@@ -242,10 +223,10 @@ The internal quality infrastructure described in this document represents a syst
 | Constant-time guarantees | ct-verif, ARM64 CI, Valgrind CT, 120K CT assertions |
 | Adversarial resilience | Wycheproof, fault injection, 530K+ fuzz corpus |
 | Protocol correctness | FROST/MuSig2 KAT, cross-libsecp256k1 differential |
-| Memory safety | ASan, TSan, Valgrind — every commit |
+| Memory safety | ASan, TSan, Valgrind — manual/release deep-assurance workflows |
 | Static analysis | CodeQL, SonarCloud, Clang-Tidy, CPPCheck |
 | Supply chain | OpenSSF Scorecard, pinned actions, SBOM, artifact attestation |
-| Performance regression | Automated gate on every push |
+| Performance regression | Manual/release benchmark evidence gate |
 | Build reproducibility | Dockerfile.reproducible + pinned toolchains |
 | Self-audit documentation | AUDIT_GUIDE, AUDIT_REPORT, AUDIT_COVERAGE, THREAT_MODEL |
 

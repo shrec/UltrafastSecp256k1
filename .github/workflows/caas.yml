@@ -24,11 +24,7 @@
 name: CAAS
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
-  # Allow manual trigger to regenerate the evidence bundle on demand
+  # Manual deep CAAS replay. PR/push uses gate.yml to avoid duplicate fan-out.
   workflow_dispatch:
     inputs:
       skip_bundle:

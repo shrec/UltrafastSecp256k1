@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""
-ci_gate_detect.py  --  Impact-based CI gate level detection
+"""Impact-based CI profile detector.
 
-Analyzes changed files to determine whether the full "hard gate" (Tier 1 + Tier 2)
-or only the "light gate" (Tier 1) is needed.
+The detector is the first block in the CAAS CI/CD flow.  It maps changed files
+to product profiles so the PR/push gate can run the smallest safe set of
+blocking checks, while release mode can still force the full suite.
 
 Usage:
-    python3 ci/ci_gate_detect.py                  # auto-detect from git
+    python3 ci/ci_gate_detect.py
     python3 ci/ci_gate_detect.py --base origin/dev
     python3 ci/ci_gate_detect.py --files f1.cpp f2.cpp
+    python3 ci/ci_gate_detect.py --github-output "$GITHUB_OUTPUT"
 
-Exit codes:
-    0 = light gate (docs/bindings/tooling only)
-    1 = hard gate (crypto/CT/ABI change)
-
-Output (for CI):
-    JSON to stdout with gate level and reasoning.
+Exit codes preserve the historical contract:
+    0 = light gate
+    1 = hard gate
 """
 
 from __future__ import annotations
 
+import argparse
+import fnmatch
 import json
 import subprocess
 import sys
@@ -28,48 +28,91 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 
-# Paths that trigger the hard gate (crypto/CT/ABI/GPU)
-HARD_GATE_PATTERNS = [
-    'src/cpu/src/ct_',
-    'src/cpu/src/ecdsa',
-    'src/cpu/src/schnorr',
-    'src/cpu/src/field_',
-    'src/cpu/src/scalar_',
-    'src/cpu/src/bip32',
-    'src/cpu/src/musig',
-    'src/cpu/src/frost',
-    'src/cpu/src/ecies',
-    'src/cpu/src/adaptor',
-    'src/cpu/include/secp256k1/ct/',
-    'src/cpu/include/secp256k1/detail/secure_erase',
-    'src/cpu/include/secp256k1/detail/value_barrier',
-    'src/opencl/kernels/',
-    'src/cuda/include/',
-    'src/metal/shaders/',
-    'src/gpu/',
-    'include/ufsecp/ufsecp.h',
-    'src/cpu/src/ufsecp_impl.cpp',
-    'include/ufsecp/ufsecp_gpu.h',
-    'src/cpu/src/ufsecp_gpu_impl.cpp',
-    'include/ufsecp/ufsecp_version.h',
-]
+PROFILE_PATTERNS: dict[str, list[str]] = {
+    "core-engine": [
+        "src/cpu/src/**",
+        "src/cpu/include/**",
+        "src/cpu/tests/**",
+        "src/cpu/fuzz/**",
+        "src/cpu/bench/**",
+        "include/ufsecp/**",
+        "CMakeLists.txt",
+        "cmake/**",
+    ],
+    "bitcoin-core-backend": [
+        "compat/libsecp256k1_shim/**",
+        "docs/BITCOIN_CORE_*.md",
+        "docs/*BITCOIN_CORE*.md",
+    ],
+    "node-compat-shims": [
+        "compat/**",
+    ],
+    "ffi-bindings": [
+        "bindings/**",
+    ],
+    "wasm": [
+        "bindings/wasm/**",
+        "wasm/**",
+    ],
+    "gpu-public-data": [
+        "src/gpu/**",
+        "src/cuda/**",
+        "src/opencl/**",
+        "src/metal/**",
+    ],
+    "audit": [
+        "audit/**",
+        "tools/source_graph_kit/**",
+    ],
+    "infra": [
+        ".github/**",
+        "ci/**",
+        ".clusterfuzzlite/**",
+        "codecov.yml",
+    ],
+    "docs-only": [
+        "docs/**",
+        "README.md",
+        "CHANGELOG.md",
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+    ],
+    "packaging": [
+        "packaging/**",
+        "conanfile.py",
+        "Package.swift",
+    ],
+    "examples": [
+        "examples/**",
+    ],
+}
 
-# Paths that are always light gate (no crypto impact)
-LIGHT_GATE_PATTERNS = [
-    'docs/',
-    'bindings/',
-    'ci/',
-    'benchmarks/',
-    'examples/',
-    '.github/',
-    'schemas/',
-    'tools/ai_memory/',
-    'tools/source_graph_kit/',
-    'README.md',
-    'CHANGELOG.md',
-    'LICENSE',
-    '.gitignore',
-    '.clang-format',
+HARD_PROFILES = {
+    "core-engine",
+    "bitcoin-core-backend",
+    "node-compat-shims",
+    "gpu-public-data",
+    "audit",
+    "infra",
+}
+
+CT_SENSITIVE_PATTERNS = [
+    "src/cpu/src/ct_*",
+    "src/cpu/src/ecdsa*",
+    "src/cpu/src/schnorr*",
+    "src/cpu/src/recovery*",
+    "src/cpu/src/scalar*",
+    "src/cpu/src/field*",
+    "src/cpu/src/musig*",
+    "src/cpu/src/frost*",
+    "src/cpu/src/ecdh*",
+    "src/cpu/src/ecies*",
+    "src/cpu/include/secp256k1/ct/**",
+    "src/cpu/include/secp256k1/detail/secure_erase*",
+    "src/cpu/include/secp256k1/detail/value_barrier*",
+    "include/ufsecp/**",
+    "compat/libsecp256k1_shim/**",
 ]
 
 
@@ -97,56 +140,117 @@ def get_changed_files(base: str = 'origin/dev') -> list[str]:
     return []
 
 
-def classify_file(path: str) -> str:
-    """Classify a file path as 'hard' or 'light'."""
-    for pattern in HARD_GATE_PATTERNS:
-        if pattern in path:
-            return 'hard'
-    return 'light'
+def matches(path: str, patterns: list[str]) -> bool:
+    """Return whether a path matches any profile glob."""
+    return any(fnmatch.fnmatch(path, pattern) for pattern in patterns)
 
 
-def detect_gate_level(files: list[str]) -> dict:
-    """Determine the gate level from a list of changed files."""
-    hard_triggers = []
-    light_files = []
-    unknown_files = []
+def classify_file(path: str) -> set[str]:
+    """Classify a file path into one or more CI profiles."""
+    profiles = {
+        profile
+        for profile, patterns in PROFILE_PATTERNS.items()
+        if matches(path, patterns)
+    }
+    if "compat/libsecp256k1_shim/" in path:
+        profiles.add("bitcoin-core-backend")
+        profiles.discard("node-compat-shims")
+    if "bindings/wasm/" in path or path.startswith("wasm/"):
+        profiles.add("wasm")
+        profiles.discard("ffi-bindings")
+    return profiles or {"unknown"}
+
+
+def detect_gate_level(files: list[str], force_release: bool = False) -> dict:
+    """Determine gate level and profile set from a list of changed files."""
+    profile_hits: dict[str, list[str]] = {}
+    ct_sensitive_files: list[str] = []
 
     for f in files:
-        classification = classify_file(f)
-        if classification == 'hard':
-            hard_triggers.append(f)
-        else:
-            # Check if it's a known light pattern
-            is_light = any(p in f for p in LIGHT_GATE_PATTERNS)
-            if is_light:
-                light_files.append(f)
-            else:
-                # Unknown files default to hard gate for safety
-                unknown_files.append(f)
+        profiles = classify_file(f)
+        for profile in profiles:
+            profile_hits.setdefault(profile, []).append(f)
+        if matches(f, CT_SENSITIVE_PATTERNS):
+            ct_sensitive_files.append(f)
 
-    gate = 'hard' if (hard_triggers or unknown_files) else 'light'
+    profiles = sorted(profile_hits)
+    unknown_files = profile_hits.get("unknown", [])
+    hard_profiles = sorted((set(profiles) & HARD_PROFILES) | ({"unknown"} if unknown_files else set()))
+    docs_only = bool(profiles) and set(profiles) <= {"docs-only", "examples"}
+    light_only = bool(profiles) and not hard_profiles and not ct_sensitive_files
+    gate = "release" if force_release else ("light" if light_only or docs_only or not files else "hard")
+
+    run_core = gate in {"hard", "release"} or any(p in profiles for p in ("core-engine", "bitcoin-core-backend"))
+    run_caas = gate in {"hard", "release"} or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend"))
+    run_bindings = gate == "release" or any(p in profiles for p in ("ffi-bindings", "wasm"))
+    run_wasm = gate == "release" or "wasm" in profiles
+    run_gpu = gate == "release" or "gpu-public-data" in profiles
+    run_compat = gate == "release" or any(p in profiles for p in ("bitcoin-core-backend", "node-compat-shims"))
+    run_deep = gate == "release" or bool(ct_sensitive_files)
+
+    if force_release:
+        reason = "release gate requested; all release profiles selected"
+    elif ct_sensitive_files:
+        reason = f"{len(ct_sensitive_files)} CT/crypto/ABI-sensitive file(s) changed"
+    elif hard_profiles:
+        reason = f"hard profile(s) changed: {', '.join(hard_profiles)}"
+    elif docs_only:
+        reason = "documentation/example-only change"
+    elif files:
+        reason = f"light profile(s) changed: {', '.join(profiles)}"
+    else:
+        reason = "no changed files detected"
 
     return {
-        'gate': gate,
-        'changed_files': len(files),
-        'hard_triggers': hard_triggers,
-        'light_files': light_files,
-        'unknown_files': unknown_files,
-        'reason': (
-            f'{len(hard_triggers)} crypto/CT/ABI files changed'
-            if hard_triggers
-            else f'{len(unknown_files)} unclassified files (defaulting to hard)'
-            if unknown_files
-            else f'only {len(light_files)} docs/tooling files changed'
-        ),
+        "gate": gate,
+        "profiles": profiles,
+        "profile_hits": profile_hits,
+        "changed_files": len(files),
+        "ct_sensitive_files": ct_sensitive_files,
+        "unknown_files": unknown_files,
+        "hard_profiles": hard_profiles,
+        "docs_only": docs_only,
+        "run_core": run_core,
+        "run_caas": run_caas,
+        "run_bindings": run_bindings,
+        "run_wasm": run_wasm,
+        "run_gpu": run_gpu,
+        "run_compat": run_compat,
+        "run_deep": run_deep,
+        "reason": reason,
     }
 
 
+def write_github_outputs(path: str, result: dict) -> None:
+    """Write detector outputs for GitHub Actions jobs."""
+    def as_bool(value: object) -> str:
+        return "true" if bool(value) else "false"
+
+    outputs = {
+        "gate": result["gate"],
+        "profiles": ",".join(result["profiles"]),
+        "reason": result["reason"],
+        "changed_files": str(result["changed_files"]),
+        "docs_only": as_bool(result["docs_only"]),
+        "run_core": as_bool(result["run_core"]),
+        "run_caas": as_bool(result["run_caas"]),
+        "run_bindings": as_bool(result["run_bindings"]),
+        "run_wasm": as_bool(result["run_wasm"]),
+        "run_gpu": as_bool(result["run_gpu"]),
+        "run_compat": as_bool(result["run_compat"]),
+        "run_deep": as_bool(result["run_deep"]),
+    }
+    with open(path, "a", encoding="utf-8") as fh:
+        for key, value in outputs.items():
+            fh.write(f"{key}={value}\n")
+
+
 def main() -> int:
-    import argparse
     parser = argparse.ArgumentParser(description='CI gate level detection')
     parser.add_argument('--base', default='origin/dev', help='Git base ref')
     parser.add_argument('--files', nargs='*', help='Explicit file list (skip git)')
+    parser.add_argument('--release', action='store_true', help='Force release profile selection')
+    parser.add_argument('--github-output', help='Write GitHub Actions outputs to this file')
     args = parser.parse_args()
 
     if args.files:
@@ -154,13 +258,12 @@ def main() -> int:
     else:
         files = get_changed_files(args.base)
 
-    if not files:
-        result = {'gate': 'light', 'changed_files': 0, 'reason': 'no changed files detected'}
-    else:
-        result = detect_gate_level(files)
+    result = detect_gate_level(files, force_release=args.release)
 
     print(json.dumps(result, indent=2))
-    return 1 if result['gate'] == 'hard' else 0
+    if args.github_output:
+        write_github_outputs(args.github_output, result)
+    return 1 if result['gate'] in {'hard', 'release'} else 0
 
 
 if __name__ == '__main__':

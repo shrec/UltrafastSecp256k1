@@ -16,26 +16,6 @@
 name: Valgrind CT Taint
 
 on:
-  push:
-    branches: [main, dev]
-  workflow_run:
-    workflows: ["Pipeline / Phase 1 — Fast Gates"]
-    types: [completed]
-    branches: [main, dev]
-
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'audit/**'
-      - 'ci/valgrind_ct_check.sh'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'audit/**'
-  schedule:
-    - cron: '30 3 * * *'   # Nightly at 03:30 UTC
   workflow_dispatch:
 
 permissions:

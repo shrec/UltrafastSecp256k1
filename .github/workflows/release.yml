@@ -24,12 +24,99 @@ env:
 
 jobs:
   # ==========================================================================
-  # 0) Sync version strings in docs then commit back to dev
+  # 0) Release CAAS gate — must pass before build/package fan-out starts
+  # ==========================================================================
+  release-caas-gate:
+    name: Release / CAAS Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install release gate dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Select release profiles
+        id: release-impact
+        run: |
+          set +e
+          python3 ci/ci_gate_detect.py --release --github-output "$GITHUB_OUTPUT" > release-impact.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then exit "$rc"; fi
+          cat release-impact.json
+
+      - name: Fast release consistency checks
+        run: |
+          python3 tools/render_repo_map.py --check
+          python3 ci/check_exploit_wiring.py
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
+          python3 ci/test_audit_scripts.py --quick
+          python3 ci/validate_assurance.py
+
+      - name: Build audit shared library
+        run: |
+          cmake -S . -B out/release-caas -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build out/release-caas --target ufsecp_shared -j"$(nproc)"
+
+      - name: Release CAAS evidence gates
+        run: |
+          python3 ci/build_project_graph.py --rebuild
+          python3 tools/source_graph_kit/source_graph.py build -i
+          python3 ci/audit_gate.py --json -o release_audit_gate.json
+          python3 ci/security_autonomy_check.py --json -o release_autonomy.json
+          python3 ci/export_assurance.py -o release_assurance.json
+          python3 ci/external_audit_bundle.py --output release_evidence_bundle.json --digest-output release_evidence_bundle.sha256
+          python3 ci/verify_external_audit_bundle.py \
+            --bundle release_evidence_bundle.json \
+            --digest release_evidence_bundle.sha256 \
+            --json > release_bundle_verify.json
+
+      - name: Upload release CAAS evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-caas-evidence
+          path: |
+            release-impact.json
+            release_audit_gate.json
+            release_autonomy.json
+            release_assurance.json
+            release_evidence_bundle.json
+            release_evidence_bundle.sha256
+            release_bundle_verify.json
+          retention-days: 90
+
+  # ==========================================================================
+  # 1) Verify version strings/docs are release-clean before packaging
   # ==========================================================================
   sync-docs:
+    needs: [release-caas-gate]
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -58,27 +145,20 @@ jobs:
       - name: Sync docs from canonical
         run: python3 ci/sync_docs_from_canonical.py
 
-      - name: Commit synced docs (if changed)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require release docs to be pre-synced
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet; then
-            git add -A
-            git commit -m "chore: sync version refs to ${RELEASE_VERSION#v} [skip ci]"
-            # Try to disable ruleset for push; may fail if GITHUB_TOKEN lacks admin scope
-            gh api repos/shrec/UltrafastSecp256k1/rulesets/14202596 --method PUT --field enforcement=disabled --silent 2>/dev/null || true
-            git push origin dev || echo "::warning::Could not push synced docs to dev (ruleset active)"
-            gh api repos/shrec/UltrafastSecp256k1/rulesets/14202596 --method PUT --field enforcement=active --silent 2>/dev/null || true
+            echo "::error::Release docs/version refs are stale. Run the sync scripts locally and commit the result before tagging."
+            git diff --stat
+            exit 1
           fi
         shell: bash
 
   # ==========================================================================
-  # 1) Desktop native binaries (Linux x64, macOS ARM64, Windows x64)
+  # 2) Desktop native binaries (Linux x64, macOS ARM64, Windows x64)
   # ==========================================================================
   build-desktop:
+    needs: [release-caas-gate, sync-docs]
     strategy:
       fail-fast: false
       matrix:
@@ -228,6 +308,7 @@ jobs:
   # 2) Linux ARM64 (cross-compile on Ubuntu x64)
   # ==========================================================================
   build-linux-arm64:
+    needs: [release-caas-gate, sync-docs]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -313,6 +394,7 @@ jobs:
   # 3) Android (NDK arm64-v8a -- .so + JNI .so + static .a)
   # ==========================================================================
   build-android:
+    needs: [release-caas-gate, sync-docs]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -398,6 +480,7 @@ jobs:
   # 4) iOS XCFramework (Device arm64 + Simulator arm64)
   # ==========================================================================
   build-ios:
+    needs: [release-caas-gate, sync-docs]
     runs-on: macos-14
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -449,6 +532,7 @@ jobs:
   # 5) WebAssembly (Emscripten -- .wasm + .js + .mjs + .d.ts)
   # ==========================================================================
   build-wasm:
+    needs: [release-caas-gate, sync-docs]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -521,7 +605,7 @@ jobs:
   # 6) Package bindings -- Python wheels (per-platform, bundled native lib)
   # ==========================================================================
   pack-python:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -615,7 +699,7 @@ jobs:
   # 7) Package bindings -- npm (prebuilds per platform)
   # ==========================================================================
   pack-npm:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
@@ -729,7 +813,7 @@ jobs:
   # 8) Package bindings -- NuGet (.nupkg with multi-RID runtimes)
   # ==========================================================================
   pack-nuget:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
@@ -834,7 +918,7 @@ jobs:
   # 9) Package bindings -- Ruby gem
   # ==========================================================================
   pack-gem:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -921,7 +1005,7 @@ jobs:
   # 10) Package bindings -- Java JNI JAR (multi-platform native libs)
   # ==========================================================================
   pack-java:
-    needs: [build-desktop, build-linux-arm64, build-android]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64, build-android]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1069,7 +1153,7 @@ jobs:
   # 11) Package bindings -- Go (source + native libs)
   # ==========================================================================
   pack-go:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1141,7 +1225,7 @@ jobs:
   # 12) Package bindings -- Rust crate (source + native libs)
   # ==========================================================================
   pack-rust:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1216,7 +1300,7 @@ jobs:
   # 13) Package bindings -- Dart/Flutter (source + native libs)
   # ==========================================================================
   pack-dart:
-    needs: [build-desktop, build-linux-arm64, build-android, build-ios]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64, build-android, build-ios]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1295,7 +1379,7 @@ jobs:
   # 14) Package bindings -- PHP Composer (source + native libs)
   # ==========================================================================
   pack-php:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1367,7 +1451,7 @@ jobs:
   # 15) Package bindings -- React Native (npm + Android/iOS native libs)
   # ==========================================================================
   pack-react-native:
-    needs: [build-desktop, build-android, build-ios]
+    needs: [release-caas-gate, build-desktop, build-android, build-ios]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1472,7 +1556,7 @@ jobs:
   # 16) Package bindings -- Swift (Package.swift + sources + native libs)
   # ==========================================================================
   pack-swift:
-    needs: [build-desktop, build-ios]
+    needs: [release-caas-gate, build-desktop, build-ios]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1546,7 +1630,7 @@ jobs:
   # 17) Package -- C/C++ headers + native libs (all platforms)
   # ==========================================================================
   pack-c-headers:
-    needs: [build-desktop, build-linux-arm64]
+    needs: [release-caas-gate, build-desktop, build-linux-arm64]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -1620,7 +1704,7 @@ jobs:
   # 18) Create GitHub Release (collects ALL artifacts)
   # ==========================================================================
   release:
-    needs: [build-desktop, build-linux-arm64, build-android, build-ios, build-wasm, pack-python, pack-npm, pack-nuget, pack-gem, pack-java, pack-go, pack-rust, pack-dart, pack-php, pack-react-native, pack-swift, pack-c-headers]
+    needs: [release-caas-gate, sync-docs, build-desktop, build-linux-arm64, build-android, build-ios, build-wasm, pack-python, pack-npm, pack-nuget, pack-gem, pack-java, pack-go, pack-rust, pack-dart, pack-php, pack-react-native, pack-swift, pack-c-headers]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:

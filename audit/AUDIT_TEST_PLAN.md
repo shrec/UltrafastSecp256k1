@@ -302,10 +302,10 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 
 ```
 audit-output-YYYYMMDD-HHMMSS/
-+-- audit_report.md                          # სრული აუდიტის რეპორტი
++-- audit_report.md                          # complete audit report
 +-- artifacts/
-|   +-- SHA256SUMS.txt                       # ყველა ბინარის ჰეშები
-|   +-- toolchain_fingerprint.json           # კომპილატორი/CMake/OS ინფო
+|   +-- SHA256SUMS.txt                       # hashes for all binaries
+|   +-- toolchain_fingerprint.json           # compiler/CMake/OS metadata
 |   +-- provenance.json                      # SLSA-style build provenance
 |   +-- dependency_scan.txt                  # ldd/dumpbin output
 |   +-- sbom.cdx.json                        # CycloneDX SBOM

@@ -2,9 +2,9 @@
 
 > **Generated**: 2026-03-29 | **Library**: UltrafastSecp256k1 | **Current Validation Surface**: 182 active CTest targets
 >
-> ეს დოკი წარმოადგენს cross-platform მაღალი-სიგნალის portability subset-ს და არა სრულ 182-target inventory-ს.
-> სრული აქტიური ზედაპირისთვის authoritative წყაროებია `docs/TEST_MATRIX.md` და `ci/validate_assurance.py`.
-> მიზანი უცვლელია: ერთი და იგივე ფუნქციური ინვარიანტები ყველა მხარდაჭერილ პლატფორმაზე უნდა გადიოდეს. ნებისმიერი განსხვავება = **BUG**.
+> This document is a high-signal cross-platform portability subset, not the full 182-target inventory.
+> For the complete active validation surface, the authoritative sources are `docs/TEST_MATRIX.md` and `ci/validate_assurance.py`.
+> The invariant is unchanged: the same functional invariants must pass on every supported platform. Any difference is a **BUG**.
 
 ---
 
@@ -276,5 +276,5 @@ Expected: **41/41 tests PASS** with identical output on every platform.
 
 ---
 
-> **ყველა პლატფორმაზე იდენტური შედეგი = სწორი იმპლემენტაცია.**
-> **ნებისმიერი განსხვავება = ბაგი, რომელიც დაუყოვნებლივ უნდა გამოსწორდეს.**
+> **Identical results on every platform mean the implementation is behaving correctly.**
+> **Any difference is a bug that must be fixed immediately.**

@@ -1,12 +1,24 @@
-# CI Gating Policy — 3-Tier Architecture
+# CI Gating Policy — CAAS Block Architecture
 
 ## Overview
 
-| Tier | Name | Trigger | Target Time | Gate Type |
-|------|------|---------|-------------|-----------|
-| **Tier 0** | Local Fast Loop | `pre-commit` / manual | < 30 seconds | Advisory |
-| **Tier 1** | PR Gate | Every push to `dev` | < 5 minutes | **Blocking** |
-| **Tier 2** | Deep Assurance | Nightly / weekly / manual | 30–120 minutes | Advisory (escalates to blocking for releases) |
+The CI/CD system has two automatic execution modes:
+
+1. **PR / push gate** — `.github/workflows/gate.yml`
+2. **Release gate** — `.github/workflows/release.yml`
+
+Heavy evidence workflows remain available as `workflow_dispatch` tools, but do
+not fan out automatically on every push. The only scheduled workflow is
+`research-monitor.yml`, which watches for new external signals and opens
+actionable reports without burning the full CI matrix every night.
+
+| Mode | Workflow | Trigger | Gate Type |
+|------|----------|---------|-----------|
+| Local fast loop | `ci/preflight.py` / selected scripts | Manual / hook | Advisory |
+| PR / push gate | `gate.yml` | Push + PR to `main` / `dev` | Blocking |
+| Release gate | `release.yml` | `v*` tag / manual | Blocking |
+| Research intake | `research-monitor.yml` | Scheduled / manual | Advisory |
+| Deep assurance tools | Individual workflows | Manual only | Blocking only when invoked by release policy |
 
 ## Tier 0 — Local Fast Loop
 
@@ -31,23 +43,22 @@ python3 ci/preflight.py --security --abi --drift --autonomy
 
 **Gate behavior:** Advisory only. Findings are displayed but never block `git commit`.
 
-## Tier 1 — PR Gate (per-push to dev)
+## PR / Push Gate
 
-**Purpose:** Deterministic, fast, blocking gate. Every push must pass this.
+**Purpose:** Deterministic, impact-based, blocking gate. Every push and PR must
+pass the selected blocks.
 
-**Budget:** < 5 minutes total wall time.
+**Workflow:** `.github/workflows/gate.yml`
 
-**What runs:**
+**Block order:**
 
-| Check | Blocking? | Notes |
-|-------|-----------|-------|
-| CMake configure + Ninja build | Yes | Must compile cleanly |
-| `ctest -L unit` | Yes | All unit tests |
-| `ctest -L audit` (deterministic only) | Yes | Exploit PoC + regression tests |
-| `audit_gate.py --json` (P0 + P1 checks) | Yes | ABI completeness, failure-class matrix, hostile-caller |
-| `validate_assurance.py --json` | Yes | Doc–code consistency |
-| `preflight.py --security --abi` | Yes | Invariant checks |
-| SARIF upload (if GitHub) | — | Non-blocking upload |
+| Block | Purpose |
+|-------|---------|
+| Block 0 / Detect Impact | `ci/ci_gate_detect.py` maps changed files to product profiles |
+| Block 1 / Fast CAAS Gates | repo-map freshness, exploit wiring, canonical docs, audit script quick test, assurance validation |
+| Block 2 / Build + Unit Tests | Release build + deterministic CTest subset, skipped for docs-only changes |
+| Block 3 / Selected Security/Profile Gates | CAAS, bindings, GPU/WASM routing, compat gates selected by profile |
+| Gate / Final Verdict | Single status check summarizing selected blocks |
 
 **What does NOT run:**
 - Dudect (statistical, flaky)
@@ -57,12 +68,15 @@ python3 ci/preflight.py --security --abi --drift --autonomy
 - Cachegrind / Valgrind annotation
 - RISC-V / ARM / ESP32 cross-compilation
 
-## Tier 2 — Deep Assurance
+## Deep Assurance Tools
 
 **Purpose:** Heavy-duty verification including statistical tests, long fuzzing,
-cross-platform, and performance regression detection.
+cross-platform checks, sanitizers, CT tooling, and performance regression
+detection.
 
-**Schedule:** Nightly on `dev`, weekly full run, or manually triggered.
+**Schedule:** Manual only, except when the release policy invokes the relevant
+evidence in `release.yml`. Generic nightly/weekly fan-out is intentionally
+disabled.
 
 **What runs:**
 
@@ -81,15 +95,16 @@ cross-platform, and performance regression detection.
 | Cross-library comparison | Benchmarking | 5 min |
 
 **Gate behavior:**
-- **Nightly:** Advisory. Report stored, diff computed, alerts on regressions.
-- **Pre-release:** Blocking. All Tier 2 checks must pass before any release.
+- **Manual:** produces evidence artifacts for focused review.
+- **Release:** release CAAS gate is blocking before build/package fan-out.
+- **Research:** `research-monitor.yml` is the only scheduled automatic lane.
 
 ## Impact-Based Gating
 
 Not all code changes require the same scrutiny. The CI system should
 automatically select the appropriate gate severity based on what changed.
 
-### Hard gate (Tier 1 + mandatory Tier 2 subset)
+### Hard gate
 
 Triggered when changes touch:
 
@@ -110,12 +125,10 @@ Triggered when changes touch:
 | `include/ufsecp/ufsecp_gpu.h` | GPU ABI |
 | `include/ufsecp/ufsecp_gpu_impl.cpp` | GPU dispatch |
 
-**Additional checks triggered:**
-- Full dudect run (not just short)
-- Sanitizer sweep
-- Cross-platform KAT (if applicable)
+**Additional checks triggered:** selected CAAS/security/profile blocks in
+`gate.yml`; deeper tools are manual unless release policy invokes them.
 
-### Light gate (Tier 1 only)
+### Light gate
 
 Triggered when changes touch only:
 
@@ -134,42 +147,21 @@ Triggered when changes touch only:
 ### Impact detection script
 
 ```bash
-# Detect which paths changed since the merge base
-CHANGED=$(git diff --name-only $(git merge-base HEAD origin/dev) HEAD)
-
-# Check if any hard-gate path is touched
-HARD_GATE=false
-for pattern in "src/cpu/src/ct_" "src/cpu/src/ecdsa" "src/cpu/src/schnorr" \
-               "secure_erase" "src/cpu/include/secp256k1/ct/" \
-               "src/cpu/src/field_" "src/cpu/src/scalar_" \
-               "src/opencl/kernels/" "src/cuda/include/" "src/metal/shaders/" \
-               "include/ufsecp/"; do
-    if echo "$CHANGED" | grep -q "$pattern"; then
-        HARD_GATE=true
-        break
-    fi
-done
-
-if [ "$HARD_GATE" = true ]; then
-    echo "HARD GATE: CT/crypto/ABI change detected"
-    # Run Tier 1 + Tier 2 subset
-else
-    echo "LIGHT GATE: docs/bindings/tooling change only"
-    # Run Tier 1 only
-fi
+python3 ci/ci_gate_detect.py --base origin/dev --github-output "$GITHUB_OUTPUT"
 ```
 
 ### CI workflow integration
 
-The impact detection is integrated into the CI workflow via a job that runs
-first and sets output variables consumed by downstream jobs:
+The impact detector is integrated into `gate.yml` as the first job and sets
+profile outputs consumed by downstream jobs:
 
 ```yaml
 jobs:
   detect-impact:
     runs-on: ubuntu-latest
     outputs:
-      gate-level: ${{ steps.detect.outputs.gate }}
+      gate: ${{ steps.detect.outputs.gate }}
+      profiles: ${{ steps.detect.outputs.profiles }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -178,14 +170,20 @@ jobs:
           # ... impact detection logic ...
           echo "gate=hard" >> "$GITHUB_OUTPUT"  # or "light"
 
-  tier1:
+  fast-gates:
     needs: detect-impact
-    # Always runs
 
-  tier2-crypto:
-    needs: [detect-impact, tier1]
-    if: needs.detect-impact.outputs.gate-level == 'hard'
-    # Runs only when crypto/CT/ABI changes detected
+  build-test:
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.docs_only != 'true'
+
+  caas-security:
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.run_caas == 'true'
+
+  final-verdict:
+    needs: [detect-impact, fast-gates, build-test, caas-security]
+    if: always()
 ```
 
 ## Report integration

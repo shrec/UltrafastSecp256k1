@@ -19,13 +19,6 @@
 name: Wycheproof
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
-  schedule:
-    # Weekly Wednesday 05:00 UTC
-    - cron: '0 5 * * 3'
   workflow_dispatch:
 
 permissions:

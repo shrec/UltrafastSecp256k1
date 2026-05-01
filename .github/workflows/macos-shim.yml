@@ -17,23 +17,6 @@
 name: macOS ARM64 Shim
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'compat/libsecp256k1_shim/**'
-      - 'include/ufsecp/**'
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'ci/check_libsecp_shim_parity.py'
-      - '.github/workflows/macos-shim.yml'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'compat/libsecp256k1_shim/**'
-      - 'include/ufsecp/**'
-      - 'src/cpu/src/**'
-      - 'ci/check_libsecp_shim_parity.py'
-      - '.github/workflows/macos-shim.yml'
   workflow_dispatch:
 
 permissions:

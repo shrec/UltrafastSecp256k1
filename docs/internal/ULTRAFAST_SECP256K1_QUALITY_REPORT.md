@@ -1,22 +1,22 @@
-# 🔬 UltrafastSecp256k1 — ხარისხისა და უსაფრთხოების კომპრეჰენსიული რეპორტი
+# UltrafastSecp256k1 — Comprehensive Quality and Security Report
 
-**თარიღი:** 2026-04-27 (updated 2026-04-27)  
-**როლი:** Bug Bounty Hunter + Red Team + Code Reviewer + Performance Engineer + QA Auditor  
-**სამიზნე:** `UltrafastSecp256k1` submodule @ `0e42065b` (HEAD) — MIT License, Bitcoin Core PR-ის კანდიდატი  
-**ლიცენზია:** MIT  
-
----
-
-## ✅ მდგომარეობა: 11/12 FIXED — 96% Ready for Bitcoin Core PR
-
-**Quality audit-ის 12 item-იდან 11 შესწორებულია** (B-01 through B-12, B-10-ის გარდა).  
-დარჩენილია მხოლოდ **B-10 (SIMD)** — deferred, ცალკე session-ია საჭირო IFMA52-capable hardware-ზე.
+**Date:** 2026-04-27 (updated 2026-04-27)  
+**Role:** Bug Bounty Hunter + Red Team + Code Reviewer + Performance Engineer + QA Auditor  
+**Target:** `UltrafastSecp256k1` submodule @ `0e42065b` (HEAD) — MIT License, Bitcoin Core PR candidate  
+**License:** MIT  
 
 ---
 
-## 📋 ფაქტობრივი მდგომარეობა
+## Status: 11/12 Fixed — 96% Ready for Bitcoin Core PR
 
-| ID | სიმძიმე | კატეგორია | აღმოჩენა | **სტატუსი** |
+**11 of 12 quality-audit items are fixed** (B-01 through B-12, except B-10).  
+Only **B-10 (SIMD)** remains deferred; a separate session on IFMA52-capable hardware is required.
+
+---
+
+## Current State
+
+| ID | Severity | Category | Finding | **Status** |
 |----|---------|-----------|----------|------------|
 | 🔵 OK‑01 | — | Fixed | `ufsecp_ecdsa_sign_recoverable` CT fix (ufsecp_impl.cpp:876) | ✅ FIXED in ca6b17dc |
 | 🔵 OK‑02 | — | Fixed | CAAS stunt-double gates (`--help` replacement) | ✅ FIXED in d0da0c38 |
@@ -42,13 +42,13 @@
 
 ## 🔴 B‑01: `eth_signing.cpp:71` — Variable-Time Recovery Signing (CRITICAL) ✅ FIXED
 
-**ფაილი:** `src/cpu/src/eth_signing.cpp:71`  
-**სიმძიმე:** **CRITICAL**  
+**File:** `src/cpu/src/eth_signing.cpp:71`  
+**Severity:** **CRITICAL**  
 **Fix commit:** `c0e49139`
 
 ### Original Problem
 
-`secp256k1::ecdsa_sign_recoverable` (variable-time) — იყენებდა `fast::generator_mul(k)`-ს wNAF precomputed table-ით. Variable-time execution trace **leaks the secret nonce `k`** via timing. `message_signing.cpp:118` *already used* `ct::ecdsa_sign_recoverable`, მაგრამ `eth_signing.cpp`-მა variable-time path-ი გამოიყენა — **inconsistent.**
+`secp256k1::ecdsa_sign_recoverable` (variable-time) used `fast::generator_mul(k)` with a wNAF precomputed table. The variable-time execution trace **leaks the secret nonce `k`** via timing. `message_signing.cpp:118` already used `ct::ecdsa_sign_recoverable`, but `eth_signing.cpp` used the variable-time path — **inconsistent.**
 
 ### Fix Applied
 
@@ -65,13 +65,13 @@ auto rsig = secp256k1::ct::ecdsa_sign_recoverable(hash, private_key);
 
 ## 🟠 B‑02: `wallet.cpp:177` — Variable-Time Recovery Signing (HIGH) ✅ FIXED
 
-**ფაილი:** `src/cpu/src/wallet.cpp:177`  
-**სიმძიმე:** **HIGH**  
+**File:** `src/cpu/src/wallet.cpp:177`  
+**Severity:** **HIGH**  
 **Fix commit:** `c0e49139`
 
 ### Original Problem
 
-`wallet.cpp:177` იყენებდა unqualified `ecdsa_sign_recoverable`-ს, namespace resolution-ით variable-time-ს.
+`wallet.cpp:177` used unqualified `ecdsa_sign_recoverable`, and namespace resolution selected the variable-time function.
 
 ### Fix Applied
 
@@ -88,8 +88,8 @@ auto rsig = ct::ecdsa_sign_recoverable(hash, key.priv);
 
 ## 🟠 B‑03: Metal Backend — `compute_units` / `max_clock_mhz` = 0 (HIGH) ✅ FIXED
 
-**ფაილი:** `src/gpu/src/gpu_backend_metal.mm:329-330`  
-**სიმძიმე:** **HIGH**  
+**File:** `src/gpu/src/gpu_backend_metal.mm:329-330`  
+**Severity:** **HIGH**  
 **Fix commit:** `c0e49139`
 
 ### Original Problem
@@ -112,13 +112,13 @@ CUDA & OpenCL backends query real values; Metal had hardcoded 0s.
 
 ## 🟡 B‑04: `ufsecp_impl.cpp` — 5656 Lines Monolith (MEDIUM) ✅ FIXED
 
-**ფაილი:** `include/ufsecp/ufsecp_impl.cpp` → split into 8 domain files  
-**სიმძიმე:** **MEDIUM**  
+**File:** `include/ufsecp/ufsecp_impl.cpp` -> split into 8 domain files  
+**Severity:** **MEDIUM**  
 **Fix commit:** `03b39d19`
 
 ### Original Problem
 
-- 70+ `extern "C"` ფუნქცია ერთ ფაილში (5656 lines)
+- 70+ `extern "C"` functions in one file (5656 lines)
 - Copy-paste boilerplate
 - Single translation unit → incremental compilation blocked
 
@@ -154,17 +154,17 @@ include/ufsecp/impl/
 
 ## 🟡 B‑06: Pippenger Batch Regression N=64 (-32%) (MEDIUM) ✅ FIXED
 
-**ფაილი:** `src/cpu/src/pippenger.cpp`  
+**File:** `src/cpu/src/pippenger.cpp`  
 **Fix commit:** `9be083b9`
 
 ### Original Problem
 
 | N | Schnorr batch vs individual | 
 |---|----------------------------|
-| 4 | 0.91x (9% **ნელი**) |
-| 64 | **0.68x (32% ნელი**) |
+| 4 | 0.91x (9% **slower**) |
+| 64 | **0.68x (32% slower**) |
 
-Bitcoin Core-ში batch verification (block validation) is a **primary use case**.
+In Bitcoin Core, batch verification (block validation) is a **primary use case**.
 
 ### Fix Applied
 
@@ -180,7 +180,7 @@ Bitcoin Core-ში batch verification (block validation) is a **primary use cas
 
 ### Original Problem
 
-`GpuBackend::is_ready()` virtual method existed (gpu_backend.hpp:76), მაგრამ C ABI-ში `ufsecp_gpu_is_ready()` — **არ არსებობდა**.
+`GpuBackend::is_ready()` virtual method existed (`gpu_backend.hpp:76`), but the C ABI had no `ufsecp_gpu_is_ready()`.
 
 ### Fix Applied
 
@@ -199,8 +199,8 @@ NULL-safe, exception-safe. Implementation in `ufsecp_gpu_impl.cpp`.
 
 ### Original Problem
 
-C ABI functions (bip352_scan, ecdh_batch) uploaded secret keys to GPU device memory, მაგრამ:
-1. `secure_erase` **არ სრულდებოდა** completion-ის შემდეგ
+C ABI functions (`bip352_scan`, `ecdh_batch`) uploaded secret keys to GPU device memory, but:
+1. `secure_erase` did **not run** after completion.
 2. Device memory may persist after `ctx_destroy()` depending on driver
 
 ### Fix Applied
@@ -224,7 +224,7 @@ Added `#include secp256k1/detail/secure_erase.hpp` to `ufsecp_gpu_impl.cpp`.
 
 ### Original Problem
 
-`ufsecp_ecdsa_sign_batch`-ში index `i`-ზე ფეილისას, `0..i-1`-ის signatures output buffer-ში იყო — caller-ს ვერ გაეგებოდა რომელი indices-ი იყო valid.
+If `ufsecp_ecdsa_sign_batch` failed at index `i`, signatures for `0..i-1` remained in the output buffer, so the caller could not tell which indices were valid.
 
 ### Fix Applied
 
@@ -239,7 +239,7 @@ Entry-point zeroization ensures unambiguous failure state.
 
 ## 🟢 B‑10: No SIMD (AVX2/SSE/NEON) (LOW) ⏭ DEFERRED
 
-FE52's 5×52-bit representation **AVX2-friendly-ია**. Zero SIMD → untapped 1.5-2x field_mul/sqr.
+FE52's 5x52-bit representation is **AVX2-friendly**. Zero SIMD means an untapped 1.5-2x field_mul/sqr opportunity.
 
 **Status:** Deferred. i5-14400F lacks IFMA52 (`vpmadd52luq`). Requires AVX-512 + IFMA52 hardware (Zen 4+ / Intel Granite Rapids) for proper SIMD implementation. Separate session.
 
@@ -277,7 +277,7 @@ Added `#include "secp256k1/config.hpp"` to `ufsecp_gpu_impl.cpp`.
 
 ## 🟢 B‑12: Metal `max_threads_per_threadgroup` Hardcoded (LOW) ✅ FIXED
 
-**ფაილი:** `metal/src/metal_runtime.mm:138`  
+**File:** `metal/src/metal_runtime.mm:138`  
 **Fix commit:** `c0e49139`
 
 ### Original Problem
@@ -427,14 +427,14 @@ None from this quality audit. The only open item (B-10 SIMD) is a **nice-to-have
 
 ## 📝 Final Verdict
 
-**UltrafastSecp256k1** @ `0e42065b` — **ძალიან ძლიერი** secp256k1 engine.
+**UltrafastSecp256k1** @ `0e42065b` — a **very strong** secp256k1 engine.
 
 **11/12 quality audit items resolved** through 4 commits (`c0e49139` → `03b39d19` → `9be083b9` → `0e42065b`).  
 The only remaining item (B-10 SIMD) is deferred for IFMA52-capable hardware.
 
-**Bitcoin Core PR-ის readiness: ✅ 96% Ready**
+**Bitcoin Core PR readiness: 96% Ready**
 
-> **შეფასება: A- (was B+)**
+> **Assessment: A- (was B+)**
 >
 > - Constant-time: **A** — all signing paths use CT. Zero leaks.
 > - Code organization: **B-** — monolith split complete, still `.cpp` in `include/` directory

@@ -1,13 +1,13 @@
-# 🏆 UltrafastSecp256k1 — ფრეშ კომპრეჰენსიული ევალუაცია (2026-04-27)
+# UltrafastSecp256k1 — Fresh Comprehensive Evaluation (2026-04-27)
 
 **Commit:** `eeb0644d` (v3.68.0-69)  
-**სტატუსი:** 11/12 Quality Audit Issues Resolved, Bitcoin Core PR-ისთვის მზად
+**Status:** 11/12 Quality Audit Issues Resolved, Ready for Bitcoin Core PR
 
 ---
 
 ## 📊 Grade Summary
 
-| კატეგორია | Grade | Details |
+| Category | Grade | Details |
 |-----------|-------|---------|
 | **Constant-Time Security** | **A-** | All internal signing paths CT; 2 minor API-level timing variations remain |
 | **GPU Backend Parity** | **A** | Full CUDA/OpenCL/Metal coverage; every method exposed in C ABI |

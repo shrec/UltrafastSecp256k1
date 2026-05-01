@@ -12,11 +12,10 @@
   </a>
 </p>
 
-[![CI](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
-[![ct-verif](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml)
-[![CodeQL](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml)
+[![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![Release](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/release.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/release.yml)
+[![Research Monitor](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
-[![GPU Self-Hosted](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gpu-selfhosted.yml)
 
 High-performance, multi-backend secp256k1 engine with continuous audit and adversarial verification.
 
@@ -197,7 +196,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 237 exploit-PoC test files (all 237 registered as runner modules, parity enforced by `scripts/check_exploit_wiring.py`) across 200+ attack vectors, 53 CI workflows, 5 CT verification pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 237 exploit-PoC test files (all 237 registered as runner modules, parity enforced by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
@@ -210,7 +209,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
-> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 51-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
+> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, block-based CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
 
 > **Evidence replay prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible reviewer-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full evidence package.
 
@@ -234,20 +233,13 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Forks)](https://github.com/shrec/UltrafastSecp256k1/network/members)
-[![CI](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/ci.yml?branch=main&label=CI)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
-[![Benchmark](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/benchmark.yml?branch=main&label=Bench)](https://shrec.github.io/UltrafastSecp256k1/dev/bench/)
+[![Gate](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/gate.yml?branch=main&label=Gate)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![Research](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/research-monitor.yml?branch=main&label=Research)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12011/badge)](https://www.bestpractices.dev/projects/12011)
-[![CodeQL](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml)
-[![Security Audit](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml)
-[![CT ARM64](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-arm64.yml)
-[![CT-Verif](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ct-verif.yml)
-[![Valgrind CT](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/valgrind-ct.yml)
-[![Perf Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/bench-regression.yml)
-[![Clang-Tidy](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml/badge.svg)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/clang-tidy.yml)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=security_rating)](https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1)
 [![codecov](https://codecov.io/gh/shrec/UltrafastSecp256k1/graph/badge.svg)](https://codecov.io/gh/shrec/UltrafastSecp256k1)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/E4BK8SeMYU)
@@ -330,27 +322,19 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
-| `security-audit.yml` | Runs full `unified_audit_runner` — 89 non-exploit modules + 237 exploit PoCs, ~1M+ assertions | Every push |
-| `ct-arm64.yml` | Constant-time verification on native ARM64 hardware | Every push |
-| `ct-verif.yml` | Formal constant-time verification pass | Every push |
-| `valgrind-ct.yml` | Valgrind memcheck + CT analysis | Every push |
-| `bench-regression.yml` | Performance regression gate — CI fails if throughput drops | Every push |
-| `nightly.yml` | 1.3M+ differential checks + extended fuzz + full sanitizer run | Nightly |
-| `cflite.yml` | ClusterFuzz-Lite continuous fuzzing integration | Every push |
-| `mutation.yml` | Mutation testing — verifies test suite kills every injected fault | Scheduled |
-| `codeql.yml` | GitHub CodeQL static analysis (C++) | Every push |
-| `sonarcloud.yml` | SonarCloud code quality and security rating | Every push |
-| `scorecard.yml` | OpenSSF Scorecard + Best Practices supply-chain scan | Weekly |
-| `ci.yml` | Core build + test across 17 configs × 7 architectures × 5 OSes | Every push / PR |
+| `gate.yml` | Block-based PR/push gate: impact detection, fast CAAS gates, selected profile checks, final verdict | Push / PR |
+| `release.yml` | Release CAAS gate before build/package fan-out, then full release packaging | Tags / manual |
+| `research-monitor.yml` | External research/CVE/paper intake; opens issues only for high-confidence signals | Scheduled / manual |
+| Manual deep-assurance workflows | CT-Verif, Valgrind CT, sanitizers, fuzzing, mutation, benchmarks, GPU, CodeQL, Scorecard | Manual / release policy |
 
 ### What "Self-Audit Culture" Means in Practice
 
 - Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form
 - Every constant-time path is verified under **5 independent pipelines: LLVM ct-verif, Valgrind taint, ct-prover (sPIN), dudect (statistical), ARM64 native**
 - Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, independent reference golden vectors, and BIP test vectors**
-- Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
+- Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
-- **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
+- Generic nightly fan-out is disabled; the only automatic scheduled lane is the research monitor
 - All 80 non-exploit audit modules and all 235 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
@@ -467,7 +451,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
-For the full audit infrastructure breakdown (1M+ assertions, 53 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md).
+For the full audit infrastructure breakdown (1M+ assertions, block-based CAAS gates, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md).
 
 ---
 

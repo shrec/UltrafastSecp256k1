@@ -12,18 +12,6 @@
 name: Bindings
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - 'bindings/**'
-      - 'src/cpu/**'
-      - 'include/**'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'bindings/**'
-      - 'src/cpu/**'
-      - 'include/**'
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,293 @@
+name: Gate / PR-Push
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-impact:
+    name: Block 0 / Detect Impact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      gate: ${{ steps.detect.outputs.gate }}
+      profiles: ${{ steps.detect.outputs.profiles }}
+      reason: ${{ steps.detect.outputs.reason }}
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+      run_core: ${{ steps.detect.outputs.run_core }}
+      run_caas: ${{ steps.detect.outputs.run_caas }}
+      run_bindings: ${{ steps.detect.outputs.run_bindings }}
+      run_wasm: ${{ steps.detect.outputs.run_wasm }}
+      run_gpu: ${{ steps.detect.outputs.run_gpu }}
+      run_compat: ${{ steps.detect.outputs.run_compat }}
+      run_deep: ${{ steps.detect.outputs.run_deep }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed profiles
+        id: detect
+        shell: bash
+        run: |
+          set +e
+          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
+          python3 ci/ci_gate_detect.py \
+            --base "$BASE_REF" \
+            --github-output "$GITHUB_OUTPUT" \
+            > ci-impact.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            exit "$rc"
+          fi
+          echo "## Block 0 / Detect Impact" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat ci-impact.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload impact report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gate-impact
+          path: ci-impact.json
+          retention-days: 30
+
+  fast-gates:
+    name: Block 1 / Fast CAAS Gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    needs: detect-impact
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Fast deterministic gates
+        run: |
+          python3 tools/render_repo_map.py --check
+          python3 ci/check_exploit_wiring.py
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
+          python3 ci/test_audit_scripts.py --quick
+          python3 ci/validate_assurance.py
+
+  build-test:
+    name: Block 2 / Build + Unit Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.docs_only != 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-gate-release-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ccache-gate-release-
+
+      - name: Configure
+        run: |
+          cmake -S . -B out/ci-release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang-17 \
+            -DCMAKE_CXX_COMPILER=clang++-17 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v3 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+
+      - name: Build
+        run: cmake --build out/ci-release -j"$(nproc)"
+
+      - name: Unit and deterministic tests
+        run: ctest --test-dir out/ci-release --output-on-failure -j"$(nproc)" -E "^(ct_sidechannel|.*fuzz.*)$" --timeout 420
+
+  caas-security:
+    name: Block 3 / CAAS Security Gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.run_caas == 'true' || needs.detect-impact.outputs.run_core == 'true' || needs.detect-impact.outputs.run_compat == 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Build audit shared library
+        run: |
+          cmake -S . -B out/ci-audit -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build out/ci-audit --target ufsecp_shared -j"$(nproc)"
+
+      - name: Build graphs
+        run: |
+          python3 ci/build_project_graph.py --rebuild
+          python3 tools/source_graph_kit/source_graph.py build -i
+
+      - name: CAAS gates
+        run: |
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
+          python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 ci/check_source_graph_quality.py
+          python3 ci/check_libsecp_shim_parity.py
+          python3 ci/check_core_build_mode.py
+          python3 ci/export_assurance.py -o assurance_report.json
+
+      - name: Upload CAAS evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gate-caas-evidence
+          path: |
+            caas_audit_gate.json
+            caas_autonomy.json
+            assurance_report.json
+          retention-days: 30
+
+  bindings-smoke:
+    name: Block 3 / Bindings Smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.run_bindings == 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Build C API and Python smoke
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ninja-build g++-13
+          cmake -S bindings/c_api -B out/ci-bindings-capi -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build out/ci-bindings-capi -j"$(nproc)"
+          python3 -m py_compile bindings/python/ultrafast_secp256k1/__init__.py
+
+  gpu-wasm-smoke:
+    name: Block 3 / GPU-WASM Routing Smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.run_gpu == 'true' || needs.detect-impact.outputs.run_wasm == 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: GPU/WASM profile checks
+        run: |
+          python3 ci/check_api_contracts.py --json || true
+          python3 ci/check_secret_path_changes.py || true
+          python3 ci/preflight.py --cuda-msvc
+
+  final-verdict:
+    name: Gate / Final Verdict
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs:
+      - detect-impact
+      - fast-gates
+      - build-test
+      - caas-security
+      - bindings-smoke
+      - gpu-wasm-smoke
+    if: always()
+    steps:
+      - name: Evaluate block results
+        run: |
+          echo "## Gate / Final Verdict" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Gate: ${{ needs.detect-impact.outputs.gate }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Profiles: ${{ needs.detect-impact.outputs.profiles }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reason: ${{ needs.detect-impact.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Block | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| detect-impact | ${{ needs.detect-impact.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| fast-gates | ${{ needs.fast-gates.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| build-test | ${{ needs.build-test.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| caas-security | ${{ needs.caas-security.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| bindings-smoke | ${{ needs.bindings-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| gpu-wasm-smoke | ${{ needs.gpu-wasm-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+
+          for result in \
+            "${{ needs.detect-impact.result }}" \
+            "${{ needs.fast-gates.result }}" \
+            "${{ needs.build-test.result }}" \
+            "${{ needs.caas-security.result }}" \
+            "${{ needs.bindings-smoke.result }}" \
+            "${{ needs.gpu-wasm-smoke.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::Gate block failed or was cancelled"
+              exit 1
+            fi
+          done
+
+          echo "::notice::All selected gate blocks passed"

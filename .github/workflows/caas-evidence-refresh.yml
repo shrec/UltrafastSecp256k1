@@ -8,9 +8,6 @@ name: CAAS Evidence Refresh
 # Safe: only commits when something actually changed, and only on dev.
 
 on:
-  schedule:
-    # 04:30 UTC daily — well before any business-hours CAAS run
-    - cron: '30 4 * * *'
   workflow_dispatch:
     inputs:
       force_commit:

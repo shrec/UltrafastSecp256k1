@@ -487,7 +487,7 @@ python3 ci/audit_gate.py --json -o audit_gate_report.json
 | Trigger | Required checks |
 |---------|----------------|
 | Before every commit | `caas_runner.py --skip-bundle` (or pre-push hook) |
-| Every push / PR (automated) | Full CAAS pipeline via `.github/workflows/caas.yml` |
+| Every push / PR (automated) | Block-based CAAS gate via `.github/workflows/gate.yml` |
 | During owner-grade assurance review | `audit_gap_report.py` + `audit_gap_report.py --strict` |
 | After parser / ABI hostile-input changes | `--abi-negative-tests --invalid-inputs --audit-test-quality` |
 | After protocol / lifecycle changes | `--stateful-sequences --audit-test-quality` |

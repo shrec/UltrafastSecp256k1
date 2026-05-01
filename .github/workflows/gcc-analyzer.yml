@@ -1,17 +1,6 @@
 name: GCC -fanalyzer
 
 on:
-  push:
-    branches: [main, dev]
-  workflow_run:
-    workflows: ["Pipeline / Phase 1 — Fast Gates"]
-    types: [completed]
-    branches: [main, dev]
-
-  pull_request:
-    branches: [main, dev]
-  schedule:
-    - cron: '0 5 * * 1'   # Weekly Monday 05:00 UTC
   workflow_dispatch:
 
 permissions:

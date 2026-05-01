@@ -20,23 +20,7 @@
 name: "Pipeline / Phase 1 — Fast Gates"
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/**'
-      - 'src/gpu/**'
-      - 'src/cuda/**'
-      - 'src/opencl/**'
-      - 'src/metal/**'
-      - 'include/**'
-      - 'audit/**'
-      - 'compat/**'
-      - 'bindings/**'
-      - 'ci/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/**'
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

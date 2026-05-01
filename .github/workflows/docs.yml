@@ -4,15 +4,7 @@
 name: Docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/cpu/include/**'
-      - 'include/**'
-      - 'wasm/secp256k1_wasm.h'
-      - 'README.md'
-      - 'docs/Doxyfile'
-      - '.github/workflows/docs.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read

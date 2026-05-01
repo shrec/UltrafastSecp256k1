@@ -79,14 +79,10 @@ For auditors and security researchers, the following documents are available:
 
 The following automated security measures are in place:
 
-- **CodeQL** -- static analysis on every push/PR (C/C++ security-and-quality queries)
-- **OpenSSF Scorecard** -- weekly supply-chain security assessment
-- **Security Audit CI** -- `-Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow` build, ASan+UBSan test suite, Valgrind memcheck (weekly + on push)
-- **Clang-Tidy** -- 30+ static analysis checks (bugprone, cert, performance, readability, clang-analyzer) on every push/PR
-- **SonarCloud** -- continuous code quality and security hotspot analysis
-- **ASan + UBSan** -- address/undefined-behavior sanitizers in CI
-- **TSan** -- thread sanitizer in CI
-- **Valgrind Memcheck** -- memory error detection in Security Audit workflow
+- **Gate workflow** -- block-based PR/push gate with impact detection, fast CAAS checks, selected profile gates, and final verdict
+- **Release CAAS gate** -- release tags must pass CAAS evidence checks before build/package fan-out
+- **CodeQL / Clang-Tidy / SonarCloud / Scorecard** -- available as manual deep-assurance workflows
+- **ASan / UBSan / TSan / Valgrind** -- available as manual or release-policy deep-assurance workflows
 - **Artifact Attestation** -- SLSA provenance for all release artifacts
 - **SHA-256 Checksums** -- `SHA256SUMS.txt` ships with every release
 - **Dependabot** -- automated dependency updates for all ecosystems

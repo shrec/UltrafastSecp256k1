@@ -9,25 +9,7 @@
 name: TSan
 
 on:
-  push:
-    branches: [main, dev]
-  workflow_run:
-    workflows: ["Pipeline / Phase 1 — Fast Gates"]
-    types: [completed]
-    branches: [main, dev]
-
-    paths:
-      - 'src/cpu/**'
-      - 'src/gpu/**'
-      - 'src/opencl/**'
-      - 'src/metal/**'
-      - 'src/cuda/**'
-      - 'include/**'
-      - 'audit/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/tsan.yml'
-  pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read

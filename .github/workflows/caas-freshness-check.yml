@@ -16,9 +16,6 @@
 name: CAAS Freshness Check
 
 on:
-  schedule:
-    # Every 6 hours (T10 mitigation — detect stale evidence within 6h)
-    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:

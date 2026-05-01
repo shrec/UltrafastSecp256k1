@@ -17,18 +17,6 @@
 name: Benchmark Dashboard
 
 on:
-  push:
-    branches: [dev, main]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'include/**'
-      - 'src/cuda/src/**'
-      - 'src/cuda/include/**'
-      - 'benchmarks/**'
-      - '.github/workflows/benchmark.yml'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # Cancel older benchmark runs on the same branch — prevents queue pileup
