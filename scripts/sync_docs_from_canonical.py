@@ -208,6 +208,17 @@ _RULES: list[tuple[str, str, str]] = [
 
     # ── docs/BACKEND_ASSURANCE_MATRIX.md ───────────────────────────────────
     # (no numeric counts to sync here — skip)
+
+    # ── ARCHITECTURE.svg ───────────────────────────────────────────────────
+    # CAAS subtitle line: "114,458 lines • NNN exploit PoC • NNN audit modules • NNN CI workflows"
+    ("ARCHITECTURE.svg",
+     r"\d+(?:,\d+)? lines • \d+ exploit PoC • \d+ audit modules • \d+ CI workflows",
+     "114,458 lines • {exploit_poc_count} exploit PoC • {non_exploit_modules} audit modules • {ci_workflow_count} CI workflows"),
+
+    # Adversarial PoC box body: "NNN exploit PoC tests"
+    ("ARCHITECTURE.svg",
+     r"\d+ exploit PoC tests",
+     "{exploit_poc_count} exploit PoC tests"),
 ]
 
 
