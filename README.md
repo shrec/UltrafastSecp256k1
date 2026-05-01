@@ -29,6 +29,12 @@ Known production use: [Sparrow Wallet Frigate](https://github.com/sparrowwallet/
 >
 > **Foundation, exchange, or wallet sponsor?** See [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) for the project's funding playbook (HRF, OpenSats, Brink, Spiral, Ethereum Foundation ESP, NLnet, Sovereign Tech Fund, …) and 30-second / 5-minute pitches.
 
+<p align="center">
+  <a href="docs/ARCHITECTURE.md">
+    <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
+  </a>
+</p>
+
 ---
 
 ## Quick Start
