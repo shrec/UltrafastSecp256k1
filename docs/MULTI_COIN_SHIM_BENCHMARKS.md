@@ -4,7 +4,7 @@
 > No synthetic or ad-hoc numbers. Native = unmodified bundled libsecp256k1.
 > UF Shim = drop-in `compat/libsecp256k1_shim` replacement at link time.
 >
-> Updated: 2026-04-30 | UltrafastSecp256k1 v3.68.0
+> Updated: 2026-05-01 | UltrafastSecp256k1 v3.69.0
 
 ---
 

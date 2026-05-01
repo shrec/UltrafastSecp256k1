@@ -348,7 +348,7 @@ UltrafastSecp256k1/
 
 ## 6. Test Categories & Check Counts
 
-From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.68.0):
+From [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) (v3.69.0):
 
 | Suite | Checks | Focus |
 |-------|--------|-------|

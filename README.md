@@ -23,7 +23,7 @@ UltrafastSecp256k1 is:
 - ⚡ **High-throughput ECC engine** — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)
 - 🔐 **Cryptographic stack** — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH
 - 🧠 **Continuous audit system** — 1,000,000+ assertions per build, 80 non-exploit modules + 235 exploit PoCs, 0 failures — not a snapshot
-- 🧪 **Adversarially tested** — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 5 independent CT pipelines
+- 🧪 **Adversarially tested** — 235 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 5 independent CT pipelines
 
 > Security is not assumed — it is continuously verified on every commit.
 
@@ -339,7 +339,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Every commit that would regress throughput **fails CI automatically** via `bench-regression.yml`
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - **Nightly differential testing** runs ~1.3M random round-trips against reference implementations every night
-- All 80 non-exploit audit modules and all 232 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 80 non-exploit audit modules and all 235 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
 
