@@ -1638,3 +1638,4 @@ bool Selftest(bool verbose, SelftestMode mode, uint64_t seed) {
 }
 
 } // namespace secp256k1::fast
+// post-reorg validation 20260501
