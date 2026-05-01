@@ -52,6 +52,12 @@ jobs:
       - name: Sync version strings in docs
         run: python3 scripts/sync_version_refs.py
 
+      - name: Rebuild canonical data
+        run: python3 scripts/build_canonical_data.py
+
+      - name: Sync docs from canonical
+        run: python3 scripts/sync_docs_from_canonical.py
+
       - name: Commit synced docs (if changed)
         continue-on-error: true
         env:
