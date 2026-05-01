@@ -31,9 +31,12 @@ extern "C" {
 #define UFSECP_VERSION_MINOR   68
 #define UFSECP_VERSION_PATCH   0
 
-/** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat. */
+/** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat.
+ *  Casts to unsigned to avoid signed-integer-overflow UB (C11 6.5p5). */
 #define UFSECP_VERSION_PACKED \
-    ((UFSECP_VERSION_MAJOR << 16) | (UFSECP_VERSION_MINOR << 8) | UFSECP_VERSION_PATCH)
+    (((unsigned int)UFSECP_VERSION_MAJOR << 16) | \
+     ((unsigned int)UFSECP_VERSION_MINOR <<  8) | \
+      (unsigned int)UFSECP_VERSION_PATCH)
 
 #define UFSECP_VERSION_STRING  "3.68.0"
 

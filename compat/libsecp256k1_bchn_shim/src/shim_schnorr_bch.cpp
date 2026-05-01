@@ -103,7 +103,8 @@ int secp256k1_schnorr_sign(
         auto sb = s.to_bytes();
         std::memcpy(sig64 + 32, sb.data(), 32);
         return 1;
-    } catch (...) { return 0; }
+    } catch (const std::exception&) { return 0; }
+      catch (...) { std::terminate(); }
 }
 
 int secp256k1_schnorr_verify(
@@ -140,7 +141,8 @@ int secp256k1_schnorr_verify(
         // Valid iff R_check.x == rx
         auto rx_check = R_check.x().to_bytes();
         return (std::memcmp(rx_check.data(), rx.data(), 32) == 0) ? 1 : 0;
-    } catch (...) { return 0; }
+    } catch (const std::exception&) { return 0; }
+      catch (...) { std::terminate(); }
 }
 
 } // extern "C"

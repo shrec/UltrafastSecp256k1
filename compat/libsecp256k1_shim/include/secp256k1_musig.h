@@ -15,7 +15,7 @@ typedef struct secp256k1_musig_keyagg_cache { unsigned char data[197]; } secp256
 typedef struct secp256k1_musig_secnonce    { unsigned char data[132]; } secp256k1_musig_secnonce;
 typedef struct secp256k1_musig_pubnonce    { unsigned char data[66];  } secp256k1_musig_pubnonce;
 typedef struct secp256k1_musig_aggnonce    { unsigned char data[66];  } secp256k1_musig_aggnonce;
-typedef struct secp256k1_musig_session     { unsigned char data[133]; } secp256k1_musig_session;
+typedef struct secp256k1_musig_session     { unsigned char data[117]; } secp256k1_musig_session;
 typedef struct secp256k1_musig_partial_sig { unsigned char data[36];  } secp256k1_musig_partial_sig;
 
 /* Key aggregation -----------------------------------------------------------*/

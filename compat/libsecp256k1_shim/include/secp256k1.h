@@ -126,6 +126,11 @@ SECP256K1_API int secp256k1_ec_pubkey_combine(
     const secp256k1_context *ctx, secp256k1_pubkey *out,
     const secp256k1_pubkey * const *ins, size_t n);
 
+SECP256K1_API int secp256k1_ec_pubkey_sort(
+    const secp256k1_context *ctx,
+    const secp256k1_pubkey **pubkeys,
+    size_t n_pubkeys);
+
 /* -- Secret key operations ------------------------------------------------ */
 SECP256K1_API int secp256k1_ec_seckey_verify(
     const secp256k1_context *ctx, const unsigned char *seckey);
@@ -188,5 +193,8 @@ SECP256K1_API int secp256k1_tagged_sha256(
 #ifdef __cplusplus
 }
 #endif
+
+/* Pull in ElligatorSwift (BIP-324 v2 transport) -- required by Bitcoin Core */
+#include "secp256k1_ellswift.h"
 
 #endif /* SECP256K1_H */

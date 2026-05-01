@@ -3,10 +3,14 @@
 
 #include <cstring>
 #include <array>
+#include <vector>
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/ct/sign.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::fast;
 
@@ -56,20 +60,71 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1_nonce_function_hardened noncefp,
     void *ndata)
 {
-    // Fail-closed for unsupported custom nonce functions: only accept NULL
-    // (use internal BIP-340 nonce derivation) or the standard BIP-340 stub
-    // (secp256k1_nonce_function_bip340). Any other noncefp cannot be honoured
-    // by this shim — silently ignoring it would produce a signing result that
-    // does not respect the caller's nonce policy.
+    // Fail-closed for unsupported custom nonce functions.
     if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
     (void)ndata;
-    // NOTE: This implementation restricts messages to exactly 32 bytes, matching
-    // BIP-340 strict mode. Upstream libsecp256k1 sign_custom accepts variable-length
-    // messages by including them verbatim in H_BIP0340/challenge(R_x||P_x||msg).
-    // Variable-length support requires extending the internal schnorr_sign API.
-    // Bitcoin Core itself only calls sign_custom with 32-byte hashes.
-    if (!msg || msglen != 32) return 0;
-    return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair, nullptr);
+    if (!sig64 || !keypair) return 0;
+    if (msglen > 0 && !msg) return 0;
+
+    // Fast path: 32-byte message uses optimised internal sign32 directly.
+    if (msglen == 32)
+        return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair, nullptr);
+
+    // Variable-length path: full BIP-340 with arbitrary-length msg in hashes.
+    // Upstream libsecp256k1 sign_custom includes msg verbatim in:
+    //   H_BIP0340/nonce(t || P_x || msg)  and  H_BIP0340/challenge(R_x || P_x || msg)
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
+
+    auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+
+    // t = d XOR H_BIP0340/aux(zero_aux)
+    static constexpr uint8_t kZeroAux[32] = {};
+    auto t_hash = secp256k1::tagged_hash("BIP0340/aux", kZeroAux, 32);
+    auto d_bytes = kp.d.to_bytes();
+    uint8_t t[32];
+    for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
+
+    // k' = H_BIP0340/nonce(t || P_x || msg)
+    std::vector<uint8_t> nonce_input(64 + msglen);
+    std::memcpy(nonce_input.data(),      t,             32);
+    std::memcpy(nonce_input.data() + 32, kp.px.data(), 32);
+    if (msglen > 0) std::memcpy(nonce_input.data() + 64, msg, msglen);
+    auto rand_hash = secp256k1::tagged_hash("BIP0340/nonce", nonce_input.data(), nonce_input.size());
+    auto k_prime = Scalar::from_bytes(rand_hash);
+    if (k_prime.is_zero()) {
+        secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
+        return 0;
+    }
+
+    // R = k' * G (CT path)
+    auto R = secp256k1::ct::generator_mul(k_prime);
+    auto [rx, r_y_odd] = R.x_bytes_and_parity();
+    auto k = r_y_odd ? k_prime.negate() : k_prime;
+    secp256k1::detail::secure_erase(&k_prime, sizeof(k_prime));
+
+    // e = H_BIP0340/challenge(R_x || P_x || msg)
+    std::vector<uint8_t> challenge_input(64 + msglen);
+    std::memcpy(challenge_input.data(),      rx.data(),     32);
+    std::memcpy(challenge_input.data() + 32, kp.px.data(), 32);
+    if (msglen > 0) std::memcpy(challenge_input.data() + 64, msg, msglen);
+    auto e_hash = secp256k1::tagged_hash("BIP0340/challenge", challenge_input.data(), challenge_input.size());
+    auto e = Scalar::from_bytes(e_hash);
+
+    // s = k + e * d
+    auto s = k + e * kp.d;
+    secp256k1::detail::secure_erase(&k,      sizeof(k));
+    secp256k1::detail::secure_erase(&kp.d,   sizeof(kp.d));
+    secp256k1::detail::secure_erase(d_bytes.data(), d_bytes.size());
+    secp256k1::detail::secure_erase(t, sizeof(t));
+
+    if (s.is_zero()) return 0;
+
+    std::memcpy(sig64,      rx.data(),         32);
+    auto s_bytes = s.to_bytes();
+    std::memcpy(sig64 + 32, s_bytes.data(),    32);
+    return 1;
 }
 
 // -- Verify ---------------------------------------------------------------

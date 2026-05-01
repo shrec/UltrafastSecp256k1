@@ -277,7 +277,8 @@ UFSECP_API ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
 /** ECDSA sign a batch of messages.
  *  Signs each (msgs32[i], privkeys32[i]) pair in order using the CT sign path.
  *  The private key for each entry is immediately erased from memory after use.
- *  Returns on the first failure; already-written entries remain valid.
+ *  Fail-closed: sigs64_out is zeroed before processing; on any failure all
+ *  output entries are zeroed so no partial valid signatures remain visible.
  *
  *  @param ctx         CPU context.
  *  @param count       Number of (message, key) pairs.
@@ -294,7 +295,8 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign_batch(
 /** BIP-340 Schnorr sign a batch of messages.
  *  Signs each (msgs32[i], privkeys32[i], aux_rands32[i]) triple in order.
  *  The private key for each entry is immediately erased from memory after use.
- *  Returns on the first failure; already-written entries remain valid.
+ *  Fail-closed: sigs64_out is zeroed before processing; on any failure all
+ *  output entries are zeroed so no partial valid signatures remain visible.
  *
  *  @param ctx         CPU context.
  *  @param count       Number of (message, key) pairs.

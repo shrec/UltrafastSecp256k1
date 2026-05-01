@@ -4,6 +4,7 @@
 #include "secp256k1.h"
 
 #include <cstring>
+#include <algorithm>
 #include <array>
 
 #include "secp256k1/field.hpp"
@@ -202,6 +203,28 @@ int secp256k1_ec_pubkey_combine(
     }
     if (acc.is_infinity()) return 0;
     point_to_pubkey_data(acc, out->data);
+    return 1;
+}
+
+int secp256k1_ec_pubkey_sort(
+    const secp256k1_context *ctx,
+    const secp256k1_pubkey **pubkeys,
+    size_t n_pubkeys)
+{
+    (void)ctx;
+    if (!pubkeys || n_pubkeys == 0) return 0;
+    for (size_t i = 0; i < n_pubkeys; ++i)
+        if (!pubkeys[i]) return 0;
+
+    // Lexicographic sort on 33-byte compressed serialization (matches upstream).
+    std::stable_sort(pubkeys, pubkeys + n_pubkeys,
+        [](const secp256k1_pubkey *a, const secp256k1_pubkey *b) {
+            unsigned char bufa[33], bufb[33];
+            size_t lena = 33, lenb = 33;
+            secp256k1_ec_pubkey_serialize(nullptr, bufa, &lena, a, SECP256K1_EC_COMPRESSED);
+            secp256k1_ec_pubkey_serialize(nullptr, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
+            return std::memcmp(bufa, bufb, 33) < 0;
+        });
     return 1;
 }
 
