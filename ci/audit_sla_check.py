@@ -27,12 +27,12 @@ SLA_DEF_FILE = LIB_ROOT / "docs" / "AUDIT_SLA.json"
 
 # Critical evidence artifacts and their expected locations
 CRITICAL_EVIDENCE: list[dict] = [
-    {"name": "assurance_report", "path": "assurance_report.json", "scope": "suite"},
+    {"name": "assurance_report", "path": "out/reports/out/reports/assurance_report.json", "scope": "suite"},
     {"name": "ct_evidence", "path": "audit/ci-evidence", "scope": "lib", "is_dir": True},
     {"name": "determinism_golden", "path": "docs/DETERMINISM_GOLDEN.json", "scope": "lib"},
     {"name": "api_contracts", "path": "docs/API_SECURITY_CONTRACTS.json", "scope": "lib"},
     {"name": "assurance_claims", "path": "docs/ASSURANCE_CLAIMS.json", "scope": "lib"},
-    {"name": "risk_coverage_report", "path": "risk_surface_report.json", "scope": "build"},
+    {"name": "risk_coverage_report", "path": "out/reports/risk_surface_report.json", "scope": "build"},
 ]
 
 SUITE_ROOT = LIB_ROOT.parent.parent  # workspace root

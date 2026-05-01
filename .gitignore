@@ -218,3 +218,10 @@ bindings/**/__pycache__/
 # Local developer overrides (machine-specific, never shared)
 local_settings.json
 .env.local
+
+# Generated report files (moved to out/reports/ as of 2026-05-01)
+out/reports/
+assurance_report.json
+ocl_audit_report.json
+ocl_audit_report.txt
+risk_surface_report.json

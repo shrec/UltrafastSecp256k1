@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="docs/ARCHITECTURE.md">
-    <img src="ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
+    <img src="docs/assets/ARCHITECTURE.svg" alt="UltrafastSecp256k1 Architecture" width="100%">
   </a>
 </p>
 
@@ -90,7 +90,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | 🧠 Audit philosophy & design rationale | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) |
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
 | 🚀 External auditor quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
-| 📄 See latest audit results | [AUDIT_REPORT.md](AUDIT_REPORT.md) |
+| 📄 See latest audit results | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) |
 | � Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
 | 🗺️ Exploit coverage map | [docs/EXPLOIT_COVERAGE_MAP.md](docs/EXPLOIT_COVERAGE_MAP.md) |
@@ -121,7 +121,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | 📋 Reproducible builds | [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md) |
 | 🚨 Incident response | [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) |
 | 📦 Install packages | [Installation](#installation) |
-| 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) |
+| 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) |
 | 📚 Cite this work | [CITATION.cff](CITATION.cff) |
 | � Production adopters | [docs/ADOPTION.md](docs/ADOPTION.md) |
 | 💰 Funding & grant programmes | [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) |
@@ -158,7 +158,7 @@ We do not rely on trust. We provide reproducible evidence.
 
 > If a claim cannot be traced to a test, it is not valid.
 
-For the full breakdown of the audit culture, CI/CD pipeline, formal verification layers, and supply-chain hardening, see [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
+For the full breakdown of the audit culture, CI/CD pipeline, formal verification layers, and supply-chain hardening, see [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md).
 
 ---
 
@@ -210,13 +210,13 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
-> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 51-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
+> **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, 51-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
 
 > **External auditor prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible auditor-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full audit package.
 
 > **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
 
-**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](docs/ADOPTION.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [Audit Standard (CAAS)](docs/AUDIT_STANDARD.md) * [**Why This Library?**](WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
+**Quick links:** [Discord](https://discord.gg/sUmW7cc5) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](docs/ADOPTION.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](docs/THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [Audit Standard (CAAS)](docs/AUDIT_STANDARD.md) * [**Why This Library?**](docs/WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](docs/PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
 ### Real-world Adoption
 
@@ -228,7 +228,7 @@ See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/t
 
 Package traction: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total (as of 2026-03-29).
 
-Full adopter list: [ADOPTERS.md](ADOPTERS.md)
+Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
 ---
 
@@ -380,11 +380,11 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 
 | Document | Contents |
 |----------|---------|
-| [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
+| [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
 | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) | Audit philosophy, continuous evidence model, design rationale, common objections answered |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 247 modules, 0 failures |
-| [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) | Per-module coverage matrix |
-| [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk analysis |
+| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 247 modules, 0 failures |
+| [AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) | Per-module coverage matrix |
+| [THREAT_MODEL.md](docs/THREAT_MODEL.md) | Layer-by-layer risk analysis |
 | [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |
 | [docs/AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md) | Navigation guide for external auditors |
 | [docs/CI_ENFORCEMENT.md](docs/CI_ENFORCEMENT.md) | Full CI enforcement policy |
@@ -467,7 +467,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 **Report vulnerabilities** via [GitHub Security Advisories](https://github.com/shrec/UltrafastSecp256k1/security/advisories/new) or email [payysoon@gmail.com](mailto:payysoon@gmail.com).
 For production cryptographic systems, perform your own risk review, review the current guarantees in [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md), and apply the assurance level appropriate to your deployment.
 
-For the full audit infrastructure breakdown (1M+ assertions, 53 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md).
+For the full audit infrastructure breakdown (1M+ assertions, 53 CI workflows, formal CT verification pipelines, self-audit document index), see the [Engineering Quality & Self-Audit Culture](#engineering-quality--self-audit-culture) section above and [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md).
 
 ---
 
@@ -887,7 +887,7 @@ The `ct::` namespace provides constant-time operations for secret-key material -
 **Use the CT layer for**: private key operations, signing, nonce generation, ECDH.
 **Use the FAST layer for**: verification, public key derivation, batch processing, benchmarks.
 
-See [THREAT_MODEL.md](THREAT_MODEL.md) for a full layer-by-layer risk assessment.
+See [THREAT_MODEL.md](docs/THREAT_MODEL.md) for a full layer-by-layer risk assessment.
 
 ### CT Evidence & Methodology
 
@@ -899,7 +899,7 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a full layer-by-layer risk assessment
 | **Timing tests (dudect)** | CPU field/scalar ops | [OK] Implemented in CI + nightly + native ARM64 |
 | **Deterministic CT verification** | `ct-verif` LLVM + Valgrind CT | [OK] Implemented |
 
-**Assumptions:** CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use `-O2` with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope -- see [THREAT_MODEL.md](THREAT_MODEL.md).
+**Assumptions:** CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use `-O2` with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope -- see [THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ---
 
@@ -1002,7 +1002,7 @@ All 37 library tests pass on every embedded target. See [examples/esp32_test/](e
 
 ### Porting to New Platforms
 
-See [PORTING.md](PORTING.md) for a step-by-step checklist to add new CPU architectures, embedded targets, or GPU backends.
+See [PORTING.md](docs/PORTING.md) for a step-by-step checklist to add new CPU architectures, embedded targets, or GPU backends.
 
 ---
 
@@ -1332,7 +1332,7 @@ Two security profiles are **always active** -- no flag-based selection:
 - Use for: signing, private key handling, nonce generation, ECDH
 
 **Choose the appropriate profile for your use case.** Using FAST with secret data is a security vulnerability.
-See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
+See [THREAT_MODEL.md](docs/THREAT_MODEL.md) for full details.
 
 ---
 
@@ -1662,13 +1662,13 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](AUDIT_COVERAGE.md) | Full audit report with 89 non-exploit modules + 237 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 89 non-exploit modules + 237 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |
-| [Threat Model](THREAT_MODEL.md) | Layer-by-layer security risk assessment |
+| [Threat Model](docs/THREAT_MODEL.md) | Layer-by-layer security risk assessment |
 | [Security Policy](SECURITY.md) | Vulnerability reporting and audit status |
-| [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |
+| [Porting Guide](docs/PORTING.md) | Add new platforms, architectures, GPU backends |
 | [RISC-V Optimizations](RISCV_OPTIMIZATIONS.md) | RISC-V assembly details |
 | [ESP32 Setup](docs/ESP32_SETUP.md) | ESP32 embedded development guide |
 | [Examples](examples/README.md) | Multi-language binding examples (C, Python, Rust, Node.js, Go, Java) |

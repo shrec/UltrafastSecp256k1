@@ -59,7 +59,7 @@ def _format_autonomy(kpi: dict[str, Any] | None) -> str:
 
 def _format_assurance(rep: dict[str, Any] | None) -> str:
     if not rep:
-        return '_No assurance_report.json available._'
+        return '_No out/reports/assurance_report.json available._'
     out = ['| Field | Value |', '|-------|-------|']
     for k in ('generated_at', 'overall_pass', 'release_ready',
               'failed_modules', 'advisory_failed', 'advisory_skipped'):
@@ -277,8 +277,8 @@ def render(profile: str = "default") -> str:
     out.append(_format_caas_pipeline(kpi))
 
     out.append(_section('Assurance Report'))
-    rep = _load_json(SUITE_ROOT / 'assurance_report.json') \
-        or _load_json(REPO_ROOT / 'assurance_report.json')
+    rep = _load_json(SUITE_ROOT / 'out/reports/out/reports/assurance_report.json') \
+        or _load_json(REPO_ROOT / 'out/reports/out/reports/assurance_report.json')
     out.append(_format_assurance(rep))
 
     out.append(_section('Evidence Bundle'))

@@ -114,7 +114,7 @@ run_step "preflight coverage advisory" bash -lc "python3 '$PROJECT_ROOT/ci/prefl
 run_step "preflight changed advisory" bash -lc "python3 '$PROJECT_ROOT/ci/preflight.py' --changed || true"
 
 run_step "validate assurance" bash -lc "python3 '$PROJECT_ROOT/ci/validate_assurance.py' --json | tee '$OUTPUT_DIR/validate_assurance.json'"
-run_step "export assurance" python3 "$PROJECT_ROOT/ci/export_assurance.py" -o "$OUTPUT_DIR/assurance_report.json"
+run_step "export assurance" python3 "$PROJECT_ROOT/ci/export_assurance.py" -o "$OUTPUT_DIR/out/reports/assurance_report.json"
 cp "$PROJECT_ROOT/docs/ASSURANCE_CLAIMS.json" "$OUTPUT_DIR/assurance_claims.json"
 
 if [[ "$SKIP_TRACEABILITY" -eq 0 ]]; then
@@ -146,7 +146,7 @@ Traceability generated: $((1 - SKIP_TRACEABILITY))
 Full audit package included: $WITH_PACKAGE
 
 Included artifacts:
-- assurance_report.json
+- out/reports/assurance_report.json
 - assurance_claims.json
 - validate_assurance.json
 - traceability_report.json / traceability_summary.txt (unless skipped)
