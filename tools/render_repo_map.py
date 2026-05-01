@@ -94,13 +94,13 @@ def render_card(profile: dict, x: int, y: int, width: int, height: int) -> str:
         f'<rect x="{x + 24}" y="{y + 22}" width="{min(250, width - 48)}" height="34" rx="17" fill="{stroke}"/>',
         f'<text x="{x + 42}" y="{y + 45}" font-size="15" font-weight="800" fill="#ffffff">{esc(tier)}</text>',
         text_block(title_lines, x + 26, y + 92, size=24, weight="900", fill="#0f172a", line_height=29),
-        text_block(summary_lines, x + 26, y + 148, size=16, fill="#334155", line_height=22),
-        f'<text x="{x + 26}" y="{y + 238}" font-size="15" font-weight="800" fill="#334155">Primary paths</text>',
-        f'<text x="{x + 42 + column_w}" y="{y + 238}" font-size="15" font-weight="800" fill="#334155">Signals</text>',
+        text_block(summary_lines, x + 26, y + 148, size=17, fill="#334155", line_height=23),
+        f'<text x="{x + 26}" y="{y + 238}" font-size="16" font-weight="800" fill="#334155">Primary paths</text>',
+        f'<text x="{x + 42 + column_w}" y="{y + 238}" font-size="16" font-weight="800" fill="#334155">Signals</text>',
     ]
 
-    body.append(bullet_list(path_lines, x + 34, y + 268, size=14, line_height=21))
-    body.append(bullet_list(signal_lines, x + 50 + column_w, y + 268, size=14, line_height=21))
+    body.append(bullet_list(path_lines, x + 34, y + 268, size=15, line_height=22))
+    body.append(bullet_list(signal_lines, x + 50 + column_w, y + 268, size=15, line_height=22))
 
     body.append("</g>")
     return "\n".join(body)
