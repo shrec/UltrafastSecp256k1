@@ -28,6 +28,11 @@ Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept;
 // CT modular negation: r = -a mod n
 Scalar scalar_neg(const Scalar& a) noexcept;
 
+// CT modular multiplication: r = (a * b) mod n
+// Uses schoolbook 4x4 multiply + complement reduction with branchless final
+// conditional reduction (no secret-dependent branches, unlike fast::Scalar *).
+Scalar scalar_mul(const Scalar& a, const Scalar& b) noexcept;
+
 // CT modular halving: r = a/2 mod n  (if a is odd: (a+n)/2, else a/2)
 Scalar scalar_half(const Scalar& a) noexcept;
 

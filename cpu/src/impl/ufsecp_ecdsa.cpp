@@ -329,6 +329,14 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
         std::memset(sig64_out, 0, 64);
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
     }
+    {
+        bool r_all_zero = std::all_of(sig.r.begin(), sig.r.end(),
+                                      [](uint8_t b) { return b == 0; });
+        if (SECP256K1_UNLIKELY(r_all_zero)) {
+            std::memset(sig64_out, 0, 64);
+            return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+        }
+    }
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;
@@ -361,6 +369,14 @@ ufsecp_error_t ufsecp_schnorr_sign_verified(ufsecp_ctx* ctx,
         std::memset(sig64_out, 0, 64);
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
     }
+    {
+        bool r_all_zero = std::all_of(sig.r.begin(), sig.r.end(),
+                                      [](uint8_t b) { return b == 0; });
+        if (SECP256K1_UNLIKELY(r_all_zero)) {
+            std::memset(sig64_out, 0, 64);
+            return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+        }
+    }
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;
@@ -375,6 +391,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
 {
     if (SECP256K1_UNLIKELY(!ctx || !msgs32 || !privkeys32 || !sigs64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    if (count == 0) return UFSECP_ERR_BAD_INPUT;
     if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     std::size_t total_msg_bytes, total_sig_bytes;
     if (!checked_mul_size(count, std::size_t{32}, total_msg_bytes)
@@ -415,6 +432,7 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
 {
     if (SECP256K1_UNLIKELY(!ctx || !msgs32 || !privkeys32 || !sigs64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    if (count == 0) return UFSECP_ERR_BAD_INPUT;
     if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     std::size_t total_msg_bytes, total_sig_bytes;
     if (!checked_mul_size(count, std::size_t{32}, total_msg_bytes)
@@ -446,6 +464,14 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
             std::memset(sigs64_out, 0, count * 64);
             return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+        }
+        {
+            bool r_all_zero = std::all_of(sig.r.begin(), sig.r.end(),
+                                          [](uint8_t b) { return b == 0; });
+            if (SECP256K1_UNLIKELY(r_all_zero)) {
+                std::memset(sigs64_out, 0, count * 64);
+                return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
+            }
         }
         auto sig_bytes = sig.to_bytes();
         std::memcpy(sigs64_out + i * 64, sig_bytes.data(), 64);

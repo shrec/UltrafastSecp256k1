@@ -14,6 +14,30 @@
 
 using namespace secp256k1::fast;
 
+// Context flag helpers (match upstream libsecp256k1 contract).
+// secp256k1_context_struct is defined in shim_context.cpp.  Its first field is
+// `unsigned int flags`, which we read via reinterpret_cast without including the
+// full struct definition (it is intentionally opaque in the public header).
+namespace {
+    // Return the raw flags from an opaque context pointer.
+    // Relies on flags being the first field (unsigned int) in secp256k1_context_struct.
+    inline unsigned int ctx_flags(const secp256k1_context *ctx) {
+        if (!ctx) return 0;
+        return *reinterpret_cast<const unsigned int *>(ctx);
+    }
+    inline bool ctx_can_sign(const secp256k1_context *ctx) {
+        return ctx && (ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+    }
+    inline bool ctx_can_verify(const secp256k1_context *ctx) {
+        // Upstream libsecp256k1 accepts both CONTEXT_VERIFY and CONTEXT_SIGN for
+        // verify operations (SIGN implies a superset context).
+        if (!ctx) return false;
+        unsigned int f = ctx_flags(ctx);
+        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
+               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+    }
+}
+
 // -- Internal: opaque sig stores r (32 BE) || s (32 BE) -------------------
 static void ecdsa_sig_to_data(const secp256k1::ECDSASignature& sig, unsigned char data[64]) {
     auto rb = sig.r.to_bytes();
@@ -194,7 +218,10 @@ int secp256k1_ecdsa_verify(
     const secp256k1_context *ctx, const secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const secp256k1_pubkey *pubkey)
 {
-    (void)ctx;
+    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
+    // (or a context created with CONTEXT_SIGN which is a superset).
+    // SECP256K1_CONTEXT_NONE contexts are rejected to match upstream contract.
+    if (!ctx_can_verify(ctx)) return 0;
     if (!sig || !msghash32 || !pubkey) return 0;
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
@@ -218,7 +245,9 @@ int secp256k1_ecdsa_sign(
     const unsigned char *msghash32, const unsigned char *seckey,
     secp256k1_nonce_function noncefp, const void *ndata)
 {
-    (void)ctx;
+    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
+    // A context created with only CONTEXT_VERIFY is rejected for signing.
+    if (!ctx_can_sign(ctx)) return 0;
     if (!sig || !msghash32 || !seckey) return 0;
     // Reject custom nonce functions: this shim uses RFC 6979 internally and
     // cannot forward an arbitrary noncefp callback. Fail-closed so callers

@@ -308,7 +308,9 @@ Scalar musig2_partial_sign(
     }
 
     // k = k1 + b * k2
-    Scalar k = sec_nonce.k1 + session.b * sec_nonce.k2;
+    // Use ct:: primitives: fast::Scalar +/* have a secret-dependent branch in the
+    // final modular reduction that can leak nonce bits via timing side-channels.
+    Scalar k = ct::scalar_add(sec_nonce.k1, ct::scalar_mul(session.b, sec_nonce.k2));
 
     // CT conditional negate k if R was negated (R_negated is public,
     // but keep branchless for consistency and to avoid pipeline leaks).
@@ -332,8 +334,11 @@ Scalar musig2_partial_sign(
     }
 
     // s_i = k + e * a_i * d  (mod n)
-    // Scalar +/* are fixed-iteration multi-limb arithmetic -- CT by construction.
-    Scalar const result = k + session.e * key_agg_ctx.key_coefficients[signer_index] * d;
+    // ct::scalar_mul/add: branchless modular arithmetic -- no secret-dependent
+    // branches in the final reduction, unlike fast::Scalar operator*/ operator+.
+    Scalar const ea = ct::scalar_mul(session.e, key_agg_ctx.key_coefficients[signer_index]);
+    Scalar const ead = ct::scalar_mul(ea, d);
+    Scalar const result = ct::scalar_add(k, ead);
 
     // Erase secret nonce and adjusted signing key from stack, then consume
     // the caller's secret nonce to enforce single-use (M-03).

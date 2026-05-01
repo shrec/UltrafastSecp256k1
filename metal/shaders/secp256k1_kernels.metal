@@ -258,13 +258,16 @@ kernel void ecdsa_sign_batch(
 ) {
     if (tid >= count) return;
 
-    Scalar256 msg, sec;
+    // Load private key as Scalar256; load msg bytes directly for CT call
+    Scalar256 sec;
+    uchar msg_bytes[32];
     for (int i = 0; i < 8; i++) {
         uint idx = tid * 32 + i * 4;
-        msg.limbs[7 - i] = ((uint)msg_hashes[idx] << 24) |
-                            ((uint)msg_hashes[idx+1] << 16) |
-                            ((uint)msg_hashes[idx+2] << 8) |
-                            ((uint)msg_hashes[idx+3]);
+        // msg bytes: big-endian from buffer
+        msg_bytes[i*4 + 0] = msg_hashes[idx];
+        msg_bytes[i*4 + 1] = msg_hashes[idx+1];
+        msg_bytes[i*4 + 2] = msg_hashes[idx+2];
+        msg_bytes[i*4 + 3] = msg_hashes[idx+3];
         sec.limbs[7 - i] = ((uint)privkeys[idx] << 24) |
                             ((uint)privkeys[idx+1] << 16) |
                             ((uint)privkeys[idx+2] << 8) |
@@ -272,7 +275,11 @@ kernel void ecdsa_sign_batch(
     }
 
     Scalar256 r_sig, s_sig;
-    ecdsa_sign(msg, sec, r_sig, s_sig);
+    // SECURITY FIX (CRITICAL-2 + HIGH-1): use CT signing path; zero output on failure (fail-closed)
+    bool ok = ct_ecdsa_sign_metal(msg_bytes, sec, r_sig, s_sig);
+    if (!ok) {
+        for (int z = 0; z < 8; z++) { r_sig.limbs[z] = 0; s_sig.limbs[z] = 0; }
+    }
 
     // Write r ∥ s as big-endian
     uint out_off = tid * 64;
@@ -354,36 +361,35 @@ kernel void schnorr_sign_batch(
 ) {
     if (tid >= count) return;
 
-    Scalar256 msg, sec;
+    // Load private key as Scalar256; load msg bytes directly for CT call
+    Scalar256 sec;
+    uchar msg_bytes[32];
     for (int i = 0; i < 8; i++) {
         uint idx = tid * 32 + i * 4;
-        msg.limbs[7 - i] = ((uint)msg_hashes[idx] << 24) |
-                            ((uint)msg_hashes[idx+1] << 16) |
-                            ((uint)msg_hashes[idx+2] << 8) |
-                            ((uint)msg_hashes[idx+3]);
+        // msg bytes: big-endian from buffer
+        msg_bytes[i*4 + 0] = msg_hashes[idx];
+        msg_bytes[i*4 + 1] = msg_hashes[idx+1];
+        msg_bytes[i*4 + 2] = msg_hashes[idx+2];
+        msg_bytes[i*4 + 3] = msg_hashes[idx+3];
         sec.limbs[7 - i] = ((uint)privkeys[idx] << 24) |
                             ((uint)privkeys[idx+1] << 16) |
                             ((uint)privkeys[idx+2] << 8) |
                             ((uint)privkeys[idx+3]);
     }
 
-    Scalar256 sig_rx, sig_s;
-    schnorr_sign(msg, sec, sig_rx, sig_s);
+    // Zero aux_rand for deterministic BIP-340 nonce (no aux entropy in batch)
+    uchar aux_rand[32];
+    for (int i = 0; i < 32; i++) aux_rand[i] = 0;
+
+    uchar sig_bytes[64];
+    // SECURITY FIX (CRITICAL-2 + HIGH-1): use CT signing path; zero output on failure (fail-closed)
+    bool ok = ct_schnorr_sign_metal(sec, msg_bytes, aux_rand, sig_bytes);
 
     uint out_off = tid * 64;
-    for (int i = 0; i < 8; i++) {
-        uint rv = sig_rx.limbs[7 - i];
-        signatures[out_off + i*4 + 0] = (uchar)(rv >> 24);
-        signatures[out_off + i*4 + 1] = (uchar)(rv >> 16);
-        signatures[out_off + i*4 + 2] = (uchar)(rv >> 8);
-        signatures[out_off + i*4 + 3] = (uchar)(rv);
-    }
-    for (int i = 0; i < 8; i++) {
-        uint sv = sig_s.limbs[7 - i];
-        signatures[out_off + 32 + i*4 + 0] = (uchar)(sv >> 24);
-        signatures[out_off + 32 + i*4 + 1] = (uchar)(sv >> 16);
-        signatures[out_off + 32 + i*4 + 2] = (uchar)(sv >> 8);
-        signatures[out_off + 32 + i*4 + 3] = (uchar)(sv);
+    if (ok) {
+        for (int i = 0; i < 64; i++) signatures[out_off + i] = sig_bytes[i];
+    } else {
+        for (int i = 0; i < 64; i++) signatures[out_off + i] = 0;
     }
 }
 

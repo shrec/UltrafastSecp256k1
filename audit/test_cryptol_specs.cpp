@@ -21,6 +21,7 @@
 //
 // ============================================================================
 
+#include "audit_check.hpp"  // ADVISORY_SKIP_CODE (MEDIUM-5)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -175,13 +176,13 @@ static const std::vector<std::string> kSchnorrProps = {
 int test_cryptol_specs_run() {
     if (!cryptol_available()) {
         std::printf("[cryptol_specs] cryptol not installed — skipping (advisory)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     std::string cry_dir = find_cryptol_dir();
     if (cry_dir.empty()) {
         std::printf("[cryptol_specs] formal/cryptol/ not found — skipping (advisory)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     std::printf("[cryptol_specs] Found specs at: %s\n", cry_dir.c_str());

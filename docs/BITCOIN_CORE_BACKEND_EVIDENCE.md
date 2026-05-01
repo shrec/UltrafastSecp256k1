@@ -1,6 +1,6 @@
 # Bitcoin Core Alternative Backend — Evidence Document
 
-> Version: 1.1 — 2026-04-28
+> Version: 1.2 — 2026-05-01
 > Profile: `bitcoin-core-backend`
 > Status: PR-ready — all blockers closed (see BITCOIN_CORE_PR_BLOCKERS.md)
 
@@ -133,6 +133,25 @@ These are honest statements of residual confidence gaps. Each entry is labelled
 | Thread safety: multiple contexts sharing blinding state | **Not a blocker** — each context has its own blinding state; concurrent use of distinct contexts is safe and documented in `docs/THREAD_SAFETY.md` | Residual gap: interleaved calls across contexts on the same thread are not CI-tested; THREAD_SAFETY.md §7 marks this as a known limitation; not exercised by Core |
 | Formal verification of CT layer | **Not a blocker** — no formal proof is claimed; software-tool CT verification (valgrind, ct-verif, dudect, ct-prover, ARM64 native) is the stated evidence level | Residual gap: hardware microarchitectural side channels are not ruled out by software tools alone; acceptable known confidence gap |
 | libsecp256k1 parity for `secp256k1_ellswift_*` | **Not a blocker** — ECDSA and Schnorr differential coverage is primary; ElligatorSwift has parity tests in `shim_ellswift.cpp` | Residual gap: differential coverage against the libsecp256k1 reference is thinner than for ECDSA/Schnorr; expanding is in the audit backlog |
+
+### 2026-05-01 Audit Cycle Note
+
+A red-team security audit completed on 2026-05-01 identified and fixed findings across GPU
+backends, language bindings, and compatibility shims. The fixes are fully documented in
+`docs/AUDIT_CHANGELOG.md` under "2026-05-01 — Security Audit Cycle: Red Team Findings Fixed".
+
+**Relevance to this profile (CPU/shim scope):**
+
+- `shim_musig.cpp` (CRIT-1) and `shim_schnorr.cpp` (HIGH-1, MED-2) are in scope for this profile.
+  Those fixes (nonce-reuse protection, CT Schnorr path, branchless nonce parity) are included in
+  the evidence recorded in `docs/CT_VERIFICATION.md` and covered by `ct-verif.yml`.
+- Strict private-key parsing (`parse_bytes_strict_nonzero`) is now enforced across all shim sign
+  functions — the shim parity check in `scripts/check_libsecp_shim_parity.py` verifies rejection
+  of `key == 0` and `key >= n` on every commit.
+- Schnorr R x-coordinate zero check (MEDIUM-1) is covered by the updated
+  `audit/test_exploit_boundary_sentinels.cpp` exploit test.
+- GPU backend fixes (CRITICAL-1/2, HIGH-1 through HIGH-4) are **out of scope** for this profile
+  but are recorded in `docs/AUDIT_CHANGELOG.md` for completeness.
 
 ---
 

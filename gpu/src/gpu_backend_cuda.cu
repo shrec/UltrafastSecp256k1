@@ -1366,6 +1366,12 @@ public:
         CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
                             n_tweaks * sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
+        /* -- 7. Zeroize secret material before releasing device/host memory
+         *       HIGH-3: scan private key must not remain in device memory
+         *       after the operation completes. */
+        cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
+        secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
+
         cudaFree(d_prefixes);
         cudaFree(d_spend);
         cudaFree(d_scan_k);

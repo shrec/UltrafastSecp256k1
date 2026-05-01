@@ -1312,18 +1312,30 @@ def check_exploit_traceability(conn):
 # G-12 — Source Graph Quality
 # ---------------------------------------------------------------------------
 def check_source_graph_quality(conn):
-    """G-12: check source graph DB quality (existence, freshness, row count)."""
+    """G-12: check source graph DB quality (existence, freshness, row count).
+
+    NOTE: this check inspects SOURCE_GRAPH_DB (tools/source_graph_kit/source_graph.db),
+    NOT the project graph DB (.project_graph.db used by the main conn parameter).
+    The two databases are distinct:
+      - .project_graph.db  — ABI routing, CT coverage, audit metadata (project graph)
+      - source_graph.db    — symbol bodies, call edges, crash risks (semantic source graph)
+    """
     findings = []
 
-    if not DB_PATH.exists():
-        findings.append(('FAIL', f'Source graph DB not found: {DB_PATH}'))
+    # G-12 targets the semantic source graph, not the project graph.
+    sg_db = SOURCE_GRAPH_DB
+
+    if not sg_db.exists():
+        findings.append(('FAIL',
+                         f'Source graph DB not found: {sg_db} '
+                         f'(run: python3 tools/source_graph_kit/source_graph.py build -i)'))
         return 'G-12: Source Graph Quality', findings
 
-    findings.append(('PASS', f'Source graph DB exists: {DB_PATH.name}'))
+    findings.append(('PASS', f'Source graph DB exists: {sg_db.relative_to(LIB_ROOT)}'))
 
     # Check DB staleness vs any .cpp file under cpu/
     cpu_dir = LIB_ROOT / 'cpu'
-    db_mtime = DB_PATH.stat().st_mtime
+    db_mtime = sg_db.stat().st_mtime
     stale_files = []
     if cpu_dir.exists():
         for cpp_file in cpu_dir.rglob('*.cpp'):
@@ -1339,9 +1351,9 @@ def check_source_graph_quality(conn):
     else:
         findings.append(('PASS', 'Source graph DB is up-to-date relative to cpu/ sources'))
 
-    # Count rows in a well-known table
+    # Count rows in a well-known source-graph table
     try:
-        sg_conn = sqlite3.connect(str(DB_PATH))
+        sg_conn = sqlite3.connect(str(sg_db))
         sg_conn.row_factory = sqlite3.Row
         try:
             tables = [
@@ -1353,7 +1365,8 @@ def check_source_graph_quality(conn):
             findings.append(('INFO', f'Source graph tables: {", ".join(tables[:10])}'
                              f'{"…" if len(tables) > 10 else ""}'))
 
-            # Pick a candidate table to count rows
+            # Pick a candidate table to count rows — source_graph.db uses
+            # 'symbols', 'files', or 'entries'; project_graph uses 'c_abi_functions'.
             count_table = None
             for candidate in ('symbols', 'files', 'entries', 'source_files', 'c_abi_functions'):
                 if candidate in tables:

@@ -178,7 +178,7 @@ jobs:
       - name: Run audit gate
         run: |
           python3 scripts/audit_gate.py --json -o caas_audit_gate.json
-          EXIT=$?
+          GATE_EXIT=$?
           python3 - <<'EOF'
           import json, sys
           try:
@@ -205,6 +205,11 @@ jobs:
               sys.exit(1)
           print(f"::notice::Audit gate PASS — verdict={verdict}, {len(warns)} warning(s)")
           EOF
+          # Belt-and-suspenders: also propagate the audit_gate.py exit code in
+          # case the JSON report is missing or malformed (the Python block above
+          # already handles that, but this ensures the step fails even if the
+          # inline Python somehow exits 0 despite a non-zero gate exit).
+          if [ "${GATE_EXIT}" -ne 0 ]; then exit "${GATE_EXIT}"; fi
 
       - name: Upload audit gate report
         if: always()
@@ -459,7 +464,17 @@ jobs:
       - name: Core Build Mode Gate (hard-fail)
         run: python3 scripts/check_core_build_mode.py
 
-      - name: Source Graph Quality Gate (advisory)
+      - name: Bitcoin Core Test Results Gate (hard-fail)
+        # Validates docs/BITCOIN_CORE_TEST_RESULTS.json: 693/693 tests,
+        # 0 failures, backend_commit recorded.
+        # Also runs in preflight.yml (CAAS Stage 2e); wired here so the
+        # bitcoin_core_profile job is self-contained and can block PRs.
+        run: python3 scripts/check_bitcoin_core_test_results.py
+
+      - name: Source Graph Quality Gate (advisory — not a hard gate)
+        # advisory: || true intentional — source_graph.db may be absent in
+        # lightweight CI clones.  Hard-fail version runs in preflight.yml
+        # (CAAS Stage 2d) and in the audit_gate G-12 check.
         run: python3 scripts/check_source_graph_quality.py || true
 
       - name: Bitcoin Core Profile Summary

@@ -125,6 +125,7 @@ void ecdsa_sign_batch_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
         const uint8_t* msg = msg_hashes + static_cast<size_t>(idx) * 32;
+        sigs[idx] = {};  // LOW-6: zero-init before sign so failure leaves no stale data
         results[idx] = ecdsa_sign(msg, &private_keys[idx], &sigs[idx]);
     }
 }
@@ -197,6 +198,7 @@ void schnorr_sign_batch_kernel(
     if (idx < count) {
         const uint8_t* msg = msgs + static_cast<size_t>(idx) * 32;
         const uint8_t* aux = aux_rands + static_cast<size_t>(idx) * 32;
+        sigs[idx] = {};  // LOW-6: zero-init before sign so failure leaves no stale data
         results[idx] = schnorr_sign(&private_keys[idx], msg, aux, &sigs[idx]);
     }
 }

@@ -23,6 +23,14 @@ extern "C" {
 #define SECP256K1_DEPRECATED(_msg)
 
 /* -- Opaque context ------------------------------------------------------- */
+/* Context flags ARE enforced in this shim:
+ *   - secp256k1_ecdsa_sign, secp256k1_schnorrsig_sign32,
+ *     secp256k1_schnorrsig_sign_custom: require SECP256K1_CONTEXT_SIGN.
+ *   - secp256k1_ecdsa_verify, secp256k1_schnorrsig_verify: require
+ *     SECP256K1_CONTEXT_VERIFY or SECP256K1_CONTEXT_SIGN.
+ *   - Passing a SECP256K1_CONTEXT_NONE context to a sign or verify function
+ *     returns 0 (fail), matching the upstream libsecp256k1 contract.
+ * Note: parse/serialize functions ignore context flags (as in upstream). */
 typedef struct secp256k1_context_struct secp256k1_context;
 
 /* -- Public key (64 bytes opaque) ----------------------------------------- */

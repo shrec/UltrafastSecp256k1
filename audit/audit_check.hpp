@@ -29,6 +29,17 @@ inline const char* to_cstr(const char* s) noexcept { return s; }
 inline const char* to_cstr(const std::string& s) noexcept { return s.c_str(); }
 } // namespace audit_detail
 
+// -- Advisory skip sentinel (MEDIUM-5 fix) -----------------------------------
+// Advisory modules that cannot run due to absent infrastructure (e.g. no
+// Python, no Cryptol, no OpenSSL) MUST return this code instead of 0 so that
+// unified_audit_runner can classify them as advisory_skipped rather than
+// advisory_failed.  The runner uses this as the primary classifier; the
+// legacy elapsed_ms < 1.0 heuristic is kept as a backward-compat fallback.
+// Value 77 is borrowed from autotools "skip" convention (SKIP_TEST).
+#ifndef ADVISORY_SKIP_CODE
+#define ADVISORY_SKIP_CODE 77
+#endif
+
 // -- How often to print progress (power of 2, fast bitmask) -----------------
 #ifndef AUDIT_PROGRESS_INTERVAL
 #define AUDIT_PROGRESS_INTERVAL 4096

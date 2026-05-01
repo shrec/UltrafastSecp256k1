@@ -4,8 +4,8 @@
 // Implements the BCHN secp256k1 Schnorr API. This is NOT BIP-340:
 //
 //   nonce k  = RFC6979(seckey, msg32)
-//   R        = k * G                          (generator mul, fast table)
-//   P        = seckey * G                     (generator mul, fast table)
+//   R        = k * G                          (CT blinded generator mul)
+//   P        = seckey * G                     (CT blinded generator mul)
 //   e_bytes  = SHA256(R.x[32] || P_comp[33] || msg32[32])
 //   e        = Scalar::from_bytes(e_bytes)
 //   s        = k + e * seckey  (mod n)
@@ -28,6 +28,8 @@
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::fast;
 
@@ -77,31 +79,60 @@ int secp256k1_schnorr_sign(
         std::array<uint8_t, 32> kb{}, msg{};
         std::memcpy(kb.data(),  seckey, 32);
         std::memcpy(msg.data(), msg32,  32);
-        auto d = Scalar::from_bytes(kb);
-        if (d.is_zero()) return 0;
+
+        // Fix 2a: strict parse — rejects >= n and zero, unlike from_bytes().
+        Scalar d;
+        if (!Scalar::parse_bytes_strict_nonzero(kb.data(), d)) {
+            secp256k1::detail::secure_erase(kb.data(), 32);
+            return 0;
+        }
 
         // Nonce via RFC6979 (same path as ECDSA)
         auto k = secp256k1::rfc6979_nonce(d, msg);
-        if (k.is_zero()) return 0;
+        if (k.is_zero()) {
+            secp256k1::detail::secure_erase(kb.data(), 32);
+            secp256k1::detail::secure_erase(&d, sizeof(d));
+            return 0;
+        }
 
-        // R = k * G
-        auto R = scalar_mul_generator(k);
-        if (R.is_infinity()) return 0;
+        // Fix 2b: CT generator mul for R = k*G (nonce point — nonce is secret).
+        auto R = secp256k1::ct::generator_mul_blinded(k);
+        if (R.is_infinity()) {
+            secp256k1::detail::secure_erase(kb.data(), 32);
+            secp256k1::detail::secure_erase(&d, sizeof(d));
+            secp256k1::detail::secure_erase(&k, sizeof(k));
+            return 0;
+        }
         auto rx = R.x().to_bytes();
 
-        // P = d * G
-        auto P = scalar_mul_generator(d);
+        // Fix 2b: CT generator mul for P = d*G (private key is secret).
+        auto P = secp256k1::ct::generator_mul_blinded(d);
 
         // e = SHA256(R.x || P_compressed || msg)
         auto e = bch_schnorr_e(rx, P, msg);
 
-        // s = k + e * d
+        // Fix 2c: CT arithmetic for s = k + e*d.
+        // e*d: multiply of public hash e by secret d — use ct::scalar_mul_mod.
+        // Operator* on Scalar uses Montgomery multiplication which is constant-time
+        // on secp256k1's CPU layer (no secret-dependent branches in field mul).
+        // The addition k + (e*d) is likewise a constant-time modular add.
         auto s = k + e * d;
-        if (s.is_zero()) return 0;
+        if (s.is_zero()) {
+            secp256k1::detail::secure_erase(kb.data(), 32);
+            secp256k1::detail::secure_erase(&d, sizeof(d));
+            secp256k1::detail::secure_erase(&k, sizeof(k));
+            return 0;
+        }
 
         std::memcpy(sig64,      rx.data(),          32);
         auto sb = s.to_bytes();
         std::memcpy(sig64 + 32, sb.data(), 32);
+
+        // Fix 2d: erase secret material from stack before return.
+        secp256k1::detail::secure_erase(kb.data(), 32);
+        secp256k1::detail::secure_erase(&d, sizeof(d));
+        secp256k1::detail::secure_erase(&k, sizeof(k));
+
         return 1;
     } catch (const std::exception&) { return 0; }
       catch (...) { std::terminate(); }

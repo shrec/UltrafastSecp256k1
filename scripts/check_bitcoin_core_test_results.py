@@ -182,12 +182,75 @@ def check_pass_rate() -> dict:
     }
 
 
+def check_commit_freshness() -> dict:
+    """Warn if backend_commit in the results file does not match the current
+    HEAD commit short SHA.  This is a warning (not FAIL) because the results
+    file is updated manually when Bitcoin Core is re-run against the shim, and
+    a commit bump without a re-run is expected during normal development.
+    A mismatch is surfaced so a reviewer can decide whether a re-run is needed.
+    """
+    data, err = _load_results()
+    if err:
+        return {
+            "id": "btc_commit_freshness",
+            "name": "Bitcoin Core test results: backend_commit matches HEAD",
+            "status": "WARN",
+            "detail": [f"Could not load results to check freshness: {err}"],
+        }
+
+    import subprocess as _sp
+    try:
+        head = _sp.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(LIB_ROOT),
+            stderr=_sp.DEVNULL,
+        ).decode().strip()
+    except Exception as exc:
+        return {
+            "id": "btc_commit_freshness",
+            "name": "Bitcoin Core test results: backend_commit matches HEAD",
+            "status": "WARN",
+            "detail": [f"Could not determine HEAD commit: {exc}"],
+        }
+
+    backend_commit = data.get("backend_commit", "")
+    # Compare using the shorter of the two lengths (backend_commit may be 8
+    # or 40 chars; HEAD is always 40).
+    cmp_len = min(len(backend_commit), len(head))
+    if cmp_len < 7:
+        return {
+            "id": "btc_commit_freshness",
+            "name": "Bitcoin Core test results: backend_commit matches HEAD",
+            "status": "WARN",
+            "detail": [f"backend_commit is too short to compare: {backend_commit!r}"],
+        }
+
+    if head[:cmp_len] != backend_commit[:cmp_len]:
+        return {
+            "id": "btc_commit_freshness",
+            "name": "Bitcoin Core test results: backend_commit matches HEAD",
+            "status": "WARN",
+            "detail": [
+                f"backend_commit={backend_commit!r} does not match HEAD={head[:8]!r}",
+                "Re-run Bitcoin Core test_bitcoin against the current shim to refresh.",
+            ],
+        }
+
+    return {
+        "id": "btc_commit_freshness",
+        "name": "Bitcoin Core test results: backend_commit matches HEAD",
+        "status": "PASS",
+        "detail": [f"backend_commit={backend_commit!r} matches HEAD={head[:8]!r}"],
+    }
+
+
 ALL_CHECKS = [
     check_file_exists,
     check_zero_failures,
     check_full_suite,
     check_commit_present,
     check_pass_rate,
+    check_commit_freshness,
 ]
 
 # ---------------------------------------------------------------------------

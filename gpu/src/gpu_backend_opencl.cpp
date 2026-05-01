@@ -44,6 +44,9 @@
 #include "secp256k1/glv.hpp"
 #include "secp256k1/scalar.hpp"
 
+/* -- Secure erase for private key zeroization ------------------------------ */
+#include "secp256k1/detail/secure_erase.hpp"
+
 /* -- CPU SHA-256 for ECDH finalization ------------------------------------- */
 #include "secp256k1/sha256.hpp"
 
@@ -1724,6 +1727,13 @@ public:
             };
             compute_wnaf(k1_bytes.data(), plan.wnaf1);
             compute_wnaf(k2_bytes.data(), plan.wnaf2);
+
+            /* HIGH-4 / HIGH-3: Secure-erase GLV sub-scalars from stack before
+             * leaving this scope. k and decomp hold sensitive key material. */
+            secp256k1::detail::secure_erase(k1_bytes.data(), k1_bytes.size());
+            secp256k1::detail::secure_erase(k2_bytes.data(), k2_bytes.size());
+            secp256k1::detail::secure_erase(&decomp, sizeof(decomp));
+            secp256k1::detail::secure_erase(&k, sizeof(k));
         }
 
         /* -- 2. Decompress spend pubkey to OclAffine on CPU -- */
@@ -1797,6 +1807,19 @@ public:
         /* -- 6. Read back prefixes -- */
         clEnqueueReadBuffer(queue, d_prefixes, CL_TRUE, 0,
                             sizeof(uint64_t) * n_tweaks, prefix64_out, 0, nullptr, nullptr);
+
+        /* HIGH-3: Zero the wNAF scan plan buffer on the device before releasing
+         * it. The plan contains derived key material (GLV sub-scalars + wNAF
+         * window digits) that could otherwise persist in GPU memory. */
+        {
+            static const cl_uchar zero = 0;
+            clEnqueueFillBuffer(queue, d_plan, &zero, sizeof(zero), 0,
+                                sizeof(Bip352ScanPlan), 0, nullptr, nullptr);
+            clFinish(queue);
+        }
+
+        /* Also zero the host-side plan struct. */
+        secp256k1::detail::secure_erase(&plan, sizeof(plan));
 
         clReleaseMemObject(d_prefixes);
         clReleaseMemObject(d_tweaks);

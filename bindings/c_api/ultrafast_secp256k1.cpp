@@ -28,6 +28,8 @@
 #include "secp256k1/bip32.hpp"
 #include "secp256k1/taproot.hpp"
 #include "secp256k1/init.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/sign.hpp"
 
 using Scalar = secp256k1::fast::Scalar;
 using Point  = secp256k1::fast::Point;
@@ -150,19 +152,31 @@ int secp256k1_init(void) {
 /* -- Key Operations -------------------------------------------------------- */
 
 int secp256k1_ec_pubkey_create(const uint8_t privkey[32], uint8_t pubkey_out[33]) {
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
-    auto pk = Point::generator().scalar_mul(sk);
-    if (pk.is_infinity()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(pubkey_out, 0, 33);
+        return 1;
+    }
+    auto pk = secp256k1::ct::generator_mul(sk);
+    if (pk.is_infinity()) {
+        std::memset(pubkey_out, 0, 33);
+        return 1;
+    }
     point_to_compressed(pk, pubkey_out);
     return 0;
 }
 
 int secp256k1_ec_pubkey_create_uncompressed(const uint8_t privkey[32], uint8_t pubkey_out[65]) {
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
-    auto pk = Point::generator().scalar_mul(sk);
-    if (pk.is_infinity()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(pubkey_out, 0, 65);
+        return 1;
+    }
+    auto pk = secp256k1::ct::generator_mul(sk);
+    if (pk.is_infinity()) {
+        std::memset(pubkey_out, 0, 65);
+        return 1;
+    }
     auto uncomp = pk.to_uncompressed();
     std::memcpy(pubkey_out, uncomp.data(), 65);
     return 0;
@@ -196,20 +210,21 @@ int secp256k1_ec_pubkey_parse(const uint8_t* input, size_t input_len, uint8_t pu
 }
 
 int secp256k1_ec_seckey_verify(const uint8_t privkey[32]) {
-    auto sk = scalar_from_bytes(privkey);
-    return sk.is_zero() ? 0 : 1;
+    Scalar sk;
+    return Scalar::parse_bytes_strict_nonzero(privkey, sk) ? 1 : 0;
 }
 
 int secp256k1_ec_privkey_negate(uint8_t privkey[32]) {
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 0;  // zero scalar and n ≡ 0 (mod n) are invalid keys
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) return 0;
     auto neg = sk.negate();
     scalar_to_bytes(neg, privkey);
     return 1;  // success
 }
 
 int secp256k1_ec_privkey_tweak_add(uint8_t privkey[32], const uint8_t tweak[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) return 1;
     auto tw = scalar_from_bytes(tweak);
     auto result = sk + tw;
     if (result.is_zero()) return 1;
@@ -218,7 +233,8 @@ int secp256k1_ec_privkey_tweak_add(uint8_t privkey[32], const uint8_t tweak[32])
 }
 
 int secp256k1_ec_privkey_tweak_mul(uint8_t privkey[32], const uint8_t tweak[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) return 1;
     auto tw = scalar_from_bytes(tweak);
     auto result = sk * tw;
     if (result.is_zero()) return 1;
@@ -232,10 +248,17 @@ int secp256k1_ecdsa_sign(const uint8_t msg_hash[32], const uint8_t privkey[32],
                          uint8_t sig_out[64]) {
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg_hash, 32);
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
 
-    auto sig = secp256k1::ecdsa_sign(msg, sk);
+    auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
+    if (!sig.is_valid()) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
     sig.normalize();
     auto compact = sig.to_compact();
     std::memcpy(sig_out, compact.data(), 64);
@@ -275,10 +298,17 @@ int secp256k1_ecdsa_sign_recoverable(const uint8_t msg_hash[32],
                                      uint8_t sig_out[64], int* recid_out) {
     std::array<uint8_t, 32> msg;
     std::memcpy(msg.data(), msg_hash, 32);
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
 
-    auto rsig = secp256k1::ecdsa_sign_recoverable(msg, sk);
+    auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, sk);
+    if (!rsig.sig.is_valid()) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
     rsig.sig.normalize();
     auto compact = rsig.sig.to_compact();
     std::memcpy(sig_out, compact.data(), 64);
@@ -305,15 +335,28 @@ int secp256k1_ecdsa_recover(const uint8_t msg_hash[32], const uint8_t sig[64],
 
 int secp256k1_schnorr_sign(const uint8_t msg[32], const uint8_t privkey[32],
                            const uint8_t aux_rand[32], uint8_t sig_out[64]) {
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
 
     std::array<uint8_t, 32> msg_arr, aux_arr;
     std::memcpy(msg_arr.data(), msg, 32);
     std::memcpy(aux_arr.data(), aux_rand, 32);
 
-    auto sig = secp256k1::schnorr_sign(sk, msg_arr, aux_arr);
+    auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    auto sig = secp256k1::ct::schnorr_sign(kp, msg_arr, aux_arr);
     auto bytes = sig.to_bytes();
+
+    // Check for degenerate Schnorr output: r and s must both be non-zero
+    bool r_zero = true, s_zero = true;
+    for (int i = 0; i < 32; i++) { if (bytes[i]    != 0) r_zero = false; }
+    for (int i = 0; i < 32; i++) { if (bytes[i+32] != 0) s_zero = false; }
+    if (r_zero || s_zero) {
+        std::memset(sig_out, 0, 64);
+        return 1;
+    }
     std::memcpy(sig_out, bytes.data(), 64);
     return 0;
 }
@@ -332,10 +375,13 @@ int secp256k1_schnorr_verify(const uint8_t msg[32], const uint8_t sig[64],
 }
 
 int secp256k1_schnorr_pubkey(const uint8_t privkey[32], uint8_t pubkey_x_out[32]) {
-    auto sk = scalar_from_bytes(privkey);
-    if (sk.is_zero()) return 1;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(pubkey_x_out, 0, 32);
+        return 1;
+    }
 
-    auto xonly = secp256k1::schnorr_pubkey(sk);
+    auto xonly = secp256k1::ct::schnorr_pubkey(sk);
     std::memcpy(pubkey_x_out, xonly.data(), 32);
     return 0;
 }
@@ -344,8 +390,16 @@ int secp256k1_schnorr_pubkey(const uint8_t privkey[32], uint8_t pubkey_x_out[32]
 
 int secp256k1_ecdh(const uint8_t privkey[32], const uint8_t pubkey[33],
                    uint8_t secret_out[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto pk = point_from_compressed(pubkey);
+    if (pk.is_infinity()) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto secret = secp256k1::ecdh_compute(sk, pk);
     std::memcpy(secret_out, secret.data(), 32);
     return 0;
@@ -353,8 +407,16 @@ int secp256k1_ecdh(const uint8_t privkey[32], const uint8_t pubkey[33],
 
 int secp256k1_ecdh_xonly(const uint8_t privkey[32], const uint8_t pubkey[33],
                          uint8_t secret_out[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto pk = point_from_compressed(pubkey);
+    if (pk.is_infinity()) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto secret = secp256k1::ecdh_compute_xonly(sk, pk);
     std::memcpy(secret_out, secret.data(), 32);
     return 0;
@@ -362,8 +424,16 @@ int secp256k1_ecdh_xonly(const uint8_t privkey[32], const uint8_t pubkey[33],
 
 int secp256k1_ecdh_raw(const uint8_t privkey[32], const uint8_t pubkey[33],
                        uint8_t secret_out[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto pk = point_from_compressed(pubkey);
+    if (pk.is_infinity()) {
+        std::memset(secret_out, 0, 32);
+        return 1;
+    }
     auto secret = secp256k1::ecdh_compute_raw(sk, pk);
     std::memcpy(secret_out, secret.data(), 32);
     return 0;
@@ -434,7 +504,8 @@ int secp256k1_address_p2tr(const uint8_t internal_key_x[32], int network,
 
 int secp256k1_wif_encode(const uint8_t privkey[32], int compressed, int network,
                          char* wif_out, size_t* wif_len) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) return 1;
     auto wif = secp256k1::wif_encode(sk, compressed != 0, to_network(network));
     if (wif.empty()) return 1;
     if (*wif_len < wif.size() + 1) return 1;
@@ -546,10 +617,17 @@ int secp256k1_taproot_output_key(const uint8_t internal_key_x[32],
 int secp256k1_taproot_tweak_privkey(const uint8_t privkey[32],
                                     const uint8_t* merkle_root,
                                     uint8_t tweaked_privkey_out[32]) {
-    auto sk = scalar_from_bytes(privkey);
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(privkey, sk)) {
+        std::memset(tweaked_privkey_out, 0, 32);
+        return 1;
+    }
     size_t mr_len = merkle_root ? 32 : 0;
     auto tweaked = secp256k1::taproot_tweak_privkey(sk, merkle_root, mr_len);
-    if (tweaked.is_zero()) return 1;
+    if (tweaked.is_zero()) {
+        std::memset(tweaked_privkey_out, 0, 32);
+        return 1;
+    }
     scalar_to_bytes(tweaked, tweaked_privkey_out);
     return 0;
 }

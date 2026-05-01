@@ -45,7 +45,7 @@
 
 > This is a historical baseline report (v3.9.0, 2026-02-11). The audit system has grown
 > significantly since then. See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for the current state:
-> 317 modules, ~1,000,000+ checks, 237 exploit PoC tests, 0 failures.
+> 326 modules, ~1,000,000+ checks, 237 exploit PoC tests, 0 failures.
 > **To verify current state**: `cmake --build build && ./build/audit/unified_audit_runner`
 
 ### What this report IS

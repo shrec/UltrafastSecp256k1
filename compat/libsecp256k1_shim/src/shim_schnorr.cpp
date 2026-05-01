@@ -14,6 +14,23 @@
 
 using namespace secp256k1::fast;
 
+// Context flag helpers (mirrors shim_ecdsa.cpp; flags is first field in struct).
+namespace {
+    inline unsigned int schnorr_ctx_flags(const secp256k1_context *ctx) {
+        if (!ctx) return 0;
+        return *reinterpret_cast<const unsigned int *>(ctx);
+    }
+    inline bool schnorr_ctx_can_sign(const secp256k1_context *ctx) {
+        return ctx && (schnorr_ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+    }
+    inline bool schnorr_ctx_can_verify(const secp256k1_context *ctx) {
+        if (!ctx) return false;
+        unsigned int f = schnorr_ctx_flags(ctx);
+        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
+               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+    }
+}
+
 extern "C" {
 
 static int nonce_function_bip340_stub(unsigned char *, const unsigned char *,
@@ -33,7 +50,8 @@ int secp256k1_schnorrsig_sign32(
     const secp256k1_keypair *keypair,
     const unsigned char *aux_rand32)
 {
-    (void)ctx;
+    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
+    if (!schnorr_ctx_can_sign(ctx)) return 0;
     if (!sig64 || !msg32 || !keypair) return 0;
 
     Scalar sk;
@@ -53,6 +71,11 @@ int secp256k1_schnorrsig_sign32(
     secp256k1::detail::secure_erase(&sk,   sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
     if (sig.s.is_zero()) return 0;  // fail-closed: degenerate nonce (≈2^-256)
+    {
+        bool r_all_zero = true;
+        for (int i = 0; i < 32; i++) { if (sig.r[i] != 0) { r_all_zero = false; break; } }
+        if (r_all_zero) return 0;
+    }
     auto sig_bytes = sig.to_bytes();
     std::memcpy(sig64, sig_bytes.data(), 64);
     return 1;
@@ -67,13 +90,25 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1_nonce_function_hardened noncefp,
     void *ndata)
 {
-    // Fail-closed for unsupported custom nonce functions.
+    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
+    if (!schnorr_ctx_can_sign(ctx)) return 0;
+
+    // Fail-closed: reject any custom nonce function other than NULL or the
+    // canonical BIP-340 stub.  Upstream libsecp256k1 allows arbitrary noncefp
+    // callbacks; this shim does not forward them.
+    // DIVERGENCE: custom noncefp != NULL && != secp256k1_nonce_function_bip340 → fail.
     if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
+
+    // ndata is accepted for API compatibility but is not forwarded to any nonce
+    // function.  The BIP-340 nonce derivation below uses zero aux entropy.
+    // DIVERGENCE: upstream passes ndata to the nonce function; we ignore it.
     (void)ndata;
+
     if (!sig64 || !keypair) return 0;
     if (msglen > 0 && !msg) return 0;
 
     // Fast path: 32-byte message uses optimised internal sign32 directly.
+    // sign32 accepts aux_rand32 == nullptr → deterministic zero-aux nonce.
     if (msglen == 32)
         return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair, nullptr);
 
@@ -87,6 +122,10 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
 
     // t = d XOR H_BIP0340/aux(zero_aux)
+    // NULL / missing aux_rand path: aux is always 32 zero bytes here.
+    // DIVERGENCE from upstream sign_custom: upstream passes extraparams->ndata
+    // as aux to the nonce function. This shim uses zero aux for the variable-
+    // length path because ndata is not forwarded (see above).
     static constexpr uint8_t kZeroAux[32] = {};
     auto t_hash = secp256k1::tagged_hash("BIP0340/aux", kZeroAux, 32);
     auto d_bytes = kp.d.to_bytes();
@@ -128,6 +167,11 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1::detail::secure_erase(t, sizeof(t));
 
     if (s.is_zero()) return 0;
+    {
+        bool r_all_zero = true;
+        for (int i = 0; i < 32; i++) { if (rx[i] != 0) { r_all_zero = false; break; } }
+        if (r_all_zero) return 0;
+    }
 
     std::memcpy(sig64,      rx.data(),         32);
     auto s_bytes = s.to_bytes();
@@ -136,6 +180,12 @@ int secp256k1_schnorrsig_sign_custom(
 }
 
 // -- Verify ---------------------------------------------------------------
+// NOTE on sign/verify asymmetry:
+// secp256k1_schnorrsig_sign_custom accepts arbitrary msglen (full BIP-340
+// construction), but secp256k1_schnorrsig_verify ONLY accepts msglen == 32.
+// This matches the default BIP-340 profile in upstream libsecp256k1 where
+// verify always uses a 32-byte message hash. Callers that use sign_custom with
+// msglen != 32 CANNOT verify with this function — they need a custom verifier.
 
 int secp256k1_schnorrsig_verify(
     const secp256k1_context *ctx,
@@ -143,8 +193,11 @@ int secp256k1_schnorrsig_verify(
     const unsigned char *msg, size_t msglen,
     const secp256k1_xonly_pubkey *pubkey)
 {
-    (void)ctx;
+    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
+    // (or a context created with CONTEXT_SIGN which is a superset).
+    if (!schnorr_ctx_can_verify(ctx)) return 0;
     if (!sig64 || !pubkey) return 0;
+    // Only 32-byte messages supported — see asymmetry note above.
     if (!msg || msglen != 32) return 0;
 
     secp256k1::SchnorrSignature sig;

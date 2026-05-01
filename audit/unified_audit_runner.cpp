@@ -474,6 +474,19 @@ int test_exploit_shim_der_bip66_run();        // HIGH-2/3: shim DER parser BIP-6
 int test_exploit_shim_musig_secnonce_run();   // CRIT-1: shim MuSig2 secnonce reuse (MSN-1..6)
 
 // ============================================================================
+// Forward declarations -- 2026-05-01 Red Team Audit Fixes
+// ============================================================================
+int test_exploit_legacy_capi_key_parsing_run();
+int test_exploit_legacy_capi_degenerate_sig_run();
+int test_exploit_musig_unknown_signer_run();
+int test_exploit_bchn_schnorr_strict_parsing_run();
+int test_exploit_context_flag_bypass_run();
+int test_exploit_metal_schnorr_aux_rand_run();
+int test_exploit_metal_batch_failclosed_run();
+int test_exploit_gpu_bip352_key_erase_run();
+int test_exploit_metal_ecdh_key_erase_run();
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -901,6 +914,16 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, false },
     { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, false },
+    // === 2026-05-01 Red Team Audit Fixes ===
+    { "test_exploit_legacy_capi_key_parsing",    "Legacy C API invalid private key rejection (KP-1..14) — 2026-05-01",                          "exploit_poc", test_exploit_legacy_capi_key_parsing_run,    false },
+    { "test_exploit_legacy_capi_degenerate_sig", "Legacy C API degenerate zero-sig output guard (DSG-1..7) — 2026-05-01",                       "exploit_poc", test_exploit_legacy_capi_degenerate_sig_run, false },
+    { "test_exploit_musig_unknown_signer",       "MuSig2 partial_sign with unknown signer key (MUS-1..5) — 2026-05-01",                         "exploit_poc", test_exploit_musig_unknown_signer_run,       false },
+    { "test_exploit_bchn_schnorr_strict_parsing","BCHN Schnorr shim strict private key parsing (BCH-1..9) — 2026-05-01",                        "exploit_poc", test_exploit_bchn_schnorr_strict_parsing_run, false },
+    { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement bypass (CFB-1..9) — 2026-05-01",                   "exploit_poc", test_exploit_context_flag_bypass_run,        false },
+    { "test_exploit_metal_schnorr_aux_rand",     "Metal Schnorr batch aux_rand uses private key CRITICAL-1 (MA-1..4) — 2026-05-01",             "exploit_poc", test_exploit_metal_schnorr_aux_rand_run,     false },
+    { "test_exploit_metal_batch_failclosed",     "Metal batch sign ignored return + non-CT path CRITICAL-2+HIGH-1 (MB-1..6) — 2026-05-01",     "exploit_poc", test_exploit_metal_batch_failclosed_run,     false },
+    { "test_exploit_gpu_bip352_key_erase",       "GPU BIP-352 scan key not zeroed before device memory free HIGH-3 (BK-1..8) — 2026-05-01",   "exploit_poc", test_exploit_gpu_bip352_key_erase_run,       false },
+    { "test_exploit_metal_ecdh_key_erase",       "Metal ECDH batch private key not erased from shared buffer HIGH-2+LOW-5 (ME-1..5) — 2026-05-01", "exploit_poc", test_exploit_metal_ecdh_key_erase_run,  false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
@@ -1028,6 +1051,10 @@ static std::string json_escape(const std::string& s) {
 // ============================================================================
 // Module result
 // ============================================================================
+// MEDIUM-5: advisory skip/fail classification uses return_code (sentinel 77)
+// as the primary signal; elapsed_ms < 1.0 is kept as a backward-compat fallback.
+static constexpr int ADVISORY_SKIP_CODE = 77;  // mirrors audit_check.hpp
+
 struct ModuleResult {
     const char* id;
     const char* name;
@@ -1035,6 +1062,7 @@ struct ModuleResult {
     bool        passed;
     bool        advisory;
     double      elapsed_ms;
+    int         return_code;  // raw return value from m.run() (MEDIUM-5 fix)
 };
 
 // ============================================================================
@@ -1103,7 +1131,11 @@ static void write_json_report(const char* path,
             ++total_pass;
         } else if (r.advisory) {
             ++total_advisory;
-            if (r.elapsed_ms < 1.0) {
+            // MEDIUM-5 fix: use return_code sentinel as primary classifier;
+            // fall back to elapsed_ms heuristic for backward compatibility
+            // with any advisory module that has not yet been updated to return
+            // ADVISORY_SKIP_CODE (77) on its skip paths.
+            if (r.return_code == ADVISORY_SKIP_CODE || r.elapsed_ms < 1.0) {
                 ++total_advisory_skipped;
             } else {
                 ++total_advisory_failed;
@@ -1636,13 +1668,18 @@ int main(int argc, char* argv[]) {
             if (!json_only) std::printf("PASS  (%.0f ms)\n", ms);
         } else if (m.advisory) {
             ++modules_advisory_warned;
-            if (!json_only) std::printf("WARN  (%.0f ms) [advisory]\n", ms);
+            // MEDIUM-5: distinguish advisory-skip from advisory-fail in console output
+            if (rc == ADVISORY_SKIP_CODE) {
+                if (!json_only) std::printf("SKIP  (%.0f ms) [advisory — infrastructure absent]\n", ms);
+            } else {
+                if (!json_only) std::printf("WARN  (%.0f ms) [advisory]\n", ms);
+            }
         } else {
             ++modules_failed;
             if (!json_only) std::printf("FAIL  (%.0f ms)\n", ms);
         }
 
-        results.push_back({ m.id, m.name, m.section, ok, m.advisory, ms });
+        results.push_back({ m.id, m.name, m.section, ok, m.advisory, ms, rc });
     }
 
     auto total_end = std::chrono::steady_clock::now();

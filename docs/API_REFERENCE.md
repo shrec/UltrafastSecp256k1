@@ -1965,6 +1965,14 @@ The stable C ABI is defined in `include/ufsecp/ufsecp.h`. All functions follow t
 - **Dual-layer CT**: signing/nonce/key-tweak always use the CT layer; verify/point-arith use the fast layer. No opt-in flag.
 - **Caller owns all buffers** -- library never allocates on behalf of caller (except `ctx_create`/`ctx_clone`)
 
+#### Security Properties (updated 2026-05-01)
+
+- **Strict private key parsing**: All functions accepting a private key use `Scalar::parse_bytes_strict_nonzero()`, which rejects keys `>= n` **and** `== 0`. `Scalar::from_bytes()` (silent mod-n reduction) is never used on secret inputs.
+- **CT pubkey derivation**: `ufsecp_pubkey_create` and all functions that derive a public key from a private key use `ct::generator_mul()`, not the variable-time `Point::generator().scalar_mul()`. No secret value touches the fast scalar-mul path.
+- **Degenerate output detection**: All signing functions (`ufsecp_ecdsa_sign`, `ufsecp_schnorr_sign`, their `_verified` and `_batch` variants) check for `r == 0`, `s == 0`, and all-zero Schnorr R x-coordinate after signing. On degenerate output the output buffer is zeroed and `UFSECP_ERR_INTERNAL` is returned — the zero signature is never serialized as success.
+- **Batch fail-closed**: Batch sign functions clear all output slots before processing. A per-slot failure zeroes that slot's output bytes; partial success is not possible.
+- **Batch count == 0 rejected**: `ufsecp_ecdsa_sign_batch` and `ufsecp_schnorr_sign_batch` return `UFSECP_ERR_BAD_INPUT` when `count == 0`.
+
 ### Error Codes
 
 | Code | Name | Value |
@@ -2044,8 +2052,8 @@ ufsecp_ctx_destroy(ctx);
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_pubkey_create` | `(ctx, privkey[32], pubkey33_out[33]) -> error_t` | Compressed pubkey from privkey |
-| `ufsecp_pubkey_create_uncompressed` | `(ctx, privkey[32], pubkey65_out[65]) -> error_t` | Uncompressed pubkey from privkey |
+| `ufsecp_pubkey_create` | `(ctx, privkey[32], pubkey33_out[33]) -> error_t` | Compressed pubkey from privkey (CT path; rejects key `>= n` or `== 0`) |
+| `ufsecp_pubkey_create_uncompressed` | `(ctx, privkey[32], pubkey65_out[65]) -> error_t` | Uncompressed pubkey from privkey (CT path; rejects key `>= n` or `== 0`) |
 | `ufsecp_pubkey_parse` | `(ctx, input, input_len, pubkey33_out[33]) -> error_t` | Parse 33 or 65 bytes to compressed |
 | `ufsecp_pubkey_xonly` | `(ctx, privkey[32], xonly32_out[32]) -> error_t` | x-only pubkey (BIP-340) |
 | `ufsecp_pubkey_add` | `(ctx, a33[33], b33[33], out33[33]) -> error_t` | Point addition: out = a + b |
@@ -2059,9 +2067,9 @@ ufsecp_ctx_destroy(ctx);
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_ecdsa_sign` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign (RFC 6979, low-S) |
-| `ufsecp_ecdsa_sign_verified` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign + verify (fault resistance) |
-| `ufsecp_ecdsa_sign_batch` | `(ctx, n, msgs32[], privkeys32[], sigs64_out[]) -> error_t` | CPU CT batch sign; repeats stable 32/32/64-byte item layout per entry |
+| `ufsecp_ecdsa_sign` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign (RFC 6979, low-S, CT path; rejects key `>= n` or `== 0`; returns `UFSECP_ERR_INTERNAL` on r==0 or s==0, zeroes output) |
+| `ufsecp_ecdsa_sign_verified` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign + verify (fault resistance; same CT and degenerate-output guarantees as `ufsecp_ecdsa_sign`) |
+| `ufsecp_ecdsa_sign_batch` | `(ctx, n, msgs32[], privkeys32[], sigs64_out[]) -> error_t` | CPU CT batch sign; rejects `n == 0`; clears all output slots before processing; per-slot failure zeroes that slot; repeats stable 32/32/64-byte item layout per entry |
 | `ufsecp_ecdsa_verify` | `(ctx, msg32[32], sig64[64], pubkey33[33]) -> error_t` | Verify compact signature |
 | `ufsecp_ecdsa_sig_to_der` | `(ctx, sig64[64], der_out, der_len*) -> error_t` | Compact to DER encoding |
 | `ufsecp_ecdsa_sig_from_der` | `(ctx, der, der_len, sig64_out[64]) -> error_t` | DER to compact encoding |
@@ -2073,9 +2081,9 @@ ufsecp_ctx_destroy(ctx);
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_schnorr_sign` | `(ctx, msg32, privkey, aux_rand[32], sig64_out) -> error_t` | BIP-340 sign (aux_rand=zeros for deterministic) |
-| `ufsecp_schnorr_sign_verified` | `(ctx, msg32, privkey, aux_rand, sig64_out) -> error_t` | Sign + verify (fault resistance) |
-| `ufsecp_schnorr_sign_batch` | `(ctx, n, msgs32[], privkeys32[], aux_rands32[]?, sigs64_out[]) -> error_t` | CPU CT batch sign; `aux_rands32 == NULL` means all-zero aux for every entry |
+| `ufsecp_schnorr_sign` | `(ctx, msg32, privkey, aux_rand[32], sig64_out) -> error_t` | BIP-340 sign (CT path; rejects key `>= n` or `== 0`; returns `UFSECP_ERR_INTERNAL` on s==0 or R x-coord all-zeros, zeroes output; aux_rand=zeros for deterministic) |
+| `ufsecp_schnorr_sign_verified` | `(ctx, msg32, privkey, aux_rand, sig64_out) -> error_t` | Sign + verify (fault resistance; same CT and degenerate-output guarantees as `ufsecp_schnorr_sign`) |
+| `ufsecp_schnorr_sign_batch` | `(ctx, n, msgs32[], privkeys32[], aux_rands32[]?, sigs64_out[]) -> error_t` | CPU CT batch sign; rejects `n == 0`; clears all output slots before processing; per-slot failure zeroes that slot; `aux_rands32 == NULL` means all-zero aux for every entry |
 | `ufsecp_schnorr_verify` | `(ctx, msg32, sig64, pubkey_x[32]) -> error_t` | Verify BIP-340 signature |
 
 <a id="c-abi-ecdh"></a>

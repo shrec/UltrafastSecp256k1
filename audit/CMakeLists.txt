@@ -3451,6 +3451,16 @@ add_executable(unified_audit_runner
     # 2026-05-01 security audit fixes (shim layer — advisory-skip in unified runner)
     test_exploit_shim_der_bip66.cpp
     test_exploit_shim_musig_secnonce.cpp
+    # 2026-05-01 Red Team Audit Fixes
+    test_exploit_legacy_capi_key_parsing.cpp
+    test_exploit_legacy_capi_degenerate_sig.cpp
+    test_exploit_musig_unknown_signer.cpp
+    test_exploit_bchn_schnorr_strict_parsing.cpp
+    test_exploit_context_flag_bypass.cpp
+    test_exploit_metal_schnorr_aux_rand.cpp
+    test_exploit_metal_batch_failclosed.cpp
+    test_exploit_gpu_bip352_key_erase.cpp
+    test_exploit_metal_ecdh_key_erase.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

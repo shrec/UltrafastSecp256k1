@@ -7,6 +7,40 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-01 — Security Audit Cycle: Red Team Findings Fixed
+
+### CRITICAL Fixes
+- **CRITICAL-1 Metal Schnorr aux_rand**: `metal/shaders/secp256k1_extended.h` — Schnorr batch adapter was passing private key as `aux_rand` (BIP-340 violation). Fixed: zero aux for deterministic nonce.
+- **CRITICAL-2 Metal batch fail-open**: `metal/shaders/secp256k1_kernels.metal` — both `ecdsa_sign_batch` and `schnorr_sign_batch` ignored sign return value. Fixed: routed through `ct_ecdsa_sign_metal`/`ct_schnorr_sign_metal`; output cleared on failure.
+
+### HIGH Fixes
+- **HIGH-1 Metal non-CT scalar mul**: Batch kernels now use CT signing path (combined with CRITICAL-2 fix).
+- **HIGH-2 Metal ECDH key erase**: `gpu_backend_metal.mm` — private key not erased from Metal buffer or thread-local scratch. Fixed: `memset` + `secure_erase` after ECDH.
+- **HIGH-3 CUDA BIP-352 scan key**: `gpu_backend_cuda.cu` — `d_scan_k` freed without zeroing. Fixed: `cudaMemset` + `secure_erase` before free.
+- **HIGH-4 OpenCL BIP-352 GLV scalars**: `gpu_backend_opencl.cpp` — GLV sub-scalars not erased. Fixed: `clEnqueueFillBuffer` + `secure_erase` on stack.
+
+### MEDIUM Fixes
+- **MEDIUM-1 Schnorr R zero check**: `ufsecp_ecdsa.cpp`, `shim_schnorr.cpp` — Schnorr ABI checked only `s==0`, not R x-coord. Fixed: both components now checked.
+- **MEDIUM-2 MuSig2 CT partial sign**: `musig2.cpp` — partial sign computation used `fast::Scalar`. Fixed: new `ct::scalar_mul` implementation added to `ct_scalar.cpp`; partial sign now uses CT arithmetic.
+- **MEDIUM-3 OpenCL/Metal Schnorr s==0**: `secp256k1_extended.cl`, `secp256k1_extended.h` — non-CT Schnorr returned 1 without checking `s==0`. Fixed.
+- **MEDIUM-4 GPU Schnorr warp divergence**: `schnorr.cuh`, `secp256k1_extended.cl` — branchy parity flip on secret. Fixed: branchless `scalar_cmov`.
+- **MEDIUM-5 Advisory skip sentinel**: `unified_audit_runner.cpp` + advisory modules — `elapsed_ms < 1.0` heuristic replaced with `ADVISORY_SKIP_CODE` (77) sentinel.
+- **MEDIUM-6 CAAS/CI structural gates**: Added `check_bitcoin_core_test_results.py` to CAAS profile; fixed `audit_gate.py` exit propagation; clarified advisory `|| true` steps.
+
+### Additional Fixes
+- **Legacy C API strict parsing**: `bindings/c_api/ultrafast_secp256k1.cpp` — all private key inputs now use `parse_bytes_strict_nonzero`; CT pubkey derivation; degenerate sig checks.
+- **MuSig signer-index bug**: `shim_musig.cpp` — `find_index()` returned `0` for not-found; unknown signer now fails correctly. CT pubkey derivation in lookup.
+- **BCHN Schnorr CT**: `shim_schnorr_bch.cpp` — strict key parsing; CT generator mul for R and P; key erasure.
+- **Schnorr custom parity**: Header declaration added; context flag enforcement added to ECDSA/Schnorr sign/verify functions.
+- **LOW-1 Batch count==0**: Both batch sign APIs now reject `count == 0` with `UFSECP_ERR_BAD_INPUT`.
+- **LOW-6 CUDA sig init**: CUDA batch sign kernels zero-initialize signature struct before call.
+- **LOW-7 CAAS CMakeLists check**: `check_exploit_wiring.py` now also verifies `audit/CMakeLists.txt` listing.
+
+### New CAAS Exploit Tests
+(To be wired — see Wave 2 of this session)
+
+---
+
 ## 2026-05-01 — Security Audit Fixes (Red Team / Bug Bounty Round)
 
 ### CRIT-1: MuSig2 shim — secnonce reuse protection

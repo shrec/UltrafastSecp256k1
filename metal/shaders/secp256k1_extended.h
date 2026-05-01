@@ -1492,7 +1492,9 @@ inline bool schnorr_sign(thread const Scalar256 &msg_scalar, thread const Scalar
                           thread Scalar256 &sig_rx, thread Scalar256 &sig_s) {
     uchar msg_hash[32], aux[32];
     scalar_to_bytes(msg_scalar, msg_hash);
-    scalar_to_bytes(priv, aux);  // deterministic aux for batch
+    // SECURITY FIX (CRITICAL-1): do NOT use private key as aux_rand.
+    // Zero aux for deterministic nonce derivation without leaking key material.
+    for (int i = 0; i < 32; i++) aux[i] = 0;
     SchnorrSignature sig;
     if (!schnorr_sign(priv, msg_hash, aux, sig)) return false;
     sig_rx = scalar_from_bytes(sig.r);

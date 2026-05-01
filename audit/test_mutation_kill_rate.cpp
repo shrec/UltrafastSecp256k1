@@ -15,6 +15,7 @@
 // Build deps: none — uses popen() to invoke the Python script.
 // ============================================================================
 
+#include "audit_check.hpp"  // ADVISORY_SKIP_CODE (MEDIUM-5)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -101,19 +102,19 @@ int test_mutation_kill_rate_run() {
     const char* ci_env = std::getenv("CI");
     if (ci_env && std::string(ci_env) == "true") {
         std::printf("[mutation_kill_rate] CI detected — skipping (too slow for unified runner)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     // Skip gracefully when Python 3 is not available
     if (!python3_available()) {
         std::printf("[mutation_kill_rate] python3 not available — skipping (advisory)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     std::string script = find_script();
     if (script.empty()) {
         std::printf("[mutation_kill_rate] script not found — skipping (advisory)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     // --ctest-mode: quick run (50 mutations, exit 0 if ≥ threshold, 1 if below)
@@ -135,7 +136,7 @@ int test_mutation_kill_rate_run() {
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
         std::printf("[mutation_kill_rate] popen failed — skipping (advisory)\n");
-        return 0;
+        return ADVISORY_SKIP_CODE;
     }
 
     // Stream output to stdout so it appears in CI logs

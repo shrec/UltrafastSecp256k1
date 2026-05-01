@@ -10,6 +10,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/precompute.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using secp256k1::fast::Point;
 using secp256k1::fast::Scalar;
@@ -86,15 +87,16 @@ struct KAEntry {
     std::array<unsigned char, 33> agg_pk_comp;             // compressed aggregated pubkey
     std::vector<std::array<unsigned char, 33>> compressed;  // 33-byte compressed keys in aggregation order
 
-    // Return signer index for a given secret key; 0 if not found.
-    std::size_t find_index(const Scalar& sk) const {
-        auto pk_comp = secp256k1::fast::scalar_mul_generator(sk).to_compressed();
+    // Return {signer_index, true} for a given secret key; {0, false} if not found.
+    // Uses CT generator mul to avoid leaking sk via timing on the pubkey derivation.
+    std::pair<std::size_t, bool> find_index(const Scalar& sk) const {
+        auto pk_comp = secp256k1::ct::generator_mul_blinded(sk).to_compressed();
         std::array<unsigned char, 33> pk33;
         std::memcpy(pk33.data(), pk_comp.data(), 33);
         for (std::size_t i = 0; i < compressed.size(); ++i) {
-            if (compressed[i] == pk33) return i;
+            if (compressed[i] == pk33) return {i, true};
         }
-        return 0; // fallback: single-signer or unrecognised key
+        return {0, false}; // key not in aggregation — caller must treat as error
     }
 };
 
@@ -413,10 +415,15 @@ int secp256k1_musig_partial_sign(
 
     secp256k1::MuSig2SecNonce sn{ k1, k2 };
     auto s = sess_unpack(session);
-    std::size_t idx = e->find_index(sk);
+    auto [idx, idx_found] = e->find_index(sk);
+    if (!idx_found) {
+        // Unknown key: clear output and fail-closed to prevent signing as signer #0.
+        std::memset(partial_sig->data, 0, sizeof(partial_sig->data));
+        return 0;
+    }
     auto psig = secp256k1::musig2_partial_sign(sn, sk, e->ctx, s, idx);
-    // Fail-closed: zero partial sig means degenerate nonce (k=0) or signer not
-    // found. Returning success with zeros would silently break the aggregation.
+    // Fail-closed: zero partial sig means degenerate nonce (k=0).
+    // Returning success with zeros would silently break the aggregation.
     if (psig.is_zero()) return 0;
     auto b = psig.to_bytes();
     std::memcpy(partial_sig->data, b.data(), 32);

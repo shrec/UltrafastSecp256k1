@@ -110,6 +110,110 @@ Scalar scalar_sub(const Scalar& a, const Scalar& b) noexcept {
     return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
 }
 
+// CT modular multiplication using schoolbook 4×4 + complement reduction.
+// The final conditional subtraction of ORDER uses a branchless cmov256 instead
+// of the variable-time branch in fast::Scalar::operator*.
+Scalar scalar_mul(const Scalar& a, const Scalar& b) noexcept {
+#if defined(__SIZEOF_INT128__)
+    const std::uint64_t* al = a.limbs().data();
+    const std::uint64_t* bl = b.limbs().data();
+
+    // secp256k1 complement: NC = 2^256 - n, only limbs 0 and 1 are nonzero
+    // (limb 2 contributes 1 via carry propagation handled inline)
+    constexpr std::uint64_t NC0 = 0x402DA1732FC9BEBFULL;
+    constexpr std::uint64_t NC1 = 0x4551231950B75FC4ULL;
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
+    // 160-bit accumulator {c0, c1, c2}
+    std::uint64_t c0 = 0, c1 = 0;
+    std::uint32_t c2 = 0;
+
+    auto muladd = [&](std::uint64_t x, std::uint64_t y) noexcept {
+        const unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
+        const auto tl = static_cast<std::uint64_t>(p);
+        auto th = static_cast<std::uint64_t>(p >> 64);
+        c0 += tl; th += (c0 < tl); c1 += th; c2 += (c1 < th);
+    };
+    auto sumadd = [&](std::uint64_t x) noexcept {
+        c0 += x;
+        const std::uint64_t o = (c0 < x); c1 += o; c2 += (c1 < o);
+    };
+    auto extract_to = [&](std::uint64_t& out) noexcept {
+        out = c0; c0 = c1; c1 = c2; c2 = 0;
+    };
+
+    // 4×4 schoolbook multiply
+    std::uint64_t l0=0,l1=0,l2=0,l3=0,l4=0,l5=0,l6=0,l7=0;
+    muladd(al[0],bl[0]); extract_to(l0);
+    muladd(al[0],bl[1]); muladd(al[1],bl[0]); extract_to(l1);
+    muladd(al[0],bl[2]); muladd(al[1],bl[1]); muladd(al[2],bl[0]); extract_to(l2);
+    muladd(al[0],bl[3]); muladd(al[1],bl[2]); muladd(al[2],bl[1]); muladd(al[3],bl[0]); extract_to(l3);
+    muladd(al[1],bl[3]); muladd(al[2],bl[2]); muladd(al[3],bl[1]); extract_to(l4);
+    muladd(al[2],bl[3]); muladd(al[3],bl[2]); extract_to(l5);
+    muladd(al[3],bl[3]); extract_to(l6);
+    l7 = c0;
+
+    // Reduce 512 -> 385 bits
+    std::uint64_t m0=0,m1=0,m2=0,m3=0,m4=0,m5=0,m6=0;
+    c0=l0; c1=0; c2=0;
+    muladd(l4,NC0); extract_to(m0);
+    sumadd(l1); muladd(l5,NC0); muladd(l4,NC1); extract_to(m1);
+    sumadd(l2); muladd(l6,NC0); muladd(l5,NC1); sumadd(l4); extract_to(m2);
+    sumadd(l3); muladd(l7,NC0); muladd(l6,NC1); sumadd(l5); extract_to(m3);
+    muladd(l7,NC1); sumadd(l6); extract_to(m4);
+    sumadd(l7); extract_to(m5);
+    m6 = c0;
+
+    // Reduce 385 -> 258 bits
+    std::uint64_t p0_=0,p1_=0,p2_=0,p3_=0;
+    std::uint32_t p4_=0;
+    c0=m0; c1=0; c2=0;
+    muladd(m4,NC0); extract_to(p0_);
+    sumadd(m1); muladd(m5,NC0); muladd(m4,NC1); extract_to(p1_);
+    sumadd(m2); muladd(m6,NC0); muladd(m5,NC1); sumadd(m4); extract_to(p2_);
+    sumadd(m3); muladd(m6,NC1); sumadd(m5); extract_to(p3_);
+    p4_ = static_cast<std::uint32_t>(c0 + m6);
+
+    // Reduce 258 -> 256 bits
+    unsigned __int128 acc = 0;
+    std::uint64_t r[4];
+    acc = static_cast<unsigned __int128>(p0_) + static_cast<unsigned __int128>(NC0) * p4_;
+    r[0] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += static_cast<unsigned __int128>(p1_) + static_cast<unsigned __int128>(NC1) * p4_;
+    r[1] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += static_cast<unsigned __int128>(p2_) + p4_;
+    r[2] = static_cast<std::uint64_t>(acc); acc >>= 64;
+    acc += p3_;
+    r[3] = static_cast<std::uint64_t>(acc);
+    std::uint64_t carry_out = static_cast<std::uint64_t>(acc >> 64);
+
+    // Branchless final conditional reduction: if carry OR r >= n, subtract n.
+    // Uses CT sub + cmov256 — no secret-dependent branch.
+    std::uint64_t tmp[4];
+    std::uint64_t borrow = sub256_scalar(tmp, r, N);
+    value_barrier(carry_out);
+    value_barrier(borrow);
+    // Use tmp if carry_out!=0 OR borrow==0 (i.e. r >= n)
+    std::uint64_t const use_reduced = is_nonzero_mask(carry_out) | is_zero_mask(borrow);
+    cmov256(r, tmp, use_reduced);
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+    return Scalar::from_limbs({r[0], r[1], r[2], r[3]});
+
+#else
+    // 32-bit fallback: delegate to fast multiply — acceptable on 32-bit platforms
+    // where the scalar multiplication's final branch is not a practical CT concern.
+    return Scalar::from_limbs((a * b).limbs());
+#endif
+}
+
 Scalar scalar_neg(const Scalar& a) noexcept {
     // -a mod n = n - a (if a != 0), 0 (if a == 0)
     std::uint64_t r[4];

@@ -1358,13 +1358,17 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     field_mul_impl(&px, &P.x, &z_inv2);
     field_mul_impl(&py, &P.y, &z_inv3);
 
-    // If Y is odd, negate d
+    // If Y is odd, negate d (MEDIUM-4: branchless cmov to avoid warp divergence)
     uchar py_bytes[32];
     field_to_bytes_impl(&py, py_bytes);
-    Scalar d;
-    if (py_bytes[31] & 1) {
-        scalar_negate_impl(priv, &d);
-    } else { d = *priv; }
+    Scalar d = *priv;
+    Scalar neg_d;
+    scalar_negate_impl(priv, &neg_d);
+    {
+        ulong mask = -(ulong)((py_bytes[31] & 1) != 0);
+        for (int _i = 0; _i < 4; _i++)
+            d.limbs[_i] = (neg_d.limbs[_i] & mask) | (d.limbs[_i] & ~mask);
+    }
 
     uchar px_bytes[32];
     field_to_bytes_impl(&px, px_bytes);
@@ -1405,9 +1409,15 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
 
     uchar ry_bytes[32];
     field_to_bytes_impl(&ry, ry_bytes);
-    Scalar k;
-    if (ry_bytes[31] & 1) { scalar_negate_impl(&k_prime, &k); }
-    else { k = k_prime; }
+    // MEDIUM-4: branchless cmov to avoid warp divergence on secret nonce parity
+    Scalar k = k_prime;
+    Scalar neg_k;
+    scalar_negate_impl(&k_prime, &neg_k);
+    {
+        ulong mask = -(ulong)((ry_bytes[31] & 1) != 0);
+        for (int _i = 0; _i < 4; _i++)
+            k.limbs[_i] = (neg_k.limbs[_i] & mask) | (k.limbs[_i] & ~mask);
+    }
 
     field_to_bytes_impl(&rx, sig->r);
 
@@ -1427,6 +1437,10 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     Scalar ed;
     scalar_mul_mod_n_impl(&e, &d, &ed);
     scalar_add_mod_n_impl(&k, &ed, &sig->s);
+
+    /* MEDIUM-3: Reject s == 0. Per BIP-340, s must be in [1, n-1].
+     * The analogous check exists in ecdsa_sign_impl; add it here for parity. */
+    if (scalar_is_zero(&sig->s)) return 0;
 
     return 1;
 }

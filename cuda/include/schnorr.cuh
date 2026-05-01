@@ -11,6 +11,7 @@
 // ============================================================================
 
 #include "ecdsa.cuh"   // for SHA256Ctx, sha256_*, scalar_from_bytes, etc.
+#include "ct/ct_scalar.cuh"  // scalar_cmov for branchless key/nonce negation (MEDIUM-4)
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -180,15 +181,13 @@ __device__ inline bool schnorr_sign(
     field_mul(&P.x, &z_inv2, &px);
     field_mul(&P.y, &z_inv3, &py);
 
-    // Check parity of Y: if odd, negate d
+    // Check parity of Y: if odd, negate d (MEDIUM-4: branchless to avoid warp divergence)
     uint8_t py_bytes[32];
     field_to_bytes(&py, py_bytes);
-    Scalar d;
-    if (py_bytes[31] & 1) {
-        scalar_negate(private_key, &d);
-    } else {
-        d = *private_key;
-    }
+    Scalar d = *private_key;
+    Scalar neg_d;
+    scalar_negate(private_key, &neg_d);
+    scalar_cmov(&d, &neg_d, (uint64_t)(py_bytes[31] & 1) ? ~0ULL : 0ULL);
 
     // px as bytes (for tagged hashes)
     uint8_t px_bytes[32];
@@ -229,15 +228,13 @@ __device__ inline bool schnorr_sign(
     field_mul(&R.x, &rz_inv2, &rx);
     field_mul(&R.y, &rz_inv3, &ry);
 
-    // If R.y is odd, negate k
+    // If R.y is odd, negate k (MEDIUM-4: branchless to avoid warp divergence)
     uint8_t ry_bytes[32];
     field_to_bytes(&ry, ry_bytes);
-    Scalar k;
-    if (ry_bytes[31] & 1) {
-        scalar_negate(&k_prime, &k);
-    } else {
-        k = k_prime;
-    }
+    Scalar k = k_prime;
+    Scalar neg_k;
+    scalar_negate(&k_prime, &neg_k);
+    scalar_cmov(&k, &neg_k, (uint64_t)(ry_bytes[31] & 1) ? ~0ULL : 0ULL);
 
     // sig.r = R.x as bytes
     field_to_bytes(&rx, sig->r);

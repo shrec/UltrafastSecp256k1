@@ -32,6 +32,9 @@
 /* -- CPU Hash160 fallback -------------------------------------------------- */
 #include "secp256k1/hash_accel.hpp"
 
+/* -- Secure memory erasure ------------------------------------------------- */
+#include "secp256k1/detail/secure_erase.hpp"
+
 namespace secp256k1 {
 namespace gpu {
 
@@ -561,6 +564,15 @@ public:
             auto digest = secp256k1::SHA256::hash(compressed, sizeof(compressed));
             std::memcpy(out_secrets32 + i * 32, digest.data(), 32);
         }
+
+        // SECURITY FIX (HIGH-2): Zero private key material from shared Metal buffer
+        // and thread-local scratch before returning, so key material is not retained.
+        secp256k1::detail::secure_erase(buf_scalars.contents(),
+                                        count * sizeof(MetalScalar256));
+
+        // SECURITY FIX (LOW-5): Zero private key scalars from host-side scratch
+        secp256k1::detail::secure_erase(scratch.scalars.data(),
+                                        count * sizeof(MetalScalar256));
 
         clear_error();
         return GpuError::Ok;
