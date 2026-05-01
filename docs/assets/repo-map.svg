@@ -166,9 +166,9 @@
 <circle cx="76" cy="1592" r="3.2" fill="#64748b"/>
 <text x="88" y="1596" font-size="14" fill="#0f172a">audit/</text>
 <circle cx="76" cy="1613" r="3.2" fill="#64748b"/>
-<text x="88" y="1617" font-size="14" fill="#0f172a">scripts/caas_runner.py</text>
+<text x="88" y="1617" font-size="14" fill="#0f172a">ci/caas_runner.py</text>
 <circle cx="76" cy="1634" r="3.2" fill="#64748b"/>
-<text x="88" y="1638" font-size="14" fill="#0f172a">scripts/audit_gate.py</text>
+<text x="88" y="1638" font-size="14" fill="#0f172a">ci/audit_gate.py</text>
 <circle cx="76" cy="1655" r="3.2" fill="#64748b"/>
 <text x="88" y="1659" font-size="14" fill="#0f172a">tools/source_graph_kit/</text>
 <circle cx="380" cy="1592" r="3.2" fill="#64748b"/>

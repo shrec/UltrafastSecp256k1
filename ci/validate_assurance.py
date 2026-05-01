@@ -178,10 +178,20 @@ def _graph_candidate_paths(fs_path: Path):
     graph_root_dirs = {
         'cpu', 'include', 'audit', 'benchmarks', 'cuda', 'examples',
         'gpu', 'metal', 'opencl', 'tests', 'docs', 'scripts', 'tools',
-        'bindings', '.github'
+        'bindings', '.github',
+        # src/ is the new canonical prefix (src/cpu, src/cuda, etc.)
+        'src',
     }
     if parts[0] in graph_root_dirs and len(parts) > 1:
         candidates.append(str(Path(*parts[1:])).replace('\\', '/'))
+    # Handle src/<backend>/... → strip src/ AND src/<backend>/ for graph lookup
+    # e.g. src/cpu/src/ct_sign.cpp → cpu/src/ct_sign.cpp AND src/ct_sign.cpp
+    if parts[0] == 'src' and len(parts) > 2:
+        # strip just 'src/' prefix
+        candidates.append(str(Path(*parts[1:])).replace('\\', '/'))
+        # strip 'src/<backend>/' prefix (project-relative, what DB stores)
+        if len(parts) > 2:
+            candidates.append(str(Path(*parts[2:])).replace('\\', '/'))
     return list(dict.fromkeys(candidates))
 
 

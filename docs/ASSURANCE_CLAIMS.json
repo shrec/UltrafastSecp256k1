@@ -81,8 +81,8 @@
       "stale_risk": "Medium",
       "owner_surface": [
         "src/gpu/src/*",
-        "metal/*",
-        "opencl/*",
+        "src/metal/*",
+        "src/opencl/*",
         "docs/BACKEND_ASSURANCE_MATRIX.md"
       ]
     },
@@ -121,7 +121,7 @@
       "primary_evidence": [
         "audit/",
         "README.md",
-        "WHY_ULTRAFASTSECP256K1.md"
+        "docs/WHY_ULTRAFASTSECP256K1.md"
       ],
       "enforcing_workflows": [
         "security-audit.yml",
@@ -138,7 +138,7 @@
       "owner_surface": [
         "audit/",
         "README.md",
-        "WHY_ULTRAFASTSECP256K1.md"
+        "docs/WHY_ULTRAFASTSECP256K1.md"
       ]
     },
     {
@@ -148,7 +148,7 @@
       "scope": "Review workflow and tooling; not a proof of correctness by itself",
       "primary_evidence": [
         "tools/source_graph_kit/source_graph.py",
-        "AUDIT_GUIDE.md"
+        "docs/AUDIT_GUIDE.md"
       ],
       "enforcing_workflows": [
         "Preflight/review process",
@@ -164,7 +164,7 @@
       "stale_risk": "Medium",
       "owner_surface": [
         "tools/source_graph_kit/",
-        "AUDIT_GUIDE.md",
+        "docs/AUDIT_GUIDE.md",
         "repo instructions"
       ]
     },
@@ -174,9 +174,9 @@
       "claim": "Public assurance claims are backed by rerunnable artifacts rather than trust-only prose",
       "scope": "Docs, audit reports, and CI outputs",
       "primary_evidence": [
-        "AUDIT_GUIDE.md",
+        "docs/AUDIT_GUIDE.md",
         "SECURITY.md",
-        "WHY_ULTRAFASTSECP256K1.md"
+        "docs/WHY_ULTRAFASTSECP256K1.md"
       ],
       "enforcing_workflows": [
         "CI",

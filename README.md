@@ -335,7 +335,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Generic nightly fan-out is disabled; the only automatic scheduled lane is the research monitor
-- All 80 non-exploit audit modules and all 235 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 89 non-exploit audit modules and all 235 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
 
