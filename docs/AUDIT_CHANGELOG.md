@@ -1563,17 +1563,17 @@ P1 (assurance depth) — closed:
 P2 (visibility & hygiene) — closed:
 
 - **H-7** Review-queue aging SLA —
-  [`ci/review_queue_age_check.py`](../scripts/review_queue_age_check.py)
+  [`ci/review_queue_age_check.py`](../ci/review_queue_age_check.py)
   + new `review_queue_max_open_days` SLO (90 days, warning) in
   [`docs/AUDIT_SLA.json`](AUDIT_SLA.json). Current run: 23 review-queue
   rows, 0 over SLA.
 - **H-8** TODO/FIXME age tracker —
-  [`ci/todo_age_check.py`](../scripts/todo_age_check.py)
+  [`ci/todo_age_check.py`](../ci/todo_age_check.py)
   + new `todo_max_open_days` SLO (180 days, warning). Uses `git blame` and
   honours `DEFERRED:` / `(tracked: …)` annotations. Current run:
   61 markers, 0 over SLA.
 - **H-9** Audit dashboard generator —
-  [`ci/render_audit_dashboard.py`](../scripts/render_audit_dashboard.py)
+  [`ci/render_audit_dashboard.py`](../ci/render_audit_dashboard.py)
   emits [`docs/AUDIT_DASHBOARD.md`](AUDIT_DASHBOARD.md). Designed to run
   inside the H-1 nightly job so the dashboard is regenerated daily.
 - **H-10** Reviewer prompt templates —
@@ -1597,7 +1597,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ## 2026-04-21 (dev_bug_scanner — false-positive reduction pass)
 
-Hardened 8 checkers in [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py)
+Hardened 8 checkers in [scripts/dev_bug_scanner.py](../ci/dev_bug_scanner.py)
 to suppress noise without losing real-bug detection. Total findings on the
 repository dropped **375 → 88 (-77 %)** with all HIGH-severity false positives
 eliminated, while the three known real signals (`MISSING_LOW_S_CHECK ×2`,
@@ -1655,7 +1655,7 @@ in the report.
 
 ## 2026-04-21 (dev_bug_scanner — 13 CVE-grounded crypto checkers added)
 
-Extended [scripts/dev_bug_scanner.py](../scripts/dev_bug_scanner.py) with 13
+Extended [scripts/dev_bug_scanner.py](../ci/dev_bug_scanner.py) with 13
 new checkers each anchored to a real-world cryptographic incident class.
 Coverage now includes Sony PS3 ECDSA nonce reuse, Apple goto-fail
 (CVE-2014-1266), Debian OpenSSL RNG (CVE-2008-0166), OpenSSL DER laxness

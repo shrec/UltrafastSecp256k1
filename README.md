@@ -995,7 +995,7 @@ See [PORTING.md](docs/PORTING.md) for a step-by-step checklist to add new CPU ar
 WebAssembly build via Emscripten -- runs secp256k1 in any modern browser or Node.js:
 
 ```bash
-./scripts/build_wasm.sh        # -> build/wasm/dist/
+./ci/build_wasm.sh        # -> build/wasm/dist/
 ```
 
 Output: `secp256k1_wasm.wasm` + `secp256k1.mjs` (ES6 module with TypeScript declarations).
@@ -1190,13 +1190,13 @@ cmake --build build -j
 ### WebAssembly (Emscripten)
 
 ```bash
-./scripts/build_wasm.sh        # -> build/wasm/dist/
+./ci/build_wasm.sh        # -> build/wasm/dist/
 ```
 
 ### iOS (XCFramework)
 
 ```bash
-./scripts/build_xcframework.sh  # -> build/xcframework/output/
+./ci/build_xcframework.sh  # -> build/xcframework/output/
 ```
 
 Universal XCFramework (arm64 device + arm64 simulator). Also available via **Swift Package Manager** and **CocoaPods**.
@@ -1205,13 +1205,13 @@ Universal XCFramework (arm64 device + arm64 simulator). Also available via **Swi
 
 ```bash
 # ARM64 cross-build + QEMU smoke
-bash ./scripts/run-qemu-smoke.sh arm64
+bash ./ci/run-qemu-smoke.sh arm64
 
 # RISC-V cross-build + QEMU smoke
-bash ./scripts/run-qemu-smoke.sh riscv64
+bash ./ci/run-qemu-smoke.sh riscv64
 
 # Both architectures
-bash ./scripts/run-qemu-smoke.sh all
+bash ./ci/run-qemu-smoke.sh all
 ```
 
 This local helper runs the same cross-arch smoke surface now used in CI:
@@ -1221,11 +1221,11 @@ Install the corresponding cross toolchain, libc sysroot, `qemu-user-static`, and
 If you prefer the existing local CI entry point, the same coverage is also available as:
 
 ```bash
-bash ./scripts/local-ci.sh --job qemu-smoke
+bash ./ci/local-ci.sh --job qemu-smoke
 
 # Optional: limit to one architecture
-SECP256K1_QEMU_SMOKE_TARGET=arm64 bash ./scripts/local-ci.sh --job qemu-smoke
-SECP256K1_QEMU_SMOKE_TARGET=riscv64 bash ./scripts/local-ci.sh --job qemu-smoke
+SECP256K1_QEMU_SMOKE_TARGET=arm64 bash ./ci/local-ci.sh --job qemu-smoke
+SECP256K1_QEMU_SMOKE_TARGET=riscv64 bash ./ci/local-ci.sh --job qemu-smoke
 ```
 
 ### Build Options

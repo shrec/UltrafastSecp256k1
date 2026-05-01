@@ -60,7 +60,7 @@ try {
     if ($List) {
         $env:DOCKER_BUILDKIT = '1'
         docker run --rm -v "${RepoRoot}:/src" $ImageName `
-            bash /src/scripts/local-ci.sh --list
+            bash /src/ci/ci_local.sh --list
         return
     }
 
@@ -78,7 +78,7 @@ try {
     }
 
     # -- Compose local-ci.sh arguments ------------------------------------
-    $ciArgs = @('bash', '/src/scripts/local-ci.sh')
+    $ciArgs = @('bash', '/src/ci/ci_local.sh')
 
     if ($Quick) {
         $ciArgs += '--quick'

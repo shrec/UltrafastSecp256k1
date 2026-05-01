@@ -39,7 +39,7 @@ ignore:
   - "bindings/wasm/**"
   - "bindings/android/**"
   - "bindings/**"
-  - "scripts/**"
+  - "ci/**"
   - "cmake/**"
   - "docs/**"
   # Platform-specific code never compiled on Linux coverage runner

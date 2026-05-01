@@ -269,7 +269,7 @@ ctest --test-dir build_<platform> --output-on-failure
 ./build_<platform>/src/cpu/test_cross_platform_kat
 
 # 5. Generate audit report
-./scripts/generate_self_audit_report.sh build_<platform>
+./ci/generate_self_audit_report.sh build_<platform>
 ```
 
 Expected: **41/41 tests PASS** with identical output on every platform.

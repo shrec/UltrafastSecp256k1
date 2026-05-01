@@ -532,7 +532,7 @@ clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
 ./build/src/cpu/tests/run_selftest
 
 # Linux ARM64 smoke under QEMU (cross-compiled)
-bash ./scripts/run-qemu-smoke.sh arm64
+bash ./ci/run-qemu-smoke.sh arm64
 
 # Or run the commands manually
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/run_selftest smoke
@@ -541,7 +541,7 @@ qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/bench_kP
 qemu-aarch64 -L /usr/aarch64-linux-gnu ./build-arm64/cpu/bench_bip324
 
 # Linux RISC-V smoke under QEMU (cross-compiled)
-bash ./scripts/run-qemu-smoke.sh riscv64
+bash ./ci/run-qemu-smoke.sh riscv64
 
 # Or run the commands manually
 qemu-riscv64 -L /usr/riscv64-linux-gnu ./build-riscv64/cpu/run_selftest smoke

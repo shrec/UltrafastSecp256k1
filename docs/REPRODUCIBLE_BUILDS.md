@@ -35,7 +35,7 @@ Exit code `0` = builds match. Exit code `1` = builds differ.
 ```bash
 # Requires: cmake, ninja, g++ (or set CC/CXX env vars)
 chmod +x ci/verify_reproducible_build.sh
-./scripts/verify_reproducible_build.sh
+./ci/verify_reproducible_build.sh
 ```
 
 ---
@@ -111,7 +111,7 @@ slsa-verifier verify-artifact \
 Generate a CycloneDX 1.6 SBOM:
 
 ```bash
-./scripts/generate_sbom.sh [output_file]
+./ci/generate_sbom.sh [output_file]
 # Default: sbom.cdx.json
 ```
 

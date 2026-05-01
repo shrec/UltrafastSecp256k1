@@ -9,10 +9,10 @@ Goal: if local parity passes, GitHub Linux CI should not fail for the same reaso
 Use the wrapper:
 
 ```bash
-./scripts/ci-local.sh --list
-./scripts/ci-local.sh quick
-./scripts/ci-local.sh pre-push
-./scripts/ci-local.sh gh-parity
+./ci/ci-local.sh --list
+./ci/ci-local.sh quick
+./ci/ci-local.sh pre-push
+./ci/ci-local.sh gh-parity
 ```
 
 `ci-local.sh` auto-detects `docker compose` or `docker-compose`.
@@ -22,19 +22,19 @@ Use the wrapper:
 Fast iteration:
 
 ```bash
-./scripts/ci-local.sh quick
+./ci/ci-local.sh quick
 ```
 
 Before push:
 
 ```bash
-./scripts/ci-local.sh pre-push
+./ci/ci-local.sh pre-push
 ```
 
 Before PR/merge (max Linux parity):
 
 ```bash
-./scripts/ci-local.sh gh-parity
+./ci/ci-local.sh gh-parity
 ```
 
 ## 3. What `gh-parity` runs
@@ -72,7 +72,7 @@ Behavior:
 Override threshold:
 
 ```bash
-BENCH_ALERT_THRESHOLD=130 ./scripts/ci-local.sh bench-regression
+BENCH_ALERT_THRESHOLD=130 ./ci/ci-local.sh bench-regression
 ```
 
 ## 5. GPU Audit (Local Only)

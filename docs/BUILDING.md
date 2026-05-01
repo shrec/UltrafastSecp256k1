@@ -420,7 +420,7 @@ source emsdk_env.sh
 
 ```bash
 # Using the build script (recommended)
-./scripts/build_wasm.sh
+./ci/build_wasm.sh
 
 # Or manually:
 emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
@@ -451,7 +451,7 @@ See [bindings/wasm/README.md](../bindings/bindings/wasm/README.md) for JS/TS usa
 
 ```bash
 # Build universal XCFramework (device + simulator)
-./scripts/build_xcframework.sh
+./ci/build_xcframework.sh
 ```
 
 Output: `build-xcframework/output/UltrafastSecp256k1.xcframework`
