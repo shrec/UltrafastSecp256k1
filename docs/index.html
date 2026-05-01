@@ -102,8 +102,8 @@ What Is This?</h1>
 <ul>
 <li>⚡ <b>High-throughput ECC engine</b> — CPU + GPU + embedded (CUDA, OpenCL, Metal, ARM64, RISC-V, WASM, ESP32, STM32)</li>
 <li>🔐 <b>Cryptographic stack</b> — ECDSA, Schnorr, FROST, MuSig2, Taproot, BIP-352 Silent Payments, ZK Proofs, ECDH</li>
-<li>🧠 <b>Continuous audit system</b> — 1,000,000+ assertions per build, 84 non-exploit modules + 228 exploit PoCs, 0 failures — not a snapshot</li>
-<li>🧪 <b>Adversarially tested</b> — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 3 independent CT pipelines</li>
+<li>🧠 <b>Continuous audit system</b> — 1,000,000+ assertions per build, 80 non-exploit modules + 235 exploit PoCs, 0 failures — not a snapshot</li>
+<li>🧪 <b>Adversarially tested</b> — 232 exploit PoC tests, 11 fuzzer harnesses, 39 formal Cryptol properties, 5 independent CT pipelines</li>
 </ul>
 <blockquote class="doxtable">
 <p>&zwj;Security is not assumed — it is continuously verified on every commit. </p>
@@ -241,7 +241,7 @@ Why This Exists</h1>
 <p>We do not rely on trust. We provide reproducible evidence.</p>
 <ul>
 <li>Every exploit attempt becomes a permanent regression test</li>
-<li>Every commit runs 1,000,000+ assertions across 84 non-exploit audit modules and 228 exploit PoCs</li>
+<li>Every commit runs 1,000,000+ assertions across 80 non-exploit audit modules and 235 exploit PoCs</li>
 <li>Every claim maps to a test in docs/AUDIT_TRACEABILITY.md</li>
 <li>Every performance number has pinned compiler/driver/toolkit versions and raw logs</li>
 </ul>
@@ -286,8 +286,8 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;TL;DR is above. This section covers what differentiates this library in depth. </p>
 </blockquote>
 <ul>
-<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 232 exploit-PoC test files (all 232 registered as runner modules, parity enforced by <code>scripts/check_exploit_wiring.py</code>) across 200+ attack vectors, 41 CI workflows, 3 formal CT verification pipelines (ct-verif + Valgrind CT + dudect), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
-<li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 19-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
+<li><b>Continuous adversarial audit system</b> &ndash; every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per build, 235 exploit-PoC test files (all 235 registered as runner modules, parity enforced by <code>scripts/check_exploit_wiring.py</code>) across 200+ attack vectors, 53 CI workflows, 5 CT verification pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native), 1.3M+ nightly differential checks — security hardens on every commit, not just on release day (→ how it works)</li>
+<li><b>Differentiated GPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> surface</b> &ndash; CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus <b>GPU FROST partial verification</b> (reproducible benchmark suite and raw logs)</li>
 <li><b>High-performance CPU <a class="el" href="namespacesecp256k1.html">secp256k1</a> engine</b> &ndash; optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets (see bench_unified ratio table)</li>
 <li><b>BIP-352 Silent Payments at 11.00 M/s</b> &ndash; the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, <b>267× faster</b> than single-threaded CPU (GPU bench, <a href="https://github.com/craigraw/bench_bip352">standalone CPU benchmark by @craigraw</a>)</li>
 <li><b>Built for modern <a class="el" href="namespacesecp256k1.html">secp256k1</a> workloads</b> &ndash; signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine</li>
@@ -301,7 +301,7 @@ Why UltrafastSecp256k1? — Detail</h1>
 <p>&zwj;<b>Benchmark reproducibility:</b> All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See `docs/BENCHMARKS.md` (methodology) and the <a href="https://shrec.github.io/UltrafastSecp256k1/dev/bench/">live dashboard</a>. </p>
 </blockquote>
 <blockquote class="doxtable">
-<p>&zwj;<b>Why this library, in depth?</b> See WHY_ULTRAFASTSECP256K1.md for a full breakdown of the audit culture, 24-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims. </p>
+<p>&zwj;<b>Why this library, in depth?</b> See WHY_ULTRAFASTSECP256K1.md for a full breakdown of the audit culture, 51-workflow CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims. </p>
 </blockquote>
 <blockquote class="doxtable">
 <p>&zwj;<b>External auditor prep:</b> Run <code>bash scripts/external_audit_prep.sh</code> to produce a reproducible auditor-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full audit package. </p>
@@ -329,7 +329,7 @@ Highlights</h1>
 <ul>
 <li><b>BIP-352 GPU pipeline at 11.00 M/s</b> &ndash; full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU</li>
 <li><b>GPU-accelerated <a class="el" href="namespacesecp256k1.html">secp256k1</a></b> &ndash; high-throughput CUDA verification kernels, batch ECDH, BIP-352 scanning, and BIP-324 encryption on CUDA/OpenCL/Metal; CT-sensitive signing always routes through the CPU CT layer; GPU operations that handle secret material (ECDH, BIP-352, BIP-324) require a trusted single-tenant environment (see GPU Security Model)</li>
-<li><b>GPU C ABI (<code>ufsecp_gpu</code>)** &ndash; stable 19-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface</b></li>
+<li><b>GPU C ABI (<code>ufsecp_gpu</code>)** &ndash; stable 16-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface</b></li>
 <li><b><b>Zero-Knowledge cryptographic layer</b> &ndash; Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256</b></li>
 <li><b><b>17–67× faster batch operations</b> &ndash; all-affine Pippenger with touched-bucket optimization</b></li>
 <li><b><b>Multi-language bindings</b> &ndash; Python (<code>pip install ufsecp</code>), Node.js (<code>npm i ufsecp</code>), Rust, Go, C#/.NET, Java, Swift, PHP, Ruby, Dart, React Native — all via the stable C ABI</b></li>
@@ -356,7 +356,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Internal audit assertions per build   </td><td class="markdownTableBodyNone">**~1,000,000+**    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Audit modules (<code>unified_audit_runner</code>)   </td><td class="markdownTableBodyNone"><b>84 non-exploit modules + 228 exploit PoCs across 9 sections, 0 failures</b>    </td></tr>
+<td class="markdownTableBodyNone">Audit modules (<code>unified_audit_runner</code>)   </td><td class="markdownTableBodyNone"><b>80 non-exploit modules + 235 exploit PoCs across 9 sections, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Exploit PoC test files   </td><td class="markdownTableBodyNone"><b>232 tests, 20+ coverage areas, 0 failures</b>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -366,7 +366,7 @@ By the Numbers</h2>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Nightly differential tests   </td><td class="markdownTableBodyNone">**~1,300,000+ random checks / night**    </td></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Constant-time verification pipelines   </td><td class="markdownTableBodyNone"><b>3 independent (ct-arm64, ct-verif, Valgrind CT)</b>    </td></tr>
+<td class="markdownTableBodyNone">Constant-time verification pipelines   </td><td class="markdownTableBodyNone"><b>5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)</b>    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone">Fuzzing adversarial corpus   </td><td class="markdownTableBodyNone"><b>530,000+ cases (libFuzzer + ClusterFuzz-Lite)</b>    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -382,7 +382,7 @@ CI/CD Pipeline Highlights</h2>
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Workflow   </th><th class="markdownTableHeadNone">Purpose   </th><th class="markdownTableHeadNone">Trigger    </th></tr>
 <tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>security-audit.yml</code>   </td><td class="markdownTableBodyNone">Runs full <code>unified_audit_runner</code> — 84 non-exploit modules + 228 exploit PoCs, ~1M+ assertions   </td><td class="markdownTableBodyNone">Every push    </td></tr>
+<td class="markdownTableBodyNone"><code>security-audit.yml</code>   </td><td class="markdownTableBodyNone">Runs full <code>unified_audit_runner</code> — 80 non-exploit modules + 235 exploit PoCs, ~1M+ assertions   </td><td class="markdownTableBodyNone">Every push    </td></tr>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><code>ct-arm64.yml</code>   </td><td class="markdownTableBodyNone">Constant-time verification on native ARM64 hardware   </td><td class="markdownTableBodyNone">Every push    </td></tr>
 <tr class="markdownTableRowOdd">
@@ -410,12 +410,12 @@ CI/CD Pipeline Highlights</h2>
 What "Self-Audit Culture" Means in Practice</h2>
 <ul>
 <li>Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form</li>
-<li>Every constant-time path is verified under <b>formal CT analysis + Valgrind + hardware-native ARM64 CT pipeline</b> — three independent layers</li>
+<li>Every constant-time path is verified under <b>5 independent pipelines: LLVM ct-verif, Valgrind taint, ct-prover (sPIN), dudect (statistical), ARM64 native</b></li>
 <li>Every ECDSA/Schnorr implementation is cross-validated against <b>Wycheproof vectors, independent reference golden vectors, and BIP test vectors</b></li>
 <li>Every commit that would regress throughput <b>fails CI automatically</b> via <code>bench-regression.yml</code></li>
 <li>Audit results are logged as <b>structured artifacts</b> (JSON reports, per-platform logs), not just pass/fail signals</li>
 <li><b>Nightly differential testing</b> runs ~1.3M random round-trips against reference implementations every night</li>
-<li>All 60 non-exploit audit modules and all 232 exploit PoCs return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
+<li>All 80 non-exploit audit modules and all 232 exploit PoCs return <code>AUDIT-READY</code> status. Zero failures across all tested platforms.</li>
 </ul>
 <h2><a class="anchor" id="autotoc_md42"></a>
 Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)</h2>
@@ -568,7 +568,7 @@ Use Cases</h1>
 <h1><a class="anchor" id="autotoc_md50"></a>
 Security &amp; Vulnerability Reporting</h1>
 <p><b>Report vulnerabilities</b> via <a href="https://github.com/shrec/UltrafastSecp256k1/security/advisories/new">GitHub Security Advisories</a> or email <a href="#" onclick="location.href='mai'+'lto:'+'pay'+'ys'+'oon'+'@g'+'mai'+'l.'+'com'; return false;">payysoon@gmail.com</a>. For production cryptographic systems, perform your own risk review, review the current guarantees in <a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">SUPPORTED_GUARANTEES.md</a>, and apply the assurance level appropriate to your deployment.</p>
-<p>For the full audit infrastructure breakdown (1M+ assertions, 41 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
+<p>For the full audit infrastructure breakdown (1M+ assertions, 53 CI workflows, formal CT verification pipelines, self-audit document index), see the Engineering Quality &amp; Self-Audit Culture section above and WHY_ULTRAFASTSECP256K1.md.</p>
 <hr  />
 <h1><a class="anchor" id="autotoc_md52"></a>
 Seeking Sponsors – Bug Bounty &amp; Development</h1>
@@ -679,7 +679,7 @@ secp256k1 Feature Overview</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU   </td><td class="markdownTableBodyNone">CUDA, Metal, OpenCL, ROCm kernels   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp_gpu</code> &ndash; 7 batch ops across 3 backends (26 functions, incl. FROST)   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
+<td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">GPU C ABI   </td><td class="markdownTableBodyNone"><code>ufsecp_gpu</code> &ndash; 16 batch ops across 3 backends, incl. FROST, BIP-324, BIP-352   </td><td class="markdownTableBodyNone">[OK]    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">&ndash;   </td><td class="markdownTableBodyNone">Platforms   </td><td class="markdownTableBodyNone">x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android   </td><td class="markdownTableBodyNone">[OK]   </td></tr>
 </table>
@@ -1723,7 +1723,7 @@ Platform CI Coverage</h2>
 </table>
 <h2><a class="anchor" id="autotoc_md146"></a>
 Cross-Platform Audit Results</h2>
-<p>The <code>unified_audit_runner</code> executes <b>84 non-exploit audit modules + 228 exploit PoCs</b> across 9 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
+<p>The <code>unified_audit_runner</code> executes <b>80 non-exploit audit modules + 235 exploit PoCs</b> across 9 sections (mathematical invariants, constant-time analysis, differential testing, standard vectors, fuzzing, protocol security, ABI safety, performance validation).</p>
 <table class="markdownTable">
 <tr class="markdownTableHead">
 <th class="markdownTableHeadNone">Platform   </th><th class="markdownTableHeadNone">OS   </th><th class="markdownTableHeadNone">Compiler   </th><th class="markdownTableHeadNone">Modules   </th><th class="markdownTableHeadNone">Verdict   </th><th class="markdownTableHeadNone">Time    </th></tr>
@@ -1864,7 +1864,7 @@ Documentation</h1>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><a class="el" href="md_include_2ufsecp_2SUPPORTED__GUARANTEES.html">Supported Guarantees</a>   </td><td class="markdownTableBodyNone">ABI stability tiers and commitment levels    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Audit Coverage   </td><td class="markdownTableBodyNone">Full audit report with 84 non-exploit modules + 228 exploit PoCs and platform verdicts    </td></tr>
+<td class="markdownTableBodyNone">Audit Coverage   </td><td class="markdownTableBodyNone">Full audit report with 80 non-exploit modules + 235 exploit PoCs and platform verdicts    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone">Audit Guide   </td><td class="markdownTableBodyNone">How to run and interpret audit suite    </td></tr>
 <tr class="markdownTableRowEven">

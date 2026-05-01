@@ -57,5 +57,6 @@ var dir_3015dd157bf50376ab3b1f9a873c3f74 =
     [ "taproot.hpp", "taproot_8hpp.html", "taproot_8hpp" ],
     [ "test_framework.hpp", "test__framework_8hpp.html", "test__framework_8hpp" ],
     [ "types.hpp", "cpu_2include_2secp256k1_2types_8hpp.html", null ],
+    [ "unicode_nfkd.hpp", "unicode__nfkd_8hpp.html", "unicode__nfkd_8hpp" ],
     [ "zk.hpp", "zk_8hpp.html", "zk_8hpp" ]
 ];

@@ -219,15 +219,15 @@ var NAVTREEINDEX =
 "eth__signing_8hpp.html#a8b4dcac20a10c5c918b5aa961de41113",
 "globals.html",
 "namespacemembers_func_l.html",
-"namespacesecp256k1_1_1coins.html#a62aaaf332ea9d266c4daf33d9695fda5",
-"namespacesecp256k1_1_1fast.html#a739f63c0ac25d645d4ebf2c88bb7643d",
-"point_8hpp.html#aa1ade8639ae8e331731389af48483662",
-"structsecp256k1_1_1ExtendedKey.html#a05c9809a4292dc2ffc6b99c940af9788",
-"structsecp256k1_1_1TapSighashTxData.html#a03081aaaf536b02cbe3830131aa3f91d",
-"structsecp256k1_1_1fast_1_1FieldElement26.html#a6d42bcbf1c71e5a8e85186218851cef5",
-"structsecp256k1_1_1fast_1_1SelftestReport.html#aa790b0ff05ae7d2588aa9ceaa25b8eec",
-"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335a7a421afa7e8c91fc5613976fd1ae9deb",
-"ufsecp__gpu_8h.html#a6c9aeb90ba791cd6c67faa991b7fc30a"
+"namespacesecp256k1_1_1coins.html#a53cc055722f1672418ff9a50820e4139",
+"namespacesecp256k1_1_1fast.html#a7351530a09b2c36386085378b24488c6",
+"point_8hpp.html",
+"structsecp256k1_1_1ECDSASignature.html#afb3c12a1c797287a41952bebbd1a3047",
+"structsecp256k1_1_1TapSighashTxData.html",
+"structsecp256k1_1_1fast_1_1FieldElement26.html#a0e2abe72ca8af3ca7830cf7fb51b0747",
+"structsecp256k1_1_1fast_1_1SelftestReport.html#a16d4bf2b84a8fbc4657ee603d85ab8d5",
+"test__framework_8hpp.html#a67d5ad2842e24c72d6e79f845fb96335a62f7d36102de216c257a561c9a131624",
+"ufsecp__gpu_8h.html#a3b6b86e9356ff43601374f139f255a9a"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

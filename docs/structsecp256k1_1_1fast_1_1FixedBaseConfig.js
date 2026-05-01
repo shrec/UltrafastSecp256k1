@@ -9,6 +9,7 @@ var structsecp256k1_1_1fast_1_1FixedBaseConfig =
     [ "bloom_filter_path", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a1bca90c39dd74eb434d629c5f4e99462", null ],
     [ "cache_dir", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#aa65a692f6b7fe8c26ca61bbf9833944d", null ],
     [ "cache_path", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a061b88ecd5aa5e6b9062b849fe7c2b9a", null ],
+    [ "cache_path_set", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a59080d2918019722b469955ff22c07ee", null ],
     [ "comb_width", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#ac46baa3a335288715aaaf9cb653d32aa", null ],
     [ "db_path", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a9e4322aa04a28fe86ebb496baf23463b", null ],
     [ "enable_glv", "structsecp256k1_1_1fast_1_1FixedBaseConfig.html#a5ac4e526603e4a04d4239acfeda935ac", null ],

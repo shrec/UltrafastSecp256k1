@@ -185,6 +185,7 @@ var namespacesecp256k1 =
     [ "musig2_partial_sign", "namespacesecp256k1.html#a3060f18aa9eda0c3398f9166e19971e9", null ],
     [ "musig2_partial_verify", "namespacesecp256k1.html#ac70c7095aa9d4247c147e9fb52e10af4", null ],
     [ "musig2_start_sign_session", "namespacesecp256k1.html#aac69418e53d08dfb473069cf133dac78", null ],
+    [ "nfkd_normalize", "namespacesecp256k1.html#a0573b7200baa5119e3632f945343f60b", null ],
     [ "operator==", "namespacesecp256k1.html#abc87f00cdfb554df7b96ba8b1f0d849a", null ],
     [ "p2wpkh_script_code", "namespacesecp256k1.html#ab13cb5cda356bc60ec55fc344e2b7ce9", null ],
     [ "parse_witness_program", "namespacesecp256k1.html#a3a8b95336f58916a0d23ac135426d4ac", null ],

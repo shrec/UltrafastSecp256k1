@@ -588,6 +588,8 @@ Functions</h2></td></tr>
 <tr class="separator:a62c0f22f83f86b943d29fb2f0e326477"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4120ca7daea32aa7afeed02b3306aeb5" id="r_a4120ca7daea32aa7afeed02b3306aeb5"><td class="memItemLeft" align="right" valign="top">std::array&lt; std::uint8_t, 32 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a4120ca7daea32aa7afeed02b3306aeb5">taproot_keypath_sighash</a> (const <a class="el" href="structsecp256k1_1_1TapSighashTxData.html">TapSighashTxData</a> &amp;tx_data, std::size_t input_index, std::uint8_t hash_type, const std::uint8_t *annex=nullptr, std::size_t annex_len=0) noexcept</td></tr>
 <tr class="separator:a4120ca7daea32aa7afeed02b3306aeb5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0573b7200baa5119e3632f945343f60b" id="r_a0573b7200baa5119e3632f945343f60b"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a0573b7200baa5119e3632f945343f60b">nfkd_normalize</a> (const std::string &amp;utf8)</td></tr>
+<tr class="separator:a0573b7200baa5119e3632f945343f60b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7e6d38a63098bede5c75ee17ca4ebf9f" id="r_a7e6d38a63098bede5c75ee17ca4ebf9f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structsecp256k1_1_1FieldElementData.html">FieldElementData</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#a7e6d38a63098bede5c75ee17ca4ebf9f">fe_to_data</a> (void *fe) noexcept</td></tr>
 <tr class="separator:a7e6d38a63098bede5c75ee17ca4ebf9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab69bb17fffa81e4e0fa7f89eb36ea5aa" id="r_ab69bb17fffa81e4e0fa7f89eb36ea5aa"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structsecp256k1_1_1FieldElementData.html">FieldElementData</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacesecp256k1.html#ab69bb17fffa81e4e0fa7f89eb36ea5aa">fe_to_data</a> (const void *fe) noexcept</td></tr>
@@ -3837,6 +3839,25 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a0573b7200baa5119e3632f945343f60b" name="a0573b7200baa5119e3632f945343f60b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0573b7200baa5119e3632f945343f60b">&#9670;&#160;</a></span>nfkd_normalize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string secp256k1::nfkd_normalize </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>utf8</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Returns the UTF-8 NFKD-normalized form of the input. For ASCII-only strings (all bytes 0x00-0x7F): returns unchanged (fast path). Covers Latin-1/Extended, Latin Extended-A/B, Greek Extended, compatibility forms (fi/fl/ff/ffi/ffl), superscripts, fractions, and letterlike symbols. </p>
 
 </div>
 </div>
