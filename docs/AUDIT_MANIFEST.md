@@ -143,7 +143,7 @@ python3 ci/mutation_kill_rate.py \
   --ctest-mode \
   --count 20 \
   --threshold 75 \
-  --json -o mutation_kill_report.json
+  --json -o out/reports/mutation_kill_report.json
 ```
 
 ### P3 — Security Pattern Preservation

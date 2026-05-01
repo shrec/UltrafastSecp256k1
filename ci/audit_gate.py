@@ -822,7 +822,7 @@ def check_mutation_kill_rate(conn):
 # ---------------------------------------------------------------------------
 # P2 — Mutation Evidence Freshness
 # ---------------------------------------------------------------------------
-_DEFAULT_MUTATION_REPORT = "mutation_kill_report.json"
+_DEFAULT_MUTATION_REPORT = "out/reports/mutation_kill_report.json"
 _DEFAULT_MUTATION_STALENESS_DAYS = 14
 
 
@@ -835,7 +835,7 @@ def check_mutation_freshness(_conn):
 
     if not report_path.exists():
         findings.append(('WARN', f'Mutation kill report not found: {report_name} — run: '
-                         'python3 ci/mutation_kill_rate.py --ctest-mode --json -o mutation_kill_report.json'))
+                         'python3 ci/mutation_kill_rate.py --ctest-mode --json -o out/reports/mutation_kill_report.json'))
         return 'P2: Mutation Evidence Freshness', findings
 
     try:

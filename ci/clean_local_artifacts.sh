@@ -81,7 +81,7 @@ done < <(find . -maxdepth 5 \( -name "*.db-shm" -o -name "*.db-wal" \) -print0 2
 
 echo ""
 echo "-- Binary caches --"
-for f in cache_w*.bin scan_lut_bench.bin secp256k1_gen_lut_v1.bin; do
+for f in cache_w*.bin scan_lut_bench.bin secp256k1_gen_lut_v1.bin scan_lut_bench.bin precomputed/secp256k1_gen_lut_v1.bin; do
     [[ -f "$f" ]] && _remove "$f"
 done
 

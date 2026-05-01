@@ -75,7 +75,7 @@ EVIDENCE_FILES: list[str] = [
     # (updating the file timestamp/nonce) immediately after bundle generation,
     # making every subsequent verify fail on this single file. The gate_results
     # entry already provides the tamper-evidence for this artifact.
-    "mutation_kill_report.json",
+    "out/reports/mutation_kill_report.json",
 ]
 
 

@@ -46,7 +46,7 @@ Usage
   # Full run with JSON report
   python3 ci/mutation_kill_rate.py \\
       --build-dir build_opencl \\
-      --json -o mutation_kill_report.json \\
+      --json -o out/reports/mutation_kill_report.json \\
       --count 200
 
   # Run as CTest Python test (invoked by CMake audit infra):
@@ -507,7 +507,7 @@ def run_mutation_testing(
 
     # Sample-size / build-health guards (prevent false-green verdicts).
     #
-    # 2026-04-17: mutation_kill_report.json with total=5, build_errors=4,
+    # 2026-04-17: out/reports/mutation_kill_report.json with total=5, build_errors=4,
     # testable=1, killed=1 reported passed=true at 100% kill rate. Such a
     # report conveys no real assurance. Two guards now enforce minimum
     # sanity before a PASS can be declared:
@@ -573,7 +573,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--json", action="store_true",
                    help="Write JSON report")
     p.add_argument("-o", "--output", default=None,
-                   help="JSON output path (default: mutation_kill_report.json)")
+                   help="JSON output path (default: out/reports/mutation_kill_report.json)")
     p.add_argument("--ctest-mode", action="store_true",
                    help="Minimal mode: few mutations, no print noise")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -670,7 +670,7 @@ def main() -> int:
 
     # --- JSON output -------------------------------------------------------
     if args.json or args.output:
-        out_path = Path(args.output) if args.output else LIB_ROOT / "mutation_kill_report.json"
+        out_path = Path(args.output) if args.output else LIB_ROOT / "out/reports/mutation_kill_report.json"
         out_data = asdict(report)
         out_path.write_text(json.dumps(out_data, indent=2), encoding="utf-8")
         print(f"\nJSON report: {out_path}")

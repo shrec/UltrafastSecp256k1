@@ -56,7 +56,7 @@
     },
     {
       "exists": true,
-      "path": "mutation_kill_report.json",
+      "path": "out/reports/mutation_kill_report.json",
       "sha256": "92512763a0acfcfeccc31e99c0331430ec0d1de8d214e4d6d327a3877a39ece0",
       "size": 2429
     }
