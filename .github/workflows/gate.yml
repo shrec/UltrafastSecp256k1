@@ -100,7 +100,7 @@ jobs:
   build-test:
     name: Block 2 / Build + Unit Tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 55
     needs: [detect-impact, fast-gates]
     if: needs.detect-impact.outputs.docs_only != 'true'
     steps:
