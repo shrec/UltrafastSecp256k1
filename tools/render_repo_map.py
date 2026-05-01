@@ -135,9 +135,9 @@ def render_svg(manifest: dict) -> str:
         "</defs>",
         '<rect width="100%" height="100%" fill="url(#bg)"/>',
         '<g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">',
-        f'<text x="44" y="60" font-size="38" font-weight="950" fill="#0f172a">{esc(manifest.get("title", "Repository Map"))}</text>',
-        f'<text x="44" y="98" font-size="19" font-weight="500" fill="#334155">{esc(manifest.get("subtitle", ""))}</text>',
-        f'<text x="44" y="130" font-size="14" fill="#64748b">{esc(manifest.get("generated_note", ""))}</text>',
+        f'<text x="44" y="62" font-size="46" font-weight="950" fill="#0f172a">{esc(manifest.get("title", "Repository Map"))}</text>',
+        f'<text x="44" y="104" font-size="22" font-weight="500" fill="#334155">{esc(manifest.get("subtitle", ""))}</text>',
+        f'<text x="44" y="136" font-size="14" fill="#64748b">{esc(manifest.get("generated_note", ""))}</text>',
         '<text x="980" y="54" font-size="15" font-weight="800" fill="#334155">Scope legend</text>',
     ]
 
