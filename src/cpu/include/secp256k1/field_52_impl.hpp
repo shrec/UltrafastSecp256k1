@@ -150,9 +150,9 @@ using namespace fe52_constants;
 // With always_inline: zero function-call overhead.
 
 SECP256K1_FE52_FORCE_INLINE
-void fe52_mul_inner(std::uint64_t* r,
-                    const std::uint64_t* a,
-                    const std::uint64_t* b) noexcept {
+void fe52_mul_inner(std::uint64_t* __restrict__ r,
+                    const std::uint64_t* __restrict__ a,
+                    const std::uint64_t* __restrict__ b) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
     // On U74 in-order core, explicit register scheduling + carry hiding
@@ -739,8 +739,8 @@ void fe52_mul_inner(std::uint64_t* r,
 // Cross-products computed once and doubled via (a[i]*2) trick.
 
 SECP256K1_FE52_FORCE_INLINE
-void fe52_sqr_inner(std::uint64_t* r,
-                    const std::uint64_t* a) noexcept {
+void fe52_sqr_inner(std::uint64_t* __restrict__ r,
+                    const std::uint64_t* __restrict__ a) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.

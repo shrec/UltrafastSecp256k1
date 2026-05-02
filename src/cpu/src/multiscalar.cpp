@@ -98,8 +98,12 @@ Point multi_scalar_mul(const Scalar* scalars,
     constexpr std::size_t wnaf_capacity = 260;
     static thread_local std::vector<int32_t> wnaf_storage;
     static thread_local std::vector<std::size_t> wnaf_lens;
-    wnaf_storage.assign(2 * n * wnaf_capacity, 0);
-    wnaf_lens.assign(2 * n, 0);
+    // resize (not assign) — loop guards all accesses with `bit < wnaf_lens[i]`
+    // so positions beyond each stream's wnaf_lens are never read; zero-fill
+    // of 208 KB per call was unnecessary and wasted L2 bandwidth.
+    // wnaf_lens entries are all overwritten by compute_wnaf_into before use.
+    wnaf_storage.resize(2 * n * wnaf_capacity);
+    wnaf_lens.resize(2 * n);
     std::size_t max_len = 0;
 
     for (std::size_t i = 0; i < n; ++i) {
