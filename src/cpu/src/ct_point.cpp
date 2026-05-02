@@ -1434,8 +1434,6 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         // In-place batch doubling -- always-inline core
         point_dbl_n_core(&R, GROUP_SIZE);
 
-        point_dbl_n_core(&R, GROUP_SIZE);
-
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
         unified_add_core<false>(&R, R, t);
 
