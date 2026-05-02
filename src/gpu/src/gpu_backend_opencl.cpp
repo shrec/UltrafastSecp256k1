@@ -488,21 +488,28 @@ public:
         if (!privkeys32 || !peer_pubkeys33 || !out_secrets32)
             return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Convert private keys → Scalar, peer pubkeys → AffinePoint */
-        std::vector<secp256k1::opencl::Scalar> h_scalars(count);
+        /* Validate all peer pubkeys BEFORE loading any private key material.
+           This ensures no early-return path leaves h_scalars populated
+           without a corresponding secure_erase (Rule 10). */
         std::vector<secp256k1::opencl::AffinePoint> h_peers(count);
-
         for (size_t i = 0; i < count; ++i) {
-            bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
-            const uint8_t* pub = peer_pubkeys33 + i * 33;
-            if (!pubkey33_to_affine(pub, &h_peers[i]))
+            if (!pubkey33_to_affine(peer_pubkeys33 + i * 33, &h_peers[i]))
                 return set_error(GpuError::BadKey, "invalid peer pubkey");
         }
+
+        /* Load private keys only after all pubkeys are confirmed valid. */
+        std::vector<secp256k1::opencl::Scalar> h_scalars(count);
+        for (size_t i = 0; i < count; ++i)
+            bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
         /* GPU: batch scalar_mul(priv[i], peer[i]) → Jacobian */
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
         ctx_->batch_scalar_mul(h_scalars.data(), h_peers.data(),
                                h_jac.data(), count);
+
+        /* Securely erase private key scalars immediately after GPU use. */
+        secp256k1::detail::secure_erase(h_scalars.data(),
+                                        h_scalars.size() * sizeof(h_scalars[0]));
 
         /* GPU: Jacobian → Affine */
         std::vector<secp256k1::opencl::AffinePoint> h_aff(count);
@@ -515,10 +522,6 @@ public:
             auto digest = secp256k1::SHA256::hash(compressed, sizeof(compressed));
             std::memcpy(out_secrets32 + i * 32, digest.data(), 32);
         }
-
-        /* Securely erase private key scalars from host memory */
-        secp256k1::detail::secure_erase(h_scalars.data(),
-                                        h_scalars.size() * sizeof(h_scalars[0]));
 
         clear_error();
         return GpuError::Ok;

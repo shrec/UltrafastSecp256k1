@@ -28,6 +28,8 @@
 #include "zk.cuh"
 #include "bip324.cuh"
 #include "gpu_compat.h"
+/* CT variable-base scalar mul for BIP-352 scan kernel (Rule 8) */
+#include "ct/ct_point.cuh"
 
 /* Host helpers (gpu_cuda_host_helpers.h) no longer needed:
  * All Jacobian <-> compressed conversions now happen on-device via
@@ -45,6 +47,25 @@
             return last_error();                                               \
         }                                                                      \
     } while (0)
+
+// Rule 10: RAII guard that zeroes a device buffer before freeing it.
+// Ensures private key material is erased even when CUDA_TRY causes early return.
+struct CudaKeyGuard {
+    void*  ptr  = nullptr;
+    size_t size = 0;
+    CudaKeyGuard() = default;
+    CudaKeyGuard(void* p, size_t s) : ptr(p), size(s) {}
+    CudaKeyGuard(const CudaKeyGuard&) = delete;
+    CudaKeyGuard& operator=(const CudaKeyGuard&) = delete;
+    ~CudaKeyGuard() {
+        if (ptr) {
+            cudaMemset(ptr, 0, size);
+            cudaFree(ptr);
+        }
+    }
+    // Release ownership without zeroize (for non-key device buffers).
+    void* release() { void* p = ptr; ptr = nullptr; return p; }
+};
 
 namespace secp256k1 {
 
@@ -129,11 +150,11 @@ static __device__ __forceinline__ void bip352_tagged_hash_37(
 /** GPU kernel: BIP-352 Silent Payment pipeline, 1 thread per tweak point.
  *
  *  Steps per thread:
- *    1. shared    = scan_k × tweak_pts[idx]   (GLV wNAF)
+ *    1. shared    = scan_k × tweak_pts[idx]   (CT: Rule 8 — scan_k is secret)
  *    2. ser37     = compress(shared) ∥ [0,0,0,0]
- *    3. hash      = SHA256_tagged(ser37)
- *    4. output    = hash × G
- *    5. cand      = spend_aff + output
+ *    3. hash      = SHA256_tagged(ser37)       (hash output is public)
+ *    4. output    = hash × G                  (hash is public — scalar_mul_generator_const OK)
+ *    5. cand      = spend_aff + output         (public point arithmetic)
  *    6. prefix    = upper 64 bits of cand.x                         */
 static __global__ void bip352_scan_batch_kernel(
     const secp256k1::cuda::JacobianPoint* __restrict__ tweak_pts,
@@ -146,9 +167,12 @@ static __global__ void bip352_scan_batch_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
 
-    /* 1. shared = scan_k × tweak_pts[idx] */
+    /* 1. shared = scan_k × tweak_pts[idx]
+     * Rule 8: scan_k is the BIP-352 scan private key — must use CT variable-base
+     * scalar mul. tweak_pts are public input pubkey sums (z==1, decompressed).
+     * Steps 3-6 use hash-derived / public scalars — scalar_mul_generator_const OK. */
     JacobianPoint shared;
-    scalar_mul_glv_wnaf(&tweak_pts[idx], scan_k, &shared);
+    secp256k1::cuda::ct::ct_scalar_mul_varbase(&tweak_pts[idx], scan_k, &shared);
     if (shared.infinity) { prefixes[idx] = 0; return; }
 
     /* 2. Serialize shared secret to 37 bytes: [prefix_byte][x32][0,0,0,0] */
@@ -581,63 +605,65 @@ gmb_cleanup:
         if (!privkeys32 || !peer_pubkeys33 || !out_secrets32)
             return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Convert private keys on host */
-        std::vector<Scalar> h_keys(count);
-        for (size_t i = 0; i < count; ++i) {
-            bytes_to_scalar(privkeys32 + i * 32, &h_keys[i]);
-        }
+        // Rule 10: h_keys erased on all exit paths via destructor + secure_erase.
+        // The SecureVector wrapper zeroes on destruction — CUDA_TRY early returns
+        // are safe because h_keys goes out of scope before the function returns.
+        struct SecureScalarVec {
+            std::vector<Scalar> v;
+            explicit SecureScalarVec(size_t n) : v(n) {}
+            ~SecureScalarVec() {
+                secp256k1::detail::secure_erase(v.data(), v.size() * sizeof(Scalar));
+            }
+        } h_keys_guard(count);
+        auto& h_keys = h_keys_guard.v;
 
-        /* Allocate device memory */
-        Scalar*        d_keys   = nullptr;
+        for (size_t i = 0; i < count; ++i)
+            bytes_to_scalar(privkeys32 + i * 32, &h_keys[i]);
+
+        // CudaKeyGuard zeroes + frees d_keys on all exit paths (destructor).
+        Scalar* d_keys_raw = nullptr;
+        CUDA_TRY(cudaMalloc(&d_keys_raw, count * sizeof(Scalar)));
+        CudaKeyGuard d_keys_guard(d_keys_raw, count * sizeof(Scalar));
+
         uint8_t*       d_pubs33 = nullptr;
         JacobianPoint* d_pubs   = nullptr;
         bool*          d_pub_ok = nullptr;
         uint8_t*       d_out    = nullptr;
         bool*          d_ok     = nullptr;
-
-        CUDA_TRY(cudaMalloc(&d_keys, count * sizeof(Scalar)));
         CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
         CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
         CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
         CUDA_TRY(cudaMalloc(&d_out, count * 32));
         CUDA_TRY(cudaMalloc(&d_ok, count * sizeof(bool)));
 
-        CUDA_TRY(cudaMemcpy(d_keys, h_keys.data(), count * sizeof(Scalar), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_keys_raw, h_keys.data(), count * sizeof(Scalar), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, peer_pubkeys33, count * 33, cudaMemcpyHostToDevice));
 
-        /* Decompress pubkeys on GPU */
         int threads = 128;
         int blocks  = (static_cast<int>(count) + threads - 1) / threads;
         batch_compressed_to_jac_kernel<<<blocks, threads>>>(
             d_pubs33, d_pubs, d_pub_ok, static_cast<int>(count));
         CUDA_TRY(cudaGetLastError());
 
-        /* Launch ECDH */
-        ecdh_batch_kernel<<<blocks, threads>>>(d_keys, d_pubs, d_out, d_ok, static_cast<int>(count));
+        ecdh_batch_kernel<<<blocks, threads>>>(d_keys_raw, d_pubs, d_out, d_ok, static_cast<int>(count));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
-        /* Download results */
         CUDA_TRY(cudaMemcpy(out_secrets32, d_out, count * 32, cudaMemcpyDeviceToHost));
 
-        /* Check for failures (RAII: vector cleans up even if CUDA_TRY
-         * triggers an early return on the download failure path). */
         std::vector<uint8_t> h_ok_buf(count);
         CUDA_TRY(cudaMemcpy(h_ok_buf.data(), d_ok, count * sizeof(bool), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < count; ++i) {
             if (!h_ok_buf[i]) std::memset(out_secrets32 + i * 32, 0, 32);
         }
 
-        /* Zeroize private keys on device and host before freeing */
-        cudaMemset(d_keys, 0, count * sizeof(Scalar));
-        secp256k1::detail::secure_erase(h_keys.data(), h_keys.size() * sizeof(Scalar));
-
+        // d_keys_guard destructor zeroes + frees d_keys_raw here.
+        // h_keys_guard destructor secure_erases h_keys here.
         cudaFree(d_ok);
         cudaFree(d_out);
         cudaFree(d_pub_ok);
         cudaFree(d_pubs);
         cudaFree(d_pubs33);
-        cudaFree(d_keys);
         clear_error();
         return GpuError::Ok;
     }
@@ -1325,7 +1351,12 @@ dec_cleanup:
             return set_error(GpuError::NullArg, "NULL buffer");
 
         /* -- 1. Convert scan key to Scalar on CPU -- */
-        cuda::Scalar h_scan_k;
+        // Rule 10: RAII wrapper zeroes h_scan_k on all exit paths.
+        struct ScanKeyGuard {
+            cuda::Scalar k{};
+            ~ScanKeyGuard() { secp256k1::detail::secure_erase(&k, sizeof(k)); }
+        } scan_key_guard;
+        cuda::Scalar& h_scan_k = scan_key_guard.k;
         for (int limb = 0; limb < 4; ++limb) {
             uint64_t v = 0;
             int base = (3 - limb) * 8;
@@ -1382,25 +1413,28 @@ dec_cleanup:
 
         /* -- 4. Allocate device buffers and upload -- */
         cuda::JacobianPoint* d_tweaks   = nullptr;
-        cuda::Scalar*        d_scan_k   = nullptr;
         cuda::AffinePoint*   d_spend    = nullptr;
         uint64_t*            d_prefixes = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_tweaks,   n_tweaks * sizeof(cuda::JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_scan_k,   sizeof(cuda::Scalar)));
+        // CudaKeyGuard: zeroes + frees d_scan_k on all exit paths (destructor).
+        cuda::Scalar* d_scan_k_raw = nullptr;
+        CUDA_TRY(cudaMalloc(&d_scan_k_raw, sizeof(cuda::Scalar)));
+        CudaKeyGuard d_scan_k_guard(d_scan_k_raw, sizeof(cuda::Scalar));
+
         CUDA_TRY(cudaMalloc(&d_spend,    sizeof(cuda::AffinePoint)));
         CUDA_TRY(cudaMalloc(&d_prefixes, n_tweaks * sizeof(uint64_t)));
 
         CUDA_TRY(cudaMemcpy(d_tweaks, h_tweaks.data(),
                             n_tweaks * sizeof(cuda::JacobianPoint), cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_scan_k_raw, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_spend,  &h_spend_aff, sizeof(cuda::AffinePoint), cudaMemcpyHostToDevice));
 
         /* -- 5. Launch BIP-352 scan kernel -- */
         int threads = 128;
         int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
         bip352_scan_batch_kernel<<<blocks, threads>>>(
-            d_tweaks, d_scan_k, d_spend, d_prefixes, static_cast<int>(n_tweaks));
+            d_tweaks, d_scan_k_raw, d_spend, d_prefixes, static_cast<int>(n_tweaks));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
@@ -1408,15 +1442,12 @@ dec_cleanup:
         CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
                             n_tweaks * sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-        /* -- 7. Zeroize secret material before releasing device/host memory
-         *       HIGH-3: scan private key must not remain in device memory
-         *       after the operation completes. */
-        cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
-        secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
-
+        /* -- 7. Download prefixes already done above. Secret material is erased
+         *       by RAII guards on scope exit:
+         *       - d_scan_k_guard: zeroes + frees d_scan_k_raw (CudaKeyGuard)
+         *       - scan_key_guard: secure_erases h_scan_k (ScanKeyGuard)       */
         cudaFree(d_prefixes);
         cudaFree(d_spend);
-        cudaFree(d_scan_k);
         cudaFree(d_tweaks);
         clear_error();
         return GpuError::Ok;

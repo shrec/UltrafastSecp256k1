@@ -206,6 +206,12 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     secp256k1::detail::secure_erase(&sn, sizeof(sn));
     // Consume caller's secnonce to prevent catastrophic nonce reuse
     secp256k1::detail::secure_erase(secnonce, UFSECP_MUSIG2_SECNONCE_LEN);
+    // Rule 4: zero partial-sig must never be returned as success — it indicates
+    // a degenerate arithmetic path (fault injection or k+e*d == 0 mod n).
+    if (SECP256K1_UNLIKELY(psig.is_zero())) {
+        std::memset(partial_sig32_out, 0, 32);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "musig2_partial_sign produced degenerate zero output");
+    }
     scalar_to_bytes(psig, partial_sig32_out);
     return UFSECP_OK;
 }

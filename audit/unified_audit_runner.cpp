@@ -490,6 +490,14 @@ int test_exploit_opencl_runner_key_erase_run();  // Q-01/02/03: OpenCL audit run
 int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path not used in production
 
 // ============================================================================
+// Forward declarations -- 2026-05-02 Bitcoin Core PR security audit fixes
+// ============================================================================
+int test_regression_schnorr_ct_arithmetic_run();  // HIGH-03+HIGH-06: schnorr_sign CT arithmetic + r==0 check
+int test_regression_musig2_zero_psig_run();       // CRIT-03: musig2 zero partial-sig → UFSECP_ERR_INTERNAL
+int test_regression_gpu_key_erase_raii_run();     // CRIT-01+HIGH-01+HIGH-02+HIGH-04: GPU key RAII erasure
+int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -933,6 +941,12 @@ static const AuditModule ALL_MODULES[] = {
     // Note: shim test returns 0 in unified-runner mode (shim linked separately);
     //       actual SPC-1..10 tests run via test_exploit_shim_pubkey_ct_standalone CTest target.
     { "exploit_shim_pubkey_ct",                 "P-01/02/03: shim pubkey_create/keypair CT generator mul + key rejection (SPC-1..10) — 2026-05-01", "exploit_poc", test_exploit_shim_pubkey_ct_run, false },
+    // === 2026-05-02 Bitcoin Core PR Security Audit Fixes ===
+    // (forward declarations at top of file)
+    { "regression_schnorr_ct_arithmetic",  "Schnorr s=k+e*d uses ct:: arithmetic, r==all-zeros rejected (HIGH-03, HIGH-06) — 2026-05-02", "exploit_poc", test_regression_schnorr_ct_arithmetic_run,  false },
+    { "regression_musig2_zero_psig",       "musig2_partial_sign degenerate zero psig → UFSECP_ERR_INTERNAL (CRIT-03) — 2026-05-02",       "exploit_poc", test_regression_musig2_zero_psig_run,         false },
+    { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, false },
+    { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

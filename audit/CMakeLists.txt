@@ -3507,6 +3507,11 @@ add_executable(unified_audit_runner
     test_exploit_opencl_runner_key_erase.cpp
     # 2026-05-02 Fast-path isolation regression (FPI-1..10)
     test_exploit_ecdsa_fast_path_isolation.cpp
+    # 2026-05-02 Bitcoin Core PR security audit fixes
+    test_regression_schnorr_ct_arithmetic.cpp
+    test_regression_musig2_zero_psig.cpp
+    test_regression_gpu_key_erase_raii.cpp
+    test_regression_bip352_ct_varbase.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -3857,6 +3862,58 @@ endif()
 #   ctest -R "^fuzz_"
 #
 # ===========================================================================
+
+# ===========================================================================
+# 2026-05-02: Bitcoin Core PR security audit regression tests (standalone)
+# ===========================================================================
+
+# HIGH-03 + HIGH-06: Schnorr CT arithmetic + r==0 rejection
+add_executable(test_regression_schnorr_ct_arithmetic_standalone
+    test_regression_schnorr_ct_arithmetic.cpp)
+audit_target_defaults(test_regression_schnorr_ct_arithmetic_standalone)
+target_compile_definitions(test_regression_schnorr_ct_arithmetic_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_schnorr_ct_arithmetic COMMAND test_regression_schnorr_ct_arithmetic_standalone)
+set_tests_properties(regression_schnorr_ct_arithmetic PROPERTIES TIMEOUT 60
+    LABELS "audit;exploit;schnorr;ct;regression")
+
+# CRIT-03: musig2 zero partial-sig → UFSECP_ERR_INTERNAL
+add_executable(test_regression_musig2_zero_psig_standalone
+    test_regression_musig2_zero_psig.cpp)
+audit_target_defaults(test_regression_musig2_zero_psig_standalone)
+target_compile_definitions(test_regression_musig2_zero_psig_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_musig2_zero_psig COMMAND test_regression_musig2_zero_psig_standalone)
+set_tests_properties(regression_musig2_zero_psig PROPERTIES TIMEOUT 60
+    LABELS "audit;exploit;musig2;regression")
+
+# CRIT-01+HIGH-01+HIGH-02+HIGH-04: GPU key erasure RAII
+add_executable(test_regression_gpu_key_erase_raii_standalone
+    test_regression_gpu_key_erase_raii.cpp)
+audit_target_defaults(test_regression_gpu_key_erase_raii_standalone)
+if(TARGET secp256k1_gpu_host)
+    target_link_libraries(test_regression_gpu_key_erase_raii_standalone PRIVATE secp256k1_gpu_host)
+    target_include_directories(test_regression_gpu_key_erase_raii_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
+endif()
+target_compile_definitions(test_regression_gpu_key_erase_raii_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_gpu_key_erase_raii COMMAND test_regression_gpu_key_erase_raii_standalone)
+set_tests_properties(regression_gpu_key_erase_raii PROPERTIES TIMEOUT 120
+    SKIP_RETURN_CODE 77
+    LABELS "audit;memory_safety;gpu;regression")
+
+# CRIT-02: BIP-352 CT variable-base scalar mul
+add_executable(test_regression_bip352_ct_varbase_standalone
+    test_regression_bip352_ct_varbase.cpp)
+audit_target_defaults(test_regression_bip352_ct_varbase_standalone)
+if(TARGET secp256k1_gpu_host)
+    target_link_libraries(test_regression_bip352_ct_varbase_standalone PRIVATE secp256k1_gpu_host)
+    target_include_directories(test_regression_bip352_ct_varbase_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
+endif()
+target_compile_definitions(test_regression_bip352_ct_varbase_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_bip352_ct_varbase COMMAND test_regression_bip352_ct_varbase_standalone)
+set_tests_properties(regression_bip352_ct_varbase PROPERTIES TIMEOUT 120
+    SKIP_RETURN_CODE 77
+    LABELS "audit;ct_analysis;bip352;regression")
 
 option(SECP256K1_BUILD_LIBFUZZER
        "Build LibFuzzer harnesses (requires clang -fsanitize=fuzzer,address)" OFF)

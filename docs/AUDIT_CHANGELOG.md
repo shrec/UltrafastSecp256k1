@@ -7,6 +7,64 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-02 — Security Audit Round 8: Bitcoin Core PR Readiness — CRIT-01..03, HIGH-01..04, HIGH-06 Fixed
+
+### Schnorr Sign CT Arithmetic + r==0 Rejection (HIGH-03, HIGH-06)
+- **`src/cpu/src/schnorr.cpp`**: `schnorr_sign` final scalar computation `s = k + e*d` used
+  `fast::Scalar operator+/*` which has a secret-dependent branch in the final modular reduction
+  (timing side-channel on nonce `k` and signing key `d`). Replaced with `ct::scalar_add` and
+  `ct::scalar_mul` to match the pattern in `musig2_partial_sign` (HIGH-06).
+- **`src/cpu/src/schnorr.cpp`**: `schnorr_sign` had no r==all-zeros check before returning the
+  signature. Added degenerate output guard (r==0 OR s==0 → return `SchnorrSignature{}`) per
+  Rule 14 (HIGH-03).
+
+### MuSig2 Partial Sign Zero-Psig Guard (CRIT-03)
+- **`src/cpu/src/impl/ufsecp_musig2.cpp`**: `ufsecp_musig2_partial_sign` called
+  `musig2_partial_sign` and unconditionally wrote its output as success. If `musig2_partial_sign`
+  returns `Scalar::zero()` (degenerate arithmetic / fault injection path), a zero partial-sig
+  was serialized and returned as `UFSECP_OK`. Added `psig.is_zero()` check → zeroes output buffer
+  and returns `UFSECP_ERR_INTERNAL` per Rule 4.
+
+### OpenCL ecdh_batch Key Erasure Ordering (HIGH-01)
+- **`src/gpu/src/gpu_backend_opencl.cpp`**: `ecdh_batch` loaded private keys into `h_scalars`
+  before validating peer pubkeys. An invalid pubkey at index `i>0` triggered an early `return`
+  leaving `h_scalars[0..i-1]` populated without being erased. Restructured to validate ALL
+  pubkeys first, then load private keys — no key material exists in memory on any pubkey-error
+  exit path.
+- Moved `secure_erase(h_scalars)` to immediately after `batch_scalar_mul` (before non-sensitive
+  work) as defense-in-depth.
+
+### OpenCL batch_scalar_mul Post-Kernel Scalar Buffer Zeroize (HIGH-04)
+- **`src/opencl/src/opencl_context.cpp`**: `batch_scalar_mul` cached the GPU scalar buffer
+  (`cache_sm_scalars`) grow-only and only zeroed on realloc. Private key residue persisted
+  in GPU memory between calls at the same count. Added `clEnqueueFillBuffer+clFinish` after
+  every kernel invocation per Rule 10.
+
+### CUDA ecdh_batch + bip352_scan_batch RAII Key Guards (CRIT-01, HIGH-02)
+- **`src/gpu/src/gpu_backend_cuda.cu`**: Added `CudaKeyGuard` RAII type (zeroes + frees on
+  destructor). `ecdh_batch` now uses `CudaKeyGuard` for `d_keys` and a `SecureScalarVec` RAII
+  wrapper for `h_keys` — both are zeroed on ALL exit paths including `CUDA_TRY` early returns.
+- `bip352_scan_batch`: wrapped `h_scan_k` in `ScanKeyGuard` (secure_erase on destruction) and
+  `d_scan_k_raw` in `CudaKeyGuard` — both zeroed on ALL exit paths.
+
+### BIP-352 Scan Kernel CT Variable-Base Scalar Mul (CRIT-02)
+- **`src/gpu/src/gpu_backend_cuda.cu`** + **`src/cuda/include/ct/ct_point.cuh`**: BIP-352 scan
+  kernel used `scalar_mul_glv_wnaf` (variable-time wNAF with secret-dependent branches) for the
+  ECDH step `scan_k × tweak_pts[idx]` where `scan_k` is the raw scan private key. Added
+  `ct::ct_scalar_mul_varbase` (256-iteration left-to-right double-and-add-with-cmov; no branches
+  on scalar bits) to `ct_point.cuh`. Replaced `scalar_mul_glv_wnaf` at step 1 only; steps 4-6
+  (hash, hash×G, point addition on public data) remain variable-time as appropriate.
+- Added comment in kernel documenting the public/secret boundary for each step.
+
+### CAAS Regression Tests (4 new files)
+- `audit/test_regression_schnorr_ct_arithmetic.cpp` — SCR-1..13 (HIGH-03, HIGH-06)
+- `audit/test_regression_musig2_zero_psig.cpp` — MZP-1..6 (CRIT-03)
+- `audit/test_regression_gpu_key_erase_raii.cpp` — GKE-1..12 (CRIT-01, HIGH-01, HIGH-02, HIGH-04)
+- `audit/test_regression_bip352_ct_varbase.cpp` — BCV-1..10 (CRIT-02)
+All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
+
+---
+
 ## 2026-05-02 — Security Audit Round 7: NF-01/NF-01b/NF-02/NF-03 Fixed
 
 ### GPU Key Erasure — Error Paths (Rule 10)

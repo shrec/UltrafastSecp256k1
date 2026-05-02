@@ -690,6 +690,49 @@ void ct_generator_mul(const Scalar* k, JacobianPoint* r_out) {
     *r_out = ct_point_to_jacobian(&result);
 }
 
+// --- CT Variable-Base Scalar Multiplication -----------------------------------
+// Left-to-right binary double-and-add-with-select (256 iterations, no secret
+// branches). Requires: base has Z=1 (i.e., was decompressed from affine).
+// Scalar limb layout: limbs[0]=MSW, limbs[3]=LSW (big-endian limb order).
+// CT properties: fixed iteration count, branchless bit test (bool_to_mask),
+// ct_point_dbl + ct_point_add_mixed handle identity via cmov.
+__device__ inline
+void ct_scalar_mul_varbase(const JacobianPoint* base, const Scalar* k,
+                           JacobianPoint* r_out) {
+    using namespace secp256k1::cuda;
+
+    // Treat base as affine (z == 1 guaranteed for decompressed pubkeys).
+    CTAffinePoint base_aff;
+    base_aff.x        = base->x;
+    base_aff.y        = base->y;
+    base_aff.infinity = bool_to_mask((uint64_t)base->infinity);
+
+    CTJacobianPoint result;
+    ct_point_set_infinity(&result);
+
+    // Process 256 bits MSB → LSB.  All branching is on public loop index.
+    for (int bit = 255; bit >= 0; --bit) {
+        // bit index → limb (limbs[0]=MSW) and position within limb
+        int      limb_idx = 3 - (bit / 64);
+        int      pos      = bit % 64;
+        uint64_t bit_mask = bool_to_mask((k->limbs[limb_idx] >> pos) & 1ULL);
+
+        // Always double
+        CTJacobianPoint dbl;
+        ct_point_dbl(&result, &dbl);
+
+        // Always add base (ct_point_add_mixed is complete, handles identity)
+        CTJacobianPoint sum;
+        ct_point_add_mixed(&dbl, &base_aff, &sum);
+
+        // Branchless select: bit==1 → sum, bit==0 → dbl
+        result = dbl;
+        ct_point_cmov(&result, &sum, bit_mask);
+    }
+
+    *r_out = ct_point_to_jacobian(&result);
+}
+
 } // namespace ct
 } // namespace cuda
 } // namespace secp256k1

@@ -345,9 +345,11 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto e = Scalar::from_bytes(e_hash);
 
     // Step 6: sig = (R.x, k + e * d)
+    // CT: use ct::scalar_mul/add — fast::Scalar operator*/+ have a
+    // secret-dependent branch in the final modular reduction (see ct_scalar.cpp).
     SchnorrSignature sig{};
     sig.r = rx;
-    sig.s = k + e * kp.d;
+    sig.s = ct::scalar_add(k, ct::scalar_mul(e, kp.d));
 
     // Erase all secret-derived stack buffers (matches ct::schnorr_sign cleanup)
     detail::secure_erase(d_bytes.data(), d_bytes.size());
@@ -358,6 +360,12 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     detail::secure_erase(challenge_input, sizeof(challenge_input));
     detail::secure_erase(&k_prime, sizeof(k_prime));
     detail::secure_erase(&k, sizeof(k));
+
+    // Reject degenerate output: r==all-zeros is astronomically rare (~2^-128)
+    // but must never be serialised as a valid signature (Rule 14).
+    bool r_zero = true;
+    for (auto b : sig.r) r_zero &= (b == 0);
+    if (SECP256K1_UNLIKELY(r_zero || sig.s.is_zero())) return SchnorrSignature{};
 
     return sig;
 }

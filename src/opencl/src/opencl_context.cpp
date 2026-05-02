@@ -2423,6 +2423,14 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
         return;
     clEnqueueReadBuffer(impl_->queue, impl_->cache_sm_results, CL_TRUE, 0,
                         count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
+
+    // Rule 10: zero scalar buffer after every use — may hold private key material
+    // from ecdh_batch. Zeroing every call (not only on realloc) prevents residue
+    // from persisting across calls on shared GPU hardware.
+    cl_uchar zero = 0;
+    clEnqueueFillBuffer(impl_->queue, impl_->cache_sm_scalars, &zero, 1, 0,
+                        count * sizeof(Scalar), 0, nullptr, nullptr);
+    clFinish(impl_->queue);
 }
 
 void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs, std::size_t count) {
