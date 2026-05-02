@@ -110,12 +110,11 @@ jobs:
         run: pip install --require-hashes -r .github/requirements/audit-deps.txt
 
       - name: Test
-        # Exclude:
-        #   ct_sidechannel — dudect timing test >10 min, runs in ct-verif workflow
-        #   py_*           — require libufsecp shared lib, run in bindings-smoke job
-        #   exploit_gpu_*  — advisory (GPU not available on CI runners)
-        run: ctest --test-dir build --output-on-failure -j$(nproc) \
-               -E "^(ct_sidechannel|py_|exploit_gpu_)"
+        run: |
+          # ct_sidechannel: dudect >10 min, runs in ct-verif workflow
+          # py_*: require libufsecp shared lib, run in bindings-smoke job
+          # exploit_gpu_*: advisory, no GPU on GitHub runners
+          ctest --test-dir build --output-on-failure -j$(nproc) -E "^(ct_sidechannel|py_|exploit_gpu_)"
 
   # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
   linux-arm64:

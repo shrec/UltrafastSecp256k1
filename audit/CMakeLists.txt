@@ -3704,7 +3704,7 @@ if(Python3_FOUND)
         set(_py_diff_timeout 180)
     endif()
     set_tests_properties(py_differential_crossimpl PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT ${_py_diff_timeout}
         LABELS "audit;python;differential"
         ENVIRONMENT "${_py_env}")
@@ -3714,7 +3714,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 10000
                 --json -o "${CMAKE_BINARY_DIR}/py_nonce_bias_report.json")
     set_tests_properties(py_nonce_bias PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 300
         LABELS "audit;python;statistical"
         ENVIRONMENT "${_py_env}")
@@ -3724,7 +3724,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --paths 100
                 --json -o "${CMAKE_BINARY_DIR}/py_bip32_cka_report.json")
     set_tests_properties(py_bip32_cka PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 120
         LABELS "audit;python;bip32"
         ENVIRONMENT "${_py_env}")
@@ -3734,7 +3734,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 200
                 --json -o "${CMAKE_BINARY_DIR}/py_rfc6979_report.json")
     set_tests_properties(py_rfc6979_spec PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 120
         LABELS "audit;python;rfc6979"
         ENVIRONMENT "${_py_env}")
@@ -3744,7 +3744,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --extra-random 5000
                 --json -o "${CMAKE_BINARY_DIR}/py_glv_report.json")
     set_tests_properties(py_glv_exhaustive PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 300
         LABELS "audit;python;glv"
         ENVIRONMENT "${_py_env}")
@@ -3754,7 +3754,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 200
                 --json -o "${CMAKE_BINARY_DIR}/py_semantic_props_report.json")
     set_tests_properties(py_semantic_props PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 300
         LABELS "audit;python;algebraic"
         ENVIRONMENT "${_py_env}")
@@ -3764,7 +3764,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}"
                 --json -o "${CMAKE_BINARY_DIR}/py_invalid_input_report.json")
     set_tests_properties(py_invalid_input_grammar PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 60
         LABELS "audit;python;input_validation"
         ENVIRONMENT "${_py_env}")
@@ -3774,7 +3774,7 @@ if(Python3_FOUND)
                 --lib "${_uf_lib}" --count 200
                 --json -o "${CMAKE_BINARY_DIR}/py_stateful_sequences_report.json")
     set_tests_properties(py_stateful_sequences PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 300
         LABELS "audit;python;stateful"
         ENVIRONMENT "${_py_env}")
@@ -3788,7 +3788,7 @@ if(Python3_FOUND)
                 --min-severity MEDIUM
                 --json -o "${CMAKE_BINARY_DIR}/py_dev_bug_report.json")
     set_tests_properties(py_dev_bug_scan PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 60
         LABELS "audit;python;static_analysis"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -3803,7 +3803,7 @@ if(Python3_FOUND)
                 --min-severity MEDIUM
                 --json -o "${CMAKE_BINARY_DIR}/py_hot_path_alloc_report.json")
     set_tests_properties(py_hot_path_alloc_scan PROPERTIES
-        SKIP_RETURN_VALUE 77
+        SKIP_RETURN_CODE 77
         TIMEOUT 60
         LABELS "audit;python;static_analysis;performance"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
