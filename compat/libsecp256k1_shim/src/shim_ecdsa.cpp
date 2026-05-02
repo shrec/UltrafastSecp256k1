@@ -27,7 +27,12 @@ namespace {
     }
     inline bool ctx_can_sign(const secp256k1_context *ctx) {
         if (!ctx) return true;  // NULL ctx: treat as SIGN|VERIFY (CFB-9 contract)
-        return ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN;
+        unsigned int f = ctx_flags(ctx);
+        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;  // invalid context
+        // libsecp v0.6+: CONTEXT_NONE accepted for all ops (signing is context-independent).
+        // Bitcoin Core creates signing contexts with SECP256K1_CONTEXT_NONE since v26.
+        return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||  // old-style CONTEXT_SIGN
+               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);   // CONTEXT_NONE (only type bit)
     }
     inline bool ctx_can_verify(const secp256k1_context *ctx) {
         // Upstream libsecp256k1 accepts both CONTEXT_VERIFY and CONTEXT_SIGN for

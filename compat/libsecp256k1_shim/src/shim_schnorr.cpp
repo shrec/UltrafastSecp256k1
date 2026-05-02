@@ -21,13 +21,21 @@ namespace {
         return *reinterpret_cast<const unsigned int *>(ctx);
     }
     inline bool schnorr_ctx_can_sign(const secp256k1_context *ctx) {
-        return ctx && (schnorr_ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+        if (!ctx) return false;
+        unsigned int f = schnorr_ctx_flags(ctx);
+        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+        // libsecp v0.6+: CONTEXT_NONE accepted for signing (Bitcoin Core uses it since v26)
+        return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
+               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
     }
     inline bool schnorr_ctx_can_verify(const secp256k1_context *ctx) {
         if (!ctx) return false;
         unsigned int f = schnorr_ctx_flags(ctx);
+        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+        // CONTEXT_NONE, CONTEXT_VERIFY, or CONTEXT_SIGN all allow verify
         return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
-               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
+               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
     }
 }
 
@@ -63,10 +71,18 @@ int secp256k1_schnorrsig_sign32(
     std::array<uint8_t, 32> aux{};
     if (aux_rand32) std::memcpy(aux.data(), aux_rand32, 32);
 
-    // CT path: use ct::schnorr_keypair_create + ct::schnorr_sign (branchless
-    // scalar_cneg) instead of the fast convenience wrapper which branches on
-    // the private key parity and nonce parity — both secret-derived.
-    auto kp  = secp256k1::ct::schnorr_keypair_create(sk);
+    // Fast path: reuse the pubkey X already stored in keypair->data[32..63]
+    // by secp256k1_keypair_create / secp256k1_keypair_xonly_tweak_add.
+    // Avoids ct::generator_mul_blinded (~9-10 µs) on every signing call.
+    //
+    // Layout: data[0..31]=sk, data[32..63]=pub_X, data[64..95]=pub_Y
+    // BIP-340: signing key d must yield even-Y pubkey. Y-parity from data[95].
+    secp256k1::SchnorrKeypair kp;
+    {
+        bool const y_odd = (keypair->data[95] & 1u) != 0u;
+        kp.d = y_odd ? sk.negate() : sk;
+        std::memcpy(kp.px.data(), keypair->data + 32, 32);
+    }
     auto sig = secp256k1::ct::schnorr_sign(kp, msg, aux);
     secp256k1::detail::secure_erase(&sk,   sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
