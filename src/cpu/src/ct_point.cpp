@@ -800,6 +800,50 @@ CTJacobianPoint point_add_mixed_unified(const CTJacobianPoint& a,
 //
 // Cost: 7M + 5S. Precondition: b MUST NOT be infinity.
 
+// -- Incomplete CT mixed add: Jacobian + Affine → Jacobian (7M + 3S) ---------
+// PRECONDITION (Hamburg guarantee): a ≠ O, b ≠ O, a ≠ ±b.
+// No degenerate case detection — 3.5× fewer squarings than unified_add_core.
+// Used in the Hamburg-coded main loop where degeneracy is provably impossible.
+__attribute__((always_inline)) inline
+void add_affine_fast_ct(CTJacobianPoint* out,
+                         const CTJacobianPoint& a,
+                         const CTAffinePoint& b) noexcept {
+    FE52 const& X1 = a.x;
+    FE52 const& Y1 = a.y;
+    FE52 const& Z1 = a.z;
+
+    FE52 const Z1Z1 = Z1.square();          // Z1^2         [1S]
+    FE52 const U2   = b.x * Z1Z1;           // X2*Z1^2      [1M]
+    FE52       S2   = b.y * Z1Z1;
+    S2.mul_assign(Z1);                       // Y2*Z1^3      [2M]
+
+    FE52 H = U2;
+    H.add_assign(X1.negate(8));             // H = U2-X1
+    FE52 R = S2;
+    R.add_assign(Y1.negate(4));             // R = S2-Y1
+
+    FE52 const Z3   = H * Z1;               // Z3 = H*Z1    [1M]
+    FE52 const HH   = H.square();           // H^2          [1S]
+    FE52 const HHH  = HH * H;               // H^3          [1M]
+    FE52 const U1HH = X1 * HH;              // X1*H^2       [1M]
+
+    FE52 const RR   = R.square();           // R^2          [1S]
+    FE52 X3 = RR;
+    X3.add_assign(HHH.negate(1));           // R^2-H^3
+    X3.add_assign(U1HH.negate(1));
+    X3.add_assign(U1HH.negate(1));         // R^2-H^3-2*X1*H^2 = X3
+
+    FE52 Y3 = U1HH;
+    Y3.add_assign(X3.negate(1));            // X1*H^2 - X3
+    Y3.mul_assign(R);                       // R*(X1*H^2 - X3) [1M]
+    Y3.add_assign((Y1 * HHH).negate(1));   // - Y1*H^3       [1M]
+
+    out->x = X3;
+    out->y = Y3;
+    out->z = Z3;
+    out->infinity = 0;
+}
+
 template<bool CHECK_INFINITY>
 __attribute__((always_inline)) inline
 void unified_add_core(CTJacobianPoint* out,
@@ -1373,6 +1417,8 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
 
         // In-place batch doubling -- always-inline core
+        point_dbl_n_core(&R, GROUP_SIZE);
+
         point_dbl_n_core(&R, GROUP_SIZE);
 
         // In-place lookup + in-place add for pre_a -- core (no infinity check)
