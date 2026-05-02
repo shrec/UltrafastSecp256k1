@@ -30,8 +30,8 @@ static int g_fail = 0;
 // We cannot force the degenerate case (2^-128), but we verify the invariant
 // holds for 50 sign operations and that non-degenerate output is always valid.
 static void test_scr_abi_sign_no_zero_r() {
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP SCR-1: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP SCR-1: no ctx\n"); return; }
 
     for (int i = 1; i <= 50; ++i) {
         uint8_t privkey[32] = {};
@@ -56,14 +56,14 @@ static void test_scr_abi_sign_no_zero_r() {
 // SCR-2: C++ schnorr_sign must return empty sig when s.is_zero()
 // (degenerate case guard — tested via zero key which is rejected earlier).
 static void test_scr_cpp_zero_key_rejected() {
-    secp256k1::Scalar zero = secp256k1::Scalar::zero();
+    secp256k1::fast::Scalar zero = secp256k1::fast::Scalar::zero();
     secp256k1::SchnorrKeypair kp;
     // schnorr_keypair_create with zero key should either assert or return empty kp
     // We test the sign guard path via a synthetic zero-key round trip.
     // Since zero private key is rejected by parse_bytes_strict_nonzero at ABI,
     // test that ABI correctly rejects it.
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP SCR-2: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP SCR-2: no ctx\n"); return; }
     uint8_t zero_key[32] = {};
     uint8_t msg[32] = {1};
     uint8_t aux[32] = {};
@@ -93,8 +93,8 @@ static void test_scr_bip340_ct_correctness() {
         0xEB,0xEE,0x8F,0xDB,0x2B,0xF9,0xA2,0x46,0x28,0x80,0x89,0x31,0x3F,0x8C,0xFE,0x34
     };
 
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP SCR-3: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP SCR-3: no ctx\n"); return; }
     uint8_t sig[64] = {};
     ufsecp_error_t rc = ufsecp_schnorr_sign(ctx, msg0, sk0, aux0, sig);
     ASSERT_TRUE(rc == UFSECP_OK, "SCR-3: BIP-340 vector 0 sign must succeed");
@@ -105,8 +105,8 @@ static void test_scr_bip340_ct_correctness() {
 
 // SCR-7..12: Sign 6 keys and verify each signature validates correctly.
 static void test_scr_sign_and_verify() {
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP SCR-7: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP SCR-7: no ctx\n"); return; }
 
     for (int i = 1; i <= 6; ++i) {
         uint8_t sk[32] = {};
@@ -114,7 +114,7 @@ static void test_scr_sign_and_verify() {
         sk[30] = (uint8_t)(i * 7);
 
         uint8_t pubkey[32] = {};
-        ASSERT_TRUE(ufsecp_schnorr_pubkey(ctx, sk, pubkey) == UFSECP_OK,
+        ASSERT_TRUE(ufsecp_pubkey_xonly(ctx, sk, pubkey) == UFSECP_OK,
                     "SCR-7: schnorr_pubkey must succeed");
 
         uint8_t msg[32] = {};
@@ -144,12 +144,12 @@ static void test_scr_sign_and_verify() {
 
 // SCR-13: schnorr_sign_verified also produces a valid signature (regression).
 static void test_scr_sign_verified_regression() {
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP SCR-13: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP SCR-13: no ctx\n"); return; }
     uint8_t sk[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
     uint8_t pubkey[32] = {};
-    ufsecp_schnorr_pubkey(ctx, sk, pubkey);
+    ufsecp_pubkey_xonly(ctx, sk, pubkey);
 
     uint8_t msg[32] = {0xDE,0xAD,0xBE,0xEF};
     uint8_t aux[32] = {0x42};

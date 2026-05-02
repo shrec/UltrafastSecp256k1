@@ -21,7 +21,7 @@
 #endif
 
 #include "ufsecp256k1.h"
-#include "ufsecp256k1_gpu.h"
+#include "ufsecp_gpu.h"
 
 #include <cstring>
 #include <cstdio>
@@ -37,8 +37,8 @@ static int g_fail = 0;
 // so no key material is ever present in h_scalars when this error fires.
 static void test_gke_opencl_invalid_pubkey_error() {
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_gpu_error_t grc = ufsecp_gpu_create_context(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
-    if (grc != UFSECP_GPU_OK || !gctx) {
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
+    if (grc != UFSECP_OK || !gctx) {
         std::printf("SKIP GKE-1: no OpenCL GPU\n"); return;
     }
 
@@ -50,9 +50,9 @@ static void test_gke_opencl_invalid_pubkey_error() {
     uint8_t out[64] = {};
 
     grc = ufsecp_gpu_ecdh_batch(gctx, privkeys, bad_pubs, 2, out);
-    ASSERT_FALSE(grc == UFSECP_GPU_OK, "GKE-1: invalid pubkey must cause error");
+    ASSERT_FALSE(grc == UFSECP_OK, "GKE-1: invalid pubkey must cause error");
 
-    ufsecp_gpu_destroy_context(gctx);
+    ufsecp_gpu_ctx_destroy(gctx);
 }
 
 // GKE-2: GPU ECDH batch with invalid pubkey at index 1 returns error.
@@ -60,8 +60,8 @@ static void test_gke_opencl_invalid_pubkey_error() {
 // Post-fix: all pubkeys validated first, no keys loaded before validation.
 static void test_gke_opencl_invalid_pubkey_index1_error() {
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_gpu_error_t grc = ufsecp_gpu_create_context(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
-    if (grc != UFSECP_GPU_OK || !gctx) {
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
+    if (grc != UFSECP_OK || !gctx) {
         std::printf("SKIP GKE-2: no OpenCL GPU\n"); return;
     }
 
@@ -80,31 +80,31 @@ static void test_gke_opencl_invalid_pubkey_index1_error() {
 
     uint8_t out[64] = {};
     grc = ufsecp_gpu_ecdh_batch(gctx, privkeys, pubs, 2, out);
-    ASSERT_FALSE(grc == UFSECP_GPU_OK, "GKE-2: invalid pubkey at index 1 must cause error");
+    ASSERT_FALSE(grc == UFSECP_OK, "GKE-2: invalid pubkey at index 1 must cause error");
 
-    ufsecp_gpu_destroy_context(gctx);
+    ufsecp_gpu_ctx_destroy(gctx);
 }
 
 // GKE-3..4: Zero count → GpuError::Ok (no crash, no key load).
 static void test_gke_zero_count() {
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_gpu_error_t grc = ufsecp_gpu_create_context(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
-    if (grc != UFSECP_GPU_OK || !gctx) {
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
+    if (grc != UFSECP_OK || !gctx) {
         std::printf("SKIP GKE-3: no OpenCL GPU\n"); return;
     }
 
     uint8_t dummy[32] = {};
     grc = ufsecp_gpu_ecdh_batch(gctx, dummy, dummy, 0, dummy);
-    ASSERT_TRUE(grc == UFSECP_GPU_OK, "GKE-3: count=0 must succeed immediately");
+    ASSERT_TRUE(grc == UFSECP_OK, "GKE-3: count=0 must succeed immediately");
 
-    ufsecp_gpu_destroy_context(gctx);
+    ufsecp_gpu_ctx_destroy(gctx);
 }
 
 // GKE-5..8: Valid 2-key ECDH batch produces correct output and does not crash.
 static void test_gke_valid_batch_correctness() {
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_gpu_error_t grc = ufsecp_gpu_create_context(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
-    if (grc != UFSECP_GPU_OK || !gctx) {
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_OPENCL, 0);
+    if (grc != UFSECP_OK || !gctx) {
         std::printf("SKIP GKE-5: no OpenCL GPU\n"); return;
     }
 
@@ -125,7 +125,7 @@ static void test_gke_valid_batch_correctness() {
 
     uint8_t out[32] = {};
     grc = ufsecp_gpu_ecdh_batch(gctx, privkeys, pubs, 1, out);
-    ASSERT_TRUE(grc == UFSECP_GPU_OK, "GKE-5: valid ECDH batch must succeed");
+    ASSERT_TRUE(grc == UFSECP_OK, "GKE-5: valid ECDH batch must succeed");
 
     // Result must not be all-zeros (key material present)
     bool all_zero = true;
@@ -140,17 +140,17 @@ static void test_gke_valid_batch_correctness() {
     std::memcpy(privkeys, sk2_raw, 32);
     uint8_t out2[32] = {};
     grc = ufsecp_gpu_ecdh_batch(gctx, privkeys, pubs, 1, out2);
-    ASSERT_TRUE(grc == UFSECP_GPU_OK, "GKE-7: second ECDH batch must succeed");
+    ASSERT_TRUE(grc == UFSECP_OK, "GKE-7: second ECDH batch must succeed");
     ASSERT_FALSE(std::memcmp(out, out2, 32) == 0,
                  "GKE-8: two different keys must produce different ECDH output");
 
-    ufsecp_gpu_destroy_context(gctx);
+    ufsecp_gpu_ctx_destroy(gctx);
 }
 
 // GKE-9..12: CPU-path null guard (non-GPU, always runs).
 static void test_gke_cpu_null_guards() {
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) return;
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) return;
     uint8_t sk[32] = {};
     sk[31] = 1;
     uint8_t pub[33];

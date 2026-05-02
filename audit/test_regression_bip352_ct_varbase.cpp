@@ -31,8 +31,8 @@ static int g_fail = 0;
 // ufsecp_bip352_* API exercises the CPU path that calls the same arithmetic
 // as the kernel, verifying that the pipeline is end-to-end correct.
 static void test_bcv_cpu_correctness() {
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
-    if (!ctx) { std::printf("SKIP BCV-1: no ctx\n"); return; }
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) { std::printf("SKIP BCV-1: no ctx\n"); return; }
 
     // BCV-1: create a BIP-352 scan key pair
     uint8_t scan_sk[32] = {};

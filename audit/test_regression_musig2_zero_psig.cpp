@@ -27,6 +27,7 @@ struct MuSig2State {
     ufsecp_ctx* ctx = nullptr;
     uint8_t sk1[32] = {}, sk2[32] = {};
     uint8_t pk1[33] = {}, pk2[33] = {};
+    uint8_t agg_pk32[32] = {};                    // xonly agg pubkey from key_agg
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN] = {};
     uint8_t secnonce1[UFSECP_MUSIG2_SECNONCE_LEN] = {};
     uint8_t secnonce2[UFSECP_MUSIG2_SECNONCE_LEN] = {};
@@ -38,24 +39,34 @@ struct MuSig2State {
     bool ok = false;
 
     MuSig2State() {
-        ctx = ufsecp_ctx_create();
-        if (!ctx) return;
+        if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) return;
 
         sk1[31] = 5;
         sk2[31] = 11;
-        const uint8_t* pks[2] = {pk1, pk2};
 
         if (ufsecp_pubkey_create(ctx, sk1, pk1) != UFSECP_OK) return;
         if (ufsecp_pubkey_create(ctx, sk2, pk2) != UFSECP_OK) return;
-        if (ufsecp_musig2_pubkey_agg(ctx, pks, 2, keyagg) != UFSECP_OK) return;
 
-        uint8_t rand1[32] = {1,2,3,4}, rand2[32] = {5,6,7,8};
-        if (ufsecp_musig2_nonce_gen(ctx, rand1, sk1, pk1, nullptr, 0, secnonce1, pubnonce1) != UFSECP_OK) return;
-        if (ufsecp_musig2_nonce_gen(ctx, rand2, sk2, pk2, nullptr, 0, secnonce2, pubnonce2) != UFSECP_OK) return;
+        // key_agg: flat byte array (33 bytes per pubkey, contiguous)
+        uint8_t pks_flat[66] = {};
+        std::memcpy(pks_flat,      pk1, 33);
+        std::memcpy(pks_flat + 33, pk2, 33);
+        if (ufsecp_musig2_key_agg(ctx, pks_flat, 2, keyagg, agg_pk32) != UFSECP_OK) return;
 
-        const uint8_t* pnonces[2] = {pubnonce1, pubnonce2};
-        if (ufsecp_musig2_nonce_agg(ctx, pnonces, 2, aggnonce) != UFSECP_OK) return;
-        if (ufsecp_musig2_session_init(ctx, aggnonce, msg, keyagg, session) != UFSECP_OK) return;
+        // nonce_gen: (ctx, privkey, pubkey32, agg_pubkey32, msg32, extra_in, secnonce, pubnonce)
+        if (ufsecp_musig2_nonce_gen(ctx, sk1, pk1, agg_pk32, msg, nullptr,
+                                    secnonce1, pubnonce1) != UFSECP_OK) return;
+        if (ufsecp_musig2_nonce_gen(ctx, sk2, pk2, agg_pk32, msg, nullptr,
+                                    secnonce2, pubnonce2) != UFSECP_OK) return;
+
+        // nonce_agg: flat byte array (PUBNONCE_LEN bytes per nonce, contiguous)
+        uint8_t pnonces_flat[UFSECP_MUSIG2_PUBNONCE_LEN * 2] = {};
+        std::memcpy(pnonces_flat,                        pubnonce1, UFSECP_MUSIG2_PUBNONCE_LEN);
+        std::memcpy(pnonces_flat + UFSECP_MUSIG2_PUBNONCE_LEN, pubnonce2, UFSECP_MUSIG2_PUBNONCE_LEN);
+        if (ufsecp_musig2_nonce_agg(ctx, pnonces_flat, 2, aggnonce) != UFSECP_OK) return;
+
+        // start_sign_session: (ctx, aggnonce, keyagg, msg32, session_out)
+        if (ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg, session) != UFSECP_OK) return;
         ok = true;
     }
 
@@ -108,18 +119,16 @@ static void test_mzp_full_round_trip() {
         std::printf("FAIL MZP-4: partial_sign2 failed\n"); ++g_fail; return;
     }
 
-    const uint8_t* psigs[2] = {psig1, psig2};
+    uint8_t psigs_flat[64] = {};
+    std::memcpy(psigs_flat,      psig1, 32);
+    std::memcpy(psigs_flat + 32, psig2, 32);
     uint8_t final_sig[64] = {};
-    if (ufsecp_musig2_partial_sig_agg(s.ctx, psigs, 2, s.session, final_sig) != UFSECP_OK) {
+    if (ufsecp_musig2_partial_sig_agg(s.ctx, psigs_flat, 2, s.session, final_sig) != UFSECP_OK) {
         std::printf("FAIL MZP-4: sig_agg failed\n"); ++g_fail; return;
     }
 
-    // Verify the aggregated signature using the keyagg pubkey
-    uint8_t agg_xonly[32] = {};
-    if (ufsecp_musig2_pubkey_agg_xonly(s.ctx, s.keyagg, agg_xonly) != UFSECP_OK) {
-        std::printf("SKIP MZP-4: no xonly export\n"); return;
-    }
-    ufsecp_error_t vrc = ufsecp_schnorr_verify(s.ctx, s.msg, agg_xonly, final_sig);
+    // Verify the aggregated signature using the xonly agg pubkey (stored from key_agg)
+    ufsecp_error_t vrc = ufsecp_schnorr_verify(s.ctx, s.msg, s.agg_pk32, final_sig);
     ASSERT_TRUE(vrc == UFSECP_OK, "MZP-4: aggregated MuSig2 signature must verify");
 }
 
