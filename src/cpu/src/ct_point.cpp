@@ -1436,12 +1436,11 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 
         point_dbl_n_core(&R, GROUP_SIZE);
 
-        // HAMBURG=true: degen provably 0 — skip normalizes_to_zero + cmovs.
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        unified_add_core<false, true>(&R, R, t);
+        unified_add_core<false>(&R, R, t);
 
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<false, true>(&R, R, t);
+        unified_add_core<false>(&R, R, t);
     }
 
     // Apply global Z correction: undo the isomorphism.
@@ -2760,12 +2759,11 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 
         point_dbl_n_core(&R, GROUP_SIZE);
 
-        // HAMBURG=true: degen provably 0.
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        unified_add_core<false, true>(&R, R, t);
+        unified_add_core<false>(&R, R, t);
 
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<false, true>(&R, R, t);
+        unified_add_core<false>(&R, R, t);
     }
 
     R.z = field_mul(R.z, global_z);
