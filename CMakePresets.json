@@ -47,7 +47,8 @@
                 "SECP256K1_BUILD_CUDA": "OFF",
                 "SECP256K1_BUILD_TESTS": "ON",
                 "SECP256K1_BUILD_BENCH": "ON",
-                "SECP256K1_SPEED_FIRST": "OFF"
+                "SECP256K1_SPEED_FIRST": "OFF",
+                "SECP256K1_ENABLE_OPENMP": "ON"
             }
         },
         {
@@ -61,7 +62,8 @@
                 "SECP256K1_BUILD_CUDA": "OFF",
                 "SECP256K1_BUILD_TESTS": "ON",
                 "SECP256K1_BUILD_BENCH": "ON",
-                "SECP256K1_SPEED_FIRST": "ON"
+                "SECP256K1_SPEED_FIRST": "ON",
+                "SECP256K1_ENABLE_OPENMP": "ON"
             }
         },
         {
@@ -118,7 +120,8 @@
                 "SECP256K1_BUILD_TESTS": "ON",
                 "SECP256K1_BUILD_BENCH": "ON",
                 "CMAKE_CUDA_ARCHITECTURES": "native",
-                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON"
+                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
+                "SECP256K1_ENABLE_OPENMP": "ON"
             }
         },
         {
@@ -147,7 +150,8 @@
                 "SECP256K1_BUILD_TESTS": "ON",
                 "SECP256K1_BUILD_BENCH": "ON",
                 "CMAKE_CUDA_ARCHITECTURES": "89",
-                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON"
+                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
+                "SECP256K1_ENABLE_OPENMP": "ON"
             }
         },
         {
