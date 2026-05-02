@@ -233,46 +233,35 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
-    // Compute the public key's x-coordinate (constant-time: privkey is secret)
     auto pub = ct::generator_mul(privkey);
     auto x = pub.x();
+    bool y_is_odd = (pub.y().to_bytes()[31] & 1) != 0;
 
     std::array<std::uint8_t, 64> result{};
-
-    // Try random u values until we find one where xswiftec_inv succeeds.
-    // Expected iterations: ~1.14 (each u has 7/8 chance of >=1 valid case).
-    // Cap at 100 to prevent an infinite loop if csprng_fill is broken (e.g.
-    // /dev/urandom exhausted on embedded targets or adversarial fuzzer env).
     static constexpr int kMaxAttempts = 100;
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
         std::uint8_t rand_bytes[32];
         csprng_fill(rand_bytes, 32);
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
-
-        // xswiftec_inv requires u != 0
         if (u == FieldElement::zero()) continue;
 
-        // Try all 8 cases
         for (int c = 0; c < 8; ++c) {
             auto [ok, t] = xswiftec_inv(x, u, c);
             if (!ok) continue;
 
-            auto u_bytes = u.to_bytes();
             auto t_bytes = t.to_bytes();
-            std::memcpy(result.data(), u_bytes.data(), 32);
+            // XSwiftEC: decode gives y_is_odd == t_is_odd — match the pubkey's y.
+            if (((t_bytes[31] & 1) != 0) != y_is_odd) continue;
+
+            auto u_bytes = u.to_bytes();
+            std::memcpy(result.data(),      u_bytes.data(), 32);
             std::memcpy(result.data() + 32, t_bytes.data(), 32);
 
-            if (xswiftec_fwd(u, t) == x) {
-                detail::secure_erase(rand_bytes, sizeof(rand_bytes));
-                return result;
-            }
+            detail::secure_erase(rand_bytes, sizeof(rand_bytes));
+            return result;
         }
-        // If no case worked for this u, try another random u
     }
-    // Should never be reached with a functioning RNG (~10^-10 probability
-    // after 100 attempts). Throw so UFSECP_CATCH_RETURN converts to
-    // UFSECP_ERR_INTERNAL rather than hanging.
     throw std::runtime_error("ellswift_create: RNG produced 100 consecutive unusable values");
 }
 
@@ -285,6 +274,7 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
     // matching libsecp256k1's secp256k1_ellswift_create auxrnd32 semantics.
     auto pub = ct::generator_mul(privkey);
     auto x = pub.x();
+    bool y_is_odd = (pub.y().to_bytes()[31] & 1) != 0;
     auto privkey_bytes = privkey.to_bytes();
 
     // Precompute tagged-hash prefix (tag applied twice per BIP-340 convention)
@@ -317,15 +307,15 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
             auto [ok, t] = xswiftec_inv(x, u, c);
             if (!ok) continue;
 
-            auto u_bytes = u.to_bytes();
             auto t_bytes = t.to_bytes();
-            std::memcpy(result.data(), u_bytes.data(), 32);
+            if (((t_bytes[31] & 1) != 0) != y_is_odd) continue;
+
+            auto u_bytes = u.to_bytes();
+            std::memcpy(result.data(),      u_bytes.data(), 32);
             std::memcpy(result.data() + 32, t_bytes.data(), 32);
 
-            if (xswiftec_fwd(u, t) == x) {
-                detail::secure_erase(rand_bytes, sizeof(rand_bytes));
-                return result;
-            }
+            detail::secure_erase(rand_bytes, sizeof(rand_bytes));
+            return result;
         }
     }
     throw std::runtime_error("ellswift_create: auxrnd32 path exhausted 100 attempts");
