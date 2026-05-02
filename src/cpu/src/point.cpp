@@ -3938,15 +3938,17 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     if (len_b2 > max_len) max_len = len_b2;
 
     for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
-        // Prefetch G/H table entries ahead of the doubling to hide
-        // L3->L1 latency (~40 cycles) behind the ~80ns doubling.
-        {
-            int const d_g = wnaf_a_lo[static_cast<std::size_t>(i)];
+        // Look-ahead prefetch: fetch the NEXT iteration's G/H entries now,
+        // so L2/L3 latency is fully hidden behind this iteration's doubling.
+        // Previously prefetched current-iteration (same-iter = no hiding).
+        if (i > 0) {
+            int const np = i - 1;
+            int const d_g = wnaf_a_lo[static_cast<std::size_t>(np)];
             if (d_g) {
                 int const abs_g = d_g > 0 ? d_g : -d_g;
                 SECP256K1_PREFETCH_READ(&gen_tables->tbl_G[static_cast<std::size_t>((abs_g - 1) >> 1)]);
             }
-            int const d_h = wnaf_a_hi[static_cast<std::size_t>(i)];
+            int const d_h = wnaf_a_hi[static_cast<std::size_t>(np)];
             if (d_h) {
                 int const abs_h = d_h > 0 ? d_h : -d_h;
                 SECP256K1_PREFETCH_READ(&gen_tables->tbl_H[static_cast<std::size_t>((abs_h - 1) >> 1)]);
