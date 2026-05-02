@@ -475,7 +475,7 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
-    if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
     SECP_ASSERT_SCALAR_VALID(private_key);
 
     // z = message hash interpreted as scalar
@@ -485,7 +485,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     auto k = rfc6979_nonce(private_key, msg_hash);
     ECDSASignature result{Scalar::zero(), Scalar::zero()};
 
-    if (!k.is_zero()) {
+    if (!k.is_zero_ct()) {
         // R = k * G
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
@@ -494,10 +494,10 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
             auto r_bytes = R.x_only_bytes();
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
-                // s = k^{-1} * (z + r * d) mod n  (CT SafeGCD inverse)
+                // s = k^{-1} * (z + r * d) mod n  (CT scalar arithmetic)
                 auto k_inv = ct::scalar_inverse(k);
-                auto s = k_inv * (z + r * private_key);
-                if (!s.is_zero()) {
+                auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+                if (!s.is_zero_ct()) {
                     // Normalize to low-S (BIP-62)
                     result = ECDSASignature{r, s}.normalize();
                 }
@@ -540,13 +540,13 @@ ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
 ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
                                   const Scalar& private_key,
                                   const std::array<uint8_t, 32>& aux_rand) {
-    if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     auto z = Scalar::from_bytes(msg_hash);
     auto k = rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
     ECDSASignature result{Scalar::zero(), Scalar::zero()};
 
-    if (!k.is_zero()) {
+    if (!k.is_zero_ct()) {
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
             auto r_fe = R.x();
@@ -554,8 +554,8 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
                 auto k_inv = ct::scalar_inverse(k);
-                auto s = k_inv * (z + r * private_key);
-                if (!s.is_zero()) {
+                auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+                if (!s.is_zero_ct()) {
                     result = ECDSASignature{r, s}.normalize();
                 }
                 secure_erase(&k_inv, sizeof(k_inv));

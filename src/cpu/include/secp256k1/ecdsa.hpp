@@ -15,13 +15,13 @@
 // (RFC 6979). Reusing k leaks the private key. This library provides a
 // deterministic nonce function (RFC 6979) for safety.
 //
-// SECP256K1_SIGNING_IS_CT: All signing functions in this header (ecdsa_sign,
-// ecdsa_sign_verified, ecdsa_sign_hedged, ecdsa_sign_hedged_verified) route
-// R = k*G through ct::generator_mul_blinded() and k^{-1} through
-// ct::scalar_inverse(). They are constant-time with respect to the private
-// key and nonce.
+// CT STATUS: All signing functions in this header use constant-time arithmetic
+// for secret-dependent operations: ct::generator_mul_blinded() for R = k*G,
+// ct::scalar_inverse() for k^{-1}, ct::scalar_mul() for s = k^{-1}*(z+r*d),
+// and is_zero_ct() for secret comparisons. These functions are safe for
+// production use with real private keys.
 //
-// For the canonical CT-validated ABI, prefer ufsecp_ecdsa_sign() (C ABI) or
+// For the explicit CT-validated ABI, prefer ufsecp_ecdsa_sign() (C ABI) or
 // secp256k1::ct::ecdsa_sign() (explicit CT C++ namespace).
 // Compile with -DSECP256K1_REQUIRE_CT=1 to get deprecation warnings if you
 // accidentally use the fast:: non-CT path for signing.

@@ -112,8 +112,20 @@ struct OclMsmPool {
         free_all();
     }
 
-    void free_all() {
-        if (buf_scalars)  { clReleaseMemObject(buf_scalars);  buf_scalars  = nullptr; }
+    void free_all(cl_command_queue queue = nullptr) {
+        if (buf_scalars) {
+            if (queue) {
+                // Zero scalar buffer before release — GPU Guardrail #10
+                cl_uchar zero = 0;
+                cl_event ev = nullptr;
+                clEnqueueFillBuffer(queue, buf_scalars, &zero, sizeof(zero),
+                                    0, capacity * sizeof(secp256k1::opencl::Scalar),
+                                    0, nullptr, &ev);
+                if (ev) { clWaitForEvents(1, &ev); clReleaseEvent(ev); }
+            }
+            clReleaseMemObject(buf_scalars);
+            buf_scalars = nullptr;
+        }
         if (buf_points)   { clReleaseMemObject(buf_points);   buf_points   = nullptr; }
         if (buf_partials) { clReleaseMemObject(buf_partials); buf_partials = nullptr; }
         if (buf_blocks)   { clReleaseMemObject(buf_blocks);   buf_blocks   = nullptr; }
@@ -221,7 +233,8 @@ public:
         if (bip352_scan_kernel_)  { clReleaseKernel(bip352_scan_kernel_);  bip352_scan_kernel_  = nullptr; }
         if (bip352_program_)      { clReleaseProgram(bip352_program_);     bip352_program_      = nullptr; }
         bip324_init_attempted_ = false;
-        msm_pool_.free_all();
+        auto* shutdown_queue = ctx_ ? static_cast<cl_command_queue>(ctx_->native_queue()) : nullptr;
+        msm_pool_.free_all(shutdown_queue);
         ctx_.reset();
     }
 
