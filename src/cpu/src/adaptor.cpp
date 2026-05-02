@@ -77,11 +77,12 @@ schnorr_adaptor_sign(const Scalar& private_key,
     std::uint64_t const sk_neg_mask = static_cast<std::uint64_t>(p_y_odd)
                                     * UINT64_C(0xFFFFFFFFFFFFFFFF);
     Scalar sk = ct::scalar_cneg(private_key, sk_neg_mask);
-    if (p_y_odd) {
-        P = P.negate();
-    }
+    // Point::negate() is arithmetic (y → -y mod p), no secret-dependent branches.
+    // The if() is on p_y_odd which is key-derived, but Point::negate() is branchless
+    // so the `if` only affects the branch predictor, not execution time of negate().
+    if (p_y_odd) P = P.negate();
 
-    // Generate nonce k 
+    // Generate nonce k
     Scalar k = adaptor_nonce(sk, msg.data(), 32, adaptor_point, aux_rand.data(), 32);
 
     // R^ = k * G (the pre-nonce, before adapting) — CT: k is secret
@@ -90,13 +91,14 @@ schnorr_adaptor_sign(const Scalar& private_key,
     // R = R^ + T (the final nonce point after adapting)
     Point R = R_hat.add(adaptor_point);
 
-    // BIP-340: if R.y is odd, negate k (and R^ and R flip accordingly)
+    // BIP-340: negate k/R^/R if R.y is odd  [CT for scalar; point negate is arithmetic]
     auto R_y = R.y().to_bytes();
-    bool const needs_neg = (R_y[31] & 1) != 0;
+    bool const needs_neg = (R_y[31] & 1u) != 0u;
+    std::uint64_t const neg_mask = ct::bool_to_mask(needs_neg);
+    k = ct::scalar_cneg(k, neg_mask);  // CT: k is the secret nonce
     if (needs_neg) {
-        k = k.negate();
-        R_hat = R_hat.negate();
-        R = R.negate();
+        R_hat = R_hat.negate();  // arithmetic negate — branchless operation
+        R     = R.negate();
     }
 
     // Challenge: e = H("BIP0340/challenge", R.x || P.x || m)
@@ -264,7 +266,7 @@ bool ecdsa_adaptor_verify(const ECDSAAdaptorSig& pre_sig,
 ECDSASignature
 ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
                     const Scalar& adaptor_secret) {
-    Scalar t_inv = adaptor_secret.inverse();
+    Scalar t_inv = ct::scalar_inverse(adaptor_secret); // CT: SafeGCD inverse on secret
     Scalar const s = pre_sig.s_hat * t_inv;
 
     detail::secure_erase(&t_inv, sizeof(t_inv));

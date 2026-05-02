@@ -98,14 +98,35 @@ ECDSASignature ECDSASignature::normalize() const {
 }
 
 bool ECDSASignature::is_low_s() const {
-    // s <= n/2 ?  Direct limb comparison (avoids 2x to_bytes() serialization).
-    // Compare from most-significant limb to least-significant.
+    // Variable-time: s is PUBLIC at the call sites of this function (verification,
+    // post-signing ABI checks on already-serialized sig). For secret s, use
+    // normalize() which calls ct::ct_normalize_low_s().
     const auto& sl = s.limbs();
     for (int i = 3; i >= 0; --i) {
         if (sl[static_cast<unsigned>(i)] < HALF_ORDER_LIMBS[static_cast<unsigned>(i)]) return true;
         if (sl[static_cast<unsigned>(i)] > HALF_ORDER_LIMBS[static_cast<unsigned>(i)]) return false;
     }
-    return true; // equal
+    return true;
+}
+
+bool ECDSASignature::is_low_s_ct() const {
+    // CT variant for defense-in-depth. Computes s <= n/2 without branches.
+    // Uses the same limb layout as is_low_s() but with bitmask logic.
+    const auto& sl = s.limbs();
+    // Carry-flag style: result = 1 (low-s or equal) until a decisive limb is found.
+    // above=1 if s > HALF_ORDER so far; below=1 if s < HALF_ORDER so far.
+    uint64_t above = 0, below = 0;
+    for (int i = 3; i >= 0; --i) {
+        uint64_t const a = sl[static_cast<unsigned>(i)];
+        uint64_t const b = HALF_ORDER_LIMBS[static_cast<unsigned>(i)];
+        // Compute less/greater for this limb, masked to only apply if no
+        // higher limb was already decisive.
+        uint64_t const undecided = ~(above | below); // all-ones if still undecided
+        below |= undecided & ct::bool_to_mask(a < b);
+        above |= undecided & ct::bool_to_mask(a > b);
+    }
+    // low-s if below OR (neither above nor below → equal)
+    return (below != 0) || (above == 0);
 }
 
 // -- RFC 6979 Deterministic Nonce ---------------------------------------------

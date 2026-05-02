@@ -75,9 +75,9 @@ RecoverableSignature ecdsa_sign_recoverable(
     // Determine recovery ID
     int recid = 0;
 
-    // bit 0: parity of R.y
+    // bit 0: parity of R.y  [CT: branchless OR — R.y LSB is nonce-derived]
     auto R_uncomp = R.to_uncompressed();
-    if ((R_uncomp[64] & 1) != 0) recid |= 1;
+    recid |= static_cast<int>(R_uncomp[64] & 1u);
 
     // bit 1: whether R.x >= n (r overflowed past n); branchless comparison on r_bytes (public data)
     unsigned gt = 0u, eq_run = 1u;

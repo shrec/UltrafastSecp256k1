@@ -7,6 +7,7 @@
 #include "secp256k1/debug_invariants.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/ct/point.hpp"  // ct::generator_mul for secret-bearing paths
+#include "secp256k1/ct/scalar.hpp" // ct::scalar_cneg, ct::bool_to_mask
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)
@@ -299,7 +300,7 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
 
-    kp.d = p_y_odd ? d_prime.negate() : d_prime;
+    kp.d = ct::scalar_cneg(d_prime, ct::bool_to_mask(p_y_odd));
     kp.px = px;
     return kp;
 }
@@ -332,8 +333,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto R = ct::generator_mul_blinded(k_prime);
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
 
-    // Step 4: k = k' if has_even_y(R), else n - k'
-    auto k = r_y_odd ? k_prime.negate() : k_prime;
+    // Step 4: k = k' if has_even_y(R), else n - k'  [CT: branchless negate]
+    auto k = ct::scalar_cneg(k_prime, ct::bool_to_mask(r_y_odd));
 
     // Step 5: e = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg)
     uint8_t challenge_input[96];

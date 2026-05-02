@@ -58,8 +58,10 @@ struct ECDSASignature {
     // Normalize to low-S form (BIP-62): if s > n/2, replace with n - s
     ECDSASignature normalize() const;
 
-    // Check if signature has low-S
+    // Check if signature has low-S (variable-time — for public s only, e.g. verification)
     bool is_low_s() const;
+    // CT variant for defense-in-depth when s may be secret
+    bool is_low_s_ct() const;
 
     // C5: explicit validity predicate — propagates signing success/failure
     // across the CT→ABI boundary without relying on implicit zero-detection.
