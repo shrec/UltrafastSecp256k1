@@ -43,13 +43,13 @@ public:
     std::string to_hex() const;
     const limbs_type& limbs() const noexcept { return limbs_; }
 
-    Scalar operator+(const Scalar& rhs) const;
-    Scalar operator-(const Scalar& rhs) const;
-    Scalar operator*(const Scalar& rhs) const;
+    Scalar operator+(const Scalar& rhs) const noexcept;
+    Scalar operator-(const Scalar& rhs) const noexcept;
+    Scalar operator*(const Scalar& rhs) const noexcept;
 
-    Scalar& operator+=(const Scalar& rhs);
-    Scalar& operator-=(const Scalar& rhs);
-    Scalar& operator*=(const Scalar& rhs);
+    Scalar& operator+=(const Scalar& rhs) noexcept;
+    Scalar& operator-=(const Scalar& rhs) noexcept;
+    Scalar& operator*=(const Scalar& rhs) noexcept;
 
     bool is_zero() const noexcept;
     bool is_zero_ct() const noexcept;  // CT variant: reads all limbs, no early-return
@@ -60,7 +60,7 @@ public:
     Scalar inverse() const;
 
     // Modular negation: -a mod n  (= n - a, or 0 if a == 0)
-    Scalar negate() const;
+    Scalar negate() const noexcept;
 
     // Parity check: returns true if lowest bit is 0
     bool is_even() const noexcept;

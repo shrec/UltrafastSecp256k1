@@ -158,33 +158,6 @@ static std::array<std::uint64_t, 4> mul_shift_384_const(
 }
 #endif
 
-// Bit-length of a Scalar (for sign selection: pick shorter representation)
-static unsigned scalar_bitlen(const Scalar& s) {
-    auto& limbs = s.limbs();
-    for (std::size_t i = 4; i-- > 0; ) {
-        if (limbs[i] != 0) {
-#if defined(_MSC_VER) && !defined(__clang__)
-            unsigned long index;
-            _BitScanReverse64(&index, limbs[i]);
-            return static_cast<unsigned>(i * 64 + index + 1);
-#else
-#if defined(__XTENSA__) || defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32)
-            // 32-bit CLZ for portability (ESP32 Xtensa has NSAU for 32-bit)
-            auto const hi32 = static_cast<std::uint32_t>(limbs[i] >> 32);
-            if (hi32) return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clz(hi32)));
-            return static_cast<unsigned>(i * 64 + 32 - static_cast<unsigned>(__builtin_clz(static_cast<std::uint32_t>(limbs[i]))));
-#else
-            // x86-64/ARM64/RISC-V: single LZCNT/CLZ instruction
-            // SAFETY: limbs[i] != 0 is guaranteed by the if-guard above.
-            // __builtin_clzll(0) is UB per GCC docs; the guard prevents this.
-            return static_cast<unsigned>(i * 64 + 64 - static_cast<unsigned>(__builtin_clzll(limbs[i])));
-#endif
-#endif
-        }
-    }
-    return 0;
-}
-
 // ============================================================================
 //  GLV decomposition constants (matching libsecp256k1/precompute.cpp)
 // ============================================================================
@@ -240,6 +213,13 @@ static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
 static constexpr std::uint64_t kN[4] = {
     0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
     0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+};
+
+// n/2 = floor(n/2) (little-endian). k > n/2 iff k is "high" (negated form is shorter).
+// ROUND3-1: half-order compare for sign selection, avoids two scalar_bitlen calls.
+static constexpr std::uint64_t kNHalf[4] = {
+    0xDFE92F46681B20A0ULL, 0x5D576E7357A4501DULL,
+    0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL
 };
 
 // NC = 2^256 - n (129 bits, 3 limbs). Used for fast modular reduction.
@@ -460,16 +440,22 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     // Reduce wide (up to 7 limbs) mod n -> k2
     std::uint64_t k2_raw[4];
     glv_reduce_mod_n(wide, 7, k2_raw);
-    Scalar const k2_mod = Scalar::from_limbs(
-        {k2_raw[0], k2_raw[1], k2_raw[2], k2_raw[3]});
 
-    // k2 sign handling: pick shorter representation
-    Scalar const k2_neg_val = Scalar::zero() - k2_mod;
-    bool const k2_is_neg = (scalar_bitlen(k2_neg_val) < scalar_bitlen(k2_mod));
-    Scalar const k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+    // k2 sign handling: pick shorter representation.
+    // ROUND3-1: half-order compare on raw limbs (avoids two scalar_bitlen + one Scalar sub).
+    // k2_raw > n/2 iff negated form is shorter (k2_is_neg).
+    bool const k2_is_neg = !glv_ge_n(kNHalf, k2_raw); // k2_raw > kNHalf
+    std::uint64_t k2_abs_raw[4];
+    if (k2_is_neg) {
+        glv_sub4(kN, k2_raw, k2_abs_raw); // k2_abs = n - k2_raw
+    } else {
+        k2_abs_raw[0] = k2_raw[0]; k2_abs_raw[1] = k2_raw[1];
+        k2_abs_raw[2] = k2_raw[2]; k2_abs_raw[3] = k2_raw[3];
+    }
+    Scalar const k2_abs = Scalar::from_limbs(
+        {k2_abs_raw[0], k2_abs_raw[1], k2_abs_raw[2], k2_abs_raw[3]});
 
-    // k1 = k - lambda * k2_mod (mod n)
-    // k2_signed === k2_mod (mod n) always, so use k2_mod directly.
+    // k1 = k - lambda * k2_signed (mod n), where k2_signed = k2_raw always.
     // Exploit: k2_abs is ~128-bit -> lambda*k2_abs is 2x4 multiply (8 macs).
     // Then adjust sign: lambda*k2_mod = k2_is_neg ? -lambda*k2_abs : lambda*k2_abs
     auto const& k2a = k2_abs.limbs();
@@ -510,17 +496,37 @@ GLVDecomposition glv_decompose(const Scalar& k) {
 
     Scalar const k2_mod = (c1 * minus_b1) + (c2 * minus_b2);
 
-    Scalar const k2_neg_val = Scalar::zero() - k2_mod;
-    bool const k2_is_neg = (scalar_bitlen(k2_neg_val) < scalar_bitlen(k2_mod));
-    Scalar const k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+    // ROUND3-1: half-order compare for sign selection
+    auto const& k2fl = k2_mod.limbs();
+    const std::uint64_t k2_raw_fb[4] = {k2fl[0], k2fl[1], k2fl[2], k2fl[3]};
+    bool const k2_is_neg = !glv_ge_n(kNHalf, k2_raw_fb);
+    std::uint64_t k2_abs_raw_fb[4];
+    if (k2_is_neg) {
+        glv_sub4(kN, k2_raw_fb, k2_abs_raw_fb);
+    } else {
+        k2_abs_raw_fb[0] = k2_raw_fb[0]; k2_abs_raw_fb[1] = k2_raw_fb[1];
+        k2_abs_raw_fb[2] = k2_raw_fb[2]; k2_abs_raw_fb[3] = k2_raw_fb[3];
+    }
+    Scalar const k2_abs = Scalar::from_limbs(
+        {k2_abs_raw_fb[0], k2_abs_raw_fb[1], k2_abs_raw_fb[2], k2_abs_raw_fb[3]});
 
     Scalar const k1_mod = k - lambda * k2_mod;
 #endif
 
-    // k1 sign handling (common path)
-    Scalar const k1_neg_val = Scalar::zero() - k1_mod;
-    bool const k1_is_neg = (scalar_bitlen(k1_neg_val) < scalar_bitlen(k1_mod));
-    Scalar const k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
+    // k1 sign handling (common path).
+    // ROUND3-1: half-order compare on raw limbs, lazy negation.
+    auto const& k1l = k1_mod.limbs();
+    const std::uint64_t k1_raw[4] = {k1l[0], k1l[1], k1l[2], k1l[3]};
+    bool const k1_is_neg = !glv_ge_n(kNHalf, k1_raw); // k1_raw > kNHalf
+    std::uint64_t k1_abs_raw[4];
+    if (k1_is_neg) {
+        glv_sub4(kN, k1_raw, k1_abs_raw);
+    } else {
+        k1_abs_raw[0] = k1_raw[0]; k1_abs_raw[1] = k1_raw[1];
+        k1_abs_raw[2] = k1_raw[2]; k1_abs_raw[3] = k1_raw[3];
+    }
+    Scalar const k1_abs = Scalar::from_limbs(
+        {k1_abs_raw[0], k1_abs_raw[1], k1_abs_raw[2], k1_abs_raw[3]});
 
     result.k1     = k1_abs;
     result.k2     = k2_abs;

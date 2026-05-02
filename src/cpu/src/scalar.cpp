@@ -258,15 +258,15 @@ Scalar Scalar::from_hex(const std::string& hex) {
     return from_bytes(bytes);
 }
 
-Scalar Scalar::operator+(const Scalar& rhs) const {
+Scalar Scalar::operator+(const Scalar& rhs) const noexcept {
     return Scalar(add_impl(limbs_, rhs.limbs_), true);
 }
 
-Scalar Scalar::operator-(const Scalar& rhs) const {
+Scalar Scalar::operator-(const Scalar& rhs) const noexcept {
     return Scalar(sub_impl(limbs_, rhs.limbs_), true);
 }
 
-Scalar Scalar::operator*(const Scalar& rhs) const {
+Scalar Scalar::operator*(const Scalar& rhs) const noexcept {
 #ifndef SECP256K1_NO_INT128
     // Fast path: unrolled column-by-column multiply + complement reduction
     // N_C = 2^256 - ORDER (only 2 significant limbs + implicit 1 at position 2)
@@ -522,17 +522,17 @@ Scalar Scalar::operator*(const Scalar& rhs) const {
 #endif
 }
 
-Scalar& Scalar::operator+=(const Scalar& rhs) {
+Scalar& Scalar::operator+=(const Scalar& rhs) noexcept {
     limbs_ = add_impl(limbs_, rhs.limbs_);
     return *this;
 }
 
-Scalar& Scalar::operator-=(const Scalar& rhs) {
+Scalar& Scalar::operator-=(const Scalar& rhs) noexcept {
     limbs_ = sub_impl(limbs_, rhs.limbs_);
     return *this;
 }
 
-Scalar& Scalar::operator*=(const Scalar& rhs) {
+Scalar& Scalar::operator*=(const Scalar& rhs) noexcept {
     *this = *this * rhs;
     return *this;
 }
@@ -1122,7 +1122,7 @@ Scalar Scalar::inverse() const {
 
 #endif // __SIZEOF_INT128__
 
-Scalar Scalar::negate() const {
+Scalar Scalar::negate() const noexcept {
     if (is_zero()) return Scalar::zero();
     return Scalar(sub_impl(ORDER, limbs_), true);
 }
