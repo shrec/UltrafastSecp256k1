@@ -1,6 +1,37 @@
 name: CI
 
+# ============================================================================
+# Block structure (prevents runner exhaustion from 14+ simultaneous jobs):
+#
+#  Block 1 — Core Linux (~15 min, 2 parallel jobs)
+#    linux (gcc-13 + clang-17 matrix)
+#
+#  Block 2 — Platform matrix (~20 min, needs Block 1)
+#    linux-arm64, linux-riscv64, windows, macos, rocm
+#
+#  Block 3 — Embedded / quality / CAAS (~25 min, needs Block 2)
+#    ios, ios-xcframework, android, wasm
+#    sanitizers, differential, protocol-vectors
+#    caas-full (stages 1-5, artifacts)
+#    coverage (push only)
+#
+#  ci-verdict — always, fails if any block failed
+# ============================================================================
+
 on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'audit/**'
+      - 'ci/**'
+      - 'compat/**'
+      - 'bindings/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -85,6 +116,7 @@ jobs:
   # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
   linux-arm64:
     runs-on: ubuntu-24.04
+    needs: [linux]
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -182,6 +214,7 @@ jobs:
   # -- Linux RISC-V 64 (cross-compile, riscv64-linux-gnu) --------------------
   linux-riscv64:
     runs-on: ubuntu-24.04
+    needs: [linux]
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -278,6 +311,7 @@ jobs:
 
   # -- Sanitizers (ASan+UBSan, Clang on Linux) --------------------------------
   sanitizers:
+    needs: [linux-arm64, linux-riscv64]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -369,6 +403,7 @@ jobs:
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
+    needs: [linux]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -411,6 +446,7 @@ jobs:
 
   # -- macOS (AppleClang + Metal GPU) -----------------------------------------
   macos:
+    needs: [linux]
     runs-on: macos-14
     strategy:
       fail-fast: false
@@ -479,6 +515,7 @@ jobs:
 
   # -- iOS (CMake + Xcode, ARM64) ---------------------------------------------
   ios:
+    needs: [macos]
     runs-on: macos-14
     strategy:
       fail-fast: false
@@ -545,6 +582,7 @@ jobs:
   # This job validates that the HIP toolchain compiles successfully.
   # Runtime GPU tests require a self-hosted runner with an AMD GPU.
   rocm:
+    needs: [linux]
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -591,6 +629,7 @@ jobs:
 
   # -- WebAssembly (Emscripten) -----------------------------------------------
   wasm:
+    needs: [linux]
     runs-on: ubuntu-24.04
 
     steps:
@@ -650,6 +689,7 @@ jobs:
 
   # -- Android NDK (ARM64, ARMv7, x86_64) ----------------------------------
   android:
+    needs: [linux]
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -700,6 +740,7 @@ jobs:
 
   # -- Code Coverage (LLVM source-based + Codecov) ----------------------------
   coverage:
+    needs: [sanitizers]
     runs-on: ubuntu-24.04
     if: github.event_name == 'push'
 
@@ -782,6 +823,7 @@ jobs:
   # -- Differential smoke test (self-consistency, compact, per-PR) -----------
   differential:
     name: "Differential Smoke Test"
+    needs: [linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -816,6 +858,7 @@ jobs:
   # -- Protocol reference vectors (MuSig2 BIP-327 + FROST KAT) --------------
   protocol-vectors:
     name: "Protocol Vectors (MuSig2 BIP-327 / FROST-KAT)"
+    needs: [linux]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -853,3 +896,145 @@ jobs:
 
       - name: Run MuSig2/FROST combined test
         run: ctest --test-dir build --output-on-failure -R "^musig2_frost$" --timeout 120
+
+  # ============================================================================
+  # CAAS full cycle — stages 1-5, saves JSON + bundle artifacts
+  # Runs after sanitizers (Block 3) so we know the build is clean.
+  # ============================================================================
+  caas-full:
+    name: "CAAS / Full Cycle (stages 1-5)"
+    needs: [sanitizers, differential, protocol-vectors]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+          pip install --require-hashes -r .github/requirements/audit-deps.txt
+
+      - name: Build unified_audit_runner + shared lib
+        run: |
+          cmake -S . -B out/ci-caas -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
+          cmake --build out/ci-caas --target unified_audit_runner ufsecp_shared -j"$(nproc)"
+
+      - name: Stage 1a — Static analysis (audit test quality scanner)
+        run: python3 ci/audit_test_quality_scanner.py --json -o stage1a_scanner.json
+
+      - name: Stage 1b — Traceability join
+        run: python3 ci/exploit_traceability_join.py --json -o stage1b_traceability.json
+
+      - name: Stage 2 — Audit gate (P0–P18)
+        run: python3 ci/audit_gate.py --json -o stage2_audit_gate.json
+
+      - name: Stage 3 — Security autonomy check
+        run: python3 ci/security_autonomy_check.py --json -o stage3_autonomy.json
+
+      - name: Run unified_audit_runner (all 327 modules)
+        run: |
+          ./out/ci-caas/audit/unified_audit_runner --json > caas_runner_report.json
+          echo "## CAAS Full Run" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json, sys
+          d = json.load(open('caas_runner_report.json'))
+          passed = d.get('passed', 0); failed = d.get('failed', 0); skipped = d.get('advisory_skipped', 0)
+          print(f'| Passed | Failed | Advisory skipped |')
+          print(f'|--------|--------|-----------------|')
+          print(f'| {passed} | {failed} | {skipped} |')
+          sys.exit(1 if failed > 0 else 0)
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stage 4 — Produce audit bundle
+        run: python3 ci/external_audit_bundle.py -o EXTERNAL_AUDIT_BUNDLE.json
+
+      - name: Stage 5 — Verify audit bundle
+        run: python3 ci/verify_external_audit_bundle.py EXTERNAL_AUDIT_BUNDLE.json
+
+      - name: Upload CAAS artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-full-${{ github.sha }}
+          path: |
+            stage1a_scanner.json
+            stage1b_traceability.json
+            stage2_audit_gate.json
+            stage3_autonomy.json
+            caas_runner_report.json
+            EXTERNAL_AUDIT_BUNDLE.json
+          retention-days: 90
+
+  # ============================================================================
+  # Final verdict — ci.yml equivalent of gate.yml's final-verdict
+  # ============================================================================
+  ci-verdict:
+    name: "CI / Final Verdict"
+    needs:
+      - linux
+      - linux-arm64
+      - linux-riscv64
+      - sanitizers
+      - windows
+      - macos
+      - ios
+      - ios-xcframework
+      - rocm
+      - wasm
+      - android
+      - coverage
+      - differential
+      - protocol-vectors
+      - caas-full
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate all blocks
+        run: |
+          FAILED=0
+          for result in \
+            "${{ needs.linux.result }}" \
+            "${{ needs.linux-arm64.result }}" \
+            "${{ needs.linux-riscv64.result }}" \
+            "${{ needs.sanitizers.result }}" \
+            "${{ needs.windows.result }}" \
+            "${{ needs.macos.result }}" \
+            "${{ needs.ios.result }}" \
+            "${{ needs.ios-xcframework.result }}" \
+            "${{ needs.rocm.result }}" \
+            "${{ needs.wasm.result }}" \
+            "${{ needs.android.result }}" \
+            "${{ needs.differential.result }}" \
+            "${{ needs.protocol-vectors.result }}" \
+            "${{ needs.caas-full.result }}"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              FAILED=1
+            fi
+          done
+          # coverage is push-only; skipped on PR is not a failure
+          COV="${{ needs.coverage.result }}"
+          if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then FAILED=1; fi
+          if [ "$FAILED" -eq 1 ]; then
+            echo "::error::One or more CI blocks failed"
+            exit 1
+          fi
+          echo "::notice::All CI blocks passed"
