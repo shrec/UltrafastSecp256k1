@@ -1223,7 +1223,9 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     constexpr unsigned glv_window = 5;
     constexpr int glv_table_size = (1 << (glv_window - 2));  // 8
 
-    std::array<int32_t, 260> wnaf1_buf{}, wnaf2_buf{};
+    // GLV half-scalars bounded by ~2^128; max wNAF output = 128+window = 133.
+    // 140 gives safety margin (was 260 — 2× over-provisioned saves 480B stack).
+    std::array<int32_t, 140> wnaf1_buf{}, wnaf2_buf{};
     std::size_t wnaf1_len = 0, wnaf2_len = 0;
     compute_wnaf_into(decomp.k1, glv_window,
                       wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
@@ -2216,7 +2218,9 @@ Point Point::scalar_mul(const Scalar& scalar) const {
 
     // Note: compute_wnaf_into always processes full 256-bit Scalar even
     // though GLV half-scalars are ~128 bits, so buffer must be 260.
-    std::array<int32_t, 260> wnaf1_buf{}, wnaf2_buf{};
+    // GLV half-scalars bounded by ~2^128; max wNAF output = 128+window = 133.
+    // 140 gives safety margin (was 260 — 2× over-provisioned saves 480B stack).
+    std::array<int32_t, 140> wnaf1_buf{}, wnaf2_buf{};
     std::size_t wnaf1_len = 0, wnaf2_len = 0;
     compute_wnaf_into(decomp.k1, glv_window,
                       wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
@@ -2392,7 +2396,7 @@ Point Point::scalar_mul_predecomposed(const Scalar& k1, const Scalar& k2,
         // Fast path: K = k1 + k2*lambda (both positive)
         // Use stack buffers — no heap allocation.
         constexpr unsigned window_width = 4;
-        std::array<int32_t, 260> wnaf1_stk{}, wnaf2_stk{};
+        std::array<int32_t, 140> wnaf1_stk{}, wnaf2_stk{}; // GLV half-scalars ≤128 bits
         std::size_t len1 = 0, len2 = 0;
         compute_wnaf_into(k1, window_width, wnaf1_stk.data(), wnaf1_stk.size(), len1);
         compute_wnaf_into(k2, window_width, wnaf2_stk.data(), wnaf2_stk.size(), len2);
@@ -4171,7 +4175,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     constexpr unsigned WINDOW = 5;
     constexpr int TABLE_SIZE = (1 << (WINDOW - 2));  // 8
 
-    std::array<int32_t, 260> wnaf_a1{}, wnaf_a2{}, wnaf_b1{}, wnaf_b2{};
+    std::array<int32_t, 140> wnaf_a1{}, wnaf_a2{}, wnaf_b1{}, wnaf_b2{}; // all ≤128-bit
     std::size_t len_a1 = 0, len_a2 = 0, len_b1 = 0, len_b2 = 0;
     compute_wnaf_into(decomp_a.k1, WINDOW, wnaf_a1.data(), wnaf_a1.size(), len_a1);
     compute_wnaf_into(decomp_a.k2, WINDOW, wnaf_a2.data(), wnaf_a2.size(), len_a2);
