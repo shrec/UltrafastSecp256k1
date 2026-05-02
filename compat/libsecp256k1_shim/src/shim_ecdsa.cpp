@@ -26,12 +26,14 @@ namespace {
         return *reinterpret_cast<const unsigned int *>(ctx);
     }
     inline bool ctx_can_sign(const secp256k1_context *ctx) {
-        return ctx && (ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+        if (!ctx) return true;  // NULL ctx: treat as SIGN|VERIFY (CFB-9 contract)
+        return ctx_flags(ctx) & SECP256K1_FLAGS_BIT_CONTEXT_SIGN;
     }
     inline bool ctx_can_verify(const secp256k1_context *ctx) {
         // Upstream libsecp256k1 accepts both CONTEXT_VERIFY and CONTEXT_SIGN for
         // verify operations (SIGN implies a superset context).
-        if (!ctx) return false;
+        // NULL ctx: treat as SIGN|VERIFY (matches secp256k1_context_static behaviour).
+        if (!ctx) return true;
         unsigned int f = ctx_flags(ctx);
         return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
                (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);

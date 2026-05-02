@@ -75,7 +75,12 @@ import sys as _sys
 import importlib as _importlib
 if str(SCRIPT_DIR) not in _sys.path:
     _sys.path.insert(0, str(SCRIPT_DIR))
-_ufsecp_mod = _importlib.import_module("_ufsecp")
+try:
+    _ufsecp_mod = _importlib.import_module("_ufsecp")
+except (ImportError, ModuleNotFoundError) as _e:
+    import sys as _sys
+    print(f"[SKIP] _ufsecp not available — {_e}", file=_sys.stderr)
+    _sys.exit(77)
 _find_lib   = _ufsecp_mod.find_lib
 BIP32Lib    = _ufsecp_mod.UfSecp
 

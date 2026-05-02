@@ -3940,8 +3940,8 @@ static void test_h8_batch_sign() {
     // ecdsa_sign_batch --------------------------------------------------------
     CHECK_ERR(ufsecp_ecdsa_sign_batch(nullptr, 1, msg32, priv32, sig64),
               "H.8a: ecdsa_sign_batch NULL ctx rejected");
-    CHECK_OK(ufsecp_ecdsa_sign_batch(ctx, 0, msg32, priv32, sig64),
-             "H.8b: ecdsa_sign_batch count=0 is valid no-op");
+    CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 0, msg32, priv32, sig64),
+              "H.8b: ecdsa_sign_batch count=0 → ERR_BAD_INPUT (Rule 15)");
     CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 1, nullptr, priv32, sig64),
               "H.8c: ecdsa_sign_batch NULL msgs rejected");
     CHECK_ERR(ufsecp_ecdsa_sign_batch(ctx, 1, msg32, nullptr, sig64),
@@ -3954,8 +3954,8 @@ static void test_h8_batch_sign() {
     // schnorr_sign_batch ------------------------------------------------------
     CHECK_ERR(ufsecp_schnorr_sign_batch(nullptr, 1, msg32, priv32, nullptr, sig64),
               "H.8g: schnorr_sign_batch NULL ctx rejected");
-    CHECK_OK(ufsecp_schnorr_sign_batch(ctx, 0, msg32, priv32, nullptr, sig64),
-             "H.8h: schnorr_sign_batch count=0 is valid no-op");
+    CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 0, msg32, priv32, nullptr, sig64),
+              "H.8h: schnorr_sign_batch count=0 → ERR_BAD_INPUT (Rule 15)");
     CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 1, nullptr, priv32, nullptr, sig64),
               "H.8i: schnorr_sign_batch NULL msgs rejected");
     CHECK_ERR(ufsecp_schnorr_sign_batch(ctx, 1, msg32, nullptr, nullptr, sig64),

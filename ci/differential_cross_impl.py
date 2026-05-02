@@ -423,7 +423,12 @@ def _import_ufsecp():
         _sys.path.insert(0, str(SCRIPT_DIR))
     return _importlib.import_module("_ufsecp")
 
-_ufsecp_mod = _import_ufsecp()
+try:
+    _ufsecp_mod = _import_ufsecp()
+except (ImportError, ModuleNotFoundError) as _e:
+    import sys as _sys
+    print(f"[SKIP] _ufsecp not available — {_e}", file=_sys.stderr)
+    _sys.exit(77)
 _find_lib = _ufsecp_mod.find_lib
 UfLib     = _ufsecp_mod.UfSecp
 
