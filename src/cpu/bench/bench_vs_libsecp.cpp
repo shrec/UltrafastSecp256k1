@@ -74,6 +74,7 @@ int main(int argc, char** argv) {
     std::array<ECDSASignature,    POOL> ecdsa_sigs;
     std::array<SchnorrSignature,  POOL> schnorr_sigs;
     std::array<Point,             POOL> pubkeys;
+    std::array<EcdsaPublicKey,    POOL> cached_pks;
 
     for (int i = 0; i < POOL; ++i) {
         std::array<uint8_t,32> kb{}; kb[31]=(uint8_t)(i+1); kb[0]=(uint8_t)(0x11+i);
@@ -85,6 +86,8 @@ int main(int argc, char** argv) {
         pubkeys[i]      = Point::generator().scalar_mul(sk[i]);
         ecdsa_sigs[i]   = ecdsa_sign(msg[i], sk[i]);
         schnorr_sigs[i] = schnorr_sign(kps[i], msg[i], aux[i]);
+        auto comp = pubkeys[i].to_compressed();
+        ecdsa_pubkey_parse(cached_pks[i], comp.data(), 33);
     }
 
     // libsecp context + pools
@@ -148,6 +151,16 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(ok); ++idx;
     });
     print_row("ECDSA verify", u, l);
+
+    // ECDSA verify (cached pubkey — skips build_glv52_table_zr)
+    double u_cached_ecdsa;
+    idx = 0;
+    u_cached_ecdsa = H.run(N, [&]() {
+        bool ok = ecdsa_verify(msg[idx%POOL], cached_pks[idx%POOL], ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    printf("  %-34s  %8.1f  %9s  %6.2fx vs non-cached\n",
+           "ECDSA verify (cached pubkey)", u_cached_ecdsa, "-", u / u_cached_ecdsa);
 
     printf("  %-34s\n", "");
 

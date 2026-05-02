@@ -126,6 +126,34 @@ bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
                   const fast::Point& public_key,
                   const ECDSASignature& sig);
 
+// -- Cached-pubkey ECDSA verify -----------------------------------------------
+// Parse once → verify many times without rebuilding GLV tables each call.
+// ~1,954 ns faster per verify vs ecdsa_verify(Point) on the same key.
+struct EcdsaPublicKey {
+    fast::Point point;
+
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    std::array<fast::AffinePoint52, 8> tbl_P{};
+    std::array<fast::AffinePoint52, 8> tbl_phi{};
+    fast::FieldElement52 Z_shared{};
+    bool tables_valid = false;
+#endif
+};
+
+// Parse a compressed (33-byte) or uncompressed (65-byte) public key.
+// Builds GLV verify tables once on success.
+bool ecdsa_pubkey_parse(EcdsaPublicKey& out,
+                        const std::uint8_t* bytes, std::size_t len) noexcept;
+
+// Verify using cached GLV tables (skips ~1,954 ns table rebuild per call).
+// Falls back to ecdsa_verify(Point) if tables were not built successfully.
+bool ecdsa_verify(const std::uint8_t* msg_hash32,
+                  const EcdsaPublicKey& pubkey,
+                  const ECDSASignature& sig);
+bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
+                  const EcdsaPublicKey& pubkey,
+                  const ECDSASignature& sig);
+
 // -- RFC 6979 Deterministic Nonce ---------------------------------------------
 
 // Generate deterministic nonce k per RFC 6979.

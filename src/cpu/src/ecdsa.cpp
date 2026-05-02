@@ -588,6 +588,95 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_has
 
 // -- ECDSA Verify -------------------------------------------------------------
 
+// Shared x-coordinate check: R_prime.x / R_prime.z^2 mod n == sig.r
+// Used by both ecdsa_verify(Point) and ecdsa_verify(EcdsaPublicKey).
+static bool ecdsa_check_xcoord(const Point& R_prime, const ECDSASignature& sig) {
+    if (R_prime.is_infinity()) return false;
+#if defined(SECP256K1_FAST_52BIT)
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+    using FE52 = fast::FieldElement52;
+    FE52 const r52 = FE52::from_4x64_limbs(sig.r.limbs().data());
+    FE52 const z2 = R_prime.Z52().square();
+    FE52 const r_z2 = r52 * z2;
+    {
+        FE52 diff = R_prime.X52();
+        diff.negate_assign(23);
+        diff.add_assign(r_z2);
+        if (diff.normalizes_to_zero_var()) return true;
+    }
+    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;
+    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;
+    const auto& rl = sig.r.limbs();
+    bool r_less_than_pmn = false;
+    if (rl[3] != 0 || rl[2] > 1) {
+        r_less_than_pmn = false;
+    } else if (rl[2] == 0) {
+        r_less_than_pmn = true;
+    } else {
+        if (rl[1] != PMN_1) { r_less_than_pmn = (rl[1] < PMN_1); }
+        else                 { r_less_than_pmn = (rl[0] < PMN_0); }
+    }
+    if (r_less_than_pmn) {
+        static constexpr std::uint64_t N_LIMBS[4] = {
+            0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+            0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+        };
+        alignas(32) std::uint64_t rn[4];
+        unsigned __int128 acc = static_cast<unsigned __int128>(rl[0]) + N_LIMBS[0];
+        rn[0] = static_cast<std::uint64_t>(acc);
+        acc = static_cast<unsigned __int128>(rl[1]) + N_LIMBS[1] + static_cast<std::uint64_t>(acc >> 64);
+        rn[1] = static_cast<std::uint64_t>(acc);
+        acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
+        rn[2] = static_cast<std::uint64_t>(acc);
+        rn[3] = rl[3] + N_LIMBS[3] + static_cast<uint64_t>(acc >> 64);
+        FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;
+        FE52 diff2 = R_prime.X52();
+        diff2.negate_assign(23);
+        diff2.add_assign(r2_z2);
+        if (diff2.normalizes_to_zero_var()) return true;
+    }
+    return false;
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+#else
+    auto r_fe = FieldElement::from_limbs(sig.r.limbs());
+    auto z2   = R_prime.z_raw().square();
+    auto lhs  = r_fe * z2;
+    auto rx   = R_prime.x_raw();
+    if (lhs == rx) return true;
+    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;
+    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;
+    const auto& rl = sig.r.limbs();
+    bool r_less_than_pmn;
+    if (rl[3] != 0 || rl[2] > 1) { r_less_than_pmn = false; }
+    else if (rl[2] == 0)          { r_less_than_pmn = true;  }
+    else {
+        if (rl[1] != PMN_1) { r_less_than_pmn = (rl[1] < PMN_1); }
+        else                 { r_less_than_pmn = (rl[0] < PMN_0); }
+    }
+    if (r_less_than_pmn) {
+        static constexpr std::uint64_t N_LIMBS[4] = {
+            0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+            0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+        };
+        std::uint64_t rn[4], carry = 0;
+        rn[0] = rl[0] + N_LIMBS[0]; carry = (rn[0] < rl[0]) ? 1u : 0u;
+        std::uint64_t t1 = rl[1]+N_LIMBS[1], c1 = (t1<rl[1])?1u:0u;
+        rn[1] = t1 + carry; carry = c1 + ((rn[1]<t1)?1u:0u);
+        std::uint64_t t2 = rl[2]+N_LIMBS[2], c2 = (t2<rl[2])?1u:0u;
+        rn[2] = t2 + carry; carry = c2 + ((rn[2]<t2)?1u:0u);
+        rn[3] = rl[3] + N_LIMBS[3] + carry;
+        FieldElement::limbs_type rn_arr = {rn[0], rn[1], rn[2], rn[3]};
+        if (FieldElement::from_limbs(rn_arr) * z2 == rx) return true;
+    }
+    return false;
+#endif
+}
+
 // Primary implementation: raw pointer, no copies.
 bool ecdsa_verify(const uint8_t* msg_hash32,
                   const Point& public_key,
@@ -611,171 +700,87 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
 
     // R' = u1 * G + u2 * Q  (4-stream GLV Strauss -- single interleaved loop)
     auto R_prime = Point::dual_scalar_mul_gen_point(u1, u2, public_key);
-
-    if (R_prime.is_infinity()) return false;
-
-    // -- Fast Z^2-based x-coordinate check (avoids field inverse) ------
-    // Check: R'.x/R'.z^2 mod n == sig.r
-    // Equivalent: sig.r * R'.z^2 == R'.x (mod p)
-    // This saves ~3us by avoiding the field inversion in Point::x().
-    //
-    // Comparison uses negate+add+normalizes_to_zero_var (matches libsecp's
-    // gej_eq_x_var approach).  This avoids 4 full fe52_normalize_inline
-    // calls that the previous normalize()+normalize()+operator== path did.
-#if defined(SECP256K1_FAST_52BIT)
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-    using FE52 = fast::FieldElement52;
-
-    // Direct Scalar->FE52: sig.r limbs are 4x64 LE, same layout as FieldElement.
-    // Since sig.r < n < p, the raw limbs are a valid field element -- no reduction needed.
-    FE52 const r52 = FE52::from_4x64_limbs(sig.r.limbs().data());
-    FE52 const z2 = R_prime.Z52().square();    // Z^2  [1S] mag=1
-    FE52 const r_z2 = r52 * z2;               // r*Z^2 [1M] mag=1
-
-    // Compare via subtract + normalizes_to_zero_var:
-    //   diff = r*Z^2 - X;  diff == 0 (mod p) iff sig.r matches
-    // R'.X magnitude: <= 23 after jac52_double, <= 7 after mixed add.
-    // negate(23) is a safe upper bound for all paths.
-    {
-        FE52 diff = R_prime.X52();                // mag <= 23
-        diff.negate_assign(23);                   // mag 24
-        diff.add_assign(r_z2);                    // mag 25
-        if (diff.normalizes_to_zero_var()) return true;
-    }
-
-    // Rare case: x_R mod p in [n, p), so x_R mod n = x_R - n = sig.r
-    // -> need to check (sig.r + n) * Z^2 == X.  Probability ~2^-128.
-    // n = order, p - n ~= 2^128.3.  sig.r < n, so sig.r + n < p iff sig.r < p - n.
-    //
-    // p - n exact (4x64 LE): limb[0]=0x402da1722fc9baee, limb[1]=0x4551231950b75fc4,
-    //                         limb[2]=0x1, limb[3]=0x0
-    // (Previous constants 0x402da1732fc9bebf / 0x14551231950b75fc were incorrect.)
-    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;  // limb[0] of p-n
-    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;  // limb[1] of p-n
-    // limb[2] of (p-n) = 1.  So:
-    //   r < p-n iff r.limb[3]==0 AND (r.limb[2]<1 OR (r.limb[2]==1 AND r<pmn lexically))
-    const auto& rl = sig.r.limbs();
-    bool r_less_than_pmn = false;
-    if (rl[3] != 0 || rl[2] > 1) {
-        r_less_than_pmn = false;   // r >= 2^129 >> p-n
-    } else if (rl[2] == 0) {
-        r_less_than_pmn = true;    // r < 2^128 < p-n
-    } else {
-        // rl[2] == 1: compare limbs [1] and [0] against p-n
-        if (rl[1] != PMN_1) {
-            r_less_than_pmn = (rl[1] < PMN_1);
-        } else {
-            r_less_than_pmn = (rl[0] < PMN_0);
-        }
-    }
-
-    if (r_less_than_pmn) {
-        // sig.r < p - n, so (sig.r + n) is a valid field element < p.
-        // 256-bit addition: r + n (no modular reduction needed).
-        static constexpr std::uint64_t N_LIMBS[4] = {
-            0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
-            0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-        };
-        alignas(32) std::uint64_t rn[4];
-        unsigned __int128 acc = static_cast<unsigned __int128>(rl[0]) + N_LIMBS[0];
-        rn[0] = static_cast<std::uint64_t>(acc);
-        acc = static_cast<unsigned __int128>(rl[1]) + N_LIMBS[1] + static_cast<std::uint64_t>(acc >> 64);
-        rn[1] = static_cast<std::uint64_t>(acc);
-        acc = static_cast<unsigned __int128>(rl[2]) + N_LIMBS[2] + static_cast<std::uint64_t>(acc >> 64);
-        rn[2] = static_cast<std::uint64_t>(acc);
-        rn[3] = rl[3] + N_LIMBS[3] + static_cast<uint64_t>(acc >> 64);
-
-        FE52 const r2_z2 = FE52::from_4x64_limbs(rn) * z2;   // (r+n)*Z^2
-        FE52 diff2 = R_prime.X52();
-        diff2.negate_assign(23);
-        diff2.add_assign(r2_z2);
-        if (diff2.normalizes_to_zero_var()) return true;
-    }
-
-    return false;
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-#else
-    // -- Z^2-based x-coordinate check for 4x64 path (ESP32/MSVC/generic) --
-    // Avoids field inverse: sig.r * Z^2 == X (mod p)
-    // Since sig.r < n < p, raw scalar limbs are a valid field element.
-    auto r_fe = FieldElement::from_limbs(sig.r.limbs());
-    auto z2   = R_prime.z_raw().square();     // Z^2
-    auto lhs  = r_fe * z2;                    // r*Z^2
-    auto rx   = R_prime.x_raw();              // Jacobian X
-
-    if (lhs == rx) return true;
-
-    // Rare case (probability ~2^-128): x_R mod p in [n, p),
-    // so x_R mod n == sig.r means we need to check (sig.r + n)*Z^2 == X.
-    // sig.r + n < p  iff  sig.r < p - n.
-    // p - n exact: 0x14551231950b75fc4402da1722fc9baee
-    // 4x64 LE: limb[0]=0x402da1722fc9baee, limb[1]=0x4551231950b75fc4, limb[2]=1
-    // (Previous constants 0x402da1732fc9bebf/0x14551231950b75fc were incorrect.)
-    static constexpr std::uint64_t PMN_0 = 0x402da1722fc9baeeULL;  // limb[0] of p-n
-    static constexpr std::uint64_t PMN_1 = 0x4551231950b75fc4ULL;  // limb[1] of p-n
-    const auto& rl = sig.r.limbs();
-
-    bool r_less_than_pmn;
-    if (rl[3] != 0 || rl[2] > 1) {
-        r_less_than_pmn = false;   // r >= 2^129 >> p-n
-    } else if (rl[2] == 0) {
-        r_less_than_pmn = true;    // r < 2^128 < p-n
-    } else {
-        // rl[2] == 1: compare against p-n limbs [1] and [0]
-        if (rl[1] != PMN_1) {
-            r_less_than_pmn = (rl[1] < PMN_1);
-        } else {
-            r_less_than_pmn = (rl[0] < PMN_0);
-        }
-    }
-
-    if (r_less_than_pmn) {
-        // 256-bit addition r + n without __int128 (ESP32/MSVC safe)
-        static constexpr std::uint64_t N_LIMBS[4] = {
-            0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
-            0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-        };
-        std::uint64_t rn[4];
-        std::uint64_t carry = 0;
-        // limb 0
-        rn[0] = rl[0] + N_LIMBS[0];
-        carry = (rn[0] < rl[0]) ? 1u : 0u;
-        // limb 1
-        std::uint64_t tmp1 = rl[1] + N_LIMBS[1];
-        std::uint64_t c1   = (tmp1 < rl[1]) ? 1u : 0u;
-        rn[1] = tmp1 + carry;
-        carry = c1 + ((rn[1] < tmp1) ? 1u : 0u);
-        // limb 2
-        std::uint64_t tmp2 = rl[2] + N_LIMBS[2];
-        std::uint64_t c2   = (tmp2 < rl[2]) ? 1u : 0u;
-        rn[2] = tmp2 + carry;
-        carry = c2 + ((rn[2] < tmp2) ? 1u : 0u);
-        // limb 3
-        // rn[3] cannot overflow meaningfully: rl[3]==0 (r_less_than_pmn
-        // guard), N_LIMBS[3]==0xFFFF...FFFF, carry<=1.  The 256-bit sum
-        // sig.r + n < p is guaranteed, so only the low 4 limbs matter.
-        rn[3] = rl[3] + N_LIMBS[3] + carry;
-
-        FieldElement::limbs_type rn_arr = {rn[0], rn[1], rn[2], rn[3]};
-        auto r2_fe = FieldElement::from_limbs(rn_arr);
-        auto lhs2 = r2_fe * z2;
-        if (lhs2 == rx) return true;
-    }
-
-    return false;
-#endif
+    return ecdsa_check_xcoord(R_prime, sig);
 }
+
 
 // Array wrapper: delegates to raw-pointer implementation.
 bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
                   const Point& public_key,
                   const ECDSASignature& sig) {
     return ecdsa_verify(msg_hash.data(), public_key, sig);
+}
+
+// -- EcdsaPublicKey: cached GLV tables ----------------------------------------
+
+bool ecdsa_pubkey_parse(EcdsaPublicKey& out,
+                        const std::uint8_t* bytes, std::size_t len) noexcept {
+    using fast::FieldElement;
+    Point P = Point::infinity();
+
+    if (len == 33) {
+        if (bytes[0] != 0x02 && bytes[0] != 0x03) return false;
+        FieldElement x;
+        if (!FieldElement::parse_bytes_strict(bytes + 1, x)) return false;
+        auto y2 = x * x * x + FieldElement::from_uint64(7);
+        auto y  = y2.sqrt();
+        if (!(y * y == y2)) return false;
+        auto y_bytes  = y.to_bytes();
+        bool y_is_odd = (y_bytes[31] & 1) != 0;
+        bool want_odd = (bytes[0] == 0x03);
+        if (y_is_odd != want_odd) y = FieldElement::zero() - y;
+        P = Point::from_affine(x, y);
+    } else if (len == 65) {
+        if (bytes[0] != 0x04) return false;
+        FieldElement x, y;
+        if (!FieldElement::parse_bytes_strict(bytes + 1,  x)) return false;
+        if (!FieldElement::parse_bytes_strict(bytes + 33, y)) return false;
+        auto rhs = x * x * x + FieldElement::from_uint64(7);
+        if (!(y * y == rhs)) return false;
+        P = Point::from_affine(x, y);
+    } else {
+        return false;
+    }
+
+    if (P.is_infinity()) return false;
+    out.point = P;
+
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    out.tables_valid = Point::build_schnorr_verify_tables(
+        P, out.tbl_P, out.tbl_phi, out.Z_shared);
+#endif
+    return true;
+}
+
+bool ecdsa_verify(const std::uint8_t* msg_hash32,
+                  const EcdsaPublicKey& pubkey,
+                  const ECDSASignature& sig) {
+    if (pubkey.point.is_infinity()) return false;
+    if (sig.r.is_zero() || sig.s.is_zero()) return false;
+
+    auto z  = Scalar::from_bytes(msg_hash32);
+    auto w  = sig.s.inverse();
+    auto u1 = z * w;
+    auto u2 = sig.r * w;
+
+    Point R_prime;
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    if (pubkey.tables_valid) {
+        R_prime = Point::dual_scalar_mul_gen_prebuilt(
+            u1, u2, pubkey.tbl_P, pubkey.tbl_phi, pubkey.Z_shared);
+    } else {
+        R_prime = Point::dual_scalar_mul_gen_point(u1, u2, pubkey.point);
+    }
+#else
+    R_prime = Point::dual_scalar_mul_gen_point(u1, u2, pubkey.point);
+#endif
+    return ecdsa_check_xcoord(R_prime, sig);
+}
+
+bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
+                  const EcdsaPublicKey& pubkey,
+                  const ECDSASignature& sig) {
+    return ecdsa_verify(msg_hash.data(), pubkey, sig);
 }
 
 } // namespace secp256k1
