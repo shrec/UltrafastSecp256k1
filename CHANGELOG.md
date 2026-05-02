@@ -24,6 +24,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docs/LAYER_ROUTING_MATRIX.md` — CT/FAST routing for all ~103 ABI functions.
   - `docs/CI_GATING_POLICY.md` — Tier0/Tier1/Tier2 CI architecture with impact-based gating.
 
+### Security
+- **[CRIT-1/MED-1] OpenCL `ecdsa_sign` / `schnorr_sign` kernels now route through CT path** —
+  `scalar_mul_generator_impl` (4-bit windowed, secret-dependent branches) on nonce and private key
+  replaced by `ct_ecdsa_sign_impl` / `ct_schnorr_sign_impl` (branchless Montgomery ladder).
+  New file `secp256k1_ct_extended.cl`; `ExtendedCL::init` now loads this instead of
+  `secp256k1_extended.cl`. Kernel interface (`ecdsa_sign`, `schnorr_sign` names and signatures)
+  unchanged — no caller impact.
+- **[HIGH-2] `test_ct_sidechannel_smoke_run` ESP32 skip path returns `ADVISORY_SKIP_CODE`** —
+  was returning `0` (PASS) instead of `77` (SKIP), causing false audit pass on ESP32 builds.
+- **[MED-2] OpenCL `ecdh_batch` host-side key erase uses `secure_erase`** — replaced hand-rolled
+  `volatile` zero loop with `secp256k1::detail::secure_erase` to prevent compiler elision.
+- **[HIGH-1] CUDA batch signing kernels explicitly call `ct_ecdsa_sign` / `ct_schnorr_sign`** —
+  removes naming ambiguity with the non-CT `ecdsa_sign` from `ecdsa.cuh`.
+
+### Known Security Limitations (v1 — ABI-constrained)
+- **[MED-3] `ufsecp_musig2_partial_sign` cannot cross-validate `signer_index` against `privkey`** —
+  the `keyagg` blob (`UFSECP_MUSIG2_KEYAGG_LEN = 165`) stores only aggregation coefficients, not
+  individual public keys, so verifying that `privkey` corresponds to `signer_index` is not possible
+  at this layer. A mismatched `signer_index` produces an invalid partial signature that fails at
+  aggregation (DoS at worst; no key extraction). **Full fix is a v2 ABI change**: bump
+  `UFSECP_MUSIG2_KEYAGG_LEN` to include per-signer compressed pubkeys (33 bytes each).
+  Callers MUST ensure `signer_index` matches the pubkey used during `ufsecp_musig2_key_agg`.
+
 ### Fixed
 - **`research-monitor.yml` workflow parse error** — `secrets.*` is not accessible in GitHub
   Actions `if:` expression context. All schedule runs were silently blocked. Replaced with

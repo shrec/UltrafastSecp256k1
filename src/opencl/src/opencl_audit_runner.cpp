@@ -121,13 +121,16 @@ struct ExtendedCL {
         err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, nullptr);
         if (err != CL_SUCCESS) { error = "Cannot get device from queue"; return false; }
 
-        // Load extended.cl
+        // Load secp256k1_ct_extended.cl: routes ecdsa_sign / schnorr_sign through
+        // CT primitives (ct_ecdsa_sign_impl / ct_schnorr_sign_impl). All other
+        // kernels (ecdsa_verify, schnorr_verify, ecrecover_batch, generator_mul_windowed)
+        // are unchanged from secp256k1_extended.cl which it includes internally.
         std::string src;
         std::vector<std::string> paths = {
-            kernel_dir + "/secp256k1_extended.cl",
-            "kernels/secp256k1_extended.cl",
-            "../kernels/secp256k1_extended.cl",
-            "../../opencl/kernels/secp256k1_extended.cl",
+            kernel_dir + "/secp256k1_ct_extended.cl",
+            "kernels/secp256k1_ct_extended.cl",
+            "../kernels/secp256k1_ct_extended.cl",
+            "../../opencl/kernels/secp256k1_ct_extended.cl",
         };
         for (auto& p : paths) {
             src = load_file(p);

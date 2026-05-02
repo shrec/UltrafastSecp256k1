@@ -1677,7 +1677,7 @@ int test_ct_sidechannel_smoke_run() {
     // overflow the 65KB task stack. rdtsc-style cycle counting is also
     // unavailable on Xtensa, making results meaningless.
     printf("  [ct_sidechannel_smoke] SKIP -- ESP32 (stack/timer limits)\n");
-    return 0;
+    return ADVISORY_SKIP_CODE;  // Rule 16: skip != pass
 #endif
     prepare_timing_environment();
     g_pass = g_fail = 0;

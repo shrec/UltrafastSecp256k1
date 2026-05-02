@@ -184,6 +184,12 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     if (signer_index >= kagg.key_coefficients.size()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "signer_index out of range");
     }
+    // SECURITY NOTE (MED-3): signer_index is caller-supplied and cannot be cross-validated
+    // against privkey — the keyagg blob stores only aggregation coefficients, not individual
+    // public keys. A mismatched signer_index produces a partial signature that fails at
+    // aggregation (DoS only, not key extraction). Full fix requires bumping
+    // UFSECP_MUSIG2_KEYAGG_LEN to include per-signer compressed pubkeys (ABI-breaking,
+    // scheduled for v2 — tracked in CHANGELOG as MED-3).
     secp256k1::MuSig2Session sess;
     uint32_t session_participant_count = 0;
     {

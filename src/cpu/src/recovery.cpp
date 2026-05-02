@@ -50,7 +50,8 @@ static inline Point signing_generator_mul(const Scalar& scalar) {
 }
 
 // -- Sign with Recovery ID ----------------------------------------------------
-// CT path: uses ct::generator_mul_blinded(k) and ct::scalar_inverse(k).
+// CT path: uses ct::generator_mul_blinded(k), ct::scalar_inverse(k),
+// ct::scalar_mul, and ct::scalar_add for all secret-bearing arithmetic.
 // Recovery ID computation branches only on public data (r, r_bytes).
 
 RecoverableSignature ecdsa_sign_recoverable(
@@ -91,9 +92,13 @@ RecoverableSignature ecdsa_sign_recoverable(
     }
     recid |= (int)(gt << 1);
 
-    // s = k^-^1 * (z + r * d) mod n  (CT SafeGCD inverse)
-    auto k_inv = ct::scalar_inverse(k);
-    auto s = k_inv * (z + r * private_key);
+    // s = k^-1 * (z + r * d) mod n
+    // All three multiplications and the addition use CT primitives — fast::Scalar
+    // operator* has secret-dependent branches (V7-01 audit finding).
+    auto k_inv      = ct::scalar_inverse(k);
+    auto r_times_d  = ct::scalar_mul(r, private_key);
+    auto z_plus_rd  = ct::scalar_add(z, r_times_d);
+    auto s          = ct::scalar_mul(k_inv, z_plus_rd);
     if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // Normalize to low-S (BIP-62): CT path — no branch on secret s

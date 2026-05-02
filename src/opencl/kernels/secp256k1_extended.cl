@@ -1822,6 +1822,9 @@ inline void msm_pippenger_impl(const Scalar* scalars, const AffinePoint* points,
 // OpenCL Dispatch Kernels — Extended Operations
 // =============================================================================
 
+#ifndef SECP256K1_CT_SIGN_KERNELS
+// Variable-time signing kernel — superseded by secp256k1_ct_extended.cl when
+// SECP256K1_CT_SIGN_KERNELS is defined. Do NOT dispatch on secret inputs.
 __kernel void ecdsa_sign(
     __global const uchar* msg_hashes,       // n * 32 bytes
     __global const Scalar* private_keys,
@@ -1840,6 +1843,7 @@ __kernel void ecdsa_sign(
     success_flags[gid] = ecdsa_sign_impl(msg, &priv, &sig);
     signatures[gid] = sig;
 }
+#endif /* SECP256K1_CT_SIGN_KERNELS */
 
 __kernel void ecdsa_verify(
     __global const uchar* msg_hashes,
@@ -1891,6 +1895,9 @@ __kernel void ecrecover_batch(
     }
 }
 
+#ifndef SECP256K1_CT_SIGN_KERNELS
+// Variable-time signing kernel — superseded by secp256k1_ct_extended.cl when
+// SECP256K1_CT_SIGN_KERNELS is defined. Do NOT dispatch on secret inputs.
 __kernel void schnorr_sign(
     __global const uchar* messages,
     __global const Scalar* private_keys,
@@ -1910,6 +1917,7 @@ __kernel void schnorr_sign(
     success_flags[gid] = schnorr_sign_impl(&priv, msg, aux, &sig);
     signatures[gid] = sig;
 }
+#endif /* SECP256K1_CT_SIGN_KERNELS */
 
 __kernel void schnorr_verify(
     __global const uchar* pubkeys_x,

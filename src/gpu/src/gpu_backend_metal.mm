@@ -1293,6 +1293,11 @@ public:
                                 {&buf_tweaks, &buf_scan, &buf_spend, &buf_prefix, &buf_count});
 
         std::memcpy(prefix64_out, buf_prefix.contents(), n_tweaks * sizeof(uint64_t));
+
+        // Rule 10: zero scan private key from Metal shared buffer and stack before release
+        secp256k1::detail::secure_erase(buf_scan.contents(), sizeof(MetalScalar256));
+        secp256k1::detail::secure_erase(&scan_scalar, sizeof(scan_scalar));
+
         clear_error();
         return GpuError::Ok;
     }

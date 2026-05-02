@@ -517,9 +517,8 @@ public:
         }
 
         /* Securely erase private key scalars from host memory */
-        volatile uint8_t* p = reinterpret_cast<volatile uint8_t*>(h_scalars.data());
-        for (size_t i = 0; i < h_scalars.size() * sizeof(h_scalars[0]); ++i)
-            p[i] = 0;
+        secp256k1::detail::secure_erase(h_scalars.data(),
+                                        h_scalars.size() * sizeof(h_scalars[0]));
 
         clear_error();
         return GpuError::Ok;
