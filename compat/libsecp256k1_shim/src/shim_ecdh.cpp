@@ -54,11 +54,11 @@ int secp256k1_ecdh(
 
     if (!hashfp) hashfp = default_hashfp;
 
-    // Deserialize private key
+    // Deserialize private key — strict: reject values >= n or == 0 (Rule 11)
     std::array<uint8_t, 32> kb{};
     std::memcpy(kb.data(), seckey, 32);
-    auto sk = Scalar::from_bytes(kb);
-    if (sk.is_zero()) return 0;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(kb, sk)) return 0;
 
     // Deserialize public key (shim layout: X || Y, 64 bytes)
     std::array<uint8_t, 32> xb{}, yb{};

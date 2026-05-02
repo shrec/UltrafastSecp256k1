@@ -366,14 +366,14 @@ __device__ inline bool schnorr_keypair_create(
     // Get pubkey x-bytes
     field_to_bytes(&ax, kp->px);
 
-    // If Y is odd, negate the signing key
+    // CT branchless key negation: if Y is odd, negate d (Guardrail #8)
+    // Same pattern as schnorr_sign lines 188-190 using scalar_cmov.
     uint8_t y_bytes[32];
     field_to_bytes(&ay, y_bytes);
-    if (y_bytes[31] & 1) {
-        scalar_negate(private_key, &kp->d);
-    } else {
-        kp->d = *private_key;
-    }
+    Scalar neg_d;
+    scalar_negate(private_key, &neg_d);
+    kp->d = *private_key;
+    scalar_cmov(&kp->d, &neg_d, (uint64_t)(y_bytes[31] & 1) ? ~0ULL : 0ULL);
 
     return true;
 }

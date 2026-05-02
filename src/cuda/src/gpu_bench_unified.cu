@@ -695,6 +695,9 @@ static BenchResult bench_ecdsa_sign_impl(const BenchConfig& cfg) {
         bench_ecdsa_sign_k<<<blocks, cfg.threads_per_block>>>(d_msg, d_priv, d_sig, d_ok, N);
     });
 
+    // Erase private keys from GPU memory before free (Guardrail #10)
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
+    cudaDeviceSynchronize();
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_ok);
     return result;
 }
@@ -737,6 +740,9 @@ static BenchResult bench_schnorr_sign_impl(const BenchConfig& cfg) {
         bench_schnorr_sign_k<<<blocks, cfg.threads_per_block>>>(d_priv, d_msg, d_aux, d_sig, d_ok, N);
     });
 
+    // Erase private keys from GPU memory before free (Guardrail #10)
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
+    cudaDeviceSynchronize();
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_aux); cudaFree(d_sig); cudaFree(d_ok);
     return result;
 }
@@ -857,6 +863,9 @@ static BenchResult bench_ct_ecdsa_sign_impl(const BenchConfig& cfg) {
         bench_ct_ecdsa_sign_k<<<blocks, cfg.threads_per_block>>>(d_msg, d_priv, d_sig, d_ok, N);
     });
 
+    // Erase private keys from GPU memory before free (Guardrail #10)
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
+    cudaDeviceSynchronize();
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_ok);
     return result;
 }
@@ -899,6 +908,9 @@ static BenchResult bench_ct_schnorr_sign_impl(const BenchConfig& cfg) {
         bench_ct_schnorr_sign_k<<<blocks, cfg.threads_per_block>>>(d_priv, d_msg, d_aux, d_sig, d_ok, N);
     });
 
+    // Erase private keys from GPU memory before free (Guardrail #10)
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
+    cudaDeviceSynchronize();
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_aux); cudaFree(d_sig); cudaFree(d_ok);
     return result;
 }

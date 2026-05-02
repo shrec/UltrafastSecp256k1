@@ -126,8 +126,9 @@ int secp256k1_ellswift_create(
 
     std::array<uint8_t, 32> kb{};
     std::memcpy(kb.data(), seckey32, 32);
-    auto sk = Scalar::from_bytes(kb);
-    if (sk.is_zero()) return 0;
+    // Strict: reject sk >= n or sk == 0 (Rule 11: no silent mod-n reduction)
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(kb, sk)) return 0;
 
     // Pass auxrnd32 through: when non-NULL it randomises the encoding (BIP-324
     // requires a fresh value per connection to prevent key-identity leakage).
@@ -154,8 +155,9 @@ int secp256k1_ellswift_xdh(
 
     std::array<uint8_t, 32> kb{};
     std::memcpy(kb.data(), seckey32, 32);
-    auto sk = Scalar::from_bytes(kb);
-    if (sk.is_zero()) return 0;
+    // Strict: reject sk >= n or sk == 0 (Rule 11: no silent mod-n reduction)
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(kb, sk)) return 0;
 
     bool initiating = (party == 0);
 

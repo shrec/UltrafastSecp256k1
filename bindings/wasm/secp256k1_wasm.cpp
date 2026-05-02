@@ -11,6 +11,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 
 #include <array>
 #include <cstring>
@@ -53,11 +54,12 @@ const char* secp256k1_wasm_version(void) {
 int secp256k1_wasm_pubkey_create(const uint8_t* seckey32,
                                   uint8_t* pubkey_x32,
                                   uint8_t* pubkey_y32) {
-    auto sk = secp256k1::fast::Scalar::from_bytes(to_array(seckey32));
-    if (sk.is_zero()) return 0;
+    // Strict: reject sk >= n or sk == 0 (Rule 11: no silent mod-n reduction)
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(to_array(seckey32), sk)) return 0;
 
-    auto G  = secp256k1::fast::Point::generator();
-    auto P  = G.scalar_mul(sk);
+    // CT generator mul: Hamburg comb, no timing dependency on sk (Rule 12)
+    auto P = secp256k1::ct::generator_mul(sk);
     if (P.is_infinity()) return 0;
 
     write_point(P, pubkey_x32, pubkey_y32);
@@ -104,9 +106,10 @@ int secp256k1_wasm_point_add(const uint8_t* p_x32, const uint8_t* p_y32,
 int secp256k1_wasm_ecdsa_sign(const uint8_t* msg32,
                                const uint8_t* seckey32,
                                uint8_t* sig64) {
-    auto msg  = to_array(msg32);
-    auto sk   = secp256k1::fast::Scalar::from_bytes(to_array(seckey32));
-    if (sk.is_zero()) return 0;
+    auto msg = to_array(msg32);
+    // Strict key parsing: reject sk >= n or sk == 0 (Rule 11)
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(to_array(seckey32), sk)) return 0;
 
     auto signature = secp256k1::ecdsa_sign(msg, sk);
     if (signature.r.is_zero()) return 0;
@@ -136,11 +139,11 @@ int secp256k1_wasm_schnorr_sign(const uint8_t* seckey32,
                                  const uint8_t* msg32,
                                  const uint8_t* aux32,
                                  uint8_t* sig64) {
-    auto sk  = secp256k1::fast::Scalar::from_bytes(to_array(seckey32));
+    // Strict key parsing: reject sk >= n or sk == 0 (Rule 11)
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(to_array(seckey32), sk)) return 0;
     auto msg = to_array(msg32);
     auto aux = to_array(aux32);
-
-    if (sk.is_zero()) return 0;
 
     auto signature = secp256k1::schnorr_sign(sk, msg, aux);
     auto bytes = signature.to_bytes();
@@ -163,8 +166,9 @@ int secp256k1_wasm_schnorr_verify(const uint8_t* pubkey_x32,
 
 int secp256k1_wasm_schnorr_pubkey(const uint8_t* seckey32,
                                    uint8_t* pubkey_x32) {
-    auto sk = secp256k1::fast::Scalar::from_bytes(to_array(seckey32));
-    if (sk.is_zero()) return 0;
+    // Strict key parsing: reject sk >= n or sk == 0 (Rule 11)
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(to_array(seckey32), sk)) return 0;
 
     auto xonly = secp256k1::schnorr_pubkey(sk);
     std::memcpy(pubkey_x32, xonly.data(), 32);

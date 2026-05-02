@@ -77,9 +77,9 @@ schnorr_adaptor_sign(const Scalar& private_key,
     std::uint64_t const sk_neg_mask = static_cast<std::uint64_t>(p_y_odd)
                                     * UINT64_C(0xFFFFFFFFFFFFFFFF);
     Scalar sk = ct::scalar_cneg(private_key, sk_neg_mask);
-    // Point::negate() is arithmetic (y → -y mod p), no secret-dependent branches.
-    // The if() is on p_y_odd which is key-derived, but Point::negate() is branchless
-    // so the `if` only affects the branch predictor, not execution time of negate().
+    // p_y_odd is the parity of the PUBLIC KEY y-coordinate (P = sk*G is public).
+    // Timing leakage of p_y_odd reveals no additional secret beyond the public key.
+    // LOW risk: leave as branchless-arithmetic if; the negate() call is arithmetic.
     if (p_y_odd) P = P.negate();
 
     // Generate nonce k
@@ -91,14 +91,20 @@ schnorr_adaptor_sign(const Scalar& private_key,
     // R = R^ + T (the final nonce point after adapting)
     Point R = R_hat.add(adaptor_point);
 
-    // BIP-340: negate k/R^/R if R.y is odd  [CT for scalar; point negate is arithmetic]
+    // BIP-340: negate k/R^/R if R.y is odd  [CT: all three negations are branchless]
+    // R.y parity is derived from the secret nonce k — a branch here leaks k.
     auto R_y = R.y().to_bytes();
     bool const needs_neg = (R_y[31] & 1u) != 0u;
     std::uint64_t const neg_mask = ct::bool_to_mask(needs_neg);
     k = ct::scalar_cneg(k, neg_mask);  // CT: k is the secret nonce
-    if (needs_neg) {
-        R_hat = R_hat.negate();  // arithmetic negate — branchless operation
-        R     = R.negate();
+    // CT branchless conditional negate of R_hat and R via CTJacobianPoint cmov
+    {
+        auto ct_R_hat = ct::CTJacobianPoint::from_point(R_hat);
+        auto ct_R     = ct::CTJacobianPoint::from_point(R);
+        ct::point_cmov(&ct_R_hat, ct::point_neg(ct_R_hat), neg_mask);
+        ct::point_cmov(&ct_R,     ct::point_neg(ct_R),     neg_mask);
+        R_hat = ct_R_hat.to_point();
+        R     = ct_R.to_point();
     }
 
     // Challenge: e = H("BIP0340/challenge", R.x || P.x || m)
