@@ -2751,7 +2751,10 @@ target_include_directories(test_exploit_gpu_memory_safety_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
 target_compile_definitions(test_exploit_gpu_memory_safety_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_gpu_memory_safety COMMAND test_exploit_gpu_memory_safety_standalone)
-set_tests_properties(exploit_gpu_memory_safety PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;memory;boundary")
+set_tests_properties(exploit_gpu_memory_safety PROPERTIES
+    TIMEOUT 60
+    LABELS "audit;exploit;gpu;memory;boundary"
+    SKIP_RETURN_CODE 77)
 
 # -- N12: ECDSA r,s Zero Check Gap (RZERO-1..5) — Original 2026-04-28 --------
 # CVE-2022-39272-class: verify must reject r=0, s=0, r=p (out-of-range).
