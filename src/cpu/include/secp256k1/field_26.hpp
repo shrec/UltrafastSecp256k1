@@ -123,11 +123,16 @@ struct alignas(4) FieldElement26 {
 };
 
 // -- Free Functions (hot-path, avoid vtable/method overhead) ------------------
-void fe26_mul_inner(std::uint32_t* r, const std::uint32_t* a,
-                    const std::uint32_t* b) noexcept;
-void fe26_sqr_inner(std::uint32_t* r, const std::uint32_t* a) noexcept;
-void fe26_normalize(std::uint32_t* r) noexcept;
-void fe26_normalize_weak(std::uint32_t* r) noexcept;
+// SECP256K1_INLINE matches fe52's SECP256K1_FE52_FORCE_INLINE.
+// On 32-bit targets (ESP32, ARM, RISC-V) function-call overhead for each
+// fe26 op is 20-40ns — inlining removes it (P0 from perf report).
+SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* __restrict__ r,
+                                      const std::uint32_t* __restrict__ a,
+                                      const std::uint32_t* __restrict__ b) noexcept;
+SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* __restrict__ r,
+                                      const std::uint32_t* __restrict__ a) noexcept;
+SECP256K1_INLINE void fe26_normalize(std::uint32_t* r) noexcept;
+SECP256K1_INLINE void fe26_normalize_weak(std::uint32_t* r) noexcept;
 
 // Compile-time layout verification
 static_assert(sizeof(FieldElement26) == 40, "FieldElement26 must be 40 bytes (10x4)");

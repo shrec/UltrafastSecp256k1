@@ -342,17 +342,17 @@ Scalar rfc6979_nonce(const Scalar& private_key,
     hmac.compute_short(V, 32, V);          // V = HMAC(K2, V)
 
     // Step h: generate candidate -- reuses K2 midstate!
+    // Hoist t/buf33 outside loop: stack alloc once, reuse each iteration.
+    std::array<uint8_t, 32> t;
+    uint8_t buf33[33];
     for (int attempt = 0; attempt < 100; ++attempt) {
         hmac.compute_short(V, 32, V);      // V = HMAC(K2, V)
 
-        std::array<uint8_t, 32> t;
         std::memcpy(t.data(), V, 32);
         // RFC 6979 §3.2(h): k = bits2int(T); retry if k == 0 or k >= n.
-        // parse_bytes_strict_nonzero() rejects both (no implicit mod-n
-        // reduction), making this loop strictly spec-compliant.
         Scalar candidate;
         if (Scalar::parse_bytes_strict_nonzero(t.data(), candidate)) {
-            // Zeroize HMAC state and private key copy before returning
+            secure_erase(t.data(), t.size());
             secure_erase(V, sizeof(V));
             secure_erase(K, sizeof(K));
             secure_erase(x_bytes.data(), x_bytes.size());
@@ -362,7 +362,6 @@ Scalar rfc6979_nonce(const Scalar& private_key,
         }
 
         // Retry: K = HMAC(K, V||0x00), V = HMAC(K, V)
-        uint8_t buf33[33];
         std::memcpy(buf33, V, 32);
         buf33[32] = 0x00;
         hmac.compute_short(buf33, 33, K);
@@ -370,6 +369,8 @@ Scalar rfc6979_nonce(const Scalar& private_key,
         hmac.init_key32(K);
         hmac.compute_short(V, 32, V);
     }
+    secure_erase(t.data(), t.size());
+    secure_erase(buf33, sizeof(buf33));
 
     // Should never reach -- zeroize anyway
     secure_erase(V, sizeof(V));

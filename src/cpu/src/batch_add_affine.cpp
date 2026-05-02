@@ -58,23 +58,34 @@ void batch_add_affine_x_impl(
     std::size_t count,
     FieldElement* scratch)
 {
+    // First loop: validate all peer pubkeys BEFORE loading dx into scratch.
+    // Use a bool array to record which entries are degenerate (dx == 0),
+    // avoiding the second full field subtraction in the output loop.
     const FieldElement zero = FieldElement::zero();
+
+    // Stack array for typical small counts; heap for large batches.
+    uint8_t dx_zero_stack[64] = {};
+    static thread_local std::vector<uint8_t> dx_zero_heap;
+    uint8_t* dx_zero = dx_zero_stack;
+    if (SECP256K1_UNLIKELY(count > 64)) {
+        if (dx_zero_heap.size() < count) dx_zero_heap.resize(count);
+        dx_zero = dx_zero_heap.data();
+    }
 
     for (std::size_t i = 0; i < count; ++i) {
         FieldElement const dx = offsets[i].x - base_x;
-        bool const is_zero = (dx == zero);
-        scratch[i] = is_zero ? FieldElement::one() : dx;
+        dx_zero[i] = static_cast<uint8_t>(dx == zero);
+        scratch[i] = dx_zero[i] ? FieldElement::one() : dx;
     }
 
     fe_batch_inverse(scratch, count);
 
+    // Second loop: reuse dx_zero flags — no recomputation of dx.
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement const dx_original = offsets[i].x - base_x;
-        if (dx_original == zero) {
+        if (SECP256K1_UNLIKELY(dx_zero[i])) {
             out_x[i] = zero;
             continue;
         }
-
         FieldElement const dy = offsets[i].y - base_y;
         FieldElement const lambda = dy * scratch[i];
         FieldElement lambda_sq = lambda;
