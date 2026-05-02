@@ -61,11 +61,23 @@ static jbyteArray make_jbytes(JNIEnv* env, const uint8_t* data, jsize len) {
     return result;
 }
 
-// Scalar from 32 big-endian bytes
+// Scalar from 32 big-endian bytes (public scalars — math operations only)
 static SC scalar_from_jbytes(JNIEnv* env, jbyteArray arr) {
     std::array<uint8_t, 32> bytes{};
     if (!get_bytes32(env, arr, bytes)) return SC::zero();
     return SC::from_bytes(bytes);
+}
+
+// Strict scalar parse for private key inputs (Rule 11): rejects sk >= n and sk == 0
+static bool scalar_privkey_from_jbytes(JNIEnv* env, jbyteArray arr, SC& out) {
+    std::array<uint8_t, 32> bytes{};
+    if (!get_bytes32(env, arr, bytes)) return false;
+    if (!SC::parse_bytes_strict_nonzero(bytes, out)) {
+        env->ThrowNew(env->FindClass("java/lang/IllegalArgumentException"),
+                      "Invalid private key: must be in [1, n-1]");
+        return false;
+    }
+    return true;
 }
 
 // Point from 65-byte uncompressed (04 || x[32] || y[32])
@@ -201,6 +213,8 @@ Java_com_secp256k1_native_Secp256k1_scalarMulPoint(
     return make_jbytes(env, result.data(), 65);
 }
 
+// WARNING: Variable-time (fast) path — do NOT pass a private key as scalar.
+// For private key operations, use ctScalarMulGenerator() instead.
 JNIEXPORT jbyteArray JNICALL
 Java_com_secp256k1_native_Secp256k1_scalarMulGenerator(
     JNIEnv* env, jclass, jbyteArray scalar_bytes)
@@ -236,8 +250,8 @@ JNIEXPORT jbyteArray JNICALL
 Java_com_secp256k1_native_Secp256k1_ctScalarMulGenerator(
     JNIEnv* env, jclass, jbyteArray scalar_bytes)
 {
-    SC k = scalar_from_jbytes(env, scalar_bytes);
-    // Use CT generator_mul (fixed-window, complete addition)
+    SC k;
+    if (!scalar_privkey_from_jbytes(env, scalar_bytes, k)) return nullptr;
     PT result = ct::generator_mul(k);
     auto out_bytes = result.to_uncompressed();
     return make_jbytes(env, out_bytes.data(), 65);
@@ -247,7 +261,8 @@ JNIEXPORT jbyteArray JNICALL
 Java_com_secp256k1_native_Secp256k1_ctScalarMulPoint(
     JNIEnv* env, jclass, jbyteArray scalar_bytes, jbyteArray point_bytes)
 {
-    SC k = scalar_from_jbytes(env, scalar_bytes);
+    SC k;
+    if (!scalar_privkey_from_jbytes(env, scalar_bytes, k)) return nullptr;
     PT p = point_from_uncompressed(env, point_bytes);
     PT out_pt = ct::scalar_mul(p, k);
     auto out = out_pt.to_uncompressed();
@@ -259,7 +274,8 @@ JNIEXPORT jbyteArray JNICALL
 Java_com_secp256k1_native_Secp256k1_ctEcdh(
     JNIEnv* env, jclass, jbyteArray privkey_bytes, jbyteArray pubkey_bytes)
 {
-    SC k = scalar_from_jbytes(env, privkey_bytes);
+    SC k;
+    if (!scalar_privkey_from_jbytes(env, privkey_bytes, k)) return nullptr;
     PT q = point_from_uncompressed(env, pubkey_bytes);
     
     PT result = ct::scalar_mul(q, k);

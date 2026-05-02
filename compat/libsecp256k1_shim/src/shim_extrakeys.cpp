@@ -12,6 +12,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -105,7 +106,7 @@ int secp256k1_keypair_create(
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
-    auto P = scalar_mul_generator(k);
+    auto P = secp256k1::ct::generator_mul(k);   // CT: Rule 12 — sk is a private key
     if (P.is_infinity()) return 0;
 
     // Store seckey
@@ -253,7 +254,7 @@ int secp256k1_keypair_xonly_tweak_add(
     auto new_sk = sk + t;
     if (new_sk.is_zero()) return 0;
 
-    auto P = scalar_mul_generator(new_sk);
+    auto P = secp256k1::ct::generator_mul(new_sk);   // CT: Rule 12 — new_sk is secret
     if (P.is_infinity()) return 0;
 
     auto new_skb = new_sk.to_bytes();

@@ -147,6 +147,13 @@ int secp256k1_wasm_schnorr_sign(const uint8_t* seckey32,
 
     auto signature = secp256k1::schnorr_sign(sk, msg, aux);
     auto bytes = signature.to_bytes();
+
+    // Rule 14: check both r (bytes[0..31]) and s (bytes[32..63]) before returning
+    bool r_zero = true, s_zero = true;
+    for (int i =  0; i < 32; i++) if (bytes[i]    != 0) { r_zero = false; break; }
+    for (int i = 32; i < 64; i++) if (bytes[i]    != 0) { s_zero = false; break; }
+    if (r_zero || s_zero) return 0;
+
     std::memcpy(sig64, bytes.data(), 64);
     return 1;
 }

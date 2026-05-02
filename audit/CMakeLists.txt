@@ -2868,6 +2868,22 @@ target_compile_definitions(test_exploit_shim_musig_secnonce_standalone PRIVATE S
 add_test(NAME exploit_shim_musig_secnonce COMMAND test_exploit_shim_musig_secnonce_standalone)
 set_tests_properties(exploit_shim_musig_secnonce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;shim;musig;security;crit")
 
+# -- P-01/02/03: Shim pubkey_create / keypair_create CT generator mul (SPC-1..10) --
+# Tests that secp256k1_ec_pubkey_create and secp256k1_keypair_create use
+# ct::generator_mul (not variable-time scalar_mul_generator) on private keys.
+add_executable(test_exploit_shim_pubkey_ct_standalone
+    test_exploit_shim_pubkey_ct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_pubkey.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_extrakeys.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_seckey.cpp)
+audit_target_defaults(test_exploit_shim_pubkey_ct_standalone)
+target_include_directories(test_exploit_shim_pubkey_ct_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_shim_pubkey_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_pubkey_ct COMMAND test_exploit_shim_pubkey_ct_standalone)
+set_tests_properties(exploit_shim_pubkey_ct PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;ct;pubkey;rule12")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3461,6 +3477,8 @@ add_executable(unified_audit_runner
     test_exploit_metal_batch_failclosed.cpp
     test_exploit_gpu_bip352_key_erase.cpp
     test_exploit_metal_ecdh_key_erase.cpp
+    # 2026-05-01 Red Team Audit Round 3 (P-01..P-09) — advisory-skip in unified runner
+    test_exploit_shim_pubkey_ct.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

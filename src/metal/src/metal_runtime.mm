@@ -32,7 +32,12 @@ MetalBuffer& MetalBuffer::operator=(MetalBuffer&& other) noexcept {
 }
 
 MetalBuffer::~MetalBuffer() {
-    buffer_ = nil; // ARC handles deallocation
+    // Rule 10: zero buffer contents before ARC dealloc (may hold private key material)
+    if (buffer_ && [buffer_ contents] && [buffer_ length] > 0) {
+        memset([buffer_ contents], 0, [buffer_ length]);
+        [buffer_ didModifyRange:NSMakeRange(0, [buffer_ length])];
+    }
+    buffer_ = nil;
 }
 
 void* MetalBuffer::contents() {

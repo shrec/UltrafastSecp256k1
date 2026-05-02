@@ -228,13 +228,15 @@ __device__ inline bool schnorr_sign(
     field_mul(&R.x, &rz_inv2, &rx);
     field_mul(&R.y, &rz_inv3, &ry);
 
-    // If R.y is odd, negate k (MEDIUM-4: branchless to avoid warp divergence)
+    // If R.y is odd, negate k — arithmetic mask avoids compiler-generated branch
+    // and GPU warp divergence on nonce-derived parity bit (Rule 8 / P-09).
     uint8_t ry_bytes[32];
     field_to_bytes(&ry, ry_bytes);
     Scalar k = k_prime;
     Scalar neg_k;
     scalar_negate(&k_prime, &neg_k);
-    scalar_cmov(&k, &neg_k, (uint64_t)(ry_bytes[31] & 1) ? ~0ULL : 0ULL);
+    uint64_t nonce_odd_mask = (uint64_t)(0) - (uint64_t)(ry_bytes[31] & 1u);
+    scalar_cmov(&k, &neg_k, nonce_odd_mask);
 
     // sig.r = R.x as bytes
     field_to_bytes(&rx, sig->r);
@@ -435,12 +437,11 @@ __device__ inline bool schnorr_sign_with_keypair(
 
     uint8_t ry_bytes[32];
     field_to_bytes(&ry, ry_bytes);
-    Scalar k;
-    if (ry_bytes[31] & 1) {
-        scalar_negate(&k_prime, &k);
-    } else {
-        k = k_prime;
-    }
+    Scalar neg_k_kp, k;
+    scalar_negate(&k_prime, &neg_k_kp);
+    k = k_prime;
+    uint64_t kp_odd_mask = (uint64_t)(0) - (uint64_t)(ry_bytes[31] & 1u);
+    scalar_cmov(&k, &neg_k_kp, kp_odd_mask);   // branchless: Rule 8 / P-09
 
     field_to_bytes(&rx, sig->r);
 

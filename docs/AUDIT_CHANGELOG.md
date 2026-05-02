@@ -7,6 +7,63 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-01 — Security Audit Round 3: P-01..P-09 Fixed
+
+### CRITICAL Fixes (Rule 12 — CT pubkey derivation on private keys)
+
+- **P-01 `shim_pubkey.cpp:144`** — `secp256k1_ec_pubkey_create`: replaced
+  `scalar_mul_generator(k)` with `secp256k1::ct::generator_mul(k)`. Added
+  `#include "secp256k1/ct/point.hpp"`. This is the primary libsecp256k1
+  compatibility shim pubkey creation function — direct Rule 12 violation.
+
+- **P-02 `shim_extrakeys.cpp:108`** — `secp256k1_keypair_create`: same fix —
+  `secp256k1::ct::generator_mul(k)` replaces `scalar_mul_generator(k)` on the
+  private key input. Added `#include "secp256k1/ct/point.hpp"`.
+
+- **P-03 `shim_extrakeys.cpp:256`** — `secp256k1_keypair_xonly_tweak_add`: same fix
+  for the tweaked secret key `new_sk = sk + t`. Rule 12 requires CT generator
+  mul when the scalar is secret.
+
+### CRITICAL Fix (Rule 11 — strict key parsing in Android JNI)
+
+- **P-04 `bindings/android/jni/secp256k1_jni.cpp:68`** — Added
+  `scalar_privkey_from_jbytes()` helper using `parse_bytes_strict_nonzero()`.
+  Replaced `scalar_from_jbytes()` in `ctScalarMulGenerator`, `ctScalarMulPoint`,
+  and `ctEcdh` (all private key operations). The old `scalar_from_jbytes()`
+  silently reduced mod n, accepting `sk >= n` values.
+
+### HIGH Fixes
+
+- **P-05 `secp256k1_jni.cpp:204`** — Added explicit warning comment to
+  `scalarMulGenerator` (variable-time path) documenting that private keys must
+  not be passed; `ctScalarMulGenerator` is the correct API for private keys.
+
+- **P-06 `bindings/wasm/secp256k1_wasm.cpp:148`** — `secp256k1_wasm_schnorr_sign`:
+  added Rule 14 zero-check on both r (bytes[0..31]) and s (bytes[32..63]) before
+  returning success. ECDSA WASM already had this check; Schnorr was missing it.
+
+### MEDIUM Fixes (Rule 10 — GPU key erasure)
+
+- **P-07 `src/opencl/src/opencl_context.cpp`** — Added `clEnqueueFillBuffer` +
+  `clFinish` before `clReleaseMemObject` on cached scalar buffers
+  (`cache_smg_scalars`, `cache_sm_scalars`) during buffer grow operations. The
+  destructor's zeroing was correct; grow-path releases were unprotected.
+
+- **P-08 `src/metal/src/metal_runtime.mm:34`** — `MetalBuffer::~MetalBuffer()`:
+  added `memset(contents, 0, length)` + `didModifyRange` before ARC `nil`
+  assignment. Metal ARC dealloc does not zero buffer contents; buffers may hold
+  private key material.
+
+### LOW-MEDIUM Fix (Rule 8 — GPU CT hardening / warp divergence)
+
+- **P-09 `src/cuda/include/schnorr.cuh`** — Replaced ternary `?:` mask on
+  nonce-derived parity bit with pure arithmetic mask
+  `(uint64_t)(0) - (uint64_t)(bit)` in both `schnorr_sign` (line ~237) and
+  `schnorr_sign_with_keypair` (line ~441). Prevents compiler-generated branch
+  and GPU warp divergence on the nonce odd/even bit.
+
+---
+
 ## 2026-05-01 — Security Audit Cycle: Red Team Findings Fixed
 
 ### CRITICAL Fixes

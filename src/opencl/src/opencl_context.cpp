@@ -2320,6 +2320,13 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
 
     // Grow-only cached buffers: reuse if capacity is sufficient, else reallocate
     if (count > impl_->cache_smg_count) {
+        // Rule 10: zero scalar buffer before release (may hold private keys)
+        if (impl_->cache_smg_scalars && impl_->queue && impl_->cache_smg_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(impl_->queue, impl_->cache_smg_scalars, &zero, 1, 0,
+                                impl_->cache_smg_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(impl_->queue);
+        }
         if (impl_->cache_smg_scalars) clReleaseMemObject(impl_->cache_smg_scalars);
         if (impl_->cache_smg_results) clReleaseMemObject(impl_->cache_smg_results);
         impl_->cache_smg_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY,
@@ -2366,6 +2373,13 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
 
     // Grow-only cached buffers
     if (count > impl_->cache_sm_count) {
+        // Rule 10: zero scalar buffer before release (may hold private keys from ECDH)
+        if (impl_->cache_sm_scalars && impl_->queue && impl_->cache_sm_count > 0) {
+            cl_uchar zero = 0;
+            clEnqueueFillBuffer(impl_->queue, impl_->cache_sm_scalars, &zero, 1, 0,
+                                impl_->cache_sm_count * sizeof(Scalar), 0, nullptr, nullptr);
+            clFinish(impl_->queue);
+        }
         if (impl_->cache_sm_scalars) clReleaseMemObject(impl_->cache_sm_scalars);
         if (impl_->cache_sm_points)  clReleaseMemObject(impl_->cache_sm_points);
         if (impl_->cache_sm_results) clReleaseMemObject(impl_->cache_sm_results);

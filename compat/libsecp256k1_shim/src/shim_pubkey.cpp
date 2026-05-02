@@ -11,6 +11,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/precompute.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -141,7 +142,7 @@ int secp256k1_ec_pubkey_create(
 
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
-    auto P = scalar_mul_generator(k);
+    auto P = secp256k1::ct::generator_mul(k);   // CT: Rule 12 — sk is a private key
     if (P.is_infinity()) return 0;
     point_to_pubkey_data(P, pubkey->data);
     return 1;
