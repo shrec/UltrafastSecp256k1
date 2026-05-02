@@ -844,7 +844,11 @@ void add_affine_fast_ct(CTJacobianPoint* out,
     out->infinity = 0;
 }
 
-template<bool CHECK_INFINITY>
+// HAMBURG=true: skip degenerate case detection (provably impossible with
+// the Hamburg scalar encoding). Keeps the same formula structure as the
+// general case for optimal ILP, but removes fe52_normalizes_to_zero()
+// and the conditional-select overhead (~16-20 ns per call × 52 = ~1 µs).
+template<bool CHECK_INFINITY, bool HAMBURG = false>
 __attribute__((always_inline)) inline
 void unified_add_core(CTJacobianPoint* out,
                        const CTJacobianPoint& a,
@@ -879,15 +883,24 @@ void unified_add_core(CTJacobianPoint* out,
     rr.add_assign(tt);                               // R   M=2
 
     // -- Degenerate case: M~=0 (y1=-y2) --
-    std::uint64_t const degen = fe52_normalizes_to_zero(m_val);
+    // HAMBURG: degen is provably 0 — skip normalizes_to_zero + cmovs (~16 ns).
+    [[maybe_unused]] std::uint64_t degen = 0;
+    FE52 rr_alt;
+    FE52 m_alt;
 
-    FE52 rr_alt = s1;
-    rr_alt.add_assign(s1);                           // 2*S1   M<=20
-    FE52 m_alt = u1;
-    m_alt.add_assign(u2);                            // U1-U2 (u2 is negated)  M<=20
-
-    fe52_cmov(&rr_alt, rr, ~degen);
-    fe52_cmov(&m_alt, m_val, ~degen);
+    if constexpr (!HAMBURG) {
+        degen = fe52_normalizes_to_zero(m_val);
+        rr_alt = s1;
+        rr_alt.add_assign(s1);                       // 2*S1   M<=20
+        m_alt = u1;
+        m_alt.add_assign(u2);                        // U1-U2 (u2 is negated)  M<=20
+        fe52_cmov(&rr_alt, rr, ~degen);
+        fe52_cmov(&m_alt, m_val, ~degen);
+    } else {
+        // Hamburg guarantee: regular path always taken — use rr/m_val directly.
+        rr_alt = rr;
+        m_alt  = m_val;
+    }
 
     // -- Compute result into locals (no pointer reads after partial writes) --
     FE52 n = m_alt.square();                         // Malt^2 M=1   [1S]
@@ -895,7 +908,9 @@ void unified_add_core(CTJacobianPoint* out,
     FE52 const q = t_val * n;                              // Q     M=1   [1M]
 
     n = n.square();                                  // Malt^4 M=1   [1S]
-    fe52_cmov(&n, m_val, degen);                     // if degen: n=M~=0  M<=11
+    if constexpr (!HAMBURG) {
+        fe52_cmov(&n, m_val, degen);                 // if degen: n=M~=0  M<=11
+    }
 
     FE52 x3 = rr_alt.square();
     x3.add_assign(q);                                // X3    M=2   [1S]
@@ -1421,18 +1436,15 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 
         point_dbl_n_core(&R, GROUP_SIZE);
 
-        // In-place lookup + in-place add for pre_a -- core (no infinity check)
+        // HAMBURG=true: degen provably 0 — skip normalizes_to_zero + cmovs.
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);
 
-        // In-place lookup + in-place add for pre_a_lam -- core (no infinity check)
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);
     }
 
     // Apply global Z correction: undo the isomorphism.
-    // The main loop computed on the iso curve with implicit Z = global_z.
-    // Correct by: Z_secp256k1 = Z_loop * global_z.
     R.z = R.z * global_z;
 
     Point result = R.to_point();
@@ -2748,11 +2760,12 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 
         point_dbl_n_core(&R, GROUP_SIZE);
 
+        // HAMBURG=true: degen provably 0.
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);
 
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);
     }
 
     R.z = field_mul(R.z, global_z);
