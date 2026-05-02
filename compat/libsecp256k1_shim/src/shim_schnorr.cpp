@@ -4,6 +4,7 @@
 #include <cstring>
 #include <array>
 #include <vector>
+#include <cstdint>
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
@@ -13,6 +14,42 @@
 #include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::fast;
+
+// -- Thread-local Schnorr xonly pubkey cache ----------------------------------
+// Eliminates ~2,600 ns lift_x (sqrt) + build_glv52_table_zr per verify on hit.
+// Direct-mapped 16 slots, keyed by first 8 bytes of pubkey->data (x-only 32 B).
+namespace {
+struct ShimSchnorrCache {
+    static constexpr std::size_t SLOTS = 16;
+    struct Slot {
+        std::uint8_t              raw[32]{};
+        secp256k1::SchnorrXonlyPubkey epk{};
+        bool                      valid = false;
+    };
+    Slot slots[SLOTS]{};
+
+    static std::size_t slot_of(const unsigned char data[32]) noexcept {
+        std::uint32_t a, b;
+        std::memcpy(&a, data,   4);
+        std::memcpy(&b, data+4, 4);
+        return static_cast<std::size_t>((a ^ b) & (SLOTS - 1));
+    }
+
+    const secp256k1::SchnorrXonlyPubkey* get(const unsigned char data[32]) const noexcept {
+        const Slot& s = slots[slot_of(data)];
+        if (s.valid && std::memcmp(s.raw, data, 32) == 0) return &s.epk;
+        return nullptr;
+    }
+
+    const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
+        Slot& s = slots[slot_of(data)];
+        s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
+        if (s.valid) std::memcpy(s.raw, data, 32);
+        return s.valid ? &s.epk : nullptr;
+    }
+};
+static thread_local ShimSchnorrCache s_schnorr_cache;
+} // namespace
 
 // Context flag helpers (mirrors shim_ecdsa.cpp; flags is first field in struct).
 namespace {
@@ -225,10 +262,11 @@ int secp256k1_schnorrsig_verify(
     std::memcpy(msg32.data(), msg, 32);
 
     // x-only key is stored in the first 32 bytes of the opaque 64-byte struct.
-    // schnorr_verify handles the lift (sqrt) internally and rejects invalid x.
-    std::array<uint8_t, 32> pk_x{};
-    std::memcpy(pk_x.data(), pubkey->data, 32);
-    return secp256k1::schnorr_verify(pk_x, msg32, sig) ? 1 : 0;
+    // Use cached SchnorrXonlyPubkey to skip lift_x + build_glv52_table_zr (~2,600ns).
+    const secp256k1::SchnorrXonlyPubkey* epk = s_schnorr_cache.get(pubkey->data);
+    if (!epk) epk = s_schnorr_cache.put(pubkey->data);
+    if (!epk) return 0;  // invalid x-coordinate
+    return secp256k1::schnorr_verify(*epk, msg32, sig) ? 1 : 0;
 }
 
 } // extern "C"
