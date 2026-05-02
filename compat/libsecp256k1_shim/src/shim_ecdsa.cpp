@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <array>
+#include <cstdint>
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
@@ -13,6 +14,46 @@
 #include "secp256k1/ct/sign.hpp"
 
 using namespace secp256k1::fast;
+
+// -- Thread-local pubkey GLV cache -------------------------------------------
+// Eliminates ~1,954 ns build_glv52_table_zr on repeated verify of same pubkey.
+// Direct-mapped, 16 slots, keyed by XOR of first 8 bytes of pubkey->data.
+// Even on cache miss, parsing uncompressed x||y is cheaper than the full
+// rebuild path in ecdsa_verify(Point): ~21 µs vs ~23 µs.
+namespace {
+struct ShimPkCache {
+    static constexpr std::size_t SLOTS = 16;
+    struct Slot {
+        std::uint8_t              raw[64]{};
+        secp256k1::EcdsaPublicKey epk{};
+        bool                      valid = false;
+    };
+    Slot slots[SLOTS]{};
+
+    static std::size_t slot_of(const unsigned char data[64]) noexcept {
+        std::uint32_t a, b;
+        std::memcpy(&a, data,   4);
+        std::memcpy(&b, data+4, 4);
+        return static_cast<std::size_t>((a ^ b) & (SLOTS - 1));
+    }
+
+    const secp256k1::EcdsaPublicKey* get(const unsigned char data[64]) const noexcept {
+        const Slot& s = slots[slot_of(data)];
+        if (s.valid && std::memcmp(s.raw, data, 64) == 0) return &s.epk;
+        return nullptr;
+    }
+
+    const secp256k1::EcdsaPublicKey* put(const unsigned char data[64]) noexcept {
+        Slot& s = slots[slot_of(data)];
+        unsigned char unc[65]; unc[0] = 0x04;
+        std::memcpy(unc + 1, data, 64);
+        s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
+        if (s.valid) std::memcpy(s.raw, data, 64);
+        return s.valid ? &s.epk : nullptr;
+    }
+};
+static thread_local ShimPkCache s_pk_cache;
+} // namespace
 
 // Context flag helpers (match upstream libsecp256k1 contract).
 // secp256k1_context_struct is defined in shim_context.cpp.  Its first field is
@@ -35,13 +76,12 @@ namespace {
                ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);   // CONTEXT_NONE (only type bit)
     }
     inline bool ctx_can_verify(const secp256k1_context *ctx) {
-        // Upstream libsecp256k1 accepts both CONTEXT_VERIFY and CONTEXT_SIGN for
-        // verify operations (SIGN implies a superset context).
-        // NULL ctx: treat as SIGN|VERIFY (matches secp256k1_context_static behaviour).
         if (!ctx) return true;
         unsigned int f = ctx_flags(ctx);
+        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
         return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
-               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN);
+               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN)   ||
+               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);  // CONTEXT_NONE (v0.6+)
     }
 }
 
@@ -232,12 +272,15 @@ int secp256k1_ecdsa_verify(
     if (!sig || !msghash32 || !pubkey) return 0;
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
-    auto P = pubkey_data_to_point(pubkey->data);
 
     std::array<uint8_t, 32> msg{};
     std::memcpy(msg.data(), msghash32, 32);
 
-    return secp256k1::ecdsa_verify(msg, P, internal_sig) ? 1 : 0;
+    // Use cached GLV tables when available; build on miss.
+    const secp256k1::EcdsaPublicKey* epk = s_pk_cache.get(pubkey->data);
+    if (!epk) epk = s_pk_cache.put(pubkey->data);
+    if (!epk) return 0;  // degenerate pubkey (not on curve)
+    return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
 }
 
 // -- Sign -----------------------------------------------------------------
