@@ -52,6 +52,7 @@ public:
     Scalar& operator*=(const Scalar& rhs);
 
     bool is_zero() const noexcept;
+    bool is_zero_ct() const noexcept;  // CT variant: reads all limbs, no early-return
     bool operator==(const Scalar& rhs) const noexcept;
 
     // Modular inverse: a^{-1} mod n  (Fermat's little theorem: a^{n-2} mod n)

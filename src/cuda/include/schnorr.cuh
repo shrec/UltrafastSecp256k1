@@ -181,7 +181,8 @@ __device__ inline bool schnorr_sign(
     field_mul(&P.x, &z_inv2, &px);
     field_mul(&P.y, &z_inv3, &py);
 
-    // Check parity of Y: if odd, negate d (MEDIUM-4: branchless to avoid warp divergence)
+    // If Y is odd, negate d (BIP-340: use even-Y key convention).
+    // py_bytes[31] & 1 is the Y parity of the public key P = sk*G — public data.
     uint8_t py_bytes[32];
     field_to_bytes(&py, py_bytes);
     Scalar d = *private_key;
@@ -368,8 +369,8 @@ __device__ inline bool schnorr_keypair_create(
     // Get pubkey x-bytes
     field_to_bytes(&ax, kp->px);
 
-    // CT branchless key negation: if Y is odd, negate d (Guardrail #8)
-    // Same pattern as schnorr_sign lines 188-190 using scalar_cmov.
+    // If Y is odd, negate d (BIP-340: use even-Y key convention).
+    // y_bytes[31] & 1 is the Y parity of P = sk*G — public data.
     uint8_t y_bytes[32];
     field_to_bytes(&ay, y_bytes);
     Scalar neg_d;

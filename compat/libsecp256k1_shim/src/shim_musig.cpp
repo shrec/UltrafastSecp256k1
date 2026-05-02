@@ -138,8 +138,10 @@ static bool sn_unpack(const secp256k1_musig_secnonce* in, Scalar& k1, Scalar& k2
            Scalar::parse_bytes_strict_nonzero(in->data + 32, k2);
 }
 
-// PubNonce: R1[33] | R2[33] = 66 bytes (inline, exact fit)
+// PubNonce: R1[33] | R2[33] in data[0..65]; data[66..131] reserved/zero.
+// Struct is 132 bytes to match upstream libsecp256k1 ABI; wire format is still 66.
 static void pn_pack(secp256k1_musig_pubnonce* out, const secp256k1::MuSig2PubNonce& pn) {
+    std::memset(out->data, 0, sizeof(out->data));  // zero all 132 bytes (B-01)
     std::memcpy(out->data,      pn.R1.data(), 33);
     std::memcpy(out->data + 33, pn.R2.data(), 33);
 }
@@ -364,6 +366,7 @@ int secp256k1_musig_nonce_agg(
         pnv.push_back(pn_unpack(pubnonces[i]));
     }
     auto agg = secp256k1::musig2_nonce_agg(pnv);
+    std::memset(aggnonce->data, 0, sizeof(aggnonce->data));  // zero all 132 bytes (B-01)
     compress(agg.R1, aggnonce->data);
     compress(agg.R2, aggnonce->data + 33);
     return 1;

@@ -7,6 +7,29 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-02 — Security Audit Round 4: B-01/02/03 + C-06/07 + Q-01..03 + V-01/02/05 Fixed
+
+- **B-01**: MuSig2 opaque struct sizes match upstream libsecp256k1 ABI: pubnonce/aggnonce
+  66→132 bytes, session 117→133 bytes. `pn_pack`/`nonce_agg` zero extra bytes.
+- **B-02**: `secp256k1.h` include guard `SECP256K1_H` → `SECP256K1_ULTRAFAST_SHIM_H`
+  (prevents silent header collision alongside upstream).
+- **B-03**: `secp256k1_context_static` flags `CONTEXT_NONE` → `CONTEXT_SIGN|CONTEXT_VERIFY`.
+- **C-06/V-05**: `pre_sig` declared non-const; removed both `const_cast` references in
+  `ct_sign.cpp`.
+- **C-07**: Added `Scalar::is_zero_ct()` (reads all 4 limbs, no early-return). Used in
+  `ct_sign.cpp` for `s.is_zero_ct()` on signing output scalar.
+- **Q-01/02/03**: Added `clEnqueueFillBuffer+clFinish` before `clReleaseMemObject` for
+  private key buffers in `ext_generator_mul`, `ocl_ecdsa_sign`, `ocl_schnorr_sign`
+  in `opencl_audit_runner.cpp` (Rule 10 completeness).
+- **V-01/V-02**: Replaced `fast::Scalar::operator*` with `ct::scalar_mul()`/`ct::scalar_add()`
+  in `ct_sign.cpp` for all secret-scalar multiplications:
+  3× `s = k_inv*(z+r*d)` (ECDSA variants) and `sig.s = k+e*kp.d` (Schnorr).
+  Root cause: `fast::Scalar::operator*` has branchy `ge(r,ORDER)` in final reduction —
+  variable-time on secret inputs. `ct::scalar_mul` uses branchless complement reduction.
+- **CI fix**: `src/metal/tests/test_metal_host.cpp` relative include
+  `../../audit/test_vectors.hpp` → `../../../audit/test_vectors.hpp`.
+- **CAAS**: Added `test_exploit_opencl_runner_key_erase.cpp` (OCR-1..8). 248/248 wired.
+
 ## 2026-05-01 — Security Audit Round 3: P-01..P-09 Fixed
 
 ### CRITICAL Fixes (Rule 12 — CT pubkey derivation on private keys)

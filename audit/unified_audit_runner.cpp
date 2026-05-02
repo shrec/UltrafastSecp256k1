@@ -486,6 +486,7 @@ int test_exploit_metal_batch_failclosed_run();
 int test_exploit_gpu_bip352_key_erase_run();
 int test_exploit_metal_ecdh_key_erase_run();
 int test_exploit_shim_pubkey_ct_run();   // P-01/02/03: shim pubkey CT generator mul (SPC-1..10)
+int test_exploit_opencl_runner_key_erase_run();  // Q-01/02/03: OpenCL audit runner key erase (OCR-1..8)
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -925,6 +926,7 @@ static const AuditModule ALL_MODULES[] = {
     { "test_exploit_metal_batch_failclosed",     "Metal batch sign ignored return + non-CT path CRITICAL-2+HIGH-1 (MB-1..6) — 2026-05-01",     "exploit_poc", test_exploit_metal_batch_failclosed_run,     false },
     { "test_exploit_gpu_bip352_key_erase",       "GPU BIP-352 scan key not zeroed before device memory free HIGH-3 (BK-1..8) — 2026-05-01",   "exploit_poc", test_exploit_gpu_bip352_key_erase_run,       false },
     { "test_exploit_metal_ecdh_key_erase",       "Metal ECDH batch private key not erased from shared buffer HIGH-2+LOW-5 (ME-1..5) — 2026-05-01", "exploit_poc", test_exploit_metal_ecdh_key_erase_run,  false },
+    { "test_exploit_opencl_runner_key_erase",    "OpenCL audit runner d_priv/d_scalar not zeroed before release Q-01/02/03 (OCR-1..8) — 2026-05-02", "exploit_poc", test_exploit_opencl_runner_key_erase_run, false },
     // === 2026-05-01 Red Team Audit Round 3 (P-01..P-09) ===
     // Note: shim test returns 0 in unified-runner mode (shim linked separately);
     //       actual SPC-1..10 tests run via test_exploit_shim_pubkey_ct_standalone CTest target.

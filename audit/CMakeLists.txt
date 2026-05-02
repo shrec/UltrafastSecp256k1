@@ -2884,6 +2884,17 @@ target_compile_definitions(test_exploit_shim_pubkey_ct_standalone PRIVATE STANDA
 add_test(NAME exploit_shim_pubkey_ct COMMAND test_exploit_shim_pubkey_ct_standalone)
 set_tests_properties(exploit_shim_pubkey_ct PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;ct;pubkey;rule12")
 
+# -- Q-01/02/03: OpenCL audit runner key erasure (OCR-1..8) ------------------
+add_executable(test_exploit_opencl_runner_key_erase_standalone
+    test_exploit_opencl_runner_key_erase.cpp)
+audit_target_defaults(test_exploit_opencl_runner_key_erase_standalone)
+target_compile_definitions(test_exploit_opencl_runner_key_erase_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_opencl_runner_key_erase
+    COMMAND test_exploit_opencl_runner_key_erase_standalone
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(exploit_opencl_runner_key_erase PROPERTIES
+    TIMEOUT 30 LABELS "audit;exploit;opencl;key_erase;rule10")
+
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
 audit_target_defaults(test_mutation_artifact_scan_standalone)
@@ -3479,6 +3490,8 @@ add_executable(unified_audit_runner
     test_exploit_metal_ecdh_key_erase.cpp
     # 2026-05-01 Red Team Audit Round 3 (P-01..P-09) — advisory-skip in unified runner
     test_exploit_shim_pubkey_ct.cpp
+    # 2026-05-02 Red Team Audit Round 4 (Q-01..Q-03) — OpenCL audit runner key erase
+    test_exploit_opencl_runner_key_erase.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

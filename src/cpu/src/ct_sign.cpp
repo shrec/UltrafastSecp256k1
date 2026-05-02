@@ -53,10 +53,12 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 
     // s = k^{-1} * (z + r * d) mod n
     // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
+    // ct::scalar_mul / ct::scalar_add: branchless reduction — no secret-dependent branch
+    // unlike fast::Scalar::operator* which has branchy ge() in final reduction (V-01).
     auto k_inv = ct::scalar_inverse(k);
-    auto s = k_inv * (z + r * private_key);
-    // s.is_zero() is astronomically unlikely for valid inputs.
-    if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    // s.is_zero_ct() is astronomically unlikely for valid inputs.
+    if (s.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     // CT low-S normalization: branchless comparison with n/2 + conditional negate.
     ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
@@ -119,11 +121,10 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 
-    // CT inverse: SafeGCD Bernstein-Yang divsteps-59, same as ecdsa_sign above.
+    // CT inverse + CT scalar multiplication (V-01 fix: operator* is variable-time).
     auto k_inv = ct::scalar_inverse(k);
-    auto s = k_inv * (z + r * private_key);
-    // s.is_zero() is astronomically unlikely for valid inputs.
-    if (s.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    if (s.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     // CT low-S normalization (branchless)
     ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
@@ -236,10 +237,10 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_input, 96);
     auto e = Scalar::from_bytes(e_hash);
 
-    // Step 6: sig = (R.x, k + e * d)
+    // Step 6: sig = (R.x, k + e * d)  — CT scalar ops on secret k and kp.d (V-01 fix)
     SchnorrSignature sig{};
     sig.r = rx;
-    sig.s = k + e * kp.d;
+    sig.s = ct::scalar_add(k, ct::scalar_mul(e, kp.d));
 
     // Erase ALL stack buffers that held secret-derived material:
     //   d_bytes[32]          -- private key serialized
@@ -348,14 +349,13 @@ RecoverableSignature ecdsa_sign_recoverable(
     }
 
     // s = k^{-1} * (z + r * d) mod n
-    // CT inverse: SafeGCD Bernstein-Yang divsteps-59, constant-time.
+    // CT inverse + CT scalar multiplication (V-01 fix: operator* is variable-time).
     auto k_inv = ct::scalar_inverse(k);
-    auto s = k_inv * (z + r * private_key);
-    // s.is_zero() is astronomically unlikely for valid inputs.
-    if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    if (s.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // CT low-S normalization (branchless throughout).
-    const ECDSASignature pre_sig{r, s};
+    ECDSASignature pre_sig{r, s};
     // TIMING NOTE: high_mask is derived from s (which depends on nonce k).
     // k is already consumed and erased below before this function returns.
     // The only observable timing variation here is whether s required low-S
@@ -372,7 +372,7 @@ RecoverableSignature ecdsa_sign_recoverable(
     secure_erase(&k_inv, sizeof(k_inv));
     secure_erase(&z,     sizeof(z));
     secure_erase(&s,     sizeof(s));
-    secure_erase(const_cast<ECDSASignature*>(&pre_sig), sizeof(pre_sig));
+    secure_erase(&pre_sig, sizeof(pre_sig));
 
     return {sig, recid};
 }

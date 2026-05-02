@@ -5,8 +5,8 @@
  * bitcoin-core/secp256k1's secp256k1.h so that existing C/C++ code
  * can link against UltrafastSecp256k1 without source changes.
  * ========================================================================== */
-#ifndef SECP256K1_H
-#define SECP256K1_H
+#ifndef SECP256K1_ULTRAFAST_SHIM_H
+#define SECP256K1_ULTRAFAST_SHIM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,4 +205,4 @@ SECP256K1_API int secp256k1_tagged_sha256(
 /* Pull in ElligatorSwift (BIP-324 v2 transport) -- required by Bitcoin Core */
 #include "secp256k1_ellswift.h"
 
-#endif /* SECP256K1_H */
+#endif /* SECP256K1_ULTRAFAST_SHIM_H */

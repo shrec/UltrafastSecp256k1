@@ -32,7 +32,7 @@ struct secp256k1_context_struct {
 };
 
 static secp256k1_context_struct g_static_ctx = {
-    SECP256K1_CONTEXT_NONE, {}, false,
+    SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY, {}, false,   // B-03: match upstream
     default_illegal_callback, nullptr,
     default_illegal_callback, nullptr
 };

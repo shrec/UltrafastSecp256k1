@@ -546,6 +546,13 @@ bool Scalar::is_zero() const noexcept {
     return true;
 }
 
+bool Scalar::is_zero_ct() const noexcept {
+    // CT variant: always reads all 4 limbs — no early-return on secret data (C-07)
+    std::uint64_t acc = 0;
+    for (auto limb : limbs_) acc |= limb;
+    return acc == 0;
+}
+
 bool Scalar::operator==(const Scalar& rhs) const noexcept {
     return limbs_ == rhs.limbs_;
 }

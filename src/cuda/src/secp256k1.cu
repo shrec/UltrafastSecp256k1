@@ -113,7 +113,8 @@ void hash160_pubkey_kernel(const uint8_t* pubkeys, int pubkey_len, uint8_t* out_
 // ============================================================================
 #if !SECP256K1_CUDA_LIMBS_32
 
-// ECDSA Sign batch -- each thread signs one message
+// ECDSA Sign batch (fast path) -- benchmark kernel, measures throughput of the fast path.
+// Production signing goes through the CPU CT path (ufsecp_ecdsa_sign_batch → ct::ecdsa_sign).
 __global__ __launch_bounds__(128, 2)
 void ecdsa_sign_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,   // count x 32 bytes
@@ -125,7 +126,7 @@ void ecdsa_sign_batch_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
         const uint8_t* msg = msg_hashes + static_cast<size_t>(idx) * 32;
-        sigs[idx] = {};  // LOW-6: zero-init before sign so failure leaves no stale data
+        sigs[idx] = {};  // zero-init before sign so failure leaves no stale data
         results[idx] = ecdsa_sign(msg, &private_keys[idx], &sigs[idx]);
     }
 }

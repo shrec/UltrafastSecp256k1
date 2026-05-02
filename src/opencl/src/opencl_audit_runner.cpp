@@ -532,6 +532,10 @@ static bool ocl_ecdsa_sign(const Scalar& priv, const uint8_t msg[32],
     clEnqueueReadBuffer(g_ext.queue, d_ok, CL_TRUE, 0, sizeof(int), &ok, 0, nullptr, nullptr);
     clEnqueueReadBuffer(g_ext.queue, d_sig, CL_TRUE, 0, sizeof(ExtendedCL::ECDSASig), &sig_out, 0, nullptr, nullptr);
 
+    // Q-02: Rule 10 — zero private key buffer before release
+    cl_uchar _zero = 0;
+    clEnqueueFillBuffer(g_ext.queue, d_priv, &_zero, 1, 0, sizeof(Scalar), 0, nullptr, nullptr);
+    clFinish(g_ext.queue);
     clReleaseMemObject(d_msg); clReleaseMemObject(d_priv);
     clReleaseMemObject(d_sig); clReleaseMemObject(d_ok);
     return ok != 0;
@@ -600,6 +604,10 @@ static bool ocl_schnorr_sign(const Scalar& priv, const uint8_t msg[32],
     clEnqueueReadBuffer(g_ext.queue, d_ok, CL_TRUE, 0, sizeof(int), &ok, 0, nullptr, nullptr);
     clEnqueueReadBuffer(g_ext.queue, d_sig, CL_TRUE, 0, sizeof(ExtendedCL::SchnorrSig), &sig_out, 0, nullptr, nullptr);
 
+    // Q-03: Rule 10 — zero private key buffer before release
+    cl_uchar _zero = 0;
+    clEnqueueFillBuffer(g_ext.queue, d_priv, &_zero, 1, 0, sizeof(Scalar), 0, nullptr, nullptr);
+    clFinish(g_ext.queue);
     clReleaseMemObject(d_msg); clReleaseMemObject(d_priv);
     clReleaseMemObject(d_aux); clReleaseMemObject(d_sig); clReleaseMemObject(d_ok);
     return ok != 0;
@@ -658,6 +666,10 @@ static JacobianPoint ext_generator_mul(const Scalar& priv) {
     clFinish(g_ext.queue);
     clEnqueueReadBuffer(g_ext.queue, d_result, CL_TRUE, 0,
                         sizeof(JacobianPoint), &result, 0, nullptr, nullptr);
+    // Q-01: Rule 10 — zero scalar buffer (may hold private key) before release
+    cl_uchar _zero = 0;
+    clEnqueueFillBuffer(g_ext.queue, d_scalar, &_zero, 1, 0, sizeof(Scalar), 0, nullptr, nullptr);
+    clFinish(g_ext.queue);
     clReleaseMemObject(d_scalar);
     clReleaseMemObject(d_result);
     return result;
