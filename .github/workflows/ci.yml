@@ -38,8 +38,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   # -- Linux (GCC + Clang) ----------------------------------------------------
