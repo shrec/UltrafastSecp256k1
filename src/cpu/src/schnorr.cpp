@@ -159,31 +159,33 @@ static inline Scalar schnorr_challenge_scalar(const uint8_t* r32,
 }
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32)
+
+static constexpr std::size_t kLiftXCacheSlots = 1024;
+
+// Single file-scope thread_local cache shared by both lookup and store.
+// Bug fix: previously each function had its own function-scope thread_local
+// array — C++ function-scope thread_locals are independent symbols, so
+// store wrote to array B while lookup read from array A (always empty).
+// The cache was completely dead. Moving to file scope fixes the sharing.
+static thread_local std::array<XOnlyLiftCacheEntry, kLiftXCacheSlots> g_lift_x_cache{};
+
 static inline std::size_t lift_x_cache_index(const uint8_t* pubkey_x32) {
-    static constexpr std::size_t kCacheSlots = 1024;
     std::size_t const h0 = pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31];
     std::size_t const h1 = pubkey_x32[1] ^ pubkey_x32[9] ^ pubkey_x32[17] ^ pubkey_x32[25];
-    return (h0 | (h1 << 8)) & (kCacheSlots - 1);
+    return (h0 | (h1 << 8)) & (kLiftXCacheSlots - 1);
 }
 
 static inline bool lift_x_cache_lookup(const uint8_t* pubkey_x32, Point& out) {
-    static constexpr std::size_t kCacheSlots = 1024;
-    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
-
-    auto& slot = cache[lift_x_cache_index(pubkey_x32)];
+    auto& slot = g_lift_x_cache[lift_x_cache_index(pubkey_x32)];
     if (!slot.valid || std::memcmp(slot.x.data(), pubkey_x32, 32) != 0) {
         return false;
     }
-
     out = slot.p;
     return !out.is_infinity();
 }
 
 static inline void lift_x_cache_store(const uint8_t* pubkey_x32, const Point& lifted) {
-    static constexpr std::size_t kCacheSlots = 1024;
-    thread_local std::array<XOnlyLiftCacheEntry, kCacheSlots> cache{};
-
-    auto& slot = cache[lift_x_cache_index(pubkey_x32)];
+    auto& slot = g_lift_x_cache[lift_x_cache_index(pubkey_x32)];
     std::memcpy(slot.x.data(), pubkey_x32, 32);
     slot.p = lifted;
     slot.valid = true;
