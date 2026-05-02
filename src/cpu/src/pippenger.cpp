@@ -111,14 +111,16 @@ Point pippenger_msm(const Scalar* scalars,
 
     // Pre-extract all scalar digits — thread_local pool avoids 208KB+ malloc
     // per call (n=4096, c=10, num_windows=26 → 212992 bytes).
+    // Layout: window-major digits[w * n + i] so the scatter inner loop (i=0..n-1)
+    // reads sequentially, exploiting cache lines during the hot scatter phase.
     static thread_local std::vector<std::uint16_t> tl_digits;
     std::size_t const digits_count = n * static_cast<std::size_t>(num_windows);
     if (tl_digits.size() < digits_count) tl_digits.resize(digits_count);
     std::uint16_t* digits = tl_digits.data();
-    for (std::size_t i = 0; i < n; ++i) {
-        for (unsigned w = 0; w < num_windows; ++w) {
-            digits[i * static_cast<std::size_t>(num_windows) + w] =
-                static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
+    for (unsigned w = 0; w < num_windows; ++w) {
+        std::uint16_t* row = digits + static_cast<std::size_t>(w) * n;
+        for (std::size_t i = 0; i < n; ++i) {
+            row[i] = static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
         }
     }
     bool all_affine = true;
@@ -148,6 +150,9 @@ Point pippenger_msm(const Scalar* scalars,
         // Prefetch distance: 8 points ahead keeps L2/L3 latency hidden for
         // the ~40-byte affine FE52 point load.
         constexpr std::size_t PREFETCH_DIST = 8;
+        // Window-major layout: row points to digits[w * n], so digits for this
+        // window are contiguous — sequential read in the inner i-loop.
+        const std::uint16_t* const wrow = digits + static_cast<std::size_t>(w) * n;
         if (all_affine) {
             for (std::size_t i = 0; i < n; ++i) {
                 if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
@@ -155,8 +160,7 @@ Point pippenger_msm(const Scalar* scalars,
                     __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
 #endif
                 }
-                std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
-                                                          static_cast<std::size_t>(w)];
+                std::uint32_t const digit = wrow[i];
                 if (SECP256K1_UNLIKELY(digit == 0) || SECP256K1_UNLIKELY(points[i].is_infinity())) continue;
                 if (!used[digit]) {
                     used[digit] = 1;
@@ -182,8 +186,7 @@ Point pippenger_msm(const Scalar* scalars,
                     __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
 #endif
                 }
-                std::uint32_t const digit = digits[i * static_cast<std::size_t>(num_windows) +
-                                                          static_cast<std::size_t>(w)];
+                std::uint32_t const digit = wrow[i];
                 if (SECP256K1_UNLIKELY(digit == 0)) continue;  // bucket[0] is unused (identity)
                 if (!used[digit]) {
                     used[digit] = 1;

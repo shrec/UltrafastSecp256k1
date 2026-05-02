@@ -390,9 +390,12 @@ static void glv_reduce_mod_n(const std::uint64_t* w, int wlen,
         }
     }
 
-    // Final: while r >= n, subtract n (at most 2 times for practical inputs)
-    while (glv_ge_n(r, kN)) {
+    // Final: r >= n -> subtract n (at most 2 times for practical inputs, unrolled)
+    if (glv_ge_n(r, kN)) {
         glv_sub4(r, kN, r);
+        if (glv_ge_n(r, kN)) {
+            glv_sub4(r, kN, r);
+        }
     }
 
     for (int i = 0; i < 4; ++i) out[i] = r[i];

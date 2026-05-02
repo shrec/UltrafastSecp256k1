@@ -119,9 +119,8 @@ Point CombGenContext::mul(const Scalar& k) const {
         const auto& entry = table_[idx];
         if (SECP256K1_UNLIKELY(entry.infinity)) continue;
 
-        // Mixed addition: Jacobian R + Affine table entry
-        Point const P = Point::from_jacobian_coords(entry.x, entry.y, FieldElement::one(), false);
-        R = R.add(P);
+        // Mixed addition: Jacobian R + Affine table entry (in-place, avoids temporary)
+        R.add_mixed_inplace(entry.x, entry.y);
     }
 
     return R;

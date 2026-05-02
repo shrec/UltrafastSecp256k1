@@ -1087,6 +1087,8 @@ static void derive_phi52_table(
 }
 
 // wNAF digit application: lookup table entry, negate if negative, mixed-add.
+// Called for all digit positions including d==0 (no-op). No hints needed —
+// CPU branch predictor handles the 33%/67% non-zero/zero split well.
 static inline void apply_wnaf_mixed52(
     JacobianPoint52& result, const AffinePoint52* table, int32_t d)
 {
