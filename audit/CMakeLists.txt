@@ -2894,6 +2894,16 @@ add_test(NAME exploit_opencl_runner_key_erase
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 set_tests_properties(exploit_opencl_runner_key_erase PROPERTIES
     TIMEOUT 30 LABELS "audit;exploit;opencl;key_erase;rule10")
+# -- FPI: ecdsa fast-path isolation regression (FPI-1..10) -------------------
+add_executable(test_exploit_ecdsa_fast_path_isolation_standalone
+    test_exploit_ecdsa_fast_path_isolation.cpp)
+audit_target_defaults(test_exploit_ecdsa_fast_path_isolation_standalone)
+target_compile_definitions(test_exploit_ecdsa_fast_path_isolation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_fast_path_isolation
+    COMMAND test_exploit_ecdsa_fast_path_isolation_standalone
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+set_tests_properties(exploit_ecdsa_fast_path_isolation PROPERTIES
+    TIMEOUT 30 LABELS "audit;exploit;ct;fast_path;regression")
 
 # -- Source integrity scanner: known mutation artifact patterns -------------
 add_executable(test_mutation_artifact_scan_standalone test_mutation_artifact_scan.cpp)
@@ -3492,6 +3502,8 @@ add_executable(unified_audit_runner
     test_exploit_shim_pubkey_ct.cpp
     # 2026-05-02 Red Team Audit Round 4 (Q-01..Q-03) — OpenCL audit runner key erase
     test_exploit_opencl_runner_key_erase.cpp
+    # 2026-05-02 Fast-path isolation regression (FPI-1..10)
+    test_exploit_ecdsa_fast_path_isolation.cpp
 )
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

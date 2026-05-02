@@ -459,9 +459,19 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
     return Scalar::zero();
 }
 
-// -- ECDSA Sign ---------------------------------------------------------------
-// Pure sign: no sign-then-verify countermeasure.
-// Use ecdsa_sign_verified() if fault attack resistance is needed.
+// -- ECDSA Sign (FAST PATH — NOT FOR PRODUCTION SIGNING WITH REAL PRIVATE KEYS) --------
+// This function uses fast::Scalar::operator* for s = k^{-1}*(z+r*d), which has
+// data-dependent branches in the modular reduction (ge() in scalar.cpp).
+//
+// INTENTIONAL DESIGN: secp256k1::ecdsa_sign() is the benchmark / CT-equivalence-test
+// fast path only. Production signing MUST go through secp256k1::ct::ecdsa_sign().
+//
+// All public signing APIs (C ABI ufsecp_*, WASM, shim, Android JNI, Rust FFI) MUST
+// route through ct::ecdsa_sign(). A regression test (test_exploit_ecdsa_fast_path_isolation)
+// enforces this: it scans public interface source files and fails if ecdsa_sign() appears
+// without the ct:: namespace prefix.
+//
+// Pure sign: no sign-then-verify countermeasure. Use ecdsa_sign_verified() for fault resistance.
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
