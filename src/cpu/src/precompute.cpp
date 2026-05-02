@@ -3660,8 +3660,13 @@ Point scalar_mul_generator(const Scalar& scalar) {
 #if SECP256K1_DEBUG_GLV
         std::cout << "[GLV] GLV disabled, using standard path." << '\n';
 #endif
-        auto digits = compute_window_digits(scalar, ctx.window_bits, window_count);
-        accumulate(digits, ctx.base_tables);
+        // #5 fix: replace per-call heap vector with thread_local reuse.
+        // resize(window_count) is a no-op after first call (window_count is
+        // constant per KPlan context), so no heap allocation on hot path.
+        static thread_local std::vector<int32_t> tl_digits;
+        tl_digits.resize(window_count);
+        fill_window_digits_into(scalar, ctx.window_bits, window_count, tl_digits.data());
+        accumulate(tl_digits, ctx.base_tables);
     }
 
     // Phase 3: Convert Jacobian back to Point
