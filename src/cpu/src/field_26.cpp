@@ -15,6 +15,7 @@
 // ============================================================================
 
 #include "secp256k1/field_26.hpp"
+#include "secp256k1/config.hpp"
 #include <cstring>
 
 namespace secp256k1::fast {
@@ -94,7 +95,7 @@ FieldElement FieldElement26::to_fe() const noexcept {
 // Normalization
 // ===========================================================================
 
-void fe26_normalize_weak(std::uint32_t* r) noexcept {
+SECP256K1_INLINE void fe26_normalize_weak(std::uint32_t* r) noexcept {
     // Single-pass carry propagation
     std::uint32_t t0 = r[0], t1 = r[1], t2 = r[2], t3 = r[3], t4 = r[4];
     std::uint32_t t5 = r[5], t6 = r[6], t7 = r[7], t8 = r[8], t9 = r[9];
@@ -116,7 +117,7 @@ void fe26_normalize_weak(std::uint32_t* r) noexcept {
     r[5] = t5; r[6] = t6; r[7] = t7; r[8] = t8; r[9] = t9;
 }
 
-void fe26_normalize(std::uint32_t* r) noexcept {
+SECP256K1_INLINE void fe26_normalize(std::uint32_t* r) noexcept {
     std::uint32_t t0 = r[0], t1 = r[1], t2 = r[2], t3 = r[3], t4 = r[4];
     std::uint32_t t5 = r[5], t6 = r[6], t7 = r[7], t8 = r[8], t9 = r[9];
 
@@ -299,8 +300,9 @@ void FieldElement26::negate_assign(unsigned magnitude) noexcept {
 //   c: max ~10 products x 2^52 + u_k*R0 (2^40) ~= 2^55.3, fits uint64_t
 //   u_k: extracted 26-bit value, so u_k*R0 <= 2^40, u_k*R1 <= 2^36
 
-void fe26_mul_inner(std::uint32_t* r, const std::uint32_t* a,
-                    const std::uint32_t* b) noexcept {
+SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* __restrict__ r,
+                                      const std::uint32_t* __restrict__ a,
+                                      const std::uint32_t* __restrict__ b) noexcept {
     std::uint64_t c = 0, d = 0;
     std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
     std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;
@@ -476,7 +478,8 @@ void fe26_mul_inner(std::uint32_t* r, const std::uint32_t* a,
 // Same two-accumulator algorithm as mul, but using a[i]*a[j]=a[j]*a[i]
 // symmetry: 2*a[i]*a[j] for i!=j, a[i]^2 for i=j.
 
-void fe26_sqr_inner(std::uint32_t* r, const std::uint32_t* a) noexcept {
+SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* __restrict__ r,
+                                      const std::uint32_t* __restrict__ a) noexcept {
     std::uint64_t c = 0, d = 0;
     std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
     std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;
