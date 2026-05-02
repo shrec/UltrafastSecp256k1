@@ -1498,6 +1498,14 @@ public:
 
         const size_t wire_stride = (size_t)max_payload + 19u; /* BIP324_OVERHEAD = 19 */
 
+        // NF-02: Rule 10 — helper that zeros d_keys before release on ALL exit paths
+        auto zero_release_keys = [&](cl_mem buf) {
+            cl_uchar z = 0;
+            clEnqueueFillBuffer(queue, buf, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
+            clFinish(queue);
+            clReleaseMemObject(buf);
+        };
+
         cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                         32 * count, const_cast<uint8_t*>(keys32), &clerr);
         if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "bip324 key buf");
@@ -1505,7 +1513,7 @@ public:
         cl_mem d_nonces = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                           12 * count, const_cast<uint8_t*>(nonces12), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_keys);
+            zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324 nonce buf");
         }
 
@@ -1513,7 +1521,7 @@ public:
                                       (size_t)max_payload * count,
                                       const_cast<uint8_t*>(plaintexts), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324 plaintext buf");
         }
 
@@ -1521,7 +1529,7 @@ public:
                                          sizeof(uint32_t) * count,
                                          const_cast<uint32_t*>(sizes), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324 sizes buf");
         }
 
@@ -1529,7 +1537,7 @@ public:
                                         wire_stride * count, nullptr, &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_sizes); clReleaseMemObject(d_pt);
-            clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324 wire_out buf");
         }
 
@@ -1548,7 +1556,7 @@ public:
                                         &global, nullptr, 0, nullptr, nullptr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_wire); clReleaseMemObject(d_sizes);
-            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Launch, "bip324_encrypt kernel launch failed");
         }
         clFinish(queue);
@@ -1556,12 +1564,9 @@ public:
         clEnqueueReadBuffer(queue, d_wire, CL_TRUE, 0,
                              wire_stride * count, wire_out, 0, nullptr, nullptr);
 
-        // V-06: Rule 10 — zero AES session keys in GPU memory before release
-        { cl_uchar z = 0;
-          clEnqueueFillBuffer(queue, d_keys, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
-          clFinish(queue); }
+        // Rule 10 — zero AES session keys before release (success path)
         clReleaseMemObject(d_wire); clReleaseMemObject(d_sizes);
-        clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+        clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
         clear_error();
         return GpuError::Ok;
     }
@@ -1586,6 +1591,14 @@ public:
 
         const size_t wire_stride = (size_t)max_payload + 19u;
 
+        // NF-02: Rule 10 — helper that zeros d_keys before release on ALL exit paths
+        auto zero_release_keys = [&](cl_mem buf) {
+            cl_uchar z = 0;
+            clEnqueueFillBuffer(queue, buf, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
+            clFinish(queue);
+            clReleaseMemObject(buf);
+        };
+
         cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                         32 * count, const_cast<uint8_t*>(keys32), &clerr);
         if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "bip324d key buf");
@@ -1593,7 +1606,7 @@ public:
         cl_mem d_nonces = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                           12 * count, const_cast<uint8_t*>(nonces12), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_keys);
+            zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324d nonce buf");
         }
 
@@ -1601,7 +1614,7 @@ public:
                                            wire_stride * count,
                                            const_cast<uint8_t*>(wire_in), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324d wire_in buf");
         }
 
@@ -1609,7 +1622,7 @@ public:
                                          sizeof(uint32_t) * count,
                                          const_cast<uint32_t*>(sizes), &clerr);
         if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324d sizes buf");
         }
 
@@ -1617,7 +1630,7 @@ public:
                                       (size_t)max_payload * count, nullptr, &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-            clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324d plaintext buf");
         }
 
@@ -1626,7 +1639,7 @@ public:
                                       sizeof(cl_uint) * count, nullptr, &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_pt); clReleaseMemObject(d_sizes);
-            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Memory, "bip324d ok buf");
         }
 
@@ -1647,7 +1660,7 @@ public:
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_ok); clReleaseMemObject(d_pt);
             clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-            clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
             return set_error(GpuError::Launch, "bip324_decrypt kernel launch failed");
         }
         clFinish(queue);
@@ -1661,13 +1674,10 @@ public:
         for (size_t i = 0; i < count; ++i)
             out_valid[i] = h_ok[i] ? 1 : 0;
 
-        // V-06: Rule 10 — zero AES session keys before release
-        { cl_uchar z = 0;
-          clEnqueueFillBuffer(queue, d_keys, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
-          clFinish(queue); }
+        // Rule 10 — zero AES session keys before release (success path)
         clReleaseMemObject(d_ok); clReleaseMemObject(d_pt);
         clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-        clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
+        clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
         clear_error();
         return GpuError::Ok;
     }

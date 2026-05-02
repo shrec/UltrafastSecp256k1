@@ -404,44 +404,55 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!scalars32 || !out_pubkeys33) return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Allocate device memory */
-        Scalar* d_scalars = nullptr;
+        Scalar*        d_scalars = nullptr;
         JacobianPoint* d_results = nullptr;
-        CUDA_TRY(cudaMalloc(&d_scalars, count * sizeof(Scalar)));
-        CUDA_TRY(cudaMalloc(&d_results, count * sizeof(JacobianPoint)));
+        uint8_t*       d_out     = nullptr;
+        GpuError       ret       = GpuError::Ok;
 
-        /* Convert big-endian bytes → Scalar on host, then upload */
+        /* Host copy — needed for secure_erase on all exit paths (NF-01 fix) */
         std::vector<Scalar> h_scalars(count);
-        for (size_t i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
+
+        if (cudaMalloc(&d_scalars, count * sizeof(Scalar)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "generator_mul d_scalars"); goto gmb_cleanup; }
+        if (cudaMalloc(&d_results, count * sizeof(JacobianPoint)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "generator_mul d_results"); goto gmb_cleanup; }
+        if (cudaMemcpy(d_scalars, h_scalars.data(),
+                       count * sizeof(Scalar), cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "generator_mul upload"); goto gmb_cleanup; }
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+            generator_mul_windowed_batch_kernel<<<blocks, threads>>>(
+                d_scalars, d_results, static_cast<int>(count));
+            if (cudaGetLastError() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "generator_mul kernel"); goto gmb_cleanup; }
+            if (cudaMalloc(&d_out, count * 33) != cudaSuccess) {
+                ret = set_error(GpuError::Memory, "generator_mul d_out"); goto gmb_cleanup; }
+            batch_jac_to_compressed_kernel<<<blocks, threads>>>(
+                d_results, d_out, static_cast<int>(count));
+            if (cudaGetLastError() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "jac_to_compressed"); goto gmb_cleanup; }
+            if (cudaDeviceSynchronize() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "generator_mul sync"); goto gmb_cleanup; }
+            if (cudaMemcpy(out_pubkeys33, d_out, count * 33,
+                           cudaMemcpyDeviceToHost) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "generator_mul download"); goto gmb_cleanup; }
+            clear_error();
         }
-        CUDA_TRY(cudaMemcpy(d_scalars, h_scalars.data(),
-                             count * sizeof(Scalar), cudaMemcpyHostToDevice));
 
-        /* Launch kernel */
-        int threads = 128;
-        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
-        generator_mul_windowed_batch_kernel<<<blocks, threads>>>(
-            d_scalars, d_results, static_cast<int>(count));
-        CUDA_TRY(cudaGetLastError());
-
-        /* Convert Jacobian → compressed on GPU (device-side field_inv) */
-        uint8_t* d_out = nullptr;
-        CUDA_TRY(cudaMalloc(&d_out, count * 33));
-        batch_jac_to_compressed_kernel<<<blocks, threads>>>(
-            d_results, d_out, static_cast<int>(count));
-        CUDA_TRY(cudaGetLastError());
-        CUDA_TRY(cudaDeviceSynchronize());
-
-        /* Download compressed pubkeys */
-        CUDA_TRY(cudaMemcpy(out_pubkeys33, d_out,
-                             count * 33, cudaMemcpyDeviceToHost));
-
-        cudaFree(d_out);
-        cudaFree(d_results);
-        cudaFree(d_scalars);
-        clear_error();
-        return GpuError::Ok;
+gmb_cleanup:
+        // NF-01: Rule 10 — erase private scalars from GPU VRAM on ALL exit paths
+        if (d_scalars) {
+            cudaMemset(d_scalars, 0, count * sizeof(Scalar));
+            cudaFree(d_scalars);
+        }
+        if (d_results) cudaFree(d_results);
+        if (d_out)     cudaFree(d_out);
+        secp256k1::detail::secure_erase(h_scalars.data(),
+                                        h_scalars.size() * sizeof(Scalar));
+        return ret;
     }
 
     GpuError ecdsa_verify_batch(
@@ -1072,41 +1083,52 @@ public:
             return set_error(GpuError::NullArg, "NULL buffer");
 
         const size_t wire_stride = max_payload + 19;
+        uint8_t*  d_keys   = nullptr;
+        uint8_t*  d_nonces = nullptr;
+        uint8_t*  d_pt     = nullptr;
+        uint32_t* d_sizes  = nullptr;
+        uint8_t*  d_wire   = nullptr;
+        GpuError  ret      = GpuError::Ok;
 
-        uint8_t*    d_keys = nullptr;
-        uint8_t*    d_nonces = nullptr;
-        uint8_t*    d_pt = nullptr;
-        uint32_t*   d_sizes = nullptr;
-        uint8_t*    d_wire = nullptr;
+        if (cudaMalloc(&d_keys,   count * 32)               != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324e key");   goto enc_cleanup; }
+        if (cudaMalloc(&d_nonces, count * 12)               != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324e nonce"); goto enc_cleanup; }
+        if (cudaMalloc(&d_pt,     count * max_payload)      != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324e pt");    goto enc_cleanup; }
+        if (cudaMalloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324e sizes"); goto enc_cleanup; }
+        if (cudaMalloc(&d_wire,   count * wire_stride)      != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324e wire");  goto enc_cleanup; }
 
-        CUDA_TRY(cudaMalloc(&d_keys,   count * 32));
-        CUDA_TRY(cudaMalloc(&d_nonces, count * 12));
-        CUDA_TRY(cudaMalloc(&d_pt,     count * max_payload));
-        CUDA_TRY(cudaMalloc(&d_sizes,  count * sizeof(uint32_t)));
-        CUDA_TRY(cudaMalloc(&d_wire,   count * wire_stride));
+        if (cudaMemcpy(d_keys,   keys32,     count * 32,               cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_nonces, nonces12,   count * 12,               cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_pt,     plaintexts, count * max_payload,      cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_sizes,  sizes,      count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bip324e upload"); goto enc_cleanup; }
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+            secp256k1::cuda::bip324::bip324_aead_encrypt_kernel<<<blocks, threads>>>(
+                d_keys, d_nonces, d_pt, d_sizes, d_wire,
+                max_payload, static_cast<int>(count));
+            if (cudaGetLastError()      != cudaSuccess ||
+                cudaDeviceSynchronize() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "bip324e kernel"); goto enc_cleanup; }
+            if (cudaMemcpy(wire_out, d_wire, count * wire_stride,
+                           cudaMemcpyDeviceToHost) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "bip324e download"); goto enc_cleanup; }
+            clear_error();
+        }
 
-        CUDA_TRY(cudaMemcpy(d_keys,   keys32,     count * 32,               cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_nonces, nonces12,   count * 12,               cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_pt,     plaintexts, count * max_payload,      cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_sizes,  sizes,      count * sizeof(uint32_t), cudaMemcpyHostToDevice));
-
-        int threads = 128;
-        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
-        secp256k1::cuda::bip324::bip324_aead_encrypt_kernel<<<blocks, threads>>>(
-            d_keys, d_nonces, d_pt, d_sizes, d_wire,
-            max_payload, static_cast<int>(count));
-        CUDA_TRY(cudaGetLastError());
-        CUDA_TRY(cudaDeviceSynchronize());
-
-        CUDA_TRY(cudaMemcpy(wire_out, d_wire, count * wire_stride, cudaMemcpyDeviceToHost));
-
-        // V-09: zero AES session keys before free (Rule 10 — GPU key material erasure)
-        cudaMemset(d_keys, 0, count * 32);
-        cudaDeviceSynchronize();
-        cudaFree(d_wire); cudaFree(d_sizes); cudaFree(d_pt);
-        cudaFree(d_nonces); cudaFree(d_keys);
-        clear_error();
-        return GpuError::Ok;
+enc_cleanup:
+        // NF-01b: Rule 10 — zero AES session keys on ALL exit paths (success + error)
+        if (d_keys) { cudaMemset(d_keys, 0, count * 32); cudaFree(d_keys); }
+        if (d_nonces) cudaFree(d_nonces);
+        if (d_pt)     cudaFree(d_pt);
+        if (d_sizes)  cudaFree(d_sizes);
+        if (d_wire)   cudaFree(d_wire);
+        return ret;
     }
 
     GpuError bip324_aead_decrypt_batch(
@@ -1121,50 +1143,64 @@ public:
             return set_error(GpuError::NullArg, "NULL buffer");
 
         const size_t wire_stride = max_payload + 19;
+        uint8_t*  d_keys   = nullptr;
+        uint8_t*  d_nonces = nullptr;
+        uint8_t*  d_wire   = nullptr;
+        uint32_t* d_sizes  = nullptr;
+        uint8_t*  d_pt     = nullptr;
+        uint32_t* d_ok     = nullptr;
+        GpuError  ret      = GpuError::Ok;
 
-        uint8_t*    d_keys = nullptr;
-        uint8_t*    d_nonces = nullptr;
-        uint8_t*    d_wire = nullptr;
-        uint32_t*   d_sizes = nullptr;
-        uint8_t*    d_pt = nullptr;
-        uint32_t*   d_ok = nullptr;
+        if (cudaMalloc(&d_keys,   count * 32)               != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d key");   goto dec_cleanup; }
+        if (cudaMalloc(&d_nonces, count * 12)               != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d nonce"); goto dec_cleanup; }
+        if (cudaMalloc(&d_wire,   count * wire_stride)      != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d wire");  goto dec_cleanup; }
+        if (cudaMalloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d sizes"); goto dec_cleanup; }
+        if (cudaMalloc(&d_pt,     count * max_payload)      != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d pt");    goto dec_cleanup; }
+        if (cudaMalloc(&d_ok,     count * sizeof(uint32_t)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bip324d ok");    goto dec_cleanup; }
 
-        CUDA_TRY(cudaMalloc(&d_keys,   count * 32));
-        CUDA_TRY(cudaMalloc(&d_nonces, count * 12));
-        CUDA_TRY(cudaMalloc(&d_wire,   count * wire_stride));
-        CUDA_TRY(cudaMalloc(&d_sizes,  count * sizeof(uint32_t)));
-        CUDA_TRY(cudaMalloc(&d_pt,     count * max_payload));
-        CUDA_TRY(cudaMalloc(&d_ok,     count * sizeof(uint32_t)));
-
-        CUDA_TRY(cudaMemcpy(d_keys,   keys32,   count * 32,               cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_nonces, nonces12, count * 12,               cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_wire,   wire_in,  count * wire_stride,      cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_sizes,  sizes,    count * sizeof(uint32_t), cudaMemcpyHostToDevice));
-
-        int threads = 128;
-        int blocks  = (static_cast<int>(count) + threads - 1) / threads;
-        secp256k1::cuda::bip324::bip324_aead_decrypt_kernel<<<blocks, threads>>>(
-            d_keys, d_nonces, d_wire, d_sizes, d_pt, d_ok,
-            max_payload, static_cast<int>(count));
-        CUDA_TRY(cudaGetLastError());
-        CUDA_TRY(cudaDeviceSynchronize());
-
-        CUDA_TRY(cudaMemcpy(plaintext_out, d_pt, count * max_payload, cudaMemcpyDeviceToHost));
-
+        if (cudaMemcpy(d_keys,   keys32,   count * 32,               cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_nonces, nonces12, count * 12,               cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_wire,   wire_in,  count * wire_stride,      cudaMemcpyHostToDevice) != cudaSuccess ||
+            cudaMemcpy(d_sizes,  sizes,    count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bip324d upload"); goto dec_cleanup; }
         {
-            std::vector<uint32_t> h_ok(count);
-            CUDA_TRY(cudaMemcpy(h_ok.data(), d_ok, count * sizeof(uint32_t), cudaMemcpyDeviceToHost));
-            for (size_t i = 0; i < count; ++i)
-                out_valid[i] = h_ok[i] ? 1 : 0;
+            int threads = 128;
+            int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+            secp256k1::cuda::bip324::bip324_aead_decrypt_kernel<<<blocks, threads>>>(
+                d_keys, d_nonces, d_wire, d_sizes, d_pt, d_ok,
+                max_payload, static_cast<int>(count));
+            if (cudaGetLastError()      != cudaSuccess ||
+                cudaDeviceSynchronize() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "bip324d kernel"); goto dec_cleanup; }
+            if (cudaMemcpy(plaintext_out, d_pt, count * max_payload,
+                           cudaMemcpyDeviceToHost) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "bip324d pt dl"); goto dec_cleanup; }
+            {
+                std::vector<uint32_t> h_ok(count);
+                if (cudaMemcpy(h_ok.data(), d_ok, count * sizeof(uint32_t),
+                               cudaMemcpyDeviceToHost) != cudaSuccess) {
+                    ret = set_error(GpuError::Launch, "bip324d ok dl"); goto dec_cleanup; }
+                for (size_t i = 0; i < count; ++i)
+                    out_valid[i] = h_ok[i] ? 1 : 0;
+            }
+            clear_error();
         }
 
-        // V-09: zero AES session keys before free (Rule 10 — GPU key material erasure)
-        cudaMemset(d_keys, 0, count * 32);
-        cudaDeviceSynchronize();
-        cudaFree(d_ok); cudaFree(d_pt); cudaFree(d_sizes);
-        cudaFree(d_wire); cudaFree(d_nonces); cudaFree(d_keys);
-        clear_error();
-        return GpuError::Ok;
+dec_cleanup:
+        // NF-01b: Rule 10 — zero AES session keys on ALL exit paths (success + error)
+        if (d_keys) { cudaMemset(d_keys, 0, count * 32); cudaFree(d_keys); }
+        if (d_ok)     cudaFree(d_ok);
+        if (d_pt)     cudaFree(d_pt);
+        if (d_sizes)  cudaFree(d_sizes);
+        if (d_wire)   cudaFree(d_wire);
+        if (d_nonces) cudaFree(d_nonces);
+        return ret;
     }
 
     GpuError snark_witness_batch(

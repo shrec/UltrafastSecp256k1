@@ -7,6 +7,37 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-02 — Security Audit Round 7: NF-01/NF-01b/NF-02/NF-03 Fixed
+
+### GPU Key Erasure — Error Paths (Rule 10)
+
+- **NF-01 `gpu_backend_cuda.cu` `generator_mul_batch`**: Private scalars (`d_scalars`) were
+  never zeroed before `cudaFree` on the success path, and leaked unfreed on error paths
+  (CUDA_TRY early returns). Rewrote function using goto-cleanup pattern that zeros and frees
+  `d_scalars` on ALL exit paths. Added `secure_erase(h_scalars)` for host copy.
+
+- **NF-01b `gpu_backend_cuda.cu` `bip324_aead_encrypt/decrypt_batch`**: V-09 fix (Round 5)
+  only zeroed `d_keys` on the success path. Any CUDA_TRY failure after key upload at
+  line 1088/1139 returned early without zeroing or freeing `d_keys` (memory leak + key leak).
+  Rewrote both functions using goto-cleanup pattern: `d_keys` is zeroed and freed on ALL
+  exit paths.
+
+- **NF-02 `gpu_backend_opencl.cpp` `bip324_aead_encrypt/decrypt_batch`**: V-06 fix (Round 5)
+  only zeroed `d_keys` on the success path. All error-path `clReleaseMemObject(d_keys)` calls
+  released key material without prior zeroing. Added `zero_release_keys` lambda that calls
+  `clEnqueueFillBuffer+clFinish` before `clReleaseMemObject`; used on ALL exit paths
+  (error and success).
+
+### Regression Test Reliability (NF-03)
+
+- **NF-03 `audit/test_exploit_ecdsa_fast_path_isolation.cpp`**: `read_file()` used bare
+  relative paths that only resolve when CWD = source root. When called from `unified_audit_runner`
+  (CWD = build dir), all 10 FPI sub-checks silently skipped, returning 0 (false pass).
+  Fixed `read_file()` to try `UFSECP_SOURCE_ROOT/rel_path` first (macro injected by CMake
+  into the unified runner), falling back to the literal path for standalone CTest.
+
+---
+
 ## 2026-05-02 — Security Audit Round 4: B-01/02/03 + C-06/07 + Q-01..03 + V-01/02/05 Fixed
 
 - **B-01**: MuSig2 opaque struct sizes match upstream libsecp256k1 ABI: pubnonce/aggnonce
