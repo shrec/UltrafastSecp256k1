@@ -2163,15 +2163,62 @@ JacobianPoint Context::scalar_mul_generator(const Scalar& k) {
 // Batch Operations
 // =============================================================================
 
-// Helper: compute work sizes for batch dispatch
-static void compute_work_sizes(std::size_t count, std::size_t max_wg, std::size_t& local, std::size_t& global) {
+// GPU-3: Per-kernel work-group size selection.
+// Queries CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE and
+// CL_KERNEL_WORK_GROUP_SIZE from the driver, then picks the largest power-of-2
+// multiple of the preferred size that fits within both the kernel's reported
+// max and a hardcoded ceiling (512) to avoid over-subscription on small counts.
+// Falls back to min(256, device_max_wg) if the query fails.
+static void compute_work_sizes(std::size_t count, std::size_t max_wg,
+                               std::size_t& local, std::size_t& global,
+                               cl_kernel kernel = nullptr, cl_device_id device = nullptr) {
+    if (kernel && device) {
+        size_t preferred_wg = 0;
+        size_t kernel_max_wg = 0;
+        cl_int r1 = clGetKernelWorkGroupInfo(kernel, device,
+            CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+            sizeof(preferred_wg), &preferred_wg, nullptr);
+        cl_int r2 = clGetKernelWorkGroupInfo(kernel, device,
+            CL_KERNEL_WORK_GROUP_SIZE,
+            sizeof(kernel_max_wg), &kernel_max_wg, nullptr);
+        if (r1 == CL_SUCCESS && r2 == CL_SUCCESS && preferred_wg > 0) {
+            // Grow by doublings while the next step fits within limits
+            size_t cap = std::min({kernel_max_wg, max_wg, static_cast<size_t>(512)});
+            size_t wg = preferred_wg;
+            while (wg * 2 <= cap) wg *= 2;
+            local = std::max(wg, static_cast<size_t>(64));
+            global = ((count + local - 1) / local) * local;
+            return;
+        }
+    }
+    // Fallback: original behaviour
     local = std::min(static_cast<std::size_t>(256), max_wg);
     global = ((count + local - 1) / local) * local;
 }
 
 static void compute_scalar_mul_work_sizes(std::size_t count, std::size_t requested_local,
                                           std::size_t auto_local, std::size_t max_wg, std::size_t& local,
-                                          std::size_t& global) {
+                                          std::size_t& global,
+                                          cl_kernel kernel = nullptr, cl_device_id device = nullptr) {
+    // If caller has not overridden and we have a kernel handle, use the
+    // per-kernel preferred size instead of the compile-time constant.
+    if (requested_local == 0 && kernel && device) {
+        std::size_t preferred_wg = 0, kernel_max_wg = 0;
+        cl_int r1 = clGetKernelWorkGroupInfo(kernel, device,
+            CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+            sizeof(preferred_wg), &preferred_wg, nullptr);
+        cl_int r2 = clGetKernelWorkGroupInfo(kernel, device,
+            CL_KERNEL_WORK_GROUP_SIZE,
+            sizeof(kernel_max_wg), &kernel_max_wg, nullptr);
+        if (r1 == CL_SUCCESS && r2 == CL_SUCCESS && preferred_wg > 0) {
+            size_t cap = std::min({kernel_max_wg, max_wg, static_cast<size_t>(512)});
+            size_t wg = preferred_wg;
+            while (wg * 2 <= cap) wg *= 2;
+            local = std::max(wg, static_cast<size_t>(64));
+            global = ((count + local - 1) / local) * local;
+            return;
+        }
+    }
     const std::size_t tuned_auto_local = std::min(auto_local, max_wg);
     local = requested_local == 0 ? tuned_auto_local : std::min(requested_local, max_wg);
     global = ((count + local - 1) / local) * local;
@@ -2193,7 +2240,8 @@ void Context::batch_field_add(const FieldElement* a, const FieldElement* b,
     clSetKernelArg(impl_->kernel_field_add, 2, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_field_add, 3, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_field_add, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_add, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2217,7 +2265,8 @@ void Context::batch_field_sub(const FieldElement* a, const FieldElement* b,
     clSetKernelArg(impl_->kernel_field_sub, 2, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_field_sub, 3, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_field_sub, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_sub, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2241,7 +2290,8 @@ void Context::batch_field_mul(const FieldElement* a, const FieldElement* b,
     clSetKernelArg(impl_->kernel_field_mul, 2, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_field_mul, 3, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_field_mul, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_mul, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2261,7 +2311,8 @@ void Context::batch_field_sqr(const FieldElement* inputs, FieldElement* results,
     clSetKernelArg(impl_->kernel_field_sqr, 1, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_field_sqr, 2, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_field_sqr, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_sqr, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2281,7 +2332,8 @@ void Context::batch_point_double(const JacobianPoint* inputs, JacobianPoint* res
     clSetKernelArg(impl_->kernel_point_double, 1, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_point_double, 2, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_point_double, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_point_double, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2305,7 +2357,8 @@ void Context::batch_point_add(const JacobianPoint* p, const JacobianPoint* q,
     clSetKernelArg(impl_->kernel_point_add, 2, sizeof(cl_mem), &buf_r);
     clSetKernelArg(impl_->kernel_point_add, 3, sizeof(cl_uint), &cnt);
     std::size_t local_size, global_size;
-    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size);
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_point_add, impl_->device);
     clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_point_add, 1, nullptr,
                            &global_size, &local_size, 0, nullptr, nullptr);
     clEnqueueReadBuffer(impl_->queue, buf_r, CL_TRUE, 0,
@@ -2356,7 +2409,8 @@ void Context::batch_scalar_mul_generator(const Scalar* scalars, JacobianPoint* r
     compute_scalar_mul_work_sizes(count, impl_->config.local_work_size,
                                   128,
                                   impl_->device_info.max_work_group_size,
-                                  local_size, global_size);
+                                  local_size, global_size,
+                                  impl_->kernel_scalar_mul_generator, impl_->device);
 
     if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_generator, 1, nullptr,
                                &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
@@ -2416,7 +2470,8 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
     compute_scalar_mul_work_sizes(count, impl_->config.local_work_size,
                                   128,
                                   impl_->device_info.max_work_group_size,
-                                  local_size, global_size);
+                                  local_size, global_size,
+                                  impl_->kernel_scalar_mul, impl_->device);
 
     if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul, 1, nullptr,
                                &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
@@ -2463,8 +2518,9 @@ void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs,
     clSetKernelArg(impl_->kernel_field_inv, 1, sizeof(cl_mem), &impl_->cache_fi_output);
     clSetKernelArg(impl_->kernel_field_inv, 2, sizeof(cl_uint), &cnt);
 
-    std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
-    std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
+    std::size_t local_size, global_size;
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_field_inv, impl_->device);
 
     if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_field_inv, 1, nullptr,
                                &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
@@ -2504,8 +2560,9 @@ void Context::batch_jacobian_to_affine(const JacobianPoint* jacobians, AffinePoi
     clSetKernelArg(impl_->kernel_batch_jacobian_to_affine, 1, sizeof(cl_mem), &impl_->cache_j2a_output);
     clSetKernelArg(impl_->kernel_batch_jacobian_to_affine, 2, sizeof(cl_uint), &cnt);
 
-    std::size_t local_size = std::min(static_cast<std::size_t>(256), impl_->device_info.max_work_group_size);
-    std::size_t global_size = ((count + local_size - 1) / local_size) * local_size;
+    std::size_t local_size, global_size;
+    compute_work_sizes(count, impl_->device_info.max_work_group_size, local_size, global_size,
+                       impl_->kernel_batch_jacobian_to_affine, impl_->device);
 
     if (clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_batch_jacobian_to_affine, 1, nullptr,
                                &global_size, &local_size, 0, nullptr, nullptr) != CL_SUCCESS)
