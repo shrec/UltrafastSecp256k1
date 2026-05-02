@@ -1090,12 +1090,14 @@ static void derive_phi52_table(
 static inline void apply_wnaf_mixed52(
     JacobianPoint52& result, const AffinePoint52* table, int32_t d)
 {
-    if (d > 0) {
-        jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
-    } else if (d < 0) {
-        AffinePoint52 pt = table[static_cast<std::size_t>((-d - 1) >> 1)];
-        pt.y.negate_assign(1);
-        jac52_add_mixed_inplace(result, pt);
+    if (SECP256K1_UNLIKELY(d != 0)) {
+        if (d > 0) {
+            jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
+        } else {
+            AffinePoint52 pt = table[static_cast<std::size_t>((-d - 1) >> 1)];
+            pt.y.negate_assign(1);
+            jac52_add_mixed_inplace(result, pt);
+        }
     }
 }
 
@@ -3774,8 +3776,10 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
 // Initialized once on first use. NOT inside the function to allow sharing.
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
 namespace {
-    constexpr unsigned kDualMulWindowG = 15;
-    constexpr int kDualMulGTableSize = (1 << (kDualMulWindowG - 2)); // 8192
+    constexpr unsigned kDualMulWindowG    = 15;
+    constexpr int kDualMulGTableSize      = (1 << (kDualMulWindowG - 2)); // 8192
+    constexpr unsigned kDualMulWindowP    = 5;
+    constexpr int kDualMulPTableSize      = (1 << (kDualMulWindowP - 2)); // 8
 
     struct DualMulGenTables {
         AffinePointCompact tbl_G[kDualMulGTableSize];
@@ -3831,7 +3835,6 @@ namespace {
 #endif
 
 #if defined(SECP256K1_FAST_52BIT)
-SECP256K1_NOINLINE
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
     SECP_ASSERT_ON_CURVE(P);
 #if defined(SECP256K1_USE_4X64_POINT_OPS)
@@ -3855,11 +3858,11 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // -- GLV decompose b only -----------------------------------------
     GLVDecomposition const decomp_b = glv_decompose(b);
 
-    // -- Window widths: w=15 for G (precomputed), w=5 for P (per-call) ---
-    constexpr unsigned WINDOW_G = 15;    // -> 2^13 = 8192 entries per G/H table
-    constexpr unsigned WINDOW_P = 5;     // -> 2^3 = 8 entries per P/psiP table
+    // -- Window widths: w=15 for G (precomputed), w=6 for P (per-call) ---
+    constexpr unsigned WINDOW_G = 15;             // -> 2^13 = 8192 entries per G/H table
+    constexpr unsigned WINDOW_P = kDualMulWindowP; // -> 2^4 = 16 entries per P/psiP table
     constexpr int G_TABLE_SIZE = (1 << (WINDOW_G - 2));  // 8192
-    constexpr int P_TABLE_SIZE = (1 << (WINDOW_P - 2));  // 8
+    constexpr int P_TABLE_SIZE = kDualMulPTableSize;      // 16
 
     // -- Generator tables (file-scope singleton, shared with dual_scalar_mul_gen_prebuilt) --
     const DualMulGenTables* const gen_tables = get_dual_mul_gen_tables();
@@ -3943,6 +3946,17 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
                 int const abs_h = d_h > 0 ? d_h : -d_h;
                 SECP256K1_PREFETCH_READ(&gen_tables->tbl_H[static_cast<std::size_t>((abs_h - 1) >> 1)]);
             }
+            // Prefetch P/ψP tables for next iteration (mirrors dual_scalar_mul_gen_prebuilt).
+            int const d_p = wnaf_b1[static_cast<std::size_t>(np)];
+            if (SECP256K1_UNLIKELY(d_p != 0)) {
+                int const abs_p = d_p > 0 ? d_p : -d_p;
+                SECP256K1_PREFETCH_READ(&tbl_P[static_cast<std::size_t>((abs_p - 1) >> 1)]);
+            }
+            int const d_pp = wnaf_b2[static_cast<std::size_t>(np)];
+            if (SECP256K1_UNLIKELY(d_pp != 0)) {
+                int const abs_pp = d_pp > 0 ? d_pp : -d_pp;
+                SECP256K1_PREFETCH_READ(&tbl_phiP[static_cast<std::size_t>((abs_pp - 1) >> 1)]);
+            }
         }
 
         jac52_double_inplace(result52);
@@ -3999,8 +4013,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
 Point Point::dual_scalar_mul_gen_prebuilt(
     const Scalar& a, const Scalar& b,
-    const std::array<AffinePoint52, 8>& tbl_P,
-    const std::array<AffinePoint52, 8>& tbl_phi_base,
+    const std::array<AffinePoint52, kDualMulPTableSize>& tbl_P,
+    const std::array<AffinePoint52, kDualMulPTableSize>& tbl_phi_base,
     const FieldElement52& Z_P)
 {
     // -- 128-bit split of a ---------------------------------------------------
@@ -4018,7 +4032,7 @@ Point Point::dual_scalar_mul_gen_prebuilt(
 
     // Window widths (must match dual_scalar_mul_gen_point)
     constexpr unsigned WINDOW_G = kDualMulWindowG;
-    constexpr unsigned WINDOW_P = 5;
+    constexpr unsigned WINDOW_P = kDualMulWindowP;
 
     // Shared generator tables (file-scope singleton — same data as dual_scalar_mul_gen_point)
     const DualMulGenTables* const gen_tables = get_dual_mul_gen_tables();
@@ -4139,8 +4153,8 @@ Point Point::dual_scalar_mul_gen_prebuilt(
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
 bool Point::build_schnorr_verify_tables(
     const Point& P,
-    std::array<AffinePoint52, 8>& out_tbl_P,
-    std::array<AffinePoint52, 8>& out_tbl_phi_base,
+    std::array<AffinePoint52, kDualMulPTableSize>& out_tbl_P,
+    std::array<AffinePoint52, kDualMulPTableSize>& out_tbl_phi_base,
     FieldElement52& out_Z_shared)
 {
     if (P.is_infinity()) return false;

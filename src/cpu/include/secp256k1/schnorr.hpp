@@ -127,7 +127,7 @@ struct SchnorrXonlyPubkey {
 
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
     // Cached GLV tables built once by schnorr_xonly_pubkey_parse().
-    // tbl_P:       odd multiples [1P, 3P, ..., 15P] (pseudo-affine, shared Z)
+    // tbl_P:       odd multiples [1P, 3P, ..., 15P] (pseudo-affine, shared Z, w=5→8 entries)
     // tbl_phi_base: phi(P) multiples with canonical y (flip applied per-verify)
     // Z_shared:    implicit Z common to all table entries
     // Eliminates ~1,954 ns of build_glv52_table_zr + derive_phi52_table
