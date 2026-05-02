@@ -94,9 +94,6 @@ cache_w*.bin
 # ESP32 SDK config (machine-specific)
 examples/esp32_test/sdkconfig
 
-# Android Gradle cache
-android/example/.gradle/
-
 # Bindings build artifacts
 bindings/c_api/build/
 bindings/rust/target/
@@ -119,10 +116,6 @@ examples/java_example/*.class
 
 # Rust build artifacts (tools)
 tools/k256_helper/target/
-
-# Removed submodule (bitcoin-core/secp256k1 reference copy)
-cpu/secp256k1/
-
 
 # Local working documents (not for repo)
 INDUSTRIAL_ROADMAP_WORKING.md
@@ -163,9 +156,6 @@ tests/esp32_audit/*.txt
 tests/esp32_audit/sdkconfig.old
 examples/esp32_bench_hornet/build/
 examples/esp32_test/capture_bench.py
-
-# Android build artifacts
-android/build-*/
 
 # Git bundle artifacts (binary, never commit)
 *.bundle

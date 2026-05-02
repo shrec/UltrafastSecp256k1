@@ -192,14 +192,14 @@ libFuzzer harnesses cover the core arithmetic layers:
 
 | Target | File | Operations |
 |--------|------|------------|
-| Field  | `cpu/fuzz/fuzz_field.cpp` | add/sub round-trip, mul identity, square, inverse |
-| Scalar | `cpu/fuzz/fuzz_scalar.cpp` | add/sub, mul identity, distributive law |
-| Point  | `cpu/fuzz/fuzz_point.cpp` | on-curve check, negate, compress round-trip, dbl vs add |
+| Field  | `src/cpu/fuzz/fuzz_field.cpp` | add/sub round-trip, mul identity, square, inverse |
+| Scalar | `src/cpu/fuzz/fuzz_scalar.cpp` | add/sub, mul identity, distributive law |
+| Point  | `src/cpu/fuzz/fuzz_point.cpp` | on-curve check, negate, compress round-trip, dbl vs add |
 
 ```bash
 # Example: run field fuzzer
 clang++ -fsanitize=fuzzer,address -O2 -std=c++20 \
-  -I cpu/include cpu/fuzz/fuzz_field.cpp cpu/src/field.cpp cpu/src/field_asm.cpp \
+  -I src/cpu/include src/cpu/fuzz/fuzz_field.cpp src/cpu/src/field.cpp src/cpu/src/field_asm.cpp \
   -o fuzz_field
 ./fuzz_field -max_len=64 -runs=10000000
 ```

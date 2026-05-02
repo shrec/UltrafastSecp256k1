@@ -793,7 +793,7 @@ if(SECP256K1_BUILD_BENCH)
     # Requires libsecp256k1 source for side-by-side comparison
     # CI can override: -DLIBSECP_SRC_DIR=/path/to/secp256k1/src
     if(NOT DEFINED LIBSECP_SRC_DIR)
-        set(LIBSECP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../_research_repos/secp256k1/src")
+        set(LIBSECP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../_research_repos/secp256k1/src")
     endif()
     # Normalize to forward-slashes (Windows backslash \a, \b etc. = CMake escape chars)
     file(TO_CMAKE_PATH "${LIBSECP_SRC_DIR}" LIBSECP_SRC_DIR)

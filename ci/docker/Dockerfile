@@ -39,7 +39,7 @@ RUN apt-get update -qq && \
 
 COPY --from=builder /src/build/cpu/libfastsecp256k1.so* /usr/lib/
 COPY --from=builder /src/build/cpu/bench_unified /usr/bin/
-COPY --from=builder /src/cpu/include/secp256k1 /usr/include/secp256k1/
+COPY --from=builder /src/src/cpu/include/secp256k1 /usr/include/secp256k1/
 
 RUN ldconfig
 

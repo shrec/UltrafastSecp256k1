@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubling chain. All 12 sub-tests pass; no bugs found — confirms correctness of GLV
   decomposition, wNAF encoding, and endomorphism application paths.
 - **Metal `field_reduce_512` truncation fix (issue #226)** — `uint extra = uint(acc[8])` in
-  `metal/shaders/secp256k1_field.h` truncated a 33-bit accumulator to 32 bits, silently
+  `src/metal/shaders/secp256k1_field.h` truncated a 33-bit accumulator to 32 bits, silently
   producing incorrect field_sqr/field_mul results for ~0.05% of inputs. Root cause: secp256k1
   reduction constant K = 2^32+977 generates carries that exceed 32 bits. Fixed with
   `ulong extra` + `while(acc[8] != 0)` carry-drain loop. Regression PoC:
@@ -134,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   HAS-1..HAS-11: proves cross-hash-algorithm and cross-format confusion is rejected. Covers
   SHA-256 vs alt-hash confusion, raw-bytes vs digest confusion, Schnorr↔ECDSA format confusion
   (compact + DER), double-hash confusion, domain prefix isolation. Committed `c843979c`.
-- **ECDSA `ecdsa_verify` large-x fix** (`cpu/src/ecdsa.cpp`) — corrected `r_less_than_pmn`
+- **ECDSA `ecdsa_verify` large-x fix** (`src/cpu/src/ecdsa.cpp`) — corrected `r_less_than_pmn`
   comparison: wrong PMN constants (`0x402da1732fc9bebf` / `0x14551231950b75fc`) assumed p-n < 2^128;
   actual p-n = `0x14551231950b75fc4402da1722fc9baee` has limb[2]=1. Fixed in both FE52 and 4x64
   paths. Signatures where k·G.x ∈ [n, p-1] (r ≈ 2^128, probability ~2^−128 per signature) were
@@ -150,8 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and point-at-infinity rejection during verify.
 - **Ethereum differential KAT** (`audit/test_exploit_ethereum_differential.cpp`) — 10 tests, 15 sub-checks against go-ethereum, web3.py, and ethers.js reference vectors: address derivation (go-ethereum testKey KAT), privkey=1 canonical address, ecrecover with go-ethereum test message hash, EIP-191 hash vs web3.py, sign+ecrecover roundtrip, EIP-155 v encoding, eth_personal_sign roundtrip, tamper detection, keccak256("abc") KAT, anti-collision. Closes assurance gap **#4**.
 - **MuSig2/FROST/adaptor parser robustness fuzz** (`audit/test_fuzz_musig2_frost.cpp`) — 15 tests, 16 sub-checks: musig2 key_agg/nonce_agg/partial_verify/partial_sig_agg with random inputs (5000/3000/2000 rounds each), FROST keygen_finalize/sign/verify_partial/aggregate random inputs, schnorr+ecdsa adaptor random inputs, boundary test (n_signers=0 → must error). Closes assurance gap **#7**.
-- **ClusterFuzzLite expanded to 5 targets**: added `cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign→verify invariant, wrong-msg false-positive check, parse_compact_strict robustness) and `cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 sign→verify, adversarial from_bytes verify, wrong-msg check).
-- **LibFuzzer harnesses** (`cpu/fuzz/`) — 6 deterministic fuzz harnesses:
+- **ClusterFuzzLite expanded to 5 targets**: added `src/cpu/fuzz/fuzz_ecdsa.cpp` (ECDSA sign→verify invariant, wrong-msg false-positive check, parse_compact_strict robustness) and `src/cpu/fuzz/fuzz_schnorr.cpp` (BIP-340 sign→verify, adversarial from_bytes verify, wrong-msg check).
+- **LibFuzzer harnesses** (`src/cpu/fuzz/`) — 6 deterministic fuzz harnesses:
   `fuzz_der_parse.cpp` (DER signature parse + round-trip),
   `fuzz_pubkey_parse.cpp` (pubkey parse, tweak_add, encoding),
   `fuzz_schnorr_verify.cpp` (BIP-340 sign→verify + forged-sig rejection),
@@ -240,7 +240,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GpuBackend → C ABI stack: `zk_knowledge_verify_batch`, `zk_dleq_verify_batch`,
   `bulletproof_verify_batch`, `bip324_aead_encrypt_batch`, `bip324_aead_decrypt_batch`.
   CUDA fully implemented; OpenCL/Metal stubs with `TODO(parity)`. Shared BIP-324 device
-  code extracted to `cuda/include/bip324.cuh` (ChaCha20-Poly1305 AEAD).
+  code extracted to `src/cuda/include/bip324.cuh` (ChaCha20-Poly1305 AEAD).
   GPU C ABI total: 8 → 13 backend-neutral batch operations.
 - **GPU CT ZK proving** (`ct_zk.cuh`) -- constant-time knowledge proof and DLEQ proof
   on CUDA, using the full CT scalar multiplication layer. Deterministic nonce derivation
@@ -660,8 +660,8 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
   the store buffer synchronously, capturing its data-dependent retirement latency and
   producing false-positive timing leaks. Matches x86 `rdtscp` and ARM64 `cntvct_el0`
   behavior (neither drains the store buffer).
-- Files changed: `cpu/include/secp256k1/ct/ops.hpp`, `cpu/src/ct_field.cpp`,
-  `cpu/src/ct_scalar.cpp`, `audit/test_ct_sidechannel.cpp`
+- Files changed: `src/cpu/include/secp256k1/ct/ops.hpp`, `src/cpu/src/ct_field.cpp`,
+  `src/cpu/src/ct_scalar.cpp`, `audit/test_ct_sidechannel.cpp`
 
 ### 2. L1 I-Cache Optimization (ECDSA Verify)
 - **Root cause**: ECDSA verify performance was 0.82x vs libsecp256k1 due to L1 instruction
@@ -670,18 +670,18 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 - **Fix**: Added `__attribute__((noinline))` to point add/double functions, reducing code
   size in the verify hot path below L1 I-cache threshold.
 - **Performance**: ECDSA verify ratio vs libsecp: 0.82x -> 0.92x (+12% improvement)
-- Files changed: `cpu/src/point.cpp`
+- Files changed: `src/cpu/src/point.cpp`
 
 ### 3. Benchmark Diagnostics
 - Added Schnorr verify sub-operation diagnostics (SHA256, FE52_inv, parse_strict) to
   `bench_unified.cpp` for identifying verify bottlenecks.
-- Files changed: `cpu/bench/bench_unified.cpp`
+- Files changed: `src/cpu/bench/bench_unified.cpp`
 
 ### 4. Build Hardening
 - Fixed `-Wsign-conversion` warnings in `ct_scalar.cpp` SafeGCD `divsteps_59()` function.
   Added explicit `static_cast` for `int64_t` <-> `uint64_t` conversions that were
   previously implicit. Clean `-Werror -Wall -Wextra -Wpedantic` build.
-- Files changed: `cpu/src/ct_scalar.cpp`
+- Files changed: `src/cpu/src/ct_scalar.cpp`
 
 ### x86-64 Benchmark Results (i7-11700 @ 2.50 GHz, Clang 21.1.0)
 
@@ -710,8 +710,8 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 - **Impact on CT ECDSA Sign**: 26,942 ns -> 15,360 ns (**43% faster**)
 - **CT vs libsecp ECDSA Sign ratio**: 0.80x (lose) -> **1.44x (win)**
 - **Fallback**: Fermat chain preserved for platforms without `__int128` (ESP32, etc.)
-- Files changed: `cpu/src/ct_scalar.cpp`, `cpu/include/secp256k1/ct/scalar.hpp`,
-  `cpu/bench/bench_unified.cpp`
+- Files changed: `src/cpu/src/ct_scalar.cpp`, `src/cpu/include/secp256k1/ct/scalar.hpp`,
+  `src/cpu/bench/bench_unified.cpp`
 - All 32 tests pass (excluding ct_sidechannel long-run)
 
 ## [3.17.1] - 2026-03-05
@@ -723,7 +723,7 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 - **Root cause**: `save_precompute_cache_locked()` wrote directly to `cache_w{N}.bin`. When CTest runs tests in parallel (`-j$(nproc)`), a reader process could see a partially-written cache file from another writer, loading corrupt precompute tables. This caused intermittent `bip340_vectors` failures where `scalar_mul_generator()` produced wrong results for large scalars (higher window tables not yet written).
 - **Fix**: Atomic write-then-rename pattern -- cache is written to `cache_w{N}.bin.tmp.{pid}`, then atomically renamed to `cache_w{N}.bin`. Readers always see either the old complete file or the new complete file.
 - **Additional hardening**: `load_precompute_cache_locked()` now validates expected file size (computed from header `window_count * digit_count * 65 + sizeof(CacheHeader)`) before reading point data. Truncated or partially-written files are rejected immediately.
-- Files changed: `cpu/src/precompute.cpp`
+- Files changed: `src/cpu/src/precompute.cpp`
 
 ### 2. ASan Buffer Overread Fix (fuzz_address_bip32_ffi suite 15a)
 - **Root cause**: `suite_15_ffi_ecdh_edge()` passed `uint8_t xpub[32]` (32 bytes) to `ufsecp_ecdh_xonly()` which expects `const uint8_t pubkey33[33]` (33-byte compressed pubkey). ASan detected a 1-byte stack-buffer-overflow in `FieldElement::parse_bytes_strict()`.
@@ -751,7 +751,7 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 ### 4. API Misuse Resistance (I4)
 - **[I4-1] MuSig2 nonce CT migration** -- `fast::Point::generator().scalar_mul()` replaced with `ct::generator_mul()` in MuSig2 nonce generation
 - **[I4-2] Point on-curve validation** -- audited 18 deserialization paths; fixed 4 CRITICAL + 1 HIGH + 3 LOW missing validations
-- **[I4-3] PrivateKey strong type** -- new `cpu/include/secp256k1/private_key.hpp`: PrivateKey wrapping `fast::Scalar`, no implicit conversion, `secure_erase` in destructor, `[[nodiscard]]` accessors. CT overloads for `ecdsa_sign`, `schnorr_pubkey`, `schnorr_keypair_create`
+- **[I4-3] PrivateKey strong type** -- new `src/cpu/include/secp256k1/private_key.hpp`: PrivateKey wrapping `fast::Scalar`, no implicit conversion, `secure_erase` in destructor, `[[nodiscard]]` accessors. CT overloads for `ecdsa_sign`, `schnorr_pubkey`, `schnorr_keypair_create`
 - **[I4-4] aux_rand entropy contract** -- comprehensive BIP-340 aux_rand documentation on `schnorr_sign()` (both overloads) and CT variant: CSPRNG requirement, XOR nonce hedging, all-zeros safety, reuse warnings
 
 ### 5. Formal Verification (I5)
@@ -1331,27 +1331,27 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 ## [3.1.0] - 2026-02-15
 
 ### Added -- Cryptographic Protocols
-- **Pedersen Commitments** -- `pedersen_commit(value, blinding)`, `pedersen_verify()`, `pedersen_verify_sum()` (homomorphic balance proofs), `pedersen_blind_sum()`, `pedersen_switch_commit()` (Mimblewimble switch commitments); nothing-up-my-sleeve generators H and J via SHA-256 try-and-increment (`cpu/include/pedersen.hpp`, `cpu/src/pedersen.cpp`)
-- **FROST Threshold Signatures** -- `frost_keygen_begin()` / `frost_keygen_finalize()` (Feldman VSS distributed key generation), `frost_sign_nonce_gen()` / `frost_sign()` (partial signature rounds), `frost_verify_partial()`, `frost_aggregate()` -> standard BIP-340 SchnorrSignature; `frost_lagrange_coefficient()` helper (`cpu/include/frost.hpp`, `cpu/src/frost.cpp`)
-- **Adaptor Signatures** -- Schnorr adaptor: `schnorr_adaptor_sign()`, `schnorr_adaptor_verify()`, `schnorr_adaptor_adapt()`, `schnorr_adaptor_extract()`; ECDSA adaptor: `ecdsa_adaptor_sign()`, `ecdsa_adaptor_verify()`, `ecdsa_adaptor_adapt()`, `ecdsa_adaptor_extract()` -- for atomic swaps and DLCs (`cpu/include/adaptor.hpp`, `cpu/src/adaptor.cpp`)
-- **MuSig2 multi-signatures (BIP-327)** -- Key aggregation (KeyAgg), deterministic nonce generation, 2-round signing protocol, partial sig verify, Schnorr-compatible aggregate signatures (`cpu/include/musig2.hpp`, `cpu/src/musig2.cpp`)
-- **ECDH key exchange** -- `ecdh_compute` (SHA-256 of compressed point), `ecdh_compute_xonly` (SHA-256 of x-coordinate), `ecdh_compute_raw` (raw x-coordinate) (`cpu/include/ecdh.hpp`, `cpu/src/ecdh.cpp`)
-- **ECDSA public key recovery** -- `ecdsa_sign_recoverable` (deterministic recid), `ecdsa_recover` (reconstruct pubkey from signature + recid), compact 65-byte serialization (`cpu/include/recovery.hpp`, `cpu/src/recovery.cpp`)
-- **Taproot (BIP-341/342)** -- Tweak hash, output key computation, private key tweaking, commitment verification, TapLeaf/TapBranch hashing, Merkle root/proof construction (`cpu/include/taproot.hpp`, `cpu/src/taproot.cpp`)
-- **BIP-32 HD key derivation** -- Master key from seed, hardened/normal child derivation, path parsing (m/0'/1/2h), Base58Check serialization (xprv/xpub), RIPEMD-160 fingerprinting (`cpu/include/bip32.hpp`, `cpu/src/bip32.cpp`)
-- **BIP-352 Silent Payments** -- `silent_payment_address()`, `SilentPaymentAddress::encode()`, `silent_payment_create_output()`, `silent_payment_scan()` with ECDH-based stealth addressing and multi-output support (`cpu/include/address.hpp`, `cpu/src/address.cpp`)
+- **Pedersen Commitments** -- `pedersen_commit(value, blinding)`, `pedersen_verify()`, `pedersen_verify_sum()` (homomorphic balance proofs), `pedersen_blind_sum()`, `pedersen_switch_commit()` (Mimblewimble switch commitments); nothing-up-my-sleeve generators H and J via SHA-256 try-and-increment (`src/cpu/include/pedersen.hpp`, `src/cpu/src/pedersen.cpp`)
+- **FROST Threshold Signatures** -- `frost_keygen_begin()` / `frost_keygen_finalize()` (Feldman VSS distributed key generation), `frost_sign_nonce_gen()` / `frost_sign()` (partial signature rounds), `frost_verify_partial()`, `frost_aggregate()` -> standard BIP-340 SchnorrSignature; `frost_lagrange_coefficient()` helper (`src/cpu/include/frost.hpp`, `src/cpu/src/frost.cpp`)
+- **Adaptor Signatures** -- Schnorr adaptor: `schnorr_adaptor_sign()`, `schnorr_adaptor_verify()`, `schnorr_adaptor_adapt()`, `schnorr_adaptor_extract()`; ECDSA adaptor: `ecdsa_adaptor_sign()`, `ecdsa_adaptor_verify()`, `ecdsa_adaptor_adapt()`, `ecdsa_adaptor_extract()` -- for atomic swaps and DLCs (`src/cpu/include/adaptor.hpp`, `src/cpu/src/adaptor.cpp`)
+- **MuSig2 multi-signatures (BIP-327)** -- Key aggregation (KeyAgg), deterministic nonce generation, 2-round signing protocol, partial sig verify, Schnorr-compatible aggregate signatures (`src/cpu/include/musig2.hpp`, `src/cpu/src/musig2.cpp`)
+- **ECDH key exchange** -- `ecdh_compute` (SHA-256 of compressed point), `ecdh_compute_xonly` (SHA-256 of x-coordinate), `ecdh_compute_raw` (raw x-coordinate) (`src/cpu/include/ecdh.hpp`, `src/cpu/src/ecdh.cpp`)
+- **ECDSA public key recovery** -- `ecdsa_sign_recoverable` (deterministic recid), `ecdsa_recover` (reconstruct pubkey from signature + recid), compact 65-byte serialization (`src/cpu/include/recovery.hpp`, `src/cpu/src/recovery.cpp`)
+- **Taproot (BIP-341/342)** -- Tweak hash, output key computation, private key tweaking, commitment verification, TapLeaf/TapBranch hashing, Merkle root/proof construction (`src/cpu/include/taproot.hpp`, `src/cpu/src/taproot.cpp`)
+- **BIP-32 HD key derivation** -- Master key from seed, hardened/normal child derivation, path parsing (m/0'/1/2h), Base58Check serialization (xprv/xpub), RIPEMD-160 fingerprinting (`src/cpu/include/bip32.hpp`, `src/cpu/src/bip32.cpp`)
+- **BIP-352 Silent Payments** -- `silent_payment_address()`, `SilentPaymentAddress::encode()`, `silent_payment_create_output()`, `silent_payment_scan()` with ECDH-based stealth addressing and multi-output support (`src/cpu/include/address.hpp`, `src/cpu/src/address.cpp`)
 
 ### Added -- Address & Encoding
-- **Bitcoin Address Generation** -- `hash160()` (RIPEMD-160 + SHA-256), `base58check_encode()` / `base58check_decode()`, `bech32_encode()` / `bech32_decode()` (BIP-173/BIP-350, Bech32/Bech32m), `address_p2pkh()`, `address_p2wpkh()`, `address_p2tr()`, `wif_encode()` / `wif_decode()` (`cpu/include/address.hpp`, `cpu/src/address.cpp`)
+- **Bitcoin Address Generation** -- `hash160()` (RIPEMD-160 + SHA-256), `base58check_encode()` / `base58check_decode()`, `bech32_encode()` / `bech32_decode()` (BIP-173/BIP-350, Bech32/Bech32m), `address_p2pkh()`, `address_p2wpkh()`, `address_p2tr()`, `wif_encode()` / `wif_decode()` (`src/cpu/include/address.hpp`, `src/cpu/src/address.cpp`)
 
 ### Added -- Core Algorithms
-- **Multi-scalar multiplication** -- Shamir's trick (2-point) + Strauss interleaved wNAF (n-point) (`cpu/include/multiscalar.hpp`, `cpu/src/multiscalar.cpp`)
-- **Batch signature verification** -- Schnorr and ECDSA batch verify with random linear combination; `identify_invalid()` to pinpoint bad signatures (`cpu/include/batch_verify.hpp`, `cpu/src/batch_verify.cpp`)
-- **SHA-512** -- Header-only implementation for HMAC-SHA512 / BIP-32 (`cpu/include/sha512.hpp`)
-- **Constant-time byte utilities** -- `ct_equal`, `ct_is_zero`, `ct_compare`, `ct_memzero` (volatile + asm barrier), `ct_memcpy_if`, `ct_memswap_if`, `ct_select_byte` (`cpu/include/ct_utils.hpp`)
+- **Multi-scalar multiplication** -- Shamir's trick (2-point) + Strauss interleaved wNAF (n-point) (`src/cpu/include/multiscalar.hpp`, `src/cpu/src/multiscalar.cpp`)
+- **Batch signature verification** -- Schnorr and ECDSA batch verify with random linear combination; `identify_invalid()` to pinpoint bad signatures (`src/cpu/include/batch_verify.hpp`, `src/cpu/src/batch_verify.cpp`)
+- **SHA-512** -- Header-only implementation for HMAC-SHA512 / BIP-32 (`src/cpu/include/sha512.hpp`)
+- **Constant-time byte utilities** -- `ct_equal`, `ct_is_zero`, `ct_compare`, `ct_memzero` (volatile + asm barrier), `ct_memcpy_if`, `ct_memswap_if`, `ct_select_byte` (`src/cpu/include/ct_utils.hpp`)
 
 ### Added -- Performance
-- **AVX2/AVX-512 SIMD batch field ops** -- Runtime CPUID detection, auto-dispatching `batch_field_add/sub/mul/sqr`, Montgomery batch inverse (1 inversion + 3(n-1) multiplications) (`cpu/include/field_simd.hpp`, `cpu/src/field_simd.cpp`)
+- **AVX2/AVX-512 SIMD batch field ops** -- Runtime CPUID detection, auto-dispatching `batch_field_add/sub/mul/sqr`, Montgomery batch inverse (1 inversion + 3(n-1) multiplications) (`src/cpu/include/field_simd.hpp`, `src/cpu/src/field_simd.cpp`)
 
 ### Added -- GPU Optimization
 - **Occupancy auto-tune utility** -- `gpu_occupancy.cuh` with `optimal_launch_1d()` (uses `cudaOccupancyMaxPotentialBlockSize`), `query_occupancy()`, and startup device diagnostics
@@ -1382,9 +1382,9 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 ## [3.0.0] - 2026-02-11
 
 ### Added -- Cryptographic Primitives
-- **ECDSA (RFC 6979)** -- Deterministic signing & verification (`cpu/include/ecdsa.hpp`)
-- **Schnorr BIP-340** -- x-only signing & verification (`cpu/include/schnorr.hpp`)
-- **SHA-256** -- Standalone hash, zero-dependency (`cpu/include/sha256.hpp`)
+- **ECDSA (RFC 6979)** -- Deterministic signing & verification (`src/cpu/include/ecdsa.hpp`)
+- **Schnorr BIP-340** -- x-only signing & verification (`src/cpu/include/schnorr.hpp`)
+- **SHA-256** -- Standalone hash, zero-dependency (`src/cpu/include/sha256.hpp`)
 - **Constant-time benchmarks** -- CT layer micro-benchmarks via CTest
 
 ### Added -- Platform Support
@@ -1403,7 +1403,7 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 - **CMake install** -- `install(TARGETS)` + `install(DIRECTORY)` for system-wide deployment
 
 ### Changed
-- **Search kernels relocated** -- `cuda/include/` -> `cuda/app/` (cleaner library vs. app separation)
+- **Search kernels relocated** -- `src/cuda/include/` -> `cuda/app/` (cleaner library vs. app separation)
 - **README** -- 7 CI badges, comprehensive build instructions for all platforms
 
 ### [!] Testers Wanted
