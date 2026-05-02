@@ -10,6 +10,12 @@ It is not a trust request. It is a verification package.
   </a>
 </p>
 
+<p align="center">
+  <a href="docs/ARCHITECTURE.md">
+    <img src="docs/assets/ARCHITECTURE.svg" alt="UltrafastSecp256k1 architecture: CPU engine, GPU engine, embedded, shim, bindings, and CAAS layers" width="100%">
+  </a>
+</p>
+
 [![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
 [![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
