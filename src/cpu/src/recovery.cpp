@@ -76,9 +76,11 @@ RecoverableSignature ecdsa_sign_recoverable(
     // Determine recovery ID
     int recid = 0;
 
-    // bit 0: parity of R.y  [CT: branchless OR — R.y LSB is nonce-derived]
-    auto R_uncomp = R.to_uncompressed();
-    recid |= static_cast<int>(R_uncomp[64] & 1u);
+    // bit 0: parity of R.y — R is already normalized by R.x() above.
+    // Avoid to_uncompressed() (65-byte array + 64 field muls): read parity
+    // directly from the affine y limbs. limbs()[0] is the least-significant
+    // 64-bit word; its LSB is the parity of the integer value mod p.
+    recid |= static_cast<int>(R.y().limbs()[0] & 1u);
 
     // bit 1: whether R.x >= n (r overflowed past n); branchless comparison on r_bytes (public data)
     unsigned gt = 0u, eq_run = 1u;

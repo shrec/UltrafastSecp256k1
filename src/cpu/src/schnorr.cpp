@@ -175,8 +175,12 @@ static inline std::size_t lift_x_cache_index(const uint8_t* pubkey_x32) {
     return (h0 | (h1 << 8)) & (kLiftXCacheSlots - 1);
 }
 
-static inline bool lift_x_cache_lookup(const uint8_t* pubkey_x32, Point& out) {
-    auto& slot = g_lift_x_cache[lift_x_cache_index(pubkey_x32)];
+// Returns slot index so lift_x_cached can reuse it for the store path,
+// avoiding a second call to lift_x_cache_index when the lookup misses.
+static inline bool lift_x_cache_lookup(const uint8_t* pubkey_x32, Point& out,
+                                        std::size_t& idx_out) {
+    idx_out = lift_x_cache_index(pubkey_x32);
+    auto& slot = g_lift_x_cache[idx_out];
     if (!slot.valid || std::memcmp(slot.x.data(), pubkey_x32, 32) != 0) {
         return false;
     }
@@ -184,8 +188,10 @@ static inline bool lift_x_cache_lookup(const uint8_t* pubkey_x32, Point& out) {
     return !out.is_infinity();
 }
 
-static inline void lift_x_cache_store(const uint8_t* pubkey_x32, const Point& lifted) {
-    auto& slot = g_lift_x_cache[lift_x_cache_index(pubkey_x32)];
+static inline void lift_x_cache_store_at(const uint8_t* pubkey_x32,
+                                           const Point& lifted,
+                                           std::size_t idx) {
+    auto& slot = g_lift_x_cache[idx];
     std::memcpy(slot.x.data(), pubkey_x32, 32);
     slot.p = lifted;
     slot.valid = true;
@@ -202,7 +208,8 @@ static inline bool lift_x_cached(const uint8_t* pubkey_x32,
     out = lifted;
     return true;
 #else
-    if (lift_x_cache_lookup(pubkey_x32, out)) {
+    std::size_t cache_idx = 0;
+    if (lift_x_cache_lookup(pubkey_x32, out, cache_idx)) {
         return true;
     }
 
@@ -214,7 +221,7 @@ static inline bool lift_x_cached(const uint8_t* pubkey_x32,
         return false;
     }
 
-    lift_x_cache_store(pubkey_x32, lifted);
+    lift_x_cache_store_at(pubkey_x32, lifted, cache_idx);
     out = lifted;
     return true;
 #endif

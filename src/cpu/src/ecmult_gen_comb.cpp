@@ -114,10 +114,10 @@ Point CombGenContext::mul(const Scalar& k) const {
         }
 
         uint32_t const idx = extract_comb_index(k, static_cast<unsigned>(b));
-        if (idx == 0) continue;  // entry 0 = infinity, skip
+        if (SECP256K1_UNLIKELY(idx == 0)) continue;  // ~3% of positions (all teeth==0)
 
         const auto& entry = table_[idx];
-        if (entry.infinity) continue;
+        if (SECP256K1_UNLIKELY(entry.infinity)) continue;
 
         // Mixed addition: Jacobian R + Affine table entry
         Point const P = Point::from_jacobian_coords(entry.x, entry.y, FieldElement::one(), false);

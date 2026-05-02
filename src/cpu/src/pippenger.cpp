@@ -86,39 +86,35 @@ Point pippenger_msm(const Scalar* scalars,
     std::size_t const num_buckets = static_cast<std::size_t>(1) << c; // 2^c
     unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
 
-    // Pre-allocate bucket array (reused per window).
-    // Keep small window sizes (c<=6, 64 buckets) on stack; larger windows go to
-    // heap to cap stack usage at ~7 KB for the bucket array (M-05: avoid large
-    // stack frames -- 256-bucket stack path was ~26-35 KB depending on Point size).
+    // Pre-allocate bucket / scratch arrays.
+    // Stack for small windows (c<=6, 64 entries); thread_local pool for larger
+    // windows — avoids malloc/free on every Pippenger call (V-PERF-02/P1-3).
     constexpr std::size_t STACK_BUCKETS = 64;
     Point stack_buckets[STACK_BUCKETS];
-    std::unique_ptr<Point[]> heap_buckets;
-    Point* buckets = stack_buckets;
-    if (num_buckets > STACK_BUCKETS) {
-        heap_buckets = std::make_unique<Point[]>(num_buckets);
-        buckets = heap_buckets.get();
-    }
-    // touched[] and used[] track which buckets are non-empty this window,
-    // so we can reset only those (avoids O(2^c) clear per window).
-    std::size_t touched_stack[STACK_BUCKETS];
-    std::unique_ptr<std::size_t[]> touched_heap;
-    std::size_t* touched = touched_stack;
-    if (num_buckets > STACK_BUCKETS) {
-        touched_heap = std::make_unique<std::size_t[]>(num_buckets);
-        touched = touched_heap.get();
-    }
-    std::uint8_t used_stack[STACK_BUCKETS];
-    std::unique_ptr<std::uint8_t[]> used_heap;
+    static thread_local std::vector<Point>          tl_buckets;
+    static thread_local std::vector<std::size_t>    tl_touched;
+    static thread_local std::vector<std::uint8_t>   tl_used;
+    Point*        buckets = stack_buckets;
+    std::size_t   touched_stack[STACK_BUCKETS];
+    std::size_t*  touched = touched_stack;
+    std::uint8_t  used_stack[STACK_BUCKETS];
     std::uint8_t* used = used_stack;
     if (num_buckets > STACK_BUCKETS) {
-        used_heap = std::make_unique<std::uint8_t[]>(num_buckets);
-        used = used_heap.get();
+        if (tl_buckets.size() < num_buckets) tl_buckets.resize(num_buckets);
+        if (tl_touched.size() < num_buckets) tl_touched.resize(num_buckets);
+        if (tl_used.size()    < num_buckets) tl_used.resize(num_buckets);
+        buckets = tl_buckets.data();
+        touched = tl_touched.data();
+        used    = tl_used.data();
     }
     std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
 
-    // Pre-extract all digits to avoid per-window scalar bit extraction.
-    const auto digits =
-        std::make_unique<std::uint16_t[]>(n * static_cast<std::size_t>(num_windows));
+    // Pre-extract all scalar digits — thread_local pool avoids 208KB+ malloc
+    // per call (n=4096, c=10, num_windows=26 → 212992 bytes).
+    static thread_local std::vector<std::uint16_t> tl_digits;
+    std::size_t const digits_count = n * static_cast<std::size_t>(num_windows);
+    if (tl_digits.size() < digits_count) tl_digits.resize(digits_count);
+    std::uint16_t* digits = tl_digits.data();
     for (std::size_t i = 0; i < n; ++i) {
         for (unsigned w = 0; w < num_windows; ++w) {
             digits[i * static_cast<std::size_t>(num_windows) + w] =

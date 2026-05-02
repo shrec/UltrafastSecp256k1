@@ -218,9 +218,10 @@ Point multi_scalar_mul(const Scalar* scalars,
             std::size_t const base = i * table_size;
 
             // k1 stream: lookup from tbl_P
+            // wNAF w=4: ~1/5 digits non-zero — tell compiler zero is common
             if (bit < wnaf_lens[i]) {
                 int32_t const digit = wnaf_storage[i * wnaf_capacity + bit];
-                if (digit != 0) {
+                if (SECP256K1_UNLIKELY(digit != 0)) {
                     auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
@@ -236,7 +237,7 @@ Point multi_scalar_mul(const Scalar* scalars,
             // k2 stream: lookup from tbl_phiP
             if (bit < wnaf_lens[n + i]) {
                 int32_t const digit = wnaf_storage[(n + i) * wnaf_capacity + bit];
-                if (digit != 0) {
+                if (SECP256K1_UNLIKELY(digit != 0)) {
                     auto const idx = static_cast<std::size_t>(
                         (digit > 0 ? digit - 1 : -digit - 1) / 2
                     );
