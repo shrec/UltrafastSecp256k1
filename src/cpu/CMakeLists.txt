@@ -431,8 +431,6 @@ if(SECP256K1_INSTALL)
 endif()
 target_compile_definitions(${SECP256K1_LIB_NAME}
     PUBLIC
-        SECP256K1_FAST_NO_SECURITY_CHECKS=1
-        SECP256K1_ULTRA_SPEED=1        # Maximum speed mode
         $<$<CONFIG:Release>:NDEBUG>    # Remove assertions only in Release
         $<$<CXX_COMPILER_ID:MSVC>:SECP256K1_NO_INT128=1>  # MSVC has no __int128
 )

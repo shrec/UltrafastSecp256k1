@@ -550,8 +550,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     if (!k.is_zero_ct()) {
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
-            auto r_fe = R.x();
-            auto r_bytes = r_fe.to_bytes();
+            auto r_bytes = R.x_only_bytes();
             auto r = Scalar::from_bytes(r_bytes);
             if (!r.is_zero()) {
                 auto k_inv = ct::scalar_inverse(k);
@@ -678,6 +677,10 @@ static bool ecdsa_check_xcoord(const Point& R_prime, const ECDSASignature& sig) 
 }
 
 // Primary implementation: raw pointer, no copies.
+// NOTE: Accepts both low-S and high-S signatures by design. ECDSA verification
+// is mathematically symmetric in s (both s and n-s satisfy the equation).
+// Callers requiring BIP-62 low-S enforcement must call sig.is_low_s() first,
+// or use ecdsa_batch_verify() which enforces low-S as a pre-validation step.
 bool ecdsa_verify(const uint8_t* msg_hash32,
                   const Point& public_key,
                   const ECDSASignature& sig) {

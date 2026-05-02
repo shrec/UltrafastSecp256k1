@@ -336,7 +336,16 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
     auto k_prime = Scalar::from_bytes(rand_hash);
-    if (k_prime.is_zero()) return SchnorrSignature{};
+    if (k_prime.is_zero()) {
+        // Zeroize all secret-derived data before early return (~2^-128 probability).
+        detail::secure_erase(d_bytes.data(), d_bytes.size());
+        detail::secure_erase(t_hash.data(), t_hash.size());
+        detail::secure_erase(t, sizeof(t));
+        detail::secure_erase(nonce_input, sizeof(nonce_input));
+        detail::secure_erase(rand_hash.data(), rand_hash.size());
+        detail::secure_erase(&k_prime, sizeof(k_prime));
+        return SchnorrSignature{};
+    }
 
     // Step 3: R = k' * G (CT Hamburg comb, blinded when context_randomize active)
     auto R = ct::generator_mul_blinded(k_prime);
