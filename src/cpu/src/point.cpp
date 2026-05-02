@@ -346,10 +346,8 @@ struct JacobianPoint52 {
     bool infinity{true};
 };
 
-struct AffinePoint52 {
-    FieldElement52 x;
-    FieldElement52 y;
-};
+// AffinePoint52 now defined in field_52.hpp (shared with SchnorrXonlyPubkey cache).
+// struct AffinePoint52 { FieldElement52 x, y; };  — removed from here.
 
 // -- Compact Affine Point (4x64 = 64 bytes = 1 cache line) -------------------
 // For precomputed G/H tables: stores fully normalized affine coordinates in
@@ -3767,6 +3765,66 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
 // b is GLV-decomposed: b = b1 + b2*lambda
 // Then: a_lo*G + a_hi*H + b1*P + b2*psi(P) where H = 2^128*G
 // G/H affine tables are cached statically (computed once, w=15 -> 8192 entries).
+// -- File-scope generator tables (shared by dual_scalar_mul_gen_point and
+//    dual_scalar_mul_gen_prebuilt) -----------------------------------------
+// Initialized once on first use. NOT inside the function to allow sharing.
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+namespace {
+    constexpr unsigned kDualMulWindowG = 15;
+    constexpr int kDualMulGTableSize = (1 << (kDualMulWindowG - 2)); // 8192
+
+    struct DualMulGenTables {
+        AffinePointCompact tbl_G[kDualMulGTableSize];
+        AffinePointCompact tbl_H[kDualMulGTableSize];
+    };
+
+    // Build one odd-multiple table for base point B.
+    static void dual_mul_build_table(const JacobianPoint52& B,
+                                     AffinePointCompact* out, std::size_t count) {
+        JacobianPoint52 const d = jac52_double(B);
+        FieldElement52 const C = d.z, C2 = C.square(), C3 = C2 * C;
+        AffinePoint52 const d_aff = {d.x, d.y};
+        auto* iso = new JacobianPoint52[count];
+        iso[0] = {B.x * C2, B.y * C3, B.z, false};
+        for (std::size_t i = 1; i < count; i++) {
+            iso[i] = iso[i-1];
+            jac52_add_mixed_inplace(iso[i], d_aff);
+        }
+        auto* eff_z = new FieldElement52[count];
+        for (std::size_t i = 0; i < count; i++) eff_z[i] = iso[i].z * C;
+        auto* prods = new FieldElement52[count];
+        prods[0] = eff_z[0];
+        for (std::size_t i = 1; i < count; i++) prods[i] = prods[i-1] * eff_z[i];
+        FieldElement52 inv = prods[count-1].inverse_safegcd();
+        auto* zs = new FieldElement52[count];
+        for (std::size_t i = count-1; i > 0; --i) {
+            zs[i] = prods[i-1] * inv; inv = inv * eff_z[i];
+        }
+        zs[0] = inv;
+        for (std::size_t i = 0; i < count; i++) {
+            FieldElement52 const zinv2 = zs[i].square(), zinv3 = zinv2 * zs[i];
+            AffinePoint52 const aff = {iso[i].x * zinv2, iso[i].y * zinv3};
+            out[i] = AffinePointCompact::from_affine52(aff);
+        }
+        delete[] zs; delete[] prods; delete[] eff_z; delete[] iso;
+    }
+
+    static const DualMulGenTables* get_dual_mul_gen_tables() {
+        static const DualMulGenTables* const tables = []() -> const DualMulGenTables* {
+            auto* t = new DualMulGenTables;
+            Point const G = Point::generator();
+            JacobianPoint52 const G52 = to_jac52(G);
+            dual_mul_build_table(G52, t->tbl_G, static_cast<std::size_t>(kDualMulGTableSize));
+            JacobianPoint52 H52 = G52;
+            for (std::size_t i = 0; i < 128; i++) jac52_double_inplace(H52);
+            dual_mul_build_table(H52, t->tbl_H, static_cast<std::size_t>(kDualMulGTableSize));
+            return t;
+        }();
+        return tables;
+    }
+} // anonymous namespace
+#endif
+
 #if defined(SECP256K1_FAST_52BIT)
 SECP256K1_NOINLINE
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
@@ -3798,83 +3856,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     constexpr int G_TABLE_SIZE = (1 << (WINDOW_G - 2));  // 8192
     constexpr int P_TABLE_SIZE = (1 << (WINDOW_P - 2));  // 8
 
-    // -- Static generator tables (computed once, 8192 entries per base) --
-    // Two bases: G (generator) and H = 2^128*G
-    // Uses effective-affine technique for efficient table building.
-    // Negative wNAF digits negate Y on-the-fly (5 limb ops, data already
-    // in L1 cache from the lookup) instead of pre-negated tables.
-    // This halves the table memory from 2.5 MB to 1.25 MB, fitting in
-    // per-core L3 cache and reducing TLB + cache pressure.
-    struct GenTables {
-        AffinePointCompact tbl_G[G_TABLE_SIZE];  // [G, 3G, 5G, ..., 16383G] compact 64B
-        AffinePointCompact tbl_H[G_TABLE_SIZE];  // [H, 3H, 5H, ..., 16383H] compact 64B
-    };
-    static const GenTables* const gen_tables = []() -> const GenTables* {
-        auto* t = new GenTables;
-
-        // Helper: build odd-multiple table for base point B using effective-affine
-        auto build_table = [](const JacobianPoint52& B,
-                              AffinePointCompact* out, std::size_t count) {
-            // d = 2*B, work on isomorphic curve where d is affine
-            JacobianPoint52 const d = jac52_double(B);
-            FieldElement52 const C  = d.z;
-            FieldElement52 const C2 = C.square();
-            FieldElement52 const C3 = C2 * C;
-            AffinePoint52 const d_aff = {d.x, d.y};
-
-            // iso[0] = phi(B) = (B.x*C^2, B.y*C^3, B.z) on iso curve
-            auto* iso = new JacobianPoint52[count];
-            iso[0] = {B.x * C2, B.y * C3, B.z, false};
-              for (std::size_t i = 1; i < count; i++) {
-                iso[i] = iso[i - 1];
-                jac52_add_mixed_inplace(iso[i], d_aff);
-            }
-
-            // Batch-invert effective Z = Z_iso * C
-            auto* eff_z = new FieldElement52[count];
-            for (std::size_t i = 0; i < count; i++) {
-                eff_z[i] = iso[i].z * C;
-            }
-            auto* prods = new FieldElement52[count];
-            prods[0] = eff_z[0];
-            for (std::size_t i = 1; i < count; i++) {
-                prods[i] = prods[i - 1] * eff_z[i];
-            }
-            FieldElement52 inv = prods[count - 1].inverse_safegcd();
-            auto* zs = new FieldElement52[count];
-            for (std::size_t i = count - 1; i > 0; --i) {
-                zs[i] = prods[i - 1] * inv;
-                inv = inv * eff_z[i];
-            }
-            zs[0] = inv;
-
-            for (std::size_t i = 0; i < count; i++) {
-                FieldElement52 const zinv2 = zs[i].square();
-                FieldElement52 const zinv3 = zinv2 * zs[i];
-                AffinePoint52 const aff = {iso[i].x * zinv2, iso[i].y * zinv3};
-                out[i] = AffinePointCompact::from_affine52(aff);
-            }
-
-            delete[] zs;
-            delete[] prods;
-            delete[] eff_z;
-            delete[] iso;
-        };
-
-        // Build tbl_G: odd multiples of G
-        Point const G = Point::generator();
-        JacobianPoint52 const G52 = to_jac52(G);
-        build_table(G52, t->tbl_G, G_TABLE_SIZE);
-
-        // Build tbl_H: odd multiples of H = 2^128*G
-        JacobianPoint52 H52 = G52;
-        for (std::size_t i = 0; i < 128; i++) {
-            jac52_double_inplace(H52);
-        }
-        build_table(H52, t->tbl_H, G_TABLE_SIZE);
-
-        return t;
-    }();
+    // -- Generator tables (file-scope singleton, shared with dual_scalar_mul_gen_prebuilt) --
+    const DualMulGenTables* const gen_tables = get_dual_mul_gen_tables();
 
     // -- Precompute P tables (per-call, window=5, 8 entries) ---------
     // Uses effective-affine technique (same as libsecp256k1/CT path):
@@ -4001,6 +3984,173 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     return from_jac52(result52);
 #endif // SECP256K1_USE_4X64_POINT_OPS
 }
+
+// ===========================================================================
+// dual_scalar_mul_gen_prebuilt: a*G + b*P using cached P/phi(P) tables
+// ===========================================================================
+// Identical to dual_scalar_mul_gen_point but skips build_glv52_table_zr +
+// derive_phi52_table (~1,954 ns). Used by schnorr_verify(SchnorrXonlyPubkey).
+// ===========================================================================
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+Point Point::dual_scalar_mul_gen_prebuilt(
+    const Scalar& a, const Scalar& b,
+    const std::array<AffinePoint52, 8>& tbl_P,
+    const std::array<AffinePoint52, 8>& tbl_phi_base,
+    const FieldElement52& Z_P)
+{
+    // -- 128-bit split of a ---------------------------------------------------
+    const auto& a_limbs = a.limbs();
+    Scalar const a_lo = Scalar::from_limbs({a_limbs[0], a_limbs[1], 0, 0});
+    Scalar const a_hi = Scalar::from_limbs({a_limbs[2], a_limbs[3], 0, 0});
+
+    // -- GLV decompose b ------------------------------------------------------
+    GLVDecomposition const decomp_b = glv_decompose(b);
+    // Pre-built tables are canonical (for P, not ±P). Apply signs at lookup:
+    //   P table:    negate_y = k1_neg XOR (d<0)  — k1_neg from GLV(b)
+    //   phi table:  negate_y = k2_neg XOR (d<0)  — k2_neg from GLV(b)
+    bool const k1_neg = decomp_b.k1_neg;
+    bool const k2_neg = decomp_b.k2_neg;
+
+    // Window widths (must match dual_scalar_mul_gen_point)
+    constexpr unsigned WINDOW_G = kDualMulWindowG;
+    constexpr unsigned WINDOW_P = 5;
+
+    // Shared generator tables (file-scope singleton — same data as dual_scalar_mul_gen_point)
+    const DualMulGenTables* const gen_tables = get_dual_mul_gen_tables();
+
+    // -- wNAF for all 4 half-scalars ------------------------------------------
+    std::array<int32_t, 130> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
+    std::size_t len_a_lo = 0, len_a_hi = 0, len_b1 = 0, len_b2 = 0;
+    compute_wnaf_into(a_lo,  WINDOW_G, wnaf_a_lo.data(), wnaf_a_lo.size(), len_a_lo);
+    compute_wnaf_into(a_hi,  WINDOW_G, wnaf_a_hi.data(), wnaf_a_hi.size(), len_a_hi);
+    compute_wnaf_into(decomp_b.k1, WINDOW_P, wnaf_b1.data(), wnaf_b1.size(), len_b1);
+    compute_wnaf_into(decomp_b.k2, WINDOW_P, wnaf_b2.data(), wnaf_b2.size(), len_b2);
+    while (len_a_lo > 0 && wnaf_a_lo[len_a_lo-1] == 0) --len_a_lo;
+    while (len_a_hi > 0 && wnaf_a_hi[len_a_hi-1] == 0) --len_a_hi;
+    while (len_b1 > 0 && wnaf_b1[len_b1-1] == 0) --len_b1;
+    while (len_b2 > 0 && wnaf_b2[len_b2-1] == 0) --len_b2;
+
+    // -- 4-stream scan (same structure as dual_scalar_mul_gen_point) ----------
+    JacobianPoint52 result52 = {
+        FieldElement52::zero(), FieldElement52::one(),
+        FieldElement52::zero(), true
+    };
+
+    std::size_t max_len = len_a_lo;
+    if (len_a_hi > max_len) max_len = len_a_hi;
+    if (len_b1  > max_len) max_len = len_b1;
+    if (len_b2  > max_len) max_len = len_b2;
+
+    for (int i = static_cast<int>(max_len) - 1; i >= 0; --i) {
+        // Look-ahead prefetch for G/H tables (same as original)
+        if (i > 0) {
+            int const np = i - 1;
+            int const d_g = wnaf_a_lo[static_cast<std::size_t>(np)];
+            if (d_g) {
+                int const abs_g = d_g > 0 ? d_g : -d_g;
+                SECP256K1_PREFETCH_READ(&gen_tables->tbl_G[static_cast<std::size_t>((abs_g-1)>>1)]);
+            }
+            int const d_h = wnaf_a_hi[static_cast<std::size_t>(np)];
+            if (d_h) {
+                int const abs_h = d_h > 0 ? d_h : -d_h;
+                SECP256K1_PREFETCH_READ(&gen_tables->tbl_H[static_cast<std::size_t>((abs_h-1)>>1)]);
+            }
+            // Prefetch P table (50% nonzero for w=5)
+            int const d_p = wnaf_b1[static_cast<std::size_t>(np)];
+            if (SECP256K1_LIKELY(d_p != 0)) {
+                int const abs_p = d_p > 0 ? d_p : -d_p;
+                SECP256K1_PREFETCH_READ(&tbl_P[static_cast<std::size_t>((abs_p-1)>>1)]);
+            }
+        }
+
+        jac52_double_inplace(result52);
+
+        // G and H digit application (from precomputed generator tables)
+        {
+            int const d = wnaf_a_lo[static_cast<std::size_t>(i)];
+            if (SECP256K1_UNLIKELY(d != 0)) {
+                AffinePoint52 pt;
+                if (d > 0) {
+                    pt = gen_tables->tbl_G[static_cast<std::size_t>((d-1)>>1)].to_affine52();
+                } else {
+                    pt = gen_tables->tbl_G[static_cast<std::size_t>((-d-1)>>1)].to_affine52();
+                    pt.y.negate_assign(1);
+                }
+                jac52_add_zinv_inplace(result52, pt, Z_P);
+            }
+        }
+        {
+            int const d = wnaf_a_hi[static_cast<std::size_t>(i)];
+            if (SECP256K1_UNLIKELY(d != 0)) {
+                AffinePoint52 pt;
+                if (d > 0) {
+                    pt = gen_tables->tbl_H[static_cast<std::size_t>((d-1)>>1)].to_affine52();
+                } else {
+                    pt = gen_tables->tbl_H[static_cast<std::size_t>((-d-1)>>1)].to_affine52();
+                    pt.y.negate_assign(1);
+                }
+                jac52_add_zinv_inplace(result52, pt, Z_P);
+            }
+        }
+
+        // P digit: tbl_P is canonical (built from P). Apply k1_neg via y-negation.
+        // Combined negate: k1_neg (P-sign) XOR (d<0) (digit-sign).
+        {
+            int const d = wnaf_b1[static_cast<std::size_t>(i)];
+            if (d != 0) {
+                std::size_t const idx = static_cast<std::size_t>(
+                    d > 0 ? (d-1)>>1 : (-d-1)>>1);
+                AffinePoint52 pt = tbl_P[idx];
+                bool const negate_y = k1_neg ^ (d < 0);
+                if (negate_y) pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
+            }
+        }
+
+        // phi(P) digit: tbl_phi_base has canonical y. Apply k2_neg XOR (d<0).
+        {
+            int const d = wnaf_b2[static_cast<std::size_t>(i)];
+            if (d != 0) {
+                std::size_t const idx = static_cast<std::size_t>(
+                    d > 0 ? (d-1)>>1 : (-d-1)>>1);
+                AffinePoint52 pt = tbl_phi_base[idx];
+                bool const negate_y = k2_neg ^ (d < 0);
+                if (negate_y) pt.y.negate_assign(1);
+                jac52_add_mixed_inplace(result52, pt);
+            }
+        }
+    }
+
+    if (!result52.infinity) {
+        result52.z.mul_assign(Z_P);
+    }
+
+    return from_jac52(result52);
+}
+#endif // SECP256K1_FAST_52BIT && !SECP256K1_USE_4X64_POINT_OPS
+
+// Build GLV verify tables for a point P (public entry point for schnorr.cpp).
+// Uses internal build_glv52_table_zr + derive_phi52_table (no-flip canonical y).
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+bool Point::build_schnorr_verify_tables(
+    const Point& P,
+    std::array<AffinePoint52, 8>& out_tbl_P,
+    std::array<AffinePoint52, 8>& out_tbl_phi_base,
+    FieldElement52& out_Z_shared)
+{
+    if (P.is_infinity()) return false;
+    JacobianPoint52 const P52 = to_jac52(P);
+    if (!build_glv52_table_zr(P52, out_tbl_P.data(),
+                               static_cast<int>(out_tbl_P.size()),
+                               out_Z_shared))
+        return false;
+    // Canonical phi(P) table: y sign not flipped (k2_neg applied at lookup time).
+    derive_phi52_table(out_tbl_P.data(), out_tbl_phi_base.data(),
+                       static_cast<int>(out_tbl_P.size()), false);
+    return true;
+}
+#endif
+
 // ESP32/Embedded: 4-stream GLV Strauss (4x64 field)
 // Fixed in v3.3.1: the phi(G) sign used k1_neg XOR k2_neg (flip_a) instead
 // of k2_neg alone. This is correct for the P table (where k1_neg is baked

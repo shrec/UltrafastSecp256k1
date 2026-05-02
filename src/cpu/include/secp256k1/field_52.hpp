@@ -180,6 +180,16 @@ void fe52_normalize(std::uint64_t* r) noexcept;
 // Compile-time layout verification
 static_assert(sizeof(FieldElement52) == 40, "FieldElement52 must be 40 bytes (5x8)");
 
+// -- Affine Point (pseudo-affine, shared Z) ------------------------------------
+// Two FE52 coordinates. Used in precomputed wNAF tables where all entries
+// share an implicit Z via the z-ratio batch technique. Exposed here so
+// SchnorrXonlyPubkey and other callers can cache GLV tables without
+// depending on point.cpp internals.
+struct AffinePoint52 {
+    FieldElement52 x;
+    FieldElement52 y;
+};
+
 } // namespace secp256k1::fast
 
 // Inline implementations of all hot-path 5x52 operations.

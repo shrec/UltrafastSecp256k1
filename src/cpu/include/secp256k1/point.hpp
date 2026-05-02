@@ -297,6 +297,28 @@ public:
     // Much faster than separate generator_mul(a) + scalar_mul(b) + add
     static Point dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P);
 
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    // Fast variant using pre-built P/phi(P) tables (from SchnorrXonlyPubkey cache).
+    // Skips build_glv52_table_zr + derive_phi52_table (~1,954 ns per verify).
+    // tbl_P:        8-entry pseudo-affine table of odd multiples of canonical P.
+    // tbl_phi_base: phi(P) multiples with canonical y (GLV signs applied internally).
+    // Z_P:          shared implicit Z for all table entries.
+    // k1_neg/k2_neg computed internally from GLV(b); no external flip_phi needed.
+    static Point dual_scalar_mul_gen_prebuilt(
+        const Scalar& a, const Scalar& b,
+        const std::array<AffinePoint52, 8>& tbl_P,
+        const std::array<AffinePoint52, 8>& tbl_phi_base,
+        const FieldElement52& Z_P);
+
+    // Build GLV verify tables for a point P.
+    // Called once by schnorr_xonly_pubkey_parse. Returns false for degenerate P.
+    static bool build_schnorr_verify_tables(
+        const Point& P,
+        std::array<AffinePoint52, 8>& out_tbl_P,
+        std::array<AffinePoint52, 8>& out_tbl_phi_base,
+        FieldElement52& out_Z_shared);
+#endif
+
     std::array<std::uint8_t, 33> to_compressed() const;
     std::array<std::uint8_t, 65> to_uncompressed() const;
 

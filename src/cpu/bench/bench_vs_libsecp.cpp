@@ -211,6 +211,31 @@ int main(int argc, char** argv) {
         print_row("Schnorr verify (cached pubkey)", u, l);
     }
 
+    // Schnorr verify — SchnorrXonlyPubkey with GLV table cache (P0 optimization)
+    // Pre-parses pubkeys into SchnorrXonlyPubkey (builds tbl_P/tbl_phi once).
+    // Eliminates ~1,954 ns of build_glv52_table_zr per verify.
+    {
+        // Parse 64 pubkeys into SchnorrXonlyPubkey with pre-built GLV tables
+        std::array<secp256k1::SchnorrXonlyPubkey, POOL> xonly_pks;
+        for (std::size_t i = 0; i < POOL; ++i)
+            secp256k1::schnorr_xonly_pubkey_parse(xonly_pks[i], schnorr_pk[i].data());
+
+        idx = 0;
+        u = H.run(N, [&]() {
+            bool ok = secp256k1::schnorr_verify(xonly_pks[idx%POOL], msg[idx%POOL].data(), schnorr_sigs[idx%POOL]);
+            bench::DoNotOptimize(ok); ++idx;
+        });
+        // libsecp baseline: parse each time (no pre-built tables)
+        idx = 0;
+        l = H.run(N, [&]() {
+            secp256k1_xonly_pubkey xpk;
+            secp256k1_xonly_pubkey_parse(lctx,&xpk,lxonly[idx%POOL].data());
+            int ok = secp256k1_schnorrsig_verify(lctx,lschnorr[idx%POOL].data(),msg[idx%POOL].data(),32,&xpk);
+            bench::DoNotOptimize(ok); ++idx;
+        });
+        print_row("Schnorr verify (xonly+GLV cache)", u, l);
+    }
+
     printf("  %-34s\n", "");
 
     // pubkey_create
