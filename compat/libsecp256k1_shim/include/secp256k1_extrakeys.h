@@ -1,8 +1,8 @@
 /* ============================================================================
  * libsecp256k1-compatible extrakeys API -- backed by UltrafastSecp256k1
  * ========================================================================== */
-#ifndef SECP256K1_EXTRAKEYS_H
-#define SECP256K1_EXTRAKEYS_H
+#ifndef SECP256K1_EXTRAKEYS_ULTRAFAST_H
+#define SECP256K1_EXTRAKEYS_ULTRAFAST_H
 
 #include "secp256k1.h"
 
@@ -87,4 +87,4 @@ SECP256K1_API int secp256k1_keypair_xonly_tweak_add(
 }
 #endif
 
-#endif /* SECP256K1_EXTRAKEYS_H */
+#endif /* SECP256K1_EXTRAKEYS_ULTRAFAST_H */

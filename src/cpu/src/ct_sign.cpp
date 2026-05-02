@@ -30,15 +30,15 @@ namespace secp256k1::ct {
 
 ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
-    if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     auto z = Scalar::from_bytes(msg_hash);
 
     // Deterministic nonce (RFC 6979)
     auto k = rfc6979_nonce(private_key, msg_hash);
-    // k.is_zero() guards against RFC 6979 100-attempt exhaustion (≈2^−8000
+    // k.is_zero_ct() guards against RFC 6979 100-attempt exhaustion (≈2^−8000
     // probability); not a timing concern since k is never zero in practice.
-    if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    if (k.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     // R = k * G  -- CT path
     auto R = ct::generator_mul(k);
@@ -104,12 +104,12 @@ ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
 ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
                                   const Scalar& private_key,
                                   const std::array<uint8_t, 32>& aux_rand) {
-    if (private_key.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     auto z = Scalar::from_bytes(msg_hash);
     auto k = secp256k1::rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
-    // k.is_zero() guards against RFC 6979 exhaustion (≈2^−8000 probability).
-    if (k.is_zero()) return {Scalar::zero(), Scalar::zero()};
+    // k.is_zero_ct() guards against RFC 6979 exhaustion (≈2^−8000 probability).
+    if (k.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
     // R = k * G  -- CT path
     auto R = ct::generator_mul(k);
@@ -185,7 +185,7 @@ std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
 SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     SchnorrKeypair kp{};
     auto d_prime = private_key;
-    if (d_prime.is_zero()) return kp;
+    if (d_prime.is_zero_ct()) return kp;
 
     auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
@@ -204,7 +204,7 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
 SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<uint8_t, 32>& msg,
                               const std::array<uint8_t, 32>& aux_rand) {
-    if (kp.d.is_zero()) return SchnorrSignature{};
+    if (kp.d.is_zero_ct()) return SchnorrSignature{};
 
     // Step 1: t = d XOR tagged_hash("BIP0340/aux", aux_rand)
     auto t_hash = cached_tagged_hash(g_aux_midstate, aux_rand.data(), 32);
@@ -219,7 +219,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
     auto k_prime = Scalar::from_bytes(rand_hash);
-    if (k_prime.is_zero()) return SchnorrSignature{};
+    if (k_prime.is_zero_ct()) return SchnorrSignature{};
 
     // Step 3: R = k' * G -- CT path
     auto R = ct::generator_mul(k_prime);
@@ -307,14 +307,14 @@ RecoverableSignature ecdsa_sign_recoverable(
         0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
     };
 
-    if (private_key.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    if (private_key.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     auto z = Scalar::from_bytes(msg_hash);
 
     // Deterministic nonce (RFC 6979)
     auto k = rfc6979_nonce(private_key, msg_hash);
-    // k.is_zero() guards against RFC 6979 exhaustion (≈2^−8000 probability).
-    if (k.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    // k.is_zero_ct() guards against RFC 6979 exhaustion (≈2^−8000 probability).
+    if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // R = k * G  -- CT path (data-independent execution trace)
     auto R = ct::generator_mul(k);

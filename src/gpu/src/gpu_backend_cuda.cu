@@ -1100,6 +1100,9 @@ public:
 
         CUDA_TRY(cudaMemcpy(wire_out, d_wire, count * wire_stride, cudaMemcpyDeviceToHost));
 
+        // V-09: zero AES session keys before free (Rule 10 — GPU key material erasure)
+        cudaMemset(d_keys, 0, count * 32);
+        cudaDeviceSynchronize();
         cudaFree(d_wire); cudaFree(d_sizes); cudaFree(d_pt);
         cudaFree(d_nonces); cudaFree(d_keys);
         clear_error();
@@ -1155,6 +1158,9 @@ public:
                 out_valid[i] = h_ok[i] ? 1 : 0;
         }
 
+        // V-09: zero AES session keys before free (Rule 10 — GPU key material erasure)
+        cudaMemset(d_keys, 0, count * 32);
+        cudaDeviceSynchronize();
         cudaFree(d_ok); cudaFree(d_pt); cudaFree(d_sizes);
         cudaFree(d_wire); cudaFree(d_nonces); cudaFree(d_keys);
         clear_error();

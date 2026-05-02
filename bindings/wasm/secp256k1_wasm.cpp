@@ -12,6 +12,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/sign.hpp"  // V-03: CT ECDSA + Schnorr sign paths
 
 #include <array>
 #include <cstring>
@@ -111,8 +112,10 @@ int secp256k1_wasm_ecdsa_sign(const uint8_t* msg32,
     secp256k1::fast::Scalar sk;
     if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(to_array(seckey32), sk)) return 0;
 
-    auto signature = secp256k1::ecdsa_sign(msg, sk);
-    if (signature.r.is_zero()) return 0;
+    // V-03: use CT signing path (Rule 12 — private key must go through CT)
+    auto signature = secp256k1::ct::ecdsa_sign(msg, sk);
+    // V-07: check BOTH r and s (Rule 14 analogous for ECDSA)
+    if (signature.r.is_zero() || signature.s.is_zero()) return 0;
 
     auto compact = signature.to_compact();
     std::memcpy(sig64, compact.data(), 64);
@@ -145,7 +148,9 @@ int secp256k1_wasm_schnorr_sign(const uint8_t* seckey32,
     auto msg = to_array(msg32);
     auto aux = to_array(aux32);
 
-    auto signature = secp256k1::schnorr_sign(sk, msg, aux);
+    // V-03: use CT signing path via CT keypair creation (Rule 12)
+    auto kp = secp256k1::ct::schnorr_keypair_create(sk);
+    auto signature = secp256k1::ct::schnorr_sign(kp, msg, aux);
     auto bytes = signature.to_bytes();
 
     // Rule 14: check both r (bytes[0..31]) and s (bytes[32..63]) before returning

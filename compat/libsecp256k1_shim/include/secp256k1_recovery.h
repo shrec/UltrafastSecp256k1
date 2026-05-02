@@ -1,5 +1,5 @@
-#ifndef SECP256K1_RECOVERY_H
-#define SECP256K1_RECOVERY_H
+#ifndef SECP256K1_RECOVERY_ULTRAFAST_H
+#define SECP256K1_RECOVERY_ULTRAFAST_H
 
 // ============================================================================
 // secp256k1_recovery.h -- libsecp256k1-compatible ECDSA recovery module

@@ -3,8 +3,8 @@
  *
  * Drop-in compatible with bitcoin-core/secp256k1's secp256k1_ellswift.h.
  * ========================================================================== */
-#ifndef SECP256K1_ELLSWIFT_H
-#define SECP256K1_ELLSWIFT_H
+#ifndef SECP256K1_ELLSWIFT_ULTRAFAST_H
+#define SECP256K1_ELLSWIFT_ULTRAFAST_H
 
 #include "secp256k1.h"
 
@@ -84,4 +84,4 @@ SECP256K1_API int secp256k1_ellswift_xdh(
 }
 #endif
 
-#endif /* SECP256K1_ELLSWIFT_H */
+#endif /* SECP256K1_ELLSWIFT_ULTRAFAST_H */

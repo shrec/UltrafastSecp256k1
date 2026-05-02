@@ -1,5 +1,5 @@
-#ifndef SECP256K1_MUSIG_H
-#define SECP256K1_MUSIG_H
+#ifndef SECP256K1_MUSIG_ULTRAFAST_H
+#define SECP256K1_MUSIG_ULTRAFAST_H
 
 #include "secp256k1.h"
 #include "secp256k1_extrakeys.h"
@@ -146,4 +146,4 @@ SECP256K1_API void secp256k1_musig_keyagg_cache_clear(
 }
 #endif
 
-#endif /* SECP256K1_MUSIG_H */
+#endif /* SECP256K1_MUSIG_ULTRAFAST_H */

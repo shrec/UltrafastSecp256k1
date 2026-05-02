@@ -1543,6 +1543,10 @@ public:
         clEnqueueReadBuffer(queue, d_wire, CL_TRUE, 0,
                              wire_stride * count, wire_out, 0, nullptr, nullptr);
 
+        // V-06: Rule 10 — zero AES session keys in GPU memory before release
+        { cl_uchar z = 0;
+          clEnqueueFillBuffer(queue, d_keys, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
+          clFinish(queue); }
         clReleaseMemObject(d_wire); clReleaseMemObject(d_sizes);
         clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);
         clear_error();
@@ -1644,6 +1648,10 @@ public:
         for (size_t i = 0; i < count; ++i)
             out_valid[i] = h_ok[i] ? 1 : 0;
 
+        // V-06: Rule 10 — zero AES session keys before release
+        { cl_uchar z = 0;
+          clEnqueueFillBuffer(queue, d_keys, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
+          clFinish(queue); }
         clReleaseMemObject(d_ok); clReleaseMemObject(d_pt);
         clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
         clReleaseMemObject(d_nonces); clReleaseMemObject(d_keys);

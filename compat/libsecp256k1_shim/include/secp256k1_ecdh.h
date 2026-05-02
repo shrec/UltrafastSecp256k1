@@ -3,8 +3,8 @@
  *
  * Drop-in compatible with bitcoin-core/secp256k1's secp256k1_ecdh.h.
  * ========================================================================== */
-#ifndef SECP256K1_ECDH_H
-#define SECP256K1_ECDH_H
+#ifndef SECP256K1_ECDH_ULTRAFAST_H
+#define SECP256K1_ECDH_ULTRAFAST_H
 
 #include "secp256k1.h"
 
@@ -44,4 +44,4 @@ SECP256K1_API int secp256k1_ecdh(
 }
 #endif
 
-#endif /* SECP256K1_ECDH_H */
+#endif /* SECP256K1_ECDH_ULTRAFAST_H */

@@ -1,8 +1,8 @@
 /* ============================================================================
  * libsecp256k1-compatible Schnorr API -- backed by UltrafastSecp256k1
  * ========================================================================== */
-#ifndef SECP256K1_SCHNORRSIG_H
-#define SECP256K1_SCHNORRSIG_H
+#ifndef SECP256K1_SCHNORRSIG_ULTRAFAST_H
+#define SECP256K1_SCHNORRSIG_ULTRAFAST_H
 
 #include "secp256k1.h"
 #include "secp256k1_extrakeys.h"
@@ -99,4 +99,4 @@ SECP256K1_API int secp256k1_schnorrsig_verify(
 }
 #endif
 
-#endif /* SECP256K1_SCHNORRSIG_H */
+#endif /* SECP256K1_SCHNORRSIG_ULTRAFAST_H */
