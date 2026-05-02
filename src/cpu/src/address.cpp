@@ -871,16 +871,15 @@ static const std::array<std::uint32_t, 8> g_bip352_base_state =
 //   [0 ..32] = S_comp (33 bytes)
 //   [33..36] = k_be4  (placeholder — written per output)
 //   [37]     = 0x80
-//   [38..55] = 0x00 × 18
-//   [56..63] = big-endian 64-bit bit-length = (64+37)*8 = 808 = 0x0000000000000328
+//   [38..61] = 0x00 × 24
+//   [62..63] = 0x03 0x28  (big-endian 64-bit bit-length = (64+37)*8 = 808 = 0x0328)
 static void build_block1(const std::uint8_t s_comp[33],
                           std::uint8_t       blk[64]) noexcept {
     std::memcpy(blk, s_comp, 33);
     blk[33] = blk[34] = blk[35] = blk[36] = 0; // k placeholder
     blk[37] = 0x80;
-    std::memset(blk + 38, 0, 18);
-    blk[56] = 0x00; blk[57] = 0x00; blk[58] = 0x00; blk[59] = 0x00;
-    blk[60] = 0x00; blk[61] = 0x00; blk[62] = 0x03; blk[63] = 0x28;
+    std::memset(blk + 38, 0, 24); // zero-pad [38..61]; bit-length follows
+    blk[62] = 0x03; blk[63] = 0x28; // bit-length = (64+37)*8 = 808 = 0x0328
 }
 
 } // anonymous namespace
@@ -937,6 +936,22 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
     static thread_local std::vector<fast::Scalar> tl_out_scalars;
     tl_out_scalars.resize(total_outputs);
 
+    // Helper: compress a pre-built 64-byte SHA256 block (starting from s_base_state)
+    // and parse the resulting big-endian digest as a non-zero scalar.
+    auto compress_to_scalar = [&](std::uint8_t* blk, Scalar& out) -> bool {
+        std::uint32_t h[8];
+        std::memcpy(h, s_base_state.data(), 32);
+        detail::sha256_compress_dispatch(blk, h);
+        std::array<std::uint8_t, 32> t_bytes;
+        for (int b = 0; b < 8; ++b) {
+            t_bytes[b*4+0] = std::uint8_t(h[b] >> 24);
+            t_bytes[b*4+1] = std::uint8_t(h[b] >> 16);
+            t_bytes[b*4+2] = std::uint8_t(h[b] >>  8);
+            t_bytes[b*4+3] = std::uint8_t(h[b]);
+        }
+        return Scalar::parse_bytes_strict_nonzero(t_bytes.data(), out);
+    };
+
     // Pass 2a: compute all t_k + spend_privkey scalars (SHA256 only, no EC).
     std::size_t slot = 0;
     for (std::uint32_t ti = 0; ti < static_cast<std::uint32_t>(n); ++ti) {
@@ -947,20 +962,8 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
             blk[34] = std::uint8_t(k >> 16);
             blk[35] = std::uint8_t(k >>  8);
             blk[36] = std::uint8_t(k);
-
-            std::uint32_t h[8];
-            std::memcpy(h, s_base_state.data(), 32);
-            detail::sha256_compress_dispatch(blk, h);
-
-            std::array<std::uint8_t, 32> t_bytes;
-            for (int b = 0; b < 8; ++b) {
-                t_bytes[b*4+0] = std::uint8_t(h[b] >> 24);
-                t_bytes[b*4+1] = std::uint8_t(h[b] >> 16);
-                t_bytes[b*4+2] = std::uint8_t(h[b] >>  8);
-                t_bytes[b*4+3] = std::uint8_t(h[b]);
-            }
             Scalar t_k;
-            if (!Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k)) continue;
+            if (!compress_to_scalar(blk, t_k)) continue;
             tl_out_scalars[slot] = t_k + spend_privkey;
             tl_out_map[slot] = (static_cast<std::uint64_t>(ti) << 32) | k;
             ++slot;
@@ -979,17 +982,7 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
         std::uint8_t* mblk = tl_blk[ti].data();
         mblk[33] = std::uint8_t(k >> 24); mblk[34] = std::uint8_t(k >> 16);
         mblk[35] = std::uint8_t(k >>  8); mblk[36] = std::uint8_t(k);
-        std::uint32_t h2[8];
-        std::memcpy(h2, s_base_state.data(), 32);
-        detail::sha256_compress_dispatch(mblk, h2);
-        std::array<std::uint8_t, 32> t_bytes;
-        for (int b = 0; b < 8; ++b) {
-            t_bytes[b*4+0] = std::uint8_t(h2[b] >> 24);
-            t_bytes[b*4+1] = std::uint8_t(h2[b] >> 16);
-            t_bytes[b*4+2] = std::uint8_t(h2[b] >>  8);
-            t_bytes[b*4+3] = std::uint8_t(h2[b]);
-        }
-        return Scalar::parse_bytes_strict_nonzero(t_bytes.data(), t_k_out);
+        return compress_to_scalar(mblk, t_k_out);
     };
 
     fast::Point::batch_x_only_bytes(tl_out_jac.data(), actual_outputs, tl_out_x.data());

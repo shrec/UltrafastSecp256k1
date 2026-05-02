@@ -3754,7 +3754,11 @@ void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size
         }
     };
 
+#ifdef _OPENMP
+    #pragma omp parallel for schedule(static) if(n >= 64)
+#endif
     for (std::size_t i = 0; i < n; ++i) {
+        // tl_d1/tl_d2 are static thread_local — each OMP thread has its own copy.
         JacobianPoint result{FieldElement::zero(), FieldElement::one(),
                              FieldElement::zero(), true};
         if (use_glv) {
