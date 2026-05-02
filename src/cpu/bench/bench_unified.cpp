@@ -233,6 +233,7 @@ struct CliOptions {
     bool quick;             // reduced iterations for CI
     bool no_warmup;         // skip CPU frequency ramp-up
     bool help;
+    bool compare;           // --compare: only sign/verify + libsecp ratio, fast
 
     // Suite filter: 0=all, 1=core (field/scalar/point/ecdsa/schnorr/libsecp/ratio)
     //               2=extended (+ ct, batch, micro-diagnostics)
@@ -246,6 +247,7 @@ static CliOptions parse_cli(int argc, char** argv) {
     opts.quick = false;
     opts.no_warmup = false;
     opts.help = false;
+    opts.compare = false;
     opts.suite = 0;  // all
 
     for (int i = 1; i < argc; ++i) {
@@ -263,6 +265,10 @@ static CliOptions parse_cli(int argc, char** argv) {
             if (strcmp(argv[i], "core") == 0) opts.suite = 1;
             else if (strcmp(argv[i], "extended") == 0) opts.suite = 2;
             else opts.suite = 0;  // all
+        } else if (strcmp(argv[i], "--compare") == 0) {
+            opts.compare = true;
+            opts.no_warmup = true;
+            if (opts.passes == 0) opts.passes = 7;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             opts.help = true;
         }

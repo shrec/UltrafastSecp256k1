@@ -815,6 +815,23 @@ if(SECP256K1_BUILD_BENCH)
         )
         target_link_libraries(bench_unified PRIVATE ${SECP256K1_LIB_NAME})
 
+        # Quick Ultra-vs-libsecp comparison (~25s vs bench_unified ~5min).
+        # Runs only sign/verify for both libraries and prints a ratio table.
+        add_executable(bench_vs_libsecp
+            bench/bench_vs_libsecp.cpp
+            ${_BENCH_UNIFIED_LIBSECP_SOURCES}
+        )
+        target_include_directories(bench_vs_libsecp PRIVATE
+            ${_LIBSECP_ROOT}/include
+            ${LIBSECP_SRC_DIR}
+        )
+        target_link_libraries(bench_vs_libsecp PRIVATE ${SECP256K1_LIB_NAME})
+        if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+            set_source_files_properties(${_BENCH_UNIFIED_LIBSECP_SOURCES} PROPERTIES
+                COMPILE_FLAGS "-Wno-error -Wno-conversion -Wno-sign-conversion -Wno-unused-function"
+            )
+        endif()
+
         # The libsecp provider intentionally compiles upstream bitcoin-core
         # internals in-tree for benchmark parity. Those upstream sources emit
         # warnings under our stricter local flags, so keep them non-fatal even
