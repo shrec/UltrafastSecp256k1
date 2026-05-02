@@ -93,7 +93,7 @@ npm i ufsecp                       # Node.js
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
 | 🚀 Independent reviewer quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
 | 📄 See latest audit results | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) |
-| � Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
+| 📊 Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
 | 🗺️ Exploit coverage map | [docs/EXPLOIT_COVERAGE_MAP.md](docs/EXPLOIT_COVERAGE_MAP.md) |
 | 🎯 ECDSA edge-case coverage | [docs/ECDSA_EDGE_CASE_COVERAGE.md](docs/ECDSA_EDGE_CASE_COVERAGE.md) |
@@ -125,9 +125,9 @@ npm i ufsecp                       # Node.js
 | 📦 Install packages | [Installation](#installation) |
 | 🤔 Why this library? | [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) |
 | 📚 Cite this work | [CITATION.cff](CITATION.cff) |
-| � Production adopters | [docs/ADOPTION.md](docs/ADOPTION.md) |
+| 🌐 Production adopters | [docs/ADOPTION.md](docs/ADOPTION.md) |
 | 💰 Funding & grant programmes | [docs/FUNDING_TARGETS.md](docs/FUNDING_TARGETS.md) |
-| �🌐 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
+| 💙 Sponsor | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
 
 > **Claim map:** [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) · **Security policy:** [SECURITY.md](SECURITY.md) · **Discord:** [discord.gg/E4BK8SeMYU](https://discord.gg/E4BK8SeMYU)
 
@@ -220,7 +220,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
-- **Zero dependencies** -- pure C++20, no Boost, no OpenSSL, compiles anywhere with a conforming compiler
+- **Zero dependencies** -- no Boost, no OpenSSL; builds on GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, and Emscripten without modification
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
 
@@ -254,7 +254,7 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 [![Research](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/research-monitor.yml?branch=main&label=Research)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![C++17+](https://img.shields.io/badge/C%2B%2B-17%2B-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12011/badge)](https://www.bestpractices.dev/projects/12011)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=security_rating)](https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1)
@@ -304,7 +304,7 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 - **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
 - **Multi-language bindings** -- Python (`pip install ufsecp`), Node.js (`npm i ufsecp`), Rust, Go, C#/.NET, Java, Swift, PHP, Ruby, Dart, React Native — all via the stable C ABI
 - **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
-- **Zero-dependency C++20 core** -- no Boost, no OpenSSL, compiles anywhere
+- **Zero-dependency portable core** -- no Boost, no OpenSSL, compiles anywhere from server-class GPUs to bare-metal microcontrollers
 - **Massively parallel workloads** -- batch verification, key scanning, address generation at GPU scale
 
 ---

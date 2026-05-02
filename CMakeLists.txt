@@ -21,9 +21,12 @@ project(UltrafastSecp256k1
 set(PROJECT_HOMEPAGE_URL "https://github.com/shrec/UltrafastSecp256k1")
 set(PROJECT_LICENSE "MIT")
 
-# C++20 required
+# C++20 used where available; the project builds on GCC 10+, Clang 12+,
+# MSVC 2019+, ESP32-IDF 5.x, STM32 arm-none-eabi toolchains, and WASM.
+# CMAKE_CXX_STANDARD_REQUIRED is OFF so CMake falls back gracefully on
+# toolchains that only support C++17.
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Generate version header from template
