@@ -1076,8 +1076,8 @@ static void derive_phi52_table(
     for (int i = 0; i < table_size; i++) {
         tbl_phiP[i].x = tbl_P[i].x * beta52;
         if (flip_phi) {
+            // negate(1) gives magnitude 1 — normalize_weak() is redundant.
             tbl_phiP[i].y = tbl_P[i].y.negate(1);
-            tbl_phiP[i].y.normalize_weak();
         } else {
             tbl_phiP[i].y = tbl_P[i].y;
         }
@@ -3784,19 +3784,21 @@ namespace {
         JacobianPoint52 const d = jac52_double(B);
         FieldElement52 const C = d.z, C2 = C.square(), C3 = C2 * C;
         AffinePoint52 const d_aff = {d.x, d.y};
-        auto* iso = new JacobianPoint52[count];
+        // Use unique_ptr for exception safety (raw new/delete was fragile).
+        auto iso   = std::make_unique<JacobianPoint52[]>(count);
+        auto eff_z = std::make_unique<FieldElement52[]>(count);
+        auto prods = std::make_unique<FieldElement52[]>(count);
+        auto zs    = std::make_unique<FieldElement52[]>(count);
+
         iso[0] = {B.x * C2, B.y * C3, B.z, false};
         for (std::size_t i = 1; i < count; i++) {
             iso[i] = iso[i-1];
             jac52_add_mixed_inplace(iso[i], d_aff);
         }
-        auto* eff_z = new FieldElement52[count];
         for (std::size_t i = 0; i < count; i++) eff_z[i] = iso[i].z * C;
-        auto* prods = new FieldElement52[count];
         prods[0] = eff_z[0];
         for (std::size_t i = 1; i < count; i++) prods[i] = prods[i-1] * eff_z[i];
         FieldElement52 inv = prods[count-1].inverse_safegcd();
-        auto* zs = new FieldElement52[count];
         for (std::size_t i = count-1; i > 0; --i) {
             zs[i] = prods[i-1] * inv; inv = inv * eff_z[i];
         }
@@ -3806,7 +3808,6 @@ namespace {
             AffinePoint52 const aff = {iso[i].x * zinv2, iso[i].y * zinv3};
             out[i] = AffinePointCompact::from_affine52(aff);
         }
-        delete[] zs; delete[] prods; delete[] eff_z; delete[] iso;
     }
 
     static const DualMulGenTables* get_dual_mul_gen_tables() {
