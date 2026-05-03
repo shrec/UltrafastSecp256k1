@@ -354,6 +354,7 @@ def run_stage(stage: dict, timeout: int) -> dict:
             "passed": False,
             "detail": f"Timed out after {timeout}s",
             "duration_s": round(elapsed, 2),
+            "output_truncated": True,
         }
     elapsed = round(time.monotonic() - t0, 2)
 
@@ -361,18 +362,22 @@ def run_stage(stage: dict, timeout: int) -> dict:
     try:
         stdout_json = json.loads(result.stdout)
     except (json.JSONDecodeError, ValueError):
-        pass
+        # Fallback: some scripts print diagnostics before the JSON payload.
+        # Find the first '{' and try parsing from there.
+        idx = result.stdout.find("{")
+        if idx != -1:
+            try:
+                stdout_json = json.loads(result.stdout[idx:])
+            except (json.JSONDecodeError, ValueError):
+                pass
 
     passed, detail = stage["pass_fn"](result, stdout_json)
 
     # advisory_skip is set when the underlying script returned ADVISORY_SKIP_CODE
-    # (77) AND the stage's pass_fn treated that as a non-failure pass. JSON
-    # consumers must distinguish a true pass from an advisory-skipped pass.
-    advisory_skip = (
-        passed
-        and result.returncode == _ADVISORY_SKIP_CODE
-        and stage["pass_fn"] is _generic_pass
-    )
+    # (77) AND the stage's pass_fn treated that as a non-failure pass (i.e.
+    # returned True). We rely on the pass_fn having already accepted 77 — no
+    # need to restrict by which specific pass_fn is in use.
+    advisory_skip = passed and result.returncode == _ADVISORY_SKIP_CODE
     status = "advisory_skipped" if advisory_skip else ("passed" if passed else "failed")
 
     return {
