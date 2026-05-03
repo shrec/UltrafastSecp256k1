@@ -49,17 +49,25 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Verify bot token is configured
+        # CAAS_BOT_TOKEN must be a PAT with bypass permissions for the dev branch
+        # protection rules. GITHUB_TOKEN cannot push through branch protection, so
+        # the refresh silently fails on push without the PAT. Fail fast here instead.
+        run: |
+          if [ -z "${{ secrets.CAAS_BOT_TOKEN }}" ]; then
+            echo "::error::CAAS_BOT_TOKEN secret is not configured."
+            echo "::error::The evidence refresh requires a PAT that can bypass branch protection on dev."
+            echo "::error::Configure CAAS_BOT_TOKEN as a repository secret with bypass permissions."
+            exit 1
+          fi
+
       - name: Checkout dev
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: dev
           fetch-depth: 0
           persist-credentials: true
-          # Use admin PAT (bypass actor on dev ruleset) so the bot can push
-          # without the 14 required status checks. Falls back to GITHUB_TOKEN
-          # if the secret is not configured (push will then fail with a clear
-          # ruleset-violation error, same as before this change).
-          token: ${{ secrets.CAAS_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CAAS_BOT_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -139,13 +147,25 @@ jobs:
             || true
 
       - name: Commit and push if changed
+        id: commit_push
         env:
-          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN }}
           FORCE_COMMIT: ${{ github.event.inputs.force_commit }}
         run: |
           set -e
           git config user.name  "caas-bot"
           git config user.email "caas-bot@users.noreply.github.com"
+
+          # Record this refresh run in the evidence chain BEFORE checking what changed,
+          # so the chain entry is always included in the commit (if anything else changed).
+          # CAAS_HMAC_KEY is intentionally not required here — the refresh bot uses the
+          # public in-repo key (tamper-evident only). Forensic-grade chain entries come
+          # from manual CAAS runs in caas.yml where the secret is enforced.
+          python3 ci/evidence_governance.py record \
+            --who "caas-evidence-refresh" \
+            --what "nightly-evidence-refresh" \
+            --verdict "pass" \
+            --reason "automated-nightly-$(date -u +%Y-%m-%d)" || true
 
           CHANGED=0
           for f in assurance_report.json \
@@ -153,7 +173,8 @@ jobs:
                    docs/EXTERNAL_AUDIT_BUNDLE.sha256 \
                    docs/SECURITY_AUTONOMY_KPI.json \
                    docs/AUDIT_DASHBOARD.md \
-                   docs/EXPLOIT_TRACEABILITY_JOIN.md; do
+                   docs/EXPLOIT_TRACEABILITY_JOIN.md \
+                   docs/EVIDENCE_CHAIN.json; do
             if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
               git add "$f"
               CHANGED=1
@@ -166,6 +187,6 @@ jobs:
           fi
 
           git commit -m "[bot] CAAS evidence refresh ($(date -u +%Y-%m-%d))" \
-                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. Includes audit dashboard (H-9) and exploit traceability join (G-9b). See docs/CAAS_HARDENING_TODO.md (H-1)."
+                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. Includes audit dashboard (H-9), exploit traceability join (G-9b), and evidence chain record. See docs/CAAS_HARDENING_TODO.md (H-1)."
 
           git push origin dev

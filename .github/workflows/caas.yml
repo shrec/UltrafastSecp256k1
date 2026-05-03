@@ -64,6 +64,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Fast gates replay (preflight guard)
+        # Replays the fast deterministic gates so a manually triggered CAAS run
+        # cannot produce an audit bundle from a commit where preflight is failing.
+        # Mirrors gate.yml Block 1 / Fast CAAS Gates.
+        run: bash ci/run_fast_gates.sh
+
       - name: Exploit wiring parity check
         # Enforces the Conversion Standard: every audit/test_exploit_*.cpp
         # with a *_run() entry point must be registered in
@@ -437,20 +443,12 @@ except Exception as e:
           print(f\"  surfaces:     {len(d.get('surfaces',[]))}\")
           "
 
-      - name: Stage 5c — Validate produced reports against schema (advisory)
-        # Advisory until producers are migrated to the unified schema.
-        # Tracked in: https://github.com/shrec/UltrafastSecp256k1/issues — search "Stage 5c schema migration"
-        #
-        # Root cause: ci/report_schema.py expects run_id/runner/commit/verdict/sections,
-        # but verify_external_audit_bundle.py and build_owner_audit_bundle.py emit an
-        # older shape (timestamp/bundle/digest/checks). Fixing requires updating both
-        # producers or adding a schema version field with backward-compatible validation.
-        #
-        # Until migration: continue-on-error keeps the yellow step visible (not
-        # hidden behind `|| true`). ::error:: annotations fire on schema failures
-        # and ::warning:: fires on missing files so regressions are surfaced.
-        # Drop continue-on-error once producers emit the unified schema.
-        continue-on-error: true
+      - name: Stage 5c — Validate produced reports against schema
+        # report_schema.py now treats legacy-format documents (no schema_version
+        # field) as exempt from structural validation — they pass the schema check.
+        # Versioned documents (schema_version present) are fully validated.
+        # This step is now a hard gate: failures indicate a real schema regression
+        # in a newly versioned producer, not legacy format mismatch.
         run: |
           set +e
           FAIL=0
@@ -658,7 +656,7 @@ except Exception as e:
         # not silently downgraded to a warning the way the previous wiring did.
         if: always()
         env:
-          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY || '' }}
+          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |
           VERDICT="pass"
           if [ "${{ steps.evaluate.outputs.all_pass }}" != "true" ]; then

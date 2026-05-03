@@ -1072,6 +1072,9 @@ jobs:
             audit_report.txt
             docs/EXTERNAL_AUDIT_BUNDLE.json
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
+            build/owner_audit/owner_audit_bundle.json
+            build/owner_audit/owner_audit_bundle.txt
+          if-no-files-found: warn
           retention-days: 90
 
   # ============================================================================

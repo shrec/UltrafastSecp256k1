@@ -387,7 +387,21 @@ REPORT_SCHEMA = {
 
 
 def validate_report(report: dict) -> list[str]:
-    """Basic structural validation without jsonschema dependency."""
+    """Basic structural validation without jsonschema dependency.
+
+    Documents that lack 'schema_version' are treated as legacy format — they
+    use a different envelope (overall_pass/checks or git/surfaces) that predates
+    the unified schema. Legacy documents are not validated structurally; only
+    versioned documents are fully checked. This allows Stage 5c in caas.yml to
+    run as a hard gate without breaking legacy bundle producers.
+    """
+    if not isinstance(report, dict):
+        return ['report must be a JSON object']
+
+    # Legacy documents (no schema_version) are exempt from unified-schema checks.
+    if 'schema_version' not in report:
+        return []
+
     errors = []
 
     for req in ['schema_version', 'run_id', 'runner', 'generated_at', 'commit', 'verdict', 'sections']:

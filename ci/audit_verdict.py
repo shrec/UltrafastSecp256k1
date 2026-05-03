@@ -55,9 +55,12 @@ def load_verdict(json_path: Path) -> str | None:
         data = json.loads(json_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    # "audit_verdict" is the canonical field; "verdict" is a backward-compat alias
-    # emitted by audit_gate.py for consumers that read only the older field name.
+    # Check top-level fields first (canonical + backward-compat alias).
     verdict = data.get("audit_verdict") or data.get("verdict")
+    # Fall back to summary.audit_verdict (unified_audit_runner format where the
+    # verdict is nested under the "summary" sub-object).
+    if not isinstance(verdict, str):
+        verdict = (data.get("summary") or {}).get("audit_verdict")
     return verdict if isinstance(verdict, str) else None
 
 

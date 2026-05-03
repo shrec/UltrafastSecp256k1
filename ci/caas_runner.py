@@ -336,8 +336,16 @@ def run_stage(stage: dict, timeout: int) -> dict:
             timeout=timeout,
             cwd=str(LIB_ROOT),
             env={**__import__("os").environ, **env_overrides},
+            start_new_session=True,  # place child in its own process group for clean kill
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        # Kill the entire process group so hanging child-of-child processes don't linger.
+        import os as _os
+        import signal as _signal
+        try:
+            _os.killpg(_os.getpgid(exc.process.pid), _signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, AttributeError):
+            pass
         elapsed = time.monotonic() - t0
         return {
             "id": stage["id"],
@@ -376,8 +384,8 @@ def run_stage(stage: dict, timeout: int) -> dict:
         "returncode": result.returncode,
         "detail": detail,
         "duration_s": elapsed,
-        "stdout_tail": result.stdout[-2000:] if not passed else "",
-        "stderr_tail": result.stderr[-500:] if not passed else "",
+        "stdout_tail": result.stdout[-2000:] if not passed else result.stdout[-500:],
+        "stderr_tail": result.stderr[-500:] if not passed else result.stderr[-200:],
     }
 
 
@@ -455,7 +463,9 @@ def build_json_report(
     profile: dict | None = None,
     extra_check_results: list[dict] | None = None,
 ) -> dict:
-    overall_pass = all(r["passed"] for r in results)
+    # Exclude fail-fast-skipped stages (status=="skipped") from overall_pass —
+    # a stage that never ran is not the same as a stage that failed.
+    overall_pass = all(r["passed"] for r in results if r.get("status") != "skipped")
     extra_checks_clean = []
     if extra_check_results:
         for ec in extra_check_results:

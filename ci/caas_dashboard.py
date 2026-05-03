@@ -59,7 +59,8 @@ def _run(cmd: list[str], cwd: Path | None = None) -> str:
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd or LIB_ROOT, timeout=30)
         return r.stdout.strip()
-    except Exception:
+    except Exception as exc:
+        print(f"::warning::caas_dashboard _run({cmd[0]}): {exc}", file=sys.stderr)
         return ""
 
 

@@ -25,7 +25,12 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SUITE_ROOT = REPO_ROOT.parent.parent  # …/Secp256K1fast
+# In a full monorepo workspace SUITE_ROOT is two levels up; in a clean CI
+# checkout (only the submodule is checked out) that path does not exist.
+# Fall back to REPO_ROOT so the dashboard still renders with whatever data
+# is available locally rather than silently showing empty sections.
+_suite_candidate = REPO_ROOT.parent.parent
+SUITE_ROOT = _suite_candidate if _suite_candidate.is_dir() else REPO_ROOT
 
 PROFILES = ("default", "bitcoin-core-backend", "cpu-signing", "release")
 

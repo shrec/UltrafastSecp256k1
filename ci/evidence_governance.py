@@ -35,11 +35,17 @@ EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 # public in-repo fallback key in a CI environment means any repo reader can forge
 # evidence records, which makes the chain forensically worthless.
 # Locally the fallback is accepted; CI hard-fails if the secret is absent.
-_HMAC_KEY_IS_DEFAULT = "CAAS_HMAC_KEY" not in os.environ
+#
+# NOTE: GitHub Actions sets secrets to an empty string (not absent) when the
+# secret is not configured. Both "not in os.environ" and "== ''" are treated as
+# "no key configured" to prevent the bypass.
+_HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
+_caas_hmac_env = os.environ.get("CAAS_HMAC_KEY", "").strip()
+_HMAC_KEY_IS_DEFAULT = not _caas_hmac_env
 if _HMAC_KEY_IS_DEFAULT:
     if os.environ.get("GITHUB_ACTIONS") == "true":
         print(
-            "::error::CAAS_HMAC_KEY secret is not set. "
+            "::error::CAAS_HMAC_KEY secret is not set or is empty. "
             "Evidence chain HMAC uses the public in-repo key in CI, which allows "
             "anyone with read access to forge records. "
             "Add CAAS_HMAC_KEY as a repository secret and pass it via env: in the workflow.",
@@ -51,8 +57,7 @@ if _HMAC_KEY_IS_DEFAULT:
         "cryptographic auth. Set CAAS_HMAC_KEY env var for production.",
         file=sys.stderr,
     )
-_HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
-_HMAC_KEY = os.environ.get("CAAS_HMAC_KEY", _HMAC_KEY_DEFAULT).encode()
+_HMAC_KEY = _caas_hmac_env.encode() if _caas_hmac_env else _HMAC_KEY_DEFAULT.encode()
 
 
 def _git_sha() -> str:
@@ -168,10 +173,13 @@ def validate_chain() -> dict:
                 tampered.append(i)
                 issues.append(f"record[{i}]: HMAC mismatch — possible tamper")
 
-        # Check commit is valid hex; records with no traceable commit are orphaned
+        # Check commit is valid hex; records with no traceable commit are orphaned.
+        # Orphaned records (commit == "unknown") are counted as issues — a forensic
+        # chain record without a traceable git commit is useless for retrospective audits.
         commit = record.get("commit", "")
         if not commit or commit in ("unknown", "n/a", ""):
             orphaned.append(i)
+            issues.append(f"record[{i}]: orphaned record — commit is '{commit}' (not traceable)")
         elif len(commit) < 7 or not all(c in "0123456789abcdef" for c in commit):
             issues.append(f"record[{i}]: invalid commit SHA format")
 
