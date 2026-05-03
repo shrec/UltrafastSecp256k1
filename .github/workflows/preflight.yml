@@ -113,6 +113,9 @@ jobs:
           print(f"PASS: 0 findings")
           EOF
 
+      - name: Rebuild project graph (ensures fresh paths for audit gate)
+        run: python3 ci/build_project_graph.py --rebuild
+
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
         run: python3 ci/audit_gate.py --json -o caas_audit_gate.json
 
