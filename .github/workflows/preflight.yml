@@ -169,27 +169,7 @@ jobs:
           python3 ci/audit_gate.py --json -o caas_audit_gate.json
           GATE_EXIT=$?
           set -e
-          python3 -c "
-import json, sys
-try:
-    d = json.load(open('caas_audit_gate.json'))
-    # OBS-1 fix: accept both 'verdict' (new schema) and 'audit_verdict' (legacy)
-    # so this consumer is resilient to producer schema evolution. caas.yml uses
-    # 'verdict'; preflight.yml previously used only 'audit_verdict'.
-    verdict = d.get('verdict') or d.get('audit_verdict') or 'unknown'
-    summary = d.get('summary', {})
-    blocking = summary.get('blocking', summary.get('failing', summary.get('fail', 0)))
-    advisory = summary.get('advisory', 0)
-    print(f\"verdict={verdict}  blocking={blocking}  advisory={advisory}\")
-    for c in d.get('checks', d.get('gates', [])):
-        if c.get('status') == 'FAIL':
-            print(f\"  FAIL: {c.get('name', c.get('gate', '?'))}\")
-            for f in c.get('findings', []):
-                if f.get('severity') == 'FAIL':
-                    print(f\"    - {f['message']}\")
-except Exception as e:
-    print(f'(could not parse gate report: {e})')
-"
+          python3 ci/parse_gate_report.py caas_audit_gate.json
           exit $GATE_EXIT
 
       - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)

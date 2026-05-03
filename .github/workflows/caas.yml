@@ -323,14 +323,7 @@ jobs:
         run: |
           echo "## CAAS Stage 3 — Security Autonomy" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 -c "
-import json, sys
-try:
-    d = json.load(open('caas_autonomy.json'))
-    print(f\"score={d.get('autonomy_score',0)}/100  ready={d.get('autonomy_ready',False)}\")
-except Exception as e:
-    print(f'(no autonomy report: {e})')
-" >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '(no autonomy report)' >> $GITHUB_STEP_SUMMARY
+          python3 ci/parse_gate_report.py caas_autonomy.json --autonomy >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '(no autonomy report)' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
