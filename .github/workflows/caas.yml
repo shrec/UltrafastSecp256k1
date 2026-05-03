@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_bundle:
-        description: 'Skip bundle produce/verify (faster, advisory only)'
+        description: 'WARNING: skips Stages 4+5 — audit bundle and owner bundle will NOT be produced; CAAS result is advisory only'
         required: false
         default: 'false'
         type: choice
@@ -429,7 +429,8 @@ except Exception as e:
         # produced on every CAAS run and persisted as an artifact.
         run: |
           python3 ci/build_owner_audit_bundle.py \
-            --output-dir build/owner_audit
+            --output-dir build/owner_audit \
+            --strict
           ls -la build/owner_audit/
           python3 -c "
           import json, sys, pathlib
@@ -452,7 +453,7 @@ except Exception as e:
         run: |
           set +e
           FAIL=0
-          for f in caas_bundle_verify.json build/owner_audit/owner_audit_bundle.json; do
+          for f in caas_audit_gate.json caas_autonomy.json caas_bundle_verify.json build/owner_audit/owner_audit_bundle.json; do
               if [ ! -f "$f" ]; then
                   echo "::error::schema validate: $f not found — Stage 4/5 should have produced it"
                   FAIL=1
@@ -483,7 +484,7 @@ except Exception as e:
             caas_bundle_verify.json
             build/owner_audit/owner_audit_bundle.json
             build/owner_audit/owner_audit_bundle.txt
-          retention-days: 90
+          retention-days: 365
 
       - name: Step summary
         if: always()

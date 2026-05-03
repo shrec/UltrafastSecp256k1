@@ -30,7 +30,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # Fall back to REPO_ROOT so the dashboard still renders with whatever data
 # is available locally rather than silently showing empty sections.
 _suite_candidate = REPO_ROOT.parent.parent
-SUITE_ROOT = _suite_candidate if _suite_candidate.is_dir() else REPO_ROOT
+if _suite_candidate.is_dir():
+    SUITE_ROOT = _suite_candidate
+else:
+    import os as _os
+    if _os.environ.get("GITHUB_ACTIONS"):
+        print(
+            "::warning::render_audit_dashboard: SUITE_ROOT not found — "
+            "dashboard uses REPO_ROOT fallback; suite-level evidence will be missing",
+            flush=True,
+        )
+    SUITE_ROOT = REPO_ROOT
 
 PROFILES = ("default", "bitcoin-core-backend", "cpu-signing", "release")
 

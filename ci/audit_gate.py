@@ -256,10 +256,10 @@ def check_invalid_input_grammar(conn):
     )
 
     if report is None:
-        # [SKIP] means the Python binding (_ufsecp) is not built in this environment.
-        # Treat as advisory (WARN) not blocking — binding build is optional in CI.
+        # Hard-fail: CI must build the _ufsecp shared library before running the gate.
+        # A missing binding is a CI setup error, not an advisory condition.
         if details and ('SKIP' in details or '_ufsecp' in details or 'not available' in details.lower()):
-            findings.append(('WARN', f'Invalid-input grammar skipped (binding not available): {details}'))
+            findings.append(('FAIL', f'Invalid-input grammar: _ufsecp binding not available — build the shared library first: {details}'))
             return 'P0: Invalid-Input Grammar', findings
         findings.append(('FAIL', f'Invalid-input grammar harness did not produce JSON: {details}'))
         return 'P0: Invalid-Input Grammar', findings
@@ -295,8 +295,10 @@ def check_stateful_sequences(conn):
     )
 
     if report is None:
+        # Hard-fail: CI must build the _ufsecp shared library before running the gate.
+        # A missing binding is a CI setup error, not an advisory condition.
         if details and ('SKIP' in details or '_ufsecp' in details or 'not available' in details.lower()):
-            findings.append(('WARN', f'Stateful sequence skipped (binding not available): {details}'))
+            findings.append(('FAIL', f'Stateful sequence: _ufsecp binding not available — build the shared library first: {details}'))
             return 'P0: Stateful Sequence Integrity', findings
         findings.append(('FAIL', f'Stateful sequence harness did not produce JSON: {details}'))
         return 'P0: Stateful Sequence Integrity', findings
@@ -1510,7 +1512,8 @@ def main():
     if json_mode:
         provenance = collect_provenance()
         warn_count = sum(1 for r in results for f in r['findings'] if f[0] == 'WARN')
-        advisory_count = sum(1 for r in results for f in r['findings'] if f[0] in ('WARN', 'INFO'))
+        info_count = sum(1 for r in results for f in r['findings'] if f[0] == 'INFO')
+        advisory_count = warn_count + info_count
         if has_fail:
             verdict = 'FAIL'
         elif warn_count:
@@ -1536,6 +1539,8 @@ def main():
                 'total_findings': sum(len(r['findings']) for r in results),
                 'blocking': sum(1 for r in results for f in r['findings'] if f[0] == 'FAIL'),
                 'advisory': advisory_count,
+                'warnings': warn_count,
+                'info': info_count,
                 'skipped_sections': 0,
                 'sections': len(results),
             },

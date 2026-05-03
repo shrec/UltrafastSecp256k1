@@ -177,6 +177,12 @@ jobs:
             echo "selftest binary not found — skipping smoke (library built OK)"
           fi
 
+      - name: Determinism gate (RFC 6979 + ECDH + BIP32)
+        continue-on-error: true
+        env:
+          UFSECP_LIB_PATH: ${{ github.workspace }}/out/ci-release
+        run: python3 ci/check_determinism_gate.py
+
       - name: Full unit tests (src changed only)
         if: needs.detect-impact.outputs.run_core == 'true'
         run: |

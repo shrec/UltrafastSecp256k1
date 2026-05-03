@@ -405,8 +405,8 @@ def main() -> int:
         print("RESULT: PASS — artifact is authentic")
         ret = 0
     elif not args.provenance and not args.bundle:
-        print("RESULT: INCOMPLETE — provide --provenance and/or --bundle to verify")
-        ret = 2
+        print("RESULT: FAIL — --provenance and/or --bundle required; provide the artifact paths to verify")
+        ret = 1
     else:
         print("RESULT: FAIL — artifact could not be verified; do NOT use")
         ret = 1

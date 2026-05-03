@@ -12,6 +12,10 @@
 name: Perf Regression Gate
 
 on:
+  schedule:
+    # Weekly unconditional run — catches regressions introduced by audit/ci/bindings/docs commits
+    # that are excluded from the push path filter below.
+    - cron: '0 3 * * 0'
   push:
     branches: [main, dev]
     paths:

@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-05-01T19:05:01.500915+00:00",
-  "autonomy_score": 100,
+  "timestamp": "2026-05-03T17:31:53.731135+00:00",
+  "autonomy_score": 90,
   "autonomy_ready": true,
   "gates_total": 8,
-  "gates_passing": 8,
+  "gates_passing": 7,
   "overall_pass": true,
   "gates": [
     {
@@ -26,9 +26,9 @@
       "gate": "audit_sla",
       "weight": 10,
       "status": "ran",
-      "passing": true,
-      "score": 10,
-      "returncode": 0
+      "passing": false,
+      "score": 0,
+      "returncode": 1
     },
     {
       "gate": "supply_chain",

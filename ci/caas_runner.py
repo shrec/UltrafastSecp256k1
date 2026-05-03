@@ -69,6 +69,15 @@ CAAS_VERSION = "1.0.0"
 
 STAGES = [
     {
+        "id": "exploit_wiring",
+        "name": "Exploit Wiring (check_exploit_wiring.py)",
+        "script": "check_exploit_wiring.py",
+        "args": [],
+        "pass_fn": "_generic_pass",
+        "description": "Verify all test_exploit_*.cpp files are wired in unified_audit_runner.cpp",
+        "blocking": True,
+    },
+    {
         "id": "scanner",
         "name": "Static Analysis (audit_test_quality_scanner)",
         "script": "audit_test_quality_scanner.py",
