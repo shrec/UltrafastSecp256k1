@@ -175,6 +175,7 @@ audit/formal/lean/.lake/
 # Local scratch / generated binaries
 config.ini
 scan_lut_bench.bin
+secp256k1_gen_lut_v1.bin
 found_keys.txt
 gpu_ct_leakage_report.json
 *.elf
