@@ -33,6 +33,8 @@ from typing import Any, Optional
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 DEFAULT_DB = LIB_ROOT / 'build' / 'artifact_analyzer.db'
+# NOTE: build/ is created by CMake; init_db() creates it automatically if missing.
+# The DB is gitignored. Use --db to specify a persistent path across clean builds.
 
 
 # ---------------------------------------------------------------------------
@@ -343,10 +345,10 @@ def detect_flakes(conn: sqlite3.Connection, window: int = 10) -> list[dict]:
                GROUP_CONCAT(severity_class) AS history,
                COUNT(DISTINCT severity_class) AS unique_severities
         FROM (
-            SELECT check_id, section, severity_class, generated_at
+            SELECT check_id, section, severity_class, generated_at, run_id
             FROM events
             WHERE severity_class IN ('blocking', 'pass', 'advisory')
-            ORDER BY generated_at DESC
+            ORDER BY generated_at DESC, run_id DESC
             LIMIT ?
         )
         GROUP BY check_id, section
@@ -508,7 +510,16 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         if not p.exists():
             print(f'WARN: {p} not found, skipping', file=sys.stderr)
             continue
-        report = json.loads(p.read_text())
+        try:
+            report = json.loads(p.read_text())
+        except (json.JSONDecodeError, OSError) as e:
+            print(f'WARN: {p} is not valid JSON ({e}), skipping', file=sys.stderr)
+            continue
+        if not isinstance(report, dict):
+            print(f'WARN: {p} is not a JSON object, skipping', file=sys.stderr)
+            continue
+        if 'runner' not in report and 'run_id' not in report:
+            print(f'WARN: {p} missing runner/run_id — schema may be incompatible; ingesting anyway', file=sys.stderr)
         n = ingest_report(conn, report)
         total += n
         print(f'Ingested {p.name}: {n} events')

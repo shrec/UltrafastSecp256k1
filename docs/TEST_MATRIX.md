@@ -328,6 +328,32 @@ gate reconciliation:
 - `exploit_sign_type_confusion_kreuse`
 - `exploit_zvp_glv_dcp_multiscalar`
 
+### Generated Inventory Sync (2026-05-03)
+
+The following active CTest targets were added during the 2026-05-03 audit
+validation sync so `TEST_MATRIX.md` matches the live generated CTest surface:
+
+- `exploit_batch_verify_malleability`
+- `exploit_blinding_recovery_hnp`
+- `exploit_bug004_batch_failclosed`
+- `exploit_cross_protocol_kreuse`
+- `exploit_ecdsa_fast_path_isolation`
+- `exploit_encoding_memory_corruption`
+- `exploit_gpu_memory_safety`
+- `exploit_hedged_return_value`
+- `exploit_kat_corpus`
+- `exploit_primitive_kat`
+- `exploit_rs_zero_check`
+- `exploit_shim_der_bip66`
+- `exploit_shim_musig_secnonce`
+- `exploit_shim_noncefp_bypass`
+- `exploit_tagged_hash_ext`
+- `exploit_thread_local_blinding`
+- `regression_gpu_key_erase_raii`
+- `secp256k1_noverify_tests`
+- `secp256k1_tests`
+- `zeroization`
+
 ---
 
 ## API Function -> Test Coverage Map

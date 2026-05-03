@@ -940,7 +940,7 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-01 Red Team Audit Round 3 (P-01..P-09) ===
     // Note: shim test returns 0 in unified-runner mode (shim linked separately);
     //       actual SPC-1..10 tests run via test_exploit_shim_pubkey_ct_standalone CTest target.
-    { "exploit_shim_pubkey_ct",                 "P-01/02/03: shim pubkey_create/keypair CT generator mul + key rejection (SPC-1..10) — 2026-05-01", "exploit_poc", test_exploit_shim_pubkey_ct_run, false },
+    { "exploit_shim_pubkey_ct",                 "P-01/02/03: shim pubkey_create/keypair CT generator mul + key rejection (SPC-1..10) — 2026-05-01", "exploit_poc", test_exploit_shim_pubkey_ct_run, true },
     // === 2026-05-02 Bitcoin Core PR Security Audit Fixes ===
     // (forward declarations at top of file)
     { "regression_schnorr_ct_arithmetic",  "Schnorr s=k+e*d uses ct:: arithmetic, r==all-zeros rejected (HIGH-03, HIGH-06) — 2026-05-02", "exploit_poc", test_regression_schnorr_ct_arithmetic_run,  false },
@@ -1154,11 +1154,10 @@ static void write_json_report(const char* path,
             ++total_pass;
         } else if (r.advisory) {
             ++total_advisory;
-            // MEDIUM-5 fix: use return_code sentinel as primary classifier;
-            // fall back to elapsed_ms heuristic for backward compatibility
-            // with any advisory module that has not yet been updated to return
-            // ADVISORY_SKIP_CODE (77) on its skip paths.
-            if (r.return_code == ADVISORY_SKIP_CODE || r.elapsed_ms < 1.0) {
+            // MEDIUM-5 fix: use return_code sentinel as primary classifier.
+            // elapsed_ms heuristic removed — it caused fast non-advisory tests
+            // to be mis-classified as advisory_skipped.
+            if (r.return_code == ADVISORY_SKIP_CODE) {
                 ++total_advisory_skipped;
             } else {
                 ++total_advisory_failed;

@@ -178,6 +178,7 @@ except Exception as e:
           name: preflight-reports
           path: |
             assurance_report.json
+            caas_scanner.json
             caas_audit_gate.json
             caas_autonomy.json
           retention-days: 30

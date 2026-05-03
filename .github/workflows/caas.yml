@@ -430,8 +430,8 @@ except Exception as e:
         run: |
           echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat caas_bundle_verify.json 2>/dev/null \
-            || echo '{"error":"caas_bundle_verify.json was not produced"}'
+          cat caas_bundle_verify.json >> "$GITHUB_STEP_SUMMARY" 2>/dev/null \
+            || echo '{"error":"caas_bundle_verify.json was not produced"}' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

@@ -191,6 +191,7 @@ def export_symbol_reasoning(conn):
     try:
         conn.execute("SELECT 1 FROM v_symbol_reasoning LIMIT 1")
     except Exception:
+        print("WARNING: v_symbol_reasoning view missing (old graph schema?); symbol reasoning unavailable.", file=sys.stderr)
         return {'summary': [], 'optimization_candidates': [], 'risk_hotspots': []}
     summary = conn.execute("""
         SELECT category, backend, COUNT(*) AS symbols,
@@ -246,23 +247,28 @@ def main():
 
     conn = get_conn()
 
-    provenance = collect_provenance()
+    try:
+        provenance = collect_provenance()
 
-    report = {
-        'schema_version': '1.0.0',
-        'runner': 'export_assurance',
-        'generated_at': datetime.now(timezone.utc).isoformat(),
-        'provenance': provenance,
-        'graph_meta': export_graph_meta(conn),
-        'subsystem_summary': export_subsystem_summary(conn),
-        'api_coverage': export_api_coverage(conn),
-        'test_targets': export_test_targets(conn),
-        'security_density': export_security_density(conn),
-        'protocol_status': export_protocol_status(conn),
-        'routing_summary': export_routing_summary(conn),
-        'semantic_tags': export_semantic_tags(conn),
-        'symbol_reasoning': export_symbol_reasoning(conn),
-    }
+        report = {
+            'schema_version': '1.0.0',
+            'runner': 'export_assurance',
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'provenance': provenance,
+            'graph_meta': export_graph_meta(conn),
+            'subsystem_summary': export_subsystem_summary(conn),
+            'api_coverage': export_api_coverage(conn),
+            'test_targets': export_test_targets(conn),
+            'security_density': export_security_density(conn),
+            'protocol_status': export_protocol_status(conn),
+            'routing_summary': export_routing_summary(conn),
+            'semantic_tags': export_semantic_tags(conn),
+            'symbol_reasoning': export_symbol_reasoning(conn),
+        }
+    except Exception as e:
+        print(f"ERROR: export_assurance failed during data collection: {e}", file=sys.stderr)
+        conn.close()
+        sys.exit(1)
 
     conn.close()
 

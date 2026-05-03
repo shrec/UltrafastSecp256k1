@@ -122,7 +122,9 @@ def _normalize_surface_token(token: str) -> str:
     normalized = token.strip().strip('`').strip()
     if not normalized:
         return ''
-    normalized = normalized.split()[0].rstrip(',:;)')
+    # Split on '(' first to handle "path(note)" (no space), then on whitespace
+    # for "path (note)". This prevents false "missing surface" reports.
+    normalized = normalized.split('(')[0].split()[0].rstrip(',:;)')
     return normalized
 
 

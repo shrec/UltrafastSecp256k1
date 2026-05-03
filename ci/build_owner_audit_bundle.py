@@ -293,11 +293,20 @@ def main() -> int:
         text=True,
         check=False,
     )
+    if ct_collection.returncode != 0:
+        print(f"WARNING: CT evidence collection failed (exit {ct_collection.returncode}). Evidence may be incomplete.")
     ct_summary_path = ct_dir / 'ct_evidence_summary.json'
-    ct_evidence = json.loads(_read_text(ct_summary_path)) if ct_summary_path.exists() else {
-        'overall_status': 'missing',
-        'owner_grade_gaps': ['ct evidence summary missing'],
-    }
+    if ct_summary_path.exists():
+        ct_evidence = json.loads(_read_text(ct_summary_path))
+        if ct_collection.returncode != 0:
+            ct_evidence['collection_warning'] = (
+                f'CT evidence collection exited {ct_collection.returncode}; data may be incomplete'
+            )
+    else:
+        ct_evidence = {
+            'overall_status': 'missing',
+            'owner_grade_gaps': ['ct evidence summary missing'],
+        }
 
     benchmark_publishability = _build_benchmark_publishability()
     audit_summary = _discover_latest_audit_summary()

@@ -96,13 +96,14 @@ jobs:
         run: |
           python3 ci/external_audit_bundle.py
           BUNDLE_VERIFY_JSON="${{ runner.temp }}/bundle_verify.json"
-          python3 ci/verify_external_audit_bundle.py --json > "$BUNDLE_VERIFY_JSON" || true
+          python3 ci/verify_external_audit_bundle.py --json > "$BUNDLE_VERIFY_JSON"
           python3 - "$BUNDLE_VERIFY_JSON" <<'EOF'
           import json, sys
           with open(sys.argv[1]) as f:
               r = json.load(f)
           if not r.get('overall_pass', False):
-              print('::warning::Bundle verify did not pass; committing refreshed bundle anyway so the next CAAS run sees fresh evidence')
+              print('::error::Bundle verify FAILED — aborting evidence refresh commit')
+              sys.exit(1)
           else:
               print('::notice::Bundle verify PASS')
           EOF

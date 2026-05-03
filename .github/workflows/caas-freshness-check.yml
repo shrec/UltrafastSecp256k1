@@ -71,8 +71,8 @@ jobs:
           )
           commit_date_str = result.stdout.strip()
           if not commit_date_str:
-              print("::warning::No git history for bundle file — skipping age check")
-              sys.exit(0)
+              print("::error::No git history for bundle file — cannot verify evidence age (fail-closed)")
+              sys.exit(1)
 
           commit_date = datetime.fromisoformat(commit_date_str)
           now = datetime.now(timezone.utc)

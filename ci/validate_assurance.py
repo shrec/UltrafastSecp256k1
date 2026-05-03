@@ -124,8 +124,9 @@ def scan_test_matrix_targets():
                 targets.add(stem)
                 # Also keep the raw filename stem
                 targets.add(Path(fname).stem)
-            # Capture bare identifiers (only from table rows with |)
-            if '|' in line:
+            # Capture bare identifiers from table rows (|) and list items (-)
+            stripped = line.strip()
+            if '|' in line or stripped.startswith('-'):
                 for m in target_re.finditer(line):
                     name = m.group(1)
                     # Skip if it looks like a source file (already handled above)

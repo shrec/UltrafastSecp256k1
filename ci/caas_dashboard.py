@@ -152,12 +152,16 @@ def collect_autonomy() -> dict:
             ["python3", "ci/security_autonomy_check.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
+        if raw.returncode != 0:
+            return {
+                "autonomy_score": 0,
+                "overall_pass": False,
+                "error": f"security_autonomy_check.py exited {raw.returncode}",
+                "stderr": raw.stderr[:200],
+            }
         if not raw.stdout.strip():
             return {"error": "no output", "overall_pass": False}
-        data = json.loads(raw.stdout)
-        if raw.returncode != 0:
-            data.setdefault("overall_pass", False)
-        return data
+        return json.loads(raw.stdout)
     except Exception as exc:
         return {"error": str(exc), "overall_pass": False}
 

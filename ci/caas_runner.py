@@ -560,11 +560,13 @@ def print_reviewer_summary(
     print(f"{BOLD}{CYAN}{bar}{RESET}\n")
 
 
-def _rebuild_graphs(timeout: int, quiet: bool = False) -> None:
+def _rebuild_graphs(timeout: int, quiet: bool = False) -> bool:
     """Rebuild both the legacy project graph and the source graph.
 
     This advances the built_at timestamp past any source file mtimes from
     mutation testing, eliminating the P6 Graph Freshness WARN.
+
+    Returns True if all rebuilds succeeded, False if any rebuild failed.
     """
     cmds = [
         ([sys.executable, str(SCRIPT_DIR / "build_project_graph.py"), "--rebuild"],
@@ -573,6 +575,7 @@ def _rebuild_graphs(timeout: int, quiet: bool = False) -> None:
           "build", "-i"],
          "Source graph"),
     ]
+    all_ok = True
     for cmd, label in cmds:
         t0 = time.monotonic()
         try:
@@ -580,14 +583,18 @@ def _rebuild_graphs(timeout: int, quiet: bool = False) -> None:
                 cmd, capture_output=True, text=True, timeout=timeout, cwd=str(LIB_ROOT)
             )
             elapsed = round(time.monotonic() - t0, 1)
-            if not quiet:
-                if result.returncode == 0:
+            if result.returncode == 0:
+                if not quiet:
                     print(f"  {GREEN}✓{RESET} {label} rebuilt ({elapsed}s)")
-                else:
+            else:
+                all_ok = False
+                if not quiet:
                     print(f"  {YELLOW}⚠{RESET} {label} rebuild exited {result.returncode} ({elapsed}s)")
         except subprocess.TimeoutExpired:
+            all_ok = False
             if not quiet:
                 print(f"  {YELLOW}⚠{RESET} {label} rebuild timed out")
+    return all_ok
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -719,7 +726,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.rebuild_graph:
         if not args.json:
             print(f"\n{CYAN}[pre] Rebuilding project graphs...{RESET}")
-        _rebuild_graphs(args.timeout, quiet=args.json)
+        rebuild_ok = _rebuild_graphs(args.timeout, quiet=args.json)
+        if not rebuild_ok:
+            print(
+                "WARNING: source graph rebuild failed; gate checks may use stale data.",
+                file=sys.stderr,
+            )
 
     # --------------------------------------------------- extra_checks pre-flight
     extra_check_results: list[dict] = []
@@ -746,7 +758,8 @@ def main(argv: list[str] | None = None) -> int:
                             print(f"  {line}")
             # In auditor mode, a failing extra_check is blocking — but we still
             # run all checks (fail_fast is already False in auditor mode).
-            # For non-auditor mode, extra_check failures are warnings only.
+            # In non-auditor mode, extra_check failures are also blocking:
+            # they factor into overall_pass at the end of main().
 
     # ----------------------------------------------------------- main stage loop
     results: list[dict] = []
@@ -778,7 +791,9 @@ def main(argv: list[str] | None = None) -> int:
             break
 
     total_s = time.monotonic() - t_global
-    overall_pass = all(r["passed"] for r in results if r.get("status") != "skipped")
+    stage_pass = all(r["passed"] for r in results if r.get("status") != "skipped")
+    extra_pass = all(r.get("passed", True) for r in extra_check_results) if extra_check_results else True
+    overall_pass = stage_pass and extra_pass
 
     if not args.json:
         print_summary(results, total_s)

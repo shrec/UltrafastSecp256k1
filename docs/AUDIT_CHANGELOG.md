@@ -7,6 +7,83 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-03 — CI/CAAS Infrastructure Audit — All Critical/HIGH/MEDIUM Findings Fixed
+
+### Critical: Unified Audit Runner False Pass (C-1)
+- **`audit/test_exploit_shim_pubkey_ct.cpp`**: `return 0` in the `UNIFIED_AUDIT_RUNNER` branch
+  (non-standalone mode) was silently claiming PASS for SPC-1..10 (CT pubkey derivation) tests
+  that never ran. Changed to `return 77` (ADVISORY_SKIP_CODE).
+- **`audit/unified_audit_runner.cpp`**: `exploit_shim_pubkey_ct` entry in `ALL_MODULES` changed
+  `advisory=false` → `advisory=true` (shim not linked in unified runner).
+- **`audit/unified_audit_runner.cpp`**: `elapsed_ms < 1.0` fallback in the advisory classifier
+  (`write_json_report`) removed. Fast-running non-advisory tests (<1ms) were being silently
+  misclassified as `advisory_skipped`. Now only `return_code == ADVISORY_SKIP_CODE` triggers
+  advisory classification.
+
+### HIGH: Cross-Platform Verdict Field Name Mismatch (H-1)
+- **`ci/audit_gate.py`**: Added `"audit_verdict": verdict` alias alongside `"verdict": verdict`
+  in JSON output. `audit_verdict.py` reads `"audit_verdict"` — the mismatch caused every
+  cross-platform verdict aggregation to read INVALID REPORT for all platforms.
+- **`ci/audit_verdict.py`**: Updated `load_verdict()` to try `data.get("audit_verdict") or
+  data.get("verdict")` for backward compatibility.
+
+### HIGH: Dashboard Static Baseline Data Clarified (H-2)
+- **`ci/caas_dashboard.py`**: Replaced hardcoded Wycheproof test counts (fake "89/89 PASS"
+  strings) with dynamic loading from `canonical_data.json` when available, falling back to
+  explicit "not measured" markers. Dashboard no longer displays stale hardcoded data as live
+  audit evidence.
+- **`ci/caas_dashboard.py`**: `collect_autonomy()` now checks subprocess exit code before
+  parsing JSON — a failed autonomy check no longer appears as a passing score.
+- **`ci/caas_dashboard.py`**: Wired exploit count no longer uses the `// 2` heuristic;
+  now calls `scripts/check_exploit_wiring.py` for the accurate count.
+
+### HIGH: Owner Bundle Gate Failure Detection (H-3)
+- **`ci/build_owner_audit_bundle.py`**: `blocking_findings` detection read wrong field
+  (`'status'` instead of `'verdict'`/`'audit_verdict'`) — gate FAIL was never detected.
+  Fixed to try `audit_verdict` → `verdict` → `status` in order.
+- **`ci/build_owner_audit_bundle.py`**: CT evidence collection failure now logs a warning
+  and marks the evidence with `collection_warning` when collection exits non-zero.
+
+### MEDIUM: caas_runner.py Silent Failure Fixes (M-2/M-3)
+- **`ci/caas_runner.py`**: Replay capsule subprocess result is now checked; non-zero exit
+  and OS errors emit `WARNING:` to stderr instead of bare `pass`.
+- **`ci/caas_runner.py`**: Extra-check failures now factor into `overall_pass` regardless
+  of `--auditor-mode` flag. `bitcoin-core-backend` shim parity failures are now blocking.
+- **`ci/caas_runner.py`**: `_rebuild_graphs()` non-zero exit now emits a warning to stderr.
+
+### MEDIUM: GitHub Workflow Fixes
+- **`.github/workflows/caas.yml`**: Step summary `cat` redirected to `$GITHUB_STEP_SUMMARY`
+  (was going to stdout only). Stage 2 now formats from cached JSON instead of re-running
+  the full audit gate (expensive double-run).
+- **`.github/workflows/preflight.yml`**: `caas_scanner.json` added to `preflight-reports`
+  artifact upload. Double audit_gate.py run stderr suppression removed.
+- **`.github/workflows/caas-evidence-refresh.yml`**: Bundle verify `|| true` removed;
+  broken bundles now block the commit.
+- **`.github/workflows/caas-freshness-check.yml`**: No-git-history path changed from
+  `sys.exit(0)` (false-fresh) to `sys.exit(1)` (fail-closed).
+- **`.github/workflows/audit-report.yml`**: Linux Clang job now gets `--sarif` flag,
+  `security-events: write` permission, and Code Scanning SARIF upload step — matching GCC.
+
+### MEDIUM: Validation and Evidence Script Fixes
+- **`ci/audit_gate.py`**: `check_mutation_kill_rate` exclusion from `ALL_CHECKS` documented
+  explicitly as a heavy-lane (~60 min) check available via explicit invocation only.
+- **`ci/audit_gate.py`**: `check_gpu_parity` directory list expanded to cover `src/gpu/`,
+  `src/opencl/`, `src/metal/`, `src/cuda/` in addition to legacy paths.
+- **`ci/validate_assurance.py`**: Exit code now set to 1 for missing ledger entries (not
+  just extra entries). Test matrix coverage gaps also set exit code to 1.
+- **`ci/evidence_governance.py`**: HMAC key documentation clarified — public in-repo key
+  provides content-hash tamper detection only, not cryptographic authentication.
+
+### LOW: Python CI Hardening
+- **`ci/artifact_analyzer.py`**: `cmd_ingest` validates JSON and schema before ingesting;
+  flake detection SQL uses `run_id DESC` tie-breaker for deterministic ordering.
+- **`ci/export_assurance.py`**: Missing `v_symbol_reasoning` view now prints a warning;
+  DB query exceptions in `main()` now exit with code 1 and an error message.
+- **`ci/audit_gap_report.py`**: `_normalize_surface_token` now splits on `(` before
+  whitespace to handle `path(note)` references (no-space parenthesis).
+
+---
+
 ## 2026-05-02 — Security Audit Round 8: Bitcoin Core PR Readiness — CRIT-01..03, HIGH-01..04, HIGH-06 Fixed
 
 ### Schnorr Sign CT Arithmetic + r==0 Rejection (HIGH-03, HIGH-06)

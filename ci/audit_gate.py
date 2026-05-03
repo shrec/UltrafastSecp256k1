@@ -643,11 +643,17 @@ def check_gpu_parity(conn):
         findings.append(('FAIL', f'{len(missing)} GPU header functions not in graph: {", ".join(missing)}'))
 
     # Scan for undocumented Unsupported returns
-    unsupported_dirs = [
+    gpu_dirs = [
+        LIB_ROOT / 'src' / 'gpu',
+        LIB_ROOT / 'src' / 'gpu' / 'src',
+        LIB_ROOT / 'src' / 'opencl',
+        LIB_ROOT / 'src' / 'metal',
+        LIB_ROOT / 'src' / 'cuda',
         LIB_ROOT / 'gpu' / 'src',
         LIB_ROOT / 'opencl',
         LIB_ROOT / 'metal',
     ]
+    unsupported_dirs = [d for d in gpu_dirs if d.exists()]
     unsup_re = re.compile(r'Unsupported')
     todo_re = re.compile(r'TODO\(parity\)|PARITY-EXCEPTION')
 
@@ -795,6 +801,9 @@ def check_doc_pairing(conn):
 # ---------------------------------------------------------------------------
 # P2 — Mutation Kill Rate (explicit heavy lane)
 # ---------------------------------------------------------------------------
+# check_mutation_kill_rate is intentionally excluded from ALL_CHECKS (default gate run).
+# It is a heavy-lane check (~60 min) and is available via CHECK_MAP for explicit invocation.
+# It is NOT part of the standard P0-P21 gate. See ci/mutation_runner.py for the full lane.
 def check_mutation_kill_rate(conn):
     findings = []
     timeout = _env_int('UFSECP_AUDIT_MUTATION_TIMEOUT', 3600)
@@ -1521,6 +1530,7 @@ def main():
             },
             'platform': provenance.get('platform', {}).get('system'),
             'provenance': provenance,
+            'verdict': verdict,           # alias for backward-compatibility
             'audit_verdict': verdict,
             'summary': {
                 'total_findings': sum(len(r['findings']) for r in results),
