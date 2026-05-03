@@ -296,10 +296,11 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: API contract checks (advisory)
+        # Single skip mechanism: continue-on-error makes the step yellow if it
+        # fails. Removed the redundant `|| echo` so a future flip to blocking
+        # only requires removing continue-on-error.
         continue-on-error: true
-        run: |
-          python3 ci/check_api_contracts.py --json \
-            || echo "::warning::check_api_contracts.py reported violations — see output above"
+        run: python3 ci/check_api_contracts.py --json
 
       - name: Secret path change gate (blocking)
         run: python3 ci/check_secret_path_changes.py

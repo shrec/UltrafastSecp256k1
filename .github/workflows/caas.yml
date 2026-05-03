@@ -172,16 +172,24 @@ jobs:
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run audit gate
+        # GH Actions default shell is `bash --noprofile --norc -eo pipefail`,
+        # so a non-zero exit from audit_gate.py would abort the step before
+        # the inline parser ran. We disable -e for just this run block so that
+        # we can capture the gate's exit code AND still produce a friendly
+        # error report from the JSON.
         run: |
+          set +e
           python3 ci/audit_gate.py --json -o caas_audit_gate.json
           GATE_EXIT=$?
-          python3 - <<'EOF'
+          set -e
+          python3 - "$GATE_EXIT" <<'EOF'
           import json, sys
+          gate_exit = int(sys.argv[1])
           try:
               with open("caas_audit_gate.json") as f:
                   report = json.load(f)
           except Exception:
-              print("::error::audit_gate.py produced no JSON — treating as FAIL")
+              print(f"::error::audit_gate.py produced no JSON (gate_exit={gate_exit}) — treating as FAIL")
               sys.exit(1)
           fails = [c for c in report.get("checks", []) if c.get("status") == "FAIL"]
           if fails:
@@ -193,19 +201,16 @@ jobs:
           for w in warns:
               print(f"::warning::WARN [{w.get('name','?')}]")
           # Accept either strict PASS or PASS-with-advisory (advisory means
-          # WARN findings exist but no FAIL findings). Block only on real FAIL.
+          # WARN findings exist but no FAIL findings). Block on real FAIL OR
+          # on a non-zero exit code from audit_gate.py itself (in case the
+          # gate aborted partway and emitted an inconsistent report).
           verdict = report.get("verdict", "")
-          passed = (verdict in ("PASS", "PASS with advisory")) and not fails
+          passed = (verdict in ("PASS", "PASS with advisory")) and not fails and gate_exit == 0
           if not passed:
-              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={verdict}")
+              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={verdict}, gate_exit={gate_exit}")
               sys.exit(1)
           print(f"::notice::Audit gate PASS — verdict={verdict}, {len(warns)} warning(s)")
           EOF
-          # Belt-and-suspenders: also propagate the audit_gate.py exit code in
-          # case the JSON report is missing or malformed (the Python block above
-          # already handles that, but this ensures the step fails even if the
-          # inline Python somehow exits 0 despite a non-zero gate exit).
-          if [ "${GATE_EXIT}" -ne 0 ]; then exit "${GATE_EXIT}"; fi
 
       - name: Upload audit gate report
         if: always()
@@ -435,31 +440,40 @@ except Exception as e:
           print(f\"  surfaces:     {len(d.get('surfaces',[]))}\")
           "
 
-      - name: Stage 5c — Validate produced reports against schema
-        # Schema validation guards against silent regressions (renamed fields,
-        # missing keys) that would let a malformed report pass downstream gates.
+      - name: Stage 5c — Validate produced reports against schema (advisory)
+        # NOTE: this step is genuinely advisory today. The unified schema in
+        # ci/report_schema.py requires run_id/runner/commit/verdict/sections,
+        # but verify_external_audit_bundle.py and build_owner_audit_bundle.py
+        # emit a different, older shape (timestamp/bundle/digest/checks). Until
+        # producers are migrated to the unified schema, validation is allowed
+        # to fail loudly without blocking. continue-on-error keeps the failure
+        # visible (yellow step) rather than hidden behind `|| true`. Missing
+        # files are flagged as ::error:: so the producer regression is loud.
+        # When producers are migrated, drop continue-on-error here.
+        continue-on-error: true
         run: |
           set +e
           FAIL=0
           for f in caas_bundle_verify.json build/owner_audit/owner_audit_bundle.json; do
               if [ ! -f "$f" ]; then
-                  echo "::warning::schema validate: $f not found — skipping"
+                  echo "::error::schema validate: $f not found — Stage 4/5 should have produced it"
+                  FAIL=1
                   continue
               fi
               python3 ci/report_schema.py --validate "$f"
               rc=$?
               if [ $rc -ne 0 ]; then
-                  echo "::error::schema validation failed for $f (rc=$rc)"
+                  echo "::warning::schema validation failed for $f (rc=$rc) — advisory until producers migrate"
                   FAIL=1
               else
                   echo "::notice::schema validation PASS for $f"
               fi
           done
-          # Schema validation is currently advisory: producers may not yet emit
-          # all canonical fields. continue-on-error keeps this visible without
-          # blocking until all reports are migrated to the unified schema.
+          if [ $FAIL -ne 0 ]; then
+              # Exit non-zero so continue-on-error renders the step yellow.
+              exit 1
+          fi
           exit 0
-        continue-on-error: true
 
       - name: Upload audit bundle artifacts
         if: always()
@@ -633,14 +647,19 @@ except Exception as e:
       - name: Record evidence in tamper-resistant chain
         # Append a verdict record to docs/EVIDENCE_CHAIN.json so retrospective
         # audits can answer "was the gate passing on commit X" beyond the 90-day
-        # GitHub artifact retention window. HMAC is content-tamper detection
-        # only (key is in-repo); cryptographic non-repudiation requires a secret
-        # key via the CAAS_HMAC_KEY env var.
+        # GitHub artifact retention window.
+        #
+        # HMAC: defaults to a public in-repo key (tamper-evident only). For
+        # forensic-grade non-repudiation set the CAAS_HMAC_KEY repo secret;
+        # docs/EVIDENCE_KEY_POLICY.md (H-2) covers rotation/escrow.
+        #
+        # Both `record` and `validate` are HARD failures: a broken chain is a
+        # genuine evidence regression that should be visible as a red step,
+        # not silently downgraded to a warning the way the previous wiring did.
         if: always()
         env:
           CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY || '' }}
         run: |
-          set +e
           VERDICT="pass"
           if [ "${{ steps.evaluate.outputs.all_pass }}" != "true" ]; then
               VERDICT="fail"
@@ -649,16 +668,18 @@ except Exception as e:
           if [ "${{ steps.evaluate.outputs.bundle_skipped }}" = "true" ]; then
               REASON="${REASON} (bundle skipped via workflow_dispatch)"
           fi
-          python3 ci/evidence_governance.py record \
-              --who "caas-ci" \
-              --what "caas-full-pipeline" \
-              --verdict "${VERDICT}" \
-              --reason "${REASON}" || \
-              echo "::warning::evidence_governance record failed (non-blocking)"
-          # Validate chain integrity even if record failed.
-          python3 ci/evidence_governance.py validate || \
-              echo "::warning::evidence_governance validate reported issues"
-          exit 0
+          if ! python3 ci/evidence_governance.py record \
+                  --who "caas-ci" \
+                  --what "caas-full-pipeline" \
+                  --verdict "${VERDICT}" \
+                  --reason "${REASON}"; then
+              echo "::error::evidence_governance record failed — chain broken"
+              exit 1
+          fi
+          if ! python3 ci/evidence_governance.py validate; then
+              echo "::error::evidence_governance validate failed — chain integrity compromised"
+              exit 1
+          fi
 
       - name: Upload evidence chain snapshot
         if: always()

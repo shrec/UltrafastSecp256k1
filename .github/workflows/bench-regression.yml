@@ -1,8 +1,9 @@
 # ============================================================================
 # Performance Regression Gate -- Per-Commit Benchmark Check
 # ============================================================================
-# Runs benchmarks on every push to main/dev and fails if any operation
-# regresses >100% compared to the previous stored baseline.
+# Runs benchmarks on every push to main/dev and on PRs that touch perf-sensitive
+# paths. Fails if any operation regresses >100% (i.e. is more than 2x slower)
+# compared to the previous stored baseline.
 #
 # Separate from benchmark.yml (dashboard) -- this one BLOCKS merges.
 # Uses github-action-benchmark with fail-on-alert: true.
@@ -11,6 +12,22 @@
 name: Perf Regression Gate
 
 on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/bench-regression.yml'
+      - '.github/scripts/parse_benchmark.py'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/bench-regression.yml'
+      - '.github/scripts/parse_benchmark.py'
   workflow_dispatch:
 
 permissions:
@@ -73,8 +90,10 @@ jobs:
           /tmp/benchmark_results/benchmark.json
 
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
-      # Stores the result to gh-pages and FAILS the job if >50% regression.
-      # Threshold is generous (200%) because push events run on shared CI runners
+      # Stores the result to gh-pages and FAILS the job if any operation is
+      # >100% slower (i.e. >2x), expressed as alert-threshold: '200%' in the
+      # github-action-benchmark vocabulary (200% of baseline duration = 2x).
+      # Threshold is generous because push events run on shared CI runners
       # with high variance; the baseline auto-updates on each push anyway.
       # auto-push: true is required so future runs have a baseline to compare.
       # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
@@ -95,7 +114,8 @@ jobs:
       # Compares PR benchmark against the stored baseline from push events.
       # Does NOT store (auto-push: false) -- only the push to main/dev updates baseline.
       # BLOCKS PR if regression exceeds threshold.
-      # Threshold: 200% -- flags any operation >100% slower than baseline.
+      # Threshold: alert-threshold '200%' in github-action-benchmark = any
+      # operation that runs >2x as long as the baseline (>100% slower) fails.
       if: github.event_name == 'pull_request'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
@@ -114,7 +134,7 @@ jobs:
       run: |
         echo "## Benchmark Regression Gate" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** 200% (>100% slower = fail)" >> $GITHUB_STEP_SUMMARY
+        echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** alert-threshold '200%' = any op running >2x baseline (>100% slower) fails." >> $GITHUB_STEP_SUMMARY
         if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
           echo "**Baseline:** stored to \`dev/bench-gate\` on gh-pages (auto-push: true)" >> $GITHUB_STEP_SUMMARY
         else

@@ -175,8 +175,12 @@ except Exception as e:
       - name: Export assurance report (JSON)
         run: python3 ci/export_assurance.py -o assurance_report.json
 
-      - name: Coverage gaps summary
-        run: python3 ci/query_graph.py gaps || true
+      - name: Coverage gaps summary (advisory)
+        # Visibility-only: surface gaps as a yellow step rather than swallowing
+        # the exit code with `|| true`. Same pattern as the other --advisory
+        # steps in this workflow.
+        continue-on-error: true
+        run: python3 ci/query_graph.py gaps
 
       - name: Upload assurance artifacts
         if: always()

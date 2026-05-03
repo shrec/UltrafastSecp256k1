@@ -8,6 +8,10 @@ name: CAAS Evidence Refresh
 # Safe: only commits when something actually changed, and only on dev.
 
 on:
+  # Daily refresh at 04:30 UTC. Documented in docs/CAAS_HARDENING_TODO.md (H-1)
+  # and depended on by audit_sla_check.py max_stale_evidence_days SLO.
+  schedule:
+    - cron: '30 4 * * *'
   workflow_dispatch:
     inputs:
       force_commit:

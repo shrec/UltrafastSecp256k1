@@ -121,7 +121,14 @@ if [[ $FULL -eq 1 ]]; then
     echo -e "${BOLD}[5] Tests (no-ASM — mul_wide portable path)${NC}"
     run_check "field_26 cross-check"    "$BUILD_DIR/cpu/test_field_26_standalone"
     run_check "field_52 cross-check"    "$BUILD_DIR/cpu/test_field_52_standalone"
-    run_check "Cross-platform KAT"      "$BUILD_DIR/audit/test_cross_platform_kat_standalone" 2>/dev/null || true
+    # Cross-platform KAT binary may not exist in every cmake mode;
+    # explicitly skip rather than masking failures with `|| true`.
+    if [[ -x "$BUILD_DIR/audit/test_cross_platform_kat_standalone" ]]; then
+      run_check "Cross-platform KAT"    "$BUILD_DIR/audit/test_cross_platform_kat_standalone"
+    else
+      printf "  %-52s" "Cross-platform KAT..."
+      echo -e "${YELLOW}SKIP${NC} (binary not built)"
+    fi
     run_check "BIP-39 NFKD"            "$BUILD_DIR/audit/test_exploit_bip39_nfkd_standalone"
   fi
 

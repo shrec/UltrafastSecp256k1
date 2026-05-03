@@ -1,6 +1,10 @@
 name: Extended Tests (Differential + dudect)
 
 on:
+  # Nightly run at 03:00 UTC. Without a schedule the workflow file name
+  # ("nightly") was misleading — both jobs only ran on manual dispatch.
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       differential_multiplier:
@@ -55,13 +59,26 @@ jobs:
         env:
           DIFFERENTIAL_MULTIPLIER: ${{ github.event.inputs.differential_multiplier || '100' }}
         run: |
-          echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}"
-          ./build/audit/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
+          mkdir -p differential-results
+          echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}" | tee differential-results/run_metadata.txt
+          echo "Commit: ${GITHUB_SHA}" | tee -a differential-results/run_metadata.txt
+          echo "Started: $(date -u +%FT%TZ)" | tee -a differential-results/run_metadata.txt
+          ./build/audit/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}" \
+              2>&1 | tee differential-results/self_consistency.log
 
       - name: Run cross-library test (vs libsecp256k1 v0.6.0)
         run: |
           echo "Running cross-library differential test..."
-          ./build/audit/test_cross_libsecp256k1
+          ./build/audit/test_cross_libsecp256k1 2>&1 \
+              | tee differential-results/cross_libsecp256k1.log
+
+      - name: Upload differential results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: differential-results-${{ github.run_id }}
+          path: differential-results/
+          retention-days: 365
 
   # ── dudect smoke (fast gate ≈ 60 s) ─────────────────────────────────────
   # Smoke runs unconditionally — it is a fast (~60 s) sanity gate that the

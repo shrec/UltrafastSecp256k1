@@ -91,8 +91,14 @@ def _format_caas_hardening(todo_path: Path) -> str:
         text = todo_path.read_text()
     except OSError:
         return '_No CAAS_HARDENING_TODO.md available._'
-    done = text.count('✓ Done')
-    items = sum(1 for ln in text.splitlines() if ln.startswith('### H-'))
+    # Item headings look like "### H-1 — title ✅ CLOSED 2026-04-21" (closed)
+    # or "### H-1 — title" (open). Count any closed/done marker on the heading.
+    item_lines = [ln for ln in text.splitlines() if ln.startswith('### H-')]
+    items = len(item_lines)
+    done = sum(
+        1 for ln in item_lines
+        if '✅ CLOSED' in ln or '✓ Done' in ln or '✅ DONE' in ln
+    )
     pct = (100 * done // items) if items else 0
     return (f'**Hardening progress:** {done} / {items} items closed ({pct} %).\n'
             f'See [`docs/CAAS_HARDENING_TODO.md`](CAAS_HARDENING_TODO.md).')
@@ -157,7 +163,10 @@ def _format_caas_pipeline(kpi: dict[str, Any] | None) -> str:
         out.append('| Gate | Pass |')
         out.append('|------|------|')
         for g in gates:
-            name = g.get('name', '?')
+            # security_autonomy_check.py emits {"gate": "..."}; older bundles
+            # used {"name": "..."}. Accept both so the dashboard renders for
+            # any producer.
+            name = g.get('gate', g.get('name', '?'))
             passing = g.get('passing', g.get('pass', g.get('overall_pass', '?')))
             out.append(_row(name, 'yes' if passing is True else ('no' if passing is False else str(passing))))
     return '\n'.join(out)

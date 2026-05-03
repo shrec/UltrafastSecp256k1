@@ -7,6 +7,113 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-03 — CAAS Pipeline Hygiene Audit (P0–P2 fixes)
+
+Second-pass infrastructure audit (workingdocs/CI_CAAS_INFRA_AUDIT_2026-05-03.md)
+identified silent-skip / false-PASS / dead-trigger / drift issues across the
+CAAS pipeline. All P0 + P1 findings closed in this commit.
+
+### P0 — Dashboard renderer false data (F-1, F-2, F-3)
+- **`ci/render_audit_dashboard.py`**: hardening progress counter looked for
+  `'✓ Done'` but `CAAS_HARDENING_TODO.md` uses `'✅ CLOSED'`. Dashboard reported
+  `0 / 12 items closed (0 %)` while reality is `12 / 12`. Fixed to accept all
+  three closed markers.
+- **`ci/render_audit_dashboard.py`**: gate-name extraction read field `name`
+  but `SECURITY_AUTONOMY_KPI.json` emits field `gate`. All 8 rows in the
+  CAAS Pipeline Status table rendered as `?`. Now reads both keys.
+- **`.github/workflows/caas-evidence-refresh.yml`**: H-1 doc claimed "Daily
+  cron at 04:30 UTC" but the workflow had only `workflow_dispatch:`. Schedule
+  added (`30 4 * * *`). The dashboard committed at 2026-04-28 was 5 days
+  behind the KPI it claimed to summarise; H-1's stated SLO was therefore
+  silently violated since the workflow was first deployed.
+- **`docs/AUDIT_DASHBOARD.md`**: regenerated from corrected renderer + current
+  KPI/bundle so the live snapshot is honest.
+
+### P0 — Dead/false-trigger workflows (F-4, F-8)
+- **`.github/workflows/bench-regression.yml`**: comment claimed "runs on every
+  push", but the workflow had `workflow_dispatch:` only — every `if:
+  github.event_name == 'push'` and `pull_request` clause was dead code.
+  Added `push:` and `pull_request:` triggers with path filters. Reconciled
+  the inconsistent threshold descriptions (50% / 100% / 200%) — the alert
+  threshold is `200%` of the baseline duration in github-action-benchmark
+  vocabulary, equal to "any op running >2x baseline (>100% slower)".
+- **`.github/workflows/nightly.yml`**: file named "nightly" but had no cron.
+  Added `schedule: '0 3 * * *'`. Differential job's 1.3M random checks were
+  going to log only — added `differential-results-${run_id}` artifact with
+  365-day retention.
+
+### P0 — `scripts/` ↔ `ci/` duplicate drift (F-5, scope corrected)
+- The audit initially flagged `scripts/audit_gate.py != ci/audit_gate.py`
+  (and 14 similar duplicates) as a CI drift risk. After investigation:
+  `scripts/` was deleted in commit ecf17324 (professional repo refactor)
+  and is now `.gitignore`-listed (line 216). Every committed CI workflow
+  uses `ci/` exclusively — the only consumer of `scripts/<tool>.py` is the
+  local-only `scripts/caas_dashboard.py`. So the divergence is local-state
+  only; CI cannot read it. Documented here so future re-discoveries don't
+  re-open the same false alarm. Local stale copies are not committed and
+  may be safely purged via `rm -rf scripts/` on any developer machine.
+
+### P1 — Honest advisory / hard-fail wiring (F-6, F-11, F-13, F-18)
+- **`.github/workflows/caas.yml` Stage 5c (schema validation)**: previously
+  `exit 0` AND `continue-on-error: true` (double-skip). Today the unified
+  schema in `ci/report_schema.py` requires `run_id/runner/commit/verdict/
+  sections` while the existing producers emit `timestamp/bundle/digest/checks` —
+  validation hard-failure here would block CAAS until producers migrate.
+  Reworked to a single, honest skip mechanism: validation now exits non-zero
+  on failure (yellow step via `continue-on-error`) and a missing input file
+  is loud `::error::` rather than silent skip. Comment updated to flag the
+  pending producer migration.
+- **`.github/workflows/audit-report.yml`**: SARIF upload to GitHub Code
+  Scanning was `continue-on-error: true` with no surfacing — failures left
+  the step silently green. Added an explicit `Surface SARIF upload outcome`
+  step that emits `::error::` when the upload outcome is not `success` (still
+  non-blocking, but visible in step summary).
+- **`.github/workflows/gate.yml`**: API contract check had both
+  `continue-on-error: true` AND `|| echo`. Removed the redundant `|| echo`
+  so a future flip to blocking is a one-line change.
+- **`.github/workflows/preflight.yml`**: `query_graph.py gaps || true`
+  swallowed any failure. Replaced with `continue-on-error: true` so any
+  regression renders yellow, matching the other advisory steps in the file.
+
+### P1 — `audit-report.yml` cross-platform parity (F-9, F-17)
+- Windows MSVC job lacked auditor-mode automation AND SARIF generation/
+  upload, so cross-platform verdict was effectively Linux-only. Added both;
+  Windows now produces the same six artifacts as Linux GCC and Linux Clang.
+- **`ci/audit_verdict.py`**: previously `>=1` PASS report was sufficient for
+  overall PASS even if other platforms cancelled. Added `--required-platform`
+  flag (default: `linux-gcc13`); a required platform with no report is now a
+  hard fail regardless of job status. `audit-report.yml` updated to declare
+  `linux-gcc13` as required.
+
+### P1 — Evidence chain hardening (F-10, G-6)
+- **`.github/workflows/caas.yml`**: `evidence_governance record` and
+  `validate` failures were `|| echo "::warning::"` (always green). Both are
+  now hard `::error::` + `exit 1` — a broken chain is a real evidence
+  regression, not an advisory. HMAC key behaviour unchanged (in-repo default
+  is tamper-evident only; production forensic non-repudiation requires the
+  `CAAS_HMAC_KEY` repo secret per `EVIDENCE_KEY_POLICY.md` H-2).
+
+### P1 — Dead "belt-and-suspenders" code (F-19)
+- **`.github/workflows/caas.yml` Stage 2**: the `GATE_EXIT=$?` capture after
+  `python3 ci/audit_gate.py` was unreachable under `bash -e` because
+  `audit_gate.py` failure would abort the step before `$?` was captured.
+  Wrapped the gate call in `set +e/+set -e` so the inline parser actually
+  runs on failure, and propagated `gate_exit != 0` as a fatal verdict
+  condition inside the parser (instead of a separate trailing exit).
+
+### P2 — `ci_local.sh` false-PASS (F-12)
+- **`ci/ci_local.sh:124`**: `... 2>/dev/null || true` masked failures of the
+  cross-platform KAT binary. Replaced with explicit `[[ -x ]]` guard +
+  yellow `SKIP` when the binary is not built. A real failure of the binary
+  now blocks the local pre-push hook, matching the GitHub gate.
+
+### Documentation
+- This entry. `docs/AUDIT_DASHBOARD.md` regenerated. The full audit report
+  lives in `workingdocs/CI_CAAS_INFRA_AUDIT_2026-05-03.md` (gitignored,
+  local-only).
+
+---
+
 ## 2026-05-03 — CI/CAAS Infrastructure Audit — All Critical/HIGH/MEDIUM Findings Fixed
 
 ### Critical: Unified Audit Runner False Pass (C-1)
