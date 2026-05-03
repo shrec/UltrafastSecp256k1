@@ -128,7 +128,7 @@ void ecdsa_sign_batch_kernel(
     if (idx < count) {
         const uint8_t* msg = msg_hashes + static_cast<size_t>(idx) * 32;
         sigs[idx] = {};  // zero-init before sign so failure leaves no stale data
-        results[idx] = ct_ecdsa_sign(msg, &private_keys[idx], &sigs[idx]);
+        results[idx] = ct::ct_ecdsa_sign(msg, &private_keys[idx], &sigs[idx]);
     }
 }
 
@@ -201,7 +201,7 @@ void schnorr_sign_batch_kernel(
         const uint8_t* msg = msgs + static_cast<size_t>(idx) * 32;
         const uint8_t* aux = aux_rands + static_cast<size_t>(idx) * 32;
         sigs[idx] = {};  // zero-init before sign so failure leaves no stale data
-        results[idx] = ct_schnorr_sign(&private_keys[idx], msg, aux, &sigs[idx]);
+        results[idx] = ct::ct_schnorr_sign(&private_keys[idx], msg, aux, &sigs[idx]);
     }
 }
 

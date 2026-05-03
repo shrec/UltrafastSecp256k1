@@ -393,7 +393,7 @@ void ct_point_neg(const CTJacobianPoint* p, CTJacobianPoint* r) {
 // Inverts N field elements using only 1 field_inv + 3*(N-1) field_mul.
 // inputs[i] and outputs[i] may alias.
 
-__device__ __noinline__
+static __device__ __noinline__
 void ct_batch_field_inv(const FieldElement* inputs, FieldElement* outputs, int count) {
     using namespace secp256k1::cuda;
 
@@ -423,7 +423,7 @@ void ct_batch_field_inv(const FieldElement* inputs, FieldElement* outputs, int c
 // Uses CT complete addition, 16-entry table [0P..15P], CT table lookups.
 // Cost: ~132 doublings + ~66 mixed additions (vs 128 dbl + 256 add bit-by-bit)
 
-__device__ __noinline__
+static __device__ __noinline__
 void ct_scalar_mul(const JacobianPoint* p_in, const Scalar* k,
                    JacobianPoint* r_out) {
     using namespace secp256k1::cuda;

@@ -656,6 +656,15 @@ ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
     if (!ctx || !scan_privkey32 || !spend_pubkey33 || !tweak_pubkeys33 || !prefix64_out)
         return UFSECP_ERR_NULL_ARG;
     if (n_tweaks > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    // Validate compressed pubkey prefixes (must be 0x02 or 0x03) for spend_pubkey
+    // and every tweak pubkey. Reject invalid input before it reaches the GPU kernel.
+    if (spend_pubkey33[0] != 0x02 && spend_pubkey33[0] != 0x03)
+        return UFSECP_ERR_BAD_INPUT;
+    for (size_t i = 0; i < n_tweaks; ++i) {
+        const uint8_t prefix = tweak_pubkeys33[i * 33];
+        if (prefix != 0x02 && prefix != 0x03)
+            return UFSECP_ERR_BAD_INPUT;
+    }
     try {
         return to_abi_error(ctx->backend->bip352_scan_batch(
             scan_privkey32, spend_pubkey33, tweak_pubkeys33, n_tweaks, prefix64_out));

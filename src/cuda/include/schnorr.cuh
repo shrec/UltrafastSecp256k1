@@ -188,7 +188,7 @@ __device__ inline bool schnorr_sign(
     Scalar d = *private_key;
     Scalar neg_d;
     scalar_negate(private_key, &neg_d);
-    scalar_cmov(&d, &neg_d, (uint64_t)(py_bytes[31] & 1) ? ~0ULL : 0ULL);
+    ct::scalar_cmov(&d, &neg_d, (uint64_t)(py_bytes[31] & 1) ? ~0ULL : 0ULL);
 
     // px as bytes (for tagged hashes)
     uint8_t px_bytes[32];
@@ -237,7 +237,7 @@ __device__ inline bool schnorr_sign(
     Scalar neg_k;
     scalar_negate(&k_prime, &neg_k);
     uint64_t nonce_odd_mask = (uint64_t)(0) - (uint64_t)(ry_bytes[31] & 1u);
-    scalar_cmov(&k, &neg_k, nonce_odd_mask);
+    ct::scalar_cmov(&k, &neg_k, nonce_odd_mask);
 
     // sig.r = R.x as bytes
     field_to_bytes(&rx, sig->r);
@@ -376,7 +376,7 @@ __device__ inline bool schnorr_keypair_create(
     Scalar neg_d;
     scalar_negate(private_key, &neg_d);
     kp->d = *private_key;
-    scalar_cmov(&kp->d, &neg_d, (uint64_t)(y_bytes[31] & 1) ? ~0ULL : 0ULL);
+    ct::scalar_cmov(&kp->d, &neg_d, (uint64_t)(y_bytes[31] & 1) ? ~0ULL : 0ULL);
 
     return true;
 }
@@ -442,7 +442,7 @@ __device__ inline bool schnorr_sign_with_keypair(
     scalar_negate(&k_prime, &neg_k_kp);
     k = k_prime;
     uint64_t kp_odd_mask = (uint64_t)(0) - (uint64_t)(ry_bytes[31] & 1u);
-    scalar_cmov(&k, &neg_k_kp, kp_odd_mask);   // branchless: Rule 8 / P-09
+    ct::scalar_cmov(&k, &neg_k_kp, kp_odd_mask);   // branchless: Rule 8 / P-09
 
     field_to_bytes(&rx, sig->r);
 

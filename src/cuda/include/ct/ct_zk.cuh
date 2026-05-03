@@ -466,7 +466,7 @@ __global__ void ct_dleq_prove_generator_batch_kernel(
 // ============================================================================
 // Prerequisites: bulletproof_init_kernel() must have been called.
 
-__device__ __noinline__ bool ct_range_prove_device(
+static __device__ __noinline__ bool ct_range_prove_device(
     uint64_t value,
     const Scalar* blinding,
     const AffinePoint* commitment,
@@ -873,7 +873,7 @@ __device__ inline void warp_reduce_jacobian(JacobianPoint* local_acc) {
     }
 }
 
-__device__ __noinline__ bool ct_range_prove_warp_device(
+static __device__ __noinline__ bool ct_range_prove_warp_device(
     uint64_t value,
     const Scalar* blinding,
     const AffinePoint* commitment,
@@ -1288,7 +1288,7 @@ __device__ __noinline__ bool ct_range_prove_warp_device(
 //   IPA rounds 1-5:         standard scalar_mul (generators recombined)
 // ============================================================================
 
-__device__ __noinline__ bool ct_range_prove_warp_lut4_device(
+static __device__ __noinline__ bool ct_range_prove_warp_lut4_device(
     uint64_t value,
     const Scalar* blinding,
     const AffinePoint* commitment,
