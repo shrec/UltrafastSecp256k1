@@ -70,7 +70,7 @@ jobs:
 
       - name: Configure with ${{ matrix.sanitizer }}
         run: |
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B out/sanitizer -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER=clang-17 \
             -DCMAKE_CXX_COMPILER=clang++-17 \
@@ -85,7 +85,7 @@ jobs:
             -DSECP256K1_BUILD_JAVA=OFF
 
       - name: Build
-        run: cmake --build build -j"$(nproc)"
+        run: cmake --build out/sanitizer -j"$(nproc)"
 
       - name: Test suite under ${{ matrix.sanitizer }}
         env:
@@ -93,7 +93,7 @@ jobs:
         run: |
           echo "## ${{ matrix.sanitizer }} Results" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          ctest --test-dir build --output-on-failure -j"$(nproc)" \
+          ctest --test-dir out/sanitizer --output-on-failure -j"$(nproc)" \
             -E "^(ct_sidechannel|selftest|unified_audit|py_)" \
             --timeout 900 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"

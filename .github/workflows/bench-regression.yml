@@ -74,7 +74,7 @@ jobs:
 
     - name: Configure (Release)
       run: |
-        cmake -S . -B build/bench-gate \
+        cmake -S . -B out/bench-gate \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_TESTING=ON \
@@ -83,12 +83,12 @@ jobs:
           -DLIBSECP_SRC_DIR="$GITHUB_WORKSPACE/_libsecp256k1/src"
 
     - name: Build
-      run: cmake --build build/bench-gate -j$(nproc)
+      run: cmake --build out/bench-gate -j$(nproc)
 
     - name: Run benchmark suite
       run: |
         mkdir -p /tmp/benchmark_results
-        ./build/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
+        ./out/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
         python3 .github/scripts/parse_benchmark.py \
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json

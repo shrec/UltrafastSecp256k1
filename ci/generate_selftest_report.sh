@@ -17,7 +17,7 @@
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_DIR="${1:-$SRC_DIR/build/selftest-report}"
+BUILD_DIR="${1:-$SRC_DIR/out/selftest-report}"
 REPORT="$BUILD_DIR/selftest_report.json"
 
 echo "==========================================================="

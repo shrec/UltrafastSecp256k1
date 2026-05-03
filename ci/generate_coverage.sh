@@ -24,7 +24,7 @@
 set -euo pipefail
 
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_DIR="$SRC_DIR/build/coverage"
+BUILD_DIR="$SRC_DIR/out/coverage"
 REPORT_DIR="$BUILD_DIR/report"
 COVERAGE_TARGET=0
 GEN_HTML=false

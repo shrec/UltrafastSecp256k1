@@ -73,7 +73,7 @@ jobs:
 
     - name: Configure (Release)
       run: |
-        cmake -S . -B build/bench \
+        cmake -S . -B out/bench \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -86,14 +86,14 @@ jobs:
           -DLIBSECP_SRC_DIR="$GITHUB_WORKSPACE/_libsecp256k1/src"
 
     - name: Build
-      run: cmake --build build/bench -j$(nproc)
+      run: cmake --build out/bench -j$(nproc)
 
     - name: Run benchmark suite
       run: |
         mkdir -p /tmp/benchmark_results
-        bench_bin="$(find build/bench -type f -name bench_unified | head -n1)"
+        bench_bin="$(find out/bench -type f -name bench_unified | head -n1)"
         if [ -z "$bench_bin" ]; then
-          echo "bench_unified binary not found under build/bench" >&2
+          echo "bench_unified binary not found under out/bench" >&2
           exit 1
         fi
         "$bench_bin" 2>&1 | tee /tmp/benchmark_results/raw_output.txt
@@ -164,7 +164,7 @@ jobs:
 
     - name: Configure (Release, MSVC)
       run: |
-        cmake -S . -B build/bench `
+        cmake -S . -B out/bench `
           -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_C_COMPILER_LAUNCHER=ccache `
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
@@ -175,12 +175,12 @@ jobs:
           -DLIBSECP_SRC_DIR="$env:GITHUB_WORKSPACE\_libsecp256k1\src"
 
     - name: Build
-      run: cmake --build build/bench --config Release -j $env:NUMBER_OF_PROCESSORS
+      run: cmake --build out/bench --config Release -j $env:NUMBER_OF_PROCESSORS
 
     - name: Run benchmark suite
       run: |
         New-Item -Path benchmark_results -ItemType Directory -Force
-        $benchBin = Get-ChildItem -Path .\build\bench -Recurse -Filter bench_unified.exe |
+        $benchBin = Get-ChildItem -Path .\out\bench -Recurse -Filter bench_unified.exe |
                     Select-Object -First 1
         if (-not $benchBin) {
           Write-Error "bench_unified.exe not found under build/bench"

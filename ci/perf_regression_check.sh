@@ -19,7 +19,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BUILD_DIR="${ROOT_DIR}/build_perf"
+BUILD_DIR="${ROOT_DIR}/out/perf"
 THRESHOLD=10  # percent
 BASELINE=""
 REPORT_JSON="${BUILD_DIR}/perf_report.json"

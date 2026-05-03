@@ -36,7 +36,7 @@ SOURCE_EXTS = {'.cpp', '.hpp', '.h', '.cu', '.cuh', '.cl', '.metal', '.mm',
                '.yml', '.yaml', '.toml', '.txt'}
 SKIP_DIRS = {'build-linux', 'build_rel', 'build_opencl', 'build-cuda',
              'build-riscv-rel', '_research_repos', 'node_modules', '.git',
-             'build', 'build_bench', 'build_rel'}
+             'build', 'build_bench', 'build_rel', 'out'}
 
 # ---------------------------------------------------------------------------
 # SCHEMA

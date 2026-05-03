@@ -454,12 +454,12 @@ except Exception as e:
         # produced on every CAAS run and persisted as an artifact.
         run: |
           python3 ci/build_owner_audit_bundle.py \
-            --output-dir build/owner_audit \
+            --output-dir out/owner_audit \
             --strict
-          ls -la build/owner_audit/
+          ls -la out/owner_audit/
           python3 -c "
           import json, sys, pathlib
-          p = pathlib.Path('build/owner_audit/owner_audit_bundle.json')
+          p = pathlib.Path('out/owner_audit/owner_audit_bundle.json')
           if not p.exists():
               print('::error::owner_audit_bundle.json was not produced')
               sys.exit(1)
@@ -478,7 +478,7 @@ except Exception as e:
         run: |
           set +e
           FAIL=0
-          for f in caas_audit_gate.json caas_autonomy.json caas_bundle_verify.json build/owner_audit/owner_audit_bundle.json; do
+          for f in caas_audit_gate.json caas_autonomy.json caas_bundle_verify.json out/owner_audit/owner_audit_bundle.json; do
               if [ ! -f "$f" ]; then
                   echo "::error::schema validate: $f not found — Stage 4/5 should have produced it"
                   FAIL=1
@@ -507,8 +507,8 @@ except Exception as e:
             docs/EXTERNAL_AUDIT_BUNDLE.json
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             caas_bundle_verify.json
-            build/owner_audit/owner_audit_bundle.json
-            build/owner_audit/owner_audit_bundle.txt
+            out/owner_audit/owner_audit_bundle.json
+            out/owner_audit/owner_audit_bundle.txt
           retention-days: 365
 
       - name: Step summary

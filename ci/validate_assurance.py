@@ -84,7 +84,7 @@ def scan_ctest_targets():
     for cmake_file in LIB_ROOT.rglob('CMakeLists.txt'):
         # Skip build directories
         rel = str(cmake_file.relative_to(LIB_ROOT))
-        if rel.startswith('build') or '_build' in rel:
+        if rel.startswith('build') or rel.startswith('out') or '_build' in rel:
             continue
         try:
             with open(cmake_file, 'r', errors='replace') as f:

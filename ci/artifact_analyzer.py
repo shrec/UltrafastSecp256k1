@@ -32,8 +32,8 @@ from typing import Any, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DEFAULT_DB = LIB_ROOT / 'build' / 'artifact_analyzer.db'
-# NOTE: build/ is created by CMake; init_db() creates it automatically if missing.
+DEFAULT_DB = LIB_ROOT / 'out' / 'artifact_analyzer.db'
+# NOTE: out/ is created by CMake; init_db() creates it automatically if missing.
 # The DB is gitignored. Use --db to specify a persistent path across clean builds.
 
 

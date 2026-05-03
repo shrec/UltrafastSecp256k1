@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/build/pgo"
+BUILD_DIR="${SCRIPT_DIR}/out/pgo"
 PGO_DIR="${BUILD_DIR}/pgo_profiles"
 COMPILER="${1:---compiler}"
 JOBS="$(nproc 2>/dev/null || echo 4)"
@@ -146,7 +146,7 @@ echo "=============================================="
 echo "  PGO Build -- Complete!"
 echo "=============================================="
 echo ""
-echo "  Library: ${BUILD_DIR}/libs/UltrafastSecp256k1/cpu/libfastsecp256k1.a"
+echo "  Library: ${BUILD_DIR}/cpu/libfastsecp256k1.a"
 echo "  Profile: ${PGO_DIR}"
 echo ""
 echo "  Expected improvements on hot paths:"

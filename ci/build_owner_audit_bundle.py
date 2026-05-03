@@ -14,7 +14,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DEFAULT_OUTPUT_DIR = LIB_ROOT / 'build' / 'owner_audit'
+DEFAULT_OUTPUT_DIR = LIB_ROOT / 'out' / 'owner_audit'
 
 
 def _read_text(path: Path) -> str:
