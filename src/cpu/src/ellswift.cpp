@@ -233,45 +233,18 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
-    auto pub = ct::generator_mul(privkey);
-    auto x = pub.x();
-    bool y_is_odd = (pub.y().to_bytes()[31] & 1) != 0;
-
-    std::array<std::uint8_t, 64> result{};
-    static constexpr int kMaxAttempts = 100;
-    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
-        std::uint8_t rand_bytes[32];
-        csprng_fill(rand_bytes, 32);
-
-        auto u = fe_from_bytes_mod_p(rand_bytes);
-        if (u == FieldElement::zero()) continue;
-
-        for (int c = 0; c < 8; ++c) {
-            auto [ok, t] = xswiftec_inv(x, u, c);
-            if (!ok) continue;
-
-            auto t_bytes = t.to_bytes();
-            // XSwiftEC: decode gives y_is_odd == t_is_odd — match the pubkey's y.
-            if (((t_bytes[31] & 1) != 0) != y_is_odd) continue;
-
-            auto u_bytes = u.to_bytes();
-            std::memcpy(result.data(),      u_bytes.data(), 32);
-            std::memcpy(result.data() + 32, t_bytes.data(), 32);
-
-            detail::secure_erase(rand_bytes, sizeof(rand_bytes));
-            return result;
-        }
-    }
-    throw std::runtime_error("ellswift_create: RNG produced 100 consecutive unusable values");
+    // Use zero auxrnd — same deterministic hash path as auxrnd32 variant.
+    static constexpr std::uint8_t kZeroAux[32] = {};
+    return ellswift_create(privkey, kZeroAux);
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
                                               const std::uint8_t* auxrnd32) {
-    if (!auxrnd32) return ellswift_create(privkey);  // fall back to CSPRNG path
+    static constexpr std::uint8_t kZeroAux[32] = {};
+    if (!auxrnd32) auxrnd32 = kZeroAux;  // null → zero auxrnd, same hash path
 
-    // Deterministic path: derive u candidates from
-    // H("secp256k1_ellswift_create" || privkey || 0x00*32 || auxrnd32 || cnt)
-    // matching libsecp256k1's secp256k1_ellswift_create auxrnd32 semantics.
+    // Deterministic u derivation: SHA256(tag||tag||privkey||0x00*32||auxrnd32||cnt)
+    // matching libsecp256k1's secp256k1_ellswift_create semantics.
     auto pub = ct::generator_mul(privkey);
     auto x = pub.x();
     bool y_is_odd = (pub.y().to_bytes()[31] & 1) != 0;
@@ -307,10 +280,12 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
             auto [ok, t] = xswiftec_inv(x, u, c);
             if (!ok) continue;
 
-            auto t_bytes = t.to_bytes();
-            if (((t_bytes[31] & 1) != 0) != y_is_odd) continue;
+            // Negate t if y parity doesn't match: xswiftec_fwd uses t^2 so x is
+            // unchanged; XSwiftEC decode rule is y_odd == t_odd.
+            if (((t.to_bytes()[31] & 1) != 0) != y_is_odd) t = t.negate();
 
             auto u_bytes = u.to_bytes();
+            auto t_bytes = t.to_bytes();
             std::memcpy(result.data(),      u_bytes.data(), 32);
             std::memcpy(result.data() + 32, t_bytes.data(), 32);
 
@@ -425,17 +400,30 @@ std::array<std::uint8_t, 32> ellswift_xdh(
 }
 
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
-    // Non-CT: use precomputed w=18 fixed-base table (~6.7 µs vs ~27 µs CT path).
-    // Suitable for ephemeral BIP-324 session keys where CT is not required.
+    // Non-CT: use precomputed w=18 fixed-base table.
+    // SHA256-based deterministic u derivation: no syscall, ~5µs total encoding.
     auto pub = scalar_mul_generator(privkey);
     auto x   = pub.x();
     bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
+    auto privkey_bytes = privkey.to_bytes();
+
+    static constexpr char kTag[] = "secp256k1_ellswift_create";
+    static const auto kTagHash = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>(kTag), sizeof(kTag) - 1);
+    static constexpr std::uint8_t kZero32[32] = {};
 
     std::array<std::uint8_t, 64> result{};
-    static constexpr int kMaxAttempts = 200;
+    static constexpr int kMaxAttempts = 100;
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        SHA256 h;
+        h.update(kTagHash.data(), 32); h.update(kTagHash.data(), 32);
+        h.update(privkey_bytes.data(), 32);
+        h.update(kZero32, 32); h.update(kZero32, 32);
+        auto cnt = static_cast<std::uint8_t>(attempt);
+        h.update(&cnt, 1);
+        auto rand_hash = h.finalize();
         std::uint8_t rand_bytes[32];
-        csprng_fill(rand_bytes, 32);
+        std::memcpy(rand_bytes, rand_hash.data(), 32);
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
         if (u == FieldElement::zero()) continue;  // xswiftec_inv requires u != 0
