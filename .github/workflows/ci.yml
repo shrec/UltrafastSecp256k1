@@ -32,6 +32,17 @@ on:
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [main, dev]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'workingdocs/**'
+      - 'README*'
+      - 'CHANGELOG*'
+      - 'LICENSE*'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE*'
+      - '.github/copilot-instructions.md'
+      - '.github/agents/**'
   workflow_dispatch:
 
 permissions:
