@@ -104,15 +104,38 @@ _FALLBACK_GATE_PATHS = (
 )
 
 
+_FALLBACK_MAX_AGE_DAYS = 7
+
+
 def _read_fallback(name_candidates: tuple[str, ...]) -> dict | None:
-    """Find and load the first matching report file. Returns None if absent."""
+    """Find and load the first matching report file.
+
+    Returns None if absent or if the file's generated_at timestamp is older
+    than _FALLBACK_MAX_AGE_DAYS (prevents stale data from silently passing as
+    current). Skips stale candidates and tries the next one in order.
+    """
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=_FALLBACK_MAX_AGE_DAYS
+    )
     for name in name_candidates:
         p = LIB_ROOT / name
-        if p.exists():
-            data = _load_json(p)
-            if isinstance(data, dict):
-                data["_source"] = f"fallback:{name}"
-                return data
+        if not p.exists():
+            continue
+        data = _load_json(p)
+        if not isinstance(data, dict):
+            continue
+        generated_at = data.get("generated_at")
+        if generated_at:
+            try:
+                ts = datetime.datetime.fromisoformat(
+                    generated_at.replace("Z", "+00:00")
+                )
+                if ts < cutoff:
+                    continue  # stale — try next candidate
+            except (ValueError, TypeError):
+                pass
+        data["_source"] = f"fallback:{name}"
+        return data
     return None
 
 
@@ -156,7 +179,11 @@ def collect_preflight_checks() -> list[dict]:
                 ["python3", script, "--json"],
                 capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
             )
-            if "exploit_wiring" in script:
+            if r.returncode == 77:
+                checks.append({"label": label, "status": "ADV-SKIP",
+                               "detail": "advisory-skip (no required infrastructure)",
+                               "items": []})
+            elif "exploit_wiring" in script:
                 try:
                     d = json.loads(r.stdout)
                     status = d.get("result", "UNKNOWN")
@@ -873,7 +900,7 @@ def render_section_bench(bench: dict) -> str:
           <td><b>{r.get('benchmark','?')}</b></td>
           <td class="mono">{base:,} ns</td>
           <td class="mono">{ours:,} ns</td>
-          <td class="bench-delta {dcls}">+{pct:.1f}%</td>
+          <td class="bench-delta {dcls}">{pct:+.1f}%</td>
           <td style="color:var(--text2);font-size:.78rem">{r.get('note','')}</td>
         </tr>"""
     cfg = bench.get("config", {})
@@ -925,8 +952,7 @@ def render_section_artifacts(artifacts: list[dict]) -> str:
         age_str = f"{age}h ago" if isinstance(age, (int, float)) else "?"
         badge_css = freshness_css.get(f, freshness_css["RECENT"])
         path_html = (
-            f'<a href="/artifacts/{a["path"]}" '
-            f'style="color:var(--cyan);font-size:.78rem">{a["path"]}</a>'
+            f'<code style="color:var(--cyan);font-size:.78rem">{a["path"]}</code>'
         )
         rows += (
             f'<tr>'
