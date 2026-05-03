@@ -596,12 +596,13 @@ std::array<std::uint8_t, 32> ellswift_xdh_fast(
     if (ecdh_point.is_infinity()) return std::array<std::uint8_t, 32>{};
     auto ecdh_x = ecdh_point.x().to_bytes();
 
-    constexpr char tag_str[] = "bip324_ellswift_xonly_ecdh";
-    auto tag_hash = SHA256::hash(tag_str, sizeof(tag_str) - 1);
+    // Precomputed midstate (static = computed once per process).
+    static const auto kTagHash = SHA256::hash("bip324_ellswift_xonly_ecdh", 26);
+    static const SHA256 kTagMid = [](){
+        SHA256 h; h.update(kTagHash.data(), 32); h.update(kTagHash.data(), 32); return h;
+    }();
 
-    SHA256 hasher;
-    hasher.update(tag_hash.data(), 32);
-    hasher.update(tag_hash.data(), 32);
+    SHA256 hasher = kTagMid;
     hasher.update(ell_a64, 64);
     hasher.update(ell_b64, 64);
     hasher.update(ecdh_x.data(), 32);
