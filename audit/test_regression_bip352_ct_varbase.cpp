@@ -89,7 +89,7 @@ static void test_bcv_gpu_batch_matches_cpu() {
 
     ufsecp_ctx* ctx = ufsecp_ctx_create();
     uint8_t spend_sk[32] = {}; spend_sk[31] = 0x0B;
-    ufsecp_pubkey_create(ctx, spend_sk, spend_pk33);
+    ASSERT_TRUE(ufsecp_pubkey_create(ctx, spend_sk, spend_pk33) == UFSECP_OK, "BCV: spend pubkey_create");
 
     // Tweak pubkey = G (base point)
     static const uint8_t g33[33] = {

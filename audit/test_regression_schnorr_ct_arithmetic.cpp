@@ -149,7 +149,7 @@ static void test_scr_sign_verified_regression() {
     uint8_t sk[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                       0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2};
     uint8_t pubkey[32] = {};
-    ufsecp_pubkey_xonly(ctx, sk, pubkey);
+    ASSERT_TRUE(ufsecp_pubkey_xonly(ctx, sk, pubkey) == UFSECP_OK, "SCR-13: pubkey_xonly");
 
     uint8_t msg[32] = {0xDE,0xAD,0xBE,0xEF};
     uint8_t aux[32] = {0x42};
