@@ -117,7 +117,12 @@ jobs:
         run: python3 ci/build_project_graph.py --rebuild
 
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
-        run: python3 ci/audit_gate.py --json -o caas_audit_gate.json
+        run: |
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
+          EXIT=$?
+          # Print full report so failures are visible in CI log
+          python3 ci/audit_gate.py 2>&1 | tail -60 || true
+          exit $EXIT
 
       - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)
         run: python3 ci/check_libsecp_shim_parity.py
