@@ -161,11 +161,14 @@ jobs:
           # CAAS_HMAC_KEY is intentionally not required here — the refresh bot uses the
           # public in-repo key (tamper-evident only). Forensic-grade chain entries come
           # from manual CAAS runs in caas.yml where the secret is enforced.
-          python3 ci/evidence_governance.py record \
+          if ! python3 ci/evidence_governance.py record \
             --who "caas-evidence-refresh" \
             --what "nightly-evidence-refresh" \
             --verdict "pass" \
-            --reason "automated-nightly-$(date -u +%Y-%m-%d)" || true
+            --reason "automated-nightly-$(date -u +%Y-%m-%d)"; then
+            echo "::error::evidence chain write failed during nightly refresh — chain integrity compromised"
+            exit 1
+          fi
 
           CHANGED=0
           for f in assurance_report.json \
