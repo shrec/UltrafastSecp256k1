@@ -461,14 +461,13 @@ except Exception as e:
               python3 ci/report_schema.py --validate "$f"
               rc=$?
               if [ $rc -ne 0 ]; then
-                  echo "::warning::schema validation failed for $f (rc=$rc) — advisory until producers migrate"
+                  echo "::error::schema validation failed for $f (rc=$rc)"
                   FAIL=1
               else
                   echo "::notice::schema validation PASS for $f"
               fi
           done
           if [ $FAIL -ne 0 ]; then
-              # Exit non-zero so continue-on-error renders the step yellow.
               exit 1
           fi
           exit 0
@@ -618,6 +617,10 @@ except Exception as e:
 
           # Surface the skip context so the GH step summary and downstream
           # auditors can tell apart "bundle skipped on purpose" from "bundle ran".
+          if other_skipped:
+              print(f"::warning::CAAS stage(s) unexpectedly skipped: {', '.join(other_skipped)}"
+                    " — check workflow conditions")
+
           gh_out = os.environ.get("GITHUB_OUTPUT")
           if gh_out:
               with open(gh_out, "a") as f:
