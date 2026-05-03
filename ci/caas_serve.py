@@ -2,19 +2,22 @@
 """
 caas_serve.py — Web panel for CAAS dashboard + audit artifact browsing.
 
-Default bind is 0.0.0.0 so the panel is reachable from other machines on the
-LAN (e.g. a Windows workstation pointing at a Linux dev box). For local-only
-use pass --bind 127.0.0.1.
+Default bind is 127.0.0.1 (local-only). For LAN access use --lan or
+explicitly pass --bind 0.0.0.0.
 
 Routes:
-  /                    Rendered CAAS dashboard (scripts/caas_dashboard.py output)
+  /                    Rendered CAAS dashboard (ci/caas_dashboard.py output)
   /refresh             Regenerate the dashboard, then 302 to /
-  /artifacts/          Listing of audit-relevant files
-  /artifacts/<path>    Single file rendered as HTML (JSON pretty-printed,
-                       Markdown / SARIF / log shown as <pre>, .html served raw)
+  /artifacts/          Searchable listing of audit-relevant files
+  /artifacts/<path>    Single file rendered as HTML:
+                         .json  — structured tree view with raw toggle
+                         .md    — rendered Markdown (headings, code, links)
+                         .sarif — results table (rule | level | file:line | message)
+                         .html  — served as-is
+                         other  — <pre> with raw text
 
 Usage:
-  python3 ci/caas_serve.py [--port 8080] [--bind 0.0.0.0]
+  python3 ci/caas_serve.py [--port 8080] [--bind 127.0.0.1] [--lan]
 """
 
 from __future__ import annotations
@@ -23,10 +26,11 @@ import argparse
 import html
 import json
 import mimetypes
+import re
 import socket
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -35,7 +39,6 @@ LIB_ROOT = Path(__file__).resolve().parent.parent
 DASHBOARD_OUT = LIB_ROOT / "build" / "caas_dashboard.html"
 DASHBOARD_GENERATOR = LIB_ROOT / "ci" / "caas_dashboard.py"
 
-# Directories whose contents should be browsable. Order matters for display.
 ARTIFACT_ROOTS = [
     LIB_ROOT / "docs",
     LIB_ROOT / "audit-output",
@@ -44,7 +47,7 @@ ARTIFACT_ROOTS = [
     LIB_ROOT / "out" / "reports",
 ]
 
-MAX_FILE_BYTES = 50_000_000  # 50 MB safety cap on file rendering
+MAX_FILE_BYTES = 50_000_000  # 50 MB safety cap
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +57,6 @@ MAX_FILE_BYTES = 50_000_000  # 50 MB safety cap on file rendering
 def regenerate_dashboard() -> bytes:
     DASHBOARD_OUT.parent.mkdir(parents=True, exist_ok=True)
     if not DASHBOARD_GENERATOR.exists():
-        # Fall back to a minimal placeholder so the panel still serves.
         return _placeholder_dashboard().encode("utf-8")
     subprocess.run(
         [sys.executable, str(DASHBOARD_GENERATOR), "-o", str(DASHBOARD_OUT)],
@@ -69,7 +71,7 @@ def _placeholder_dashboard() -> str:
         '<!DOCTYPE html><html><head><meta charset="utf-8">'
         '<title>CAAS Web Panel</title></head><body>'
         '<h1>CAAS Web Panel</h1>'
-        '<p>scripts/caas_dashboard.py not found. The artifact browser is still available:</p>'
+        '<p>ci/caas_dashboard.py not found. The artifact browser is still available:</p>'
         '<p><a href="/artifacts/">Browse artifacts</a></p>'
         '</body></html>'
     )
@@ -91,7 +93,20 @@ def inject_navbar(dashboard_html: bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Artifact rendering
+# Freshness badge
+# ---------------------------------------------------------------------------
+
+def _freshness_badge(mtime: float) -> str:
+    age_hours = (datetime.now(timezone.utc).timestamp() - mtime) / 3600
+    if age_hours < 24:
+        return '<span style="background:#1a3a22;color:#3fb950;border:1px solid #2ea043;padding:1px 6px;border-radius:4px;font-size:.7em;font-weight:700;">FRESH</span>'
+    if age_hours < 24 * 7:
+        return '<span style="background:#3a2a0a;color:#d29922;border:1px solid #9e6a03;padding:1px 6px;border-radius:4px;font-size:.7em;font-weight:700;">RECENT</span>'
+    return '<span style="background:#3a1a1a;color:#f85149;border:1px solid #da3633;padding:1px 6px;border-radius:4px;font-size:.7em;font-weight:700;">STALE</span>'
+
+
+# ---------------------------------------------------------------------------
+# Artifact index with search + freshness
 # ---------------------------------------------------------------------------
 
 def render_artifacts_index() -> str:
@@ -101,62 +116,243 @@ def render_artifacts_index() -> str:
             continue
         rel_root = root.relative_to(LIB_ROOT)
         rows.append(
-            f'<tr><td colspan="3" style="background:#f0f0f0;font-weight:bold;">'
+            f'<tr class="group-header"><td colspan="4" style="background:#f0f0f0;font-weight:bold;">'
             f'{html.escape(str(rel_root))}/</td></tr>'
         )
         for p in sorted(root.rglob("*")):
             if not p.is_file():
                 continue
             try:
-                size = p.stat().st_size
+                st = p.stat()
             except OSError:
                 continue
-            if size > MAX_FILE_BYTES:
+            if st.st_size > MAX_FILE_BYTES:
                 continue
             rel = p.relative_to(LIB_ROOT)
-            mtime = datetime.fromtimestamp(p.stat().st_mtime).isoformat(timespec="seconds")
+            mtime_str = datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds")
+            badge = _freshness_badge(st.st_mtime)
             rows.append(
-                '<tr>'
+                '<tr class="artifact-row">'
                 f'<td><a href="/artifacts/{html.escape(str(rel))}">{html.escape(str(rel))}</a></td>'
-                f'<td style="text-align:right;">{size:,}</td>'
-                f'<td>{mtime}</td>'
+                f'<td style="text-align:right;">{st.st_size:,}</td>'
+                f'<td>{mtime_str}</td>'
+                f'<td>{badge}</td>'
                 '</tr>'
             )
     if not any(root.exists() for root in ARTIFACT_ROOTS):
-        rows.append('<tr><td colspan="3"><i>No artifact directories present yet.</i></td></tr>')
+        rows.append('<tr><td colspan="4"><i>No artifact directories present yet.</i></td></tr>')
+
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>CAAS Artifacts</title>
 <style>
-  body {{ font-family: monospace; max-width: 1200px; margin: 1em auto; padding: 0 1em; }}
+  body {{ font-family: monospace; max-width: 1400px; margin: 1em auto; padding: 0 1em; }}
   table {{ border-collapse: collapse; width: 100%; }}
   th, td {{ padding: 0.35em 0.8em; border-bottom: 1px solid #eee; text-align: left; }}
   th {{ background: #f0f0f0; }}
   a {{ color: #0066cc; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
   .nav {{ margin-bottom: 1em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; }}
-  .nav a {{ margin-right: 1em; color: #0066cc; text-decoration: none; }}
-</style></head><body>
+  .nav a {{ margin-right: 1em; color: #0066cc; }}
+  .group-header td {{ padding-top: 0.8em; }}
+  #search-box {{ width: 100%; padding: 0.5em; margin-bottom: 0.8em;
+    font-size: 1em; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }}
+  .artifact-row.hidden {{ display: none; }}
+</style>
+</head><body>
 <div class="nav">
   <a href="/">Dashboard</a>
   <a href="/artifacts/">All Artifacts</a>
   <a href="/refresh">Refresh</a>
 </div>
 <h1>CAAS Artifacts</h1>
-<table>
-<tr><th>Path</th><th style="text-align:right;">Size (B)</th><th>Modified (UTC)</th></tr>
+<input id="search-box" type="search" placeholder="Filter by path, type, or keyword…" oninput="filterRows(this.value)">
+<table id="artifact-table">
+<tr><th>Path</th><th style="text-align:right;">Size (B)</th><th>Modified</th><th>Freshness</th></tr>
 {"".join(rows)}
 </table>
+<script>
+function filterRows(q) {{
+  q = q.toLowerCase();
+  document.querySelectorAll('#artifact-table .artifact-row').forEach(function(row) {{
+    var text = row.textContent.toLowerCase();
+    row.classList.toggle('hidden', q.length > 0 && text.indexOf(q) === -1);
+  }});
+  // Show group headers only if at least one visible artifact row follows them
+  document.querySelectorAll('#artifact-table .group-header').forEach(function(hdr) {{
+    var sib = hdr.nextElementSibling;
+    var hasVisible = false;
+    while (sib && sib.classList.contains('artifact-row')) {{
+      if (!sib.classList.contains('hidden')) {{ hasVisible = true; break; }}
+      sib = sib.nextElementSibling;
+    }}
+    hdr.classList.toggle('hidden', !hasVisible && q.length > 0);
+  }});
+}}
+</script>
 </body></html>"""
+
+
+# ---------------------------------------------------------------------------
+# Markdown renderer (minimal, zero dependencies)
+# ---------------------------------------------------------------------------
+
+def render_markdown(text: str) -> str:
+    """Render a subset of Markdown to safe HTML."""
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    i = 0
+    in_para = False
+    in_list = False
+
+    def close_para():
+        nonlocal in_para
+        if in_para:
+            out.append("</p>\n")
+            in_para = False
+
+    def close_list():
+        nonlocal in_list
+        if in_list:
+            out.append("</ul>\n")
+            in_list = False
+
+    def inline(s: str) -> str:
+        # Fenced inline code: `code`
+        s = re.sub(r'`([^`]+)`', lambda m: f'<code>{html.escape(m.group(1))}</code>', s)
+        # Bold: **text**
+        s = re.sub(r'\*\*([^*]+)\*\*', lambda m: f'<strong>{html.escape(m.group(1))}</strong>', s)
+        # Italic: *text*
+        s = re.sub(r'\*([^*]+)\*', lambda m: f'<em>{html.escape(m.group(1))}</em>', s)
+        # Links: [text](url)
+        s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)',
+                   lambda m: f'<a href="{html.escape(m.group(2))}">{html.escape(m.group(1))}</a>', s)
+        return s
+
+    while i < len(lines):
+        line = lines[i].rstrip('\n')
+
+        # Fenced code block
+        if line.startswith('```'):
+            close_para()
+            close_list()
+            lang = html.escape(line[3:].strip())
+            lang_attr = f' class="language-{lang}"' if lang else ''
+            code_lines: list[str] = []
+            i += 1
+            while i < len(lines):
+                l2 = lines[i].rstrip('\n')
+                if l2.startswith('```'):
+                    i += 1
+                    break
+                code_lines.append(html.escape(l2))
+                i += 1
+            out.append(f'<pre><code{lang_attr}>{chr(10).join(code_lines)}</code></pre>\n')
+            continue
+
+        # ATX headings
+        m = re.match(r'^(#{1,4})\s+(.*)', line)
+        if m:
+            close_para()
+            close_list()
+            level = len(m.group(1))
+            text_h = inline(html.escape(m.group(2)))
+            out.append(f'<h{level}>{text_h}</h{level}>\n')
+            i += 1
+            continue
+
+        # Horizontal rule
+        if re.match(r'^[-*_]{3,}\s*$', line):
+            close_para()
+            close_list()
+            out.append('<hr>\n')
+            i += 1
+            continue
+
+        # Unordered list item
+        m = re.match(r'^[-*]\s+(.*)', line)
+        if m:
+            close_para()
+            if not in_list:
+                out.append('<ul>\n')
+                in_list = True
+            out.append(f'<li>{inline(html.escape(m.group(1)))}</li>\n')
+            i += 1
+            continue
+
+        # Blank line → end paragraph/list
+        if not line.strip():
+            close_para()
+            close_list()
+            i += 1
+            continue
+
+        # Regular paragraph text
+        close_list()
+        if not in_para:
+            out.append('<p>')
+            in_para = True
+        else:
+            out.append(' ')
+        out.append(inline(html.escape(line)))
+        i += 1
+
+    close_para()
+    close_list()
+    return ''.join(out)
+
+
+# ---------------------------------------------------------------------------
+# SARIF table renderer
+# ---------------------------------------------------------------------------
+
+def render_sarif_html(data: dict) -> str:
+    rows: list[str] = []
+    level_cls = {"error": "color:#d32f2f;font-weight:700",
+                 "warning": "color:#f57c00;font-weight:700",
+                 "note": "color:#1976d2"}
+    for run in data.get("runs", []):
+        tool_name = run.get("tool", {}).get("driver", {}).get("name", "")
+        for result in run.get("results", []):
+            rule_id = html.escape(result.get("ruleId", ""))
+            level = result.get("level", "warning")
+            msg = html.escape(result.get("message", {}).get("text", "")[:200])
+            locs = result.get("locations", [])
+            if locs:
+                phys = locs[0].get("physicalLocation", {})
+                uri = html.escape(phys.get("artifactLocation", {}).get("uri", ""))
+                line_no = phys.get("region", {}).get("startLine", "")
+                loc_str = f"{uri}:{line_no}" if line_no else uri
+            else:
+                loc_str = ""
+            cls = level_cls.get(level, "")
+            rows.append(
+                f'<tr>'
+                f'<td style="font-family:monospace;font-size:.8em">{rule_id}</td>'
+                f'<td style="{cls}">{html.escape(level)}</td>'
+                f'<td style="font-family:monospace;font-size:.8em;color:#555">{loc_str}</td>'
+                f'<td>{msg}</td>'
+                f'</tr>'
+            )
+    total = len(rows)
+    tool_html = f'<p style="color:#555;margin-bottom:.5em">Tool: <b>{html.escape(tool_name)}</b> &nbsp;·&nbsp; {total} result{"s" if total != 1 else ""}</p>' if tool_name else f'<p style="color:#555;margin-bottom:.5em">{total} result{"s" if total != 1 else ""}</p>'
+    if not rows:
+        return tool_html + '<p style="color:green;font-weight:700">✓ No findings</p>'
+    return (
+        tool_html
+        + '<table style="border-collapse:collapse;width:100%;font-size:.85em">'
+        '<thead><tr>'
+        '<th style="text-align:left;padding:.3em .6em;border-bottom:2px solid #ddd;background:#f5f5f5">Rule</th>'
+        '<th style="text-align:left;padding:.3em .6em;border-bottom:2px solid #ddd;background:#f5f5f5">Level</th>'
+        '<th style="text-align:left;padding:.3em .6em;border-bottom:2px solid #ddd;background:#f5f5f5">Location</th>'
+        '<th style="text-align:left;padding:.3em .6em;border-bottom:2px solid #ddd;background:#f5f5f5">Message</th>'
+        '</tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+    )
 
 
 # ---------------------------------------------------------------------------
 # Human-readable JSON renderer
 # ---------------------------------------------------------------------------
-
-# Tuned for the audit JSON shapes in this repo (EXTERNAL_AUDIT_BUNDLE,
-# SECURITY_AUTONOMY_KPI, EVIDENCE_CHAIN, owner_audit_bundle, etc.). Renders
-# nested objects as collapsible <details> blocks and arrays of homogeneous
-# objects as proper HTML tables instead of raw JSON.
 
 _PRIM_CSS_CLASS = {bool: "v-bool", int: "v-num", float: "v-num", type(None): "v-null"}
 
@@ -202,7 +398,6 @@ def _render_dict(obj: dict, depth: int) -> str:
     table = f'<table class="kv">{"".join(rows)}</table>'
     if depth == 0:
         return table
-    # Wrap deeper objects in collapsible details for compact display.
     summary = f'{{ {len(obj)} key{"s" if len(obj) != 1 else ""} }}'
     return f'<details><summary>{html.escape(summary)}</summary>{table}</details>'
 
@@ -240,11 +435,64 @@ def render_json_html(data) -> str:
 # Per-file rendering
 # ---------------------------------------------------------------------------
 
+_PAGE_CSS = """
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+         max-width: 1400px; margin: 1em auto; padding: 0 1em; color: #222; }
+  .nav { margin-bottom: 1em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; }
+  .nav a { margin-right: 1em; color: #0066cc; text-decoration: none; }
+  h1,h2,h3,h4 { margin: 1em 0 .4em; }
+  h1 { font-size:1.5em; } h2 { font-size:1.25em; } h3 { font-size:1.1em; }
+  p { margin: .6em 0; line-height: 1.6; }
+  ul { margin: .4em 0 .4em 1.5em; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
+  h2.file-path { font-family: monospace; font-size: 1.05em; word-break: break-all; }
+  .meta { color: #666; margin-bottom: 0.6em; font-size: 0.9em; }
+  pre { font-family: monospace; background: #f7f7f7; padding: 1em; overflow: auto;
+        line-height: 1.4; border: 1px solid #eee; border-radius: 3px; }
+  code { background:#f0f0f0; border:1px solid #e0e0e0; border-radius:3px;
+         padding:.1em .35em; font-size:.88em; }
+  pre code { background:none; border:none; padding:0; }
+  .json-toolbar { margin-bottom: 0.6em; }
+  .rawlink { color: #0066cc; font-size: 0.9em; }
+  .md-body { max-width: 860px; }
+  table.kv { border-collapse: collapse; width: 100%; margin: 0.2em 0; }
+  table.kv > tr > th.kcol {
+    text-align: left; padding: 0.25em 0.7em 0.25em 0;
+    font-weight: 600; color: #333; vertical-align: top;
+    white-space: nowrap; min-width: 11em;
+    border-bottom: 1px dotted #eee;
+  }
+  table.kv > tr > td { padding: 0.25em 0; vertical-align: top; border-bottom: 1px dotted #eee; }
+  table.rows { border-collapse: collapse; margin: 0.4em 0; min-width: 60%; }
+  table.rows th, table.rows td { padding: 0.3em 0.7em; border: 1px solid #e2e2e2;
+    text-align: left; vertical-align: top; }
+  table.rows th { background: #f3f3f3; font-weight: 600; }
+  table.rows tr:nth-child(even) td { background: #fafafa; }
+  ol.arr { margin: 0.2em 0 0.2em 1.5em; padding: 0; }
+  ol.arr > li { margin: 0.2em 0; }
+  details { margin: 0.2em 0; }
+  details > summary { cursor: pointer; color: #555; font-style: italic; }
+  .json-tree { font-size: 14px; }
+  .v-str  { color: #1a7f1a; }
+  .v-num  { color: #b35900; font-variant-numeric: tabular-nums; }
+  .v-bool { color: #5a3fc0; font-weight: 600; }
+  .v-null { color: #999; font-style: italic; }
+  .v-empty { color: #999; font-style: italic; }
+"""
+
+_NAV = (
+    '<div class="nav">'
+    '<a href="/">Dashboard</a>'
+    '<a href="/artifacts/">All Artifacts</a>'
+    '<a href="/refresh">Refresh</a>'
+    '</div>'
+)
+
+
 def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
     suffix = path.suffix.lower()
     rel = path.relative_to(LIB_ROOT)
 
-    # Binary or unreadable — stream raw with best-guess content type.
     try:
         text = path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, OSError):
@@ -254,18 +502,37 @@ def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
     if suffix in (".html", ".htm"):
         return text.encode("utf-8"), "text/html; charset=utf-8"
 
+    st = path.stat()
+    meta = (
+        f'<div class="meta">{st.st_size:,} bytes'
+        f' &middot; modified {datetime.fromtimestamp(st.st_mtime).isoformat(timespec="seconds")}'
+        f' &middot; {_freshness_badge(st.st_mtime)}</div>'
+    )
+
     body_html: str
+
     if suffix == ".json" and not raw:
         try:
             data = json.loads(text)
-            body_html = (
-                '<div class="json-toolbar">'
-                f'<a href="?raw=1" class="rawlink">View raw JSON</a>'
-                '</div>'
-                f'<div class="json-tree">{render_json_html(data)}</div>'
-            )
+            # Detect SARIF by schema key
+            if isinstance(data, dict) and data.get("version") and "runs" in data and suffix == ".json":
+                body_html = (
+                    '<div class="json-toolbar">'
+                    '<a href="?raw=1" class="rawlink">View raw JSON</a>'
+                    ' &middot; <a href="?structured=1" class="rawlink">View tree</a>'
+                    '</div>'
+                    + render_sarif_html(data)
+                )
+            else:
+                body_html = (
+                    '<div class="json-toolbar">'
+                    '<a href="?raw=1" class="rawlink">View raw JSON</a>'
+                    '</div>'
+                    f'<div class="json-tree">{render_json_html(data)}</div>'
+                )
         except json.JSONDecodeError:
             body_html = f"<pre>{html.escape(text)}</pre>"
+
     elif suffix == ".json" and raw:
         try:
             pretty = json.dumps(json.loads(text), indent=2, ensure_ascii=False)
@@ -273,56 +540,46 @@ def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
             pretty = text
         body_html = (
             '<div class="json-toolbar">'
-            f'<a href="?" class="rawlink">View structured</a>'
+            '<a href="?" class="rawlink">View structured</a>'
             '</div>'
             f'<pre>{html.escape(pretty)}</pre>'
         )
+
+    elif suffix == ".sarif":
+        try:
+            data = json.loads(text)
+            body_html = (
+                '<div class="json-toolbar">'
+                '<a href="?raw=1" class="rawlink">View raw JSON</a>'
+                '</div>'
+                + render_sarif_html(data)
+            )
+            if raw:
+                try:
+                    pretty = json.dumps(data, indent=2, ensure_ascii=False)
+                except Exception:
+                    pretty = text
+                body_html = (
+                    '<div class="json-toolbar">'
+                    '<a href="?" class="rawlink">View as table</a>'
+                    '</div>'
+                    f'<pre>{html.escape(pretty)}</pre>'
+                )
+        except json.JSONDecodeError:
+            body_html = f"<pre>{html.escape(text)}</pre>"
+
+    elif suffix == ".md":
+        body_html = f'<div class="md-body">{render_markdown(text)}</div>'
+
     else:
         body_html = f"<pre>{html.escape(text)}</pre>"
 
     page = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{html.escape(str(rel))}</title>
-<style>
-  body {{ font-family: -apple-system, "Segoe UI", system-ui, sans-serif; max-width: 1400px; margin: 1em auto; padding: 0 1em; color: #222; }}
-  .nav {{ margin-bottom: 1em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; }}
-  .nav a {{ margin-right: 1em; color: #0066cc; text-decoration: none; }}
-  h2 {{ font-family: monospace; font-size: 1.15em; word-break: break-all; }}
-  .meta {{ color: #666; margin-bottom: 0.6em; font-size: 0.9em; }}
-  pre {{ font-family: monospace; background: #f7f7f7; padding: 1em; overflow: auto; line-height: 1.4; border: 1px solid #eee; border-radius: 3px; }}
-  .json-toolbar {{ margin-bottom: 0.6em; }}
-  .rawlink {{ color: #0066cc; font-size: 0.9em; }}
-
-  /* Human-readable JSON */
-  .json-tree {{ font-size: 14px; }}
-  table.kv {{ border-collapse: collapse; width: 100%; margin: 0.2em 0; }}
-  table.kv > tr > th.kcol {{
-    text-align: left; padding: 0.25em 0.7em 0.25em 0;
-    font-weight: 600; color: #333; vertical-align: top;
-    white-space: nowrap; min-width: 11em;
-    border-bottom: 1px dotted #eee;
-  }}
-  table.kv > tr > td {{ padding: 0.25em 0; vertical-align: top; border-bottom: 1px dotted #eee; }}
-  table.rows {{ border-collapse: collapse; margin: 0.4em 0; min-width: 60%; }}
-  table.rows th, table.rows td {{ padding: 0.3em 0.7em; border: 1px solid #e2e2e2; text-align: left; vertical-align: top; }}
-  table.rows th {{ background: #f3f3f3; font-weight: 600; }}
-  table.rows tr:nth-child(even) td {{ background: #fafafa; }}
-  ol.arr {{ margin: 0.2em 0 0.2em 1.5em; padding: 0; }}
-  ol.arr > li {{ margin: 0.2em 0; }}
-  details {{ margin: 0.2em 0; }}
-  details > summary {{ cursor: pointer; color: #555; font-style: italic; }}
-  .v-str  {{ color: #1a7f1a; }}
-  .v-num  {{ color: #b35900; font-variant-numeric: tabular-nums; }}
-  .v-bool {{ color: #5a3fc0; font-weight: 600; }}
-  .v-null {{ color: #999; font-style: italic; }}
-  .v-empty {{ color: #999; font-style: italic; }}
-</style></head><body>
-<div class="nav">
-  <a href="/">Dashboard</a>
-  <a href="/artifacts/">All Artifacts</a>
-  <a href="/refresh">Refresh</a>
-</div>
-<h2>{html.escape(str(rel))}</h2>
-<div class="meta">{path.stat().st_size:,} bytes &middot; modified {datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec='seconds')}</div>
+<style>{_PAGE_CSS}</style></head><body>
+{_NAV}
+<h2 class="file-path">{html.escape(str(rel))}</h2>
+{meta}
 {body_html}
 </body></html>"""
     return page.encode("utf-8"), "text/html; charset=utf-8"
@@ -334,10 +591,10 @@ def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
 
 def make_handler(cache: list[bytes]):
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, fmt, *a):  # noqa: D401 — stdlib override
+        def log_message(self, fmt, *a):
             sys.stderr.write(f"[{self.address_string()}] {fmt % a}\n")
 
-        def do_GET(self):  # noqa: N802 — stdlib override
+        def do_GET(self):
             try:
                 parsed = urlparse(self.path)
                 path = unquote(parsed.path)
@@ -357,7 +614,6 @@ def make_handler(cache: list[bytes]):
                 if path.startswith("/artifacts/"):
                     rel = path[len("/artifacts/"):]
                     candidate = (LIB_ROOT / rel).resolve()
-                    # Path traversal guard: candidate must live under LIB_ROOT.
                     try:
                         candidate.relative_to(LIB_ROOT)
                     except ValueError:
@@ -371,7 +627,7 @@ def make_handler(cache: list[bytes]):
                     self._send(200, ctype, body)
                     return
                 self._send(404, "text/plain", b"not found")
-            except Exception as exc:  # surface server errors to the browser
+            except Exception as exc:
                 msg = f"500: {exc}".encode("utf-8", "replace")
                 self._send(500, "text/plain; charset=utf-8", msg)
 
@@ -403,22 +659,28 @@ def lan_ip() -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--bind", default="0.0.0.0",
-                    help="Interface to bind. 0.0.0.0 = all interfaces (LAN-reachable).")
+    ap.add_argument("--bind", default="127.0.0.1",
+                    help="Interface to bind (default: 127.0.0.1 — local only).")
+    ap.add_argument("--lan", action="store_true",
+                    help="Bind to 0.0.0.0 so the panel is reachable from the LAN.")
     args = ap.parse_args()
+
+    bind = "0.0.0.0" if args.lan else args.bind
 
     print("Generating dashboard...", flush=True)
     cache = [inject_navbar(regenerate_dashboard())]
 
     handler = make_handler(cache)
-    srv = HTTPServer((args.bind, args.port), handler)
+    srv = HTTPServer((bind, args.port), handler)
     ip = lan_ip()
     print()
     print("CAAS Web Panel up:")
     print(f"  Local:     http://localhost:{args.port}/")
-    if args.bind == "0.0.0.0":
+    if bind == "0.0.0.0":
         print(f"  LAN:       http://{ip}:{args.port}/")
         print(f"  Artifacts: http://{ip}:{args.port}/artifacts/")
+    else:
+        print(f"  (local-only — use --lan for LAN access)")
     print()
     print("Ctrl-C to stop.", flush=True)
     try:

@@ -412,12 +412,26 @@ def collect_limitations() -> list[str]:
 
 
 def collect_artifacts() -> list[dict]:
-    docs = LIB_ROOT / "docs"
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
     items = []
-    for p in sorted(docs.glob("*.json")):
-        items.append({"name": p.name, "path": str(p.relative_to(LIB_ROOT)), "type": "JSON"})
-    for p in sorted(docs.glob("*.md")):
-        items.append({"name": p.name, "path": str(p.relative_to(LIB_ROOT)), "type": "Markdown"})
+    for root in [LIB_ROOT / "docs", LIB_ROOT / "audit-output",
+                 LIB_ROOT / "build" / "owner_audit"]:
+        if not root.exists():
+            continue
+        for p in sorted(root.glob("*.json")) + sorted(root.glob("*.md")):
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            age_h = (now - st.st_mtime) / 3600
+            freshness = "FRESH" if age_h < 24 else "RECENT" if age_h < 168 else "STALE"
+            items.append({
+                "name": p.name,
+                "path": str(p.relative_to(LIB_ROOT)),
+                "type": "JSON" if p.suffix == ".json" else "Markdown",
+                "freshness": freshness,
+                "age_h": round(age_h, 1),
+            })
     return items
 
 
@@ -882,17 +896,42 @@ def render_section_limitations(lims: list[str]) -> str:
 
 
 def render_section_artifacts(artifacts: list[dict]) -> str:
-    rows = "".join(
-        f'<tr><td>{a["name"]}</td><td>{_badge("info", a["type"])}</td>'
-        f'<td class="mono" style="color:var(--text2)">{a["path"]}</td></tr>'
-        for a in artifacts[:40]
-    )
+    freshness_css = {
+        "FRESH":  "background:#1a3a22;color:#3fb950;border:1px solid #2ea043",
+        "RECENT": "background:#3a2a0a;color:#d29922;border:1px solid #9e6a03",
+        "STALE":  "background:#3a1a1a;color:#f85149;border:1px solid #da3633",
+    }
+    rows = ""
+    for a in artifacts[:60]:
+        f = a.get("freshness", "RECENT")
+        age = a.get("age_h", "?")
+        age_str = f"{age}h ago" if isinstance(age, (int, float)) else "?"
+        badge_css = freshness_css.get(f, freshness_css["RECENT"])
+        # Link to web panel if running locally, else show plain path
+        path_html = (
+            f'<a href="http://localhost:8080/artifacts/{a["path"]}" '
+            f'style="color:var(--cyan);font-size:.78rem">{a["path"]}</a>'
+        )
+        rows += (
+            f'<tr>'
+            f'<td>{a["name"]}</td>'
+            f'<td>{_badge("info", a["type"])}</td>'
+            f'<td class="mono">{path_html}</td>'
+            f'<td><span style="{badge_css};padding:1px 6px;border-radius:4px;'
+            f'font-size:.7em;font-weight:700">{f}</span>'
+            f' <span style="color:var(--text2);font-size:.75em">{age_str}</span></td>'
+            f'</tr>'
+        )
     return f"""
 <section class="section-anchor" id="artifacts">
 <h2>11 · Artifacts</h2>
 <div class="card">
+<p style="font-size:.8em;color:var(--text2);margin-bottom:.6em">
+  Open <code>python3 ci/caas_serve.py</code> for an interactive browser with search,
+  Markdown rendering, and structured JSON views.
+</p>
 <table class="artifact-table">
-  <thead><tr><th>File</th><th>Type</th><th>Path</th></tr></thead>
+  <thead><tr><th>File</th><th>Type</th><th>Path</th><th>Freshness</th></tr></thead>
   <tbody>{rows}</tbody>
 </table>
 </div>
