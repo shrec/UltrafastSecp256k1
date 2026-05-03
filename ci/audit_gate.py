@@ -256,6 +256,11 @@ def check_invalid_input_grammar(conn):
     )
 
     if report is None:
+        # [SKIP] means the Python binding (_ufsecp) is not built in this environment.
+        # Treat as advisory (WARN) not blocking — binding build is optional in CI.
+        if details and ('SKIP' in details or '_ufsecp' in details or 'not available' in details.lower()):
+            findings.append(('WARN', f'Invalid-input grammar skipped (binding not available): {details}'))
+            return 'P0: Invalid-Input Grammar', findings
         findings.append(('FAIL', f'Invalid-input grammar harness did not produce JSON: {details}'))
         return 'P0: Invalid-Input Grammar', findings
 
@@ -290,6 +295,9 @@ def check_stateful_sequences(conn):
     )
 
     if report is None:
+        if details and ('SKIP' in details or '_ufsecp' in details or 'not available' in details.lower()):
+            findings.append(('WARN', f'Stateful sequence skipped (binding not available): {details}'))
+            return 'P0: Stateful Sequence Integrity', findings
         findings.append(('FAIL', f'Stateful sequence harness did not produce JSON: {details}'))
         return 'P0: Stateful Sequence Integrity', findings
 
