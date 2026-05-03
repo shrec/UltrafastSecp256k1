@@ -156,6 +156,82 @@ static inline std::pair<bool, FieldElement> sqrt_check(const FieldElement& x) no
     return {r.square() == x, r};
 }
 
+// Optimized per-u encoder: precomputes u², u³, g, neg_ux-check and s_x3-sqrt
+// ONCE per u, then tries all 8 c values sharing those results.
+// Savings: 6 duplicate sqrt calls (each ~5.2µs) → eliminated.
+// On success: fills t_out and returns true.  y_odd drives negate-t.
+static bool ellswift_try_u(
+    const FieldElement& x,
+    const FieldElement& u,
+    bool y_odd,
+    FieldElement& t_out) noexcept
+{
+    static const FieldElement FE_ZERO  = FieldElement::zero();
+    static const FieldElement FE_THREE = FieldElement::from_uint64(3);
+    static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
+    static const FieldElement TWO_INV  = FieldElement::from_uint64(2).inverse();
+    static const FieldElement C3 = [](){
+        std::array<uint8_t,32> b={0x7a,0xe9,0x6a,0x2b,0x65,0x7c,0x07,0x10,
+                                   0x6e,0x64,0x47,0x9e,0xac,0x34,0x34,0xe9,
+                                   0x9c,0xf0,0x49,0x75,0x12,0xf5,0x89,0x95,
+                                   0xc1,0x39,0x6c,0x28,0x71,0x95,0x01,0xef};
+        return FieldElement::from_bytes(b);}();
+    static const FieldElement C4 = [](){
+        std::array<uint8_t,32> b={0x85,0x16,0x95,0xd4,0x9a,0x83,0xf8,0xef,
+                                   0x91,0x9b,0xb8,0x61,0x53,0xcb,0xcb,0x16,
+                                   0x63,0x0f,0xb6,0x8a,0xed,0x0a,0x76,0x6a,
+                                   0x3e,0xc6,0x93,0xd6,0x8e,0x6a,0xfa,0x41};
+        return FieldElement::from_bytes(b);}();
+
+    // Precompute u-dependent values once for ALL c values.
+    const auto u2  = u.square();
+    const auto u3  = u2 * u;
+    const auto g   = u3 + FE_SEVEN;
+
+    // x1/x2 early-reject: if neg_ux = -(u+x) is on curve, x3 takes priority.
+    // Shared across c={0,1,4,5} — compute ONE sqrt here instead of 4.
+    const auto neg_ux  = (u + x).negate();
+    const bool rej_x12 = fe_is_square(neg_ux * neg_ux * neg_ux + FE_SEVEN);
+
+    // x3 case: s = x-u.  Compute sqrt(s) once for c={2,3,6,7}.
+    const auto s_x3    = x - u;
+    const auto [s_x3sq, w_x3] = sqrt_check(s_x3);  // one sqrt
+    const bool s_x3ok  = s_x3sq && s_x3 != FE_ZERO;
+
+    for (int c = 0; c < 8; ++c) {
+        FieldElement v, w;
+
+        if (!(c & 2)) {
+            // x1/x2 case
+            if (rej_x12) continue;                         // no sqrt needed
+            const auto sp  = (u + x).square().negate() + u * x;
+            const auto [sq, wc] = sqrt_check(sp * g);     // 1 sqrt
+            if (!sq) continue;
+            const auto sp_inv = sp.inverse();
+            v = x;
+            w = wc * sp_inv;                               // recover sqrt(s)
+        } else {
+            // x3 case — reuse precomputed s_x3 and w_x3
+            if (!s_x3ok) continue;                         // no sqrt needed
+            const auto g4  = g * FE_FOUR;
+            const auto r2  = (FE_THREE * u2 * s_x3 + g4).negate() * s_x3;
+            const auto [rsq, r] = sqrt_check(r2);          // 1 sqrt
+            if (!rsq) continue;
+            if ((c & 1) && r == FE_ZERO) continue;
+            v = (r * s_x3.inverse() - u) * TWO_INV;
+            w = w_x3;                                      // free — already computed
+        }
+
+        if ((c & 5) == 0 || (c & 5) == 5) w = w.negate();
+        auto t = w * (((c & 1) ? C4 : C3) * u + v);
+        if (t == FE_ZERO) continue;
+        if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
+        t_out = t;
+        return true;
+    }
+    return false;
+}
+
 std::pair<bool, FieldElement> xswiftec_inv(
     const FieldElement& x, const FieldElement& u, int c) noexcept {
     static const FieldElement C3 = []() {
@@ -280,19 +356,12 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
         auto u = fe_from_bytes_mod_p(rand_bytes);
         if (u == FieldElement::zero()) continue;
 
-        for (int c = 0; c < 8; ++c) {
-            auto [ok, t] = xswiftec_inv(x, u, c);
-            if (!ok) continue;
-
-            // Negate t if y parity doesn't match: xswiftec_fwd uses t^2 so x is
-            // unchanged; XSwiftEC decode rule is y_odd == t_odd.
-            if (((t.to_bytes()[31] & 1) != 0) != y_is_odd) t = t.negate();
-
+        FieldElement t;
+        if (ellswift_try_u(x, u, y_is_odd, t)) {
             auto u_bytes = u.to_bytes();
             auto t_bytes = t.to_bytes();
             std::memcpy(result.data(),      u_bytes.data(), 32);
             std::memcpy(result.data() + 32, t_bytes.data(), 32);
-
             detail::secure_erase(rand_bytes, sizeof(rand_bytes));
             return result;
         }
@@ -404,11 +473,11 @@ std::array<std::uint8_t, 32> ellswift_xdh(
 }
 
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
-    // Non-CT: use precomputed w=18 fixed-base table.
-    // SHA256-based deterministic u derivation: no syscall, ~5µs total encoding.
+    // Non-CT: use precomputed fixed-base table + SHA256 u derivation.
     auto pub = scalar_mul_generator(privkey);
-    auto x   = pub.x();
-    bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
+    // x_bytes_and_parity(): one field inverse instead of separate x()+y() calls.
+    auto [x_bytes, y_odd] = pub.x_bytes_and_parity();
+    auto x = FieldElement::from_bytes(x_bytes);
     auto privkey_bytes = privkey.to_bytes();
 
     static constexpr char kTag[] = "secp256k1_ellswift_create";
@@ -430,17 +499,10 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
         std::memcpy(rand_bytes, rand_hash.data(), 32);
 
         auto u = fe_from_bytes_mod_p(rand_bytes);
-        if (u == FieldElement::zero()) continue;  // xswiftec_inv requires u != 0
+        if (u == FieldElement::zero()) continue;
 
-        for (int c = 0; c < 8; ++c) {
-            auto [ok, t] = xswiftec_inv(x, u, c);
-            if (!ok) continue;
-
-            // Negating t doesn't change xswiftec_fwd (only t^2 appears),
-            // so we can freely adjust t parity to match pubkey y parity.
-            bool t_odd = (t.to_bytes()[31] & 1) != 0;
-            if (t_odd != y_odd) t = t.negate();
-
+        FieldElement t;
+        if (ellswift_try_u(x, u, y_odd, t)) {
             auto u_bytes = u.to_bytes();
             auto t_bytes = t.to_bytes();
             std::memcpy(result.data(),      u_bytes.data(), 32);
@@ -454,12 +516,11 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
 
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
                                                     const std::uint8_t* auxrnd32) {
-    static constexpr std::uint8_t kZeroAux[32] = {};
     if (!auxrnd32) return ellswift_create_fast(privkey);
 
     auto pub = scalar_mul_generator(privkey);
-    auto x   = pub.x();
-    bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
+    auto [x_bytes_a, y_odd] = pub.x_bytes_and_parity();
+    auto x = FieldElement::from_bytes(x_bytes_a);
     auto privkey_bytes = privkey.to_bytes();
 
     static constexpr char kTag[] = "secp256k1_ellswift_create";
@@ -483,12 +544,10 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
         auto u = fe_from_bytes_mod_p(rand_bytes);
         if (u == FieldElement::zero()) continue;
 
-        for (int c = 0; c < 8; ++c) {
-            auto [ok, t] = xswiftec_inv(x, u, c);
-            if (!ok) continue;
-            if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
+        FieldElement t;
+        if (ellswift_try_u(x, u, y_odd, t)) {
             auto u_bytes = u.to_bytes(); auto t_bytes = t.to_bytes();
-            std::memcpy(result.data(), u_bytes.data(), 32);
+            std::memcpy(result.data(),    u_bytes.data(), 32);
             std::memcpy(result.data()+32, t_bytes.data(), 32);
             detail::secure_erase(rand_bytes, sizeof(rand_bytes));
             return result;
