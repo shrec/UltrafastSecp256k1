@@ -212,6 +212,15 @@ Point scalar_mul_prebuilt(const CTScalarMulTables& tables,
                            const Point& p_fallback,
                            const Scalar& k) noexcept;
 
+// BIP-324-optimized scalar_mul: incomplete mixed-add (7M+3S) instead of
+// complete Brier-Joye (11M+6S).  Safe for BIP-324 ECDH: degenerate cases
+// (P==Q, P==-Q) have ~2^-128 probability with random peer keys; wrong result
+// causes handshake failure (no key leak).  ~25% faster than scalar_mul_prebuilt.
+// MUST NOT be used for signing or operations requiring guaranteed correctness.
+Point scalar_mul_prebuilt_fast(const CTScalarMulTables& tables,
+                                const Point& p_fallback,
+                                const Scalar& k) noexcept;
+
 // CT generator multiplication: k * G
 // Hamburg signed-digit encoding: v = (k + 2^256 - 1)/2 mod n.
 // Every 4-bit window is guaranteed odd -> 8-entry table, no cmov skip.

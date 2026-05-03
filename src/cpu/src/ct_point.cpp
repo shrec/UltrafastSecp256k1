@@ -1578,6 +1578,78 @@ Point scalar_mul_prebuilt(const CTScalarMulTables& tables,
 #endif
 }
 
+Point scalar_mul_prebuilt_fast(const CTScalarMulTables& tables,
+                                const Point& p_fallback,
+                                const Scalar& k) noexcept {
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    if (!tables.valid) return scalar_mul(p_fallback, k);
+
+    constexpr unsigned GROUP_SIZE = 5;
+    constexpr unsigned TABLE_SIZE = CTScalarMulTables::TABLE_SIZE;
+    constexpr unsigned GROUPS = 26;
+
+    static const Scalar K_CONST = Scalar::from_limbs({
+        0xb5c2c1dcde9798d9ULL, 0x589ae84826ba29e4ULL,
+        0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
+    });
+
+    Scalar s = scalar_add(k, K_CONST);
+    s = scalar_half(s);
+    auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
+    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
+        auto L = k_abs.limbs();
+        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
+        std::uint64_t const pos_mask = ~neg_mask;
+        std::uint64_t nL[4], borrow = 0, diff;
+        diff = 0-L[0]; borrow = (L[0]!=0)?1:0; nL[0]=diff;
+        diff = 0-L[1]-borrow; borrow = (L[1]|borrow)?1:0; nL[1]=diff;
+        diff = 1-L[2]-borrow; borrow = (L[2]+borrow>1)?1:0; nL[2]=diff;
+        nL[3]=0-borrow;
+        std::uint64_t pL[4]; pL[0]=L[0]; pL[1]=L[1];
+        std::uint64_t sum=L[2]+1; pL[2]=sum; pL[3]=L[3]+static_cast<std::uint64_t>(sum<L[2]);
+        L[0]=(neg_mask&nL[0])|(pos_mask&pL[0]); L[1]=(neg_mask&nL[1])|(pos_mask&pL[1]);
+        L[2]=(neg_mask&nL[2])|(pos_mask&pL[2]); L[3]=(neg_mask&nL[3])|(pos_mask&pL[3]);
+        return Scalar::from_limbs(L);
+    };
+    Scalar const v1 = make_v(k1_abs, k1_neg);
+    Scalar const v2 = make_v(k2_abs, k2_neg);
+
+    CTJacobianPoint R;
+    CTAffinePoint t;
+    {
+        int const group = static_cast<int>(GROUPS) - 1;
+        std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group)*GROUP_SIZE, GROUP_SIZE);
+        std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group)*GROUP_SIZE, GROUP_SIZE);
+        table_lookup_core<false>(&t, tables.pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
+        R.x = t.x; R.y = t.y; R.z = FE52::one(); R.infinity = 0;
+        table_lookup_core<false>(&t, tables.pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
+        unified_add_core<true>(&R, R, t);  // first group: keep CHECK_INFINITY for safety
+    }
+    #ifdef __clang__
+    #pragma clang loop unroll(disable)
+    #endif
+    for (int group = static_cast<int>(GROUPS) - 2; group >= 0; --group) {
+        std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group)*GROUP_SIZE, GROUP_SIZE);
+        std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group)*GROUP_SIZE, GROUP_SIZE);
+        point_dbl_n_core(&R, GROUP_SIZE);
+        // Incomplete 7M+3S mixed-add: safe for BIP-324 ECDH (random peer key).
+        // Degenerate case probability ~2^-128; wrong result → handshake fail, not key leak.
+        table_lookup_core<false>(&t, tables.pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
+        add_affine_fast_ct(&R, R, t);
+        table_lookup_core<false>(&t, tables.pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
+        add_affine_fast_ct(&R, R, t);
+    }
+
+    R.z = R.z * tables.global_z;
+    Point result = R.to_point();
+    SECP256K1_DECLASSIFY(&result, sizeof(result));
+    return result;
+#else
+    (void)tables;
+    return scalar_mul(p_fallback, k);
+#endif
+}
+
 // --- CT Generator Multiplication (5x52) -- Comb Method -----------------------
 // Uses signed-digit multi-comb (adapted from bitcoin-core/secp256k1).
 //
