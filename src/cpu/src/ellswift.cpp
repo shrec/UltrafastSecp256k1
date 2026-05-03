@@ -448,6 +448,51 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
     throw std::runtime_error("ellswift_create_fast: RNG produced unusable values");
 }
 
+std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
+                                                    const std::uint8_t* auxrnd32) {
+    static constexpr std::uint8_t kZeroAux[32] = {};
+    if (!auxrnd32) return ellswift_create_fast(privkey);
+
+    auto pub = scalar_mul_generator(privkey);
+    auto x   = pub.x();
+    bool y_odd = (pub.y().to_bytes()[31] & 1) != 0;
+    auto privkey_bytes = privkey.to_bytes();
+
+    static constexpr char kTag[] = "secp256k1_ellswift_create";
+    static const auto kTagHash = SHA256::hash(
+        reinterpret_cast<const std::uint8_t*>(kTag), sizeof(kTag) - 1);
+    static constexpr std::uint8_t kZero32[32] = {};
+
+    std::array<std::uint8_t, 64> result{};
+    for (int attempt = 0; attempt < 100; ++attempt) {
+        SHA256 h;
+        h.update(kTagHash.data(), 32); h.update(kTagHash.data(), 32);
+        h.update(privkey_bytes.data(), 32);
+        h.update(kZero32, 32);
+        h.update(auxrnd32, 32);
+        auto cnt = static_cast<std::uint8_t>(attempt);
+        h.update(&cnt, 1);
+        auto rand_hash = h.finalize();
+        std::uint8_t rand_bytes[32];
+        std::memcpy(rand_bytes, rand_hash.data(), 32);
+
+        auto u = fe_from_bytes_mod_p(rand_bytes);
+        if (u == FieldElement::zero()) continue;
+
+        for (int c = 0; c < 8; ++c) {
+            auto [ok, t] = xswiftec_inv(x, u, c);
+            if (!ok) continue;
+            if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
+            auto u_bytes = u.to_bytes(); auto t_bytes = t.to_bytes();
+            std::memcpy(result.data(), u_bytes.data(), 32);
+            std::memcpy(result.data()+32, t_bytes.data(), 32);
+            detail::secure_erase(rand_bytes, sizeof(rand_bytes));
+            return result;
+        }
+    }
+    throw std::runtime_error("ellswift_create_fast: auxrnd path exhausted");
+}
+
 std::array<std::uint8_t, 32> ellswift_xdh_fast(
     const std::uint8_t ell_a64[64],
     const std::uint8_t ell_b64[64],

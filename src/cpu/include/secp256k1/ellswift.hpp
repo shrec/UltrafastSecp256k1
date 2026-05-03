@@ -55,6 +55,8 @@ std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
 // Fast variant: uses the precomputed fixed-base table (non-CT generator mul).
 // Suitable for ephemeral keys (BIP-324 session keys) where CT is not required.
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey);
+std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
+                                                    const std::uint8_t* auxrnd32);
 
 // Fast XDH variant: uses non-CT variable-base scalar_mul for the ECDH step.
 // Suitable for BIP-324 ephemeral session keys where CT is not required.
