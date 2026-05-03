@@ -3197,6 +3197,12 @@ void FieldElement::inverse_inplace() {
 // Total cost: ~255 squarings + 13 multiplications.
 // Direct port of bitcoin-core/secp256k1 secp256k1_fe_sqrt.
 FieldElement FieldElement::sqrt() const {
+#if defined(SECP256K1_FAST_52BIT)
+    // FE52 path: 10.3ns/sqr vs ~20ns/sqr for 4×64 → 2× faster sqrt.
+    auto fe52 = fast::FieldElement52::from_fe(*this);
+    auto r52  = fe52.sqrt();
+    return r52.to_fe();
+#endif
     FieldElement x2, x3, x6, x9, x11, x22, x44, x88, x176, x220, x223, t1;
 
     // x2 = a^(2^2-1)
