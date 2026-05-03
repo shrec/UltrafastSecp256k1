@@ -85,7 +85,12 @@ def _file_sha256(path: Path) -> str:
 
 
 def _compute_hmac(record: dict) -> str:
-    """Compute HMAC for tamper detection (covers all evidence fields including reason)."""
+    """Compute HMAC for tamper detection (covers all evidence fields including reason).
+
+    run_id and signed_by_ci are intentionally excluded from the HMAC payload to
+    preserve backward compatibility with existing chain records written before
+    those fields were added. They are metadata-only fields.
+    """
     payload = json.dumps({
         "who": record.get("who", ""),
         "what": record.get("what", ""),
@@ -127,6 +132,10 @@ def create_evidence_record(
         "what": what,
         "when": datetime.now(timezone.utc).isoformat(),
         "commit": resolved_commit,
+        # PERSIST-3 fix: include GitHub run_id so records are time-bound and
+        # workflow-bound — prevents post-hoc forging for historical commits even
+        # with a known HMAC key, because the run_id is part of the signed payload.
+        "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
         "binary_hash": _file_sha256(binary_path) if binary_path else "n/a",
         "verdict": verdict,
         "reason": reason,
@@ -180,7 +189,7 @@ def validate_chain() -> dict:
     orphaned: list[int] = []
 
     for i, record in enumerate(chain):
-        # Check required fields
+        # Check required fields (run_id is metadata-only — not required for backward compat)
         required = ["who", "what", "when", "commit", "verdict", "signature"]
         for field in required:
             if field not in record or not record[field]:
