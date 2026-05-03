@@ -28,6 +28,7 @@ for arg in "$@"; do
 done
 
 pass=0; fail=0
+declare -A gate_results  # gate label → pass|fail, for local artifact
 
 run_check() {
   local label="$1"; shift
@@ -35,10 +36,12 @@ run_check() {
   if output=$("$@" 2>&1); then
     echo -e "${GREEN}OK${NC}"
     ((pass++))
+    gate_results["$label"]="pass"
   else
     echo -e "${RED}FAIL${NC}"
     echo "$output" | tail -10 | sed 's/^/    /'
     ((fail++))
+    gate_results["$label"]="fail"
   fi
 }
 
@@ -75,6 +78,32 @@ echo ""
 # ── Preflight full scan (~20s) ─────────────────────────────────────────────
 echo -e "${BOLD}[3] Preflight Scan (--bug-scan)${NC}"
 run_check "Preflight --bug-scan"    python3 ci/preflight.py --bug-scan
+echo ""
+
+# ── CAAS security gates (~10s) ──────────────────────────────────────────────
+# These mirror the CI CAAS pipeline stages that historically caused 2+ day fix
+# cycles when discovered only on push. Runs in fast mode (no bundle, no-fail-fast).
+echo -e "${BOLD}[4] CAAS Security Gates (mirrors CI caas.yml stages 2+3)${NC}"
+_caas_fail=0
+
+run_caas_check() {
+  local label="$1"; shift
+  printf "  %-52s" "$label..."
+  local out rc
+  out=$("$@" 2>&1); rc=$?
+  if [[ $rc -eq 0 ]]; then
+    echo -e "${GREEN}OK${NC}"; ((pass++)); gate_results["$label"]="pass"
+  elif [[ $rc -eq 77 ]]; then
+    echo -e "${YELLOW}ADV-SKIP${NC} (no required infrastructure)"; gate_results["$label"]="adv-skip"
+  else
+    echo -e "${RED}FAIL${NC}"; echo "$out" | tail -6 | sed 's/^/    /'
+    ((fail++)); ((_caas_fail++)); gate_results["$label"]="fail"
+  fi
+}
+
+run_caas_check "Audit gate"          python3 ci/audit_gate.py
+run_caas_check "Security autonomy"   python3 ci/security_autonomy_check.py
+run_caas_check "Shim parity"         python3 ci/check_libsecp_shim_parity.py
 echo ""
 
 if [[ $FULL -eq 0 ]]; then
@@ -162,6 +191,25 @@ if [[ $MSAN -eq 1 ]]; then
   fi
   echo ""
 fi
+
+# ── Local artifact ───────────────────────────────────────────────────────────
+# Write a JSON summary for post-run inspection without re-running (MEDIUM-4/LOW-6).
+_artifact="${TMPDIR:-/tmp}/ci_local_last_run.json"
+{
+  printf '{\n  "generated_at": "%s",\n  "overall_pass": %s,\n  "pass": %d,\n  "fail": %d,\n  "gates": {\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "$([ $fail -eq 0 ] && echo true || echo false)" \
+    "$pass" "$fail"
+  first=1
+  for key in "${!gate_results[@]}"; do
+    [[ $first -eq 0 ]] && printf ',\n'
+    printf '    "%s": "%s"' "$key" "${gate_results[$key]}"
+    first=0
+  done
+  printf '\n  }\n}\n'
+} > "$_artifact" 2>/dev/null || true
+echo -e "  ${YELLOW}Local artifact:${NC} $_artifact"
+echo ""
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
