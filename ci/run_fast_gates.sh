@@ -18,6 +18,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${REPO_ROOT}"
 
+# Validate caas_runner.py is parseable before running any gates
+python3 -c "import ast; ast.parse(open('ci/caas_runner.py').read())" 2>/dev/null || {
+    echo "ERROR: ci/caas_runner.py has a SyntaxError — fix before running gates"
+    exit 1
+}
+
 FAILED=0
 SUMMARY=0
 [[ "${1:-}" == "--summary" ]] && SUMMARY=1

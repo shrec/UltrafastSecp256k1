@@ -89,7 +89,9 @@ def evaluate(
 
     for spec in platforms:
         report_json = artifact_root / spec.artifact / "audit_report.json"
-        platform = spec.platform
+        # BUG-6 fix: normalize separator so "linux_gcc13" matches "linux-gcc13"
+        # in the required_platforms set (which has already been normalized).
+        platform = spec.platform.replace("_", "-")
         is_required = platform in required_platforms
         if report_json.is_file():
             observed_reports += 1
@@ -135,7 +137,14 @@ def evaluate(
         path.name for path in artifact_root.glob("audit-report-*") if path.is_dir()
     )
     if downloaded:
+        found_platforms = [p.removeprefix("audit-report-").replace("_", "-") for p in downloaded]
+        missing_required = sorted(required_platforms - set(found_platforms))
         summary_lines.extend(["", f"Downloaded artifacts: {' '.join(downloaded)}"])
+        if missing_required:
+            summary_lines.append(
+                f"Required platforms not found: {', '.join(missing_required)} "
+                f"(found: {', '.join(found_platforms) or 'none'})"
+            )
 
     if observed_reports == 0:
         summary_lines.extend([
@@ -196,7 +205,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.platform:
         parser.error("at least one --platform must be provided")
 
-    required = set(args.required_platform) or {"linux-gcc13"}
+    # BUG-6 fix: normalize required platform names by replacing '_' with '-'
+    # so that "linux_gcc13" and "linux-gcc13" are treated as the same platform.
+    # Artifact names from GitHub Actions use hyphens; some callers use underscores.
+    raw_required = set(args.required_platform) or {"linux-gcc13"}
+    required = {p.replace("_", "-") for p in raw_required}
     exit_code, summary_lines = evaluate(args.platform, args.artifact_root, required)
     append_summary(args.summary_file, summary_lines)
     return exit_code

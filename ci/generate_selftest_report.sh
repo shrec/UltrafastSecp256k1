@@ -59,8 +59,10 @@ echo "[3/3] Generating JSON report..."
 
 # Extract test results from CTest log
 TOTAL_TESTS=$(grep -c "Test #" "$CTEST_LOG" 2>/dev/null || echo "0")
-PASSED_TESTS=$(grep -c "Passed" "$CTEST_LOG" 2>/dev/null || echo "0")
-FAILED_TESTS=$(grep -c "Failed" "$CTEST_LOG" 2>/dev/null || echo "0")
+# BUG-4 fix: use "\.\.\.   Passed" (CTest's exact format) to avoid counting
+# "Not Passed" lines as passed. The three dots + spaces is CTest's separator.
+PASSED_TESTS=$(grep -c "\.\.\. *Passed" "$CTEST_LOG" 2>/dev/null || echo "0")
+FAILED_TESTS=$(grep -c "\.\.\. *Failed" "$CTEST_LOG" 2>/dev/null || echo "0")
 
 # Parse per-test details
 TEST_ENTRIES=""
@@ -114,7 +116,7 @@ cat > "$REPORT" <<EOF
   "platform": {
     "os": "$(uname -s 2>/dev/null || echo "unknown")",
     "arch": "$(uname -m 2>/dev/null || echo "unknown")",
-    "compiler": "$(cmake -S "$SRC_DIR" -B /dev/null 2>&1 | grep -oP 'CXX compiler.*' | head -1 || echo "unknown")"
+    "compiler": "$(_cmake_tmpdir=$(mktemp -d); _cxx_ver="$(cmake -S "$SRC_DIR" -B "$_cmake_tmpdir" 2>&1 | awk '/CXX compiler/{print; exit}' || echo 'unknown')"; rm -rf "$_cmake_tmpdir"; echo "$_cxx_ver")"
   },
   "summary": {
     "total": $TOTAL_TESTS,
@@ -134,5 +136,13 @@ echo "  Report: $REPORT"
 echo "  Tests:  $PASSED_TESTS/$TOTAL_TESTS passed"
 echo "  Status: $([ "$CTEST_EXIT" -eq 0 ] && echo "ALL PASS" || echo "FAILURES DETECTED")"
 echo "==========================================================="
+
+# MISS-6 fix: warn if any test reported 0.00s duration — may indicate
+# corrupt or truncated results (e.g., CTest parsing failure, timeout, or
+# a test that exited before writing timing output).
+ZERO_DURATION_COUNT=$(grep -c '"time_sec": 0' "$REPORT" 2>/dev/null || echo "0")
+if [ "$ZERO_DURATION_COUNT" -gt 0 ]; then
+    echo "WARNING: $ZERO_DURATION_COUNT test(s) reported 0.00s duration — may indicate corrupt results" >&2
+fi
 
 exit $CTEST_EXIT

@@ -404,17 +404,36 @@ def validate_report(report: dict) -> list[str]:
     # unified-schema validation (sections/commit envelope).
     if 'schema_version' not in report:
         errors: list[str] = []
-        # audit_gate.py / caas.yml Stage 2 producers
-        if 'verdict' not in report and 'overall_pass' not in report:
-            errors.append(
-                'legacy report missing both "verdict" and "overall_pass" — '
-                'expected at least one top-level result field'
-            )
-        if 'checks' not in report and 'gates' not in report and 'sections' not in report:
-            errors.append(
-                'legacy report missing "checks", "gates", and "sections" — '
-                'expected at least one results container'
-            )
+        # Detect known legacy document types by their distinctive keys and
+        # validate the mandatory fields for each known type.
+        if 'audit_verdict' in report or ('checks' in report and 'verdict' in report):
+            # audit_gate.json schema
+            if not isinstance(report.get('checks'), list):
+                errors.append('audit_gate.json: "checks" must be a list')
+            if not isinstance(report.get('verdict'), str):
+                errors.append('audit_gate.json: "verdict" must be a string')
+        elif 'autonomy_score' in report or 'autonomy_ready' in report:
+            # caas_autonomy.json schema
+            if not isinstance(report.get('autonomy_score'), (int, float)):
+                errors.append('caas_autonomy.json: "autonomy_score" must be a number')
+            if not isinstance(report.get('autonomy_ready'), bool):
+                errors.append('caas_autonomy.json: "autonomy_ready" must be a bool')
+        elif 'verified' in report:
+            # caas_bundle_verify.json schema
+            if not isinstance(report.get('verified'), bool):
+                errors.append('caas_bundle_verify.json: "verified" must be a bool')
+        else:
+            # Unknown legacy format — apply generic checks
+            if 'verdict' not in report and 'overall_pass' not in report:
+                errors.append(
+                    'legacy report missing both "verdict" and "overall_pass" — '
+                    'expected at least one top-level result field'
+                )
+            if 'checks' not in report and 'gates' not in report and 'sections' not in report:
+                errors.append(
+                    'legacy report missing "checks", "gates", and "sections" — '
+                    'expected at least one results container'
+                )
         return errors
 
     errors = []

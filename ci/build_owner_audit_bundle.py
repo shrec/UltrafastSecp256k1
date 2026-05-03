@@ -293,12 +293,13 @@ def main() -> int:
         text=True,
         check=False,
     )
-    if ct_collection.returncode != 0:
+    ct_evidence_failed = ct_collection.returncode != 0
+    if ct_evidence_failed:
         print(f"WARNING: CT evidence collection failed (exit {ct_collection.returncode}). Evidence may be incomplete.")
     ct_summary_path = ct_dir / 'ct_evidence_summary.json'
     if ct_summary_path.exists():
         ct_evidence = json.loads(_read_text(ct_summary_path))
-        if ct_collection.returncode != 0:
+        if ct_evidence_failed:
             ct_evidence['collection_warning'] = (
                 f'CT evidence collection exited {ct_collection.returncode}; data may be incomplete'
             )
@@ -329,6 +330,13 @@ def main() -> int:
         mandatory_missing.append('audit_report.json')
 
     blocking_findings = []
+    # CRITICAL-5 fix: CT evidence collection failure is a blocking finding.
+    # The bundle must not be marked 'ready' when CT evidence could not be collected.
+    if ct_evidence_failed:
+        blocking_findings.append(
+            f'ct evidence collection failed (exit {ct_collection.returncode}); '
+            'bundle is incomplete without CT evidence'
+        )
     if isinstance(audit_gate.get('payload'), dict) and audit_gate['payload'].get('audit_verdict') == 'FAIL':
         blocking_findings.append(f"audit gate has {_count_failures(audit_gate['payload'])} FAIL findings")
     strict_payload = failure_matrix_strict.get('payload') or {}
@@ -367,6 +375,10 @@ def main() -> int:
     overall_status = 'ready'
     if mandatory_missing:
         overall_status = 'missing-artifacts'
+    elif ct_evidence_failed:
+        # CRITICAL-5 fix: CT evidence failure → status is 'incomplete' (not 'ready').
+        # The bundle is unusable for audit sign-off without CT evidence.
+        overall_status = 'incomplete'
     elif blocking_findings:
         overall_status = 'partial'
     elif benchmark_publishability.get('issues'):

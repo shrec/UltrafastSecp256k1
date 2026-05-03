@@ -31,10 +31,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # Fall back to REPO_ROOT so the dashboard still renders with whatever data
 # is available locally rather than silently showing empty sections.
 _suite_candidate = REPO_ROOT.parent.parent
+_SUITE_ROOT_FALLBACK = False
 if _suite_candidate.is_dir():
     SUITE_ROOT = _suite_candidate
 else:
     import os as _os
+    _SUITE_ROOT_FALLBACK = True
     if _os.environ.get("GITHUB_ACTIONS"):
         print(
             "::warning::render_audit_dashboard: SUITE_ROOT not found — "
@@ -355,6 +357,13 @@ def render(profile: str = "default") -> str:
     out.append(_format_caas_pipeline(kpi))
 
     out.append(_section('Assurance Report'))
+    # VIZ-4 fix: when SUITE_ROOT fell back to REPO_ROOT, add a visible
+    # warning so auditors know suite-level evidence is unavailable.
+    if _SUITE_ROOT_FALLBACK:
+        out.append(
+            '> **⚠ Suite evidence unavailable** — showing repo root fallback. '
+            'Suite-level evidence files from the parent workspace are missing.\n'
+        )
     # Search the locations where assurance_report.json may live, in priority order:
     #   1. parent suite workspace (SUITE_ROOT/out/reports/) — local development
     #   2. submodule out/reports/                          — produced by preflight.yml

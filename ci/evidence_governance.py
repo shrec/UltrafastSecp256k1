@@ -130,6 +130,10 @@ def create_evidence_record(
         "binary_hash": _file_sha256(binary_path) if binary_path else "n/a",
         "verdict": verdict,
         "reason": reason,
+        # PERSIST-1 fix: distinguish CI-signed from locally-signed records so
+        # auditors can identify which evidence was produced in the trusted CI
+        # environment vs on a developer's local machine.
+        "signed_by_ci": bool(os.environ.get("GITHUB_ACTIONS") == "true"),
     }
     record["signature"] = _compute_hmac(record)
     return record

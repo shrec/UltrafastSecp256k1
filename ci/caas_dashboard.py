@@ -151,14 +151,21 @@ def collect_audit_gate() -> dict:
             ["python3", "ci/audit_gate.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
-        if raw.returncode == 0 and raw.stdout.strip():
-            d = json.loads(raw.stdout)
-            d["_source"] = "live"
-            return d
-        # Live run failed (cold runner / no DB / timeout) — fall back to the
-        # most recent on-disk JSON produced by a prior CI step. This avoids the
-        # dashboard rendering "?" for every gate just because audit_gate.py
-        # could not bootstrap its DB at view time.
+        # BUG-5 fix: parse stdout unconditionally regardless of exit code.
+        # A non-zero exit means the gate FAILED — but the JSON payload is still
+        # valid and should be shown. Only fall back to cache if stdout is
+        # empty/unparseable (cold runner / no DB).
+        if raw.stdout.strip():
+            try:
+                d = json.loads(raw.stdout)
+                d["_source"] = "live"
+                return d
+            except (json.JSONDecodeError, ValueError):
+                pass
+        # stdout is empty or unparseable — cold runner / no DB / crash.
+        # Fall back to the most recent on-disk JSON produced by a prior CI step.
+        # Note: we do NOT fall back when exit != 0 and stdout is valid JSON,
+        # because that would hide genuine FAIL results behind stale cached data.
         fallback = _read_fallback(_FALLBACK_GATE_PATHS)
         if fallback is not None:
             return fallback
@@ -907,6 +914,11 @@ def render_section_backend(backend: dict) -> str:
 def render_section_graph(graph: dict) -> str:
     funcs = graph.get("functions", "?")
     files = graph.get("files", "?")
+    # VIZ-5 fix: "?" (string, not int) means the graph query failed — treat
+    # that as FAIL, not as a neutral unknown status.
+    graph_quality_pass = isinstance(graph.get('functions'), int) and graph.get('functions', 0) > 0
+    graph_quality_label = 'PASS' if graph_quality_pass else 'FAIL'
+    graph_quality_color = 'green' if graph_quality_pass else 'red'
     return f"""
 <section class="section-anchor" id="graph">
 <h2>8 · Source Graph / Coverage</h2>
@@ -916,7 +928,7 @@ def render_section_graph(graph: dict) -> str:
       <div class="stat-label">Indexed Functions</div></div>
     <div class="stat"><div class="stat-val blue">{files}</div>
       <div class="stat-label">Source Files</div></div>
-    <div class="stat"><div class="stat-val {'green' if isinstance(graph.get('functions'), int) and graph.get('functions', 0) > 0 else 'yellow'}">{'PASS' if isinstance(graph.get('functions'), int) and graph.get('functions', 0) > 0 else '?'}</div>
+    <div class="stat"><div class="stat-val {graph_quality_color}">{graph_quality_label}</div>
       <div class="stat-label">Graph Quality Gate</div></div>
   </div>
   <p style="color:var(--text2);font-size:.8rem;margin-top:.5rem">

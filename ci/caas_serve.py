@@ -32,6 +32,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -607,6 +608,13 @@ def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
 # HTTP handler
 # ---------------------------------------------------------------------------
 
+# VIZ-6 fix: use ThreadingMixIn so the /refresh endpoint (which calls
+# subprocess.run synchronously) does not block the single-threaded server.
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in separate threads to prevent /refresh deadlock."""
+    daemon_threads = True
+
+
 def make_handler(cache: list[bytes]):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *a):
@@ -689,7 +697,7 @@ def main() -> int:
     cache = [inject_navbar(regenerate_dashboard())]
 
     handler = make_handler(cache)
-    srv = HTTPServer((bind, args.port), handler)
+    srv = ThreadedHTTPServer((bind, args.port), handler)
     ip = lan_ip()
     print()
     print("CAAS Web Panel up:")
