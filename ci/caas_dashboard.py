@@ -925,7 +925,7 @@ def render_section_artifacts(artifacts: list[dict]) -> str:
         )
     return f"""
 <section class="section-anchor" id="artifacts">
-<h2>11 · Artifacts</h2>
+<h2>9 · Artifacts</h2>
 <div class="card">
 <table class="artifact-table">
   <thead><tr><th>File</th><th>Type</th><th>Path</th><th>Freshness</th></tr></thead>
