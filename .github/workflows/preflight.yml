@@ -125,8 +125,10 @@ jobs:
 
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
         run: |
+          set +e
           python3 ci/audit_gate.py --json -o caas_audit_gate.json
           GATE_EXIT=$?
+          set -e
           python3 -c "
 import json, sys
 try:

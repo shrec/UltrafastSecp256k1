@@ -686,7 +686,7 @@ jobs:
 
       - name: Run WASM KAT equivalence test
         # wasm_kat_test.js is generated into build/wasm/kat/ by the WASM build
-        run: node build/wasm/kat/wasm_kat_test.js || true
+        run: node build/wasm/kat/wasm_kat_test.js
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1018,12 +1018,13 @@ jobs:
 
       - name: Run unified_audit_runner (all 327 modules)
         run: |
-          ./out/ci-caas/audit/unified_audit_runner --json > caas_runner_report.json
+          ./out/ci-caas/audit/unified_audit_runner --report-dir .
           echo "## CAAS Full Run" >> "$GITHUB_STEP_SUMMARY"
           python3 -c "
           import json, sys
-          d = json.load(open('caas_runner_report.json'))
-          passed = d.get('passed', 0); failed = d.get('failed', 0); skipped = d.get('advisory_skipped', 0)
+          d = json.load(open('audit_report.json'))
+          s = d.get('summary', d)
+          passed = s.get('passed', 0); failed = s.get('failed', 0); skipped = s.get('advisory_skipped', 0)
           print(f'| Passed | Failed | Advisory skipped |')
           print(f'|--------|--------|-----------------|')
           print(f'| {passed} | {failed} | {skipped} |')
@@ -1055,7 +1056,8 @@ jobs:
             stage1b_traceability.json
             stage2_audit_gate.json
             stage3_autonomy.json
-            caas_runner_report.json
+            audit_report.json
+            audit_report.txt
             EXTERNAL_AUDIT_BUNDLE.json
           retention-days: 90
 

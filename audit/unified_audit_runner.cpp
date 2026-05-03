@@ -1269,12 +1269,15 @@ static void write_text_report(const char* path,
         return;
     }
 
-    int total_pass = 0, total_fail = 0, total_advisory = 0;
+    int total_pass = 0, total_fail = 0, total_advisory = 0, total_advisory_failed = 0;
     for (auto& r : results) {
         if (r.passed) {
             ++total_pass;
         } else if (r.advisory) {
             ++total_advisory;
+            if (r.return_code != ADVISORY_SKIP_CODE) {
+                ++total_advisory_failed;
+            }
         } else {
             ++total_fail;
         }
@@ -1325,9 +1328,16 @@ static void write_text_report(const char* path,
 
     // -- Grand total ---
     int const total_count = total_pass + total_fail + total_advisory;
+    const char* text_verdict;
+    if (total_fail != 0) {
+        text_verdict = "AUDIT-BLOCKED (FAILURES DETECTED)";
+    } else if (total_advisory_failed != 0) {
+        text_verdict = "AUDIT-READY-DEGRADED";
+    } else {
+        text_verdict = "AUDIT-READY";
+    }
     (void)std::fprintf(f, "================================================================\n");
-    (void)std::fprintf(f, "  AUDIT VERDICT: %s\n",
-                 (total_fail == 0) ? "AUDIT-READY" : "AUDIT-BLOCKED (FAILURES DETECTED)");
+    (void)std::fprintf(f, "  AUDIT VERDICT: %s\n", text_verdict);
     (void)std::fprintf(f, "  TOTAL: %d/%d modules passed", total_pass, total_count);
     if (total_advisory > 0) {
         (void)std::fprintf(f, "  (%d advisory warnings)", total_advisory);

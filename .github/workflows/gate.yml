@@ -200,7 +200,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [detect-impact, fast-gates]
-    if: needs.detect-impact.outputs.run_caas == 'true' || needs.detect-impact.outputs.run_core == 'true' || needs.detect-impact.outputs.run_compat == 'true'
+    if: needs.detect-impact.outputs.run_caas == 'true' || needs.detect-impact.outputs.run_core == 'true' || needs.detect-impact.outputs.run_compat == 'true' || needs.detect-impact.outputs.run_bindings == 'true'
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -336,6 +336,13 @@ jobs:
           echo "| caas-security | ${{ needs.caas-security.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| bindings-smoke | ${{ needs.bindings-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| gpu-wasm-smoke | ${{ needs.gpu-wasm-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+
+          # caas-security must never be silently skipped — a skip means security
+          # gates did not run, which is a blocking condition.
+          if [ "${{ needs.caas-security.result }}" = "skipped" ]; then
+            echo "::error::caas-security was skipped — security gates must always run for non-docs changes"
+            exit 1
+          fi
 
           for result in \
             "${{ needs.detect-impact.result }}" \
