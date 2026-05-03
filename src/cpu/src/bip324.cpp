@@ -316,15 +316,15 @@ static std::array<std::uint8_t,32> bip324_xdh_hash(
 } // anonymous
 
 std::array<std::uint8_t,32> xdh(
-    const std::uint8_t our_ell64[64],
-    const std::uint8_t their_ell64[64],
+    const std::uint8_t ell_a64[64],   // initiator's ELL (party 0)
+    const std::uint8_t ell_b64[64],   // responder's ELL (party 1)
     const fast::Scalar& sk,
     bool initiating) noexcept
 {
-    // BIP-324 convention: ell_a = initiator, ell_b = responder
-    const std::uint8_t* ell_a    = initiating ? our_ell64   : their_ell64;
-    const std::uint8_t* ell_b    = initiating ? their_ell64 : our_ell64;
-    const std::uint8_t* peer_ell = their_ell64;  // always their key for ECDH
+    // peer_ell: the key we ECDH against (always the OTHER party's key)
+    //   initiating → their key is ell_b64
+    //   responding → their key is ell_a64
+    const std::uint8_t* peer_ell = initiating ? ell_b64 : ell_a64;
 
     // Lookup or build peer's CT GLV tables
     const auto* tables = g_peer_cache.get(peer_ell);
@@ -351,7 +351,8 @@ std::array<std::uint8_t,32> xdh(
 
     if (shared.is_infinity()) return {};
     auto x32 = shared.x_only_bytes();
-    return bip324_xdh_hash(x32.data(), ell_a, ell_b);
+    // Hash always: (x, ell_a64, ell_b64) — same order for both parties
+    return bip324_xdh_hash(x32.data(), ell_a64, ell_b64);
 }
 
 } // namespace bip324

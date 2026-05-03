@@ -145,8 +145,8 @@ namespace bip324 {
 // XDH with transparent peer CT GLV cache.
 // Drop-in for secp256k1_ellswift_xdh(bip324_hash). Routed from the shim.
 std::array<std::uint8_t,32> xdh(
-    const std::uint8_t our_ell64[64],
-    const std::uint8_t their_ell64[64],
+    const std::uint8_t ell_a64[64],   // initiator's ELL (party 0)
+    const std::uint8_t ell_b64[64],   // responder's ELL (party 1)
     const fast::Scalar& sk,
     bool initiating) noexcept;
 
