@@ -307,11 +307,15 @@ def collect_backend_parity() -> dict:
     backends = []
     if data and isinstance(data, dict):
         for b in data.get("backends", []):
+            publishable = b.get("publishable", b.get("parity_with_cpu", "?"))
+            parity_str  = ("yes" if publishable is True else
+                           "no"  if publishable is False else str(publishable))
+            notes       = "; ".join(b.get("artifact_notes", [])) or b.get("notes", "")
             backends.append({
-                "name": b.get("name", "?"),
+                "name":   b.get("backend", b.get("name", "?")),
                 "status": b.get("status", "?"),
-                "parity": b.get("parity_with_cpu", "?"),
-                "notes": b.get("notes", ""),
+                "parity": parity_str,
+                "notes":  notes[:120],
             })
     if not backends:
         # No GPU_BACKEND_EVIDENCE.json — surface the gap honestly. The
@@ -520,7 +524,6 @@ NAV_ITEMS = [
     ("diff",  "Differential"),
     ("backend","Backends"),
     ("graph", "Coverage"),
-    ("limits","Limitations"),
     ("artifacts","Artifacts"),
 ]
 
@@ -957,7 +960,6 @@ def render_html(data: dict) -> str:
         + render_section_differential(data["differential"])
         + render_section_backend(data["backend"])
         + render_section_graph(data["source_graph"])
-        + render_section_limitations(data["limitations"])
         + render_section_artifacts(data["artifacts"])
     )
 
@@ -1030,7 +1032,6 @@ def main() -> int:
         "differential": collect_differential(),
         "backend":      collect_backend_parity(),
         "source_graph": collect_source_graph(),
-        "limitations":  collect_limitations(),
         "artifacts":    collect_artifacts(),
     }
 
