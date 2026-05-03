@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-linux-gcc13
+          name: audit-report-linux-gcc13-${{ github.run_id }}
           path: |
             audit-output/audit_report.json
             audit-output/audit_report.txt
@@ -119,12 +119,12 @@ jobs:
         run: |
           echo "## Audit Report (Linux GCC-13)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          cat audit-output/audit_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Auditor-Mode Gap Report" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/auditor-mode/auditor_mode_report.txt 2>/dev/null || echo "Auditor-mode report not generated"
+          cat audit-output/auditor-mode/auditor_mode_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Auditor-mode report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -185,7 +185,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-linux-clang17
+          name: audit-report-linux-clang17-${{ github.run_id }}
           path: |
             audit-output/audit_report.json
             audit-output/audit_report.txt
@@ -218,12 +218,12 @@ jobs:
         run: |
           echo "## Audit Report (Linux Clang-17)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          cat audit-output/audit_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Auditor-Mode Gap Report (Clang-17)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/auditor-mode/auditor_mode_report.txt 2>/dev/null || echo "Auditor-mode report not generated"
+          cat audit-output/auditor-mode/auditor_mode_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Auditor-mode report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -277,7 +277,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-windows-msvc
+          name: audit-report-windows-msvc-${{ github.run_id }}
           path: |
             audit-output/audit_report.json
             audit-output/audit_report.txt

@@ -30,20 +30,29 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 
-# HMAC key for evidence chain integrity. This key is public (in-repo) and provides
-# content-hash tamper detection only — NOT cryptographic authentication.
-# An adversary with repo read access can compute valid HMACs for forged records.
-# For production forensic evidence, use a secret key via CAAS_HMAC_KEY env var.
-_HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
-_HMAC_KEY = os.environ.get("CAAS_HMAC_KEY", _HMAC_KEY_DEFAULT).encode()
+# HMAC key for evidence chain integrity.
+# In CI (GITHUB_ACTIONS=true) the CAAS_HMAC_KEY secret MUST be set — using the
+# public in-repo fallback key in a CI environment means any repo reader can forge
+# evidence records, which makes the chain forensically worthless.
+# Locally the fallback is accepted; CI hard-fails if the secret is absent.
 _HMAC_KEY_IS_DEFAULT = "CAAS_HMAC_KEY" not in os.environ
 if _HMAC_KEY_IS_DEFAULT:
-    import sys as _sys
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(
+            "::error::CAAS_HMAC_KEY secret is not set. "
+            "Evidence chain HMAC uses the public in-repo key in CI, which allows "
+            "anyone with read access to forge records. "
+            "Add CAAS_HMAC_KEY as a repository secret and pass it via env: in the workflow.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     print(
-        "WARNING: Using public in-repo HMAC key. Tamper detection only — not cryptographic auth. "
-        "Set CAAS_HMAC_KEY env var for production.",
-        file=_sys.stderr,
+        "WARNING: Using public in-repo HMAC key. Tamper detection only — not "
+        "cryptographic auth. Set CAAS_HMAC_KEY env var for production.",
+        file=sys.stderr,
     )
+_HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
+_HMAC_KEY = os.environ.get("CAAS_HMAC_KEY", _HMAC_KEY_DEFAULT).encode()
 
 
 def _git_sha() -> str:

@@ -1020,9 +1020,11 @@ jobs:
           python3 -c "
           import json, sys
           d = json.load(open('stage3_autonomy.json'))
-          # Fail-safe default: missing keys must NOT silently pass the gate.
-          if not d.get('autonomy_ready', d.get('passed', False)):
-              print('::error::Stage 3: security autonomy check failed — see stage3_autonomy.json')
+          ready = d.get('autonomy_ready', d.get('passed', False))
+          score = d.get('autonomy_score', d.get('score', 0))
+          # Fail-safe: must be both ready AND score==100 (matches caas.yml gate semantics).
+          if not ready or score < 100:
+              print(f'::error::Stage 3: security autonomy check failed (ready={ready} score={score}) — see stage3_autonomy.json')
               sys.exit(1)
           "
 
@@ -1042,15 +1044,15 @@ jobs:
           " >> "$GITHUB_STEP_SUMMARY"
 
       - name: Stage 4 — Produce audit bundle
-        run: python3 ci/external_audit_bundle.py -o EXTERNAL_AUDIT_BUNDLE.json
+        run: python3 ci/external_audit_bundle.py -o docs/EXTERNAL_AUDIT_BUNDLE.json
 
       - name: Stage 5 — Verify audit bundle
-        run: python3 ci/verify_external_audit_bundle.py EXTERNAL_AUDIT_BUNDLE.json
+        run: python3 ci/verify_external_audit_bundle.py docs/EXTERNAL_AUDIT_BUNDLE.json
 
       - name: Warn on missing stage output files
         if: always()
         run: |
-          for f in stage1a_scanner.json stage1b_traceability.json stage2_audit_gate.json stage3_autonomy.json caas_runner_report.json; do
+          for f in stage1a_scanner.json stage1b_traceability.json stage2_audit_gate.json stage3_autonomy.json; do
             [ -f "$f" ] || echo "::warning::$f was not produced — stage may have failed before writing output"
           done
 
@@ -1068,7 +1070,8 @@ jobs:
             stage3_autonomy.json
             audit_report.json
             audit_report.txt
-            EXTERNAL_AUDIT_BUNDLE.json
+            docs/EXTERNAL_AUDIT_BUNDLE.json
+            docs/EXTERNAL_AUDIT_BUNDLE.sha256
           retention-days: 90
 
   # ============================================================================

@@ -516,15 +516,16 @@ border-top:1px solid var(--border);margin-top:2rem}
 """
 
 NAV_ITEMS = [
-    ("exec",  "Executive"),
-    ("gates", "Gates"),
-    ("claims","Claims"),
-    ("exploit","Exploits"),
-    ("ct",    "CT"),
-    ("diff",  "Differential"),
-    ("backend","Backends"),
-    ("graph", "Coverage"),
-    ("artifacts","Artifacts"),
+    ("exec",      "Executive"),
+    ("gates",     "Gates"),
+    ("claims",    "Claims"),
+    ("exploit",   "Exploits"),
+    ("ct",        "CT"),
+    ("diff",      "Differential"),
+    ("backend",   "Backends"),
+    ("graph",     "Coverage"),
+    ("bench",     "Benchmarks"),
+    ("artifacts", "Artifacts"),
 ]
 
 
@@ -599,6 +600,19 @@ def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
 
 
 def render_section_gates(preflight: list[dict], gate: dict) -> str:
+    stale_banner = ""
+    gate_source = gate.get("_source", "live")
+    if gate_source.startswith("fallback"):
+        fallback_name = gate_source.split(":", 1)[-1] if ":" in gate_source else "cached file"
+        stale_banner = (
+            f'<div style="background:#3a2500;border:1px solid #9e6a03;border-radius:6px;'
+            f'padding:.6rem 1rem;margin-bottom:.8rem;color:#d29922;font-size:.82rem">'
+            f'&#9888; <b>STALE DATA</b> — live audit_gate.py failed; showing cached '
+            f'results from <code>{fallback_name}</code>. '
+            f'Gate status may not reflect current codebase state.'
+            f'</div>'
+        )
+
     rows = ""
     for c in preflight:
         status = c.get("status", "?")
@@ -628,7 +642,7 @@ def render_section_gates(preflight: list[dict], gate: dict) -> str:
     return f"""
 <section class="section-anchor" id="gates">
 <h2>2 · Gate Status</h2>
-<div class="grid2">
+{stale_banner}<div class="grid2">
 <div class="card">
   <h3>Preflight Gates</h3>
   <table>
@@ -834,7 +848,7 @@ def render_section_graph(graph: dict) -> str:
       <div class="stat-label">Indexed Functions</div></div>
     <div class="stat"><div class="stat-val blue">{files}</div>
       <div class="stat-label">Source Files</div></div>
-    <div class="stat"><div class="stat-val {'green' if graph.get('functions') != '?' else 'yellow'}">{'PASS' if graph.get('functions') != '?' else '?'}</div>
+    <div class="stat"><div class="stat-val {'green' if isinstance(graph.get('functions'), int) and graph.get('functions', 0) > 0 else 'yellow'}">{'PASS' if isinstance(graph.get('functions'), int) and graph.get('functions', 0) > 0 else '?'}</div>
       <div class="stat-label">Graph Quality Gate</div></div>
   </div>
   <p style="color:var(--text2);font-size:.8rem;margin-top:.5rem">
@@ -925,7 +939,7 @@ def render_section_artifacts(artifacts: list[dict]) -> str:
         )
     return f"""
 <section class="section-anchor" id="artifacts">
-<h2>9 · Artifacts</h2>
+<h2>10 · Artifacts</h2>
 <div class="card">
 <table class="artifact-table">
   <thead><tr><th>File</th><th>Type</th><th>Path</th><th>Freshness</th></tr></thead>
@@ -960,6 +974,7 @@ def render_html(data: dict) -> str:
         + render_section_differential(data["differential"])
         + render_section_backend(data["backend"])
         + render_section_graph(data["source_graph"])
+        + render_section_bench(data["benchmarks"])
         + render_section_artifacts(data["artifacts"])
     )
 
@@ -1032,6 +1047,7 @@ def main() -> int:
         "differential": collect_differential(),
         "backend":      collect_backend_parity(),
         "source_graph": collect_source_graph(),
+        "benchmarks":   collect_benchmarks(),
         "artifacts":    collect_artifacts(),
     }
 
