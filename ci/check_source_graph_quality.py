@@ -45,11 +45,12 @@ DEFAULT_DB = LIB_ROOT / ".project_graph.db"
 DEFAULT_STALE_HOURS = 1
 
 # Directories to watch for staleness (relative to LIB_ROOT)
-WATCHED_DIRS = ["cpu", "include", "compat", "audit"]
+# NOTE: cpu sources live under src/cpu/ after 2026-05 repo reorganization.
+WATCHED_DIRS = ["src/cpu", "include", "compat", "audit"]
 
-# Per-directory minimum entry counts
+# Per-directory minimum entry counts (keys are path prefixes in source_files.path)
 DIR_FLOORS: dict[str, int] = {
-    "cpu":     50,
+    "src/cpu": 50,
     "include": 6,
     "audit":  100,
     "compat":  10,
