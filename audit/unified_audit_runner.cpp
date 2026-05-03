@@ -1097,6 +1097,8 @@ struct SectionSummary {
     int total;
     int passed;
     int failed;
+    int advisory_skipped;
+    int advisory_failed;
     double time_ms;
 };
 
@@ -1106,19 +1108,25 @@ static std::vector<SectionSummary> compute_section_summaries(
     std::vector<SectionSummary> out;
     for (int s = 0; s < NUM_SECTIONS; ++s) {
         SectionSummary ss{};
-        ss.section_id = SECTIONS[s].id;
-        ss.title_en   = SECTIONS[s].title_en;
+        ss.section_id       = SECTIONS[s].id;
+        ss.title_en         = SECTIONS[s].title_en;
         ss.total = ss.passed = ss.failed = 0;
+        ss.advisory_skipped = ss.advisory_failed = 0;
         ss.time_ms = 0;
         for (auto& r : results) {
             if (std::strcmp(r.section, SECTIONS[s].id) == 0) {
                 ++ss.total;
                 if (r.passed) {
                     ++ss.passed;
-                } else if (!r.advisory) {
+                } else if (r.advisory) {
+                    if (r.return_code == ADVISORY_SKIP_CODE) {
+                        ++ss.advisory_skipped;
+                    } else {
+                        ++ss.advisory_failed;
+                    }
+                } else {
                     ++ss.failed;
                 }
-                // advisory warnings count in total but not in failed
                 ss.time_ms += r.elapsed_ms;
             }
         }
@@ -1225,6 +1233,8 @@ static void write_json_report(const char* path,
         (void)std::fprintf(f, "      \"total\": %d,\n", sec.total);
         (void)std::fprintf(f, "      \"passed\": %d,\n", sec.passed);
         (void)std::fprintf(f, "      \"failed\": %d,\n", sec.failed);
+        (void)std::fprintf(f, "      \"advisory_skipped\": %d,\n", sec.advisory_skipped);
+        (void)std::fprintf(f, "      \"advisory_failed\": %d,\n", sec.advisory_failed);
         (void)std::fprintf(f, "      \"time_ms\": %.1f,\n", sec.time_ms);
         (void)std::fprintf(f, "      \"status\": \"%s\",\n", (sec.failed == 0) ? "PASS" : "FAIL");
 

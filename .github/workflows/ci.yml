@@ -689,6 +689,7 @@ jobs:
         run: node build/wasm/kat/wasm_kat_test.js
 
       - name: Upload WASM artifact
+        id: wasm_upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         continue-on-error: true
         with:
@@ -700,6 +701,15 @@ jobs:
             build/wasm/dist/secp256k1.d.ts
             build/wasm/dist/package.json
           retention-days: 30
+
+      - name: Surface WASM artifact upload outcome
+        if: always()
+        run: |
+          if [ "${{ steps.wasm_upload.outcome }}" != "success" ]; then
+            echo "::error::WASM artifact upload failed (outcome=${{ steps.wasm_upload.outcome }}) — WASM build artifacts will be missing from this run"
+          else
+            echo "::notice::WASM artifact upload OK"
+          fi
 
   # -- Android NDK (ARM64, ARMv7, x86_64) ----------------------------------
   android:
@@ -1108,9 +1118,17 @@ jobs:
               FAILED=1
             fi
           done
-          # coverage is push-only; skipped on PR is not a failure
+          # coverage is push-only; on a PR it is intentionally skipped (if: push)
+          # On a push, 'skipped' means sanitizers failed — treat as a failure so
+          # the ci-verdict reflects the real state (sanitizers already set FAILED=1
+          # above, but this makes the coverage gap explicit too).
           COV="${{ needs.coverage.result }}"
+          SAN="${{ needs.sanitizers.result }}"
           if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then FAILED=1; fi
+          if [ "$COV" = "skipped" ] && [ "${{ github.event_name }}" = "push" ]; then
+            echo "::warning::coverage was skipped on a push — sanitizers result=${SAN}; coverage data missing for this commit"
+            FAILED=1
+          fi
           if [ "$FAILED" -eq 1 ]; then
             echo "::error::One or more CI blocks failed"
             exit 1
