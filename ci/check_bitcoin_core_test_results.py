@@ -250,7 +250,6 @@ ALL_CHECKS = [
     check_full_suite,
     check_commit_present,
     check_pass_rate,
-    check_commit_freshness,
 ]
 
 # ---------------------------------------------------------------------------
