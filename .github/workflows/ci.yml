@@ -38,8 +38,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.sha }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # -- Linux (GCC + Clang) ----------------------------------------------------
@@ -567,7 +567,7 @@ jobs:
       - name: Build XCFramework
         run: |
           chmod +x ci/build_xcframework.sh
-          ./scripts/build_xcframework.sh
+          ./ci/build_xcframework.sh
 
       - name: Upload XCFramework
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

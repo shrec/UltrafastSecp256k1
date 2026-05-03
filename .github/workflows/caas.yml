@@ -2,8 +2,8 @@
 # Continuous Audit as a Service (CAAS) — GitHub Actions Workflow
 # ===========================================================================
 #
-# Runs the full audit pipeline on every push and pull request to dev/main.
-# All stages must pass. Any failure blocks merge.
+# Manual deep CAAS replay (workflow_dispatch only).
+# PR/push CAAS runs through gate.yml (caas-security) and ci.yml (caas-full).
 #
 # Pipeline stages (6 logical, 5 CI jobs; traceability join runs in Stage 1):
 #   1a. Static Analysis    — audit_test_quality_scanner (0 findings required)
@@ -151,8 +151,8 @@ jobs:
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: build-audit/
-          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
-          restore-keys: ufsecp-shared-${{ runner.os }}-
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
 
       - name: Build shared library (required by P0 harnesses)
         if: steps.cache-lib.outputs.cache-hit != 'true'
@@ -255,8 +255,8 @@ jobs:
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: build-audit/
-          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
-          restore-keys: ufsecp-shared-${{ runner.os }}-
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
 
       - name: Build shared library (required by audit_gate in bundle)
         if: steps.cache-lib.outputs.cache-hit != 'true'
@@ -351,8 +351,8 @@ jobs:
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: build-audit/
-          key: ufsecp-shared-${{ runner.os }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
-          restore-keys: ufsecp-shared-${{ runner.os }}-
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
 
       - name: Build shared library (required by audit_gate in bundle)
         if: steps.cache-lib.outputs.cache-hit != 'true'

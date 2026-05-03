@@ -10,7 +10,9 @@ on:
         description: 'Tag to release (e.g. v3.68.0)'
         required: true
 
-permissions: read-all
+permissions:
+  contents: read
+  packages: read
 
 env:
   CMAKE_BUILD_TYPE: Release

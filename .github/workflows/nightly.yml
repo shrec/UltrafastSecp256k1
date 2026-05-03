@@ -63,10 +63,12 @@ jobs:
           echo "Running cross-library differential test..."
           ./build/audit/test_cross_libsecp256k1
 
-  # ── dudect smoke (fast PR gate ≈ 60 s) ───────────────────────────────────
+  # ── dudect smoke (fast gate ≈ 60 s) ─────────────────────────────────────
+  # Note: trigger is workflow_dispatch only — pull_request condition was dead
+  # code (never reachable). Use workflow_call: from ci.yml for PR gate.
   dudect-smoke:
-    name: dudect Smoke (PR gate)
-    if: github.event_name == 'pull_request'
+    name: dudect Smoke
+    if: ${{ inputs.dudect_timeout < '600' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -105,7 +107,6 @@ jobs:
   # ── dudect full statistical run (30 min) ─────────────────────────────────
   dudect-full:
     name: dudect Full Statistical Analysis
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

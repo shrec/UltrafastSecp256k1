@@ -16,6 +16,8 @@
 name: CAAS Freshness Check
 
 on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours — T10 mitigation
   workflow_dispatch:
 
 permissions:

@@ -162,6 +162,7 @@ cat > "${REPORT}" << ENDJSON
     "coverage": {
         "line_percent": "${COVERAGE_PCT}"
     },
+    "audit_checklist_note": "SELF-DECLARED: these flags reflect design intent and static policy. Runtime evidence is in ct_verification, test_results, and coverage above. See docs/AUDIT_CHANGELOG.md for per-item evidence links.",
     "audit_checklist": {
         "field_arithmetic_verified": true,
         "scalar_arithmetic_verified": true,
