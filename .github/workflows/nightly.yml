@@ -68,7 +68,7 @@ jobs:
   # code (never reachable). Use workflow_call: from ci.yml for PR gate.
   dudect-smoke:
     name: dudect Smoke
-    if: ${{ inputs.dudect_timeout < '600' }}
+    if: ${{ fromJSON(inputs.dudect_timeout) < 600 }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

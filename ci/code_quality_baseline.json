@@ -15,8 +15,8 @@
   },
   "audit_test_quality_scanner": {
     "HIGH": 0,
-    "MEDIUM": 2,
+    "MEDIUM": 0,
     "LOW": 0,
-    "total": 2
+    "total": 0
   }
 }

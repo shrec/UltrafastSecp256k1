@@ -48,7 +48,7 @@ def _section(title: str) -> str:
 def _format_autonomy(kpi: dict[str, Any] | None) -> str:
     if not kpi:
         return '_No SECURITY_AUTONOMY_KPI.json available._'
-    score = kpi.get('total_score', kpi.get('score', '?'))
+    score = kpi.get('autonomy_score', kpi.get('total_score', kpi.get('score', '?')))
     out = [f'**Score:** {score} / 100', '']
     out.append('| Component | Score |')
     out.append('|-----------|-------|')
@@ -143,7 +143,7 @@ def _format_caas_pipeline(kpi: dict[str, Any] | None) -> str:
             '_`docs/SECURITY_AUTONOMY_KPI.json` not found._\n\n'
             'Run `python3 ci/caas_runner.py` to generate.'
         )
-    score = kpi.get('total_score', kpi.get('score', '?'))
+    score = kpi.get('autonomy_score', kpi.get('total_score', kpi.get('score', '?')))
     gates_pass = kpi.get('gates_pass', kpi.get('overall_pass', None))
     gates_str = 'PASS' if gates_pass else ('FAIL' if gates_pass is False else '?')
     out = [
@@ -277,8 +277,8 @@ def render(profile: str = "default") -> str:
     out.append(_format_caas_pipeline(kpi))
 
     out.append(_section('Assurance Report'))
-    rep = _load_json(SUITE_ROOT / 'out/reports/out/reports/assurance_report.json') \
-        or _load_json(REPO_ROOT / 'out/reports/out/reports/assurance_report.json')
+    rep = _load_json(SUITE_ROOT / 'out/reports/assurance_report.json') \
+        or _load_json(REPO_ROOT / 'out/reports/assurance_report.json')
     out.append(_format_assurance(rep))
 
     out.append(_section('Evidence Bundle'))

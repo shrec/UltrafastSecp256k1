@@ -215,9 +215,14 @@ def collect_differential() -> dict:
     libsecp_file = LIB_ROOT / "audit" / "test_cross_libsecp256k1.cpp"
     wycheproof_ecdsa = LIB_ROOT / "docs" / "BITCOIN_CORE_TEST_RESULTS.json"
     btc = _load_json(wycheproof_ecdsa)
+    # TODO: read from canonical_data.json or CAAS report dynamically
+    canonical = _load_json(LIB_ROOT / "docs" / "canonical_data.json") or {}
+    btc_pass  = canonical.get("bitcoin_core_tests_pass", btc.get("summary", {}).get("passed", 0) if btc else 0)
+    btc_total = canonical.get("bitcoin_core_tests_total", btc.get("summary", {}).get("total", 0) if btc else 0)
     return {
         "libsecp_cross_test": libsecp_file.exists(),
         "wycheproof": {
+            # TODO: read from canonical_data.json or CAAS report dynamically
             "ecdsa": "89/89 PASS",
             "ecdh":  "36/36 PASS",
             "extended": "1084 groups PASS",
@@ -226,11 +231,12 @@ def collect_differential() -> dict:
             "chacha20_poly1305": "PASS",
         },
         "bitcoin_core": {
-            "total": btc.get("summary", {}).get("total", 0) if btc else 0,
-            "passed": btc.get("summary", {}).get("passed", 0) if btc else 0,
+            "total":  btc_total,
+            "passed": btc_pass,
             "failed": btc.get("summary", {}).get("failed", 0) if btc else 0,
             "commit": btc.get("backend_commit", "") if btc else "",
         },
+        # TODO: read from canonical_data.json or CAAS report dynamically
         "libsecp_eckey_api": "17/17 PASS (L-01)",
         "rgrinding": "8/8 PASS (BC-01)",
     }
@@ -422,6 +428,17 @@ def _pct_bar(pct: float, cls: str = "") -> str:
 
 
 def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
+    # TODO: read from canonical_data.json or CAAS report dynamically
+    canonical = _load_json(LIB_ROOT / "docs" / "canonical_data.json") or {}
+    btc_tests_pass = canonical.get("bitcoin_core_tests_pass", "?")
+    btc_tests_total = canonical.get("bitcoin_core_tests_total", btc_tests_pass)
+    exploit_poc_count = canonical.get("exploit_poc_count", "?")
+    btc_pass_rate = (
+        f"{round(btc_tests_pass / btc_tests_total * 100)}%"
+        if isinstance(btc_tests_pass, int) and isinstance(btc_tests_total, int) and btc_tests_total > 0
+        else "?"
+    )
+
     score = autonomy.get("autonomy_score", "?")
     score_cls = "green" if isinstance(score, int) and score >= 90 else \
                 "yellow" if isinstance(score, int) and score >= 70 else "red"
@@ -435,13 +452,13 @@ def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
 <section class="section-anchor" id="exec">
 <h2>1 · Executive Summary</h2>
 <div class="stat-grid">
-  <div class="stat"><div class="stat-val green">693</div>
+  <div class="stat"><div class="stat-val green">{btc_tests_pass}</div>
     <div class="stat-label">Bitcoin Core Tests</div></div>
-  <div class="stat"><div class="stat-val green">207</div>
-    <div class="stat-label">Exploit PoC Wired</div></div>
+  <div class="stat"><div class="stat-val green">{exploit_poc_count}</div>
+    <div class="stat-label">Exploit PoC Count</div></div>
   <div class="stat"><div class="stat-val {score_cls}">{score}</div>
     <div class="stat-label">Autonomy Score /100</div>{score_bar}</div>
-  <div class="stat"><div class="stat-val green">100%</div>
+  <div class="stat"><div class="stat-val green">{btc_pass_rate}</div>
     <div class="stat-label">BTC Test Pass Rate</div></div>
 </div>
 <div class="card">
@@ -702,7 +719,7 @@ def render_section_graph(graph: dict) -> str:
       <div class="stat-label">Indexed Functions</div></div>
     <div class="stat"><div class="stat-val blue">{files}</div>
       <div class="stat-label">Source Files</div></div>
-    <div class="stat"><div class="stat-val green">PASS</div>
+    <div class="stat"><div class="stat-val {'green' if graph.get('functions') != '?' else 'yellow'}">{'PASS' if graph.get('functions') != '?' else '?'}</div>
       <div class="stat-label">Graph Quality Gate</div></div>
   </div>
   <p style="color:var(--text2);font-size:.8rem;margin-top:.5rem">
@@ -789,6 +806,12 @@ def render_html(data: dict) -> str:
     dirty    = git.get("dirty", False)
     dirty_str = "DIRTY" if dirty else "CLEAN"
 
+    # TODO: read from canonical_data.json or CAAS report dynamically
+    canonical = _load_json(LIB_ROOT / "docs" / "canonical_data.json") or {}
+    btc_tests_pass  = canonical.get("bitcoin_core_tests_pass", "?")
+    btc_tests_total = canonical.get("bitcoin_core_tests_total", btc_tests_pass)
+    exploit_poc_count = canonical.get("exploit_poc_count", "?")
+
     nav_html = "".join(
         f'<a href="#{a}">{label}</a>' for a, label in NAV_ITEMS
     )
@@ -830,10 +853,10 @@ def render_html(data: dict) -> str:
   </div>
   <div>
     <span class="badge pass" style="font-size:.85rem;padding:.3rem .8rem">
-      ✓ 693/693 BTC TESTS</span>
+      ✓ {btc_tests_pass}/{btc_tests_total} BTC TESTS</span>
     &nbsp;
     <span class="badge pass" style="font-size:.85rem;padding:.3rem .8rem">
-      ✓ 207 EXPLOITS WIRED</span>
+      ✓ {exploit_poc_count} EXPLOITS WIRED</span>
   </div>
 </header>
 <nav>{nav_html}</nav>

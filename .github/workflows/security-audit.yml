@@ -2,6 +2,14 @@ name: Security Audit
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
+      - 'include/**'
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly Monday 2am
 
 permissions:
   contents: read
