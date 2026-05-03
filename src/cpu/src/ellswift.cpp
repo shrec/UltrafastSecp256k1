@@ -150,9 +150,14 @@ FieldElement xswiftec_fwd(FieldElement u, FieldElement t) noexcept {
 //   v = (r/s-u)/2.
 // w = sqrt(s). Negate if (c&5)==0 or (c&5)==5.
 // Return w * ((c&1 ? c4 : c3)*u + v).
+// Compute sqrt and check in ONE exponentiation (vs fe_is_square + sqrt = 2x).
+static inline std::pair<bool, FieldElement> sqrt_check(const FieldElement& x) noexcept {
+    auto r = x.sqrt();
+    return {r.square() == x, r};
+}
+
 std::pair<bool, FieldElement> xswiftec_inv(
     const FieldElement& x, const FieldElement& u, int c) noexcept {
-    // c3 = c2+1 = (-sqrt(-3)+1)/2
     static const FieldElement C3 = []() {
         std::array<uint8_t, 32> b = {
             0x7a,0xe9,0x6a,0x2b, 0x65,0x7c,0x07,0x10,
@@ -162,7 +167,6 @@ std::pair<bool, FieldElement> xswiftec_inv(
         };
         return FieldElement::from_bytes(b);
     }();
-    // c4 = c1+1 = (sqrt(-3)+1)/2
     static const FieldElement C4 = []() {
         std::array<uint8_t, 32> b = {
             0x85,0x16,0x95,0xd4, 0x9a,0x83,0xf8,0xef,
@@ -177,44 +181,44 @@ std::pair<bool, FieldElement> xswiftec_inv(
     static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
     static const FieldElement TWO_INV  = FieldElement::from_uint64(2).inverse();
 
-    FieldElement v, s;
+    FieldElement v, s, w;
 
     if (!(c & 2)) {
-        // x1/x2 case (c ∈ {0,1,4,5})
-        // Fail if (-u-x) is on curve — that x would be x3 candidate, taking priority
+        // x1/x2 case
         auto neg_ux = (u + x).negate();
         if (fe_is_square(neg_ux * neg_ux * neg_ux + FE_SEVEN)) return {false, FE_ZERO};
 
-        // s = -(u^3+7)/(u^2+u*x+x^2)
-        // sp = -(u+x)^2 + u*x = -(u^2+ux+x^2)
         auto u2  = u.square();
         auto g   = u2 * u + FE_SEVEN;
-        auto sp  = (u + x).square().negate() + u * x;  // -(u^2+ux+x^2)
-        // sp*g = -(u^2+ux+x^2)*(u^3+7) must be square
-        if (!fe_is_square(sp * g)) return {false, FE_ZERO};
-        s = g * sp.inverse();   // -(u^3+7)/(u^2+ux+x^2)
+        auto sp  = (u + x).square().negate() + u * x;
+        // Check sp*g square AND get sqrt(s) in one shot via combined expression.
+        // s = g/(-sp) = -(g/sp). w = sqrt(s). Check: w^2 == s.
+        auto [sq, w_cand] = sqrt_check(sp * g);
+        if (!sq) return {false, FE_ZERO};
+        s = g * sp.inverse();
+        // w_cand = sqrt(sp*g) = sqrt(s * sp^2) = |sp| * sqrt(s).
+        // Recover sqrt(s): w = w_cand / |sp| = w_cand * sp.inverse().
+        w = w_cand * sp.inverse();
         v = x;
 
     } else {
-        // x3 case (c ∈ {2,3,6,7})
+        // x3 case: compute both sqrt(s) and sqrt(r2) — each done once.
         s = x - u;
-        if (!fe_is_square(s) || s == FE_ZERO) return {false, FE_ZERO};
+        auto [sq_s, w_s] = sqrt_check(s);  // sqrt(s) — reused as w below
+        if (!sq_s || s == FE_ZERO) return {false, FE_ZERO};
 
-        // r = sqrt(-s*(4*(u^3+7)+3*u^2*s))
         auto u2 = u.square();
         auto g4 = (u2 * u + FE_SEVEN) * FE_FOUR;
-        auto r2 = (FE_THREE * u2 * s + g4).negate() * s; // -s*(4*(u^3+7)+3*u^2*s)
-        if (!fe_is_square(r2)) return {false, FE_ZERO};
-        auto r = r2.sqrt();
+        auto r2 = (FE_THREE * u2 * s + g4).negate() * s;
+        auto [sq_r, r] = sqrt_check(r2);   // sqrt(r2)
+        if (!sq_r) return {false, FE_ZERO};
         if ((c & 1) && r == FE_ZERO) return {false, FE_ZERO};
 
         v = (r * s.inverse() - u) * TWO_INV;
+        w = w_s;  // reuse sqrt(s) computed above — no extra sqrt call
     }
 
-    // w = sqrt(s); negate for c&5 ∈ {0,5}
-    auto w = s.sqrt();
     if ((c & 5) == 0 || (c & 5) == 5) w = w.negate();
-
     auto t = w * (((c & 1) ? C4 : C3) * u + v);
     if (t == FE_ZERO) return {false, FE_ZERO};
     return {true, t};
