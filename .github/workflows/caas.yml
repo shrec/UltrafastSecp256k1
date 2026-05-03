@@ -94,7 +94,8 @@ jobs:
         id: scanner
         run: |
           python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
-          echo "Exit code: $?"
+          _scanner_exit=$?
+          echo "Exit code: $_scanner_exit"
           python3 - <<'EOF'
           import json, sys
           with open("caas_scanner.json") as f:
@@ -613,14 +614,16 @@ except Exception as e:
           for stage, result in results.items():
               icon = "✓" if result == "success" else ("○" if result == "skipped" else "✗")
               print(f"  {icon} {stage}: {result}")
-              if result not in ("success", "skipped"):
+              # bundle may be skipped intentionally; all other stages must succeed.
+              bundle_skip_ok = (stage == "bundle" and result == "skipped")
+              if result not in ("success",) and not bundle_skip_ok:
                   all_pass = False
 
           # Surface the skip context so the GH step summary and downstream
           # auditors can tell apart "bundle skipped on purpose" from "bundle ran".
           if other_skipped:
-              print(f"::warning::CAAS stage(s) unexpectedly skipped: {', '.join(other_skipped)}"
-                    " — check workflow conditions")
+              print(f"::error::CAAS stage(s) unexpectedly skipped: {', '.join(other_skipped)}"
+                    " — pipeline did not run to completion; treating as failure")
 
           gh_out = os.environ.get("GITHUB_OUTPUT")
           if gh_out:

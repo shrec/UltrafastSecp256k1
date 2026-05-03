@@ -151,6 +151,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN }}
           FORCE_COMMIT: ${{ github.event.inputs.force_commit }}
+          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |
           set -e
           git config user.name  "caas-bot"
@@ -158,13 +159,14 @@ jobs:
 
           # Record this refresh run in the evidence chain BEFORE checking what changed,
           # so the chain entry is always included in the commit (if anything else changed).
-          # CAAS_HMAC_KEY is intentionally not required here — the refresh bot uses the
-          # public in-repo key (tamper-evident only). Forensic-grade chain entries come
-          # from manual CAAS runs in caas.yml where the secret is enforced.
+          # --commit pins the chain record to the audited HEAD SHA (FINDING-13 fix: previously
+          # used git rev-parse HEAD at write time, which could differ from the audited commit
+          # when commits are pushed between the schedule trigger and the actual run).
           if ! python3 ci/evidence_governance.py record \
             --who "caas-evidence-refresh" \
             --what "nightly-evidence-refresh" \
             --verdict "pass" \
+            --commit "${{ github.sha }}" \
             --reason "automated-nightly-$(date -u +%Y-%m-%d)"; then
             echo "::error::evidence chain write failed during nightly refresh — chain integrity compromised"
             exit 1

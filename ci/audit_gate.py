@@ -27,9 +27,21 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from audit_gap_report import build_report as build_audit_gap_report
-from check_secret_path_changes import build_report as build_secret_path_report
-from generate_abi_negative_tests import build_manifest as build_abi_negative_manifest
+try:
+    from audit_gap_report import build_report as build_audit_gap_report
+except ImportError as _e:
+    print(f'{{"error": "ImportError: audit_gap_report — {_e}", "overall_pass": false}}', file=sys.stderr)
+    sys.exit(2)
+try:
+    from check_secret_path_changes import build_report as build_secret_path_report
+except ImportError as _e:
+    print(f'{{"error": "ImportError: check_secret_path_changes — {_e}", "overall_pass": false}}', file=sys.stderr)
+    sys.exit(2)
+try:
+    from generate_abi_negative_tests import build_manifest as build_abi_negative_manifest
+except ImportError as _e:
+    print(f'{{"error": "ImportError: generate_abi_negative_tests — {_e}", "overall_pass": false}}', file=sys.stderr)
+    sys.exit(2)
 
 try:
     from report_provenance import collect_provenance

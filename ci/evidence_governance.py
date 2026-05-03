@@ -104,13 +104,17 @@ def create_evidence_record(
     verdict: str,
     binary_path: Path | None = None,
     reason: str = "",
+    commit: str = "",
 ) -> dict:
     """Create a new evidence record with full provenance."""
     record = {
         "who": who,
         "what": what,
         "when": datetime.now(timezone.utc).isoformat(),
-        "commit": _git_sha(),
+        # Prefer caller-supplied commit (the audited commit) over HEAD so that
+        # nightly refresh records are traceable to the commit that was audited,
+        # not the HEAD at refresh time (FINDING-13 fix).
+        "commit": commit.strip() if commit.strip() else _git_sha(),
         "binary_hash": _file_sha256(binary_path) if binary_path else "n/a",
         "verdict": verdict,
         "reason": reason,
@@ -195,7 +199,7 @@ def validate_chain() -> dict:
 
 def run(mode: str, json_mode: bool, out_file: str | None,
         who: str = "", what: str = "", verdict: str = "",
-        binary: str = "", reason: str = "") -> int:
+        binary: str = "", reason: str = "", commit: str = "") -> int:
     if mode == "validate":
         if _HMAC_KEY_IS_DEFAULT and not json_mode:
             print("WARNING: Using hardcoded HMAC key. Set CAAS_HMAC_KEY env var for production.",
@@ -237,7 +241,7 @@ def run(mode: str, json_mode: bool, out_file: str | None,
             return 1
 
         binary_path = Path(binary) if binary else None
-        record = create_evidence_record(who, what, verdict, binary_path, reason)
+        record = create_evidence_record(who, what, verdict, binary_path, reason, commit)
         append_record(record)
 
         if json_mode:
@@ -273,10 +277,12 @@ def main() -> int:
     parser.add_argument("--verdict", default="", help="pass/fail/skip (for record mode)")
     parser.add_argument("--binary", default="", help="Path to tested binary (for record mode)")
     parser.add_argument("--reason", default="", help="Reason for verdict (for record mode)")
+    parser.add_argument("--commit", default="",
+                        help="Audited commit SHA (overrides git HEAD; use ${{ github.sha }} in CI)")
     args = parser.parse_args()
 
     return run(args.mode, args.json, args.out_file,
-               args.who, args.what, args.verdict, args.binary, args.reason)
+               args.who, args.what, args.verdict, args.binary, args.reason, args.commit)
 
 
 if __name__ == "__main__":

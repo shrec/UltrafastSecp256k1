@@ -154,7 +154,7 @@ PROFILES: dict[str, dict] = {
     "bitcoin-core-backend": {
         "name": "Bitcoin Core Backend",
         "description": "Scoped to the libsecp256k1 shim and CPU signing paths only",
-        "stages": ["scanner", "traceability", "audit_gate", "security_autonomy", "bundle_produce", "bundle_verify"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate", "security_autonomy", "bundle_produce", "bundle_verify"],
         "extra_checks": [
             "check_libsecp_shim_parity.py",
             "check_core_build_mode.py",
@@ -176,7 +176,7 @@ PROFILES: dict[str, dict] = {
     "cpu-signing": {
         "name": "CPU Signing Only",
         "description": "Scoped to CPU signing paths and CT verification only",
-        "stages": ["scanner", "audit_gate", "security_autonomy"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate", "security_autonomy"],
         "extra_checks": [],
         "scope_description": "ECDSA, Schnorr, key derivation, CT layer",
         "out_of_scope": ["GPU", "Bindings", "Shim parity", "BIP-352"],
@@ -184,7 +184,7 @@ PROFILES: dict[str, dict] = {
     "gpu-public-data": {
         "name": "GPU Public Data",
         "description": "Scoped to GPU batch operations on public data only",
-        "stages": ["scanner", "audit_gate"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate"],
         "extra_checks": [],
         "scope_description": "GPU batch verify, BIP-352 scanning — public data only, no secrets",
         "out_of_scope": ["CPU signing CT", "Shim parity", "Bindings"],
@@ -192,7 +192,7 @@ PROFILES: dict[str, dict] = {
     "ffi-bindings": {
         "name": "FFI Bindings",
         "description": "Scoped to legacy C API and language bindings (Node, Python, Ruby, Go, Swift, Dart)",
-        "stages": ["scanner", "audit_gate", "security_autonomy"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate", "security_autonomy"],
         "extra_checks": [],
         "scope_description": (
             "bindings/c_api/ultrafast_secp256k1.cpp + language bindings; "
@@ -208,7 +208,7 @@ PROFILES: dict[str, dict] = {
     "wasm": {
         "name": "WASM",
         "description": "Scoped to WebAssembly browser/Node binding",
-        "stages": ["scanner", "audit_gate"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate"],
         "extra_checks": [],
         "scope_description": "bindings/wasm/ — WASM binary target",
         "out_of_scope": [
@@ -221,7 +221,7 @@ PROFILES: dict[str, dict] = {
     "bchn-compat": {
         "name": "BCHN Compatibility",
         "description": "Scoped to Bitcoin Cash Node legacy Schnorr shim",
-        "stages": ["scanner", "audit_gate"],
+        "stages": ["exploit_wiring", "scanner", "traceability", "audit_gate"],
         "extra_checks": [],
         "scope_description": (
             "compat/libsecp256k1_bchn_shim/ — BCH legacy Schnorr (NOT BIP-340); "

@@ -125,15 +125,18 @@ def _read_fallback(name_candidates: tuple[str, ...]) -> dict | None:
         if not isinstance(data, dict):
             continue
         generated_at = data.get("generated_at")
-        if generated_at:
-            try:
-                ts = datetime.datetime.fromisoformat(
-                    generated_at.replace("Z", "+00:00")
-                )
-                if ts < cutoff:
-                    continue  # stale — try next candidate
-            except (ValueError, TypeError):
-                pass
+        if not generated_at:
+            # No timestamp — cannot verify freshness; treat as stale.
+            continue
+        try:
+            ts = datetime.datetime.fromisoformat(
+                generated_at.replace("Z", "+00:00")
+            )
+            if ts < cutoff:
+                continue  # stale — try next candidate
+        except (ValueError, TypeError):
+            # Malformed timestamp — cannot verify freshness; treat as stale.
+            continue
         data["_source"] = f"fallback:{name}"
         return data
     return None
@@ -288,17 +291,17 @@ def collect_ct_status() -> dict:
     claims = data.get("claims", []) if data else []
     ct_claim = next((c for c in claims if "constant" in c.get("claim", "").lower()
                      or "ct" in c.get("claim_id", "").lower()), None)
-    # Check for CT-related test files
+    # Check for CT-related test files — derive names dynamically so the list
+    # stays accurate when CT modules are renamed/added (FINDING-19 fix).
     ct_files = list((LIB_ROOT / "audit").glob("*ct*"))
     ct_files += list((LIB_ROOT / "audit").glob("*sidechannel*"))
+    ct_coverage = sorted({f.stem for f in ct_files})
     return {
         "claim": ct_claim.get("claim", "CT signing via secp256k1::ct::*") if ct_claim else
                  "All secret-bearing signing paths use secp256k1::ct::* primitives",
         "status": ct_claim.get("current_status", "ACTIVE") if ct_claim else "ACTIVE",
         "test_files": len(ct_files),
-        "coverage": ["ct_sidechannel", "ct_verif_formal", "ct_prover (CI)",
-                     "exploit_recoverable_sign_ct", "exploit_eth_signing_ct",
-                     "exploit_wallet_sign_ct"],
+        "coverage": ct_coverage,
     }
 
 
