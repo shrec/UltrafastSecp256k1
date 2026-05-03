@@ -332,10 +332,9 @@ std::array<std::uint8_t,32> xdh(
 
     fast::Point shared;
     if (tables) {
-        // Fast path: prebuilt tables + incomplete formula (7M+3S vs 11M+6S).
-        // ~25% fewer field ops in the main loop; safe for ECDH (random peer key).
+        // Fast path: prebuilt tables, complete formula (correctness first).
         fast::Point fallback = fast::Point::infinity();
-        shared = ct::scalar_mul_prebuilt_fast(*tables, fallback, sk);
+        shared = ct::scalar_mul_prebuilt(*tables, fallback, sk);
     } else {
         // Fallback: full decode + CT scalar_mul (degenerate peer key ~2^-256)
         auto x  = ellswift_decode(peer_ell);
