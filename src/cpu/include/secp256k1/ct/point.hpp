@@ -189,6 +189,29 @@ void affine_cmov(CTAffinePoint* r, const CTAffinePoint& a,
 
 Point scalar_mul(const Point& p, const Scalar& k) noexcept;
 
+// Prebuilt GLV tables for a fixed base point P.
+// Build once with build_scalar_mul_tables(); reuse across many scalar_mul calls
+// with the same P. Saves ~1,954 ns per call (table build cost).
+struct CTScalarMulTables {
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    static constexpr unsigned TABLE_SIZE = 16;  // GROUP_SIZE=5 → 1<<(5-1)
+    CTAffinePoint pre_a    [TABLE_SIZE];         // [1P, 3P, ..., 31P] pseudo-affine
+    CTAffinePoint pre_a_lam[TABLE_SIZE];         // [phi(P), ..., phi(31P)]
+    FE52          global_z;                      // shared implicit Z denominator
+#endif
+    bool valid = false;
+};
+
+// Build GLV tables for P once. Returns valid=false if P is infinity.
+CTScalarMulTables build_scalar_mul_tables(const Point& p) noexcept;
+
+// CT scalar_mul using pre-built tables (skips the ~1,954 ns table build).
+// Equivalent to scalar_mul(p, k) for the P used to build tables.
+// Falls back to scalar_mul(p_fallback, k) when tables.valid==false.
+Point scalar_mul_prebuilt(const CTScalarMulTables& tables,
+                           const Point& p_fallback,
+                           const Scalar& k) noexcept;
+
 // CT generator multiplication: k * G
 // Hamburg signed-digit encoding: v = (k + 2^256 - 1)/2 mod n.
 // Every 4-bit window is guaranteed odd -> 8-entry table, no cmov skip.

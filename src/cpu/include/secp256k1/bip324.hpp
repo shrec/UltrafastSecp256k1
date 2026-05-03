@@ -140,6 +140,18 @@ private:
     Bip324Cipher recv_cipher_;
 };
 
+namespace bip324 {
+
+// XDH with transparent peer CT GLV cache.
+// Drop-in for secp256k1_ellswift_xdh(bip324_hash). Routed from the shim.
+std::array<std::uint8_t,32> xdh(
+    const std::uint8_t our_ell64[64],
+    const std::uint8_t their_ell64[64],
+    const fast::Scalar& sk,
+    bool initiating) noexcept;
+
+} // namespace bip324
+
 } // namespace secp256k1
 
 #endif // SECP256K1_BIP324_HPP
