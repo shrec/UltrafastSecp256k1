@@ -117,19 +117,19 @@ def collect_preflight_checks() -> list[dict]:
     for label, script in scripts:
         try:
             r = subprocess.run(
-                ["python3", script, "--json"] if not "exploit_wiring" in script else ["python3", script],
+                ["python3", script, "--json"],
                 capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
             )
             if "exploit_wiring" in script:
-                out = r.stdout
-                result_match = re.search(r"RESULT:\s+(\w+)", out)
-                wired_match  = re.search(r"Wired\s*:\s*(\d+)", out)
-                unwired_match= re.search(r"Unwired\s*:\s*(\d+)", out)
-                poc_match    = re.search(r"PoC files\s*:\s*(\d+)", out)
-                status = result_match.group(1) if result_match else "UNKNOWN"
-                detail = (f"{poc_match.group(1) if poc_match else '?'} PoC files, "
-                          f"{wired_match.group(1) if wired_match else '?'} wired, "
-                          f"{unwired_match.group(1) if unwired_match else '?'} unwired")
+                try:
+                    d = json.loads(r.stdout)
+                    status = d.get("result", "UNKNOWN")
+                    detail = (f"{d.get('poc_files', '?')} PoC files, "
+                              f"{d.get('wired', '?')} wired, "
+                              f"{d.get('unwired', '?')} unwired")
+                except (json.JSONDecodeError, ValueError):
+                    status = "ERROR"
+                    detail = "failed to parse wiring report"
                 checks.append({"label": label, "status": status, "detail": detail,
                                "items": []})
             else:
@@ -662,7 +662,7 @@ def render_section_differential(diff: dict) -> str:
       <div class="stat-label">Passed</div></div>
     <div class="stat"><div class="stat-val {'red' if failed else 'green'}">{failed}</div>
       <div class="stat-label">Failed</div></div>
-    <div class="stat"><div class="stat-val green">100%</div>
+    <div class="stat"><div class="stat-val {'green' if total == 0 or failed == 0 else 'red'}">{round(passed / total * 100) if total else 0}%</div>
       <div class="stat-label">Pass Rate</div></div>
   </div>
   {_pct_bar(100 if total and failed==0 else (passed/total*100 if total else 0))}

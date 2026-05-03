@@ -582,11 +582,11 @@ def main():
                 print(f"Report written to {args.output}")
         if args.json:
             print(json_str)
-            return
 
-    print_report(findings, total_files)
+    if not args.json:
+        print_report(findings, total_files)
 
-    # Exit code: 0=clean, 1=high/critical, 2=medium or lower only
+    # Exit code: 0=clean, 1=high/critical — applies in ALL output modes
     n_crit = sum(1 for f in findings if f.severity == "critical")
     n_high = sum(1 for f in findings if f.severity == "high")
     sys.exit(1 if (n_crit + n_high) > 0 else 0)

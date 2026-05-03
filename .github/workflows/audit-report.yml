@@ -158,6 +158,11 @@ jobs:
             --report-dir ./audit-output \
             $SECTION_ARG
 
+      - name: Run auditor-mode automation (advisory)
+        run: |
+          python3 ci/auditor_mode.py \
+            --output-dir ./audit-output/auditor-mode
+
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -167,6 +172,8 @@ jobs:
           path: |
             audit-output/audit_report.json
             audit-output/audit_report.txt
+            audit-output/auditor-mode/auditor_mode_report.json
+            audit-output/auditor-mode/auditor_mode_report.txt
           retention-days: 90
 
       - name: Print summary
@@ -175,6 +182,11 @@ jobs:
           echo "## Audit Report (Linux Clang-17)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Auditor-Mode Gap Report (Clang-17)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat audit-output/auditor-mode/auditor_mode_report.txt 2>/dev/null || echo "Auditor-mode report not generated"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

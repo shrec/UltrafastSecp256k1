@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -52,9 +53,30 @@ def _load_sla_defs() -> dict:
 
 
 def _file_age_days(path: Path) -> float | None:
-    """Return age of file in days, or None if missing."""
+    """Return age of file in days based on git commit date, or None if missing/untracked.
+
+    Uses git log rather than mtime because CI checkouts reset mtime to "now",
+    making filesystem timestamps useless for staleness detection.
+    Falls back to mtime only when the file is not tracked by git (e.g. generated files
+    outside the repo, or fresh local writes not yet committed).
+    """
     if not path.exists():
         return None
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%ct", "--", str(path)],
+            capture_output=True,
+            text=True,
+            cwd=str(LIB_ROOT),
+            timeout=15,
+        )
+        ts_str = result.stdout.strip()
+        if ts_str:
+            age_secs = time.time() - float(ts_str)
+            return age_secs / 86400.0
+    except (subprocess.SubprocessError, ValueError, OSError):
+        pass
+    # Fallback to mtime for untracked/local-only files
     mtime = os.path.getmtime(path)
     age_secs = time.time() - mtime
     return age_secs / 86400.0

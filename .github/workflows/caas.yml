@@ -429,8 +429,9 @@ except Exception as e:
         if: always()
         run: |
           echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 ci/verify_external_audit_bundle.py 2>&1 | tail -20 || true
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_bundle_verify.json 2>/dev/null \
+            || echo '{"error":"caas_bundle_verify.json was not produced"}'
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

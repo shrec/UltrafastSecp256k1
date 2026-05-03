@@ -109,15 +109,16 @@ jobs:
 
       - name: Refresh security autonomy KPI snapshot
         run: |
-          python3 ci/security_autonomy_check.py --json -o docs/SECURITY_AUTONOMY_KPI.json || true
+          python3 ci/security_autonomy_check.py --json -o docs/SECURITY_AUTONOMY_KPI.json
 
       - name: Regenerate audit dashboard (H-9)
         run: |
-          python3 ci/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md || true
+          python3 ci/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md \
+            || echo "::warning::render_audit_dashboard.py failed — dashboard may be stale"
 
       - name: Regenerate exploit traceability join (G-9b)
         run: |
-          python3 ci/exploit_traceability_join.py --emit-join || true
+          python3 ci/exploit_traceability_join.py --emit-join
 
       - name: Show diff
         run: |

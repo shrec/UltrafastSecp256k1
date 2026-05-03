@@ -145,7 +145,7 @@ PROFILES: dict[str, dict] = {
     "bitcoin-core-backend": {
         "name": "Bitcoin Core Backend",
         "description": "Scoped to the libsecp256k1 shim and CPU signing paths only",
-        "stages": ["scanner", "traceability", "audit_gate", "security_autonomy", "bundle_verify"],
+        "stages": ["scanner", "traceability", "audit_gate", "security_autonomy", "bundle_produce", "bundle_verify"],
         "extra_checks": [
             "check_libsecp_shim_parity.py",
             "check_core_build_mode.py",
@@ -244,8 +244,13 @@ PROFILES: dict[str, dict] = {
 # Pass functions (evaluated after subprocess returns)
 # ---------------------------------------------------------------------------
 
+_ADVISORY_SKIP_CODE = 77
+
+
 def _generic_pass(result: subprocess.CompletedProcess, _stdout_json: dict | None) -> tuple[bool, str]:
-    """Passes if exit code is 0."""
+    """Passes if exit code is 0; treats 77 (ADVISORY_SKIP_CODE) as advisory skip, not failure."""
+    if result.returncode == _ADVISORY_SKIP_CODE:
+        return True, "advisory-skip (no required infrastructure)"
     passed = result.returncode == 0
     detail = "exit 0" if passed else f"exit {result.returncode}"
     return passed, detail
@@ -803,15 +808,15 @@ def main(argv: list[str] | None = None) -> int:
                     timeout=args.timeout,
                     cwd=str(LIB_ROOT),
                 )
-                if capsule_result.returncode != 0 and not args.json:
+                if capsule_result.returncode != 0:
                     print(f"\n{YELLOW}  ⚠ Replay capsule creation failed (exit {capsule_result.returncode}) — "
                           f"audit evidence may be incomplete{RESET}", file=sys.stderr)
             except subprocess.TimeoutExpired:
-                if not args.json:
-                    print(f"\n{YELLOW}  ⚠ Replay capsule timed out — audit evidence may be incomplete{RESET}",
-                          file=sys.stderr)
-            except OSError:
-                pass
+                print(f"\n{YELLOW}  ⚠ Replay capsule timed out — audit evidence may be incomplete{RESET}",
+                      file=sys.stderr)
+            except OSError as e:
+                print(f"\n{YELLOW}  ⚠ Replay capsule OS error: {e} — audit evidence may be incomplete{RESET}",
+                      file=sys.stderr)
 
     report = build_json_report(
         results,

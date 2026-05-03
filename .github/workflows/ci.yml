@@ -952,16 +952,41 @@ jobs:
           cmake --build out/ci-caas --target unified_audit_runner ufsecp_shared -j"$(nproc)"
 
       - name: Stage 1a — Static analysis (audit test quality scanner)
-        run: python3 ci/audit_test_quality_scanner.py --json -o stage1a_scanner.json
+        run: |
+          python3 ci/audit_test_quality_scanner.py --json -o stage1a_scanner.json
+          python3 -c "
+          import json, sys
+          d = json.load(open('stage1a_scanner.json'))
+          n = d.get('total_findings', 0)
+          if n > 0:
+              print(f'::error::Stage 1a: {n} audit test quality finding(s) — see stage1a_scanner.json')
+              sys.exit(1)
+          "
 
       - name: Stage 1b — Traceability join
-        run: python3 ci/exploit_traceability_join.py --json -o stage1b_traceability.json
+        run: |
+          python3 ci/exploit_traceability_join.py --json -o stage1b_traceability.json
+          python3 -c "
+          import json, sys
+          d = json.load(open('stage1b_traceability.json'))
+          if not d.get('pass', d.get('passed', True)):
+              print('::error::Stage 1b: exploit traceability join failed — see stage1b_traceability.json')
+              sys.exit(1)
+          "
 
       - name: Stage 2 — Audit gate (P0–P18)
         run: python3 ci/audit_gate.py --json -o stage2_audit_gate.json
 
       - name: Stage 3 — Security autonomy check
-        run: python3 ci/security_autonomy_check.py --json -o stage3_autonomy.json
+        run: |
+          python3 ci/security_autonomy_check.py --json -o stage3_autonomy.json
+          python3 -c "
+          import json, sys
+          d = json.load(open('stage3_autonomy.json'))
+          if not d.get('autonomy_ready', d.get('passed', True)):
+              print('::error::Stage 3: security autonomy check failed — see stage3_autonomy.json')
+              sys.exit(1)
+          "
 
       - name: Run unified_audit_runner (all 327 modules)
         run: |
@@ -982,6 +1007,13 @@ jobs:
 
       - name: Stage 5 — Verify audit bundle
         run: python3 ci/verify_external_audit_bundle.py EXTERNAL_AUDIT_BUNDLE.json
+
+      - name: Warn on missing stage output files
+        if: always()
+        run: |
+          for f in stage1a_scanner.json stage1b_traceability.json stage2_audit_gate.json stage3_autonomy.json caas_runner_report.json; do
+            [ -f "$f" ] || echo "::warning::$f was not produced — stage may have failed before writing output"
+          done
 
       - name: Upload CAAS artifacts
         if: always()
