@@ -159,6 +159,8 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     if (SECP256K1_UNLIKELY(!ctx || !secnonce || !privkey || !keyagg || !session || !partial_sig32_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
+    // Zero output before any processing so every error path is fail-closed (MZP-3 / Rule 3).
+    std::memset(partial_sig32_out, 0, 32);
     ctx_clear_err(ctx);
     Scalar sk;
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {

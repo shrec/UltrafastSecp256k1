@@ -128,7 +128,8 @@ static void test_mzp_full_round_trip() {
     }
 
     // Verify the aggregated signature using the xonly agg pubkey (stored from key_agg)
-    ufsecp_error_t vrc = ufsecp_schnorr_verify(s.ctx, s.msg, s.agg_pk32, final_sig);
+    // ufsecp_schnorr_verify(ctx, msg32, sig64, pubkey_x) — sig before pubkey
+    ufsecp_error_t vrc = ufsecp_schnorr_verify(s.ctx, s.msg, final_sig, s.agg_pk32);
     ASSERT_TRUE(vrc == UFSECP_OK, "MZP-4: aggregated MuSig2 signature must verify");
 }
 

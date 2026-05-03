@@ -1417,24 +1417,25 @@ dec_cleanup:
         uint64_t*            d_prefixes = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_tweaks,   n_tweaks * sizeof(cuda::JacobianPoint)));
-        // CudaKeyGuard: zeroes + frees d_scan_k on all exit paths (destructor).
-        cuda::Scalar* d_scan_k_raw = nullptr;
-        CUDA_TRY(cudaMalloc(&d_scan_k_raw, sizeof(cuda::Scalar)));
-        CudaKeyGuard d_scan_k_guard(d_scan_k_raw, sizeof(cuda::Scalar));
+        // HIGH-3: scan private key must not remain in device memory after the operation completes.
+        // CudaKeyGuard RAII wrapper calls cudaMemset(d_scan_k, 0, ...) + cudaFree on all exit paths.
+        cuda::Scalar* d_scan_k = nullptr;
+        CUDA_TRY(cudaMalloc(&d_scan_k, sizeof(cuda::Scalar)));
+        CudaKeyGuard d_scan_k_guard(d_scan_k, sizeof(cuda::Scalar));
 
         CUDA_TRY(cudaMalloc(&d_spend,    sizeof(cuda::AffinePoint)));
         CUDA_TRY(cudaMalloc(&d_prefixes, n_tweaks * sizeof(uint64_t)));
 
         CUDA_TRY(cudaMemcpy(d_tweaks, h_tweaks.data(),
                             n_tweaks * sizeof(cuda::JacobianPoint), cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_scan_k_raw, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_spend,  &h_spend_aff, sizeof(cuda::AffinePoint), cudaMemcpyHostToDevice));
 
         /* -- 5. Launch BIP-352 scan kernel -- */
         int threads = 128;
         int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
         bip352_scan_batch_kernel<<<blocks, threads>>>(
-            d_tweaks, d_scan_k_raw, d_spend, d_prefixes, static_cast<int>(n_tweaks));
+            d_tweaks, d_scan_k, d_spend, d_prefixes, static_cast<int>(n_tweaks));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
@@ -1442,13 +1443,18 @@ dec_cleanup:
         CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
                             n_tweaks * sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-        /* -- 7. Download prefixes already done above. Secret material is erased
-         *       by RAII guards on scope exit:
-         *       - d_scan_k_guard: zeroes + frees d_scan_k_raw (CudaKeyGuard)
-         *       - scan_key_guard: secure_erases h_scan_k (ScanKeyGuard)       */
+        /* -- 7. Erase secret material explicitly before RAII guard cleanup.
+         *       Belt-and-suspenders: explicit calls + RAII guards (CudaKeyGuard,
+         *       ScanKeyGuard) both zero the key on all exit paths.               */
+        // HIGH-3: zero device copy of scan private key before freeing device memory.
+        cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
+        // HIGH-3: zero host copy of scan private key (also done by ScanKeyGuard dtor).
+        secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
+
         cudaFree(d_prefixes);
         cudaFree(d_spend);
         cudaFree(d_tweaks);
+        // d_scan_k freed + zeroed by CudaKeyGuard dtor; h_scan_k zeroed by ScanKeyGuard dtor.
         clear_error();
         return GpuError::Ok;
     }
