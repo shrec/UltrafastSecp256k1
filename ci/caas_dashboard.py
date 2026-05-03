@@ -314,31 +314,50 @@ def collect_backend_parity() -> dict:
                 "notes": b.get("notes", ""),
             })
     if not backends:
+        # No GPU_BACKEND_EVIDENCE.json — surface the gap honestly. The
+        # backend implementations exist (src/cuda/, src/opencl/, src/metal/,
+        # src/gpu_backend_metal.mm) — previous code hardcoded
+        # `Metal: PLANNED` here, which was already false since src/metal/
+        # has a working backend implementation. Don't fabricate values when
+        # the canonical evidence file is absent.
         backends = [
-            {"name": "CPU (Reference)", "status": "COMPLETE", "parity": "100%", "notes": ""},
-            {"name": "CUDA",    "status": "COMPLETE",   "parity": "full",    "notes": ""},
-            {"name": "OpenCL",  "status": "COMPLETE",   "parity": "full",    "notes": ""},
-            {"name": "Metal",   "status": "PLANNED",    "parity": "N/A",     "notes": "macOS target"},
+            {"name": "evidence",
+             "status": "no GPU_BACKEND_EVIDENCE.json",
+             "parity": "n/a",
+             "notes": "see docs/GPU_BACKEND_EVIDENCE.json (not present)"},
         ]
     return {"backends": backends}
 
 
 def collect_source_graph() -> dict:
-    try:
-        r = subprocess.run(
-            ["python3", "tools/source_graph_kit/query_graph.py", "--stats"],
-            capture_output=True, text=True, cwd=LIB_ROOT, timeout=30,
-        )
-        out = r.stdout
-        funcs = re.search(r"functions?[:\s]+(\d+)", out, re.I)
-        files = re.search(r"files?[:\s]+(\d+)", out, re.I)
-        return {
-            "functions": int(funcs.group(1)) if funcs else "?",
-            "files":     int(files.group(1)) if files else "?",
-            "raw": out[:500] if out else "source graph query unavailable",
-        }
-    except Exception:
-        return {"functions": "?", "files": "?", "raw": "unavailable"}
+    """Pull function/file counts from the SQLite source graph.
+
+    Older code shelled out to a `query_graph.py --stats` script that does
+    not exist in this checkout — that produced "?" rows in the dashboard.
+    Now we query the `function_index` table directly via the canonical
+    `source_graph.py sql` CLI.
+    """
+    def _count(sql: str) -> int | str:
+        try:
+            r = subprocess.run(
+                ["python3", "tools/source_graph_kit/source_graph.py", "sql", sql],
+                capture_output=True, text=True, cwd=LIB_ROOT, timeout=30,
+            )
+            for line in r.stdout.splitlines():
+                stripped = line.strip()
+                if stripped.isdigit():
+                    return int(stripped)
+            return "?"
+        except Exception:
+            return "?"
+
+    funcs = _count("SELECT COUNT(*) FROM function_index")
+    files = _count("SELECT COUNT(DISTINCT file) FROM function_index")
+    return {
+        "functions": funcs,
+        "files":     files,
+        "raw": f"functions={funcs}  files={files}",
+    }
 
 
 def collect_benchmarks() -> dict:
@@ -354,21 +373,42 @@ def collect_benchmarks() -> dict:
 
 
 def collect_limitations() -> list[str]:
-    # Read KNOWN_LIMITATIONS or similar file; fallback to hardcoded list
+    """Real, current open items.
+
+    Source of truth is `docs/RESIDUAL_RISK_REGISTER.md` (table rows starting
+    `| RR-`). We list only entries whose Status is OPEN, ACCEPTED non-blocking,
+    or DEFERRED — never CLOSED. Falls back to KNOWN_LIMITATIONS.md if it
+    exists (legacy path), and finally to an empty list — never to hardcoded
+    claims that have drifted from reality (`Metal not implemented`, `FROST
+    advisory-only`, `Exhaustive tests not ported` were all false).
+    """
     lim_path = LIB_ROOT / "docs" / "KNOWN_LIMITATIONS.md"
     if lim_path.exists():
         text = lim_path.read_text(errors="replace")
         items = re.findall(r'^[-*]\s+(.+)', text, re.MULTILINE)
         if items:
             return items[:12]
-    return [
-        "Metal (Apple GPU) backend not yet implemented",
-        "FROST threshold signatures are advisory-only (spec draft)",
-        "secp256k1_ecdsa_signature_parse_der_lax not in shim (historical Bitcoin compat)",
-        "config.ini required for bench harness (not for core library build)",
-        "GLV fast path disabled in Bitcoin Core shim mode (CT requirement)",
-        "Exhaustive field tests (libsecp tests_exhaustive.c equivalent) not yet ported",
-    ]
+
+    rr_path = LIB_ROOT / "docs" / "RESIDUAL_RISK_REGISTER.md"
+    if rr_path.exists():
+        out: list[str] = []
+        for ln in rr_path.read_text(errors="replace").splitlines():
+            if not ln.startswith("| RR-"):
+                continue
+            cols = [c.strip() for c in ln.split("|")]
+            # Format: ['', 'RR-XXX', 'Class', 'Status', 'Owner', 'Notes', '']
+            if len(cols) < 5:
+                continue
+            rr_id, klass, status = cols[1], cols[2], cols[3]
+            status_upper = status.upper()
+            # Skip closed/resolved/fixed entries — they are no longer limitations.
+            if any(t in status_upper for t in ("CLOSED", "RESOLVED", "FIXED")):
+                continue
+            out.append(f"{rr_id} — {klass} ({status})")
+        if out:
+            return out[:12]
+
+    return []
 
 
 def collect_artifacts() -> list[dict]:
