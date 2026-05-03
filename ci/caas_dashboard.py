@@ -829,8 +829,20 @@ def render_section_differential(diff: dict) -> str:
     commit = btc.get("commit", "")
 
     wyche = diff.get("wycheproof", {})
+    # VIZ-3 fix: don't always use PASS badge for Wycheproof results — check
+    # the actual value. A non-positive number or explicit FAIL/error string
+    # should render as a FAIL badge.
+    def _wyche_badge(v: object) -> str:
+        if isinstance(v, int) and v > 0:
+            return _badge("PASS", v)
+        if isinstance(v, str) and v.upper() in ("FAIL", "ERROR", "0"):
+            return _badge("FAIL", v)
+        if isinstance(v, (int, float)) and v == 0:
+            return _badge("FAIL", v)
+        return _badge("PASS", v)
+
     wyche_html = "".join(
-        f'<tr><td>{k}</td><td>{_badge("PASS", v)}</td></tr>'
+        f'<tr><td>{k}</td><td>{_wyche_badge(v)}</td></tr>'
         for k, v in wyche.items()
     )
 

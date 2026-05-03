@@ -769,6 +769,8 @@ def run_all(args):
             for i in drift_issues:
                 print(i)
             total_issues += len(drift_issues)
+            if len(drift_issues) > 0:
+                exit_code = 1
             print(f"  {YELLOW}{len(drift_issues)} stale narrative phrase(s){RESET}\n")
         else:
             print(f"  {GREEN}[OK] No stale CT/audit narrative detected{RESET}\n")
@@ -781,6 +783,8 @@ def run_all(args):
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
                 print(f"  {YELLOW}UNTESTED{RESET} {path} ({lines} lines)")
             total_issues += len(gaps)
+            if len(gaps) > 0:
+                exit_code = 1
             print(f"  {YELLOW}{len(gaps)} core files without test coverage{RESET}\n")
         else:
             print(f"  {GREEN}[OK] All core files have test coverage{RESET}\n")
@@ -794,6 +798,8 @@ def run_all(args):
                 print(f"  {YELLOW}{kind:8s}{RESET} {path}")
             if len(stale) > 15:
                 print(f"  ... and {len(stale) - 15} more")
+            total_issues += len(stale)
+            exit_code = 1  # CRITICAL: stale graph MUST be blocking
             print(f"  {YELLOW}{len(stale)} stale entries (built: {built[:19]}){RESET}")
             print(f"  Run: python3 ci/build_project_graph.py --rebuild\n")
         else:
@@ -973,6 +979,7 @@ def run_all(args):
                 print(f"  {GREEN}[OK] All docs are in sync with sources of truth{RESET}\n")
         except Exception as exc:
             print(f"  {YELLOW}WARNING: doc-sync check failed: {exc}{RESET}\n")
+            exit_code = 1
 
     if mode in ('--all', '--ctest-registry'):
         print(f"{BOLD}[15/20] CTest Registry Health{RESET}")
@@ -1057,7 +1064,8 @@ def run_all(args):
                 for line in output.split('\n'):
                     if 'FAIL' in line:
                         print(f"  {RED}{line.strip()}{RESET}")
-                fail_m = _re.search(r'(\d+) FAILED', output) if '_re' in dir() else None
+                import re as _re_local
+                fail_m = _re_local.search(r'(\d+) FAILED', output)
                 n_fail = fail_m.group(1) if fail_m else "?"
                 total_issues += int(n_fail) if isinstance(n_fail, str) and n_fail.isdigit() else 1
                 exit_code = 1

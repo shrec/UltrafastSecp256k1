@@ -294,6 +294,7 @@ def md_to_html(text: str) -> str:
     pre_lang = ""
     pre_buf: list[str] = []
     in_ul = False
+    in_ol = False
     in_table = False
     table_buf: list[str] = []
     para_buf: list[str] = []
@@ -339,6 +340,12 @@ def md_to_html(text: str) -> str:
         if in_ul:
             out.append("</ul>")
             in_ul = False
+
+    def flush_ol():
+        nonlocal in_ol
+        if in_ol:
+            out.append("</ol>")
+            in_ol = False
 
     def inline_md(s: str) -> str:
         """Apply inline formatting."""
@@ -398,6 +405,7 @@ def md_to_html(text: str) -> str:
         if line.strip() == "":
             flush_para()
             flush_ul()
+            flush_ol()
             if in_table:
                 flush_table()
             i += 1
@@ -407,6 +415,7 @@ def md_to_html(text: str) -> str:
         if line.strip().startswith("|"):
             flush_para()
             flush_ul()
+            flush_ol()
             in_table = True
             table_buf.append(line)
             i += 1
@@ -419,6 +428,7 @@ def md_to_html(text: str) -> str:
         if m:
             flush_para()
             flush_ul()
+            flush_ol()
             level = len(m.group(1))
             content = inline_md(m.group(2))
             out.append(f'<h{level}>{content}</h{level}>')
@@ -429,6 +439,7 @@ def md_to_html(text: str) -> str:
         m = re.match(r'^[\-\*]\s+(.*)', line)
         if m:
             flush_para()
+            flush_ol()
             if not in_ul:
                 out.append("<ul>")
                 in_ul = True
@@ -441,6 +452,9 @@ def md_to_html(text: str) -> str:
         if m:
             flush_para()
             flush_ul()
+            if not in_ol:
+                out.append("<ol>")
+                in_ol = True
             out.append(f'<li>{inline_md(m.group(1))}</li>')
             i += 1
             continue
@@ -449,18 +463,21 @@ def md_to_html(text: str) -> str:
         if re.match(r'^---+\s*$', line):
             flush_para()
             flush_ul()
+            flush_ol()
             out.append("<hr>")
             i += 1
             continue
 
         # Regular text → accumulate into paragraph
         flush_ul()
+        flush_ol()
         para_buf.append(inline_md(line))
         i += 1
 
     # Flush remaining
     flush_para()
     flush_ul()
+    flush_ol()
     if in_table:
         flush_table()
 
@@ -798,6 +815,17 @@ def render_bundle() -> bytes:
     refresh_ts = bundle.get("generated_at", bundle.get("timestamp", "unknown"))[:19].replace("T", " ")
 
     evidence = bundle.get("evidence", [])
+
+    # VIZ-2 fix: an empty evidence list means the bundle is malformed or
+    # was generated with no artifacts — treat as a FAIL rather than PASS.
+    if len(evidence) == 0:
+        body = """<h1>Evidence Bundle</h1>
+        <div class="alert err">
+          <strong>Bundle contains zero evidence items</strong> — malformed or empty bundle.
+          <br>Status: <span style="color:var(--red);font-weight:bold">FAIL</span>
+          <br>Regenerate with <code>python3 ci/build_owner_audit_bundle.py</code>.
+        </div>"""
+        return page("Bundle", body, "/bundle")
 
     # Verify each artifact
     rows_html = ""

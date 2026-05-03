@@ -389,6 +389,10 @@ def run_stage(stage: dict, timeout: int) -> dict:
     advisory_skip = passed and result.returncode == _ADVISORY_SKIP_CODE
     status = "advisory_skipped" if advisory_skip else ("passed" if passed else "failed")
 
+    # M-6 fix: advisory-skip stages print diagnostic output explaining WHY
+    # they skipped (missing GPU, Python, Cryptol). Use the same 2000-byte
+    # tail as failed stages so skip diagnostics are not truncated in the JSON.
+    capture_full = not passed or advisory_skip
     return {
         "id": stage["id"],
         "name": stage["name"],
@@ -398,10 +402,6 @@ def run_stage(stage: dict, timeout: int) -> dict:
         "returncode": result.returncode,
         "detail": detail,
         "duration_s": elapsed,
-        # M-6 fix: advisory-skip stages print diagnostic output explaining WHY
-        # they skipped (missing GPU, Python, Cryptol). Use the same 2000-byte
-        # tail as failed stages so skip diagnostics are not truncated in the JSON.
-        capture_full = not passed or advisory_skip
         "stdout_tail": result.stdout[-2000:] if capture_full else result.stdout[-500:],
         "stderr_tail": result.stderr[-500:] if capture_full else result.stderr[-200:],
     }
@@ -496,6 +496,10 @@ def build_json_report(
     report: dict = {
         "caas_version": CAAS_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "commit_sha": subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=str(LIB_ROOT),
+        ).stdout.strip() or "unknown",
         "overall_pass": overall_pass,
         "total_duration_s": round(total_s, 2),
         "profile": profile_key,
@@ -527,6 +531,7 @@ def run_extra_check(script_name: str, timeout: int) -> dict:
             text=True,
             timeout=timeout,
             cwd=str(LIB_ROOT),
+            start_new_session=True,  # BUG-9 fix: place child in its own process group for clean kill
         )
     except subprocess.TimeoutExpired:
         elapsed = time.monotonic() - t0

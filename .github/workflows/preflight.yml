@@ -72,6 +72,9 @@ jobs:
       - name: Preflight -- Code quality gate (hard-fail on regression)
         run: python3 ci/preflight.py --bug-scan
 
+      - name: Preflight — doc sync check
+        run: python3 ci/preflight.py --doc-sync
+
       - name: Python audit infrastructure self-test (hard-fail)
         run: python3 ci/test_audit_scripts.py --quick
 
@@ -236,4 +239,6 @@ except Exception as e:
             caas_scanner.json
             caas_audit_gate.json
             caas_autonomy.json
+            audit_report.json
+          if-no-files-found: warn
           retention-days: 30

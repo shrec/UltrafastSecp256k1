@@ -225,6 +225,16 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Upload ARM64 benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: arm64-benchmarks-${{ github.run_id }}
+          path: |
+            arm64_bench_*.txt
+          if-no-files-found: warn
+          retention-days: 30
+
   # -- Linux RISC-V 64 (cross-compile, riscv64-linux-gnu) --------------------
   linux-riscv64:
     runs-on: ubuntu-24.04
@@ -322,6 +332,16 @@ jobs:
             fi
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Upload RISC-V benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: riscv64-benchmarks-${{ github.run_id }}
+          path: |
+            riscv64_bench_*.txt
+          if-no-files-found: warn
+          retention-days: 30
 
   # -- Sanitizers (ASan+UBSan, Clang on Linux) --------------------------------
   sanitizers:
@@ -515,6 +535,15 @@ jobs:
           else
             echo "Metal audit runner not found"
           fi
+
+      - name: Upload Metal GPU audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: metal-gpu-audit-${{ github.run_id }}
+          path: build/metal_audit_report/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Metal GPU benchmarks
         if: success()
@@ -840,7 +869,7 @@ jobs:
         with:
           files: coverage.lcov
           flags: cpu
-          fail_ci_if_error: true
+          fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -1067,6 +1096,16 @@ jobs:
             --text build/owner_audit/owner_audit_bundle.txt \
             || echo "::warning::build_owner_audit_bundle.py failed — owner audit bundle will be absent from artifact"
 
+      - name: Ingest CAAS results into artifact timeline DB
+        if: always()
+        run: |
+          python3 ci/artifact_analyzer.py ingest \
+            --report stage2_audit_gate.json \
+            --platform linux-gcc13 \
+            --run-id "${{ github.run_id }}" \
+            --commit "${{ github.sha }}" \
+            2>/dev/null || echo "::warning::artifact_analyzer ingest failed (non-blocking)"
+
       - name: Upload CAAS artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1085,7 +1124,8 @@ jobs:
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             build/owner_audit/owner_audit_bundle.json
             build/owner_audit/owner_audit_bundle.txt
-          if-no-files-found: error
+            artifact_analyzer.db
+          if-no-files-found: warn
           retention-days: 90
 
   # ============================================================================

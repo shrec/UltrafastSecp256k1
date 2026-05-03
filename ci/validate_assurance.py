@@ -625,16 +625,16 @@ def main():
         'extra': ledger['extra'],
         'conditional': ledger['conditional'],
     }
+    # H-2 fix: set exit_code unconditionally (not just in non-json mode) when
+    # ledger issues exist, so --json callers also get a non-zero exit code.
+    if len(ledger.get('issues', [])) > 0:
+        exit_code = 1
     if not json_mode:
         print(f"{BOLD}[1/2] Ledger Completeness{RESET}")
         print(f"  Header: {ledger['header_count']} functions, Ledger: {ledger['ledger_count']} functions")
         if ledger['issues']:
             for i in ledger['issues']:
                 print(i)
-            # H-3 fix: trigger exit_code on ANY issues, not only when
-            # extra/missing are truthy. issues can be non-empty without
-            # extra/missing being set (different code path).
-            exit_code = 1
         else:
             print(f"  {GREEN}[OK] Ledger covers all header functions{RESET}")
         print()

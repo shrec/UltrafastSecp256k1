@@ -342,7 +342,7 @@ except Exception as e:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [security_autonomy]
-    if: needs.security_autonomy.result == 'success' && github.event.inputs.skip_bundle != 'true'
+    if: needs.security_autonomy.result != 'cancelled' && github.event.inputs.skip_bundle != 'true'
 
     steps:
       - name: Harden runner
@@ -421,6 +421,30 @@ except Exception as e:
               print("::error::Audit bundle integrity check FAILED")
               sys.exit(1)
           print("::notice::Audit bundle PASS — all integrity checks verified")
+          EOF
+
+      - name: Check bundle freshness
+        # MISS-5 fix: gate on 7-day max age so stale bundles are caught before
+        # they are distributed to external auditors.
+        run: |
+          python3 - <<'EOF'
+          import json, sys, time
+          from pathlib import Path
+          bundle_path = Path("docs/EXTERNAL_AUDIT_BUNDLE.json")
+          if not bundle_path.exists():
+              print("::warning::EXTERNAL_AUDIT_BUNDLE.json not found — skipping freshness check")
+              sys.exit(0)
+          data = json.loads(bundle_path.read_text())
+          ts = data.get("generated_at") or data.get("timestamp")
+          if not ts:
+              print("::error::Bundle has no timestamp field — cannot verify freshness")
+              sys.exit(1)
+          from datetime import datetime
+          age_days = (time.time() - datetime.fromisoformat(ts.replace("Z","+00:00")).timestamp()) / 86400
+          if age_days > 7:
+              print(f"::error::EXTERNAL_AUDIT_BUNDLE.json is {age_days:.1f} days old (max: 7)")
+              sys.exit(1)
+          print(f"Bundle freshness OK: {age_days:.1f} days old")
           EOF
 
       - name: Stage 5b — Owner-grade audit bundle
@@ -510,7 +534,7 @@ except Exception as e:
 
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
