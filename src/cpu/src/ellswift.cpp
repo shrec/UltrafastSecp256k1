@@ -320,9 +320,15 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
-    // Use zero auxrnd — same deterministic hash path as auxrnd32 variant.
-    static constexpr std::uint8_t kZeroAux[32] = {};
-    return ellswift_create(privkey, kZeroAux);
+    // BIP-324: the encoding MUST be probabilistic so the same private key
+    // produces a different 64-byte encoding on every call. Using zero auxrnd
+    // makes it deterministic, which (a) leaks key identity across connections
+    // and (b) causes the xdh hash (which includes the full encoding) to produce
+    // the same shared secret for any two "different" encodings of the same key.
+    // Fix: fill auxrnd from CSPRNG so each call is unique.
+    std::uint8_t rand32[32];
+    csprng_fill(rand32, 32);
+    return ellswift_create(privkey, rand32);
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey,
