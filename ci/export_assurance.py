@@ -278,7 +278,12 @@ def main():
         print(f"Assurance report written to {out_file}", file=sys.stderr)
     else:
         print(output)
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    # H-5 fix: propagate return value to process exit code.
+    # Previously main() had no return statement (implicitly None) and the
+    # __main__ block did not call sys.exit(), so partial/failed exports
+    # always exited 0.
+    sys.exit(main())

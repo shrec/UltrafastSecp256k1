@@ -81,6 +81,17 @@ jobs:
           if [ "$rc" -gt 1 ]; then
             exit "$rc"
           fi
+          # M-2 fix: if ci_gate_detect.py crashed (exit 1 = Python exception OR
+          # "changes detected"), verify that the expected output keys were actually
+          # written to GITHUB_OUTPUT. A crash producing partial output can leave
+          # run_caas=false, silently skipping security gates on security-critical PRs.
+          for key in gate run_caas; do
+            if ! grep -q "^${key}=" "$GITHUB_OUTPUT" 2>/dev/null; then
+              echo "::error::ci_gate_detect.py did not write '${key}' to GITHUB_OUTPUT" \
+                   "(exit rc=${rc}); impact detection failed — cannot safely skip gates"
+              exit 2
+            fi
+          done
           echo "## Block 0 / Detect Impact" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           cat ci-impact.json >> "$GITHUB_STEP_SUMMARY"

@@ -19,8 +19,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,48 @@ def _load_json(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
         return None
+
+
+_KPI_STALE_HOURS = 25  # treat KPI file as stale if older than this
+
+
+def _try_live_autonomy_run() -> dict[str, Any] | None:
+    """Run security_autonomy_check.py live; return parsed JSON or None."""
+    try:
+        r = subprocess.run(
+            ["python3", "ci/security_autonomy_check.py", "--json"],
+            capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=60,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            d = json.loads(r.stdout)
+            d["_source"] = "live"
+            d["_generated_at"] = datetime.now(timezone.utc).isoformat()
+            return d
+    except Exception:
+        pass
+    return None
+
+
+def _staleness_banner(kpi: dict[str, Any] | None, source: str) -> str:
+    """Return a Markdown warning block if the KPI data is stale (>25h old)."""
+    if kpi is None or source == "live":
+        return ""
+    ts_raw = kpi.get("generated_at") or kpi.get("timestamp") or kpi.get("_generated_at")
+    if not ts_raw:
+        return "> **⚠ WARNING:** KPI source has no timestamp — age cannot be verified.\n"
+    try:
+        ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
+        age_h = (datetime.now(timezone.utc) - ts).total_seconds() / 3600
+        if age_h > _KPI_STALE_HOURS:
+            return (
+                f"> **⚠ STALE DATA** — KPI last updated {age_h:.0f}h ago "
+                f"(>{_KPI_STALE_HOURS}h threshold). "
+                f"Gate status may not reflect current codebase. "
+                f"Live run of `security_autonomy_check.py` failed.\n"
+            )
+    except (ValueError, TypeError):
+        pass
+    return ""
 
 
 def _row(label: str, value: Any) -> str:
@@ -294,7 +337,18 @@ def render(profile: str = "default") -> str:
             out.append(_format_btc_core_section())
 
     out.append(_section('Security Autonomy KPI'))
-    kpi = _load_json(REPO_ROOT / 'docs' / 'SECURITY_AUTONOMY_KPI.json')
+    # H-4 fix: try a live security_autonomy_check.py run first so the
+    # dashboard reflects the current codebase state rather than up-to-24h-old
+    # nightly KPI data. Fall back to the KPI file if the live run fails, but
+    # annotate stale data clearly so auditors are not misled.
+    kpi = _try_live_autonomy_run()
+    kpi_source = "live"
+    if kpi is None:
+        kpi = _load_json(REPO_ROOT / 'docs' / 'SECURITY_AUTONOMY_KPI.json')
+        kpi_source = "cached"
+    staleness_note = _staleness_banner(kpi, kpi_source)
+    if staleness_note:
+        out.append(staleness_note)
     out.append(_format_autonomy(kpi))
 
     out.append(_section('CAAS Pipeline Status'))

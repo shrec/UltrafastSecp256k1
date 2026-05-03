@@ -398,8 +398,12 @@ def run_stage(stage: dict, timeout: int) -> dict:
         "returncode": result.returncode,
         "detail": detail,
         "duration_s": elapsed,
-        "stdout_tail": result.stdout[-2000:] if not passed else result.stdout[-500:],
-        "stderr_tail": result.stderr[-500:] if not passed else result.stderr[-200:],
+        # M-6 fix: advisory-skip stages print diagnostic output explaining WHY
+        # they skipped (missing GPU, Python, Cryptol). Use the same 2000-byte
+        # tail as failed stages so skip diagnostics are not truncated in the JSON.
+        capture_full = not passed or advisory_skip
+        "stdout_tail": result.stdout[-2000:] if capture_full else result.stdout[-500:],
+        "stderr_tail": result.stderr[-500:] if capture_full else result.stderr[-200:],
     }
 
 
@@ -784,10 +788,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\n{CYAN}[pre] Rebuilding project graphs...{RESET}")
         rebuild_ok = _rebuild_graphs(args.timeout, quiet=args.json)
         if not rebuild_ok:
+            # L-5 fix: graph rebuild failure is a precondition failure, not a
+            # stage result. Exit with an error so the caller sees the failure
+            # rather than silently running gates against stale graph data.
             print(
-                "WARNING: source graph rebuild failed; gate checks may use stale data.",
+                "ERROR: source graph rebuild failed; cannot run gates with stale data.",
                 file=sys.stderr,
             )
+            sys.exit(2)
 
     # --------------------------------------------------- extra_checks pre-flight
     extra_check_results: list[dict] = []

@@ -107,14 +107,26 @@ def create_evidence_record(
     commit: str = "",
 ) -> dict:
     """Create a new evidence record with full provenance."""
+    # Prefer caller-supplied commit (the audited commit) over HEAD so that
+    # nightly refresh records are traceable to the commit that was audited,
+    # not the HEAD at refresh time (FINDING-13 fix).
+    resolved_commit = commit.strip() if commit.strip() else _git_sha()
+    # L-2 fix: fail fast if the commit SHA cannot be determined. Writing an
+    # "unknown" commit record permanently marks the evidence chain as having
+    # an orphaned entry, which causes all subsequent chain-validation steps to
+    # fail (hard error in caas.yml). Better to refuse the write than to corrupt
+    # the chain.
+    if not resolved_commit or resolved_commit in ("unknown", "n/a", ""):
+        raise ValueError(
+            "create_evidence_record: cannot determine commit SHA — "
+            "git rev-parse HEAD failed or returned empty. "
+            "Set the --commit argument explicitly or fix the git environment."
+        )
     record = {
         "who": who,
         "what": what,
         "when": datetime.now(timezone.utc).isoformat(),
-        # Prefer caller-supplied commit (the audited commit) over HEAD so that
-        # nightly refresh records are traceable to the commit that was audited,
-        # not the HEAD at refresh time (FINDING-13 fix).
-        "commit": commit.strip() if commit.strip() else _git_sha(),
+        "commit": resolved_commit,
         "binary_hash": _file_sha256(binary_path) if binary_path else "n/a",
         "verdict": verdict,
         "reason": reason,

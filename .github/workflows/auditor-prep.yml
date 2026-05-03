@@ -60,10 +60,27 @@ jobs:
           fi
           bash ci/external_audit_prep.sh "${args[@]}"
 
+      - name: Embed CAAS gate state in artifact
+        # M-7 fix: external auditors need to know whether the commit being
+        # packaged passed CAAS gates. Embed a minimal gate-state summary
+        # so gated vs ungated bundles are distinguishable.
+        run: |
+          python3 ci/audit_gate.py --json \
+            -o external-audit-artifacts/caas_gate_state.json 2>/dev/null \
+            || echo '{"verdict":"UNKNOWN","note":"audit_gate.py not available at prep time"}' \
+               > external-audit-artifacts/caas_gate_state.json
+          python3 ci/check_exploit_wiring.py --json \
+            > external-audit-artifacts/exploit_wiring_state.json 2>/dev/null \
+            || echo '{"result":"UNKNOWN","note":"check_exploit_wiring.py not available"}' \
+               > external-audit-artifacts/exploit_wiring_state.json
+
       - name: Upload external audit artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: external-audit-artifacts
+          # M-7 fix: append run_id to prevent re-runs on the same commit from
+          # overwriting each other (previously all runs produced the same artifact
+          # name, making it impossible to retrieve a specific run's bundle).
+          name: external-audit-artifacts-${{ github.run_id }}
           path: external-audit-artifacts/
           retention-days: 30

@@ -17,15 +17,15 @@ The generated HTML has zero external dependencies (no CDN, no network calls).
 All styling and scripts are inlined.
 
 Sections:
-  1. Executive Summary
-  2. Gate Status (Preflight / CAAS gates)
-  3. Security Claims
-  4. Exploit PoC Corpus
-  5. Constant-Time
-  6. Differential Testing
-  7. Backend Parity
-  8. Source Graph / Coverage
-  9. Benchmarks
+  1.  Executive Summary
+  2.  Gate Status (Preflight / CAAS gates)
+  3.  Security Claims
+  4.  Exploit PoC Corpus
+  5.  Constant-Time
+  6.  Differential Testing
+  7.  Backend Parity
+  8.  Source Graph / Coverage
+  9.  Benchmarks
   10. Known Limitations
   11. Artifacts
 """
@@ -110,9 +110,11 @@ _FALLBACK_MAX_AGE_DAYS = 7
 def _read_fallback(name_candidates: tuple[str, ...]) -> dict | None:
     """Find and load the first matching report file.
 
-    Returns None if absent or if the file's generated_at timestamp is older
-    than _FALLBACK_MAX_AGE_DAYS (prevents stale data from silently passing as
+    Returns None if absent or if the file's timestamp is older than
+    _FALLBACK_MAX_AGE_DAYS (prevents stale data from silently passing as
     current). Skips stale candidates and tries the next one in order.
+    M-5 fix: also accepts 'timestamp' (legacy field name) when 'generated_at'
+    is absent, so legacy producers are not silently dropped.
     """
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
         days=_FALLBACK_MAX_AGE_DAYS
@@ -124,13 +126,14 @@ def _read_fallback(name_candidates: tuple[str, ...]) -> dict | None:
         data = _load_json(p)
         if not isinstance(data, dict):
             continue
-        generated_at = data.get("generated_at")
-        if not generated_at:
-            # No timestamp — cannot verify freshness; treat as stale.
+        # Accept either generated_at (new) or timestamp (legacy producers).
+        ts_raw = data.get("generated_at") or data.get("timestamp")
+        if not ts_raw:
+            # No timestamp at all — cannot verify freshness; treat as stale.
             continue
         try:
             ts = datetime.datetime.fromisoformat(
-                generated_at.replace("Z", "+00:00")
+                str(ts_raw).replace("Z", "+00:00")
             )
             if ts < cutoff:
                 continue  # stale — try next candidate
@@ -199,7 +202,28 @@ def collect_preflight_checks() -> list[dict]:
                 checks.append({"label": label, "status": status, "detail": detail,
                                "items": []})
             else:
-                items = json.loads(r.stdout) if r.stdout.strip() else []
+                # H-2 fix: check exit code before parsing. A crash with empty
+                # stdout would previously produce items=[] → PASS (false green).
+                if r.returncode != 0 and r.returncode != 77:
+                    checks.append({"label": label, "status": "ERROR",
+                                   "detail": f"script exited {r.returncode}; "
+                                              f"stderr: {r.stderr[:200].strip()}",
+                                   "items": []})
+                    continue
+                # M-3 fix: if stdout is empty after a non-error exit, treat as
+                # PASS with 0 items rather than crashing on json.loads("").
+                if not r.stdout.strip():
+                    checks.append({"label": label, "status": "PASS",
+                                   "detail": "0 checks (no output)", "items": []})
+                    continue
+                try:
+                    items = json.loads(r.stdout)
+                except (json.JSONDecodeError, ValueError):
+                    # Script doesn't support --json or produced non-JSON output.
+                    checks.append({"label": label, "status": "ERROR",
+                                   "detail": "--json flag unsupported or non-JSON output",
+                                   "items": []})
+                    continue
                 fail = sum(1 for i in items if i.get("status") == "FAIL")
                 warn = sum(1 for i in items if i.get("status") == "WARN")
                 status = "FAIL" if fail else ("WARN" if warn else "PASS")
@@ -556,6 +580,7 @@ NAV_ITEMS = [
     ("backend",   "Backends"),
     ("graph",     "Coverage"),
     ("bench",     "Benchmarks"),
+    ("limits",    "Limitations"),
     ("artifacts", "Artifacts"),
 ]
 
@@ -969,7 +994,7 @@ def render_section_artifacts(artifacts: list[dict]) -> str:
         )
     return f"""
 <section class="section-anchor" id="artifacts">
-<h2>10 · Artifacts</h2>
+<h2>11 · Artifacts</h2>
 <div class="card">
 <table class="artifact-table">
   <thead><tr><th>File</th><th>Type</th><th>Path</th><th>Freshness</th></tr></thead>

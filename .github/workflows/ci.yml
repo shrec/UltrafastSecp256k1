@@ -1056,6 +1056,17 @@ jobs:
             [ -f "$f" ] || echo "::warning::$f was not produced — stage may have failed before writing output"
           done
 
+      - name: Stage 6 — Build owner audit bundle
+        # H-1 fix: this file was listed in the upload path but never produced,
+        # causing the 90-day owner audit bundle to be silently absent.
+        if: always()
+        run: |
+          mkdir -p build/owner_audit
+          python3 ci/build_owner_audit_bundle.py \
+            -o build/owner_audit/owner_audit_bundle.json \
+            --text build/owner_audit/owner_audit_bundle.txt \
+            || echo "::warning::build_owner_audit_bundle.py failed — owner audit bundle will be absent from artifact"
+
       - name: Upload CAAS artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1074,7 +1085,7 @@ jobs:
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             build/owner_audit/owner_audit_bundle.json
             build/owner_audit/owner_audit_bundle.txt
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 90
 
   # ============================================================================

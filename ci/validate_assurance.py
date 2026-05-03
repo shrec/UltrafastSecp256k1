@@ -631,8 +631,10 @@ def main():
         if ledger['issues']:
             for i in ledger['issues']:
                 print(i)
-            if ledger['extra'] or ledger['missing']:
-                exit_code = 1
+            # H-3 fix: trigger exit_code on ANY issues, not only when
+            # extra/missing are truthy. issues can be non-empty without
+            # extra/missing being set (different code path).
+            exit_code = 1
         else:
             print(f"  {GREEN}[OK] Ledger covers all header functions{RESET}")
         print()

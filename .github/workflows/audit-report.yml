@@ -82,16 +82,25 @@ jobs:
         # Produces caas_audit_gate.json, caas_autonomy.json, caas_scanner.json so
         # the 90-day artifact bundle contains the full gate state for retrospective
         # audits (FINDING-10 fix: gate reports previously expired in 30d).
+        # C-1 fix: capture each gate exit code; fail the step if any gate fails.
+        # || true was silently green-lighting real gate failures.
         if: always()
         run: |
+          set +e
+          GATE_RC=0
           python3 ci/build_project_graph.py --rebuild
-          python3 ci/check_exploit_wiring.py || true
+          python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_test_quality_scanner.py --json \
-            -o audit-output/caas_scanner.json || true
+            -o audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_gate.py --json \
-            -o audit-output/caas_audit_gate.json || true
+            -o audit-output/caas_audit_gate.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/security_autonomy_check.py --json \
-            -o audit-output/caas_autonomy.json || true
+            -o audit-output/caas_autonomy.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          set -e
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "::error::One or more CAAS gates failed (exit $GATE_RC) — see above for details"
+            exit "$GATE_RC"
+          fi
 
       - name: Upload audit reports
         id: upload_reports
@@ -198,6 +207,28 @@ jobs:
           python3 ci/auditor_mode.py \
             --output-dir ./audit-output/auditor-mode
 
+      - name: Run CAAS gate + autonomy for bundle completeness (Clang-17)
+        # OBS-3 fix: linux-gcc produces CAAS gate reports for the 90-day artifact
+        # but linux-clang did not. Now both jobs produce the same gate report set
+        # so cross-compiler audit artifacts are symmetric and comparable.
+        if: always()
+        run: |
+          set +e
+          GATE_RC=0
+          python3 ci/build_project_graph.py --rebuild
+          python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_test_quality_scanner.py --json \
+            -o audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_gate.py --json \
+            -o audit-output/caas_audit_gate.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/security_autonomy_check.py --json \
+            -o audit-output/caas_autonomy.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          set -e
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "::error::One or more CAAS gates failed (Clang-17, exit $GATE_RC)"
+            exit "$GATE_RC"
+          fi
+
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -210,6 +241,9 @@ jobs:
             audit-output/audit_report.sarif
             audit-output/auditor-mode/auditor_mode_report.json
             audit-output/auditor-mode/auditor_mode_report.txt
+            audit-output/caas_scanner.json
+            audit-output/caas_audit_gate.json
+            audit-output/caas_autonomy.json
           retention-days: 90
 
       - name: Upload SARIF to GitHub Code Scanning

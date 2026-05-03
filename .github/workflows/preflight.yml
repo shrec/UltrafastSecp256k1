@@ -170,12 +170,17 @@ jobs:
 import json, sys
 try:
     d = json.load(open('caas_audit_gate.json'))
-    verdict = d.get('audit_verdict', 'unknown')
+    # OBS-1 fix: accept both 'verdict' (new schema) and 'audit_verdict' (legacy)
+    # so this consumer is resilient to producer schema evolution. caas.yml uses
+    # 'verdict'; preflight.yml previously used only 'audit_verdict'.
+    verdict = d.get('verdict') or d.get('audit_verdict') or 'unknown'
     summary = d.get('summary', {})
-    print(f\"verdict={verdict}  blocking={summary.get('blocking',0)}  advisory={summary.get('advisory',0)}\")
-    for c in d.get('checks', []):
+    blocking = summary.get('blocking', summary.get('failing', summary.get('fail', 0)))
+    advisory = summary.get('advisory', 0)
+    print(f\"verdict={verdict}  blocking={blocking}  advisory={advisory}\")
+    for c in d.get('checks', d.get('gates', [])):
         if c.get('status') == 'FAIL':
-            print(f\"  FAIL: {c['name']}\")
+            print(f\"  FAIL: {c.get('name', c.get('gate', '?'))}\")
             for f in c.get('findings', []):
                 if f.get('severity') == 'FAIL':
                     print(f\"    - {f['message']}\")

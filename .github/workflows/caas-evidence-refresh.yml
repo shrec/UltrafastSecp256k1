@@ -94,6 +94,7 @@ jobs:
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Regenerate suite-root assurance_report.json
+        id: assurance_report
         # The library script writes wherever -o points. The suite-root file
         # is what audit_sla_check.py treats as the "assurance_report" SLO
         # input (scope=suite).
@@ -105,6 +106,7 @@ jobs:
           fi
 
       - name: Regenerate external audit bundle
+        id: bundle_verify
         run: |
           python3 ci/external_audit_bundle.py
           BUNDLE_VERIFY_JSON="${{ runner.temp }}/bundle_verify.json"
@@ -121,8 +123,13 @@ jobs:
           EOF
 
       - name: Refresh security autonomy KPI snapshot
+        id: autonomy_kpi
         run: |
           python3 ci/security_autonomy_check.py --json -o docs/SECURITY_AUTONOMY_KPI.json
+
+      - name: Check exploit wiring (OBS-2 — ensure bundle reflects wiring state)
+        id: exploit_wiring
+        run: python3 ci/check_exploit_wiring.py
 
       - name: Regenerate audit dashboard (H-9)
         # Hard-fail: render_audit_dashboard.py only reads local JSON + git log
@@ -157,6 +164,18 @@ jobs:
           git config user.name  "caas-bot"
           git config user.email "caas-bot@users.noreply.github.com"
 
+          # M-1 fix: determine verdict from the outcomes of the gate steps.
+          # Previously this was hardcoded "pass" unconditionally, meaning the
+          # evidence chain recorded PASS even when bundle verify or autonomy
+          # check failed. Now we propagate the real gate state.
+          GATE_VERDICT="pass"
+          if [ "${{ steps.bundle_verify.outcome }}" != "success" ] || \
+             [ "${{ steps.autonomy_kpi.outcome }}" != "success" ] || \
+             [ "${{ steps.exploit_wiring.outcome }}" != "success" ]; then
+            GATE_VERDICT="fail"
+            echo "::warning::One or more gate steps failed; recording verdict=fail in evidence chain"
+          fi
+
           # Record this refresh run in the evidence chain BEFORE checking what changed,
           # so the chain entry is always included in the commit (if anything else changed).
           # --commit pins the chain record to the audited HEAD SHA (FINDING-13 fix: previously
@@ -165,7 +184,7 @@ jobs:
           if ! python3 ci/evidence_governance.py record \
             --who "caas-evidence-refresh" \
             --what "nightly-evidence-refresh" \
-            --verdict "pass" \
+            --verdict "$GATE_VERDICT" \
             --commit "${{ github.sha }}" \
             --reason "automated-nightly-$(date -u +%Y-%m-%d)"; then
             echo "::error::evidence chain write failed during nightly refresh — chain integrity compromised"

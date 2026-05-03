@@ -398,9 +398,24 @@ def validate_report(report: dict) -> list[str]:
     if not isinstance(report, dict):
         return ['report must be a JSON object']
 
-    # Legacy documents (no schema_version) are exempt from unified-schema checks.
+    # M-4 fix: legacy documents (no schema_version) still get a minimal
+    # structural check against expected top-level keys so schema regressions
+    # in legacy producers are caught. They remain exempt from the full
+    # unified-schema validation (sections/commit envelope).
     if 'schema_version' not in report:
-        return []
+        errors: list[str] = []
+        # audit_gate.py / caas.yml Stage 2 producers
+        if 'verdict' not in report and 'overall_pass' not in report:
+            errors.append(
+                'legacy report missing both "verdict" and "overall_pass" — '
+                'expected at least one top-level result field'
+            )
+        if 'checks' not in report and 'gates' not in report and 'sections' not in report:
+            errors.append(
+                'legacy report missing "checks", "gates", and "sections" — '
+                'expected at least one results container'
+            )
+        return errors
 
     errors = []
 
