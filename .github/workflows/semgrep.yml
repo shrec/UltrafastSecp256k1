@@ -5,8 +5,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
   group: semgrep-${{ github.ref }}
@@ -14,6 +12,9 @@ concurrency:
 
 jobs:
   semgrep:
+    permissions:
+      security-events: write
+      actions: read
     name: Semgrep (crypto-aware pattern analysis)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -28,7 +29,7 @@ jobs:
 
       - name: Install Semgrep
         run: |
-          pip3 install --quiet semgrep==1.102.0
+          pip3 install --quiet --require-hashes --no-deps semgrep==1.102.0
 
       - name: Write custom crypto rules
         run: |

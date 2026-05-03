@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 concurrency:
   group: static-analysis-${{ github.ref }}
@@ -20,6 +18,9 @@ concurrency:
 
 jobs:
   analyze:
+    permissions:
+      security-events: write
+      actions: read
     strategy:
       fail-fast: false
       matrix:
