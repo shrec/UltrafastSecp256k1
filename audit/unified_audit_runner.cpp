@@ -1245,10 +1245,10 @@ static void write_json_report(const char* path,
             if (std::strcmp(r.section, sec.section_id) != 0) continue;
             if (!first) (void)std::fprintf(f, ",\n");
             first = false;
-            (void)std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"advisory\": %s, \"time_ms\": %.1f }",
+            (void)std::fprintf(f, "        { \"id\": \"%s\", \"name\": \"%s\", \"passed\": %s, \"advisory\": %s, \"return_code\": %d, \"time_ms\": %.1f }",
                          r.id, json_escape(r.name).c_str(),
                          r.passed ? "true" : "false",
-                         r.advisory ? "true" : "false", r.elapsed_ms);
+                         r.advisory ? "true" : "false", r.return_code, r.elapsed_ms);
         }
         (void)std::fprintf(f, "\n      ]\n");
         (void)std::fprintf(f, "    }%s\n", (s + 1 < (int)sections.size()) ? "," : "");
