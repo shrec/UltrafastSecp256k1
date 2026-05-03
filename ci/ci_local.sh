@@ -59,7 +59,7 @@ echo ""
 
 # ── Code quality scanners (~15s) ─────────────────────────────────────────────
 echo -e "${BOLD}[2] Code Quality Scanners${NC}"
-run_check "hot_path_alloc regression"  python3 ci/run_code_quality.py --fail-on-regression --json > /dev/null
+run_check "hot_path_alloc regression"  python3 ci/run_code_quality.py --fail-on-regression
   # CUDA checker lives in parent repo tools/ (or local tools/)
   _cuda_checker=""
   for _p in tools/cuda_intrinsic_checker.py ../tools/cuda_intrinsic_checker.py; do
@@ -85,7 +85,9 @@ fi
 # ── Full build + no-ASM test (~5min) ─────────────────────────────────────────
 if [[ $FULL -eq 1 ]]; then
   echo -e "${BOLD}[4] Build (Release, no-ASM — mirrors sanitizer CI path)${NC}"
-  BUILD_DIR="/tmp/ci_local_build_$$"
+  BUILD_DIR="${TMPDIR:-/tmp}/ci_local_build_$$"
+  _cmake_log="${TMPDIR:-/tmp}/ci_local_cmake_$$.log"
+  _build_log="${TMPDIR:-/tmp}/ci_local_build_$$.log"
   if cmake -S . -B "$BUILD_DIR" -G Ninja \
       -DCMAKE_BUILD_TYPE=Debug \
       -DSECP256K1_USE_ASM=OFF \
@@ -95,22 +97,22 @@ if [[ $FULL -eq 1 ]]; then
       -DSECP256K1_BUILD_CUDA=OFF \
       -DSECP256K1_BUILD_OPENCL=OFF \
       -DSECP256K1_BUILD_METAL=OFF \
-      > /tmp/ci_local_cmake.log 2>&1; then
+      > "$_cmake_log" 2>&1; then
     echo -e "  cmake configure                                      ${GREEN}OK${NC}"
     ((pass++))
   else
     echo -e "  cmake configure                                      ${RED}FAIL${NC}"
-    tail -20 /tmp/ci_local_cmake.log | sed 's/^/    /'
+    tail -20 "$_cmake_log" | sed 's/^/    /'
     ((fail++))
   fi
 
   if [[ $fail -eq 0 ]]; then
     printf "  %-52s" "cmake build (no-ASM)..."
-    if cmake --build "$BUILD_DIR" -j"$(nproc)" > /tmp/ci_local_build.log 2>&1; then
+    if cmake --build "$BUILD_DIR" -j"$(nproc)" > "$_build_log" 2>&1; then
       echo -e "${GREEN}OK${NC}"; ((pass++))
     else
       echo -e "${RED}FAIL${NC}"
-      tail -20 /tmp/ci_local_build.log | sed 's/^/    /'
+      tail -20 "$_build_log" | sed 's/^/    /'
       ((fail++))
     fi
   fi
@@ -133,7 +135,7 @@ if [[ $MSAN -eq 1 ]]; then
   if ! command -v clang-17 &>/dev/null; then
     echo -e "  ${YELLOW}clang-17 not found — skipping MSan smoke test${NC}"
   else
-    MSAN_DIR="/tmp/ci_local_msan_$$"
+    MSAN_DIR="${TMPDIR:-/tmp}/ci_local_msan_$$"
     if CC=clang-17 CXX=clang++-17 cmake -S . -B "$MSAN_DIR" -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_C_FLAGS="-fsanitize=memory -fno-omit-frame-pointer" \

@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: bench-regression-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   bench-gate:
     name: Benchmark Regression Check

@@ -35,7 +35,7 @@
 #   bash ci/local-ci.sh --job cryptofuzz   # ~5-8 min (builds lib + runs harness)
 #   bash ci/local-ci.sh --job klee         # ~3-5 min (requires Docker)
 #
-# Build dirs use /tmp/build-local-ci-* (not /src) to avoid Windows NTFS overhead.
+# Build dirs use ${TMPDIR:-/tmp}/build-local-ci-* (not /src) to avoid Windows NTFS overhead.
 # Exit codes: 0 = all passed, 1 = at least one job failed
 # =============================================================================
 
@@ -57,9 +57,9 @@ fi
 NPROC=$(nproc)
 RESULTS=()
 FAILED=0
-# Build dirs go to /tmp to avoid Windows NTFS write overhead.
+# Build dirs go to a temp dir to avoid Windows NTFS write overhead.
 # Second+ builds reuse ccache — rebuild of unchanged code takes seconds.
-BUILD_BASE="/tmp/build-local-ci"
+BUILD_BASE="${TMPDIR:-/tmp}/build-local-ci-$$"
 
 # -- Auto-detect compilers ----------------------------------------------------
 # GCC: prefer gcc-13, fall back to gcc
@@ -102,8 +102,8 @@ LLVM_COV="llvm-cov${LLVM_SUFFIX}"
 CLANG_TIDY="clang-tidy${LLVM_SUFFIX}"
 
 # -- ccache stats (if available) ----------------------------------------------
-if command -v ccache &>/dev/null && [ -d "${CCACHE_DIR:-/ccache}" ]; then
-    echo -e "${BOLD}ccache:${NC} ${CCACHE_DIR:-/ccache} ($(ccache -s 2>/dev/null | grep 'cache size' || echo 'empty'))"
+if command -v ccache &>/dev/null && [ -d "${CCACHE_DIR:-${HOME}/.cache/ccache}" ]; then
+    echo -e "${BOLD}ccache:${NC} ${CCACHE_DIR:-${HOME}/.cache/ccache} ($(ccache -s 2>/dev/null | grep 'cache size' || echo 'empty'))"
     ccache --zero-stats &>/dev/null || true
     CCACHE_ENABLED=1
 else
@@ -728,8 +728,8 @@ job_cryptofuzz() {
     fi
 
     # ---- 2. Build reference libsecp256k1 v0.6.0 ----
-    local REF_DIR="/tmp/local-ci-libsecp256k1"
-    local REF_INSTALL="/tmp/local-ci-libsecp256k1-install"
+    local REF_DIR="${TMPDIR:-/tmp}/local-ci-libsecp256k1"
+    local REF_INSTALL="${TMPDIR:-/tmp}/local-ci-libsecp256k1-install"
     if [ ! -f "$REF_INSTALL/lib/libsecp256k1.a" ] && [ ! -f "$REF_INSTALL/lib/libsecp256k1.so" ]; then
         echo "Cloning libsecp256k1 v0.6.0..."
         rm -rf "$REF_DIR"
@@ -753,7 +753,8 @@ job_cryptofuzz() {
     # Link statically against ufsecp + fastsecp256k1 to avoid shared-library
     # startup crashes (global constructors in libufsecp.so run before main()).
     echo "Compiling differential harness..."
-    local compile_log="/tmp/cryptofuzz_compile.log"
+    local compile_log="${TMPDIR:-/tmp}/cryptofuzz_compile.log"
+    local harness_bin="${TMPDIR:-/tmp}/cryptofuzz_diff_harness"
     "$CXX_BIN" -std=c++20 -O2 \
         -I"$SRC" \
         -I"$REF_INSTALL/include" \
@@ -762,9 +763,9 @@ job_cryptofuzz() {
         "$CPU_LIB" \
         -L"$REF_INSTALL/lib" -lsecp256k1 \
         -Wl,-rpath,"$REF_INSTALL/lib" \
-        -o /tmp/cryptofuzz_diff_harness 2>&1 | tee "$compile_log"
+        -o "${harness_bin}" 2>&1 | tee "$compile_log"
 
-    if [ ! -f /tmp/cryptofuzz_diff_harness ]; then
+    if [ ! -f "${harness_bin}" ]; then
         cat "$compile_log"
         fail "cryptofuzz: harness compilation failed — ABI or include path mismatch"
         return
@@ -773,9 +774,9 @@ job_cryptofuzz() {
 
     # ---- 4. Quick smoke run (500 iterations) ----
     echo "Running 500-iteration smoke test..."
-    local results_log="/tmp/cryptofuzz_results.log"
+    local results_log="${TMPDIR:-/tmp}/cryptofuzz_results.log"
     LD_LIBRARY_PATH="$REF_INSTALL/lib" \
-        /tmp/cryptofuzz_diff_harness 500 2>&1 | tee "$results_log"
+        "${harness_bin}" 500 2>&1 | tee "$results_log"
     local EXIT="${PIPESTATUS[0]}"
 
     local FAIL_CNT
@@ -801,8 +802,8 @@ job_klee() {
         return
     fi
 
-    local KLEE_DIR="/tmp/klee-work-local"
-    local KLEE_RESULTS="/tmp/klee-results-local"
+    local KLEE_DIR="${TMPDIR:-/tmp}/klee-work-local"
+    local KLEE_RESULTS="${TMPDIR:-/tmp}/klee-results-local"
     rm -rf "$KLEE_DIR" "$KLEE_RESULTS"
     mkdir -p "$KLEE_DIR" "$KLEE_RESULTS"
     chmod 777 "$KLEE_DIR" "$KLEE_RESULTS"
