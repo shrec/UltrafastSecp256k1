@@ -30,13 +30,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
 EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 
-# HMAC key derived from repository identity (not a secret — tamper detection only).
+# HMAC key derived from repository identity (not a secret — provides integrity
+# detection against accidental corruption, not adversarial forgery).
 # Override with CAAS_HMAC_KEY env var for production deployments.
 _HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
-if "CAAS_HMAC_KEY" not in os.environ:
-    import sys as _sys
-    print("WARNING: Using hardcoded HMAC key. Set CAAS_HMAC_KEY env var for production.", file=_sys.stderr)
 _HMAC_KEY = os.environ.get("CAAS_HMAC_KEY", _HMAC_KEY_DEFAULT).encode()
+_HMAC_KEY_IS_DEFAULT = "CAAS_HMAC_KEY" not in os.environ
 
 
 def _git_sha() -> str:
@@ -152,11 +151,12 @@ def validate_chain() -> dict:
                 tampered.append(i)
                 issues.append(f"record[{i}]: HMAC mismatch — possible tamper")
 
-        # Check commit is valid hex
+        # Check commit is valid hex; records with no traceable commit are orphaned
         commit = record.get("commit", "")
-        if commit and commit != "unknown" and commit != "n/a":
-            if len(commit) < 7 or not all(c in "0123456789abcdef" for c in commit):
-                issues.append(f"record[{i}]: invalid commit SHA format")
+        if not commit or commit in ("unknown", "n/a", ""):
+            orphaned.append(i)
+        elif len(commit) < 7 or not all(c in "0123456789abcdef" for c in commit):
+            issues.append(f"record[{i}]: invalid commit SHA format")
 
     return {
         "total_records": len(chain),
@@ -172,6 +172,9 @@ def run(mode: str, json_mode: bool, out_file: str | None,
         who: str = "", what: str = "", verdict: str = "",
         binary: str = "", reason: str = "") -> int:
     if mode == "validate":
+        if _HMAC_KEY_IS_DEFAULT and not json_mode:
+            print("WARNING: Using hardcoded HMAC key. Set CAAS_HMAC_KEY env var for production.",
+                  file=sys.stderr)
         result = validate_chain()
         overall_pass = result["chain_valid"]
 
@@ -182,6 +185,7 @@ def run(mode: str, json_mode: bool, out_file: str | None,
             "orphaned_verdicts": len(result["orphaned_records"]),
             "tampered_count": len(result["tampered_records"]),
             "issues": result["issues"],
+            "hmac_key_is_default": _HMAC_KEY_IS_DEFAULT,
         }
 
         rendered = json.dumps(report, indent=2)

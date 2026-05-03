@@ -630,7 +630,7 @@ def main():
         if ledger['issues']:
             for i in ledger['issues']:
                 print(i)
-            if ledger['extra']:
+            if ledger['extra'] or ledger['missing']:
                 exit_code = 1
         else:
             print(f"  {GREEN}[OK] Ledger covers all header functions{RESET}")
@@ -651,7 +651,7 @@ def main():
         if claims['issues']:
             for i in claims['issues']:
                 print(i)
-            if claims['extra_in_json'] or claims['invalid_entries']:
+            if claims['extra_in_json'] or claims['missing_in_json'] or claims['invalid_entries']:
                 exit_code = 1
         else:
             print(f"  {GREEN}[OK] ASSURANCE_CLAIMS.json matches ASSURANCE_LEDGER.md claim IDs{RESET}")
@@ -724,6 +724,8 @@ def main():
         if matrix['issues']:
             for i in matrix['issues']:
                 print(i)
+            if matrix['missing']:
+                exit_code = 1
         else:
             print(f"  {GREEN}[OK] TEST_MATRIX matches CTest targets{RESET}")
         print()

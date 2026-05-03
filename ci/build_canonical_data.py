@@ -103,6 +103,25 @@ def _shim_functions() -> dict:
     return {"shim_api_function_count": count}
 
 
+def _wycheproof_counts() -> dict:
+    """Static Wycheproof vector counts for this library's test suite.
+
+    These reflect the current Wycheproof test suite coverage and must be
+    updated manually when the suite is upgraded or new operations are added.
+    Single source of truth — do NOT duplicate in dashboard code.
+    """
+    return {
+        "wycheproof_ecdsa":              "89/89 PASS",
+        "wycheproof_ecdh":               "36/36 PASS",
+        "wycheproof_extended":           "1084 groups PASS",
+        "wycheproof_sha256":             "65 groups PASS",
+        "wycheproof_hmac":               "544 groups PASS",
+        "wycheproof_chacha20_poly1305":  "PASS",
+        "libsecp_eckey_api":             "17/17 PASS (L-01)",
+        "rgrinding":                     "8/8 PASS (BC-01)",
+    }
+
+
 # ---------------------------------------------------------------------------
 def build() -> dict:
     data: dict = {}
@@ -112,6 +131,7 @@ def build() -> dict:
     data.update(_workflow_counts())
     data.update(_bitcoin_core_tests())
     data.update(_shim_functions())
+    data.update(_wycheproof_counts())
     return data
 
 

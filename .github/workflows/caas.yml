@@ -116,7 +116,7 @@ jobs:
         run: |
           echo "## CAAS Stage 1 — Static Analysis" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat caas_scanner.json 2>/dev/null || echo '{}'
+          cat caas_scanner.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '{}' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -219,8 +219,8 @@ jobs:
         if: always()
         run: |
           echo "## CAAS Stage 2 — Audit Gate (P0–P18)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 ci/audit_gate.py 2>&1 | tail -40 || true
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_audit_gate.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '{}' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -310,8 +310,15 @@ jobs:
         if: always()
         run: |
           echo "## CAAS Stage 3 — Security Autonomy" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat caas_autonomy.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"score={d.get('autonomy_score',0)}/100  ready={d.get('autonomy_ready',False)}\")" || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+import json, sys
+try:
+    d = json.load(open('caas_autonomy.json'))
+    print(f\"score={d.get('autonomy_score',0)}/100  ready={d.get('autonomy_ready',False)}\")
+except Exception as e:
+    print(f'(no autonomy report: {e})')
+" >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '(no autonomy report)' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

@@ -152,9 +152,14 @@ def collect_autonomy() -> dict:
             ["python3", "ci/security_autonomy_check.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
-        return json.loads(raw.stdout) if raw.stdout.strip() else {}
-    except Exception:
-        return {}
+        if not raw.stdout.strip():
+            return {"error": "no output", "overall_pass": False}
+        data = json.loads(raw.stdout)
+        if raw.returncode != 0:
+            data.setdefault("overall_pass", False)
+        return data
+    except Exception as exc:
+        return {"error": str(exc), "overall_pass": False}
 
 
 def collect_claims() -> list[dict]:
@@ -172,11 +177,12 @@ def collect_exploit_corpus() -> dict:
     files = list((LIB_ROOT / "audit").glob("test_exploit_*.cpp"))
     total = len(files)
 
-    # Count wired
+    # Count wired: forward declarations appear once; ALL_MODULES entries once —
+    # collect unique symbol names rather than dividing a raw count by 2.
     wired = 0
     if runner_path.exists():
         text = runner_path.read_text(errors="replace")
-        wired = len(re.findall(r'test_exploit_\w+_run\b', text)) // 2  # fwd decl + entry
+        wired = len(set(re.findall(r'\btest_exploit_\w+_run\b', text)))
 
     # Category breakdown from file names
     categories: dict[str, int] = {}
@@ -213,22 +219,20 @@ def collect_ct_status() -> dict:
 
 def collect_differential() -> dict:
     libsecp_file = LIB_ROOT / "audit" / "test_cross_libsecp256k1.cpp"
-    wycheproof_ecdsa = LIB_ROOT / "docs" / "BITCOIN_CORE_TEST_RESULTS.json"
-    btc = _load_json(wycheproof_ecdsa)
-    # TODO: read from canonical_data.json or CAAS report dynamically
+    btc_results  = LIB_ROOT / "docs" / "BITCOIN_CORE_TEST_RESULTS.json"
+    btc = _load_json(btc_results)
     canonical = _load_json(LIB_ROOT / "docs" / "canonical_data.json") or {}
     btc_pass  = canonical.get("bitcoin_core_tests_pass", btc.get("summary", {}).get("passed", 0) if btc else 0)
     btc_total = canonical.get("bitcoin_core_tests_total", btc.get("summary", {}).get("total", 0) if btc else 0)
     return {
         "libsecp_cross_test": libsecp_file.exists(),
         "wycheproof": {
-            # TODO: read from canonical_data.json or CAAS report dynamically
-            "ecdsa": "89/89 PASS",
-            "ecdh":  "36/36 PASS",
-            "extended": "1084 groups PASS",
-            "sha256": "65 groups PASS",
-            "hmac":  "544 groups PASS",
-            "chacha20_poly1305": "PASS",
+            "ecdsa":             canonical.get("wycheproof_ecdsa",             "?"),
+            "ecdh":              canonical.get("wycheproof_ecdh",              "?"),
+            "extended":          canonical.get("wycheproof_extended",          "?"),
+            "sha256":            canonical.get("wycheproof_sha256",            "?"),
+            "hmac":              canonical.get("wycheproof_hmac",              "?"),
+            "chacha20_poly1305": canonical.get("wycheproof_chacha20_poly1305", "?"),
         },
         "bitcoin_core": {
             "total":  btc_total,
@@ -236,9 +240,8 @@ def collect_differential() -> dict:
             "failed": btc.get("summary", {}).get("failed", 0) if btc else 0,
             "commit": btc.get("backend_commit", "") if btc else "",
         },
-        # TODO: read from canonical_data.json or CAAS report dynamically
-        "libsecp_eckey_api": "17/17 PASS (L-01)",
-        "rgrinding": "8/8 PASS (BC-01)",
+        "libsecp_eckey_api": canonical.get("libsecp_eckey_api", "?"),
+        "rgrinding":         canonical.get("rgrinding",         "?"),
     }
 
 
@@ -428,7 +431,6 @@ def _pct_bar(pct: float, cls: str = "") -> str:
 
 
 def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
-    # TODO: read from canonical_data.json or CAAS report dynamically
     canonical = _load_json(LIB_ROOT / "docs" / "canonical_data.json") or {}
     btc_tests_pass = canonical.get("bitcoin_core_tests_pass", "?")
     btc_tests_total = canonical.get("bitcoin_core_tests_total", btc_tests_pass)

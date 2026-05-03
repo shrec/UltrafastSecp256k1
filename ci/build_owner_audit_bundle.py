@@ -251,7 +251,7 @@ def _build_summary(report: dict) -> str:
 
     lines.extend([
         '',
-        f"Audit gate status: {report['audit_gate'].get('status', 'unknown')}",
+        f"Audit gate verdict: {report['audit_gate'].get('audit_verdict', 'unknown')}",
         f"Failure matrix strict residuals: {report['failure_matrix_strict'].get('counts', {}).get('partial', 0)} partial, {report['failure_matrix_strict'].get('counts', {}).get('unknown', 0)} unknown",
         f"CT evidence status: {report['ct_evidence'].get('overall_status', 'unknown')}",
         f"Auditor-mode status: {report['auditor_mode'].get('status', 'unknown')}",
@@ -320,7 +320,7 @@ def main() -> int:
         mandatory_missing.append('audit_report.json')
 
     blocking_findings = []
-    if isinstance(audit_gate.get('payload'), dict) and audit_gate['payload'].get('status') == 'FAIL':
+    if isinstance(audit_gate.get('payload'), dict) and audit_gate['payload'].get('audit_verdict') == 'FAIL':
         blocking_findings.append(f"audit gate has {_count_failures(audit_gate['payload'])} FAIL findings")
     strict_payload = failure_matrix_strict.get('payload') or {}
     counts = strict_payload.get('counts', {}) if isinstance(strict_payload, dict) else {}

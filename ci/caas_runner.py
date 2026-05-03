@@ -796,14 +796,21 @@ def main(argv: list[str] | None = None) -> int:
         capsule_script = SCRIPT_DIR / "create_replay_capsule.py"
         if capsule_script.exists():
             try:
-                subprocess.run(
+                capsule_result = subprocess.run(
                     [sys.executable, str(capsule_script)],
                     capture_output=True,
                     text=True,
                     timeout=args.timeout,
                     cwd=str(LIB_ROOT),
                 )
-            except (subprocess.TimeoutExpired, OSError):
+                if capsule_result.returncode != 0 and not args.json:
+                    print(f"\n{YELLOW}  ⚠ Replay capsule creation failed (exit {capsule_result.returncode}) — "
+                          f"audit evidence may be incomplete{RESET}", file=sys.stderr)
+            except subprocess.TimeoutExpired:
+                if not args.json:
+                    print(f"\n{YELLOW}  ⚠ Replay capsule timed out — audit evidence may be incomplete{RESET}",
+                          file=sys.stderr)
+            except OSError:
                 pass
 
     report = build_json_report(
@@ -824,8 +831,8 @@ def main(argv: list[str] | None = None) -> int:
         if not args.json:
             print(f"\n  Report written to: {out_path}")
 
-    # In auditor mode: overall_pass also requires all extra_checks to pass
-    if auditor_mode and extra_check_results:
+    # extra_check failures always affect overall_pass regardless of auditor mode
+    if extra_check_results:
         overall_pass = overall_pass and all(ec["passed"] for ec in extra_check_results)
 
     return 0 if overall_pass else 1

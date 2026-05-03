@@ -1521,7 +1521,7 @@ def main():
             },
             'platform': provenance.get('platform', {}).get('system'),
             'provenance': provenance,
-            'verdict': verdict,
+            'audit_verdict': verdict,
             'summary': {
                 'total_findings': sum(len(r['findings']) for r in results),
                 'blocking': sum(1 for r in results for f in r['findings'] if f[0] == 'FAIL'),

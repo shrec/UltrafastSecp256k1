@@ -118,10 +118,24 @@ jobs:
 
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
         run: |
-          set +e
-          python3 ci/audit_gate.py 2>&1
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
           GATE_EXIT=$?
-          python3 ci/audit_gate.py --json -o caas_audit_gate.json 2>/dev/null
+          python3 -c "
+import json, sys
+try:
+    d = json.load(open('caas_audit_gate.json'))
+    verdict = d.get('audit_verdict', 'unknown')
+    summary = d.get('summary', {})
+    print(f\"verdict={verdict}  blocking={summary.get('blocking',0)}  advisory={summary.get('advisory',0)}\")
+    for c in d.get('checks', []):
+        if c.get('status') == 'FAIL':
+            print(f\"  FAIL: {c['name']}\")
+            for f in c.get('findings', []):
+                if f.get('severity') == 'FAIL':
+                    print(f\"    - {f['message']}\")
+except Exception as e:
+    print(f'(could not parse gate report: {e})')
+"
           exit $GATE_EXIT
 
       - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)
@@ -164,4 +178,6 @@ jobs:
           name: preflight-reports
           path: |
             assurance_report.json
+            caas_audit_gate.json
+            caas_autonomy.json
           retention-days: 30
