@@ -116,6 +116,20 @@ CT_SENSITIVE_PATTERNS = [
 ]
 
 
+def get_changed_files_from_sha(before_sha: str) -> list[str]:
+    """Get files changed since before_sha (push event with known before-SHA)."""
+    try:
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', before_sha, 'HEAD'],
+            capture_output=True, text=True, cwd=str(LIB_ROOT),
+        )
+        if result.returncode == 0:
+            return [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
+    except Exception:
+        pass
+    return []
+
+
 def get_changed_files(base: str = 'origin/dev') -> list[str]:
     """Get list of changed files relative to base."""
     try:
@@ -124,10 +138,20 @@ def get_changed_files(base: str = 'origin/dev') -> list[str]:
             capture_output=True, text=True, cwd=str(LIB_ROOT),
         )
         if merge_base.returncode != 0:
-            # Fallback: use HEAD~1
             merge_base_sha = 'HEAD~1'
         else:
             merge_base_sha = merge_base.stdout.strip()
+            # On push events, origin/dev is updated before CI runs, so
+            # merge-base HEAD origin/dev == HEAD → git diff HEAD HEAD is empty.
+            # Detect this and fall back to HEAD~1 so the last commit's files
+            # are classified correctly. For multi-commit pushes, callers should
+            # use get_changed_files_from_sha() with github.event.before instead.
+            head = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True, text=True, cwd=str(LIB_ROOT),
+            )
+            if head.returncode == 0 and merge_base_sha == head.stdout.strip():
+                merge_base_sha = 'HEAD~1'
 
         result = subprocess.run(
             ['git', 'diff', '--name-only', merge_base_sha, 'HEAD'],
@@ -251,10 +275,23 @@ def main() -> int:
     parser.add_argument('--files', nargs='*', help='Explicit file list (skip git)')
     parser.add_argument('--release', action='store_true', help='Force release profile selection')
     parser.add_argument('--github-output', help='Write GitHub Actions outputs to this file')
+    parser.add_argument(
+        '--before-sha', default='',
+        help='SHA before the push (github.event.before). When provided and non-zero, '
+             'used as the diff base instead of merge-base detection, correctly handling '
+             'multi-commit pushes.',
+    )
     args = parser.parse_args()
 
     if args.files:
         files = args.files
+    elif args.before_sha and len(args.before_sha) == 40 and not all(c == '0' for c in args.before_sha):
+        # Push event with a known before-SHA: diff from that SHA to HEAD captures
+        # all commits in the push, not just the last one (which HEAD~1 would give).
+        files = get_changed_files_from_sha(args.before_sha)
+        if not files:
+            # before-sha diff empty → new branch or shallow clone, fall back
+            files = get_changed_files(args.base)
     else:
         files = get_changed_files(args.base)
 
