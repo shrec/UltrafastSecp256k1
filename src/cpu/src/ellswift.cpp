@@ -183,51 +183,58 @@ static bool ellswift_try_u(
                                    0x3e,0xc6,0x93,0xd6,0x8e,0x6a,0xfa,0x41};
         return FieldElement::from_bytes(b);}();
 
-    // Precompute u-dependent values once for ALL c values.
-    const auto u2  = u.square();
-    const auto u3  = u2 * u;
-    const auto g   = u3 + FE_SEVEN;
+    // Precompute u-dependent values once.
+    const auto u2 = u.square();
+    const auto u3 = u2 * u;
+    const auto g  = u3 + FE_SEVEN;
+    const auto ux = u + x;
 
-    // x1/x2 early-reject: if neg_ux = -(u+x) is on curve, x3 takes priority.
-    // Shared across c={0,1,4,5} — compute ONE sqrt here instead of 4.
-    const auto neg_ux  = (u + x).negate();
+    // x1/x2 early-reject (shared for c={0,1,4,5}): 1 sqrt total, not 4.
+    const auto neg_ux  = ux.negate();
     const bool rej_x12 = fe_is_square(neg_ux * neg_ux * neg_ux + FE_SEVEN);
 
-    // x3 case: s = x-u.  Compute sqrt(s) once for c={2,3,6,7}.
-    const auto s_x3    = x - u;
-    const auto [s_x3sq, w_x3] = sqrt_check(s_x3);  // one sqrt
-    const bool s_x3ok  = s_x3sq && s_x3 != FE_ZERO;
+    // x3: s = x-u. sqrt(s) shared for c={2,3,6,7}: 1 sqrt total, not 4.
+    const auto s_x3          = x - u;
+    const auto [s_x3sq, w_x3] = sqrt_check(s_x3);
+    const bool s_x3ok         = s_x3sq && s_x3 != FE_ZERO;
 
-    for (int c = 0; c < 8; ++c) {
-        FieldElement v, w;
-
-        if (!(c & 2)) {
-            // x1/x2 case
-            if (rej_x12) continue;                         // no sqrt needed
-            const auto sp  = (u + x).square().negate() + u * x;
-            const auto [sq, wc] = sqrt_check(sp * g);     // 1 sqrt
-            if (!sq) continue;
+    // --- x1/x2 case: sqrt(sp*g) shared across c={0,1,4,5} — 1 sqrt ---
+    if (!rej_x12) {
+        const auto sp            = ux.square().negate() + u * x;
+        const auto [sq12, wc12]  = sqrt_check(sp * g);   // 1 sqrt (was 4)
+        if (sq12) {
             const auto sp_inv = sp.inverse();
-            v = x;
-            w = wc * sp_inv;                               // recover sqrt(s)
-        } else {
-            // x3 case — reuse precomputed s_x3 and w_x3
-            if (!s_x3ok) continue;                         // no sqrt needed
-            const auto g4  = g * FE_FOUR;
-            const auto r2  = (FE_THREE * u2 * s_x3 + g4).negate() * s_x3;
-            const auto [rsq, r] = sqrt_check(r2);          // 1 sqrt
-            if (!rsq) continue;
-            if ((c & 1) && r == FE_ZERO) continue;
-            v = (r * s_x3.inverse() - u) * TWO_INV;
-            w = w_x3;                                      // free — already computed
+            const auto w_base = wc12 * sp_inv;  // sqrt(s) for x1/x2
+            // Try c=0,1,4,5 — only sign of w and C3/C4 multiplier differ
+            for (int c : {0, 1, 4, 5}) {
+                auto w = ((c & 5) == 0 || (c & 5) == 5) ? w_base.negate() : w_base;
+                auto t = w * (((c & 1) ? C4 : C3) * u + x);
+                if (t == FE_ZERO) continue;
+                if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
+                t_out = t;
+                return true;
+            }
         }
+    }
 
-        if ((c & 5) == 0 || (c & 5) == 5) w = w.negate();
-        auto t = w * (((c & 1) ? C4 : C3) * u + v);
-        if (t == FE_ZERO) continue;
-        if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
-        t_out = t;
-        return true;
+    // --- x3 case: sqrt(r2) shared across c={2,3,6,7} — 1 sqrt ---
+    if (s_x3ok) {
+        const auto g4  = g * FE_FOUR;
+        const auto r2  = (FE_THREE * u2 * s_x3 + g4).negate() * s_x3;
+        const auto [rsq, r] = sqrt_check(r2);              // 1 sqrt (was 4)
+        if (rsq) {
+            const auto v_base = (r * s_x3.inverse() - u) * TWO_INV;
+            // Try c=2,3,6,7 — only r==0 check and sign/multiplier differ
+            for (int c : {2, 3, 6, 7}) {
+                if ((c & 1) && r == FE_ZERO) continue;
+                auto w = ((c & 5) == 0 || (c & 5) == 5) ? w_x3.negate() : w_x3;
+                auto t = w * (((c & 1) ? C4 : C3) * u + v_base);
+                if (t == FE_ZERO) continue;
+                if (((t.to_bytes()[31] & 1) != 0) != y_odd) t = t.negate();
+                t_out = t;
+                return true;
+            }
+        }
     }
     return false;
 }
