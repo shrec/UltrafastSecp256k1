@@ -91,10 +91,6 @@ struct alignas(8) FieldElement52 {
     // Inverse via safegcd (4x64): FE52 -> FE(4x64) -> safegcd -> FE52
     // Single call replaces the common pattern: from_fe(to_fe().inverse())
     FieldElement52 inverse_safegcd() const noexcept;
-    // Compute a^{(p+1)/4} — the square root of a if a is a QR.
-    // Uses the same shared chain as inverse(), only final stage differs.
-    // 2× faster than FieldElement::sqrt() (FE52 10.3ns/sqr vs 4x64 ~20ns/sqr).
-    FieldElement52 sqrt() const noexcept;
 
     // -- Normalization ------------------------------------------------
     // Weak: carry-propagate so each limb <= 52 bits, but result may be >= p
