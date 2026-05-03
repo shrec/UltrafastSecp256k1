@@ -58,6 +58,15 @@ bool fe_is_square(const FieldElement& x) noexcept {
     return (s.square() == x);
 }
 
+// Combined QR test + sqrt: one exponentiation, not two.
+// Returns {is_quadratic_residue, sqrt_or_zero}.
+static inline std::pair<bool, FieldElement> fe_sqrt_checked(const FieldElement& x) noexcept {
+    if (x == FieldElement::zero()) return {true, FieldElement::zero()};
+    auto s = x.sqrt();
+    bool qr = (s.square() == x);
+    return {qr, qr ? s : FieldElement::zero()};
+}
+
 // XSwiftEC forward map (correct BIP-324 algorithm from libsecp256k1).
 //
 // Constants:
@@ -128,6 +137,61 @@ FieldElement xswiftec_fwd(FieldElement u, FieldElement t) noexcept {
 
     // Return x1 = -(x2+u)
     return (x2 + u).negate();
+}
+
+// Optimized variant: same as xswiftec_fwd but also returns the even-Y coordinate.
+// Avoids the extra sqrt that callers (ECDH) would need to reconstruct the full point.
+// Saves ~1-2 field exponentiations vs decode+lift separately.
+static std::pair<FieldElement, FieldElement> xswiftec_fwd_point(FieldElement u, FieldElement t) noexcept {
+    static const FieldElement C1 = []() {
+        std::array<uint8_t, 32> b = {
+            0x85,0x16,0x95,0xd4, 0x9a,0x83,0xf8,0xef,
+            0x91,0x9b,0xb8,0x61, 0x53,0xcb,0xcb,0x16,
+            0x63,0x0f,0xb6,0x8a, 0xed,0x0a,0x76,0x6a,
+            0x3e,0xc6,0x93,0xd6, 0x8e,0x6a,0xfa,0x40
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    static const FieldElement C2 = []() {
+        std::array<uint8_t, 32> b = {
+            0x7a,0xe9,0x6a,0x2b, 0x65,0x7c,0x07,0x10,
+            0x6e,0x64,0x47,0x9e, 0xac,0x34,0x34,0xe9,
+            0x9c,0xf0,0x49,0x75, 0x12,0xf5,0x89,0x95,
+            0xc1,0x39,0x6c,0x28, 0x71,0x95,0x01,0xee
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    static const FieldElement FE_ZERO  = FieldElement::zero();
+    static const FieldElement FE_ONE   = FieldElement::one();
+    static const FieldElement FE_THREE = FieldElement::from_uint64(3);
+    static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
+
+    if (u == FE_ZERO) u = FE_ONE;
+    FieldElement s = (t == FE_ZERO) ? FE_ONE : t.square();
+    auto u2 = u.square(); auto u3 = u2 * u;
+    auto g  = u3 + FE_SEVEN;
+    auto p = g + s;
+    if (p == FE_ZERO) { s = FE_FOUR * s; p = g + s; }
+    auto d  = FE_THREE * s * u2;
+    auto n3 = d * u - p.square();
+    auto x3 = n3 * d.inverse();
+    auto [qr3, y3] = fe_sqrt_checked(x3 * x3 * x3 + FE_SEVEN);
+    if (qr3) {
+        if ((y3.to_bytes()[31] & 1)) y3 = y3.negate();
+        return {x3, y3};
+    }
+    auto n2 = (C1 * s + C2 * g) * u;
+    auto x2 = n2 * p.inverse();
+    auto [qr2, y2] = fe_sqrt_checked(x2 * x2 * x2 + FE_SEVEN);
+    if (qr2) {
+        if ((y2.to_bytes()[31] & 1)) y2 = y2.negate();
+        return {x2, y2};
+    }
+    // x1 = -(x2+u): guaranteed on curve
+    auto x1 = (x2 + u).negate();
+    auto y1 = (x1 * x1 * x1 + FE_SEVEN).sqrt();
+    if ((y1.to_bytes()[31] & 1)) y1 = y1.negate();
+    return {x1, y1};
 }
 
 // XSwiftEC inverse: given x (on curve) and u (must be nonzero), find t such that
@@ -576,18 +640,14 @@ std::array<std::uint8_t, 32> ellswift_xdh_fast(
     bool initiating) noexcept {
 
     const std::uint8_t* their_ell = initiating ? ell_b64 : ell_a64;
-    auto their_x = ellswift_decode(their_ell);
+    // Use xswiftec_fwd_point to get (x, even_y) in one decode — avoids extra sqrt.
+    std::array<uint8_t, 32> ub{}, tb{};
+    std::memcpy(ub.data(), their_ell,      32);
+    std::memcpy(tb.data(), their_ell + 32, 32);
+    auto [their_x, their_y] = xswiftec_fwd_point(fe_from_bytes_mod_p(ub.data()),
+                                                   fe_from_bytes_mod_p(tb.data()));
 
-    auto x2 = their_x.square();
-    auto x3 = x2 * their_x;
-    auto y2 = x3 + FE_SEVEN;
-    auto y = y2.sqrt();
-    if (!(y.square() == y2)) return std::array<std::uint8_t, 32>{};
-
-    auto y_bytes = y.to_bytes();
-    if (y_bytes[31] & 1) y = y.negate();
-
-    auto their_point = Point::from_affine(their_x, y);
+    auto their_point = Point::from_affine(their_x, their_y);
     if (their_point.is_infinity()) return std::array<std::uint8_t, 32>{};
 
     // Non-CT variable-base scalar mul (~17.6 µs vs ~40 µs CT path).

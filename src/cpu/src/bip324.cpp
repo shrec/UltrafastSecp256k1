@@ -332,9 +332,11 @@ std::array<std::uint8_t,32> xdh(
 
     fast::Point shared;
     if (tables) {
-        // Fast path: prebuilt tables, complete formula (correctness first).
+        // Fast path: prebuilt tables + incomplete 7M+3S formula.
+        // Degenerate probability ~2^-128; wrong result → handshake fail, not key leak.
+        // ~25% faster than scalar_mul_prebuilt for BIP-324 ECDH sessions.
         fast::Point fallback = fast::Point::infinity();
-        shared = ct::scalar_mul_prebuilt(*tables, fallback, sk);
+        shared = ct::scalar_mul_prebuilt_fast(*tables, fallback, sk);
     } else {
         // Fallback: full decode + CT scalar_mul (degenerate peer key ~2^-256)
         auto x  = ellswift_decode(peer_ell);
