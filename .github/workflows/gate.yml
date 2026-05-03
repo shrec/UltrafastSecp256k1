@@ -109,15 +109,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Validate CI path references
+        # Fails fast if any script/file referenced in workflows doesn't exist.
+        # Prevents "No such file or directory" breakage after refactors.
+        run: python3 ci/check_ci_paths.py
+
       - name: Fast deterministic gates
-        run: |
-          python3 tools/render_repo_map.py --check
-          python3 ci/check_exploit_wiring.py
-          python3 ci/build_canonical_data.py --dry-run
-          python3 ci/sync_docs_from_canonical.py --dry-run
-          python3 ci/sync_module_count.py --dry-run
-          python3 ci/test_audit_scripts.py --quick
-          python3 ci/validate_assurance.py
+        # Single source of truth — same script as ci_local.sh runs.
+        # local passes → GitHub passes. No divergence.
+        run: bash ci/run_fast_gates.sh
 
   build-test:
     name: Block 2 / Build + Unit Tests

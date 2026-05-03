@@ -45,12 +45,16 @@ run_check() {
 echo -e "${BOLD}━━━ CI Local Gates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
-# ── Fast gates (~5s) ────────────────────────────────────────────────────────
-echo -e "${BOLD}[1] Doc & Wiring Gates${NC}"
-run_check "Exploit wiring parity"   python3 ci/check_exploit_wiring.py
-run_check "Canonical data sync"     python3 ci/build_canonical_data.py --dry-run
-run_check "Docs from canonical"     python3 ci/sync_docs_from_canonical.py --dry-run
-run_check "Module count sync"       python3 ci/sync_module_count.py --dry-run
+# ── Path validator — prevents "file not found" on GitHub ─────────────────────
+echo -e "${BOLD}[0] CI Path Integrity${NC}"
+run_check "CI paths exist"          python3 ci/check_ci_paths.py
+echo ""
+
+# ── Fast gates — SAME script that gate.yml runs ──────────────────────────────
+# Single source of truth: ci/run_fast_gates.sh
+# local passes == GitHub passes. No divergence possible.
+echo -e "${BOLD}[1] Fast Gates (= gate.yml Block 1)${NC}"
+run_check "Fast gates"              bash ci/run_fast_gates.sh
 echo ""
 
 # ── Code quality scanners (~15s) ─────────────────────────────────────────────
