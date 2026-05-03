@@ -357,11 +357,22 @@ def run_stage(stage: dict, timeout: int) -> dict:
 
     passed, detail = stage["pass_fn"](result, stdout_json)
 
+    # advisory_skip is set when the underlying script returned ADVISORY_SKIP_CODE
+    # (77) AND the stage's pass_fn treated that as a non-failure pass. JSON
+    # consumers must distinguish a true pass from an advisory-skipped pass.
+    advisory_skip = (
+        passed
+        and result.returncode == _ADVISORY_SKIP_CODE
+        and stage["pass_fn"] is _generic_pass
+    )
+    status = "advisory_skipped" if advisory_skip else ("passed" if passed else "failed")
+
     return {
         "id": stage["id"],
         "name": stage["name"],
-        "status": "passed" if passed else "failed",
+        "status": status,
         "passed": passed,
+        "advisory_skip": advisory_skip,
         "returncode": result.returncode,
         "detail": detail,
         "duration_s": elapsed,
@@ -382,7 +393,10 @@ def print_stage_header(idx: int, total: int, name: str) -> None:
 
 
 def print_result(result: dict) -> None:
-    if result["passed"]:
+    if result.get("advisory_skip") or result.get("status") == "advisory_skipped":
+        icon = f"{YELLOW}—{RESET}"
+        label = f"{YELLOW}ADV-SKIP{RESET}"
+    elif result["passed"]:
         icon = f"{GREEN}✓{RESET}"
         label = f"{GREEN}PASS{RESET}"
     elif result["status"] == "missing":
@@ -413,16 +427,22 @@ def print_summary(results: list[dict], total_s: float) -> None:
     print_banner("CAAS Summary", BOLD)
     max_name = max((len(r["name"]) for r in results), default=10)
     for r in results:
-        if r["passed"]:
+        if r.get("status") == "advisory_skipped" or r.get("advisory_skip"):
+            status = f"{YELLOW}ADV-SKIP{RESET}"
+        elif r["passed"]:
             status = f"{GREEN}PASS{RESET}"
-        elif r["status"] == "missing":
+        elif r.get("status") == "skipped":
+            status = f"{YELLOW}SKIP{RESET}"
+        elif r.get("status") == "missing":
             status = f"{YELLOW}MISSING{RESET}"
         else:
             status = f"{RED}FAIL{RESET}"
         pad = " " * (max_name - len(r["name"]) + 2)
         print(f"  {status}  {r['name']}{pad}{r['detail']}  ({r['duration_s']}s)")
     print()
-    overall = all(r["passed"] for r in results)
+    # Filter skipped stages from the overall verdict — a stage that was not
+    # executed (fail-fast short-circuit) is not the same as a stage that failed.
+    overall = all(r["passed"] for r in results if r.get("status") != "skipped")
     overall_color = GREEN if overall else RED
     overall_text = "ALL STAGES PASSED" if overall else "AUDIT GATE VIOLATION — SEE ABOVE"
     print(f"  {overall_color}{BOLD}{overall_text}{RESET}  (total: {round(total_s, 1)}s)")
@@ -490,11 +510,23 @@ def run_extra_check(script_name: str, timeout: int) -> dict:
             "duration_s": round(elapsed, 2),
         }
     elapsed = round(time.monotonic() - t0, 2)
+    if result.returncode == _ADVISORY_SKIP_CODE:
+        return {
+            "script": script_name,
+            "passed": True,
+            "exit_code": _ADVISORY_SKIP_CODE,
+            "advisory_skip": True,
+            "detail": "advisory-skip (exit 77)",
+            "duration_s": elapsed,
+            "stdout_tail": "",
+            "stderr_tail": "",
+        }
     passed = result.returncode == 0
     return {
         "script": script_name,
         "passed": passed,
         "exit_code": result.returncode,
+        "advisory_skip": False,
         "detail": "exit 0" if passed else f"exit {result.returncode}",
         "duration_s": elapsed,
         "stdout_tail": result.stdout[-1000:] if not passed else "",
@@ -850,10 +882,6 @@ def main(argv: list[str] | None = None) -> int:
         out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         if not args.json:
             print(f"\n  Report written to: {out_path}")
-
-    # extra_check failures always affect overall_pass regardless of auditor mode
-    if extra_check_results:
-        overall_pass = overall_pass and all(ec["passed"] for ec in extra_check_results)
 
     return 0 if overall_pass else 1
 

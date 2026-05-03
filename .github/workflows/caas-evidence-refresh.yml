@@ -113,9 +113,11 @@ jobs:
           python3 ci/security_autonomy_check.py --json -o docs/SECURITY_AUTONOMY_KPI.json
 
       - name: Regenerate audit dashboard (H-9)
-        run: |
-          python3 ci/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md \
-            || echo "::warning::render_audit_dashboard.py failed — dashboard may be stale"
+        # Hard-fail: render_audit_dashboard.py only reads local JSON + git log
+        # and must always succeed. A failure here means a schema regression in
+        # one of its input files; allowing a stale dashboard to be committed
+        # silently was masking the bug.
+        run: python3 ci/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md
 
       - name: Regenerate exploit traceability join (G-9b)
         run: |

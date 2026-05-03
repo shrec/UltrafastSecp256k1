@@ -64,11 +64,17 @@ jobs:
           ./build/audit/test_cross_libsecp256k1
 
   # ── dudect smoke (fast gate ≈ 60 s) ─────────────────────────────────────
+  # Smoke runs unconditionally — it is a fast (~60 s) sanity gate that the
+  # dudect harness still builds and produces a verdict. The previous
+  # `if: fromJSON(inputs.dudect_timeout) < 600` condition was effectively dead
+  # because the default input is 1800, so the smoke never ran by default.
+  # If the user dispatches with a long timeout they want the full dudect,
+  # but they always also want the smoke gate to confirm the harness still
+  # works.
   # Note: trigger is workflow_dispatch only — pull_request condition was dead
   # code (never reachable). Use workflow_call: from ci.yml for PR gate.
   dudect-smoke:
     name: dudect Smoke
-    if: ${{ fromJSON(inputs.dudect_timeout) < 600 }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -54,13 +54,20 @@ jobs:
         run: python3 ci/preflight.py --abi
 
       - name: Preflight -- Coverage gaps (advisory)
-        run: python3 ci/preflight.py --coverage || true
+        # Advisory: coverage regressions surface as a yellow step in the UI
+        # rather than silently passing. "|| true" was previously masking the
+        # outcome entirely.
+        continue-on-error: true
+        run: python3 ci/preflight.py --coverage
 
       - name: Preflight -- Graph freshness (hard-fail)
         run: python3 ci/preflight.py --freshness
 
       - name: Preflight -- Changed files impact (advisory)
-        run: python3 ci/preflight.py --changed || true
+        # Advisory: changed-file impact analysis is informational; surface
+        # any non-zero outcome as a yellow step in the UI.
+        continue-on-error: true
+        run: python3 ci/preflight.py --changed
 
       - name: Preflight -- Code quality gate (hard-fail on regression)
         run: python3 ci/preflight.py --bug-scan

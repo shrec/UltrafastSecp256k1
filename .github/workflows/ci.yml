@@ -969,13 +969,40 @@ jobs:
           python3 -c "
           import json, sys
           d = json.load(open('stage1b_traceability.json'))
-          if not d.get('pass', d.get('passed', True)):
+          # Fail-safe default: if neither 'pass' nor 'passed' is present (e.g.
+          # schema regression or partial output) treat the result as FAIL, not
+          # silently as a pass.
+          if not d.get('pass', d.get('passed', False)):
               print('::error::Stage 1b: exploit traceability join failed — see stage1b_traceability.json')
               sys.exit(1)
           "
 
       - name: Stage 2 — Audit gate (P0–P18)
-        run: python3 ci/audit_gate.py --json -o stage2_audit_gate.json
+        # The gate exit code is the source of truth; the JSON report is for
+        # later inspection. Surfacing both protects against either signal
+        # being silently dropped.
+        run: |
+          set +e
+          python3 ci/audit_gate.py --json -o stage2_audit_gate.json
+          GATE_EXIT=$?
+          set -e
+          python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('stage2_audit_gate.json'))
+              v = d.get('audit_verdict', 'unknown')
+              s = d.get('summary', {})
+              print(f'verdict={v}  blocking={s.get(\"blocking\", 0)}  advisory={s.get(\"advisory\", 0)}')
+              for c in d.get('checks', []):
+                  if c.get('status') == 'FAIL':
+                      print(f'  FAIL: {c.get(\"name\", \"<unnamed>\")}')
+          except Exception as e:
+              print(f'(could not parse gate report: {e})')
+          "
+          if [ "${GATE_EXIT}" -ne 0 ]; then
+              echo "::error::Stage 2: audit_gate.py exited ${GATE_EXIT}"
+              exit "${GATE_EXIT}"
+          fi
 
       - name: Stage 3 — Security autonomy check
         run: |
@@ -983,7 +1010,8 @@ jobs:
           python3 -c "
           import json, sys
           d = json.load(open('stage3_autonomy.json'))
-          if not d.get('autonomy_ready', d.get('passed', True)):
+          # Fail-safe default: missing keys must NOT silently pass the gate.
+          if not d.get('autonomy_ready', d.get('passed', False)):
               print('::error::Stage 3: security autonomy check failed — see stage3_autonomy.json')
               sys.exit(1)
           "
@@ -1019,7 +1047,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: caas-full-${{ github.sha }}
+          # run_id distinguishes re-runs on the same commit; using github.sha
+          # alone caused later runs to silently overwrite earlier artifacts.
+          name: caas-full-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             stage1a_scanner.json
             stage1b_traceability.json

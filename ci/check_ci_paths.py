@@ -11,6 +11,28 @@ Actions after a local refactor that moved a script.
 Usage:
     python3 ci/check_ci_paths.py          # report, exit 1 if missing
     python3 ci/check_ci_paths.py --fix    # show fix hints
+
+KNOWN COVERAGE GAPS (see workingdocs/ci_caas_infrastructure_audit_2026-05-03.md
+finding M-4 for rationale; the gate.yml comment says "Fails fast if any
+script/file referenced in workflows doesn't exist" — the implementation is
+weaker than that claim and the limitations below must be accepted by readers
+of this gate):
+
+  1. Bare `run: ./ci/foo.sh` lines without an interpreter prefix may slip past
+     the YAML_PATH_PATTERNS regex when followed only by a single space and
+     nothing else (`run:` + multi-line `|` is covered, but inline single-line
+     `run: ./ci/foo.sh` is best-effort).
+  2. Scripts called via `subprocess.run(["python3", "ci/foo.py"])` from inside
+     other Python scripts are NOT scanned — this gate only inspects YAML
+     workflow files and `ci/*.sh` shell scripts.
+  3. Variable-interpolated paths (`run: python3 ${SCRIPT_DIR}/foo.py`) are
+     skipped because the variable cannot be resolved statically.
+
+These gaps are intentional: a fully sound static check would require parsing
+each shell command tree. For belt-and-suspenders coverage, every important
+script also has a matching positive-path step (one that *executes* it) in the
+preflight or caas workflow — so a missing script will still surface as a
+runtime ::error:: even if this scanner misses it.
 """
 
 import re
@@ -27,8 +49,10 @@ YAML_PATH_PATTERNS = [
     re.compile(r'(?:bash|sh|python3?|perl|node)\s+([./]?(?:ci|scripts|tools)/[\w./\-]+\.(?:sh|py|js))'),
     # chmod +x path
     re.compile(r'chmod\s+\+x\s+([./]?(?:ci|scripts|tools)/[\w./\-]+\.sh)'),
-    # run: ./path style
-    re.compile(r'run:\s*\|\s*\n\s+\./([ci|scripts|tools]/[\w./\-]+\.sh)'),
+    # run: ./path style (multi-line `|` block)
+    re.compile(r'run:\s*\|\s*\n\s+\./((?:ci|scripts|tools)/[\w./\-]+\.sh)'),
+    # Inline `run: ./ci/foo.sh ARGS` or `run: ci/foo.sh ARGS` on one line
+    re.compile(r'run:\s+\.?/?((?:ci|scripts|tools)/[\w./\-]+\.(?:sh|py|js))(?:\s|$)'),
 ]
 
 # Patterns in shell scripts

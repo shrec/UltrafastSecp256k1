@@ -93,17 +93,52 @@ def collect_platform() -> dict:
     }
 
 
+_FALLBACK_GATE_PATHS = (
+    # Files written by the CI workflows in priority order. Used when running
+    # the dashboard from a cold runner (no DB) where the live invocation of
+    # audit_gate.py would crash with sys.exit(1).
+    "caas_audit_gate.json",
+    "stage2_audit_gate.json",
+    "out/reports/caas_audit_gate.json",
+)
+
+
+def _read_fallback(name_candidates: tuple[str, ...]) -> dict | None:
+    """Find and load the first matching report file. Returns None if absent."""
+    for name in name_candidates:
+        p = LIB_ROOT / name
+        if p.exists():
+            data = _load_json(p)
+            if isinstance(data, dict):
+                data["_source"] = f"fallback:{name}"
+                return data
+    return None
+
+
 def collect_audit_gate() -> dict:
     try:
         raw = subprocess.run(
             ["python3", "ci/audit_gate.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
-        if raw.returncode != 0 and not raw.stdout.strip():
-            return {"error": raw.stderr[:300]}
-        return json.loads(raw.stdout)
+        if raw.returncode == 0 and raw.stdout.strip():
+            d = json.loads(raw.stdout)
+            d["_source"] = "live"
+            return d
+        # Live run failed (cold runner / no DB / timeout) — fall back to the
+        # most recent on-disk JSON produced by a prior CI step. This avoids the
+        # dashboard rendering "?" for every gate just because audit_gate.py
+        # could not bootstrap its DB at view time.
+        fallback = _read_fallback(_FALLBACK_GATE_PATHS)
+        if fallback is not None:
+            return fallback
+        err = raw.stderr[:300] if raw.stderr else f"exit {raw.returncode}"
+        return {"error": err, "_source": "live-failed"}
     except Exception as exc:
-        return {"error": str(exc)}
+        fallback = _read_fallback(_FALLBACK_GATE_PATHS)
+        if fallback is not None:
+            return fallback
+        return {"error": str(exc), "_source": "live-exception"}
 
 
 def collect_preflight_checks() -> list[dict]:
@@ -146,24 +181,42 @@ def collect_preflight_checks() -> list[dict]:
     return checks
 
 
+_FALLBACK_AUTONOMY_PATHS = (
+    "caas_autonomy.json",
+    "stage3_autonomy.json",
+    "docs/SECURITY_AUTONOMY_KPI.json",
+    "out/reports/caas_autonomy.json",
+)
+
+
 def collect_autonomy() -> dict:
     try:
         raw = subprocess.run(
             ["python3", "ci/security_autonomy_check.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
+        if raw.returncode == 0 and raw.stdout.strip():
+            d = json.loads(raw.stdout)
+            d["_source"] = "live"
+            return d
+        # Cold-runner fallback — see collect_audit_gate() for rationale.
+        fallback = _read_fallback(_FALLBACK_AUTONOMY_PATHS)
+        if fallback is not None:
+            return fallback
         if raw.returncode != 0:
             return {
                 "autonomy_score": 0,
                 "overall_pass": False,
                 "error": f"security_autonomy_check.py exited {raw.returncode}",
                 "stderr": raw.stderr[:200],
+                "_source": "live-failed",
             }
-        if not raw.stdout.strip():
-            return {"error": "no output", "overall_pass": False}
-        return json.loads(raw.stdout)
+        return {"error": "no output", "overall_pass": False, "_source": "live-empty"}
     except Exception as exc:
-        return {"error": str(exc), "overall_pass": False}
+        fallback = _read_fallback(_FALLBACK_AUTONOMY_PATHS)
+        if fallback is not None:
+            return fallback
+        return {"error": str(exc), "overall_pass": False, "_source": "live-exception"}
 
 
 def collect_claims() -> list[dict]:

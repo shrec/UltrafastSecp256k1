@@ -414,6 +414,53 @@ except Exception as e:
           print("::notice::Audit bundle PASS — all integrity checks verified")
           EOF
 
+      - name: Stage 5b — Owner-grade audit bundle
+        # Produces build/owner_audit/owner_audit_bundle.json — the comprehensive
+        # owner-facing bundle (CT evidence, auditor mode, failure matrix strict
+        # analysis, benchmark publishability). Previously local-only; now
+        # produced on every CAAS run and persisted as an artifact.
+        run: |
+          python3 ci/build_owner_audit_bundle.py \
+            --output-dir build/owner_audit
+          ls -la build/owner_audit/
+          python3 -c "
+          import json, sys, pathlib
+          p = pathlib.Path('build/owner_audit/owner_audit_bundle.json')
+          if not p.exists():
+              print('::error::owner_audit_bundle.json was not produced')
+              sys.exit(1)
+          d = json.loads(p.read_text())
+          print(f\"  generated_at: {d.get('generated_at','?')}\")
+          print(f\"  commit:       {d.get('git',{}).get('commit','?')}\")
+          print(f\"  surfaces:     {len(d.get('surfaces',[]))}\")
+          "
+
+      - name: Stage 5c — Validate produced reports against schema
+        # Schema validation guards against silent regressions (renamed fields,
+        # missing keys) that would let a malformed report pass downstream gates.
+        run: |
+          set +e
+          FAIL=0
+          for f in caas_bundle_verify.json build/owner_audit/owner_audit_bundle.json; do
+              if [ ! -f "$f" ]; then
+                  echo "::warning::schema validate: $f not found — skipping"
+                  continue
+              fi
+              python3 ci/report_schema.py --validate "$f"
+              rc=$?
+              if [ $rc -ne 0 ]; then
+                  echo "::error::schema validation failed for $f (rc=$rc)"
+                  FAIL=1
+              else
+                  echo "::notice::schema validation PASS for $f"
+              fi
+          done
+          # Schema validation is currently advisory: producers may not yet emit
+          # all canonical fields. continue-on-error keeps this visible without
+          # blocking until all reports are migrated to the unified schema.
+          exit 0
+        continue-on-error: true
+
       - name: Upload audit bundle artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -423,6 +470,8 @@ except Exception as e:
             docs/EXTERNAL_AUDIT_BUNDLE.json
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             caas_bundle_verify.json
+            build/owner_audit/owner_audit_bundle.json
+            build/owner_audit/owner_audit_bundle.txt
           retention-days: 90
 
       - name: Step summary
@@ -476,10 +525,13 @@ except Exception as e:
         run: python3 ci/check_bitcoin_core_test_results.py
 
       - name: Source Graph Quality Gate (advisory — not a hard gate)
-        # advisory: || true intentional — source_graph.db may be absent in
-        # lightweight CI clones.  Hard-fail version runs in preflight.yml
-        # (CAAS Stage 2d) and in the audit_gate G-12 check.
-        run: python3 ci/check_source_graph_quality.py || true
+        # Advisory in this profile because source_graph.db may be absent in
+        # lightweight CI clones. Hard-fail version runs in preflight.yml
+        # (CAAS Stage 2d) and in the audit_gate G-12 check. continue-on-error
+        # is used instead of "|| true" so a regression is yellow in the UI
+        # (visible to auditors) rather than silently green.
+        continue-on-error: true
+        run: python3 ci/check_source_graph_quality.py
 
       - name: Bitcoin Core Profile Summary
         if: always()
@@ -513,7 +565,17 @@ except Exception as e:
         with:
           egress-policy: audit
 
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
       - name: Evaluate overall CAAS result
+        id: evaluate
         run: |
           python3 - <<'EOF'
           import sys, os
@@ -526,6 +588,14 @@ except Exception as e:
               "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
           }
 
+          # Bundle is the only stage that can be legitimately skipped (via the
+          # workflow_dispatch skip_bundle input). Track that separately so the
+          # final summary does not falsely claim "all 5 stages verified" when
+          # 4+5 was deliberately skipped.
+          bundle_skipped = results["bundle"] == "skipped"
+          other_skipped = [s for s, r in results.items()
+                           if r == "skipped" and s != "bundle"]
+
           print("## CAAS Pipeline Results")
           all_pass = True
           for stage, result in results.items():
@@ -534,10 +604,24 @@ except Exception as e:
               if result not in ("success", "skipped"):
                   all_pass = False
 
+          # Surface the skip context so the GH step summary and downstream
+          # auditors can tell apart "bundle skipped on purpose" from "bundle ran".
+          gh_out = os.environ.get("GITHUB_OUTPUT")
+          if gh_out:
+              with open(gh_out, "a") as f:
+                  f.write(f"all_pass={'true' if all_pass else 'false'}\n")
+                  f.write(f"bundle_skipped={'true' if bundle_skipped else 'false'}\n")
+                  f.write(f"other_skipped={','.join(other_skipped)}\n")
+
           if all_pass:
               print()
-              print("ALL CAAS STAGES PASSED")
-              print("This commit meets the full audit gate requirements.")
+              if bundle_skipped:
+                  print("ALL EXECUTED CAAS STAGES PASSED")
+                  print("NOTE: bundle (Stage 4+5) was skipped — evidence "
+                        "artifact NOT produced this run.")
+              else:
+                  print("ALL CAAS STAGES PASSED")
+                  print("This commit meets the full audit gate requirements.")
           else:
               failed = [s for s, r in results.items() if r not in ("success", "skipped")]
               print()
@@ -545,6 +629,45 @@ except Exception as e:
               print("Fix all failing stages before merging.")
               sys.exit(1)
           EOF
+
+      - name: Record evidence in tamper-resistant chain
+        # Append a verdict record to docs/EVIDENCE_CHAIN.json so retrospective
+        # audits can answer "was the gate passing on commit X" beyond the 90-day
+        # GitHub artifact retention window. HMAC is content-tamper detection
+        # only (key is in-repo); cryptographic non-repudiation requires a secret
+        # key via the CAAS_HMAC_KEY env var.
+        if: always()
+        env:
+          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY || '' }}
+        run: |
+          set +e
+          VERDICT="pass"
+          if [ "${{ steps.evaluate.outputs.all_pass }}" != "true" ]; then
+              VERDICT="fail"
+          fi
+          REASON="caas-pipeline run_id=${{ github.run_id }}"
+          if [ "${{ steps.evaluate.outputs.bundle_skipped }}" = "true" ]; then
+              REASON="${REASON} (bundle skipped via workflow_dispatch)"
+          fi
+          python3 ci/evidence_governance.py record \
+              --who "caas-ci" \
+              --what "caas-full-pipeline" \
+              --verdict "${VERDICT}" \
+              --reason "${REASON}" || \
+              echo "::warning::evidence_governance record failed (non-blocking)"
+          # Validate chain integrity even if record failed.
+          python3 ci/evidence_governance.py validate || \
+              echo "::warning::evidence_governance validate reported issues"
+          exit 0
+
+      - name: Upload evidence chain snapshot
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-evidence-chain-${{ github.run_id }}
+          path: docs/EVIDENCE_CHAIN.json
+          retention-days: 365
+          if-no-files-found: warn
 
       - name: Final step summary
         if: always()
@@ -557,7 +680,15 @@ except Exception as e:
           | Static Analysis | ${{ needs.scanner.result }} |
           | Audit Gate (P0–P18) | ${{ needs.audit_gate.result }} |
           | Security Autonomy (100/100) | ${{ needs.security_autonomy.result }} |
-          | Audit Bundle | ${{ needs.bundle.result }} |
+          | Audit Bundle (Stage 4+5) | ${{ needs.bundle.result }} |
+          | Bitcoin Core Profile | ${{ needs.bitcoin_core_profile.result }} |
 
           > "ლოუ პრიორიტი ჩვენთან არ არსებობს" — Every finding is a violation.
           EOF
+          if [ "${{ steps.evaluate.outputs.bundle_skipped }}" = "true" ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "> ⚠ NOTE: bundle (Stage 4+5) was skipped this run via the" \
+                   "\`skip_bundle\` workflow_dispatch input — evidence artifact" \
+                   "was NOT produced. This is not a full 5-stage verification." \
+                   >> "$GITHUB_STEP_SUMMARY"
+          fi

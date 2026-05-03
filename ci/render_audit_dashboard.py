@@ -277,8 +277,17 @@ def render(profile: str = "default") -> str:
     out.append(_format_caas_pipeline(kpi))
 
     out.append(_section('Assurance Report'))
-    rep = _load_json(SUITE_ROOT / 'out/reports/assurance_report.json') \
+    # Search the locations where assurance_report.json may live, in priority order:
+    #   1. parent suite workspace (SUITE_ROOT/out/reports/) — local development
+    #   2. submodule out/reports/                          — produced by preflight.yml
+    #   3. submodule root                                  — produced by export_assurance.py
+    #      via caas-evidence-refresh.yml (default output path)
+    # Ordering reflects "most-curated → least-curated"; fall back if absent.
+    rep = (
+        _load_json(SUITE_ROOT / 'out/reports/assurance_report.json')
         or _load_json(REPO_ROOT / 'out/reports/assurance_report.json')
+        or _load_json(REPO_ROOT / 'assurance_report.json')
+    )
     out.append(_format_assurance(rep))
 
     out.append(_section('Evidence Bundle'))
