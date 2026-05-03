@@ -106,6 +106,42 @@ def _freshness_badge(mtime: float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Shared dark theme
+# ---------------------------------------------------------------------------
+
+_DARK_BASE = """
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--border:#30363d;
+--text:#e6edf3;--text2:#8b949e;--blue:#58a6ff;--cyan:#39d353;
+--green:#3fb950;--yellow:#d29922;--red:#f85149;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);
+color:var(--text);font-size:14px;line-height:1.6}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);
+padding:.5rem 1.2rem;display:flex;gap:1rem;align-items:center;font-size:.82rem;
+position:sticky;top:0;z-index:100}
+.nav a{color:var(--text2)}
+.nav a:hover{color:var(--text)}
+.wrap{max-width:1400px;margin:0 auto;padding:1rem 1.2rem}
+h1{font-size:1.2rem;font-weight:600;margin:.8rem 0 .6rem;color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{background:var(--bg3);color:var(--text2);font-weight:600;text-align:left;
+padding:.4rem .7rem;border-bottom:1px solid var(--border);font-size:.72rem;letter-spacing:.04em}
+td{padding:.35rem .7rem;border-bottom:1px solid #21262d;vertical-align:top}
+tr:hover td{background:#1c2128}
+code{background:var(--bg3);border:1px solid var(--border);border-radius:3px;
+padding:.1em .35em;font-size:.82em;font-family:monospace}
+"""
+
+_NAV_HTML = (
+    '<nav class="nav">'
+    '<a href="/">Dashboard</a>'
+    '<a href="/artifacts/">Artifacts</a>'
+    '<a href="/refresh">Refresh</a>'
+    '</nav>'
+)
+
+# ---------------------------------------------------------------------------
 # Artifact index with search + freshness
 # ---------------------------------------------------------------------------
 
@@ -116,7 +152,8 @@ def render_artifacts_index() -> str:
             continue
         rel_root = root.relative_to(LIB_ROOT)
         rows.append(
-            f'<tr class="group-header"><td colspan="4" style="background:#f0f0f0;font-weight:bold;">'
+            f'<tr class="group-header"><td colspan="4"'
+            f' style="background:var(--bg2);color:var(--text2);font-weight:600;padding:.6rem .7rem">'
             f'{html.escape(str(rel_root))}/</td></tr>'
         )
         for p in sorted(root.rglob("*")):
@@ -134,42 +171,35 @@ def render_artifacts_index() -> str:
             rows.append(
                 '<tr class="artifact-row">'
                 f'<td><a href="/artifacts/{html.escape(str(rel))}">{html.escape(str(rel))}</a></td>'
-                f'<td style="text-align:right;">{st.st_size:,}</td>'
-                f'<td>{mtime_str}</td>'
+                f'<td style="text-align:right;color:var(--text2)">{st.st_size:,}</td>'
+                f'<td style="color:var(--text2)">{mtime_str}</td>'
                 f'<td>{badge}</td>'
                 '</tr>'
             )
     if not any(root.exists() for root in ARTIFACT_ROOTS):
-        rows.append('<tr><td colspan="4"><i>No artifact directories present yet.</i></td></tr>')
+        rows.append('<tr><td colspan="4" style="color:var(--text2)"><i>No artifact directories present yet.</i></td></tr>')
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>CAAS Artifacts</title>
 <style>
-  body {{ font-family: monospace; max-width: 1400px; margin: 1em auto; padding: 0 1em; }}
-  table {{ border-collapse: collapse; width: 100%; }}
-  th, td {{ padding: 0.35em 0.8em; border-bottom: 1px solid #eee; text-align: left; }}
-  th {{ background: #f0f0f0; }}
-  a {{ color: #0066cc; text-decoration: none; }}
-  a:hover {{ text-decoration: underline; }}
-  .nav {{ margin-bottom: 1em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; }}
-  .nav a {{ margin-right: 1em; color: #0066cc; }}
-  .group-header td {{ padding-top: 0.8em; }}
-  #search-box {{ width: 100%; padding: 0.5em; margin-bottom: 0.8em;
-    font-size: 1em; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }}
-  .artifact-row.hidden {{ display: none; }}
+{_DARK_BASE}
+#search-box{{width:100%;padding:.45em .7em;margin:.6rem 0;font-size:.9em;
+background:var(--bg3);border:1px solid var(--border);border-radius:5px;
+color:var(--text);outline:none}}
+#search-box:focus{{border-color:var(--blue)}}
+.artifact-row.hidden{{display:none}}
+.group-header{{user-select:none}}
 </style>
 </head><body>
-<div class="nav">
-  <a href="/">Dashboard</a>
-  <a href="/artifacts/">All Artifacts</a>
-  <a href="/refresh">Refresh</a>
-</div>
-<h1>CAAS Artifacts</h1>
+{_NAV_HTML}
+<div class="wrap">
+<h1>Artifacts</h1>
 <input id="search-box" type="search" placeholder="Filter by path, type, or keyword…" oninput="filterRows(this.value)">
 <table id="artifact-table">
-<tr><th>Path</th><th style="text-align:right;">Size (B)</th><th>Modified</th><th>Freshness</th></tr>
+<tr><th>Path</th><th style="text-align:right">Size (B)</th><th>Modified</th><th>Freshness</th></tr>
 {"".join(rows)}
 </table>
+</div>
 <script>
 function filterRows(q) {{
   q = q.toLowerCase();
@@ -177,7 +207,6 @@ function filterRows(q) {{
     var text = row.textContent.toLowerCase();
     row.classList.toggle('hidden', q.length > 0 && text.indexOf(q) === -1);
   }});
-  // Show group headers only if at least one visible artifact row follows them
   document.querySelectorAll('#artifact-table .group-header').forEach(function(hdr) {{
     var sib = hdr.nextElementSibling;
     var hasVisible = false;
@@ -435,58 +464,45 @@ def render_json_html(data) -> str:
 # Per-file rendering
 # ---------------------------------------------------------------------------
 
-_PAGE_CSS = """
-  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-         max-width: 1400px; margin: 1em auto; padding: 0 1em; color: #222; }
-  .nav { margin-bottom: 1em; padding-bottom: 0.6em; border-bottom: 1px solid #ddd; }
-  .nav a { margin-right: 1em; color: #0066cc; text-decoration: none; }
-  h1,h2,h3,h4 { margin: 1em 0 .4em; }
-  h1 { font-size:1.5em; } h2 { font-size:1.25em; } h3 { font-size:1.1em; }
-  p { margin: .6em 0; line-height: 1.6; }
-  ul { margin: .4em 0 .4em 1.5em; }
-  hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
-  h2.file-path { font-family: monospace; font-size: 1.05em; word-break: break-all; }
-  .meta { color: #666; margin-bottom: 0.6em; font-size: 0.9em; }
-  pre { font-family: monospace; background: #f7f7f7; padding: 1em; overflow: auto;
-        line-height: 1.4; border: 1px solid #eee; border-radius: 3px; }
-  code { background:#f0f0f0; border:1px solid #e0e0e0; border-radius:3px;
-         padding:.1em .35em; font-size:.88em; }
-  pre code { background:none; border:none; padding:0; }
-  .json-toolbar { margin-bottom: 0.6em; }
-  .rawlink { color: #0066cc; font-size: 0.9em; }
-  .md-body { max-width: 860px; }
-  table.kv { border-collapse: collapse; width: 100%; margin: 0.2em 0; }
-  table.kv > tr > th.kcol {
-    text-align: left; padding: 0.25em 0.7em 0.25em 0;
-    font-weight: 600; color: #333; vertical-align: top;
-    white-space: nowrap; min-width: 11em;
-    border-bottom: 1px dotted #eee;
-  }
-  table.kv > tr > td { padding: 0.25em 0; vertical-align: top; border-bottom: 1px dotted #eee; }
-  table.rows { border-collapse: collapse; margin: 0.4em 0; min-width: 60%; }
-  table.rows th, table.rows td { padding: 0.3em 0.7em; border: 1px solid #e2e2e2;
+_PAGE_CSS = _DARK_BASE + """
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 1rem 1.2rem; }
+  h2.file-path { font-family: monospace; font-size: 1em; word-break: break-all;
+    color: var(--cyan); margin: .6rem 0 .3rem; font-weight: 600; }
+  .meta { color: var(--text2); margin-bottom: .6rem; font-size: .82em; }
+  pre { font-family: 'Cascadia Code','Fira Code',monospace; background: var(--bg2);
+    color: var(--text); padding: 1em; overflow: auto; line-height: 1.5;
+    border: 1px solid var(--border); border-radius: 5px; font-size: .82em; }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+  .json-toolbar { margin-bottom: .5rem; }
+  .rawlink { color: var(--blue); font-size: .85em; }
+  .md-body { max-width: 860px; line-height: 1.7; }
+  .md-body h1,.md-body h2,.md-body h3,.md-body h4 { margin: 1em 0 .4em; color: var(--blue); }
+  .md-body p { margin: .6em 0; color: var(--text); }
+  .md-body ul { margin: .4em 0 .4em 1.5em; color: var(--text); }
+  .md-body hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+  table.kv { border-collapse: collapse; width: 100%; margin: .2em 0; }
+  table.kv > tr > th.kcol { text-align: left; padding: .25em .7em .25em 0;
+    font-weight: 600; color: var(--blue); vertical-align: top;
+    white-space: nowrap; min-width: 11em; border-bottom: 1px solid var(--border); }
+  table.kv > tr > td { padding: .25em 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+  table.rows { border-collapse: collapse; margin: .4em 0; min-width: 60%; }
+  table.rows th, table.rows td { padding: .3em .7em; border: 1px solid var(--border);
     text-align: left; vertical-align: top; }
-  table.rows th { background: #f3f3f3; font-weight: 600; }
-  table.rows tr:nth-child(even) td { background: #fafafa; }
-  ol.arr { margin: 0.2em 0 0.2em 1.5em; padding: 0; }
-  ol.arr > li { margin: 0.2em 0; }
-  details { margin: 0.2em 0; }
-  details > summary { cursor: pointer; color: #555; font-style: italic; }
-  .json-tree { font-size: 14px; }
-  .v-str  { color: #1a7f1a; }
-  .v-num  { color: #b35900; font-variant-numeric: tabular-nums; }
-  .v-bool { color: #5a3fc0; font-weight: 600; }
-  .v-null { color: #999; font-style: italic; }
-  .v-empty { color: #999; font-style: italic; }
+  table.rows th { background: var(--bg3); font-weight: 600; color: var(--text2); font-size:.72rem; }
+  table.rows tr:nth-child(even) td { background: var(--bg2); }
+  ol.arr { margin: .2em 0 .2em 1.5em; padding: 0; }
+  ol.arr > li { margin: .2em 0; }
+  details { margin: .2em 0; }
+  details > summary { cursor: pointer; color: var(--text2); font-style: italic; }
+  .json-tree { font-size: 13px; }
+  .v-str  { color: #7ee787; }
+  .v-num  { color: #ffa657; font-variant-numeric: tabular-nums; }
+  .v-bool { color: #bc8cff; font-weight: 600; }
+  .v-null { color: var(--text2); font-style: italic; }
+  .v-empty { color: var(--text2); font-style: italic; }
 """
 
-_NAV = (
-    '<div class="nav">'
-    '<a href="/">Dashboard</a>'
-    '<a href="/artifacts/">All Artifacts</a>'
-    '<a href="/refresh">Refresh</a>'
-    '</div>'
-)
+_NAV = _NAV_HTML
 
 
 def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
@@ -578,9 +594,11 @@ def render_artifact_page(path: Path, raw: bool = False) -> tuple[bytes, str]:
 <html><head><meta charset="utf-8"><title>{html.escape(str(rel))}</title>
 <style>{_PAGE_CSS}</style></head><body>
 {_NAV}
+<div class="wrap">
 <h2 class="file-path">{html.escape(str(rel))}</h2>
 {meta}
 {body_html}
+</div>
 </body></html>"""
     return page.encode("utf-8"), "text/html; charset=utf-8"
 
