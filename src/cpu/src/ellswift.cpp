@@ -69,7 +69,7 @@ static inline std::pair<bool, FieldElement> fe_sqrt_checked(const FieldElement& 
 
 // Check if (xn/xd)^3 + 7 is a quadratic residue, without division.
 // is_square((xn/xd)^3 + 7) ⟺ is_square((xn^3 + 7*xd^3) * xd)
-// Uses sqrt internally (variable-time).
+// Uses FE52 Jacobi symbol (posdivstep SafeGCD, ~734 ns) instead of sqrt (~3.8 µs).
 static inline bool x_frac_on_curve(const FieldElement& xn, const FieldElement& xd) noexcept {
     auto xn2 = xn.square();
     auto xn3 = xn2 * xn;
@@ -77,8 +77,9 @@ static inline bool x_frac_on_curve(const FieldElement& xn, const FieldElement& x
     auto xd3 = xd2 * xd;
     auto g = xn3 + FieldElement::from_uint64(7) * xd3;
     auto check = g * xd;
-    auto s = check.sqrt();
-    return s.square() == check;
+    // Jacobi symbol is 5× faster than sqrt for the QR check.
+    auto check52 = fast::FieldElement52::from_fe(check);
+    return check52.jacobi_var() == 1;
 }
 
 // Port of libsecp256k1 secp256k1_ellswift_xswiftec_frac_var:

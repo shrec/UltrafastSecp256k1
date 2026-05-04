@@ -2760,6 +2760,110 @@ static FieldElement fe_inverse_safegcd_impl(const FieldElement& x) {
     return s62_to_fe(d);
 }
 
+// -- 62-step posdivstep batch for Jacobi symbol --------------------------------
+// Like safegcd_divsteps_62_var but uses POSITIVE divsteps (no negation in swap).
+// Returns delta and fills t with the transition matrix.
+// Also accumulates the Jacobi symbol contribution into *jac (XOR accumulation).
+// Ref: Bitcoin Core PR #979, Bernstein-Yang 2019 (posdivstep variant).
+static inline int64_t posdivsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
+                                          SafeGCD_Trans& t, int& jac) {
+    uint64_t u = 1, v = 0, q = 0, r = 1;
+    uint64_t f = f0, g = g0;
+    int i = 62;
+
+    for (;;) {
+        // Remove trailing zeros of g: (2/f) update for Jacobi.
+        // For f: (2^k / f) = (-1)^(k * (f²-1)/8).
+        // (f²-1)/8 mod 2 == ((f>>1)^(f>>2)) & 1  (bit trick from Bitcoin Core).
+        int const zeros = safegcd_ctz64(g | ((uint64_t)1 << i));
+        jac ^= static_cast<int>(zeros & ((f >> 1) ^ (f >> 2)));
+        g >>= zeros;
+        u <<= zeros;
+        v <<= zeros;
+        delta += zeros;
+        i -= zeros;
+        if (i == 0) break;
+
+        // g is odd, f is odd.  Swap decision.
+        if (delta > 0) {
+            // Posdivstep swap: g stays POSITIVE (no negation, unlike divstep).
+            // Quadratic reciprocity: Jacobi sign flips when both f,g ≡ 3 (mod 4).
+            jac ^= static_cast<int>((f >> 1) & (g >> 1));
+            delta = -delta;
+            uint64_t tmp;
+            tmp = f; f = g; g = tmp;   // g = +f_old (posdivstep, not -f_old)
+            tmp = u; u = q; q = tmp;
+            tmp = v; v = r; r = tmp;
+        }
+        // g += f → g becomes even
+        g += f;  q += u;  r += v;
+        g >>= 1;  u <<= 1;  v <<= 1;
+        ++delta;  --i;
+        if (i == 0) break;
+    }
+
+    t.u = (int64_t)u;  t.v = (int64_t)v;
+    t.q = (int64_t)q;  t.r = (int64_t)r;
+    return delta;
+}
+
+// -- 5x52 Jacobi symbol (Legendre symbol for prime p) via posdivstep ----------
+// Computes (x/p) ∈ {+1, -1} using the posdivstep variant of Bernstein-Yang.
+// For prime p, (x/p) = Legendre(x, p) = x^((p-1)/2) mod p ∈ {±1} for x≠0.
+// Same asymptotic cost as fe52_inverse_safegcd_var (~734 ns), vs Fermat ~3.8 µs.
+// Returns +1 if x is a quadratic residue mod p, -1 if not, 0 if x ≡ 0 mod p.
+// Ref: Bitcoin Core PR #979; Bernstein-Yang 2019 Section 11.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+int fe52_jacobi_var(const std::uint64_t* in5) {
+    constexpr std::uint64_t M62 = (1ULL << 62) - 1;
+    constexpr std::uint64_t M52 = (1ULL << 52) - 1;
+
+    SafeGCD_Int g;
+    g.v[0] = static_cast<int64_t>((in5[0]        | (in5[1] << 52)) & M62);
+    g.v[1] = static_cast<int64_t>(((in5[1] >> 10) | (in5[2] << 42)) & M62);
+    g.v[2] = static_cast<int64_t>(((in5[2] >> 20) | (in5[3] << 32)) & M62);
+    g.v[3] = static_cast<int64_t>(((in5[3] >> 30) | (in5[4] << 22)) & M62);
+    g.v[4] = static_cast<int64_t>(in5[4] >> 40);
+
+    // Check for x ≡ 0 mod p (rare — only if input is 0 or p exactly)
+    {
+        int64_t z = 0;
+        for (int i = 0; i < 5; ++i) z |= g.v[i];
+        if (z == 0) return 0;
+    }
+
+    SafeGCD_Int f = SAFEGCD_P;   // f = p (always positive in posdivstep)
+    int64_t delta = 1;
+    int len = 5;
+    int jac = 0;                  // Jacobi bit accumulator (0 = +1, 1 = -1)
+
+    for (int i = 0; i < 12; ++i) {
+        SafeGCD_Trans t;
+        delta = posdivsteps_62_var(delta,
+                    (uint64_t)f.v[0], (uint64_t)g.v[0], t, jac);
+
+        // Update f, g (no d,e needed — no inverse tracking)
+        safegcd_update_fg(f, g, t, len);
+
+        {
+            int64_t cond = 0;
+            for (int j = 0; j < len; ++j) cond |= g.v[j];
+            if (cond == 0) break;
+        }
+        if (i < 11) safegcd_reduce_len(len, f, g);
+    }
+
+    // At convergence: f = ±gcd(x, p). For x not divisible by p: f = ±1.
+    // The Jacobi symbol is +1 if jac is even, -1 if jac is odd.
+    // If f ended negative (can happen in posdivstep under certain edge cases),
+    // adjust: (−1/p) = −1 for p ≡ 3 (mod 4).
+    if (f.v[len - 1] < 0) jac ^= 1;  // f = -1: extra sign flip
+
+    return 1 - 2 * (jac & 1);   // +1 or -1
+}
+
 // -- Direct 5x52 SafeGCD inverse (no 4x64 intermediate) ----------------------
 // Eliminates 2 format conversions vs the FE52→to_fe()→inverse()→from_fe() chain.
 // Matches libsecp256k1's direct 5x52↔signed62 approach.

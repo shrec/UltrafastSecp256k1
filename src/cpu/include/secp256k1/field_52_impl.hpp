@@ -1685,6 +1685,20 @@ FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
     return r;
 }
 
+// -- Jacobi/Legendre symbol via posdivstep SafeGCD ----------------------------
+// Returns +1 (QR), -1 (NQR), or 0 (zero input).
+// Calls fe52_jacobi_var (field.cpp) — same 12-round structure as inverse_safegcd.
+
+// Forward declaration (defined in field.cpp alongside fe52_inverse_safegcd_var)
+extern int fe52_jacobi_var(const std::uint64_t* in5);
+
+SECP256K1_FE52_FORCE_INLINE
+int FieldElement52::jacobi_var() const noexcept {
+    FieldElement52 tmp = *this;
+    fe52_normalize_inline(tmp.n);
+    return fe52_jacobi_var(tmp.n);
+}
+
 } // namespace secp256k1::fast
 
 #if defined(__GNUC__)
