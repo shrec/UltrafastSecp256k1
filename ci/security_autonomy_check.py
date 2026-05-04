@@ -68,16 +68,15 @@ def _run_gate(gate: dict, timeout: int = 300) -> dict:
         # Exit 77 = ADVISORY_SKIP_CODE: optional infrastructure missing.
         # Mark as skipped (weight excluded from total) — not a failure.
         if result.returncode == 77:
-            gate_report = {
-                "raw_output": result.stdout[:500],
-                "detail": "advisory_skip: optional infrastructure unavailable",
-            }
             return {
                 "gate": gate["name"],
                 "weight": gate["weight"],
                 "status": "advisory_skip",
                 "passing": True,
-                "score": gate["weight"],
+                # F-01 fix: skipped gates earn 0 score and are excluded from the
+                # denominator — awarding full weight inflated the score to 100
+                # when all infrastructure was absent (all gates skipping).
+                "score": 0,
                 "returncode": 77,
                 "advisory_skip": True,
             }
@@ -131,13 +130,21 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
     for gate in GATES:
         results.append(_run_gate(gate, timeout))
 
-    total_weight = sum(g["weight"] for g in GATES)
-    earned_score = sum(r["score"] for r in results)
-    autonomy_score = round(earned_score / total_weight * 100) if total_weight > 0 else 0
+    # F-01 fix: exclude advisory-skipped gates from both numerator and denominator.
+    # Previously skipped gates earned their full weight, allowing score=100 when
+    # all infrastructure was absent (all 8 gates returning exit 77).
+    active_results = [r for r in results if not r.get("advisory_skip")]
+    skipped_results = [r for r in results if r.get("advisory_skip")]
+    active_weight = sum(r["weight"] for r in active_results)
+    earned_score = sum(r["score"] for r in active_results)
+    autonomy_score = round(earned_score / active_weight * 100) if active_weight > 0 else 0
 
     gates_total = len(results)
-    gates_passing = sum(1 for r in results if r["passing"])
-    autonomy_ready = autonomy_score >= 100
+    gates_passing = sum(1 for r in active_results if r["passing"])
+    gates_skipped = len(skipped_results)
+    # autonomy_ready requires a non-zero active weight: if every gate skipped,
+    # nothing was checked and the system cannot be considered ready.
+    autonomy_ready = autonomy_score >= 100 and active_weight > 0
 
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -145,6 +152,7 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
         "autonomy_ready": autonomy_ready,
         "gates_total": gates_total,
         "gates_passing": gates_passing,
+        "gates_skipped": gates_skipped,
         "overall_pass": autonomy_ready,
         "gates": results,
     }
@@ -169,19 +177,28 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
         print("  Security Autonomy Check")
         print("  " + "=" * 50)
         for r in results:
-            status = "PASS" if r["passing"] else "FAIL"
+            if r.get("advisory_skip"):
+                status = "ADV-SKIP"
+            elif r["passing"]:
+                status = "PASS"
+            else:
+                status = "FAIL"
             print(f"  {status} {r['gate']} (weight={r['weight']}, score={r['score']})")
         print()
-        print(f"  Autonomy Score: {autonomy_score}/100")
-        print(f"  Gates Passing:  {gates_passing}/{gates_total}")
+        print(f"  Autonomy Score: {autonomy_score}/100  (active weight: {active_weight})")
+        print(f"  Gates Passing:  {gates_passing}/{gates_total - gates_skipped} active"
+              + (f"  ({gates_skipped} advisory-skipped)" if gates_skipped else ""))
         print(f"  Autonomy Ready: {'YES' if autonomy_ready else 'NO'}")
         print()
         if autonomy_ready:
             print("PASS security autonomy check")
         else:
-            failing = [r["gate"] for r in results if not r["passing"]]
-            print(f"FAIL autonomy score {autonomy_score}/100 (need ≥100)")
-            print(f"  Failing gates: {', '.join(failing)}")
+            failing = [r["gate"] for r in active_results if not r["passing"]]
+            if active_weight == 0:
+                print("FAIL autonomy check: all gates were advisory-skipped — no infrastructure available")
+            else:
+                print(f"FAIL autonomy score {autonomy_score}/100 (need ≥100)")
+                print(f"  Failing gates: {', '.join(failing)}")
 
     return 0 if autonomy_ready else 1
 

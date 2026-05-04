@@ -978,7 +978,10 @@ def run_all(args):
             else:
                 print(f"  {GREEN}[OK] All docs are in sync with sources of truth{RESET}\n")
         except Exception as exc:
-            print(f"  {YELLOW}WARNING: doc-sync check failed: {exc}{RESET}\n")
+            # F-04 fix: was printing yellow WARNING while setting exit_code=1,
+            # making the failure look non-blocking. Use RED FAIL to match all
+            # other blocking failure paths in preflight.
+            print(f"  {RED}FAIL: doc-sync check failed: {exc}{RESET}\n")
             exit_code = 1
 
     if mode in ('--all', '--ctest-registry'):

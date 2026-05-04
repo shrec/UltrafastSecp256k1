@@ -42,8 +42,23 @@ EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 _HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
 _caas_hmac_env = os.environ.get("CAAS_HMAC_KEY", "").strip()
 _HMAC_KEY_IS_DEFAULT = not _caas_hmac_env
-if _HMAC_KEY_IS_DEFAULT:
-    if os.environ.get("GITHUB_ACTIONS") == "true":
+_HMAC_KEY = _caas_hmac_env.encode() if _caas_hmac_env else _HMAC_KEY_DEFAULT.encode()
+if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") != "true":
+    print(
+        "WARNING: Using public in-repo HMAC key. Tamper detection only — not "
+        "cryptographic auth. Set CAAS_HMAC_KEY env var for production.",
+        file=sys.stderr,
+    )
+
+
+def _enforce_ci_hmac_key() -> None:
+    """Fail-fast when CI runs without a real HMAC key.
+
+    F-06 fix: moved from module-level sys.exit(1) to an explicit function so
+    that importing evidence_governance as a library doesn't kill the caller.
+    Called from main() only — subprocess invocations still fail correctly.
+    """
+    if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") == "true":
         print(
             "::error::CAAS_HMAC_KEY secret is not set or is empty. "
             "Evidence chain HMAC uses the public in-repo key in CI, which allows "
@@ -52,12 +67,6 @@ if _HMAC_KEY_IS_DEFAULT:
             file=sys.stderr,
         )
         sys.exit(1)
-    print(
-        "WARNING: Using public in-repo HMAC key. Tamper detection only — not "
-        "cryptographic auth. Set CAAS_HMAC_KEY env var for production.",
-        file=sys.stderr,
-    )
-_HMAC_KEY = _caas_hmac_env.encode() if _caas_hmac_env else _HMAC_KEY_DEFAULT.encode()
 
 
 def _git_sha() -> str:
@@ -292,6 +301,7 @@ def run(mode: str, json_mode: bool, out_file: str | None,
 
 
 def main() -> int:
+    _enforce_ci_hmac_key()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=["validate", "record", "show"],

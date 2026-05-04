@@ -944,8 +944,8 @@ static const AuditModule ALL_MODULES[] = {
     { "test_exploit_opencl_runner_key_erase",    "OpenCL audit runner d_priv/d_scalar not zeroed before release Q-01/02/03 (OCR-1..8) — 2026-05-02", "exploit_poc", test_exploit_opencl_runner_key_erase_run, false },
     { "test_exploit_ecdsa_fast_path_isolation",  "ecdsa.cpp fast path isolation: public APIs must use ct::ecdsa_sign (FPI-1..10) — 2026-05-02",       "exploit_poc", test_exploit_ecdsa_fast_path_isolation_run, false },
     // === 2026-05-01 Red Team Audit Round 3 (P-01..P-09) ===
-    // Note: shim test returns 0 in unified-runner mode (shim linked separately);
-    //       actual SPC-1..10 tests run via test_exploit_shim_pubkey_ct_standalone CTest target.
+    // Shim not linked in unified runner — _run() returns ADVISORY_SKIP_CODE (77).
+    // Actual SPC-1..10 checks run via test_exploit_shim_pubkey_ct_standalone CTest target.
     { "exploit_shim_pubkey_ct",                 "P-01/02/03: shim pubkey_create/keypair CT generator mul + key rejection (SPC-1..10) — 2026-05-01", "exploit_poc", test_exploit_shim_pubkey_ct_run, true },
     // === 2026-05-02 Bitcoin Core PR Security Audit Fixes ===
     // (forward declarations at top of file)

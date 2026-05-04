@@ -332,7 +332,9 @@ jobs:
         shell: pwsh
         run: |
           $GATE_RC = 0
-          python3 ci/build_project_graph.py --rebuild
+          # F-02 fix: capture build_project_graph.py exit code — a stale/broken
+          # graph must fail the step, not silently let gates run against bad data.
+          python3 ci/build_project_graph.py --rebuild; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
           python3 ci/check_exploit_wiring.py; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
           python3 ci/audit_test_quality_scanner.py --json -o out/audit-output/caas_scanner.json
           if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }

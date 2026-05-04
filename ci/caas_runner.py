@@ -647,8 +647,14 @@ def print_reviewer_summary(
     print(f"\n{BOLD}Reproduce:{RESET}")
     print(f"  python3 ci/caas_runner.py --profile {profile_key} --auditor-mode")
 
-    overall_pass = all(r["passed"] for r in stage_results if r.get("status") != "skipped")
-    overall_ec_pass = all(ec["passed"] for ec in extra_check_results)
+    # F-03 fix: exclude both fail-fast-skipped AND advisory-skipped stages from
+    # the verdict — advisory-skipped stages have passed=True but are not positive
+    # evidence (infrastructure was absent). Previously only "skipped" was excluded,
+    # so advisory-skipped stages inflated overall_pass in auditor-mode summaries.
+    overall_pass = all(r["passed"] for r in stage_results
+                       if r.get("status") not in ("skipped", "advisory_skipped"))
+    real_ec = [ec for ec in extra_check_results if not ec.get("advisory_skip")]
+    overall_ec_pass = all(ec["passed"] for ec in real_ec) if real_ec else True
     fully_passed = overall_pass and overall_ec_pass
     verdict_color = GREEN if fully_passed else RED
     verdict_text = "AUDIT PASS" if fully_passed else "AUDIT FAIL — SEE ABOVE"
