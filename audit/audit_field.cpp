@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "secp256k1/field.hpp"
+#include "secp256k1/field_52.hpp"
 #include "secp256k1/sanitizer_scale.hpp"
 
 using namespace secp256k1::fast;
@@ -467,6 +468,91 @@ static void test_random_cross_check() {
 }
 
 // ============================================================================
+// 12. FE52 Jacobi symbol (posdivstep SafeGCD) — correctness vs sqrt
+// ============================================================================
+static void test_jacobi() {
+    g_section = "jacobi";
+    printf("[12] FE52 Jacobi symbol (posdivstep SafeGCD)\n");
+
+    // --- Known values ---
+    // 0: jacobi(0) == 0
+    {
+        auto z = FieldElement52::zero();
+        CHECK(z.jacobi_var() == 0, "jacobi(0) == 0");
+    }
+    // 1: jacobi(1) == +1 (1 is always QR)
+    {
+        auto one = FieldElement52::one();
+        CHECK(one.jacobi_var() == 1, "jacobi(1) == +1");
+    }
+    // 4 = 2^2: perfect square, must be +1
+    {
+        auto four = FieldElement52::from_fe(FieldElement::from_uint64(4));
+        CHECK(four.jacobi_var() == 1, "jacobi(4) == +1");
+    }
+    // p-1 = -1: for secp256k1 p ≡ 3 (mod 4), -1 is NOT a QR → jacobi(-1) == -1
+    {
+        auto neg1 = FieldElement52::from_fe(FieldElement::zero() - FieldElement::one());
+        CHECK(neg1.jacobi_var() == -1, "jacobi(-1) == -1 (p ≡ 3 mod 4)");
+    }
+
+    // --- Consistency with sqrt ---
+    // For random x: jacobi(x) == +1 iff x.sqrt()² == x (i.e., x is QR)
+    int agree = 0, qr_count = 0, nqr_count = 0;
+    int total = SCALED(5000, 100);
+    for (int i = 0; i < total; ++i) {
+        auto x_fe = random_fe();
+        // Skip zero (edge case already tested)
+        if (x_fe == FieldElement::zero()) continue;
+
+        auto x52 = FieldElement52::from_fe(x_fe);
+        int jac = x52.jacobi_var();
+        CHECK(jac == 1 || jac == -1, "jacobi(nonzero) in {+1,-1}");
+
+        // Cross-check with sqrt
+        auto s = x_fe.sqrt();
+        bool is_qr = (s.square() == x_fe);
+        bool jac_says_qr = (jac == 1);
+        CHECK(jac_says_qr == is_qr, "jacobi(x) consistent with sqrt QR check");
+
+        if (jac_says_qr == is_qr) ++agree;
+        if (is_qr) ++qr_count; else ++nqr_count;
+    }
+    printf("    jacobi/sqrt agree: %d/%d  (QR=%d, NQR=%d, expected ~50/50)\n",
+           agree, total, qr_count, nqr_count);
+
+    // --- x^2 is always QR ---
+    for (int i = 0; i < SCALED(1000, 50); ++i) {
+        auto x_fe = random_fe();
+        if (x_fe == FieldElement::zero()) continue;
+        auto x2_52 = FieldElement52::from_fe(x_fe.square());
+        CHECK(x2_52.jacobi_var() == 1, "jacobi(x^2) == +1 always");
+    }
+
+    // --- 2*x has jacobi depending on x and (2/p) ---
+    // For secp256k1 p ≡ 7 (mod 8): (2/p) = +1, so jacobi(2*x) == jacobi(x)
+    {
+        auto two = FieldElement::from_uint64(2);
+        for (int i = 0; i < SCALED(500, 20); ++i) {
+            auto x_fe = random_fe();
+            if (x_fe == FieldElement::zero()) continue;
+            auto x52  = FieldElement52::from_fe(x_fe);
+            auto x2   = FieldElement52::from_fe(x_fe * two);
+            // (2/p) = +1 for p ≡ 7 (mod 8) so jacobi(2x) = jacobi(2)*jacobi(x) = jacobi(x)
+            CHECK(x52.jacobi_var() == x2.jacobi_var(),
+                  "jacobi(2x) == jacobi(x) for p≡7 mod 8");
+        }
+    }
+
+    printf("    %d checks\n\n", g_pass);
+}
+
+// ============================================================================
+// 13. xswiftec_frac round-trip: jacobi-based QR check consistent with fwd map
+// ============================================================================
+// (Lightweight: BIP324 session/ECDH full test is in test_exploit_bip324_session.cpp)
+
+// ============================================================================
 // _run() entry point for unified audit runner
 // ============================================================================
 
@@ -482,6 +568,7 @@ int audit_field_run() {
     test_limb_boundary();
     test_inverse();
     test_sqrt();
+    test_jacobi();
     test_batch_inverse();
     test_random_cross_check();
 

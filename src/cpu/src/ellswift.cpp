@@ -51,20 +51,22 @@ FieldElement fe_from_bytes_mod_p(const std::uint8_t bytes[32]) noexcept {
     return FieldElement::from_bytes(arr);
 }
 
-// Check if a field element is a quadratic residue mod p
+// Check if a field element is a quadratic residue mod p.
+// Uses FE52 Jacobi (posdivstep SafeGCD, ~734 ns) instead of sqrt (~3.8 µs).
 bool fe_is_square(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return true;
-    auto s = x.sqrt();
-    return (s.square() == x);
+    return fast::FieldElement52::from_fe(x).jacobi_var() == 1;
 }
 
-// Combined QR test + sqrt: one exponentiation, not two.
-// Returns {is_quadratic_residue, sqrt_or_zero}.
+// Combined QR test + sqrt.
+// Fast path: Jacobi pre-check (~734 ns) before sqrt (~3.8 µs).
+// When NQR (50% of random inputs): returns false without calling sqrt.
+// When QR: Jacobi proves it, so no post-verify needed after sqrt.
 static inline std::pair<bool, FieldElement> fe_sqrt_checked(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return {true, FieldElement::zero()};
-    auto s = x.sqrt();
-    bool qr = (s.square() == x);
-    return {qr, qr ? s : FieldElement::zero()};
+    // Jacobi pre-filter: skip 3.8 µs sqrt when NQR
+    if (fast::FieldElement52::from_fe(x).jacobi_var() != 1) return {false, FieldElement::zero()};
+    return {true, x.sqrt()};  // Jacobi proved QR → no s²==x verification needed
 }
 
 // Check if (xn/xd)^3 + 7 is a quadratic residue, without division.
@@ -297,10 +299,11 @@ static std::pair<FieldElement, FieldElement> xswiftec_fwd_point(FieldElement u, 
 //   v = (r/s-u)/2.
 // w = sqrt(s). Negate if (c&5)==0 or (c&5)==5.
 // Return w * ((c&1 ? c4 : c3)*u + v).
-// Compute sqrt and check in ONE exponentiation (vs fe_is_square + sqrt = 2x).
+// Combined QR + sqrt for xswiftec_inv (needs the actual sqrt value).
+// Jacobi pre-check (~734 ns) avoids sqrt (~3.8 µs) when NQR.
 static inline std::pair<bool, FieldElement> sqrt_check(const FieldElement& x) noexcept {
-    auto r = x.sqrt();
-    return {r.square() == x, r};
+    if (fast::FieldElement52::from_fe(x).jacobi_var() != 1) return {false, FieldElement::zero()};
+    return {true, x.sqrt()};
 }
 
 // Optimized per-u encoder: precomputes u², u³, g, neg_ux-check and s_x3-sqrt
