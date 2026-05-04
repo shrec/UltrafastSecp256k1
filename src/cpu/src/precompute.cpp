@@ -1800,30 +1800,28 @@ static Scalar barrett_reduce_512(const std::array<std::uint64_t, 8>& wide) {
             0xFFFFFFFFFFFFFFFFULL
         };
         
-        // Check if result >= n (simple comparison)
+        // Branchless conditional subtract: compute low_limbs - N, keep result if no borrow (>= N).
+        // Replaces branchy short-circuit || comparison to avoid branch mispredict on random inputs.
         Limbs4 low_limbs = {wide[0], wide[1], wide[2], wide[3]};
-        bool const ge_n = (low_limbs[3] > N[3]) ||
-                    (low_limbs[3] == N[3] && low_limbs[2] > N[2]) ||
-                    (low_limbs[3] == N[3] && low_limbs[2] == N[2] && low_limbs[1] > N[1]) ||
-                    (low_limbs[3] == N[3] && low_limbs[2] == N[2] && low_limbs[1] == N[1] && low_limbs[0] >= N[0]);
-        
+        {
+            Limbs4 tmp{};
+            unsigned char borrow = 0;
+            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[0], N[0], &tmp[0]);
+            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[1], N[1], &tmp[1]);
+            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[2], N[2], &tmp[2]);
+            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[3], N[3], &tmp[3]);
+            // borrow == 0 → low_limbs >= N → use tmp (subtracted)
+            // borrow == 1 → low_limbs <  N → keep low_limbs
+            const std::uint64_t mask = 0ULL - static_cast<std::uint64_t>(borrow);  // 0 if ge, ~0 if lt
+            low_limbs[0] = (tmp[0] & ~mask) | (low_limbs[0] & mask);
+            low_limbs[1] = (tmp[1] & ~mask) | (low_limbs[1] & mask);
+            low_limbs[2] = (tmp[2] & ~mask) | (low_limbs[2] & mask);
+            low_limbs[3] = (tmp[3] & ~mask) | (low_limbs[3] & mask);
+        }
+
 #if SECP256K1_PROFILE_DECOMP
         unsigned long long t3 = RDTSC();
-#endif
-        
-        if (ge_n) {
-            // Subtract n once using intrinsics
-            unsigned char borrow = 0;
-            (void)borrow;
-            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[0], N[0], &low_limbs[0]);
-            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[1], N[1], &low_limbs[1]);
-            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[2], N[2], &low_limbs[2]);
-            borrow = COMPAT_SUBBORROW_U64(borrow, low_limbs[3], N[3], &low_limbs[3]);
-            (void)borrow;
-        }
-        
-#if SECP256K1_PROFILE_DECOMP
-        unsigned long long t4 = RDTSC();
+        unsigned long long t4 = t3;  // compare+subtract merged into one branchless step
 #endif
         
         // Convert to Scalar using fast normalized path (skip >= n check)
@@ -1878,10 +1876,13 @@ static inline unsigned fast_bitlen(const Scalar& s) {
 //   k1 = sum_i u1[i] * 2^i and k2 = sum_i u2[i] * 2^i
 // Algorithm: simple and correct recoding choosing +/-1 for odd limbs,
 // prioritizing correctness (minimal-weight tweaks can be added later).
+// Max JSF digits for a 256-bit scalar: 257 bits + 1 carry = 258; round to 260.
+static constexpr std::size_t kJSFMaxLen = 260;
+
 struct JSF_Result {
-    std::vector<int8_t> jsf1;  // k1 coefficients
-    std::vector<int8_t> jsf2;  // k2 coefficients
-    std::size_t length;        // Number of produced digits
+    std::array<int8_t, kJSFMaxLen> jsf1{};
+    std::array<int8_t, kJSFMaxLen> jsf2{};
+    std::size_t length = 0;
 };
 
 static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
@@ -1897,8 +1898,6 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
     a[4] = 0; b[4] = 0;
 
     JSF_Result out;
-    out.jsf1.reserve(260);
-    out.jsf2.reserve(260);
 
     std::size_t steps = 0;
     while (a[0] | a[1] | a[2] | a[3] | b[0] | b[1] | b[2] | b[3]) {
@@ -1934,8 +1933,8 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
             }
         }
 
-        out.jsf1.push_back(u1);
-        out.jsf2.push_back(u2);
+        out.jsf1[steps] = u1;
+        out.jsf2[steps] = u2;
 
         // Update a := (a - u1) >> 1
         if (u1 != 0) {
@@ -1983,7 +1982,7 @@ static JSF_Result compute_jsf(const Scalar& k1, const Scalar& k2) {
         }
     }
 
-    out.length = out.jsf1.size();
+    out.length = steps;
     return out;
 }
 

@@ -62,6 +62,7 @@ void batch_add_affine_x_impl(
     // Use a bool array to record which entries are degenerate (dx == 0),
     // avoiding the second full field subtraction in the output loop.
     const FieldElement zero = FieldElement::zero();
+    const FieldElement one  = FieldElement::one();
 
     // Stack array for typical small counts; heap for large batches.
     uint8_t dx_zero_stack[64] = {};
@@ -75,7 +76,7 @@ void batch_add_affine_x_impl(
     for (std::size_t i = 0; i < count; ++i) {
         FieldElement const dx = offsets[i].x - base_x;
         dx_zero[i] = static_cast<uint8_t>(dx == zero);
-        scratch[i] = dx_zero[i] ? FieldElement::one() : dx;
+        scratch[i] = dx_zero[i] ? one : dx;
     }
 
     // scratch[i] is guaranteed nonzero: zero dx slots replaced with 1 above.
@@ -139,21 +140,31 @@ void batch_add_affine_xy(
     }
 
     const FieldElement zero = FieldElement::zero();
+    const FieldElement one  = FieldElement::one();
+
+    // Stack array for typical small counts; heap for large batches.
+    uint8_t dx_zero_stack[64] = {};
+    static thread_local std::vector<uint8_t> dx_zero_heap_xy;
+    uint8_t* dx_zero = dx_zero_stack;
+    if (SECP256K1_UNLIKELY(count > 64)) {
+        if (dx_zero_heap_xy.size() < count) dx_zero_heap_xy.resize(count);
+        dx_zero = dx_zero_heap_xy.data();
+    }
 
     // Phase 1: dx[i] = x_T[i] - x_base (zero-safe: replace 0 -> 1)
+    // Save is-zero flag to avoid recomputing dx in Phase 3.
     for (std::size_t i = 0; i < count; ++i) {
         FieldElement const dx = offsets[i].x - base_x;
-        bool const is_zero = (dx == zero);
-        scratch[i] = is_zero ? FieldElement::one() : dx;
+        dx_zero[i] = static_cast<uint8_t>(dx == zero);
+        scratch[i] = dx_zero[i] ? one : dx;
     }
 
     // Phase 2: Batch inverse (scratch guaranteed nonzero: zero slots replaced with 1 above)
     fe_batch_inverse_nonzero(scratch.data(), count);
 
-    // Phase 3: Full affine addition
+    // Phase 3: Full affine addition — reuse dx_zero flags, no dx recomputation.
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement const dx_original = offsets[i].x - base_x;
-        if (dx_original == zero) {
+        if (SECP256K1_UNLIKELY(dx_zero[i])) {
             out_x[i] = zero;
             out_y[i] = zero;
             continue;
@@ -191,9 +202,10 @@ void batch_add_affine_x(
         return;
     }
 
-    std::vector<FieldElement> scratch(count);
+    static thread_local std::vector<FieldElement> tls_scratch;
+    if (tls_scratch.size() < count) tls_scratch.resize(count);
     batch_add_affine_x_impl(base_x, base_y, offsets, out_x, count,
-                            scratch.data());
+                            tls_scratch.data());
 }
 
 // ============================================================================
@@ -216,21 +228,31 @@ void batch_add_affine_x_with_parity(
     }
 
     const FieldElement zero = FieldElement::zero();
+    const FieldElement one  = FieldElement::one();
+
+    // Stack array for typical small counts; heap for large batches.
+    uint8_t dx_zero_stack[64] = {};
+    static thread_local std::vector<uint8_t> dx_zero_heap_parity;
+    uint8_t* dx_zero = dx_zero_stack;
+    if (SECP256K1_UNLIKELY(count > 64)) {
+        if (dx_zero_heap_parity.size() < count) dx_zero_heap_parity.resize(count);
+        dx_zero = dx_zero_heap_parity.data();
+    }
 
     // Phase 1: dx (zero-safe: replace 0 -> 1)
+    // Save is-zero flag to avoid recomputing dx in Phase 3.
     for (std::size_t i = 0; i < count; ++i) {
         FieldElement const dx = offsets[i].x - base_x;
-        bool const is_zero = (dx == zero);
-        scratch[i] = is_zero ? FieldElement::one() : dx;
+        dx_zero[i] = static_cast<uint8_t>(dx == zero);
+        scratch[i] = dx_zero[i] ? one : dx;
     }
 
     // Phase 2: Batch inverse (scratch guaranteed nonzero: zero slots replaced with 1 above)
     fe_batch_inverse_nonzero(scratch.data(), count);
 
-    // Phase 3: Addition + Y parity
+    // Phase 3: Addition + Y parity — reuse dx_zero flags, no dx recomputation.
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement const dx_original = offsets[i].x - base_x;
-        if (dx_original == zero) {
+        if (SECP256K1_UNLIKELY(dx_zero[i])) {
             out_x[i] = zero;
             out_parity[i] = 0;
             continue;
@@ -271,22 +293,35 @@ void batch_add_affine_x_bidirectional(
     }
 
     const FieldElement zero = FieldElement::zero();
+    const FieldElement one  = FieldElement::one();
+
+    // Stack arrays for is-zero flags: fwd in [0..count-1], bwd in [count..2*count-1].
+    // Avoids recomputing dx in Phases 3 and 4.
+    uint8_t dx_zero_stack[128] = {};
+    static thread_local std::vector<uint8_t> dx_zero_heap_bidir;
+    uint8_t* dx_zero = dx_zero_stack;
+    if (SECP256K1_UNLIKELY(total > 128)) {
+        if (dx_zero_heap_bidir.size() < total) dx_zero_heap_bidir.resize(total);
+        dx_zero = dx_zero_heap_bidir.data();
+    }
 
     // Phase 1: dx for both directions (zero-safe: replace 0 -> 1)
+    // Save is-zero flags to avoid recomputing dx in Phases 3 and 4.
     for (std::size_t i = 0; i < count; ++i) {
         FieldElement const dx_fwd = offsets_fwd[i].x - base_x;
         FieldElement const dx_bwd = offsets_bwd[i].x - base_x;
-        scratch[i]         = (dx_fwd == zero) ? FieldElement::one() : dx_fwd;
-        scratch[count + i] = (dx_bwd == zero) ? FieldElement::one() : dx_bwd;
+        dx_zero[i]         = static_cast<uint8_t>(dx_fwd == zero);
+        dx_zero[count + i] = static_cast<uint8_t>(dx_bwd == zero);
+        scratch[i]         = dx_zero[i]         ? one : dx_fwd;
+        scratch[count + i] = dx_zero[count + i] ? one : dx_bwd;
     }
 
     // Phase 2: Single batch inverse (all slots nonzero: zero dx replaced with 1 above)
     fe_batch_inverse_nonzero(scratch.data(), total);
 
-    // Phase 3: Forward results
+    // Phase 3: Forward results — reuse dx_zero[i], no dx recomputation.
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement const dx_original = offsets_fwd[i].x - base_x;
-        if (dx_original == zero) {
+        if (SECP256K1_UNLIKELY(dx_zero[i])) {
             out_x_fwd[i] = zero;
             continue;
         }
@@ -297,10 +332,9 @@ void batch_add_affine_x_bidirectional(
         out_x_fwd[i] = lambda_sq - base_x - offsets_fwd[i].x;
     }
 
-    // Phase 4: Backward results
+    // Phase 4: Backward results — reuse dx_zero[count+i], no dx recomputation.
     for (std::size_t i = 0; i < count; ++i) {
-        FieldElement const dx_original = offsets_bwd[i].x - base_x;
-        if (dx_original == zero) {
+        if (SECP256K1_UNLIKELY(dx_zero[count + i])) {
             out_x_bwd[i] = zero;
             continue;
         }

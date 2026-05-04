@@ -209,10 +209,13 @@ inline FieldElement field_from_uint320(Uint320 value) {
 }
 
 template <std::size_t N>
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((always_inline))
+#elif defined(_MSC_VER)
+__forceinline
+#endif
 inline void add_into(std::array<std::uint64_t, N>& arr, std::size_t index, std::uint64_t value) {
-    if (index >= N) {
-        return;
-    }
+    // Callers guarantee index < N; no range check needed in hot path.
     unsigned char carry = 0;
     arr[index] = add64(arr[index], value, carry);
     ++index;
@@ -439,6 +442,11 @@ limbs4 add_impl(const limbs4& a, const limbs4& b) {
 }
 #endif // SECP256K1_PLATFORM_STM32 && __arm__
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((always_inline))
+#elif defined(_MSC_VER)
+__forceinline
+#endif
 inline void mul_add_to(wide8& acc, std::size_t index, std::uint64_t a, std::uint64_t b) {
     std::uint64_t lo = 0;
     std::uint64_t hi = 0;
