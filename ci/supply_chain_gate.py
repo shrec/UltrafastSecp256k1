@@ -97,12 +97,12 @@ def check_build_input_pinning() -> dict:
 
 def check_reproducible_build() -> dict:
     """Check reproducible build verification."""
-    script = LIB_ROOT / "scripts" / "verify_reproducible_build.sh"
-    if not script.exists():
+    script = _find_script("verify_reproducible_build.sh")
+    if script is None:
         return {
             "name": "reproducible_build",
             "passing": False,
-            "issues": ["verify_reproducible_build.sh not found"],
+            "issues": ["verify_reproducible_build.sh not found in scripts/ or ci/"],
         }
     # Don't actually run it (expensive), just verify script exists and is executable
     return {
