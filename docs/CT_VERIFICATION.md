@@ -496,6 +496,38 @@ FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tra
 
 ---
 
+## CT Primitive Change Log (Secret-Path Surface)
+
+### 2026-05-04 — Performance Review: CT Primitive Internal Optimizations
+
+Three internal optimizations to `ct_scalar.cpp` and `ct_field.cpp`. All changes
+preserve the CT invariant — no secret-dependent branches or memory access patterns
+were added. The changes are in the *implementation* of CT primitives, not their
+*contract*.
+
+**`ct_scalar.cpp:divsteps_59` — volatile removal (B-1)**
+
+- **Before:** `volatile uint64_t c1`, `volatile uint64_t c2` inside the 59-iteration divstep loop.
+- **After:** `uint64_t c1`, `uint64_t c2` (plain, compiler keeps in registers).
+- **CT impact:** None. The CT property of `divsteps_59` is algorithmic: fixed 59 iterations, all-branchless bitmask conditionals. The `volatile` keyword forced memory round-trips (store+reload), wasting ~118 memory ops per `scalar_inverse` call, but did not *provide* the CT property. The equivalent `ct_field.cpp:ct_divsteps_59` never had `volatile` and passes the same dudect suite.
+- **Verification:** `test_prf3_ct_scalar_inverse` (PRF-3) in the regression suite; existing `audit_ct` and `ct_sidechannel` CAAS modules.
+
+**`ct_scalar.cpp:scalar_cswap` — XOR-swap (B-8)**
+
+- **Before:** Two full `Scalar` temporaries (64 bytes) + two `scalar_select` calls.
+- **After:** 4×uint64 XOR-swap with mask (identical to `ct_field.cpp:field_cswap` at line 761).
+- **CT impact:** None. The XOR-swap with mask is a textbook CT swap. The `scalar_select` calls used the same `ct_select` primitive; the XOR-swap is semantically equivalent and avoids 64-byte copy temporaries.
+- **Verification:** `test_prf2_scalar_cswap` (PRF-2); `audit_ct` module.
+
+**`ct_field.cpp:add256/sub256` — `__builtin_addcll` for ADX emission (B-10)**
+
+- **Before:** Portable carry loop using `add_carry_u64` helper (data-independent but no ADCX hint).
+- **After:** `__builtin_addcll` / `__builtin_subcll` on GCC/Clang; portable fallback for MSVC.
+- **CT impact:** None. The `__builtin_addcll` intrinsic is a carry-chain hint that instructs the compiler to emit `ADCX`/`ADOX` instructions — these have data-independent latency on all x86-64 targets. The CT contract is unchanged: no branches, no secret-dependent memory access. MSVC fallback preserves the original CT-safe loop.
+- **Verification:** `test_prf6_ct_field_carry` (PRF-6); existing `ct_verif` LLVM pass.
+
+---
+
 ## Planned Improvements
 
 - [ ] **Formal verification** with Fiat-Crypto for field arithmetic

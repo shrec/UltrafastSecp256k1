@@ -7,6 +7,72 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-04 — Performance Engineering Review: Security + Performance Fixes
+
+Full-codebase review by performance engineer + 2 sub-agents (173 tool calls, ~300 KB source read).
+Report in `workingdocs/perf_review_2026-05-04.md`.
+
+### Security Fixes (GPU/OpenCL kernel layer)
+
+**SEC-1 (Critical — Guardrail #8): OpenCL ECDSA/Schnorr signing now uses CT generator mul**
+- `secp256k1_extended.cl:ecdsa_sign_impl` and `schnorr_sign_impl` called
+  `scalar_mul_generator_impl` (variable-time windowed scalar mul on secret nonce k).
+- Fixed: both functions now call `ct_generator_mul_impl` (GLV + 4-bit window with
+  CT table scan). CT includes (`secp256k1_ct_ops.cl`, `secp256k1_ct_field.cl`,
+  `secp256k1_ct_scalar.cl`, `secp256k1_ct_point.cl`) added to `secp256k1_extended.cl`.
+
+**SEC-2 (Critical — Guardrail #14): Schnorr `schnorr_sign_impl` R.x all-zeros check**
+- Added check for `sig->r == all-zeros` before `return 1` in `schnorr_sign_impl`.
+- Previously only `s == 0` was checked; Guardrail #14 requires both.
+
+**SEC-3 (Critical — Guardrail #8): CT scalar inverse in OpenCL signing path**
+- `scalar_inverse_impl` used variable-time binary square-and-multiply on secret nonce k.
+- Fixed: `ecdsa_sign_impl` now uses `ct_scalar_inverse_impl` (branchless cmov, fixed 256 iterations).
+
+**SEC-4 (High — Guardrail #10): Private key bytes erased in `rfc6979_nonce_impl`**
+- `priv_bytes[32]` and `hmac_input[33..64]` were never zeroed after function return.
+- Fixed: `goto cleanup` label added; erases `priv_bytes`, `hmac_input`, `K_`, `V` on all exit paths.
+
+**SEC-5 (High — Guardrail #10): `OclMsmPool::buf_partials` zeroed before release**
+- `buf_partials` (holds intermediate Jacobian scalar-mul results) was released without zeroing.
+- Fixed: `clEnqueueFillBuffer` + `clWaitForEvents` before `clReleaseMemObject`.
+
+**SEC-6 (Medium — Guardrail #10): RAII `EraseGuard` in `gpu_backend_opencl.cpp:ecdh_batch`**
+- `secure_erase(h_scalars)` was skipped if `batch_scalar_mul` threw an exception.
+- Fixed: local RAII struct `ScalarEraseGuard` guarantees erasure on all exit paths.
+
+**SEC-7 (Medium — Guardrail #11): Zero scalar rejection in `generator_mul_batch`**
+- `bytes_to_scalar` was called without zero-scalar check; zero private key would be silently used.
+- Fixed: explicit check added for `limbs[0..3] == 0` → returns `GpuError::BadKey`.
+
+### CT Primitive Performance Fixes (invariant-preserving)
+
+See `docs/CT_VERIFICATION.md` — "CT Primitive Change Log 2026-05-04" for full details.
+
+**B-1:** `ct_scalar.cpp:divsteps_59` — removed `volatile` from `c1`/`c2` (~118 memory round-trips saved/call).
+**B-8:** `ct_scalar.cpp:scalar_cswap` — XOR-swap replaces full-Scalar temporaries.
+**B-10:** `ct_field.cpp:add256`/`sub256` — `__builtin_addcll`/`__builtin_subcll` for ADX emit.
+
+### Performance Fixes (non-CT)
+
+**C-4:** OpenCL queue profiling now conditional on `cfg.verbose` (was always enabled; 1–5% overhead).
+**B-9:** `field_26.cpp:mul_assign`/`square_inplace` — element-by-element copy → `memcpy(40 bytes)`.
+**B-7:** `seven52` (schnorr.cpp), `beta52` (multiscalar.cpp) promoted to file scope (eliminate per-call static init guard).
+**B-13:** Redundant `p.y == FieldElement::zero()` check removed from `jacobian_double_inplace` (impossible for non-infinity secp256k1 points).
+**B-15:** `ge()` in `scalar.cpp` — 2-branch-per-limb loop → fully unrolled with one-branch-per-limb.
+**B-3:** Pippenger digit extraction transposed to scalar-major order (eliminates n-1 scalar cache reloads per window).
+**B-6:** `schnorr_batch_verify` pubkey dedup: O(n×k) linear scan → O(1) `std::unordered_map` with FNV-1a hash.
+**B-11:** Pippenger `all_affine` scan: O(n) full scan → O(1) first-point proxy check.
+
+### Regression Test Added
+
+`audit/test_regression_perf_review_sec_2026_05_04.cpp` — 8 assertions (PRF-1..8) covering:
+CT scalar inverse correctness, scalar_cswap, ge() boundary, Schnorr BIP-340 KAT,
+scalar_mul (double path), CT field carry, Pippenger MSM, zero-scalar ABI rejection.
+Wired in `unified_audit_runner.cpp` section `exploit_poc`.
+
+---
+
 ## 2026-05-03 — CAAS Pipeline Hygiene Audit (P0–P2 fixes)
 
 Second-pass infrastructure audit (workingdocs/CI_CAAS_INFRA_AUDIT_2026-05-03.md)

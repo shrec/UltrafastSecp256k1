@@ -111,6 +111,24 @@ Post-AVX2 CT-vs-libsecp comparison (x86-64-v3, bench_unified):
   CT Schnorr Sign:   10864 ns  vs libsecp 13635 ns  → 1.26x  (was 0.87x)
   CT ECDSA Sign:     12897 ns  vs libsecp 17809 ns  → 1.38x  (was 0.91x)
 
+**2026-05-04 (CT primitive internal optimizations — perf review B-1, B-8, B-10):**
+Three internal changes to `ct_scalar.cpp` and `ct_field.cpp` that improve performance
+without altering CT invariants. No new security claims; existing claims unaffected.
+
+1. `divsteps_59`: `volatile uint64_t c1/c2` → plain `uint64_t`. The CT property is
+   algorithmic (fixed 59 iterations, branchless bitmasks), not from `volatile`.
+   Saves ~118 memory round-trips per `scalar_inverse` call (~100–200 ns).
+
+2. `scalar_cswap`: Full-Scalar temporaries → XOR-swap with mask (identical to
+   `field_cswap`). Same CT semantics; eliminates 64-byte copy overhead.
+
+3. `add256`/`sub256`: Portable carry loop → `__builtin_addcll`/`__builtin_subcll`
+   on GCC/Clang to hint ADCX/ADOX emit. MSVC/32-bit fallback unchanged.
+   ADCX/ADOX have data-independent latency on all x86-64 targets.
+
+Existing `audit_ct`, `ct_sidechannel`, and `test_ct_equivalence` CAAS modules
+continue to cover these primitives. Regression: `test_regression_perf_review_sec_2026_05_04`.
+
 ### Where Results May Differ
 
 Both layers are tested for bit-exact equivalence. Possible divergences:
