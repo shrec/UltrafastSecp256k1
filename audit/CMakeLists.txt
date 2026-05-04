@@ -3510,9 +3510,13 @@ add_executable(unified_audit_runner
     # 2026-05-02 Bitcoin Core PR security audit fixes
     test_regression_schnorr_ct_arithmetic.cpp
     test_regression_musig2_zero_psig.cpp
-    test_regression_gpu_key_erase_raii.cpp
     test_regression_bip352_ct_varbase.cpp
 )
+# GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
+if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)
+    target_sources(unified_audit_runner PRIVATE test_regression_gpu_key_erase_raii.cpp)
+    target_compile_definitions(unified_audit_runner PRIVATE SECP256K1_BUILD_GPU_AUDIT)
+endif()
 # Conditionally add 5x52 field test (requires __uint128_t; skip on MSVC)
 if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     target_sources(unified_audit_runner PRIVATE ${CPU_TESTS_DIR}/test_field_52.cpp)

@@ -494,7 +494,12 @@ int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path
 // ============================================================================
 int test_regression_schnorr_ct_arithmetic_run();  // HIGH-03+HIGH-06: schnorr_sign CT arithmetic + r==0 check
 int test_regression_musig2_zero_psig_run();       // CRIT-03: musig2 zero partial-sig → UFSECP_ERR_INTERNAL
-int test_regression_gpu_key_erase_raii_run();     // CRIT-01+HIGH-01+HIGH-02+HIGH-04: GPU key RAII erasure
+// GPU RAII test requires GPU symbols; stub returns advisory-skip when GPU not built.
+#if defined(SECP256K1_BUILD_GPU_AUDIT)
+int test_regression_gpu_key_erase_raii_run();
+#else
+static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
+#endif
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
 
 // ============================================================================
