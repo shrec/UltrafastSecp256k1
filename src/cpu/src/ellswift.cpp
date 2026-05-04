@@ -53,6 +53,13 @@ FieldElement fe_from_bytes_mod_p(const std::uint8_t bytes[32]) noexcept {
 
 // Check if a field element is a quadratic residue mod p.
 // Uses FE52 Jacobi (posdivstep SafeGCD, ~734 ns) instead of sqrt (~3.8 µs).
+//
+// SECURITY: jacobi_var is VARIABLE-TIME. Only call with PUBLIC data:
+//   - Peer's ellswift encoding (u, t from ell64) — public, sent over wire
+//   - Public key x-coordinates — public
+//   - Encoding scratch values derived from (privkey_hash, pubkey_x):
+//     u = hash(privkey, ...) is PUBLIC (included in ell64 output)
+//   NEVER call with raw private keys, nonces, or CT secrets.
 bool fe_is_square(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return true;
     return fast::FieldElement52::from_fe(x).jacobi_var() == 1;
