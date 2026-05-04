@@ -522,8 +522,9 @@ were added. The changes are in the *implementation* of CT primitives, not their
 **`ct_field.cpp:add256/sub256` — `__builtin_addcll` for ADX emission (B-10)**
 
 - **Before:** Portable carry loop using `add_carry_u64` helper (data-independent but no ADCX hint).
-- **After:** `__builtin_addcll` / `__builtin_subcll` on GCC/Clang; portable fallback for MSVC.
-- **CT impact:** None. The `__builtin_addcll` intrinsic is a carry-chain hint that instructs the compiler to emit `ADCX`/`ADOX` instructions — these have data-independent latency on all x86-64 targets. The CT contract is unchanged: no branches, no secret-dependent memory access. MSVC fallback preserves the original CT-safe loop.
+- **After:** `__builtin_addcll` / `__builtin_subcll` on Clang only (`#if defined(__clang__)`); portable carry loop on all other compilers including GCC.
+- **CT impact:** None. The `__builtin_addcll` intrinsic is a carry-chain hint that instructs the compiler to emit `ADCX`/`ADOX` instructions — these have data-independent latency on all x86-64 targets. The CT contract is unchanged: no branches, no secret-dependent memory access.
+- **2026-05-04 compiler compat fix:** The original guard `#if defined(__GNUC__) || defined(__clang__)` was incorrect — GCC-13 defines `__GNUC__` but lacks these Clang-extension builtins, causing a build failure on GCC-13. Guard narrowed to `#if defined(__clang__)`. GCC now falls through to the portable carry loop (identical CT correctness; no ADCX emission on GCC targets).
 - **Verification:** `test_prf6_ct_field_carry` (PRF-6); existing `ct_verif` LLVM pass.
 
 ---

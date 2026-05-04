@@ -122,9 +122,12 @@ without altering CT invariants. No new security claims; existing claims unaffect
 2. `scalar_cswap`: Full-Scalar temporaries → XOR-swap with mask (identical to
    `field_cswap`). Same CT semantics; eliminates 64-byte copy overhead.
 
-3. `add256`/`sub256`: Portable carry loop → `__builtin_addcll`/`__builtin_subcll`
-   on GCC/Clang to hint ADCX/ADOX emit. MSVC/32-bit fallback unchanged.
-   ADCX/ADOX have data-independent latency on all x86-64 targets.
+3. `add256`/`sub256`: `__builtin_addcll`/`__builtin_subcll` guarded Clang-only
+   (`#if defined(__clang__)`). Original guard `defined(__GNUC__) || defined(__clang__)`
+   was incorrect: GCC-13 defines `__GNUC__` but lacks these Clang-extension builtins,
+   causing a build failure. GCC now falls through to the portable carry loop.
+   CT invariant unaffected — both paths produce identical results and have
+   data-independent latency on all x86-64 targets (2026-05-04 compiler compat fix).
 
 Existing `audit_ct`, `ct_sidechannel`, and `test_ct_equivalence` CAAS modules
 continue to cover these primitives. Regression: `test_regression_perf_review_sec_2026_05_04`.

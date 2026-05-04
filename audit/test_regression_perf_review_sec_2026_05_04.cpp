@@ -35,6 +35,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/field.hpp"
+#include "secp256k1/pippenger.hpp"
 #include "secp256k1/precompute.hpp"
 #include "ufsecp256k1.h"
 
@@ -170,7 +171,10 @@ static void test_prf4_schnorr_kats() {
     std::array<uint8_t, 64> sig_arr;
     std::memcpy(sig_arr.data(), sig0, 64);
 
-    bool const ok = secp256k1::schnorr_verify(pk_arr, msg_arr, sig_arr);
+    // schnorr_verify takes raw pointers + SchnorrSignature (not std::array<u8,64>)
+    bool const ok = secp256k1::schnorr_verify(
+        pk_arr.data(), msg_arr.data(),
+        secp256k1::SchnorrSignature::from_bytes(sig_arr));
     ASSERT_TRUE(ok, "PRF-4: BIP-340 vector 0 must still verify after kSeven52 file-scope fix");
 }
 
@@ -215,7 +219,7 @@ static void test_prf6_ct_field_carry() {
     ASSERT_TRUE(diff_zero, "PRF-6: (0 + 1) - 1 must equal 0 mod p via CT field arithmetic");
 
     // CT field inverse: inv(1) = 1
-    FieldElement const inv1 = ct::field_inverse(one);
+    FieldElement const inv1 = ct::field_inv(one);
     ASSERT_TRUE(inv1 == one, "PRF-6: CT field_inverse(1) must equal 1");
 }
 

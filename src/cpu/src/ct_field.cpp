@@ -61,11 +61,13 @@ static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
 }
 
 // CT 256-bit addition with carry out. Returns carry (0 or 1).
-// Uses __builtin_addcll on GCC/Clang to emit ADCX/ADOX instructions (B-10).
+// Uses __builtin_addcll on Clang to emit ADCX/ADOX instructions (B-10).
+// GCC-13 defines __GNUC__ but does NOT have __builtin_addcll (Clang extension);
+// GCC falls through to the portable path.
 static inline std::uint64_t add256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__clang__)
     unsigned long long carry = 0;
     carry = __builtin_addcll(a[0], b[0], carry, (unsigned long long*)&r[0]);
     carry = __builtin_addcll(a[1], b[1], carry, (unsigned long long*)&r[1]);
@@ -87,11 +89,12 @@ static inline std::uint64_t add256(std::uint64_t r[4],
 }
 
 // CT 256-bit subtraction with borrow out. Returns borrow (0 or 1).
-// Uses __builtin_subcll on GCC/Clang to emit SBB instructions (B-10).
+// Uses __builtin_subcll on Clang to emit SBB instructions (B-10).
+// GCC-13 does NOT have __builtin_subcll; falls through to portable path.
 static inline std::uint64_t sub256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__clang__)
     unsigned long long borrow = 0;
     borrow = __builtin_subcll(a[0], b[0], borrow, (unsigned long long*)&r[0]);
     borrow = __builtin_subcll(a[1], b[1], borrow, (unsigned long long*)&r[1]);
