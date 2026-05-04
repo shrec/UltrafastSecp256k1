@@ -74,7 +74,13 @@ def find_lib(hint: Optional[str] = None) -> str:
     """Locate libufsecp.so.* or libultrafast_secp256k1.so on the filesystem."""
     candidates = []
     if hint:
-        candidates.append(Path(hint))
+        hp = Path(hint)
+        if hp.is_dir():
+            # Hint is a build dir — search it recursively for the .so
+            candidates.extend(sorted(hp.rglob("libufsecp.so*")))
+            candidates.extend(sorted(hp.rglob("libultrafast_secp256k1.so*")))
+        else:
+            candidates.append(hp)
     root = _LIB_ROOT
     # Prefer the versioned .so.3 (avoids dlopen confusion)
     suite = root.parent.parent
@@ -84,7 +90,7 @@ def find_lib(hint: Optional[str] = None) -> str:
             suite / bd / "include" / "ufsecp" / "libufsecp.so",
         ]
     # Canonical out/<profile> paths (new build layout as of 2026-05-01)
-    for profile in ["release", "audit", "test", "shim", "core", "rel",
+    for profile in ["ci-release", "release", "audit", "test", "shim", "core", "rel",
                     "gpu-opencl", "gpu-cuda", "ci-audit", "shim-check",
                     "shim-v3", "packaging-repro"]:
         candidates += [
