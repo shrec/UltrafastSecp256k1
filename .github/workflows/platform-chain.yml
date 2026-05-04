@@ -436,11 +436,6 @@ jobs:
           "$RUNNER" --report-dir audit_reports/
         shell: bash
 
-      - name: "[full] Fast gates"
-        if: inputs.audit_mode == 'full'
-        run: bash ci/run_fast_gates.sh
-        shell: bash
-
       - name: "[full] Audit gate P0–P18"
         if: inputs.audit_mode == 'full'
         run: |

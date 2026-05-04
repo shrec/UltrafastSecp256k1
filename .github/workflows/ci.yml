@@ -1,14 +1,21 @@
 # =============================================================================
-# CI — Sequential Platform Chains
+# CI — Static Analysis Gate + Sequential Platform Chains
 # =============================================================================
 #
-# Every platform runs the SAME three-stage chain via platform-chain.yml:
+# Two-tier structure:
 #
-#   [build] ──needs──▶ [audit] ──needs──▶ [collect]
+#   [static-analysis]  ← runs ONCE at root; no build needed
+#          │
+#          ▼  (all chains wait for static-analysis to pass)
+#   chain-gcc-14:   [build] ──▶ [audit] ──▶ [collect]
+#   chain-gcc-13:   [build] ──▶ [audit] ──▶ [collect]
+#   chain-clang-17: [build] ──▶ [audit] ──▶ [collect]
+#   … (all platforms in parallel)
+#          │
+#          ▼
+#   ci-verdict
 #
-# All platform chains run in parallel with each other.
-# Within a chain, each stage starts only after the previous one finishes.
-# The chain definition is in platform-chain.yml (single source of truth).
+# If static-analysis fails, no platform chain starts — no runner time wasted.
 #
 # Platforms
 # ───────────────────────────────────────────────────────────────────────────
@@ -61,11 +68,102 @@ concurrency:
 
 jobs:
   # ===========================================================================
+  # ── Static Analysis Gate  (runs ONCE — all platform chains wait for this)
+  # No compiler, no build. Pure code-quality and consistency checks.
+  # Fail here → zero platform runners are wasted.
+  # ===========================================================================
+  static-analysis:
+    name: "Static Analysis"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install audit deps
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" -m pip install --require-hashes \
+            -r .github/requirements/audit-deps.txt
+
+      - name: Repo map check
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" tools/render_repo_map.py --check
+
+      - name: Exploit wiring parity
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" ci/check_exploit_wiring.py
+
+      - name: Canonical data + doc sync
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" ci/build_canonical_data.py --dry-run
+          "$PYTHON" ci/sync_docs_from_canonical.py --dry-run
+          "$PYTHON" ci/sync_module_count.py --dry-run
+
+      - name: Audit test quality scanner
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" ci/audit_test_quality_scanner.py --json \
+            -o static_analysis_scanner.json
+          "$PYTHON" - <<'PYEOF'
+          import json, sys
+          d = json.load(open("static_analysis_scanner.json"))
+          n = d.get("total_findings", 0)
+          if n > 0:
+              print(f"::error::{n} audit test quality finding(s)")
+              sys.exit(1)
+          PYEOF
+
+      - name: Exploit traceability join
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" ci/exploit_traceability_join.py \
+            --json -o static_analysis_traceability.json
+          "$PYTHON" - <<'PYEOF'
+          import json, sys
+          d = json.load(open("static_analysis_traceability.json"))
+          if not d.get("pass", d.get("passed", False)):
+              print("::error::Exploit traceability join failed")
+              sys.exit(1)
+          PYEOF
+
+      - name: Source graph quality
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" ci/check_source_graph_quality.py
+
+      - name: Upload static analysis reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: static-analysis-${{ github.run_id }}
+          path: |
+            static_analysis_scanner.json
+            static_analysis_traceability.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ===========================================================================
   # ── Linux native chains  (audit_mode: full)
   # ctest + unified_audit_runner + all Python gate scripts
   # ===========================================================================
 
   chain-gcc-14:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-14
@@ -82,6 +180,7 @@ jobs:
       audit_mode: full
 
   chain-gcc-13:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-13
@@ -98,6 +197,7 @@ jobs:
       audit_mode: full
 
   chain-clang-17:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: clang-17
@@ -114,6 +214,7 @@ jobs:
       audit_mode: full
 
   chain-llvm-21:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: llvm-21
@@ -138,6 +239,7 @@ jobs:
   # ===========================================================================
 
   chain-asan:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: asan
@@ -158,6 +260,7 @@ jobs:
       ctest_timeout: 900
 
   chain-tsan:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: tsan
@@ -178,6 +281,7 @@ jobs:
       ctest_timeout: 900
 
   chain-msan:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: msan
@@ -207,6 +311,7 @@ jobs:
 
   chain-coverage:
     if: github.event_name == 'push'
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: coverage
@@ -231,6 +336,7 @@ jobs:
   # ===========================================================================
 
   chain-macos:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: apple-clang
@@ -246,6 +352,7 @@ jobs:
   # ===========================================================================
 
   chain-windows:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: msvc
@@ -264,6 +371,7 @@ jobs:
   # ===========================================================================
 
   chain-linux-arm64:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-arm64
@@ -284,6 +392,7 @@ jobs:
       audit_mode: qemu-arm64
 
   chain-linux-riscv64:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-riscv64
@@ -310,6 +419,7 @@ jobs:
   # ===========================================================================
 
   chain-android-arm64:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-arm64-v8a
@@ -317,6 +427,7 @@ jobs:
       audit_mode: verify
 
   chain-android-armv7:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-armeabi-v7a
@@ -324,6 +435,7 @@ jobs:
       audit_mode: verify
 
   chain-android-x86_64:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-x86_64
@@ -336,6 +448,7 @@ jobs:
   # ===========================================================================
 
   chain-wasm:
+    needs: [static-analysis]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: wasm
@@ -351,6 +464,7 @@ jobs:
   ci-verdict:
     name: "CI / Final Verdict"
     needs:
+      - static-analysis
       - chain-gcc-14
       - chain-gcc-13
       - chain-clang-17
@@ -380,6 +494,13 @@ jobs:
       - name: Evaluate all platform chains
         run: |
           FAILED=0
+
+          # Static analysis is a hard gate — failure here blocks everything
+          SA="${{ needs.static-analysis.result }}"
+          if [ "$SA" != "success" ]; then
+            echo "::error::Static analysis → $SA (all platform chains were skipped)"
+            exit 1
+          fi
 
           # Map: platform-label → chain result
           declare -A R
