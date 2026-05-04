@@ -316,6 +316,13 @@ uses the same incomplete formula for the same reason.
 This is identical reasoning to scalar_mul_prebuilt_fast.
 Savings: ~5M per add x ~43 inner additions ≈ 215M ≈ 2800 ns.
 
+Magnitude fix (2026-05-04): add_affine_fast_ct used incorrect negate()
+magnitude parameters, causing uint64 underflow in the 5x52 lazy-reduction
+scheme when called after point_dbl_n_core (X mag=18, Y mag=10) or after
+a prior add (X3 mag=7). Fixed: negate(8)→negate(18) for X1, negate(4)→
+negate(10) for Y1, negate(1)→negate(7) for X3. Root cause of schnorr_adaptor
+and ECDSA self-verify failures. CT invariant unaffected (no branches added).
+
 AVX2 comb_lookup (2026-05-04): the 32-entry CT table scan in comb_lookup
 now uses AVX2 when SECP256K1_CT_AVX2 is defined (x86-64 + __AVX2__).
 Each CTAffinePoint (80 bytes = x.n[5] + y.n[5]) is processed as 2.5 ymm

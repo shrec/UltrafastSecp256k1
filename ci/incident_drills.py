@@ -50,9 +50,6 @@ def drill_key_compromise() -> dict:
         live = True
     except Exception:
         live = False
-            # Library not available (e.g. standalone CI checkout without a build).
-            # The drill still validates documentation and API surface — this is
-            # intentional degraded mode, not an infrastructure failure.
 
     results: list[dict] = []
     for name, key_hex in weak_keys:
@@ -231,7 +228,21 @@ def run(json_mode: bool, out_file: str | None) -> int:
         else:
             print(f"FAIL {drills_total - drills_passed}/{drills_total} drill(s) failed")
 
-    return 0 if overall_pass else 1
+    if overall_pass:
+        # Check if any drill ran in degraded mode (no live library).
+        # Live testing is required for a meaningful audit result.
+        # Return ADVISORY_SKIP_CODE (77) so the autonomy runner records a skip
+        # instead of a false-pass (returning 0 when no live testing occurred
+        # violates CLAUDE.md Rule 16).
+        any_degraded = any(not r.get("live_test", True) for r in results)
+        if any_degraded:
+            if json_mode:
+                pass  # report already printed above
+            else:
+                print("ADVISORY_SKIP: library unavailable — live key-rejection testing skipped")
+            return 77
+        return 0
+    return 1
 
 
 def main() -> int:

@@ -31,9 +31,12 @@ SUMMARY=0
 run() {
     local label="$1"; shift
     printf "  %-48s" "${label}..."
-    local out
-    if out=$(python3 "$@" 2>&1); then
+    local out rc
+    out=$(python3 "$@" 2>&1); rc=$?
+    if [ "$rc" -eq 0 ]; then
         printf " \033[0;32mOK\033[0m\n"
+    elif [ "$rc" -eq 77 ]; then
+        printf " \033[0;33mSKIP\033[0m\n"
     else
         printf " \033[0;31mFAIL\033[0m\n"
         printf "%s\n" "$out" | sed 's/^/    /'

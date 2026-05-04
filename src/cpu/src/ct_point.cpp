@@ -818,9 +818,9 @@ void add_affine_fast_ct(CTJacobianPoint* out,
     S2.mul_assign(Z1);                       // Y2*Z1^3      [2M]
 
     FE52 H = U2;
-    H.add_assign(X1.negate(8));             // H = U2-X1
+    H.add_assign(X1.negate(18));            // H = U2-X1  (X1 mag<=18 after point_dbl_n_core)
     FE52 R = S2;
-    R.add_assign(Y1.negate(4));             // R = S2-Y1
+    R.add_assign(Y1.negate(10));            // R = S2-Y1  (Y1 mag<=10 after point_dbl_n_core)
 
     FE52 const Z3   = H * Z1;               // Z3 = H*Z1    [1M]
     FE52 const HH   = H.square();           // H^2          [1S]
@@ -831,10 +831,10 @@ void add_affine_fast_ct(CTJacobianPoint* out,
     FE52 X3 = RR;
     X3.add_assign(HHH.negate(1));           // R^2-H^3
     X3.add_assign(U1HH.negate(1));
-    X3.add_assign(U1HH.negate(1));         // R^2-H^3-2*X1*H^2 = X3
+    X3.add_assign(U1HH.negate(1));         // R^2-H^3-2*X1*H^2 = X3  (mag=7)
 
     FE52 Y3 = U1HH;
-    Y3.add_assign(X3.negate(1));            // X1*H^2 - X3
+    Y3.add_assign(X3.negate(7));            // X1*H^2 - X3  (X3 mag=7)
     Y3.mul_assign(R);                       // R*(X1*H^2 - X3) [1M]
     Y3.add_assign((Y1 * HHH).negate(1));   // - Y1*H^3       [1M]
 

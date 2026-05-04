@@ -335,7 +335,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [security_autonomy]
-    if: needs.security_autonomy.result != 'cancelled' && github.event.inputs.skip_bundle != 'true'
+    if: needs.security_autonomy.result == 'success' && github.event.inputs.skip_bundle != 'true'
 
     steps:
       - name: Harden runner

@@ -91,6 +91,16 @@ Measured with `bench_unified` / `gpu_bench_unified` (signing operations; verify 
 ESP32 has near-zero CT overhead: in-order core, no speculative execution. x86 overhead
 improved in v3.16.0 (was 1.94x ECDSA) following the GLV decomposition correctness fix.
 
+**2026-05-04 (add_affine_fast_ct magnitude fix):** Corrected FE52 negate()
+magnitude parameters in the incomplete mixed-add used by `ct::generator_mul`
+and `ct::scalar_mul_prebuilt_fast`. The 5x52 lazy-reduction scheme requires
+`negate(m)` to be called with m ≥ actual element magnitude to avoid uint64
+underflow. Affected parameters: negate(8)→negate(18) for X1 (mag≤18 after
+point_dbl_n_core), negate(4)→negate(10) for Y1 (mag≤10), negate(1)→negate(7)
+for X3 (mag=7 after two-add accumulation). This was the root cause of all
+signing correctness failures introduced with the incomplete-add optimization.
+CT timing invariant unaffected.
+
 **2026-05-04 (AVX2 comb_lookup):** `ct::generator_mul` reduced from 13951 ns to ~8700 ns
 (-37.7%) on x86-64-v3 (AVX2) via vectorized 32-entry comb table scan in `comb_lookup`.
 The AVX2 path uses the same XOR/AND CT blend idiom as `table_lookup_core` (already used
