@@ -971,20 +971,19 @@ __device__ inline GLVDecomposition glv_decompose(const Scalar* k) {
     scalar_mul_mod_n(&c2, &minus_b2, &t2);
     scalar_add(&t1, &t2, &k2_mod);
 
-    // Step 3: pick shorter representation for k2
+    // Step 3: pick shorter representation for k2 — branchless to avoid warp divergence.
+    // Each thread's scalar has a different bit length, causing full warp serialization
+    // with branchy selection. Use mask-select instead.
     Scalar k2_neg_val;
     scalar_negate(&k2_mod, &k2_neg_val);
     bool k2_is_neg = (scalar_bitlen(&k2_neg_val) < scalar_bitlen(&k2_mod));
-    Scalar k2_abs = k2_is_neg ? k2_neg_val : k2_mod;
+    uint64_t k2_mask = (uint64_t)(-(int64_t)k2_is_neg);  // ~0 if neg, 0 if not
+    Scalar k2_abs;
+    for (int i = 0; i < 4; i++)
+        k2_abs.limbs[i] = (k2_neg_val.limbs[i] & k2_mask) | (k2_mod.limbs[i] & ~k2_mask);
 
-    // For k2_signed: if k2_is_neg, k2_signed = -k2_abs = k2_mod; else k2_signed = k2_abs = k2_mod
-    // We need k2_signed for computing k1 = k - lambda*k2_signed
-    Scalar k2_signed;
-    if (k2_is_neg) {
-        scalar_negate(&k2_abs, &k2_signed);
-    } else {
-        k2_signed = k2_abs;
-    }
+    // k2_signed = k2_mod always (neg and non-neg paths both yield k2_mod after sign flip)
+    Scalar k2_signed = k2_mod;
 
     // Step 4: k1 = k - lambda*k2_signed (mod n)
     Scalar lambda_s;
@@ -994,11 +993,14 @@ __device__ inline GLVDecomposition glv_decompose(const Scalar* k) {
     Scalar k1_mod;
     scalar_sub(k, &lk2, &k1_mod);
 
-    // Step 5: pick shorter representation for k1
+    // Step 5: pick shorter representation for k1 — branchless mask-select (same as k2).
     Scalar k1_neg_val;
     scalar_negate(&k1_mod, &k1_neg_val);
     bool k1_is_neg = (scalar_bitlen(&k1_neg_val) < scalar_bitlen(&k1_mod));
-    Scalar k1_abs = k1_is_neg ? k1_neg_val : k1_mod;
+    uint64_t k1_mask = (uint64_t)(-(int64_t)k1_is_neg);
+    Scalar k1_abs;
+    for (int i = 0; i < 4; i++)
+        k1_abs.limbs[i] = (k1_neg_val.limbs[i] & k1_mask) | (k1_mod.limbs[i] & ~k1_mask);
 
     result.k1 = k1_abs;
     result.k2 = k2_abs;
