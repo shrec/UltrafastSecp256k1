@@ -440,6 +440,12 @@ jobs:
         if: inputs.audit_mode == 'full'
         run: |
           PYTHON=$(command -v python3 || command -v python)
+          # Guard: if the unified_audit_runner failed to produce audit_report.json,
+          # the gate reads from stale graph state and may falsely pass.
+          if [ ! -f "audit_reports/audit_report.json" ]; then
+            echo "::error::audit_reports/audit_report.json missing — unified_audit_runner did not complete successfully"
+            exit 1
+          fi
           set +e
           "$PYTHON" ci/audit_gate.py --json -o audit_reports/gate_report.json
           GATE_EXIT=$?
@@ -469,6 +475,13 @@ jobs:
           PYTHON=$(command -v python3 || command -v python)
           "$PYTHON" ci/security_autonomy_check.py \
             --json -o audit_reports/autonomy_report.json
+          rc=$?
+          # Exit 77 = ADVISORY_SKIP_CODE: all gates absent (no GPU/infra) → advisory skip, not failure
+          if [ $rc -eq 77 ]; then
+            echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            exit 0
+          fi
+          [ $rc -ne 0 ] && exit $rc
           "$PYTHON" - <<'PYEOF'
           import json, sys
           d = json.load(open("audit_reports/autonomy_report.json"))
@@ -501,10 +514,11 @@ jobs:
         run: |
           PYTHON=$(command -v python3 || command -v python)
           "$PYTHON" - <<'PYEOF'
-          import json, pathlib
+          import json, pathlib, sys
           rep = pathlib.Path("audit_reports/audit_report.json")
           if not rep.exists():
-              print("Audit report not found — runner may not have completed")
+              print("::error::audit_reports/audit_report.json not found — unified_audit_runner did not complete")
+              sys.exit(1)
           else:
               d = json.load(rep.open())
               s = d.get("summary", d)

@@ -11,9 +11,10 @@
 #   ln -sf ../../ci/ci_local.sh .git/hooks/pre-push
 # ============================================================================
 set -uo pipefail
-# NOTE: no -e intentionally — we handle exit codes manually in run_check.
-# bash arithmetic ((n++)) returns 1 when n=0, which would kill the script
-# with -e even on success.
+# NOTE: no -e intentionally — we handle exit codes manually in run_check/run_caas_check.
+# bash arithmetic ((n++)) returns 1 when n=0, which would kill the script with -e.
+# Consequence: commands OUTSIDE run_check blocks (e.g. the JSON artifact write, mkdir)
+# do not abort automatically on failure. Those paths must handle errors explicitly.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -91,9 +92,11 @@ run_check "Exploit traceability join" python3 ci/exploit_traceability_join.py
 echo ""
 
 # ── CAAS security gates (~10s) ──────────────────────────────────────────────
-# These mirror the CI CAAS pipeline stages that historically caused 2+ day fix
-# cycles when discovered only on push. Runs in fast mode (no bundle, no-fail-fast).
-echo -e "${BOLD}[4] CAAS Security Gates (mirrors CI caas.yml stages 2+3)${NC}"
+# Mirrors caas.yml Stage 1 (scanner, via Section [1] fast-gates above) +
+# Stage 2 (audit_gate) + Stage 3 (security_autonomy). Stage 1 scanner runs
+# inside run_fast_gates.sh (Section [1]) via validate_assurance.py.
+# exploit_traceability_join.py (Stage 1b) runs in Section [3] Preflight above.
+echo -e "${BOLD}[4] CAAS Security Gates (mirrors CI caas.yml stages 1b+2+3)${NC}"
 _caas_fail=0
 
 run_caas_check() {
@@ -237,7 +240,7 @@ $(for key in "${!gate_results[@]}"; do
   done)
 doc = {
     "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "overall_pass": $([ $fail -eq 0 ] && echo true || echo false),
+    "overall_pass": $([ $fail -eq 0 ] && echo True || echo False),
     "pass": $pass,
     "fail": $fail,
     "adv_skip": $adv_skip,
@@ -245,7 +248,10 @@ doc = {
 }
 print(json.dumps(doc, indent=2))
 PYEOF
-} > "$_artifact" 2>/dev/null || true
+} > "$_artifact"
+if [ $? -ne 0 ]; then
+  echo -e "  ${YELLOW}Warning: failed to write local artifact${NC} $_artifact" >&2
+fi
 echo -e "  ${YELLOW}Local artifact:${NC} $_artifact"
 echo ""
 

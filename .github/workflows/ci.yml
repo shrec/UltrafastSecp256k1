@@ -761,6 +761,14 @@ jobs:
             echo "::error::Static analysis → $SA (all platform chains were skipped)"
             exit 1
           fi
+          # static-gate aggregates static-analysis + codeql + sonarcloud.
+          # A CodeQL failure skips all platform chains but leaves static-analysis=success,
+          # so ci-verdict must also check static-gate directly.
+          SG="${{ needs.static-gate.result }}"
+          if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
+            echo "::error::static-gate → $SG (CodeQL/SonarCloud failure; all platform chains were skipped)"
+            exit 1
+          fi
 
           # Map: platform-label → chain result
           declare -A R

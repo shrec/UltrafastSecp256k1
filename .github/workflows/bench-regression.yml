@@ -65,7 +65,12 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y -qq ninja-build cmake
+        sudo apt-get install -y -qq ninja-build cmake ccache
+
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@a1209f81afb8746ae8834c8b6de9c2df990b657a # v1.2
+      with:
+        key: bench-regression-${{ runner.os }}
 
     - name: Clone libsecp256k1 (for apple-to-apple comparison)
       run: |
@@ -77,6 +82,8 @@ jobs:
         cmake -S . -B out/bench-gate \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DBUILD_TESTING=ON \
           -DSECP256K1_USE_ASM=ON \
           -DSECP256K1_MARCH=x86-64-v2 \
@@ -130,7 +137,7 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: true
-        alert-threshold: '200%'
+        alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
@@ -149,7 +156,7 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: false
-        alert-threshold: '200%'
+        alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'

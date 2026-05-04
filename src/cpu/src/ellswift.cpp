@@ -491,50 +491,24 @@ std::array<std::uint8_t, 32> ellswift_xdh(
     const Scalar& our_privkey,
     bool initiating) noexcept {
 
-    // 1. Decode their ElligatorSwift to an x-coordinate
+    // 1. Decode their ElligatorSwift to an x-coordinate (~1.3 µs, one inverse)
     const std::uint8_t* their_ell = initiating ? ell_b64 : ell_a64;
     auto their_x = ellswift_decode(their_ell);
 
-    // 2. Recover their point from x-coordinate (even y)
-    auto x2 = their_x.square();
-    auto x3 = x2 * their_x;
-    auto y2 = x3 + FE_SEVEN;
-    auto y = y2.sqrt();
-    // Verify it's a valid point
-    if (!(y.square() == y2)) {
+    // 2. CT ECDH via x-only path: no sqrt, one combined field inverse.
+    // ct::ecmult_const_xonly computes x(our_privkey * P) given P's x-coordinate,
+    // using the libsecp256k1 isomorphic-curve trick (a=0 => formulas are twist-invariant).
+    // xd = one since their_x is already the full x-coordinate (not a fraction).
+    auto ecdh_x_fe = ct::ecmult_const_xonly(their_x, FieldElement::one(), our_privkey);
+    if (ecdh_x_fe == FieldElement::zero()) {
         return std::array<std::uint8_t, 32>{};
     }
+    auto ecdh_x = ecdh_x_fe.to_bytes();
 
-    // Pick even y (parity doesn't matter for x-only ECDH)
-    auto y_bytes = y.to_bytes();
-    if (y_bytes[31] & 1) {
-        y = y.negate();
-    }
-
-    auto their_point = Point::from_affine(their_x, y);
-    if (their_point.is_infinity()) {
-        return std::array<std::uint8_t, 32>{};
-    }
-
-    // 3. ECDH: shared_secret = SHA256(tag || tag || ell_a || ell_b || x(privkey * their_point))
-    // Constant-time: our_privkey is secret
-    auto ecdh_point = ct::scalar_mul(their_point, our_privkey);
-    if (ecdh_point.is_infinity()) {
-        return std::array<std::uint8_t, 32>{};
-    }
-    auto ecdh_x = ecdh_point.x().to_bytes();
-
-    // BIP-324 specifies: shared_secret = SHA256(
-    //   SHA256("bip324_ellswift_xonly_ecdh") || SHA256("bip324_ellswift_xonly_ecdh") ||
-    //   ell_a64 || ell_b64 || ecdh_x)
-    //
-    // This is the tagged hash: SHA256_tagged("bip324_ellswift_xonly_ecdh", ell_a || ell_b || x)
-
-    // Compute the tag hash
+    // 3. BIP-324 tagged hash
     constexpr char tag_str[] = "bip324_ellswift_xonly_ecdh";
-    auto tag_hash = SHA256::hash(tag_str, sizeof(tag_str) - 1);
+    static const auto tag_hash = SHA256::hash(tag_str, sizeof(tag_str) - 1);
 
-    // Tagged hash: SHA256(tag_hash || tag_hash || ell_a || ell_b || ecdh_x)
     SHA256 hasher;
     hasher.update(tag_hash.data(), 32);
     hasher.update(tag_hash.data(), 32);
@@ -544,7 +518,6 @@ std::array<std::uint8_t, 32> ellswift_xdh(
     auto shared_secret = hasher.finalize();
 
     detail::secure_erase(ecdh_x.data(), 32);
-    detail::secure_erase(&ecdh_point, sizeof(ecdh_point));
 
     return shared_secret;
 }

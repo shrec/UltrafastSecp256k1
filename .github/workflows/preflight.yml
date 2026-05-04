@@ -194,6 +194,13 @@ jobs:
       - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
         run: |
           python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+          rc=$?
+          # Exit 77 = ADVISORY_SKIP_CODE: all gates absent (no GPU/infra) → advisory skip, not failure
+          if [ $rc -eq 77 ]; then
+            echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            exit 0
+          fi
+          [ $rc -ne 0 ] && exit $rc
           python3 - <<'EOF'
           import json, sys
           with open("caas_autonomy.json") as f:
@@ -227,5 +234,5 @@ jobs:
             caas_audit_gate.json
             caas_autonomy.json
             audit_report.json
-          if-no-files-found: warn
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 90

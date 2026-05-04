@@ -248,57 +248,21 @@ bool Bip324Session::decrypt(
 }
 
 // ============================================================================
-// BIP-324 optimized XDH backend — transparent peer GLV cache
+// BIP-324 optimized XDH backend — sqrt-free x-only path
 // ============================================================================
+//
+// Uses ct::ecmult_const_xonly (port of libsecp256k1 secp256k1_ecmult_const_xonly)
+// to compute x(sk * P) directly from P's x-coordinate, without sqrt.
+//
+// Prior approach: decode ELL64 → x → sqrt(y) → build GLV tables → scalar_mul.
+// New approach:   decode ELL64 → x → ecmult_const_xonly(x, 1, sk).
+//   Eliminates: ~3.8 µs sqrt, ~1.95 µs table build, 16-slot peer cache overhead.
+//   Trade-off:  one extra field inverse (~1.6 µs) vs. sqrt (~3.8 µs) → net ~2.2 µs saved.
+//   Bonus:      removes thread-local state entirely.
 
 namespace bip324 {
 
 namespace {
-
-// 16-slot direct-mapped thread-local cache for peer CT GLV tables.
-// Key: first 8 bytes of their_ell64 XOR'd as a 4+4 slot index.
-// Saves ~1,954 ns (build_scalar_mul_tables cost) on reconnect to same peer.
-struct Bip324PeerCache {
-    static constexpr std::size_t SLOTS = 16;
-    struct Slot {
-        std::uint8_t     ell64[64]{};
-        ct::CTScalarMulTables tables{};
-    };
-    Slot slots[SLOTS]{};
-
-    static std::size_t slot_of(const std::uint8_t e[64]) noexcept {
-        std::uint32_t a, b;
-        std::memcpy(&a, e,   4);
-        std::memcpy(&b, e+4, 4);
-        return static_cast<std::size_t>((a ^ b) & (SLOTS-1));
-    }
-
-    const ct::CTScalarMulTables* get(const std::uint8_t e[64]) const noexcept {
-        const auto& s = slots[slot_of(e)];
-        if (s.tables.valid && std::memcmp(s.ell64, e, 64) == 0) return &s.tables;
-        return nullptr;
-    }
-
-    const ct::CTScalarMulTables* put(const std::uint8_t e[64]) noexcept {
-        auto& s = slots[slot_of(e)];
-        // Decode peer ELL64 → point (XSwiftEC decode with y parity from t)
-        using FE = fast::FieldElement;
-        auto x = ellswift_decode(e);
-        auto y2 = x*x*x + FE::from_uint64(7);
-        auto y  = y2.sqrt();
-        if (!(y.square() == y2)) { s.tables.valid = false; return nullptr; }
-        std::array<std::uint8_t,32> tb{}; std::memcpy(tb.data(), e+32, 32);
-        auto t_fe = FE::from_bytes(tb);
-        bool t_odd = (t_fe == FE::zero()) ? true : ((t_fe.to_bytes()[31] & 1) != 0);
-        if (((y.to_bytes()[31] & 1) != 0) != t_odd) y = y.negate();
-        auto P = fast::Point::from_affine(x, y);
-        s.tables = ct::build_scalar_mul_tables(P);
-        if (s.tables.valid) std::memcpy(s.ell64, e, 64);
-        return s.tables.valid ? &s.tables : nullptr;
-    }
-};
-
-static thread_local Bip324PeerCache g_peer_cache;
 
 static std::array<std::uint8_t,32> bip324_xdh_hash(
     const std::uint8_t x32[32],
@@ -326,34 +290,17 @@ std::array<std::uint8_t,32> xdh(
     //   responding → their key is ell_a64
     const std::uint8_t* peer_ell = initiating ? ell_b64 : ell_a64;
 
-    // Lookup or build peer's CT GLV tables
-    const auto* tables = g_peer_cache.get(peer_ell);
-    if (!tables) tables = g_peer_cache.put(peer_ell);
+    // Decode peer's ElligatorSwift encoding to an x-coordinate (~1.3 µs, one inverse)
+    auto peer_x = ellswift_decode(peer_ell);
 
-    fast::Point shared;
-    if (tables) {
-        // Fast path: prebuilt tables + incomplete 7M+3S formula.
-        // Degenerate probability ~2^-128; wrong result → handshake fail, not key leak.
-        // ~25% faster than scalar_mul_prebuilt for BIP-324 ECDH sessions.
-        fast::Point fallback = fast::Point::infinity();
-        shared = ct::scalar_mul_prebuilt_fast(*tables, fallback, sk);
-    } else {
-        // Fallback: full decode + CT scalar_mul (degenerate peer key ~2^-256)
-        auto x  = ellswift_decode(peer_ell);
-        auto y2 = x*x*x + fast::FieldElement::from_uint64(7);
-        auto y  = y2.sqrt();
-        if (!(y.square() == y2)) return {};
-        std::array<std::uint8_t,32> tb{}; std::memcpy(tb.data(), peer_ell+32, 32);
-        auto t_fe = fast::FieldElement::from_bytes(tb);
-        bool t_odd = (t_fe == fast::FieldElement::zero()) ? true
-                                                           : ((t_fe.to_bytes()[31]&1)!=0);
-        if (((y.to_bytes()[31]&1)!=0) != t_odd) y = y.negate();
-        shared = ct::scalar_mul(fast::Point::from_affine(x, y), sk);
-    }
+    // CT scalar multiply via x-only path: no sqrt, one combined inverse.
+    // xd = one (peer_x is already the full x-coordinate, not a fraction).
+    auto px = ct::ecmult_const_xonly(peer_x, fast::FieldElement::one(), sk);
 
-    if (shared.is_infinity()) return {};
-    auto x32 = shared.x_only_bytes();
-    // Hash always: (x, ell_a64, ell_b64) — same order for both parties
+    if (px == fast::FieldElement::zero()) return {};
+
+    auto x32 = px.to_bytes();
+    // Hash: (x, ell_a64, ell_b64) — same order for both parties
     return bip324_xdh_hash(x32.data(), ell_a64, ell_b64);
 }
 

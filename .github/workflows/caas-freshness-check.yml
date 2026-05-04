@@ -110,6 +110,10 @@ jobs:
                   )
                   ts_str = result.stdout.strip() if result.returncode == 0 else ""
                   date_source = "git:commit"
+                  # NOTE: git commit date is unreliable as a freshness indicator.
+                  # A no-op re-commit (e.g. merge, rebase) resets the commit date even
+                  # when content is unchanged, producing a false-fresh reading.
+                  # Prefer json:generated_at whenever available.
 
               if not ts_str:
                   print(f"::error::{label}: no timestamp found — cannot verify evidence age (fail-closed)")

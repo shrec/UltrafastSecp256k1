@@ -110,7 +110,8 @@ jobs:
              [ -f "${_suite_root}/pyproject.toml" ] || \
              [ -f "${_suite_root}/CMakeLists.txt" ]; then
             if [ "$(basename "${_suite_root}")" != "$(basename "$(cd .. && pwd)")" ]; then
-              cp assurance_report.json "${_suite_root}/assurance_report.json" || true
+              cp assurance_report.json "${_suite_root}/assurance_report.json" \
+                || echo "::warning::Failed to copy assurance_report.json to suite root ${_suite_root}"
             fi
           fi
 
@@ -147,6 +148,31 @@ jobs:
         # silently was masking the bug.
         run: python3 ci/render_audit_dashboard.py -o docs/AUDIT_DASHBOARD.md
 
+      - name: Restore audit trend DB cache
+        id: trend_cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: out/artifact_analyzer.db
+          key: audit-trend-db-${{ runner.os }}-${{ hashFiles('ci/artifact_analyzer.py') }}
+          restore-keys: audit-trend-db-${{ runner.os }}-
+
+      - name: Ingest audit reports into trend DB and export timeline
+        # Wire artifact_analyzer.py into the nightly refresh so audit quality
+        # trends are tracked automatically across runs (MEDIUM-6 fix).
+        # The DB is cached across runs; the exported timeline JSON is committed.
+        continue-on-error: true
+        run: |
+          mkdir -p out
+          python3 ci/artifact_analyzer.py \
+            --db out/artifact_analyzer.db \
+            ingest assurance_report.json docs/SECURITY_AUTONOMY_KPI.json \
+            || echo "::warning::artifact_analyzer ingest skipped (report schema mismatch)"
+          python3 ci/artifact_analyzer.py \
+            --db out/artifact_analyzer.db \
+            export --format timeline \
+            --output docs/AUDIT_TREND_TIMELINE.json \
+            || echo "::warning::artifact_analyzer timeline export skipped"
+
       - name: Regenerate exploit traceability join (G-9b)
         run: |
           python3 ci/exploit_traceability_join.py --emit-join
@@ -160,6 +186,7 @@ jobs:
             docs/SECURITY_AUTONOMY_KPI.json \
             docs/AUDIT_DASHBOARD.md \
             docs/EXPLOIT_TRACEABILITY_JOIN.md \
+            docs/AUDIT_TREND_TIMELINE.json \
             || true
 
       - name: Upload refreshed artifacts (diagnostic fallback if push fails)

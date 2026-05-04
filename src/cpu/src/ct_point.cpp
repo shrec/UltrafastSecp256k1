@@ -1246,126 +1246,75 @@ CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
 // Cost: 125 doublings + 52 additions (ALL real, no digit=0 waste).
 // Table lookup: 26 groups x 2 tables x 15 cmov = 780 cmov iterations.
 
-Point scalar_mul(const Point& p, const Scalar& k) noexcept {
+// --- Internal Jacobian-output CT scalar multiply (FE52 path) -----------------
+// Same algorithm as scalar_mul() but returns the raw Jacobian CTJacobianPoint
+// with global_z already applied (NOT yet normalized via Z-inversion).
+// Used by ecmult_const_xonly() to combine Z^-1 with the g-correction into a
+// single field inversion (libsecp secp256k1_ecmult_const_xonly technique).
+//
+// Returns CTJacobianPoint with infinity flag set if k==0 or p==infinity.
+// Output: {R.x, R.y, R.z} in Jacobian form; affine x = R.x * R.z^{-2}.
+static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept {
     constexpr unsigned GROUP_SIZE = 5;
-    constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);  // 16 odd multiples
-    constexpr unsigned GROUPS = 26;   // ceil(129/5)
-    // BITS = GROUPS * GROUP_SIZE = 130 (used for K derivation)
+    constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);
+    constexpr unsigned GROUPS = 26;
 
-    // K = (2^BITS - 2^129 - 1) * (1 + lambda) mod n
-    // For GROUP_SIZE=5, BITS=130: K = (2^130 - 2^129 - 1)*(1+lambda) = (2^129 - 1)*(1+lambda)
-    // Precomputed constant (same as libsecp256k1 ECMULT_CONST_BITS=130):
     static const Scalar K_CONST = Scalar::from_limbs({
         0xb5c2c1dcde9798d9ULL, 0x589ae84826ba29e4ULL,
         0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
     });
 
-    // -- 1. Compute v1, v2 via Hamburg transform + GLV split --------------
+    if (p.is_infinity()) return CTJacobianPoint::make_infinity();
+
     Scalar s = scalar_add(k, K_CONST);
     s = scalar_half(s);
-
-    // GLV split: s = s1 + s2*lambda  (|s1|, |s2| ~ 2^128)
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
 
-    // Compute v = k_abs + 2^128 (if positive) or 2^128 - k_abs (if negative)
-    // using NON-MODULAR integer arithmetic on raw limbs.
-    // This keeps v in [0, ~2^129], fitting the 130-bit Hamburg window.
-    // (Modular scalar_cneg + scalar_add would wrap around n when |ki|
-    //  marginally exceeds 2^128, producing 256-bit garbage.)
     auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
-        auto L = k_abs.limbs(); // copy: 4 x uint64_t, little-endian
-
-        // Branchless: compute both paths and select via mask
-        // neg_mask is all-ones if k_neg, all-zeros otherwise
+        auto L = k_abs.limbs();
         std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
         std::uint64_t const pos_mask = ~neg_mask;
-
-        // Negative path: v = 2^128 - k_abs (integer subtraction)
-        std::uint64_t nL[4];
-        std::uint64_t borrow = 0;
-        std::uint64_t diff;
-        // limb 0: 0 - L[0]
+        std::uint64_t nL[4], borrow = 0, diff;
         diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
-        // limb 1: 0 - L[1] - borrow
         diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
-        // limb 2: 1 - L[2] - borrow (the 2^128 bit)
         diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
-        // limb 3: 0 - borrow
         nL[3] = 0 - borrow;
-
-        // Positive path: v = k_abs + 2^128 (integer addition)
         std::uint64_t pL[4];
-        pL[0] = L[0];
-        pL[1] = L[1];
+        pL[0] = L[0]; pL[1] = L[1];
         std::uint64_t const sum = L[2] + 1;
         std::uint64_t const carry = static_cast<std::uint64_t>(sum < L[2]);
-        pL[2] = sum;
-        pL[3] = L[3] + carry;
-
-        // Select: result = (neg_mask & nL) | (pos_mask & pL)
+        pL[2] = sum; pL[3] = L[3] + carry;
         L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
         L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
         L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
         L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
-
         return Scalar::from_limbs(L);
     };
 
     Scalar const v1 = make_v(k1_abs, k1_neg);
     Scalar const v2 = make_v(k2_abs, k2_neg);
 
-    // -- 2. Build odd-multiples table via isomorphic curve + batch inversion --
-    // Adapted from bitcoin-core/secp256k1 effective-affine technique:
-    //
-    // Let d = 2*P (Jacobian), C = d.Z. On the isomorphic curve
-    //   Y'^2 = X'^3 + C^6*7
-    // the mapping phi(X, Y, Z) = (X*C^2, Y*C^3, Z) makes d affine: (d.X, d.Y).
-    // This lets us use Jac+Affine mixed adds (3S+8M) instead of Jac+Jac (5S+12M).
-    // At the end, the "true" Z for each entry on secp256k1 is Z_iso * C.
     CTAffinePoint pre_a[TABLE_SIZE];
     CTAffinePoint pre_a_lam[TABLE_SIZE];
 
-    // 2.1 -- Compute d = 2P and set up isomorphic curve
     Point p2 = p;
-    p2.dbl_inplace();               // d = 2*P (Jacobian, variable-time OK: P is public)
-    FE52 const C  = p2.Z52();             // C = d.Z
-    FE52 const C2 = C.square();           // C^2
-    FE52 const C3 = C2 * C;               // C^3
-
-    // d as affine on iso curve: phi(d) = (d.X, d.Y) (Z=C cancels in the isomorphism)
+    p2.dbl_inplace();
+    FE52 const C  = p2.Z52();
+    FE52 const C2 = C.square();
+    FE52 const C3 = C2 * C;
     FE52 const d_x = p2.X52();
     FE52 const d_y = p2.Y52();
 
-    // 2.2 -- Transform P to iso: phi(P) = (P.X*C^2, P.Y*C^3, P.Z) in Jacobian on iso
     JacFE52 iso[TABLE_SIZE];
     iso[0] = { p.X52() * C2, p.Y52() * C3, p.Z52() };
 
-    // 2.3 -- Build rest of table using mixed adds on iso curve (3S+8M each)
-    //        Also track Z-ratios for backward normalization (no field inverse!).
-    FE52 zr[TABLE_SIZE]; // Z-ratio: iso[i].z = iso[i-1].z * zr[i]
-    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+    FE52 zr[TABLE_SIZE];
+    for (std::size_t i = 1; i < TABLE_SIZE; ++i)
         iso[i] = jac_add_ge_var_zr(iso[i - 1], d_x, d_y, &zr[i]);
-    }
 
-    // 2.4 -- Compute global Z for secp256k1 (iso->secp conversion)
-    //        global_z = Z_last * C, where Z_last = iso[TABLE_SIZE-1].z
-    //        All table entries share this implicit Z denominator.
     FE52 const global_z = iso[TABLE_SIZE - 1].z * C;
-
-    // 2.5 -- Backward normalization via Z-ratios (replaces batch inverse!)
-    //
-    // Principle: entry i's Z on iso curve = iso[0].z * zr[1] * ... * zr[i].
-    // To normalize all entries to the same Z = Z_last, multiply entry i
-    // by (zr[i+1] * ... * zr[n-1])^2 for x and ^3 for y.  Then ALL entries
-    // effectively have Z = Z_last on the iso curve (or global_z on secp256k1).
-    // The main loop treats them as affine -- correct up to the global Z factor.
-    // Final correction: R.z *= global_z after the main loop.
-    //
-    // Cost: (TABLE_SIZE-2) muls (accumulate) + (TABLE_SIZE-1) x (1S + 2M)
-    //   ~= 14M + 15S + 30M = 44M + 15S  (vs batch inverse: 30M + ~250S inverse)
     const FE52& beta = get_beta_fe52();
 
-    // Last entry: already at Z_last, just store directly.
     pre_a[TABLE_SIZE - 1].x = iso[TABLE_SIZE - 1].x;
     pre_a[TABLE_SIZE - 1].y = iso[TABLE_SIZE - 1].y;
     pre_a[TABLE_SIZE - 1].y.normalize_weak();
@@ -1374,7 +1323,6 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
     pre_a_lam[TABLE_SIZE - 1].y = pre_a[TABLE_SIZE - 1].y;
     pre_a_lam[TABLE_SIZE - 1].infinity = 0;
 
-    // Backward accumulation: zs = product of Z-ratios from end to current+1.
     FE52 zs_acc = zr[TABLE_SIZE - 1];
     for (int i = static_cast<int>(TABLE_SIZE) - 2; i >= 0; --i) {
         FE52 const zs2 = zs_acc.square();
@@ -1385,68 +1333,108 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
         pre_a_lam[i].x = pre_a[i].x * beta;
         pre_a_lam[i].y = pre_a[i].y;
         pre_a_lam[i].infinity = 0;
-        if (i > 0) {
-            zs_acc = zs_acc * zr[i];
-        }
+        if (i > 0) zs_acc = zs_acc * zr[i];
     }
-
-    // NOTE: No table Y-negation needed.
-    // Hamburg signed-digit encoding bakes the sign into v1/v2 (via the offset
-    // and signed GLV decomposition). The lookup_signed function handles
-    // conditional Y-negate at runtime based on each window's top bit.
 
     SECP256K1_DECLASSIFY(pre_a, sizeof(pre_a));
     SECP256K1_DECLASSIFY(pre_a_lam, sizeof(pre_a_lam));
 
-    // -- 3. Main loop -- FULLY IN-PLACE, ALWAYS-INLINE hot ops ------------
-    // Uses core functions (always_inline) to eliminate function-call overhead.
-    // Uses CHECK_INFINITY=false since R and table entries are never infinity.
-    // Uses NORMALIZE_Y=false since table entries have magnitude 1 (from mul).
     CTJacobianPoint R;
-    CTAffinePoint t;  // reused across iterations
+    CTAffinePoint t;
 
-    // First group: set R directly from first lookup
     {
         int const group = static_cast<int>(GROUPS) - 1;
         std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
         std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
-
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        R.x = t.x;
-        R.y = t.y;
-        R.z = FE52::one();
-        R.infinity = 0;
-
+        R.x = t.x; R.y = t.y; R.z = FE52::one(); R.infinity = 0;
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<true>(&R, R, t);   // first add: R.infinity might be relevant
+        unified_add_core<true>(&R, R, t);
     }
 
-    // Remaining groups: in-place dbl_n + in-place adds (no infinity possible)
-    // Prevent unrolling: the inlined body is large (~2.5KB per iteration);
-    // unrolling 25 iterations would blow the L1 i-cache (32KB).
     #ifdef __clang__
     #pragma clang loop unroll(disable)
     #endif
     for (int group = static_cast<int>(GROUPS) - 2; group >= 0; --group) {
         std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
         std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
-
-        // In-place batch doubling -- always-inline core
         point_dbl_n_core(&R, GROUP_SIZE);
-
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
         unified_add_core<false>(&R, R, t);
-
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
         unified_add_core<false>(&R, R, t);
     }
 
-    // Apply global Z correction: undo the isomorphism.
     R.z = R.z * global_z;
+    return R;
+}
 
+Point scalar_mul(const Point& p, const Scalar& k) noexcept {
+    // Delegate to the Jacobian-output variant, then normalize.
+    CTJacobianPoint R = scalar_mul_jac(p, k);
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
     return result;
+}
+
+// --- CT X-Only ECDH: ecmult_const_xonly (port of libsecp's xonly variant) ----
+//
+// Computes the x-coordinate of q * P where P has x-coordinate xn/xd on secp256k1,
+// WITHOUT any sqrt computation. Port of libsecp256k1 secp256k1_ecmult_const_xonly.
+//
+// Algorithm:
+//   1. g = xn³ + 7*xd³                        (field arithmetic only)
+//   2. P_eff = (g*xn, g²)                      (effective affine, on isomorphic curve)
+//   3. R = scalar_mul_jac(P_eff, q)             (CT Jacobian multiply)
+//   4. x = R.x / (R.z² * g * xd)              (one field inversion)
+//
+// Why this works (secp256k1 has a=0):
+//   - P_eff lies on Y² = X³ + g⁶·7 (isomorphic to secp256k1 via the u=g twist)
+//   - Since a=0, all doubling/addition formulas are twist-invariant
+//   - The Jacobian scalar multiply computes q*P_eff on this isomorphic curve
+//   - The back-mapping: x_secp = x_eff / (g * xd) after Jacobian normalization
+//
+// Security: q is treated as secret (CT path). P_eff is public (derived from
+// the peer's ELL64 encoding), so the table build is variable-time OK.
+//
+// xd = FE52::one() when xn is already the full x-coordinate (not a fraction).
+FieldElement ecmult_const_xonly(const FieldElement& xn_fe, const FieldElement& xd_fe,
+                                 const Scalar& q) noexcept {
+    FE52 xn = FE52::from_fe(xn_fe);
+    FE52 xd = FE52::from_fe(xd_fe);
+
+    // 1. g = xn³ + 7*xd³
+    FE52 const xn2 = xn.square();
+    FE52 const xn3 = xn2 * xn;
+    FE52 const xd2 = xd.square();
+    FE52 xd3       = xd2 * xd;
+    xd3.mul_int_assign(7);          // 7 * xd³
+    FE52 const g   = xn3 + xd3;    // g = xn³ + 7·xd³
+
+    // 2. P_eff = (g·xn, g²) — affine point on the isomorphic curve
+    FE52 const px52 = g * xn;
+    FE52 const py52 = g.square();
+
+    // Construct a Point from effective affine coords (no curve check, Z=1).
+    // from_affine52 normalizes x_ and y_ and sets z_one_=true.
+    fast::Point P_eff = fast::Point::from_affine52(px52, py52);
+
+    // 3. CT scalar multiply → raw Jacobian (R.x, R.y, R.z) with global_z applied.
+    //    The multiply is constant-time w.r.t. q (secret ECDH key).
+    CTJacobianPoint R = scalar_mul_jac(P_eff, q);
+
+    if (R.infinity != 0) return FieldElement::zero();
+
+    // 4. x = R.x / (R.z² * g * xd) — single combined inversion
+    //    Avoids two separate inversions (vs. normalizing R then dividing by g*xd).
+    //    Combined denominator: denom = R.z² * g * xd
+    FE52 const rz2   = R.z.square();
+    FE52       denom = rz2 * g;
+    denom = denom * xd;             // R.z² * g * xd
+    FE52 const denom_inv = denom.inverse();
+    FE52 const x52   = R.x * denom_inv;
+
+    return x52.to_fe();
 }
 
 // --- CT Prebuilt Tables API --------------------------------------------------
@@ -3248,6 +3236,31 @@ Point generator_mul(const Scalar& k) noexcept {
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
     return result;
+}
+
+// --- ecmult_const_xonly fallback (4x64 path) ---------------------------------
+// Uses sqrt since we lack the FE52 Jacobian-output optimisation.
+FieldElement ecmult_const_xonly(const FieldElement& xn, const FieldElement& xd,
+                                 const Scalar& q) noexcept {
+    // Compute x = xn / xd  (for BIP-324 ECDH, xd == one so this is xn directly)
+    FieldElement x;
+    if (xd == FieldElement::one()) {
+        x = xn;
+    } else {
+        x = field_mul(xn, field_inv(xd));
+    }
+    // Reconstruct affine point via sqrt
+    FieldElement x2 = field_sqr(x);
+    FieldElement x3 = field_mul(x, x2);
+    FieldElement y2 = field_add(x3, B7);
+    FieldElement y  = y2.sqrt();
+    if (y.square() != y2) return FieldElement::zero();
+    if (y.to_bytes()[31] & 1) y = y.negate();
+    Point P = fast::Point::from_affine(x, y);
+    if (P.is_infinity()) return FieldElement::zero();
+    Point res = scalar_mul(P, q);
+    if (res.is_infinity()) return FieldElement::zero();
+    return res.x();
 }
 
 #endif // SECP256K1_FAST_52BIT

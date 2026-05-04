@@ -508,6 +508,16 @@ jobs:
           fi
           exit 0
 
+      - name: Download scanner report from Stage 1
+        # caas_scanner.json is produced in the scanner job (separate runner).
+        # Download it explicitly so the bundle artifact is complete.
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          name: caas-scanner-report-${{ github.run_id }}
+          path: .
+        continue-on-error: true
+
       - name: Upload audit bundle artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -521,6 +531,7 @@ jobs:
             caas_audit_gate.json
             out/owner_audit/owner_audit_bundle.json
             out/owner_audit/owner_audit_bundle.txt
+          if-no-files-found: warn
           retention-days: 365
 
       - name: Step summary

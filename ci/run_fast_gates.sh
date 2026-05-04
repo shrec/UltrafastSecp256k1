@@ -18,9 +18,18 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${REPO_ROOT}"
 
-# Validate caas_runner.py is parseable before running any gates
-python3 -c "import ast; ast.parse(open('ci/caas_runner.py').read())" 2>/dev/null || {
-    echo "ERROR: ci/caas_runner.py has a SyntaxError — fix before running gates"
+# Validate caas_runner.py: syntax + import-time correctness before running any gates
+python3 -c "
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location('caas_runner', 'ci/caas_runner.py')
+mod  = importlib.util.module_from_spec(spec)
+try:
+    spec.loader.exec_module(mod)
+except Exception as e:
+    print(f'ERROR: ci/caas_runner.py failed at import time: {e}', file=sys.stderr)
+    sys.exit(1)
+" 2>&1 || {
+    echo "ERROR: ci/caas_runner.py has a SyntaxError or import-time error — fix before running gates"
     exit 1
 }
 

@@ -145,11 +145,15 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
     # autonomy_ready requires a non-zero active weight: if every gate skipped,
     # nothing was checked and the system cannot be considered ready.
     autonomy_ready = autonomy_score >= 100 and active_weight > 0
+    # advisory_skip_all: all gates were skipped (no infrastructure present).
+    # Distinguishes "all-skipped" from "genuinely failing" in audit artifacts.
+    advisory_skip_all = active_weight == 0 and gates_skipped > 0
 
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "autonomy_score": autonomy_score,
         "autonomy_ready": autonomy_ready,
+        "advisory_skip_all": advisory_skip_all,
         "gates_total": gates_total,
         "gates_passing": gates_passing,
         "gates_skipped": gates_skipped,
@@ -200,6 +204,11 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
                 print(f"FAIL autonomy score {autonomy_score}/100 (need ≥100)")
                 print(f"  Failing gates: {', '.join(failing)}")
 
+    # Exit 77 = ADVISORY_SKIP_CODE when all gates were advisory-skipped.
+    # Callers (gate.yml, platform-chain.yml, preflight.yml, ci_local.sh) treat
+    # exit 77 as advisory-skip rather than failure.
+    if advisory_skip_all:
+        return 77
     return 0 if autonomy_ready else 1
 
 

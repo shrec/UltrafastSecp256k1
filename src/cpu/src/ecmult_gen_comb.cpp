@@ -119,8 +119,12 @@ Point CombGenContext::mul(const Scalar& k) const {
         const auto& entry = table_[idx];
         if (SECP256K1_UNLIKELY(entry.infinity)) continue;
 
-        // Mixed addition: Jacobian R + Affine table entry (in-place, avoids temporary)
-        R.add_mixed_inplace(entry.x, entry.y);
+        // Mixed addition: Jacobian R + Affine table entry.
+        // R.add(P) routes through jac52_add_mixed_to (split I/O, __restrict__, max ILP).
+        // add_mixed_inplace creates a 120-byte JacobianPoint52 intermediate struct,
+        // breaking the compiler's ILP and adding ~56 ns per iteration (+20% pubkey_create).
+        Point const P = Point::from_jacobian_coords(entry.x, entry.y, FieldElement::one(), false);
+        R = R.add(P);
     }
 
     return R;

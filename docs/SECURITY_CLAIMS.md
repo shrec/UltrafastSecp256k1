@@ -111,6 +111,17 @@ Post-AVX2 CT-vs-libsecp comparison (x86-64-v3, bench_unified):
   CT Schnorr Sign:   10864 ns  vs libsecp 13635 ns  → 1.26x  (was 0.87x)
   CT ECDSA Sign:     12897 ns  vs libsecp 17809 ns  → 1.38x  (was 0.91x)
 
+**2026-05-04 (new CT primitive: `ecmult_const_xonly` for BIP-324 ECDH):**
+Added `ct::ecmult_const_xonly(xn, xd, q)` to `ct_point.cpp`/`ct/point.hpp`.
+Computes x-coordinate of `q * P` (BIP-324 X-only ECDH) without sqrt. Secret
+input is `q`; `xn`/`xd` are public. Internally delegates to `scalar_mul_jac`
+(same GLV + signed-digit CT path as `ct::scalar_mul`) and recovers x via one
+combined field inversion. CT invariant: fixed iteration count, no branches on `q`.
+A 4x64 fallback using sqrt is provided for non-x86 platforms (slower but
+functionally equivalent). Also refactored `scalar_mul` to extract `scalar_mul_jac`
+as a static Jacobian-output helper; `scalar_mul` behaviour and CT properties
+are unchanged.
+
 **2026-05-04 (CT primitive internal optimizations — perf review B-1, B-8, B-10):**
 Three internal changes to `ct_scalar.cpp` and `ct_field.cpp` that improve performance
 without altering CT invariants. No new security claims; existing claims unaffected.

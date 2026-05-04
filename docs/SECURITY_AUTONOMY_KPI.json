@@ -1,7 +1,8 @@
 {
-  "timestamp": "2026-05-04T16:53:40.961076+00:00",
+  "timestamp": "2026-05-04T19:23:11.632269+00:00",
   "autonomy_score": 100,
   "autonomy_ready": true,
+  "advisory_skip_all": false,
   "gates_total": 8,
   "gates_passing": 8,
   "gates_skipped": 0,

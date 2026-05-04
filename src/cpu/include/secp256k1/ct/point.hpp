@@ -189,6 +189,25 @@ void affine_cmov(CTAffinePoint* r, const CTAffinePoint& a,
 
 Point scalar_mul(const Point& p, const Scalar& k) noexcept;
 
+// --- CT X-Only ECDH (port of libsecp256k1 secp256k1_ecmult_const_xonly) ------
+// Computes the x-coordinate of q * P where P has x-coordinate xn/xd on
+// secp256k1, WITHOUT any sqrt computation.
+//
+// Algorithm (isomorphic curve, a=0):
+//   g = xn³ + 7·xd³
+//   P_eff = (g·xn, g²)  ← effective affine point on isomorphic curve
+//   R = scalar_mul(P_eff, q)  ← CT Jacobian multiply (q is secret)
+//   x = R.x / (R.z² · g · xd)  ← one combined field inversion
+//
+// Eliminates the ~3.8 µs sqrt + avoids point reconstruction overhead.
+// On the 5x52 path, R is Jacobian so the Z²·g·xd correction uses ONE inverse.
+// On the 4x64 fallback path, a sqrt is used (slower, for non-x86 platforms).
+//
+// Pass xd = FieldElement::one() when xn is already the full x-coordinate.
+// Returns FieldElement::zero() on degenerate inputs (q==0, invalid point).
+FieldElement ecmult_const_xonly(const FieldElement& xn, const FieldElement& xd,
+                                 const Scalar& q) noexcept;
+
 // Prebuilt GLV tables for a fixed base point P.
 // Build once with build_scalar_mul_tables(); reuse across many scalar_mul calls
 // with the same P. Saves ~1,954 ns per call (table build cost).

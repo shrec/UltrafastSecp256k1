@@ -216,6 +216,7 @@ The Metal CT layer uses Metal Shading Language (MSL) with:
 |-----------|---------------|-----------------|
 | `ct::scalar_mul(P, k)` | GLV + signed-digit, fixed iteration count | Strong |
 | `ct::generator_mul(k)` | Hamburg comb, precomputed table | Strong |
+| `ct::ecmult_const_xonly(xn, xd, q)` | Delegates to `scalar_mul_jac` (same CT path); q is secret, P_eff is public | Strong |
 | `ct::field_mul` | Same arithmetic as FAST, no early-exit | Strong |
 | `ct::field_inv` | Fixed iteration SafeGCD or exponentiation chain | Strong |
 | `ct::point_add_complete` | Complete addition formula (handles all cases) | Strong |
@@ -482,6 +483,7 @@ FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tra
 - [ ] **field_select**: Confirm compiler emits no branch (inspect assembly)
 - [ ] **ct::scalar_mul**: Fixed iteration count (26 groups x 5 doublings + 52 adds)
 - [ ] **ct::scalar_mul**: Table lookup scans ALL entries (no early-exit)
+- [ ] **ct::ecmult_const_xonly**: delegates to `scalar_mul_jac`; `q` is secret, `xn`/`xd` are public; one combined field inversion at end is CT (data-independent)
 - [ ] **ct::generator_mul**: Fixed COMB_SPACING × COMB_BLOCKS iterations, no conditional skip
 - [ ] **ct::generator_mul table add**: uses incomplete mixed-add (add_affine_fast_ct) — safe because all table entries are fixed G multiples (degenerate probability ~2^-128)
 - [ ] **ct::point_add_complete**: Handles P+P, P+O, O+P, P+(-P) without branching
@@ -497,6 +499,28 @@ FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tra
 ---
 
 ## CT Primitive Change Log (Secret-Path Surface)
+
+### 2026-05-04 — New CT Primitive: `ecmult_const_xonly` (BIP-324 ECDH)
+
+Added `ct::ecmult_const_xonly(xn, xd, q)` to `src/cpu/src/ct_point.cpp` and
+`src/cpu/include/secp256k1/ct/point.hpp`. Port of libsecp256k1
+`secp256k1_ecmult_const_xonly`. Computes the x-coordinate of `q * P` where P
+has x-coordinate `xn/xd`, without any sqrt. Secret input is `q`; `xn`/`xd`
+are public (from BIP-324 ELL64 encoding).
+
+Implementation: builds `P_eff = (g·xn, g²)` on the isomorphic curve, then
+calls `scalar_mul_jac(P_eff, q)` (same CT path as `scalar_mul`), and recovers
+the x-coordinate via one combined field inversion (`R.z² * g * xd`), avoiding
+a separate point normalization. The 4x64 fallback path uses sqrt since it lacks
+FE52 Jacobian-output optimisation (slower, non-x86 only).
+
+CT invariant: `scalar_mul_jac` has fixed iteration count and branchless table
+lookups. The combined inversion is data-independent. No branches on `q`.
+
+Also refactored `scalar_mul` to extract `scalar_mul_jac` as a static helper
+returning raw `CTJacobianPoint` (Jacobian coords before Z-normalization).
+`scalar_mul` now delegates to `scalar_mul_jac` + `to_point()`. Behaviour
+and CT properties of `scalar_mul` are unchanged.
 
 ### 2026-05-04 — Performance Review: CT Primitive Internal Optimizations
 
