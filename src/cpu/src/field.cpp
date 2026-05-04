@@ -3460,6 +3460,29 @@ static inline void fe_batch_inverse_with_scratch(FieldElement* elements,
     elements[0] = first_zero ? kZero : inv;
 }
 
+// Fast-path batch inverse for guaranteed-nonzero inputs (e.g. ECC Z coordinates).
+// Skips all zero-checks (2x per element) since callers guarantee no zero inputs.
+// Precondition: all elements[i] != 0. Behavior undefined for zero inputs.
+static inline void fe_batch_inverse_nonzero_with_scratch(FieldElement* elements,
+                                                          size_t count,
+                                                          FieldElement* scratch) {
+    // Step 1: prefix products (no zero substitution needed)
+    scratch[0] = elements[0];
+    for (size_t i = 1; i < count; ++i)
+        scratch[i] = scratch[i - 1] * elements[i];
+
+    // Step 2: single inverse of the full product
+    FieldElement inv = scratch[count - 1].inverse();
+
+    // Step 3: backward sweep
+    for (size_t i = count - 1; i > 0; --i) {
+        FieldElement const original = elements[i];
+        elements[i] = inv * scratch[i - 1];
+        inv = inv * original;
+    }
+    elements[0] = inv;
+}
+
 SECP256K1_HOT_FUNCTION
 void fe_batch_inverse(FieldElement* elements, size_t count, std::vector<FieldElement>& scratch) {
     if (count == 0) return;
@@ -3495,6 +3518,22 @@ void fe_batch_inverse(FieldElement* elements, size_t count) {
     static thread_local std::vector<FieldElement> scratch;
     scratch.resize(count);
     fe_batch_inverse_with_scratch(elements, count, scratch.data());
+}
+
+SECP256K1_HOT_FUNCTION
+void fe_batch_inverse_nonzero(FieldElement* elements, size_t count) {
+    if (count == 0) return;
+    if (count == 1) { elements[0] = elements[0].inverse(); return; }
+
+    if (count <= kSmallBatchInverseScratch) {
+        std::array<FieldElement, kSmallBatchInverseScratch> scratch{};
+        fe_batch_inverse_nonzero_with_scratch(elements, count, scratch.data());
+        return;
+    }
+
+    static thread_local std::vector<FieldElement> scratch;
+    scratch.resize(count);
+    fe_batch_inverse_nonzero_with_scratch(elements, count, scratch.data());
 }
 
 } // namespace secp256k1::fast

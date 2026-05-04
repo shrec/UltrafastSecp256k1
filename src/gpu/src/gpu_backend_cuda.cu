@@ -176,10 +176,8 @@ static __global__ void bip352_scan_batch_kernel(
     if (shared.infinity) { prefixes[idx] = 0; return; }
 
     /* 2. Serialize shared secret to 37 bytes: [prefix_byte][x32][0,0,0,0] */
-    uint8_t comp33[33];
-    point_to_compressed(&shared, comp33);
     uint8_t ser37[37];
-    for (int i = 0; i < 33; ++i) ser37[i] = comp33[i];
+    point_to_compressed(&shared, ser37);   // writes 33 bytes directly; avoids comp33 copy
     ser37[33] = ser37[34] = ser37[35] = ser37[36] = 0;
 
     /* 3. Tagged SHA-256 */

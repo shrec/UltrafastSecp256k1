@@ -78,7 +78,8 @@ void batch_add_affine_x_impl(
         scratch[i] = dx_zero[i] ? FieldElement::one() : dx;
     }
 
-    fe_batch_inverse(scratch, count);
+    // scratch[i] is guaranteed nonzero: zero dx slots replaced with 1 above.
+    fe_batch_inverse_nonzero(scratch, count);
 
     // Second loop: reuse dx_zero flags — no recomputation of dx.
     for (std::size_t i = 0; i < count; ++i) {
@@ -146,8 +147,8 @@ void batch_add_affine_xy(
         scratch[i] = is_zero ? FieldElement::one() : dx;
     }
 
-    // Phase 2: Batch inverse
-    fe_batch_inverse(scratch.data(), count);
+    // Phase 2: Batch inverse (scratch guaranteed nonzero: zero slots replaced with 1 above)
+    fe_batch_inverse_nonzero(scratch.data(), count);
 
     // Phase 3: Full affine addition
     for (std::size_t i = 0; i < count; ++i) {
@@ -223,8 +224,8 @@ void batch_add_affine_x_with_parity(
         scratch[i] = is_zero ? FieldElement::one() : dx;
     }
 
-    // Phase 2: Batch inverse
-    fe_batch_inverse(scratch.data(), count);
+    // Phase 2: Batch inverse (scratch guaranteed nonzero: zero slots replaced with 1 above)
+    fe_batch_inverse_nonzero(scratch.data(), count);
 
     // Phase 3: Addition + Y parity
     for (std::size_t i = 0; i < count; ++i) {
@@ -279,8 +280,8 @@ void batch_add_affine_x_bidirectional(
         scratch[count + i] = (dx_bwd == zero) ? FieldElement::one() : dx_bwd;
     }
 
-    // Phase 2: Single batch inverse over all 2*count dx values
-    fe_batch_inverse(scratch.data(), total);
+    // Phase 2: Single batch inverse (all slots nonzero: zero dx replaced with 1 above)
+    fe_batch_inverse_nonzero(scratch.data(), total);
 
     // Phase 3: Forward results
     for (std::size_t i = 0; i < count; ++i) {
@@ -341,8 +342,8 @@ std::vector<AffinePointCompact> precompute_g_multiples(std::size_t count) {
         jac_z[i] = current.z();
     }
 
-    // Batch inverse all Z coordinates
-    fe_batch_inverse(jac_z, count);
+    // Batch inverse all Z coordinates (nonzero: ECC points on prime-order curve)
+    fe_batch_inverse_nonzero(jac_z, count);
 
     // Convert Jacobian -> Affine: x_aff = X * Z^{-2}, y_aff = Y * Z^{-3}
     for (std::size_t i = 0; i < count; ++i) {
@@ -385,8 +386,8 @@ std::vector<AffinePointCompact> precompute_point_multiples(
         jac_z[i] = current.z();
     }
 
-    // Batch inverse Z
-    fe_batch_inverse(jac_z, count);
+    // Batch inverse Z (nonzero: ECC points on prime-order curve)
+    fe_batch_inverse_nonzero(jac_z, count);
 
     // Convert to affine
     for (std::size_t i = 0; i < count; ++i) {

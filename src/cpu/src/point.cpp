@@ -4186,6 +4186,7 @@ bool Point::build_schnorr_verify_tables(
 // Combines a*G + b*P into a single doubling chain with 4 wNAF streams,
 // halving the doublings compared to two separate scalar_mul calls.
 // Expected speedup: ~25-30% on ECDSA verify.
+SECP256K1_HOT_FUNCTION
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
 
     // -- GLV decompose both scalars ------------------------------------

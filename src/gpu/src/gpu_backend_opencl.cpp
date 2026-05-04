@@ -1708,6 +1708,41 @@ public:
 
     /* -- BIP-352 Silent Payment GPU batch scan ----------------------------- */
 
+// 5-bit wNAF for a 128-bit GLV sub-scalar (big-endian 32-byte input).
+// Shared by bip352_scan_batch (replaces inline lambda) so the algorithm
+// lives in exactly one place and is easier to test/audit.
+// Output: wnaf[0..129], digits in range [-15..15], trailing zeros possible.
+static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
+    uint64_t s[4] = {};
+    for (int limb = 0; limb < 4; ++limb) {
+        uint64_t v = 0;
+        int base = limb * 8;
+        for (int i = 0; i < 8; ++i) v = (v << 8) | scalar_be32[base + i];
+        s[3 - limb] = v;
+    }
+    for (int i = 0; i < 130; i++) {
+        if (s[0] & 1ULL) {
+            int d = (int)(s[0] & 0x1FULL);
+            if (d >= 16) {
+                d -= 32;
+                uint64_t add = (uint64_t)(-d);
+                uint64_t prev = s[0]; s[0] += add;
+                if (s[0] < prev) { for (int j = 1; j < 4; j++) if (++s[j]) break; }
+            } else {
+                uint64_t prev = s[0]; s[0] -= (uint64_t)d;
+                if (s[0] > prev) { for (int j = 1; j < 4; j++) if (s[j]--) break; }
+            }
+            wnaf[i] = (int8_t)d;
+        } else {
+            wnaf[i] = 0;
+        }
+        s[0] = (s[0] >> 1) | (s[1] << 63);
+        s[1] = (s[1] >> 1) | (s[2] << 63);
+        s[2] = (s[2] >> 1) | (s[3] << 63);
+        s[3] >>= 1;
+    }
+}
+
     GpuError bip352_scan_batch(
         const uint8_t  scan_privkey32[32],
         const uint8_t  spend_pubkey33[33],
@@ -1749,39 +1784,8 @@ public:
             plan.k1_neg       = decomp.k1_neg ? 1 : 0;
             plan.flip_phi     = (decomp.k1_neg != decomp.k2_neg) ? 1 : 0;
 
-            /* 5-bit wNAF — mirrors host_compute_wnaf() in bench_bip352_opencl.cpp */
-            auto compute_wnaf = [](const uint8_t* scalar_be32, int8_t wnaf[130]) {
-                uint64_t s[4] = {};
-                for (int limb = 0; limb < 4; ++limb) {
-                    uint64_t v = 0;
-                    int base = limb * 8;
-                    for (int i = 0; i < 8; ++i) v = (v << 8) | scalar_be32[base + i];
-                    s[3 - limb] = v;
-                }
-                for (int i = 0; i < 130; i++) {
-                    if (s[0] & 1ULL) {
-                        int d = (int)(s[0] & 0x1FULL);
-                        if (d >= 16) {
-                            d -= 32;
-                            uint64_t add = (uint64_t)(-d);
-                            uint64_t prev = s[0]; s[0] += add;
-                            if (s[0] < prev) { for (int j = 1; j < 4; j++) if (++s[j]) break; }
-                        } else {
-                            uint64_t prev = s[0]; s[0] -= (uint64_t)d;
-                            if (s[0] > prev) { for (int j = 1; j < 4; j++) if (s[j]--) break; }
-                        }
-                        wnaf[i] = (int8_t)d;
-                    } else {
-                        wnaf[i] = 0;
-                    }
-                    s[0] = (s[0] >> 1) | (s[1] << 63);
-                    s[1] = (s[1] >> 1) | (s[2] << 63);
-                    s[2] = (s[2] >> 1) | (s[3] << 63);
-                    s[3] >>= 1;
-                }
-            };
-            compute_wnaf(k1_bytes.data(), plan.wnaf1);
-            compute_wnaf(k2_bytes.data(), plan.wnaf2);
+            bip352_glv_wnaf5(k1_bytes.data(), plan.wnaf1);
+            bip352_glv_wnaf5(k2_bytes.data(), plan.wnaf2);
 
             /* HIGH-4 / HIGH-3: Secure-erase GLV sub-scalars from stack before
              * leaving this scope. k and decomp hold sensitive key material. */
@@ -1845,9 +1849,24 @@ public:
         clSetKernelArg(bip352_scan_kernel_, 3, sizeof(cl_mem),  &d_prefixes);
         clSetKernelArg(bip352_scan_kernel_, 4, sizeof(cl_uint), &cl_count);
 
-        constexpr size_t LOCAL_SIZE = 128;
-        size_t global = ((n_tweaks + LOCAL_SIZE - 1) / LOCAL_SIZE) * LOCAL_SIZE;
-        size_t local  = LOCAL_SIZE;
+        // Query device for preferred work-group size multiple to maximize occupancy.
+        // Different GPUs have different optimal local sizes (AMD: 64, NVIDIA: 32/64,
+        // Intel: 16/32). Fallback to 128 if query fails.
+        size_t local = 128;
+        {
+            cl_device_id dev = nullptr;
+            if (clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE,
+                                      sizeof(dev), &dev, nullptr) == CL_SUCCESS && dev) {
+                size_t pref = 0;
+                if (clGetKernelWorkGroupInfo(bip352_scan_kernel_, dev,
+                        CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                        sizeof(pref), &pref, nullptr) == CL_SUCCESS && pref > 0) {
+                    local = std::max(pref, (size_t)32);
+                    local = std::min(local, (size_t)256);
+                }
+            }
+        }
+        size_t global = ((n_tweaks + local - 1) / local) * local;
         clerr = clEnqueueNDRangeKernel(queue, bip352_scan_kernel_, 1, nullptr,
                                        &global, &local, 0, nullptr, nullptr);
         if (clerr != CL_SUCCESS) {
