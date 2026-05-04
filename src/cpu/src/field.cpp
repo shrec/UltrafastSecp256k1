@@ -2839,7 +2839,10 @@ int fe52_jacobi_var(const std::uint64_t* in5) {
     int len = 5;
     int jac = 0;                  // Jacobi bit accumulator (0 = +1, 1 = -1)
 
-    for (int i = 0; i < 12; ++i) {
+    // posdivstep has no formal convergence proof like safegcd (which needs 591 steps).
+    // Bitcoin Core PR #979 empirically needs up to ~900 steps → ceil(900/62) = 15 rounds.
+    // Standard safegcd uses 12 rounds (744 steps, > 591 formal bound). Jacobi needs 15.
+    for (int i = 0; i < 15; ++i) {
         SafeGCD_Trans t;
         delta = posdivsteps_62_var(delta,
                     (uint64_t)f.v[0], (uint64_t)g.v[0], t, jac);
