@@ -261,7 +261,9 @@ jobs:
       - name: Security autonomy check (100/100 required)
         id: security_autonomy
         if: always()
-        run: python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+        run: |
+          python3 ci/security_autonomy_check.py --json -o caas_autonomy.json; rc=$?
+          [ $rc -eq 77 ] && { echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"; exit 0; } || exit $rc
 
       - name: Source graph quality check
         id: source_graph_quality
@@ -327,7 +329,7 @@ jobs:
             caas_bundle_verify.json
             assurance_report.json
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 90
 
   bindings-smoke:
     name: Block 3 / Bindings Smoke

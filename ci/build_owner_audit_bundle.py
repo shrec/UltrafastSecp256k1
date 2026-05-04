@@ -295,7 +295,7 @@ def main() -> int:
     )
     ct_evidence_failed = ct_collection.returncode != 0
     if ct_evidence_failed:
-        print(f"WARNING: CT evidence collection failed (exit {ct_collection.returncode}). Evidence may be incomplete.")
+        print(f"::warning::CT evidence collection failed (exit {ct_collection.returncode}). Evidence may be incomplete.", file=sys.stderr)
     ct_summary_path = ct_dir / 'ct_evidence_summary.json'
     if ct_summary_path.exists():
         ct_evidence = json.loads(_read_text(ct_summary_path))
@@ -308,6 +308,20 @@ def main() -> int:
             'overall_status': 'missing',
             'owner_grade_gaps': ['ct evidence summary missing'],
         }
+
+    scanner_report = _run_json_command(['python3', 'ci/audit_test_quality_scanner.py', '--json'])
+
+    evidence_chain_path = LIB_ROOT / 'docs' / 'EVIDENCE_CHAIN.json'
+    evidence_chain_summary: dict | None = None
+    try:
+        chain = json.loads(_read_text(evidence_chain_path))
+        records = chain.get('records', []) if isinstance(chain, dict) else []
+        evidence_chain_summary = {
+            'record_count': len(records),
+            'latest': records[-1] if records else None,
+        }
+    except Exception as exc:
+        evidence_chain_summary = {'error': f'could not load evidence chain: {exc}'}
 
     benchmark_publishability = _build_benchmark_publishability()
     audit_summary = _discover_latest_audit_summary()
@@ -397,6 +411,8 @@ def main() -> int:
         'failure_matrix_strict': failure_matrix_strict.get('payload') or {'error': failure_matrix_strict.get('error'), 'exit_code': failure_matrix_strict.get('exit_code')},
         'auditor_mode': auditor_mode.get('payload') or {'error': auditor_mode.get('error'), 'exit_code': auditor_mode.get('exit_code')},
         'ct_evidence': ct_evidence,
+        'scanner_report': scanner_report.get('payload') or {'error': scanner_report.get('error'), 'exit_code': scanner_report.get('exit_code')},
+        'evidence_chain_summary': evidence_chain_summary,
         'benchmark_publishability': benchmark_publishability,
         'audit_summary': audit_summary,
         'inputs': {

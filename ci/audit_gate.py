@@ -865,6 +865,9 @@ def check_mutation_freshness(_conn):
     report_path = LIB_ROOT / report_name
 
     if not report_path.exists():
+        # Intentionally WARN (not FAIL): mutation testing is resource-intensive
+        # and is not run on every CI push. A missing report means the check is
+        # advisory-only — the gate still passes. See docs/AUDIT_MANIFEST.md.
         findings.append(('WARN', f'Mutation kill report not found: {report_name} — run: '
                          'python3 ci/mutation_kill_rate.py --ctest-mode --json -o out/reports/mutation_kill_report.json'))
         return 'P2: Mutation Evidence Freshness', findings

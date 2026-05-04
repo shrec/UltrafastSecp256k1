@@ -443,7 +443,19 @@ def collect_source_graph() -> dict:
 def collect_benchmarks() -> dict:
     data = _load_json(LIB_ROOT / "docs" / "BITCOIN_CORE_BENCH_RESULTS.json")
     if not data:
-        return {"results": [], "config": {}, "corrupt_rows": []}
+        return {"results": [], "config": {}, "corrupt_rows": [], "stale": False, "stale_reason": ""}
+    stale = False
+    stale_reason = ""
+    generated_at = data.get("generated_at") or data.get("timestamp") or ""
+    if generated_at:
+        try:
+            ts = datetime.datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            age_days = (datetime.datetime.now(datetime.timezone.utc) - ts).total_seconds() / 86400
+            if age_days > 30:
+                stale = True
+                stale_reason = f"{age_days:.0f} days old (max 30)"
+        except Exception:
+            pass
     valid_results: list = []
     corrupt_rows: list[str] = []
     for r in data.get("results", []):
@@ -458,11 +470,13 @@ def collect_benchmarks() -> dict:
         else:
             valid_results.append(r)
     return {
-        "results":     valid_results,
+        "results":      valid_results,
         "corrupt_rows": corrupt_rows,
-        "config":      data.get("bench_config", {}),
-        "summary":     data.get("summary", {}),
-        "methodology": data.get("methodology", ""),
+        "config":       data.get("bench_config", {}),
+        "summary":      data.get("summary", {}),
+        "methodology":  data.get("methodology", ""),
+        "stale":        stale,
+        "stale_reason": stale_reason,
     }
 
 

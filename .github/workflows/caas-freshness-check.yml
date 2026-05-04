@@ -137,6 +137,7 @@ jobs:
           check_file("docs/EVIDENCE_CHAIN.json",            "EVIDENCE_CHAIN.json")
           check_file("docs/BITCOIN_CORE_TEST_RESULTS.json", "BITCOIN_CORE_TEST_RESULTS.json")
           check_file("docs/AUDIT_CHANGELOG.md",             "AUDIT_CHANGELOG.md")
+          check_file("docs/AUDIT_DASHBOARD.md",             "AUDIT_DASHBOARD.md")
 
           sys.exit(1 if failed else 0)
           EOF

@@ -116,7 +116,8 @@ jobs:
         with:
           name: caas-scanner-report-${{ github.run_id }}
           path: caas_scanner.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
@@ -225,7 +226,8 @@ jobs:
         with:
           name: caas-audit-gate-report-${{ github.run_id }}
           path: caas_audit_gate.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
@@ -316,7 +318,8 @@ jobs:
         with:
           name: caas-autonomy-report-${{ github.run_id }}
           path: caas_autonomy.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
@@ -514,6 +517,8 @@ jobs:
             docs/EXTERNAL_AUDIT_BUNDLE.json
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             caas_bundle_verify.json
+            caas_scanner.json
+            caas_audit_gate.json
             out/owner_audit/owner_audit_bundle.json
             out/owner_audit/owner_audit_bundle.txt
           retention-days: 365

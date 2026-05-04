@@ -132,9 +132,10 @@ def create_evidence_record(
         "what": what,
         "when": datetime.now(timezone.utc).isoformat(),
         "commit": resolved_commit,
-        # PERSIST-3 fix: include GitHub run_id so records are time-bound and
-        # workflow-bound — prevents post-hoc forging for historical commits even
-        # with a known HMAC key, because the run_id is part of the signed payload.
+        # run_id is metadata-only — intentionally excluded from the HMAC payload
+        # (see _compute_hmac) for backward compatibility with older chain records.
+        # It does not contribute to tamper-detection; the HMAC covers who/what/when/
+        # commit/binary_hash/verdict/reason instead.
         "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
         "binary_hash": _file_sha256(binary_path) if binary_path else "n/a",
         "verdict": verdict,
