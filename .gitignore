@@ -122,6 +122,8 @@ INDUSTRIAL_ROADMAP_WORKING.md
 
 # Local scratch/debug files (never commit)
 _*.py
+!ci/_ufsecp.py
+!scripts/_ufsecp.py
 _*.cpp
 _*.txt
 _cfl_artifacts/
