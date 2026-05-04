@@ -14,8 +14,23 @@
 #include "secp256k1/field_52.hpp"
 #endif
 #include <cstring>
+#include <unordered_map>
+#include <array>
 
 namespace secp256k1 {
+
+// Hash for 32-byte pubkey key in unordered_map (B-6)
+struct PubkeyHash32 {
+    std::size_t operator()(const std::array<uint8_t, 32>& k) const noexcept {
+        // FNV-1a over the 32 bytes — cheap and collision-resistant enough for keys
+        std::size_t h = 0xcbf29ce484222325ULL;
+        for (unsigned char b : k) {
+            h ^= b;
+            h *= 0x100000001b3ULL;
+        }
+        return h;
+    }
+};
 
 using fast::Scalar;
 using fast::Point;
@@ -191,20 +206,27 @@ void schnorr_batch_identify_invalid_impl(
 // We verify: (sum(a_i * s_i)) * G + sum(-a_i * e_i * P_i) + sum(-a_i * R_i) = infinity
 
 bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
+    // B-6: hash map for O(1) dedup instead of O(k) linear scan
+    using PubkeyMap = std::unordered_map<std::array<uint8_t, 32>, Point, PubkeyHash32>;
+    static thread_local PubkeyMap pubkey_index;
+    pubkey_index.clear();
+    pubkey_index.reserve(n);
+
+    // Grow-only vector reserve (no realloc when n stays the same between calls)
     static thread_local std::vector<SchnorrXonlyPubkey> pubkey_cache;
     pubkey_cache.clear();
-    pubkey_cache.reserve(n);
+    if (pubkey_cache.capacity() < n) pubkey_cache.reserve(n);
 
     auto verify_one = [](const SchnorrBatchEntry& entry) {
         return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
     };
     auto resolve_pubkey = [](const SchnorrBatchEntry& entry,
                              Point& out_point) {
-        for (const auto& cached : pubkey_cache) {
-            if (cached.x_bytes == entry.pubkey_x) {
-                out_point = cached.point;
-                return true;
-            }
+        // O(1) hash map lookup instead of O(k) linear scan
+        auto it = pubkey_index.find(entry.pubkey_x);
+        if (it != pubkey_index.end()) {
+            out_point = it->second;
+            return true;
         }
 
         SchnorrXonlyPubkey parsed;
@@ -213,6 +235,7 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
         }
         out_point = parsed.point;
         pubkey_cache.push_back(parsed);
+        pubkey_index.emplace(entry.pubkey_x, parsed.point);
         return true;
     };
     auto pubkey_bytes = [](const SchnorrBatchEntry& entry)

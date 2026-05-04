@@ -40,16 +40,12 @@ constexpr limbs4 ONE{1ULL, 0ULL, 0ULL, 0ULL};
 // 8-limb wide integer
 using wide8 = std::array<std::uint64_t, 8>;
 
-[[nodiscard]] bool ge(const limbs4& a, const limbs4& b) {
-    for (std::size_t i = 4; i-- > 0;) {
-        if (a[i] > b[i]) {
-            return true;
-        }
-        if (a[i] < b[i]) {
-            return false;
-        }
-    }
-    return true;
+[[nodiscard]] bool ge(const limbs4& a, const limbs4& b) noexcept {
+    // Fully unrolled: one branch per limb (MSB first), no loop overhead.
+    if (a[3] != b[3]) return a[3] > b[3];
+    if (a[2] != b[2]) return a[2] > b[2];
+    if (a[1] != b[1]) return a[1] > b[1];
+    return a[0] >= b[0];
 }
 
 // Generic scalar add/sub mod N using 64-bit limbs

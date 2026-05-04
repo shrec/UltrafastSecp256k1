@@ -127,7 +127,19 @@ struct OclMsmPool {
             buf_scalars = nullptr;
         }
         if (buf_points)   { clReleaseMemObject(buf_points);   buf_points   = nullptr; }
-        if (buf_partials) { clReleaseMemObject(buf_partials); buf_partials = nullptr; }
+        if (buf_partials) {
+            // Zero intermediate scalar-mul results before release (Guardrail #10)
+            if (queue && capacity > 0) {
+                cl_uchar zero = 0;
+                cl_event ev = nullptr;
+                clEnqueueFillBuffer(queue, buf_partials, &zero, sizeof(zero),
+                                    0, capacity * sizeof(secp256k1::opencl::JacobianPoint),
+                                    0, nullptr, &ev);
+                if (ev) { clWaitForEvents(1, &ev); clReleaseEvent(ev); }
+            }
+            clReleaseMemObject(buf_partials);
+            buf_partials = nullptr;
+        }
         if (buf_blocks)   { clReleaseMemObject(buf_blocks);   buf_blocks   = nullptr; }
         capacity = 0;
     }
@@ -260,6 +272,10 @@ public:
         auto* const h_scalars = scratch.scalars.data();
         for (size_t i = 0; i < count; ++i) {
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
+            // Reject zero private keys (Guardrail #11)
+            if (h_scalars[i].limbs[0] == 0 && h_scalars[i].limbs[1] == 0 &&
+                h_scalars[i].limbs[2] == 0 && h_scalars[i].limbs[3] == 0)
+                return set_error(GpuError::BadKey, "zero scalar in generator_mul_batch");
         }
 
         /* Run batch k*G on GPU → Jacobian results */
@@ -499,6 +515,15 @@ public:
 
         /* Load private keys only after all pubkeys are confirmed valid. */
         std::vector<secp256k1::opencl::Scalar> h_scalars(count);
+        // RAII guard: erasure is guaranteed even if batch_scalar_mul throws (Guardrail #10)
+        struct ScalarEraseGuard {
+            std::vector<secp256k1::opencl::Scalar>& v;
+            ~ScalarEraseGuard() {
+                secp256k1::detail::secure_erase(v.data(),
+                                                v.size() * sizeof(v[0]));
+            }
+        } _scalar_guard{h_scalars};
+
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
@@ -506,10 +531,7 @@ public:
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
         ctx_->batch_scalar_mul(h_scalars.data(), h_peers.data(),
                                h_jac.data(), count);
-
-        /* Securely erase private key scalars immediately after GPU use. */
-        secp256k1::detail::secure_erase(h_scalars.data(),
-                                        h_scalars.size() * sizeof(h_scalars[0]));
+        // h_scalars erased by _scalar_guard destructor
 
         /* GPU: Jacobian → Affine */
         std::vector<secp256k1::opencl::AffinePoint> h_aff(count);

@@ -26,6 +26,12 @@ namespace secp256k1 {
 using fast::Scalar;
 using fast::Point;
 
+// File-scope precomputed constants (no per-call static-init guard — B-7)
+#if defined(SECP256K1_FAST_52BIT)
+static const fast::FieldElement52 kBeta52 = fast::FieldElement52::from_fe(
+    fast::FieldElement::from_bytes(fast::glv_constants::BETA));
+#endif
+
 // -- Window Width Selection ---------------------------------------------------
 // With effective-affine (batch precomp -> affine, mixed additions in scan),
 // the cost per scan-add drops from ~275ns (Jacobian) to ~170ns (mixed).
@@ -191,14 +197,13 @@ Point multi_scalar_mul(const Scalar* scalars,
     }
 
     // -- Step 3: Derive phi(P) tables via beta multiplication -------------
-    static const FE52 beta52 = FE52::from_fe(
-        fast::FieldElement::from_bytes(fast::glv_constants::BETA));
+    // kBeta52 is file-scope: no per-call static-init guard (B-7)
 
     for (std::size_t i = 0; i < n; ++i) {
         bool const flip_phi = (glv_info[i].neg1 != glv_info[i].neg2);
         std::size_t const base = i * table_size;
         for (std::size_t j = 0; j < table_size; ++j) {
-            tbl_phiP_x[base + j] = tbl_P_x[base + j] * beta52;
+            tbl_phiP_x[base + j] = tbl_P_x[base + j] * kBeta52;
             if (flip_phi) {
                 tbl_phiP_y[base + j] = tbl_P_y[base + j].negate(1);
                 tbl_phiP_y[base + j].normalize_weak();

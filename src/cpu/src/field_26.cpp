@@ -617,13 +617,13 @@ FieldElement26 FieldElement26::square() const noexcept {
 void FieldElement26::mul_assign(const FieldElement26& rhs) noexcept {
     std::uint32_t tmp[10];
     fe26_mul_inner(tmp, n, rhs.n);
-    for (int i = 0; i < 10; ++i) n[i] = tmp[i];
+    std::memcpy(n, tmp, 10 * sizeof(std::uint32_t));
 }
 
 void FieldElement26::square_inplace() noexcept {
     std::uint32_t tmp[10];
     fe26_sqr_inner(tmp, n);
-    for (int i = 0; i < 10; ++i) n[i] = tmp[i];
+    std::memcpy(n, tmp, 10 * sizeof(std::uint32_t));
 }
 
 // ===========================================================================

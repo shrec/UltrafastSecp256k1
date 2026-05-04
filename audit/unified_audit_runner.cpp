@@ -501,6 +501,7 @@ int test_regression_gpu_key_erase_raii_run();
 static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
+int test_regression_perf_review_sec_2026_05_04_run(); // 2026-05-04 perf review security+correctness
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -952,6 +953,8 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_musig2_zero_psig",       "musig2_partial_sign degenerate zero psig → UFSECP_ERR_INTERNAL (CRIT-03) — 2026-05-02",       "exploit_poc", test_regression_musig2_zero_psig_run,         false },
     { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, false },
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
+    // === 2026-05-04 Performance Review Security + Correctness Fixes ===
+    { "regression_perf_review_sec",  "Perf review SEC-1..7+B-1/3/6/7/8/9/10/13/15: CT gen-mul,inv,cswap,ge,Pippenger,BatchVerify (PRF-1..8) — 2026-05-04", "exploit_poc", test_regression_perf_review_sec_2026_05_04_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

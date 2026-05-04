@@ -365,15 +365,16 @@ bool Context::Impl::init(const DeviceConfig& cfg) {
     }
     if (cfg.verbose) std::cerr << "[DEBUG] Context created successfully" << std::endl;
 
-    // Create command queue with profiling enabled
+    // Create command queue; enable profiling only when verbose (C-4: avoid 1-5% overhead)
+    cl_command_queue_properties prof_flag = cfg.verbose ? CL_QUEUE_PROFILING_ENABLE : 0;
 #ifdef CL_VERSION_2_0
     cl_queue_properties props[] = {
-        CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE,
+        CL_QUEUE_PROPERTIES, prof_flag,
         0
     };
     queue = clCreateCommandQueueWithProperties(context, device, props, &err);
 #else
-    queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    queue = clCreateCommandQueue(context, device, prof_flag, &err);
 #endif
 
     if (err != CL_SUCCESS) {

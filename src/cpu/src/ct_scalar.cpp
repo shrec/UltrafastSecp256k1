@@ -260,10 +260,18 @@ void scalar_cmov(Scalar* r, const Scalar& a, std::uint64_t mask) noexcept {
 }
 
 void scalar_cswap(Scalar* a, Scalar* b, std::uint64_t mask) noexcept {
-    Scalar const old_a = *a;
-    Scalar const old_b = *b;
-    *a = scalar_select(old_b, old_a, mask);
-    *b = scalar_select(old_a, old_b, mask);
+    // XOR-swap: no 64-byte Scalar temporaries, only 4×uint64 scratch
+    const auto& al = a->limbs();
+    const auto& bl = b->limbs();
+    std::uint64_t la[4] = {al[0], al[1], al[2], al[3]};
+    std::uint64_t lb[4] = {bl[0], bl[1], bl[2], bl[3]};
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t diff = (la[i] ^ lb[i]) & mask;
+        la[i] ^= diff;
+        lb[i] ^= diff;
+    }
+    *a = Scalar::from_limbs({la[0], la[1], la[2], la[3]});
+    *b = Scalar::from_limbs({lb[0], lb[1], lb[2], lb[3]});
 }
 
 Scalar scalar_select(const Scalar& a, const Scalar& b,
@@ -317,8 +325,8 @@ static constexpr ModInfo NINFO = {
 // Matrix is scaled by 2^62 (starts at 8*I, 59 divsteps each multiply by 2).
 static int64_t divsteps_59(int64_t zeta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 8, v = 0, q = 0, r = 8;
-    volatile uint64_t c1 = 0;
-    volatile uint64_t c2 = 0;
+    uint64_t c1 = 0;
+    uint64_t c2 = 0;
     uint64_t mask1 = 0, mask2 = 0, f = f0, g = g0, x = 0, y = 0, z = 0;
 
     for (int i = 3; i < 62; ++i) {

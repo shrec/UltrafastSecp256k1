@@ -1129,7 +1129,7 @@ inline void rfc6979_nonce_impl(const Scalar* priv, const uchar msg_hash[32], Sca
             Scalar order;
             order.limbs[0] = ORDER_N0; order.limbs[1] = ORDER_N1;
             order.limbs[2] = ORDER_N2; order.limbs[3] = ORDER_N3;
-            if (!scalar_ge_impl(k_out, &order)) return;
+            if (!scalar_ge_impl(k_out, &order)) goto rfc6979_cleanup;
         }
         // Retry: K = HMAC_K(V || 0x00), V = HMAC_K(V)
         uchar retry_input[33];
@@ -1138,7 +1138,22 @@ inline void rfc6979_nonce_impl(const Scalar* priv, const uchar msg_hash[32], Sca
         hmac_sha256_impl(K_, 32, retry_input, 33, K_);
         hmac_sha256_impl(K_, 32, V, 32, V);
     }
+
+rfc6979_cleanup:
+    // Erase private key material from stack (Guardrail #10)
+    for (int _i = 0; _i < 32; _i++) { priv_bytes[_i] = 0; }
+    for (int _i = 0; _i < 32; _i++) { hmac_input[33 + _i] = 0; }
+    for (int _i = 0; _i < 32; _i++) { K_[_i] = 0; V[_i] = 0; }
 }
+
+// =============================================================================
+// CT Primitives (needed for constant-time signing paths — Guardrails #8, #14)
+// =============================================================================
+// Include order matters: ct_ops → ct_field → ct_scalar → ct_point
+#include "secp256k1_ct_ops.cl"
+#include "secp256k1_ct_field.cl"
+#include "secp256k1_ct_scalar.cl"
+#include "secp256k1_ct_point.cl"
 
 // =============================================================================
 // LAYER 4: ECDSA Sign / Verify
@@ -1159,8 +1174,10 @@ inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASi
     rfc6979_nonce_impl(priv, msg_hash, &k);
     if (scalar_is_zero(&k)) return 0;
 
-    JacobianPoint R;
-    scalar_mul_generator_impl(&R, &k);
+    // CT: k*G using constant-time GLV windowed mul (Guardrail #8)
+    CTJacobianPoint R_ct;
+    ct_generator_mul_impl(&k, &R_ct);
+    JacobianPoint R = ct_point_to_jacobian(&R_ct);
     if (point_is_infinity(&R)) return 0;
 
     // r = R.x mod n
@@ -1174,9 +1191,9 @@ inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASi
     scalar_from_bytes_impl(rx_bytes, &sig->r);
     if (scalar_is_zero(&sig->r)) return 0;
 
-    // s = k⁻¹ * (z + r*d) mod n
+    // s = k⁻¹ * (z + r*d) mod n  (CT: fixed-trace Fermat inverse — Guardrail #8)
     Scalar k_inv;
-    scalar_inverse_impl(&k, &k_inv);
+    ct_scalar_inverse_impl(&k, &k_inv);
 
     Scalar rd;
     scalar_mul_mod_n_impl(&sig->r, priv, &rd);
@@ -1345,9 +1362,10 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
                                const uchar aux_rand[32], SchnorrSignature* sig) {
     if (scalar_is_zero(priv)) return 0;
 
-    // P = d' * G
-    JacobianPoint P;
-    scalar_mul_generator_impl(&P, priv);
+    // P = d' * G  (CT: Guardrail #8)
+    CTJacobianPoint P_ct;
+    ct_generator_mul_impl(priv, &P_ct);
+    JacobianPoint P = ct_point_to_jacobian(&P_ct);
     if (point_is_infinity(&P)) return 0;
 
     // Convert to affine
@@ -1396,9 +1414,10 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     scalar_from_bytes_impl(rand_hash, &k_prime);
     if (scalar_is_zero(&k_prime)) return 0;
 
-    // R = k' * G
-    JacobianPoint R;
-    scalar_mul_generator_impl(&R, &k_prime);
+    // R = k' * G  (CT: Guardrail #8)
+    CTJacobianPoint R_schnorr_ct;
+    ct_generator_mul_impl(&k_prime, &R_schnorr_ct);
+    JacobianPoint R = ct_point_to_jacobian(&R_schnorr_ct);
 
     FieldElement rz_inv, rz_inv2, rz_inv3, rx, ry;
     field_inv_impl(&rz_inv, &R.z);
@@ -1438,9 +1457,15 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     scalar_mul_mod_n_impl(&e, &d, &ed);
     scalar_add_mod_n_impl(&k, &ed, &sig->s);
 
-    /* MEDIUM-3: Reject s == 0. Per BIP-340, s must be in [1, n-1].
-     * The analogous check exists in ecdsa_sign_impl; add it here for parity. */
+    /* Reject s == 0 (BIP-340) */
     if (scalar_is_zero(&sig->s)) return 0;
+
+    /* Reject r == all-zeros (Guardrail #14: must check BOTH r and s) */
+    {
+        int _r_zero = 1;
+        for (int _i = 0; _i < 32; _i++) { if (sig->r[_i]) { _r_zero = 0; break; } }
+        if (_r_zero) return 0;
+    }
 
     return 1;
 }

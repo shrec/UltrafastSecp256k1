@@ -170,7 +170,8 @@ static inline bool fe_is_one_raw(const FieldElement& z) noexcept {
 // Eliminates 100-byte return-value copy per call.
 SECP256K1_HOT_FUNCTION
 static inline void jacobian_double_inplace(JacobianPoint& p) {
-    if (SECP256K1_UNLIKELY(p.infinity || p.y == FieldElement::zero())) {
+    if (SECP256K1_UNLIKELY(p.infinity)) {
+        // p.y == 0 is impossible for a non-infinity secp256k1 point (prime order, no 2-torsion)
         p = {FieldElement::zero(), FieldElement::one(), FieldElement::zero(), true};
         return;
     }

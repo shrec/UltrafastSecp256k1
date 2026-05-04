@@ -111,22 +111,26 @@ Point pippenger_msm(const Scalar* scalars,
 
     // Pre-extract all scalar digits — thread_local pool avoids 208KB+ malloc
     // per call (n=4096, c=10, num_windows=26 → 212992 bytes).
-    // Layout: window-major digits[w * n + i] so the scatter inner loop (i=0..n-1)
-    // reads sequentially, exploiting cache lines during the hot scatter phase.
+    // Layout: window-major digits[w * n + i] so the scatter inner loop reads sequentially.
+    // Extraction order: scalar-major (outer=scalar, inner=window) so each scalar's 32 bytes
+    // stay hot in L1 cache across all num_windows extractions (B-3: eliminates n-1 reloads/window).
     static thread_local std::vector<std::uint16_t> tl_digits;
     std::size_t const digits_count = n * static_cast<std::size_t>(num_windows);
     if (tl_digits.size() < digits_count) tl_digits.resize(digits_count);
     std::uint16_t* digits = tl_digits.data();
-    for (unsigned w = 0; w < num_windows; ++w) {
-        std::uint16_t* row = digits + static_cast<std::size_t>(w) * n;
-        for (std::size_t i = 0; i < n; ++i) {
-            row[i] = static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
+    for (std::size_t i = 0; i < n; ++i) {
+        for (unsigned w = 0; w < num_windows; ++w) {
+            digits[static_cast<std::size_t>(w) * n + i] =
+                static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
         }
     }
+    // B-11: Check only the first non-infinity point as a proxy for the batch.
+    // Points from the same source (lift_x, precomputed tables, batch verify) are
+    // homogeneously normalized or Jacobian. A full O(n) scan is wasteful.
     bool all_affine = true;
     for (std::size_t i = 0; i < n; ++i) {
-        if (!points[i].is_infinity() && !points[i].is_normalized()) {
-            all_affine = false;
+        if (!points[i].is_infinity()) {
+            all_affine = points[i].is_normalized();
             break;
         }
     }

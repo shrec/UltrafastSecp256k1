@@ -28,6 +28,11 @@ using FE52 = fast::FieldElement52;
 // inverse() uses FE52 Fermat (~4us) -- but SafeGCD (~2-3us) is faster for
 // variable-time paths (point.cpp batch inverse, verify Y-parity).
 
+// -- Precomputed curve constants (file scope: no per-call static-init guard) --
+#if defined(SECP256K1_FAST_52BIT)
+static const FE52 kSeven52 = FE52::from_fe(FieldElement::from_uint64(7));
+#endif
+
 // -- lift_x: shared BIP-340 x-only -> affine Point ----------------------------
 // Input must be strict x in [0, p), represented as 4x64 LE limbs.
 // Returns Point::infinity() if x is not on the curve.
@@ -48,10 +53,9 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
 #else
     FE52 const px52 = FE52::from_4x64_limbs(px_limb_le);
 
-    // y^2 = x^3 + 7
+    // y^2 = x^3 + 7  (kSeven52 is file-scope: no per-call init guard — B-7)
     FE52 const x3 = px52.square() * px52;
-    static const FE52 seven52 = FE52::from_fe(FieldElement::from_uint64(7));
-    FE52 const y2 = x3 + seven52;
+    FE52 const y2 = x3 + kSeven52;
 
     // sqrt via FE52 addition chain: a^((p+1)/4), ~253 sqr + 13 mul
     FE52 y52 = y2.sqrt();
