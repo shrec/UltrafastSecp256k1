@@ -35,7 +35,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends g++-13 ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-werror-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -83,7 +83,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-asan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -145,7 +145,7 @@ jobs:
 
       - name: Cache MSan-instrumented libc++
         id: msan-libcxx-cache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: /tmp/msan-libcxx
           key: msan-libcxx-clang17-v3
@@ -174,7 +174,7 @@ jobs:
           rm -rf /tmp/llvm-project /tmp/msan-libcxx-build
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-msan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -241,7 +241,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang-17 lld-17 ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-tsan-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -298,7 +298,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends g++-13 ninja-build valgrind ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-valgrind-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -370,7 +370,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends g++-13 ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-sa-dudect-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -440,7 +440,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends g++-13 ninja-build ccache
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-cross-libsecp-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}

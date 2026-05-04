@@ -41,7 +41,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -109,7 +109,7 @@ jobs:
             qemu-user-static
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-arm64-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -206,7 +206,7 @@ jobs:
             qemu-user-static
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-riscv64-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
@@ -312,7 +312,7 @@ jobs:
           sudo apt-get install -y clang-17 lld-17 ccache ninja-build libc++-17-dev libc++abi-17-dev
 
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/ccache
           key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
