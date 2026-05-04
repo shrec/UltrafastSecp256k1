@@ -1567,6 +1567,33 @@ def main():
                 }
                 for r in results
             ],
+            # sections mirrors checks in the unified ReportBuilder schema format so
+            # report_schema.py --validate passes on this document.  consumers that
+            # already read 'checks' are unaffected — both keys are always present.
+            'sections': [
+                {
+                    'name': r['check'],
+                    'verdict': (
+                        'FAIL' if any(f[0] == 'FAIL' for f in r['findings'])
+                        else ('PASS with advisory' if any(f[0] == 'WARN' for f in r['findings'])
+                              else 'PASS')
+                    ),
+                    'findings': [
+                        {
+                            'check_id': r['check'].lower().replace(' ', '_').replace(':', '_'),
+                            'severity': {
+                                'FAIL': 'blocking:critical',
+                                'WARN': 'advisory:medium',
+                                'INFO': 'info',
+                                'PASS': 'pass',
+                            }.get(f[0], 'info'),
+                            'title': f[1],
+                        }
+                        for f in r['findings']
+                    ],
+                }
+                for r in results
+            ],
         }
         output = json.dumps(report, indent=2)
         if out_file:

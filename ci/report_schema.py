@@ -469,6 +469,7 @@ def validate_report(report: dict) -> list[str]:
     if verdict not in valid_verdicts:
         errors.append(f'verdict: {verdict!r} not in {valid_verdicts}')
 
+    _valid_severities = {s.value for s in Severity}
     for i, sec in enumerate(report.get('sections', [])):
         if not isinstance(sec, dict):
             errors.append(f'sections[{i}]: must be an object')
@@ -476,6 +477,16 @@ def validate_report(report: dict) -> list[str]:
         for req in ['name', 'verdict', 'findings']:
             if req not in sec:
                 errors.append(f'sections[{i}]: missing {req}')
+        for j, finding in enumerate(sec.get('findings', [])):
+            if not isinstance(finding, dict):
+                errors.append(f'sections[{i}].findings[{j}]: must be an object')
+                continue
+            sev = finding.get('severity', '')
+            if sev not in _valid_severities:
+                errors.append(
+                    f'sections[{i}].findings[{j}]: invalid severity {sev!r} — '
+                    f'expected one of {sorted(_valid_severities)}'
+                )
 
     return errors
 
