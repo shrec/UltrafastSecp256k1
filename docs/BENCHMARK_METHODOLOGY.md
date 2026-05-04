@@ -199,3 +199,65 @@ metric is flagged.
 - [docs/BENCHMARKS.md](BENCHMARKS.md) -- Full results across all platforms
 - [docs/PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) -- Tuning recommendations
 - [docs/PERFORMANCE_REGRESSION.md](PERFORMANCE_REGRESSION.md) -- Regression tracking policy
+
+---
+
+## Agent / AI Optimization Protocol (Strict)
+
+This section applies to any AI agent (Claude, Codex, Gemini, etc.) making
+performance-related changes. Violations were observed in the 2026-05-04 session
+and resulted in incorrect regression claims.
+
+### Mandatory 4-step procedure
+
+**Step 1 — Stable baseline BEFORE touching code**
+
+```bash
+sudo cpupower frequency-set -g performance
+echo 0 | sudo tee /sys/devices/system/cpu/cpufreq/boost
+
+cmake -S . -B /tmp/bench_baseline -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/bench_baseline --target bench_unified
+
+# Run ≥5 times — accept only if run-to-run variance < 3%
+for i in 1 2 3 4 5; do
+    taskset -c 0 nice -20 /tmp/bench_baseline/src/cpu/bench_unified \
+        2>/dev/null | grep "TARGET_OP"
+done
+```
+
+If variance > 3%: do not proceed — fix thermal/scheduling first.
+
+**Step 2 — Make the change, rebuild**
+
+```bash
+cmake --build /tmp/bench_new --target bench_unified
+```
+
+Use a SEPARATE build directory from the baseline. Same cmake flags.
+
+**Step 3 — Measure new code identically (≥5 runs)**
+
+**Step 4 — Compare ranges**
+
+| Result | Condition |
+|--------|-----------|
+| ✓ Improvement | `new_max < baseline_min` |
+| ✗ Regression | `new_min > baseline_max` |
+| ○ Inconclusive | ranges overlap — do NOT claim speedup |
+
+### What NOT to do
+
+- ❌ Compare a saved `benchmark.json` against a new run (different harness/compiler)
+- ❌ Claim improvement from a single measurement
+- ❌ Treat overlapping ranges as a regression or improvement
+- ❌ Run bench_unified without CPU pinning and frequency locking on a shared server
+
+### Lesson from 2026-05-04 session
+
+`dual_mul +3.2%` and `ecdsa_verify +4.1%` were flagged as regressions after
+comparing `benchmark.json` (GCC 13, 3 passes) vs a new run (GCC 14, 11 passes).
+A controlled 5-run comparison showed ranges fully overlapping → pure noise.
+The threshold for noise on this hardware without pinning is ±10–15% for ~20µs ops.
+A separate struct-copy bug was found and fixed (commit `c40ca6fc`) during the same
+investigation.
