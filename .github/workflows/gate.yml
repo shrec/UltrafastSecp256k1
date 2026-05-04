@@ -128,13 +128,55 @@ jobs:
         # local passes → GitHub passes. No divergence.
         run: bash ci/run_fast_gates.sh
 
+  # ---------------------------------------------------------------------------
+  # Security Gate — aggregates all Block 3 static/security jobs.
+  # Block 2 (build + unit tests) starts ONLY after this passes.
+  # Runs unconditionally (if: always()) so build-test is never blocked by a
+  # skipped dependency; evaluates each Block 3 result and propagates failures.
+  # ---------------------------------------------------------------------------
+  caas-gate:
+    name: Block 3 / Security Gate (aggregator)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    needs: [fast-gates, caas-security, bindings-smoke, gpu-wasm-smoke]
+    if: always()
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Evaluate security phase
+        run: |
+          FG="${{ needs.fast-gates.result }}"
+          CG="${{ needs.caas-security.result }}"
+          BS="${{ needs.bindings-smoke.result }}"
+          GW="${{ needs.gpu-wasm-smoke.result }}"
+
+          FAILED=0
+          for label_result in "fast-gates:$FG" "caas-security:$CG" \
+                              "bindings-smoke:$BS" "gpu-wasm-smoke:$GW"; do
+            label="${label_result%%:*}"
+            result="${label_result##*:}"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::$label → $result — blocking build phase"
+              FAILED=1
+            else
+              echo "$label → $result"
+            fi
+          done
+          [ "$FAILED" -eq 0 ] || exit 1
+          echo "::notice::Security phase passed — build phase may proceed"
+        shell: bash
+
   build-test:
     name: Block 2 / Build + Unit Tests
     runs-on: ubuntu-24.04
     # Library-only build: ~5 min warm, ~15 min cold.
     # Full tests only run when src/ changed (run_core=true); ~25 min cold.
+    # Starts ONLY after the security gate (Block 3) has completed.
     timeout-minutes: 30
-    needs: [detect-impact, fast-gates]
+    needs: [detect-impact, caas-gate]
     if: needs.detect-impact.outputs.docs_only != 'true'
     steps:
       - name: Harden runner
@@ -400,6 +442,7 @@ jobs:
     needs:
       - detect-impact
       - fast-gates
+      - caas-gate
       - build-test
       - caas-security
       - bindings-smoke
