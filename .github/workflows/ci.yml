@@ -1,22 +1,28 @@
-name: CI
+# =============================================================================
+# CI — Sequential Platform Chains
+# =============================================================================
+#
+# Every platform runs the SAME three-stage chain via platform-chain.yml:
+#
+#   [build] ──needs──▶ [audit] ──needs──▶ [collect]
+#
+# All platform chains run in parallel with each other.
+# Within a chain, each stage starts only after the previous one finishes.
+# The chain definition is in platform-chain.yml (single source of truth).
+#
+# Platforms
+# ───────────────────────────────────────────────────────────────────────────
+#  Linux native      gcc-14  gcc-13  clang-17  llvm-21
+#  Linux sanitizers  asan    tsan    msan
+#  Linux coverage    coverage (push-only → Codecov)
+#  macOS             apple-clang (Metal GPU)
+#  Windows           msvc
+#  Cross-compile     linux-arm64  linux-riscv64
+#  Android NDK       android-arm64-v8a  android-armeabi-v7a  android-x86_64
+#  WASM              wasm (Emscripten + Node)
+# =============================================================================
 
-# ============================================================================
-# Block structure (prevents runner exhaustion from 14+ simultaneous jobs):
-#
-#  Block 1 — Core Linux (~15 min, 2 parallel jobs)
-#    linux (gcc-13 + clang-17 matrix)
-#
-#  Block 2 — Platform matrix (~20 min, needs Block 1)
-#    linux-arm64, linux-riscv64, windows, macos, rocm
-#
-#  Block 3 — Embedded / quality / CAAS (~25 min, needs Block 2)
-#    ios, ios-xcframework, android, wasm
-#    sanitizers, differential, protocol-vectors
-#    caas-full (stages 1-5, artifacts)
-#    coverage (push only)
-#
-#  ci-verdict — always, fails if any block failed
-# ============================================================================
+name: CI
 
 on:
   push:
@@ -30,6 +36,7 @@ on:
       - 'bindings/**'
       - 'CMakeLists.txt'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/platform-chain.yml'
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -53,1141 +60,378 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # -- Linux (GCC + Clang) ----------------------------------------------------
-  linux:
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler: [gcc-13, clang-17]
-        build_type: [Release, Debug]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install compiler
-        run: |
-          sudo apt-get update -qq
-          if [[ "${{ matrix.compiler }}" == gcc-* ]]; then
-            sudo apt-get install -y g++-13 ccache ninja-build
-          else
-            sudo apt-get install -y clang-17 lld-17 ccache ninja-build
-          fi
-
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: |
-            ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-
-            ccache-linux-${{ matrix.compiler }}-
-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=200M
-          ccache --set-config=compression=true
-          ccache -z
-
-      - name: Configure
-        run: |
-          if [[ "${{ matrix.compiler }}" == gcc-* ]]; then
-            export CC=gcc-13 CXX=g++-13
-          else
-            export CC=clang-17 CXX=clang++-17
-          fi
-          cmake -S . -B out/linux -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON \
-            -DSECP256K1_BUILD_METAL=ON \
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
-            -DSECP256K1_BUILD_CROSS_TESTS=ON
-
-      - name: Build
-        run: cmake --build out/linux -j$(nproc)
-
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Test
-        run: |
-          # ct_sidechannel: dudect >10 min, runs in ct-verif workflow
-          # py_*: require libufsecp shared lib, run in bindings-smoke job
-          # exploit_gpu_*: advisory, no GPU on GitHub runners
-          ctest --test-dir out/linux --output-on-failure -j$(nproc) -E "^(ct_sidechannel|py_|exploit_gpu_)"
-
-  # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
-  linux-arm64:
-    runs-on: ubuntu-24.04
-    needs: [linux]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install cross toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            g++-13-aarch64-linux-gnu \
-            libc6-arm64-cross \
-            libc6-dev-arm64-cross \
-            ninja-build \
-            ccache \
-            qemu-user-static
-
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-arm64-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: |
-            ccache-arm64-
-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=200M
-          ccache --set-config=compression=true
-          ccache -z
-
-      - name: Configure (aarch64 Release)
-        run: |
-          cmake -S . -B out/arm64 -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc-13 \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-13 \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_METAL=OFF
-
-      - name: Build
-        run: cmake --build out/arm64 -j$(nproc)
-
-      - name: Verify binary
-        run: |
-          file out/arm64/cpu/libfastsecp256k1.a
-          echo "Library size: $(du -h out/arm64/cpu/libfastsecp256k1.a | cut -f1)"
-
-      - name: QEMU smoke (ARM64 runtime)
-        run: |
-          set -euo pipefail
-
-          QEMU_AARCH64="$(command -v qemu-aarch64-static || command -v qemu-aarch64)"
-          SYSROOT="/usr/aarch64-linux-gnu"
-          SELFTEST="$(find out/arm64 -name run_selftest -type f -executable | head -1)"
-          BIP324_TEST="$(find out/arm64 -name test_bip324_standalone -type f -executable | head -1)"
-          BENCH_KP="$(find out/arm64 -name bench_kP -type f -executable | head -1)"
-          BENCH_BIP324="$(find out/arm64 -name bench_bip324 -type f -executable | head -1)"
-
-          test -n "$QEMU_AARCH64"
-          test -n "$SELFTEST"
-          test -n "$BIP324_TEST"
-          test -n "$BENCH_KP"
-          test -n "$BENCH_BIP324"
-
-          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$SELFTEST" smoke
-          timeout 180 "$QEMU_AARCH64" -L "$SYSROOT" "$BIP324_TEST"
-          timeout 180 "$QEMU_AARCH64" -L "$SYSROOT" "$BENCH_KP" | tee arm64_bench_kP.txt
-          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$BENCH_BIP324" | tee arm64_bench_bip324.txt
-
-      - name: ARM64 smoke summary
-        if: success() || failure()
-        run: |
-          if [[ -f arm64_bench_kP.txt || -f arm64_bench_bip324.txt ]]; then
-            echo "## Linux ARM64 QEMU smoke" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            if [[ -f arm64_bench_kP.txt ]]; then
-              head -20 arm64_bench_kP.txt >> "$GITHUB_STEP_SUMMARY"
-            fi
-            if [[ -f arm64_bench_bip324.txt ]]; then
-              echo >> "$GITHUB_STEP_SUMMARY"
-              head -20 arm64_bench_bip324.txt >> "$GITHUB_STEP_SUMMARY"
-            fi
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Upload ARM64 benchmark artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: arm64-benchmarks-${{ github.run_id }}
-          path: |
-            arm64_bench_*.txt
-          if-no-files-found: warn
-          retention-days: 30
-
-  # -- Linux RISC-V 64 (cross-compile, riscv64-linux-gnu) --------------------
-  linux-riscv64:
-    runs-on: ubuntu-24.04
-    needs: [linux]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install cross toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            g++-13-riscv64-linux-gnu \
-            libc6-riscv64-cross \
-            libc6-dev-riscv64-cross \
-            ninja-build \
-            ccache \
-            qemu-user-static
-
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-riscv64-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: |
-            ccache-riscv64-
-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=200M
-          ccache --set-config=compression=true
-          ccache -z
-
-      - name: Configure (riscv64 Release)
-        run: |
-          cmake -S . -B out/riscv64 -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
-            -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc-13 \
-            -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++-13 \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_METAL=OFF
-
-      - name: Build
-        run: cmake --build out/riscv64 -j$(nproc)
-
-      - name: Verify binary
-        run: |
-          file out/riscv64/cpu/libfastsecp256k1.a
-          echo "Library size: $(du -h out/riscv64/cpu/libfastsecp256k1.a | cut -f1)"
-
-      - name: QEMU smoke (RISC-V runtime)
-        run: |
-          set -euo pipefail
-
-          QEMU_RISCV64="$(command -v qemu-riscv64-static || command -v qemu-riscv64)"
-          SYSROOT="/usr/riscv64-linux-gnu"
-          SELFTEST="$(find out/riscv64 -name run_selftest -type f -executable | head -1)"
-          BIP324_TEST="$(find out/riscv64 -name test_bip324_standalone -type f -executable | head -1)"
-          BENCH_KP="$(find out/riscv64 -name bench_kP -type f -executable | head -1)"
-          BENCH_BIP324="$(find out/riscv64 -name bench_bip324 -type f -executable | head -1)"
-
-          test -n "$QEMU_RISCV64"
-          test -n "$SELFTEST"
-          test -n "$BIP324_TEST"
-          test -n "$BENCH_KP"
-          test -n "$BENCH_BIP324"
-
-          timeout 180 "$QEMU_RISCV64" -L "$SYSROOT" "$SELFTEST" smoke
-          timeout 120 "$QEMU_RISCV64" -L "$SYSROOT" "$BIP324_TEST"
-          timeout 180 "$QEMU_RISCV64" -L "$SYSROOT" "$BENCH_KP" | tee riscv64_bench_kP.txt
-          timeout 240 "$QEMU_RISCV64" -L "$SYSROOT" "$BENCH_BIP324" | tee riscv64_bench_bip324.txt
-
-      - name: RISC-V smoke summary
-        if: success() || failure()
-        run: |
-          if [[ -f riscv64_bench_kP.txt || -f riscv64_bench_bip324.txt ]]; then
-            echo "## Linux RISC-V QEMU smoke" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            if [[ -f riscv64_bench_kP.txt ]]; then
-              head -20 riscv64_bench_kP.txt >> "$GITHUB_STEP_SUMMARY"
-            fi
-            if [[ -f riscv64_bench_bip324.txt ]]; then
-              echo >> "$GITHUB_STEP_SUMMARY"
-              head -20 riscv64_bench_bip324.txt >> "$GITHUB_STEP_SUMMARY"
-            fi
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Upload RISC-V benchmark artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: riscv64-benchmarks-${{ github.run_id }}
-          path: |
-            riscv64_bench_*.txt
-          if-no-files-found: warn
-          retention-days: 30
-
-  # -- Sanitizers (ASan+UBSan, Clang on Linux) --------------------------------
-  sanitizers:
-    needs: [linux-arm64, linux-riscv64]
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        sanitizer: [asan, tsan, msan]
-        include:
-          - sanitizer: asan
-            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'"
-            label: "ASan+UBSan"
-          - sanitizer: tsan
-            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=thread'"
-            label: "TSan"
-          - sanitizer: msan
-            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2' -DCMAKE_CXX_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 -stdlib=libc++' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=memory -stdlib=libc++ -lc++abi'"
-            label: "MSan"
-
-    name: "Sanitizers (${{ matrix.label }})"
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install Clang 17
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17 ccache ninja-build libc++-17-dev libc++abi-17-dev
-
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: |
-            ccache-san-${{ matrix.sanitizer }}-
-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=200M
-          ccache --set-config=compression=true
-          ccache -z
-
-      - name: Configure (${{ matrix.label }})
-        run: |
-          export CC=clang-17 CXX=clang++-17
-          cmake -S . -B out/${{ matrix.sanitizer }} -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
-            -DSECP256K1_USE_ASM=OFF \
-            -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DSECP256K1_BUILD_JAVA=OFF \
-            ${{ matrix.cmake_flags }}
-
-      - name: Build
-        run: cmake --build out/${{ matrix.sanitizer }} -j$(nproc)
-
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Test (${{ matrix.label }})
-        # Sanitizers add 3-15x overhead; raise per-test timeout from 300s to 900s.
-        # Exclude selftest (unified runner) -- standalone tests cover the same
-        # modules individually and finish faster under instrumentation.
-        # Exclude py_*: Python ctypes loads libufsecp.so without the sanitizer
-        # runtime preloaded, causing undefined symbol errors for __asan_*,
-        # __tsan_func_entry, etc. Python tests run in the normal linux jobs.
-        # MSan note: The CI MSan job uses system (non-instrumented) libc++.
-        # Any test that links libufsecp (which uses std::string internally)
-        # triggers false positives.  Only pure-arithmetic and standalone tests
-        # survive.  Rather than maintaining a fragile deny-list, we switch to a
-        # whitelist of known-clean targets.  Full MSan coverage with an
-        # instrumented libc++ is provided by the Security Audit MSan job
-        # (security-audit.yml), which builds its own MSan libc++ from source.
-        run: |
-          if [ "${{ matrix.sanitizer }}" = "msan" ]; then
-            ctest --test-dir out/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
-              -R "^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_invalid_curve|exploit_metal_field_reduce)$" --timeout 900
-          else
-            ctest --test-dir out/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
-              -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
-          fi
-
-  # -- Windows (MSVC + Clang-cl) ----------------------------------------------
-  windows:
-    needs: [linux]
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Release]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Configure (MSVC)
-        run: |
-          cmake -S . -B out/windows -G "Visual Studio 17 2022" -A x64 `
-            -DSECP256K1_BUILD_TESTS=ON `
-            -DSECP256K1_BUILD_BENCH=ON `
-            -DSECP256K1_BUILD_EXAMPLES=ON `
-            -DSECP256K1_BUILD_METAL=ON `
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON `
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-
-      - name: Build
-        run: cmake --build out/windows --config ${{ matrix.build_type }} -j
-
-      - name: Test
-        env:
-          PYTHONUTF8: '1'
-        run: ctest --test-dir out/windows -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel"
-
-  # -- macOS (AppleClang + Metal GPU) -----------------------------------------
-  macos:
-    needs: [linux]
-    runs-on: macos-14
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Release]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Configure
-        run: |
-          cmake -S . -B out/macos \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON \
-            -DSECP256K1_BUILD_METAL=ON \
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-
-      - name: Build
-        run: cmake --build out/macos -j$(sysctl -n hw.logicalcpu)
-
-      - name: Test (all including Metal GPU)
-        # Exclude gpu_ecdsa_snark_witness and gpu_bip352_scan: these Metal
-        # kernels (ecdsa_snark_witness_batch, bip352_scan_pipeline) are not
-        # compiled into the default metallib on CI runners and fail with
-        # "Function not found".  They are covered by the Metal GPU audit step.
-        run: ctest --test-dir out/macos --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)"
-
-      - name: Metal GPU audit (advisory -- not blocking)
-        if: success() || failure()
-        continue-on-error: true
-        run: |
-          METAL_AUDIT=$(find out/macos -name metal_audit_runner -type f | head -1)
-          if [ -n "$METAL_AUDIT" ] && [ -x "$METAL_AUDIT" ]; then
-            echo "Running Metal audit (advisory)..."
-            "$METAL_AUDIT" --report-dir out/macos/metal_audit_report || echo "::warning::Metal audit had failures (advisory)"
-          else
-            echo "Metal audit runner not found"
-          fi
-
-      - name: Upload Metal GPU audit report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: metal-gpu-audit-${{ github.run_id }}
-          path: out/macos/metal_audit_report/
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: Metal GPU benchmarks
-        if: success()
-        run: |
-          METAL_TEST=$(find out/macos -name metal_secp256k1_test -type f | head -1)
-          if [ -n "$METAL_TEST" ] && [ -x "$METAL_TEST" ]; then
-            echo "Running Metal GPU benchmarks..."
-            $METAL_TEST --bench
-          else
-            echo "Metal GPU test binary not found (expected on Apple Silicon)"
-          fi
-
-  # -- iOS (CMake + Xcode, ARM64) ---------------------------------------------
-  ios:
-    needs: [macos]
-    runs-on: macos-14
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [OS, SIMULATOR]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Configure (iOS ${{ matrix.platform }})
-        run: |
-          cmake -S . -B out/ios \
-            -G Xcode \
-            -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
-            -DIOS_PLATFORM=${{ matrix.platform }}
-
-      - name: Build
-        run: cmake --build out/ios --config Release --target fastsecp256k1 -- -quiet
-
-      - name: Verify library
-        run: |
-          LIB=$(find out/ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
-          echo "Library: $LIB"
-          file "$LIB"
-          lipo -info "$LIB"
-          echo "Size: $(du -h "$LIB" | cut -f1)"
-
-  # -- iOS XCFramework --------------------------------------------------------
-  ios-xcframework:
-    runs-on: macos-14
-    needs: [ios]
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Build XCFramework
-        run: |
-          chmod +x ci/build_xcframework.sh
-          ./ci/build_xcframework.sh
-
-      - name: Upload XCFramework
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: UltrafastSecp256k1.xcframework
-          path: out/xcframework/output/UltrafastSecp256k1.xcframework
-          retention-days: 30
-
-  # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
-  # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
-  # This job validates that the HIP toolchain compiles successfully.
-  # Runtime GPU tests require a self-hosted runner with an AMD GPU.
-  # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
-  # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
-  # This job validates that the HIP toolchain compiles successfully.
-  # Runtime GPU tests require a self-hosted runner with an AMD GPU.
-  rocm:
-    needs: [linux]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - name: Free disk space for ROCm
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: false
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install ROCm HIP SDK
-        run: |
-          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/rocm.gpg
-          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/6.3 noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends hip-dev rocm-cmake ninja-build cmake
-
-      - name: Configure (ROCm/HIP)
-        run: |
-          cmake -S . -B out/rocm -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSECP256K1_BUILD_CPU=ON \
-            -DSECP256K1_BUILD_ROCM=ON \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DCMAKE_HIP_ARCHITECTURES="gfx906;gfx908;gfx90a;gfx1030;gfx1100"
-
-      - name: Build
-        run: cmake --build out/rocm -j$(nproc)
-
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Test (CPU-only, compile check)
-        run: ctest --test-dir out/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel"
-
-  # -- WebAssembly (Emscripten) -----------------------------------------------
-  wasm:
-    needs: [linux]
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
-        with:
-          version: 3.1.51
-          actions-cache-folder: emsdk-cache
-
-      - name: Configure (WASM)
-        run: emcmake cmake -S bindings/wasm -B out/wasm -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build out/wasm -j$(nproc)
-
-      - name: Verify output
-        run: |
-          ls -lh out/wasm/dist/secp256k1_wasm.js
-          ls -lh out/wasm/dist/secp256k1_wasm.wasm
-          echo "WASM size: $(du -h out/wasm/dist/secp256k1_wasm.wasm | cut -f1)"
-          echo "KAT test files:"
-          ls -lh out/wasm/kat/
-
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version: 20
-
-      - name: Run WASM benchmark
-        run: |
-          cd out/wasm/dist
-          node ../../../bindings/wasm/bench_wasm.mjs
-
-      - name: Run WASM KAT equivalence test
-        # wasm_kat_test.js is generated into out/wasm/kat/ by the WASM build
-        run: node out/wasm/kat/wasm_kat_test.js
-
-      - name: Upload WASM artifact
-        id: wasm_upload
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        continue-on-error: true
-        with:
-          name: secp256k1-wasm
-          path: |
-            out/wasm/dist/secp256k1_wasm.js
-            out/wasm/dist/secp256k1_wasm.wasm
-            out/wasm/dist/secp256k1.mjs
-            out/wasm/dist/secp256k1.d.ts
-            out/wasm/dist/package.json
-          retention-days: 30
-
-      - name: Surface WASM artifact upload outcome
-        if: always()
-        run: |
-          if [ "${{ steps.wasm_upload.outcome }}" != "success" ]; then
-            echo "::error::WASM artifact upload failed (outcome=${{ steps.wasm_upload.outcome }}) — WASM build artifacts will be missing from this run"
-          else
-            echo "::notice::WASM artifact upload OK"
-          fi
-
-  # -- Android NDK (ARM64, ARMv7, x86_64) ----------------------------------
-  android:
-    needs: [linux]
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        abi: [arm64-v8a, armeabi-v7a, x86_64]
-
-    name: "android (${{ matrix.abi }})"
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
-        id: ndk
-        with:
-          ndk-version: r27c
-
-      - name: Configure (Android ${{ matrix.abi }})
-        run: |
-          cmake -S bindings/android -B out/android \
-            -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=${{ matrix.abi }} \
-            -DANDROID_PLATFORM=android-24 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -G Ninja
-
-      - name: Build
-        run: cmake --build out/android -j$(nproc)
-
-      - name: Verify
-        run: |
-          file out/android/cpu/libfastsecp256k1.a
-          file out/android/libsecp256k1_jni.so
-          if [[ "${{ matrix.abi }}" == "arm64-v8a" ]]; then
-            file out/android/bench_kP
-            file out/android/bench_bip324
-          fi
-          echo "Static lib: $(du -h out/android/cpu/libfastsecp256k1.a | cut -f1)"
-          echo "JNI shared: $(du -h out/android/libsecp256k1_jni.so | cut -f1)"
-          if [[ "${{ matrix.abi }}" == "arm64-v8a" ]]; then
-            echo "bench_kP: $(du -h out/android/bench_kP | cut -f1)"
-            echo "bench_bip324: $(du -h out/android/bench_bip324 | cut -f1)"
-          fi
-
-  # -- Code Coverage (LLVM source-based + Codecov) ----------------------------
-  coverage:
-    needs: [sanitizers]
-    runs-on: ubuntu-24.04
+  # ===========================================================================
+  # ── Linux native chains  (audit_mode: full)
+  # ctest + unified_audit_runner + all Python gate scripts
+  # ===========================================================================
+
+  chain-gcc-14:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: gcc-14
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          g++-14 ccache ninja-build
+      cc: gcc-14
+      cxx: g++-14
+      cmake_extra: >-
+        -DSECP256K1_BUILD_METAL=ON
+        -DSECP256K1_BUILD_CROSS_TESTS=ON
+      audit_mode: full
+
+  chain-gcc-13:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: gcc-13
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          g++-13 ccache ninja-build
+      cc: gcc-13
+      cxx: g++-13
+      cmake_extra: >-
+        -DSECP256K1_BUILD_METAL=ON
+        -DSECP256K1_BUILD_CROSS_TESTS=ON
+      audit_mode: full
+
+  chain-clang-17:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: clang-17
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-17 lld-17 ccache ninja-build
+      cc: clang-17
+      cxx: clang++-17
+      cmake_extra: >-
+        -DSECP256K1_BUILD_METAL=ON
+        -DSECP256K1_BUILD_CROSS_TESTS=ON
+      audit_mode: full
+
+  chain-llvm-21:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: llvm-21
+      os: ubuntu-24.04
+      install_cmd: |
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+        echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" \
+          | sudo tee /etc/apt/sources.list.d/llvm21.list
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-21 lld-21 ccache ninja-build
+      cc: clang-21
+      cxx: clang++-21
+      cmake_extra: >-
+        -DSECP256K1_BUILD_METAL=ON
+      audit_mode: full
+
+  # ===========================================================================
+  # ── Linux sanitizer chains  (audit_mode: ctest, Debug build)
+  # Each uses Clang 17 + the respective sanitizer.  ctest_timeout raised to 900s.
+  # ===========================================================================
+
+  chain-asan:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: asan
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-17 lld-17 ccache ninja-build
+      cc: clang-17
+      cxx: clang++-17
+      sanitizer: asan
+      build_type: Debug
+      cmake_extra: >-
+        -DSECP256K1_USE_ASM=OFF
+        -DSECP256K1_BUILD_EXAMPLES=OFF
+      audit_mode: ctest
+      ctest_exclude: '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
+      ctest_timeout: 900
+
+  chain-tsan:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: tsan
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-17 lld-17 ccache ninja-build
+      cc: clang-17
+      cxx: clang++-17
+      sanitizer: tsan
+      build_type: Debug
+      cmake_extra: >-
+        -DSECP256K1_USE_ASM=OFF
+        -DSECP256K1_BUILD_EXAMPLES=OFF
+      audit_mode: ctest
+      ctest_exclude: '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
+      ctest_timeout: 900
+
+  chain-msan:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: msan
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-17 lld-17 libc++-17-dev libc++abi-17-dev ccache ninja-build
+      cc: clang-17
+      cxx: clang++-17
+      sanitizer: msan
+      build_type: Debug
+      cmake_extra: >-
+        -DSECP256K1_USE_ASM=OFF
+        -DSECP256K1_BUILD_EXAMPLES=OFF
+        -DSECP256K1_BUILD_JAVA=OFF
+      audit_mode: ctest
+      # MSan: whitelist approach — only run tests known-clean under MSan.
+      # ctest_include acts as -R; ctest_exclude still applied on top.
+      ctest_include: >-
+        ^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_invalid_curve|exploit_metal_field_reduce)$
+      ctest_timeout: 900
+
+  # ===========================================================================
+  # ── Coverage chain  (push to dev/main only — Codecov upload)
+  # ===========================================================================
+
+  chain-coverage:
     if: github.event_name == 'push'
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: coverage
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          clang-17 llvm-17 lld-17 ninja-build
+      cc: clang-17
+      cxx: clang++-17
+      build_type: Debug
+      cmake_extra: >-
+        -DSECP256K1_USE_ASM=OFF
+        -DSECP256K1_BUILD_BENCH=OFF
+      audit_mode: coverage
+      ctest_exclude: '^ct_sidechannel'
+      codecov_flags: cpu
 
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
+  # ===========================================================================
+  # ── macOS chain  (audit_mode: ctest)
+  # Ninja is pre-installed on macos-14 runners.
+  # ===========================================================================
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  chain-macos:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: apple-clang
+      os: macos-14
+      cmake_extra: >-
+        -DSECP256K1_BUILD_METAL=ON
+      audit_mode: ctest
+      ctest_exclude: >-
+        ^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)
 
-      - name: Install tools
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-17 llvm-17 lld-17 ninja-build
+  # ===========================================================================
+  # ── Windows chain  (audit_mode: ctest, Visual Studio generator)
+  # ===========================================================================
 
-      - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+  chain-windows:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: msvc
+      os: windows-latest
+      cmake_generator: "Visual Studio 17 2022"
+      cmake_extra: >-
+        -A x64
+        -DSECP256K1_BUILD_METAL=ON
+      build_type: Release
+      audit_mode: ctest
+      ctest_config: Release
+      ctest_exclude: '^ct_sidechannel'
 
-      - name: Configure (coverage)
-        run: |
-          export CC=clang-17 CXX=clang++-17
-          cmake -S . -B out/cov -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
-            -DSECP256K1_USE_ASM=OFF \
-            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
+  # ===========================================================================
+  # ── Cross-compile Linux chains  (audit_mode: qemu-*)
+  # ===========================================================================
 
-      - name: Build
-        run: cmake --build out/cov -j"$(nproc)"
+  chain-linux-arm64:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: linux-arm64
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          g++-13-aarch64-linux-gnu \
+          libc6-arm64-cross libc6-dev-arm64-cross \
+          ninja-build ccache
+      cc: aarch64-linux-gnu-gcc-13
+      cxx: aarch64-linux-gnu-g++-13
+      cmake_extra: >-
+        -DCMAKE_SYSTEM_NAME=Linux
+        -DCMAKE_SYSTEM_PROCESSOR=aarch64
+        -DSECP256K1_BUILD_METAL=OFF
+        -DSECP256K1_BUILD_BENCH=ON
+      audit_mode: qemu-arm64
 
-      - name: Test
-        run: ctest --test-dir out/cov --output-on-failure -j"$(nproc)" -E "^ct_sidechannel"
-        env:
-          LLVM_PROFILE_FILE: "out/cov/%p-%m.profraw"
+  chain-linux-riscv64:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: linux-riscv64
+      os: ubuntu-24.04
+      install_cmd: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          g++-13-riscv64-linux-gnu \
+          libc6-riscv64-cross libc6-dev-riscv64-cross \
+          ninja-build ccache
+      cc: riscv64-linux-gnu-gcc-13
+      cxx: riscv64-linux-gnu-g++-13
+      cmake_extra: >-
+        -DCMAKE_SYSTEM_NAME=Linux
+        -DCMAKE_SYSTEM_PROCESSOR=riscv64
+        -DSECP256K1_BUILD_METAL=OFF
+        -DSECP256K1_BUILD_BENCH=ON
+      audit_mode: qemu-riscv64
 
-      - name: Collect coverage (LLVM → lcov format)
-        run: |
-          # Merge raw profiles
-          find out/cov -name '*.profraw' -print0 | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+  # ===========================================================================
+  # ── Android NDK chains  (audit_mode: verify)
+  # NDK setup action is triggered inside platform-chain.yml for android-* platforms.
+  # The platform name (minus "android-" prefix) becomes the Android ABI string.
+  # ===========================================================================
 
-          # Find all instrumented objects (library + test binaries)
-          OBJECTS=""
-          for bin in $(find out/cov -type f -executable); do
-            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
-              OBJECTS="$OBJECTS -object=$bin"
-            fi
-          done
+  chain-android-arm64:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: android-arm64-v8a
+      os: ubuntu-24.04
+      audit_mode: verify
 
-          # Export to lcov format (Codecov-compatible)
-          # shellcheck disable=SC2086
-          llvm-cov-17 export \
-            --format=lcov \
-            --instr-profile=coverage.profdata \
-            $OBJECTS \
-            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
-            > coverage.lcov
+  chain-android-armv7:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: android-armeabi-v7a
+      os: ubuntu-24.04
+      audit_mode: verify
 
-          echo "=== Coverage summary ==="
-          llvm-cov-17 report \
-            --instr-profile=coverage.profdata \
-            $OBJECTS \
-            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
-            | tail -5
+  chain-android-x86_64:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: android-x86_64
+      os: ubuntu-24.04
+      audit_mode: verify
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
-        with:
-          files: coverage.lcov
-          flags: cpu
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  # ===========================================================================
+  # ── WASM chain  (audit_mode: node)
+  # Emscripten SDK setup is triggered inside platform-chain.yml for platform==wasm.
+  # ===========================================================================
 
-  # -- Differential smoke test (self-consistency, compact, per-PR) -----------
-  differential:
-    name: "Differential Smoke Test"
-    needs: [linux]
+  chain-wasm:
+    uses: ./.github/workflows/platform-chain.yml
+    with:
+      platform: wasm
+      os: ubuntu-24.04
+      audit_mode: node
+
+  # ===========================================================================
+  # ── Final Verdict
+  # Waits for all chains; fails if any chain failed or was cancelled.
+  # coverage is push-only — on PR it is 'skipped', which is not a failure.
+  # ===========================================================================
+
+  ci-verdict:
+    name: "CI / Final Verdict"
+    needs:
+      - chain-gcc-14
+      - chain-gcc-13
+      - chain-clang-17
+      - chain-llvm-21
+      - chain-asan
+      - chain-tsan
+      - chain-msan
+      - chain-coverage
+      - chain-macos
+      - chain-windows
+      - chain-linux-arm64
+      - chain-linux-riscv64
+      - chain-android-arm64
+      - chain-android-armv7
+      - chain-android-x86_64
+      - chain-wasm
+    if: always()
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
+    timeout-minutes: 5
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
-
-      - name: Configure
-        run: |
-          cmake -S . -B out/differential -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_CROSS_TESTS=ON
-
-      - name: Build differential test binary
-        run: cmake --build out/differential --target test_differential_standalone -j"$(nproc)"
-
-      - name: Run differential smoke test (10 K random cases)
-        # DIFFERENTIAL_MULTIPLIER=1 => ~10K cases; fast enough for per-PR gate.
-        # Nightly uses 100 (1M cases) for extended coverage.
-        run: ./out/differential/audit/test_differential_standalone 1
-
-  # -- Protocol reference vectors (MuSig2 BIP-327 + FROST KAT) --------------
-  protocol-vectors:
-    name: "Protocol Vectors (MuSig2 BIP-327 / FROST-KAT)"
-    needs: [linux]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
-
-      - name: Configure
-        run: |
-          cmake -S . -B out/protocol-vectors -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-
-      - name: Build protocol vector tests
-        run: |
-          cmake --build out/protocol-vectors --target test_musig2_bip327_vectors -j"$(nproc)"
-          cmake --build out/protocol-vectors --target test_frost_kat -j"$(nproc)"
-          cmake --build out/protocol-vectors --target test_musig2_frost -j"$(nproc)"
-
-      - name: Run MuSig2 BIP-327 reference vectors
-        run: ctest --test-dir out/protocol-vectors --output-on-failure -R "^musig2_bip327_vectors$" --timeout 120
-
-      - name: Run FROST KAT reference vectors
-        run: ctest --test-dir out/protocol-vectors --output-on-failure -R "^frost_kat$" --timeout 120
-
-      - name: Run MuSig2/FROST combined test
-        run: ctest --test-dir out/protocol-vectors --output-on-failure -R "^musig2_frost$" --timeout 120
-
-  # ============================================================================
-  # CAAS full cycle — stages 1-5, saves JSON + bundle artifacts
-  # Runs after sanitizers (Block 3) so we know the build is clean.
-  # ============================================================================
-  caas-full:
-    name: "CAAS / Full Cycle (stages 1-5)"
-    needs: [sanitizers, differential, protocol-vectors]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
-          pip install --require-hashes -r .github/requirements/audit-deps.txt
-
-      - name: Build unified_audit_runner + shared lib
-        run: |
-          cmake -S . -B out/ci-caas -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
-            -DSECP256K1_BUILD_TESTS=OFF \
-            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
-            -DSECP256K1_BUILD_FUZZ_TESTS=OFF
-          cmake --build out/ci-caas --target unified_audit_runner ufsecp_shared -j"$(nproc)"
-
-      - name: Stage 1a — Static analysis (audit test quality scanner)
-        run: |
-          python3 ci/audit_test_quality_scanner.py --json -o stage1a_scanner.json
-          python3 -c "
-          import json, sys
-          d = json.load(open('stage1a_scanner.json'))
-          n = d.get('total_findings', 0)
-          if n > 0:
-              print(f'::error::Stage 1a: {n} audit test quality finding(s) — see stage1a_scanner.json')
-              sys.exit(1)
-          "
-
-      - name: Stage 1b — Traceability join
-        run: |
-          python3 ci/exploit_traceability_join.py --json -o stage1b_traceability.json
-          python3 -c "
-          import json, sys
-          d = json.load(open('stage1b_traceability.json'))
-          # Fail-safe default: if neither 'pass' nor 'passed' is present (e.g.
-          # schema regression or partial output) treat the result as FAIL, not
-          # silently as a pass.
-          if not d.get('pass', d.get('passed', False)):
-              print('::error::Stage 1b: exploit traceability join failed — see stage1b_traceability.json')
-              sys.exit(1)
-          "
-
-      - name: Stage 2 — Audit gate (P0–P18)
-        # The gate exit code is the source of truth; the JSON report is for
-        # later inspection. Surfacing both protects against either signal
-        # being silently dropped.
-        run: |
-          set +e
-          python3 ci/audit_gate.py --json -o stage2_audit_gate.json
-          GATE_EXIT=$?
-          set -e
-          python3 -c "
-          import json, sys
-          try:
-              d = json.load(open('stage2_audit_gate.json'))
-              v = d.get('audit_verdict', 'unknown')
-              s = d.get('summary', {})
-              print(f'verdict={v}  blocking={s.get(\"blocking\", 0)}  advisory={s.get(\"advisory\", 0)}')
-              for c in d.get('checks', []):
-                  if c.get('status') == 'FAIL':
-                      print(f'  FAIL: {c.get(\"name\", \"<unnamed>\")}')
-          except Exception as e:
-              print(f'(could not parse gate report: {e})')
-          "
-          if [ "${GATE_EXIT}" -ne 0 ]; then
-              echo "::error::Stage 2: audit_gate.py exited ${GATE_EXIT}"
-              exit "${GATE_EXIT}"
-          fi
-
-      - name: Stage 3 — Security autonomy check
-        run: |
-          python3 ci/security_autonomy_check.py --json -o stage3_autonomy.json
-          python3 -c "
-          import json, sys
-          d = json.load(open('stage3_autonomy.json'))
-          ready = d.get('autonomy_ready', d.get('passed', False))
-          score = d.get('autonomy_score', d.get('score', 0))
-          # Fail-safe: must be both ready AND score==100 (matches caas.yml gate semantics).
-          if not ready or score < 100:
-              print(f'::error::Stage 3: security autonomy check failed (ready={ready} score={score}) — see stage3_autonomy.json')
-              sys.exit(1)
-          "
-
-      - name: Run unified_audit_runner (all 327 modules)
-        run: |
-          ./out/ci-caas/audit/unified_audit_runner --report-dir .
-          echo "## CAAS Full Run" >> "$GITHUB_STEP_SUMMARY"
-          python3 -c "
-          import json, sys
-          d = json.load(open('audit_report.json'))
-          s = d.get('summary', d)
-          passed = s.get('passed', 0); failed = s.get('failed', 0); skipped = s.get('advisory_skipped', 0)
-          print(f'| Passed | Failed | Advisory skipped |')
-          print(f'|--------|--------|-----------------|')
-          print(f'| {passed} | {failed} | {skipped} |')
-          sys.exit(1 if failed > 0 else 0)
-          " >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Stage 4 — Produce audit bundle
-        run: python3 ci/external_audit_bundle.py -o docs/EXTERNAL_AUDIT_BUNDLE.json
-
-      - name: Stage 5 — Verify audit bundle
-        run: python3 ci/verify_external_audit_bundle.py docs/EXTERNAL_AUDIT_BUNDLE.json
-
-      - name: Warn on missing stage output files
-        if: always()
-        run: |
-          for f in stage1a_scanner.json stage1b_traceability.json stage2_audit_gate.json stage3_autonomy.json; do
-            [ -f "$f" ] || echo "::warning::$f was not produced — stage may have failed before writing output"
-          done
-
-      - name: Stage 6 — Build owner audit bundle
-        # H-1 fix: this file was listed in the upload path but never produced,
-        # causing the 90-day owner audit bundle to be silently absent.
-        if: always()
-        run: |
-          mkdir -p out/owner_audit
-          python3 ci/build_owner_audit_bundle.py \
-            -o out/owner_audit/owner_audit_bundle.json \
-            --text out/owner_audit/owner_audit_bundle.txt \
-            || echo "::warning::build_owner_audit_bundle.py failed — owner audit bundle will be absent from artifact"
-
-      - name: Ingest CAAS results into artifact timeline DB
-        if: always()
-        run: |
-          python3 ci/artifact_analyzer.py ingest \
-            --report stage2_audit_gate.json \
-            --platform linux-gcc13 \
-            --run-id "${{ github.run_id }}" \
-            --commit "${{ github.sha }}" \
-            2>/dev/null || echo "::warning::artifact_analyzer ingest failed (non-blocking)"
-
-      - name: Upload CAAS artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          # run_id distinguishes re-runs on the same commit; using github.sha
-          # alone caused later runs to silently overwrite earlier artifacts.
-          name: caas-full-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            stage1a_scanner.json
-            stage1b_traceability.json
-            stage2_audit_gate.json
-            stage3_autonomy.json
-            audit_report.json
-            audit_report.txt
-            docs/EXTERNAL_AUDIT_BUNDLE.json
-            docs/EXTERNAL_AUDIT_BUNDLE.sha256
-            out/owner_audit/owner_audit_bundle.json
-            out/owner_audit/owner_audit_bundle.txt
-            artifact_analyzer.db
-          if-no-files-found: warn
-          retention-days: 90
-
-  # ============================================================================
-  # Final verdict — ci.yml equivalent of gate.yml's final-verdict
-  # ============================================================================
-  ci-verdict:
-    name: "CI / Final Verdict"
-    needs:
-      - linux
-      - linux-arm64
-      - linux-riscv64
-      - sanitizers
-      - windows
-      - macos
-      - ios
-      - ios-xcframework
-      - rocm
-      - wasm
-      - android
-      - coverage
-      - differential
-      - protocol-vectors
-      - caas-full
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Evaluate all blocks
+      - name: Evaluate all platform chains
         run: |
           FAILED=0
-          for result in \
-            "${{ needs.linux.result }}" \
-            "${{ needs.linux-arm64.result }}" \
-            "${{ needs.linux-riscv64.result }}" \
-            "${{ needs.sanitizers.result }}" \
-            "${{ needs.windows.result }}" \
-            "${{ needs.macos.result }}" \
-            "${{ needs.ios.result }}" \
-            "${{ needs.ios-xcframework.result }}" \
-            "${{ needs.rocm.result }}" \
-            "${{ needs.wasm.result }}" \
-            "${{ needs.android.result }}" \
-            "${{ needs.differential.result }}" \
-            "${{ needs.protocol-vectors.result }}" \
-            "${{ needs.caas-full.result }}"; do
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+
+          # Map: platform-label → chain result
+          declare -A R
+          R["gcc-14"]="${{ needs.chain-gcc-14.result }}"
+          R["gcc-13"]="${{ needs.chain-gcc-13.result }}"
+          R["clang-17"]="${{ needs.chain-clang-17.result }}"
+          R["llvm-21"]="${{ needs.chain-llvm-21.result }}"
+          R["asan"]="${{ needs.chain-asan.result }}"
+          R["tsan"]="${{ needs.chain-tsan.result }}"
+          R["msan"]="${{ needs.chain-msan.result }}"
+          R["apple-clang"]="${{ needs.chain-macos.result }}"
+          R["msvc"]="${{ needs.chain-windows.result }}"
+          R["linux-arm64"]="${{ needs.chain-linux-arm64.result }}"
+          R["linux-riscv64"]="${{ needs.chain-linux-riscv64.result }}"
+          R["android-arm64-v8a"]="${{ needs.chain-android-arm64.result }}"
+          R["android-armeabi-v7a"]="${{ needs.chain-android-armv7.result }}"
+          R["android-x86_64"]="${{ needs.chain-android-x86_64.result }}"
+          R["wasm"]="${{ needs.chain-wasm.result }}"
+
+          # coverage is push-only; 'skipped' on PRs is intentional — not a failure
+          COV="${{ needs.chain-coverage.result }}"
+          if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then
+            R["coverage"]="$COV"
+          elif [ "$COV" = "skipped" ] && [ "${{ github.event_name }}" = "push" ]; then
+            # Skipped on push means the sanitizers above failed (chain-coverage
+            # has no explicit needs, but it runs only on push — if it was skipped
+            # on a push event that is unexpected).
+            echo "::warning::coverage was skipped on a push — coverage data missing"
+          fi
+
+          {
+            echo "## CI Platform Chain Results"
+            echo "| Platform | Result |"
+            echo "|----------|--------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for p in "${!R[@]}"; do
+            r="${R[$p]}"
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::Chain '$p' → $r"
+              echo "| $p | ❌ $r |" >> "$GITHUB_STEP_SUMMARY"
               FAILED=1
+            elif [ "$r" = "success" ]; then
+              echo "| $p | ✅ $r |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $p | ⚠️  $r |" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-          # coverage is push-only; on a PR it is intentionally skipped (if: push)
-          # On a push, 'skipped' means sanitizers failed — treat as a failure so
-          # the ci-verdict reflects the real state (sanitizers already set FAILED=1
-          # above, but this makes the coverage gap explicit too).
-          COV="${{ needs.coverage.result }}"
-          SAN="${{ needs.sanitizers.result }}"
-          if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then FAILED=1; fi
-          if [ "$COV" = "skipped" ] && [ "${{ github.event_name }}" = "push" ]; then
-            echo "::warning::coverage was skipped on a push — sanitizers result=${SAN}; coverage data missing for this commit"
-            FAILED=1
-          fi
+
           if [ "$FAILED" -eq 1 ]; then
-            echo "::error::One or more CI blocks failed"
+            echo "::error::One or more platform chains failed"
             exit 1
           fi
-          echo "::notice::All CI blocks passed"
+          echo "::notice::All platform chains passed"
+        shell: bash

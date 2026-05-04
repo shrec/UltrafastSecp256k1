@@ -1,41 +1,67 @@
 name: Discord Commit Notifications
 
+# Fires on every push to main and dev — posts commit info to Discord.
 on:
-  workflow_dispatch:
+  push:
+    branches: [main, dev]
 
 permissions:
   contents: read
 
 jobs:
   notify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_COMMITS }}
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
-      - name: Notify Discord (push)
+      - name: Notify Discord
         if: env.WEBHOOK != ''
         env:
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          AUTHOR: ${{ github.event.head_commit.author.name || 'manual' }}
-          MESSAGE: ${{ github.event.head_commit.message || 'workflow_dispatch' }}
-          SHA: ${{ github.sha }}
+          REPO:    ${{ github.repository }}
+          BRANCH:  ${{ github.ref_name }}
+          AUTHOR:  ${{ github.event.head_commit.author.name || 'unknown' }}
+          MESSAGE: ${{ github.event.head_commit.message || '(no message)' }}
+          SHA:     ${{ github.sha }}
         run: |
           SHORT_SHA="${SHA:0:7}"
-          SAFE_MSG=$(echo "$MESSAGE" | head -1 | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | head -c 200)
           COMMIT_URL="https://github.com/${REPO}/commit/${SHA}"
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          JSON=$(jq -n \
-            --arg title "New commit on ${BRANCH}" \
-            --arg url "$COMMIT_URL" \
-            --arg desc "[\`${SHORT_SHA}\`](${COMMIT_URL}) ${SAFE_MSG}" \
-            --arg branch "$BRANCH" \
-            --arg author "$AUTHOR" \
-            --arg ts "$NOW" \
-            '{embeds:[{title:$title,url:$url,color:7506394,description:$desc,fields:[{name:"Branch",value:$branch,inline:true},{name:"Author",value:$author,inline:true}],footer:{text:"UltrafastSecp256k1"},timestamp:$ts}]}')
-          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
+
+          # Build JSON with python3 (available on all runners; no jq dependency)
+          PYTHON=$(command -v python3 || command -v python)
+          JSON=$("$PYTHON" -c "
+          import json, sys, os
+          msg   = os.environ['MESSAGE'].splitlines()[0][:200]
+          short = os.environ['SHORT_SHA']
+          url   = os.environ['COMMIT_URL']
+          branch= os.environ['BRANCH']
+          author= os.environ['AUTHOR']
+          now   = os.environ['NOW']
+          payload = {
+            'embeds': [{
+              'title':       f'New commit on {branch}',
+              'url':         url,
+              'color':       7506394,
+              'description': f'[\`{short}\`]({url}) {msg}',
+              'fields': [
+                {'name': 'Branch', 'value': branch, 'inline': True},
+                {'name': 'Author', 'value': author, 'inline': True},
+              ],
+              'footer':    {'text': 'UltrafastSecp256k1'},
+              'timestamp': now,
+            }]
+          }
+          print(json.dumps(payload))
+          " NOW="$NOW")
+
+          CURL=$(command -v curl || { echo "::error::curl not found on PATH"; exit 1; })
+          "$CURL" -sS \
+            -H "Content-Type: application/json" \
+            -d "$JSON" \
+            "$WEBHOOK"
+        shell: bash

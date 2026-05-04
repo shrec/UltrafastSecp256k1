@@ -81,7 +81,7 @@ jobs:
             -DBUILD_TESTING=OFF \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF
-          cmake --build out/release-caas --target ufsecp_shared -j"$(nproc)"
+          cmake --build out/release-caas --target ufsecp_shared -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Release CAAS evidence gates
         run: |
@@ -228,7 +228,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python audit dependencies
-        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" -m pip install --require-hashes \
+            -r .github/requirements/audit-deps.txt
 
       # -- Configure --
       - name: Configure
@@ -345,7 +348,7 @@ jobs:
             -DSECP256K1_USE_ASM=ON
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: cmake --build build -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: ARM64 smoke (via QEMU)
         run: |
@@ -443,7 +446,7 @@ jobs:
             -G Ninja
 
       - name: Build
-        run: cmake --build build/android -j$(nproc)
+        run: cmake --build build/android -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Collect release artifacts
         run: |
@@ -559,7 +562,7 @@ jobs:
         run: emcmake cmake -S bindings/wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build/wasm -j$(nproc)
+        run: cmake --build build/wasm -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Verify WASM output
         run: |
@@ -1968,18 +1971,26 @@ jobs:
         if: always()
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_RELEASES }}
-          TAG: ${{ env.RELEASE_TAG }}
-          REPO: ${{ github.repository }}
-          STATUS: ${{ job.status }}
+          TAG:     ${{ env.RELEASE_TAG }}
+          REPO:    ${{ github.repository }}
+          STATUS:  ${{ job.status }}
         run: |
           if [ -z "$WEBHOOK" ]; then echo "No webhook configured, skipping"; exit 0; fi
-          if [ "$STATUS" = "success" ]; then COLOR=3066993; else COLOR=15158332; fi
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          JSON=$(jq -n \
-            --arg title "UltrafastSecp256k1 ${TAG} Released" \
-            --arg url "https://github.com/${REPO}/releases/tag/${TAG}" \
-            --argjson color "$COLOR" \
-            --arg desc "**Tag:** \`${TAG}\`\n**Status:** ${STATUS}\n\n[View Release](https://github.com/${REPO}/releases/tag/${TAG})" \
-            --arg ts "$NOW" \
-            '{embeds:[{title:$title,url:$url,color:$color,description:$desc,footer:{text:"UltrafastSecp256k1 CI"},timestamp:$ts}]}')
-          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
+          PYTHON=$(command -v python3 || command -v python)
+          JSON=$("$PYTHON" -c "
+          import json, os
+          tag    = os.environ['TAG']
+          repo   = os.environ['REPO']
+          status = os.environ['STATUS']
+          now    = os.environ['NOW']
+          color  = 3066993 if status == 'success' else 15158332
+          url    = f'https://github.com/{repo}/releases/tag/{tag}'
+          desc   = f'**Tag:** \`{tag}\`\n**Status:** {status}\n\n[View Release]({url})'
+          payload = {'embeds': [{'title': f'UltrafastSecp256k1 {tag} Released',
+            'url': url, 'color': color, 'description': desc,
+            'footer': {'text': 'UltrafastSecp256k1 CI'}, 'timestamp': now}]}
+          print(json.dumps(payload))
+          " NOW="$NOW")
+          CURL=$(command -v curl || { echo "::error::curl not found on PATH"; exit 1; })
+          "$CURL" -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
