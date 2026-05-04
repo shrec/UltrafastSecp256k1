@@ -326,7 +326,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **96 non-exploit modules + 238 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **232 tests, 20+ coverage areas, 0 failures** |
-| CI/CD workflows | **53 GitHub Actions workflows** |
+| CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
