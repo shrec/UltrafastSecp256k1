@@ -1,0 +1,221 @@
+============================================================
+  BIP-352 Silent Payments Pipeline: CPU vs GPU
+============================================================
+  GPU: NVIDIA GeForce RTX 5060 Ti (SM 12.0, 36 SMs, 2602 MHz)
+  N = 500000 tweak points, 11 passes (median)
+  Detail breakdown: 1000 ops per step
+
+Generating 500000 deterministic tweak points...
+Done.
+Pre-parsing tweak points (CPU)...
+Done.
+Uploading data to GPU...
+Done.
+Building generator LUT (16 windows x 65536 entries = 64 MB)...
+  LUT loaded from cache (secp256k1_gen_lut_v1.bin, 67.1 MB)
+Done.
+Precomputing tweak wNAF tables (528 MB total)...
+Done.
+
+Precomputing serialized shared-secret bytes (18.5 MB)...
+Done.
+
+Pre-warming GPU clock (15 passes)...
+Done.
+
+Autotuning GPU pipeline (GLV) block size...
+  tpb=128 ->    186.4 ns/op
+  tpb=256 ->    193.0 ns/op
+  tpb=384 ->    179.1 ns/op
+  tpb=512 -> rejected (too many resources requested for launch)
+  selected tpb=384 for GPU pipeline (GLV)
+
+Autotuning GPU pipeline (LUT) block size...
+  tpb=128 ->     91.3 ns/op
+  tpb=256 ->    105.0 ns/op
+  tpb=384 ->     91.2 ns/op
+  tpb=512 -> rejected (too many resources requested for launch)
+  selected tpb=384 for GPU pipeline (LUT)
+
+Autotuning GPU pipeline (LUT+pretbl) block size...
+  tpb= 64 ->     91.6 ns/op
+  tpb=128 ->     91.3 ns/op
+  tpb=192 ->    121.8 ns/op
+  tpb=256 ->     94.6 ns/op
+  tpb=320 -> rejected (too many resources requested for launch)
+  selected tpb=128 for GPU pipeline (LUT+pretbl)
+
+Autotuning GPU pipeline (LUT+pretbl+sha256opt) block size...
+  tpb= 64 ->     98.7 ns/op
+  tpb=128 ->     97.0 ns/op
+  tpb=192 ->    126.6 ns/op
+  tpb=256 ->     97.5 ns/op
+  tpb=320 -> rejected (too many resources requested for launch)
+  selected tpb=128 for GPU pipeline (LUT+pretbl+sha256opt)
+
+Autotuning GPU pipeline (LUT+preser) block size...
+  tpb= 64 ->     17.8 ns/op
+  tpb=128 ->     17.7 ns/op
+  tpb=192 ->     17.9 ns/op
+  tpb=256 ->     20.7 ns/op
+  tpb=384 ->     18.1 ns/op
+  tpb=512 -> rejected (too many resources requested for launch)
+  selected tpb=128 for GPU pipeline (LUT+preser)
+
+=== Full Pipeline Benchmark ===
+
+--- CPU Naive (no KPlan, plain scalar_mul) ---
+  CPU Naive: 939.5 ms / 10000 ops = 93945.4 ns/op (93.9 us/op)
+
+--- CPU (UltrafastSecp256k1, KPlan) ---
+  pass  1:  12989.9 ms
+  pass  2:  12775.5 ms
+  pass  3:  12731.7 ms
+  pass  4:  12739.4 ms
+  pass  5:  12762.8 ms
+  pass  6:  12688.8 ms
+  pass  7:  12776.1 ms
+  pass  8:  12775.7 ms
+  pass  9:  12845.2 ms
+  pass 10:  12899.7 ms
+  pass 11:  12841.7 ms
+
+  CPU: 12775.7 ms / 500000 ops = 25551.5 ns/op (25.6 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+--- CPU Batch-Opt (batch_to_compressed + batch_x_only_bytes) ---
+  validation prefix: 0xe59efcd59f7bc496  [OK matches CPU KPlan]
+  CPU Batch-Opt: 12096.7 ms / 500000 ops = 24193.3 ns/op (24.2 us/op)
+  Speedup vs CPU KPlan: 1.06x
+
+--- GPU (CUDA, GLV) ---
+  pass  1:   89.194 ms
+  pass  2:   89.197 ms
+  pass  3:   89.204 ms
+  pass  4:   89.351 ms
+  pass  5:   89.548 ms
+  pass  6:   89.565 ms
+  pass  7:   89.585 ms
+  pass  8:   89.565 ms
+  pass  9:   89.554 ms
+  pass 10:   89.571 ms
+  pass 11:   89.576 ms
+
+  GPU: 89.554 ms / 500000 ops = 179.1 ns/op (0.2 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+--- GPU + LUT (16x64K precomputed table for k*G) ---
+  pass  1:   45.624 ms
+  pass  2:   45.621 ms
+  pass  3:   45.620 ms
+  pass  4:   45.627 ms
+  pass  5:   45.628 ms
+  pass  6:   45.624 ms
+  pass  7:   45.636 ms
+  pass  8:   45.629 ms
+  pass  9:   45.623 ms
+  pass 10:   45.620 ms
+  pass 11:   45.621 ms
+
+  GPU+LUT: 45.624 ms / 500000 ops = 91.2 ns/op (0.1 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+--- GPU + LUT + Pretbl (precomputed per-tweak wNAF tables, coalesced reads) ---
+  pass  1:   45.648 ms
+  pass  2:   45.641 ms
+  pass  3:   45.662 ms
+  pass  4:   45.643 ms
+  pass  5:   45.655 ms
+  pass  6:   45.643 ms
+  pass  7:   45.636 ms
+  pass  8:   45.645 ms
+  pass  9:   45.647 ms
+  pass 10:   45.640 ms
+  pass 11:   45.650 ms
+
+  GPU+LUT+Pretbl: 45.645 ms / 500000 ops = 91.3 ns/op (0.1 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+--- GPU + LUT + Pretbl + SHA256opt (w[16] schedule, ~300 B less stack) ---
+  pass  1:   48.530 ms
+  pass  2:   48.524 ms
+  pass  3:   48.539 ms
+  pass  4:   48.552 ms
+  pass  5:   48.542 ms
+  pass  6:   48.548 ms
+  pass  7:   48.519 ms
+  pass  8:   48.496 ms
+  pass  9:   48.524 ms
+  pass 10:   48.495 ms
+  pass 11:   48.502 ms
+
+  GPU+SHA256opt: 48.524 ms / 500000 ops = 97.0 ns/op (0.1 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+--- GPU + LUT + PreSer (precomputed ser, skips k*P + 1st field_inv) ---
+  pass  1:    8.773 ms
+  pass  2:    8.859 ms
+  pass  3:    8.873 ms
+  pass  4:    8.877 ms
+  pass  5:    8.879 ms
+  pass  6:    8.884 ms
+  pass  7:    8.879 ms
+  pass  8:    8.877 ms
+  pass  9:    8.879 ms
+  pass 10:    8.882 ms
+  pass 11:    8.877 ms
+
+  GPU+PreSer: 8.877 ms / 500000 ops = 17.8 ns/op (0.0 us/op)
+  validation prefix: 0xe59efcd59f7bc496
+
+=== Full Pipeline Comparison ===
+  CPU (Naive, no KPlan):              93945.4 ns/op  [libsecp-comparable baseline]
+  CPU (KPlan, serial):                25551.5 ns/op  (3.68x vs Naive)
+  CPU (KPlan, batch-opt):             24193.3 ns/op  (3.88x vs Naive, 1.06x vs KPlan serial)
+  GPU (w=4):                            179.1 ns/op  (142.66x vs CPU)
+  GPU+LUT:                               91.2 ns/op  (280.03x vs CPU, 1.96x vs GPU w=4)
+  GPU+LUT+Pretbl:                        91.3 ns/op  (279.89x vs CPU, 1.00x vs GPU+LUT)
+  GPU+LUT+Pretbl+SHA256opt:              97.0 ns/op  (263.29x vs CPU, 0.94x vs Pretbl)
+  GPU+LUT+PreSer:                        17.8 ns/op  (1439.22x vs CPU, 5.14x vs Pretbl)
+  Validation: [FAIL] MISMATCH
+    CPU=0xe59efcd59f7bc496  GPU=0xe59efcd59f7bc496  LUT=0xe59efcd59f7bc496
+    PRETBL=0xe59efcd59f7bc496  SHA256OPT=0xe59efcd59f7bc496  PRESER=0xe59efcd59f7bc496
+
+=== Per-Operation Breakdown ===
+  (1000 ops per step, 11 passes, median)
+
+  Operation                                    CPU (ns)     GPU (ns)    Ratio
+  ---------------------------------------- ------------ ------------ --------
+  k*P (scalar_mul)                            17229.6        598.8  28.77x GPU
+  to_compressed (1st)                          1307.3        109.2  11.97x GPU
+  tagged SHA-256 (cached)                        56.4         13.2   4.28x GPU
+  k*G (w=4, 16-pt const)                       6205.4       1143.2   5.43x GPU
+  k*G (w=8, 256-pt const)                      6205.4       1145.6   5.42x GPU
+  k*G (LUT, 1M-pt global)                      6205.4         74.7  83.05x GPU
+  point_add                                    1551.6          9.1 170.73x GPU
+  to_compressed (2nd)                             7.5        109.2  14.52x CPU
+
+  TOTAL (sum of steps)                        26357.8       1982.8  13.29x GPU
+
+  TOTAL w/ LUT (sum of steps)                 26357.8        914.3  28.83x GPU
+
+  Full pipeline (measured, w=4)               25551.5        179.1 142.66x GPU
+  Full pipeline (measured, LUT)               25551.5         91.2 280.03x GPU
+  Full pipeline (SHA256opt)                   25551.5         97.0 263.29x GPU
+  Full pipeline (preser)                      25551.5         17.8 1439.22x GPU
+
+  k*G speedup: w=4 -> w=8: 1.00x, w=4 -> LUT: 15.30x
+
+=== Time Breakdown (percentage of full pipeline) ===
+  Step                             CPU %%   GPU %%
+  ------------------------------ -------- --------
+  k*P                               65.4%    30.2%
+  Serialize (1st)                    5.0%     5.5%
+  Tagged SHA-256                     0.2%     0.7%
+  k*G                               23.5%    57.7%
+  Point add                          5.9%     0.5%
+  Serialize (2nd)                    0.0%     5.5%
+
+============================================================
+  Benchmark complete.
+============================================================

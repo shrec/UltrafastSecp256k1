@@ -1,0 +1,78 @@
+================================================================
+  UltrafastSecp256k1 -- GPU Unified Benchmark
+================================================================
+
+  GPU:          NVIDIA GeForce RTX 5060 Ti
+  Compute:      12.0
+  SM Count:     36
+  Clock:        2602 MHz
+  Memory:       15847 MB
+  Memory Bus:   128 bit
+  Backend:      CUDA
+
+  Batch Size:   1048576
+  Threads/Blk:  256
+  Warmup:       3
+  Passes:       5
+  Suite:        all
+
+=== Field Arithmetic ===
+  mul                          |      0.2 ns |    4119.17 M/s | batch=1048576
+  sqr                          |      0.2 ns |    6010.27 M/s | batch=1048576
+  add                          |      0.2 ns |    4065.00 M/s | batch=1048576
+  sub                          |      0.2 ns |    4060.97 M/s | batch=1048576
+  inv                          |     10.0 ns |      99.61 M/s | batch=65536
+
+=== Point Operations ===
+  add (Jacobian)               |      1.0 ns |    1044.50 M/s | batch=262144
+  double                       |      0.8 ns |    1319.59 M/s | batch=262144
+  Jac->Affine                  |     10.2 ns |      98.35 M/s | batch=65536
+
+=== Scalar Multiplication ===
+  k*G (generator)              |    118.3 ns |       8.45 M/s | batch=65536
+
+=== Affine Pipeline ===
+  affine add (2M+1S+inv)       |      9.1 ns |     109.73 M/s | batch=1048576
+
+=== ECDSA ===
+  sign (RFC 6979)              |    168.5 ns |       5.93 M/s | batch=16384
+
+=== Schnorr/BIP-340 ===
+  sign                         |    205.4 ns |       4.87 M/s | batch=16384
+
+=== CT (Constant-Time) Point Ops ===
+  ct::k*G (generator)          |     91.1 ns |      10.98 M/s | batch=16384
+  ct::k*P (scalar mul)         |    156.0 ns |       6.41 M/s | batch=8192
+
+=== CT ECDSA ===
+  ct::ecdsa_sign               |    183.1 ns |       5.46 M/s | batch=8192
+
+=== CT Schnorr/BIP-340 ===
+  ct::schnorr_sign             |    216.1 ns |       4.63 M/s | batch=8192
+
+================================================================
+  GPU Performance Summary
+================================================================
+  GPU: NVIDIA GeForce RTX 5060 Ti (SM 12.0, 36 SMs)
+
+  Operation                    | Time/Op    | Throughput   | Batch
+  -----------------------------+------------+--------------+---------
+  mul                          |      0.2 ns |    4119.17 M/s | 1048576
+  sqr                          |      0.2 ns |    6010.27 M/s | 1048576
+  add                          |      0.2 ns |    4065.00 M/s | 1048576
+  sub                          |      0.2 ns |    4060.97 M/s | 1048576
+  inv                          |     10.0 ns |      99.61 M/s | 65536
+  add (Jacobian)               |      1.0 ns |    1044.50 M/s | 262144
+  double                       |      0.8 ns |    1319.59 M/s | 262144
+  Jac->Affine                  |     10.2 ns |      98.35 M/s | 65536
+  k*G (generator)              |    118.3 ns |       8.45 M/s | 65536
+  affine add (2M+1S+inv)       |      9.1 ns |     109.73 M/s | 1048576
+  sign (RFC 6979)              |    168.5 ns |       5.93 M/s | 16384
+  sign                         |    205.4 ns |       4.87 M/s | 16384
+  ct::k*G (generator)          |     91.1 ns |      10.98 M/s | 16384
+  ct::k*P (scalar mul)         |    156.0 ns |       6.41 M/s | 8192
+  ct::ecdsa_sign               |    183.1 ns |       5.46 M/s | 8192
+  ct::schnorr_sign             |    216.1 ns |       4.63 M/s | 8192
+================================================================
+
+Benchmark complete.
