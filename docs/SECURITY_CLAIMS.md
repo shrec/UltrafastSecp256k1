@@ -91,6 +91,16 @@ Measured with `bench_unified` / `gpu_bench_unified` (signing operations; verify 
 ESP32 has near-zero CT overhead: in-order core, no speculative execution. x86 overhead
 improved in v3.16.0 (was 1.94x ECDSA) following the GLV decomposition correctness fix.
 
+**2026-05-04 (AVX2 comb_lookup):** `ct::generator_mul` reduced from 13951 ns to ~8700 ns
+(-37.7%) on x86-64-v3 (AVX2) via vectorized 32-entry comb table scan in `comb_lookup`.
+The AVX2 path uses the same XOR/AND CT blend idiom as `table_lookup_core` (already used
+by `ct::scalar_mul`), processing each 80-byte CTAffinePoint as 2.5 ymm registers.
+CT invariant preserved: no data-dependent branches; all 32 entries touched per lookup.
+Post-AVX2 CT-vs-libsecp comparison (x86-64-v3, bench_unified):
+  ct::generator_mul:  8700 ns  (was 13951 ns)
+  CT Schnorr Sign:   10864 ns  vs libsecp 13635 ns  → 1.26x  (was 0.87x)
+  CT ECDSA Sign:     12897 ns  vs libsecp 17809 ns  → 1.38x  (was 0.91x)
+
 ### Where Results May Differ
 
 Both layers are tested for bit-exact equivalence. Possible divergences:

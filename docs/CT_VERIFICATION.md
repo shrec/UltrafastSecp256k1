@@ -300,7 +300,7 @@ Algorithm: Hamburg signed-digit comb
 2. Every 4-bit window yields guaranteed odd digit
 3. Precomputed table: fixed G multiples per window (generated at init)
 4. COMB_SPACING outer iterations x COMB_BLOCKS inner iterations:
-   a. CT table lookup -- scan all entries via cmov
+   a. CT table lookup -- scan all 32 entries (AVX2 vectorized on x86-64-v3)
    b. incomplete mixed Jacobian+affine add (7M+3S)
    c. point_double between outer iterations
 5. Correction point added at end
@@ -315,6 +315,16 @@ incomplete formula cryptographically negligible. The correction point
 uses the same incomplete formula for the same reason.
 This is identical reasoning to scalar_mul_prebuilt_fast.
 Savings: ~5M per add x ~43 inner additions ≈ 215M ≈ 2800 ns.
+
+AVX2 comb_lookup (2026-05-04): the 32-entry CT table scan in comb_lookup
+now uses AVX2 when SECP256K1_CT_AVX2 is defined (x86-64 + __AVX2__).
+Each CTAffinePoint (80 bytes = x.n[5] + y.n[5]) is processed as 2.5 ymm
+registers (r0: x.n[0..3], r1: x.n[4]+y.n[0..2], r2_128: y.n[3..4]).
+The CT blend idiom is: r = (r ^ s) & mask ^ r (identical to table_lookup_core).
+Exactly one mask fires per call (i == index), so OR-accumulation is equivalent
+to selection. The Y-negate step remains scalar (runs once, not in the scan loop).
+CT invariant preserved: no data-dependent branches; all 32 entries touched.
+Scalar fallback path unchanged for non-AVX2 targets.
 ```
 
 ---

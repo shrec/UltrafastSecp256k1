@@ -1721,6 +1721,12 @@ inline std::uint64_t extract_comb_digit(const Scalar& v,
 //
 // For din[32,63] (bit5=1): idx = d & 31, point = table_s[idx]
 // For din[0,31]  (bit5=0): idx = 31-(d&31), point = -table_s[idx]
+//
+// AVX2 path: same XOR/AND blending technique as table_lookup_core.
+// Each CTAffinePoint is 80 bytes (x.n[5] + y.n[5] = 10 × 8 bytes).
+// Layout fits in 2.5 ymm256 registers: r0 (x.n[0..3]), r1 (x.n[4], y.n[0..2]),
+// r2_128 (y.n[3..4], 16 bytes).
+// The 32-entry scan reduces from ~31×12 scalar ops to ~31×5 AVX2 ops.
 static inline
 void comb_lookup(CTAffinePoint* out,
                   const CTAffinePoint* table,
@@ -1738,7 +1744,41 @@ void comb_lookup(CTAffinePoint* out,
     // Branchless select
     std::uint64_t const index = idx_pos ^ ((idx_pos ^ idx_neg) & neg_mask);
 
-    // CT linear scan over all 32 entries
+#if SECP256K1_CT_AVX2
+    // AVX2 vectorized CT linear scan over all 32 entries.
+    // Mirrors table_lookup_core: load entry 0 into accumulators, then
+    // for m=1..31: compute eq_mask(m, index), broadcast to ymm, XOR/AND blend.
+    // Aliasing: __m256i has __may_alias__ in GCC/Clang immintrin.h -- safe.
+    {
+        const auto* base0 = reinterpret_cast<const char*>(&table[0].x.n[0]);
+        __m256i r0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base0));       // x.n[0..3]
+        __m256i r1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base0 + 32));  // x.n[4], y.n[0..2]
+        __m128i r2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(base0 + 64));     // y.n[3..4]
+
+        for (std::size_t m = 1; m < COMB_TABLE_SIZE; ++m) {
+            std::uint64_t const eq = eq_mask(static_cast<std::uint64_t>(m), index);
+            __m256i const vmask   = _mm256_set1_epi64x(static_cast<long long>(eq));
+            __m128i const vmask128 = _mm_set1_epi64x(static_cast<long long>(eq));
+
+            const auto* base_m = reinterpret_cast<const char*>(&table[m].x.n[0]);
+            __m256i const s0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base_m));
+            __m256i const s1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base_m + 32));
+            __m128i const s2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(base_m + 64));
+
+            // CT blend: r = (r ^ s) & mask ^ r  ≡  mask ? s : r
+            r0 = _mm256_xor_si256(r0, _mm256_and_si256(_mm256_xor_si256(r0, s0), vmask));
+            r1 = _mm256_xor_si256(r1, _mm256_and_si256(_mm256_xor_si256(r1, s1), vmask));
+            r2 = _mm_xor_si128(r2, _mm_and_si128(_mm_xor_si128(r2, s2), vmask128));
+        }
+
+        // Store result (80 bytes)
+        auto* dst = reinterpret_cast<char*>(&out->x.n[0]);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst), r0);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + 32), r1);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + 64), r2);
+    }
+#else
+    // CT linear scan over all 32 entries (scalar fallback)
     out->x = table[0].x;
     out->y = table[0].y;
     for (std::size_t m = 1; m < COMB_TABLE_SIZE; ++m) {
@@ -1746,8 +1786,9 @@ void comb_lookup(CTAffinePoint* out,
         fe52_cmov(&out->x, table[m].x, mask);
         fe52_cmov(&out->y, table[m].y, mask);
     }
+#endif // SECP256K1_CT_AVX2
 
-    // Conditional Y-negate
+    // Conditional Y-negate (scalar -- runs once per lookup)
     FE52 neg_y = out->y;
     neg_y = neg_y.negate(1);
     fe52_cmov(&out->y, neg_y, neg_mask);
