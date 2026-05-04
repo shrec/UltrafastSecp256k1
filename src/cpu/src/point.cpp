@@ -4338,22 +4338,27 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             else if (d < 0) jacobian_add_mixed_inplace(jac, pg_neg[(-d-1)>>1]);
         }
 
-        // Streams 3+4: P and phi(P) — negate y on-the-fly for negative digits.
-        // ~5ns negate_assign vs 8 extra AffinePoint construction per call.
+        // Streams 3+4: P and phi(P).
+        // Positive digits: pass table entry by const ref (no copy, same as G streams).
+        // Negative digits: local copy + negate_assign (~5ns) then pass by ref.
         {
             int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
-            if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint q = tbl_P[static_cast<std::size_t>(((d > 0 ? d : -d) - 1) >> 1)];
-                if (d < 0) q.y.negate_assign();
+            if (d > 0) {
+                jacobian_add_mixed_inplace(jac, tbl_P[static_cast<std::size_t>((d - 1) >> 1)]);
+            } else if (d < 0) {
+                AffinePoint q = tbl_P[static_cast<std::size_t>((-d - 1) >> 1)];
+                q.y.negate_assign();
                 jacobian_add_mixed_inplace(jac, q);
             }
         }
 
         {
             int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
-            if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint q = tbl_phiP[static_cast<std::size_t>(((d > 0 ? d : -d) - 1) >> 1)];
-                if (d < 0) q.y.negate_assign();
+            if (d > 0) {
+                jacobian_add_mixed_inplace(jac, tbl_phiP[static_cast<std::size_t>((d - 1) >> 1)]);
+            } else if (d < 0) {
+                AffinePoint q = tbl_phiP[static_cast<std::size_t>((-d - 1) >> 1)];
+                q.y.negate_assign();
                 jacobian_add_mixed_inplace(jac, q);
             }
         }
