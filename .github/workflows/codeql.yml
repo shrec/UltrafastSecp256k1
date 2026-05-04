@@ -1,26 +1,9 @@
-name: CodeQL
+name: CodeQL (standalone)
 
-# Runs on push to main/dev, PRs, weekly schedule, and manual dispatch.
-# CodeQL is the GitHub-native static analysis / SAST tool.
+# Standalone manual replay only.
+# push/PR/schedule coverage is handled inside ci.yml (Code Quality / CodeQL job)
+# which runs as part of the main CI pipeline after static-analysis passes.
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/**'
-      - 'include/**'
-      - 'audit/**'
-      - 'ci/**'
-      - 'compat/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/codeql.yml'
-  pull_request:
-    branches: [main, dev]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'workingdocs/**'
-  schedule:
-    - cron: '0 12 * * 1'   # every Monday at 12:00 UTC
   workflow_dispatch:
 
 concurrency:

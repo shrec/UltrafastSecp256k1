@@ -1,25 +1,9 @@
-name: SonarCloud
+name: SonarCloud (standalone)
 
-# Runs on push to main/dev, non-fork PRs, and manual dispatch.
-# Fork PRs are excluded at job level (GitHub blocks secrets for fork PRs).
+# Standalone manual replay only.
+# push/PR coverage is handled inside ci.yml (Code Quality / SonarCloud job)
+# which runs as part of the main CI pipeline after static-analysis passes.
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/**'
-      - 'include/**'
-      - 'audit/**'
-      - 'ci/**'
-      - 'compat/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/sonarcloud.yml'
-      - 'sonar-project.properties'
-  pull_request:
-    branches: [main, dev]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'workingdocs/**'
   workflow_dispatch:
 
 concurrency:

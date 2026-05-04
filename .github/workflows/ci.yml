@@ -456,8 +456,214 @@ jobs:
       audit_mode: node
 
   # ===========================================================================
+  # ── CodeQL SAST  (needs: static-analysis, advisory — does not block verdict)
+  # Runs its own Debug build then hands off to GitHub CodeQL engine.
+  # Appears in this CI run, not as a separate workflow.
+  # ===========================================================================
+  codeql:
+    name: "Code Quality / CodeQL"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-codeql-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
+          restore-keys: codeql-ccache-
+
+      - name: Configure ccache
+        run: |
+          CCACHE=$(command -v ccache || true)
+          [ -n "$CCACHE" ] && "$CCACHE" --set-config=max_size=200M \
+            && "$CCACHE" --set-config=compression=true && "$CCACHE" -z
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-and-quality
+          config-file: .github/codeql/codeql-config.yml
+
+      - name: Build for analysis
+        env:
+          CC:  clang-17
+          CXX: clang++-17
+        run: |
+          CCACHE=$(command -v ccache || true)
+          LAUNCHER_ARGS=()
+          [ -n "$CCACHE" ] && LAUNCHER_ARGS=(
+            "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
+          )
+          JOBS=$(nproc 2>/dev/null || echo 4)
+          cmake -S . -B build/codeql -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            "${LAUNCHER_ARGS[@]}" \
+            -DSECP256K1_MARCH=x86-64-v3 \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_ASM=OFF
+          cmake --build build/codeql -j"$JOBS"
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          category: "/language:c-cpp"
+
+  # ===========================================================================
+  # ── SonarCloud  (needs: static-analysis, advisory — does not block verdict)
+  # Builds with coverage instrumentation, uploads to sonarcloud.io.
+  # Fork PRs automatically skipped (GitHub blocks secrets for forks).
+  # ===========================================================================
+  sonarcloud:
+    name: "Code Quality / SonarCloud"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.owner.login == github.repository_owner)
+    env:
+      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 llvm-17 ninja-build ccache
+
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ~/.cache/ccache
+          key: ccache-sonar-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
+          restore-keys: ccache-sonar-
+
+      - name: Configure ccache
+        run: |
+          CCACHE=$(command -v ccache || true)
+          [ -n "$CCACHE" ] && "$CCACHE" --set-config=max_size=200M \
+            && "$CCACHE" --set-config=compression=true && "$CCACHE" -z
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Python audit deps
+        run: |
+          PYTHON=$(command -v python3 || command -v python)
+          "$PYTHON" -m pip install --require-hashes \
+            -r .github/requirements/audit-deps.txt
+
+      - name: Install SonarCloud build-wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+
+      - name: Build with build-wrapper
+        env:
+          CC:  clang-17
+          CXX: clang++-17
+        run: |
+          CCACHE=$(command -v ccache || true)
+          LAUNCHER_ARGS=()
+          [ -n "$CCACHE" ] && LAUNCHER_ARGS=(
+            "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
+          )
+          JOBS=$(nproc 2>/dev/null || echo 4)
+          cmake -S . -B build/sonar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            "${LAUNCHER_ARGS[@]}" \
+            -DSECP256K1_MARCH=x86-64-v2 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_ASM=OFF \
+            "-DCMAKE_C_FLAGS=-fprofile-instr-generate -fcoverage-mapping" \
+            "-DCMAKE_CXX_FLAGS=-fprofile-instr-generate -fcoverage-mapping"
+          build-wrapper-linux-x86-64 \
+            --out-dir "${{ env.BUILD_WRAPPER_OUT_DIR }}" \
+            cmake --build build/sonar -j"$JOBS"
+
+      - name: Run tests (generate coverage data)
+        env:
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
+        run: |
+          CTEST=$(command -v ctest)
+          JOBS=$(nproc 2>/dev/null || echo 4)
+          "$CTEST" --test-dir build/sonar \
+            --output-on-failure -j"$JOBS" -E "^ct_sidechannel"
+
+      - name: Collect coverage (llvm-cov)
+        run: |
+          LLVM_PROFDATA=$(command -v llvm-profdata-17 || command -v llvm-profdata)
+          LLVM_COV=$(command -v llvm-cov-17 || command -v llvm-cov)
+          PROFRAW=$(find build/sonar -name '*.profraw' 2>/dev/null || true)
+          if [ -z "$PROFRAW" ]; then
+            echo "::warning::No profraw files — skipping coverage"
+            exit 0
+          fi
+          # shellcheck disable=SC2086
+          "$LLVM_PROFDATA" merge -sparse $PROFRAW -o build/sonar/merged.profdata
+          MAIN_BIN=$(find build/sonar -name 'run_selftest' -type f | head -1)
+          [ -n "$MAIN_BIN" ] || { echo "::error::run_selftest not found"; exit 1; }
+          OBJECT_ARGS=()
+          while IFS= read -r bin; do OBJECT_ARGS+=("-object" "$bin"); done \
+            < <(find build/sonar -name 'test_*_standalone' -type f 2>/dev/null)
+          "$LLVM_COV" show "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
+            -instr-profile=build/sonar/merged.profdata \
+            --show-line-counts-or-regions \
+            > build/sonar/llvm-cov-report.txt
+
+      - name: Run SonarCloud scan
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >
+            -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
+            -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
+            -Dsonar.host.url=https://sonarcloud.io
+
+  # ===========================================================================
   # ── Final Verdict
   # Waits for all chains; fails if any chain failed or was cancelled.
+  # codeql/sonarcloud are advisory — skipped/failed doesn't block verdict.
   # coverage is push-only — on PR it is 'skipped', which is not a failure.
   # ===========================================================================
 
@@ -465,6 +671,8 @@ jobs:
     name: "CI / Final Verdict"
     needs:
       - static-analysis
+      - codeql
+      - sonarcloud
       - chain-gcc-14
       - chain-gcc-13
       - chain-clang-17
@@ -525,11 +733,30 @@ jobs:
           if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then
             R["coverage"]="$COV"
           elif [ "$COV" = "skipped" ] && [ "${{ github.event_name }}" = "push" ]; then
-            # Skipped on push means the sanitizers above failed (chain-coverage
-            # has no explicit needs, but it runs only on push — if it was skipped
-            # on a push event that is unexpected).
             echo "::warning::coverage was skipped on a push — coverage data missing"
           fi
+
+          # CodeQL and SonarCloud are advisory — failure → warning, not error
+          {
+            echo "## CI Code Quality Results"
+            echo "| Tool | Result | Note |"
+            echo "|------|--------|------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for tool in codeql sonarcloud; do
+            r="${{ needs[tool].result }}"
+            case "$tool" in
+              codeql)    r="${{ needs.codeql.result }}" ;;
+              sonarcloud) r="${{ needs.sonarcloud.result }}" ;;
+            esac
+            if [ "$r" = "success" ]; then
+              echo "| $tool | ✅ $r | |" >> "$GITHUB_STEP_SUMMARY"
+            elif [ "$r" = "skipped" ]; then
+              echo "| $tool | ⏭️ $r | fork PR or push-only |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::Code quality tool '$tool' → $r (advisory, not blocking)"
+              echo "| $tool | ⚠️ $r | advisory |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
           {
             echo "## CI Platform Chain Results"
