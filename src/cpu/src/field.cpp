@@ -2760,6 +2760,111 @@ static FieldElement fe_inverse_safegcd_impl(const FieldElement& x) {
     return s62_to_fe(d);
 }
 
+// ---- Jacobi fallback for single-limb values (g < 2^62) ----------------------
+// Root cause: SAFEGCD_P.v[0] = -0x1000003D1 (negative in balanced signed-62).
+// For small g (< 2^62) that converges in one outer round, the inner loop tracks
+// Jacobi against the 63-bit truncation of p, not the full 256-bit prime.
+// That truncated value (0xFFFFFFFEFFFFFC2F) differs from p in its QR class for
+// small moduli, producing wrong answers.  The fix: one explicit QR step against
+// the full prime (via p mod g_small), then standard 64-bit Euclidean Jacobi.
+
+// p mod x  for  0 < x < 2^62.  Uses SAFEGCD_P limbs: p = sum(v[i] * 2^{62i}).
+static int64_t secp_p_mod_s62(int64_t x) {
+    static const int64_t PL[5] = { -(int64_t)0x1000003D1LL, 0, 0, 0, 256 };
+    __int128 r = 0;
+    for (int i = 4; i >= 0; --i) {
+        r = (r << 62) + PL[i];
+        r %= (__int128)x;
+        if (r < 0) r += x;
+    }
+    return (int64_t)r;
+}
+
+// Euclidean Jacobi(a, b)  for  0 <= a < b,  b odd positive,  fits in int64.
+static int jacobi_euclidean_u64(int64_t a, int64_t b) {
+    int jac = 1;
+    while (a != 0) {
+        while ((a & 1) == 0) {
+            a >>= 1;
+            if ((b & 7) == 3 || (b & 7) == 5) jac = -jac;
+        }
+        std::swap(a, b);
+        if ((a & 3) == 3 && (b & 3) == 3) jac = -jac;
+        a %= b;
+    }
+    return (b == 1) ? jac : 0;
+}
+
+// Jacobi(g_small, p) for 0 < g_small < 2^62.
+// One QR flip (p ≡ 3 mod 4) then 64-bit Euclidean Jacobi on (p mod g_small, g_small).
+static int jacobi_small_var(int64_t g_small) {
+    int jac = 1;
+    while ((g_small & 1) == 0) g_small >>= 1;  // (2/p)=1 for p≡7 mod 8: no sign change
+    if (g_small == 1) return 1;
+    if ((g_small & 3) == 3) jac = -jac;  // QR: flip when both ≡ 3 mod 4 (p ≡ 3 mod 4)
+    int64_t r = secp_p_mod_s62(g_small);
+    return jac * jacobi_euclidean_u64(r, g_small);
+}
+
+// -- 62-step standard divstep with Jacobi tracking ---------------------------
+// Identical to safegcd_divsteps_62_var (standard divstep WITH negation in swap)
+// but additionally tracks the Jacobi symbol bit via jac parameter.
+//
+// Jacobi update rules for STANDARD divstep (negation in swap):
+//   Zero removal (k zeros): jac ^= k & ((f>>1)^(f>>2))
+//     [Jacobi(2^k/f): flip when k odd AND f≡3 or 5 mod 8]
+//   Swap+negate: jac ^= ((~f & g) >> 1) & 1
+//     [Jacobi(-f_old/g_old): flip when f≡1 mod 4 AND g≡3 mod 4]
+//     Derivation: Jacobi(-a/b) = Jacobi(-1/b)*Jacobi(a/b)
+//       = (-1)^{(b-1)/2} * Jacobi(b/a) * (-1)^{(a-1)(b-1)/4}
+//       = (-1)^{(b-1)(a+1)/4}  [for odd a,b]
+//       Flip when (b-1)(a+1)/4 is odd:
+//         b≡1 mod 4 (b-1≡0): no flip
+//         b≡3 mod 4, a≡1 mod 4 (a+1≡2, (b-1)*(a+1)/4 = 2m/4 = odd*even/4... complicated)
+//       Simplified formula: flip when f≡1 AND g≡3 (mod 4)
+//       = ((~f & g) >> 1) & 1   [since ~f bit1=1 iff f≡1 mod 4, g bit1=1 iff g≡3 mod 4]
+//
+// Uses the SAME transition matrix as safegcd_divsteps_62_var → compatible with
+// safegcd_update_fg. Does NOT need posdivstep multi-bit cancellation.
+static inline int64_t safegcd_divsteps_62_jacobi_var(int64_t delta, uint64_t f0, uint64_t g0,
+                                                       SafeGCD_Trans& t, int& jac) {
+    uint64_t u = 1, v = 0, q = 0, r = 1;
+    uint64_t f = f0, g = g0;
+    int i = 62;
+
+    for (;;) {
+        // Remove trailing zeros of g — Jacobi(2^k/f) contribution.
+        // Only bit 0 of jac matters: use & 1 to avoid multi-bit interference.
+        int const zeros = safegcd_ctz64(g | ((uint64_t)1 << i));
+        jac ^= static_cast<int>((zeros & ((f >> 1) ^ (f >> 2))) & 1);
+        g >>= zeros;
+        u <<= zeros;
+        v <<= zeros;
+        delta += zeros;
+        i -= zeros;
+        if (i == 0) break;
+
+        if (delta > 0) {
+            // Standard swap WITH NEGATION.
+            // Jacobi update: flip when f≡1 mod 4 AND g≡3 mod 4. Use & 1.
+            jac ^= static_cast<int>(((~f & g) >> 1) & 1);
+            delta = -delta;
+            uint64_t tmp;
+            tmp = f; f = g;  g = (uint64_t)(-(int64_t)tmp);   // negate g
+            tmp = u; u = q;  q = (uint64_t)(-(int64_t)tmp);
+            tmp = v; v = r;  r = (uint64_t)(-(int64_t)tmp);
+        }
+        g += f;  q += u;  r += v;
+        g >>= 1;  u <<= 1;  v <<= 1;
+        ++delta;  --i;
+        if (i == 0) break;
+    }
+
+    t.u = (int64_t)u;  t.v = (int64_t)v;
+    t.q = (int64_t)q;  t.r = (int64_t)r;
+    return delta;
+}
+
 // -- 62-step posdivstep batch for Jacobi symbol --------------------------------
 // Port of Bitcoin Core's secp256k1_modinv64_posdivsteps_62_var.
 // Uses multi-bit cancellation (4-6 bits/step) unlike simple divstep (1 bit/step).
@@ -2822,7 +2927,18 @@ static inline int64_t jacobi_posdivsteps_62_var(int64_t eta,
         g += f * static_cast<uint64_t>(w);
         q += u * static_cast<uint64_t>(w);
         r += v * static_cast<uint64_t>(w);
-        // g now has `limit` trailing zeros (canceled by the formula above).
+        // g now has `limit` trailing zeros canceled. But g might be 0 (mod 2^64)
+        // due to wrap-around (g + f*w = 2^64 → 0), even when g_full ≠ 0.
+        // In that case, ctz(0) would count ALL remaining bits as zeros, adding
+        // spurious Jacobi contributions. Fix: if g == 0, exhaust the bit budget
+        // WITHOUT updating jac (the zeros are sentinel/fake, not genuine).
+        if (g == 0) {
+            u <<= i;
+            v <<= i;
+            eta -= i;
+            i = 0;
+            break;
+        }
     }
 
     t.u = (int64_t)u;  t.v = (int64_t)v;
@@ -2855,26 +2971,29 @@ int fe52_jacobi_var(const std::uint64_t* in5) {
         if (z == 0) return 0;
     }
 
+    // Guard: single-limb values (g < 2^62) use the 64-bit Euclidean fallback.
+    // The main loop's 63-bit f truncation gives wrong Jacobi when g is small enough
+    // to converge in one outer round — only truncated-p's QR class is captured, not p's.
+    if (g.v[1] == 0 && g.v[2] == 0 && g.v[3] == 0 && g.v[4] == 0)
+        return jacobi_small_var(g.v[0]);
+
     // f starts as p (positive). eta = -delta = -1 initially.
     SafeGCD_Int f = SAFEGCD_P;
-    int64_t eta = -1;   // eta = -delta; delta initially 1
+    int64_t eta = -1;
     int len = 5;
     int jac = 0;
 
-    // Bitcoin Core uses up to 1550 iterations (ceil(1550/62) = 25 rounds).
-    // posdivstep with multi-bit cancel typically converges in ~15 rounds but
-    // 25 rounds guarantees correctness for all 256-bit secp256k1 inputs.
+    // 25 rounds of posdivstep with multi-bit cancel (1550 steps ≥ 591 needed for 256-bit).
+    // Uses 63-bit windows (v[0] | v[1]<<62) to feed the inner loop.
     for (int iter = 0; iter < 25; ++iter) {
         SafeGCD_Trans t;
-        // Pass 63-bit windows: f0 | (f1 << 62) and g0 | (g1 << 62)
         uint64_t f63 = (uint64_t)f.v[0] | ((uint64_t)f.v[1] << 62);
         uint64_t g63 = (uint64_t)g.v[0] | ((uint64_t)g.v[1] << 62);
         eta = jacobi_posdivsteps_62_var(eta, f63, g63, t, jac);
 
         safegcd_update_fg(f, g, t, len);
 
-        // Check convergence: when f == 1 (all other limbs zero), Jacobi is determined.
-        // Bitcoin Core: check f.v[0]==1 first (cheapest), then verify other limbs.
+        // When f == 1, the Jacobi is fully determined.
         if (f.v[0] == 1) {
             int64_t fn = 0;
             for (int j = 1; j < len; ++j) fn |= f.v[j];
@@ -2884,7 +3003,7 @@ int fe52_jacobi_var(const std::uint64_t* in5) {
         safegcd_reduce_len(len, f, g);
     }
 
-    return 0;  // Failed to converge in 25 rounds — should never happen for secp256k1
+    return 0;  // Non-convergence: should never happen for secp256k1 inputs
 }
 
 // -- Direct 5x52 SafeGCD inverse (no 4x64 intermediate) ----------------------

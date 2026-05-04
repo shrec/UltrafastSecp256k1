@@ -544,6 +544,22 @@ static void test_jacobi() {
         }
     }
 
+    // --- Small values: exhaustive cross-check via sqrt for x = 1..10000 ---
+    // Previously broken: single-limb g used truncated prime, giving wrong Jacobi.
+    {
+        int small_errors = 0;
+        for (uint64_t x = 1; x <= 10000; ++x) {
+            auto x_fe  = FieldElement::from_uint64(x);
+            auto x52   = FieldElement52::from_fe(x_fe);
+            int  jac   = x52.jacobi_var();
+            auto s     = x_fe.sqrt();
+            bool is_qr = (s.square() == x_fe);
+            if ((jac == 1) != is_qr) ++small_errors;
+            CHECK((jac == 1) == is_qr, "jacobi(small x) correct for all x in [1,10000]");
+        }
+        printf("    small-value errors: %d / 10000\n", small_errors);
+    }
+
     printf("    %d checks\n\n", g_pass);
 }
 
