@@ -219,7 +219,12 @@ Point pippenger_msm(const Scalar* scalars,
             if (SECP256K1_LIKELY(used[b] != 0)) {
                 running_sum.add_inplace(buckets[b]);
             }
-            partial_sum.add_inplace(running_sum);
+            // Skip add when running_sum is still infinity (no non-zero bucket
+            // seen yet). For c=8, ~37% of bucket positions are empty so
+            // running_sum stays infinity for those leading iterations.
+            if (SECP256K1_LIKELY(!running_sum.is_infinity())) {
+                partial_sum.add_inplace(running_sum);
+            }
         }
 
         // Combine this window's contribution

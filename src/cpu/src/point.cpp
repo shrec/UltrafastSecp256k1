@@ -340,6 +340,12 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #define SECP256K1_FAST_52BIT 1
 
+// File-scope FE52 beta constant — avoids per-call function-static init-flag
+// (atomic load on every call). Shared by batch_scalar_mul_fixed_k and any
+// future FE52 path needing the GLV endomorphism constant.
+static const FieldElement52 kBeta52_pt = FieldElement52::from_fe(
+    FieldElement::from_bytes(glv_constants::BETA));
+
 struct JacobianPoint52 {
     FieldElement52 x;
     FieldElement52 y;
@@ -3000,8 +3006,7 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
     return;
 #else
     using FE52 = FieldElement52;
-    static const FE52 beta52 = FE52::from_fe(
-        FieldElement::from_bytes(glv_constants::BETA));
+    const FE52& beta52 = kBeta52_pt;  // file-scope constant — no per-call init-flag
 
     const unsigned w = plan.window_width;
     // Guard: only w ∈ [3,7] are supported by the FE52 path
@@ -3836,6 +3841,7 @@ namespace {
 #endif
 
 #if defined(SECP256K1_FAST_52BIT)
+SECP256K1_HOT_FUNCTION
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
     SECP_ASSERT_ON_CURVE(P);
 #if defined(SECP256K1_USE_4X64_POINT_OPS)
@@ -4255,9 +4261,11 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         return t;
     }();
 
-    // -- Precompute P tables (per-call: 8 odd multiples + negated + endomorphism) --
+    // -- Precompute P tables (per-call: 8 odd multiples + endomorphism only) --
+    // Negated variants removed: y is negated on-the-fly in the hot loop
+    // (~5ns negate_assign vs building 2x8 extra AffinePoints = ~16 field ops).
     Point P_base = decomp_b.k1_neg ? P.negate() : P;
-    std::array<AffinePoint, TABLE_SIZE> tbl_P, tbl_phiP, neg_tbl_P, neg_tbl_phiP;
+    std::array<AffinePoint, TABLE_SIZE> tbl_P, tbl_phiP;
 
     {
         Point pts_j[TABLE_SIZE];
@@ -4282,29 +4290,25 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         z_inv[0] = inv;
 
         static const FieldElement beta = FieldElement::from_bytes(glv_constants::BETA);
-        bool flip_phi = (decomp_b.k1_neg != decomp_b.k2_neg);
+        bool const flip_phi = (decomp_b.k1_neg != decomp_b.k2_neg);
 
         for (int i = 0; i < TABLE_SIZE; i++) {
             FieldElement zi2 = z_inv[i].square();
             FieldElement zi3 = zi2 * z_inv[i];
-            FieldElement px = pts_j[i].x_raw() * zi2;
-            FieldElement py = pts_j[i].y_raw() * zi3;
+            FieldElement const px = pts_j[i].x_raw() * zi2;
+            FieldElement const py = pts_j[i].y_raw() * zi3;
 
             tbl_P[i] = {px, py};
-            neg_tbl_P[i] = {px, FieldElement::zero() - py};
 
-            FieldElement phix = px * beta;
-            FieldElement phiy = flip_phi ? (FieldElement::zero() - py) : py;
+            FieldElement const phix = px * beta;
+            FieldElement const phiy = flip_phi ? py.negate() : py;
             tbl_phiP[i] = {phix, phiy};
-            neg_tbl_phiP[i] = {phix, FieldElement::zero() - phiy};
         }
     }
 
-    // -- Handle G sign: if a decomposed with k1_neg, use neg tables --
+    // G tables: pre-negated variants live in the static singleton (computed once).
     const AffinePoint* g_pos  = decomp_a.k1_neg ? gen4.neg_tbl_G : gen4.tbl_G;
     const AffinePoint* g_neg  = decomp_a.k1_neg ? gen4.tbl_G : gen4.neg_tbl_G;
-    // phi(G) sign: use k2_neg directly (G tables have no sign baked in,
-    // unlike the 2-stream P case where k1_neg is absorbed into P_base)
     const AffinePoint* pg_pos = decomp_a.k2_neg ? gen4.neg_tbl_phiG : gen4.tbl_phiG;
     const AffinePoint* pg_neg = decomp_a.k2_neg ? gen4.tbl_phiG : gen4.neg_tbl_phiG;
 
@@ -4321,30 +4325,36 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         // Stream 1: a1 * G (affine tables -> mixed add)
         {
-            int32_t d = wnaf_a1[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_a1[static_cast<std::size_t>(i)];
             if (d > 0) jacobian_add_mixed_inplace(jac, g_pos[(d-1)>>1]);
             else if (d < 0) jacobian_add_mixed_inplace(jac, g_neg[(-d-1)>>1]);
         }
 
         // Stream 2: a2 * phi(G) (affine tables -> mixed add)
         {
-            int32_t d = wnaf_a2[static_cast<std::size_t>(i)];
+            int32_t const d = wnaf_a2[static_cast<std::size_t>(i)];
             if (d > 0) jacobian_add_mixed_inplace(jac, pg_pos[(d-1)>>1]);
             else if (d < 0) jacobian_add_mixed_inplace(jac, pg_neg[(-d-1)>>1]);
         }
 
-        // Stream 3: b1 * P (affine tables -> mixed add)
+        // Streams 3+4: P and phi(P) — negate y on-the-fly for negative digits.
+        // ~5ns negate_assign vs 8 extra AffinePoint construction per call.
         {
-            int32_t d = wnaf_b1[static_cast<std::size_t>(i)];
-            if (d > 0) jacobian_add_mixed_inplace(jac, tbl_P[(d-1)>>1]);
-            else if (d < 0) jacobian_add_mixed_inplace(jac, neg_tbl_P[(-d-1)>>1]);
+            int32_t const d = wnaf_b1[static_cast<std::size_t>(i)];
+            if (SECP256K1_UNLIKELY(d != 0)) {
+                AffinePoint q = tbl_P[static_cast<std::size_t>(((d > 0 ? d : -d) - 1) >> 1)];
+                if (d < 0) q.y.negate_assign();
+                jacobian_add_mixed_inplace(jac, q);
+            }
         }
 
-        // Stream 4: b2 * phi(P) (affine tables -> mixed add)
         {
-            int32_t d = wnaf_b2[static_cast<std::size_t>(i)];
-            if (d > 0) jacobian_add_mixed_inplace(jac, tbl_phiP[(d-1)>>1]);
-            else if (d < 0) jacobian_add_mixed_inplace(jac, neg_tbl_phiP[(-d-1)>>1]);
+            int32_t const d = wnaf_b2[static_cast<std::size_t>(i)];
+            if (SECP256K1_UNLIKELY(d != 0)) {
+                AffinePoint q = tbl_phiP[static_cast<std::size_t>(((d > 0 ? d : -d) - 1) >> 1)];
+                if (d < 0) q.y.negate_assign();
+                jacobian_add_mixed_inplace(jac, q);
+            }
         }
     }
 
