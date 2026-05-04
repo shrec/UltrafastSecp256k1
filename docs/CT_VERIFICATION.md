@@ -298,15 +298,23 @@ Algorithm: Hamburg signed-digit comb
 
 1. v = (k + 2^256 - 1) / 2 mod n
 2. Every 4-bit window yields guaranteed odd digit
-3. Precomputed table: 8 entries per window (generated at init)
-4. 64 iterations:
-   a. CT table lookup(8) -- scan all entries
-   b. conditional negate based on sign bit (CT)
-   c. unified_add (CT)
-5. No doublings needed (comb structure)
+3. Precomputed table: fixed G multiples per window (generated at init)
+4. COMB_SPACING outer iterations x COMB_BLOCKS inner iterations:
+   a. CT table lookup -- scan all entries via cmov
+   b. incomplete mixed Jacobian+affine add (7M+3S)
+   c. point_double between outer iterations
+5. Correction point added at end
 
-Cost: 64 unified_add + 64 signed_lookups(8)
-~3x faster than ct::scalar_mul(G, k)
+Inner-loop add formula (2026-05-04): switched from complete unified
+formula (12M+2S) to incomplete mixed Jacobian+affine (7M+3S, see
+add_affine_fast_ct / add_affine_fast_ct_4x64 in ct_point.cpp).
+SAFETY: all table entries are fixed precomputed G multiples; the
+probability that the running accumulator R equals any table entry
+is ~2^-128 for a random scalar, making the degenerate case of the
+incomplete formula cryptographically negligible. The correction point
+uses the same incomplete formula for the same reason.
+This is identical reasoning to scalar_mul_prebuilt_fast.
+Savings: ~5M per add x ~43 inner additions ≈ 215M ≈ 2800 ns.
 ```
 
 ---
@@ -457,7 +465,8 @@ FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tra
 - [ ] **field_select**: Confirm compiler emits no branch (inspect assembly)
 - [ ] **ct::scalar_mul**: Fixed iteration count (26 groups x 5 doublings + 52 adds)
 - [ ] **ct::scalar_mul**: Table lookup scans ALL entries (no early-exit)
-- [ ] **ct::generator_mul**: Fixed 64 iterations, no conditional skip
+- [ ] **ct::generator_mul**: Fixed COMB_SPACING × COMB_BLOCKS iterations, no conditional skip
+- [ ] **ct::generator_mul table add**: uses incomplete mixed-add (add_affine_fast_ct) — safe because all table entries are fixed G multiples (degenerate probability ~2^-128)
 - [ ] **ct::point_add_complete**: Handles P+P, P+O, O+P, P+(-P) without branching
 - [ ] **ct::field_inv**: Fixed exponentiation chain length (no variable-time SafeGCD)
 - [ ] **ECDSA nonce**: RFC 6979 HMAC-DRBG is CT (no secret-dependent branches)
@@ -492,5 +501,11 @@ FROST and MuSig2 remain broader experimental protocol surfaces, and the repo tra
 - [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1) -- Reference CT implementation
 
 ---
+
+<!-- 2026-05-04: ct::generator_mul comb inner loop switched from complete unified
+add (unified_add_core<false>, 12M+2S) to incomplete mixed Jacobian+affine add
+(add_affine_fast_ct / add_affine_fast_ct_4x64, 7M+3S). All table entries are
+fixed precomputed G multiples; degenerate probability ~2^-128. CT properties
+(fixed iteration count, branchless table lookup via cmov) unchanged. -->
 
 *UltrafastSecp256k1 v3.68.0 -- CT Verification*

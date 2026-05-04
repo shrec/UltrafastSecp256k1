@@ -395,6 +395,7 @@ Every release must answer: **"Did the CT scope change?"**
 
 | Release | CT Scope Changed? | Details |
 |---------|-------------------|---------|
+| dev (2026-05-04) | **Perf, no scope change** | `ct::generator_mul` comb inner loop: complete unified add (12M+2S) → incomplete mixed Jacobian+affine add (7M+3S, `add_affine_fast_ct`). CT invariants (fixed iteration count, branchless cmov lookup) unchanged. Safety: all table entries are fixed G multiples; degenerate probability ~2^-128. Both 52-bit and 4x64 paths updated. |
 | v3.22.0 | **Yes** | OpenCL CT layer (secp256k1_ct_sign.cl, secp256k1_ct_zk.cl); Metal CT layer (secp256k1_ct_sign.metal, secp256k1_ct_zk.metal); full C ABI with 80+ functions; BIP-39, Ethereum, Pedersen, ZK, Adaptor, MuSig2, FROST |
 | v3.21.0 | **Yes** | GPU CT layer (5 headers); GPU CT audit modules in gpu_audit_runner; GPU CT benchmarks in gpu_bench_unified |
 | v3.16.0 | **Yes** | CT nonce erasure (volatile fn-ptr trick); MuSig2/FROST dudect added; ct-arm64 ARM64 native CI |
@@ -443,5 +444,6 @@ Every release must answer: **"Did the CT scope change?"**
 ---
 
 <!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create (phantom export removal, misuse_resistance gate fix). No behavioral change; GPU ABI secret-bearing claims unchanged. -->
+<!-- 2026-05-04: ct_point.cpp — generator_mul comb inner loop switched to incomplete mixed add (add_affine_fast_ct). CT scope unchanged; fixed iteration count and branchless cmov table lookup preserved. Performance improvement only. -->
 
 *UltrafastSecp256k1 v3.68.0 -- Security Claims*

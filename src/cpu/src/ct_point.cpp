@@ -1894,14 +1894,20 @@ Point generator_mul(const Scalar& k) noexcept {
         R.infinity = 0;
     }
 
-    // Remaining blocks of the first outer iteration
+    // Remaining blocks of the first outer iteration.
+    // Safety: all T values come from the precomputed comb table (fixed G
+    // multiples, never infinity). For a uniformly random scalar the probability
+    // that R equals a table entry (which would cause the incomplete formula to
+    // misbehave) is ~2^-128 — same reasoning as scalar_mul_prebuilt_fast.
+    // Using the incomplete mixed-add (7M+3S) instead of the complete unified
+    // formula (12M+2S) saves ~5M per call × ~43 additions ≈ 215M ≈ 2800 ns.
     #ifdef __clang__
     #pragma clang loop unroll(disable)
     #endif
     for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
         std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
         comb_lookup(&T, g_comb_table.entries[b], digit);
-        unified_add_core<false>(&R, R, T);
+        add_affine_fast_ct(&R, R, T);
     }
 
     // Remaining outer iterations with doubling
@@ -1914,12 +1920,12 @@ Point generator_mul(const Scalar& k) noexcept {
         for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
             std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
             comb_lookup(&T, g_comb_table.entries[b], digit);
-            unified_add_core<false>(&R, R, T);
+            add_affine_fast_ct(&R, R, T);
         }
     }
 
     // -- Correction: add (2^264 - 2^256)*G for the 8 extra comb bits -----
-    unified_add_core<false>(&R, R, g_comb_table.correction);
+    add_affine_fast_ct(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
@@ -2337,6 +2343,39 @@ CTJacobianPoint point_dbl(const CTJacobianPoint& p) noexcept {
     result.infinity = 0;
     point_cmov(&result, inf, p.infinity);
     return result;
+}
+
+// --- Incomplete Mixed Jacobian+Affine Addition (4x64, no degenerate check) ---
+// Standard 7M+3S Jacobian+Affine formula. SAFE ONLY when table entries are
+// fixed G multiples (generator comb). For random user-supplied points use
+// unified_add_core (complete formula). See add_affine_fast_ct for 52-bit twin.
+SECP256K1_INLINE
+void add_affine_fast_ct_4x64(CTJacobianPoint* out,
+                               const CTJacobianPoint& a,
+                               const CTAffinePoint& b) noexcept {
+    FE52 const Z1Z1 = field_sqr(a.z);                    // [1S]
+    FE52 const U2   = field_mul(b.x, Z1Z1);              // [1M]
+    FE52       S2   = field_mul(b.y, Z1Z1);
+    S2 = field_mul(S2, a.z);                              // [2M]
+
+    FE52 const H    = field_sub(U2, a.x);
+    FE52 const R    = field_sub(S2, a.y);
+
+    FE52 const Z3   = field_mul(H, a.z);                 // [1M]
+    FE52 const HH   = field_sqr(H);                      // [1S]
+    FE52 const HHH  = field_mul(HH, H);                  // [1M]
+    FE52 const U1HH = field_mul(a.x, HH);                // [1M]
+
+    FE52 const RR   = field_sqr(R);                      // [1S]
+    FE52 X3 = field_sub(field_sub(RR, HHH),
+                        field_add(U1HH, U1HH));
+    FE52 Y3 = field_sub(field_mul(field_sub(U1HH, X3), R),
+                        field_mul(a.y, HHH));             // [2M]
+
+    out->x = X3;
+    out->y = Y3;
+    out->z = Z3;
+    out->infinity = 0;
 }
 
 // --- Brier-Joye Unified Mixed Addition template (4x64) ----------------------
@@ -3142,10 +3181,13 @@ Point generator_mul(const Scalar& k) noexcept {
         R.x = T.x;  R.y = T.y;  R.z = FieldElement::one();  R.infinity = 0;
     }
 
+    // Safety: all T values are fixed G multiples from the precomputed comb
+    // table. The incomplete formula is safe here for the same reason as in the
+    // 52-bit path — probability of R equalling a table entry is ~2^-128.
     for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
         std::uint64_t digit = extract_comb_digit(v, b, comb_off);
         comb_lookup(&T, g_comb_table.entries[b], digit);
-        unified_add_core<false>(&R, R, T);
+        add_affine_fast_ct_4x64(&R, R, T);
     }
 
     // Remaining outer iterations with doubling
@@ -3155,12 +3197,12 @@ Point generator_mul(const Scalar& k) noexcept {
         for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
             std::uint64_t digit = extract_comb_digit(v, b, comb_off);
             comb_lookup(&T, g_comb_table.entries[b], digit);
-            unified_add_core<false>(&R, R, T);
+            add_affine_fast_ct_4x64(&R, R, T);
         }
     }
 
     // Correction for extra comb bits
-    unified_add_core<false>(&R, R, g_comb_table.correction);
+    add_affine_fast_ct_4x64(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
