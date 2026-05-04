@@ -30,7 +30,7 @@ from typing import Iterable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DEFAULT_OUTPUT_DIR = LIB_ROOT / 'build' / 'research_monitor'
+DEFAULT_OUTPUT_DIR = LIB_ROOT / 'out' / 'research_monitor'
 DEFAULT_MATRIX = LIB_ROOT / 'docs' / 'RESEARCH_SIGNAL_MATRIX.json'
 USER_AGENT = 'UltrafastSecp256k1ResearchMonitor/1.0 (+https://github.com/shrec/UltrafastSecp256k1)'
 ARXIV_NS = {'atom': 'http://www.w3.org/2005/Atom'}

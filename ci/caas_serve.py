@@ -37,15 +37,17 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 LIB_ROOT = Path(__file__).resolve().parent.parent
-DASHBOARD_OUT = LIB_ROOT / "build" / "caas_dashboard.html"
+DASHBOARD_OUT = LIB_ROOT / "out" / "caas_dashboard.html"
 DASHBOARD_GENERATOR = LIB_ROOT / "ci" / "caas_dashboard.py"
 
 ARTIFACT_ROOTS = [
     LIB_ROOT / "docs",
-    LIB_ROOT / "audit-output",
-    LIB_ROOT / "build" / "owner_audit",
-    LIB_ROOT / "build" / "research_monitor",
+    LIB_ROOT / "out" / "audit-output",
+    LIB_ROOT / "out" / "owner_audit",
+    LIB_ROOT / "out" / "research_monitor",
     LIB_ROOT / "out" / "reports",
+    LIB_ROOT / "out" / "artifacts",
+    LIB_ROOT / "out" / "auditor_mode",
 ]
 
 MAX_FILE_BYTES = 50_000_000  # 50 MB safety cap

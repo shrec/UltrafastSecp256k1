@@ -68,7 +68,7 @@ jobs:
           python3 ci/research_monitor.py \
             --lookback-days "$LOOKBACK" \
             --max-results "$MAX_RESULTS" \
-            --output-dir build/research_monitor \
+            --output-dir out/research_monitor \
             --github-output "$GITHUB_OUTPUT" \
             $FAIL_FLAG
 
@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: research-monitor-report
-          path: build/research_monitor/
+          path: out/research_monitor/
           if-no-files-found: warn
           retention-days: 90
 
@@ -85,7 +85,7 @@ jobs:
         if: always()
         run: |
           echo '## External Research Monitor' >> "$GITHUB_STEP_SUMMARY"
-          cat build/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
+          cat out/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open GitHub issue for high-confidence findings only
         # Issues are opened ONLY when high_confidence_count > 0.
@@ -100,7 +100,7 @@ jobs:
         run: |
           HC="${{ steps.monitor.outputs.high_confidence_count }}"
           TITLE="[Research Monitor] ${HC} high-confidence secp256k1 signal(s) — $(date -u +%Y-%m-%d)"
-          BODY=$(cat build/research_monitor/research_report.md)
+          BODY=$(cat out/research_monitor/research_report.md)
           # Avoid duplicate issues within the same day
           EXISTING=$(gh issue list --label "research-monitor" --state open \
             --search "${HC} high-confidence secp256k1" --json number \
@@ -127,5 +127,5 @@ jobs:
           RESEARCH_REPORT_REPLY_TO: ${{ secrets.RESEARCH_REPORT_REPLY_TO }}
         run: |
           python3 ci/send_smtp_report.py \
-            --subject-file build/research_monitor/mail_subject.txt \
-            --body-file build/research_monitor/mail_body.txt
+            --subject-file out/research_monitor/mail_subject.txt \
+            --body-file out/research_monitor/mail_body.txt

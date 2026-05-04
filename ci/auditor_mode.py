@@ -21,7 +21,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DEFAULT_OUTPUT_DIR = LIB_ROOT / 'build' / 'auditor_mode'
+DEFAULT_OUTPUT_DIR = LIB_ROOT / 'out' / 'auditor_mode'
 RUNNER_CPP = LIB_ROOT / 'audit' / 'unified_audit_runner.cpp'
 
 

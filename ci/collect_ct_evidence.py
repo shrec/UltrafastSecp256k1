@@ -28,7 +28,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
-DEFAULT_OUTPUT_DIR = LIB_ROOT / 'artifacts' / 'ct'
+DEFAULT_OUTPUT_DIR = LIB_ROOT / 'out' / 'artifacts' / 'ct'
 CT_VERIF_EXPECTED_MODULES = ['ct_field', 'ct_scalar', 'ct_point', 'ct_sign']
 
 
@@ -151,6 +151,12 @@ def _candidate_dirs(repo_root: Path, requested_dirs: list[Path]) -> list[Path]:
         name = child.name
         if name.startswith('build') or name.startswith('audit-output') or name == 'local-ci-output':
             candidates.append(child.resolve())
+    # Also scan out/ subdirectories (canonical output root).
+    out_root = repo_root / 'out'
+    if out_root.is_dir():
+        for child in sorted(out_root.iterdir()):
+            if child.is_dir():
+                candidates.append(child.resolve())
 
     seen = set()
     ordered = []

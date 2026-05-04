@@ -226,7 +226,8 @@ fi
 # Write a JSON summary for post-run inspection without re-running (MEDIUM-4/LOW-6).
 # F-25 fix: use Python to produce properly escaped JSON instead of raw printf,
 # which could produce malformed JSON for gate labels with quotes or backslashes.
-_artifact="${TMPDIR:-/tmp}/ci_local_last_run.json"
+_artifact="${SCRIPT_DIR}/../out/ci_local_last_run.json"
+mkdir -p "$(dirname "$_artifact")"
 {
   python3 - <<PYEOF
 import json, sys

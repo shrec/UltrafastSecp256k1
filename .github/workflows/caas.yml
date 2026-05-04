@@ -441,7 +441,7 @@ jobs:
           EOF
 
       - name: Stage 5b — Owner-grade audit bundle
-        # Produces build/owner_audit/owner_audit_bundle.json — the comprehensive
+        # Produces out/owner_audit/owner_audit_bundle.json — the comprehensive
         # owner-facing bundle (CT evidence, auditor mode, failure matrix strict
         # analysis, benchmark publishability). Previously local-only; now
         # produced on every CAAS run and persisted as an artifact.

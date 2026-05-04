@@ -516,9 +516,10 @@ def collect_artifacts() -> list[dict]:
     roots = [
         LIB_ROOT,
         LIB_ROOT / "docs",
-        LIB_ROOT / "audit-output",
-        LIB_ROOT / "build" / "owner_audit",
+        LIB_ROOT / "out" / "audit-output",
         LIB_ROOT / "out" / "owner_audit",
+        LIB_ROOT / "out" / "research_monitor",
+        LIB_ROOT / "out" / "auditor_mode",
     ]
     _seen: set[str] = set()
     for root in roots:
@@ -1186,8 +1187,8 @@ def render_html(data: dict) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate CAAS audit HTML dashboard")
-    ap.add_argument("-o", "--output", default="caas_dashboard.html",
-                    help="Output file (default: caas_dashboard.html)")
+    ap.add_argument("-o", "--output", default="out/caas_dashboard.html",
+                    help="Output file (default: out/caas_dashboard.html)")
     ap.add_argument("--open", action="store_true", help="Open in browser after generating")
     ap.add_argument("--serve", type=int, metavar="PORT",
                     help="Serve dashboard on localhost:PORT instead of writing file")
