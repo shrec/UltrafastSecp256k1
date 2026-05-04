@@ -415,7 +415,11 @@ def main() -> int:
     print(_build_summary(report))
     if mandatory_missing:
         return 1
-    if args.strict and blocking_findings:
+    # F-10 fix: blocking findings are always fatal, regardless of --strict.
+    # Previously only --strict mode exited non-zero for blocking_findings, so
+    # local runs without --strict silently exited 0 despite security failures.
+    # --strict is now a no-op (kept for backwards compat) since the default is strict.
+    if blocking_findings:
         return 1
     return 0
 

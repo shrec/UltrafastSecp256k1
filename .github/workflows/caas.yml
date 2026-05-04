@@ -457,9 +457,23 @@ jobs:
               print('::error::owner_audit_bundle.json was not produced')
               sys.exit(1)
           d = json.loads(p.read_text())
-          print(f\"  generated_at: {d.get('generated_at','?')}\")
-          print(f\"  commit:       {d.get('git',{}).get('commit','?')}\")
-          print(f\"  surfaces:     {len(d.get('surfaces',[]))}\")
+          # F-11 fix: use the actual keys emitted by build_owner_audit_bundle.py.
+          # The previous validation read d.get('git',{}).get('commit','?') and
+          # d.get('surfaces',[]) — neither key exists in owner_audit_bundle.json.
+          overall_status   = d.get('overall_status', '?')
+          blocking         = d.get('blocking_findings', [])
+          mandatory_miss   = d.get('mandatory_missing', [])
+          generated_at     = d.get('generated_at', '?')
+          print(f\"  generated_at:      {generated_at}\")
+          print(f\"  overall_status:    {overall_status}\")
+          print(f\"  blocking_findings: {len(blocking)}\")
+          print(f\"  mandatory_missing: {len(mandatory_miss)}\")
+          if mandatory_miss:
+              print(f'::error::owner_audit_bundle mandatory items missing: {mandatory_miss}')
+              sys.exit(1)
+          if blocking:
+              print(f'::error::owner_audit_bundle has blocking findings: {blocking[:3]}')
+              sys.exit(1)
           "
 
       - name: Stage 5c — Validate produced reports against schema
@@ -596,6 +610,7 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        id: checkout
         with:
           fetch-depth: 0
 
@@ -705,7 +720,10 @@ jobs:
         # Both `record` and `validate` are HARD failures: a broken chain is a
         # genuine evidence regression that should be visible as a red step,
         # not silently downgraded to a warning the way the previous wiring did.
-        if: always()
+        #
+        # F-18 fix: guard on checkout success — if checkout failed, the CI scripts
+        # don't exist in the workspace so evidence_governance.py cannot run.
+        if: always() && steps.checkout.outcome == 'success'
         env:
           CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |

@@ -252,15 +252,22 @@ _FALLBACK_AUTONOMY_PATHS = (
 
 
 def collect_autonomy() -> dict:
+    # F-04 fix: parse JSON from stdout regardless of exit code, mirroring
+    # collect_audit_gate().  A non-zero exit (score < 100) still produces valid
+    # JSON that we want to display; discarding it caused the dashboard to show
+    # stale cached data while the live gate was actively failing.
     try:
         raw = subprocess.run(
             ["python3", "ci/security_autonomy_check.py", "--json"],
             capture_output=True, text=True, cwd=LIB_ROOT, timeout=60,
         )
-        if raw.returncode == 0 and raw.stdout.strip():
-            d = json.loads(raw.stdout)
-            d["_source"] = "live"
-            return d
+        if raw.stdout.strip():
+            try:
+                d = json.loads(raw.stdout)
+                d["_source"] = "live" if raw.returncode == 0 else "live-failed"
+                return d
+            except (json.JSONDecodeError, ValueError):
+                pass
         # Cold-runner fallback — see collect_audit_gate() for rationale.
         fallback = _read_fallback(_FALLBACK_AUTONOMY_PATHS)
         if fallback is not None:
@@ -296,12 +303,19 @@ def collect_exploit_corpus() -> dict:
     files = list((LIB_ROOT / "audit").glob("test_exploit_*.cpp"))
     total = len(files)
 
-    # Count wired: forward declarations appear once; ALL_MODULES entries once —
-    # collect unique symbol names rather than dividing a raw count by 2.
+    # F-15 fix: count wired by scanning ALL_MODULES entries only (not forward
+    # declarations), to avoid inflating the count with stale declarations that
+    # no longer have a matching ALL_MODULES entry.  The ALL_MODULES initializer
+    # list contains lines of the form `{test_exploit_*_run, ...}`.
     wired = 0
     if runner_path.exists():
         text = runner_path.read_text(errors="replace")
-        wired = len(set(re.findall(r'\btest_exploit_\w+_run\b', text)))
+        # Find the ALL_MODULES block and extract symbols from it.
+        # Pattern: { test_exploit_<name>_run, "section", ... }
+        all_modules_symbols = set(re.findall(
+            r'\{\s*(test_exploit_\w+_run)\s*,', text
+        ))
+        wired = len(all_modules_symbols)
 
     # Category breakdown from file names
     categories: dict[str, int] = {}
@@ -442,19 +456,15 @@ def collect_limitations() -> list[str]:
     """Real, current open items.
 
     Source of truth is `docs/RESIDUAL_RISK_REGISTER.md` (table rows starting
-    `| RR-`). We list only entries whose Status is OPEN, ACCEPTED non-blocking,
-    or DEFERRED — never CLOSED. Falls back to KNOWN_LIMITATIONS.md if it
-    exists (legacy path), and finally to an empty list — never to hardcoded
-    claims that have drifted from reality (`Metal not implemented`, `FROST
-    advisory-only`, `Exhaustive tests not ported` were all false).
-    """
-    lim_path = LIB_ROOT / "docs" / "KNOWN_LIMITATIONS.md"
-    if lim_path.exists():
-        text = lim_path.read_text(errors="replace")
-        items = re.findall(r'^[-*]\s+(.+)', text, re.MULTILINE)
-        if items:
-            return items[:12]
+    `| RR-`).  We list only entries whose Status is OPEN, ACCEPTED, or DEFERRED
+    — never CLOSED/RESOLVED/FIXED.  Falls back to KNOWN_LIMITATIONS.md (legacy)
+    and finally to an empty list.
 
+    F-29 fix: RESIDUAL_RISK_REGISTER.md is checked FIRST (authoritative); only
+    if it is absent or empty do we fall back to the legacy KNOWN_LIMITATIONS.md.
+    The previous order was reversed, causing the legacy file to shadow the
+    authoritative register when both existed.
+    """
     rr_path = LIB_ROOT / "docs" / "RESIDUAL_RISK_REGISTER.md"
     if rr_path.exists():
         out: list[str] = []
@@ -474,26 +484,51 @@ def collect_limitations() -> list[str]:
         if out:
             return out[:12]
 
+    lim_path = LIB_ROOT / "docs" / "KNOWN_LIMITATIONS.md"
+    if lim_path.exists():
+        text = lim_path.read_text(errors="replace")
+        items = re.findall(r'^[-*]\s+(.+)', text, re.MULTILINE)
+        if items:
+            return items[:12]
+
     return []
 
 
 def collect_artifacts() -> list[dict]:
     now = datetime.datetime.now(datetime.timezone.utc).timestamp()
     items = []
-    for root in [LIB_ROOT / "docs", LIB_ROOT / "audit-output",
-                 LIB_ROOT / "build" / "owner_audit"]:
+    # F-21 fix: also scan repo root for live CAAS report files written by gate.yml
+    # and preflight.yml (caas_audit_gate.json, caas_autonomy.json, etc.).
+    roots = [
+        LIB_ROOT,
+        LIB_ROOT / "docs",
+        LIB_ROOT / "audit-output",
+        LIB_ROOT / "build" / "owner_audit",
+        LIB_ROOT / "out" / "owner_audit",
+    ]
+    _seen: set[str] = set()
+    for root in roots:
         if not root.exists():
             continue
-        for p in sorted(root.glob("*.json")) + sorted(root.glob("*.md")):
+        # Repo root: only pick up well-known CAAS report files to avoid noise.
+        if root == LIB_ROOT:
+            candidates = sorted(root.glob("caas_*.json")) + sorted(root.glob("stage*_*.json"))
+        else:
+            candidates = sorted(root.glob("*.json")) + sorted(root.glob("*.md"))
+        for p in candidates:
             try:
                 st = p.stat()
             except OSError:
                 continue
             age_h = (now - st.st_mtime) / 3600
             freshness = "FRESH" if age_h < 24 else "RECENT" if age_h < 168 else "STALE"
+            rel = str(p.relative_to(LIB_ROOT))
+            if rel in _seen:
+                continue
+            _seen.add(rel)
             items.append({
                 "name": p.name,
-                "path": str(p.relative_to(LIB_ROOT)),
+                "path": rel,
                 "type": "JSON" if p.suffix == ".json" else "Markdown",
                 "freshness": freshness,
                 "age_h": round(age_h, 1),
@@ -625,7 +660,31 @@ def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
 
     score_bar = _pct_bar(score if isinstance(score, (int,float)) else 0)
     overall = autonomy.get("overall_pass", False)
-    verdict = _badge("PASS", "AUDIT READY") if overall else _badge("WARN", "IN PROGRESS")
+    autonomy_src = autonomy.get("_source", "")
+    # VIZ-01 fix: a failing autonomy check is FAIL (red), not "IN PROGRESS" (yellow).
+    verdict = _badge("PASS", "AUDIT READY") if overall else _badge("FAIL", "AUTONOMY FAIL")
+
+    # F-09 fix: show a staleness/failure banner when live data is unavailable or failing.
+    autonomy_banner = ""
+    if autonomy_src in ("live-failed", "live-empty", "live-exception"):
+        err = autonomy.get("error", "") or autonomy.get("stderr", "")
+        autonomy_banner = (
+            f'<div style="background:#3a1a1a;border:1px solid #da3633;border-radius:6px;'
+            f'padding:.6rem 1rem;margin-bottom:.8rem;color:#f85149;font-size:.82rem">'
+            f'&#10007; <b>AUTONOMY LIVE CHECK FAILED</b> — '
+            f'<code>security_autonomy_check.py</code> returned a non-zero exit.'
+            f'{(" Error: " + err[:120]) if err else ""}'
+            f'</div>'
+        )
+    elif autonomy_src.startswith("fallback"):
+        fallback_name = autonomy_src.split(":", 1)[-1] if ":" in autonomy_src else "cached file"
+        autonomy_banner = (
+            f'<div style="background:#3a2500;border:1px solid #9e6a03;border-radius:6px;'
+            f'padding:.6rem 1rem;margin-bottom:.8rem;color:#d29922;font-size:.82rem">'
+            f'&#9888; <b>STALE DATA</b> — live autonomy check failed; showing cached '
+            f'results from <code>{fallback_name}</code>.'
+            f'</div>'
+        )
 
     return f"""
 <section class="section-anchor" id="exec">
@@ -640,7 +699,7 @@ def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
   <div class="stat"><div class="stat-val green">{btc_pass_rate}</div>
     <div class="stat-label">BTC Test Pass Rate</div></div>
 </div>
-<div class="card">
+{autonomy_banner}<div class="card">
   <table>
     <tr><td style="width:140px;color:var(--text2)">Verdict</td>
       <td>{verdict}</td></tr>
@@ -870,8 +929,8 @@ def render_section_differential(diff: dict) -> str:
   {_pct_bar(100 if total and failed==0 else (passed/total*100 if total else 0))}
   <p style="margin-top:.8rem;font-size:.78rem;color:var(--text2)">
     Backend commit: <code>{commit}</code><br>
-    libsecp EC key API: {_badge("PASS", diff.get("libsecp_eckey_api","?"))}<br>
-    R-grinding pattern: {_badge("PASS", diff.get("rgrinding","?"))}
+    libsecp EC key API: {_wyche_badge(diff.get("libsecp_eckey_api","?"))}<br>
+    R-grinding pattern: {_wyche_badge(diff.get("rgrinding","?"))}
   </p>
 </div>
 <div class="card">
@@ -1079,11 +1138,11 @@ def render_html(data: dict) -> str:
     </div>
   </div>
   <div>
-    <span class="badge pass" style="font-size:.85rem;padding:.3rem .8rem">
-      ✓ {btc_tests_pass}/{btc_tests_total} BTC TESTS</span>
+    <span class="badge {'pass' if isinstance(btc_tests_pass, int) and isinstance(btc_tests_total, int) and btc_tests_total > 0 else 'warn'}" style="font-size:.85rem;padding:.3rem .8rem">
+      {'✓' if isinstance(btc_tests_pass, int) else '?'} {btc_tests_pass}/{btc_tests_total} BTC TESTS</span>
     &nbsp;
-    <span class="badge pass" style="font-size:.85rem;padding:.3rem .8rem">
-      ✓ {exploit_poc_count} EXPLOITS WIRED</span>
+    <span class="badge {'pass' if isinstance(exploit_poc_count, int) and exploit_poc_count > 0 else 'warn'}" style="font-size:.85rem;padding:.3rem .8rem">
+      {'✓' if isinstance(exploit_poc_count, int) else '?'} {exploit_poc_count} EXPLOITS WIRED</span>
   </div>
 </header>
 <nav>{nav_html}</nav>

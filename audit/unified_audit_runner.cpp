@@ -1781,8 +1781,14 @@ int main(int argc, char* argv[]) {
 
     if (!json_only) {
         std::printf("\n================================================================\n");
-        std::printf("  AUDIT VERDICT: %s\n",
-                    (total_fail == 0) ? "AUDIT-READY" : "AUDIT-BLOCKED");
+        // F-13 fix: match the three-way verdict that the JSON report emits.
+        // Previously the console always said "AUDIT-READY" when total_fail == 0,
+        // even when advisory modules had failed (AUDIT-READY-DEGRADED).
+        const char* console_verdict =
+            (total_fail > 0)               ? "AUDIT-BLOCKED"       :
+            (modules_advisory_warned > 0)  ? "AUDIT-READY-DEGRADED" :
+                                             "AUDIT-READY";
+        std::printf("  AUDIT VERDICT: %s\n", console_verdict);
         std::printf("  TOTAL: %d/%d modules passed", total_pass, total_count);
         if (total_fail == 0) {
             std::printf("  --  ALL PASSED");

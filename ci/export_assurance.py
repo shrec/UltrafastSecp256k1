@@ -279,16 +279,18 @@ def main():
     else:
         print(output)
 
-    # H-3/H-5 sanity check: warn if expected top-level keys are missing in the
-    # written JSON — indicates a partial/corrupt export even when exit code is 0.
+    # H-3/H-5/F-19 fix: fail with a non-zero exit code when expected top-level
+    # keys are missing from the exported JSON — a partial export must not be
+    # indistinguishable from a successful one via exit code.
     required_keys = ("schema_version", "generated_at", "api_coverage")
     missing_keys = [k for k in required_keys if k not in report]
     if missing_keys:
         print(
-            f"WARNING: exported JSON is missing expected keys: {', '.join(missing_keys)} "
-            "— report may be incomplete",
+            f"ERROR: exported JSON is missing required keys: {', '.join(missing_keys)} "
+            "— report is incomplete",
             file=sys.stderr,
         )
+        return 1
 
     return 0
 

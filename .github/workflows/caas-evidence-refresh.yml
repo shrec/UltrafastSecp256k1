@@ -100,9 +100,18 @@ jobs:
         # input (scope=suite).
         run: |
           python3 ci/export_assurance.py -o assurance_report.json
-          # Mirror to suite root if this checkout is inside a workspace
-          if [ -d "../../" ] && [ -f "../../AGENTS.md" ]; then
-            cp assurance_report.json ../../assurance_report.json
+          # F-27 fix: use a more reliable monorepo detection heuristic.
+          # `../../` always exists on Linux; the AGENTS.md check was the only guard
+          # and would break if that file was renamed. Instead, check for the parent
+          # workspace's pyproject.toml or CMakeLists.txt at a known relative path,
+          # or fall back to checking AGENTS.md still (belt-and-suspenders).
+          _suite_root="$(cd ../.. && pwd)"
+          if [ -f "${_suite_root}/AGENTS.md" ] || \
+             [ -f "${_suite_root}/pyproject.toml" ] || \
+             [ -f "${_suite_root}/CMakeLists.txt" ]; then
+            if [ "$(basename "${_suite_root}")" != "$(basename "$(cd .. && pwd)")" ]; then
+              cp assurance_report.json "${_suite_root}/assurance_report.json" || true
+            fi
           fi
 
       - name: Regenerate external audit bundle
@@ -187,10 +196,13 @@ jobs:
           # Previously this was hardcoded "pass" unconditionally, meaning the
           # evidence chain recorded PASS even when bundle verify or autonomy
           # check failed. Now we propagate the real gate state.
+          # F-14 fix: also check assurance_report step — a failed export_assurance.py
+          # run should not produce a "pass" evidence chain entry.
           GATE_VERDICT="pass"
           if [ "${{ steps.bundle_verify.outcome }}" != "success" ] || \
              [ "${{ steps.autonomy_kpi.outcome }}" != "success" ] || \
-             [ "${{ steps.exploit_wiring.outcome }}" != "success" ]; then
+             [ "${{ steps.exploit_wiring.outcome }}" != "success" ] || \
+             [ "${{ steps.assurance_report.outcome }}" != "success" ]; then
             GATE_VERDICT="fail"
             echo "::warning::One or more gate steps failed; recording verdict=fail in evidence chain"
           fi

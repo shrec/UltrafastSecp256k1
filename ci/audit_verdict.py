@@ -19,7 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-PASS_VERDICTS = {"PASS", "pass", "AUDIT-READY"}
+# AUDIT-READY-DEGRADED: advisory modules failed (e.g. GPU absent on host) but
+# all required modules passed.  This is a legitimate passing state — it means the
+# mandatory gate is green and only optional/advisory coverage is missing.
+PASS_VERDICTS = {"PASS", "pass", "AUDIT-READY", "AUDIT-READY-DEGRADED"}
 NON_FATAL_MISSING_RESULTS = {"cancelled", "skipped"}
 
 
@@ -124,6 +127,16 @@ def evaluate(
             print(
                 f"::warning::No audit report for platform: {platform} "
                 f"because job result was {status}"
+            )
+            continue
+
+        if status == "success":
+            # Job reported success but produced no artifact — the upload step
+            # silently failed.  This is not fatal for optional platforms but
+            # warrants a visible warning so the artifact loss is not missed.
+            print(
+                f"::warning::Optional platform {platform} job succeeded but "
+                f"produced no audit_report.json — artifact upload may have failed"
             )
             continue
 

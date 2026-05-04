@@ -356,6 +356,14 @@ def run_stage(stage: dict, timeout: int) -> dict:
         except (ProcessLookupError, PermissionError, AttributeError):
             pass
         elapsed = time.monotonic() - t0
+        # F-07 fix: capture partial stdout/stderr from the killed process.
+        # TimeoutExpired stores whatever output was produced before the kill.
+        def _decode(b: bytes | str | None) -> str:
+            if b is None:
+                return ""
+            return b.decode(errors="replace") if isinstance(b, bytes) else b
+        stdout_partial = _decode(exc.stdout)
+        stderr_partial = _decode(exc.stderr)
         return {
             "id": stage["id"],
             "name": stage["name"],
@@ -364,6 +372,8 @@ def run_stage(stage: dict, timeout: int) -> dict:
             "detail": f"Timed out after {timeout}s",
             "duration_s": round(elapsed, 2),
             "output_truncated": True,
+            "stdout_tail": stdout_partial[-2000:],
+            "stderr_tail": stderr_partial[-500:],
         }
     elapsed = round(time.monotonic() - t0, 2)
 
@@ -452,9 +462,11 @@ def print_result(result: dict) -> None:
 def print_summary(results: list[dict], total_s: float) -> None:
     print_banner("CAAS Summary", BOLD)
     max_name = max((len(r["name"]) for r in results), default=10)
+    adv_skip_count = 0
     for r in results:
         if r.get("status") == "advisory_skipped" or r.get("advisory_skip"):
             status = f"{YELLOW}ADV-SKIP{RESET}"
+            adv_skip_count += 1
         elif r["passed"]:
             status = f"{GREEN}PASS{RESET}"
         elif r.get("status") == "skipped":
@@ -466,12 +478,16 @@ def print_summary(results: list[dict], total_s: float) -> None:
         pad = " " * (max_name - len(r["name"]) + 2)
         print(f"  {status}  {r['name']}{pad}{r['detail']}  ({r['duration_s']}s)")
     print()
-    # Filter skipped stages from the overall verdict — a stage that was not
-    # executed (fail-fast short-circuit) is not the same as a stage that failed.
-    overall = all(r["passed"] for r in results if r.get("status") != "skipped")
+    # F-01 fix: advisory-skipped stages are excluded from the overall verdict —
+    # they are not "passing" evidence, just neutral (infrastructure absent).
+    # A stage that returned exit 77 without actually being infrastructure-blocked
+    # would previously inflate overall_pass; now it is excluded from the verdict.
+    active_results = [r for r in results if r.get("status") not in ("skipped", "advisory_skipped")]
+    overall = all(r["passed"] for r in active_results) if active_results else True
     overall_color = GREEN if overall else RED
     overall_text = "ALL STAGES PASSED" if overall else "AUDIT GATE VIOLATION — SEE ABOVE"
-    print(f"  {overall_color}{BOLD}{overall_text}{RESET}  (total: {round(total_s, 1)}s)")
+    suffix = f"  ({adv_skip_count} advisory-skipped)" if adv_skip_count else ""
+    print(f"  {overall_color}{BOLD}{overall_text}{RESET}  (total: {round(total_s, 1)}s){suffix}")
 
 
 def build_json_report(
@@ -481,9 +497,13 @@ def build_json_report(
     profile: dict | None = None,
     extra_check_results: list[dict] | None = None,
 ) -> dict:
-    # Exclude fail-fast-skipped stages (status=="skipped") from overall_pass —
-    # a stage that never ran is not the same as a stage that failed.
-    overall_pass = all(r["passed"] for r in results if r.get("status") != "skipped")
+    # F-01/F-12 fix: exclude both fail-fast-skipped AND advisory-skipped stages
+    # from the overall_pass computation.  Advisory-skipped stages have passed=True
+    # but are not positive evidence of a passing gate — they are neutral
+    # (infrastructure absent).  Including them was inflating overall_pass when
+    # a module returned exit 77 without a legitimate infrastructure skip reason.
+    active_results = [r for r in results if r.get("status") not in ("skipped", "advisory_skipped")]
+    overall_pass = all(r["passed"] for r in active_results) if active_results else True
     extra_checks_clean = []
     if extra_check_results:
         for ec in extra_check_results:
@@ -491,8 +511,11 @@ def build_json_report(
                 "script": ec["script"],
                 "passed": ec["passed"],
                 "exit_code": ec["exit_code"],
+                "advisory_skip": ec.get("advisory_skip", False),
             })
-        overall_pass = overall_pass and all(ec["passed"] for ec in extra_check_results)
+        # F-05/F-12 fix: exclude advisory-skipped extra_checks from the verdict.
+        real_extra = [ec for ec in extra_check_results if not ec.get("advisory_skip")]
+        overall_pass = overall_pass and (all(ec["passed"] for ec in real_extra) if real_extra else True)
     report: dict = {
         "caas_version": CAAS_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -533,14 +556,22 @@ def run_extra_check(script_name: str, timeout: int) -> dict:
             cwd=str(LIB_ROOT),
             start_new_session=True,  # BUG-9 fix: place child in its own process group for clean kill
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         elapsed = time.monotonic() - t0
+        # F-07 fix: capture partial output from killed extra_check process.
+        def _dec(b: bytes | str | None) -> str:
+            if b is None:
+                return ""
+            return b.decode(errors="replace") if isinstance(b, bytes) else b
         return {
             "script": script_name,
             "passed": False,
             "exit_code": -1,
+            "advisory_skip": False,
             "detail": f"Timed out after {timeout}s",
             "duration_s": round(elapsed, 2),
+            "stdout_tail": _dec(exc.stdout)[-1000:],
+            "stderr_tail": _dec(exc.stderr)[-500:],
         }
     elapsed = round(time.monotonic() - t0, 2)
     if result.returncode == _ADVISORY_SKIP_CODE:

@@ -27,8 +27,8 @@ for arg in "$@"; do
   [[ "$arg" == "--msan" ]] && MSAN=1 && FULL=1
 done
 
-pass=0; fail=0
-declare -A gate_results  # gate label → pass|fail, for local artifact
+pass=0; fail=0; adv_skip=0
+declare -A gate_results  # gate label → pass|fail|adv-skip, for local artifact
 
 run_check() {
   local label="$1"; shift
@@ -100,7 +100,8 @@ run_caas_check() {
   if [[ $rc -eq 0 ]]; then
     echo -e "${GREEN}OK${NC}"; ((pass++)); gate_results["$label"]="pass"
   elif [[ $rc -eq 77 ]]; then
-    echo -e "${YELLOW}ADV-SKIP${NC} (no required infrastructure)"; gate_results["$label"]="adv-skip"
+    # F-06 fix: count advisory-skips separately so the final summary is accurate.
+    echo -e "${YELLOW}ADV-SKIP${NC} (no required infrastructure)"; ((adv_skip++)); gate_results["$label"]="adv-skip"
   else
     echo -e "${RED}FAIL${NC}"; echo "$out" | tail -6 | sed 's/^/    /'
     ((fail++)); ((_caas_fail++)); gate_results["$label"]="fail"
@@ -165,6 +166,10 @@ if [[ $FULL -eq 1 ]]; then
       tail -20 "$_build_log" | sed 's/^/    /'
       ((fail++))
     fi
+  else
+    # F-16 fix: announce explicitly that the build was skipped due to prior failures,
+    # so the developer is not left wondering why no build output appeared.
+    echo -e "  cmake build (no-ASM)                                 ${YELLOW}SKIP${NC} (prior checks failed)"
   fi
 
   if [[ $fail -eq 0 ]]; then
@@ -215,19 +220,26 @@ fi
 
 # ── Local artifact ───────────────────────────────────────────────────────────
 # Write a JSON summary for post-run inspection without re-running (MEDIUM-4/LOW-6).
+# F-25 fix: use Python to produce properly escaped JSON instead of raw printf,
+# which could produce malformed JSON for gate labels with quotes or backslashes.
 _artifact="${TMPDIR:-/tmp}/ci_local_last_run.json"
 {
-  printf '{\n  "generated_at": "%s",\n  "overall_pass": %s,\n  "pass": %d,\n  "fail": %d,\n  "gates": {\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "$([ $fail -eq 0 ] && echo true || echo false)" \
-    "$pass" "$fail"
-  first=1
-  for key in "${!gate_results[@]}"; do
-    [[ $first -eq 0 ]] && printf ',\n'
-    printf '    "%s": "%s"' "$key" "${gate_results[$key]}"
-    first=0
-  done
-  printf '\n  }\n}\n'
+  python3 - <<PYEOF
+import json, sys
+gates = {}
+$(for key in "${!gate_results[@]}"; do
+    printf "gates[%s] = %s\n" "$(python3 -c "import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))" "$key")" "$(python3 -c "import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))" "${gate_results[$key]}")"
+  done)
+doc = {
+    "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "overall_pass": $([ $fail -eq 0 ] && echo true || echo false),
+    "pass": $pass,
+    "fail": $fail,
+    "adv_skip": $adv_skip,
+    "gates": gates,
+}
+print(json.dumps(doc, indent=2))
+PYEOF
 } > "$_artifact" 2>/dev/null || true
 echo -e "  ${YELLOW}Local artifact:${NC} $_artifact"
 echo ""
@@ -235,9 +247,12 @@ echo ""
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 total=$((pass+fail))
+# F-06 fix: show advisory-skip count separately so the total is accurate.
+_adv_suffix=""
+[[ $adv_skip -gt 0 ]] && _adv_suffix=" (${adv_skip} advisory-skipped)"
 if [[ $fail -eq 0 ]]; then
-  echo -e "${GREEN}${BOLD}  ALL $total CHECKS PASSED${NC} — safe to push"
+  echo -e "${GREEN}${BOLD}  ALL $total CHECKS PASSED${NC}${_adv_suffix} — safe to push"
 else
-  echo -e "${RED}${BOLD}  $fail/$total CHECKS FAILED${NC} — fix before pushing"
+  echo -e "${RED}${BOLD}  $fail/$total CHECKS FAILED${NC}${_adv_suffix} — fix before pushing"
   exit 1
 fi

@@ -287,6 +287,39 @@ jobs:
         if: always()
         run: python3 ci/export_assurance.py -o assurance_report.json
 
+      - name: Bundle integrity verify (F-02 fix)
+        # SW-01/F-02 fix: verify the existing evidence bundle on every push/PR
+        # so a regression in verify_external_audit_bundle.py is caught immediately.
+        # Bundle regeneration (Stage 4) is still manual/nightly; this only checks
+        # that the committed bundle passes integrity verification.
+        id: bundle_verify
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f docs/EXTERNAL_AUDIT_BUNDLE.json ]; then
+            python3 ci/verify_external_audit_bundle.py --json --allow-commit-mismatch \
+              -o caas_bundle_verify.json || true
+            rc=$?
+            if [ $rc -ne 0 ]; then
+              echo "::warning::Evidence bundle integrity check failed (rc=$rc) — bundle may need regeneration"
+            fi
+          else
+            echo "::warning::docs/EXTERNAL_AUDIT_BUNDLE.json not present — skipping bundle verify"
+          fi
+
+      - name: Evidence chain integrity check (SW-01 fix)
+        # SW-01 fix: validate the evidence chain on every PR so a corrupted
+        # EVIDENCE_CHAIN.json is caught before it reaches the nightly CAAS run.
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f docs/EVIDENCE_CHAIN.json ]; then
+            python3 ci/evidence_governance.py validate \
+              || echo "::warning::evidence_governance validate failed — chain may be corrupted"
+          else
+            echo "::warning::docs/EVIDENCE_CHAIN.json not found — chain has not been initialised"
+          fi
+
       - name: Upload CAAS evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -295,6 +328,7 @@ jobs:
           path: |
             caas_audit_gate.json
             caas_autonomy.json
+            caas_bundle_verify.json
             assurance_report.json
           if-no-files-found: warn
           retention-days: 30

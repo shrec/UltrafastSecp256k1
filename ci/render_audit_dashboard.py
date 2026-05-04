@@ -120,14 +120,27 @@ def _format_autonomy(kpi: dict[str, Any] | None) -> str:
 def _format_assurance(rep: dict[str, Any] | None) -> str:
     if not rep:
         return '_No out/reports/assurance_report.json available._'
+    # F-20 fix: use the actual top-level keys emitted by export_assurance.py.
+    # The previous list included 'overall_pass', 'release_ready', 'failed_modules',
+    # 'advisory_failed', 'advisory_skipped' — none of which exist in the export.
+    # The real keys are: schema_version, generated_at, provenance, graph_meta,
+    # subsystem_summary, api_coverage, test_targets, security_density, etc.
+    display_keys = (
+        'schema_version', 'generated_at',
+        'api_coverage', 'security_density', 'protocol_status',
+        'subsystem_summary', 'graph_meta',
+    )
     out = ['| Field | Value |', '|-------|-------|']
-    for k in ('generated_at', 'overall_pass', 'release_ready',
-              'failed_modules', 'advisory_failed', 'advisory_skipped'):
+    for k in display_keys:
         if k in rep:
             v = rep[k]
-            if isinstance(v, list):
+            if isinstance(v, dict):
+                v = ', '.join(f'{sk}={sv}' for sk, sv in list(v.items())[:4])
+            elif isinstance(v, list):
                 v = ', '.join(map(str, v)) or '(none)'
-            out.append(_row(k, v))
+            out.append(_row(k, str(v)[:120]))
+    if len(out) == 2:
+        out.append('| (no recognised keys present) | — |')
     return '\n'.join(out)
 
 

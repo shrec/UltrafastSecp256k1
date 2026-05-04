@@ -131,8 +131,12 @@ jobs:
               else:
                   print(f"::notice::{label} FRESH — {age_days:.1f} days old")
 
-          check_file("docs/EXTERNAL_AUDIT_BUNDLE.json",   "EXTERNAL_AUDIT_BUNDLE.json")
-          check_file("docs/SECURITY_AUTONOMY_KPI.json",   "SECURITY_AUTONOMY_KPI.json")
+          # F-22 fix: check all critical evidence files, not just 2 of them.
+          check_file("docs/EXTERNAL_AUDIT_BUNDLE.json",     "EXTERNAL_AUDIT_BUNDLE.json")
+          check_file("docs/SECURITY_AUTONOMY_KPI.json",     "SECURITY_AUTONOMY_KPI.json")
+          check_file("docs/EVIDENCE_CHAIN.json",            "EVIDENCE_CHAIN.json")
+          check_file("docs/BITCOIN_CORE_TEST_RESULTS.json", "BITCOIN_CORE_TEST_RESULTS.json")
+          check_file("docs/AUDIT_CHANGELOG.md",             "AUDIT_CHANGELOG.md")
 
           sys.exit(1 if failed else 0)
           EOF
