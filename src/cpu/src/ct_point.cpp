@@ -1254,6 +1254,129 @@ CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
 //
 // Returns CTJacobianPoint with infinity flag set if k==0 or p==infinity.
 // Output: {R.x, R.y, R.z} in Jacobian form; affine x = R.x * R.z^{-2}.
+static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept;
+
+// --- scalar_mul_jac_fe52_z1 --------------------------------------------------
+// Same as scalar_mul_jac but takes raw FE52 affine coordinates (Z=1 assumed).
+// BYPASSES the SECP_ASSERT_ON_CURVE check — safe for effective-affine points
+// on secp256k1-isomorphic curves (a=0 → same group law, different b).
+// Used by ecmult_const_xonly where P_eff = (g·xn, g²) is NOT on secp256k1.
+static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
+                                               const Scalar& k) noexcept {
+    constexpr unsigned GROUP_SIZE = 5;
+    constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);
+    constexpr unsigned GROUPS = 26;
+
+    static const Scalar K_CONST = Scalar::from_limbs({
+        0xb5c2c1dcde9798d9ULL, 0x589ae84826ba29e4ULL,
+        0xc2bdd6bf7c118d6bULL, 0xa4e88a7dcb13034eULL
+    });
+
+    Scalar s = scalar_add(k, K_CONST);
+    s = scalar_half(s);
+    auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
+
+    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
+        auto L = k_abs.limbs();
+        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
+        std::uint64_t const pos_mask = ~neg_mask;
+        std::uint64_t nL[4], borrow = 0, diff;
+        diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
+        diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
+        diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
+        nL[3] = 0 - borrow;
+        std::uint64_t pL[4];
+        pL[0] = L[0]; pL[1] = L[1];
+        std::uint64_t const sum = L[2] + 1;
+        std::uint64_t const carry = static_cast<std::uint64_t>(sum < L[2]);
+        pL[2] = sum; pL[3] = L[3] + carry;
+        L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
+        L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
+        L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
+        L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
+        return Scalar::from_limbs(L);
+    };
+
+    Scalar const v1 = make_v(k1_abs, k1_neg);
+    Scalar const v2 = make_v(k2_abs, k2_neg);
+
+    CTAffinePoint pre_a[TABLE_SIZE];
+    CTAffinePoint pre_a_lam[TABLE_SIZE];
+
+    // Double the input point using CTJacobianPoint path (no on-curve assert).
+    // point_dbl_n_core operates on CTJacobianPoint — safe for isomorphic-curve points.
+    CTJacobianPoint p2_ct{px, py, FE52::one(), 0};
+    point_dbl_n_core(&p2_ct, 1);   // 2P in Jacobian (bypasses SECP_ASSERT_ON_CURVE)
+    FE52 const C  = p2_ct.z;
+    FE52 const C2 = C.square();
+    FE52 const C3 = C2 * C;
+    FE52 const d_x = p2_ct.x;
+    FE52 const d_y = p2_ct.y;
+
+    JacFE52 iso[TABLE_SIZE];
+    iso[0] = { px * C2, py * C3, FE52::one() };   // P in iso coords (Z_P=1)
+
+    FE52 zr[TABLE_SIZE];
+    for (std::size_t i = 1; i < TABLE_SIZE; ++i)
+        iso[i] = jac_add_ge_var_zr(iso[i - 1], d_x, d_y, &zr[i]);
+
+    FE52 const global_z = iso[TABLE_SIZE - 1].z * C;
+    const FE52& beta = get_beta_fe52();
+
+    pre_a[TABLE_SIZE - 1].x = iso[TABLE_SIZE - 1].x;
+    pre_a[TABLE_SIZE - 1].y = iso[TABLE_SIZE - 1].y;
+    pre_a[TABLE_SIZE - 1].y.normalize_weak();
+    pre_a[TABLE_SIZE - 1].infinity = 0;
+    pre_a_lam[TABLE_SIZE - 1].x = pre_a[TABLE_SIZE - 1].x * beta;
+    pre_a_lam[TABLE_SIZE - 1].y = pre_a[TABLE_SIZE - 1].y;
+    pre_a_lam[TABLE_SIZE - 1].infinity = 0;
+
+    FE52 zs_acc = zr[TABLE_SIZE - 1];
+    for (int i = static_cast<int>(TABLE_SIZE) - 2; i >= 0; --i) {
+        FE52 const zs2 = zs_acc.square();
+        FE52 const zs3 = zs2 * zs_acc;
+        pre_a[i].x = iso[i].x * zs2;
+        pre_a[i].y = iso[i].y * zs3;
+        pre_a[i].infinity = 0;
+        pre_a_lam[i].x = pre_a[i].x * beta;
+        pre_a_lam[i].y = pre_a[i].y;
+        pre_a_lam[i].infinity = 0;
+        if (i > 0) zs_acc = zs_acc * zr[i];
+    }
+
+    SECP256K1_DECLASSIFY(pre_a, sizeof(pre_a));
+    SECP256K1_DECLASSIFY(pre_a_lam, sizeof(pre_a_lam));
+
+    CTJacobianPoint R;
+    CTAffinePoint t;
+
+    {
+        int const group = static_cast<int>(GROUPS) - 1;
+        std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
+        std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
+        table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
+        R.x = t.x; R.y = t.y; R.z = FE52::one(); R.infinity = 0;
+        table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
+        unified_add_core<true>(&R, R, t);
+    }
+
+    #ifdef __clang__
+    #pragma clang loop unroll(disable)
+    #endif
+    for (int group = static_cast<int>(GROUPS) - 2; group >= 0; --group) {
+        std::uint64_t const bits1 = scalar_window(v1, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
+        std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
+        point_dbl_n_core(&R, GROUP_SIZE);
+        table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
+        unified_add_core<false>(&R, R, t);
+        table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
+        unified_add_core<false>(&R, R, t);
+    }
+
+    R.z = R.z * global_z;
+    return R;
+}
+
 static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept {
     constexpr unsigned GROUP_SIZE = 5;
     constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);
@@ -1415,13 +1538,11 @@ FieldElement ecmult_const_xonly(const FieldElement& xn_fe, const FieldElement& x
     FE52 const px52 = g * xn;
     FE52 const py52 = g.square();
 
-    // Construct a Point from effective affine coords (no curve check, Z=1).
-    // from_affine52 normalizes x_ and y_ and sets z_one_=true.
-    fast::Point P_eff = fast::Point::from_affine52(px52, py52);
-
-    // 3. CT scalar multiply → raw Jacobian (R.x, R.y, R.z) with global_z applied.
-    //    The multiply is constant-time w.r.t. q (secret ECDH key).
-    CTJacobianPoint R = scalar_mul_jac(P_eff, q);
+    // 3. CT scalar multiply on effective affine point (bypasses on-curve assert).
+    //    P_eff = (px52, py52) is on the isomorphic curve, NOT secp256k1.
+    //    scalar_mul_jac_fe52_z1 uses jac52_double_z1_to directly, avoiding
+    //    SECP_ASSERT_ON_CURVE which would fire for non-secp256k1 points.
+    CTJacobianPoint R = scalar_mul_jac_fe52_z1(px52, py52, q);
 
     if (R.infinity != 0) return FieldElement::zero();
 

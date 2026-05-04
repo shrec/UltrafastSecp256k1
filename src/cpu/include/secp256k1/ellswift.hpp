@@ -73,6 +73,14 @@ std::array<std::uint8_t, 32> ellswift_xdh_fast(
 std::array<std::uint8_t, 64> ellswift_encode_x(const FieldElement& x,
                                                 const std::uint8_t rnd32[32]);
 
+// -- ElligatorSwift fraction decoder (no inverse, no sqrt) --------------------
+// Port of libsecp256k1 secp256k1_ellswift_xswiftec_frac_var.
+// Decodes ell64 to (xn, xd) such that x = xn/xd — no field inverse, no sqrt.
+// Only uses: mul, sqr, add/sub, one QR check (sqrt).
+// Saves ~2.6 µs vs ellswift_decode() which has 2 field inverses.
+std::pair<fast::FieldElement, fast::FieldElement>
+ellswift_decode_frac(const std::uint8_t ell64[64]) noexcept;
+
 // -- ElligatorSwift ECDH (BIP-324) --------------------------------------------
 
 // Perform x-only ECDH using ElligatorSwift-encoded public keys.

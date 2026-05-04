@@ -124,13 +124,14 @@ Point pippenger_msm(const Scalar* scalars,
                 static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
         }
     }
-    // B-11: Check only the first non-infinity point as a proxy for the batch.
-    // Points from the same source (lift_x, precomputed tables, batch verify) are
-    // homogeneously normalized or Jacobian. A full O(n) scan is wasteful.
+    // Scan ALL points to determine if all non-infinity points are affine.
+    // The first-point heuristic (B-11) was incorrect: mixed affine/Jacobian
+    // input caused wrong results when the first point was affine but later ones
+    // were Jacobian (add_mixed52_inplace gives wrong result on Jacobian input).
     bool all_affine = true;
     for (std::size_t i = 0; i < n; ++i) {
-        if (!points[i].is_infinity()) {
-            all_affine = points[i].is_normalized();
+        if (!points[i].is_infinity() && !points[i].is_normalized()) {
+            all_affine = false;
             break;
         }
     }

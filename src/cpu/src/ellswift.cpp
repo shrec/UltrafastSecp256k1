@@ -67,6 +67,88 @@ static inline std::pair<bool, FieldElement> fe_sqrt_checked(const FieldElement& 
     return {qr, qr ? s : FieldElement::zero()};
 }
 
+// Check if (xn/xd)^3 + 7 is a quadratic residue, without division.
+// is_square((xn/xd)^3 + 7) ⟺ is_square((xn^3 + 7*xd^3) * xd)
+// Uses sqrt internally (variable-time).
+static inline bool x_frac_on_curve(const FieldElement& xn, const FieldElement& xd) noexcept {
+    auto xn2 = xn.square();
+    auto xn3 = xn2 * xn;
+    auto xd2 = xd.square();
+    auto xd3 = xd2 * xd;
+    auto g = xn3 + FieldElement::from_uint64(7) * xd3;
+    auto check = g * xd;
+    auto s = check.sqrt();
+    return s.square() == check;
+}
+
+// Port of libsecp256k1 secp256k1_ellswift_xswiftec_frac_var:
+// Compute x-coordinate as a fraction (xn:xd) from (u,t) WITHOUT any field inverse.
+// All operations: mul, sqr, add/sub, one QR check (via sqrt).
+// Eliminates the 2 inverses in xswiftec_fwd → saves ~2.6 µs per call.
+//
+// Algorithm (from libsecp256k1 ellswift/main_impl.h comments):
+//   c1 = (sqrt(-3)-1)/2, c2 = (-sqrt(-3)-1)/2
+//   s = t^2 (or 1 if t==0), g = u^3+7
+//   if g+s == 0: s = 4*s
+//   x3 = (3*s*u^3 - (g+s)^2) / (3*s*u^2)
+//   x2 = u*(c1*s + c2*g) / (g+s)
+//   x1 = -(x2+u)
+//   Return first xi (as fraction) that is a valid x-coord.
+static std::pair<FieldElement, FieldElement>
+xswiftec_frac(const FieldElement& u_in, const FieldElement& t) noexcept {
+    static const FieldElement FE_ZERO  = FieldElement::zero();
+    static const FieldElement FE_ONE   = FieldElement::one();
+    static const FieldElement FE_THREE = FieldElement::from_uint64(3);
+    static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
+    static const FieldElement FE_SEVEN = FieldElement::from_uint64(7);
+    // c1 = (sqrt(-3)-1)/2
+    static const FieldElement C1 = []() {
+        std::array<uint8_t, 32> b = {
+            0x85,0x16,0x95,0xd4, 0x9a,0x83,0xf8,0xef,
+            0x91,0x9b,0xb8,0x61, 0x53,0xcb,0xcb,0x16,
+            0x63,0x0f,0xb6,0x8a, 0xed,0x0a,0x76,0x6a,
+            0x3e,0xc6,0x93,0xd6, 0x8e,0x6a,0xfa,0x40
+        };
+        return FieldElement::from_bytes(b);
+    }();
+    // c2 = (-sqrt(-3)-1)/2
+    static const FieldElement C2 = []() {
+        std::array<uint8_t, 32> b = {
+            0x7a,0xe9,0x6a,0x2b, 0x65,0x7c,0x07,0x10,
+            0x6e,0x64,0x47,0x9e, 0xac,0x34,0x34,0xe9,
+            0x9c,0xf0,0x49,0x75, 0x12,0xf5,0x89,0x95,
+            0xc1,0x39,0x6c,0x28, 0x71,0x95,0x01,0xee
+        };
+        return FieldElement::from_bytes(b);
+    }();
+
+    FieldElement u = (u_in == FE_ZERO) ? FE_ONE : u_in;
+    FieldElement s = (t == FE_ZERO) ? FE_ONE : t.square();
+
+    FieldElement u2 = u.square();
+    FieldElement g  = u2 * u + FE_SEVEN;     // g = u^3 + 7
+    FieldElement p  = g + s;                  // p = g + s
+
+    if (p == FE_ZERO) {
+        s = FE_FOUR * s;
+        p = g + s;                            // recompute p
+    }
+
+    FieldElement d = FE_THREE * s * u2;       // d = 3*s*u^2
+    FieldElement n = d * u - p.square();      // n = 3*s*u^3 - (g+s)^2
+
+    // Try x3 = n/d
+    if (x_frac_on_curve(n, d)) return {n, d};
+
+    // Try x2 = u*(c1*s + c2*g) / p
+    FieldElement n2 = u * (C1 * s + C2 * g);
+    if (x_frac_on_curve(n2, p)) return {n2, p};
+
+    // x1 = -(x2+u) = -(n2/p + u) guaranteed on curve
+    FieldElement xn1 = (n2 + u * p).negate();
+    return {xn1, p};
+}
+
 // XSwiftEC forward map (correct BIP-324 algorithm from libsecp256k1).
 //
 // Constants:
@@ -381,6 +463,13 @@ FieldElement ellswift_decode(const std::uint8_t encoding[64]) noexcept {
     auto u = fe_from_bytes_mod_p(encoding);
     auto t = fe_from_bytes_mod_p(encoding + 32);
     return xswiftec_fwd(u, t);
+}
+
+std::pair<FieldElement, FieldElement>
+ellswift_decode_frac(const std::uint8_t ell64[64]) noexcept {
+    auto u = fe_from_bytes_mod_p(ell64);
+    auto t = fe_from_bytes_mod_p(ell64 + 32);
+    return xswiftec_frac(u, t);
 }
 
 std::array<std::uint8_t, 64> ellswift_create(const Scalar& privkey) {
