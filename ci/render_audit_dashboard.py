@@ -58,16 +58,24 @@ def _load_json(path: Path) -> dict[str, Any] | None:
 _KPI_STALE_HOURS = 25  # treat KPI file as stale if older than this
 
 
+_ADVISORY_SKIP_CODE = 77
+
+
 def _try_live_autonomy_run() -> dict[str, Any] | None:
-    """Run security_autonomy_check.py live; return parsed JSON or None."""
+    """Run security_autonomy_check.py live; return parsed JSON or None.
+
+    Accepts exit 0 (pass) and exit 77 (advisory skip — no GPU/infrastructure).
+    Exit 77 is a clean outcome, not a failure; the JSON payload is still valid.
+    """
     try:
         r = subprocess.run(
             ["python3", "ci/security_autonomy_check.py", "--json"],
             capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=60,
         )
-        if r.returncode == 0 and r.stdout.strip():
+        if r.returncode in (0, _ADVISORY_SKIP_CODE) and r.stdout.strip():
             d = json.loads(r.stdout)
             d["_source"] = "live"
+            d["_advisory_skip"] = (r.returncode == _ADVISORY_SKIP_CODE)
             d["_generated_at"] = datetime.now(timezone.utc).isoformat()
             return d
     except Exception:
@@ -90,7 +98,7 @@ def _staleness_banner(kpi: dict[str, Any] | None, source: str) -> str:
                 f"> **⚠ STALE DATA** — KPI last updated {age_h:.0f}h ago "
                 f"(>{_KPI_STALE_HOURS}h threshold). "
                 f"Gate status may not reflect current codebase. "
-                f"Live run of `security_autonomy_check.py` failed.\n"
+                f"Run `python3 ci/security_autonomy_check.py` to refresh.\n"
             )
     except (ValueError, TypeError):
         pass
