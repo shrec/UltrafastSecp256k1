@@ -326,7 +326,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **95 non-exploit modules + 238 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **232 tests, 20+ coverage areas, 0 failures** |
-| CI/CD workflows | **37 GitHub Actions workflows** |
+| CI/CD workflows | **53 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |
 | Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
@@ -1659,7 +1659,7 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
-| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (27 functions, 8 ops, 3 backends) |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (28 functions, 8 ops, 3 backends) |
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |

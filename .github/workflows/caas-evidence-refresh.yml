@@ -153,6 +153,25 @@ jobs:
             docs/EXPLOIT_TRACEABILITY_JOIN.md \
             || true
 
+      - name: Upload refreshed artifacts (diagnostic fallback if push fails)
+        # B-4 fix: if the git push fails (PAT revoked, branch protection error),
+        # regenerated evidence would otherwise be lost with no way to inspect it.
+        # Upload as a GitHub Actions artifact so the data is always recoverable.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-evidence-refresh-${{ github.run_id }}
+          path: |
+            assurance_report.json
+            docs/EXTERNAL_AUDIT_BUNDLE.json
+            docs/EXTERNAL_AUDIT_BUNDLE.sha256
+            docs/SECURITY_AUTONOMY_KPI.json
+            docs/AUDIT_DASHBOARD.md
+            docs/EXPLOIT_TRACEABILITY_JOIN.md
+            docs/EVIDENCE_CHAIN.json
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: Commit and push if changed
         id: commit_push
         env:

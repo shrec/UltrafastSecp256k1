@@ -62,17 +62,24 @@ jobs:
 
       - name: Embed CAAS gate state in artifact
         # M-7 fix: external auditors need to know whether the commit being
-        # packaged passed CAAS gates. Embed a minimal gate-state summary
-        # so gated vs ungated bundles are distinguishable.
+        # packaged passed CAAS gates. If the gate script exists and fails,
+        # the step fails (real gate failure ≠ UNKNOWN). UNKNOWN is only used
+        # when the script is genuinely absent from this checkout.
         run: |
-          python3 ci/audit_gate.py --json \
-            -o external-audit-artifacts/caas_gate_state.json 2>/dev/null \
-            || echo '{"verdict":"UNKNOWN","note":"audit_gate.py not available at prep time"}' \
-               > external-audit-artifacts/caas_gate_state.json
-          python3 ci/check_exploit_wiring.py --json \
-            > external-audit-artifacts/exploit_wiring_state.json 2>/dev/null \
-            || echo '{"result":"UNKNOWN","note":"check_exploit_wiring.py not available"}' \
-               > external-audit-artifacts/exploit_wiring_state.json
+          if [ -f ci/audit_gate.py ]; then
+            python3 ci/audit_gate.py --json \
+              -o external-audit-artifacts/caas_gate_state.json
+          else
+            echo '{"verdict":"UNKNOWN","note":"audit_gate.py not present in this checkout"}' \
+              > external-audit-artifacts/caas_gate_state.json
+          fi
+          if [ -f ci/check_exploit_wiring.py ]; then
+            python3 ci/check_exploit_wiring.py --json \
+              > external-audit-artifacts/exploit_wiring_state.json
+          else
+            echo '{"result":"UNKNOWN","note":"check_exploit_wiring.py not present in this checkout"}' \
+              > external-audit-artifacts/exploit_wiring_state.json
+          fi
 
       - name: Upload external audit artifacts
         if: always()
@@ -83,4 +90,4 @@ jobs:
           # name, making it impossible to retrieve a specific run's bundle).
           name: external-audit-artifacts-${{ github.run_id }}
           path: external-audit-artifacts/
-          retention-days: 30
+          retention-days: 90

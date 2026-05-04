@@ -634,6 +634,11 @@ jobs:
               and s != "bundle"
               # bitcoin_core_profile skipping is expected when audit_gate failed.
               and not (s == "bitcoin_core_profile" and audit_gate_failed)
+              # R-7 fix: security_autonomy has `needs: [audit_gate]` so it is
+              # automatically skipped when audit_gate fails. This is a downstream
+              # cascade, not an independent failure — exclude it from other_skipped
+              # to avoid inflating the apparent failure count.
+              and not (s == "security_autonomy" and audit_gate_failed)
           ]
 
           print("## CAAS Pipeline Results")
@@ -649,7 +654,13 @@ jobs:
                   and result == "skipped"
                   and audit_gate_failed
               )
-              if result not in ("success",) and not bundle_skip_ok and not btc_skip_ok:
+              # security_autonomy skip is a downstream cascade of audit_gate failure.
+              autonomy_skip_ok = (
+                  stage == "security_autonomy"
+                  and result == "skipped"
+                  and audit_gate_failed
+              )
+              if result not in ("success",) and not bundle_skip_ok and not btc_skip_ok and not autonomy_skip_ok:
                   all_pass = False
 
           # Surface the skip context so the GH step summary and downstream

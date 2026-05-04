@@ -100,7 +100,7 @@ jobs:
       - name: Upload impact report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: gate-impact
+          name: gate-impact-${{ github.run_id }}
           path: ci-impact.json
           retention-days: 30
 
@@ -189,7 +189,6 @@ jobs:
           fi
 
       - name: Determinism gate (RFC 6979 + ECDH + BIP32)
-        continue-on-error: true
         env:
           UFSECP_LIB_PATH: ${{ github.workspace }}/out/ci-release
         run: python3 ci/check_determinism_gate.py
@@ -345,8 +344,16 @@ jobs:
         # Single skip mechanism: continue-on-error makes the step yellow if it
         # fails. Removed the redundant `|| echo` so a future flip to blocking
         # only requires removing continue-on-error.
+        id: api_contracts
         continue-on-error: true
         run: python3 ci/check_api_contracts.py --json
+
+      - name: Surface API contract check outcome
+        if: always()
+        run: |
+          if [ "${{ steps.api_contracts.outcome }}" = "failure" ]; then
+            echo "::warning::API contract check failed — see step output for details (advisory)"
+          fi
 
       - name: Secret path change gate (blocking)
         run: python3 ci/check_secret_path_changes.py

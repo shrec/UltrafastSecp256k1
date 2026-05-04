@@ -137,12 +137,15 @@ def run(json_mode: bool, out_file: str | None, timeout: int = 300) -> int:
     if out_file:
         Path(out_file).write_text(rendered, encoding="utf-8")
 
-    # Also save to KPI file
+    # Also save to KPI file (used by caas-freshness-check.yml for SLO tracking).
+    # C-1 fix: write failures were silently swallowed, allowing the freshness
+    # check to pass on stale KPI data. Now emit a warning so CI surfaces it.
     kpi_file = LIB_ROOT / "docs" / "SECURITY_AUTONOMY_KPI.json"
     try:
         kpi_file.write_text(rendered, encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as e:
+        import sys
+        print(f"::warning::Failed to write KPI file {kpi_file}: {e}", file=sys.stderr)
 
     if json_mode:
         print(rendered)

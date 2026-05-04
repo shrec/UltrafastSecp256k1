@@ -45,7 +45,7 @@ jobs:
   bench-gate:
     name: Benchmark Regression Check
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 45
     permissions:
       contents: write       # needed to push baseline to gh-pages on push events
       pull-requests: write  # needed to comment on PRs when regression detected
@@ -92,6 +92,27 @@ jobs:
         python3 .github/scripts/parse_benchmark.py \
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json
+
+    - name: Validate benchmark JSON (reject zero-timing / empty)
+      run: |
+        python3 - /tmp/benchmark_results/benchmark.json <<'PYEOF'
+        import json, sys
+        path = sys.argv[1]
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"::error::benchmark.json is not valid JSON: {e}")
+            sys.exit(1)
+        if not isinstance(data, list) or len(data) == 0:
+            print("::error::benchmark.json is empty or not a list — corrupt benchmark output")
+            sys.exit(1)
+        zero_entries = [e.get("name", "?") for e in data if float(e.get("value", 0)) <= 0]
+        if zero_entries:
+            print(f"::error::benchmark.json has zero or negative timing entries: {zero_entries}")
+            sys.exit(1)
+        print(f"::notice::benchmark.json OK — {len(data)} entries, all non-zero")
+        PYEOF
 
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
       # Stores the result to gh-pages and FAILS the job if any operation is

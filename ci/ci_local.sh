@@ -76,8 +76,14 @@ run_check "hot_path_alloc regression"  python3 ci/run_code_quality.py --fail-on-
 echo ""
 
 # ── Preflight full scan (~20s) ─────────────────────────────────────────────
-echo -e "${BOLD}[3] Preflight Scan (--bug-scan)${NC}"
+echo -e "${BOLD}[3] Preflight Scan${NC}"
 run_check "Preflight --bug-scan"    python3 ci/preflight.py --bug-scan
+# R-6 fix: --security, --abi, --freshness are hard-fail gates in preflight.yml
+# (run on every push/PR). Running only --bug-scan locally means these failures
+# are only discovered on CI, causing 2+ day fix cycles.
+run_check "Preflight --security"    python3 ci/preflight.py --security
+run_check "Preflight --abi"         python3 ci/preflight.py --abi
+run_check "Preflight --freshness"   python3 ci/preflight.py --freshness
 echo ""
 
 # ── CAAS security gates (~10s) ──────────────────────────────────────────────
@@ -100,6 +106,21 @@ run_caas_check() {
     ((fail++)); ((_caas_fail++)); gate_results["$label"]="fail"
   fi
 }
+
+# R-5 fix: audit_gate.py requires the project graph DB. Without rebuilding it
+# first, the gate fails with "Graph DB not found" on a fresh checkout.
+# This matches what gate.yml Block 3 / caas.yml do before running audit_gate.py.
+printf "  %-52s" "Build project graph..."
+if _graph_out=$(python3 ci/build_project_graph.py --rebuild 2>&1); then
+  echo -e "${GREEN}OK${NC}"
+  ((pass++))
+  gate_results["Build project graph"]="pass"
+else
+  echo -e "${RED}FAIL${NC}"
+  echo "$_graph_out" | tail -6 | sed 's/^/    /'
+  ((fail++)); ((_caas_fail++))
+  gate_results["Build project graph"]="fail"
+fi
 
 run_caas_check "Audit gate"          python3 ci/audit_gate.py
 run_caas_check "Security autonomy"   python3 ci/security_autonomy_check.py

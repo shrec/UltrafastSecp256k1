@@ -17,6 +17,14 @@
 name: Benchmark Dashboard
 
 on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/benchmark.yml'
+      - '.github/scripts/parse_benchmark.py'
   workflow_dispatch:
 
 # Cancel older benchmark runs on the same branch — prevents queue pileup
@@ -102,7 +110,7 @@ jobs:
           /tmp/benchmark_results/benchmark.json
 
     - name: Store benchmark result
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
         name: 'UltrafastSecp256k1 Performance'

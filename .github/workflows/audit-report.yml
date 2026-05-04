@@ -324,6 +324,27 @@ jobs:
           python3 ci/auditor_mode.py `
             --output-dir audit-output/auditor-mode
 
+      - name: Run CAAS gate + autonomy for bundle completeness (Windows MSVC)
+        # B-2 fix: mirror the Linux jobs so Windows audit artifacts contain the
+        # same CAAS gate reports (caas_scanner.json, caas_audit_gate.json,
+        # caas_autonomy.json). Required for symmetric cross-platform audit bundles.
+        if: always()
+        shell: pwsh
+        run: |
+          $GATE_RC = 0
+          python3 ci/build_project_graph.py --rebuild
+          python3 ci/check_exploit_wiring.py; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/audit_test_quality_scanner.py --json -o audit-output/caas_scanner.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/audit_gate.py --json -o audit-output/caas_audit_gate.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/security_autonomy_check.py --json -o audit-output/caas_autonomy.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          if ($GATE_RC -ne 0) {
+            Write-Output "::error::One or more CAAS gates failed (Windows MSVC, exit $GATE_RC)"
+            exit $GATE_RC
+          }
+
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -336,6 +357,9 @@ jobs:
             audit-output/audit_report.sarif
             audit-output/auditor-mode/auditor_mode_report.json
             audit-output/auditor-mode/auditor_mode_report.txt
+            audit-output/caas_scanner.json
+            audit-output/caas_audit_gate.json
+            audit-output/caas_autonomy.json
           retention-days: 90
 
       - name: Upload SARIF to GitHub Code Scanning
