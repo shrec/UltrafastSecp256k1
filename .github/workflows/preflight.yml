@@ -107,6 +107,13 @@ jobs:
         # on-disk PoCs bypassed the aggregated audit verdict.
         run: python3 ci/check_exploit_wiring.py
 
+      - name: CAAS Stage 0c — Exploit Traceability Join (hard-fail)
+        # G-9b: joins exploit catalog, threat model, and spec traceability matrix.
+        # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or
+        # any spec row points at a non-existent path.
+        # Added here so it runs on every push/PR (was only in manual caas.yml).
+        run: python3 ci/exploit_traceability_join.py
+
       - name: Build unified_audit_runner (exploit_poc smoke)
         # Builds the full audit runner binary so we can run the exploit_poc
         # section in preflight. Without this, individual module regressions

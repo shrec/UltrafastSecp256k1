@@ -443,11 +443,25 @@ def collect_source_graph() -> dict:
 def collect_benchmarks() -> dict:
     data = _load_json(LIB_ROOT / "docs" / "BITCOIN_CORE_BENCH_RESULTS.json")
     if not data:
-        return {"results": [], "config": {}}
+        return {"results": [], "config": {}, "corrupt_rows": []}
+    valid_results: list = []
+    corrupt_rows: list[str] = []
+    for r in data.get("results", []):
+        base = r.get("baseline_libsecp256k1", 0)
+        ours = r.get("ultrafast_secp256k1", 0)
+        pct  = r.get("improvement_pct", 0)
+        name = r.get("benchmark", "?")
+        if base == 0 or ours == 0:
+            corrupt_rows.append(f"{name}: zero timing (base={base}, ours={ours})")
+        elif abs(pct) > 99999:
+            corrupt_rows.append(f"{name}: impossible improvement_pct={pct}")
+        else:
+            valid_results.append(r)
     return {
-        "results": data.get("results", []),
-        "config":  data.get("bench_config", {}),
-        "summary": data.get("summary", {}),
+        "results":     valid_results,
+        "corrupt_rows": corrupt_rows,
+        "config":      data.get("bench_config", {}),
+        "summary":     data.get("summary", {}),
         "methodology": data.get("methodology", ""),
     }
 
@@ -1001,6 +1015,7 @@ def render_section_graph(graph: dict) -> str:
 
 def render_section_bench(bench: dict) -> str:
     results = bench.get("results", [])
+    corrupt_rows = bench.get("corrupt_rows", [])
     rows = ""
     for r in results:
         base = r.get("baseline_libsecp256k1", 0)
@@ -1015,11 +1030,20 @@ def render_section_bench(bench: dict) -> str:
           <td style="color:var(--text2);font-size:.78rem">{r.get('note','')}</td>
         </tr>"""
     cfg = bench.get("config", {})
+    corrupt_banner = ""
+    if corrupt_rows:
+        items = "".join(f"<li>{c}</li>" for c in corrupt_rows)
+        corrupt_banner = (
+            f'<div style="background:var(--fail-bg,#3b1a1a);border-left:3px solid #e05050;'
+            f'padding:.6rem .9rem;margin-bottom:.8rem;font-size:.82rem;color:#e05050">'
+            f'<b>⚠ Corrupt benchmark rows excluded ({len(corrupt_rows)}):</b><ul style="margin:.3rem 0 0 1.2rem">'
+            f'{items}</ul></div>'
+        )
     return f"""
 <section class="section-anchor" id="bench">
 <h2>9 · Benchmarks</h2>
 <div class="card">
-  <h3>bench_bitcoin — UltrafastSecp256k1 vs libsecp256k1</h3>
+  {corrupt_banner}<h3>bench_bitcoin — UltrafastSecp256k1 vs libsecp256k1</h3>
   <table>
     <thead><tr><th>Benchmark</th><th>Baseline (libsecp)</th>
       <th>UltrafastSecp256k1</th><th>Δ</th><th>Notes</th></tr></thead>

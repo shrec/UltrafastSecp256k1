@@ -71,7 +71,10 @@ run_check "hot_path_alloc regression"  python3 ci/run_code_quality.py --fail-on-
   if [[ -n "$_cuda_checker" ]]; then
     run_check "CUDA intrinsic selectors" python3 "$_cuda_checker" --check-only
   else
-    echo -e "  CUDA intrinsic checker not found (skipped)              ${YELLOW}SKIP${NC}"
+    printf "  %-52s" "CUDA intrinsic selectors..."
+    echo -e "${YELLOW}ADV-SKIP${NC} (checker not found)"
+    ((adv_skip++))
+    gate_results["CUDA intrinsic selectors"]="adv-skip"
   fi
 echo ""
 
@@ -84,6 +87,7 @@ run_check "Preflight --bug-scan"    python3 ci/preflight.py --bug-scan
 run_check "Preflight --security"    python3 ci/preflight.py --security
 run_check "Preflight --abi"         python3 ci/preflight.py --abi
 run_check "Preflight --freshness"   python3 ci/preflight.py --freshness
+run_check "Exploit traceability join" python3 ci/exploit_traceability_join.py
 echo ""
 
 # ── CAAS security gates (~10s) ──────────────────────────────────────────────
