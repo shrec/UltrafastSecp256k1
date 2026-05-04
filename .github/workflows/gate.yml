@@ -339,7 +339,7 @@ jobs:
         run: |
           if [ -f docs/EXTERNAL_AUDIT_BUNDLE.json ]; then
             python3 ci/verify_external_audit_bundle.py --json --allow-commit-mismatch \
-              -o caas_bundle_verify.json
+              > caas_bundle_verify.json
           else
             echo "::warning::docs/EXTERNAL_AUDIT_BUNDLE.json not present — skipping bundle verify"
           fi
