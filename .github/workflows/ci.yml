@@ -163,7 +163,7 @@ jobs:
   # ===========================================================================
 
   chain-gcc-14:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-14
@@ -180,7 +180,7 @@ jobs:
       audit_mode: full
 
   chain-gcc-13:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-13
@@ -197,7 +197,7 @@ jobs:
       audit_mode: full
 
   chain-clang-17:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: clang-17
@@ -214,7 +214,7 @@ jobs:
       audit_mode: full
 
   chain-llvm-21:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: llvm-21
@@ -239,7 +239,7 @@ jobs:
   # ===========================================================================
 
   chain-asan:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: asan
@@ -260,7 +260,7 @@ jobs:
       ctest_timeout: 900
 
   chain-tsan:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: tsan
@@ -281,7 +281,7 @@ jobs:
       ctest_timeout: 900
 
   chain-msan:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: msan
@@ -311,7 +311,7 @@ jobs:
 
   chain-coverage:
     if: github.event_name == 'push'
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: coverage
@@ -336,7 +336,7 @@ jobs:
   # ===========================================================================
 
   chain-macos:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: apple-clang
@@ -352,7 +352,7 @@ jobs:
   # ===========================================================================
 
   chain-windows:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: msvc
@@ -371,7 +371,7 @@ jobs:
   # ===========================================================================
 
   chain-linux-arm64:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-arm64
@@ -392,7 +392,7 @@ jobs:
       audit_mode: qemu-arm64
 
   chain-linux-riscv64:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-riscv64
@@ -419,7 +419,7 @@ jobs:
   # ===========================================================================
 
   chain-android-arm64:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-arm64-v8a
@@ -427,7 +427,7 @@ jobs:
       audit_mode: verify
 
   chain-android-armv7:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-armeabi-v7a
@@ -435,7 +435,7 @@ jobs:
       audit_mode: verify
 
   chain-android-x86_64:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-x86_64
@@ -448,7 +448,7 @@ jobs:
   # ===========================================================================
 
   chain-wasm:
-    needs: [static-analysis]
+    needs: [static-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: wasm
@@ -456,12 +456,19 @@ jobs:
       audit_mode: node
 
   # ===========================================================================
-  # ── CodeQL SAST  (needs: static-analysis, advisory — does not block verdict)
-  # Runs its own Debug build then hands off to GitHub CodeQL engine.
-  # Appears in this CI run, not as a separate workflow.
+  # ── CodeQL SAST   needs: static-analysis → blocks all platform chains
+  # ── SonarCloud    needs: static-analysis → blocks all platform chains
+  #
+  # Static code phase (parallel):
+  #   static-analysis (fast)
+  #   codeql          (build + SAST)
+  #   sonarcloud      (build + coverage + quality)
+  #
+  # Platform chains start ONLY when all three above have passed.
   # ===========================================================================
+
   codeql:
-    name: "Code Quality / CodeQL"
+    name: "Static / CodeQL"
     needs: [static-analysis]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -488,13 +495,16 @@ jobs:
         with:
           path: ~/.cache/ccache
           key: ccache-codeql-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: codeql-ccache-
+          restore-keys: ccache-codeql-
 
       - name: Configure ccache
         run: |
           CCACHE=$(command -v ccache || true)
-          [ -n "$CCACHE" ] && "$CCACHE" --set-config=max_size=200M \
-            && "$CCACHE" --set-config=compression=true && "$CCACHE" -z
+          if [ -n "$CCACHE" ]; then
+            "$CCACHE" --set-config=max_size=200M
+            "$CCACHE" --set-config=compression=true
+            "$CCACHE" -z
+          fi
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
@@ -511,10 +521,12 @@ jobs:
         run: |
           CCACHE=$(command -v ccache || true)
           LAUNCHER_ARGS=()
-          [ -n "$CCACHE" ] && LAUNCHER_ARGS=(
-            "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
-          )
+          if [ -n "$CCACHE" ]; then
+            LAUNCHER_ARGS=(
+              "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
+              "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
+            )
+          fi
           JOBS=$(nproc 2>/dev/null || echo 4)
           cmake -S . -B build/codeql -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -531,16 +543,12 @@ jobs:
         with:
           category: "/language:c-cpp"
 
-  # ===========================================================================
-  # ── SonarCloud  (needs: static-analysis, advisory — does not block verdict)
-  # Builds with coverage instrumentation, uploads to sonarcloud.io.
-  # Fork PRs automatically skipped (GitHub blocks secrets for forks).
-  # ===========================================================================
   sonarcloud:
-    name: "Code Quality / SonarCloud"
+    name: "Static / SonarCloud"
     needs: [static-analysis]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # Skip fork PRs — GitHub blocks secrets for forks
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -574,8 +582,11 @@ jobs:
       - name: Configure ccache
         run: |
           CCACHE=$(command -v ccache || true)
-          [ -n "$CCACHE" ] && "$CCACHE" --set-config=max_size=200M \
-            && "$CCACHE" --set-config=compression=true && "$CCACHE" -z
+          if [ -n "$CCACHE" ]; then
+            "$CCACHE" --set-config=max_size=200M
+            "$CCACHE" --set-config=compression=true
+            "$CCACHE" -z
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -598,10 +609,12 @@ jobs:
         run: |
           CCACHE=$(command -v ccache || true)
           LAUNCHER_ARGS=()
-          [ -n "$CCACHE" ] && LAUNCHER_ARGS=(
-            "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
-          )
+          if [ -n "$CCACHE" ]; then
+            LAUNCHER_ARGS=(
+              "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
+              "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
+            )
+          fi
           JOBS=$(nproc 2>/dev/null || echo 4)
           cmake -S . -B build/sonar -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -649,7 +662,6 @@ jobs:
             > build/sonar/llvm-cov-report.txt
 
       - name: Run SonarCloud scan
-        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -661,16 +673,56 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
 
   # ===========================================================================
+  # ── Static Phase Gate
+  # Aggregates static-analysis + codeql + sonarcloud.
+  # Platform chains need only this single job — clean fan-out point.
+  # sonarcloud is allowed to be 'skipped' on fork PRs (no secrets available).
+  # if: always() ensures this runs even if codeql/sonarcloud were skipped.
+  # ===========================================================================
+  static-gate:
+    name: "Static / Gate"
+    needs: [static-analysis, codeql, sonarcloud]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Evaluate static phase
+        run: |
+          SA="${{ needs.static-analysis.result }}"
+          CQ="${{ needs.codeql.result }}"
+          SC="${{ needs.sonarcloud.result }}"
+
+          echo "static-analysis : $SA"
+          echo "codeql          : $CQ"
+          echo "sonarcloud      : $SC  (skipped on fork PRs — treated as OK)"
+
+          FAILED=0
+          [ "$SA" = "success" ] || { echo "::error::static-analysis → $SA"; FAILED=1; }
+          [ "$CQ" = "success" ] || { echo "::error::codeql → $CQ"; FAILED=1; }
+          # sonarcloud may be 'skipped' on fork PRs (GitHub blocks secrets).
+          # Any other non-success state is a real failure.
+          if [ "$SC" != "success" ] && [ "$SC" != "skipped" ]; then
+            echo "::error::sonarcloud → $SC"
+            FAILED=1
+          fi
+
+          [ "$FAILED" -eq 0 ] || exit 1
+          echo "::notice::Static phase passed — platform chains may proceed"
+        shell: bash
+
+  # ===========================================================================
   # ── Final Verdict
-  # Waits for all chains; fails if any chain failed or was cancelled.
-  # codeql/sonarcloud are advisory — skipped/failed doesn't block verdict.
-  # coverage is push-only — on PR it is 'skipped', which is not a failure.
   # ===========================================================================
 
   ci-verdict:
     name: "CI / Final Verdict"
     needs:
-      - static-analysis
+      - static-gate
       - codeql
       - sonarcloud
       - chain-gcc-14
