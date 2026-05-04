@@ -114,16 +114,30 @@ def check_reproducible_build() -> dict:
     }
 
 
+def _find_script(name: str) -> "Path | None":
+    """Find a script in scripts/ or ci/ (fallback).
+
+    scripts/ is gitignored (local-only development convenience symlinks).
+    The canonical committed copies live in ci/.  Always check ci/ as fallback
+    so CI runners (which only have the checkout) can find the files.
+    """
+    for base in (LIB_ROOT / "scripts", SCRIPT_DIR):
+        candidate = base / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def check_slsa_provenance() -> dict:
     """Check SLSA provenance validation capability."""
     issues: list[str] = []
-    script = LIB_ROOT / "scripts" / "verify_slsa_provenance.py"
-    if not script.exists():
+    script = _find_script("verify_slsa_provenance.py")
+    if script is None:
         issues.append("verify_slsa_provenance.py not found")
 
     # Verify SLSA generation scripts produce expected output format
-    slsa_gen = LIB_ROOT / "scripts" / "generate_slsa_provenance.py"
-    if not slsa_gen.exists():
+    slsa_gen = _find_script("generate_slsa_provenance.py")
+    if slsa_gen is None:
         issues.append("generate_slsa_provenance.py not found")
 
     # Check for existing provenance artifacts
@@ -139,7 +153,7 @@ def check_slsa_provenance() -> dict:
     return {
         "name": "slsa_provenance",
         "passing": len(issues) == 0,
-        "script_exists": script.exists(),
+        "script_exists": script is not None,
         "issues": issues,
     }
 
@@ -148,14 +162,14 @@ def check_artifact_hash_policy() -> dict:
     """Verify artifact hash manifest exists or can be generated."""
     issues: list[str] = []
 
-    # Check SBOM generator exists
-    sbom_script = LIB_ROOT / "scripts" / "generate_sbom.sh"
-    if not sbom_script.exists():
+    # Check SBOM generator exists (scripts/ or ci/ fallback)
+    sbom_script = _find_script("generate_sbom.sh")
+    if sbom_script is None:
         issues.append("generate_sbom.sh not found")
 
-    # Check release script includes hash generation
-    release_sh = LIB_ROOT / "scripts" / "build_release.sh"
-    if release_sh.exists():
+    # Check release script includes hash generation (scripts/ or ci/ fallback)
+    release_sh = _find_script("build_release.sh")
+    if release_sh is not None:
         content = release_sh.read_text(encoding="utf-8", errors="replace")
         if "sha256" not in content.lower() and "sha-256" not in content.lower() and "checksum" not in content.lower():
             issues.append("build_release.sh does not appear to compute SHA-256 hashes")

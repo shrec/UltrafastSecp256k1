@@ -119,12 +119,16 @@ def check_evidence_staleness(sla_defs: dict) -> list[dict]:
             age = _file_age_days(full_path)
 
         if age is None:
-            # In standalone mode OR outside CI (local dev), suite-scoped
-            # artifacts are structurally absent — downgrade to warning.
+            # In standalone mode OR outside CI (local dev), suite- and
+            # build-scoped artifacts are structurally absent (suite: no
+            # surrounding repo tree; build: out/ is gitignored and only
+            # exists after a local or full-CI build).  Downgrade to warning
+            # so the SLA gate does not block on files that cannot exist in a
+            # clean checkout.
             _in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
             effective_severity = (
                 "warning"
-                if ((_STANDALONE or not _in_ci) and ev["scope"] == "suite")
+                if ((_STANDALONE or not _in_ci) and ev["scope"] in ("suite", "build"))
                 else severity
             )
             findings.append({

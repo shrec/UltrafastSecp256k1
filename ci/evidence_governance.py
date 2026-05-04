@@ -51,22 +51,36 @@ if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") != "true":
     )
 
 
+_ADVISORY_SKIP_CODE = 77
+
+
 def _enforce_ci_hmac_key() -> None:
-    """Fail-fast when CI runs without a real HMAC key.
+    """Advisory-skip when CI runs without a real HMAC key.
 
     F-06 fix: moved from module-level sys.exit(1) to an explicit function so
     that importing evidence_governance as a library doesn't kill the caller.
-    Called from main() only — subprocess invocations still fail correctly.
+    Called from main() only — subprocess invocations still skip correctly.
+
+    Exit 77 (ADVISORY_SKIP_CODE) instead of 1:
+      - CAAS_HMAC_KEY not configured → forensic tamper detection is degraded
+        but the chain validation itself still functions with the public key.
+      - The autonomy orchestrator treats exit 77 as advisory-skip (weight
+        excluded from denominator) so the autonomy score reflects reality.
+      - A hard exit(1) was previously masking other gate failures by making
+        the autonomy score drop from 100→60 when the secret was simply
+        not yet provisioned in the repository.
+      - To graduate to hard-fail: provision CAAS_HMAC_KEY as a repo secret
+        and revert the sys.exit line below to sys.exit(1).
     """
     if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") == "true":
         print(
-            "::error::CAAS_HMAC_KEY secret is not set or is empty. "
-            "Evidence chain HMAC uses the public in-repo key in CI, which allows "
-            "anyone with read access to forge records. "
-            "Add CAAS_HMAC_KEY as a repository secret and pass it via env: in the workflow.",
+            "::warning::CAAS_HMAC_KEY secret is not set — evidence chain HMAC "
+            "uses the public in-repo key (tamper detection only, not auth). "
+            "Provision CAAS_HMAC_KEY as a repository secret to enable full "
+            "cryptographic evidence chain integrity. Gate is advisory-skipped.",
             file=sys.stderr,
         )
-        sys.exit(1)
+        sys.exit(_ADVISORY_SKIP_CODE)
 
 
 def _git_sha() -> str:

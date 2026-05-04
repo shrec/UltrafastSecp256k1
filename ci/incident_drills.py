@@ -157,19 +157,23 @@ def drill_dependency_compromise() -> dict:
     else:
         issues.append("CMakeLists.txt not found")
 
+    # scripts/ is gitignored; ci/ is the committed fallback location.
+    def _find(name: str) -> bool:
+        for base in (LIB_ROOT / "scripts", SCRIPT_DIR):
+            if (base / name).exists():
+                return True
+        return False
+
     # Check SBOM generator
-    sbom_gen = LIB_ROOT / "scripts" / "generate_sbom.sh"
-    if not sbom_gen.exists():
+    if not _find("generate_sbom.sh"):
         issues.append("generate_sbom.sh not found")
 
     # Check build hardening
-    hardening = LIB_ROOT / "scripts" / "verify_build_hardening.py"
-    if not hardening.exists():
+    if not _find("verify_build_hardening.py"):
         issues.append("verify_build_hardening.py not found")
 
     # Check provenance verifier
-    provenance = LIB_ROOT / "scripts" / "verify_slsa_provenance.py"
-    if not provenance.exists():
+    if not _find("verify_slsa_provenance.py"):
         issues.append("verify_slsa_provenance.py not found")
 
     elapsed = time.monotonic() - start
@@ -180,9 +184,9 @@ def drill_dependency_compromise() -> dict:
         "elapsed_seconds": round(elapsed, 2),
         "checks": {
             "version_pinning": cmakelists.exists(),
-            "sbom_generator": sbom_gen.exists(),
-            "build_hardening": hardening.exists(),
-            "provenance_verifier": provenance.exists(),
+            "sbom_generator": _find("generate_sbom.sh"),
+            "build_hardening": _find("verify_build_hardening.py"),
+            "provenance_verifier": _find("verify_slsa_provenance.py"),
         },
         "issues": issues,
     }
