@@ -302,6 +302,16 @@ def check_coverage_gaps():
 # ---------------------------------------------------------------------------
 # 3. Graph Freshness Check
 # ---------------------------------------------------------------------------
+_FRESHNESS_EXCLUDE_PREFIXES = (
+    # gitignored scratch directory — never source code
+    'workingdocs/',
+)
+_FRESHNESS_EXCLUDE_EXACT = {
+    # Auto-updated by security_autonomy_check.py on every CI run; not source code.
+    'docs/SECURITY_AUTONOMY_KPI.json',
+}
+
+
 def check_freshness():
     """Compare graph build time vs file modification times."""
     conn = get_conn()
@@ -312,13 +322,18 @@ def check_freshness():
 
     rows = conn.execute("SELECT path, lines FROM source_files WHERE layer IN ('fast','ct','abi') ORDER BY lines DESC").fetchall()
     for r in rows:
-        filepath = LIB_ROOT / r['path']
+        path = r['path']
+        if path in _FRESHNESS_EXCLUDE_EXACT:
+            continue
+        if any(path.startswith(pfx) for pfx in _FRESHNESS_EXCLUDE_PREFIXES):
+            continue
+        filepath = LIB_ROOT / path
         if not filepath.exists():
-            stale.append(('DELETED', r['path'], 0))
+            stale.append(('DELETED', path, 0))
             continue
         mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=timezone.utc)
         if mtime > built_dt:
-            stale.append(('MODIFIED', r['path'], r['lines']))
+            stale.append(('MODIFIED', path, r['lines']))
 
     # Check for new files not in graph
     scan_dirs = ['src/cpu/src', 'src/cpu/include', 'include/ufsecp']
