@@ -1931,6 +1931,14 @@ target_compile_definitions(test_exploit_ecdsa_r_overflow_standalone PRIVATE STAN
 add_test(NAME exploit_ecdsa_r_overflow COMMAND test_exploit_ecdsa_r_overflow_standalone)
 set_tests_properties(exploit_ecdsa_r_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;wycheproof")
 
+# -- ECDSA PMN wraparound: r in [n,p) constant + logic correctness (2026-05-05) --
+add_executable(test_exploit_ecdsa_pmn_wraparound_standalone
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_pmn_wraparound.cpp)
+audit_target_defaults(test_exploit_ecdsa_pmn_wraparound_standalone)
+target_compile_definitions(test_exploit_ecdsa_pmn_wraparound_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_ecdsa_pmn_wraparound COMMAND test_exploit_ecdsa_pmn_wraparound_standalone)
+set_tests_properties(exploit_ecdsa_pmn_wraparound PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;correctness")
+
 # -- ECDSA sign sentinel paths: r=0 / s=0 / sk=0 guards (X-1, X-2, X-4) ---
 add_executable(test_exploit_ecdsa_sign_sentinels_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_ecdsa_sign_sentinels.cpp
@@ -3363,6 +3371,7 @@ add_executable(unified_audit_runner
     test_exploit_bip32_child_key_attack.cpp
     test_exploit_boundary_sentinels.cpp
     test_exploit_ecdsa_r_overflow.cpp
+    test_exploit_ecdsa_pmn_wraparound.cpp
     test_exploit_ecdsa_sign_sentinels.cpp
     test_exploit_frost_identifiable_abort.cpp
     test_exploit_hash_algo_sig_isolation.cpp

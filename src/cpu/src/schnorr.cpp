@@ -179,9 +179,14 @@ static constexpr std::size_t kLiftXCacheSlots = 1024;
 static thread_local std::array<XOnlyLiftCacheEntry, kLiftXCacheSlots> g_lift_x_cache{};
 
 static inline std::size_t lift_x_cache_index(const uint8_t* pubkey_x32) {
-    std::size_t const h0 = pubkey_x32[0] ^ pubkey_x32[7] ^ pubkey_x32[15] ^ pubkey_x32[23] ^ pubkey_x32[31];
-    std::size_t const h1 = pubkey_x32[1] ^ pubkey_x32[9] ^ pubkey_x32[17] ^ pubkey_x32[25];
-    return (h0 | (h1 << 8)) & (kLiftXCacheSlots - 1);
+    // FNV-1a over first 8 bytes: better distribution than 9-byte XOR cascade
+    // (avoids collisions when pubkeys share the same XOR-selected byte positions).
+    std::uint64_t v;
+    std::memcpy(&v, pubkey_x32, 8);
+    v ^= v >> 33;
+    v *= 0xff51afd7ed558ccdULL;
+    v ^= v >> 33;
+    return static_cast<std::size_t>(v) & (kLiftXCacheSlots - 1);
 }
 
 // Returns slot index so lift_x_cached can reuse it for the store path,
@@ -390,9 +395,9 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
 
     // Reject degenerate output: r==all-zeros is astronomically rare (~2^-128)
     // but must never be serialised as a valid signature (Rule 14).
-    bool r_zero = true;
-    for (auto b : sig.r) r_zero &= (b == 0);
-    if (SECP256K1_UNLIKELY(r_zero || sig.s.is_zero())) return SchnorrSignature{};
+    uint8_t r_acc = 0;
+    for (auto b : sig.r) r_acc |= b;
+    if (SECP256K1_UNLIKELY(r_acc == 0 || sig.s.is_zero())) return SchnorrSignature{};
 
     return sig;
 }

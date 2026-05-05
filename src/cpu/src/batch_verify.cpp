@@ -164,12 +164,12 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
         auto const* const pubkey_x = pubkey_bytes(entries[i]);
         if (pubkey_x == nullptr) return false;
 
-        SHA256 challenge_ctx = detail::g_challenge_midstate;
-        challenge_ctx.update(entries[i].signature.r.data(), 32);
-        challenge_ctx.update(pubkey_x->data(), 32);
-        challenge_ctx.update(entries[i].message.data(), 32);
-        auto e_hash = challenge_ctx.finalize();
-        Scalar const challenge = Scalar::from_bytes(e_hash);
+        alignas(16) uint8_t challenge_input[96];
+        std::memcpy(challenge_input +  0, entries[i].signature.r.data(), 32);
+        std::memcpy(challenge_input + 32, pubkey_x->data(), 32);
+        std::memcpy(challenge_input + 64, entries[i].message.data(), 32);
+        Scalar const challenge = Scalar::from_bytes(
+            detail::cached_tagged_hash(detail::g_challenge_midstate, challenge_input, 96));
 
         g_coeff += weight * entries[i].signature.s;
 
@@ -376,13 +376,20 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         diff.add_assign(r_z2);
         if (!diff.normalizes_to_zero_var()) {
             // Rare case: x_R mod p in [n, p). Probability ~2^-128.
-            static constexpr std::uint64_t PMN_0 = 0x402da1732fc9bebfULL;
-            static constexpr std::uint64_t PMN_1 = 0x14551231950b75fcULL;
+            // p - n in 4x64 LE: limb[0]=0x402DA1722FC9BAEE, limb[1]=0x4551231950B75FC4,
+            //                   limb[2]=0x01, limb[3]=0x00
+            static constexpr std::uint64_t PMN_0 = 0x402DA1722FC9BAEEULL;
+            static constexpr std::uint64_t PMN_1 = 0x4551231950B75FC4ULL;
             const auto& rl = entries[i].signature.r.limbs();
-            bool r_less_than_pmn = (rl[3] == 0 && rl[2] == 0);
-            if (r_less_than_pmn) {
+            bool r_less_than_pmn = false;
+            if (rl[3] != 0 || rl[2] > 1) {
+                r_less_than_pmn = false;
+            } else if (rl[2] == 0) {
+                r_less_than_pmn = true;
+            } else {
+                // rl[2] == 1: compare limbs[1..0] against PMN_1..PMN_0
                 if (rl[1] != PMN_1) r_less_than_pmn = (rl[1] < PMN_1);
-                else r_less_than_pmn = (rl[0] < PMN_0);
+                else                r_less_than_pmn = (rl[0] < PMN_0);
             }
             if (!r_less_than_pmn) return false;
 

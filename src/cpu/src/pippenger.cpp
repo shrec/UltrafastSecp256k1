@@ -210,8 +210,12 @@ Point pippenger_msm(const Scalar* scalars,
         //   running_sum starts at bucket[2^c-1]
         //   partial_sum accumulates running_sum at each step
         //   This gives: partial_sum = 1*bucket[1] + 2*bucket[2] + ... = Sum b*bucket[b]
+        // bool flags replace is_infinity() calls: avoids per-bucket function call overhead
+        // (for c=8: 256 buckets × 43 windows = ~11K calls eliminated per MSM).
         Point running_sum = Point::infinity();
         Point partial_sum = Point::infinity();
+        bool running_sum_nonempty = false;
+        bool partial_sum_nonempty = false;
 
         for (std::size_t b = max_touched_digit; b >= 1; --b) {
             // Only read from buckets that were explicitly written this window.
@@ -219,18 +223,27 @@ Point pippenger_msm(const Scalar* scalars,
             // identity element would be a no-op, so skipping them is correct
             // and avoids MSan uninitialized-read false positives.
             if (SECP256K1_LIKELY(used[b] != 0)) {
-                running_sum.add_inplace(buckets[b]);
+                if (running_sum_nonempty) {
+                    running_sum.add_inplace(buckets[b]);
+                } else {
+                    running_sum = buckets[b];
+                    running_sum_nonempty = true;
+                }
             }
-            // Skip add when running_sum is still infinity (no non-zero bucket
-            // seen yet). For c=8, ~37% of bucket positions are empty so
-            // running_sum stays infinity for those leading iterations.
-            if (SECP256K1_LIKELY(!running_sum.is_infinity())) {
-                partial_sum.add_inplace(running_sum);
+            if (running_sum_nonempty) {
+                if (partial_sum_nonempty) {
+                    partial_sum.add_inplace(running_sum);
+                } else {
+                    partial_sum = running_sum;
+                    partial_sum_nonempty = true;
+                }
             }
         }
 
-        // Combine this window's contribution
-        result.add_inplace(partial_sum);
+        // Combine this window's contribution (skip if window had no non-zero buckets)
+        if (partial_sum_nonempty) {
+            result.add_inplace(partial_sum);
+        }
 
         // Reset only touched buckets (O(touched) instead of O(2^c))
         for (std::size_t i = 0; i < touched_count; ++i) {

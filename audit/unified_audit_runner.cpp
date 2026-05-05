@@ -183,6 +183,7 @@ int test_exploit_ecdh_twist_injection_run();          // ePrint 2015/1233 ECDH t
 int test_exploit_schnorr_batch_inflation_run();       // BIP-340 Schnorr batch inflation
 int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
 int test_exploit_safegcd_divsteps_run();              // Bernstein-Yang SafeGCD divstep count + correctness
+int test_exploit_ecdsa_pmn_wraparound_run();          // ECDSA PMN wraparound: r ∈ [n,p) constant + logic (2026-05-05)
 int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cases (null/zero/n/n-1)
 
 // ============================================================================
@@ -717,6 +718,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_ecdsa_edge_cases",       "ECDSA Edge Cases and Normalization",          "exploit_poc", test_exploit_ecdsa_edge_cases_run, false },
     { "exploit_ecdsa_malleability",     "ECDSA Signature Malleability",                "exploit_poc", test_exploit_ecdsa_malleability_run, false },
     { "exploit_batch_verify_low_s",     "ECDSA Batch Verify Low-S Enforcement",        "exploit_poc", test_exploit_batch_verify_low_s_run, false },
+    { "exploit_ecdsa_pmn_wraparound",  "ECDSA PMN Wraparound r∈[n,p) (2026-05-05)", "exploit_poc", test_exploit_ecdsa_pmn_wraparound_run, false },
     { "exploit_binding_retval",         "ABI Return-Value Coverage (binding guard)",   "exploit_poc", test_exploit_binding_retval_run, false },
     { "exploit_ecdsa_recovery",         "ECDSA Key Recovery Edge Cases",               "exploit_poc", test_exploit_ecdsa_recovery_run, false },
     { "exploit_ecdsa_rfc6979_kat",      "ECDSA RFC 6979 Nonce KAT",                   "exploit_poc", test_exploit_ecdsa_rfc6979_kat_run, false },

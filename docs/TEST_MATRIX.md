@@ -236,6 +236,7 @@ CTest surface exactly:
 - `exploit_ecdsa_fault_injection`
 - `exploit_ecdsa_nonce_reuse`
 - `exploit_ecdsa_r_overflow`
+- `exploit_ecdsa_pmn_wraparound`
 - `exploit_ecdsa_sign_sentinels`
 - `exploit_boundary_sentinels`
 - `exploit_ecies_ephemeral_reuse`

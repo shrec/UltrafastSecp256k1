@@ -1234,7 +1234,8 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
     // GLV half-scalars bounded by ~2^128; max wNAF output = 128+window = 133.
     // 140 gives safety margin (was 260 — 2× over-provisioned saves 480B stack).
-    std::array<int32_t, 140> wnaf1_buf{}, wnaf2_buf{};
+    // No {} init: compute_wnaf_into() memsets before writing (avoids double-zero).
+    std::array<int32_t, 140> wnaf1_buf, wnaf2_buf;
     std::size_t wnaf1_len = 0, wnaf2_len = 0;
     compute_wnaf_into(decomp.k1, glv_window,
                       wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
@@ -2229,7 +2230,8 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     // though GLV half-scalars are ~128 bits, so buffer must be 260.
     // GLV half-scalars bounded by ~2^128; max wNAF output = 128+window = 133.
     // 140 gives safety margin (was 260 — 2× over-provisioned saves 480B stack).
-    std::array<int32_t, 140> wnaf1_buf{}, wnaf2_buf{};
+    // No {} init: compute_wnaf_into() memsets before writing (avoids double-zero).
+    std::array<int32_t, 140> wnaf1_buf, wnaf2_buf;
     std::size_t wnaf1_len = 0, wnaf2_len = 0;
     compute_wnaf_into(decomp.k1, glv_window,
                       wnaf1_buf.data(), wnaf1_buf.size(), wnaf1_len);
@@ -3916,8 +3918,9 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // -- Compute wNAF for all 4 half-scalars -------------------------
     // GLV half-scalars are <= 128 bits; wNAF produces at most 129 digits.
     // a_lo/a_hi are 128-bit halves of scalar a (same bound).
-    // 130 entries = 129 max digits + 1 carry.  Saves ~2KB of stack zeroing.
-    std::array<int32_t, 130> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
+    // 130 entries = 129 max digits + 1 carry.
+    // No {} init needed: compute_wnaf_into() always memsets before writing (avoids double-zero).
+    std::array<int32_t, 130> wnaf_a_lo, wnaf_a_hi, wnaf_b1, wnaf_b2;
     std::size_t len_a_lo = 0, len_a_hi = 0, len_b1 = 0, len_b2 = 0;
 
     compute_wnaf_into(a_lo,  WINDOW_G, wnaf_a_lo.data(), wnaf_a_lo.size(), len_a_lo);
@@ -4050,7 +4053,8 @@ Point Point::dual_scalar_mul_gen_prebuilt(
     const DualMulGenTables* const gen_tables = get_dual_mul_gen_tables();
 
     // -- wNAF for all 4 half-scalars ------------------------------------------
-    std::array<int32_t, 130> wnaf_a_lo{}, wnaf_a_hi{}, wnaf_b1{}, wnaf_b2{};
+    // No {} init: compute_wnaf_into() memsets before writing (avoids double-zero).
+    std::array<int32_t, 130> wnaf_a_lo, wnaf_a_hi, wnaf_b1, wnaf_b2;
     std::size_t len_a_lo = 0, len_a_hi = 0, len_b1 = 0, len_b2 = 0;
     compute_wnaf_into(a_lo,  WINDOW_G, wnaf_a_lo.data(), wnaf_a_lo.size(), len_a_lo);
     compute_wnaf_into(a_hi,  WINDOW_G, wnaf_a_hi.data(), wnaf_a_hi.size(), len_a_hi);
