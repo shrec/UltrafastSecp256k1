@@ -277,6 +277,23 @@ EXTERNAL TOOL EVIDENCE (collected separately by CI):
 ================================================================
 EOREADME
 
+# -- SHA-256 manifest -------------------------------------------------------
+# AA-01 fix: generate a SHA256SUMS file so external auditors can verify
+# file integrity after transfer without relying on transport checksums.
+(
+  cd "$OUTPUT_DIR"
+  if command -v sha256sum &>/dev/null; then
+    find . -type f ! -name SHA256SUMS -printf '%P\n' | sort | \
+      xargs sha256sum > SHA256SUMS
+  elif command -v shasum &>/dev/null; then
+    find . -type f ! -name SHA256SUMS -printf '%P\n' 2>/dev/null | \
+      sort | xargs shasum -a 256 > SHA256SUMS
+  else
+    echo "::warning::sha256sum/shasum not found — SHA256SUMS not generated" >&2
+  fi
+)
+echo "  SHA256SUMS manifest: $OUTPUT_DIR/SHA256SUMS"
+
 # -- Summary ----------------------------------------------------------------
 echo ""
 echo "================================================================"

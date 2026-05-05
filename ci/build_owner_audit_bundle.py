@@ -367,6 +367,15 @@ def main() -> int:
     owner_grade_gaps = ct_evidence.get('owner_grade_gaps', []) if isinstance(ct_evidence, dict) else []
     for gap in owner_grade_gaps:
         blocking_findings.append(f'ct evidence owner-grade gap: {gap}')
+    # AA-04 fix: scanner findings must be 0 for release; include in blocking_findings
+    # so the bundle cannot be marked 'ready' when static analysis alerts are open.
+    scanner_payload = scanner_report.get('payload') or {}
+    if isinstance(scanner_payload, dict):
+        scanner_total = scanner_payload.get('total_findings', 0)
+        if isinstance(scanner_total, int) and scanner_total > 0:
+            blocking_findings.append(
+                f'static analysis scanner: {scanner_total} finding(s) open — must be 0 for release'
+            )
 
     residual_gaps = []
     audit_payload = audit_gate.get('payload') or {}

@@ -172,6 +172,24 @@ jobs:
             export --format timeline \
             --output docs/AUDIT_TREND_TIMELINE.json \
             || echo "::warning::artifact_analyzer timeline export skipped"
+          # AA-05 fix: validate timeline JSON before it can be committed.
+          # A failed export may produce an empty or truncated file; committing
+          # it would corrupt the trend history visible in dashboards.
+          if [ -f docs/AUDIT_TREND_TIMELINE.json ]; then
+            python3 -c "
+import json, sys
+try:
+    d = json.load(open('docs/AUDIT_TREND_TIMELINE.json'))
+except Exception as e:
+    print(f'::warning::AUDIT_TREND_TIMELINE.json is invalid JSON: {e}')
+    sys.exit(0)
+# Accept both list-of-events and {events:[...]} envelope formats
+events = d if isinstance(d, list) else d.get('events', d.get('runs', []))
+if not isinstance(events, list) or len(events) == 0:
+    print('::warning::AUDIT_TREND_TIMELINE.json has no events — removing to avoid committing empty timeline')
+    import os; os.remove('docs/AUDIT_TREND_TIMELINE.json')
+" || true
+          fi
 
       - name: Regenerate exploit traceability join (G-9b)
         run: |

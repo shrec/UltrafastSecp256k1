@@ -488,6 +488,27 @@ def validate_report(report: dict) -> list[str]:
                     f'expected one of {sorted(_valid_severities)}'
                 )
 
+    # Semantic consistency: verdict must agree with summary counts.
+    summary = report.get('summary', {})
+    if isinstance(summary, dict):
+        blocking = summary.get('blocking', 0)
+        advisory = summary.get('advisory', 0)
+        total = summary.get('total_findings', 0)
+        verdict = report.get('verdict', '')
+        if isinstance(blocking, int) and isinstance(advisory, int) and isinstance(total, int):
+            if total < blocking + advisory:
+                errors.append(
+                    f'summary: total_findings ({total}) < blocking ({blocking}) + advisory ({advisory}) — impossible'
+                )
+            if verdict == 'PASS' and blocking > 0:
+                errors.append(
+                    f'verdict=PASS but summary.blocking={blocking} — a report with blocking findings cannot be PASS'
+                )
+            if verdict == 'FAIL' and blocking == 0:
+                errors.append(
+                    f'verdict=FAIL but summary.blocking=0 — expected at least one blocking finding'
+                )
+
     return errors
 
 
