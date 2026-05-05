@@ -283,6 +283,8 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 [![iOS](https://img.shields.io/badge/iOS-17%2B%20XCFramework-lightgrey.svg)](cmake/ios.toolchain.cmake)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
 [![ESP32](https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg)](https://www.espressif.com/en/products/socs/esp32)
+[![ESP32-C6](https://img.shields.io/badge/ESP32--C6-RISC--V%20RV32-orange.svg)](https://www.espressif.com/en/products/socs/esp32-c6)
+[![ESP32-P4](https://img.shields.io/badge/ESP32--P4-RISC--V%20HP-orange.svg)](https://www.espressif.com/en/products/socs/esp32-p4)
 [![STM32](https://img.shields.io/badge/STM32-Cortex--M3-orange.svg)](https://www.st.com/en/microcontrollers-microprocessors/stm32f103ze.html)
 
 ---
@@ -695,6 +697,8 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | **iOS ARM64** | CPU | Swift Package / CocoaPods / XCFramework | [OK] Stable |
 | **Browser / Node.js** | WASM | `npm i ufsecp` | [OK] Stable |
 | **ESP32-S3 / ESP32** | CPU | PlatformIO / IDF component | [OK] Tested |
+| **ESP32-C6** | CPU (RISC-V RV32) | PlatformIO / IDF component | [OK] Tested |
+| **ESP32-P4** | CPU (RISC-V HP dual-core) | PlatformIO / IDF component | [OK] Tested |
 | **STM32 (Cortex-M)** | CPU | CMake cross-compile | [OK] Tested |
 | **NVIDIA GPU** | CUDA 12+ | Build with `-DSECP256K1_BUILD_CUDA=ON` | [OK] Stable |
 | **AMD GPU** | ROCm/HIP | Build with `-DSECP256K1_BUILD_ROCM=ON` | [!] Beta |
@@ -988,6 +992,8 @@ UltrafastSecp256k1 runs on resource-constrained microcontrollers with **portable
 
 - **ESP32-S3** (Xtensa LX7 @ 240 MHz): Fast scalar x G in 5.2 ms, **CT generator x k in 4.9 ms**
 - **ESP32-PICO-D4** (Xtensa LX6 @ 240 MHz): Scalar x G in 6.2 ms, CT layer available (44.8 ms CT)
+- **ESP32-C6** (RISC-V RV32IMAC @ 160 MHz): Scalar x G in ~14 ms, CT layer available
+- **ESP32-P4** (RISC-V HP dual-core @ 400 MHz): Scalar x G in ~3 ms, CT layer available
 - **STM32F103** (ARM Cortex-M3 @ 72 MHz): Scalar x G in 38 ms with ARM inline assembly (UMULL/ADDS/ADCS)
 - **Android ARM64** (RK3588, Cortex-A76 @ 2.256 GHz): Scalar x G in 14 us, Scalar x P in 131 us, ECDSA Sign 30 us
 
