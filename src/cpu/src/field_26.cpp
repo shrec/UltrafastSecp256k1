@@ -300,9 +300,9 @@ void FieldElement26::negate_assign(unsigned magnitude) noexcept {
 //   c: max ~10 products x 2^52 + u_k*R0 (2^40) ~= 2^55.3, fits uint64_t
 //   u_k: extracted 26-bit value, so u_k*R0 <= 2^40, u_k*R1 <= 2^36
 
-SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* __restrict__ r,
-                                      const std::uint32_t* __restrict__ a,
-                                      const std::uint32_t* __restrict__ b) noexcept {
+SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
+                                      const std::uint32_t* SECP256K1_RESTRICT a,
+                                      const std::uint32_t* SECP256K1_RESTRICT b) noexcept {
     std::uint64_t c = 0, d = 0;
     std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
     std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;
@@ -478,8 +478,8 @@ SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* __restrict__ r,
 // Same two-accumulator algorithm as mul, but using a[i]*a[j]=a[j]*a[i]
 // symmetry: 2*a[i]*a[j] for i!=j, a[i]^2 for i=j.
 
-SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* __restrict__ r,
-                                      const std::uint32_t* __restrict__ a) noexcept {
+SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* SECP256K1_RESTRICT r,
+                                      const std::uint32_t* SECP256K1_RESTRICT a) noexcept {
     std::uint64_t c = 0, d = 0;
     std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
     std::uint32_t t9 = 0, t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0, t5 = 0, t6 = 0, t7 = 0;

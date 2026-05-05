@@ -8,6 +8,7 @@
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/ct/point.hpp"  // ct::generator_mul for secret-bearing paths
 #include "secp256k1/ct/scalar.hpp" // ct::scalar_cneg, ct::bool_to_mask
+#include <algorithm>
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)

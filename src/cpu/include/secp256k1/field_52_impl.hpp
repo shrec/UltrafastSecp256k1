@@ -1242,12 +1242,12 @@ FieldElement52 FieldElement52::square() const noexcept {
 
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::mul_assign(const FieldElement52& rhs) noexcept {
-    fe52_mul_inner(n, n, rhs.n);
+    *this = *this * rhs;
 }
 
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::square_inplace() noexcept {
-    fe52_sqr_inner(n, n);
+    *this = square();
 }
 
 // -- Lazy Addition (NO carry propagation!) --------------------------------
