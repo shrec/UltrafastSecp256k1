@@ -110,7 +110,7 @@ xswiftec_frac(const FieldElement& u_in, const FieldElement& t) noexcept {
     static const FieldElement FE_ONE   = FieldElement::one();
     static const FieldElement FE_THREE = FieldElement::from_uint64(3);
     static const FieldElement FE_FOUR  = FieldElement::from_uint64(4);
-    static const FieldElement FE_SEVEN = FieldElement::from_uint64(7);
+    // FE_SEVEN is the file-scope constant (line 45) — no local redeclaration needed
     // c1 = (sqrt(-3)-1)/2
     static const FieldElement C1 = []() {
         std::array<uint8_t, 32> b = {
