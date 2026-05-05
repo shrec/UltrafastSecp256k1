@@ -7,7 +7,7 @@ Thank you for your interest in contributing to UltrafastSecp256k1! This document
 All contributions **MUST** comply with the following before they can be accepted:
 
 1. **Coding Standards** -- read and follow the [Coding Standards](https://github.com/shrec/UltrafastSecp256k1/blob/main/docs/CODING_STANDARDS.md) document in full
-2. **All tests pass** -- `ctest --test-dir build-dev --output-on-failure`
+2. **All tests pass** -- `ctest --test-dir out/dev --output-on-failure`
 3. **Code formatted** -- `clang-format -i <files>` (`.clang-format` config in repo root)
 4. **No compiler warnings** -- clean build with `-Wall -Wextra`
 5. **License** -- all contributions are licensed under the [MIT License](https://github.com/shrec/UltrafastSecp256k1/blob/main/LICENSE)
@@ -82,10 +82,10 @@ brew install cmake ninja llvm
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
-cmake -S . -B build-dev -G Ninja \
+cmake -S . -B out/dev -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
   -DSECP256K1_BUILD_TESTS=ON
-cmake --build build-dev -j
+cmake --build out/dev -j
 ```
 
 ## 🔄 Development Process
@@ -185,13 +185,13 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b);
 
 ```bash
 # All tests
-ctest --test-dir build-dev --output-on-failure
+ctest --test-dir out/dev --output-on-failure
 
 # Specific test
 ./build-dev/cpu/tests/test_field
 
 # With verbose output
-ctest --test-dir build-dev -V
+ctest --test-dir out/dev -V
 ```
 
 ### Adding Tests
@@ -214,8 +214,8 @@ TEST(FieldElement, MultiplicationIsCommutative) {
 
 ### Before Submitting
 
-1. **Build** successfully: `cmake --build build-dev`
-2. **Pass all tests**: `ctest --test-dir build-dev`
+1. **Build** successfully: `cmake --build out/dev`
+2. **Pass all tests**: `ctest --test-dir out/dev`
 3. **Format code**: `clang-format -i <files>`
 4. **Run clang-tidy**: `clang-tidy -p build-dev cpu/src/*.cpp`
 5. **Update documentation** if needed

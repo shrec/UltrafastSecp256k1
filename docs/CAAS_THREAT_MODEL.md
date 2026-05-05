@@ -432,8 +432,8 @@ An auditor who wants to verify the integrity of the CAAS pipeline, not just
 its output, should take the following steps:
 
 1. **Run the pipeline from scratch.** Clone the repository on an independent
-   machine. Run `cmake --preset ci-audit && cmake --build build-ci-audit &&
-   ctest --test-dir build-ci-audit`. Compare results to the released bundle.
+   machine. Run `cmake --preset ci-audit && cmake --build out/release-ci-audit &&
+   ctest --test-dir out/ci-audit`. Compare results to the released bundle.
    Any divergence is a finding.
 
 2. **Inspect the gate scripts.** `ci/audit_gate.py`,

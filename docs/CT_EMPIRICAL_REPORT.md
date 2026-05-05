@@ -238,8 +238,8 @@ there is a < 0.00068% chance of a false positive.
 
 ```bash
 # Build full mode (no DUDECT_SMOKE)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON
-cmake --build build --target test_ct_sidechannel_standalone
+cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_TESTS=ON
+cmake --build out/release --target test_ct_sidechannel_standalone
 
 # Run with 30-minute timeout
 timeout 1800 ./build/src/cpu/test_ct_sidechannel_standalone

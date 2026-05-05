@@ -1,5 +1,28 @@
 cmake_minimum_required(VERSION 3.18)
 
+# Reject in-source builds and builds that land outside out/ in the source tree.
+# All build directories should be under out/ (enforced by CMakePresets.json).
+# Use: cmake --preset cpu-release  OR  cmake -S . -B out/<name>
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR
+        "In-source builds are not allowed.\n"
+        "Run: cmake -S . -B out/release\n"
+        "Or use a preset: cmake --preset cpu-release")
+endif()
+get_filename_component(_src_real "${CMAKE_SOURCE_DIR}" REALPATH)
+get_filename_component(_bin_real "${CMAKE_BINARY_DIR}" REALPATH)
+string(FIND "${_bin_real}" "${_src_real}/" _bin_inside_src)
+if(_bin_inside_src EQUAL 0)
+    # Build is inside the source tree — warn unless it's under out/
+    string(FIND "${_bin_real}" "${_src_real}/out/" _bin_in_out)
+    if(NOT _bin_in_out EQUAL 0)
+        message(WARNING
+            "Build directory '${CMAKE_BINARY_DIR}' is inside the source tree but not under out/.\n"
+            "Prefer: cmake -S . -B out/<name>  (e.g. out/release)\n"
+            "Or use a preset: cmake --preset cpu-release")
+    endif()
+endif()
+
 # Read version from VERSION.txt (single source of truth)
 # NOTE: named VERSION.txt (not VERSION) to avoid clashing with the
 #       C++20 <version> header on case-insensitive filesystems (macOS).

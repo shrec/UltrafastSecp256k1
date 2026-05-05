@@ -746,13 +746,13 @@ cd libufsecp && makepkg -si
 ```bash
 # For development/testing, use out/release instead of the bare 'build' dir:
 # python3 scripts/configure_build.py release
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DSECP256K1_BUILD_SHARED=ON \
     -DSECP256K1_INSTALL=ON \
     -DSECP256K1_USE_ASM=ON
-cmake --build build -j$(nproc)
+cmake --build out/release -j$(nproc)
 sudo cmake --install build
 sudo ldconfig
 ```
@@ -1183,17 +1183,17 @@ See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md) for Tier 1
 ### CPU-Only Build
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/release -j
 ```
 
 ### With CUDA GPU Support
 
 ```bash
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_CUDA=ON
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 ### WebAssembly (Emscripten)
@@ -1488,9 +1488,9 @@ Selftest(true, SelftestMode::stress, 0xDEADBEEF); // Nightly with custom seed
 ### Sanitizer Builds
 
 ```bash
-cmake --preset cpu-asan && cmake --build build/cpu-asan -j    # ASan + UBSan
-cmake --preset cpu-tsan && cmake --build build/cpu-tsan -j    # TSan (data races)
-ctest --test-dir build/cpu-asan --output-on-failure
+cmake --preset cpu-asan && cmake --build out/release/cpu-asan -j    # ASan + UBSan
+cmake --preset cpu-tsan && cmake --build out/release/cpu-tsan -j    # TSan (data races)
+ctest --test-dir out/release/cpu-asan --output-on-failure
 ```
 
 ### Fuzz Testing
@@ -1678,8 +1678,8 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
 cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/dev -j
-ctest --test-dir build/dev --output-on-failure
+cmake --build out/release/dev -j
+ctest --test-dir out/release/dev --output-on-failure
 ```
 
 ---

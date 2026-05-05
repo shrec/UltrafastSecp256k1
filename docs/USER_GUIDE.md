@@ -117,10 +117,10 @@ git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
 
 # Configure
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 # Build
-cmake --build build -j
+cmake --build out/release -j
 
 # Test
 ctest --test-dir build --output-on-failure

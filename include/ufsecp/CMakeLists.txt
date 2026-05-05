@@ -9,7 +9,7 @@
 #      This links against the already-compiled `fastsecp256k1` CPU target.
 #
 #   2) Standalone -- configure directly:
-#        cmake -S include/ufsecp -B build-ufsecp -DCMAKE_BUILD_TYPE=Release
+#        cmake -S include/ufsecp -B out/ufsecp -DCMAKE_BUILD_TYPE=Release
 #      Gathers CPU sources automatically.
 # ============================================================================
 

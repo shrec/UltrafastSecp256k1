@@ -429,8 +429,8 @@ All core arithmetic operations are tested on boundary values:
 
 ```bash
 # Full audit suite (from build directory)
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/release -j
 ctest --test-dir build --output-on-failure
 
 # Specific audit targets

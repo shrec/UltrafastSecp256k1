@@ -568,13 +568,10 @@ def check_secret_path_changes(changed_files=None):
 def check_ctest_registry_health():
     """Detect stale CTest entries that reference missing executables."""
     issues = []
-    candidate_dirs = [
-        LIB_ROOT / 'build_rel',
-        LIB_ROOT / 'build',
-        LIB_ROOT / 'build_ci',
-        LIB_ROOT / 'build-ci',
-        LIB_ROOT / 'build_linux',
-    ]
+    # All builds go under out/ — scan its immediate subdirectories.
+    # Legacy root-level build*/ dirs are no longer created by any tool.
+    out_dir = LIB_ROOT / 'out'
+    candidate_dirs = sorted(out_dir.iterdir()) if out_dir.is_dir() else []
     launcher_names = {
         'python', 'python3', 'bash', 'sh', 'cmake', 'ctest',
         'pwsh', 'powershell', 'cmd', 'cmd.exe',

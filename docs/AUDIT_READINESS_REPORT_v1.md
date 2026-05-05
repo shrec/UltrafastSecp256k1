@@ -309,11 +309,11 @@ Every number in this report can be independently verified:
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
 
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_CROSS_TESTS=ON \
   -DSECP256K1_BUILD_FUZZ_TESTS=ON \
   -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
-cmake --build build -j
+cmake --build out/release -j
 
 # === ONE-COMMAND FULL AUDIT (263 modules, 9 failure classes, ~10 min) ===
 ./build/audit/unified_audit_runner
@@ -342,9 +342,9 @@ python3 ci/export_assurance.py -o assurance_report.json
 python3 ci/preflight.py
 
 # Sanitizer build (ASan + UBSan)
-cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+cmake -S . -B out/asan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
-cmake --build build-san -j
+cmake --build out/release-san -j
 ctest --test-dir build-san --output-on-failure
 
 # Structured selftest JSON output

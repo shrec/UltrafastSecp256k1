@@ -2,7 +2,7 @@
 # CMake toolchain file for cross-compiling to Linux ARM64 (aarch64)
 # ============================================================================
 # Usage:
-#   cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-linux-gnu.cmake
+#   cmake -S . -B out/release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-linux-gnu.cmake
 # ============================================================================
 
 set(CMAKE_SYSTEM_NAME Linux)

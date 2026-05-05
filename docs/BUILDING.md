@@ -22,7 +22,7 @@ bash ci/clean_local_artifacts.sh
 bash ci/clean_local_artifacts.sh --delete
 ```
 
-Migration: old `build/`, `build-*`, `build_*` dirs are safe to delete.
+Migration: old `out/release/`, `build-*`, `build_*` dirs are safe to delete.
 
 ---
 
@@ -80,26 +80,26 @@ Migration: old `build/`, `build-*`, `build_*` dirs are safe to delete.
 
 ```bash
 # Configure
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 # Build
-cmake --build build -j
+cmake --build out/release -j
 
 # Test
-ctest --test-dir build --output-on-failure
+ctest --test-dir out/release --output-on-failure
 ```
 
 ### With CUDA
 
 ```bash
 # Configure
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_CUDA=ON \
   -DCMAKE_CUDA_ARCHITECTURES="75;86;89"
 
 # Build
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 ### Canonical GPU Audit Build
@@ -113,7 +113,7 @@ cmake --preset cuda-audit-5060ti
 cmake --build --preset cuda-audit-5060ti -j
 
 # Verify the GPU audit tests are present
-ctest --test-dir build/cuda-release-5060ti -N
+ctest --test-dir out/release/cuda-release-5060ti -N
 
 # Run the GPU ABI + equivalence audit slice
 ctest --preset cuda-audit-5060ti
@@ -184,13 +184,13 @@ or CI-oriented build trees.
 sudo apt install cmake ninja-build clang-19 lld-19
 
 # Configure with Clang
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=clang-19 \
   -DCMAKE_CXX_COMPILER=clang++-19
 
 # Build
-cmake --build build -j$(nproc)
+cmake --build out/release -j$(nproc)
 ```
 
 #### Using GCC
@@ -200,13 +200,13 @@ cmake --build build -j$(nproc)
 sudo apt install cmake ninja-build g++-11
 
 # Configure with GCC
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=gcc-11 \
   -DCMAKE_CXX_COMPILER=g++-11
 
 # Build
-cmake --build build -j$(nproc)
+cmake --build out/release -j$(nproc)
 ```
 
 ---
@@ -221,13 +221,13 @@ cmake --build build -j$(nproc)
 winget install LLVM.LLVM
 
 # Configure
-cmake -S . -B build -G Ninja `
+cmake -S . -B out/release -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_C_COMPILER=clang `
   -DCMAKE_CXX_COMPILER=clang++
 
 # Build
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 #### Using MSVC (Not Recommended)
@@ -235,9 +235,9 @@ cmake --build build -j
 ```powershell
 # Open Visual Studio Developer Command Prompt
 # Then:
-cmake -S . -B build -G "Visual Studio 17 2022"
+cmake -S . -B out/release -G "Visual Studio 17 2022"
 
-cmake --build build --config Release
+cmake --build out/release --config Release
 ```
 
 > [!] **Warning**: MSVC produces slower code compared to Clang/GCC.
@@ -248,16 +248,16 @@ cmake --build build --config Release
 
 ```bash
 # AppleClang (default)
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/release -j
 
 # Or with Homebrew LLVM (for latest optimizations)
 brew install llvm ninja
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=$(brew --prefix llvm)/bin/clang \
   -DCMAKE_CXX_COMPILER=$(brew --prefix llvm)/bin/clang++
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 ARM64 (Apple Silicon) inline assembly is automatically enabled on aarch64.
@@ -270,12 +270,12 @@ ARM64 (Apple Silicon) inline assembly is automatically enabled on aarch64.
 
 ```bash
 # On RISC-V machine with Clang 19+
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=clang-21 \
   -DCMAKE_CXX_COMPILER=clang++-21
 
-cmake --build build -j$(nproc)
+cmake --build out/release -j$(nproc)
 ```
 
 #### Cross-Compilation (from x86-64)
@@ -285,14 +285,14 @@ cmake --build build -j$(nproc)
 sudo apt install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
 
 # Configure for cross-compilation
-cmake -S . -B build-riscv -G Ninja \
+cmake -S . -B out/riscv -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_SYSTEM_NAME=Linux \
   -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
   -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc \
   -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++
 
-cmake --build build-riscv -j$(nproc)
+cmake --build out/release-riscv -j$(nproc)
 ```
 
 #### Expected Performance (RISC-V)
@@ -318,13 +318,13 @@ cmake --build build-riscv -j$(nproc)
 
 ```bash
 # Configure
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_CUDA=ON \
   -DCMAKE_CUDA_ARCHITECTURES="75;86;89"
 
 # Build
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 #### GPU Architecture Reference
@@ -354,12 +354,12 @@ cmake -DCMAKE_CUDA_ARCHITECTURES=89 ...
 #### Build
 
 ```bash
-cmake -S . -B build-rocm -G Ninja \
+cmake -S . -B out/rocm -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_ROCM=ON \
   -DCMAKE_HIP_ARCHITECTURES="gfx1030;gfx1100"
 
-cmake --build build-rocm -j
+cmake --build out/release-rocm -j
 ```
 
 #### AMD GPU Architecture Reference
@@ -378,8 +378,8 @@ cmake --build build-rocm -j
 
 ```bash
 docker run --rm -v $(pwd):/src rocm/dev-ubuntu-22.04:6.3 \
-  bash -c "cd /src && cmake -S . -B build -G Ninja \
-    -DSECP256K1_BUILD_ROCM=ON && cmake --build build -j"
+  bash -c "cd /src && cmake -S . -B out/release -G Ninja \
+    -DSECP256K1_BUILD_ROCM=ON && cmake --build out/release -j"
 ```
 
 ---
@@ -394,11 +394,11 @@ docker run --rm -v $(pwd):/src rocm/dev-ubuntu-22.04:6.3 \
 #### Build
 
 ```bash
-cmake -S . -B build -G Ninja \
+cmake -S . -B out/release -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_OPENCL=ON
 
-cmake --build build -j
+cmake --build out/release -j
 ```
 
 On Windows, CMake auto-detects `OpenCL.lib` from the GPU driver in `C:\Windows\System32`.
@@ -423,8 +423,8 @@ source emsdk_env.sh
 ./ci/build_wasm.sh
 
 # Or manually:
-emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
-cmake --build build-wasm -j
+emcmake cmake -S wasm -B out/wasm -DCMAKE_BUILD_TYPE=Release
+cmake --build out/release-wasm -j
 ```
 
 #### Output
@@ -497,13 +497,13 @@ pod 'UltrafastSecp256k1', '~> 3.0.0'
 export ANDROID_NDK=$HOME/Android/Sdk/ndk/27.2.12479018
 
 # Build for arm64-v8a
-cmake -S . -B build-android -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+cmake -S . -B out/android -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/out/release/cmake/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -DANDROID_PLATFORM=android-24 \
   -DCMAKE_BUILD_TYPE=Release
 
-cmake --build build-android -j
+cmake --build out/release-android -j
 ```
 
 The library produces `libfastsecp256k1.a` for linking into Android apps via JNI.
@@ -569,12 +569,12 @@ See [RISC-V 64](#risc-v-64) section above.
 # Using MinGW-w64
 sudo apt install mingw-w64
 
-cmake -S . -B build-win -G Ninja \
+cmake -S . -B out/win -G Ninja \
   -DCMAKE_SYSTEM_NAME=Windows \
   -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
   -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++
 
-cmake --build build-win -j
+cmake --build out/release-win -j
 ```
 
 ---
@@ -611,8 +611,8 @@ If you see "symbol already defined" errors:
 ```bash
 # Rebuild clean
 rm -rf build
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/release -j
 ```
 
 ### MSVC Link Errors
@@ -664,11 +664,11 @@ After building, run tests to verify correctness:
 
 ```bash
 # Run all tests
-ctest --test-dir build --output-on-failure
+ctest --test-dir out/release --output-on-failure
 
 # Run benchmarks
-./build/cpu/bench_unified
-./build/cuda/secp256k1_cuda_bench  # If CUDA enabled
+./out/release/cpu/bench_unified
+./out/release/cuda/secp256k1_cuda_bench  # If CUDA enabled
 ```
 
 ---

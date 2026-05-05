@@ -3,12 +3,12 @@
 # ============================================================================
 #
 # Usage (device):
-#   cmake -S . -B build-ios \
+#   cmake -S . -B out/ios \
 #     -G Xcode \
 #     -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake
 #
 # Usage (simulator):
-#   cmake -S . -B build-ios-sim \
+#   cmake -S . -B out/ios-sim \
 #     -G Xcode \
 #     -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
 #     -DIOS_PLATFORM=SIMULATOR
