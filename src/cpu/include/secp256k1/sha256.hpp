@@ -150,6 +150,30 @@ public:
         return hash(h1.data(), h1.size());
     }
 
+    // Compact midstate: only the 32-byte state + 8-byte total (40 bytes).
+    // In a tag midstate, buf_ is always zeroed and buf_len_ is always 0 —
+    // they are dead weight in a full SHA256 copy. Use SHA256Midstate when
+    // copying a midstate into cached_tagged_hash() to avoid copying buf_[64].
+    struct Midstate {
+        std::uint32_t state[8];
+        std::uint64_t total;
+    };
+
+    Midstate capture_midstate() const noexcept {
+        Midstate m;
+        for (int i = 0; i < 8; ++i) m.state[i] = state_[i];
+        m.total = total_;
+        return m;
+    }
+
+    static SHA256 from_midstate(const Midstate& m) noexcept {
+        SHA256 ctx;
+        for (int i = 0; i < 8; ++i) ctx.state_[i] = m.state[i];
+        ctx.total_ = m.total;
+        // buf_ stays zeroed (default), buf_len_ stays 0 (default)
+        return ctx;
+    }
+
 private:
     std::uint32_t state_[8]{};
     std::uint8_t buf_[64]{};

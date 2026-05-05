@@ -341,8 +341,8 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
 #define SECP256K1_FAST_52BIT 1
 
 // File-scope FE52 beta constant — avoids per-call function-static init-flag
-// (atomic load on every call). Shared by batch_scalar_mul_fixed_k and any
-// future FE52 path needing the GLV endomorphism constant.
+// (atomic load on every call). Shared by batch_scalar_mul_fixed_k,
+// derive_phi52_table, and any future FE52 path needing the GLV endomorphism.
 static const FieldElement52 kBeta52_pt = FieldElement52::from_fe(
     FieldElement::from_bytes(glv_constants::BETA));
 
@@ -1077,11 +1077,8 @@ static void derive_phi52_table(
     int table_size,
     bool flip_phi)
 {
-    static const FieldElement52 beta52 = FieldElement52::from_fe(
-        FieldElement::from_bytes(glv_constants::BETA));
-
     for (int i = 0; i < table_size; i++) {
-        tbl_phiP[i].x = tbl_P[i].x * beta52;
+        tbl_phiP[i].x = tbl_P[i].x * kBeta52_pt;
         if (flip_phi) {
             // negate(1) gives magnitude 1 — normalize_weak() is redundant.
             tbl_phiP[i].y = tbl_P[i].y.negate(1);

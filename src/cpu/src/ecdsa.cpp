@@ -490,10 +490,10 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
         // R = k * G
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
-            // r = R.x mod n — normalize to affine first (ct::generator_mul_blinded
-            // returns a Jacobian point; X52() is only the affine x after Z=1).
-            auto r_bytes = R.x_only_bytes();
-            auto r = Scalar::from_bytes(r_bytes);
+            // r = R.x mod n — normalize to affine, then copy limbs directly.
+            // from_limbs() skips the byte-swap round-trip vs from_bytes(to_bytes());
+            // ge(ORDER) check is still performed (secp256k1 p > n).
+            auto r = Scalar::from_limbs(R.x().limbs());
             if (!r.is_zero()) {
                 // s = k^{-1} * (z + r * d) mod n  (CT scalar arithmetic)
                 auto k_inv = ct::scalar_inverse(k);

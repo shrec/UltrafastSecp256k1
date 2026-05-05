@@ -45,9 +45,9 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
     // r = R.x mod n (R.x is public after ct::generator_mul)
-    auto r_fe = R.x();
-    auto r_bytes = r_fe.to_bytes();
-    auto r = Scalar::from_bytes(r_bytes);  // NOT a secret scalar — public curve point x-coord
+    // from_limbs() skips the byte-swap round-trip; ge(ORDER) check is still
+    // performed because secp256k1 p > n (rare values in [n,p) need reduction).
+    auto r = Scalar::from_limbs(R.x().limbs());  // NOT a secret scalar — public curve point x-coord
     // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 

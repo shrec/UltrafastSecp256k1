@@ -2,6 +2,16 @@
 
 **UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-05 Performance Audit — A-04/A-06 (no security-boundary change)
+
+- **`ct_sign.cpp` / `ecdsa.cpp` A-06**: `r = R.x mod n` conversion path changed from
+  `to_bytes()` + `from_bytes()` (8 byte-swaps) to `from_limbs()` (direct limb copy +
+  `ge(ORDER)` check). `r` is the public x-coordinate of nonce point R = k·G. It is NOT
+  a secret scalar. CT properties of `k` and the private key are unaffected. Claimed
+  speedup: ecdsa_sign −11%, ct::ecdsa_sign −2% (measured, 11-pass IQR median).
+- **`point.cpp` A-04**: `derive_phi52_table` now uses file-scope `kBeta52_pt` instead of
+  a function-local `static const beta52`. Same value (GLV β constant), no algorithm change.
+
 ### 2026-05-05 Performance Audit — CT Refactoring (no security-boundary change)
 
 - **`ct_point.cpp` `ct_glv_make_v` extraction**: The GLV half-scalar CT-negate/increment

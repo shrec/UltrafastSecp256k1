@@ -2,7 +2,16 @@
 
 **UltrafastSecp256k1 v3.70.0** -- CT Layer Methodology & Audit Status
 
-### 2026-05-05 Performance Audit CT Refactoring
+### 2026-05-05 Performance Audit CT Refactoring (A-04, A-06)
+
+- `ct_sign.cpp` (`ct::ecdsa_sign`): Replaced `r_fe.to_bytes()` + `Scalar::from_bytes(r_bytes)`
+  with `Scalar::from_limbs(R.x().limbs())`. **No CT impact**: `r = R.x mod n` is the
+  x-coordinate of the public nonce point R = k·G — public data, not a secret scalar. The CT
+  properties of the secret nonce `k` and private key `d` are unchanged. The `ge(ORDER)`
+  reduction check in `from_limbs()` is still performed (secp256k1 p > n).
+- `point.cpp` (`derive_phi52_table`): Function-local `static const FieldElement52 beta52`
+  replaced with the existing file-scope `kBeta52_pt`. Both hold the public GLV constant β.
+  No CT impact — β is never secret-derived.
 
 - `ct_point.cpp`: Extracted the `make_v` GLV half-scalar CT-negate/increment lambda from four
   separate function-local copies (`scalar_mul_jac_fe52_z1`, `scalar_mul_jac`, `scalar_mul_prebuilt`,

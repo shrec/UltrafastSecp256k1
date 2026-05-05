@@ -2,7 +2,15 @@
 
 **Last updated**: 2026-05-05 | **Version**: 3.70.0
 
-### 2026-05-05 Secret Lifecycle Changes
+### 2026-05-05 Secret Lifecycle Changes (A-06 perf fix)
+
+- `ecdsa.cpp` (`ecdsa_sign`): Replaced `R.x_only_bytes()` + `Scalar::from_bytes(r_bytes)`
+  with `Scalar::from_limbs(R.x().limbs())`. The value `r = R.x mod n` is the public
+  x-coordinate of nonce point R = k·G. It is NOT secret material — no zeroization is
+  required or performed for `r`. Secret nonce `k` and its inverse `k_inv` continue to be
+  erased via `secure_erase` before return. No change to secret zeroization paths.
+- `ct_sign.cpp` (`ct::ecdsa_sign`): Same optimisation for the CT path. Secret nonce `k`
+  and `k_inv` zeroization is unchanged.
 
 - `musig2.cpp`: Clarified comment in `musig2_partial_sign` for out-of-range
   `signer_index` case — returns `Scalar::zero()` (caller ABI returns
