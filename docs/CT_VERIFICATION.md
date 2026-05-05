@@ -9,6 +9,10 @@
   x-coordinate of the public nonce point R = k·G — public data, not a secret scalar. The CT
   properties of the secret nonce `k` and private key `d` are unchanged. The `ge(ORDER)`
   reduction check in `from_limbs()` is still performed (secp256k1 p > n).
+- `ct_sign.cpp` (`ct::ecdsa_sign_hedged`): Applied the same `from_limbs()` optimization
+  (replacing the redundant `to_bytes()+from_bytes()` round-trip) to the hedged ECDSA sign
+  variant. **No CT impact**: identical reasoning applies — `R.x` is public curve-point data.
+  The hedged path was not updated in A-04; this closes the inconsistency with `ct::ecdsa_sign`.
 - `point.cpp` (`derive_phi52_table`): Function-local `static const FieldElement52 beta52`
   replaced with the existing file-scope `kBeta52_pt`. Both hold the public GLV constant β.
   No CT impact — β is never secret-derived.

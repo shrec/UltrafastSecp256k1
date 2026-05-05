@@ -2051,6 +2051,64 @@ void Point::add_mixed52_inplace(const FieldElement52& ax, const FieldElement52& 
     infinity_ = false;
     is_generator_ = false;
 }
+// FE52-native mixed-add with negated Y: this += (ax, -ay).
+// Mirrors add_mixed52_inplace but flips the S2 sign so no copy+negate is needed
+// for negative wNAF digits (saves 40-byte FE52 copy per negative digit in hot loops).
+void Point::add_mixed52_neg_inplace(const FieldElement52& ax, const FieldElement52& ay) {
+    z_one_ = false;
+    if (SECP256K1_UNLIKELY(infinity_)) {
+        x_ = ax;
+        y_ = ay.negate(1);   // result y = -ay
+        z_ = FieldElement52::one();
+        infinity_ = false;
+        is_generator_ = false;
+        return;
+    }
+
+    FieldElement52 const zz = z_.square();
+    FieldElement52 const u2 = ax * zz;
+    FieldElement52 s2 = ay * zz;
+    s2.mul_assign(z_);                                         // S2 = ay*Z1^3
+
+    FieldElement52 const negX1 = x_.negate(8);
+    FieldElement52 const h = u2 + negX1;
+
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
+        // Adding -ay: doubling when Y1 == -S2, i.e. Y1 + S2 == 0
+        FieldElement52 const sum = y_ + s2;
+        if (sum.normalizes_to_zero_var()) {
+            jac52_double_coords(x_, y_, z_);
+            infinity_ = false; is_generator_ = false; return;
+        }
+        x_ = FieldElement52::zero(); y_ = FieldElement52::one();
+        z_ = FieldElement52::zero(); infinity_ = true;
+        is_generator_ = false; return;
+    }
+
+    z_.mul_assign(h);
+
+    // i_val = Y1 - (-S2) = Y1 + S2  (sign flip vs positive add)
+    FieldElement52 const i_val = y_ + s2;
+
+    FieldElement52 h2 = h.square();
+    FieldElement52 const i2 = i_val.square();
+    h2.negate_assign(1);
+
+    FieldElement52 h3 = h2 * h;
+    FieldElement52 t = x_ * h2;
+
+    x_ = i2 + h3;
+    x_.add_assign(t);
+    x_.add_assign(t);
+
+    t.add_assign(x_);
+    h3.mul_assign(y_);
+    y_ = t * i_val;
+    y_.add_assign(h3);
+
+    infinity_ = false;
+    is_generator_ = false;
+}
 #endif
 // OPTIMIZED: Inline implementation to avoid 6 FieldElement struct copies per call
 void Point::sub_mixed_inplace(const FieldElement& ax, const FieldElement& ay) {
@@ -4145,6 +4203,12 @@ Point Point::dual_scalar_mul_gen_prebuilt(
             if (SECP256K1_LIKELY(d_p != 0)) {
                 int const abs_p = d_p > 0 ? d_p : -d_p;
                 SECP256K1_PREFETCH_READ(&tbl_P[static_cast<std::size_t>((abs_p-1)>>1)]);
+            }
+            // Prefetch phi(P) table — same density as P stream (w=5, ~50% nonzero)
+            int const d_phi = wnaf_b2[static_cast<std::size_t>(np)];
+            if (SECP256K1_LIKELY(d_phi != 0)) {
+                int const abs_phi = d_phi > 0 ? d_phi : -d_phi;
+                SECP256K1_PREFETCH_READ(&tbl_phi_base[static_cast<std::size_t>((abs_phi-1)>>1)]);
             }
         }
 

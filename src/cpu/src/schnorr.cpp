@@ -411,8 +411,8 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
     // ct::schnorr_sign_verified path and avoid generator_mul_blinded interactions.
     const auto sig = ct::schnorr_sign(kp, msg, aux_rand);
 
-    const bool r_zero = std::all_of(sig.r.begin(), sig.r.end(),
-                                    [](uint8_t b){ return b == 0; });
+    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
+    const bool r_zero = ((rw[0] | rw[1] | rw[2] | rw[3]) == 0);
     if (sig.s.is_zero() || r_zero) {
         return SchnorrSignature{};
     }

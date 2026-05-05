@@ -115,9 +115,9 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     auto R = ct::generator_mul(k);
     // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
-    auto r_fe = R.x();
-    auto r_bytes = r_fe.to_bytes();
-    auto r = Scalar::from_bytes(r_bytes);
+    // from_limbs: direct 4×64 copy + ge(ORDER) check — same as ct::ecdsa_sign.
+    // Avoids to_bytes()+from_bytes() round-trip (~15 ns of byte-swap overhead).
+    auto r = Scalar::from_limbs(R.x().limbs());
     // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 

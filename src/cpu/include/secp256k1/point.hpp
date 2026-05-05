@@ -177,6 +177,10 @@ public:
     // FE52-native mixed-add: avoids FE52->FE->FE52 roundtrip in hot loops.
     // Used by effective-affine Strauss MSM where precomp is stored as FE52.
     void add_mixed52_inplace(const FieldElement52& ax, const FieldElement52& ay);
+    // Adds affine point (ax, -ay): equivalent to subtracting (ax, ay).
+    // Avoids copying ay and calling negate_assign() before add_mixed52_inplace.
+    // Used by wNAF scan loops for negative digits.
+    void add_mixed52_neg_inplace(const FieldElement52& ax, const FieldElement52& ay);
 #endif
     void dbl_inplace();   // this = 2*this (modifies this, no allocation)
     void negate_inplace(); // this = -this (modifies this, no allocation)

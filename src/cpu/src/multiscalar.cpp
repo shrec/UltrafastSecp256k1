@@ -227,15 +227,13 @@ Point multi_scalar_mul(const Scalar* scalars,
             if (bit < wnaf_lens[i]) {
                 int32_t const digit = wnaf_storage[i * wnaf_capacity + bit];
                 if (SECP256K1_UNLIKELY(digit != 0)) {
-                    auto const idx = static_cast<std::size_t>(
-                        (digit > 0 ? digit - 1 : -digit - 1) / 2
-                    );
-                    auto const lx = tbl_P_x[base + idx];
-                    auto ly = tbl_P_y[base + idx];
-                    if (digit < 0) {
-                        ly.negate_assign(1);
+                    std::size_t const idx = static_cast<std::size_t>(
+                        (digit > 0 ? digit - 1 : -digit - 1) / 2);
+                    if (digit > 0) {
+                        R.add_mixed52_inplace(tbl_P_x[base + idx], tbl_P_y[base + idx]);
+                    } else {
+                        R.add_mixed52_neg_inplace(tbl_P_x[base + idx], tbl_P_y[base + idx]);
                     }
-                    R.add_mixed52_inplace(lx, ly);
                 }
             }
 
@@ -243,15 +241,13 @@ Point multi_scalar_mul(const Scalar* scalars,
             if (bit < wnaf_lens[n + i]) {
                 int32_t const digit = wnaf_storage[(n + i) * wnaf_capacity + bit];
                 if (SECP256K1_UNLIKELY(digit != 0)) {
-                    auto const idx = static_cast<std::size_t>(
-                        (digit > 0 ? digit - 1 : -digit - 1) / 2
-                    );
-                    auto const lx = tbl_phiP_x[base + idx];
-                    auto ly = tbl_phiP_y[base + idx];
-                    if (digit < 0) {
-                        ly.negate_assign(1);
+                    std::size_t const idx = static_cast<std::size_t>(
+                        (digit > 0 ? digit - 1 : -digit - 1) / 2);
+                    if (digit > 0) {
+                        R.add_mixed52_inplace(tbl_phiP_x[base + idx], tbl_phiP_y[base + idx]);
+                    } else {
+                        R.add_mixed52_neg_inplace(tbl_phiP_x[base + idx], tbl_phiP_y[base + idx]);
                     }
-                    R.add_mixed52_inplace(lx, ly);
                 }
             }
         }
