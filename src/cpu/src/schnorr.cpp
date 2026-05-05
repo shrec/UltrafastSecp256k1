@@ -437,7 +437,7 @@ SchnorrSignature schnorr_sign_verified(const Scalar& private_key,
 
 bool schnorr_verify(const uint8_t* pubkey_x32,
                     const uint8_t* msg32,
-                    const SchnorrSignature& sig) {
+                    const SchnorrSignature& sig) noexcept {
     // Step 0: BIP-340 strict range checks
     // Check s: must be in [1, n-1] -- enforced at parse time by parse_strict,
     // but also guard here for callers using from_bytes (reducing parser).
@@ -602,13 +602,13 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
 
 bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
                     const std::array<uint8_t, 32>& msg,
-                    const SchnorrSignature& sig) {
+                    const SchnorrSignature& sig) noexcept {
     return schnorr_verify(pubkey_x.data(), msg.data(), sig);
 }
 
 bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
                     const uint8_t* msg32,
-                    const SchnorrSignature& sig) {
+                    const SchnorrSignature& sig) noexcept {
     return schnorr_verify(pubkey_x.data(), msg32, sig);
 }
 

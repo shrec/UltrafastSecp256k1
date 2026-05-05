@@ -597,7 +597,7 @@ static inline void jac52_double_z1_to(
     out_y.negate_assign(2);
 }
 
-static inline void jac52_double_inplace(JacobianPoint52& p) noexcept {
+SECP256K1_INLINE static void jac52_double_inplace(JacobianPoint52& p) noexcept {
     // Branchless infinity propagation (like libsecp's secp256k1_gej_double):
     // On secp256k1 (a=0), 2Q = infinity iff Q = infinity (no order-2 points).
     // If p.infinity == true, the formula runs on garbage X/Y/Z but p.infinity
@@ -621,7 +621,7 @@ static JacobianPoint52 jac52_add_mixed(const JacobianPoint52& p, const AffinePoi
 // Inlined into the hot loop: with the h2-negation formula, the function body
 // is ~200 bytes of x86-64 code.  Two call sites at ~400 bytes added to the
 // loop body keeps total I-cache footprint well within L1 (32 KB).
-SECP256K1_HOT_FUNCTION
+SECP256K1_HOT_FUNCTION SECP256K1_INLINE
 static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;

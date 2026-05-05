@@ -76,27 +76,27 @@ SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
 // Sensitive stack data (d_bytes, t, k_prime, k, nonce_input) is erased
 // before return. For the canonical CT-validated ABI, prefer
 // ufsecp_schnorr_sign() or secp256k1::ct::schnorr_sign().
-SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
+[[nodiscard]] SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
 // Sign + verify (FIPS 186-4 fault attack countermeasure).
 // Verifies the produced Schnorr signature before returning it.
 // NOTE: CT — routes through ct::generator_mul_blinded (same as schnorr_sign above).
-SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
+[[nodiscard]] SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
                                        const std::array<std::uint8_t, 32>& msg,
                                        const std::array<std::uint8_t, 32>& aux_rand);
 
 // Sign from raw private key (convenience: creates keypair internally).
 // See above for aux_rand entropy requirements.
 // NOTE: CT — same CT guarantees as the keypair overload above.
-SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
+[[nodiscard]] SchnorrSignature schnorr_sign(const fast::Scalar& private_key,
                               const std::array<std::uint8_t, 32>& msg,
                               const std::array<std::uint8_t, 32>& aux_rand);
 
 // Raw key sign + verify (fault attack countermeasure).
 // NOTE: CT — same CT guarantees as the keypair overload above.
-SchnorrSignature schnorr_sign_verified(const fast::Scalar& private_key,
+[[nodiscard]] SchnorrSignature schnorr_sign_verified(const fast::Scalar& private_key,
                                        const std::array<std::uint8_t, 32>& msg,
                                        const std::array<std::uint8_t, 32>& aux_rand);
 
@@ -104,18 +104,18 @@ SchnorrSignature schnorr_sign_verified(const fast::Scalar& private_key,
 // pubkey_x: 32-byte x-only public key
 // msg: 32-byte message
 // sig: 64-byte signature
-bool schnorr_verify(const std::uint8_t* pubkey_x32,
+[[nodiscard]] bool schnorr_verify(const std::uint8_t* pubkey_x32,
                     const std::uint8_t* msg32,
-                    const SchnorrSignature& sig);
+                    const SchnorrSignature& sig) noexcept;
 
 // Array convenience wrappers
-bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
+[[nodiscard]] bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::array<std::uint8_t, 32>& msg,
-                    const SchnorrSignature& sig);
+                    const SchnorrSignature& sig) noexcept;
 
-bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
+[[nodiscard]] bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::uint8_t* msg32,
-                    const SchnorrSignature& sig);
+                    const SchnorrSignature& sig) noexcept;
 
 // -- Pre-cached X-only Public Key ---------------------------------------------
 // Caches the full Point (avoiding sqrt per verify), similar to libsecp's

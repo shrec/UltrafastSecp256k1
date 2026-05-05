@@ -27,7 +27,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 LIB_ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = LIB_ROOT / "docs"
-GRAPH_DB = LIB_ROOT / ".project_graph.db"
+# audit_viewer fix: use the active source_graph.db (tools/source_graph_kit/)
+# not the legacy .project_graph.db at the repo root. The legacy DB is absent
+# in most CI clones and on developer machines, causing /graph to always show
+# empty data even when the source graph is fully populated.
+GRAPH_DB = LIB_ROOT / "tools" / "source_graph_kit" / "source_graph.db"
+_LEGACY_GRAPH_DB = LIB_ROOT / ".project_graph.db"  # kept for fallback only
 
 # ---------------------------------------------------------------------------
 # CSS / HTML Template
@@ -900,17 +905,19 @@ def render_bundle() -> bytes:
 
 
 def render_graph() -> bytes:
-    if not GRAPH_DB.exists():
+    # Fallback to legacy .project_graph.db if the primary source_graph.db is absent.
+    _db = GRAPH_DB if GRAPH_DB.exists() else (_LEGACY_GRAPH_DB if _LEGACY_GRAPH_DB.exists() else None)
+    if _db is None:
         body = f"""
         <h1>Source Graph Stats</h1>
         <div class="alert">
           <strong>Graph DB not found</strong> at <code>{GRAPH_DB}</code>.
-          Run <code>python3 ci/build_project_graph.py</code> to build it.
+          Run <code>python3 tools/source_graph_kit/source_graph.py build -i</code> to build it.
         </div>"""
         return page("Graph", body, "/graph")
 
     try:
-        con = sqlite3.connect(str(GRAPH_DB))
+        con = sqlite3.connect(str(_db))
         cur = con.cursor()
 
         def count(table, where=""):
@@ -1008,7 +1015,7 @@ def render_graph() -> bytes:
         body = f"""
         <h1>Source Graph Stats</h1>
         <div class="alert info">
-          DB: <code>{GRAPH_DB}</code>
+          DB: <code>{_db}</code>
         </div>
         <div class="stats-grid">{stat_cards}</div>
         {top_funcs_html}

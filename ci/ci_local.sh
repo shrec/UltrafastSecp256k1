@@ -28,6 +28,17 @@ for arg in "$@"; do
   [[ "$arg" == "--msan" ]] && MSAN=1 && FULL=1
 done
 
+# F-23 fix: ensure temp build dirs are cleaned up even on SIGINT/SIGTERM/ERR.
+# Without a trap, Ctrl-C or a timeout kill leaves /tmp/ci_local_build_<PID>
+# and /tmp/ci_local_msan_<PID> accumulating across multiple interrupted runs.
+BUILD_DIR=""
+MSAN_DIR=""
+_ci_local_cleanup() {
+  [[ -n "${BUILD_DIR:-}" ]] && rm -rf "$BUILD_DIR" 2>/dev/null
+  [[ -n "${MSAN_DIR:-}"  ]] && rm -rf "$MSAN_DIR"  2>/dev/null
+}
+trap '_ci_local_cleanup' EXIT INT TERM
+
 pass=0; fail=0; adv_skip=0
 declare -A gate_results  # gate label → pass|fail|adv-skip, for local artifact
 
@@ -233,13 +244,17 @@ _artifact="${SCRIPT_DIR}/../out/ci_local_last_run.json"
 mkdir -p "$(dirname "$_artifact")"
 {
   python3 - <<PYEOF
-import json, sys
+import json, subprocess, sys
 gates = {}
 $(for key in "${!gate_results[@]}"; do
     printf "gates[%s] = %s\n" "$(python3 -c "import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))" "$key")" "$(python3 -c "import json,sys; sys.stdout.write(json.dumps(sys.argv[1]))" "${gate_results[$key]}")"
   done)
+# F-03 persistence fix: record the git SHA so two runs on the same commit are
+# distinguishable and the artifact can be traced back to a specific commit.
+_sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() or "unknown"
 doc = {
     "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "git_sha": _sha,
     "overall_pass": $([ $fail -eq 0 ] && echo True || echo False),
     "pass": $pass,
     "fail": $fail,

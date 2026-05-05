@@ -683,7 +683,7 @@ static bool ecdsa_check_xcoord(const Point& R_prime, const ECDSASignature& sig) 
 // or use ecdsa_batch_verify() which enforces low-S as a pre-validation step.
 bool ecdsa_verify(const uint8_t* msg_hash32,
                   const Point& public_key,
-                  const ECDSASignature& sig) {
+                  const ECDSASignature& sig) noexcept {
     SECP_ASSERT_ON_CURVE(public_key);
     // Reject degenerate inputs early
     if (public_key.is_infinity()) return false;
@@ -710,7 +710,7 @@ bool ecdsa_verify(const uint8_t* msg_hash32,
 // Array wrapper: delegates to raw-pointer implementation.
 bool ecdsa_verify(const std::array<uint8_t, 32>& msg_hash,
                   const Point& public_key,
-                  const ECDSASignature& sig) {
+                  const ECDSASignature& sig) noexcept {
     return ecdsa_verify(msg_hash.data(), public_key, sig);
 }
 
@@ -757,7 +757,7 @@ bool ecdsa_pubkey_parse(EcdsaPublicKey& out,
 
 bool ecdsa_verify(const std::uint8_t* msg_hash32,
                   const EcdsaPublicKey& pubkey,
-                  const ECDSASignature& sig) {
+                  const ECDSASignature& sig) noexcept {
     if (pubkey.point.is_infinity()) return false;
     if (sig.r.is_zero() || sig.s.is_zero()) return false;
 
@@ -782,7 +782,7 @@ bool ecdsa_verify(const std::uint8_t* msg_hash32,
 
 bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
                   const EcdsaPublicKey& pubkey,
-                  const ECDSASignature& sig) {
+                  const ECDSASignature& sig) noexcept {
     return ecdsa_verify(msg_hash.data(), pubkey, sig);
 }
 

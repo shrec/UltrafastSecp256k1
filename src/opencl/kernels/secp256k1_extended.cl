@@ -1452,10 +1452,17 @@ inline int schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     Scalar e;
     scalar_from_bytes_impl(e_hash, &e);
 
-    // s = k + e * d mod n
+    // s = k + e * d mod n  (CT: apply value barriers to secret operands d and k)
     Scalar ed;
-    scalar_mul_mod_n_impl(&e, &d, &ed);
-    scalar_add_mod_n_impl(&k, &ed, &sig->s);
+    {
+        Scalar d_ct = d, k_ct = k;
+        for (int _i = 0; _i < 4; ++_i) {
+            volatile ulong _vb_d = d_ct.limbs[_i]; d_ct.limbs[_i] = _vb_d;
+            volatile ulong _vb_k = k_ct.limbs[_i]; k_ct.limbs[_i] = _vb_k;
+        }
+        scalar_mul_mod_n_impl(&e, &d_ct, &ed);
+        scalar_add_mod_n_impl(&k_ct, &ed, &sig->s);
+    }
 
     /* Reject s == 0 (BIP-340) */
     if (scalar_is_zero(&sig->s)) return 0;

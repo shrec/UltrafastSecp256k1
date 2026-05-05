@@ -118,14 +118,14 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& ms
 // Verify an ECDSA signature against a public key and message hash.
 // Accepts both low-S and high-S signatures.
 // Raw-pointer overload: avoids 32B array copy when caller has a raw pointer.
-bool ecdsa_verify(const std::uint8_t* msg_hash32,
+[[nodiscard]] bool ecdsa_verify(const std::uint8_t* msg_hash32,
                   const fast::Point& public_key,
-                  const ECDSASignature& sig);
+                  const ECDSASignature& sig) noexcept;
 
 // Array overload: thin wrapper.
-bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
+[[nodiscard]] bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
                   const fast::Point& public_key,
-                  const ECDSASignature& sig);
+                  const ECDSASignature& sig) noexcept;
 
 // -- Cached-pubkey ECDSA verify -----------------------------------------------
 // Parse once → verify many times without rebuilding GLV tables each call.
@@ -148,12 +148,12 @@ bool ecdsa_pubkey_parse(EcdsaPublicKey& out,
 
 // Verify using cached GLV tables (skips ~1,954 ns table rebuild per call).
 // Falls back to ecdsa_verify(Point) if tables were not built successfully.
-bool ecdsa_verify(const std::uint8_t* msg_hash32,
+[[nodiscard]] bool ecdsa_verify(const std::uint8_t* msg_hash32,
                   const EcdsaPublicKey& pubkey,
-                  const ECDSASignature& sig);
-bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
+                  const ECDSASignature& sig) noexcept;
+[[nodiscard]] bool ecdsa_verify(const std::array<std::uint8_t, 32>& msg_hash,
                   const EcdsaPublicKey& pubkey,
-                  const ECDSASignature& sig);
+                  const ECDSASignature& sig) noexcept;
 
 // -- RFC 6979 Deterministic Nonce ---------------------------------------------
 
