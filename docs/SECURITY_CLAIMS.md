@@ -2,6 +2,15 @@
 
 **UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-05 Performance Audit — A-12/A-13/A-15 P3 minor fixes (no security-boundary change)
+
+- **`scalar.cpp` A-12**: `k.bit(0) == 1` → `k.limbs_[0] & 1u` in `to_naf()`/`to_wnaf()`
+  loops. Purely mechanical — no algorithm or security change.
+- **`point.cpp` A-13**: Removed trailing-zero trim loops after `compute_wnaf_into()` calls.
+  Those loops were no-ops (function already sets `out_len = last_set_bit + 1`).
+- **`ecdsa.cpp` A-15**: `y.to_bytes()[31] & 1` → `y.limbs()[0] & 1u` in compressed pubkey
+  parse. `y` is sqrt of a public x-coordinate — not secret. No CT/zeroization impact.
+
 ### 2026-05-05 Performance Audit — A-04/A-06 (no security-boundary change)
 
 - **`ct_sign.cpp` / `ecdsa.cpp` A-06**: `r = R.x mod n` conversion path changed from

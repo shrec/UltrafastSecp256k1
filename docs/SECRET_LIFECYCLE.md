@@ -2,6 +2,12 @@
 
 **Last updated**: 2026-05-05 | **Version**: 3.70.0
 
+### 2026-05-05 Secret Lifecycle Changes (A-06, A-15 perf fixes)
+
+- `ecdsa.cpp` (pubkey parse, A-15): `y.to_bytes()[31] & 1` → `y.limbs()[0] & 1u` for
+  Y-parity check in compressed pubkey parsing. `y` is the result of `sqrt()` on a
+  public x-coordinate — it is NOT secret material. No zeroization path is affected.
+
 ### 2026-05-05 Secret Lifecycle Changes (A-06 perf fix)
 
 - `ecdsa.cpp` (`ecdsa_sign`): Replaced `R.x_only_bytes()` + `Scalar::from_bytes(r_bytes)`

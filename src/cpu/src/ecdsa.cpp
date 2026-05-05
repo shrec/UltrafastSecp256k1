@@ -735,8 +735,7 @@ bool ecdsa_pubkey_parse(EcdsaPublicKey& out,
         auto y2 = x * x * x + FieldElement::from_uint64(7);
         auto y  = y2.sqrt();
         if (!(y * y == y2)) return false;
-        auto y_bytes  = y.to_bytes();
-        bool y_is_odd = (y_bytes[31] & 1) != 0;
+        bool y_is_odd = (y.limbs()[0] & 1u) != 0;  // LSB of limbs_[0] == LSB of the field element
         bool want_odd = (bytes[0] == 0x03);
         if (y_is_odd != want_odd) y = FieldElement::zero() - y;
         P = Point::from_affine(x, y);

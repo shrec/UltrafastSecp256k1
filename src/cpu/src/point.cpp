@@ -1292,8 +1292,8 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
 
     // Trim trailing zeros -- GLV half-scalars are ~128 bits but wNAF
     // always outputs 256+ positions. This halves the doubling count.
-    while (wnaf1_len > 0 && wnaf1_buf[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_buf[wnaf2_len - 1] == 0) --wnaf2_len;
+    // compute_wnaf_into already sets out_len = last_set_bit + 1, excluding
+    // trailing zeros. The trim loops below are no-ops; removed (A-13).
 
     // -- Precompute odd multiples [1P, 3P, 5P, ..., 15P] in 5x52 ------
     std::array<AffinePoint52, glv_table_size> tbl_P;

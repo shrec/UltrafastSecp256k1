@@ -1149,7 +1149,7 @@ std::vector<int8_t> Scalar::to_naf() const {
     Scalar k = *this;
     
     while (!k.is_zero()) {
-        if (k.bit(0) == 1) {  // k is odd
+        if (k.limbs_[0] & 1u) {  // k is odd (LSB of limbs_[0])
             // Get lowest 2 bits to determine sign
             auto const low_bits = static_cast<std::uint8_t>(k.limbs_[0] & 0x3);
             int8_t digit = 0;
@@ -1206,7 +1206,7 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
     const int window_half = static_cast<int>(window_size >> 1);     // 2^(w-1)
     
     while (!k.is_zero()) {
-        if (k.bit(0) == 1) {  // k is odd
+        if (k.limbs_[0] & 1u) {  // k is odd (LSB of limbs_[0])
             // Extract w bits
             int digit = static_cast<int>(k.limbs_[0] & window_mask);
             
