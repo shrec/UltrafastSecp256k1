@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`scripts/` → `ci/` path migration** — all CI/tooling scripts (`scripts/*.py`, `scripts/*.sh`)
+  are now canonically located under `ci/`. The `scripts/` directory remains as a legacy mirror
+  for the duration of v4.0 but should not be used in new references. Historical changelog
+  entries that reference `scripts/` paths reflect the location at the time of each commit.
+
 ### Added
 - **Audit report infrastructure overhaul** — unified report schema v1.0.0, build provenance,
   artifact analysis, bug capsule format, and CI gating policy. Committed `d906a77d`.

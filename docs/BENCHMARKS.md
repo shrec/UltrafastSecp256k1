@@ -2,9 +2,18 @@
 
 Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
+**Label conventions used in this document:**
+
+| Label | Meaning |
+|-------|---------|
+| `release-grade` | Conservative numbers from a controlled rerun; safe to cite in release context |
+| `diagnostic` | One-time measurement for a specific investigation; not a general performance claim |
+| `archived` | Historical snapshot; verify against current bench before citing |
+| `hot-cache` | Measurement relies on warm caches or precomputed tables; label applies to citation scope |
+
 ---
 
-## Summary
+## Summary (release-grade)
 
 | Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | ZK Prove | vs libsecp |
 |----------|-----------|---------------|------------|-------------|----------|------------|
@@ -64,7 +73,7 @@ These values are mainly intended as workflow reference points. For publishable
 cross-machine comparisons, use the full pinned benchmark methodology and JSON
 artifacts from `bench_unified`.
 
-### x86-64 Full Rerun (2026-03-24, post-exploit-fix audit)
+### x86-64 Full Rerun (2026-03-24, post-exploit-fix audit) `[archived]`
 
 Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.  
 **Machine:** Intel Core i5-14400F · Linux · Clang 19.1.7 · TSC 2.501 GHz  
@@ -93,7 +102,7 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 
 No regressions vs previous rerun (2026-03-17). All 70/70 audit modules pass.
 
-### x86-64 Full Rerun (2026-04-05, post-musig2-bip32 optimization)
+### x86-64 Full Rerun (2026-04-05, post-musig2-bip32 optimization) `[archived]`
 
 MuSig2 key aggregation and BIP-32 HD derivation optimizations committed.  
 **Machine:** Intel Core i5-14400F · Linux · Clang 19.1.7 · TSC 2.501 GHz  
@@ -137,7 +146,7 @@ Selected full primitives from the rerun:
 
 No regressions vs 2026-03-24 baseline.
 
-### x86-64 Batch Verify Rerun (2026-03-17)
+### x86-64 Batch Verify Rerun (2026-03-17) `[archived / diagnostic]`
 
 A retained low-risk x86 CPU improvement was keeping the Schnorr batch pubkey cache
 capacity aligned with the full batch size in `src/cpu/src/batch_verify.cpp` instead of
@@ -155,7 +164,7 @@ uncached Schnorr path while preserving correctness (`ctest -R 'comprehensive|mul
 This change does not materially affect the cached-path benchmark; the measured win is specifically
 the uncached parse-and-resolve flow for larger Schnorr batches.
 
-### Cross-Platform Refresh Status (2026-03-18)
+### Cross-Platform Refresh Status (2026-03-18) `[archived]`
 
 Recent retained reruns and validation passes across the active optimization campaign:
 
@@ -179,7 +188,7 @@ documented separately from the stable host interface.
 
 ---
 
-## x86-64 Benchmarks
+## x86-64 Benchmarks `[archived / diagnostic — verify against current bench before citing]`
 
 ### x86-64 / Linux (i5, Clang 19.1.7, AVX2)
 

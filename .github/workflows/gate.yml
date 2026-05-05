@@ -119,8 +119,10 @@ jobs:
           python-version: '3.12'
 
       - name: Validate CI path references
-        # Fails fast if any script/file referenced in workflows doesn't exist.
-        # Prevents "No such file or directory" breakage after refactors.
+        # Best-effort static CI path scan: catches most explicit path references in
+        # workflow YAML. Does not cover inline-bash, variable-interpolated, or
+        # subprocess paths. Runtime positive-path steps provide remaining coverage.
+        # Prevents "No such file or directory" breakage after common refactors.
         run: python3 ci/check_ci_paths.py
 
       - name: Fast deterministic gates
@@ -413,6 +415,8 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: API contract checks (advisory)
         # Single skip mechanism: continue-on-error makes the step yellow if it
@@ -430,7 +434,12 @@ jobs:
           fi
 
       - name: Secret path change gate (blocking)
-        run: python3 ci/check_secret_path_changes.py
+        run: |
+          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
+          BEFORE_SHA="${{ github.event.before }}"
+          python3 ci/check_secret_path_changes.py \
+            --base "$BASE_REF" \
+            ${BEFORE_SHA:+--before-sha "$BEFORE_SHA"}
 
       - name: CUDA/MSVC preflight
         run: python3 ci/preflight.py --cuda-msvc

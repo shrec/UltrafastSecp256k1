@@ -2,8 +2,10 @@
 """
 caas_serve.py — Web panel for CAAS dashboard + audit artifact browsing.
 
-Default bind is 127.0.0.1 (local-only). For LAN access use --lan or
-explicitly pass --bind 0.0.0.0.
+SECURITY: This is a local reviewer tool. Default bind is 127.0.0.1 (local-only).
+--lan / --bind 0.0.0.0 exposes the panel to all network interfaces. Do NOT use
+--lan on untrusted networks: artifacts may contain local paths, environment
+metadata, logs, and private evidence that should not be shared publicly.
 
 Routes:
   /                    Rendered CAAS dashboard (ci/caas_dashboard.py output)

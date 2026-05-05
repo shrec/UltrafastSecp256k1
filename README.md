@@ -195,19 +195,11 @@ This library ships fast code — then systematically tries to break it, on every
 
 ---
 
-## Recent Performance Milestones (March 2026)
+## Performance Snapshot
 
-All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only throughput.
+Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) with pinned compiler/driver/toolkit versions, raw logs, and methodology notes.
 
-| Operation | Previous | **Now** | Δ |
-|-----------|----------|---------|---|
-| ECDSA Verify (GPU) | 410.1 ns / 2.44 M/s | **246.7 ns / 4.05 M/s** | **+66 % throughput** |
-| Schnorr Verify (GPU) | 354.6 ns / 2.82 M/s | **185.9 ns / 5.38 M/s** | **+91 % throughput** |
-| FROST Partial Verify (GPU) | — | **748.9 ns / 1.34 M/s** | ⭐ New — first open-source GPU FROST |
-| Batch Jacobian → Compressed | — | **10.3 ns / 97.2 M/s** | ⭐ New kernel |
-| BIP-352 Silent Payments (GPU LUT) | 179.2 ns / 5.58 M/s | **91.0 ns / 11.00 M/s** | **+97 % throughput** |
-
-> The ECDSA and Schnorr verify speedups come from the Shamir+GLV double-scalar multiplication, INT32 field arithmetic, and warp-level reduction pipeline. FROST partial verify is now callable via the stable C ABI as [`ufsecp_gpu_frost_verify_partial_batch()`](#gpu-c-abi-ufsecp_gpu).
+> All performance claims in this README link to that document. Do not rely on inline numbers without checking the corresponding benchmark entry for hardware, batch size, and measurement conditions.
 
 ## Why UltrafastSecp256k1? — Detail
 
@@ -216,7 +208,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 - **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 239 exploit-PoC test files (all 239 registered as runner modules, parity enforced by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
-- **BIP-352 Silent Payments at 11.00 M/s** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) runs at 91.0 ns/op on CUDA, **267× faster** than single-threaded CPU ([GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352))
+- **BIP-352 Silent Payments GPU pipeline** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) on CUDA; throughput and CPU comparison: [GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352)
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
@@ -228,7 +220,7 @@ All measurements: RTX 5060 Ti (SM 12.0, CUDA 12), batch=16 384, kernel-only thro
 
 > **Why this library, in depth?** See [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) for a full breakdown of the audit culture, block-based CI/CD pipeline, graph-assisted review model, formal verification layers, and supply-chain hardening that back these claims.
 
-> **Evidence replay prep:** Run `bash scripts/external_audit_prep.sh` to produce a reproducible reviewer-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full evidence package.
+> **Evidence replay prep:** Run `bash ci/external_audit_prep.sh` to produce a reproducible reviewer-facing bundle with preflight outputs, assurance export, traceability artifacts, and an optional full evidence package.
 
 > **Claim map:** Top-level trust claims are keyed in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md): CPU CT routing `A-001`, stable GPU ABI `A-002`, cross-backend GPU parity `A-003`, benchmark reproducibility `A-004`, exploit-audit surface `A-005`, graph-assisted review `A-006`, open self-audit transparency `A-007`, and ROCm/HIP status discipline `A-008`.
 
@@ -281,13 +273,13 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
 [![CUDA](https://img.shields.io/badge/CUDA-12.0+-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![OpenCL](https://img.shields.io/badge/OpenCL-3.0-green.svg)](https://www.khronos.org/opencl/)
-[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple)](metal/)
-[![Metal](https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple)](metal/)
-[![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg)](cuda/README.md)
-[![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg)](wasm/)
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple)](src/metal/)
+[![Metal](https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple)](src/metal/)
+[![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg)](src/cuda/README.md)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg)](bindings/wasm/)
 [![ARM64](https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg)](https://developer.android.com/ndk)
 [![RISC-V](https://img.shields.io/badge/RISC--V-RV64GC-orange.svg)](https://riscv.org/)
-[![Android](https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg)](android/)
+[![Android](https://img.shields.io/badge/Android-NDK%20r27-brightgreen.svg)](bindings/android/)
 [![iOS](https://img.shields.io/badge/iOS-17%2B%20XCFramework-lightgrey.svg)](cmake/ios.toolchain.cmake)
 [![ESP32-S3](https://img.shields.io/badge/ESP32--S3-Xtensa%20LX7-orange.svg)](https://www.espressif.com/en/products/socs/esp32-s3)
 [![ESP32](https://img.shields.io/badge/ESP32-Xtensa%20LX6-orange.svg)](https://www.espressif.com/en/products/socs/esp32)
@@ -297,11 +289,11 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
 ## Highlights
 
-- **BIP-352 GPU pipeline at 11.00 M/s** -- full silent payment scanning pipeline on CUDA (91.0 ns/op), 267× faster than CPU
+- **BIP-352 GPU pipeline** -- full silent payment scanning pipeline on CUDA; benchmark and CPU comparison in [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 - **GPU-accelerated secp256k1** -- high-throughput CUDA verification kernels, batch ECDH, BIP-352 scanning, and BIP-324 encryption on CUDA/OpenCL/Metal; CT-sensitive signing always routes through the CPU CT layer; GPU operations that handle secret material (ECDH, BIP-352, BIP-324) require a trusted single-tenant environment (see [GPU Security Model](docs/BACKEND_ASSURANCE_MATRIX.md))
 - **GPU C ABI (`ufsecp_gpu`)** -- stable 16-op FFI for GPU batch ops across CUDA, OpenCL, and Metal, with full backend parity on the public surface
 - **Zero-Knowledge cryptographic layer** -- Pedersen commitments, DLEQ proofs, Bulletproof range proofs, Ethereum-compatible Keccak-256
-- **17–67× faster batch operations** -- all-affine Pippenger with touched-bucket optimization
+- **Batch operations** -- all-affine Pippenger with touched-bucket optimization; see [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for measured throughput
 - **Multi-language bindings** -- Python (`pip install ufsecp`), Node.js (`npm i ufsecp`), Rust, Go, C#/.NET, Java, Swift, PHP, Ruby, Dart, React Native — all via the stable C ABI
 - **Embedded device support** -- ESP32-S3, ESP32-P4, ESP32-C6, STM32 Cortex-M
 - **Zero-dependency portable core** -- no Boost, no OpenSSL, compiles anywhere from server-class GPUs to bare-metal microcontrollers
@@ -325,7 +317,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
 | Audit modules (`unified_audit_runner`) | **97 non-exploit modules + 239 exploit PoCs across 9 sections, 0 failures** |
-| Exploit PoC test files | **232 tests, 20+ coverage areas, 0 failures** |
+| Exploit PoC test files | **251 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Nightly differential tests | **~1,300,000+ random checks / night** |

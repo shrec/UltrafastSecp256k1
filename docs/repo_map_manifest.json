@@ -40,10 +40,10 @@
       "tier": "public-data-only",
       "summary": "CUDA, OpenCL, and Metal acceleration for public-data workloads.",
       "paths": [
-        "cuda/",
-        "opencl/",
-        "metal/",
-        "gpu/"
+        "src/cuda/",
+        "src/opencl/",
+        "src/metal/",
+        "src/gpu/"
       ],
       "signals": [
         "Batch verify/scanning",
@@ -78,7 +78,7 @@
       "tier": "needs-hardening",
       "summary": "Browser and JavaScript runtime build target.",
       "paths": [
-        "wasm/"
+        "bindings/wasm/"
       ],
       "signals": [
         "Separate product",

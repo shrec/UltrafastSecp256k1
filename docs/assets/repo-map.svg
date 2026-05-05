@@ -80,13 +80,13 @@
 <text x="68" y="798" font-size="16" font-weight="800" fill="#334155">Primary paths</text>
 <text x="372" y="798" font-size="16" font-weight="800" fill="#334155">Signals</text>
 <circle cx="76" cy="824" r="3.2" fill="#64748b"/>
-<text x="88" y="828" font-size="15" fill="#0f172a">cuda/</text>
+<text x="88" y="828" font-size="15" fill="#0f172a">src/cuda/</text>
 <circle cx="76" cy="846" r="3.2" fill="#64748b"/>
-<text x="88" y="850" font-size="15" fill="#0f172a">opencl/</text>
+<text x="88" y="850" font-size="15" fill="#0f172a">src/opencl/</text>
 <circle cx="76" cy="868" r="3.2" fill="#64748b"/>
-<text x="88" y="872" font-size="15" fill="#0f172a">metal/</text>
+<text x="88" y="872" font-size="15" fill="#0f172a">src/metal/</text>
 <circle cx="76" cy="890" r="3.2" fill="#64748b"/>
-<text x="88" y="894" font-size="15" fill="#0f172a">gpu/</text>
+<text x="88" y="894" font-size="15" fill="#0f172a">src/gpu/</text>
 <circle cx="380" cy="824" r="3.2" fill="#64748b"/>
 <text x="392" y="828" font-size="15" fill="#0f172a">Batch verify/scanning</text>
 <circle cx="380" cy="846" r="3.2" fill="#64748b"/>
@@ -126,7 +126,7 @@
 <text x="68" y="1182" font-size="16" font-weight="800" fill="#334155">Primary paths</text>
 <text x="372" y="1182" font-size="16" font-weight="800" fill="#334155">Signals</text>
 <circle cx="76" cy="1208" r="3.2" fill="#64748b"/>
-<text x="88" y="1212" font-size="15" fill="#0f172a">wasm/</text>
+<text x="88" y="1212" font-size="15" fill="#0f172a">bindings/wasm/</text>
 <circle cx="380" cy="1208" r="3.2" fill="#64748b"/>
 <text x="392" y="1212" font-size="15" fill="#0f172a">Separate product</text>
 <circle cx="380" cy="1230" r="3.2" fill="#64748b"/>

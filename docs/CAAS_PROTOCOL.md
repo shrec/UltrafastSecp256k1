@@ -130,6 +130,23 @@ python3 ci/external_audit_bundle.py
 python3 ci/verify_external_audit_bundle.py --json -o caas_bundle_verify.json
 ```
 
+## Local Reviewer Web Panel
+
+`ci/caas_serve.py` provides an interactive artifact browser for local review sessions.
+
+```bash
+python3 ci/caas_serve.py           # binds to 127.0.0.1:8080 (safe default)
+python3 ci/caas_serve.py --port 9090
+python3 ci/caas_serve.py --lan     # binds to 0.0.0.0 — LAN-accessible
+```
+
+> **Security:** `caas_serve.py` is a local reviewer tool. The default bind (`127.0.0.1`)
+> is safe. Do not use `--lan` or `--bind 0.0.0.0` on untrusted networks.
+> Artifacts may contain local paths, environment metadata, logs, and private evidence.
+
+The panel serves the CAAS dashboard and all files under `docs/` and `out/` artifact roots.
+It does not require a build — it reads already-generated artifacts.
+
 ## Required Status Checks
 
 - `CAAS / Static Analysis`

@@ -51,13 +51,28 @@ SECRET_ABI_FILES = {
 }
 
 
-def get_changed_files() -> list[str]:
+def get_changed_files(base: str | None = None, before_sha: str | None = None) -> list[str]:
     changed = set()
-    commands = [
+
+    # On GitHub Actions the working tree is clean — git diff HEAD / --cached always
+    # returns empty.  Use the base ref or before-sha to compare commits instead.
+    if base or before_sha:
+        ref = base or before_sha
+        cmd = ["git", "diff", "--name-only", f"{ref}..HEAD"]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, cwd=str(LIB_ROOT), check=False
+        )
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line:
+                changed.add(line)
+        return sorted(changed)
+
+    # Local fallback: staged + unstaged changes relative to HEAD.
+    for command in [
         ["git", "diff", "--name-only", "HEAD"],
         ["git", "diff", "--cached", "--name-only"],
-    ]
-    for command in commands:
+    ]:
         result = subprocess.run(
             command,
             capture_output=True,
@@ -110,8 +125,12 @@ def _matches_prefixes(path: str, prefixes: tuple[str, ...]) -> bool:
     return any(path.startswith(prefix) for prefix in prefixes)
 
 
-def build_report(changed_files: list[str] | None = None) -> tuple[dict, bool]:
-    changed = sorted(set(changed_files or get_changed_files()))
+def build_report(
+    changed_files: list[str] | None = None,
+    base: str | None = None,
+    before_sha: str | None = None,
+) -> tuple[dict, bool]:
+    changed = sorted(set(changed_files or get_changed_files(base=base, before_sha=before_sha)))
     changed_set = set(changed)
     ct_files, security_files = _load_secret_surface_sets()
 
@@ -199,12 +218,21 @@ def _print_text_report(report: dict, has_fail: bool) -> None:
 
 def main(argv: list[str]) -> int:
     files = None
+    base = None
+    before_sha = None
     json_mode = "--json" in argv
+
     if "--files" in argv:
         index = argv.index("--files")
         files = [arg for arg in argv[index + 1:] if not arg.startswith("--")]
+    if "--base" in argv:
+        index = argv.index("--base")
+        base = argv[index + 1]
+    if "--before-sha" in argv:
+        index = argv.index("--before-sha")
+        before_sha = argv[index + 1]
 
-    report, has_fail = build_report(files)
+    report, has_fail = build_report(files, base=base, before_sha=before_sha)
     if json_mode:
         print(json.dumps(report, indent=2))
     else:

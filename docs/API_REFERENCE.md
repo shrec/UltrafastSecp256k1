@@ -2532,7 +2532,7 @@ void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cac
 
 ## Version
 
-UltrafastSecp256k1 v3.69.0
+UltrafastSecp256k1 v4.0.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).
 
