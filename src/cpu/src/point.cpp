@@ -3897,14 +3897,19 @@ namespace {
     constexpr unsigned kDualMulWindowP    = 5;
     constexpr int kDualMulPTableSize      = (1 << (kDualMulWindowP - 2)); // 8
 
+    // Store directly as AffinePoint52 (5×52-bit limbs, 80 bytes/entry).
+    // Previously used AffinePointCompact (4×64, 64 bytes) which required
+    // a to_affine52() conversion (30 shift+mask ops, ~10-15 ns) on every
+    // non-zero wNAF digit lookup in the hot verify loop. Direct FE52 storage
+    // eliminates this per-lookup conversion at the cost of +131 KB per table.
     struct DualMulGenTables {
-        AffinePointCompact tbl_G[kDualMulGTableSize];
-        AffinePointCompact tbl_H[kDualMulGTableSize];
+        AffinePoint52 tbl_G[kDualMulGTableSize];
+        AffinePoint52 tbl_H[kDualMulGTableSize];
     };
 
     // Build one odd-multiple table for base point B.
     static void dual_mul_build_table(const JacobianPoint52& B,
-                                     AffinePointCompact* out, std::size_t count) {
+                                     AffinePoint52* out, std::size_t count) {
         JacobianPoint52 const d = jac52_double(B);
         FieldElement52 const C = d.z, C2 = C.square(), C3 = C2 * C;
         AffinePoint52 const d_aff = {d.x, d.y};
@@ -3934,8 +3939,7 @@ namespace {
         zs[0] = inv;
         for (std::size_t i = 0; i < count; i++) {
             FieldElement52 const zinv2 = zs[i].square(), zinv3 = zinv2 * zs[i];
-            AffinePoint52 const aff = {iso[i].x * zinv2, iso[i].y * zinv3};
-            out[i] = AffinePointCompact::from_affine52(aff);
+            out[i] = {iso[i].x * zinv2, iso[i].y * zinv3};
         }
     }
 
@@ -4084,34 +4088,33 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         jac52_double_inplace(result52);
 
-        // Variable-time branched sign handling (like libsecp256k1).
-        // Avoids ~15-op branchless conditional_negate on ~50% of lookups
-        // where the digit is positive and no negation is needed.
+        // G/H table entries are now AffinePoint52 — no to_affine52() conversion needed.
+        // Positive digit: pass const ref directly (zero copy). Negative: 80-byte copy + negate.
         {
             int const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
                 if (d > 0) {
-                    pt = gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
+                    jac52_add_zinv_inplace(result52,
+                        gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)], Z_shared);
                 } else {
-                    pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
+                    AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)];
                     pt.y.negate_assign(1);
+                    jac52_add_zinv_inplace(result52, pt, Z_shared);
                 }
-                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
         {
             int const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
                 if (d > 0) {
-                    pt = gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)].to_affine52();
+                    jac52_add_zinv_inplace(result52,
+                        gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)], Z_shared);
                 } else {
-                    pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)].to_affine52();
+                    AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)];
                     pt.y.negate_assign(1);
+                    jac52_add_zinv_inplace(result52, pt, Z_shared);
                 }
-                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
@@ -4214,31 +4217,31 @@ Point Point::dual_scalar_mul_gen_prebuilt(
 
         jac52_double_inplace(result52);
 
-        // G and H digit application (from precomputed generator tables)
+        // G/H table entries are AffinePoint52 — no to_affine52() conversion needed.
         {
             int const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
                 if (d > 0) {
-                    pt = gen_tables->tbl_G[static_cast<std::size_t>((d-1)>>1)].to_affine52();
+                    jac52_add_zinv_inplace(result52,
+                        gen_tables->tbl_G[static_cast<std::size_t>((d-1)>>1)], Z_P);
                 } else {
-                    pt = gen_tables->tbl_G[static_cast<std::size_t>((-d-1)>>1)].to_affine52();
+                    AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d-1)>>1)];
                     pt.y.negate_assign(1);
+                    jac52_add_zinv_inplace(result52, pt, Z_P);
                 }
-                jac52_add_zinv_inplace(result52, pt, Z_P);
             }
         }
         {
             int const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                AffinePoint52 pt;
                 if (d > 0) {
-                    pt = gen_tables->tbl_H[static_cast<std::size_t>((d-1)>>1)].to_affine52();
+                    jac52_add_zinv_inplace(result52,
+                        gen_tables->tbl_H[static_cast<std::size_t>((d-1)>>1)], Z_P);
                 } else {
-                    pt = gen_tables->tbl_H[static_cast<std::size_t>((-d-1)>>1)].to_affine52();
+                    AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d-1)>>1)];
                     pt.y.negate_assign(1);
+                    jac52_add_zinv_inplace(result52, pt, Z_P);
                 }
-                jac52_add_zinv_inplace(result52, pt, Z_P);
             }
         }
 
