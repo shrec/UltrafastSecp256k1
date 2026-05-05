@@ -19,6 +19,11 @@
 
 #pragma once
 
+// Guard matches src/cpu/include/secp256k1/types.hpp (forwarding header).
+// Whichever file is included first defines the types; the other is skipped.
+#ifndef SECP256K1_TYPES_HPP_INCLUDED_
+#define SECP256K1_TYPES_HPP_INCLUDED_
+
 #include <cstdint>
 #include <cstddef>
 
@@ -118,3 +123,5 @@ inline const ScalarData* sc_to_data(const void* sc) noexcept {
 }
 
 } // namespace secp256k1
+
+#endif // SECP256K1_TYPES_HPP_INCLUDED_

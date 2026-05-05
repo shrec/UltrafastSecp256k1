@@ -521,7 +521,14 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
 
 ECDSASignature ecdsa_sign_verified(const std::array<uint8_t, 32>& msg_hash,
                                    const Scalar& private_key) {
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     auto result = ecdsa_sign(msg_hash, private_key);
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     if (!result.r.is_zero()) {
         auto pk = ct::generator_mul(private_key);

@@ -989,37 +989,6 @@ template <std::size_t N>
     return result;
 }
 
-// Phase 5.7: Modified window digit extraction for wNAF-compatible tables
-// We still extract standard signed windows, but tables store only odd multiples
-std::vector<int32_t> compute_window_digits(const Scalar& scalar, unsigned window_bits, std::size_t window_count) {
-    if (window_bits == 0U || window_bits > 30U) {
-        #if SECP256K1_ESP32_BUILD
-        return std::vector<int32_t>(); // Return empty on error
-        #else
-        throw std::runtime_error("Unsupported window size for digit extraction");
-        #endif
-    }
-    const std::uint32_t mask = (1U << window_bits) - 1U;
-    std::array<std::uint64_t, 5> working{};
-    const auto& limbs = scalar.limbs();
-    for (std::size_t i = 0; i < limbs.size(); ++i) {
-        working[i] = limbs[i];
-    }
-    std::vector<int32_t> digits(window_count, 0);
-    for (std::size_t idx = 0; idx < window_count; ++idx) {
-        auto const chunk = static_cast<std::uint32_t>(working[0] & mask);
-        auto digit = static_cast<int32_t>(chunk);
-        right_shift(working, window_bits);
-        const int32_t threshold = 1 << (window_bits - 1);
-        if (digit >= threshold) {
-            digit -= (1 << window_bits);
-            increment(working);
-        }
-        digits[idx] = digit;
-    }
-    return digits;
-}
-
 // Maximum window count for any valid window_bits in [2, 30]:
 // window_count = ceil(256 / window_bits) → max at window_bits=2 → 128.
 // Stack-allocated equivalent of compute_window_digits.

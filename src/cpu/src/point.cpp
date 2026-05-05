@@ -3868,7 +3868,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     // -- Window widths: w=15 for G (precomputed), w=6 for P (per-call) ---
     constexpr unsigned WINDOW_G = 15;             // -> 2^13 = 8192 entries per G/H table
     constexpr unsigned WINDOW_P = kDualMulWindowP; // -> 2^4 = 16 entries per P/psiP table
-    constexpr int G_TABLE_SIZE = (1 << (WINDOW_G - 2));  // 8192
+    [[maybe_unused]] constexpr int G_TABLE_SIZE = (1 << (WINDOW_G - 2));  // 8192
     constexpr int P_TABLE_SIZE = kDualMulPTableSize;      // 16
 
     // -- Generator tables (file-scope singleton, shared with dual_scalar_mul_gen_prebuilt) --

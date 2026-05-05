@@ -203,13 +203,7 @@ static constexpr std::array<std::uint8_t, 32> kGlvLambdaBytes{{
 //  Fast GLV decomposition helpers (exploit known limb sizes)
 // ============================================================================
 
-#if defined(__SIZEOF_INT128__)
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-
-// Group order n (little-endian 64-bit limbs)
+// Group order n (little-endian 64-bit limbs) — used by both fast and fallback paths
 static constexpr std::uint64_t kN[4] = {
     0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
     0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
@@ -221,6 +215,35 @@ static constexpr std::uint64_t kNHalf[4] = {
     0xDFE92F46681B20A0ULL, 0x5D576E7357A4501DULL,
     0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL
 };
+
+// Compare 4-limb unsigned value: a >= b (little-endian)
+static bool glv_ge_n(const std::uint64_t a[4], const std::uint64_t b[4]) {
+    for (int i = 3; i >= 0; --i) {
+        if (a[i] > b[i]) return true;
+        if (a[i] < b[i]) return false;
+    }
+    return true; // equal
+}
+
+// Subtract b from a (4-limb). Returns borrow (0 or 1).
+static std::uint64_t glv_sub4(const std::uint64_t a[4], const std::uint64_t b[4],
+                               std::uint64_t r[4]) {
+    std::uint64_t borrow = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t t = a[i] - borrow;
+        borrow = (a[i] < borrow) ? 1ULL : 0ULL;
+        std::uint64_t s = t - b[i];
+        borrow += (t < b[i]) ? 1ULL : 0ULL;
+        r[i] = s;
+    }
+    return borrow;
+}
+
+#if defined(__SIZEOF_INT128__)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 
 // NC = 2^256 - n (129 bits, 3 limbs). Used for fast modular reduction.
 static constexpr std::uint64_t kNC[3] = {
@@ -284,29 +307,6 @@ static void glv_mul_2x4(const std::uint64_t a[2], const std::uint64_t b[4],
     GLV_EXTRACT(r[4]);
     // Column 5: carry
     r[5] = c0;
-}
-
-// Compare 4-limb unsigned value: a >= b (little-endian)
-static bool glv_ge_n(const std::uint64_t a[4], const std::uint64_t b[4]) {
-    for (int i = 3; i >= 0; --i) {
-        if (a[i] > b[i]) return true;
-        if (a[i] < b[i]) return false;
-    }
-    return true; // equal
-}
-
-// Subtract n from a (4-limb). Returns borrow (0 or 1).
-static std::uint64_t glv_sub4(const std::uint64_t a[4], const std::uint64_t b[4],
-                               std::uint64_t r[4]) {
-    std::uint64_t borrow = 0;
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t t = a[i] - borrow;
-        borrow = (a[i] < borrow) ? 1ULL : 0ULL;
-        std::uint64_t s = t - b[i];
-        borrow += (t < b[i]) ? 1ULL : 0ULL;
-        r[i] = s;
-    }
-    return borrow;
 }
 
 // Reduce a wide value (up to 7 limbs) modulo n.
