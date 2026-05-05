@@ -7,6 +7,53 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-05 — Bug Bounty Red-Team Round 2: 10 Findings Fixed (C×4, H×3, M×3)
+
+Second bug-bounty pass over GPU backends, FROST ABI, and shim layer.
+Regression guards added in `audit/test_exploit_bugbounty_20260505.cpp` (BB-01..BB-06).
+
+### Critical (C) — All fixed
+
+- **BUG-C1**: `secp256k1_recovery.cl` used `scalar_is_even_impl` (LSB parity) instead of
+  `ct_scalar_is_high` + `ct_scalar_normalize_low_s` for low-S normalization.
+  Wrong signatures and wrong recovery IDs ~50% of the time.
+  Fixed: `src/opencl/kernels/secp256k1_recovery.cl:164`.
+- **BUG-C2**: `secp256k1_recovery.cl` used `scalar_mul_impl` (variable-time wNAF) on secret
+  nonce `k` for k*G, and `scalar_inverse_impl` (variable-time) for k⁻¹.
+  Fixed: CT generator mul + CT Fermat inverse via CT includes. Same file.
+- **BUG-C3**: `ufsecp_frost_sign` did not check `n_signers >= threshold`. Sub-threshold
+  signing silently produced invalid partial signatures with UFSECP_OK.
+  Fixed: `src/cpu/src/impl/ufsecp_musig2.cpp`.
+- **BUG-C4**: `ufsecp_frost_sign` parsed signing share with `scalar_parse_strict` (accepts
+  zero) instead of `scalar_parse_strict_nonzero` (Rule 11). Zero share leaks nonce.
+  Fixed: same file.
+
+### High (H) — All fixed
+
+- **BUG-H1**: CUDA/OpenCL/Metal BIP32 `bip32_derive_child` did not guard against
+  `depth == 255`, silently wrapping to 0. CPU path had the guard; GPU paths did not.
+  Fixed: `src/cuda/include/bip32.cuh`, `src/opencl/kernels/secp256k1_bip32.cl`,
+  `src/metal/shaders/secp256k1_bip32.h`.
+- **BUG-H2**: CUDA `recovery.cuh:ecdsa_sign_recoverable` used variable-time `scalar_mul`
+  on secret nonce k for k*G, and variable-time `scalar_inverse` for k⁻¹.
+  Fixed: `ct::generator_mul` + `ct::scalar_inverse` via `ct/ct_point.cuh` include.
+- **BUG-H3**: `shim_recovery.cpp:secp256k1_ecdsa_sign_recoverable` used `(void)ctx`,
+  discarding context flags. CONTEXT_VERIFY was accepted for signing.
+  Fixed: `compat/libsecp256k1_shim/src/shim_recovery.cpp` — added `ctx_can_sign`.
+
+### Medium (M) — All fixed
+
+- **BUG-M1**: `ct_ecdsa_sign_impl` (OpenCL `secp256k1_ct_sign.cl`) missing zero privkey
+  check at function entry. Every other signing function had this check.
+  Fixed: added `ct_scalar_is_zero` guard.
+- **BUG-M2**: GPU BIP32 normal-child derivation used non-CT windowed generator mul on
+  private key (for HMAC input). Metal already CT; CUDA and OpenCL were not.
+  Fixed: `ct::generator_mul` in bip32.cuh; `ct_generator_mul_impl` in secp256k1_bip32.cl.
+- **BUG-M3**: Cosmetic: misaligned `}` on null-check block in `ufsecp_ecdsa_sign_recoverable`
+  and `ufsecp_schnorr_sign`. Fixed: proper 4-space indentation.
+
+---
+
 ## 2026-05-05 — Full Red-Team Audit: 17 Findings Fixed (P0×4, P1×6, P2×7)
 
 Red-team / bug-bounty audit of entire codebase before Bitcoin Core PR submission.

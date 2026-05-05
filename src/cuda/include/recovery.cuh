@@ -12,7 +12,8 @@
 // 64-bit limb mode only.
 // ============================================================================
 
-#include "ecdsa.cuh"   // ECDSASignatureGPU, SHA256, RFC 6979, scalar ops
+#include "ecdsa.cuh"         // ECDSASignatureGPU, SHA256, RFC 6979, scalar ops
+#include "ct/ct_point.cuh"   // BUG-H2 FIX: CT generator mul for secret nonce k
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -94,18 +95,19 @@ __device__ inline bool ecdsa_sign_recoverable(
     rfc6979_nonce(private_key, msg_hash, &k);
     if (scalar_is_zero(&k)) return false;
 
-    // R = k * G
-    JacobianPoint R;
-    scalar_mul(&GENERATOR_JACOBIAN, &k, &R);
-    if (R.infinity) return false;
+    // BUG-H2 FIX: CT generator multiply — no variable-time wNAF on secret nonce k.
+    // Previously: scalar_mul (windowed wNAF, secret-dependent access) leaked k via timing.
+    CTJacobianPoint R_ct;
+    ct::generator_mul(&k, &R_ct);
+    if (R_ct.infinity != 0) return false;  // infinity mask: ~0 = infinity
 
-    // Convert R to affine
+    // Affine conversion: these field ops are data-independent (Z is not secret)
     FieldElement z_inv, z_inv2, z_inv3, rx_aff, ry_aff;
-    field_inv(&R.z, &z_inv);
+    field_inv(&R_ct.z, &z_inv);
     field_sqr(&z_inv, &z_inv2);
     field_mul(&z_inv, &z_inv2, &z_inv3);
-    field_mul(&R.x, &z_inv2, &rx_aff);
-    field_mul(&R.y, &z_inv3, &ry_aff);
+    field_mul(&R_ct.x, &z_inv2, &rx_aff);
+    field_mul(&R_ct.y, &z_inv3, &ry_aff);
 
     // r = R.x mod n (as scalar)
     uint8_t rx_bytes[32];
@@ -138,9 +140,10 @@ __device__ inline bool ecdsa_sign_recoverable(
     }
     if (overflow) recid |= 2;
 
-    // s = k^-^1 * (z + r*d) mod n
+    // BUG-H2 FIX: CT Fermat inverse — fixed 256-iteration trace, no secret-dependent branches.
+    // Previously: scalar_inverse (extended-GCD, variable-time) leaked nonce bits via timing.
     Scalar k_inv;
-    scalar_inverse(&k, &k_inv);
+    ct::scalar_inverse(&k, &k_inv);
 
     Scalar rd;
     scalar_mul_mod_n(&r, private_key, &rd);

@@ -239,7 +239,7 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
                                              int* recid_out) {
     if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !sig64_out || !recid_out)) {
         return UFSECP_ERR_NULL_ARG;
-}
+    }
     ctx_clear_err(ctx);
 
     std::array<uint8_t, 32> msg;
@@ -309,7 +309,7 @@ ufsecp_error_t ufsecp_schnorr_sign(ufsecp_ctx* ctx,
                                    uint8_t sig64_out[64]) {
     if (SECP256K1_UNLIKELY(!ctx || !msg32 || !privkey || !aux_rand || !sig64_out)) {
         return UFSECP_ERR_NULL_ARG;
-}
+    }
     ctx_clear_err(ctx);
 
     Scalar sk;

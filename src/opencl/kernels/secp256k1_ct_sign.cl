@@ -28,6 +28,10 @@ inline void ct_jacobian_to_affine(const CTJacobianPoint* p,
 // ---------------------------------------------------------------------------
 inline int ct_ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv,
                               ECDSASignature* sig) {
+    // BUG-M1 FIX: reject zero private key before RFC 6979 nonce derivation.
+    // Every other signing function checks this; ct_ecdsa_sign_impl was the only
+    // one that skipped it. A zero key produces a well-formed but worthless signature.
+    if (ct_scalar_is_zero(priv)) return 0;
     // RFC 6979 nonce derivation (deterministic, so safe to use fast-path)
     Scalar k;
     rfc6979_nonce_impl(priv, msg_hash, &k);

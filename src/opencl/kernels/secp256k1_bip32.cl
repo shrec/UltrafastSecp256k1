@@ -20,6 +20,11 @@
 #define SECP256K1_BIP32_CL
 
 #include "secp256k1_zk.cl"
+// BUG-M2 FIX: CT generator mul for private key derivation in normal child keys
+#include "secp256k1_ct_ops.cl"
+#include "secp256k1_ct_field.cl"
+#include "secp256k1_ct_scalar.cl"
+#include "secp256k1_ct_point.cl"
 
 // =============================================================================
 // SHA-512 Implementation
@@ -459,8 +464,11 @@ inline int bip32_derive_child_impl(
         if (parent->is_private) {
             Scalar sk;
             scalar_from_bytes_impl(parent->key, &sk);
-            JacobianPoint P;
-            scalar_mul_generator_impl(&P, &sk);
+            // BUG-M2 FIX: use CT generator mul — private key is secret.
+            // scalar_mul_generator_impl (windowed) leaks key bits via timing.
+            CTJacobianPoint P_ct;
+            ct_generator_mul_impl(&sk, &P_ct);
+            JacobianPoint P = ct_point_to_jacobian(&P_ct);
             point_to_compressed_impl(&P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent->key[i];
@@ -524,6 +532,8 @@ inline int bip32_derive_child_impl(
     }
 
     for (int i = 0; i < 32; i++) child->chain_code[i] = I[32 + i];
+    // BUG-H1 FIX: depth is uchar (uint8) — adding 1 to 255 silently wraps to 0.
+    if (parent->depth == 0xFFu) return 0;
     child->depth = parent->depth + 1;
     child->child_number = index;
     bip32_fingerprint_impl(parent, child->parent_fp);

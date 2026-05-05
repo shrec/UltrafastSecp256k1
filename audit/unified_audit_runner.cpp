@@ -494,6 +494,7 @@ int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path
 // Forward declarations -- 2026-05-05 Red-Team Audit Regression Guards
 // ============================================================================
 int test_exploit_red_team_audit_20260505_run(); // RTA-01..08: P1-5,P2-3,P0-3 CPU regressions
+int test_exploit_bugbounty_20260505_run();       // BB-01..06: C1-C4,H1,H3 bug bounty regressions
 
 // ============================================================================
 // Forward declarations -- 2026-05-02 Bitcoin Core PR security audit fixes
@@ -966,6 +967,11 @@ static const AuditModule ALL_MODULES[] = {
     // CPU-testable regressions: P1-5 (double-normalize removed), P2-3 (r==0 check),
     // P0-3 (ct_ecdsa_sign_verified actually verifies), P0-2 (low-S correctness).
     { "red_team_audit_20260505",     "2026-05-05 red-team: P0-3/P1-5/P2-3 ABI recid+recov+schnorr_verified CPU regressions (RTA-01..08)", "exploit_poc", test_exploit_red_team_audit_20260505_run, false },
+    // === 2026-05-05 Bug Bounty Red-Team Regression Guards ===
+    // C1: OCL recovery scalar_is_even→scalar_is_low_s  C2: non-CT nonce k*G
+    // C3: FROST n_signers<threshold  C4: FROST signing share strict_nonzero
+    // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
+    { "bugbounty_20260505",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_20260505_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

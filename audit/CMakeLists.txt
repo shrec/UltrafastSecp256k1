@@ -2925,6 +2925,33 @@ target_compile_definitions(test_mutation_artifact_scan_standalone PRIVATE
 add_test(NAME mutation_artifact_scan COMMAND test_mutation_artifact_scan_standalone)
 set_tests_properties(mutation_artifact_scan PROPERTIES TIMEOUT 30 LABELS "audit;mutation;integrity")
 
+# -- 2026-05-05 Bug Bounty regression guards (BB-01..BB-06) ----------------
+# BB-01/02: FROST threshold + signing share zero key (BUG-C3/C4)
+# BB-03: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign (BUG-H3)
+# BB-04: low-S semantics proof (BUG-C1 class)
+# BB-05: CPU BIP32 depth=255 guard proxy for GPU (BUG-H1)
+# BB-06: ufsecp_ecdsa_sign_recoverable always low-S (BUG-C1/C2 ABI proxy)
+add_executable(test_exploit_bugbounty_20260505_standalone
+    test_exploit_bugbounty_20260505.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
+audit_target_defaults(test_exploit_bugbounty_20260505_standalone)
+target_include_directories(test_exploit_bugbounty_20260505_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_exploit_bugbounty_20260505_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_bugbounty_20260505 COMMAND test_exploit_bugbounty_20260505_standalone)
+set_tests_properties(exploit_bugbounty_20260505 PROPERTIES
+    TIMEOUT 120 LABELS "audit;exploit;security;frost;shim;bip32;ct;regression;2026-05-05")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)

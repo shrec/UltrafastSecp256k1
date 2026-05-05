@@ -298,8 +298,10 @@ __device__ inline bool bip32_derive_child(
         if (parent->is_private) {
             Scalar sk;
             scalar_from_bytes(parent->key, &sk);
+            // BUG-M2 FIX: use CT generator mul — private key is secret, windowed
+            // scalar_mul_generator_w8 leaks key bits via timing and cache patterns.
             JacobianPoint P;
-            scalar_mul_generator_w8(&sk, &P);
+            ct::generator_mul(&sk, &P);
             point_to_compressed(&P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent->key[i];
@@ -377,6 +379,9 @@ __device__ inline bool bip32_derive_child(
     }
 
     for (int i = 0; i < 32; i++) child->chain_code[i] = I[32 + i];
+    // BUG-H1 FIX: depth is uint8_t — adding 1 to 255 silently wraps to 0.
+    // CPU bip32.cpp has this guard; GPU backends were not updated symmetrically.
+    if (parent->depth == 0xFFu) return false;
     child->depth = parent->depth + 1;
     child->child_number = index;
     bip32_fingerprint(parent, child->parent_fp);

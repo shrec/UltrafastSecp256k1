@@ -593,7 +593,15 @@ ufsecp_error_t ufsecp_frost_sign(
     if (n_signers > kp.num_participants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid signer count");
     }
-    if (SECP256K1_UNLIKELY(!scalar_parse_strict(keypkg + 12, kp.signing_share))) {
+    // BUG-C3 FIX: enforce threshold — FROST is a t-of-n scheme; signing with fewer
+    // than threshold participants produces an invalid/unverifiable signature silently.
+    if (n_signers < kp.threshold) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT,
+                           "n_signers below threshold (FROST requires >= t signers)");
+    }
+    // BUG-C4 FIX: signing share is a secret key — must use strict_nonzero (Rule 11).
+    // scalar_parse_strict accepted zero, producing s = k + 0*e = k (nonce leaked directly).
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(keypkg + 12, kp.signing_share))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "invalid signing share in keypkg");
     }
     kp.verification_share = point_from_compressed(keypkg + 44);

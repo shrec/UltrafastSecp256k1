@@ -491,6 +491,8 @@ inline bool bip32_derive_child(thread const ExtendedKeyMetal &parent,
     }
 
     for (int i = 0; i < 32; i++) child.chain_code[i] = I[32 + i];
+    // BUG-H1 FIX: depth is uint8_t — adding 1 to 255 silently wraps to 0.
+    if (parent.depth == 0xFFu) return false;
     child.depth = parent.depth + 1;
     child.child_number = index;
     bip32_fingerprint(parent, child.parent_fp);

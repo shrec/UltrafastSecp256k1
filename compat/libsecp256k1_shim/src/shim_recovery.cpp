@@ -108,7 +108,9 @@ int secp256k1_ecdsa_sign_recoverable(
     secp256k1_nonce_function noncefp,
     const void *ndata)
 {
-    (void)ctx;
+    // BUG-H3 FIX: enforce CONTEXT_SIGN permission — symmetry with secp256k1_ecdsa_sign.
+    // Previously (void)ctx discarded the context, allowing CONTEXT_VERIFY to sign.
+    if (!ctx_can_sign(ctx)) return 0;
     if (!sig || !msghash32 || !seckey) return 0;
     if (noncefp != nullptr &&
         noncefp != secp256k1_nonce_function_rfc6979 &&

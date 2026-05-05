@@ -8,6 +8,17 @@
 #ifndef SECP256K1_RECOVERY_CL
 #define SECP256K1_RECOVERY_CL
 
+// BUG-C1/C2 FIX (2026-05-05): pull in CT primitives for k*G and k^-1.
+// secp256k1_ct_sign.cl provides ct_jacobian_to_affine, ct_scalar_inverse_impl,
+// ct_scalar_is_high, and ct_scalar_normalize_low_s. All files are guarded so
+// including them here is safe even when this file is concatenated with
+// secp256k1_ct_extended.cl (which also includes them).
+#include "secp256k1_ct_ops.cl"
+#include "secp256k1_ct_field.cl"
+#include "secp256k1_ct_scalar.cl"
+#include "secp256k1_ct_point.cl"
+#include "secp256k1_ct_sign.cl"
+
 typedef struct {
     Scalar r;
     Scalar s;
@@ -94,17 +105,12 @@ inline int ecdsa_sign_recoverable_impl(const uchar msg_hash[32],
         if (kz) return 0;
     }
 
-    // R = k * G
-    JacobianPoint R;
-    scalar_mul_impl(&R, &GENERATOR_POINT, &k);
-    if (R.infinity) return 0;
-
-    FieldElement z_inv, z_inv2, z_inv3, rx_aff, ry_aff;
-    field_inv_impl(&z_inv, &R.z);
-    field_sqr_impl(&z_inv2, &z_inv);
-    field_mul_impl(&z_inv3, &z_inv, &z_inv2);
-    field_mul_impl(&rx_aff, &R.x, &z_inv2);
-    field_mul_impl(&ry_aff, &R.y, &z_inv3);
+    // BUG-C2 FIX: CT generator multiplication — no variable-time wNAF on secret nonce k.
+    // Previously: scalar_mul_impl (windowed, non-CT) leaked nonce bits via timing.
+    CTJacobianPoint R_jac;
+    ct_generator_mul_impl(&k, &R_jac);
+    FieldElement rx_aff, ry_aff;
+    ct_jacobian_to_affine(&R_jac, &rx_aff, &ry_aff);
 
     uchar rx_bytes[32];
     for (int i = 0; i < 4; ++i) {
@@ -140,9 +146,10 @@ inline int ecdsa_sign_recoverable_impl(const uchar msg_hash[32],
     }
     if (overflow) recid |= 2;
 
-    // s = k^-1 * (z + r*d) mod n
+    // BUG-C2 FIX: CT Fermat inverse — fixed 256-iteration trace, no secret-dependent branches.
+    // Previously: scalar_inverse_impl (variable-time extended-GCD) leaked nonce bits.
     Scalar k_inv;
-    scalar_inverse_impl(&k_inv, &k);
+    ct_scalar_inverse_impl(&k, &k_inv);
 
     Scalar rd;
     scalar_mul_mod_n_impl(&rd, &r, private_key);
@@ -160,10 +167,16 @@ inline int ecdsa_sign_recoverable_impl(const uchar msg_hash[32],
         if (sz) return 0;
     }
 
-    // Normalize low-S
-    if (!scalar_is_even_impl(&s)) {
-        scalar_negate_impl(&s, &s);
-        recid ^= 1;
+    // BUG-C1 FIX: CT branchless low-S normalization.
+    // Previously used scalar_is_even_impl (checks s & 1 == 0), which is the
+    // numeric-even predicate — completely different from low-S (s <= n/2).
+    // That produced wrong signatures and wrong recovery IDs ~50% of the time.
+    // Now: capture the high-S mask BEFORE normalizing so the recid flip is
+    // consistent with which sign was applied (mirrors ct_ecdsa_sign_recoverable).
+    {
+        ulong high_mask = ct_scalar_is_high(&s);
+        ct_scalar_normalize_low_s(&s);
+        recid ^= (int)(high_mask & 1u);
     }
 
     rsig->r = r;
