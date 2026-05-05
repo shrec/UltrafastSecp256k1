@@ -8,6 +8,7 @@
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/ct/point.hpp"  // ct::generator_mul for secret-bearing paths
 #include "secp256k1/ct/scalar.hpp" // ct::scalar_cneg, ct::bool_to_mask
+#include "secp256k1/ct/sign.hpp"   // ct::schnorr_sign for schnorr_sign_verified
 #include <algorithm>
 #include <cstring>
 #include <string_view>
@@ -401,7 +402,9 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
 SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
                                        const std::array<uint8_t, 32>& msg,
                                        const std::array<uint8_t, 32>& aux_rand) {
-    const auto sig = schnorr_sign(kp, msg, aux_rand);
+    // Use ct::schnorr_sign (generator_mul, not blinded) to match the audited
+    // ct::schnorr_sign_verified path and avoid generator_mul_blinded interactions.
+    const auto sig = ct::schnorr_sign(kp, msg, aux_rand);
 
     const bool r_zero = std::all_of(sig.r.begin(), sig.r.end(),
                                     [](uint8_t b){ return b == 0; });
