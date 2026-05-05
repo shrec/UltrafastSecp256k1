@@ -74,6 +74,9 @@ jobs:
             $SECTION_ARG
 
       - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
         run: |
           python3 ci/auditor_mode.py \
             --output-dir ./out/audit-output/auditor-mode
@@ -88,7 +91,10 @@ jobs:
         run: |
           set +e
           GATE_RC=0
-          python3 ci/build_project_graph.py --rebuild
+          # H-5 fix: capture build_project_graph.py exit code — a stale/broken
+          # graph must fail the step, not silently let gates run against bad data.
+          # (Windows MSVC job already captured this; Linux parity fix.)
+          python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_test_quality_scanner.py --json \
             -o out/audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
@@ -203,6 +209,9 @@ jobs:
             $SECTION_ARG
 
       - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
         run: |
           python3 ci/auditor_mode.py \
             --output-dir ./out/audit-output/auditor-mode
@@ -215,7 +224,8 @@ jobs:
         run: |
           set +e
           GATE_RC=0
-          python3 ci/build_project_graph.py --rebuild
+          # H-5 fix: capture build_project_graph.py exit code (parity with Windows MSVC).
+          python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_test_quality_scanner.py --json \
             -o out/audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
@@ -319,6 +329,9 @@ jobs:
           }
 
       - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
         shell: pwsh
         run: |
           python3 ci/auditor_mode.py `

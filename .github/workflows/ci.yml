@@ -155,7 +155,9 @@ jobs:
             static_analysis_scanner.json
             static_analysis_traceability.json
           retention-days: 30
-          if-no-files-found: warn
+          # H-2 fix: error (not warn) so a scanner crash is visible as a hard
+          # artifact failure rather than a silent empty upload.
+          if-no-files-found: error
 
   # ===========================================================================
   # ── Linux native chains  (audit_mode: full)
@@ -231,6 +233,7 @@ jobs:
       cxx: clang++-21
       cmake_extra: >-
         -DSECP256K1_BUILD_METAL=ON
+        -DSECP256K1_BUILD_CROSS_TESTS=ON
       audit_mode: full
 
   # ===========================================================================

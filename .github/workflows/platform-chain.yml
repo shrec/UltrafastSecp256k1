@@ -744,7 +744,9 @@ jobs:
           name: audit-raw-${{ inputs.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: audit_reports/
           retention-days: 1
-          if-no-files-found: warn
+          # M-3 fix: error so an audit stage that produces no reports is visible
+          # as a hard upload failure rather than a silent empty artifact.
+          if-no-files-found: error
 
   # =============================================================================
   # STAGE 3 — COLLECT   (needs: audit)

@@ -385,7 +385,9 @@ jobs:
             caas_autonomy.json
             caas_bundle_verify.json
             assurance_report.json
-          if-no-files-found: warn
+          # M-4 fix: error so a gate failure that prevents JSON generation is
+          # visible as a hard artifact failure, not a silent empty-upload warning.
+          if-no-files-found: error
           retention-days: 90
 
   bindings-smoke:

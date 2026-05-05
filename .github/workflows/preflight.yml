@@ -240,4 +240,6 @@ jobs:
             caas_autonomy.json
             audit_report.json
           if-no-files-found: error
-          retention-days: 90
+          # H-3 fix: match CAAS 365-day retention so preflight gate state is
+          # available for retrospective audit beyond the 90-day default.
+          retention-days: 365
