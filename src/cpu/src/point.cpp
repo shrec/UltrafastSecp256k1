@@ -691,6 +691,59 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     p.infinity = false;
 }
 
+// Variant: adds (q.x, -q.y) — used for negative wNAF digits.
+// Eliminates the 80-byte AffinePoint52 copy + negate_assign in apply_wnaf_mixed52.
+// Formula identical to jac52_add_mixed_inplace; only two differences:
+//   1. infinity case: result y = -q.y
+//   2. i_val = Y1 + S2 (sign flipped, because adding negated Y2)
+// Edge cases: h==0 with Y1 == -S2 → double; Y1 == S2 → infinity.
+SECP256K1_HOT_FUNCTION SECP256K1_INLINE
+static void jac52_add_mixed_neg_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept {
+    if (SECP256K1_UNLIKELY(p.infinity)) {
+        p.x = q.x; p.y = q.y.negate(1); p.z = FieldElement52::one(); p.infinity = false;
+        return;
+    }
+
+    FieldElement52 const zz = p.z.square();
+    FieldElement52 const u2 = q.x * zz;
+    FieldElement52 s2 = q.y * zz;
+    s2.mul_assign(p.z);                                        // S2 = q.y * Z1^3
+
+    FieldElement52 const negX1 = p.x.negate(8);
+    FieldElement52 const h = u2 + negX1;
+
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
+        // Doubling: p.y == -S2  (p == negated q)
+        FieldElement52 const sum = p.y + s2;
+        if (sum.normalizes_to_zero_var()) { jac52_double_inplace(p); return; }
+        p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
+        return;
+    }
+
+    p.z.mul_assign(h);
+
+    // i_val = Y1 - (-S2) = Y1 + S2  [sign flipped vs positive variant]
+    FieldElement52 const i_val = p.y + s2;
+
+    FieldElement52 h2 = h.square();
+    FieldElement52 const i2 = i_val.square();
+    h2.negate_assign(1);
+
+    FieldElement52 h3 = h2 * h;
+    FieldElement52 t = p.x * h2;
+
+    p.x = i2 + h3;
+    p.x.add_assign(t);
+    p.x.add_assign(t);
+
+    t.add_assign(p.x);
+    h3.mul_assign(p.y);
+    p.y = t * i_val;
+    p.y.add_assign(h3);
+
+    p.infinity = false;
+}
+
 // Split I/O variant: reads from const in_* and q_*, writes to out_*.
 // Eliminates 320 bytes of struct-copy overhead in Point::add() const.
 // __restrict__ tells the compiler that all references are non-aliasing.
@@ -1098,9 +1151,7 @@ static inline void apply_wnaf_mixed52(
         if (d > 0) {
             jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
         } else {
-            AffinePoint52 pt = table[static_cast<std::size_t>((-d - 1) >> 1)];
-            pt.y.negate_assign(1);
-            jac52_add_mixed_inplace(result, pt);
+            jac52_add_mixed_neg_inplace(result, table[static_cast<std::size_t>((-d - 1) >> 1)]);
         }
     }
 }
