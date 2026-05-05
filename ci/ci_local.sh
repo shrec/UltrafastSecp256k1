@@ -75,7 +75,8 @@ echo ""
 # ── Code quality scanners (~15s) ─────────────────────────────────────────────
 echo -e "${BOLD}[2] Code Quality Scanners${NC}"
 run_check "hot_path_alloc regression"  python3 ci/run_code_quality.py --fail-on-regression
-  # CUDA checker lives in parent repo tools/ (or local tools/)
+  # L-2: ../tools/ is in the parent Secp256K1fast repo. On standalone
+  # UltrafastSecp256k1 checkouts this path is absent and CUDA checks are skipped.
   _cuda_checker=""
   for _p in tools/cuda_intrinsic_checker.py ../tools/cuda_intrinsic_checker.py; do
     [[ -f "$ROOT/$_p" ]] && _cuda_checker="$ROOT/$_p" && break
@@ -169,20 +170,24 @@ if [[ $FULL -eq 1 ]]; then
       > "$_cmake_log" 2>&1; then
     echo -e "  cmake configure                                      ${GREEN}OK${NC}"
     ((pass++))
+    gate_results["build:cmake_config"]="pass"
   else
     echo -e "  cmake configure                                      ${RED}FAIL${NC}"
     tail -20 "$_cmake_log" | sed 's/^/    /'
     ((fail++))
+    gate_results["build:cmake_config"]="fail"
   fi
 
   if [[ $fail -eq 0 ]]; then
     printf "  %-52s" "cmake build (no-ASM)..."
     if cmake --build "$BUILD_DIR" -j"$(nproc)" > "$_build_log" 2>&1; then
       echo -e "${GREEN}OK${NC}"; ((pass++))
+      gate_results["build:cmake_build"]="pass"
     else
       echo -e "${RED}FAIL${NC}"
       tail -20 "$_build_log" | sed 's/^/    /'
       ((fail++))
+      gate_results["build:cmake_build"]="fail"
     fi
   else
     # F-16 fix: announce explicitly that the build was skipped due to prior failures,

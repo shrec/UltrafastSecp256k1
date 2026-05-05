@@ -609,13 +609,10 @@ jobs:
         # bitcoin_core_profile job is self-contained and can block PRs.
         run: python3 ci/check_bitcoin_core_test_results.py
 
-      - name: Source Graph Quality Gate (advisory — not a hard gate)
-        # Advisory in this profile because source_graph.db may be absent in
-        # lightweight CI clones. Hard-fail version runs in preflight.yml
-        # (CAAS Stage 2d) and in the audit_gate G-12 check. continue-on-error
-        # is used instead of "|| true" so a regression is yellow in the UI
-        # (visible to auditors) rather than silently green.
-        continue-on-error: true
+      - name: Source Graph Quality Gate
+        # The source graph is rebuilt earlier in this job (Build source graph step),
+        # so failures here are real regressions — not missing-infrastructure skips.
+        # Hard gate: a stale or incomplete graph after a rebuild is a genuine failure.
         run: python3 ci/check_source_graph_quality.py
 
       - name: Bitcoin Core Profile Summary

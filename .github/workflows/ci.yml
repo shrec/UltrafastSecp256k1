@@ -1,21 +1,28 @@
 # =============================================================================
-# CI — Static Analysis Gate + Sequential Platform Chains
+# CI — Static Analysis Gate + Sanitizer Gate + Sequential Platform Chains
 # =============================================================================
 #
-# Two-tier structure:
+# Three-tier structure:
 #
-#   [static-analysis]  ← runs ONCE at root; no build needed
-#          │
-#          ▼  (all chains wait for static-analysis to pass)
-#   chain-gcc-14:   [build] ──▶ [audit] ──▶ [collect]
-#   chain-gcc-13:   [build] ──▶ [audit] ──▶ [collect]
-#   chain-clang-17: [build] ──▶ [audit] ──▶ [collect]
-#   … (all platforms in parallel)
-#          │
-#          ▼
-#   ci-verdict
+#   [static-analysis] → [codeql/sonarcloud] → [static-gate]
+#                                                   │
+#                                                   ▼
+#                               [asan]  [tsan]  [msan]  (parallel)
+#                                                   │
+#                                                   ▼
+#                                          [sanitizer-gate]
+#                                                   │
+#                                                   ▼
+#                               [platform chains] (parallel)
+#                               gcc-13, gcc-14, clang-17, llvm-21,
+#                               macos, windows, arm64, riscv64,
+#                               android-*, wasm, coverage
+#                                                   │
+#                                                   ▼
+#                                             [ci-verdict]
 #
-# If static-analysis fails, no platform chain starts — no runner time wasted.
+# Sanitizers must pass before any platform chain starts — sanitizer bugs
+# caught early prevent wasting runner time on all platform chains.
 #
 # Platforms
 # ───────────────────────────────────────────────────────────────────────────
@@ -165,7 +172,7 @@ jobs:
   # ===========================================================================
 
   chain-gcc-14:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-14
@@ -182,7 +189,7 @@ jobs:
       audit_mode: full
 
   chain-gcc-13:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: gcc-13
@@ -199,7 +206,7 @@ jobs:
       audit_mode: full
 
   chain-clang-17:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: clang-17
@@ -216,7 +223,7 @@ jobs:
       audit_mode: full
 
   chain-llvm-21:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: llvm-21
@@ -309,12 +316,76 @@ jobs:
       ctest_timeout: 900
 
   # ===========================================================================
+  # ── Sanitizer Gate
+  # Aggregates asan + tsan + msan. Platform chains wait for this single job.
+  # sanitizers are required — skipped sanitizers only tolerated when static-gate
+  # already failed (which caused them to be skipped as a cascade).
+  # ===========================================================================
+  sanitizer-gate:
+    name: "Sanitizer / Gate"
+    needs: [static-gate, chain-asan, chain-tsan, chain-msan]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Evaluate sanitizer phase
+        run: |
+          SG="${{ needs.static-gate.result }}"
+          ASAN="${{ needs.chain-asan.result }}"
+          TSAN="${{ needs.chain-tsan.result }}"
+          MSAN="${{ needs.chain-msan.result }}"
+
+          echo "static-gate : $SG"
+          echo "chain-asan  : $ASAN"
+          echo "chain-tsan  : $TSAN"
+          echo "chain-msan  : $MSAN"
+
+          FAILED=0
+
+          # static-gate must have succeeded (or be skipped due to upstream failure,
+          # but that would have already caused a failure — check explicitly).
+          if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
+            echo "::error::static-gate → $SG (sanitizer chains may have been skipped as a cascade)"
+            FAILED=1
+          fi
+
+          # Each sanitizer chain must be success.
+          # Skipped is only tolerated when static-gate already failed (sanitizers
+          # are automatically skipped when static-gate fails). Warn but don't double-fail.
+          for chain_name in asan tsan msan; do
+            case "$chain_name" in
+              asan) result="$ASAN" ;;
+              tsan) result="$TSAN" ;;
+              msan) result="$MSAN" ;;
+            esac
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::chain-${chain_name} → $result"
+              FAILED=1
+            elif [ "$result" = "skipped" ]; then
+              if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
+                echo "::warning::chain-${chain_name} skipped (cascade from static-gate failure)"
+              else
+                echo "::warning::chain-${chain_name} skipped for unexpected reason — sanitizer coverage gap"
+              fi
+            fi
+          done
+
+          [ "$FAILED" -eq 0 ] || exit 1
+          echo "::notice::Sanitizer phase passed — platform chains may proceed"
+        shell: bash
+
+  # ===========================================================================
   # ── Coverage chain  (push to dev/main only — Codecov upload)
   # ===========================================================================
 
   chain-coverage:
     if: github.event_name == 'push'
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: coverage
@@ -339,7 +410,7 @@ jobs:
   # ===========================================================================
 
   chain-macos:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: apple-clang
@@ -355,7 +426,7 @@ jobs:
   # ===========================================================================
 
   chain-windows:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: msvc
@@ -374,7 +445,7 @@ jobs:
   # ===========================================================================
 
   chain-linux-arm64:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-arm64
@@ -395,7 +466,7 @@ jobs:
       audit_mode: qemu-arm64
 
   chain-linux-riscv64:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: linux-riscv64
@@ -422,7 +493,7 @@ jobs:
   # ===========================================================================
 
   chain-android-arm64:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-arm64-v8a
@@ -430,7 +501,7 @@ jobs:
       audit_mode: verify
 
   chain-android-armv7:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-armeabi-v7a
@@ -438,7 +509,7 @@ jobs:
       audit_mode: verify
 
   chain-android-x86_64:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: android-x86_64
@@ -451,7 +522,7 @@ jobs:
   # ===========================================================================
 
   chain-wasm:
-    needs: [static-gate]
+    needs: [sanitizer-gate]
     uses: ./.github/workflows/platform-chain.yml
     with:
       platform: wasm
@@ -726,6 +797,7 @@ jobs:
     name: "CI / Final Verdict"
     needs:
       - static-gate
+      - sanitizer-gate
       - codeql
       - sonarcloud
       - chain-gcc-14

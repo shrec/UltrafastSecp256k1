@@ -736,6 +736,19 @@ jobs:
             > audit_reports/verify_summary.json
         shell: bash
 
+      # ── Upload ctest JUnit results (forensic data even when audit_reports/ is empty)
+      - name: Upload ctest results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ctest-results-${{ inputs.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/Testing/
+            build-audit/Testing/
+          retention-days: 7
+          # warn (not error) because some audit modes (verify, node, qemu-*) don't produce ctest XML
+          if-no-files-found: warn
+
       # ── Upload raw audit reports (so [collect] on a different runner can pull them)
       - name: Upload raw audit reports
         if: always()
@@ -796,4 +809,5 @@ jobs:
           name: platform-${{ inputs.platform }}-${{ github.run_id }}
           path: collected/
           retention-days: 90
-          if-no-files-found: warn
+          # L-3 fix: error so an entirely empty collect is a hard failure, not silent.
+          if-no-files-found: error

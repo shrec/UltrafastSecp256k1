@@ -81,6 +81,20 @@ jobs:
               > external-audit-artifacts/exploit_wiring_state.json
           fi
 
+      - name: Surface exploit wiring check outcome
+        if: always()
+        run: |
+          if [ -f external-audit-artifacts/exploit_wiring_state.json ]; then
+            PASS=$(python3 -c "import json,sys; d=json.load(open('external-audit-artifacts/exploit_wiring_state.json')); sys.exit(0 if d.get('pass', d.get('passed', False)) else 1)" 2>/dev/null)
+            if [ $? -ne 0 ]; then
+              echo "::error::Exploit wiring check FAILED — audit bundle contains unwired tests"
+            else
+              echo "::notice::Exploit wiring check passed"
+            fi
+          else
+            echo "::warning::exploit_wiring_state.json not generated — wiring check may have failed"
+          fi
+
       - name: Upload external audit artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
