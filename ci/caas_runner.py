@@ -73,7 +73,7 @@ STAGES = [
         "name": "Exploit Wiring (check_exploit_wiring.py)",
         "script": "check_exploit_wiring.py",
         "args": [],
-        "pass_fn": "_generic_pass",
+        "pass_fn": "_mandatory_pass",
         "description": "Verify all test_exploit_*.cpp files are wired in unified_audit_runner.cpp",
         "blocking": True,
     },
@@ -91,7 +91,7 @@ STAGES = [
         "name": "Traceability Join (exploit_traceability_join.py)",
         "script": "exploit_traceability_join.py",
         "args": ["--emit-join"],
-        "pass_fn": "_generic_pass",
+        "pass_fn": "_mandatory_pass",
         "description": "G-9b gate: exploit catalog ↔ spec matrix ↔ RR ↔ AM cross-refs (strict); emits EXPLOIT_TRACEABILITY_JOIN.md",
         "blocking": True,
     },
@@ -100,7 +100,7 @@ STAGES = [
         "name": "Audit Gate (audit_gate.py)",
         "script": "audit_gate.py",
         "args": ["--json"],
-        "pass_fn": "_generic_pass",
+        "pass_fn": "_mandatory_pass",
         "description": "P0–P18 audit principles gate",
         "blocking": True,
     },
@@ -118,7 +118,7 @@ STAGES = [
         "name": "Bundle Produce (external_audit_bundle.py)",
         "script": "external_audit_bundle.py",
         "args": [],
-        "pass_fn": "_generic_pass",
+        "pass_fn": "_mandatory_pass",
         "description": "Hash-pin audit evidence bundle",
         "blocking": True,
         "skippable": True,
@@ -131,7 +131,7 @@ STAGES = [
         # does not change with every development commit. commit_match is advisory
         # (the evidence hashes and gate scores are the security-relevant checks).
         "args": ["--json", "--allow-commit-mismatch"],
-        "pass_fn": "_generic_pass",
+        "pass_fn": "_mandatory_pass",
         "description": "Cryptographic integrity check of evidence bundle",
         "blocking": True,
         "skippable": True,
@@ -257,9 +257,24 @@ _ADVISORY_SKIP_CODE = 77
 
 
 def _generic_pass(result: subprocess.CompletedProcess, _stdout_json: dict | None) -> tuple[bool, str]:
-    """Passes if exit code is 0; treats 77 (ADVISORY_SKIP_CODE) as advisory skip, not failure."""
+    """Passes if exit code is 0; treats 77 (ADVISORY_SKIP_CODE) as advisory skip, not failure.
+    Use only for stages with legitimate infrastructure dependencies (e.g. security_autonomy).
+    For mandatory stages with no infra deps, use _mandatory_pass instead."""
     if result.returncode == _ADVISORY_SKIP_CODE:
         return True, "advisory-skip (no required infrastructure)"
+    passed = result.returncode == 0
+    detail = "exit 0" if passed else f"exit {result.returncode}"
+    return passed, detail
+
+
+def _mandatory_pass(result: subprocess.CompletedProcess, _stdout_json: dict | None) -> tuple[bool, str]:
+    """Passes only if exit code is exactly 0.
+
+    F-21 fix: exit 77 (ADVISORY_SKIP_CODE) is treated as a FAILURE, not an
+    advisory-skip. Stages assigned this pass function have no infrastructure
+    dependencies (exploit_wiring, traceability, audit_gate, bundle_produce,
+    bundle_verify), so a 77 return is never legitimate — it signals a misbehaving
+    or crashing script and must not silently pass as advisory-skipped."""
     passed = result.returncode == 0
     detail = "exit 0" if passed else f"exit {result.returncode}"
     return passed, detail
@@ -303,6 +318,7 @@ def _resolve_stage_fns():
     fn_map = {
         "_scanner_pass": _scanner_pass,
         "_generic_pass": _generic_pass,
+        "_mandatory_pass": _mandatory_pass,
         "_autonomy_pass": _autonomy_pass,
     }
     for stage in STAGES:
@@ -897,8 +913,13 @@ def main(argv: list[str] | None = None) -> int:
             break
 
     total_s = time.monotonic() - t_global
-    stage_pass = all(r["passed"] for r in results if r.get("status") != "skipped")
-    extra_pass = all(r.get("passed", True) for r in extra_check_results) if extra_check_results else True
+    # F-01 fix: exclude both fail-fast-skipped AND advisory-skipped stages from the
+    # exit-code verdict, mirroring build_json_report(). Advisory-skipped stages have
+    # passed=True but represent absent infrastructure, not evidence of a passing gate.
+    stage_pass = all(r["passed"] for r in results if r.get("status") not in ("skipped", "advisory_skipped"))
+    # F-02 fix: default to False (fail-closed) when "passed" key is absent from an
+    # extra-check result, matching build_json_report which uses all(ec["passed"] ...).
+    extra_pass = all(r.get("passed", False) for r in extra_check_results) if extra_check_results else True
     overall_pass = stage_pass and extra_pass
 
     if not args.json:

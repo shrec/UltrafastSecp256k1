@@ -173,14 +173,22 @@ def create_evidence_record(
 
 
 def load_chain() -> list[dict]:
-    """Load existing evidence chain."""
+    """Load existing evidence chain.
+
+    F-20 fix: distinguish "file absent" (first run, empty chain) from "file corrupt"
+    (truncation, partial write). A corrupt chain silently returning [] would make
+    validate_chain() report 0 records as valid — a forensic chain regression that
+    must not be hidden."""
     if not EVIDENCE_CHAIN_FILE.exists():
         return []
     try:
         data = json.loads(EVIDENCE_CHAIN_FILE.read_text(encoding="utf-8"))
         return data.get("records", [])
-    except (json.JSONDecodeError, KeyError):
-        return []
+    except (json.JSONDecodeError, KeyError) as exc:
+        raise RuntimeError(
+            f"EVIDENCE_CHAIN.json is corrupt and cannot be loaded: {exc}. "
+            "Do not overwrite with an empty chain — investigate the cause."
+        ) from exc
 
 
 def save_chain(records: list[dict]) -> None:
@@ -233,8 +241,16 @@ def validate_chain() -> dict:
         if not commit or commit in ("unknown", "n/a", ""):
             orphaned.append(i)
             issues.append(f"record[{i}]: orphaned record — commit is '{commit}' (not traceable)")
-        elif len(commit) < 7 or not all(c in "0123456789abcdef" for c in commit):
-            issues.append(f"record[{i}]: invalid commit SHA format")
+        elif len(commit) == 40 and all(c in "0123456789abcdef" for c in commit):
+            pass  # valid full SHA
+        elif 7 <= len(commit) < 40 and all(c in "0123456789abcdef" for c in commit):
+            # F-12 fix: short SHAs (7–39 chars) are accepted for backward compat
+            # (older records may have been written with git rev-parse --short) but
+            # flagged as a warning so the chain can be identified as having
+            # reduced traceability.
+            issues.append(f"record[{i}]: short commit SHA ({len(commit)} chars) — full 40-char SHA preferred for traceability")
+        else:
+            issues.append(f"record[{i}]: invalid commit SHA format (got {len(commit)} chars, expected 40)")
 
     return {
         "total_records": len(chain),

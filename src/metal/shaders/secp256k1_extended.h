@@ -981,31 +981,7 @@ struct ECDSASignature {
 inline bool ecdsa_sign(thread const uchar msg_hash[32], thread const Scalar256 &priv,
                         thread ECDSASignature &sig) {
     if (scalar256_is_zero(priv)) return false;
-
-    Scalar256 z = scalar_from_bytes(msg_hash);
-    Scalar256 k;
-    rfc6979_nonce(priv, msg_hash, k);
-    if (scalar256_is_zero(k)) return false;
-
-    JacobianPoint R = scalar_mul_generator_windowed(k);
-    if (R.infinity != 0) return false;
-
-    AffinePoint R_aff = jacobian_to_affine(R);
-    uchar rx_bytes[32];
-    field_to_bytes(R_aff.x, rx_bytes);
-    sig.r = scalar_from_bytes(rx_bytes);
-    if (scalar256_is_zero(sig.r)) return false;
-
-    Scalar256 k_inv = scalar_inverse(k);
-    Scalar256 rd = scalar_mul_mod_n(sig.r, priv);
-    Scalar256 z_plus_rd = scalar_add_mod_n(z, rd);
-    sig.s = scalar_mul_mod_n(k_inv, z_plus_rd);
-    if (scalar256_is_zero(sig.s)) return false;
-
-    if (!scalar_is_low_s(sig.s))
-        sig.s = scalar_negate(sig.s);
-
-    return true;
+    return ct_ecdsa_sign_metal(msg_hash, priv, sig.r, sig.s);
 }
 
 inline bool ecdsa_verify(thread const uchar msg_hash[32], thread const JacobianPoint &pubkey,
@@ -1129,59 +1105,10 @@ struct SchnorrSignature {
 inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32],
                           thread const uchar aux_rand[32], thread SchnorrSignature &sig) {
     if (scalar256_is_zero(priv)) return false;
-
-    JacobianPoint P = scalar_mul_generator_windowed(priv);
-    if (P.infinity != 0) return false;
-    AffinePoint P_aff = jacobian_to_affine(P);
-
-    uchar py_bytes[32];
-    field_to_bytes(P_aff.y, py_bytes);
-    Scalar256 d = priv;
-    if (py_bytes[31] & 1) d = scalar_negate(priv);
-
-    uchar px_bytes[32];
-    field_to_bytes(P_aff.x, px_bytes);
-
-    uchar t_hash[32];
-    tagged_hash_fast(0, aux_rand, 32, t_hash);
-
-    uchar d_bytes[32];
-    scalar_to_bytes(d, d_bytes);
-    uchar t[32];
-    for (int i = 0; i < 32; i++) t[i] = d_bytes[i] ^ t_hash[i];
-
-    uchar nonce_input[96];
-    for (int i = 0; i < 32; i++) nonce_input[i] = t[i];
-    for (int i = 0; i < 32; i++) nonce_input[32+i] = px_bytes[i];
-    for (int i = 0; i < 32; i++) nonce_input[64+i] = msg[i];
-
-    uchar rand_hash[32];
-    tagged_hash_fast(1, nonce_input, 96, rand_hash);
-
-    Scalar256 k_prime = scalar_from_bytes(rand_hash);
-    if (scalar256_is_zero(k_prime)) return false;
-
-    JacobianPoint R = scalar_mul_generator_windowed(k_prime);
-    AffinePoint R_aff = jacobian_to_affine(R);
-
-    uchar ry_bytes[32];
-    field_to_bytes(R_aff.y, ry_bytes);
-    Scalar256 k = k_prime;
-    if (ry_bytes[31] & 1) k = scalar_negate(k_prime);
-
-    field_to_bytes(R_aff.x, sig.r);
-
-    uchar challenge_input[96];
-    for (int i = 0; i < 32; i++) challenge_input[i] = sig.r[i];
-    for (int i = 0; i < 32; i++) challenge_input[32+i] = px_bytes[i];
-    for (int i = 0; i < 32; i++) challenge_input[64+i] = msg[i];
-
-    uchar e_hash[32];
-    tagged_hash_fast(2, challenge_input, 96, e_hash);
-    Scalar256 e = scalar_from_bytes(e_hash);
-
-    Scalar256 ed = scalar_mul_mod_n(e, d);
-    sig.s = scalar_add_mod_n(k, ed);
+    uchar sig_bytes[64];
+    if (!ct_schnorr_sign_metal(priv, msg, aux_rand, sig_bytes)) return false;
+    for (int i = 0; i < 32; ++i) sig.r[i] = sig_bytes[i];
+    sig.s = scalar_from_bytes(sig_bytes + 32);
     return true;
 }
 
@@ -1299,52 +1226,7 @@ inline bool lift_x_field(thread const FieldElement &x_fe, int parity, thread Jac
 inline bool ecdsa_sign_recoverable(thread const uchar msg_hash[32], thread const Scalar256 &priv,
                                      thread RecoverableSignature &rsig) {
     if (scalar256_is_zero(priv)) return false;
-
-    Scalar256 z = scalar_from_bytes(msg_hash);
-    Scalar256 k;
-    rfc6979_nonce(priv, msg_hash, k);
-    if (scalar256_is_zero(k)) return false;
-
-    JacobianPoint R = scalar_mul_generator_windowed(k);
-    if (R.infinity != 0) return false;
-
-    AffinePoint R_aff = jacobian_to_affine(R);
-    uchar rx_bytes[32], ry_bytes[32];
-    field_to_bytes(R_aff.x, rx_bytes);
-    field_to_bytes(R_aff.y, ry_bytes);
-
-    rsig.sig.r = scalar_from_bytes(rx_bytes);
-    if (scalar256_is_zero(rsig.sig.r)) return false;
-
-    int recid = 0;
-    if (ry_bytes[31] & 1) recid |= 1;
-
-    // Check overflow (R.x >= n)
-    Scalar256 order;
-    for (int i = 0; i < 8; i++) order.limbs[i] = SECP256K1_N[i];
-    // Compare rx_bytes (BE) against order (BE)
-    uchar order_be[32];
-    scalar_to_bytes(order, order_be);
-    bool overflow = false;
-    for (int i = 0; i < 32; i++) {
-        if (rx_bytes[i] < order_be[i]) break;
-        if (rx_bytes[i] > order_be[i]) { overflow = true; break; }
-    }
-    if (overflow) recid |= 2;
-
-    Scalar256 k_inv = scalar_inverse(k);
-    Scalar256 rd = scalar_mul_mod_n(rsig.sig.r, priv);
-    Scalar256 z_plus_rd = scalar_add_mod_n(z, rd);
-    rsig.sig.s = scalar_mul_mod_n(k_inv, z_plus_rd);
-    if (scalar256_is_zero(rsig.sig.s)) return false;
-
-    if (!scalar_is_low_s(rsig.sig.s)) {
-        rsig.sig.s = scalar_negate(rsig.sig.s);
-        recid ^= 1;
-    }
-
-    rsig.recid = recid;
-    return true;
+    return ct_ecdsa_sign_recoverable_metal(msg_hash, priv, rsig.sig.r, rsig.sig.s, rsig.recid);
 }
 
 inline bool ecdsa_recover(thread const uchar msg_hash[32], thread const ECDSASignature &sig,

@@ -1007,6 +1007,7 @@ static double gpu_ecdsa_sign(const CompareConfig& cfg) {
         cmp_ecdsa_sign_k<<<blocks, cfg.gpu_tpb>>>(d_msg, d_priv, d_sig, d_ok, N);
     });
 
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_ok);
     return ns;
 }
@@ -1079,6 +1080,7 @@ static double gpu_schnorr_sign(const CompareConfig& cfg) {
         cmp_schnorr_sign_k<<<blocks, cfg.gpu_tpb>>>(d_priv, d_msg, d_aux, d_sig, d_ok, N);
     });
 
+    cudaMemset(d_priv, 0, N * sizeof(Scalar));
     cudaFree(d_priv); cudaFree(d_msg); cudaFree(d_aux); cudaFree(d_sig); cudaFree(d_ok);
     return ns;
 }

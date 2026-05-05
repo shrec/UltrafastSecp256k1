@@ -17,6 +17,7 @@
 
 #include "ct/ct_point.cuh"
 #include "ecdsa.cuh"
+#include "recovery.cuh"
 #include "schnorr.cuh"
 
 #if !SECP256K1_CUDA_LIMBS_32
@@ -129,6 +130,86 @@ __device__ inline bool ct_ecdsa_sign_verified(
 
     // Verify uses fast path (public key + signature are public)
     return secp256k1::cuda::ecdsa_verify(msg_hash, &pubkey, sig);
+}
+
+// ============================================================================
+// CT ECDSA Sign with Recovery ID
+// ============================================================================
+// Full CT path: k*G via ct_generator_mul, branchless recid computation,
+// CT low-S normalization with mask-based recid flip.
+
+__device__ inline bool ct_ecdsa_sign_recoverable(
+    const uint8_t msg_hash[32],
+    const Scalar* private_key,
+    RecoverableSignatureGPU* rsig)
+{
+    if (secp256k1::cuda::scalar_is_zero(private_key)) return false;
+
+    Scalar z;
+    secp256k1::cuda::scalar_from_bytes(msg_hash, &z);
+
+    Scalar k;
+    secp256k1::cuda::rfc6979_nonce(private_key, msg_hash, &k);
+
+    // R = k * G  (CT: fixed execution trace, no branch on bits of k)
+    JacobianPoint R;
+    ct_generator_mul(&k, &R);
+
+    // Convert R to affine — y_parity needed for recovery ID bit 0
+    FieldElement rx_aff, ry_aff;
+    uint8_t y_parity;
+    ct_jacobian_to_affine(&R, &rx_aff, &ry_aff, &y_parity);
+
+    // r = rx mod n
+    uint8_t x_bytes[32];
+    secp256k1::cuda::field_to_bytes(&rx_aff, x_bytes);
+    secp256k1::cuda::scalar_from_bytes(x_bytes, &rsig->sig.r);
+    if (secp256k1::cuda::scalar_is_zero(&rsig->sig.r)) return false;
+
+    // recid bit 0: y parity of R (branchless: already a single byte)
+    int recid = (int)y_parity;
+
+    // recid bit 1: overflow (rx >= n) — branchless MSB-cascade comparison
+    // Mirrors cpu/src/ct_sign.cpp:338-348 exactly.
+    {
+        static const uint8_t ORDER_BE[32] = {
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+            0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+            0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+        };
+        unsigned gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            unsigned rb = (unsigned)x_bytes[i];
+            unsigned ob = (unsigned)ORDER_BE[i];
+            unsigned byte_gt = ((ob - rb) >> 31) & 1u;  // 1 iff rb > ob
+            unsigned byte_lt = ((rb - ob) >> 31) & 1u;  // 1 iff rb < ob
+            gt      = gt | (eq_run & byte_gt);
+            eq_run  = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= (int)gt << 1;
+    }
+
+    // k^{-1} (CT Fermat)
+    Scalar k_inv;
+    scalar_inverse(&k, &k_inv);
+
+    // s = k^{-1} * (z + r*d) mod n (CT scalar arithmetic)
+    Scalar rd;
+    scalar_mul(&rsig->sig.r, private_key, &rd);
+    Scalar z_plus_rd;
+    scalar_add(&z, &rd, &z_plus_rd);
+    scalar_mul(&k_inv, &z_plus_rd, &rsig->sig.s);
+    if (secp256k1::cuda::scalar_is_zero(&rsig->sig.s)) return false;
+
+    // CT low-S: capture high_mask BEFORE normalization for recid flip.
+    // Negating s flips R.y parity in the recovery ID (branchless XOR).
+    uint64_t high_mask = scalar_is_high(&rsig->sig.s);
+    scalar_normalize_low_s(&rsig->sig.s);
+    recid ^= (int)(high_mask & 1u);
+
+    rsig->recid = recid;
+    return true;
 }
 
 // ============================================================================

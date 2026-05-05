@@ -32,7 +32,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
                           const Scalar& private_key) {
     if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
-    auto z = Scalar::from_bytes(msg_hash);
+    auto z = Scalar::from_bytes(msg_hash);  // NOT a secret scalar — public message hash
 
     // Deterministic nonce (RFC 6979)
     auto k = rfc6979_nonce(private_key, msg_hash);
@@ -47,7 +47,7 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     // r = R.x mod n (R.x is public after ct::generator_mul)
     auto r_fe = R.x();
     auto r_bytes = r_fe.to_bytes();
-    auto r = Scalar::from_bytes(r_bytes);
+    auto r = Scalar::from_bytes(r_bytes);  // NOT a secret scalar — public curve point x-coord
     // r.is_zero() requires R.x = n exactly — negligible (≈2^−128) probability.
     if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
 

@@ -7,6 +7,55 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-05 — Full Red-Team Audit: 17 Findings Fixed (P0×4, P1×6, P2×7)
+
+Red-team / bug-bounty audit of entire codebase before Bitcoin Core PR submission.
+Findings covered GPU backends (CUDA/Metal/OpenCL), ABI wrappers, CPU signing paths.
+
+### Critical (P0) — All fixed
+
+- **P0-1**: CUDA `ecdsa_sign_recoverable_batch_kernel` used non-CT `scalar_mul` on nonce k.
+  Fixed: `ct::ct_ecdsa_sign_recoverable` added to `ct_sign.cuh`, kernel updated.
+- **P0-2**: Metal `ecdsa_sign_recoverable_metal` used `s.limbs[0] & 1` (parity) instead of
+  `scalar_is_low_s()` (half-order comparison). Wrong recid+sig ~50% of the time.
+  Fixed: `secp256k1_recovery.h:141`.
+- **P0-3**: OpenCL `ct_ecdsa_sign_verified_impl` returned 1 unconditionally — fault countermeasure
+  absent. Fixed: calls `ct_generator_mul_impl` (CT) + `ecdsa_verify_impl`. Also fixes P2-2
+  (non-CT pubkey derivation in same function).
+- **P0-4**: Metal `ecdsa_sign`, `schnorr_sign`, `ecdsa_sign_recoverable` in `secp256k1_extended.h`
+  used `scalar_mul_generator_windowed` on secret nonces/keys. Added `ct_ecdsa_sign_recoverable_metal`
+  to `secp256k1_ct_sign.h`; all three functions now delegate to CT equivalents.
+
+### High (P1) — All fixed
+
+- **P1-1**: CUDA bench files freed `d_priv` without prior `cudaMemset`.
+  Fixed in `bench_cuda.cu` and `bench_compare.cu`.
+- **P1-2**: Metal `generator_mul_batch` used `scalar_mul_glv` on potentially-secret scalars.
+  Fixed: uses `ct_generator_mul_metal`.
+- **P1-3**: OpenCL `ecdsa_sign_recoverable_impl` used non-CT generator mul + early-exit overflow.
+  Fixed: uses `ct_generator_mul_impl` + branchless MSB-cascade overflow check.
+- **P1-5**: ABI `ufsecp_ecdsa_sign_recoverable` double-normalized (recid would desync on refactor).
+  Fixed: removed second `.normalize()` call.
+- **P1-6**: OpenCL `ct_schnorr_sign_verified_impl` was a stub. Fixed: calls `schnorr_verify_impl`.
+- *P1-4 (MuSig2 signer_index cross-validation) deferred — tracked as MED-3, requires API change.*
+
+### Medium (P2) — Fixed
+
+- **P2-1**: Metal BIP-32 child key derivation used windowed mul on private keys. Fixed: CT.
+- **P2-2**: Combined with P0-3 fix.
+- **P2-3**: `schnorr_sign_verified` only checked `s==0`, not `r==all-zeros`. Fixed.
+- **P2-4**: CUDA bench host-side `h_privkeys` not erased. Fixed: volatile pointer zeroing.
+- **P2-6**: Metal `zk_knowledge_prove_batch` used windowed mul on witness secret. Fixed: CT.
+- **P2-7**: `secp256k1::ecdsa_sign` publicly visible — added `[[deprecated]]` attribute.
+
+### CAAS Regression Test
+
+Added `audit/test_exploit_red_team_audit_20260505.cpp` (RTA-01..08) covering
+CPU-testable regressions: ABI recov roundtrip, recid correctness, ct_ecdsa_sign_verified,
+schnorr_sign_verified r==0 guard, low-S enforcement.
+
+---
+
 ## 2026-05-04 — Performance Engineering Review: Security + Performance Fixes
 
 Full-codebase review by performance engineer + 2 sub-agents (173 tool calls, ~300 KB source read).

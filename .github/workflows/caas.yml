@@ -292,6 +292,19 @@ jobs:
       - name: Run security autonomy check
         run: |
           python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+          rc=$?
+          # F-24 fix: add exit 77 handling symmetric with preflight.yml.
+          # Previously caas.yml had no handling for exit 77 — the inline Python would
+          # fail to load caas_autonomy.json (file absent) and exit 1, turning an
+          # advisory-skip into a hard failure and blocking the pipeline.
+          if [ $rc -eq 77 ]; then
+            echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            if [ ! -f caas_autonomy.json ]; then
+              echo '{"autonomy_score":0,"autonomy_ready":false,"advisory_skip":true,"reason":"exit 77 — infrastructure absent"}' > caas_autonomy.json
+            fi
+            exit 0
+          fi
+          [ $rc -ne 0 ] && exit $rc
           python3 - <<'EOF'
           import json, sys
           try:
@@ -509,14 +522,25 @@ jobs:
           exit 0
 
       - name: Download scanner report from Stage 1
-        # caas_scanner.json is produced in the scanner job (separate runner).
-        # Download it explicitly so the bundle artifact is complete.
+        # F-04 fix: removed continue-on-error:true — a missing scanner report must
+        # cause the bundle job to fail explicitly, not silently produce an incomplete
+        # bundle that external auditors would interpret as "0 findings."
         if: always()
         uses: actions/download-artifact@v4
         with:
           name: caas-scanner-report-${{ github.run_id }}
           path: .
-        continue-on-error: true
+
+      - name: Verify scanner report present
+        # F-04 fix: hard-fail if the scanner artifact was not downloaded. This catches
+        # the case where Stage 1 failed before uploading its artifact (e.g. hard crash).
+        if: always()
+        run: |
+          if [ ! -f caas_scanner.json ]; then
+            echo "::error::caas_scanner.json is missing — Stage 1 (scanner) did not produce its artifact."
+            echo "::error::The audit bundle cannot be assembled without scanner evidence."
+            exit 1
+          fi
 
       - name: Upload audit bundle artifacts
         if: always()
@@ -531,7 +555,8 @@ jobs:
             caas_audit_gate.json
             out/owner_audit/owner_audit_bundle.json
             out/owner_audit/owner_audit_bundle.txt
-          if-no-files-found: warn
+          # F-05 fix: error (not warn) so a completely empty bundle upload is a hard failure.
+          if-no-files-found: error
           retention-days: 365
 
       - name: Step summary
@@ -723,6 +748,49 @@ jobs:
               print("Fix all failing stages before merging.")
               sys.exit(1)
           EOF
+
+      - name: Write consolidated pipeline summary artifact
+        # F-19 fix: produce a single JSON artifact capturing the full pipeline verdict
+        # so external tools and auditors don't need to stitch 5 separate artifacts.
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, subprocess
+          from datetime import datetime, timezone
+
+          commit = subprocess.run(
+              ["git", "rev-parse", "HEAD"], capture_output=True, text=True
+          ).stdout.strip() or "unknown"
+
+          summary = {
+              "caas_pipeline_summary_version": 1,
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "run_id": "${{ github.run_id }}",
+              "commit_sha": commit,
+              "all_pass": "${{ steps.evaluate.outputs.all_pass }}" == "true",
+              "bundle_skipped": "${{ steps.evaluate.outputs.bundle_skipped }}" == "true",
+              "other_skipped": [s for s in "${{ steps.evaluate.outputs.other_skipped }}".split(",") if s],
+              "stage_results": {
+                  "scanner":              "${{ needs.scanner.result }}",
+                  "audit_gate":           "${{ needs.audit_gate.result }}",
+                  "security_autonomy":    "${{ needs.security_autonomy.result }}",
+                  "bundle":               "${{ needs.bundle.result }}",
+                  "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
+              },
+          }
+          with open("caas_pipeline_summary.json", "w", encoding="utf-8") as f:
+              json.dump(summary, f, indent=2)
+          print(json.dumps(summary, indent=2))
+          EOF
+
+      - name: Upload pipeline summary artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-pipeline-summary-${{ github.run_id }}
+          path: caas_pipeline_summary.json
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Record evidence in tamper-resistant chain
         # Append a verdict record to docs/EVIDENCE_CHAIN.json so retrospective

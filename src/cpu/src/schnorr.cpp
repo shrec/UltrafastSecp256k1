@@ -402,7 +402,9 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
                                        const std::array<uint8_t, 32>& aux_rand) {
     const auto sig = schnorr_sign(kp, msg, aux_rand);
 
-    if (sig.s.is_zero()) {
+    const bool r_zero = std::all_of(sig.r.begin(), sig.r.end(),
+                                    [](uint8_t b){ return b == 0; });
+    if (sig.s.is_zero() || r_zero) {
         return SchnorrSignature{};
     }
 

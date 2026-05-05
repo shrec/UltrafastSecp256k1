@@ -490,6 +490,11 @@ int test_exploit_opencl_runner_key_erase_run();  // Q-01/02/03: OpenCL audit run
 int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path not used in production
 
 // ============================================================================
+// Forward declarations -- 2026-05-05 Red-Team Audit Regression Guards
+// ============================================================================
+int test_exploit_red_team_audit_20260505_run(); // RTA-01..08: P1-5,P2-3,P0-3 CPU regressions
+
+// ============================================================================
 // Forward declarations -- 2026-05-02 Bitcoin Core PR security audit fixes
 // ============================================================================
 int test_regression_schnorr_ct_arithmetic_run();  // HIGH-03+HIGH-06: schnorr_sign CT arithmetic + r==0 check
@@ -955,6 +960,10 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
     { "regression_perf_review_sec",  "Perf review SEC-1..7+B-1/3/6/7/8/9/10/13/15: CT gen-mul,inv,cswap,ge,Pippenger,BatchVerify (PRF-1..8) — 2026-05-04", "exploit_poc", test_regression_perf_review_sec_2026_05_04_run, false },
+    // === 2026-05-05 Full Red-Team Audit Regression Guards ===
+    // CPU-testable regressions: P1-5 (double-normalize removed), P2-3 (r==0 check),
+    // P0-3 (ct_ecdsa_sign_verified actually verifies), P0-2 (low-S correctness).
+    { "red_team_audit_20260505",     "2026-05-05 red-team: P0-3/P1-5/P2-3 ABI recid+recov+schnorr_verified CPU regressions (RTA-01..08)", "exploit_poc", test_exploit_red_team_audit_20260505_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

@@ -3513,6 +3513,8 @@ add_executable(unified_audit_runner
     test_regression_bip352_ct_varbase.cpp
     # 2026-05-04 Performance review security + correctness regression (PRF-1..8)
     test_regression_perf_review_sec_2026_05_04.cpp
+    # 2026-05-05 Red-team audit regression guards — P0-3/P1-5/P2-3 CPU regressions (RTA-01..08)
+    test_exploit_red_team_audit_20260505.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)

@@ -210,4 +210,78 @@ inline FieldElement ct_schnorr_pubkey_metal(thread const Scalar256 &priv) {
     return px;
 }
 
+// ---------------------------------------------------------------------------
+// CT ECDSA sign with recovery ID
+// ---------------------------------------------------------------------------
+// Full CT path: k*G via ct_generator_mul_metal, branchless recid computation,
+// CT low-S normalization with mask-based recid flip.
+// Mirrors cpu/src/ct_sign.cpp:ecdsa_sign_recoverable exactly.
+inline bool ct_ecdsa_sign_recoverable_metal(thread const uchar msg_hash[32],
+                                            thread const Scalar256 &priv,
+                                            thread Scalar256 &r_out,
+                                            thread Scalar256 &s_out,
+                                            thread int &recid_out) {
+    Scalar256 k;
+    rfc6979_nonce(priv, msg_hash, k);
+    if (scalar256_is_zero(k)) return false;
+
+    // CT: R = k*G (no secret-dependent branches)
+    CTJacobianPoint R_jac = ct_generator_mul_metal(k);
+    FieldElement rx, ry;
+    ct_jacobian_to_affine_metal(R_jac, rx, ry);
+
+    // r = rx mod n (copy limbs, reduce order)
+    Scalar256 r_scalar;
+    for (int i = 0; i < 8; ++i) r_scalar.limbs[i] = rx.limbs[i];
+    ct_reduce_order(r_scalar);
+    uint r_zero = ct_scalar_is_zero_mask(r_scalar);
+
+    // recid bit 0: y parity — LSB of ry.limbs[0] (little-endian 8x32)
+    int recid = (int)(ry.limbs[0] & 1u);
+
+    // recid bit 1: overflow (rx >= n) — branchless MSB-cascade, no early exit
+    {
+        uchar rx_bytes[32];
+        for (int i = 0; i < 8; ++i) {
+            uint v = rx.limbs[7 - i];
+            rx_bytes[i*4+0] = (uchar)(v >> 24); rx_bytes[i*4+1] = (uchar)(v >> 16);
+            rx_bytes[i*4+2] = (uchar)(v >>  8); rx_bytes[i*4+3] = (uchar)(v);
+        }
+        uchar ORDER_BE[32] = {
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+            0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+            0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+        };
+        uint gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            uint rb = (uint)rx_bytes[i], ob = (uint)ORDER_BE[i];
+            uint byte_gt = ((ob - rb) >> 31) & 1u;
+            uint byte_lt = ((rb - ob) >> 31) & 1u;
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= (int)(gt << 1);
+    }
+
+    // CT: k^-1, s = k^-1 * (msg + r*priv)
+    Scalar256 k_inv = ct_scalar_inverse(k);
+    Scalar256 msg_scalar = scalar_from_bytes(msg_hash);
+    Scalar256 r_priv = ct_scalar_mul(r_scalar, priv);
+    Scalar256 sum    = ct_scalar_add(msg_scalar, r_priv);
+    Scalar256 s      = ct_scalar_mul(k_inv, sum);
+
+    // CT low-S: capture high_mask BEFORE normalization for branchless recid flip
+    uint high_mask = ct_scalar_is_high_mask(s);
+    s = ct_scalar_normalize_low_s(s);
+    recid ^= (int)(high_mask & 1u);
+
+    uint s_zero = ct_scalar_is_zero_mask(s);
+
+    r_out = r_scalar;
+    s_out = s;
+    recid_out = recid;
+    return (r_zero == 0) && (s_zero == 0);
+}
+
 #endif // SECP256K1_CT_SIGN_H

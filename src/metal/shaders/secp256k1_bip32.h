@@ -429,7 +429,12 @@ inline bool bip32_derive_child(thread const ExtendedKeyMetal &parent,
     } else {
         if (parent.is_private) {
             Scalar256 sk = scalar_from_bytes(parent.key);
-            JacobianPoint P = scalar_mul_generator_windowed(sk);
+            // CT generator mul: sk is a private key
+            CTJacobianPoint P_ct = ct_generator_mul_metal(sk);
+            FieldElement px, py;
+            ct_jacobian_to_affine_metal(P_ct, px, py);
+            JacobianPoint P;
+            P.x = px; P.y = py; P.z = field_one(); P.infinity = 0;
             point_to_compressed(P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent.key[i];
@@ -467,7 +472,12 @@ inline bool bip32_derive_child(thread const ExtendedKeyMetal &parent,
         child.key[32] = 0;
         child.is_private = true;
     } else {
-        JacobianPoint IL_point = scalar_mul_generator_windowed(IL);
+        // IL is a derived child scalar (not a secret but treat conservatively)
+        CTJacobianPoint IL_ct = ct_generator_mul_metal(IL);
+        FieldElement ilx, ily;
+        ct_jacobian_to_affine_metal(IL_ct, ilx, ily);
+        JacobianPoint IL_point;
+        IL_point.x = ilx; IL_point.y = ily; IL_point.z = field_one(); IL_point.infinity = 0;
 
         JacobianPoint Kpar;
         if (!bip32_point_from_compressed(parent.key, Kpar)) return false;

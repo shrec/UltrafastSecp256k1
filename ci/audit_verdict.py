@@ -131,13 +131,16 @@ def evaluate(
             continue
 
         if status == "success":
-            # Job reported success but produced no artifact — the upload step
-            # silently failed.  This is not fatal for optional platforms but
-            # warrants a visible warning so the artifact loss is not missed.
+            # F-10 fix: "success with no artifact" is a genuine evidence gap that must
+            # not pass silently. Previously this was only a ::warning:: which is not
+            # visible in the step summary and doesn't block merges under branch protection.
+            # Treat it as a hard failure so the missing evidence is always surfaced.
             print(
-                f"::warning::Optional platform {platform} job succeeded but "
-                f"produced no audit_report.json — artifact upload may have failed"
+                f"::error::Optional platform {platform} job succeeded but "
+                f"produced no audit_report.json — artifact upload failed silently. "
+                "This is an evidence gap that must be investigated."
             )
+            all_pass = False
             continue
 
         print(

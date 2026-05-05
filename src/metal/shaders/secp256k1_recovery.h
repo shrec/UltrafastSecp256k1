@@ -137,8 +137,8 @@ inline RecoverableSignatureMetal ecdsa_sign_recoverable_metal(
         if (sz) return rsig;
     }
 
-    // Low-S normalization
-    if (s.limbs[0] & 1) {  // simplified check, proper: compare with half-n
+    // Low-S normalization: correct half-order comparison (not odd/even parity)
+    if (!scalar_is_low_s(s)) {
         s = scalar_negate(s);
         recid ^= 1;
     }

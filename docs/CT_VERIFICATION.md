@@ -1,6 +1,19 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.69.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v3.70.0** -- CT Layer Methodology & Audit Status
+
+### 2026-05-05 Red-Team Audit CT Changes
+
+- `ct_sign.cpp`: Comments added to `Scalar::from_bytes` callsites to clarify
+  they parse public data (message hash, curve-point x-coord), not secret scalars.
+  No functional change to CT signing paths.
+- CUDA: added `ct::ct_ecdsa_sign_recoverable` (CT recovery ID computation, branchless
+  overflow check). All GPU recoverable signing now CT.
+- OpenCL: `ct_ecdsa_sign_verified_impl` now calls `ct_generator_mul_impl` (CT pubkey)
+  + `ecdsa_verify_impl` (fault countermeasure no longer a stub).
+- OpenCL: `ct_schnorr_sign_verified_impl` now calls `schnorr_verify_impl`.
+- Metal: added `ct_ecdsa_sign_recoverable_metal` with branchless recid computation.
+  All Metal signing functions now route through CT equivalents.
 
 ---
 

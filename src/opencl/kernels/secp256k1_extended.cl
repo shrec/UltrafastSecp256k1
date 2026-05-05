@@ -1580,16 +1580,11 @@ inline int ecdsa_sign_recoverable_impl(const uchar msg_hash[32], const Scalar* p
     rfc6979_nonce_impl(priv, msg_hash, &k);
     if (scalar_is_zero(&k)) return 0;
 
-    JacobianPoint R;
-    scalar_mul_generator_impl(&R, &k);
-    if (point_is_infinity(&R)) return 0;
-
-    FieldElement zinv, zinv2, zinv3, rx_aff, ry_aff;
-    field_inv_impl(&zinv, &R.z);
-    field_sqr_impl(&zinv2, &zinv);
-    field_mul_impl(&zinv3, &zinv2, &zinv);
-    field_mul_impl(&rx_aff, &R.x, &zinv2);
-    field_mul_impl(&ry_aff, &R.y, &zinv3);
+    // CT: R = k*G (no secret-dependent branches on nonce k)
+    CTJacobianPoint R_ct;
+    ct_generator_mul_impl(&k, &R_ct);
+    FieldElement rx_aff, ry_aff;
+    ct_jacobian_to_affine(&R_ct, &rx_aff, &ry_aff);
 
     uchar rx_bytes[32];
     field_to_bytes_impl(&rx_aff, rx_bytes);
@@ -1601,19 +1596,24 @@ inline int ecdsa_sign_recoverable_impl(const uchar msg_hash[32], const Scalar* p
     field_to_bytes_impl(&ry_aff, ry_bytes);
     if (ry_bytes[31] & 1) recid |= 1;
 
-    // Check overflow (R.x >= n)
-    uchar order_be[32] = {
-        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
-        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
-        0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
-        0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
-    };
-    int overflow = 0;
-    for (int i = 0; i < 32; i++) {
-        if (rx_bytes[i] < order_be[i]) break;
-        if (rx_bytes[i] > order_be[i]) { overflow = 1; break; }
+    // Check overflow (R.x >= n) — branchless MSB-cascade, no early exit
+    {
+        uchar order_be[32] = {
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+            0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+            0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+            0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+        };
+        uint gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; i++) {
+            uint rb = (uint)rx_bytes[i], ob = (uint)order_be[i];
+            uint byte_gt = ((ob - rb) >> 31) & 1u;
+            uint byte_lt = ((rb - ob) >> 31) & 1u;
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= (int)(gt << 1);
     }
-    if (overflow) recid |= 2;
 
     // s = k⁻¹(z + r*d) mod n
     Scalar k_inv;

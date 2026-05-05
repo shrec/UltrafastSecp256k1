@@ -226,9 +226,11 @@ def collect_preflight_checks() -> list[dict]:
                 try:
                     items = json.loads(r.stdout)
                 except (json.JSONDecodeError, ValueError):
-                    # Script doesn't support --json or produced non-JSON output.
-                    checks.append({"label": label, "status": "ERROR",
-                                   "detail": "--json flag unsupported or non-JSON output",
+                    # F-18 fix: script exited 0 but produced non-JSON output — the
+                    # script doesn't support --json.  Interpret exit 0 as PASS rather
+                    # than ERROR so always-passing checks don't show red on the dashboard.
+                    checks.append({"label": label, "status": "PASS",
+                                   "detail": "exit 0 (no JSON output — --json flag unsupported)",
                                    "items": []})
                     continue
                 fail = sum(1 for i in items if i.get("status") == "FAIL")
@@ -451,9 +453,12 @@ def collect_benchmarks() -> dict:
         try:
             ts = datetime.datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
             age_days = (datetime.datetime.now(datetime.timezone.utc) - ts).total_seconds() / 86400
-            if age_days > 30:
+            # F-25 fix: aligned with caas.yml bundle freshness gate (7 days).
+            # Previous threshold of 30 days was inconsistent with the bundle check.
+            # Using 14 days as a balanced middle ground.
+            if age_days > 14:
                 stale = True
-                stale_reason = f"{age_days:.0f} days old (max 30)"
+                stale_reason = f"{age_days:.0f} days old (max 14)"
         except Exception:
             pass
     valid_results: list = []
@@ -683,7 +688,9 @@ def render_section_exec(git: dict, platform: dict, autonomy: dict) -> str:
     )
 
     score = autonomy.get("autonomy_score", "?")
-    score_cls = "green" if isinstance(score, int) and score >= 90 else \
+    # F-08 fix: gate requires exactly 100; show green only at 100, yellow 70–99, red below.
+    # Previous threshold of >=90 showed green for failing scores (gate needs 100).
+    score_cls = "green" if isinstance(score, int) and score == 100 else \
                 "yellow" if isinstance(score, int) and score >= 70 else "red"
     dirty_badge = _badge("WARN", "DIRTY") if git.get("dirty") else _badge("PASS", "CLEAN")
 
@@ -1152,6 +1159,9 @@ def render_html(data: dict) -> str:
         + render_section_backend(data["backend"])
         + render_section_graph(data["source_graph"])
         + render_section_bench(data["benchmarks"])
+        # F-07 fix: render_section_limitations was defined but never called;
+        # the nav link #limits pointed to a section that was never rendered.
+        + render_section_limitations(data["limitations"])
         + render_section_artifacts(data["artifacts"])
     )
 
@@ -1226,6 +1236,9 @@ def main() -> int:
         "source_graph": collect_source_graph(),
         "benchmarks":   collect_benchmarks(),
         "artifacts":    collect_artifacts(),
+        # F-07 fix: collect_limitations() was never called; limitations data was
+        # absent from the data dict so render_section_limitations was never invoked.
+        "limitations":  collect_limitations(),
     }
 
     print("Rendering HTML...", flush=True)

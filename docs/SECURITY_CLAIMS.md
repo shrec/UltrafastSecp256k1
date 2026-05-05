@@ -1,6 +1,22 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.68.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+
+### 2026-05-05 Security Claim Updates
+
+Following the full red-team / bug-bounty audit, 17 findings were fixed (4 Critical, 6 High, 7 Medium):
+
+- **All GPU backends** (CUDA, OpenCL, Metal) now route all secret-bearing signing through
+  CT paths. Variable-time `scalar_mul_generator_windowed` / `scalar_mul_generator_impl`
+  on secret nonces is eliminated from all signing kernels.
+- **Fault countermeasures** in OpenCL `ct_ecdsa_sign_verified_impl` and
+  `ct_schnorr_sign_verified_impl` now actually call the verify step (previously stubs).
+- **Metal `ecdsa_sign_recoverable_metal`** low-S normalization was using parity (`& 1`)
+  instead of half-order comparison. Fixed — recid and low-S are now always correct.
+- **Private key erasure** in CUDA/bench code: device buffers zeroed before free.
+- **`secp256k1::ecdsa_sign`** (fast-path, not for production) marked `[[deprecated]]`
+  to warn downstream C++ users.
+- **`schnorr_sign_verified`** (CPU) now checks both `s==0` AND `r==all-zeros` (Rule 14).
 
 ## Operating Assumption
 

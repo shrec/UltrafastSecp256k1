@@ -234,7 +234,7 @@ void ecdsa_sign_recoverable_batch_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
         const uint8_t* msg = msg_hashes + static_cast<size_t>(idx) * 32;
-        results[idx] = ecdsa_sign_recoverable(msg, &private_keys[idx], &rsigs[idx]);
+        results[idx] = ct::ct_ecdsa_sign_recoverable(msg, &private_keys[idx], &rsigs[idx]);
     }
 }
 

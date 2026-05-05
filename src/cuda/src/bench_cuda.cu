@@ -935,7 +935,11 @@ BenchResult bench_ecdsa_sign(const BenchConfig& cfg) {
     double throughput = (batch / avg_ms) / 1000.0;
     double ns_per_op = (avg_ms * 1e6) / batch;
 
+    // Erase host private keys (volatile prevents optimizer from removing)
+    { volatile Scalar* vp = h_privkeys.data();
+      for (int i = 0; i < batch; ++i) { vp[i].limbs[0]=0; vp[i].limbs[1]=0; vp[i].limbs[2]=0; vp[i].limbs[3]=0; } }
     CUDA_CHECK(cudaFree(d_msgs));
+    CUDA_CHECK(cudaMemset(d_priv, 0, batch * sizeof(Scalar)));
     CUDA_CHECK(cudaFree(d_priv));
     CUDA_CHECK(cudaFree(d_sigs));
     CUDA_CHECK(cudaFree(d_res));
@@ -1047,6 +1051,9 @@ BenchResult bench_schnorr_sign(const BenchConfig& cfg) {
     double throughput = (batch / avg_ms) / 1000.0;
     double ns_per_op = (avg_ms * 1e6) / batch;
 
+    { volatile Scalar* vp = h_privkeys.data();
+      for (int i = 0; i < batch; ++i) { vp[i].limbs[0]=0; vp[i].limbs[1]=0; vp[i].limbs[2]=0; vp[i].limbs[3]=0; } }
+    CUDA_CHECK(cudaMemset(d_priv, 0, batch * sizeof(Scalar)));
     CUDA_CHECK(cudaFree(d_priv));
     CUDA_CHECK(cudaFree(d_msgs));
     CUDA_CHECK(cudaFree(d_aux));
@@ -1296,7 +1303,10 @@ BenchResult bench_ecdsa_sign_recoverable(const BenchConfig& cfg) {
     double throughput = (batch / avg_ms) / 1000.0;
     double ns_per_op = (avg_ms * 1e6) / batch;
 
+    { volatile Scalar* vp = h_privkeys.data();
+      for (int i = 0; i < batch; ++i) { vp[i].limbs[0]=0; vp[i].limbs[1]=0; vp[i].limbs[2]=0; vp[i].limbs[3]=0; } }
     CUDA_CHECK(cudaFree(d_msgs));
+    CUDA_CHECK(cudaMemset(d_priv, 0, batch * sizeof(Scalar)));
     CUDA_CHECK(cudaFree(d_priv));
     CUDA_CHECK(cudaFree(d_rsigs));
     CUDA_CHECK(cudaFree(d_res));

@@ -198,6 +198,11 @@ jobs:
           # Exit 77 = ADVISORY_SKIP_CODE: all gates absent (no GPU/infra) → advisory skip, not failure
           if [ $rc -eq 77 ]; then
             echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            # F-06 fix: write a placeholder so the upload step (if-no-files-found: error)
+            # does not fail when caas_autonomy.json was never written before exit 77.
+            if [ ! -f caas_autonomy.json ]; then
+              echo '{"autonomy_score":0,"autonomy_ready":false,"advisory_skip":true,"reason":"exit 77 — infrastructure absent"}' > caas_autonomy.json
+            fi
             exit 0
           fi
           [ $rc -ne 0 ] && exit $rc

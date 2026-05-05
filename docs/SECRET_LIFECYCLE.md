@@ -1,6 +1,15 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-04-07 | **Version**: 3.68.0
+**Last updated**: 2026-05-05 | **Version**: 3.70.0
+
+### 2026-05-05 Secret Lifecycle Changes
+
+- `musig2.cpp`: Clarified comment in `musig2_partial_sign` for out-of-range
+  `signer_index` case — returns `Scalar::zero()` (caller ABI returns
+  `UFSECP_ERR_BAD_INPUT`). No functional change.
+- CUDA bench: Private key VRAM (`d_priv`) is now zeroed via `cudaMemset`
+  before `cudaFree`. Host-side `h_privkeys` vector zeroed via volatile loop.
+- OpenCL bench: Same pattern applied to `bench_compare.cu` sign functions.
 
 Documents how secret material (private keys, nonces, session state) is handled throughout its lifecycle: creation, use, and destruction.
 

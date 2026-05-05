@@ -302,9 +302,9 @@ Scalar musig2_partial_sign(
     const MuSig2Session& session,
     std::size_t signer_index) {
 
-    // Bounds check: signer_index must be valid for the key_coefficients vector
+    // Bounds check: signer_index out of range (distinct from degenerate arithmetic)
     if (signer_index >= key_agg_ctx.key_coefficients.size()) {
-        return Scalar::zero();
+        return Scalar::zero();  // caller checks for zero and returns UFSECP_ERR_BAD_INPUT
     }
 
     // k = k1 + b * k2

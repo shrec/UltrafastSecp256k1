@@ -84,20 +84,22 @@ inline int ct_ecdsa_sign_verified_impl(const uchar msg_hash[32], const Scalar* p
     int ok = ct_ecdsa_sign_impl(msg_hash, priv, sig);
     if (!ok) return 0;
 
-    // Derive public key (fast-path ok for verification)
-    JacobianPoint pub_jac;
-    scalar_mul_generator_impl(&pub_jac, priv);
-    AffinePoint pub_aff;
-    FieldElement zi, zi2, zi3;
-    field_inv_impl(&zi, &pub_jac.z);
-    field_sqr_impl(&zi2, &zi);
-    field_mul_impl(&zi3, &zi, &zi2);
-    field_mul_impl(&pub_aff.x, &pub_jac.x, &zi2);
-    field_mul_impl(&pub_aff.y, &pub_jac.y, &zi3);
+    // Derive public key using CT generator mul (priv is secret)
+    CTJacobianPoint pub_ct;
+    ct_generator_mul_impl(priv, &pub_ct);
+    FieldElement pub_ax, pub_ay;
+    ct_jacobian_to_affine(&pub_ct, &pub_ax, &pub_ay);
 
-    // Verify signature (fast-path ok, no secrets)
-    // If verify fails -> fault injection detected
-    return 1;
+    // Present as affine Jacobian (Z=1) for ecdsa_verify_impl fast-path
+    JacobianPoint pub_jac;
+    pub_jac.x = pub_ax;
+    pub_jac.y = pub_ay;
+    pub_jac.z.limbs[0] = 1; pub_jac.z.limbs[1] = 0;
+    pub_jac.z.limbs[2] = 0; pub_jac.z.limbs[3] = 0;
+    pub_jac.infinity = 0;
+
+    // Fault injection detected if verify fails
+    return ecdsa_verify_impl(msg_hash, &pub_jac, sig);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,8 +225,21 @@ inline int ct_schnorr_sign_verified_impl(const Scalar* priv, const uchar msg[32]
                                          const uchar aux_rand[32],
                                          uchar sig_out[64]) {
     int ok = ct_schnorr_sign_impl(priv, msg, aux_rand, sig_out);
-    // Could add verification here; signature is public after generation
-    return ok;
+    if (!ok) return 0;
+
+    // Derive x-only pubkey for verification (CT generator mul on secret)
+    FieldElement pub_x_fe;
+    ct_schnorr_pubkey_impl(priv, &pub_x_fe);
+    uchar pubkey_x[32];
+    field_to_bytes_impl(&pub_x_fe, pubkey_x);
+
+    // Reconstruct SchnorrSignature from raw bytes for verify call
+    SchnorrSignature sig_v;
+    for (int i = 0; i < 32; ++i) sig_v.r[i] = sig_out[i];
+    scalar_from_bytes_impl(sig_out + 32, &sig_v.s);
+
+    // Fault injection detected if verify fails
+    return schnorr_verify_impl(pubkey_x, msg, &sig_v);
 }
 
 // CT public key derivation

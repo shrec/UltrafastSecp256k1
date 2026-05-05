@@ -69,11 +69,15 @@ kernel void generator_mul_batch(
 ) {
     if (tid >= count) return;
 
-    AffinePoint gen = generator_affine();
     Scalar256 k = scalars[tid];
 
-    JacobianPoint jac = scalar_mul_glv(gen, k);
-    results[tid] = jacobian_to_affine(jac);
+    // CT generator mul: scalars may be private keys (pubkey derivation path)
+    CTJacobianPoint ct_jac = ct_generator_mul_metal(k);
+    FieldElement ax, ay;
+    ct_jacobian_to_affine_metal(ct_jac, ax, ay);
+    AffinePoint res;
+    res.x = ax; res.y = ay;
+    results[tid] = res;
 }
 
 // =============================================================================
@@ -668,7 +672,11 @@ kernel void zk_knowledge_prove_batch(
     if (tid >= count) return;
 
     Scalar256 sec = scalar_from_bytes(secrets + tid * 32);
-    JacobianPoint pk = scalar_mul_generator_windowed(sec);
+    // CT generator mul: sec is witness randomness (secret)
+    CTJacobianPoint pk_ct = ct_generator_mul_metal(sec);
+    FieldElement pkx, pky;
+    ct_jacobian_to_affine_metal(pk_ct, pkx, pky);
+    JacobianPoint pk; pk.x = pkx; pk.y = pky; pk.z = field_one(); pk.infinity = 0;
 
     uchar msg[32], aux[32];
     for (int i = 0; i < 32; ++i) { msg[i] = messages[tid * 32 + i]; aux[i] = aux_rands[tid * 32 + i]; }

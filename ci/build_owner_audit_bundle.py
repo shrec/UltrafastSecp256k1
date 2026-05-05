@@ -277,6 +277,13 @@ def main() -> int:
 
     audit_gate = _run_json_command(['python3', 'ci/audit_gate.py', '--json'])
     validate_assurance = _run_json_command(['python3', 'ci/validate_assurance.py', '--json'])
+    # F-13 fix: verify audit_gap_report.py exists before calling — a missing script
+    # would produce payload=None which is silently absorbed as mandatory_missing;
+    # an early hard error gives a clearer message.
+    _audit_gap_script = SCRIPT_DIR / 'audit_gap_report.py'
+    if not _audit_gap_script.exists():
+        print(f"::error::ci/audit_gap_report.py not found at {_audit_gap_script} — cannot assemble bundle", file=sys.stderr)
+        return 1
     failure_matrix = _run_json_command(['python3', 'ci/audit_gap_report.py', '--json'])
     failure_matrix_strict = _run_json_command(['python3', 'ci/audit_gap_report.py', '--json', '--strict'])
     auditor_mode = _run_json_command(['python3', 'ci/auditor_mode.py', '--json'])
@@ -406,6 +413,11 @@ def main() -> int:
         overall_status = 'partial'
     elif benchmark_publishability.get('issues'):
         overall_status = 'ready-with-drift'
+    elif residual_gaps:
+        # F-22 fix: residual gaps (open P0/P4 WARN findings, auditor-mode gaps)
+        # must downgrade status from 'ready' so auditors are not misled into
+        # thinking the bundle is unconditionally clean.
+        overall_status = 'ready-with-gaps'
 
     report = {
         'generated_at': datetime.now(timezone.utc).isoformat(),

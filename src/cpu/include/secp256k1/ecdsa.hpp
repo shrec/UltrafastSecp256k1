@@ -83,6 +83,7 @@ struct ECDSASignature {
 //
 // Returns normalized (low-S) signature.
 // Returns {zero, zero} signature on failure (zero key, etc.)
+[[deprecated("Variable-time: benchmark/test path only. Use secp256k1::ct::ecdsa_sign() for production signing.")]]
 ECDSASignature ecdsa_sign(const std::array<std::uint8_t, 32>& msg_hash,
                           const fast::Scalar& private_key);
 

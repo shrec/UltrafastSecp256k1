@@ -260,8 +260,8 @@ ufsecp_error_t ufsecp_ecdsa_sign_recoverable(ufsecp_ctx* ctx,
         *recid_out = 0;
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
     }
-    auto normalized = rsig.sig.normalize();
-    auto compact = normalized.to_compact();
+    // ct::ecdsa_sign_recoverable already applied CT low-S normalization internally
+    auto compact = rsig.sig.to_compact();
     std::memcpy(sig64_out, compact.data(), 64);
     *recid_out = rsig.recid;
     return UFSECP_OK;
