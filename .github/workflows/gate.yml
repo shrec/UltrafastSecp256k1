@@ -433,20 +433,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: API contract checks (advisory)
-        # Single skip mechanism: continue-on-error makes the step yellow if it
-        # fails. Removed the redundant `|| echo` so a future flip to blocking
-        # only requires removing continue-on-error.
-        id: api_contracts
-        continue-on-error: true
+      - name: API contract checks
+        # H-1 fix: hard gate. A crypto engine has no low-priority API problems —
+        # any API contract violation is a blocking failure.
         run: python3 ci/check_api_contracts.py --json
-
-      - name: Surface API contract check outcome
-        if: always()
-        run: |
-          if [ "${{ steps.api_contracts.outcome }}" = "failure" ]; then
-            echo "::warning::API contract check failed — see step output for details (advisory)"
-          fi
 
       - name: CUDA/MSVC preflight
         run: python3 ci/preflight.py --cuda-msvc
