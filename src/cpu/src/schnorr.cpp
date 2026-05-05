@@ -395,9 +395,9 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
 
     // Reject degenerate output: r==all-zeros is astronomically rare (~2^-128)
     // but must never be serialised as a valid signature (Rule 14).
-    uint8_t r_acc = 0;
-    for (auto b : sig.r) r_acc |= b;
-    if (SECP256K1_UNLIKELY(r_acc == 0 || sig.s.is_zero())) return SchnorrSignature{};
+    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
+    if (SECP256K1_UNLIKELY((rw[0] | rw[1] | rw[2] | rw[3]) == 0 || sig.s.is_zero()))
+        return SchnorrSignature{};
 
     return sig;
 }

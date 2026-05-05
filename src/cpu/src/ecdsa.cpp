@@ -428,14 +428,17 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
     hmac.init_key32(K);
     hmac.compute_short(V, 32, V);
 
+    // Hoist t/buf33 outside loop: stack alloc once, reuse each iteration.
+    std::array<uint8_t, 32> t;
+    uint8_t buf33[33];
     for (int attempt = 0; attempt < 100; ++attempt) {
         hmac.compute_short(V, 32, V);
-        std::array<uint8_t, 32> t;
         std::memcpy(t.data(), V, 32);
         // RFC 6979 §3.2(h): reject k == 0 or k >= n (no implicit mod-n reduction).
         // Use parse_bytes_strict_nonzero, matching the standard nonce path above.
         Scalar candidate;
         if (Scalar::parse_bytes_strict_nonzero(t.data(), candidate)) {
+            secure_erase(t.data(), t.size());
             secure_erase(V, sizeof(V));
             secure_erase(K, sizeof(K));
             secure_erase(x_bytes.data(), x_bytes.size());
@@ -443,7 +446,6 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
             secure_erase(&hmac, sizeof(hmac));
             return candidate;
         }
-        uint8_t buf33[33];
         std::memcpy(buf33, V, 32);
         buf33[32] = 0x00;
         hmac.compute_short(buf33, 33, K);
@@ -451,6 +453,8 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
         hmac.init_key32(K);
         hmac.compute_short(V, 32, V);
     }
+    secure_erase(t.data(), t.size());
+    secure_erase(buf33, sizeof(buf33));
 
     secure_erase(V, sizeof(V));
     secure_erase(K, sizeof(K));
@@ -557,8 +561,7 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     if (!k.is_zero_ct()) {
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
-            auto r_bytes = R.x_only_bytes();
-            auto r = Scalar::from_bytes(r_bytes);
+            auto r = Scalar::from_limbs(R.x().limbs());
             if (!r.is_zero()) {
                 auto k_inv = ct::scalar_inverse(k);
                 auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));

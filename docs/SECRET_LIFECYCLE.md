@@ -2,6 +2,18 @@
 
 **Last updated**: 2026-05-05 | **Version**: 3.70.0
 
+### 2026-05-05 Secret Lifecycle Changes (perf audit P1/P2 batch)
+
+- `ecdsa.cpp` (`ecdsa_sign_hedged`): Replaced `R.x_only_bytes()` + `Scalar::from_bytes(r_bytes)`
+  with `Scalar::from_limbs(R.x().limbs())` — same fix as `ecdsa_sign` (A-06 above). `r` is the
+  public x-coordinate of R = k·G. NOT secret material. Secret nonce `k` and `k_inv` continue to
+  be erased via `secure_erase`. No change to secret zeroization paths.
+- `ecdsa.cpp` (`rfc6979_nonce_hedged`): Hoisted `std::array<uint8_t, 32> t` and `uint8_t buf33[33]`
+  before the retry loop. Added `secure_erase(t.data(), t.size())` on the early-return path to
+  match the pattern already used in `rfc6979_nonce`. `t` is a temporary holding HMAC-DRBG output
+  before parsing as a candidate scalar — classified as secret-adjacent material; zeroization is
+  maintained on all exit paths (early return and loop-exhaustion fallthrough).
+
 ### 2026-05-05 Secret Lifecycle Changes (A-06, A-15 perf fixes)
 
 - `ecdsa.cpp` (pubkey parse, A-15): `y.to_bytes()[31] & 1` → `y.limbs()[0] & 1u` for

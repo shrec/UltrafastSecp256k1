@@ -184,6 +184,7 @@ Point pippenger_msm(const Scalar* scalars,
 #else
                 buckets[digit].add_mixed_inplace(points[i].X(), points[i].Y());
 #endif
+                used[digit] = 2;  // bucket is now Jacobian
             }
         } else {
             for (std::size_t i = 0; i < n; ++i) {
@@ -224,7 +225,16 @@ Point pippenger_msm(const Scalar* scalars,
             // and avoids MSan uninitialized-read false positives.
             if (SECP256K1_LIKELY(used[b] != 0)) {
                 if (running_sum_nonempty) {
+#if defined(SECP256K1_FAST_52BIT)
+                    // used[b]==1: bucket set exactly once (from_affine52, z=1) — cheaper mixed-add
+                    if (all_affine && used[b] == 1) {
+                        running_sum.add_mixed52_inplace(buckets[b].X52(), buckets[b].Y52());
+                    } else {
+                        running_sum.add_inplace(buckets[b]);
+                    }
+#else
                     running_sum.add_inplace(buckets[b]);
+#endif
                 } else {
                     running_sum = buckets[b];
                     running_sum_nonempty = true;

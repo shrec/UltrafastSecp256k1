@@ -1082,6 +1082,7 @@ static bool build_glv52_table_zr(
 
     // Z-ratio array: zr[i] = Z_i / Z_{i-1} for the accumulator
     constexpr int kMaxZr = 32;
+    assert(table_size <= kMaxZr);
     FieldElement52 zr[kMaxZr];
     zr[0] = C;  // first z-ratio is C (from iso mapping)
 
@@ -1147,7 +1148,7 @@ static void derive_phi52_table(
 static inline void apply_wnaf_mixed52(
     JacobianPoint52& result, const AffinePoint52* table, int32_t d)
 {
-    if (SECP256K1_UNLIKELY(d != 0)) {
+    if (d != 0) {
         if (d > 0) {
             jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
         } else {
@@ -3939,8 +3940,8 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
         ? to_jac52(P.negate())
         : to_jac52(P);
 
-    std::array<AffinePoint52, P_TABLE_SIZE> tbl_P;
-    std::array<AffinePoint52, P_TABLE_SIZE> tbl_phiP;
+    alignas(64) std::array<AffinePoint52, P_TABLE_SIZE> tbl_P;
+    alignas(64) std::array<AffinePoint52, P_TABLE_SIZE> tbl_phiP;
 
     // Z_shared: effective Z on secp256k1 shared by all pseudo-affine P entries.
     // Declared here so it is available for add_zinv and final Z correction.

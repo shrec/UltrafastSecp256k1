@@ -299,9 +299,9 @@ __device__ inline bool schnorr_verify(
 
     // e = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg) mod n
     uint8_t challenge_input[96];
-    for (int i = 0; i < 32; i++) challenge_input[i] = sig->r[i];
-    for (int i = 0; i < 32; i++) challenge_input[32 + i] = pubkey_x[i];
-    for (int i = 0; i < 32; i++) challenge_input[64 + i] = msg[i];
+    memcpy(challenge_input,      sig->r,    32);
+    memcpy(challenge_input + 32, pubkey_x,  32);
+    memcpy(challenge_input + 64, msg,       32);
 
     uint8_t e_hash[32];
     tagged_hash_fast(BIP340_TAG_CHALLENGE, challenge_input, 96, e_hash);
@@ -331,11 +331,15 @@ __device__ inline bool schnorr_verify(
     field_to_bytes(&ry_aff, ry_bytes);
     if (ry_bytes[31] & 1) return false;
 
-    // Check R.x == sig.r
+    // Check R.x == sig.r (branchless 4-word XOR to avoid warp divergence)
     uint8_t rx_bytes[32];
     field_to_bytes(&rx_aff, rx_bytes);
-    for (int i = 0; i < 32; i++) {
-        if (rx_bytes[i] != sig->r[i]) return false;
+    {
+        const unsigned long long* rx_w = (const unsigned long long*)rx_bytes;
+        const unsigned long long* r_w  = (const unsigned long long*)sig->r;
+        unsigned long long diff = (rx_w[0]^r_w[0]) | (rx_w[1]^r_w[1])
+                                | (rx_w[2]^r_w[2]) | (rx_w[3]^r_w[3]);
+        if (diff != 0) return false;
     }
 
     return true;
@@ -552,9 +556,9 @@ __device__ inline bool schnorr_verify_xonly(
     if (scalar_is_zero(&sig->s)) return false;
 
     uint8_t challenge_input[96];
-    for (int i = 0; i < 32; i++) challenge_input[i] = sig->r[i];
-    for (int i = 0; i < 32; i++) challenge_input[32 + i] = pubkey->x_bytes[i];
-    for (int i = 0; i < 32; i++) challenge_input[64 + i] = msg[i];
+    memcpy(challenge_input,      sig->r,           32);
+    memcpy(challenge_input + 32, pubkey->x_bytes,  32);
+    memcpy(challenge_input + 64, msg,              32);
 
     uint8_t e_hash[32];
     tagged_hash_fast(BIP340_TAG_CHALLENGE, challenge_input, 96, e_hash);
@@ -583,8 +587,12 @@ __device__ inline bool schnorr_verify_xonly(
 
     uint8_t rx_bytes[32];
     field_to_bytes(&rx_aff, rx_bytes);
-    for (int i = 0; i < 32; i++) {
-        if (rx_bytes[i] != sig->r[i]) return false;
+    {
+        const unsigned long long* rx_w = (const unsigned long long*)rx_bytes;
+        const unsigned long long* r_w  = (const unsigned long long*)sig->r;
+        unsigned long long diff = (rx_w[0]^r_w[0]) | (rx_w[1]^r_w[1])
+                                | (rx_w[2]^r_w[2]) | (rx_w[3]^r_w[3]);
+        if (diff != 0) return false;
     }
 
     return true;

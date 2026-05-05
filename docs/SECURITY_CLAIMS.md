@@ -2,6 +2,20 @@
 
 **UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-05 Performance Audit — perf batch (no security-boundary change)
+
+- **`ecdsa.cpp` (`ecdsa_sign_hedged`)**: `r = R.x_only_bytes()` → `Scalar::from_limbs(R.x().limbs())`.
+  `r` is public nonce-point x-coordinate, not secret. No CT or zeroization impact.
+- **`ecdsa.cpp` (`rfc6979_nonce_hedged`)**: Stack buffers `t` and `buf33` hoisted before retry loop.
+  `secure_erase(t)` added to early-return path — zeroization parity with `rfc6979_nonce`. Secret
+  nonce candidate material remains erased on all exit paths. No CT boundary change.
+- **`schnorr.cpp`**: r-zero check replaced with 4-word OR — mechanical, no secret handling change.
+- **`point.cpp`**: `alignas(64)` on hot table arrays; `kMaxZr` assertion; `SECP256K1_UNLIKELY`
+  annotation removed from 50%-density branch. No secret-path changes.
+- **`pippenger.cpp`**: Mixed-add optimization in aggregate phase for affine buckets. No secret paths.
+- **OpenCL `secp256k1_field.cl`**: `field_sqr_n_impl` copy removed. No secret paths.
+- **CUDA `schnorr.cuh`**: `memcpy` + branchless rx compare in `schnorr_verify`. No secret paths.
+
 ### 2026-05-05 Performance Audit — A-12/A-13/A-15 P3 minor fixes (no security-boundary change)
 
 - **`scalar.cpp` A-12**: `k.bit(0) == 1` → `k.limbs_[0] & 1u` in `to_naf()`/`to_wnaf()`

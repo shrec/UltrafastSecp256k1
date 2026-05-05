@@ -688,10 +688,7 @@ FORCE_INLINE void field_sqr_impl(FieldElement* r, const FieldElement* a);
 
 // Repeated squaring helper: r = r^(2^n) — in-place
 FORCE_INLINE void field_sqr_n_impl(FieldElement* r, int n) {
-    for (int i = 0; i < n; i++) {
-        FieldElement tmp = *r;
-        field_sqr_impl(r, &tmp);
-    }
+    for (int i = 0; i < n; i++) field_sqr_impl(r, r);
 }
 
 FORCE_INLINE void field_sqr_impl(FieldElement* r, const FieldElement* a) {
