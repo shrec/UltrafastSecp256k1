@@ -476,18 +476,37 @@ limbs4 reduce(const wide8& t) {
     std::array<std::uint64_t, 5> result{t[0], t[1], t[2], t[3], 0ULL};
 
     // Step 2: Process each high limb: add high[i] * 0x1000003D1 to position i
-    // secp256k1: 2^256 = 0x1000003D1 mod p, so high[i] * 2^(256 + 64*i) = high[i] * 0x1000003D1 * 2^(64*i)
+    // secp256k1: 2^256 = 0x1000003D1 = 2^32 + 977 (mod p)
+    // For each hi_limb, the contribution to result is:
+    //   result[i]   += lo977 + (hi_limb << 32)   [combined with single carry]
+    //   result[i+1] += hi977 + (hi_limb >> 32)   [combined with single carry]
+    // Using __int128 accumulates both values at each position in one step,
+    // replacing 4 serial add_into() carry-chain walks with 2 compound adds.
     for (std::size_t i = 0; i < 4; ++i) {
         std::uint64_t const hi_limb = t[4 + i];
         if (hi_limb == 0) continue;
 
-        // hi_limb * 0x1000003D1 = hi_limb * (2^32 + 977)
-        std::uint64_t lo = 0, hi = 0;
-        mul64(hi_limb, 977ULL, lo, hi);
-        add_into(result, i, lo);
-        add_into(result, i + 1, hi);
-        add_into(result, i, hi_limb << 32);
-        add_into(result, i + 1, hi_limb >> 32);
+        std::uint64_t lo977 = 0, hi977 = 0;
+        mul64(hi_limb, 977ULL, lo977, hi977);
+
+        // Compound add at position i: lo977 + (hi_limb << 32) in one shot
+        using u128 = unsigned __int128;
+        u128 acc = static_cast<u128>(result[i])
+                 + static_cast<u128>(lo977)
+                 + static_cast<u128>(hi_limb << 32);
+        result[i] = static_cast<std::uint64_t>(acc);
+        std::uint64_t carry = static_cast<std::uint64_t>(acc >> 64);
+
+        // Compound add at position i+1: hi977 + (hi_limb >> 32) + carry
+        acc = static_cast<u128>(result[i + 1])
+            + static_cast<u128>(hi977)
+            + static_cast<u128>(hi_limb >> 32)
+            + static_cast<u128>(carry);
+        result[i + 1] = static_cast<std::uint64_t>(acc);
+        carry = static_cast<std::uint64_t>(acc >> 64);
+
+        // Residual carry beyond position i+1 (rare but possible for large hi_limb)
+        if (carry) add_into(result, i + 2, carry);
     }
 
     // Step 3: Handle overflow in result[4] -- unrolled 2 iterations (bounded)

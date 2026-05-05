@@ -79,16 +79,17 @@ public:
     std::uint8_t bit(std::size_t index) const;
 
     // Phase 5.6: NAF (Non-Adjacent Form) encoding
-    // Converts scalar to signed digit representation {-1, 0, 1}
-    // Returns vector where naf[i] represents digit at bit position i
-    // NAF has ~33% fewer non-zero digits than binary
+    // Zero-allocation variant: writes into caller-supplied buffer, returns digit count.
+    // out must point to at least 257 bytes.
+    std::size_t to_naf_into(std::int8_t* out) const noexcept;
+    // Heap-allocating convenience wrapper (backward-compatible public API).
     std::vector<int8_t> to_naf() const;
 
     // Phase 5.7: wNAF (width-w Non-Adjacent Form) encoding
-    // Converts scalar to signed odd-digit representation {+/-1, +/-3, +/-5, ..., +/-(2^w-1)}
-    // width: window width (typically 4-6 bits)
-    // Returns vector where wnaf[i] represents digit at position i
-    // Only odd values are used, reducing precompute table size by 50%
+    // Zero-allocation variant: writes into caller-supplied buffer, returns digit count.
+    // out must point to at least 257 bytes. width must be in [2,8].
+    std::size_t to_wnaf_into(std::int8_t* out, unsigned width) const noexcept;
+    // Heap-allocating convenience wrapper (backward-compatible public API).
     std::vector<int8_t> to_wnaf(unsigned width) const;
 
 private:

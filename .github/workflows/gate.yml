@@ -362,6 +362,19 @@ jobs:
             echo "::warning::docs/EVIDENCE_CHAIN.json not found — chain has not been initialised"
           fi
 
+      - name: Secret path change gate (blocking)
+        # Placed here so CPU secret-bearing changes (ecdsa.cpp, schnorr.cpp,
+        # scalar.cpp, ecdh.cpp, etc.) that trigger run_core but NOT run_gpu/run_wasm
+        # are still checked.  caas-security runs for run_core|run_compat|run_bindings
+        # |run_gpu|run_wasm — full coverage of all secret-bearing profiles.
+        if: always()
+        run: |
+          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
+          BEFORE_SHA="${{ github.event.before }}"
+          python3 ci/check_secret_path_changes.py \
+            --base "$BASE_REF" \
+            ${BEFORE_SHA:+--before-sha "$BEFORE_SHA"}
+
       - name: Upload CAAS evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -432,14 +445,6 @@ jobs:
           if [ "${{ steps.api_contracts.outcome }}" = "failure" ]; then
             echo "::warning::API contract check failed — see step output for details (advisory)"
           fi
-
-      - name: Secret path change gate (blocking)
-        run: |
-          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
-          BEFORE_SHA="${{ github.event.before }}"
-          python3 ci/check_secret_path_changes.py \
-            --base "$BASE_REF" \
-            ${BEFORE_SHA:+--before-sha "$BEFORE_SHA"}
 
       - name: CUDA/MSVC preflight
         run: python3 ci/preflight.py --cuda-msvc

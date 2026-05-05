@@ -153,7 +153,7 @@ If you use UltrafastSecp256k1 in academic work, please cite:
 
 - **Citation metadata** — [CITATION.cff](CITATION.cff) (also exposed via GitHub's "Cite this repository" button)
 - **Zenodo metadata** — [.zenodo.json](.zenodo.json)
-- **DOI (Zenodo release)** — [10.5281/zenodo.19685542](https://doi.org/10.5281/zenodo.19685542)
+- **DOI (Zenodo release)** — [10.5281/zenodo.19685027](https://doi.org/10.5281/zenodo.19685027)
 
 [![DOI](https://zenodo.org/badge/1148013745.svg)](https://doi.org/10.5281/zenodo.19685027)
 
@@ -344,11 +344,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Generic nightly fan-out is disabled; the only automatic scheduled lane is the research monitor
-- All 97 non-exploit audit modules and all 235 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 97 non-exploit audit modules and all 239 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
-### Exploit PoC Test Suite (232 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (239 Tests, 20+ Coverage Areas)
 
-In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **232 dedicated exploit-style PoC tests** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 336-module `unified_audit_runner`, UltrafastSecp256k1 ships **239 registered exploit-style PoC test modules (251 test files)** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -367,7 +367,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 232 exploit tests live in `audit/test_exploit_*.cpp`. Build with `python3 scripts/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
+> All 239 registered exploit tests (251 test files) live in `audit/test_exploit_*.cpp`. Build with `python3 scripts/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
@@ -375,7 +375,7 @@ In addition to the 55-module `unified_audit_runner`, UltrafastSecp256k1 ships **
 |----------|---------|
 | [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
 | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) | Audit philosophy, continuous evidence model, design rationale, common objections answered |
-| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 247 modules, 0 failures |
+| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 336 modules, 0 failures |
 | [AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) | Per-module coverage matrix |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | Layer-by-layer risk analysis |
 | [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |

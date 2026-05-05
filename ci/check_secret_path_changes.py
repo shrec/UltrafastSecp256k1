@@ -57,7 +57,13 @@ def get_changed_files(base: str | None = None, before_sha: str | None = None) ->
     # On GitHub Actions the working tree is clean — git diff HEAD / --cached always
     # returns empty.  Use the base ref or before-sha to compare commits instead.
     if base or before_sha:
-        ref = base or before_sha
+        # Prefer before_sha on push events: it points at the commit just before
+        # the push, so diff is non-empty even when origin/dev already equals HEAD.
+        # Fall back to base (branch ref) for PRs and local runs.
+        if before_sha and len(before_sha) == 40 and not all(c == "0" for c in before_sha):
+            ref = before_sha
+        else:
+            ref = base
         cmd = ["git", "diff", "--name-only", f"{ref}..HEAD"]
         result = subprocess.run(
             cmd, capture_output=True, text=True, cwd=str(LIB_ROOT), check=False

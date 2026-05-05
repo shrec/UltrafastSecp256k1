@@ -1137,39 +1137,23 @@ std::uint8_t Scalar::bit(std::size_t index) const {
 }
 
 // Phase 5.6: NAF (Non-Adjacent Form) encoding
-// Converts scalar to signed representation {-1, 0, 1}
-// NAF property: no two adjacent non-zero digits
-// This reduces the number of non-zero digits by ~33%
-// Algorithm: scan from LSB, if odd -> take +/-1, adjust remaining
-std::vector<int8_t> Scalar::to_naf() const {
-    std::array<int8_t, 257> naf{};
-    std::size_t naf_len = 0;
-    
-    // Work with a mutable copy
+// Zero-allocation NAF: writes into caller-supplied buffer, returns digit count.
+std::size_t Scalar::to_naf_into(std::int8_t* out) const noexcept {
+    std::size_t len = 0;
     Scalar k = *this;
-    
     while (!k.is_zero()) {
-        if (k.limbs_[0] & 1u) {  // k is odd (LSB of limbs_[0])
-            // Get lowest 2 bits to determine sign
+        if (k.limbs_[0] & 1u) {
             auto const low_bits = static_cast<std::uint8_t>(k.limbs_[0] & 0x3);
-            int8_t digit = 0;
-            
             if (low_bits == 1 || low_bits == 2) {
-                // k == 1 or 2 (mod 4) -> use +1
-                digit = 1;
+                out[len++] = 1;
                 k -= Scalar::one();
             } else {
-                // k == 3 (mod 4) -> use -1 (equivalent to k-1 being even)
-                digit = -1;
+                out[len++] = -1;
                 k += Scalar::one();
             }
-            naf[naf_len++] = digit;
         } else {
-            // k is even -> digit is 0
-            naf[naf_len++] = 0;
+            out[len++] = 0;
         }
-        
-        // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
         for (std::size_t i = 4; i-- > 0; ) {
             std::uint64_t const limb = k.limbs_[i];
@@ -1177,54 +1161,36 @@ std::vector<int8_t> Scalar::to_naf() const {
             carry = limb & 1;
         }
     }
-    
-    // NAF can be one bit longer than the original number
-    // but we're done when k becomes zero
-    return std::vector<int8_t>(naf.begin(), naf.begin() + static_cast<std::ptrdiff_t>(naf_len));
+    return len;
 }
 
-// Phase 5.7: wNAF (width-w Non-Adjacent Form)
-// Converts scalar to signed odd-digit representation
-// Window width w -> digits in range {+/-1, +/-3, +/-5, ..., +/-(2^w - 1)}
-// Property: At most one non-zero digit in any w consecutive positions
-// This reduces precompute table size by ~50% (only odd multiples needed)
-std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
-    if (width < 2 || width > 8) {
-        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
-            return std::vector<int8_t>(); // Embedded: no exceptions, return empty
-        #else
-            throw std::invalid_argument("wNAF width must be between 2 and 8");
-        #endif
-    }
-    
-    std::array<int8_t, 257> wnaf{};
-    std::size_t wnaf_len = 0;
-    
+std::vector<int8_t> Scalar::to_naf() const {
+    std::array<int8_t, 257> buf{};
+    std::size_t const len = to_naf_into(buf.data());
+    return std::vector<int8_t>(buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(len));
+}
+
+// Zero-allocation wNAF: writes into caller-supplied buffer, returns digit count.
+std::size_t Scalar::to_wnaf_into(std::int8_t* out, unsigned width) const noexcept {
+    if (width < 2 || width > 8) return 0;
+    std::size_t len = 0;
     Scalar k = *this;
-    const unsigned window_size = 1U << width;          // 2^w
-    const auto window_mask = static_cast<std::uint64_t>(window_size - 1U);      // 2^w - 1
-    const int window_half = static_cast<int>(window_size >> 1);     // 2^(w-1)
-    
+    const unsigned window_size = 1U << width;
+    const auto window_mask = static_cast<std::uint64_t>(window_size - 1U);
+    const int window_half = static_cast<int>(window_size >> 1);
     while (!k.is_zero()) {
-        if (k.limbs_[0] & 1u) {  // k is odd (LSB of limbs_[0])
-            // Extract w bits
+        if (k.limbs_[0] & 1u) {
             int digit = static_cast<int>(k.limbs_[0] & window_mask);
-            
-            // If digit >= 2^(w-1), use negative representation
             if (digit >= window_half) {
-                digit -= window_size;  // Make negative
+                digit -= static_cast<int>(window_size);
                 k += Scalar::from_uint64(static_cast<std::uint64_t>(-digit));
             } else {
                 k -= Scalar::from_uint64(static_cast<std::uint64_t>(digit));
             }
-            
-            wnaf[wnaf_len++] = static_cast<int8_t>(digit);
+            out[len++] = static_cast<std::int8_t>(digit);
         } else {
-            // k is even -> digit is 0
-            wnaf[wnaf_len++] = 0;
+            out[len++] = 0;
         }
-        
-        // Divide k by 2 (right shift)
         std::uint64_t carry = 0;
         for (std::size_t i = 4; i-- > 0; ) {
             std::uint64_t const limb = k.limbs_[i];
@@ -1232,8 +1198,20 @@ std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
             carry = limb & 1;
         }
     }
-    
-    return std::vector<int8_t>(wnaf.begin(), wnaf.begin() + static_cast<std::ptrdiff_t>(wnaf_len));
+    return len;
+}
+
+std::vector<int8_t> Scalar::to_wnaf(unsigned width) const {
+    if (width < 2 || width > 8) {
+        #if defined(SECP256K1_ESP32) || defined(SECP256K1_PLATFORM_ESP32) || defined(__XTENSA__) || defined(SECP256K1_PLATFORM_STM32)
+            return std::vector<int8_t>();
+        #else
+            throw std::invalid_argument("wNAF width must be between 2 and 8");
+        #endif
+    }
+    std::array<int8_t, 257> buf{};
+    std::size_t const len = to_wnaf_into(buf.data(), width);
+    return std::vector<int8_t>(buf.begin(), buf.begin() + static_cast<std::ptrdiff_t>(len));
 }
 
 } // namespace secp256k1::fast
