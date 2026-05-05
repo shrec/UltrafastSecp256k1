@@ -3903,19 +3903,22 @@ set_tests_properties(regression_musig2_zero_psig PROPERTIES TIMEOUT 60
     LABELS "audit;exploit;musig2;regression")
 
 # CRIT-01+HIGH-01+HIGH-02+HIGH-04: GPU key erasure RAII
-add_executable(test_regression_gpu_key_erase_raii_standalone
-    test_regression_gpu_key_erase_raii.cpp)
-audit_target_defaults(test_regression_gpu_key_erase_raii_standalone)
-if(TARGET secp256k1_gpu_host)
+# Only build when GPU host library is available — the source includes ufsecp_gpu.h
+# and links ufsecp_gpu_ctx_create/ufsecp_gpu_ecdh_batch/ufsecp_gpu_ctx_destroy.
+# Without secp256k1_gpu_host those symbols are undefined → linker error on CPU-only CI.
+if(TARGET secp256k1_gpu_host OR SECP256K1_BUILD_OPENCL OR SECP256K1_BUILD_CUDA)
+    add_executable(test_regression_gpu_key_erase_raii_standalone
+        test_regression_gpu_key_erase_raii.cpp)
+    audit_target_defaults(test_regression_gpu_key_erase_raii_standalone)
     target_link_libraries(test_regression_gpu_key_erase_raii_standalone PRIVATE secp256k1_gpu_host)
     target_include_directories(test_regression_gpu_key_erase_raii_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
+    target_compile_definitions(test_regression_gpu_key_erase_raii_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_gpu_key_erase_raii COMMAND test_regression_gpu_key_erase_raii_standalone)
+    set_tests_properties(regression_gpu_key_erase_raii PROPERTIES TIMEOUT 120
+        SKIP_RETURN_CODE 77
+        LABELS "audit;memory_safety;gpu;regression")
 endif()
-target_compile_definitions(test_regression_gpu_key_erase_raii_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_gpu_key_erase_raii COMMAND test_regression_gpu_key_erase_raii_standalone)
-set_tests_properties(regression_gpu_key_erase_raii PROPERTIES TIMEOUT 120
-    SKIP_RETURN_CODE 77
-    LABELS "audit;memory_safety;gpu;regression")
 
 # CRIT-02: BIP-352 CT variable-base scalar mul
 add_executable(test_regression_bip352_ct_varbase_standalone

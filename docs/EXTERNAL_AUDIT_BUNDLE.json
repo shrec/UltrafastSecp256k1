@@ -33,13 +33,13 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "c7b41e8db7b5dae9c232114fb068db089c9200d530d00c19981db5c35f49f689",
+      "sha256": "cc29a9a25eee40cbfcc284098c41d7cbaee529cf4bccd64c908e10bda3d9c98b",
       "size": 50596
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "e7d666f2969288978e4aa810847b5e993c22a689ae6b800a9c70dfcd1b9280a7",
+      "sha256": "ac42cdcecf7836ab66b83494f89c0ac49c79f0ce6f2e93ff4b732020217a03fc",
       "size": 27768
     },
     {

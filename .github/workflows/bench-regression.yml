@@ -68,7 +68,7 @@ jobs:
         sudo apt-get install -y -qq ninja-build cmake ccache
 
     - name: ccache
-      uses: hendrikmuhs/ccache-action@a1209f81afb8746ae8834c8b6de9c2df990b657a # v1.2
+      uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
       with:
         key: bench-regression-${{ runner.os }}
 
