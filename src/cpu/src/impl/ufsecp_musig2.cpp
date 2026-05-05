@@ -25,10 +25,10 @@ ufsecp_error_t ufsecp_musig2_key_agg(ufsecp_ctx* ctx,
     }
     auto kagg = secp256k1::musig2_key_agg(pks);
     std::memcpy(agg_pubkey32_out, kagg.Q_x.data(), 32);
-    /* Serialize key agg ctx: n(4) | Q_negated(1) | Q_compressed(33) | coefficients(n*32) */
+    /* Serialize key agg ctx: n(4-LE) | Q_negated(1) | Q_compressed(33) | coefficients(n*32) */
     std::memset(keyagg_out, 0, UFSECP_MUSIG2_KEYAGG_LEN);
     const auto nk = static_cast<uint32_t>(kagg.key_coefficients.size());
-    std::memcpy(keyagg_out, &nk, 4);
+    write_le32(keyagg_out, nk);
     keyagg_out[4] = kagg.Q_negated ? 1 : 0;
     point_to_compressed(kagg.Q, keyagg_out + 5);
     for (uint32_t i = 0; i < nk && (38u + (i+1)*32u <= UFSECP_MUSIG2_KEYAGG_LEN); ++i) {
@@ -144,7 +144,7 @@ ufsecp_error_t ufsecp_musig2_start_sign_session(
     scalar_to_bytes(sess.e, session_out + 65);
     session_out[97] = sess.R_negated ? 1 : 0;
     const uint32_t participant_count = static_cast<uint32_t>(kagg.key_coefficients.size());
-    std::memcpy(session_out + kMuSig2SessionCountOffset, &participant_count, sizeof(participant_count));
+    write_le32(session_out + kMuSig2SessionCountOffset, participant_count);
     return UFSECP_OK;
 }
 
@@ -162,12 +162,20 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     // Zero output before any processing so every error path is fail-closed (MZP-3 / Rule 3).
     std::memset(partial_sig32_out, 0, 32);
     ctx_clear_err(ctx);
+    // BUG-1 FIX: consume (zero) secnonce on EVERY exit path — success, error, or exception.
+    // BIP-327 mandates this; failing to do so allows nonce reuse if the caller retries after
+    // an error (e.g. wrong privkey supplied first, correct privkey supplied second).
+    ScopeSecureErase<uint8_t> secnonce_guard(secnonce, UFSECP_MUSIG2_SECNONCE_LEN);
     Scalar sk;
+    ScopeSecureErase<Scalar> sk_guard(&sk, sizeof(sk));
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     secp256k1::MuSig2SecNonce sn;
+    ScopeSecureErase<secp256k1::MuSig2SecNonce> sn_guard(&sn, sizeof(sn));
     Scalar k1, k2;
+    ScopeSecureErase<Scalar> k1_guard(&k1, sizeof(k1));
+    ScopeSecureErase<Scalar> k2_guard(&k2, sizeof(k2));
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(secnonce, k1))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid secnonce k1");
     }
@@ -204,9 +212,10 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "session participant count does not match keyagg");
     }
     auto psig = secp256k1::musig2_partial_sign(sn, sk, kagg, sess, signer_index);
+    // Explicit erases below are now redundant (guards run on return), but kept for
+    // defense-in-depth: zeroize as early as possible before the degenerate check.
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
     secp256k1::detail::secure_erase(&sn, sizeof(sn));
-    // Consume caller's secnonce to prevent catastrophic nonce reuse
     secp256k1::detail::secure_erase(secnonce, UFSECP_MUSIG2_SECNONCE_LEN);
     // Rule 4: zero partial-sig must never be returned as success — it indicates
     // a degenerate arithmetic path (fault injection or k+e*d == 0 mod n).
@@ -429,8 +438,8 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
         if (pos + 8 > commits_len) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "truncated commit header");
         }
-        std::memcpy(&cc, all_commits + pos, 4); pos += 4;
-        std::memcpy(&fc.from, all_commits + pos, 4); pos += 4;
+        cc      = read_le32(all_commits + pos); pos += 4;
+        fc.from = read_le32(all_commits + pos); pos += 4;
         if (cc != threshold) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid commitment coefficient count");
         }
@@ -474,7 +483,7 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
     std::vector<uint8_t> seen_share_from(static_cast<size_t>(num_participants) + 1, 0);
     for (size_t i = 0; i < n_shares; ++i) {
         const uint8_t* s = received_shares + i * UFSECP_FROST_SHARE_LEN;
-        std::memcpy(&shares[i].from, s, 4);
+        shares[i].from = read_le32(s);
         if (shares[i].from == 0 || shares[i].from > num_participants) {
             erase_shares();
             return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid share sender");
@@ -499,12 +508,12 @@ ufsecp_error_t ufsecp_frost_keygen_finalize(
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "FROST keygen finalize failed");
     }
     erase_shares();
-    /* Serialize FrostKeyPackage: id(4) | threshold(4) | num_participants(4) |
+    /* Serialize FrostKeyPackage: id(4-LE) | threshold(4-LE) | num_participants(4-LE) |
        signing_share(32) | verification_share(33) | group_public_key(33) = 110 bytes */
     std::memset(keypkg_out, 0, UFSECP_FROST_KEYPKG_LEN);
-    std::memcpy(keypkg_out, &kp.id, 4);
-    std::memcpy(keypkg_out + 4, &kp.threshold, 4);
-    std::memcpy(keypkg_out + 8, &kp.num_participants, 4);
+    write_le32(keypkg_out,     kp.id);
+    write_le32(keypkg_out + 4, kp.threshold);
+    write_le32(keypkg_out + 8, kp.num_participants);
     scalar_to_bytes(kp.signing_share, keypkg_out + 12);
     point_to_compressed(kp.verification_share, keypkg_out + 44);
     point_to_compressed(kp.group_public_key, keypkg_out + 77);
@@ -536,7 +545,7 @@ ufsecp_error_t ufsecp_frost_sign_nonce_gen(
     secp256k1::detail::secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
     secp256k1::detail::secure_erase(h_bytes.data(), 32);
     secp256k1::detail::secure_erase(b_bytes.data(), 32);
-    std::memcpy(nonce_commit_out, &commit.id, 4);
+    write_le32(nonce_commit_out, commit.id);
     auto hp = commit.hiding_point.to_compressed();
     auto bp = commit.binding_point.to_compressed();
     std::memcpy(nonce_commit_out + 4, hp.data(), 33);
@@ -570,6 +579,10 @@ ufsecp_error_t ufsecp_frost_sign(
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
+    // BUG-2 FIX: consume (zero) nonce on EVERY exit — FROST nonce reuse is catastrophic.
+    // Must be placed after the null-check above (nonce confirmed non-null) and before
+    // any early returns so that all error paths trigger the destructor.
+    ScopeSecureErase<uint8_t> nonce_guard(nonce, UFSECP_FROST_NONCE_LEN);
     if (n_signers == 0) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "n_signers must be non-zero");
     }
@@ -581,9 +594,10 @@ ufsecp_error_t ufsecp_frost_sign(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "nonce commit size overflow");
     try {
     secp256k1::FrostKeyPackage kp;
-    std::memcpy(&kp.id, keypkg, 4);
-    std::memcpy(&kp.threshold, keypkg + 4, 4);
-    std::memcpy(&kp.num_participants, keypkg + 8, 4);
+    ScopeSecureErase<Scalar> signing_share_guard(&kp.signing_share, sizeof(kp.signing_share));
+    kp.id              = read_le32(keypkg);
+    kp.threshold       = read_le32(keypkg + 4);
+    kp.num_participants = read_le32(keypkg + 8);
     if (kp.num_participants == 0 || kp.id == 0 || kp.id > kp.num_participants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "invalid key package participant metadata");
     }
@@ -613,7 +627,10 @@ ufsecp_error_t ufsecp_frost_sign(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "invalid group public key");
     }
     secp256k1::FrostNonce fn;
+    ScopeSecureErase<secp256k1::FrostNonce> fn_guard(&fn, sizeof(fn));
     Scalar h, b;
+    ScopeSecureErase<Scalar> h_guard(&h, sizeof(h));
+    ScopeSecureErase<Scalar> b_guard(&b, sizeof(b));
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(nonce, h))) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid hiding nonce");
     }
@@ -629,7 +646,7 @@ ufsecp_error_t ufsecp_frost_sign(
     ufsecp_error_t nc_err = UFSECP_OK;
     for (size_t i = 0; i < n_signers; ++i) {
         const uint8_t* nc = nonce_commits + i * UFSECP_FROST_NONCE_COMMIT_LEN;
-        std::memcpy(&ncs[i].id, nc, 4);
+        ncs[i].id = read_le32(nc);
         if (ncs[i].id == 0 || ncs[i].id > kp.num_participants) {
             nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid nonce commitment signer");
             break;
@@ -659,11 +676,14 @@ ufsecp_error_t ufsecp_frost_sign(
         nc_err = ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "missing signer nonce commitment");
     }
     if (nc_err != UFSECP_OK) {
+        // Explicit early erases — guards (nonce_guard, signing_share_guard, fn_guard,
+        // h_guard, b_guard) will also run on return, but we erase eagerly here.
         secp256k1::detail::secure_erase(&kp.signing_share, sizeof(kp.signing_share));
         secp256k1::detail::secure_erase(&fn.hiding_nonce, sizeof(fn.hiding_nonce));
         secp256k1::detail::secure_erase(&fn.binding_nonce, sizeof(fn.binding_nonce));
         secp256k1::detail::secure_erase(&h, sizeof(h));
         secp256k1::detail::secure_erase(&b, sizeof(b));
+        secp256k1::detail::secure_erase(nonce, UFSECP_FROST_NONCE_LEN);
         return nc_err;
     }
     auto psig = secp256k1::frost_sign(kp, fn, msg_arr, ncs);
@@ -672,9 +692,8 @@ ufsecp_error_t ufsecp_frost_sign(
     secp256k1::detail::secure_erase(&fn.binding_nonce, sizeof(fn.binding_nonce));
     secp256k1::detail::secure_erase(&h, sizeof(h));
     secp256k1::detail::secure_erase(&b, sizeof(b));
-    // Consume caller's nonce to prevent catastrophic nonce reuse (mirrors MuSig2 secnonce erasure)
     secp256k1::detail::secure_erase(nonce, UFSECP_FROST_NONCE_LEN);
-    std::memcpy(partial_sig_out, &psig.id, 4);
+    write_le32(partial_sig_out, psig.id);
     scalar_to_bytes(psig.z_i, partial_sig_out + 4);
     return UFSECP_OK;
     } UFSECP_CATCH_RETURN(ctx)

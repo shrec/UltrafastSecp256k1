@@ -91,9 +91,9 @@ ufsecp_error_t ufsecp_last_error(const ufsecp_ctx* ctx) {
 const char* ufsecp_last_error_msg(const ufsecp_ctx* ctx) {
     if (!ctx) return "NULL context";
     auto err = static_cast<ufsecp_error_t>(ctx->last_err.load(std::memory_order_relaxed));
-    // Only consult last_msg when there is a non-OK error — prevents stale
-    // messages from appearing after ctx_clear_err (which no longer zeroes last_msg).
-    return (err != UFSECP_OK && ctx->last_msg[0]) ? ctx->last_msg : ufsecp_error_str(err);
+    // BUG-4 FIX: read from tl_last_msg (thread_local) instead of ctx->last_msg.
+    // Each thread sees its own most-recent error message; no data race possible.
+    return (err != UFSECP_OK && tl_last_msg[0]) ? tl_last_msg : ufsecp_error_str(err);
 }
 
 size_t ufsecp_ctx_size(void) {

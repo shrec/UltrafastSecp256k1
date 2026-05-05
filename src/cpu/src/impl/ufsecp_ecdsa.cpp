@@ -504,7 +504,7 @@ ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
 
     if (!secp256k1::schnorr_verify(pk_arr, msg_arr, schnorr_sig)) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "Schnorr verify failed");
-}
+    }
 
     return UFSECP_OK;
 }

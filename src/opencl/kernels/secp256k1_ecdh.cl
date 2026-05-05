@@ -60,10 +60,15 @@ inline int ecdh_compute_impl(const Scalar* private_key,
     scalar_mul_impl(&shared, peer_pubkey, private_key);
     if (shared.infinity) return 0;
 
-    FieldElement z_inv, z_inv2, x_aff;
+    // BUG-3 FIX: compute y_aff to derive the correct compressed-point prefix.
+    // Previously hardcoded 0x02, producing wrong output for ~50% of key pairs
+    // (those where the shared point has odd Y). Must match CPU/CUDA behaviour.
+    FieldElement z_inv, z_inv2, z_inv3, x_aff, y_aff;
     field_inv_impl(&z_inv, &shared.z);
     field_sqr_impl(&z_inv2, &z_inv);
+    field_mul_impl(&z_inv3, &z_inv, &z_inv2);
     field_mul_impl(&x_aff, &shared.x, &z_inv2);
+    field_mul_impl(&y_aff, &shared.y, &z_inv3);
 
     uchar x_bytes[32];
     for (int i = 0; i < 4; ++i) {
@@ -72,9 +77,10 @@ inline int ecdh_compute_impl(const Scalar* private_key,
             x_bytes[i * 8 + j] = (uchar)(v >> (56 - j * 8));
     }
 
+    // limbs[0] holds the least-significant 64-bit word; bit 0 is the Y parity.
+    uchar prefix = (y_aff.limbs[0] & 1UL) ? 0x03 : 0x02;
     SHA256Ctx ctx;
     sha256_init(&ctx);
-    uchar prefix = 0x02;
     sha256_update(&ctx, &prefix, 1);
     sha256_update(&ctx, x_bytes, 32);
     sha256_final(&ctx, out);

@@ -2952,6 +2952,26 @@ add_test(NAME exploit_bugbounty_20260505 COMMAND test_exploit_bugbounty_20260505
 set_tests_properties(exploit_bugbounty_20260505 PROPERTIES
     TIMEOUT 120 LABELS "audit;exploit;security;frost;shim;bip32;ct;regression;2026-05-05")
 
+# -- 2026-05-05 Red-Team Round 3 regression guards (RR3-01..06) ---------------
+# BUG-1: musig2 secnonce not zeroed on error paths
+# BUG-2: frost nonce not zeroed on early error paths
+# BUG-4: ufsecp_last_error_msg thread_local path
+# BUG-6: MuSig2 keyagg LE32 round-trip
+add_executable(test_exploit_redteam_round3_20260505_standalone
+    test_exploit_redteam_round3_20260505.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
+audit_target_defaults(test_exploit_redteam_round3_20260505_standalone)
+target_include_directories(test_exploit_redteam_round3_20260505_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_exploit_redteam_round3_20260505_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_redteam_round3_20260505
+    COMMAND test_exploit_redteam_round3_20260505_standalone)
+set_tests_properties(exploit_redteam_round3_20260505 PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;security;musig2;frost;memory_safety;regression;2026-05-05")
+
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
 audit_target_defaults(diag_scalar_mul)
@@ -3551,6 +3571,8 @@ add_executable(unified_audit_runner
     test_regression_perf_review_sec_2026_05_04.cpp
     # 2026-05-05 Red-team audit regression guards — P0-3/P1-5/P2-3 CPU regressions (RTA-01..08)
     test_exploit_red_team_audit_20260505.cpp
+    # 2026-05-05 Red-team round 3: BUG-1..4+6 secnonce/nonce/thread-safety/LE32 (RR3-01..06)
+    test_exploit_redteam_round3_20260505.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)

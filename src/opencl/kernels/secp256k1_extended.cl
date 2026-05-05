@@ -1556,11 +1556,27 @@ inline int ecdh_compute_xonly_impl(const Scalar* priv, const AffinePoint* peer, 
 }
 
 inline int ecdh_compute_impl(const Scalar* priv, const AffinePoint* peer, uchar out[32]) {
-    uchar x_bytes[32];
-    if (!ecdh_compute_raw_impl(priv, peer, x_bytes)) return 0;
+    // BUG-3 FIX: cannot use ecdh_compute_raw_impl here — it discards y_aff, making it
+    // impossible to derive the correct compressed-point prefix.  Inline the computation
+    // so we have y_aff and can determine Y parity.  Previously hardcoded 0x02 produced
+    // wrong output for ~50% of key pairs (odd-Y shared point).
+    JacobianPoint shared;
+    scalar_mul_glv_impl(&shared, priv, peer);
+    if (point_is_infinity(&shared)) return 0;
 
+    FieldElement z_inv, z_inv2, z_inv3, x_aff, y_aff;
+    field_inv_impl(&z_inv, &shared.z);
+    field_sqr_impl(&z_inv2, &z_inv);
+    field_mul_impl(&z_inv3, &z_inv, &z_inv2);
+    field_mul_impl(&x_aff, &shared.x, &z_inv2);
+    field_mul_impl(&y_aff, &shared.y, &z_inv3);
+
+    uchar x_bytes[32];
+    field_to_bytes_impl(&x_aff, x_bytes);
+
+    // limbs[0] is the least-significant 64-bit word; bit 0 is the Y parity.
+    uchar prefix = (y_aff.limbs[0] & 1UL) ? 0x03 : 0x02;
     SHA256Ctx ctx; sha256_init(&ctx);
-    uchar prefix = 0x02;
     sha256_update(&ctx, &prefix, 1);
     sha256_update(&ctx, x_bytes, 32);
     sha256_final(&ctx, out);

@@ -45,16 +45,23 @@ inline bool ecdh_compute_xonly_metal(thread const Scalar256& private_key,
     return true;
 }
 
-// ECDH: standard compressed hash SHA-256(0x02 || x)
+// ECDH: standard compressed hash SHA-256(prefix || x)
+// prefix = 0x02 if Y is even, 0x03 if Y is odd — must match CPU/CUDA behaviour.
 inline bool ecdh_compute_metal(thread const Scalar256& private_key,
                                 thread const JacobianPoint& peer_pubkey,
                                 thread uchar* out) {
     JacobianPoint shared = scalar_mul(peer_pubkey, private_key);
     if (shared.infinity) return false;
 
+    // BUG-3 FIX: compute y_aff to derive the correct compressed-point prefix.
+    // Previously hardcoded 0x02, producing wrong output for ~50% of key pairs
+    // (those where the shared point has odd Y). limbs[0] is the least-significant
+    // 32-bit word (8×32 LE layout); bit 0 is the Y parity.
     FieldElement z_inv = field_inv(shared.z);
     FieldElement z_inv2 = field_sqr(z_inv);
+    FieldElement z_inv3 = field_mul(z_inv, z_inv2);
     FieldElement x_aff = field_mul(shared.x, z_inv2);
+    FieldElement y_aff = field_mul(shared.y, z_inv3);
 
     uchar x_bytes[32];
     for (int i = 0; i < 8; ++i) {
@@ -65,8 +72,8 @@ inline bool ecdh_compute_metal(thread const Scalar256& private_key,
         x_bytes[i * 4 + 3] = (uchar)(v);
     }
 
+    uchar prefix = (y_aff.limbs[0] & 1u) ? 0x03u : 0x02u;
     SHA256Ctx ctx = sha256_init();
-    uchar prefix = 0x02;
     ctx = sha256_update(ctx, &prefix, 1);
     ctx = sha256_update(ctx, x_bytes, 32);
     sha256_final(ctx, out);

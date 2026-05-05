@@ -7,6 +7,58 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-05 — Red-Team Round 3: 6 Findings Fixed (C×3, M×1, L×2)
+
+Source-graph red-team pass over CPU ABI, OpenCL/Metal GPU kernels, and cross-backend
+correctness. All findings fixed in the same commit.
+
+### Critical (C) — All fixed
+
+- **BUG-1**: `ufsecp_musig2_partial_sign` — `secnonce` not zeroed on 7 error paths
+  (bad privkey, bad k1/k2, keyagg/session parse failure, signer_index OOB, participant
+  count mismatch). BIP-327 mandates secnonce erasure on ALL exits; a caller who
+  retried after receiving an error could reuse the same nonce → key extraction.
+  Fixed: added `ScopeSecureErase` guards for `secnonce`, `sk`, `sn`, `k1`, `k2`
+  in `src/cpu/src/impl/ufsecp_musig2.cpp`.
+
+- **BUG-2**: `ufsecp_frost_sign` — `nonce` not zeroed on early error paths
+  (n_signers validation, keypkg parse, signing share, hiding/binding nonce parse).
+  Partial fix existed only for nonce-commit loop errors. Fixed: added `ScopeSecureErase`
+  guard for `nonce` (covers all paths), guards for `fn`/`h`/`b`/`signing_share`,
+  and explicit erasure in the nc_err error block. Same file.
+
+- **BUG-3**: `ecdh_compute_impl` OpenCL (`secp256k1_ecdh.cl`, `secp256k1_extended.cl`)
+  and `ecdh_compute_metal` (Metal) hardcoded `prefix = 0x02` regardless of Y parity.
+  CPU and CUDA correctly use `to_compressed()` / `(y[31]&1) ? 0x03 : 0x02`. For ~50%
+  of key pairs (odd-Y shared point) OpenCL/Metal produced a different ECDH output than
+  CPU/CUDA — ECDH secrets incompatible across backends.
+  Fixed: added `z_inv3 = z_inv * z_inv2`, `y_aff = y * z_inv3`,
+  `prefix = (y_aff.limbs[0] & 1) ? 0x03 : 0x02` in all three GPU files.
+
+### Medium (M) — Fixed
+
+- **BUG-4**: `ctx_set_err` wrote to `ctx->last_msg[128]` (non-atomic, unprotected) while
+  `ctx->last_err` was atomic. Concurrent API calls on a shared context triggered a TSan
+  data race on `last_msg`. Fixed: moved error message storage to `thread_local char
+  tl_last_msg[128]`; `ctx->last_msg` retained in struct for ABI stability but no longer
+  written. `ufsecp_last_error_msg` reads `tl_last_msg`.
+  Files: `src/cpu/src/ufsecp_impl.cpp`, `src/cpu/src/impl/ufsecp_core.cpp`.
+
+### Low (L) — Fixed
+
+- **BUG-5**: Misaligned closing braces (`}` at column 0) in `ufsecp_bip32_master`,
+  `ufsecp_bip32_derive`, `ufsecp_bip32_derive_path` (ufsecp_address.cpp) and
+  `ufsecp_schnorr_verify` (ufsecp_ecdsa.cpp). Formatting corrected.
+
+- **BUG-6**: `uint32_t` participant counts, IDs, and thresholds in MuSig2/FROST blobs
+  were serialized/deserialized with native-endian `std::memcpy(&u32, buf, 4)`.
+  Big-endian platforms (s390x, PowerPC) would produce incompatible blobs.
+  Fixed: replaced all such calls with `read_le32`/`write_le32` helpers added to
+  `src/cpu/src/ufsecp_impl.cpp`. Affected: keyagg, session, keypkg, nonce-commit,
+  frost commit/share parsing.
+
+---
+
 ## 2026-05-05 — Bug Bounty Red-Team Round 2: 10 Findings Fixed (C×4, H×3, M×3)
 
 Second bug-bounty pass over GPU backends, FROST ABI, and shim layer.

@@ -298,12 +298,12 @@ ufsecp_error_t ufsecp_bip32_master(ufsecp_ctx* ctx,
 
     if (seed_len < 16 || seed_len > 64) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "seed must be 16-64 bytes");
-}
+    }
 
     auto [ek, ok] = secp256k1::bip32_master_key(seed, seed_len);
     if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 master key failed");
-}
+    }
 
     extkey_to_uf(ek, key_out);
     secp256k1::detail::secure_erase(ek.key.data(), ek.key.size());
@@ -328,7 +328,7 @@ ufsecp_error_t ufsecp_bip32_derive(ufsecp_ctx* ctx,
     secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
     if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "BIP-32 derivation failed");
-}
+    }
 
     extkey_to_uf(child, child_out);
     secp256k1::detail::secure_erase(child.key.data(), child.key.size());
@@ -358,7 +358,7 @@ ufsecp_error_t ufsecp_bip32_derive_path(ufsecp_ctx* ctx,
     secp256k1::detail::secure_erase(ek.chain_code.data(), ek.chain_code.size());
     if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid BIP-32 path");
-}
+    }
 
     extkey_to_uf(derived, key_out);
     secp256k1::detail::secure_erase(derived.key.data(), derived.key.size());

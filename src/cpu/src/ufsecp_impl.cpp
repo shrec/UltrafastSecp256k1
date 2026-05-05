@@ -87,9 +87,20 @@ struct ufsecp_ctx {
     // written by ctx_clear_err/ctx_set_err on every API call, so it must be
     // atomic to avoid a TSan data race when two threads share one context.
     std::atomic<int>  last_err;
+    // BUG-4 FIX: last_msg is no longer written here — it is now thread_local
+    // (see tl_last_msg below).  The field is kept for ABI stability (sizeof
+    // ufsecp_ctx must not change across minor versions), but is zero-initialized
+    // and never read by the library.
     char              last_msg[128];
     bool              selftest_ok;
 };
+
+// BUG-4 FIX: per-thread error message storage.
+// ctx_set_err writes here; ufsecp_last_error_msg reads here.
+// Eliminates the TSan data race when two threads share one ufsecp_ctx and
+// both encounter errors concurrently.  Each thread sees its own most-recent
+// error message, which is the only meaningful semantic for a shared context.
+static thread_local char tl_last_msg[128] = {};
 
 static void ctx_clear_err(ufsecp_ctx* ctx) {
     ctx->last_err.store(UFSECP_OK, std::memory_order_relaxed);
@@ -101,16 +112,17 @@ static void ctx_clear_err(ufsecp_ctx* ctx) {
 
 static ufsecp_error_t ctx_set_err(ufsecp_ctx* ctx, ufsecp_error_t err, const char* msg) {
     ctx->last_err.store(err, std::memory_order_relaxed);
+    // BUG-4 FIX: write to thread_local tl_last_msg, not ctx->last_msg.
+    // ctx->last_msg is non-atomic and was a TSan data race when two threads
+    // shared a context and both hit errors simultaneously.
     if (msg) {
-        /* Portable safe copy without MSVC deprecation warning */
         size_t i = 0;
-        /* cppcheck-suppress arrayIndexOutOfBoundsCond ; i bounded by sizeof(last_msg)-1 */
-        for (; i < sizeof(ctx->last_msg) - 1 && msg[i]; ++i) {
-            ctx->last_msg[i] = msg[i];
-}
-        ctx->last_msg[i] = '\0';
+        for (; i < sizeof(tl_last_msg) - 1 && msg[i]; ++i) {
+            tl_last_msg[i] = msg[i];
+        }
+        tl_last_msg[i] = '\0';
     } else {
-        ctx->last_msg[0] = '\0';
+        tl_last_msg[0] = '\0';
     }
     return err;
 }
@@ -162,8 +174,7 @@ static_assert(kMuSig2SessionCountOffset + kMuSig2SessionCountLen <= UFSECP_MUSIG
 static ufsecp_error_t parse_musig2_keyagg(ufsecp_ctx* ctx,
                                           const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
                                           secp256k1::MuSig2KeyAggCtx& out) {
-    uint32_t nk = 0;
-    std::memcpy(&nk, keyagg, 4);
+    uint32_t nk = read_le32(keyagg);
     if (nk < kMuSig2MinParticipants || nk > kMuSig2MaxKeyAggParticipants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid keyagg participant count");
     }
@@ -205,7 +216,7 @@ static ufsecp_error_t parse_musig2_session(ufsecp_ctx* ctx,
     }
     out.R_negated = (session[97] != 0);
 
-    std::memcpy(&participant_count_out, session + kMuSig2SessionCountOffset, sizeof(participant_count_out));
+    participant_count_out = read_le32(session + kMuSig2SessionCountOffset);
     if (participant_count_out < kMuSig2MinParticipants || participant_count_out > kMuSig2MaxKeyAggParticipants) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid session participant count");
     }
@@ -226,6 +237,23 @@ static bool checked_add_size(std::size_t left, std::size_t right, std::size_t& o
     }
     out = left + right;
     return true;
+}
+
+// BUG-6 FIX: deterministic little-endian uint32_t serialization helpers.
+// std::memcpy(&u32, buf, 4) uses native endianness and produces wrong results
+// on big-endian platforms (s390x, PowerPC).  These helpers guarantee LE layout
+// on all platforms, matching secp256k1 conventions.
+static inline uint32_t read_le32(const uint8_t* p) noexcept {
+    return static_cast<uint32_t>(p[0])
+         | (static_cast<uint32_t>(p[1]) << 8)
+         | (static_cast<uint32_t>(p[2]) << 16)
+         | (static_cast<uint32_t>(p[3]) << 24);
+}
+static inline void write_le32(uint8_t* p, uint32_t v) noexcept {
+    p[0] = static_cast<uint8_t>(v);
+    p[1] = static_cast<uint8_t>(v >> 8);
+    p[2] = static_cast<uint8_t>(v >> 16);
+    p[3] = static_cast<uint8_t>(v >> 24);
 }
 
 /* Hard upper bound on user-supplied batch/array counts.
