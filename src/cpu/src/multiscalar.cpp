@@ -100,14 +100,12 @@ Point multi_scalar_mul(const Scalar* scalars,
     glv_info.resize(n);
 
     // wNAF for k1 streams at [0..n-1], k2 streams at [n..2n-1].
-    // Keep one flat arena to avoid 2n nested allocations per call.
-    constexpr std::size_t wnaf_capacity = 260;
-    static thread_local std::vector<int32_t> wnaf_storage;
+    // int8_t: w=4 digits are in {-15,-13,...,-1,0,1,...,15} — fit in int8_t.
+    // 135 entries: 128-bit half-scalar + w=4 window headroom (vs 260×int32_t before).
+    // Memory for n=47 at crossover: 270×47 = 12.7 KB (vs 97.8 KB) — stays in L1.
+    constexpr std::size_t wnaf_capacity = 135;
+    static thread_local std::vector<int8_t> wnaf_storage;
     static thread_local std::vector<std::size_t> wnaf_lens;
-    // resize (not assign) — loop guards all accesses with `bit < wnaf_lens[i]`
-    // so positions beyond each stream's wnaf_lens are never read; zero-fill
-    // of 208 KB per call was unnecessary and wasted L2 bandwidth.
-    // wnaf_lens entries are all overwritten by compute_wnaf_into before use.
     wnaf_storage.resize(2 * n * wnaf_capacity);
     wnaf_lens.resize(2 * n);
     std::size_t max_len = 0;
@@ -117,8 +115,8 @@ Point multi_scalar_mul(const Scalar* scalars,
         glv_info[i] = {decomp.k1_neg, decomp.k2_neg};
 
         // Compute wNAF for both half-scalars in-place inside the flat arena.
-        int32_t* const wnaf_k1 = wnaf_storage.data() + (i * wnaf_capacity);
-        int32_t* const wnaf_k2 = wnaf_storage.data() + ((n + i) * wnaf_capacity);
+        int8_t* const wnaf_k1 = wnaf_storage.data() + (i * wnaf_capacity);
+        int8_t* const wnaf_k2 = wnaf_storage.data() + ((n + i) * wnaf_capacity);
         compute_wnaf_into(decomp.k1, w,
                           wnaf_k1, wnaf_capacity, wnaf_lens[i]);
         compute_wnaf_into(decomp.k2, w,

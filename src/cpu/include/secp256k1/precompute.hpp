@@ -21,6 +21,23 @@ void compute_wnaf_into(const Scalar& scalar,
                        int32_t* out,
                        std::size_t max,
                        std::size_t& out_len);
+
+// int8_t overload for w<=7 (max digit = 2^7-1 = 127, fits in int8_t).
+// Delegates to int32_t version via a small temporary stack buffer.
+// Caller must ensure max <= 135 for 128-bit half-scalars (w<=7).
+inline void compute_wnaf_into(const Scalar& scalar,
+                               unsigned window_bits,
+                               int8_t* out,
+                               std::size_t max,
+                               std::size_t& out_len) {
+    // Temporary int32_t buffer on the stack (max=135, 540 bytes).
+    int32_t tmp[135];
+    std::size_t const cap = (max <= 135) ? max : 135;
+    compute_wnaf_into(scalar, window_bits, tmp, cap, out_len);
+    for (std::size_t i = 0; i < out_len; ++i) {
+        out[i] = static_cast<int8_t>(tmp[i]);
+    }
+}
 // Progress callback: (current_points, total_points, window_index, total_windows)
 using ProgressCallback = void(*)(size_t, size_t, unsigned, unsigned);
 
