@@ -155,11 +155,7 @@ inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
 
     // rand = tagged_hash("BIP0340/nonce", t || px || msg)
     uchar px_bytes[32];
-    for (int i = 0; i < 4; ++i) {
-        ulong v = kp.pub_x.limbs[3 - i];
-        for (int j = 0; j < 8; ++j)
-            px_bytes[i * 8 + j] = (uchar)(v >> (56 - j * 8));
-    }
+    field_to_bytes_impl(&kp.pub_x, px_bytes);
 
     uchar nonce_input[96];
     for (int i = 0; i < 32; ++i) nonce_input[i] = t[i];
@@ -188,11 +184,7 @@ inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
 
     // Serialize R.x
     uchar rx_bytes[32];
-    for (int i = 0; i < 4; ++i) {
-        ulong v = rx.limbs[3 - i];
-        for (int j = 0; j < 8; ++j)
-            rx_bytes[i * 8 + j] = (uchar)(v >> (56 - j * 8));
-    }
+    field_to_bytes_impl(&rx, rx_bytes);
 
     // e = tagged_hash("BIP0340/challenge", R.x || P.x || msg) mod n
     uchar challenge_input[96];

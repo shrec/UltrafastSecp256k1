@@ -260,28 +260,33 @@ Point multi_scalar_mul(const Scalar* scalars,
     return R;
 
 #else
-    // Non-FE52 fallback: original Strauss without GLV
+    // Non-FE52 fallback: Strauss without GLV — TLS arenas to avoid per-call heap allocs
 
-    // Compute wNAF for each scalar
-    std::vector<std::vector<int8_t>> wnafs(n);
+    // Flat wNAF storage: reuse across calls via TLS (max 257 digits per scalar)
+    constexpr std::size_t kWnafCapNonFE52 = 257;
+    static thread_local std::vector<int8_t>    wnaf_flat;
+    static thread_local std::vector<std::size_t> wnaf_sizes;
+    wnaf_flat.resize(n * kWnafCapNonFE52);
+    wnaf_sizes.resize(n);
+
     std::size_t max_len = 0;
     for (std::size_t i = 0; i < n; ++i) {
-        wnafs[i] = scalars[i].to_wnaf(w);
-        if (wnafs[i].size() > max_len) {
-            max_len = wnafs[i].size();
-        }
+        auto tmp = scalars[i].to_wnaf(w);
+        wnaf_sizes[i] = tmp.size();
+        std::copy(tmp.begin(), tmp.end(), wnaf_flat.data() + i * kWnafCapNonFE52);
+        if (wnaf_sizes[i] > max_len) max_len = wnaf_sizes[i];
     }
 
-    // Pre-compute odd multiples: table[i][j] = (2j+1) * points[i]
-    std::vector<std::vector<Point>> tables(n);
+    // Flat table storage: reuse across calls via TLS
+    static thread_local std::vector<Point> table_flat;
+    table_flat.resize(n * table_size);
     for (std::size_t i = 0; i < n; ++i) {
-        tables[i].resize(table_size);
-        tables[i][0] = points[i];
+        Point* const tbl = table_flat.data() + i * table_size;
+        tbl[0] = points[i];
         if (table_size > 1) {
             Point const P2 = points[i].dbl();
-            for (std::size_t j = 1; j < table_size; ++j) {
-                tables[i][j] = tables[i][j - 1].add(P2);
-            }
+            for (std::size_t j = 1; j < table_size; ++j)
+                tbl[j] = tbl[j - 1].add(P2);
         }
     }
 
@@ -291,17 +296,18 @@ Point multi_scalar_mul(const Scalar* scalars,
         R.dbl_inplace();
 
         for (std::size_t i = 0; i < n; ++i) {
-            if (bit >= wnafs[i].size()) continue;
-            int8_t const digit = wnafs[i][bit];
+            if (bit >= wnaf_sizes[i]) continue;
+            int8_t const digit = wnaf_flat[i * kWnafCapNonFE52 + bit];
             if (digit == 0) continue;
 
-            std::size_t idx = 0;
+            Point const* const tbl = table_flat.data() + i * table_size;
+            std::size_t idx;
             if (digit > 0) {
                 idx = static_cast<std::size_t>((digit - 1) / 2);
-                R.add_inplace(tables[i][idx]);
+                R.add_inplace(tbl[idx]);
             } else {
                 idx = static_cast<std::size_t>((-digit - 1) / 2);
-                Point neg_pt = tables[i][idx];
+                Point neg_pt = tbl[idx];
                 neg_pt.negate_inplace();
                 R.add_inplace(neg_pt);
             }

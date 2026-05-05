@@ -10,6 +10,7 @@
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/tagged_hash.hpp"
+#include "secp256k1/ct/point.hpp"
 #if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -178,7 +179,7 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
         points[n + i] = R_pt;
     }
 
-    auto G_term = Point::generator().scalar_mul(g_coeff);
+    auto G_term = ct::generator_mul(g_coeff);
     auto rest = msm(scalars, points, msm_n);
     auto result = G_term.add(rest);
     return result.is_infinity();
@@ -210,6 +211,9 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     using PubkeyMap = std::unordered_map<std::array<uint8_t, 32>, Point, PubkeyHash32>;
     static thread_local PubkeyMap pubkey_index;
     pubkey_index.clear();
+    // Shrink if bucket table grew far beyond current n to prevent indefinite memory growth
+    // under adversarial large-then-small call patterns (clear() keeps bucket memory).
+    if (pubkey_index.bucket_count() > n * 8 + 64) pubkey_index = PubkeyMap{};
     pubkey_index.reserve(n);
 
     // Grow-only vector reserve (no realloc when n stays the same between calls)
@@ -307,9 +311,15 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
         }
     }
 
-    if (n == 1) {
-        return ecdsa_verify(entries[0].msg_hash, entries[0].public_key,
-                            entries[0].signature);
+    // Small-n fast path: individual verifies cheaper than batch inversion overhead
+    constexpr std::size_t kEcdsaBatchIndividualCutoff = 8;
+    if (n <= kEcdsaBatchIndividualCutoff) {
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!ecdsa_verify(entries[i].msg_hash, entries[i].public_key,
+                              entries[i].signature))
+                return false;
+        }
+        return true;
     }
 
     // Pre-compute all s_inverse values

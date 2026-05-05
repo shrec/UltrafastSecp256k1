@@ -44,7 +44,8 @@ unsigned pippenger_optimal_window(std::size_t n) {
     if (n <= 2048) return 8;
     if (n <= 8192) return 9;
     if (n <= 32768) return 10;
-    if (n <= 131072) return 12;
+    if (n <= 65536) return 12;
+    if (n <= 262144) return 13;
     return 14;
 }
 

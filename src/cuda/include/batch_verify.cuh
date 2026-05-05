@@ -14,6 +14,7 @@
 // ============================================================================
 
 #include "schnorr.cuh"
+#include <vector>
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -76,7 +77,7 @@ __global__ void ecdsa_batch_verify_kernel(
 
 // Schnorr batch verify: launches GPU kernel, returns true iff ALL valid.
 // out_invalid (optional): bit-array of invalid signature indices.
-// Caller is responsible for cudaMalloc/cudaFree of device memory.
+// Uses grow-only device buffer pool to avoid per-call cudaMalloc/cudaFree overhead.
 inline bool schnorr_batch_verify_gpu(
     const SchnorrBatchEntryGPU* h_entries,
     int n,
@@ -85,11 +86,24 @@ inline bool schnorr_batch_verify_gpu(
 {
     if (n <= 0) return true;
 
-    SchnorrBatchEntryGPU* d_entries = nullptr;
-    int* d_results = nullptr;
+    // Grow-only device buffers — reallocate only when n exceeds previous capacity
+    static SchnorrBatchEntryGPU* d_entries = nullptr;
+    static int d_entries_cap = 0;
+    static int* d_results = nullptr;
+    static int d_results_cap = 0;
+    static std::vector<int> h_results_buf;
 
-    cudaMalloc(&d_entries, n * sizeof(SchnorrBatchEntryGPU));
-    cudaMalloc(&d_results, n * sizeof(int));
+    if (n > d_entries_cap) {
+        if (d_entries) cudaFree(d_entries);
+        cudaMalloc(&d_entries, n * sizeof(SchnorrBatchEntryGPU));
+        d_entries_cap = n;
+    }
+    if (n > d_results_cap) {
+        if (d_results) cudaFree(d_results);
+        cudaMalloc(&d_results, n * sizeof(int));
+        d_results_cap = n;
+    }
+    if (static_cast<int>(h_results_buf.size()) < n) h_results_buf.resize(n);
 
     cudaMemcpy(d_entries, h_entries, n * sizeof(SchnorrBatchEntryGPU),
                cudaMemcpyHostToDevice);
@@ -98,13 +112,12 @@ inline bool schnorr_batch_verify_gpu(
     int grid_size = (n + block_size - 1) / block_size;
     schnorr_batch_verify_kernel<<<grid_size, block_size>>>(d_entries, n, d_results);
 
-    int* h_results = new int[n];
-    cudaMemcpy(h_results, d_results, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_results_buf.data(), d_results, n * sizeof(int), cudaMemcpyDeviceToHost);
 
     bool all_valid = true;
     int invalid_count = 0;
     for (int i = 0; i < n; i++) {
-        if (h_results[i] == 0) {
+        if (h_results_buf[i] == 0) {
             all_valid = false;
             if (h_invalid_indices && invalid_count < n) {
                 h_invalid_indices[invalid_count] = i;
@@ -114,14 +127,11 @@ inline bool schnorr_batch_verify_gpu(
     }
     if (out_invalid_count) *out_invalid_count = invalid_count;
 
-    delete[] h_results;
-    cudaFree(d_results);
-    cudaFree(d_entries);
-
     return all_valid;
 }
 
 // ECDSA batch verify: launches GPU kernel, returns true iff ALL valid.
+// Uses grow-only device buffer pool to avoid per-call cudaMalloc/cudaFree overhead.
 inline bool ecdsa_batch_verify_gpu(
     const ECDSABatchEntryGPU* h_entries,
     int n,
@@ -130,11 +140,24 @@ inline bool ecdsa_batch_verify_gpu(
 {
     if (n <= 0) return true;
 
-    ECDSABatchEntryGPU* d_entries = nullptr;
-    int* d_results = nullptr;
+    // Grow-only device buffers — reallocate only when n exceeds previous capacity
+    static ECDSABatchEntryGPU* d_entries = nullptr;
+    static int d_entries_cap = 0;
+    static int* d_results = nullptr;
+    static int d_results_cap = 0;
+    static std::vector<int> h_results_buf;
 
-    cudaMalloc(&d_entries, n * sizeof(ECDSABatchEntryGPU));
-    cudaMalloc(&d_results, n * sizeof(int));
+    if (n > d_entries_cap) {
+        if (d_entries) cudaFree(d_entries);
+        cudaMalloc(&d_entries, n * sizeof(ECDSABatchEntryGPU));
+        d_entries_cap = n;
+    }
+    if (n > d_results_cap) {
+        if (d_results) cudaFree(d_results);
+        cudaMalloc(&d_results, n * sizeof(int));
+        d_results_cap = n;
+    }
+    if (static_cast<int>(h_results_buf.size()) < n) h_results_buf.resize(n);
 
     cudaMemcpy(d_entries, h_entries, n * sizeof(ECDSABatchEntryGPU),
                cudaMemcpyHostToDevice);
@@ -143,13 +166,12 @@ inline bool ecdsa_batch_verify_gpu(
     int grid_size = (n + block_size - 1) / block_size;
     ecdsa_batch_verify_kernel<<<grid_size, block_size>>>(d_entries, n, d_results);
 
-    int* h_results = new int[n];
-    cudaMemcpy(h_results, d_results, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_results_buf.data(), d_results, n * sizeof(int), cudaMemcpyDeviceToHost);
 
     bool all_valid = true;
     int invalid_count = 0;
     for (int i = 0; i < n; i++) {
-        if (h_results[i] == 0) {
+        if (h_results_buf[i] == 0) {
             all_valid = false;
             if (h_invalid_indices && invalid_count < n) {
                 h_invalid_indices[invalid_count] = i;
@@ -158,10 +180,6 @@ inline bool ecdsa_batch_verify_gpu(
         }
     }
     if (out_invalid_count) *out_invalid_count = invalid_count;
-
-    delete[] h_results;
-    cudaFree(d_results);
-    cudaFree(d_entries);
 
     return all_valid;
 }

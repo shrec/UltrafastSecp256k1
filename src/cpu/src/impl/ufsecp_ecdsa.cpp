@@ -406,14 +406,14 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
-            std::memset(sigs64_out, 0, count * 64); // re-clear partial output (fail-closed)
+            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }
         auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         if (SECP256K1_UNLIKELY(!sig.is_valid())) {
-            std::memset(sigs64_out, 0, count * 64);
+            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
             return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
         }
         auto compact = sig.to_compact();
@@ -447,7 +447,7 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
-            std::memset(sigs64_out, 0, count * 64); // re-clear partial output (fail-closed)
+            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }
@@ -462,14 +462,14 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
         if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
-            std::memset(sigs64_out, 0, count * 64);
+            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
             return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
         }
         {
             bool r_all_zero = std::all_of(sig.r.begin(), sig.r.end(),
                                           [](uint8_t b) { return b == 0; });
             if (SECP256K1_UNLIKELY(r_all_zero)) {
-                std::memset(sigs64_out, 0, count * 64);
+                std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
                 return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
             }
         }
