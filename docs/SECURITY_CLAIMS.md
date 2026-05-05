@@ -2,6 +2,15 @@
 
 **UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-05 Performance Audit — CT Refactoring (no security-boundary change)
+
+- **`ct_point.cpp` `ct_glv_make_v` extraction**: The GLV half-scalar CT-negate/increment
+  routine was duplicated in four scalar-mul functions. Extracted to a single
+  `SECP256K1_INLINE static ct_glv_make_v` with identical logic. No CT semantics changed;
+  the refactor reduces the risk of copy-paste divergence in a CT secret path.
+- **`schnorr_verify(SchnorrXonlyPubkey)` overloads**: Marked `[[nodiscard]]` and `noexcept`.
+  No algorithm change.
+
 ### 2026-05-05 Security Claim Updates
 
 Following the full red-team / bug-bounty audit, 17 findings were fixed (4 Critical, 6 High, 7 Medium):

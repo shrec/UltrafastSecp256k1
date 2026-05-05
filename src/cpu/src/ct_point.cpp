@@ -1256,6 +1256,29 @@ CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
 // Output: {R.x, R.y, R.z} in Jacobian form; affine x = R.x * R.z^{-2}.
 static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept;
 
+// --- CT GLV make_v helper ----------------------------------------------------
+// CT-negates or CT-increments the GLV half-scalar based on its sign bit.
+// Extracted from the four scalar_mul_* functions to avoid copy-paste divergence.
+SECP256K1_INLINE static Scalar ct_glv_make_v(const Scalar& k_abs, std::uint64_t k_neg) noexcept {
+    auto L = k_abs.limbs();
+    std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
+    std::uint64_t const pos_mask = ~neg_mask;
+    std::uint64_t nL[4], borrow = 0, diff;
+    diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
+    diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
+    diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
+    nL[3] = 0 - borrow;
+    std::uint64_t pL[4];
+    pL[0] = L[0]; pL[1] = L[1];
+    std::uint64_t const sum = L[2] + 1;
+    pL[2] = sum; pL[3] = L[3] + static_cast<std::uint64_t>(sum < L[2]);
+    L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
+    L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
+    L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
+    L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
+    return Scalar::from_limbs(L);
+}
+
 // --- scalar_mul_jac_fe52_z1 --------------------------------------------------
 // Same as scalar_mul_jac but takes raw FE52 affine coordinates (Z=1 assumed).
 // BYPASSES the SECP_ASSERT_ON_CURVE check — safe for effective-affine points
@@ -1276,29 +1299,8 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
     s = scalar_half(s);
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
 
-    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
-        auto L = k_abs.limbs();
-        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
-        std::uint64_t const pos_mask = ~neg_mask;
-        std::uint64_t nL[4], borrow = 0, diff;
-        diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
-        diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
-        diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
-        nL[3] = 0 - borrow;
-        std::uint64_t pL[4];
-        pL[0] = L[0]; pL[1] = L[1];
-        std::uint64_t const sum = L[2] + 1;
-        std::uint64_t const carry = static_cast<std::uint64_t>(sum < L[2]);
-        pL[2] = sum; pL[3] = L[3] + carry;
-        L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
-        L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
-        L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
-        L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
-        return Scalar::from_limbs(L);
-    };
-
-    Scalar const v1 = make_v(k1_abs, k1_neg);
-    Scalar const v2 = make_v(k2_abs, k2_neg);
+    Scalar const v1 = ct_glv_make_v(k1_abs, k1_neg);
+    Scalar const v2 = ct_glv_make_v(k2_abs, k2_neg);
 
     CTAffinePoint pre_a[TABLE_SIZE];
     CTAffinePoint pre_a_lam[TABLE_SIZE];
@@ -1393,29 +1395,8 @@ static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept 
     s = scalar_half(s);
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
 
-    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
-        auto L = k_abs.limbs();
-        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
-        std::uint64_t const pos_mask = ~neg_mask;
-        std::uint64_t nL[4], borrow = 0, diff;
-        diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
-        diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
-        diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
-        nL[3] = 0 - borrow;
-        std::uint64_t pL[4];
-        pL[0] = L[0]; pL[1] = L[1];
-        std::uint64_t const sum = L[2] + 1;
-        std::uint64_t const carry = static_cast<std::uint64_t>(sum < L[2]);
-        pL[2] = sum; pL[3] = L[3] + carry;
-        L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
-        L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
-        L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
-        L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
-        return Scalar::from_limbs(L);
-    };
-
-    Scalar const v1 = make_v(k1_abs, k1_neg);
-    Scalar const v2 = make_v(k2_abs, k2_neg);
+    Scalar const v1 = ct_glv_make_v(k1_abs, k1_neg);
+    Scalar const v2 = ct_glv_make_v(k2_abs, k2_neg);
 
     CTAffinePoint pre_a[TABLE_SIZE];
     CTAffinePoint pre_a_lam[TABLE_SIZE];
@@ -1630,28 +1611,8 @@ Point scalar_mul_prebuilt(const CTScalarMulTables& tables,
     s = scalar_half(s);
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
 
-    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
-        auto L = k_abs.limbs();
-        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
-        std::uint64_t const pos_mask = ~neg_mask;
-        std::uint64_t nL[4], borrow = 0, diff;
-        diff = 0 - L[0]; borrow = (L[0] != 0) ? 1 : 0; nL[0] = diff;
-        diff = 0 - L[1] - borrow; borrow = (L[1] | borrow) ? 1 : 0; nL[1] = diff;
-        diff = 1 - L[2] - borrow; borrow = (L[2] + borrow > 1) ? 1 : 0; nL[2] = diff;
-        nL[3] = 0 - borrow;
-        std::uint64_t pL[4];
-        pL[0] = L[0]; pL[1] = L[1];
-        std::uint64_t const sum = L[2] + 1;
-        pL[2] = sum; pL[3] = L[3] + static_cast<std::uint64_t>(sum < L[2]);
-        L[0] = (neg_mask & nL[0]) | (pos_mask & pL[0]);
-        L[1] = (neg_mask & nL[1]) | (pos_mask & pL[1]);
-        L[2] = (neg_mask & nL[2]) | (pos_mask & pL[2]);
-        L[3] = (neg_mask & nL[3]) | (pos_mask & pL[3]);
-        return Scalar::from_limbs(L);
-    };
-
-    Scalar const v1 = make_v(k1_abs, k1_neg);
-    Scalar const v2 = make_v(k2_abs, k2_neg);
+    Scalar const v1 = ct_glv_make_v(k1_abs, k1_neg);
+    Scalar const v2 = ct_glv_make_v(k2_abs, k2_neg);
 
     CTJacobianPoint R;
     CTAffinePoint t;
@@ -1705,23 +1666,8 @@ Point scalar_mul_prebuilt_fast(const CTScalarMulTables& tables,
     Scalar s = scalar_add(k, K_CONST);
     s = scalar_half(s);
     auto [k1_abs, k2_abs, k1_neg, k2_neg] = ct_glv_decompose(s);
-    auto make_v = [](const Scalar& k_abs, std::uint64_t k_neg) noexcept -> Scalar {
-        auto L = k_abs.limbs();
-        std::uint64_t const neg_mask = -static_cast<std::uint64_t>(k_neg != 0);
-        std::uint64_t const pos_mask = ~neg_mask;
-        std::uint64_t nL[4], borrow = 0, diff;
-        diff = 0-L[0]; borrow = (L[0]!=0)?1:0; nL[0]=diff;
-        diff = 0-L[1]-borrow; borrow = (L[1]|borrow)?1:0; nL[1]=diff;
-        diff = 1-L[2]-borrow; borrow = (L[2]+borrow>1)?1:0; nL[2]=diff;
-        nL[3]=0-borrow;
-        std::uint64_t pL[4]; pL[0]=L[0]; pL[1]=L[1];
-        std::uint64_t sum=L[2]+1; pL[2]=sum; pL[3]=L[3]+static_cast<std::uint64_t>(sum<L[2]);
-        L[0]=(neg_mask&nL[0])|(pos_mask&pL[0]); L[1]=(neg_mask&nL[1])|(pos_mask&pL[1]);
-        L[2]=(neg_mask&nL[2])|(pos_mask&pL[2]); L[3]=(neg_mask&nL[3])|(pos_mask&pL[3]);
-        return Scalar::from_limbs(L);
-    };
-    Scalar const v1 = make_v(k1_abs, k1_neg);
-    Scalar const v2 = make_v(k2_abs, k2_neg);
+    Scalar const v1 = ct_glv_make_v(k1_abs, k1_neg);
+    Scalar const v2 = ct_glv_make_v(k2_abs, k2_neg);
 
     CTJacobianPoint R;
     CTAffinePoint t;

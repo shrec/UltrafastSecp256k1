@@ -150,14 +150,14 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
 SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp);
 
 // Verify using pre-cached pubkey (fast: skips lift_x sqrt).
-bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
+[[nodiscard]] bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const std::array<std::uint8_t, 32>& msg,
-                    const SchnorrSignature& sig);
+                    const SchnorrSignature& sig) noexcept;
 
 // Raw-pointer msg overload for pre-cached pubkey.
-bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
+[[nodiscard]] bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const std::uint8_t* msg32,
-                    const SchnorrSignature& sig);
+                    const SchnorrSignature& sig) noexcept;
 
 // -- Tagged Hashing (BIP-340) -------------------------------------------------
 

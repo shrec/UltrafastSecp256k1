@@ -3798,11 +3798,16 @@ namespace {
         JacobianPoint52 const d = jac52_double(B);
         FieldElement52 const C = d.z, C2 = C.square(), C3 = C2 * C;
         AffinePoint52 const d_aff = {d.x, d.y};
-        // Use unique_ptr for exception safety (raw new/delete was fragile).
-        auto iso   = std::make_unique<JacobianPoint52[]>(count);
-        auto eff_z = std::make_unique<FieldElement52[]>(count);
-        auto prods = std::make_unique<FieldElement52[]>(count);
-        auto zs    = std::make_unique<FieldElement52[]>(count);
+        // Stack buffers for the common case (table sizes ≤ 32); heap fallback for larger.
+        constexpr std::size_t kStackCap = 32;
+        JacobianPoint52 iso_stk  [kStackCap];
+        FieldElement52  eff_z_stk[kStackCap], prods_stk[kStackCap], zs_stk[kStackCap];
+        std::unique_ptr<JacobianPoint52[]> iso_heap;
+        std::unique_ptr<FieldElement52[]>  eff_z_heap, prods_heap, zs_heap;
+        JacobianPoint52* iso   = count <= kStackCap ? iso_stk   : (iso_heap   = std::make_unique<JacobianPoint52[]>(count)).get();
+        FieldElement52*  eff_z = count <= kStackCap ? eff_z_stk : (eff_z_heap = std::make_unique<FieldElement52[]>(count)).get();
+        FieldElement52*  prods = count <= kStackCap ? prods_stk : (prods_heap = std::make_unique<FieldElement52[]>(count)).get();
+        FieldElement52*  zs    = count <= kStackCap ? zs_stk    : (zs_heap    = std::make_unique<FieldElement52[]>(count)).get();
 
         iso[0] = {B.x * C2, B.y * C3, B.z, false};
         for (std::size_t i = 1; i < count; i++) {

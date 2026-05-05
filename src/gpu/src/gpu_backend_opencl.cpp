@@ -1963,12 +1963,10 @@ private:
 
     /* -- Big-endian 32 bytes → 4×uint64 LE limbs -------------------------- */
     static void be32_to_le_limbs(const uint8_t be[32], uint64_t out[4]) {
-        for (int limb = 0; limb < 4; ++limb) {
+        for (int i = 0; i < 4; ++i) {
             uint64_t v = 0;
-            int base = (3 - limb) * 8;
-            for (int b = 0; b < 8; ++b)
-                v = (v << 8) | be[base + b];
-            out[limb] = v;
+            std::memcpy(&v, be + (3 - i) * 8, 8);
+            out[i] = __builtin_bswap64(v);
         }
     }
 

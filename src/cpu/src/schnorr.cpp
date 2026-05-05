@@ -542,7 +542,7 @@ SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
 
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const uint8_t* msg32,
-                    const SchnorrSignature& sig) {
+                    const SchnorrSignature& sig) noexcept {
     // BIP-340 strict: s must be nonzero
     if (sig.s.is_zero()) return false;
 
@@ -618,7 +618,7 @@ bool schnorr_verify(const std::array<uint8_t, 32>& pubkey_x,
 
 bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
                     const std::array<uint8_t, 32>& msg,
-                    const SchnorrSignature& sig) {
+                    const SchnorrSignature& sig) noexcept {
     return schnorr_verify(pubkey, msg.data(), sig);
 }
 

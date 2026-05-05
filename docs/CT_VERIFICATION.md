@@ -2,6 +2,18 @@
 
 **UltrafastSecp256k1 v3.70.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-05 Performance Audit CT Refactoring
+
+- `ct_point.cpp`: Extracted the `make_v` GLV half-scalar CT-negate/increment lambda from four
+  separate function-local copies (`scalar_mul_jac_fe52_z1`, `scalar_mul_jac`, `scalar_mul_prebuilt`,
+  `scalar_mul_prebuilt_fast`) into a single file-scoped `SECP256K1_INLINE static ct_glv_make_v`
+  helper. **No logic change** — all four copies were verified identical in behavior. The refactor
+  eliminates copy-paste divergence risk in a security-critical CT path: a future bug fix would
+  previously need to be applied to all four copies independently.
+- `schnorr.hpp` / `schnorr.cpp`: Added `[[nodiscard]]` and `noexcept` to the two
+  `schnorr_verify(SchnorrXonlyPubkey, ...)` overloads. No functional change; `noexcept` is
+  accurate since neither overload allocates or throws.
+
 ### 2026-05-05 Red-Team Audit CT Changes
 
 - `ct_sign.cpp`: Comments added to `Scalar::from_bytes` callsites to clarify

@@ -213,7 +213,7 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     pubkey_index.clear();
     // Shrink if bucket table grew far beyond current n to prevent indefinite memory growth
     // under adversarial large-then-small call patterns (clear() keeps bucket memory).
-    if (pubkey_index.bucket_count() > n * 8 + 64) pubkey_index = PubkeyMap{};
+    if (pubkey_index.bucket_count() > n * 4 + 64) pubkey_index = PubkeyMap{};
     pubkey_index.reserve(n);
 
     // Grow-only vector reserve (no realloc when n stays the same between calls)
