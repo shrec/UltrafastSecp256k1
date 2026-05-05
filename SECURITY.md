@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 3.68.x  | [OK] Active |
+| 4.0.x  | [OK] Active |
 | 3.21.x  | [OK] Maintained |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
@@ -302,4 +302,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v3.68.0 -- Security Policy*
+*UltrafastSecp256k1 v4.0.0 -- Security Policy*

@@ -788,7 +788,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v3.68.0 -- Test Coverage Matrix*
+*UltrafastSecp256k1 v4.0.0 -- Test Coverage Matrix*
 
 
 ---
@@ -837,3 +837,4 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 |--------|--------|-------------|
 | `exploit_scratch` | `audit/test_exploit_scratch.cpp` | Scratch allocator risk surface — upstream run_scratch_tests; scratch_space API not in shim (confirmed), tests via batch lifecycle + context stress |
 | `exploit_xoshiro` | `audit/test_exploit_xoshiro.cpp` | xoshiro256** PRNG context randomization — upstream run_xoshiro256pp_tests; KAT seed from upstream, behavioral properties via context_randomize |
+| `exploit_bugbounty_20260505` | `audit/test_exploit_bugbounty_20260505.cpp` | 2026-05-05 bug bounty red-team round 2: BB-01 FROST n_signers<threshold, BB-02 zero signing share, BB-03 shim ctx_can_sign, BB-04 low-S≠even proof, BB-05 BIP32 depth guard, BB-06 ABI low-S invariant |

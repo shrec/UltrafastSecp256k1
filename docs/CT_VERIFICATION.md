@@ -1,6 +1,6 @@
 # Constant-Time Verification
 
-**UltrafastSecp256k1 v3.70.0** -- CT Layer Methodology & Audit Status
+**UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
 ### 2026-05-05 Performance Audit CT Refactoring (A-04, A-06)
 
@@ -616,4 +616,4 @@ add (unified_add_core<false>, 12M+2S) to incomplete mixed Jacobian+affine add
 fixed precomputed G multiples; degenerate probability ~2^-128. CT properties
 (fixed iteration count, branchless table lookup via cmov) unchanged. -->
 
-*UltrafastSecp256k1 v3.69.0 -- CT Verification*
+*UltrafastSecp256k1 v4.0.0 -- CT Verification*
