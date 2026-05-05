@@ -82,10 +82,7 @@ void fe52_normalize(std::uint64_t* r) noexcept {
 // ===========================================================================
 
 bool FieldElement52::is_zero() const noexcept {
-    // Normalize a copy and check
-    FieldElement52 tmp = *this;
-    tmp.normalize();
-    return (tmp.n[0] | tmp.n[1] | tmp.n[2] | tmp.n[3] | tmp.n[4]) == 0;
+    return normalizes_to_zero_var();
 }
 
 // normalizes_to_zero: now inline in field_52_impl.hpp

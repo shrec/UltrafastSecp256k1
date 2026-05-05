@@ -534,12 +534,7 @@ Scalar& Scalar::operator*=(const Scalar& rhs) noexcept {
 }
 
 bool Scalar::is_zero() const noexcept {
-    for (auto limb : limbs_) {
-        if (limb != 0) {
-            return false;
-        }
-    }
-    return true;
+    return (limbs_[0] | limbs_[1] | limbs_[2] | limbs_[3]) == 0;
 }
 
 bool Scalar::is_zero_ct() const noexcept {

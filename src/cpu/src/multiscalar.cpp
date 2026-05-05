@@ -271,9 +271,8 @@ Point multi_scalar_mul(const Scalar* scalars,
 
     std::size_t max_len = 0;
     for (std::size_t i = 0; i < n; ++i) {
-        auto tmp = scalars[i].to_wnaf(w);
-        wnaf_sizes[i] = tmp.size();
-        std::copy(tmp.begin(), tmp.end(), wnaf_flat.data() + i * kWnafCapNonFE52);
+        wnaf_sizes[i] = scalars[i].to_wnaf_into(
+            wnaf_flat.data() + i * kWnafCapNonFE52, w);
         if (wnaf_sizes[i] > max_len) max_len = wnaf_sizes[i];
     }
 

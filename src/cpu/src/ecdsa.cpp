@@ -109,22 +109,29 @@ bool ECDSASignature::is_low_s() const {
     return true;
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((always_inline))
+#endif
 bool ECDSASignature::is_low_s_ct() const {
-    // CT variant for defense-in-depth. Computes s <= n/2 without branches.
-    // Uses the same limb layout as is_low_s() but with bitmask logic.
+    // CT comparison: s <= n/2 using bitmask logic, fully unrolled (no loop overhead).
     const auto& sl = s.limbs();
-    // Carry-flag style: result = 1 (low-s or equal) until a decisive limb is found.
-    // above=1 if s > HALF_ORDER so far; below=1 if s < HALF_ORDER so far.
-    uint64_t above = 0, below = 0;
-    for (int i = 3; i >= 0; --i) {
-        uint64_t const a = sl[static_cast<unsigned>(i)];
-        uint64_t const b = HALF_ORDER_LIMBS[static_cast<unsigned>(i)];
-        // Compute less/greater for this limb, masked to only apply if no
-        // higher limb was already decisive.
-        uint64_t const undecided = ~(above | below); // all-ones if still undecided
-        below |= undecided & ct::bool_to_mask(a < b);
-        above |= undecided & ct::bool_to_mask(a > b);
-    }
+    uint64_t above = 0, below = 0, undecided;
+    // Limb 3 (most significant)
+    undecided = ~0ULL;
+    below  = undecided & ct::bool_to_mask(sl[3] < HALF_ORDER_LIMBS[3]);
+    above  = undecided & ct::bool_to_mask(sl[3] > HALF_ORDER_LIMBS[3]);
+    // Limb 2
+    undecided = ~(above | below);
+    below |= undecided & ct::bool_to_mask(sl[2] < HALF_ORDER_LIMBS[2]);
+    above |= undecided & ct::bool_to_mask(sl[2] > HALF_ORDER_LIMBS[2]);
+    // Limb 1
+    undecided = ~(above | below);
+    below |= undecided & ct::bool_to_mask(sl[1] < HALF_ORDER_LIMBS[1]);
+    above |= undecided & ct::bool_to_mask(sl[1] > HALF_ORDER_LIMBS[1]);
+    // Limb 0 (least significant)
+    undecided = ~(above | below);
+    below |= undecided & ct::bool_to_mask(sl[0] < HALF_ORDER_LIMBS[0]);
+    above |= undecided & ct::bool_to_mask(sl[0] > HALF_ORDER_LIMBS[0]);
     // low-s if below OR (neither above nor below → equal)
     return (below != 0) || (above == 0);
 }

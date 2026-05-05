@@ -456,6 +456,29 @@ inline void mul_add_to(wide8& acc, std::size_t index, std::uint64_t a, std::uint
 }
 
 wide8 mul_wide(const limbs4& a, const limbs4& b) {
+#if defined(__SIZEOF_INT128__)
+    // Fully unrolled 4x4 Comba using __int128 accumulator per column.
+    // Eliminates all add_into() carry-chain while-loops from the portable path.
+    using u128 = unsigned __int128;
+    wide8 prod{};
+    u128 c;
+    c  = (u128)a[0]*b[0];
+    prod[0] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[0]*b[1] + (u128)a[1]*b[0];
+    prod[1] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[0]*b[2] + (u128)a[1]*b[1] + (u128)a[2]*b[0];
+    prod[2] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[0]*b[3] + (u128)a[1]*b[2] + (u128)a[2]*b[1] + (u128)a[3]*b[0];
+    prod[3] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[1]*b[3] + (u128)a[2]*b[2] + (u128)a[3]*b[1];
+    prod[4] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[2]*b[3] + (u128)a[3]*b[2];
+    prod[5] = (std::uint64_t)c; c >>= 64;
+    c += (u128)a[3]*b[3];
+    prod[6] = (std::uint64_t)c;
+    prod[7] = (std::uint64_t)(c >> 64);
+    return prod;
+#else
     wide8 prod{};
     for (std::size_t i = 0; i < 4; ++i) {
         for (std::size_t j = 0; j < 4; ++j) {
@@ -463,6 +486,7 @@ wide8 mul_wide(const limbs4& a, const limbs4& b) {
         }
     }
     return prod;
+#endif
 }
 
 // Phase 5.5: Fast modular reduction for secp256k1 prime
@@ -505,25 +529,34 @@ limbs4 reduce(const wide8& t) {
         result[i + 1] = static_cast<std::uint64_t>(acc);
         carry = static_cast<std::uint64_t>(acc >> 64);
 
-        // Residual carry beyond position i+1 (rare but possible for large hi_limb)
-        if (carry) add_into(result, i + 2, carry);
+        // Branchless carry propagation (carry is 0 or 1 for secp256k1 limb bounds).
+        // Replaces add_into() which had an unbounded while-loop.
+        u128 acc2 = static_cast<u128>(result[i + 2]) + carry;
+        result[i + 2] = static_cast<std::uint64_t>(acc2);
+        std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
+        if (carry2 && i + 3 < 5) result[i + 3] += carry2;
     }
 
     // Step 3: Handle overflow in result[4] -- unrolled 2 iterations (bounded)
     // After reducing 4 high limbs, overflow is at most ~34 bits.
     // First pass: overflow * 0x1000003D1 is at most ~67 bits, new overflow <= 1 bit.
     // Second pass: 1 * 0x1000003D1 = 33 bits, no further overflow possible.
+    // Step 3: fold overflow using u128 — replaces 4 add_into() carry-chain calls.
     for (int pass = 0; pass < 2; ++pass) {
         std::uint64_t const overflow = result[4];
         result[4] = 0;
         if (overflow == 0) break;
-
-        std::uint64_t lo = 0, hi = 0;
-        mul64(overflow, 977ULL, lo, hi);
-        add_into(result, static_cast<std::size_t>(0), lo);
-        add_into(result, static_cast<std::size_t>(1), hi);
-        add_into(result, static_cast<std::size_t>(0), overflow << 32);
-        add_into(result, static_cast<std::size_t>(1), overflow >> 32);
+        // overflow * 0x1000003D1 = overflow*(2^32 + 977) in one u128 multiply
+        using u128 = unsigned __int128;
+        u128 const term = static_cast<u128>(overflow) * 0x1000003D1ULL;
+        u128 acc0 = static_cast<u128>(result[0]) + static_cast<std::uint64_t>(term);
+        result[0] = static_cast<std::uint64_t>(acc0);
+        u128 acc1 = static_cast<u128>(result[1])
+                  + static_cast<std::uint64_t>(term >> 64)
+                  + static_cast<std::uint64_t>(acc0 >> 64);
+        result[1] = static_cast<std::uint64_t>(acc1);
+        std::uint64_t carry = static_cast<std::uint64_t>(acc1 >> 64);
+        if (carry) result[2] += carry;
     }
 
     // Step 4: Branchless final normalization (subtract p if value >= p)
