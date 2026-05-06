@@ -1709,33 +1709,47 @@ public:
     /* -- BIP-352 Silent Payment GPU batch scan ----------------------------- */
 
 // 5-bit wNAF for a 128-bit GLV sub-scalar (big-endian 32-byte input).
-// Shared by bip352_scan_batch (replaces inline lambda) so the algorithm
-// lives in exactly one place and is easier to test/audit.
+// CA-008: branchless on secret scalar bits — the original code had `if (s[0] & 1ULL)`
+// which branches on a secret bit, leaking timing info about the scan private key.
+// This version uses arithmetic masking so every iteration executes the same operations
+// regardless of the scalar value.
 // Output: wnaf[0..129], digits in range [-15..15], trailing zeros possible.
 static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
     uint64_t s[4] = {};
     for (int limb = 0; limb < 4; ++limb) {
         uint64_t v = 0;
-        int base = limb * 8;
-        for (int i = 0; i < 8; ++i) v = (v << 8) | scalar_be32[base + i];
+        for (int i = 0; i < 8; ++i) v = (v << 8) | scalar_be32[limb * 8 + i];
         s[3 - limb] = v;
     }
     for (int i = 0; i < 130; i++) {
-        if (s[0] & 1ULL) {
-            int d = (int)(s[0] & 0x1FULL);
-            if (d >= 16) {
-                d -= 32;
-                uint64_t add = (uint64_t)(-d);
-                uint64_t prev = s[0]; s[0] += add;
-                if (s[0] < prev) { for (int j = 1; j < 4; j++) if (++s[j]) break; }
-            } else {
-                uint64_t prev = s[0]; s[0] -= (uint64_t)d;
-                if (s[0] > prev) { for (int j = 1; j < 4; j++) if (s[j]--) break; }
-            }
-            wnaf[i] = (int8_t)d;
-        } else {
-            wnaf[i] = 0;
+        // CT: compute wNAF digit without branching on secret scalar bits.
+        uint64_t const is_odd   = s[0] & 1ULL;         // 0 or 1 (no branch)
+        uint64_t const d5       = s[0] & 0x1FULL;      // 5-bit window
+        uint64_t const is_large = d5 >> 4;             // 1 if d5 in [16,31]
+
+        // d_signed = (d5 - is_large*32) * is_odd  (all arithmetic, no if/else)
+        int64_t const d_raw    = (int64_t)d5 - (int64_t)(is_large << 5); // d5 or d5-32
+        int64_t const d_signed = d_raw * (int64_t)is_odd;                // 0 when even
+        wnaf[i] = (int8_t)d_signed;
+
+        // s -= d_signed using 128-bit 2's-complement arithmetic, all branchless.
+        // We add u = (uint64_t)(-d_signed). sign_ext propagates the sign to higher limbs.
+        uint64_t const u        = (uint64_t)(-(int64_t)d_signed);
+        uint64_t const sign_ext = (uint64_t)((int64_t)u >> 63); // all-1s or 0
+
+        uint64_t prev = s[0];
+        s[0] += u;
+        uint64_t carry = (uint64_t)(s[0] < prev); // 0 or 1
+
+        // Propagate sign_ext + carry to limbs 1..3 (fixed 3 iterations, no early exit).
+        for (int j = 1; j < 4; j++) {
+            uint64_t const pj           = s[j];
+            uint64_t const addend       = sign_ext + carry;         // may wrap to 0
+            uint64_t const addend_carry = sign_ext & carry;         // 1 only when both
+            s[j] += addend;
+            carry = (uint64_t)(s[j] < pj) | addend_carry;
         }
+
         s[0] = (s[0] >> 1) | (s[1] << 63);
         s[1] = (s[1] >> 1) | (s[2] << 63);
         s[2] = (s[2] >> 1) | (s[3] << 63);

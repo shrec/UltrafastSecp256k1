@@ -140,14 +140,17 @@ int secp256k1_ecdsa_sign_recoverable(
         auto plain_sig = secp256k1::ct::ecdsa_sign_hedged(msg, privkey_scalar, aux);
         if (plain_sig.r.is_zero() || plain_sig.s.is_zero()) return 0;
 
-        // Trial: find recid that recovers our pubkey.
+        // Derive recid: always evaluate all 4 candidates unconditionally so
+        // the iteration count does not depend on which recid is correct.
+        // Cache expected_pk serialization once outside the loop.
         auto expected_pk = secp256k1::ct::generator_mul(privkey_scalar);
+        auto expected_unc = expected_pk.to_uncompressed();
         int found_recid = -1;
-        for (int rid = 0; rid < 4 && found_recid < 0; ++rid) {
+        for (int rid = 0; rid < 4; ++rid) {
             auto [pk_try, ok] = secp256k1::ecdsa_recover(msg, plain_sig, rid);
-            if (ok && !pk_try.is_infinity()) {
-                if (pk_try.to_uncompressed() == expected_pk.to_uncompressed())
-                    found_recid = rid;
+            if (ok && !pk_try.is_infinity() &&
+                pk_try.to_uncompressed() == expected_unc) {
+                if (found_recid < 0) found_recid = rid; // no early exit
             }
         }
         if (found_recid < 0) return 0;

@@ -44,14 +44,15 @@ static Point pubkey_data_to_point(const unsigned char data[64]) {
 }
 
 // BCH Schnorr hash: SHA256(R.x[32] || P_compressed[33] || msg[32])
+// px32: P's x-coordinate (32 bytes). y_is_odd: Y-parity bit (avoids to_uncompressed).
 static Scalar bch_schnorr_e(const std::array<uint8_t,32>& rx,
-                             const Point& P,
+                             const uint8_t* px32,
+                             bool y_is_odd,
                              const std::array<uint8_t,32>& msg)
 {
-    auto unc = P.to_uncompressed(); // 65 bytes: 04 || X || Y
     uint8_t pcomp[33];
-    pcomp[0] = (unc[64] & 1) ? 0x03 : 0x02;
-    std::memcpy(pcomp + 1, unc.data() + 1, 32);
+    pcomp[0] = y_is_odd ? 0x03 : 0x02;
+    std::memcpy(pcomp + 1, px32, 32);
 
     secp256k1::SHA256 h;
     h.update(rx.data(), 32);
@@ -107,9 +108,12 @@ int secp256k1_schnorr_sign(
 
         // Fix 2b: CT generator mul for P = d*G (private key is secret).
         auto P = secp256k1::ct::generator_mul_blinded(d);
+        // Read Y-parity from affine limbs[0] LSB — avoids to_uncompressed() (~940ns).
+        bool const p_y_odd = (P.y().limbs()[0] & 1u) != 0;
+        auto px = P.x().to_bytes();
 
         // e = SHA256(R.x || P_compressed || msg)
-        auto e = bch_schnorr_e(rx, P, msg);
+        auto e = bch_schnorr_e(rx, px.data(), p_y_odd, msg);
 
         // Fix 2c: CT arithmetic for s = k + e*d.
         // e*d: multiply of public hash e by secret d — use ct::scalar_mul_mod.
@@ -159,8 +163,12 @@ int secp256k1_schnorr_verify(
         auto P = pubkey_data_to_point(pubkey->data);
         if (P.is_infinity()) return 0;
 
+        // Y-parity from pubkey->data[63] (last byte of Y, layout: [x:32][y:32]).
+        // Avoids to_uncompressed() Jacobian→affine conversion (~940ns) for one bit.
+        bool const p_y_odd = (pubkey->data[63] & 1u) != 0;
+
         // e = SHA256(R.x || P_compressed || msg)
-        auto e = bch_schnorr_e(rx, P, msg);
+        auto e = bch_schnorr_e(rx, pubkey->data, p_y_odd, msg);
 
         // R_check = s*G - e*P
         auto sG = scalar_mul_generator(s);     // fast table

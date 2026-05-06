@@ -167,7 +167,8 @@ struct XOnlyGLVCacheEntry {
     std::array<fast::AffinePoint52, kSchnorrGLVTableSize> tbl_P{};
     std::array<fast::AffinePoint52, kSchnorrGLVTableSize> tbl_phi_base{};
     fast::FieldElement52 Z_shared{};
-    bool valid = false;
+    bool valid      = false;  // true = prebuilt tables usable
+    bool seen_once  = false;  // true = pubkey seen once but table not yet built
 };
 static constexpr std::size_t kGLVCacheSlots = 64;
 static thread_local std::array<XOnlyGLVCacheEntry, kGLVCacheSlots> g_glv_cache{};
@@ -556,21 +557,46 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
     std::memcpy(out.x_bytes.data(), pubkey_x32, 32);
 
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
-    // Build GLV P/phi(P) tables once — eliminates ~1,954 ns rebuild per verify.
-    out.tables_valid = Point::build_schnorr_verify_tables(
-        P, out.tbl_P, out.tbl_phi_base, out.Z_shared);
-
-    // Populate GLV cache so schnorr_verify(x32, ...) can use prebuilt tables.
-    // This bridges the parse→verify split in Bitcoin Core's script validation:
-    //   secp256k1_xonly_pubkey_parse (parse) → GLV cache ← schnorr_verify(x32) (verify)
-    if (out.tables_valid) {
+    // Lazy GLV table build (PERF-08 / TASK-12): build the precomputed P/phi(P)
+    // tables only on the *second* parse of the same pubkey, not the first.
+    //
+    // Rationale: for ConnectBlock workloads with ~100% unique pubkeys (typical
+    // P2WPKH/P2TR blocks), building the table (~1,954 ns) on every parse is a
+    // net cost — the table is used exactly once and then evicted. Delaying the
+    // build to the second parse eliminates this cost for unique pubkeys while
+    // preserving the speedup for repeated pubkeys (P2PK coinbases, test vectors).
+    //
+    // Thread safety: g_glv_cache is thread_local — no concurrent access.
+    {
         std::size_t const glv_idx = lift_x_cache_index(pubkey_x32) & (kGLVCacheSlots - 1);
         auto& glv_slot = g_glv_cache[glv_idx];
-        std::memcpy(glv_slot.x.data(), pubkey_x32, 32);
-        glv_slot.tbl_P        = out.tbl_P;
-        glv_slot.tbl_phi_base = out.tbl_phi_base;
-        glv_slot.Z_shared     = out.Z_shared;
-        glv_slot.valid        = true;
+        bool const slot_matches = glv_slot.seen_once &&
+                                  std::memcmp(glv_slot.x.data(), pubkey_x32, 32) == 0;
+
+        if (slot_matches && !glv_slot.valid) {
+            // Second encounter of this pubkey: build the table now.
+            out.tables_valid = Point::build_schnorr_verify_tables(
+                P, out.tbl_P, out.tbl_phi_base, out.Z_shared);
+            if (out.tables_valid) {
+                glv_slot.tbl_P        = out.tbl_P;
+                glv_slot.tbl_phi_base = out.tbl_phi_base;
+                glv_slot.Z_shared     = out.Z_shared;
+                glv_slot.valid        = true;
+            }
+        } else if (slot_matches && glv_slot.valid) {
+            // Already have the table: copy it out for the caller.
+            out.tbl_P        = glv_slot.tbl_P;
+            out.tbl_phi_base = glv_slot.tbl_phi_base;
+            out.Z_shared     = glv_slot.Z_shared;
+            out.tables_valid = true;
+        } else {
+            // First encounter (or slot collision with a different pubkey):
+            // mark seen_once, no table build this call.
+            std::memcpy(glv_slot.x.data(), pubkey_x32, 32);
+            glv_slot.seen_once  = true;
+            glv_slot.valid      = false;
+            out.tables_valid    = false;
+        }
     }
 #endif
     return true;

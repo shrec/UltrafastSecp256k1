@@ -1,6 +1,6 @@
 {
   "name": "@ultrafastsecp256k1/wasm",
-  "version": "3.21.0",
+  "version": "4.0.0",
   "description": "Ultra high-performance secp256k1 elliptic curve cryptography \u2014 WebAssembly build with ECDSA, Schnorr, FROST, MuSig2, BIP-352 support",
   "type": "module",
   "main": "secp256k1.mjs",

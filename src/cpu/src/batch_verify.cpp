@@ -17,14 +17,18 @@
 #include <cstring>
 #include <unordered_map>
 #include <array>
+#include <random>
 
 namespace secp256k1 {
 
-// Hash for 32-byte pubkey key in unordered_map (B-6)
+// Seeded hash for 32-byte pubkey deduplication.
+// Seed is randomised per batch call so adversarial pubkey inputs cannot
+// pre-compute collisions and degrade lookup to O(n) (CA-010).
 struct PubkeyHash32 {
+    std::size_t seed{0xcbf29ce484222325ULL};
+    explicit PubkeyHash32(std::size_t s) : seed(s) {}
     std::size_t operator()(const std::array<uint8_t, 32>& k) const noexcept {
-        // FNV-1a over the 32 bytes — cheap and collision-resistant enough for keys
-        std::size_t h = 0xcbf29ce484222325ULL;
+        std::size_t h = seed;
         for (unsigned char b : k) {
             h ^= b;
             h *= 0x100000001b3ULL;
@@ -211,13 +215,12 @@ void schnorr_batch_identify_invalid_impl(
 // We verify: (sum(a_i * s_i)) * G + sum(-a_i * e_i * P_i) + sum(-a_i * R_i) = infinity
 
 bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
-    // B-6: hash map for O(1) dedup instead of O(k) linear scan
+    // B-6 / CA-010: per-call seeded hash map for O(1) dedup.
+    // New seed each call prevents adversarial pubkey inputs from pre-computing
+    // hash collisions that degrade lookup to O(n) worst-case.
     using PubkeyMap = std::unordered_map<std::array<uint8_t, 32>, Point, PubkeyHash32>;
-    static thread_local PubkeyMap pubkey_index;
-    pubkey_index.clear();
-    // Shrink if bucket table grew far beyond current n to prevent indefinite memory growth
-    // under adversarial large-then-small call patterns (clear() keeps bucket memory).
-    if (pubkey_index.bucket_count() > n * 4 + 64) pubkey_index = PubkeyMap{};
+    static thread_local std::mt19937_64 rng{std::random_device{}()};
+    PubkeyMap pubkey_index(n, PubkeyHash32{rng()});
     pubkey_index.reserve(n);
 
     // Grow-only vector reserve (no realloc when n stays the same between calls)
