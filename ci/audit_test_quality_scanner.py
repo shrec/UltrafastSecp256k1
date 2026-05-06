@@ -96,6 +96,10 @@ _CHECKED_RE = re.compile(
 # Detection of if...else...CHECK(true) over multiple lines
 _ELSE_OPEN_RE  = re.compile(r"^\s*\}\s*else\s*\{")
 _CHECK_TRUE_RE = re.compile(r'CHECK\s*\(\s*true\s*,\s*"([^"]*)"')
+# A2: expr || true tautology — always evaluates true regardless of expr
+_CHECK_OR_TRUE_RE = re.compile(r'CHECK\s*\([^)]*\|\|\s*true\s*[,)]')
+# A3: x || !x tautology
+_CHECK_OR_NOT_RE  = re.compile(r'CHECK\s*\([^)]*\b(\w+)\s*\|\|\s*!\s*\1\b')
 _ANY_CHECK_RE  = re.compile(r'CHECK\s*\(')
 
 # Statistical bounds: catch things like  CHECK(x >= 32 && x <= 224, ...)
@@ -147,25 +151,47 @@ class AuditTestScanner:
         self._check_F_missing_unconditional_reject(fname, lines)
 
     # ------------------------------------------------------------------
-    # A: Vacuous CHECK(true, ...)
+    # A: Vacuous CHECK(true, ...) — A1/A2/A3
     # ------------------------------------------------------------------
     def _check_A_vacuous(self, fname: str, lines: List[str]):
         for i, raw in enumerate(lines):
+            # A1: CHECK(true, ...)
             m = _CHECK_TRUE_RE.search(raw)
-            if not m:
-                continue
-            msg = m.group(1)
-            # Severity: if message contains security keywords → high, else low
-            is_sec = any(w in msg.lower() for w in _SEC_WORDS)
-            # Check if this is in the else branch of a conditional (handled by B)
-            # Still report it as its own finding
-            sev = "high" if is_sec else "low"
-            self._add(fname, i + 1, sev, "A", "vacuous_check",
-                      f'CHECK(true, ...) always passes — behavior is never tested. '
-                      f'Message: "{msg}"',
-                      raw.strip(),
-                      'Replace CHECK(true, "...") with an assertion that validates '
-                      'the actual library behavior (return code, output bytes, state).')
+            if m:
+                msg = m.group(1)
+                is_sec = any(w in msg.lower() for w in _SEC_WORDS)
+                sev = "high" if is_sec else "low"
+                self._add(fname, i + 1, sev, "A1", "vacuous_check",
+                          f'CHECK(true, ...) always passes — behavior is never tested. '
+                          f'Message: "{msg}"',
+                          raw.strip(),
+                          'Replace CHECK(true, "...") with an assertion that validates '
+                          'the actual library behavior (return code, output bytes, state).')
+
+            # A2: CHECK(expr || true, ...) — always true regardless of expr
+            if _CHECK_OR_TRUE_RE.search(raw):
+                msg_m = re.search(r',\s*"([^"]*)"', raw)
+                msg = msg_m.group(1) if msg_m else raw.strip()
+                is_sec = any(w in msg.lower() for w in _SEC_WORDS)
+                sev = "high" if is_sec else "medium"
+                self._add(fname, i + 1, sev, "A2", "expr_or_true_tautology",
+                          f'CHECK(expr || true, ...) is always true — expr is never '
+                          f'meaningful. Message: "{msg}"',
+                          raw.strip(),
+                          'Replace "expr || true" with the actual correctness condition '
+                          '(e.g. "threw || result.is_zero()").')
+
+            # A3: CHECK(x || !x, ...) — tautology
+            m3 = _CHECK_OR_NOT_RE.search(raw)
+            if m3:
+                var = m3.group(1)
+                msg_m = re.search(r',\s*"([^"]*)"', raw)
+                msg = msg_m.group(1) if msg_m else raw.strip()
+                self._add(fname, i + 1, "high", "A3", "or_not_tautology",
+                          f'CHECK({var} || !{var}, ...) is always true. '
+                          f'Message: "{msg}"',
+                          raw.strip(),
+                          f'Replace "{var} || !{var}" with the actual condition to test.')
 
     # ------------------------------------------------------------------
     # B: Mandatory security gap — if (ok) { CHECK(real) } else { CHECK(true) }

@@ -132,14 +132,16 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
                             const std::array<std::uint8_t, 32>& msg,
                             const Point& adaptor_point) {
     // Reconstruct P from x-only pubkey (even y)
-    FieldElement const px = FieldElement::from_bytes(pubkey_x);
+    // Strict: reject x >= p (non-canonical encoding)
+    FieldElement px;
+    if (!FieldElement::parse_bytes_strict(pubkey_x.data(), px)) return false;
     FieldElement const x2 = px * px;
     FieldElement const x3 = x2 * px;
     FieldElement const rhs = x3 + FieldElement::from_uint64(7);
-    // Optimized sqrt via addition chain
     auto py = rhs.sqrt();
-    auto py_bytes = py.to_bytes();
-    if (py_bytes[31] & 1) py = FieldElement::zero() - py;
+    // Reject if px is not on the curve (py^2 must equal rhs)
+    if (py * py != rhs) return false;
+    if (py.limbs()[0] & 1u) py = FieldElement::zero() - py;
     Point const P = Point::from_affine(px, py);
 
     // Adjust T based on whether nonce was negated during signing
@@ -237,7 +239,9 @@ ecdsa_adaptor_sign(const Scalar& private_key,
         return ECDSAAdaptorSig{Point::infinity(), Scalar::zero(), Scalar::zero()};
     }
     Scalar k_inv = ct::scalar_inverse(k);  // CT: k is secret; non-const for secure_erase
-    Scalar const s_hat = k_inv * (z + r * private_key);
+    // CT: k_inv and private_key are secrets — use branchless CT arithmetic
+    Scalar const s_hat = ct::scalar_mul(k_inv,
+                             ct::scalar_add(z, ct::scalar_mul(r, private_key)));
 
     detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
     detail::secure_erase(&k_inv, sizeof(k_inv));

@@ -1,7 +1,7 @@
-%global soversion 3
+%global soversion 4
 
 Name:           libufsecp
-Version:        3.12.1
+Version:        4.0.0
 Release:        1%{?dist}
 Summary:        High-performance secp256k1 elliptic curve cryptography library
 License:        MIT
@@ -67,6 +67,10 @@ CMake config, and pkg-config files for %{name}.
 %{_libdir}/cmake/secp256k1-fast/
 
 %changelog
+* Wed May 06 2026 shrec <shrec@users.noreply.github.com> - 4.0.0-1
+- Major version bump to 4.0.0; soversion bump to 4 (ABI breaking)
+- See CHANGELOG.md for full details
+
 * Sun Feb 23 2026 shrec <shrec@users.noreply.github.com> - 3.12.1-1
 - New upstream release
 - Security: bump wheel 0.45.1 -> 0.46.2 (CVE-2026-24049)

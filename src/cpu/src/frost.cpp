@@ -7,6 +7,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <algorithm>
 #include <cstring>
@@ -97,11 +98,12 @@ static bool valid_unique_nonce_commitment_ids(
 }
 
 // Evaluate polynomial f(x) = a_0 + a_1*x + a_2*x^2 + ... at x
+// CT: coeffs[0] is secret key material — all arithmetic must be constant-time.
 static Scalar poly_eval(const std::vector<Scalar>& coeffs, const Scalar& x) {
-    // Horner's method
     Scalar result = Scalar::zero();
     for (int i = static_cast<int>(coeffs.size()) - 1; i >= 0; --i) {
-        result = result * x + coeffs[static_cast<std::size_t>(i)];
+        result = ct::scalar_add(ct::scalar_mul(result, x),
+                                coeffs[static_cast<std::size_t>(i)]);
     }
     return result;
 }
@@ -348,10 +350,10 @@ frost_keygen_finalize(ParticipantId participant_id,
         if (lhs_c != rhs_c) return {pkg, false};
     }
 
-    // Compute signing share: s_i = Sum f_j(i) for all j
+    // Compute signing share: s_i = Sum f_j(i) for all j — CT: secret scalar
     Scalar signing_share = Scalar::zero();
     for (const auto& share : received_shares) {
-        signing_share = signing_share + share.value;
+        signing_share = ct::scalar_add(signing_share, share.value);
     }
     pkg.signing_share = signing_share;
 
@@ -439,7 +441,10 @@ frost_sign(const FrostKeyPackage& key_pkg,
         s_i = s_i.negate();
     }
 
-    Scalar const z_i = d + (my_binding * ei) + (lambda_i * s_i * e);
+    // CT: d, ei, s_i are secret nonces/shares — use branchless CT arithmetic
+    Scalar const rho_ei      = ct::scalar_mul(my_binding, ei);
+    Scalar const lambda_s_e  = ct::scalar_mul(ct::scalar_mul(lambda_i, s_i), e);
+    Scalar const z_i         = ct::scalar_add(ct::scalar_add(d, rho_ei), lambda_s_e);
 
     // Erase secret nonces and signing share from stack, then consume the
     // caller's nonce to enforce single-use (H-01 nonce-reuse prevention).

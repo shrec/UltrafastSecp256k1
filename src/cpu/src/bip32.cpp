@@ -6,6 +6,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/sha512.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 #include <cctype>
@@ -379,9 +380,9 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     child.parent_fingerprint = fingerprint_from_compressed(parent_comp);
 
     if (is_private) {
-        // child_key = (IL + parent_key) mod n
+        // child_key = (IL + parent_key) mod n — CT: both scalars are secret
         auto parent_scalar = Scalar::from_bytes(key);
-        auto child_scalar = il_scalar + parent_scalar;
+        auto child_scalar = ct::scalar_add(il_scalar, parent_scalar);
         if (child_scalar.is_zero()) {
             detail::secure_erase(I.data(), I.size());
             detail::secure_erase(IL.data(), IL.size());

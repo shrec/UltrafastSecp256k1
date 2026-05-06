@@ -73,27 +73,30 @@ static void test_zero_key_handling() {
     {
         auto z = Scalar::from_uint64(0);
         bool threw = false;
+        bool inv_ok = false;
         try {
             auto inv = z.inverse();
-            // If it doesn't throw, inv should be zero (by convention)
-            CHECK(inv.is_zero(), "inv(0) = 0 (by convention)");
+            inv_ok = inv.is_zero();
+            CHECK(inv_ok, "inv(0) = 0 (by convention)");
         } catch (const std::exception&) {
             threw = true;
         }
-        CHECK(threw || true, "inv(0) either throws or returns 0");
+        CHECK(threw || inv_ok, "inv(0) either throws or returns 0");
     }
 
     // Field inverse of zero -- should throw or return zero
     {
         auto z = FieldElement::from_uint64(0);
         bool threw = false;
+        bool fe_inv_ok = false;
         try {
             auto inv = z.inverse();
-            CHECK(inv == FieldElement::from_uint64(0), "fe_inv(0) = 0");
+            fe_inv_ok = (inv == FieldElement::from_uint64(0));
+            CHECK(fe_inv_ok, "fe_inv(0) = 0");
         } catch (const std::exception&) {
             threw = true;
         }
-        CHECK(threw || true, "fe_inv(0) either throws or returns 0");
+        CHECK(threw || fe_inv_ok, "fe_inv(0) either throws or returns 0");
     }
 
     printf("    %d checks\n\n", g_pass);

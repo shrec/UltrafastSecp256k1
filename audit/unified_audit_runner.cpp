@@ -662,7 +662,7 @@ static const AuditModule ALL_MODULES[] = {
     { "c_abi_negative",    "C ABI null/bad-key/bad-sig contract tests",   "memory_safety",  test_c_abi_negative_run, false },
     { "c_abi_thread_stress", "C ABI thread stress (one ctx per thread)",  "memory_safety",  test_c_abi_thread_stress_run, false },
     { "secure_erase",      "Secure memory erasure (volatile readback)",   "memory_safety",  audit_secure_erase_run, false },
-    { "ct_namespace",      "CT namespace discipline (source-level scan)", "memory_safety",  audit_ct_namespace_run, false },
+    { "ct_namespace",      "CT namespace discipline (source-level scan)", "memory_safety",  audit_ct_namespace_run, true },
     { "kat_all_ops",       "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith","standard_vectors", test_kat_all_operations_run, false },
     { "nonce_uniqueness",  "RFC 6979 nonce determinism + uniqueness",     "memory_safety",  test_nonce_uniqueness_run, false },
     { "parse_strictness",  "Public parse path strictness (malformed inputs)","memory_safety", test_parse_strictness_run, false },

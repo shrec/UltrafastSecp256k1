@@ -9,8 +9,8 @@ authors:
 repository-code: "https://github.com/shrec/UltrafastSecp256k1"
 url: "https://shrec.github.io/UltrafastSecp256k1/docs/"
 license: MIT
-version: "3.12.2"
-date-released: "2026-02-24"
+version: "4.0.0"
+date-released: "2026-05-06"
 keywords:
   - secp256k1
   - elliptic-curve-cryptography

@@ -27,8 +27,8 @@ extern "C" {
  * relative path, the compiler finds this co-located copy first.  Both files must
  * stay in sync. Keep this file updated to match ufsecp_version.h.in. */
 
-#define UFSECP_VERSION_MAJOR   3
-#define UFSECP_VERSION_MINOR   68
+#define UFSECP_VERSION_MAJOR   4
+#define UFSECP_VERSION_MINOR   0
 #define UFSECP_VERSION_PATCH   0
 
 /** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat.
@@ -38,7 +38,7 @@ extern "C" {
      ((unsigned int)UFSECP_VERSION_MINOR <<  8) | \
       (unsigned int)UFSECP_VERSION_PATCH)
 
-#define UFSECP_VERSION_STRING  "3.68.0"
+#define UFSECP_VERSION_STRING  "4.0.0"
 
 /* -- ABI version (incremented ONLY on binary-incompatible changes) ---------- */
 
@@ -68,7 +68,7 @@ UFSECP_API unsigned int ufsecp_version(void);
 /** Return ABI version at runtime (same as UFSECP_ABI_VERSION). */
 UFSECP_API unsigned int ufsecp_abi_version(void);
 
-/** Return human-readable version string, e.g. "3.3.0". */
+/** Return human-readable version string, e.g. "4.0.0". */
 UFSECP_API const char* ufsecp_version_string(void);
 
 #ifdef __cplusplus

@@ -190,10 +190,9 @@ std::pair<RecoverableSignature, bool> recoverable_from_compact(
     std::memcpy(r_bytes.data(), data.data() + 1, 32);
     std::memcpy(s_bytes.data(), data.data() + 33, 32);
 
-    auto r = Scalar::from_bytes(r_bytes);
-    auto s = Scalar::from_bytes(s_bytes);
-
-    if (r.is_zero() || s.is_zero()) return {{}, false};
+    Scalar r, s;
+    if (!Scalar::parse_bytes_strict_nonzero(r_bytes, r)) return {{}, false};
+    if (!Scalar::parse_bytes_strict_nonzero(s_bytes, s)) return {{}, false};
 
     return {{ECDSASignature{r, s}, recid}, true};
 }

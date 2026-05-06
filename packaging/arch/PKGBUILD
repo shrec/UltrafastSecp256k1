@@ -1,6 +1,6 @@
 # Maintainer: shrec <shrec@users.noreply.github.com>
 pkgname=libufsecp
-pkgver=3.12.1
+pkgver=4.0.0
 pkgrel=1
 pkgdesc="High-performance secp256k1 elliptic curve cryptography library"
 arch=('x86_64' 'aarch64')

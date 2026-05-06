@@ -62,6 +62,7 @@ int secp256k1_xonly_pubkey_cmp(
     const secp256k1_xonly_pubkey *pk2)
 {
     (void)ctx;
+    if (!pk1 || !pk2) { std::abort(); }  // matches libsecp256k1 illegal_callback contract
     return std::memcmp(pk1->data, pk2->data, 32);
 }
 
