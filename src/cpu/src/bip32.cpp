@@ -386,9 +386,11 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         if (!Scalar::parse_bytes_strict_nonzero(key, parent_scalar)) {
             detail::secure_erase(I.data(), I.size());
             detail::secure_erase(IL.data(), IL.size());
+            detail::secure_erase(&parent_scalar, sizeof(parent_scalar));
             return {ExtendedKey{}, false};
         }
         auto child_scalar = ct::scalar_add(il_scalar, parent_scalar);
+        detail::secure_erase(&parent_scalar, sizeof(parent_scalar));
         if (child_scalar.is_zero()) {
             detail::secure_erase(I.data(), I.size());
             detail::secure_erase(IL.data(), IL.size());

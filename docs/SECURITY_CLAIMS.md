@@ -9,6 +9,22 @@
   inversions from O(n²) to O(n). Nonce commitment points (hiding, binding) are
   public — no secret material involved. No CT or zeroization change.
 
+### 2026-05-06 Security Fixes — ultrareview P1/P2 TASK-001..012 batch
+
+- **`shim_schnorr.cpp` `sign_custom` (RT-001/CT-001)**: `s = k + e * kp.d` using
+  `fast::operator*` on secret nonce and key replaced with `ct::scalar_add(k, ct::scalar_mul(e, kp.d))`.
+  CT claim for `secp256k1_schnorrsig_sign_custom` (variable-length path) now holds.
+- **`shim_extrakeys.cpp` `keypair_xonly_tweak_add` (CT-006)**: `new_sk = sk + t` using
+  `fast::operator+` on secret key replaced with `ct::scalar_add(sk, t)`.
+  CT claim for Taproot keypair tweak now holds (overflow branch no longer leaks).
+- **`bip32.cpp` `derive_child` (RT-007)**: `Scalar::from_bytes(key)` replaced with
+  `parse_bytes_strict_nonzero` — rejects parent keys ≥ n or == 0 with error return instead
+  of silent mod-n reduction. `parent_scalar` erased after use on all paths.
+- **`frost.cpp` `frost_lagrange_coefficient` (CT-002)**: `den.inverse()` (variable-time GCD)
+  replaced with `ct::scalar_inverse(den)`. Lagrange computation now runs in constant time.
+- **`shim_pubkey.cpp` `pubkey_combine` (SC-010)**: Per-element NULL check prevents null
+  dereference (was UB); returns 0 on NULL element.
+
 ### 2026-05-06 Security Fixes — ultrareview P1/P2 batch
 
 - **`musig2.cpp` nonce k2**: k2 domain separator aligned to k1 via `cached_tagged_hash(g_musig_nonce_midstate)`.

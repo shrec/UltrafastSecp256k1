@@ -2,6 +2,21 @@
 
 **Last updated**: 2026-05-06 | **Version**: 4.0.0
 
+### 2026-05-06 Secret Lifecycle Changes (ultrareview P1/P2 — BIP32 strict parse + FROST CT inverse)
+
+- **`bip32.cpp` (`ExtendedKey::derive_child`)**: Replaced `Scalar::from_bytes(key)` (reducing,
+  accepts key ≥ n silently) with `Scalar::parse_bytes_strict_nonzero(key, parent_scalar)`.
+  Returns `{ExtendedKey{}, false}` for key ≥ n or key == 0 instead of silently corrupting the
+  derivation. Added `secure_erase(&parent_scalar, sizeof(parent_scalar))` on both exit paths
+  (early failure and after `ct::scalar_add`) — parent private key scalar fully erased before
+  function returns. `il_scalar` and `I`/`IL` buffers erased on all paths (unchanged).
+- **`frost.cpp` (`frost_lagrange_coefficient`)**: `den.inverse()` (variable-time GCD) replaced
+  with `ct::scalar_inverse(den)`. `num * den.inverse()` replaced with
+  `ct::scalar_mul(num, ct::scalar_inverse(den))`. Zero-denominator guard added before inverse.
+  Same fix applied to `frost_lagrange_coefficient_from_commitments`. Lambda_i is public but
+  the operation now runs in constant time, eliminating a correlated timing oracle on total
+  signing time when adversary controls participant ID sets (CT-002).
+
 ### 2026-05-06 Secret Lifecycle Changes (ultrareview P2 batch — FROST O(n²) fix)
 
 - **`frost.cpp` (`compute_group_commitment_inline_binding`)**: Refactored to
