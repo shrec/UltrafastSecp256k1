@@ -2,6 +2,7 @@
 // shim_context.cpp -- Context lifecycle (context_randomize installs thread-local CT blinding)
 // ============================================================================
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 #include <array>
 #include <cstdlib>
 #include <cstring>
@@ -179,3 +180,10 @@ void secp256k1_context_set_error_callback(
 }
 
 } // extern "C"
+
+// Internal helper — visible to all shim_*.cpp via shim_internal.hpp.
+// The struct definition lives in this TU, so the member access is valid here.
+void secp256k1_shim_call_illegal_cb(const secp256k1_context* ctx, const char* msg) noexcept {
+    if (!ctx) return;
+    if (ctx->illegal_cb) ctx->illegal_cb(msg, ctx->illegal_cb_data);
+}

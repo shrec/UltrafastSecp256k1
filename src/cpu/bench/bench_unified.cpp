@@ -168,6 +168,7 @@ struct BenchReport {
     int passes;
     int warmup;
     int pool_size;
+    bool quick_mode;
 
     void add(const char* section, const char* name, double ns_val) {
         if (count >= MAX_ENTRIES) return;
@@ -202,7 +203,8 @@ struct BenchReport {
         fprintf(f, "    \"tsc_ghz\": %.3f,\n", tsc_ghz);
         fprintf(f, "    \"passes\": %d,\n", passes);
         fprintf(f, "    \"warmup\": %d,\n", warmup);
-        fprintf(f, "    \"pool_size\": %d\n", pool_size);
+        fprintf(f, "    \"pool_size\": %d,\n", pool_size);
+        fprintf(f, "    \"run_mode\": \"%s\"\n", quick_mode ? "quick" : "full");
         fprintf(f, "  },\n");
 
         fprintf(f, "  \"results\": [\n");
@@ -590,6 +592,7 @@ int main(int argc, char** argv) {
     g_report.passes = effective_passes;
     g_report.warmup = effective_warmup;
     g_report.pool_size = 64;
+    g_report.quick_mode = opts.quick;
 
     // Integrity check
     printf("Running integrity check... ");
@@ -1887,7 +1890,8 @@ int main(int argc, char** argv) {
     //  SECTION 7: libsecp256k1 (bitcoin-core) -- SAME harness, pool, timer
     // =====================================================================
 
-    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 3s ramp-up, 500 warmup, 11 passes, IQR)...\n");
+    printf("Running libsecp256k1 benchmark (same harness: RDTSCP, 3s ramp-up, %d warmup, %d passes, IQR)...\n",
+           effective_warmup, effective_passes);
 
     secp256k1_context* ls_ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ls_ctx) {
@@ -2460,8 +2464,8 @@ int main(int argc, char** argv) {
     print_sep_3col();
     printf("\n");
 
-    // ---- High-Level Operations (FAST path) ----
-    print_header_3col("SIGNING (FAST vs libsecp CT)");
+    // ---- High-Level Operations (FAST path) — diagnostic only, NOT security-equivalent ----
+    print_header_3col("SIGNING (FAST non-CT vs libsecp CT) [diagnostic only — not production-equivalent]");
     print_row_3col("ECDSA Sign",          u_ecdsa_sign,     ls_ecdsa_sign);
     print_row_3col("Schnorr Sign",        u_schnorr_sign,   ls_schnorr_sign);
     print_row_3col("Schnorr Keypair",     u_schnorr_kp,     ls_schnorr_kp);

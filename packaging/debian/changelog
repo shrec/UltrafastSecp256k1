@@ -1,3 +1,13 @@
+libufsecp4 (4.0.0-1) unstable; urgency=medium
+
+  * Major version bump to 4.0.0: ABI/SONAME 4.
+  * Rename binary package libufsecp3 → libufsecp4 (SONAME change).
+  * Security: CT signing fixes in shim (sign_custom, keypair_xonly_tweak_add).
+  * Security: BIP32 strict key parsing, FROST lagrange CT inverse.
+  * Performance: shim pubkey cache 16→256 slots with FNV-1a hash.
+
+ -- shrec <shrec@users.noreply.github.com>  Wed, 06 May 2026 00:00:00 +0000
+
 libufsecp (3.12.1-1) unstable; urgency=medium
 
   * New upstream release.

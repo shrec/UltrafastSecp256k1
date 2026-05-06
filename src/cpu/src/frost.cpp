@@ -214,7 +214,8 @@ Scalar frost_lagrange_coefficient(ParticipantId i,
         den = den * (x_j - x_i);          // den *= (j - i)
     }
 
-    return num * den.inverse();
+    if (secp256k1::ct::scalar_is_zero(den)) return Scalar::zero();
+    return secp256k1::ct::scalar_mul(num, secp256k1::ct::scalar_inverse(den));
 }
 
 static Scalar frost_lagrange_coefficient_from_commitments(
@@ -243,7 +244,8 @@ static Scalar frost_lagrange_coefficient_from_commitments(
     if (!found_i) {
         return Scalar::zero();
     }
-    return num * den.inverse();
+    if (secp256k1::ct::scalar_is_zero(den)) return Scalar::zero();
+    return secp256k1::ct::scalar_mul(num, secp256k1::ct::scalar_inverse(den));
 }
 
 // -- DKG ----------------------------------------------------------------------

@@ -491,11 +491,11 @@ int test_exploit_opencl_runner_key_erase_run();  // Q-01/02/03: OpenCL audit run
 int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path not used in production
 
 // ============================================================================
-// Forward declarations -- 2026-05-05 Red-Team Audit Regression Guards
+// Forward declarations -- ABI/CT/memory-safety regression guards
 // ============================================================================
-int test_exploit_red_team_audit_run(); // RTA-01..08: P1-5,P2-3,P0-3 CPU regressions
-int test_exploit_bugbounty_run();      // BB-01..06: C1-C4,H1,H3 bug bounty regressions
-int test_exploit_redteam_round3_run(); // RR3-01..06: BUG-1..4+6 secnonce/nonce/ecdh/tls/le32
+int test_exploit_abi_recoverable_schnorr_ct_regression_run(); // ABI recid+recov+schnorr_verified CT regressions
+int test_exploit_frost_ocl_shim_bip32_ct_regression_run();   // FROST+OCL+shim+BIP32 CT regression guards
+int test_exploit_musig2_nonce_erasure_le32_ecdh_run();        // secnonce/nonce erasure + LE32 + ECDH Y-parity
 
 // ============================================================================
 // Forward declarations -- 2026-05-02 Bitcoin Core PR security audit fixes
@@ -516,7 +516,7 @@ int test_regression_gpu_key_erase_raii_run();
 static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
-int test_regression_perf_review_sec_run(); // 2026-05-04 perf review security+correctness
+int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -970,18 +970,18 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, false },
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
-    { "regression_perf_review_sec",  "Perf review SEC-1..7+B-1/3/6/7/8/9/10/13/15: CT gen-mul,inv,cswap,ge,Pippenger,BatchVerify (PRF-1..8) — 2026-05-04", "exploit_poc", test_regression_perf_review_sec_run, false },
+    { "signing_ct_scalar_correctness_regression", "CT signing scalar correctness: gen-mul, inv, cswap, Pippenger, BatchVerify (PRF-1..8)", "exploit_poc", test_regression_signing_ct_scalar_correctness_run, false },
     // === 2026-05-05 Full Red-Team Audit Regression Guards ===
     // CPU-testable regressions: P1-5 (double-normalize removed), P2-3 (r==0 check),
     // P0-3 (ct_ecdsa_sign_verified actually verifies), P0-2 (low-S correctness).
-    { "red_team_audit",     "2026-05-05 red-team: P0-3/P1-5/P2-3 ABI recid+recov+schnorr_verified CPU regressions (RTA-01..08)", "exploit_poc", test_exploit_red_team_audit_run, false },
+    { "abi_recoverable_schnorr_ct_regression", "ABI recid+recov+schnorr_verified CT regression guards", "exploit_poc", test_exploit_abi_recoverable_schnorr_ct_regression_run, false },
     // === 2026-05-05 Bug Bounty Red-Team Regression Guards ===
     // C1: OCL recovery scalar_is_even→scalar_is_low_s  C2: non-CT nonce k*G
     // C3: FROST n_signers<threshold  C4: FROST signing share strict_nonzero
     // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
-    { "bugbounty",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_run, false },
+    { "frost_ocl_shim_bip32_ct_regression", "FROST+OCL+shim+BIP32 CT regression guards", "exploit_poc", test_exploit_frost_ocl_shim_bip32_ct_regression_run, false },
     // === 2026-05-05 Red-Team Round 3: BUG-1..4+6 ===
-    { "redteam_round3",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 + ECDH Y-parity prefix (RR3-01..07)", "memory_safety", test_exploit_redteam_round3_run, false },
+    { "musig2_nonce_erasure_le32_ecdh", "MuSig2 secnonce/nonce erasure + LE32 round-trip + ECDH Y-parity prefix", "memory_safety", test_exploit_musig2_nonce_erasure_le32_ecdh_run, false },
     // === 2026-05-06 Performance Review: correctness + security fixes ===
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
     { "exploit_frost_secret_share_ct",   "FROST DKG share.value processed with ct::generator_mul not variable-time scalar_mul (SEC-01, FROST-CT1..5)", "ct_analysis",    test_exploit_frost_secret_share_ct_run,    false },

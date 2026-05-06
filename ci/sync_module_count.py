@@ -47,8 +47,39 @@ PAREN_MODULES_RE = re.compile(r'(?:across|\() *\d{1,3} (?:non-exploit )?modules?
 # Matches lines like "All N exploit PoC modules pass."
 ALL_EXPLOIT_RE = re.compile(r'\bAll \d{1,3} exploit PoC modules? pass\b', re.IGNORECASE)
 
+# Matches "All N non-exploit audit modules and all N exploit PoCs" (README variant)
+ALL_BOTH_RE = re.compile(
+    r'All \d+ non-exploit audit modules and all \d+ exploit PoCs'
+)
+
 # Matches "All N non-exploit audit modules"
 ALL_NONEXPLOIT_RE = re.compile(r'\bAll \d{1,3} non-exploit audit modules?\b', re.IGNORECASE)
+
+# Matches "N non-exploit modules + N exploit PoCs across N sections, 0 failures"
+TABLE_EXPLOIT_ROW_RE = re.compile(
+    r'\d+ non-exploit modules \+ \d+ exploit PoCs across \d+ sections, \d+ failures'
+)
+
+# Matches "N-module unified_audit_runner"
+RUNNER_MODULE_COUNT_RE = re.compile(r'\b\d{3}-module unified_audit_runner\b')
+
+# Matches "N registered exploit-style PoC test modules (M test files)"
+REGISTERED_STYLE_RE = re.compile(
+    r'\d+ registered exploit-style PoC test modules \(\d+ test files\)'
+)
+
+# Matches "N exploit PoC test files (M registered as runner modules"
+EXPLOIT_FILES_REGISTERED_RE = re.compile(
+    r'\d+ exploit PoC test files \(\d+ registered as runner modules'
+)
+
+# Matches "Exploit PoC Test Suite (N Tests,"
+SUITE_HEADER_RE = re.compile(r'Exploit PoC Test Suite \(\d+ Tests,')
+
+# Matches "N exploit PoCs (all N registered as runner modules"  (bullet variant)
+EXPLOIT_POCS_ALL_RE = re.compile(
+    r'\d+ exploit PoCs? test files? \(all \d+ registered as runner modules'
+)
 
 
 # ── Count sources ─────────────────────────────────────────────────────────────
@@ -57,19 +88,20 @@ def count_all_modules(runner: Path) -> tuple[int, int, int]:
     """Parse ALL_MODULES[] in unified_audit_runner.cpp.
 
     Returns (total, exploit_poc_count, non_exploit_count).
+    Counts by section name (third quoted field), not by key prefix.
     """
     text = runner.read_text()
-    # Extract the ALL_MODULES[] block
-    m = re.search(r'static const AuditModule ALL_MODULES\[\]\s*=\s*\{(.+?)^\};',
-                  text, re.DOTALL | re.MULTILINE)
-    if not m:
+    start = text.find("static const AuditModule ALL_MODULES")
+    if start == -1:
+        start = text.find("ALL_MODULES[] =")
+    end = text.find("};\n\nstatic constexpr int NUM_MODULES", start)
+    if start == -1 or end == -1:
         raise RuntimeError("Could not find ALL_MODULES[] in unified_audit_runner.cpp")
-    block = m.group(1)
-    # Each entry starts with: { "name",
-    entries = re.findall(r'^\s*\{\s*"[a-z]', block, re.MULTILINE)
-    total = len(entries)
-    exploit_entries = re.findall(r'^\s*\{\s*"exploit_', block, re.MULTILINE)
-    exploit = len(exploit_entries)
+    block = text[start:end]
+    # Count total entries: each starts with leading whitespace + { + non-comment char
+    total = len(re.findall(r"^\s+\{[^/]", block, re.MULTILINE))
+    # Count exploit_poc section entries: section is the third quoted string in each entry
+    exploit = len(re.findall(r'"exploit_poc"', block))
     non_exploit = total - exploit
     return total, exploit, non_exploit
 
@@ -148,6 +180,39 @@ def make_replacements(content: str,
         return replacement
 
     new = ALL_NONEXPLOIT_RE.sub(_replace_all_nonexploit, new)
+
+    def _sub(pattern, repl_str):
+        nonlocal new, changes
+        orig = new
+        new = pattern.sub(repl_str, new)
+        if new != orig:
+            changes += orig.count(pattern.pattern) or 1
+
+    # "All N non-exploit audit modules and all N exploit PoCs"
+    _sub(ALL_BOTH_RE,
+         f"All {non_exploit} non-exploit audit modules and all {exploit_mods} exploit PoCs")
+
+    # Table row: "N non-exploit modules + N exploit PoCs across N sections, 0 failures"
+    _sub(TABLE_EXPLOIT_ROW_RE,
+         f"{non_exploit} non-exploit modules + {exploit_mods} exploit PoCs across 9 sections, 0 failures")
+
+    # "N-module unified_audit_runner"
+    _sub(RUNNER_MODULE_COUNT_RE, f"{total}-module unified_audit_runner")
+
+    # "N registered exploit-style PoC test modules (M test files)"
+    _sub(REGISTERED_STYLE_RE,
+         f"{exploit_mods} registered exploit-style PoC test modules ({exploit_files} test files)")
+
+    # "N exploit PoC test files (M registered as runner modules"
+    _sub(EXPLOIT_FILES_REGISTERED_RE,
+         f"{exploit_files} exploit PoC test files ({exploit_mods} registered as runner modules")
+
+    # "Exploit PoC Test Suite (N Tests,"
+    _sub(SUITE_HEADER_RE, f"Exploit PoC Test Suite ({exploit_mods} Tests,")
+
+    # "N exploit PoCs test files (all N registered as runner modules"
+    _sub(EXPLOIT_POCS_ALL_RE,
+         f"{exploit_files} exploit PoC test files (all {exploit_mods} registered as runner modules")
 
     return new, changes
 

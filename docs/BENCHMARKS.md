@@ -91,8 +91,8 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 | compressed serialize | 2.9 | 12.7 | **4.34×** |
 | ECDSA verify | 20218 | 20507 | 1.01× |
 | Schnorr verify (cached) | 20741 | 20459 | 0.99× |
-| **CT ECDSA sign** | **12259** | 16314 | **1.33×** |
-| **CT Schnorr sign** | **10411** | 12467 | **1.20×** |
+| **CT ECDSA sign** | **12259** | 16314 | **1.33× (Clang 19)** |
+| **CT Schnorr sign** | **10411** | 12467 | **1.20× (Clang 19)** |
 | ECDSA sign `[diagnostic: FAST path — variable-time, NOT for production signing]` | 7825 | 16314 | 2.08× |
 | Schnorr sign `[diagnostic: FAST path — variable-time, NOT for production signing]` | 6258 | 12467 | 1.99× |
 | ecdsa_sign_recoverable `[diagnostic: FAST path]` | 7355 | 16211 | 2.20× |
@@ -101,6 +101,8 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 | Schnorr batch N=64 | 144876 total | — | — |
 
 No regressions vs previous rerun (2026-03-17). All 70/70 audit modules pass.
+
+> **Compiler note:** CT signing ratios above are Clang 19 results. GCC 13 produces opposite results for CT signing: CT ECDSA sign 0.85×, CT Schnorr sign 0.82× vs libsecp (i.e. slower). Compiler choice is significant for CT signing paths. The stored `benchmark_results/` artifact was generated with GCC 13 (`run_mode: quick`) and shows these slower numbers. The Clang 19 results above are from this controlled rerun.
 
 ### x86-64 Full Rerun (2026-04-05, post-musig2-bip32 optimization) `[archived]`
 

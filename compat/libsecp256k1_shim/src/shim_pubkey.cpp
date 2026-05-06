@@ -197,6 +197,7 @@ int secp256k1_ec_pubkey_combine(
 {
     (void)ctx;
     if (!out || !ins || n == 0) return 0;
+    for (size_t i = 0; i < n; ++i) { if (!ins[i]) return 0; }
     auto acc = pubkey_data_to_point(ins[0]->data);
     for (size_t i = 1; i < n; ++i) {
         auto P = pubkey_data_to_point(ins[i]->data);

@@ -279,7 +279,7 @@ static void test_zero_key_rejected() {
 // ============================================================================
 // Entry point
 // ============================================================================
-int test_regression_perf_review_sec_run() {
+int test_regression_signing_ct_scalar_correctness_run() {
     g_fail = 0;
 
     test_scalar_add_boundary();
@@ -298,5 +298,5 @@ int test_regression_perf_review_sec_run() {
 }
 
 #ifdef STANDALONE_TEST
-int main() { return test_regression_perf_review_sec_run(); }
+int main() { return test_regression_signing_ct_scalar_correctness_run(); }
 #endif

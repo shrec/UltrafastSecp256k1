@@ -2931,8 +2931,8 @@ set_tests_properties(mutation_artifact_scan PROPERTIES TIMEOUT 30 LABELS "audit;
 # BB-04: low-S semantics proof (BUG-C1 class)
 # BB-05: CPU BIP32 depth=255 guard proxy for GPU (BUG-H1)
 # BB-06: ufsecp_ecdsa_sign_recoverable always low-S (BUG-C1/C2 ABI proxy)
-add_executable(test_exploit_bugbounty_standalone
-    test_exploit_bugbounty.cpp
+add_executable(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone
+    test_exploit_frost_ocl_shim_bip32_ct_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
@@ -2940,16 +2940,16 @@ add_executable(test_exploit_bugbounty_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
-audit_target_defaults(test_exploit_bugbounty_standalone)
-target_include_directories(test_exploit_bugbounty_standalone PRIVATE
+audit_target_defaults(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone)
+target_include_directories(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
-target_compile_definitions(test_exploit_bugbounty_standalone PRIVATE
+target_compile_definitions(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone PRIVATE
     STANDALONE_TEST UFSECP_BUILDING)
-add_test(NAME exploit_bugbounty COMMAND test_exploit_bugbounty_standalone)
-set_tests_properties(exploit_bugbounty PROPERTIES
+add_test(NAME exploit_frost_ocl_shim_bip32_ct_regression COMMAND test_exploit_frost_ocl_shim_bip32_ct_regression_standalone)
+set_tests_properties(exploit_frost_ocl_shim_bip32_ct_regression PROPERTIES
     TIMEOUT 120 LABELS "audit;exploit;security;frost;shim;bip32;ct;regression")
 
 # -- 2026-05-05 Red-Team Round 3 regression guards (RR3-01..06) ---------------
@@ -2957,19 +2957,19 @@ set_tests_properties(exploit_bugbounty PROPERTIES
 # BUG-2: frost nonce not zeroed on early error paths
 # BUG-4: ufsecp_last_error_msg thread_local path
 # BUG-6: MuSig2 keyagg LE32 round-trip
-add_executable(test_exploit_redteam_round3_standalone
-    test_exploit_redteam_round3.cpp
+add_executable(test_exploit_musig2_nonce_erasure_le32_ecdh_standalone
+    test_exploit_musig2_nonce_erasure_le32_ecdh.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
-audit_target_defaults(test_exploit_redteam_round3_standalone)
-target_include_directories(test_exploit_redteam_round3_standalone PRIVATE
+audit_target_defaults(test_exploit_musig2_nonce_erasure_le32_ecdh_standalone)
+target_include_directories(test_exploit_musig2_nonce_erasure_le32_ecdh_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_redteam_round3_standalone PRIVATE
+target_compile_definitions(test_exploit_musig2_nonce_erasure_le32_ecdh_standalone PRIVATE
     STANDALONE_TEST UFSECP_BUILDING)
-add_test(NAME exploit_redteam_round3
-    COMMAND test_exploit_redteam_round3_standalone)
-set_tests_properties(exploit_redteam_round3 PROPERTIES
+add_test(NAME exploit_musig2_nonce_erasure_le32_ecdh
+    COMMAND test_exploit_musig2_nonce_erasure_le32_ecdh_standalone)
+set_tests_properties(exploit_musig2_nonce_erasure_le32_ecdh PROPERTIES
     TIMEOUT 60 LABELS "audit;exploit;security;musig2;frost;memory_safety;regression")
 
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
@@ -3599,14 +3599,14 @@ add_executable(unified_audit_runner
     test_regression_schnorr_ct_arithmetic.cpp
     test_regression_musig2_zero_psig.cpp
     test_regression_bip352_ct_varbase.cpp
-    # 2026-05-04 Performance review security + correctness regression (PRF-1..8)
-    test_regression_perf_review_sec.cpp
-    # 2026-05-05 Red-team audit regression guards — P0-3/P1-5/P2-3 CPU regressions (RTA-01..08)
-    test_exploit_red_team_audit.cpp
-    # 2026-05-05 Bug-bounty regression guards — C1-C4/H1/H3 FROST+OCL+shim+BIP32 (BB-01..06)
-    test_exploit_bugbounty.cpp
-    # 2026-05-05 Red-team round 3: BUG-1..4+6 secnonce/nonce/thread-safety/LE32 (RR3-01..06)
-    test_exploit_redteam_round3.cpp
+    # CT signing scalar correctness regression guards (PRF-1..8)
+    test_regression_signing_ct_scalar_correctness.cpp
+    # ABI recid+recov+schnorr_verified CT regression guards
+    test_exploit_abi_recoverable_schnorr_ct_regression.cpp
+    # FROST+OCL+shim+BIP32 CT regression guards
+    test_exploit_frost_ocl_shim_bip32_ct_regression.cpp
+    # MuSig2 secnonce/nonce erasure + LE32 + ECDH Y-parity regression guards
+    test_exploit_musig2_nonce_erasure_le32_ecdh.cpp
     # 2026-05-06 Performance review: correctness + security fixes
     # BUG-01: Pippenger stale used[] across windows
     test_regression_pippenger_stale_used.cpp

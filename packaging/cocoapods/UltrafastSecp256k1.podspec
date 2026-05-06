@@ -25,8 +25,8 @@ Pod::Spec.new do |s|
 
   # ── Source files ──────────────────────────────────────────────────────────
   s.source_files = [
-    "cpu/src/**/*.{cpp,c}",
-    "cpu/include/**/*.{hpp,h}",
+    "src/cpu/src/**/*.{cpp,c}",
+    "src/cpu/include/**/*.{hpp,h}",
     "include/**/*.{hpp,h}",
   ]
 

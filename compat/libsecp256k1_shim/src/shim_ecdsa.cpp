@@ -2,6 +2,7 @@
 // shim_ecdsa.cpp -- ECDSA sign/verify, signature parse/serialize
 // ============================================================================
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -22,7 +23,7 @@ using namespace secp256k1::fast;
 // rebuild path in ecdsa_verify(Point): ~21 µs vs ~23 µs.
 namespace {
 struct ShimPkCache {
-    static constexpr std::size_t SLOTS = 16;
+    static constexpr std::size_t SLOTS = 256;
     struct Slot {
         std::uint8_t              raw[64]{};
         secp256k1::EcdsaPublicKey epk{};
@@ -31,10 +32,9 @@ struct ShimPkCache {
     Slot slots[SLOTS]{};
 
     static std::size_t slot_of(const unsigned char data[64]) noexcept {
-        std::uint32_t a, b;
-        std::memcpy(&a, data,   4);
-        std::memcpy(&b, data+4, 4);
-        return static_cast<std::size_t>((a ^ b) & (SLOTS - 1));
+        std::uint64_t h = 14695981039346656037ULL;
+        for (int i = 0; i < 8; ++i) h = (h ^ data[i]) * 1099511628211ULL;
+        return static_cast<std::size_t>(h & (SLOTS - 1));
     }
 
     const secp256k1::EcdsaPublicKey* get(const unsigned char data[64]) const noexcept {
@@ -269,7 +269,10 @@ int secp256k1_ecdsa_verify(
     // (or a context created with CONTEXT_SIGN which is a superset).
     // SECP256K1_CONTEXT_NONE contexts are rejected to match upstream contract.
     if (!ctx_can_verify(ctx)) return 0;
-    if (!sig || !msghash32 || !pubkey) return 0;
+    if (!sig || !msghash32 || !pubkey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_verify: NULL argument");
+        return 0;
+    }
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
 
@@ -298,7 +301,10 @@ int secp256k1_ecdsa_sign(
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
     // A context created with only CONTEXT_VERIFY is rejected for signing.
     if (!ctx_can_sign(ctx)) return 0;
-    if (!sig || !msghash32 || !seckey) return 0;
+    if (!sig || !msghash32 || !seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_sign: NULL argument");
+        return 0;
+    }
     // Reject custom nonce functions: this shim uses RFC 6979 internally and
     // cannot forward an arbitrary noncefp callback. Fail-closed so callers
     // that rely on a specific nonce function are not silently given RFC 6979.

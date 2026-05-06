@@ -252,7 +252,7 @@ int secp256k1_keypair_xonly_tweak_add(
     Scalar t;
     if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
 
-    auto new_sk = sk + t;
+    auto new_sk = secp256k1::ct::scalar_add(sk, t);
     if (new_sk.is_zero()) return 0;
 
     auto P = secp256k1::ct::generator_mul(new_sk);   // CT: Rule 12 — new_sk is secret

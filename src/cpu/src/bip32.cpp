@@ -381,7 +381,13 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
 
     if (is_private) {
         // child_key = (IL + parent_key) mod n — CT: both scalars are secret
-        auto parent_scalar = Scalar::from_bytes(key);
+        // Strict parse rejects key >= n or key == 0 (guards against corrupted ExtendedKey).
+        Scalar parent_scalar{};
+        if (!Scalar::parse_bytes_strict_nonzero(key, parent_scalar)) {
+            detail::secure_erase(I.data(), I.size());
+            detail::secure_erase(IL.data(), IL.size());
+            return {ExtendedKey{}, false};
+        }
         auto child_scalar = ct::scalar_add(il_scalar, parent_scalar);
         if (child_scalar.is_zero()) {
             detail::secure_erase(I.data(), I.size());

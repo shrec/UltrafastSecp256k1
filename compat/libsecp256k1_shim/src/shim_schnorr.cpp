@@ -1,5 +1,6 @@
 #include "secp256k1_schnorrsig.h"
 #include "secp256k1_extrakeys.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -11,6 +12,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::fast;
@@ -20,7 +22,7 @@ using namespace secp256k1::fast;
 // Direct-mapped 16 slots, keyed by first 8 bytes of pubkey->data (x-only 32 B).
 namespace {
 struct ShimSchnorrCache {
-    static constexpr std::size_t SLOTS = 16;
+    static constexpr std::size_t SLOTS = 256;
     struct Slot {
         std::uint8_t              raw[32]{};
         secp256k1::SchnorrXonlyPubkey epk{};
@@ -29,10 +31,9 @@ struct ShimSchnorrCache {
     Slot slots[SLOTS]{};
 
     static std::size_t slot_of(const unsigned char data[32]) noexcept {
-        std::uint32_t a, b;
-        std::memcpy(&a, data,   4);
-        std::memcpy(&b, data+4, 4);
-        return static_cast<std::size_t>((a ^ b) & (SLOTS - 1));
+        std::uint64_t h = 14695981039346656037ULL;
+        for (int i = 0; i < 8; ++i) h = (h ^ data[i]) * 1099511628211ULL;
+        return static_cast<std::size_t>(h & (SLOTS - 1));
     }
 
     const secp256k1::SchnorrXonlyPubkey* get(const unsigned char data[32]) const noexcept {
@@ -97,7 +98,10 @@ int secp256k1_schnorrsig_sign32(
 {
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
     if (!schnorr_ctx_can_sign(ctx)) return 0;
-    if (!sig64 || !msg32 || !keypair) return 0;
+    if (!sig64 || !msg32 || !keypair) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign32: NULL argument");
+        return 0;
+    }
 
     Scalar sk;
     if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
@@ -215,8 +219,8 @@ int secp256k1_schnorrsig_sign_custom(
     auto e_hash = secp256k1::tagged_hash("BIP0340/challenge", challenge_input.data(), challenge_input.size());
     auto e = Scalar::from_bytes(e_hash);
 
-    // s = k + e * d
-    auto s = k + e * kp.d;
+    // s = k + e * d  — CT: both k (nonce) and kp.d (secret key) are secret
+    auto s = secp256k1::ct::scalar_add(k, secp256k1::ct::scalar_mul(e, kp.d));
     secp256k1::detail::secure_erase(&k,      sizeof(k));
     secp256k1::detail::secure_erase(&kp.d,   sizeof(kp.d));
     secp256k1::detail::secure_erase(d_bytes.data(), d_bytes.size());
@@ -252,7 +256,10 @@ int secp256k1_schnorrsig_verify(
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
     // (or a context created with CONTEXT_SIGN which is a superset).
     if (!schnorr_ctx_can_verify(ctx)) return 0;
-    if (!sig64 || !pubkey) return 0;
+    if (!sig64 || !pubkey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify: NULL argument");
+        return 0;
+    }
     // Only 32-byte messages supported — see asymmetry note above.
     if (!msg || msglen != 32) return 0;
 
