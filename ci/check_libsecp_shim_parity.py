@@ -193,12 +193,17 @@ CHECKS = [
     {
         "file": "shim_ecdsa.cpp",
         "function": "secp256k1_ecdsa_signature_parse_compact",
-        "description": "parse_compact must validate r and s before storing into sig->data",
+        "description": "parse_compact must validate r and s (range check) before storing into sig->data",
         "checks": [
             {
                 "kind": "require",
-                "pattern": r"Scalar::parse_bytes_strict_nonzero",
-                "message": "must use Scalar::parse_bytes_strict_nonzero for both r and s (rejects zero and overflow)",
+                # libsecp accepts r=0/s=0 at parse time (verify rejects them).
+                # Only r>=n or s>=n triggers a parse failure.
+                # parse_bytes_strict allows zero but rejects overflow; that matches libsecp.
+                # parse_bytes_strict_nonzero is also acceptable (stricter but compatible
+                # because no caller passes r=0/s=0 in practice on the signing side).
+                "pattern": r"Scalar::parse_bytes_strict",
+                "message": "must use Scalar::parse_bytes_strict (or strict_nonzero) for both r and s (rejects overflow)",
             },
             # A bare memcpy as the SOLE operation — with no parse anywhere in
             # the body — would be detected by the absence of the "require" above.
@@ -208,13 +213,13 @@ CHECKS = [
             # AND memcpy to sig->data is present, that is a bare-copy bug.
             # Since the "require" check already rejects the absence case, we
             # add a structural check: parse must appear BEFORE the memcpy.
-            # Approximation: the string "parse_bytes_strict_nonzero" must appear
+            # Approximation: the string "parse_bytes_strict" must appear
             # somewhere in the body text before "memcpy(sig->data".
             {
                 "kind": "require",
-                "pattern": r"(?s)parse_bytes_strict_nonzero.*memcpy\(sig->data",
+                "pattern": r"(?s)parse_bytes_strict.*memcpy\(sig->data",
                 "message": (
-                    "Scalar::parse_bytes_strict_nonzero must appear before "
+                    "Scalar::parse_bytes_strict (or strict_nonzero) must appear before "
                     "the memcpy(sig->data, input64, 64) store — a bare memcpy "
                     "without prior validation is a libsecp parity violation"
                 ),

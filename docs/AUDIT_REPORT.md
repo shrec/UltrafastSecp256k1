@@ -11,9 +11,9 @@
 
 <!-- BEGIN CURRENT RELEASE VERSION -->
 <!-- This line is maintained by scripts/sync_audit_report_version.py -->
-**Current Release Version:** 3.4.0  
+**Current Release Version:** 4.0.0  
 <!-- END CURRENT RELEASE VERSION -->
-**Historical Audit Baseline Version:** 3.9.0  
+**Historical Audit Baseline Version:** 4.0.0  
 **Audit Date:** 2026-02-11  
 **Commit:** `cc20253` (dev)  
 **Platform:** Linux x86_64, clang++-19, C++20, Release (-O3)  

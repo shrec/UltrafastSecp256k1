@@ -4,7 +4,7 @@ from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
 
 class UltrafastSecp256k1Conan(ConanFile):
     name = "ultrafastsecp256k1"
-    version = "0.0.0-dev"
+    version = "4.0.0"
     license = "MIT"
     author = "shrec"
     url = "https://github.com/shrec/UltrafastSecp256k1"

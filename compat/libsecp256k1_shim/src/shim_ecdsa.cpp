@@ -120,10 +120,11 @@ int secp256k1_ecdsa_signature_parse_compact(
 {
     (void)ctx;
     if (!sig || !input64) return 0;
-    // libsecp rejects r==0, s==0, r>=n, s>=n at parse time.
+    // libsecp accepts r==0 and s==0 at parse time (verify will reject them).
+    // Only r>=n or s>=n triggers a parse failure, matching upstream behaviour.
     Scalar r, s;
-    if (!Scalar::parse_bytes_strict_nonzero(input64,      r)) return 0;
-    if (!Scalar::parse_bytes_strict_nonzero(input64 + 32, s)) return 0;
+    if (!Scalar::parse_bytes_strict(input64,      r)) return 0;
+    if (!Scalar::parse_bytes_strict(input64 + 32, s)) return 0;
     std::memcpy(sig->data, input64, 64);
     return 1;
 }
