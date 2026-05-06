@@ -119,8 +119,8 @@ schnorr_adaptor_sign(const Scalar& private_key,
     auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
     Scalar const e = Scalar::from_bytes(e_hash);
 
-    // s = k + e * sk (BIP-340: s = k + e*d, but partial -- missing adaptor secret t)
-    Scalar const s_hat = k + (e * sk);
+    // s = k + e * sk — CT: both k (secret nonce) and sk (secret key) are secret
+    Scalar const s_hat = ct::scalar_add(k, ct::scalar_mul(e, sk));
 
     detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
     detail::secure_erase(&sk, sizeof(sk));
@@ -179,8 +179,8 @@ schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
     // R = R^ + t_adj*G (should have even y since we ensured it during signing)
     Point const R = pre_sig.R_hat.add(ct::generator_mul(t));
 
-    // s = s + t
-    Scalar const s = pre_sig.s_hat + t;
+    // s = s_hat + t — CT: t is the adaptor secret
+    Scalar const s = ct::scalar_add(pre_sig.s_hat, t);
 
     detail::secure_erase(&t, sizeof(t));
 
@@ -277,7 +277,7 @@ ECDSASignature
 ecdsa_adaptor_adapt(const ECDSAAdaptorSig& pre_sig,
                     const Scalar& adaptor_secret) {
     Scalar t_inv = ct::scalar_inverse(adaptor_secret); // CT: SafeGCD inverse on secret
-    Scalar const s = pre_sig.s_hat * t_inv;
+    Scalar const s = ct::scalar_mul(pre_sig.s_hat, t_inv); // CT: t_inv derives from secret
 
     detail::secure_erase(&t_inv, sizeof(t_inv));
 
