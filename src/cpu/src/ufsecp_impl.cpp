@@ -171,6 +171,23 @@ static_assert(kMuSig2MaxKeyAggParticipants >= kMuSig2MinParticipants,
 static_assert(kMuSig2SessionCountOffset + kMuSig2SessionCountLen <= UFSECP_MUSIG2_SESSION_LEN,
               "MuSig2 session blob must have room for participant count metadata");
 
+// BUG-6 FIX: deterministic little-endian uint32_t serialization helpers.
+// std::memcpy(&u32, buf, 4) uses native endianness and produces wrong results
+// on big-endian platforms (s390x, PowerPC).  These helpers guarantee LE layout
+// on all platforms, matching secp256k1 conventions.
+static inline uint32_t read_le32(const uint8_t* p) noexcept {
+    return static_cast<uint32_t>(p[0])
+         | (static_cast<uint32_t>(p[1]) << 8)
+         | (static_cast<uint32_t>(p[2]) << 16)
+         | (static_cast<uint32_t>(p[3]) << 24);
+}
+static inline void write_le32(uint8_t* p, uint32_t v) noexcept {
+    p[0] = static_cast<uint8_t>(v);
+    p[1] = static_cast<uint8_t>(v >> 8);
+    p[2] = static_cast<uint8_t>(v >> 16);
+    p[3] = static_cast<uint8_t>(v >> 24);
+}
+
 static ufsecp_error_t parse_musig2_keyagg(ufsecp_ctx* ctx,
                                           const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
                                           secp256k1::MuSig2KeyAggCtx& out) {
@@ -237,23 +254,6 @@ static bool checked_add_size(std::size_t left, std::size_t right, std::size_t& o
     }
     out = left + right;
     return true;
-}
-
-// BUG-6 FIX: deterministic little-endian uint32_t serialization helpers.
-// std::memcpy(&u32, buf, 4) uses native endianness and produces wrong results
-// on big-endian platforms (s390x, PowerPC).  These helpers guarantee LE layout
-// on all platforms, matching secp256k1 conventions.
-static inline uint32_t read_le32(const uint8_t* p) noexcept {
-    return static_cast<uint32_t>(p[0])
-         | (static_cast<uint32_t>(p[1]) << 8)
-         | (static_cast<uint32_t>(p[2]) << 16)
-         | (static_cast<uint32_t>(p[3]) << 24);
-}
-static inline void write_le32(uint8_t* p, uint32_t v) noexcept {
-    p[0] = static_cast<uint8_t>(v);
-    p[1] = static_cast<uint8_t>(v >> 8);
-    p[2] = static_cast<uint8_t>(v >> 16);
-    p[3] = static_cast<uint8_t>(v >> 24);
 }
 
 /* Hard upper bound on user-supplied batch/array counts.
