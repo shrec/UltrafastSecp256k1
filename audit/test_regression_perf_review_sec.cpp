@@ -1,7 +1,7 @@
 // ============================================================================
-// Regression: Performance Review Security Fixes — 2026-05-04
+// Regression: Performance Review Security + Correctness Guards
 // ============================================================================
-// Verifies that all security and performance fixes from perf_review_2026-05-04
+// Verifies that all security and arithmetic fixes from the performance review
 // are applied correctly and did not regress any functionality.
 //
 // SEC-1/3: CT generator mul + CT scalar inverse on signing path — correctness
@@ -19,8 +19,8 @@
 // B-3:     pippenger scalar-major digit extraction — MSM result unchanged
 // B-6:     hash map pubkey dedup — batch verify same result as before
 //
-// PRF-1..8:  CPU arithmetic correctness
-// OCL-1..3:  OpenCL path structural guard (skipped if no GPU)
+// Tests: scalar_add_boundary, scalar_cswap, ct_scalar_inverse, schnorr_bip340_kat,
+//        scalar_mul_doubling, ct_field_carry, pippenger_msm, zero_key_rejected
 // ============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
@@ -51,9 +51,9 @@ static int g_fail = 0;
 #define ASSERT_EQ(a, b, msg)    ASSERT_TRUE((a) == (b), msg)
 
 // ============================================================================
-// PRF-1: B-15 — ge() unroll: correct on boundary inputs
+// scalar_add_boundary — (B-15) ge() unroll: correct on boundary inputs
 // ============================================================================
-static void test_prf1_ge_unroll() {
+static void test_scalar_add_boundary() {
     using namespace secp256k1::fast;
     // ge() is an internal helper; we test it via scalar comparisons.
     // Scalar wraps limbs4 and uses ge() in add_impl.
@@ -62,7 +62,7 @@ static void test_prf1_ge_unroll() {
     Scalar const b = Scalar::from_uint64(0x1234567890ABCDEFULL);
     // a == b, so a >= b
     Scalar const diff_ab = a - b;
-    ASSERT_TRUE(diff_ab.is_zero(), "PRF-1: a - b must be 0 for equal scalars");
+    ASSERT_TRUE(diff_ab.is_zero(), "a - b must be 0 for equal scalars");
 
     // MSB limb decides: large > small
     Scalar const n_minus_1 = Scalar::from_bytes([]() -> std::array<uint8_t, 32> {
@@ -81,13 +81,13 @@ static void test_prf1_ge_unroll() {
     Scalar const one = Scalar::from_uint64(1);
     // (n-1) + 1 = n = 0 mod n
     Scalar const wrap = n_minus_1 + one;
-    ASSERT_TRUE(wrap.is_zero(), "PRF-1: (n-1) + 1 must wrap to 0 mod n");
+    ASSERT_TRUE(wrap.is_zero(), "(n-1) + 1 must wrap to 0 mod n");
 }
 
 // ============================================================================
-// PRF-2: B-8 — scalar_cswap XOR-swap correctness
+// scalar_cswap — (B-8) XOR-swap correctness across all mask values
 // ============================================================================
-static void test_prf2_scalar_cswap() {
+static void test_scalar_cswap() {
     using namespace secp256k1;
     using namespace secp256k1::fast;
 
@@ -98,24 +98,24 @@ static void test_prf2_scalar_cswap() {
 
     // mask = 0: no swap
     ct::scalar_cswap(&a, &b, 0);
-    ASSERT_TRUE(a == orig_a, "PRF-2: cswap(mask=0) must not swap a");
-    ASSERT_TRUE(b == orig_b, "PRF-2: cswap(mask=0) must not swap b");
+    ASSERT_TRUE(a == orig_a, "cswap(mask=0) must not swap a");
+    ASSERT_TRUE(b == orig_b, "cswap(mask=0) must not swap b");
 
     // mask = all-ones: swap
     ct::scalar_cswap(&a, &b, ~std::uint64_t{0});
-    ASSERT_TRUE(a == orig_b, "PRF-2: cswap(mask=ff) must swap a ← b");
-    ASSERT_TRUE(b == orig_a, "PRF-2: cswap(mask=ff) must swap b ← a");
+    ASSERT_TRUE(a == orig_b, "cswap(mask=ff) must swap a ← b");
+    ASSERT_TRUE(b == orig_a, "cswap(mask=ff) must swap b ← a");
 
     // swap back: idempotent
     ct::scalar_cswap(&a, &b, ~std::uint64_t{0});
-    ASSERT_TRUE(a == orig_a, "PRF-2: double-cswap must restore a");
-    ASSERT_TRUE(b == orig_b, "PRF-2: double-cswap must restore b");
+    ASSERT_TRUE(a == orig_a, "double-cswap must restore a");
+    ASSERT_TRUE(b == orig_b, "double-cswap must restore b");
 }
 
 // ============================================================================
-// PRF-3: B-1 — CT scalar inverse (divsteps_59 volatile removal) correctness
+// ct_scalar_inverse — (B-1) divsteps_59 volatile removal: correctness
 // ============================================================================
-static void test_prf3_ct_scalar_inverse() {
+static void test_ct_scalar_inverse() {
     using namespace secp256k1;
     using namespace secp256k1::fast;
 
@@ -128,24 +128,23 @@ static void test_prf3_ct_scalar_inverse() {
     // Verify: 2 * inv2 == 1 mod n
     Scalar const prod = two * inv2;
     Scalar const one = Scalar::from_uint64(1);
-    ASSERT_TRUE(prod == one, "PRF-3: 2 * inv(2) must equal 1 mod n");
+    ASSERT_TRUE(prod == one, "2 * inv(2) must equal 1 mod n");
 
     // Verify: 3 * inv(3) == 1
     Scalar const three = Scalar::from_uint64(3);
     Scalar const inv3 = ct::scalar_inverse(three);
     Scalar const prod3 = three * inv3;
-    ASSERT_TRUE(prod3 == one, "PRF-3: 3 * inv(3) must equal 1 mod n");
+    ASSERT_TRUE(prod3 == one, "3 * inv(3) must equal 1 mod n");
 
     // Fast vs CT must agree
     Scalar const fast_inv2 = two.inverse();
-    ASSERT_TRUE(fast_inv2 == inv2, "PRF-3: fast::inverse == ct::inverse for k=2");
+    ASSERT_TRUE(fast_inv2 == inv2, "fast::inverse == ct::inverse for k=2");
 }
 
 // ============================================================================
-// PRF-4: B-7 — Schnorr verify with BIP-340 KAT vector still passes
-// (tests seven52 file-scope constant)
+// schnorr_bip340_kat — (B-7) BIP-340 KAT vector passes after seven52 fix
 // ============================================================================
-static void test_prf4_schnorr_kats() {
+static void test_schnorr_bip340_kat() {
     // BIP-340 test vector index 1
     // privkey  = B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
     // aux_rand = 0000000000000000000000000000000000000000000000000000000000000001
@@ -177,13 +176,13 @@ static void test_prf4_schnorr_kats() {
     bool const ok = secp256k1::schnorr_verify(
         pk_arr.data(), msg_arr.data(),
         secp256k1::SchnorrSignature::from_bytes(sig_arr));
-    ASSERT_TRUE(ok, "PRF-4: BIP-340 vector 0 must still verify after kSeven52 file-scope fix");
+    ASSERT_TRUE(ok, "BIP-340 vector 0 must still verify after kSeven52 file-scope fix");
 }
 
 // ============================================================================
-// PRF-5: B-13 — jacobian_double_inplace without y==zero: scalar mul correct
+// scalar_mul_doubling — (B-13) jacobian_double_inplace: scalar mul correctness
 // ============================================================================
-static void test_prf5_scalar_mul_correctness() {
+static void test_scalar_mul_doubling() {
     using namespace secp256k1::fast;
 
     // 2*G must equal G + G (tests doubling path)
@@ -192,19 +191,19 @@ static void test_prf5_scalar_mul_correctness() {
     Point const two_G = G.scalar_mul(two);
     Point const G_plus_G = G.add(G);
 
-    ASSERT_TRUE(two_G.x() == G_plus_G.x(), "PRF-5: 2*G.x must equal (G+G).x");
-    ASSERT_TRUE(two_G.y() == G_plus_G.y(), "PRF-5: 2*G.y must equal (G+G).y");
+    ASSERT_TRUE(two_G.x() == G_plus_G.x(), "2*G.x must equal (G+G).x");
+    ASSERT_TRUE(two_G.y() == G_plus_G.y(), "2*G.y must equal (G+G).y");
 
     // 256*G via repeated doubling
     Scalar const k256 = Scalar::from_uint64(256);
     Point const R = G.scalar_mul(k256);
-    ASSERT_TRUE(!R.is_infinity(), "PRF-5: 256*G must not be infinity");
+    ASSERT_TRUE(!R.is_infinity(), "256*G must not be infinity");
 }
 
 // ============================================================================
-// PRF-6: B-10 — add256/sub256 carry correctness via CT field arithmetic
+// ct_field_carry — (B-10) add256/sub256 __builtin_addcll carry correctness
 // ============================================================================
-static void test_prf6_ct_field_carry() {
+static void test_ct_field_carry() {
     using namespace secp256k1;
     using namespace secp256k1::fast;
     using namespace secp256k1::ct;
@@ -218,17 +217,17 @@ static void test_prf6_ct_field_carry() {
     FieldElement const diff = sum - one;
     // diff == zero mod p
     bool const diff_zero = (diff == zero);
-    ASSERT_TRUE(diff_zero, "PRF-6: (0 + 1) - 1 must equal 0 mod p via CT field arithmetic");
+    ASSERT_TRUE(diff_zero, "(0 + 1) - 1 must equal 0 mod p via CT field arithmetic");
 
     // CT field inverse: inv(1) = 1
     FieldElement const inv1 = ct::field_inv(one);
-    ASSERT_TRUE(inv1 == one, "PRF-6: CT field_inverse(1) must equal 1");
+    ASSERT_TRUE(inv1 == one, "CT field_inverse(1) must equal 1");
 }
 
 // ============================================================================
-// PRF-7: B-3 — pippenger digit extraction: MSM correctness
+// pippenger_msm — (B-3) scalar-major digit extraction: MSM correctness
 // ============================================================================
-static void test_prf7_pippenger_correctness() {
+static void test_pippenger_msm() {
     using namespace secp256k1::fast;
 
     // Sum of i*G for i=1..8 using pippenger
@@ -248,17 +247,17 @@ static void test_prf7_pippenger_correctness() {
     Point const result = secp256k1::pippenger_msm(
         scalars.data(), points.data(), scalars.size());
 
-    ASSERT_TRUE(result.x() == expected.x(), "PRF-7: pippenger sum(i*G) x must equal 36*G.x");
-    ASSERT_TRUE(result.y() == expected.y(), "PRF-7: pippenger sum(i*G) y must equal 36*G.y");
+    ASSERT_TRUE(result.x() == expected.x(), "pippenger sum(i*G) x must equal 36*G.x");
+    ASSERT_TRUE(result.y() == expected.y(), "pippenger sum(i*G) y must equal 36*G.y");
 }
 
 // ============================================================================
-// PRF-8: SEC-7 — zero scalar rejection in ABI pubkey creation
+// zero_key_rejected — (SEC-7) zero scalar rejection in ABI pubkey creation
 // ============================================================================
-static void test_prf8_zero_scalar_rejected() {
+static void test_zero_key_rejected() {
     ufsecp_ctx* ctx = nullptr;
     if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) {
-        std::printf("SKIP PRF-8: no ABI ctx available\n");
+        std::printf("SKIP zero_key_rejected: no ABI ctx available\n");
         return;
     }
 
@@ -266,13 +265,13 @@ static void test_prf8_zero_scalar_rejected() {
     uint8_t zero_key[32] = {};
     uint8_t pub[33] = {};
     ufsecp_error_t rc = ufsecp_pubkey_create(ctx, zero_key, pub);
-    ASSERT_TRUE(rc != UFSECP_OK, "PRF-8: zero private key must be rejected by ufsecp_pubkey_create");
+    ASSERT_TRUE(rc != UFSECP_OK, "zero private key must be rejected by ufsecp_pubkey_create");
 
     // Valid key must succeed
     uint8_t valid_key[32] = {};
     valid_key[31] = 0x01;
     rc = ufsecp_pubkey_create(ctx, valid_key, pub);
-    ASSERT_TRUE(rc == UFSECP_OK, "PRF-8: valid private key=1 must succeed");
+    ASSERT_TRUE(rc == UFSECP_OK, "valid private key=1 must succeed");
 
     ufsecp_ctx_destroy(ctx);
 }
@@ -283,14 +282,14 @@ static void test_prf8_zero_scalar_rejected() {
 int test_regression_perf_review_sec_run() {
     g_fail = 0;
 
-    test_prf1_ge_unroll();
-    test_prf2_scalar_cswap();
-    test_prf3_ct_scalar_inverse();
-    test_prf4_schnorr_kats();
-    test_prf5_scalar_mul_correctness();
-    test_prf6_ct_field_carry();
-    test_prf7_pippenger_correctness();
-    test_prf8_zero_scalar_rejected();
+    test_scalar_add_boundary();
+    test_scalar_cswap();
+    test_ct_scalar_inverse();
+    test_schnorr_bip340_kat();
+    test_scalar_mul_doubling();
+    test_ct_field_carry();
+    test_pippenger_msm();
+    test_zero_key_rejected();
 
     if (g_fail > 0)
         std::printf("[perf_review_sec] %d test(s) FAILED\n", g_fail);
