@@ -2931,8 +2931,8 @@ set_tests_properties(mutation_artifact_scan PROPERTIES TIMEOUT 30 LABELS "audit;
 # BB-04: low-S semantics proof (BUG-C1 class)
 # BB-05: CPU BIP32 depth=255 guard proxy for GPU (BUG-H1)
 # BB-06: ufsecp_ecdsa_sign_recoverable always low-S (BUG-C1/C2 ABI proxy)
-add_executable(test_exploit_bugbounty_20260505_standalone
-    test_exploit_bugbounty_20260505.cpp
+add_executable(test_exploit_bugbounty_standalone
+    test_exploit_bugbounty.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
@@ -2940,37 +2940,37 @@ add_executable(test_exploit_bugbounty_20260505_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
-audit_target_defaults(test_exploit_bugbounty_20260505_standalone)
-target_include_directories(test_exploit_bugbounty_20260505_standalone PRIVATE
+audit_target_defaults(test_exploit_bugbounty_standalone)
+target_include_directories(test_exploit_bugbounty_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
-target_compile_definitions(test_exploit_bugbounty_20260505_standalone PRIVATE
+target_compile_definitions(test_exploit_bugbounty_standalone PRIVATE
     STANDALONE_TEST UFSECP_BUILDING)
-add_test(NAME exploit_bugbounty_20260505 COMMAND test_exploit_bugbounty_20260505_standalone)
-set_tests_properties(exploit_bugbounty_20260505 PROPERTIES
-    TIMEOUT 120 LABELS "audit;exploit;security;frost;shim;bip32;ct;regression;2026-05-05")
+add_test(NAME exploit_bugbounty COMMAND test_exploit_bugbounty_standalone)
+set_tests_properties(exploit_bugbounty PROPERTIES
+    TIMEOUT 120 LABELS "audit;exploit;security;frost;shim;bip32;ct;regression")
 
 # -- 2026-05-05 Red-Team Round 3 regression guards (RR3-01..06) ---------------
 # BUG-1: musig2 secnonce not zeroed on error paths
 # BUG-2: frost nonce not zeroed on early error paths
 # BUG-4: ufsecp_last_error_msg thread_local path
 # BUG-6: MuSig2 keyagg LE32 round-trip
-add_executable(test_exploit_redteam_round3_20260505_standalone
-    test_exploit_redteam_round3_20260505.cpp
+add_executable(test_exploit_redteam_round3_standalone
+    test_exploit_redteam_round3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
-audit_target_defaults(test_exploit_redteam_round3_20260505_standalone)
-target_include_directories(test_exploit_redteam_round3_20260505_standalone PRIVATE
+audit_target_defaults(test_exploit_redteam_round3_standalone)
+target_include_directories(test_exploit_redteam_round3_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
 )
-target_compile_definitions(test_exploit_redteam_round3_20260505_standalone PRIVATE
+target_compile_definitions(test_exploit_redteam_round3_standalone PRIVATE
     STANDALONE_TEST UFSECP_BUILDING)
-add_test(NAME exploit_redteam_round3_20260505
-    COMMAND test_exploit_redteam_round3_20260505_standalone)
-set_tests_properties(exploit_redteam_round3_20260505 PROPERTIES
-    TIMEOUT 60 LABELS "audit;exploit;security;musig2;frost;memory_safety;regression;2026-05-05")
+add_test(NAME exploit_redteam_round3
+    COMMAND test_exploit_redteam_round3_standalone)
+set_tests_properties(exploit_redteam_round3 PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;security;musig2;frost;memory_safety;regression")
 
 # -- Diagnostic: ct::scalar_mul step-by-step comparison --------------------
 add_executable(diag_scalar_mul ${CPU_TESTS_DIR}/diag_scalar_mul.cpp)
@@ -3568,11 +3568,13 @@ add_executable(unified_audit_runner
     test_regression_musig2_zero_psig.cpp
     test_regression_bip352_ct_varbase.cpp
     # 2026-05-04 Performance review security + correctness regression (PRF-1..8)
-    test_regression_perf_review_sec_2026_05_04.cpp
+    test_regression_perf_review_sec.cpp
     # 2026-05-05 Red-team audit regression guards — P0-3/P1-5/P2-3 CPU regressions (RTA-01..08)
-    test_exploit_red_team_audit_20260505.cpp
+    test_exploit_red_team_audit.cpp
+    # 2026-05-05 Bug-bounty regression guards — C1-C4/H1/H3 FROST+OCL+shim+BIP32 (BB-01..06)
+    test_exploit_bugbounty.cpp
     # 2026-05-05 Red-team round 3: BUG-1..4+6 secnonce/nonce/thread-safety/LE32 (RR3-01..06)
-    test_exploit_redteam_round3_20260505.cpp
+    test_exploit_redteam_round3.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)

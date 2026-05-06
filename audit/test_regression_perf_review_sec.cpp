@@ -280,7 +280,7 @@ static void test_prf8_zero_scalar_rejected() {
 // ============================================================================
 // Entry point
 // ============================================================================
-int test_regression_perf_review_sec_2026_05_04_run() {
+int test_regression_perf_review_sec_run() {
     g_fail = 0;
 
     test_prf1_ge_unroll();
@@ -299,5 +299,5 @@ int test_regression_perf_review_sec_2026_05_04_run() {
 }
 
 #ifdef STANDALONE_TEST
-int main() { return test_regression_perf_review_sec_2026_05_04_run(); }
+int main() { return test_regression_perf_review_sec_run(); }
 #endif

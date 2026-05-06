@@ -493,9 +493,9 @@ int test_exploit_ecdsa_fast_path_isolation_run();  // FPI-1..10: ecdsa fast path
 // ============================================================================
 // Forward declarations -- 2026-05-05 Red-Team Audit Regression Guards
 // ============================================================================
-int test_exploit_red_team_audit_20260505_run(); // RTA-01..08: P1-5,P2-3,P0-3 CPU regressions
-int test_exploit_bugbounty_20260505_run();       // BB-01..06: C1-C4,H1,H3 bug bounty regressions
-int test_exploit_redteam_round3_20260505_run(); // RR3-01..06: BUG-1..4+6 secnonce/nonce/ecdh/tls/le32
+int test_exploit_red_team_audit_run(); // RTA-01..08: P1-5,P2-3,P0-3 CPU regressions
+int test_exploit_bugbounty_run();      // BB-01..06: C1-C4,H1,H3 bug bounty regressions
+int test_exploit_redteam_round3_run(); // RR3-01..06: BUG-1..4+6 secnonce/nonce/ecdh/tls/le32
 
 // ============================================================================
 // Forward declarations -- 2026-05-02 Bitcoin Core PR security audit fixes
@@ -509,7 +509,7 @@ int test_regression_gpu_key_erase_raii_run();
 static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
-int test_regression_perf_review_sec_2026_05_04_run(); // 2026-05-04 perf review security+correctness
+int test_regression_perf_review_sec_run(); // 2026-05-04 perf review security+correctness
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -963,18 +963,18 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, false },
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
-    { "regression_perf_review_sec",  "Perf review SEC-1..7+B-1/3/6/7/8/9/10/13/15: CT gen-mul,inv,cswap,ge,Pippenger,BatchVerify (PRF-1..8) — 2026-05-04", "exploit_poc", test_regression_perf_review_sec_2026_05_04_run, false },
+    { "regression_perf_review_sec",  "Perf review SEC-1..7+B-1/3/6/7/8/9/10/13/15: CT gen-mul,inv,cswap,ge,Pippenger,BatchVerify (PRF-1..8) — 2026-05-04", "exploit_poc", test_regression_perf_review_sec_run, false },
     // === 2026-05-05 Full Red-Team Audit Regression Guards ===
     // CPU-testable regressions: P1-5 (double-normalize removed), P2-3 (r==0 check),
     // P0-3 (ct_ecdsa_sign_verified actually verifies), P0-2 (low-S correctness).
-    { "red_team_audit_20260505",     "2026-05-05 red-team: P0-3/P1-5/P2-3 ABI recid+recov+schnorr_verified CPU regressions (RTA-01..08)", "exploit_poc", test_exploit_red_team_audit_20260505_run, false },
+    { "red_team_audit",     "2026-05-05 red-team: P0-3/P1-5/P2-3 ABI recid+recov+schnorr_verified CPU regressions (RTA-01..08)", "exploit_poc", test_exploit_red_team_audit_run, false },
     // === 2026-05-05 Bug Bounty Red-Team Regression Guards ===
     // C1: OCL recovery scalar_is_even→scalar_is_low_s  C2: non-CT nonce k*G
     // C3: FROST n_signers<threshold  C4: FROST signing share strict_nonzero
     // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
-    { "bugbounty_20260505",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_20260505_run, false },
+    { "bugbounty",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_run, false },
     // === 2026-05-05 Red-Team Round 3: BUG-1..4+6 ===
-    { "redteam_round3_20260505",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 round-trip (RR3-01..06)", "memory_safety", test_exploit_redteam_round3_20260505_run, false },
+    { "redteam_round3",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 round-trip (RR3-01..06)", "memory_safety", test_exploit_redteam_round3_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
