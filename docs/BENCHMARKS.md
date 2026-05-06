@@ -78,6 +78,7 @@ artifacts from `bench_unified`.
 Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.  
 **Machine:** Intel Core i5-14400F · Linux · Clang 19.1.7 · TSC 2.501 GHz  
 **Harness:** `bench_unified` — 3 s warmup, 11 passes, IQR trimmed, median  
+**Cache state:** WARM — GLV precomputed tables are L1/L2-hot after 500 warmup iterations. Cold-start (first call, real ConnectBlock workload) is measurably slower; see `docs/BITCOIN_CORE_BENCH_RESULTS.json` for end-to-end block validation numbers.  
 
 | Operation | Ultra (ns/op) | libsecp (ns/op) | Ratio |
 |-----------|:---:|:---:|:---:|

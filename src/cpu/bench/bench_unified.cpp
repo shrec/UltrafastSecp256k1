@@ -20,10 +20,18 @@
 //
 // Methodology:
 //   - Thread pinned to core 0, priority elevated
-//   - 500 warmup iterations per operation
+//   - 500 warmup iterations per operation (GLV precomputed tables are WARM
+//     by the time measurement begins; results reflect steady-state throughput)
 //   - 11 measurement passes, IQR outlier removal, median
 //   - 64-key pool to prevent caching artifacts
 //   - RDTSCP on x86, chrono fallback on ARM/RISC-V/ESP32
+//
+// Cache-state note:
+//   All throughput figures in this benchmark are WARM-CACHE (L1/L2).
+//   Cold-start performance (first call after process start, or after
+//   ConnectBlock workload evicts pubkey tables) is lower; see the
+//   ConnectBlock benchmark in docs/BITCOIN_CORE_BENCH_RESULTS.json
+//   for a more realistic end-to-end workload measurement.
 //
 // CLI:
 //   bench_unified [OPTIONS]

@@ -161,6 +161,17 @@ jobs:
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
 
+    - name: Upload raw benchmark logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: bench-raw-logs-${{ github.sha }}
+        path: |
+          /tmp/benchmark_results/raw_output.txt
+          /tmp/benchmark_results/benchmark.json
+        retention-days: 30
+        if-no-files-found: warn
+
     - name: Summary
       if: always()
       run: |
