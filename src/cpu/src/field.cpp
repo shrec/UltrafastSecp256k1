@@ -1079,7 +1079,7 @@ limbs4 mul_impl(const limbs4& a, const limbs4& b) {
     // x86-64: Runtime dispatch — assembly requires BMI2+ADX (mulx/adcx/adox).
     // Fall back to portable path on CPUs that lack these extensions (e.g. Jasper Lake).
     static bool const asm_available = has_bmi2_support() && has_adx_support();
-    if (asm_available) {
+    if (asm_available) [[likely]] {
         limbs4 out;
         field_mul_full_asm(a.data(), b.data(), out.data());
         return out;
@@ -1123,7 +1123,7 @@ limbs4 square_impl(const limbs4& a) {
     // x86-64: Runtime dispatch — assembly requires BMI2+ADX (mulx/adcx/adox).
     // Fall back to portable path on CPUs that lack these extensions (e.g. Jasper Lake).
     static bool const asm_available = has_bmi2_support() && has_adx_support();
-    if (asm_available) {
+    if (asm_available) [[likely]] {
         limbs4 out;
         field_sqr_full_asm(a.data(), out.data());
         return out;

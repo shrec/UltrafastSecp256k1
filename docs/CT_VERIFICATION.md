@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-06 Performance Review CT Fix (SEC-01)
+
+- `frost.cpp` (`frost_keygen_finalize`): Replaced
+  `Point::generator().scalar_mul(share.value)` with `ct::generator_mul(share.value)`.
+  `share.value` is a secret polynomial evaluation (private key material in DKG context).
+  The previous code used the variable-time GLV/Strauss wNAF path on a secret scalar,
+  violating guardrail 1 (CT mandate for secret-bearing signing paths) and guardrail 12
+  (`Point::generator().scalar_mul` banned for private keys). The fix routes through the
+  Hamburg precomputed comb (`ct::generator_mul`) which has no secret-dependent branches
+  or data-dependent timing. Regression PoC: `test_exploit_frost_secret_share_ct.cpp`.
+
 ### 2026-05-05 Performance Audit CT Refactoring (A-04, A-06)
 
 - `ct_sign.cpp` (`ct::ecdsa_sign`): Replaced `r_fe.to_bytes()` + `Scalar::from_bytes(r_bytes)`

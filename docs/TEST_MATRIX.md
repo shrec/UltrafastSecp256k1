@@ -329,6 +329,15 @@ gate reconciliation:
 - `exploit_sign_type_confusion_kreuse`
 - `exploit_zvp_glv_dcp_multiscalar`
 
+### Generated Inventory Sync (2026-05-06)
+
+The following active CTest targets were added during the 2026-05-06 performance
+review so `TEST_MATRIX.md` matches the live generated CTest surface:
+
+- `exploit_frost_secret_share_ct`
+- `regression_comb_gen_lockfree`
+- `regression_pippenger_stale_used`
+
 ### Generated Inventory Sync (2026-05-03)
 
 The following active CTest targets were added during the 2026-05-03 audit

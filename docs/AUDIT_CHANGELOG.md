@@ -7,6 +7,60 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-06 — Performance Review: 17 Findings Fixed (Correctness×1, Security×2, Perf×14)
+
+Full hot-path performance audit. Three bug classes warranted CAAS test coverage.
+All source fixes and CAAS tests land in the same commit.
+
+### Correctness (must-fix)
+
+- **BUG-01**: `pippenger.cpp` — `used[]` array zeroed only once before the outer
+  window loop, not per iteration. Window W's dirty bits contaminated window W+1's
+  scatter phase: the first point in a reused bucket was added into stale data
+  instead of being assigned, producing wrong MSM results for n≥48 (c≤6 unsigned
+  path). Fixed: `memset(used, 0)` at the top of every window iteration. Regression
+  tests: `test_regression_pippenger_stale_used.cpp` (PIP-R1..R7).
+
+### Critical Security (guardrail violations)
+
+- **SEC-01**: `frost.cpp:337` — `Point::generator().scalar_mul(share.value)` in
+  `frost_keygen_finalize`. `share.value` is a secret polynomial evaluation —
+  a private key. Variable-time GLV/wNAF on a secret violates guardrail 1 (CT
+  mandate for secret paths) and guardrail 12 (`Point::generator().scalar_mul`
+  banned for private keys). Fixed: `ct::generator_mul(share.value)`.
+  Exploit PoC: `test_exploit_frost_secret_share_ct.cpp` (FROST-CT1..5).
+
+- **CRIT-01**: `ecmult_gen_comb.cpp:302-330` — `g_comb_mutex` held on every call
+  to `comb_gen_mul()` and `comb_gen_mul_ct()`, including the read-only path after
+  the table is fully built. This serialised all signing threads to a single global
+  lock (30–1000 ns per signature under contention). Fixed: `std::call_once` for
+  one-time init; table is immutable after init and read paths hold no lock.
+  Regression test: `test_regression_comb_gen_lockfree.cpp` (COMB-LF1..6).
+
+### Performance (hot-path fixes, no security or correctness impact)
+
+- **TAG-01**: `taproot.cpp` — `tagged_hash("TapTweak"/TapBranch/TapLeaf)` recomputed
+  tag SHA256 on every call (2 SHA256 compressions wasted). Fixed: cached midstates
+  `g_taptweak/tapbranch/tapleaf_midstate` added to `tagged_hash.hpp`.
+- **TAG-02**: `musig2.cpp` — `"KeyAgg coefficient"` recomputed per signer inside loop
+  (N × 2 SHA256 compressions); `"MuSig/nonceblinding"` uncached; `"BIP0340/challenge"`
+  already had `g_challenge_midstate` but not used. All fixed.
+- **TAG-03**: `frost.cpp` — `SHA256::hash("FROST_binding")` inside per-participant loop
+  (N redundant compresses per round). Fixed: `g_frost_binding_midstate`.
+- **GENMUL-01/02/03**: `taproot.cpp:147`, `bip32.cpp:395`, `musig2.cpp:372` —
+  `Point::generator().scalar_mul()` skipping Hamburg precomputed comb. Fixed:
+  `ct::generator_mul()` (3–5× faster).
+- **PARITY-01/02**: `taproot.cpp:124`, `bip32.cpp:251` — `y.to_bytes()[31]&1` for
+  parity check (full 32-byte serialise just for LSB). Fixed: `y.limbs()[0]&1`.
+- **TLS-01**: `musig2.cpp:93` — `thread_local` vector `push_back` without `reserve(n)`.
+- **CT-01**: `ct_scalar.cpp:536` — redundant `if (is_zero)` branch inside CT inverse.
+- **MIXADD-01**: `ecmult_gen_comb.cpp:174` — full Jacobian add in `mul_ct` inner loop
+  where affine mixed-add (38% fewer field multiplications) suffices.
+- **PARTVERIFY-01**: `musig2.cpp:413` — two `scalar_mul(ea)` in partial verify
+  (one per Y-parity candidate); second replaced by `negate()`.
+- **BRANCH-01**: `field.cpp:1081,1122` — `[[likely]]` added to `asm_available` branch
+  in `mul_impl` / `square_impl`.
+
 ## 2026-05-05 — Red-Team Round 3: 6 Findings Fixed (C×3, M×1, L×2)
 
 Source-graph red-team pass over CPU ABI, OpenCL/Metal GPU kernels, and cross-backend

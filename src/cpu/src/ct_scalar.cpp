@@ -534,7 +534,7 @@ static limbs4 inverse_impl(const limbs4& x) {
 } // namespace ct_safegcd
 
 Scalar scalar_inverse(const Scalar& a) noexcept {
-    if (a.is_zero()) return Scalar::zero();
+    // SafeGCD returns 0 for zero input in constant time — no branch needed.
     return Scalar::from_limbs(ct_safegcd::inverse_impl(a.limbs()));
 }
 

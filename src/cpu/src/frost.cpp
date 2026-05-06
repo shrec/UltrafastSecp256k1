@@ -5,6 +5,7 @@
 #include "secp256k1/frost.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include <algorithm>
@@ -16,6 +17,9 @@ namespace secp256k1 {
 
 using fast::Point;
 using fast::Scalar;
+using detail::g_frost_binding_midstate;
+using detail::g_challenge_midstate;
+using detail::cached_tagged_hash;
 
 // -- Internal Helpers ---------------------------------------------------------
 
@@ -108,11 +112,7 @@ static Scalar compute_binding_factor(const Point& group_key,
                                        ParticipantId id,
                                        const std::vector<FrostNonceCommitment>& nonce_commitments,
                                        const std::array<std::uint8_t, 32>& msg) {
-    SHA256 h;
-    constexpr char tag[] = "FROST_binding";
-    auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>(tag), sizeof(tag) - 1);
-    h.update(tag_hash.data(), 32);
-    h.update(tag_hash.data(), 32);
+    SHA256 h = g_frost_binding_midstate;
 
     // Group public key (compressed)
     auto gpk = group_key.to_compressed();
@@ -177,7 +177,7 @@ static Scalar compute_challenge(const Point& R, const Point& group_key,
     std::memcpy(challenge_data, R_x.data(), 32);
     std::memcpy(challenge_data + 32, P_x.data(), 32);
     std::memcpy(challenge_data + 64, msg.data(), 32);
-    auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
+    auto e_hash = cached_tagged_hash(g_challenge_midstate, challenge_data, 96);
     return Scalar::from_bytes(e_hash);
 }
 
@@ -334,7 +334,8 @@ frost_keygen_finalize(ParticipantId participant_id,
         if (!comm) return {pkg, false};
 
         // Verify: share.value * G == Sum(A_{sender,j} * x_i^j)
-        Point const lhs = Point::generator().scalar_mul(share.value);
+        // share.value is a secret polynomial evaluation — must use CT generator mul.
+        Point const lhs = ct::generator_mul(share.value);
         Point rhs = Point::infinity();
         Scalar x_pow = Scalar::one();
         for (std::size_t j = 0; j < comm->coeffs.size(); ++j) {

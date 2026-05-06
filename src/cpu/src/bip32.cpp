@@ -248,8 +248,7 @@ fast::Point ExtendedKey::public_key() const {
         return Point::infinity();
     }
     // Check parity: prefix 0x02 = even y, 0x03 = odd y
-    auto y_bytes = y.to_bytes();
-    bool const y_is_odd = (y_bytes[31] & 1) != 0;
+    bool const y_is_odd = (y.limbs()[0] & 1) != 0;
     bool const need_odd = (pub_prefix == 0x03);
     if (y_is_odd != need_odd) {
         y = y.negate();
@@ -391,8 +390,8 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         child.key = child_scalar.to_bytes();
         child.is_private = true;
     } else {
-        // child_key = point(IL) + parent_pubkey
-        auto IL_point = Point::generator().scalar_mul(il_scalar);
+        // child_key = point(IL) + parent_pubkey  (comb-based: 3-5x faster)
+        auto IL_point = ct::generator_mul(il_scalar);
         const auto& parent_point = parent_pk;
         auto child_point = IL_point.add(parent_point);
         if (child_point.is_infinity()) {

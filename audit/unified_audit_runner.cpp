@@ -502,6 +502,13 @@ int test_exploit_redteam_round3_run(); // RR3-01..06: BUG-1..4+6 secnonce/nonce/
 // ============================================================================
 int test_regression_schnorr_ct_arithmetic_run();  // HIGH-03+HIGH-06: schnorr_sign CT arithmetic + r==0 check
 int test_regression_musig2_zero_psig_run();       // CRIT-03: musig2 zero partial-sig → UFSECP_ERR_INTERNAL
+
+// ============================================================================
+// Forward declarations -- 2026-05-06 performance review fixes
+// ============================================================================
+int test_regression_pippenger_stale_used_run();  // BUG-01: Pippenger used[] stale across windows
+int test_exploit_frost_secret_share_ct_run();    // SEC-01: FROST DKG non-CT generator mul on secret share
+int test_regression_comb_gen_lockfree_run();     // CRIT-01: comb_gen_mul lock-free thread safety
 // GPU RAII test requires GPU symbols; stub returns advisory-skip when GPU not built.
 #if defined(SECP256K1_BUILD_GPU_AUDIT)
 int test_regression_gpu_key_erase_raii_run();
@@ -975,6 +982,10 @@ static const AuditModule ALL_MODULES[] = {
     { "bugbounty",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_run, false },
     // === 2026-05-05 Red-Team Round 3: BUG-1..4+6 ===
     { "redteam_round3",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 + ECDH Y-parity prefix (RR3-01..07)", "memory_safety", test_exploit_redteam_round3_run, false },
+    // === 2026-05-06 Performance Review: correctness + security fixes ===
+    { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
+    { "exploit_frost_secret_share_ct",   "FROST DKG share.value processed with ct::generator_mul not variable-time scalar_mul (SEC-01, FROST-CT1..5)", "ct_analysis",    test_exploit_frost_secret_share_ct_run,    false },
+    { "regression_comb_gen_lockfree",    "comb_gen_mul/ct lock-free after once_flag init: no mutex on read path (CRIT-01, COMB-LF1..6)", "math_invariants", test_regression_comb_gen_lockfree_run,     false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

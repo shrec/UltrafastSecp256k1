@@ -2978,6 +2978,38 @@ audit_target_defaults(diag_scalar_mul)
 target_compile_definitions(diag_scalar_mul PRIVATE STANDALONE_TEST)
 add_test(NAME diag_scalar_mul COMMAND diag_scalar_mul)
 
+# -- 2026-05-06 Perf review: Pippenger stale used[] regression (BUG-01) -----
+add_executable(test_regression_pippenger_stale_used_standalone
+    test_regression_pippenger_stale_used.cpp)
+audit_target_defaults(test_regression_pippenger_stale_used_standalone)
+target_compile_definitions(test_regression_pippenger_stale_used_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_pippenger_stale_used
+    COMMAND test_regression_pippenger_stale_used_standalone)
+set_tests_properties(regression_pippenger_stale_used PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;pippenger;msm;correctness")
+
+# -- 2026-05-06 Perf review: FROST DKG non-CT secret share gen mul (SEC-01) --
+add_executable(test_exploit_frost_secret_share_ct_standalone
+    test_exploit_frost_secret_share_ct.cpp)
+audit_target_defaults(test_exploit_frost_secret_share_ct_standalone)
+target_compile_definitions(test_exploit_frost_secret_share_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_frost_secret_share_ct
+    COMMAND test_exploit_frost_secret_share_ct_standalone)
+set_tests_properties(exploit_frost_secret_share_ct PROPERTIES
+    TIMEOUT 60 LABELS "audit;exploit;frost;ct;dkg;secret;rule12")
+
+# -- 2026-05-06 Perf review: comb_gen_mul lock-free thread safety (CRIT-01) --
+add_executable(test_regression_comb_gen_lockfree_standalone
+    test_regression_comb_gen_lockfree.cpp)
+audit_target_defaults(test_regression_comb_gen_lockfree_standalone)
+target_compile_definitions(test_regression_comb_gen_lockfree_standalone PRIVATE STANDALONE_TEST)
+find_package(Threads REQUIRED)
+target_link_libraries(test_regression_comb_gen_lockfree_standalone PRIVATE Threads::Threads)
+add_test(NAME regression_comb_gen_lockfree
+    COMMAND test_regression_comb_gen_lockfree_standalone)
+set_tests_properties(regression_comb_gen_lockfree PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;comb;ecmult_gen;thread;lockfree")
+
 # ===========================================================================
 # Cross-library differential test (vs bitcoin-core/libsecp256k1)
 # ===========================================================================
@@ -3575,6 +3607,13 @@ add_executable(unified_audit_runner
     test_exploit_bugbounty.cpp
     # 2026-05-05 Red-team round 3: BUG-1..4+6 secnonce/nonce/thread-safety/LE32 (RR3-01..06)
     test_exploit_redteam_round3.cpp
+    # 2026-05-06 Performance review: correctness + security fixes
+    # BUG-01: Pippenger stale used[] across windows
+    test_regression_pippenger_stale_used.cpp
+    # SEC-01: FROST DKG non-CT generator mul on secret share
+    test_exploit_frost_secret_share_ct.cpp
+    # CRIT-01: comb_gen_mul lock-free after once_flag init
+    test_regression_comb_gen_lockfree.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)

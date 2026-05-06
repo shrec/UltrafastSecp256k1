@@ -1,6 +1,7 @@
 #include "secp256k1/taproot.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
@@ -8,6 +9,11 @@
 #include <algorithm>
 
 namespace secp256k1 {
+
+using detail::g_taptweak_midstate;
+using detail::g_tapbranch_midstate;
+using detail::g_tapleaf_midstate;
+using detail::cached_tagged_hash;
 
 using fast::Scalar;
 using fast::Point;
@@ -31,7 +37,7 @@ std::array<uint8_t, 32> taproot_tweak_hash(
         std::memcpy(buf + 32, merkle_root, merkle_root_len);
     }
 
-    return tagged_hash("TapTweak", buf, total);
+    return cached_tagged_hash(g_taptweak_midstate, buf, total);
 }
 
 // -- TapLeaf Hash -------------------------------------------------------------
@@ -44,12 +50,7 @@ std::array<uint8_t, 32> taproot_leaf_hash(
     // For compact_size: values < 253 are 1 byte, 253-65535 use 3 bytes, etc.
     // We support scripts up to 64KB for practical use.
 
-    // Pre-tagged hash for "TapLeaf"
-    auto tag_hash = SHA256::hash("TapLeaf", 7);
-
-    SHA256 ctx;
-    ctx.update(tag_hash.data(), 32);  // tag prefix
-    ctx.update(tag_hash.data(), 32);  // tag prefix (twice)
+    SHA256 ctx = g_tapleaf_midstate;
     ctx.update(&leaf_version, 1);
 
     // CompactSize encoding
@@ -98,7 +99,7 @@ std::array<uint8_t, 32> taproot_branch_hash(
     std::memcpy(buf, first, 32);
     std::memcpy(buf + 32, second, 32);
 
-    return tagged_hash("TapBranch", buf, 64);
+    return cached_tagged_hash(g_tapbranch_midstate, buf, 64);
 }
 
 // -- Output Key Derivation ----------------------------------------------------
@@ -120,10 +121,9 @@ static std::pair<Point, bool> lift_x_even(const std::array<uint8_t, 32>& x_bytes
     // Verify sqrt
     if (y.square() != y2) return {Point::infinity(), false};
 
-    // Force even y (BIP-341 convention)
-    auto y_bytes = y.to_bytes();
-    if (y_bytes[31] & 1) {
-        y = FieldElement::zero() - y;
+    // Force even y (BIP-341 convention): LSB of limbs()[0] == parity bit
+    if (y.limbs()[0] & 1) {
+        y = y.negate();
     }
 
     return {Point::from_affine(px_fe, y), true};
@@ -143,8 +143,8 @@ std::pair<std::array<uint8_t, 32>, int> taproot_output_key(
     auto t = Scalar::from_bytes(t_bytes);
     if (t.is_zero()) return {{}, 0};
 
-    // Q = P + t*G
-    auto tG = Point::generator().scalar_mul(t);
+    // Q = P + t*G  (comb-based: 3-5x faster than wNAF generator mul)
+    auto tG = ct::generator_mul(t);
     auto Q = P.add(tG);
     if (Q.is_infinity()) return {{}, 0};
 

@@ -110,7 +110,9 @@ Point pippenger_msm(const Scalar* scalars,
         touched = tl_touched.data();
         used    = tl_used.data();
     }
-    std::memset(used, 0, num_buckets_unsigned * sizeof(std::uint8_t));
+    // NOTE: used[] is re-zeroed at the top of every window iteration below.
+    // The single pre-loop memset is removed; per-window zeroing is the fix for
+    // the stale-bucket bug where window W's dirty bits polluted window W+1.
 
     // Pre-extract all scalar digits — thread_local pool avoids 208KB+ malloc
     // per call (n=4096, c=10, num_windows=26 → 212992 bytes).
@@ -157,7 +159,6 @@ Point pippenger_msm(const Scalar* scalars,
         }
         // Halve bucket count: only need [1, 2^(c-1)]. TLS pools already sized above.
         num_buckets >>= 1;
-        std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
     }
 
     // Scan ALL points to determine if all non-infinity points are affine.
@@ -184,6 +185,9 @@ Point pippenger_msm(const Scalar* scalars,
             }
         }
 
+        // Zero used[] at the start of every window so stale bits from window W
+        // do not cause window W+1's first-touch path to skip bucket initialization.
+        std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
         std::size_t touched_count = 0;
         std::size_t max_touched_digit = 0;
 

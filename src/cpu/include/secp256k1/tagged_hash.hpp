@@ -34,6 +34,21 @@ inline const SHA256 g_aux_midstate       = make_tag_midstate("BIP0340/aux");
 inline const SHA256 g_nonce_midstate     = make_tag_midstate("BIP0340/nonce");
 inline const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge");
 
+// Taproot (BIP-341) midstates
+inline const SHA256 g_taptweak_midstate  = make_tag_midstate("TapTweak");
+inline const SHA256 g_tapbranch_midstate = make_tag_midstate("TapBranch");
+inline const SHA256 g_tapleaf_midstate   = make_tag_midstate("TapLeaf");
+
+// MuSig2 (BIP-327) midstates
+inline const SHA256 g_keyagg_list_midstate         = make_tag_midstate("KeyAgg list");
+inline const SHA256 g_keyagg_coeff_midstate        = make_tag_midstate("KeyAgg coefficient");
+inline const SHA256 g_musig_nonceblinding_midstate = make_tag_midstate("MuSig/nonceblinding");
+inline const SHA256 g_musig_aux_midstate           = make_tag_midstate("MuSig/aux");
+inline const SHA256 g_musig_nonce_midstate         = make_tag_midstate("MuSig/nonce");
+
+// FROST midstates
+inline const SHA256 g_frost_binding_midstate = make_tag_midstate("FROST_binding");
+
 // Fast tagged hash using a cached midstate (avoids re-computing tag prefix).
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push

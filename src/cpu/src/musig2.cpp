@@ -5,6 +5,7 @@
 #include "secp256k1/musig2.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
@@ -24,6 +25,13 @@ namespace secp256k1 {
 using fast::Scalar;
 using fast::Point;
 using fast::FieldElement;
+using detail::g_keyagg_list_midstate;
+using detail::g_keyagg_coeff_midstate;
+using detail::g_musig_nonceblinding_midstate;
+using detail::g_musig_aux_midstate;
+using detail::g_musig_nonce_midstate;
+using detail::g_challenge_midstate;
+using detail::cached_tagged_hash;
 
 // -- Helpers ------------------------------------------------------------------
 
@@ -90,6 +98,7 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
     // each element is move-constructed fresh rather than copy-assigned in place.
     static thread_local std::vector<Point> points;
     points.clear();
+    points.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
         auto pt = decompress_point(pubkeys[i]);
         if (pt.is_infinity()) return ctx;
@@ -97,10 +106,7 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
     }
 
     // BIP-327: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n) — 33 bytes each
-    SHA256 l_ctx;
-    auto tag_hash = SHA256::hash("KeyAgg list", 11);
-    l_ctx.update(tag_hash.data(), 32);
-    l_ctx.update(tag_hash.data(), 32);
+    SHA256 l_ctx = g_keyagg_list_midstate;
     for (std::size_t i = 0; i < n; ++i) {
         l_ctx.update(pubkeys[i].data(), 33);
     }
@@ -125,7 +131,7 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
             uint8_t coeff_input[65];
             std::memcpy(coeff_input, L.data(), 32);
             std::memcpy(coeff_input + 32, pubkeys[i].data(), 33);
-            auto coeff_hash = tagged_hash("KeyAgg coefficient", coeff_input, 65);
+            auto coeff_hash = cached_tagged_hash(g_keyagg_coeff_midstate, coeff_input, 65);
             ctx.key_coefficients[i] = Scalar::from_bytes(coeff_hash);
         }
     }
@@ -169,7 +175,7 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
     } else {
         secp256k1::detail::csprng_fill(aux.data(), 32);
     }
-    auto aux_hash = tagged_hash("MuSig/aux", aux.data(), 32);
+    auto aux_hash = cached_tagged_hash(g_musig_aux_midstate, aux.data(), 32);
 
     uint8_t t[32];
     for (std::size_t i = 0; i < 32; ++i) t[i] = sk_bytes[i] ^ aux_hash[i];
@@ -182,7 +188,7 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         std::memcpy(nonce_input + 64, agg_pub_key.data(), 32);
         std::memcpy(nonce_input + 96, msg.data(), 32);
         nonce_input[128] = 0x01;
-        auto k1_hash = tagged_hash("MuSig/nonce", nonce_input, 129);
+        auto k1_hash = cached_tagged_hash(g_musig_nonce_midstate, nonce_input, 129);
         sec.k1 = Scalar::from_bytes(k1_hash);
         secure_erase(nonce_input, sizeof(nonce_input));
         secure_erase(k1_hash.data(), k1_hash.size());
@@ -268,7 +274,7 @@ MuSig2Session musig2_start_sign_session(
     std::memcpy(b_input + 33, R2_comp.data(), 33);
     std::memcpy(b_input + 66, key_agg_ctx.Q_x.data(), 32);
     std::memcpy(b_input + 98, msg.data(), 32);
-    auto b_hash = tagged_hash("MuSig/nonceblinding", b_input, 130);
+    auto b_hash = cached_tagged_hash(g_musig_nonceblinding_midstate, b_input, 130);
     session.b = Scalar::from_bytes(b_hash);
 
     // R = R1 + b * R2
@@ -287,7 +293,7 @@ MuSig2Session musig2_start_sign_session(
     std::memcpy(e_input, R_x.data(), 32);
     std::memcpy(e_input + 32, key_agg_ctx.Q_x.data(), 32);
     std::memcpy(e_input + 64, msg.data(), 32);
-    auto e_hash = tagged_hash("BIP0340/challenge", e_input, 96);
+    auto e_hash = cached_tagged_hash(g_challenge_midstate, e_input, 96);
     session.e = Scalar::from_bytes(e_hash);
 
     return session;
@@ -369,7 +375,7 @@ bool musig2_partial_verify(
     // s_i * G should equal R_i + b * R2_i + e * a_i * P_i
     // (with appropriate negation adjustments)
 
-    auto sG = Point::generator().scalar_mul(partial_sig);
+    auto sG = ct::generator_mul(partial_sig);
 
     auto R1_i = decompress_point(pub_nonce.R1);
     auto R2_i = decompress_point(pub_nonce.R2);
@@ -409,16 +415,12 @@ bool musig2_partial_verify(
         return A.Y() * z2cu == B.Y() * z1cu;
     };
 
-    // Try even-Y candidate
+    // Try even-Y candidate; ea * (-Pi) = -(ea * Pi) so only one scalar_mul needed.
     FieldElement y_even = (y.limbs()[0] & 1) ? y.negate() : y;
     auto Pi_even = Point::from_affine(px, y_even);
-    auto expected_even = R_eff.add(Pi_even.scalar_mul(ea));
-    if (jacobian_eq(sG, expected_even)) return true;
-
-    // Try odd-Y candidate (negate)
-    auto Pi_odd = Point::from_affine(px, y_even.negate());
-    auto expected_odd = R_eff.add(Pi_odd.scalar_mul(ea));
-    return jacobian_eq(sG, expected_odd);
+    auto eaP = Pi_even.scalar_mul(ea);
+    if (jacobian_eq(sG, R_eff.add(eaP))) return true;
+    return jacobian_eq(sG, R_eff.add(eaP.negate()));
 }
 
 // -- Signature Aggregation ----------------------------------------------------

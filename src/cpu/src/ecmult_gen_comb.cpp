@@ -171,9 +171,15 @@ Point CombGenContext::mul_ct(const Scalar& k) const {
             selected.infinity = (sel_inf != 0);
         }
 
-        // Always add (even if infinity -- this is constant-time)
-        Point const P = Point::from_jacobian_coords(selected.x, selected.y, FieldElement::one(), selected.infinity);
-        R = R.add(P);
+        // Use mixed-add (affine input, Z=1): 7M+4S vs 12M+5S for Jac+Jac.
+        // selected is affine by construction (table entries have Z=1).
+        if (SECP256K1_UNLIKELY(selected.infinity)) {
+            // identity: no-op
+        } else if (SECP256K1_UNLIKELY(R.is_infinity())) {
+            R = Point::from_affine(selected.x, selected.y);
+        } else {
+            R.add_mixed_inplace(selected.x, selected.y);
+        }
     }
 
     return R;
@@ -298,35 +304,40 @@ bool CombGenContext::load_cache(const std::string& path) {
 }
 
 // -- Global singleton ---------------------------------------------------------
+// Table is built exactly once (std::call_once) and is read-only afterward.
+// Read paths hold no lock — the table is immutable after construction and
+// call_once provides the happens-before edge needed for safe concurrent reads.
 
-static std::mutex g_comb_mutex;
-static CombGenContext g_comb_ctx;
+static std::once_flag g_comb_once;
+static CombGenContext  g_comb_ctx;
+
+// Internal: initialise with a specific teeth value (used by init_comb_gen).
+// Must only be called from within call_once.
+static unsigned g_comb_init_teeth = 15;
+
+static void do_init_comb() {
+    g_comb_ctx.init(g_comb_init_teeth);
+}
 
 void init_comb_gen(unsigned teeth) {
-    std::lock_guard<std::mutex> const lock(g_comb_mutex);
-    if (!g_comb_ctx.ready()) {
-        g_comb_ctx.init(teeth);
-    }
+    g_comb_init_teeth = teeth;
+    std::call_once(g_comb_once, do_init_comb);
 }
 
 bool comb_gen_ready() {
-    std::lock_guard<std::mutex> const lock(g_comb_mutex);
+    // Relaxed: if the once_flag has fired, the table is ready.
+    // std::call_once provides the required memory ordering.
+    std::call_once(g_comb_once, do_init_comb);
     return g_comb_ctx.ready();
 }
 
 Point comb_gen_mul(const Scalar& k) {
-    std::lock_guard<std::mutex> const lock(g_comb_mutex);
-    if (!g_comb_ctx.ready()) {
-        g_comb_ctx.init(15);
-    }
+    std::call_once(g_comb_once, do_init_comb);
     return g_comb_ctx.mul(k);
 }
 
 Point comb_gen_mul_ct(const Scalar& k) {
-    std::lock_guard<std::mutex> const lock(g_comb_mutex);
-    if (!g_comb_ctx.ready()) {
-        g_comb_ctx.init(15);
-    }
+    std::call_once(g_comb_once, do_init_comb);
     return g_comb_ctx.mul_ct(k);
 }
 
