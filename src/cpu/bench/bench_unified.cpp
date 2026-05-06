@@ -657,6 +657,18 @@ int main(int argc, char** argv) {
         pubkeys[i].normalize();  // affine (z_one_=true), same as libsecp internal repr
     }
 
+    // EcdsaPublicKey: pre-parsed with GLV tables (what the C ABI cache stores).
+    secp256k1::EcdsaPublicKey epubkeys[POOL];
+    {
+        uint8_t tmp33[33];
+        for (int i = 0; i < POOL; ++i) {
+            auto unc = pubkeys[i].to_uncompressed();
+            tmp33[0] = 0x02 | ((unc[64] & 1) ? 1 : 0);
+            std::memcpy(tmp33 + 1, unc.data() + 1, 32);
+            secp256k1::ecdsa_pubkey_parse(epubkeys[i], tmp33, 33);
+        }
+    }
+
     std::array<std::uint8_t, 32> msghashes[POOL];
     for (int i = 0; i < POOL; ++i)
         msghashes[i] = make_hash(0xcafebabe00ULL + static_cast<uint64_t>(i));
@@ -995,6 +1007,16 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(ok); ++idx;
     }, N_VERIFY);
     print_row("ecdsa_verify", u_ecdsa_verify);
+
+    // With precomputed GLV tables (C ABI cache hot path).
+    idx = 0;
+    const double u_ecdsa_verify_epk = bench_ns([&]() {
+        bool ok = secp256k1::ecdsa_verify(msghashes[idx % POOL].data(),
+                                          epubkeys[idx % POOL],
+                                          ecdsa_sigs[idx % POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    }, N_VERIFY);
+    print_row("ecdsa_verify (cached EcdsaPublicKey)", u_ecdsa_verify_epk);
     print_sep();
     printf("\n");
 

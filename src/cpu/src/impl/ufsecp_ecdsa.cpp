@@ -5,6 +5,70 @@
  * All includes, type aliases and helpers are provided by ufsecp_impl.cpp.
  * ============================================================================ */
 
+// -- Thread-local pubkey caches (PERF-01/02) ----------------------------------
+// Caching EcdsaPublicKey / SchnorrXonlyPubkey with precomputed GLV tables
+// eliminates sqrt decompression (~2.8µs) + GLV table rebuild (~1.9µs) on
+// every verify call for repeated pubkeys (ConnectBlock hot path).
+namespace {
+
+struct UfsecpEcdsaPkCache {
+    static constexpr std::size_t SLOTS = 256;
+    struct Slot {
+        std::uint8_t raw33[33]{};
+        secp256k1::EcdsaPublicKey epk{};
+        bool valid = false;
+    };
+    Slot slots[SLOTS]{};
+
+    static std::size_t slot_of(const uint8_t* k) noexcept {
+        std::uint64_t h = 14695981039346656037ULL;
+        for (int i = 0; i < 8; ++i) h = (h ^ k[i]) * 1099511628211ULL;
+        return h & (SLOTS - 1);
+    }
+    const secp256k1::EcdsaPublicKey* get(const uint8_t* k) const noexcept {
+        const Slot& s = slots[slot_of(k)];
+        if (s.valid && std::memcmp(s.raw33, k, 33) == 0) return &s.epk;
+        return nullptr;
+    }
+    const secp256k1::EcdsaPublicKey* put(const uint8_t* k) noexcept {
+        Slot& s = slots[slot_of(k)];
+        s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, k, 33);
+        if (s.valid) std::memcpy(s.raw33, k, 33);
+        return s.valid ? &s.epk : nullptr;
+    }
+};
+static thread_local UfsecpEcdsaPkCache s_ecdsa_pk_cache;
+
+struct UfsecpSchnorrPkCache {
+    static constexpr std::size_t SLOTS = 256;
+    struct Slot {
+        std::uint8_t rawx[32]{};
+        secp256k1::SchnorrXonlyPubkey epk{};
+        bool valid = false;
+    };
+    Slot slots[SLOTS]{};
+
+    static std::size_t slot_of(const uint8_t* k) noexcept {
+        std::uint64_t h = 14695981039346656037ULL;
+        for (int i = 0; i < 8; ++i) h = (h ^ k[i]) * 1099511628211ULL;
+        return h & (SLOTS - 1);
+    }
+    const secp256k1::SchnorrXonlyPubkey* get(const uint8_t* k) const noexcept {
+        const Slot& s = slots[slot_of(k)];
+        if (s.valid && std::memcmp(s.rawx, k, 32) == 0) return &s.epk;
+        return nullptr;
+    }
+    const secp256k1::SchnorrXonlyPubkey* put(const uint8_t* k) noexcept {
+        Slot& s = slots[slot_of(k)];
+        s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, k);
+        if (s.valid) std::memcpy(s.rawx, k, 32);
+        return s.valid ? &s.epk : nullptr;
+    }
+};
+static thread_local UfsecpSchnorrPkCache s_schnorr_pk_cache;
+
+} // namespace
+
 ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
                                  const uint8_t msg32[32],
                                  const uint8_t privkey[32],
@@ -76,12 +140,13 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
     if (!ecdsasig.is_low_s()) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "high-S signature rejected (BIP-62)");
     }
-    auto pk = point_from_compressed(pubkey33);
-    if (pk.is_infinity()) {
+    const secp256k1::EcdsaPublicKey* epk = s_ecdsa_pk_cache.get(pubkey33);
+    if (!epk) epk = s_ecdsa_pk_cache.put(pubkey33);
+    if (SECP256K1_UNLIKELY(!epk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid public key");
     }
 
-    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_verify(msg, pk, ecdsasig))) {
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_verify(msg, *epk, ecdsasig))) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "ECDSA verify failed");
     }
 
@@ -492,17 +557,16 @@ ufsecp_error_t ufsecp_schnorr_verify(ufsecp_ctx* ctx,
         return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "Non-canonical Schnorr sig (r>=p or s>=n)");
     }
 
-    // BIP-340 strict: reject pubkey x >= p
-    FE pk_fe;
-    if (!FE::parse_bytes_strict(pubkey_x, pk_fe)) {
+    const secp256k1::SchnorrXonlyPubkey* epk = s_schnorr_pk_cache.get(pubkey_x);
+    if (!epk) epk = s_schnorr_pk_cache.put(pubkey_x);
+    if (SECP256K1_UNLIKELY(!epk)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "Non-canonical pubkey (x>=p)");
     }
 
-    std::array<uint8_t, 32> pk_arr, msg_arr;
-    std::memcpy(pk_arr.data(), pubkey_x, 32);
+    std::array<uint8_t, 32> msg_arr;
     std::memcpy(msg_arr.data(), msg32, 32);
 
-    if (!secp256k1::schnorr_verify(pk_arr, msg_arr, schnorr_sig)) {
+    if (!secp256k1::schnorr_verify(*epk, msg_arr, schnorr_sig)) {
         return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "Schnorr verify failed");
     }
 
