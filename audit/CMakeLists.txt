@@ -3614,6 +3614,10 @@ add_executable(unified_audit_runner
     test_exploit_frost_secret_share_ct.cpp
     # CRIT-01: comb_gen_mul lock-free after once_flag init
     test_regression_comb_gen_lockfree.cpp
+    # V-01 timing regression: fast::Scalar operator* banned on secrets (advisory)
+    test_regression_ct_fast_scalar_v01.cpp
+    # TQ-005: Schnorr BIP-340 ABI edge cases (r==0, r>=p, s==0, s>=n rejection)
+    test_regression_schnorr_abi_edge_cases.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)

@@ -517,6 +517,8 @@ static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
 int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
+int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
+int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0/r>=p/s==0/s>=n ABI rejection
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -986,6 +988,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
     { "exploit_frost_secret_share_ct",   "FROST DKG share.value processed with ct::generator_mul not variable-time scalar_mul (SEC-01, FROST-CT1..5)", "ct_analysis",    test_exploit_frost_secret_share_ct_run,    false },
     { "regression_comb_gen_lockfree",    "comb_gen_mul/ct lock-free after once_flag init: no mutex on read path (CRIT-01, COMB-LF1..6)", "math_invariants", test_regression_comb_gen_lockfree_run,     false },
+    // === CT timing regression: V-01 fast::Scalar operator* on secrets ===
+    { "ct_fast_scalar_v01_timing", "V-01: fast::Scalar operator* banned on secret material — Welch t-test on ECDSA sign with HW=1 vs HW=80 keys", "ct_analysis", test_regression_ct_fast_scalar_v01_run, true },
+    { "schnorr_abi_edge_cases", "TQ-005: Schnorr BIP-340 ABI edge cases — r==0, r>=p, s==0, s>=n, wrong-msg, NULL args all rejected", "exploit_poc", test_regression_schnorr_abi_edge_cases_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
