@@ -974,7 +974,7 @@ static const AuditModule ALL_MODULES[] = {
     // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
     { "bugbounty",          "2026-05-05 bug-bounty: C1-C4/H1/H3 FROST+OCL+shim+BIP32 regression guards (BB-01..06)",     "exploit_poc", test_exploit_bugbounty_run, false },
     // === 2026-05-05 Red-Team Round 3: BUG-1..4+6 ===
-    { "redteam_round3",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 round-trip (RR3-01..06)", "memory_safety", test_exploit_redteam_round3_run, false },
+    { "redteam_round3",    "2026-05-05 red-team round 3: secnonce/nonce erasure + LE32 + ECDH Y-parity prefix (RR3-01..07)", "memory_safety", test_exploit_redteam_round3_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
