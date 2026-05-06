@@ -359,7 +359,8 @@ jobs:
               exit 1
             fi
           else
-            echo "::warning::docs/EVIDENCE_CHAIN.json not found — chain has not been initialised"
+            echo "::error::docs/EVIDENCE_CHAIN.json not found — evidence chain has not been initialised. Run ci/evidence_governance.py record to bootstrap."
+            exit 1
           fi
 
       - name: Secret path change gate (blocking)
