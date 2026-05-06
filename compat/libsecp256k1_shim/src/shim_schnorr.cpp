@@ -140,22 +140,25 @@ int secp256k1_schnorrsig_sign_custom(
     const unsigned char *msg,
     size_t msglen,
     const secp256k1_keypair *keypair,
-    secp256k1_nonce_function_hardened noncefp,
-    void *ndata)
+    secp256k1_schnorrsig_extraparams *extraparams)
 {
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
     if (!schnorr_ctx_can_sign(ctx)) return 0;
 
-    // Fail-closed: reject any custom nonce function other than NULL or the
-    // canonical BIP-340 stub.  Upstream libsecp256k1 allows arbitrary noncefp
-    // callbacks; this shim does not forward them.
-    // DIVERGENCE: custom noncefp != NULL && != secp256k1_nonce_function_bip340 → fail.
-    if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
+    // Unpack extraparams (upstream libsecp256k1 v0.4+ API).
+    secp256k1_nonce_function_hardened noncefp = nullptr;
+    void *ndata = nullptr;
+    if (extraparams != nullptr) {
+        // Validate magic bytes { 0xda, 0x6f, 0xb3, 0x8c }
+        static const unsigned char magic[4] = SECP256K1_SCHNORRSIG_EXTRAPARAMS_MAGIC;
+        if (std::memcmp(extraparams->magic, magic, 4) != 0) return 0;
+        noncefp = extraparams->noncefp;
+        ndata   = extraparams->ndata;
+    }
+    (void)ndata;  // ndata accepted for API compat but not forwarded (see header doc)
 
-    // ndata is accepted for API compatibility but is not forwarded to any nonce
-    // function.  The BIP-340 nonce derivation below uses zero aux entropy.
-    // DIVERGENCE: upstream passes ndata to the nonce function; we ignore it.
-    (void)ndata;
+    // Fail-closed: reject non-canonical nonce functions.
+    if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
 
     if (!sig64 || !keypair) return 0;
     if (msglen > 0 && !msg) return 0;

@@ -89,13 +89,13 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 | pubkey_create (k·G) | 5906 | 13102 | **2.22×** |
 | ecmult (a·P+b·G) | 19429 | 19071 | 0.98× |
 | compressed serialize | 2.9 | 12.7 | **4.34×** |
-| **ECDSA sign** | **7825** | 16314 | **2.08×** |
-| **Schnorr sign** | **6258** | 12467 | **1.99×** |
 | ECDSA verify | 20218 | 20507 | 1.01× |
 | Schnorr verify (cached) | 20741 | 20459 | 0.99× |
-| CT ECDSA sign | 12259 | 16314 | **1.33×** |
-| CT Schnorr sign | 10411 | 12467 | **1.20×** |
-| ecdsa_sign_recoverable | 7355 | 16211 | **2.20×** |
+| **CT ECDSA sign** | **12259** | 16314 | **1.33×** |
+| **CT Schnorr sign** | **10411** | 12467 | **1.20×** |
+| ECDSA sign `[diagnostic: FAST path — variable-time, NOT for production signing]` | 7825 | 16314 | 2.08× |
+| Schnorr sign `[diagnostic: FAST path — variable-time, NOT for production signing]` | 6258 | 12467 | 1.99× |
+| ecdsa_sign_recoverable `[diagnostic: FAST path]` | 7355 | 16211 | 2.20× |
 | ecrecover | 26801 | 24472 | 0.91× |
 | SHA256 (tagged_hash) | 62.7 | — | — |
 | Schnorr batch N=64 | 144876 total | — | — |
@@ -1578,5 +1578,5 @@ Benchmarks run: 2026-04-25
 
 ## Version
 
-UltrafastSecp256k1 v3.68.0  
+UltrafastSecp256k1 v4.0.0  
 Benchmarks updated: 2026-04-25

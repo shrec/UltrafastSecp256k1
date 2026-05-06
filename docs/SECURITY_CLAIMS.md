@@ -1,6 +1,6 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v3.70.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
 ### 2026-05-05 Performance Audit — perf batch (no security-boundary change)
 
@@ -556,4 +556,4 @@ Every release must answer: **"Did the CT scope change?"**
 <!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create (phantom export removal, misuse_resistance gate fix). No behavioral change; GPU ABI secret-bearing claims unchanged. -->
 <!-- 2026-05-04: ct_point.cpp — generator_mul comb inner loop switched to incomplete mixed add (add_affine_fast_ct). CT scope unchanged; fixed iteration count and branchless cmov table lookup preserved. Performance improvement only. -->
 
-*UltrafastSecp256k1 v3.68.0 -- Security Claims*
+*UltrafastSecp256k1 v4.0.0 -- Security Claims*

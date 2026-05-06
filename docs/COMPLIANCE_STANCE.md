@@ -45,7 +45,7 @@ We deliberately avoid these claims because:
 | MuSig2 (BIP-327) conformance | `audit/test_musig2_*` + spec vectors |
 | FROST (RFC 9591) conformance | `audit/test_frost_*` |
 | Constant-time on tested platforms | `gpu_ct_leakage_report.json`, dudect, Valgrind CT, ct-verif (3-tool) |
-| Strict parser behaviour for ECDSA, DER, BIP-340, point encodings | 189 exploit PoC tests; full Wycheproof |
+| Strict parser behaviour for ECDSA, DER, BIP-340, point encodings | 253 exploit PoCs tests; full Wycheproof |
 | Reproducible build | SLSA Level 3 provenance + `ci/check_reproducibility.sh` |
 | 1.3M+ nightly differential checks vs libsecp256k1 + libtomcrypt | `differential` audit section |
 

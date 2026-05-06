@@ -1,6 +1,6 @@
 # Constant-Time Empirical Proof Report
 
-**UltrafastSecp256k1 v3.68.0** -- Statistical Timing Analysis
+**UltrafastSecp256k1 v4.0.0** -- Statistical Timing Analysis
 
 ---
 
@@ -9,7 +9,7 @@
 | Field | Value |
 |-------|-------|
 | **Report Version** | 2.0 |
-| **Library Version** | 3.68.0 |
+| **Library Version** | 4.0.0 |
 | **Report Date** | 2026-03-01 |
 | **Methodology** | dudect (Reparaz, Balasch, Verbauwhede, 2017) |
 | **Statistical Test** | Welch's two-sample t-test |
@@ -334,7 +334,7 @@ timeout 1800 ./build/src/cpu/test_ct_sidechannel_standalone
 > total measurements across 35+ operations (plus protocol-level tests added
 > in v3.16.0), using Welch's two-sample t-test at a significance level of
 > p < 0.00001 (|t| < 4.5), we find **no statistically significant timing
-> variance** in any `ct::` namespace operation of UltrafastSecp256k1 v3.68.0.
+> variance** in any `ct::` namespace operation of UltrafastSecp256k1 v4.0.0.
 >
 > This does NOT constitute formal verification. CT properties may be
 > affected by compiler version, optimization level, and target
@@ -370,4 +370,4 @@ timeout 1800 ./build/src/cpu/test_ct_sidechannel_standalone
 
 ---
 
-*UltrafastSecp256k1 v3.68.0 — CT Empirical Proof Report v2.0*
+*UltrafastSecp256k1 v4.0.0 — CT Empirical Proof Report v2.0*

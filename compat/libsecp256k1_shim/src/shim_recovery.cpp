@@ -20,6 +20,22 @@
 
 using namespace secp256k1::fast;
 
+// Context flag helpers (mirrors shim_ecdsa.cpp)
+namespace {
+    inline unsigned int ctx_flags(const secp256k1_context *ctx) {
+        if (!ctx) return 0;
+        return *reinterpret_cast<const unsigned int *>(ctx);
+    }
+    inline bool ctx_can_verify(const secp256k1_context *ctx) {
+        if (!ctx) return true;
+        unsigned int f = ctx_flags(ctx);
+        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
+               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN)   ||
+               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
+    }
+}
+
 // Internal helpers that mirror shim_ecdsa.cpp conventions ----------------
 
 static void point_to_pubkey_data(const Point& P, unsigned char data[64]) {
@@ -163,7 +179,7 @@ int secp256k1_ecdsa_recover(
     const secp256k1_ecdsa_recoverable_signature *sig,
     const unsigned char *msghash32)
 {
-    (void)ctx;
+    if (!ctx_can_verify(ctx)) return 0;
     if (!pubkey || !sig || !msghash32) return 0;
 
     std::array<uint8_t, 32> msg{};

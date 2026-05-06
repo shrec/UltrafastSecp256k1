@@ -17,7 +17,7 @@ The security model is CAAS-first: claims are strengthened by executable
 evidence and permanent regression tests.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
-### What It Tests (60 non-exploit modules + 189 exploit PoC tests + standalone audit surfaces)
+### What It Tests (60 non-exploit modules + 253 exploit PoCs tests + standalone audit surfaces)
 
 | Section | Modules | Focus |
 |---------|---------|-------|
@@ -132,7 +132,7 @@ stream between `JSON_BEGIN` and `JSON_END` markers.
 ```json
 {
   "framework_version": "2.0.0",
-  "library_version": "3.68.0",
+  "library_version": "4.0.0",
   "git_hash": "3d6b540...",
   "timestamp": "2026-03-01T12:00:00Z",
   "platform": {

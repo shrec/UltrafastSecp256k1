@@ -45,7 +45,7 @@ A claim without a test is not a claim — it is an intention.
 Every research paper or CVE relevant to the secp256k1 ecosystem becomes a
 PoC test. The library must survive that test on every commit.
 
-**189 exploit-PoC test files (all 189 wired as runner modules)** — covering:
+**253 exploit PoCs test files (all 189 wired as runner modules)** — covering:
 
 | Attack category | Examples |
 |-----------------|----------|
@@ -120,7 +120,7 @@ unit + integration tests  ──────────────────
     ▼
 unified_audit_runner
  ├── 51 non-exploit audit modules  (correctness, edge cases, ABI)
- └── 189 exploit-PoC modules       (CVE/ePrint adversarial cascade)
+ └── 253 exploit PoCs modules       (CVE/ePrint adversarial cascade)
     │                                          ~1,000,000+ assertions / build
     ▼
 CT verification  (ct-verif + Valgrind + dudect, x86-64 + arm64)
@@ -300,7 +300,7 @@ Consider the track record: Heartbleed lived in OpenSSL for two years — a libra
 that had been reviewed by many expert eyes and was trusted everywhere. The
 problem was not that too few people looked; it was that no system *continuously*
 checked the specific property that failed. Our CT pipelines, fuzzer harnesses,
-and 232 exploit-PoC modules run on every commit. A bug of the Heartbleed class
+and 253 exploit PoCs modules run on every commit. A bug of the Heartbleed class
 — a missing bounds check on a secret-bearing input path — is exactly what the
 combination of fuzz-with-ASan and CT taint propagation is designed to catch
 before it reaches `main`.
@@ -465,7 +465,7 @@ in existence, including libsecp256k1, OpenSSL, BouncyCastle, and Tink. It is not
 a differentiating risk factor for this library specifically.
 
 What differentiates the response to a potential security incident here is the
-adversarial regression culture: 189 exploit-PoC modules covering known attack
+adversarial regression culture: 253 exploit PoCs modules covering known attack
 classes run on every commit. If a vulnerability is discovered and patched, a PoC
 is added to the suite and it runs permanently. The attack class can never silently
 regress. Novel, previously unknown vulnerabilities carry the same risk profile for
@@ -500,7 +500,7 @@ The verification stack is stratified by what it can and cannot observe:
 | Runtime secret taint | Valgrind Memcheck (custom `VALGRIND_MAKE_MEM_UNDEFINED` markers) | Any memory read or branch whose address or condition is reachable from secret bytes at runtime | New `classify/declassify` marker pair added for every new secret-bearing function entry and exit |
 | Statistical timing | `dudect` (Welch t-test on timing distributions) | Empirical timing variations that are statistically significant across repeated executions | A new dudect harness is added whenever a new operation joins the signing or key-agreement code path; threshold tightened if a near-miss is observed |
 | Memory safety | libFuzzer + ASan + UBSan + MSan (11 harnesses) | OOB reads/writes, use-after-free, undefined behaviour, uninitialized reads | A new harness is created for every new parser, encoding path, or API entry point; corpus is seeded with any input that previously triggered a regression |
-| Adversarial regression | 189 exploit-PoC modules (`audit/` directory) | Known CVE-class, ePrint-class, and published attack patterns | Within days of a new ePrint or CVE being published, a PoC is added; the module runs on every commit permanently |
+| Adversarial regression | 253 exploit PoCs modules (`audit/` directory) | Known CVE-class, ePrint-class, and published attack patterns | Within days of a new ePrint or CVE being published, a PoC is added; the module runs on every commit permanently |
 | Logic correctness | 51 non-exploit audit modules | Edge-case correctness, ABI contract violations, cross-platform numeric consistency | Every bug discovered in any review session becomes a new audit module, not just a fixed line |
 | Formal algebraic | 45 Cryptol properties | Group law violations, modular arithmetic invariants, identity/cofactor edge cases | When a new algebraic identity is identified during research, a Cryptol property is written before the implementation is merged |
 | Semantic equivalence | 1.3M nightly differential checks vs reference implementation | Any deviation from the canonical reference implementation on any input class | When a new operation is added, a differential test is required before the operation is exposed in the ABI |
@@ -784,7 +784,7 @@ structurally different from a typical solo project:
 
 | Strength | Mechanism | Evidence |
 |----------|-----------|---------|
-| Attack-first culture | 189 exploit PoC modules, CVE/ePrint cascade | `audit/exploits/` directory, `EXPLOIT_TEST_CATALOG.md` |
+| Attack-first culture | 253 exploit PoCs modules, CVE/ePrint cascade | `audit/exploits/` directory, `EXPLOIT_TEST_CATALOG.md` |
 | Formal CT verification | ct-verif LLVM + Valgrind taint + dudect (3 pipelines) | `ct/`, `ci/`, CI workflow |
 | Continuous semantic equivalence | 1.3M nightly differential checks vs reference | Nightly CI, `AUDIT_TRACEABILITY.md` |
 | Formal algebraic verification | 45 Cryptol properties covering group law + edge cases | `formal/`, Cryptol CI job |

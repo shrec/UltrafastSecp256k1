@@ -96,6 +96,43 @@ RULES = [
 ]
 
 # ---------------------------------------------------------------------------
+# RULES_EXPLOIT: applied to .md / .yml files — exploit PoC count references
+# {n} = authoritative exploit_poc wired count from unified_audit_runner.cpp
+# ---------------------------------------------------------------------------
+_NOT_INCREMENTAL = r'(?<!\bnew )(?<!\badded )(?<!\badditional )(?<!\bmore )(?<!\bfurther )'
+
+RULES_EXPLOIT = [
+    # "240 exploit PoCs" — standalone total count (not "14 new exploit PoCs")
+    (_NOT_INCREMENTAL + r'\b(\d{3,})\s+exploit[- ]PoC[s]?\b',     '{n} exploit PoCs'),
+    # "240 exploit-PoC test files"
+    (r'\b\d{3,}\s+exploit[- ]PoC[- ]test\s+files?\b',             '{n} exploit-PoC test files'),
+    # "232 exploit PoC tests"
+    (r'\b\d{3,}\s+exploit\s+PoC\s+tests?\b',                      '{n} exploit PoC tests'),
+    # "205 exploit PoC catalog"
+    (r'\b\d{3,}\s+exploit\s+PoC\s+catalog\b',                     '{n} exploit PoC catalog'),
+    # "237 exploit-PoC modules" / "237 dedicated adversarial PoC modules"
+    (r'\b\d{3,}\s+exploit[- ]PoC\s+modules?\b',                   '{n} exploit-PoC modules'),
+    (r'\b\d{3,}\s+dedicated\s+adversarial\s+PoC\s+modules?\b',    '{n} dedicated adversarial PoC modules'),
+    # "(all 240 registered as runner modules)"
+    (r'\(all\s+\d+\s+registered',                                  '(all {n} registered'),
+    # "235/235 wiring"
+    (r'\b\d{3,}/\d{3,}\s+wiring\b',                               '{n}/{n} wiring'),
+]
+
+# ---------------------------------------------------------------------------
+# RULES_COUNTS: applied to .md files — other canonical numeric counts
+# {gpu_n} = count of GPU ABI functions declared in ufsecp_gpu.h
+# ---------------------------------------------------------------------------
+RULES_COUNTS_GPU = [
+    # "13 ops" / "16 ops" / "19 ops" in GPU ABI context
+    (r'(GPU\s+C\s+ABI[^.]*?)\b(13|16|19)\s+(op|function|func)',
+     r'\g<1>{gpu_n} \g<3>'),
+    # header comment "13 ops" / "16" / "19"
+    (r'(\ufsecp_gpu\.h.*?)\b(13|16|19)\s+op',
+     r'\g<1>{gpu_n} op'),
+]
+
+# ---------------------------------------------------------------------------
 # RULES_PACKAGING: applied to packaging files (.podspec, .spec, PKGBUILD)
 # ---------------------------------------------------------------------------
 RULES_PACKAGING = [
@@ -131,9 +168,11 @@ SKIP_DIRS = {
 
 # Files to explicitly skip
 SKIP_FILES = {
-    'CHANGELOG.md',      # Historical record — intentional
-    'ROADMAP.md',        # Future versions — intentional
-    'AUDIT_REPORT.md',   # Audit baseline — intentional
+    'CHANGELOG.md',        # Historical record — intentional
+    'ROADMAP.md',          # Future versions — intentional
+    'AUDIT_REPORT.md',     # Audit baseline — intentional
+    'AUDIT_CHANGELOG.md',  # Per-release incremental counts — intentional
+    'RELEASE_NOTES.md',    # Historical release notes — intentional
 }
 
 # File name patterns to skip (fnmatch)
@@ -157,6 +196,55 @@ def should_skip_path(path: Path, root: Path) -> bool:
         if fnmatch.fnmatch(path.name, pat):
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# Canonical number computation
+# ---------------------------------------------------------------------------
+
+def compute_exploit_poc_count(root: Path) -> int:
+    """Count exploit_poc-section entries wired in unified_audit_runner.cpp."""
+    runner = root / 'audit' / 'unified_audit_runner.cpp'
+    if not runner.exists():
+        return 0
+    text = runner.read_text(encoding='utf-8')
+    return len(re.findall(r'"exploit_poc"', text))
+
+
+def compute_total_audit_modules(root: Path) -> int:
+    """Count all _run entries in unified_audit_runner.cpp ALL_MODULES."""
+    runner = root / 'audit' / 'unified_audit_runner.cpp'
+    if not runner.exists():
+        return 0
+    text = runner.read_text(encoding='utf-8')
+    return len(re.findall(r'\w+_run,\s*(?:true|false)\s*\}', text))
+
+
+def compute_gpu_abi_count(root: Path) -> int:
+    """Count UFSECP_GPU_API function declarations in ufsecp_gpu.h."""
+    header = root / 'include' / 'ufsecp' / 'ufsecp_gpu.h'
+    if not header.exists():
+        return 0
+    text = header.read_text(encoding='utf-8')
+    return len(re.findall(r'UFSECP_GPU_API\b', text))
+
+
+def apply_exploit_rules(content: str, count: int) -> tuple[str, int]:
+    """Apply exploit-count replacement rules. Returns (new_content, change_count)."""
+    n = str(count)
+    changes = 0
+    lines = content.split('\n')
+    new_lines = []
+    for line in lines:
+        new_line = line
+        for pattern, repl in RULES_EXPLOIT:
+            repl_filled = repl.replace('{n}', n)
+            result = re.sub(pattern, repl_filled, new_line, flags=re.IGNORECASE)
+            if result != new_line:
+                changes += 1
+                new_line = result
+        new_lines.append(new_line)
+    return '\n'.join(new_lines), changes
 
 
 def apply_rules(content: str, version: str, rules=None) -> tuple[str, int]:
@@ -201,6 +289,39 @@ def _update_file(path: Path, version: str, rules, dry_run: bool) -> int:
             path.write_text(updated, encoding='utf-8')
             print(f'  {path}: {changes} replacement(s)')
     return changes
+
+
+def sync_exploit_count(root: Path, count: int, dry_run: bool) -> int:
+    """Sync exploit PoC count references in all docs. Returns files changed."""
+    total_files = 0
+    scan_dirs = [root / 'docs', root / 'include', root, root / '.github']
+    target_suffixes = {'.md', '.yml', '.yaml'}
+
+    visited: set[Path] = set()
+    for scan_dir in scan_dirs:
+        if not scan_dir.exists():
+            continue
+        for suffix in target_suffixes:
+            glob_pat = f'*{suffix}' if scan_dir == root else f'**/*{suffix}'
+            for path in sorted(scan_dir.glob(glob_pat)):
+                if path in visited:
+                    continue
+                visited.add(path)
+                if should_skip_path(path, root):
+                    continue
+                try:
+                    original = path.read_text(encoding='utf-8')
+                except Exception:
+                    continue
+                updated, changes = apply_exploit_rules(original, count)
+                if changes:
+                    total_files += 1
+                    if dry_run:
+                        print(f'  [dry-run] {path.relative_to(root)}: {changes} replacement(s)')
+                    else:
+                        path.write_text(updated, encoding='utf-8')
+                        print(f'  {path.relative_to(root)}: {changes} replacement(s)')
+    return total_files
 
 
 def sync_version(root: Path, version: str, dry_run: bool, release_date: str | None = None) -> int:
@@ -269,13 +390,19 @@ def sync_version(root: Path, version: str, dry_run: bool, release_date: str | No
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Sync version strings in docs, headers, and packaging to VERSION.txt')
+        description='Sync version strings and canonical counts in docs, headers, and packaging.')
     parser.add_argument('--version', help='Version string (default: read from VERSION.txt)')
     parser.add_argument('--date',
                         help='Release date for CITATION.cff date-released (YYYY-MM-DD). '
                              'Default: today. Pass --no-date to skip.')
     parser.add_argument('--no-date', action='store_true',
                         help='Do not update date-released in CITATION.cff')
+    parser.add_argument('--sync-exploit', action='store_true',
+                        help='Also sync exploit PoC count (computed from unified_audit_runner.cpp)')
+    parser.add_argument('--exploit-count', type=int, default=None,
+                        help='Override exploit count (default: computed from source)')
+    parser.add_argument('--sync-all', action='store_true',
+                        help='Sync version + exploit count + all canonical counts')
     parser.add_argument('--dry-run', action='store_true', help='Show changes without writing')
     parser.add_argument('--root', default=None, help='Repo root (default: parent of scripts/)')
     args = parser.parse_args()
@@ -303,10 +430,22 @@ def main():
     else:
         release_date = datetime.date.today().isoformat()
 
+    do_exploit = args.sync_exploit or args.sync_all
+    exploit_count = args.exploit_count
+    if do_exploit and exploit_count is None:
+        exploit_count = compute_exploit_poc_count(root)
+
     print(f'Syncing version: {version}  date: {release_date or "(skip)"}  '
           f'dry_run={args.dry_run}')
     n = sync_version(root, version, args.dry_run, release_date)
-    print(f'Done: {n} file(s) updated.')
+    print(f'  Version: {n} file(s) updated.')
+
+    if do_exploit:
+        print(f'Syncing exploit PoC count: {exploit_count}')
+        ne = sync_exploit_count(root, exploit_count, args.dry_run)
+        print(f'  Exploit count: {ne} file(s) updated.')
+    else:
+        print('  (pass --sync-exploit or --sync-all to also sync exploit PoC counts)')
 
 
 if __name__ == '__main__':

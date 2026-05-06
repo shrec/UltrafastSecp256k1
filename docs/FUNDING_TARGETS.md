@@ -27,7 +27,7 @@ These are programmes that fit the project's actual scope (open-source secp256k1 
 | Programme | Fit | What we already meet |
 |-----------|-----|----------------------|
 | **HRF Bitcoin Development Fund** (`hrf.org/programs/financial-freedom`) | Open-source Bitcoin tools, privacy, scalability | BIP-352 Silent Payments scanning at 11.00 M tweaks/s; production use in [Sparrow Wallet Frigate](https://github.com/sparrowwallet/frigate) |
-| **OpenSats** (`opensats.org`) | Free and open-source Bitcoin contributors and projects | 189 exploit PoCs, MIT license, public CAAS evidence bundle, adopter case study |
+| **OpenSats** (`opensats.org`) | Free and open-source Bitcoin contributors and projects | 253 exploit PoCs, MIT license, public CAAS evidence bundle, adopter case study |
 | **Brink** (`brink.dev`) | Bitcoin protocol engineering grants | secp256k1 engine fits Bitcoin Core / wallet stack; Schnorr / Taproot / MuSig2 coverage |
 | **Spiral** (`spiral.xyz`) | Bitcoin open-source contributors | GPU-accelerated Schnorr / Taproot useful for Lightning, LDK, BDK consumers |
 | **Strike Catalyst** | Bitcoin builders | Layered library + adopter validation by an independent wallet |
@@ -63,7 +63,7 @@ These are programmes that fit the project's actual scope (open-source secp256k1 
 
 ## 3. The 30-second pitch
 
-> UltrafastSecp256k1 is a GPU-accelerated, MIT-licensed secp256k1 engine with a self-running audit pipeline (189 exploit PoCs, formal invariants, multi-CI reproducible-build attestations). It is in production use by Sparrow Wallet Frigate. It runs on CUDA, Metal, OpenCL, ARM64, RISC-V, WASM, ESP32, and STM32 with the same C ABI.
+> UltrafastSecp256k1 is a GPU-accelerated, MIT-licensed secp256k1 engine with a self-running audit pipeline (253 exploit PoCs, formal invariants, multi-CI reproducible-build attestations). It is in production use by Sparrow Wallet Frigate. It runs on CUDA, Metal, OpenCL, ARM64, RISC-V, WASM, ESP32, and STM32 with the same C ABI.
 >
 > The project is one-maintainer-led and currently unfunded apart from individual sponsorships. Foundation funding would underwrite (a) the GPU hardware needed for ROCm/HIP and Apple Silicon attestation evidence, (b) sustained INTEROP differential testing against BoringSSL, k256 (Rust), and btcd (Go), and (c) a security retainer for an external code review of the constant-time engine.
 
@@ -75,7 +75,7 @@ These are programmes that fit the project's actual scope (open-source secp256k1 
 2. **Why it exists**: traditional crypto libraries publish a one-time audit PDF and ask for trust. This project publishes the *audit infrastructure itself* — every claim maps to a runnable test (see `docs/AUDIT_TRACEABILITY.md`).
 3. **Production proof**: `docs/ADOPTION.md` documents the Sparrow Wallet Frigate integration with independent benchmark numbers and a public release pointer.
 4. **Performance proof**: 11.00 M BIP-352 scans/s, 4.88 M ECDSA signs/s, 4.05 M ECDSA verifies/s, 5.38 M Schnorr verifies/s on a single RTX 5060 Ti — all reproducible from `apps/cpu_megabatch/` and the GPU benchmark harness.
-5. **Audit proof**: 189 exploit PoCs (catalog in `docs/EXPLOIT_TEST_CATALOG.md`), 60 non-exploit audit modules, 12/12 CAAS hardening items closed (`docs/AUDIT_DASHBOARD.md`), reproducible-build attestation across GitHub Actions / GitLab CI / Woodpecker (Codeberg).
+5. **Audit proof**: 253 exploit PoCs (catalog in `docs/EXPLOIT_TEST_CATALOG.md`), 60 non-exploit audit modules, 12/12 CAAS hardening items closed (`docs/AUDIT_DASHBOARD.md`), reproducible-build attestation across GitHub Actions / GitLab CI / Woodpecker (Codeberg).
 6. **Security stance**: 3 independent constant-time pipelines, Cryptol formal properties, supply-chain gating, evidence-chain HMAC keys with documented rotation policy.
 7. **Why funding is the bottleneck right now**:
    - Lack of access to AMD Instinct hardware blocks ROCm/HIP attestation evidence (currently scaffold-only, see RR-003).

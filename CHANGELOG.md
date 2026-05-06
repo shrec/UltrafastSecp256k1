@@ -16,15 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Audit report infrastructure overhaul** — unified report schema v1.0.0, build provenance,
   artifact analysis, bug capsule format, and CI gating policy. Committed `d906a77d`.
-  - `scripts/report_provenance.py` — collects git SHA, dirty flag, submodules, toolchain
+  - `ci/report_provenance.py` — collects git SHA, dirty flag, submodules, toolchain
     (compiler versions), build flags from CMakeCache.txt, platform info.
-  - `scripts/report_schema.py` — unified report schema v1.0.0 with `NullableField` (replaces
+  - `ci/report_schema.py` — unified report schema v1.0.0 with `NullableField` (replaces
     `"unknown"` strings), `SkipReason`, `Severity` enum (blocking/advisory), `ReportBuilder`.
-  - `scripts/artifact_analyzer.py` — multi-report analysis: ingest, regression diff,
+  - `ci/artifact_analyzer.py` — multi-report analysis: ingest, regression diff,
     platform divergence detection, flake detection, SARIF 2.1.0 + Markdown + timeline exports.
-  - `scripts/bug_capsule_gen.py` — generates regression tests + exploit PoC C++ + CMake
+  - `ci/bug_capsule_gen.py` — generates regression tests + exploit PoC C++ + CMake
     fragments from JSON bug capsule definitions.
-  - `scripts/ci_gate_detect.py` — impact-based hard/light CI gate detection from changed files.
+  - `ci/ci_gate_detect.py` — impact-based hard/light CI gate detection from changed files.
   - `schemas/bug_capsule.schema.json` — JSON Schema for structured bug records.
   - `docs/AUDITOR_QUICKSTART.md` — "3 commands, 3 artifacts" guide for independent reviewers.
   - `docs/LAYER_ROUTING_MATRIX.md` — CT/FAST routing for all ~103 ABI functions.

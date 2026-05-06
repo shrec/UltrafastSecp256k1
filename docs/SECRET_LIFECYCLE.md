@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-05 | **Version**: 3.70.0
+**Last updated**: 2026-05-05 | **Version**: 4.0.0
 
 ### 2026-05-05 Secret Lifecycle Changes (perf audit P1/P2 batch)
 

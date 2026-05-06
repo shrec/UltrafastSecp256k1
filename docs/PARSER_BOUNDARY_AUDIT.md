@@ -1,6 +1,6 @@
 # Parser Boundary Audit
 
-**Last updated**: 2026-03-15 | **Version**: 3.68.0
+**Last updated**: 2026-03-15 | **Version**: 4.0.0
 
 This document maps every public C ABI entry point to its input parsing behavior: what gets validated, what gets rejected, and with which error code. Every `ufsecp_*` function that accepts external bytes is listed.
 

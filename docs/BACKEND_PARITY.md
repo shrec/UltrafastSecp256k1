@@ -1,6 +1,6 @@
 # Backend Parity Evidence Matrix
 
-**Last updated**: 2026-04-21 | **Version**: 3.68.0
+**Last updated**: 2026-04-21 | **Version**: 4.0.0
 
 This document tracks feature parity, audit coverage, and benchmark evidence across all GPU backends and the CPU reference implementation.
 
@@ -13,7 +13,7 @@ This document tracks feature parity, audit coverage, and benchmark evidence acro
 | **CMake option** | `SECP256K1_BUILD_CPU` (ON) | `SECP256K1_BUILD_CUDA` (OFF) | `SECP256K1_BUILD_OPENCL` (OFF) | `SECP256K1_BUILD_METAL` (OFF) |
 | **Language** | C++20 | CUDA C++ | C99 (.cl kernels) | Metal Shading Language + ObjC++ |
 | **Interface** | `fastsecp256k1` static lib | `secp256k1_cuda_lib` | `secp256k1_opencl` | `secp256k1_metal_lib` |
-| **Audit runner** | `unified_audit_runner` (60 non-exploit + 189 exploit PoCs = 249 modules) | `gpu_audit_runner` (47 modules) | `opencl_audit_runner` (40 modules) | `metal_audit_runner` (30 modules) |
+| **Audit runner** | `unified_audit_runner` (60 non-exploit + 253 exploit PoCs = 249 modules) | `gpu_audit_runner` (47 modules) | `opencl_audit_runner` (40 modules) | `metal_audit_runner` (30 modules) |
 | **Benchmark** | `bench_unified` (8 categories) | `gpu_bench_unified` + 4 specialized | `opencl_benchmark` | `metal_secp256k1_bench_full` |
 | **CTest targets** | 18 core + 27 audit | 3 (`cuda_selftest`, `gpu_audit`, `gpu_ct_smoke`) | 2 (`opencl_selftest`, `opencl_audit`) | 5 (`metal_host_test`, `secp256k1_metal_test`, `secp256k1_metal_bench`, `secp256k1_metal_bench_full`, `secp256k1_metal_audit`) |
 | **Tested hardware** | x86-64, ARM64, RISC-V, ESP32-S3/P4/C6 | RTX 5060 Ti, RTX 4090, RTX 3090 | RTX 5060 Ti (via NVIDIA OpenCL) | Apple M3 Pro, M1 (CI) |

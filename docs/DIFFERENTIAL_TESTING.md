@@ -1,6 +1,6 @@
 # Differential Testing Methodology
 
-**UltrafastSecp256k1 v3.68.0** -- Cross-Library Verification Protocol
+**UltrafastSecp256k1 v4.0.0** -- Cross-Library Verification Protocol
 
 ---
 
@@ -208,4 +208,4 @@ ctest --test-dir build -R cross_libsecp
 
 ---
 
-*UltrafastSecp256k1 v3.68.0 -- Differential Testing Methodology*
+*UltrafastSecp256k1 v4.0.0 -- Differential Testing Methodology*
