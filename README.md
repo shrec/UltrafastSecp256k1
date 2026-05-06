@@ -349,7 +349,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Exploit PoC test files | **251 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
-| Nightly differential tests | **~1,300,000+ random checks / night** |
+| Differential tests (per push + manual) | **~1,300,000+ checks per deep-assurance run** |
 | Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
 | Fuzzing adversarial corpus | **530,000+ cases (libFuzzer + ClusterFuzz-Lite)** |
 | Static analysis tools | **4 (CodeQL, Clang-Tidy, CPPCheck, SonarCloud)** |
@@ -372,7 +372,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, independent reference golden vectors, and BIP test vectors**
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
-- Generic nightly fan-out is disabled; the only automatic scheduled lane is the research monitor
+- Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
 - All 90 non-exploit audit modules and all 251 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (251 Tests, 20+ Coverage Areas)
@@ -920,7 +920,7 @@ See [THREAT_MODEL.md](docs/THREAT_MODEL.md) for a full layer-by-layer risk asses
 | **No secret-dependent branches** | All `ct::` functions | [OK] Enforced by design, verified via Clang-Tidy checks |
 | **No secret-dependent memory access** | All `ct::` table lookups use constant-index cmov | [OK] |
 | **ASan + UBSan CI** | Every push -- catches undefined behavior in CT paths | [OK] CI |
-| **Timing tests (dudect)** | CPU field/scalar ops | [OK] Implemented in CI + nightly + native ARM64 |
+| **Timing tests (dudect)** | CPU field/scalar ops | [OK] Implemented in CI + manual deep-assurance + native ARM64 |
 | **Deterministic CT verification** | `ct-verif` LLVM + Valgrind CT | [OK] Implemented |
 
 **Assumptions:** CT guarantees depend on compiler not introducing secret-dependent branches during optimization. Builds use `-O2` with Clang; MSVC may require additional flags. Micro-architectural side channels (Spectre, power analysis) are outside current scope -- see [THREAT_MODEL.md](docs/THREAT_MODEL.md).
@@ -1507,7 +1507,7 @@ Every executable runs a deterministic **Known Answer Test (KAT)** on startup, co
 |------|------|------|------|
 | **smoke** | ~1-2s | App startup, embedded | Core KAT (10 scalar mul, field/scalar identities, boundary vectors) |
 | **ci** | ~30-90s | Every push (CI) | Smoke + cross-checks, bilinearity, NAF/wNAF, batch sweeps, algebraic stress |
-| **stress** | ~10-60min | Nightly / manual | CI + 1000 random scalar muls, 500 field triples, batch inverse up to 8192 |
+| **stress** | ~10-60min | Manual / release | CI + 1000 random scalar muls, 500 field triples, batch inverse up to 8192 |
 
 ```cpp
 #include "secp256k1/selftest.hpp"
@@ -1515,7 +1515,7 @@ using namespace secp256k1::fast;
 
 Selftest(true, SelftestMode::smoke);              // Fast startup check
 Selftest(true, SelftestMode::ci);                  // Full CI suite
-Selftest(true, SelftestMode::stress, 0xDEADBEEF); // Nightly with custom seed
+Selftest(true, SelftestMode::stress, 0xDEADBEEF); // Deep-assurance / release with custom seed
 ```
 
 ### Sanitizer Builds
