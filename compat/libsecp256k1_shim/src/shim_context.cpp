@@ -190,5 +190,5 @@ void secp256k1_context_set_error_callback(
 // The struct definition lives in this TU, so the member access is valid here.
 void secp256k1_shim_call_illegal_cb(const secp256k1_context* ctx, const char* msg) noexcept {
     if (!ctx) return;
-    if (ctx->illegal_cb) ctx->illegal_cb(msg, ctx->illegal_cb_data);
+    if (ctx->illegal_cb) ctx->illegal_cb(msg, const_cast<void*>(ctx->illegal_cb_data));
 }

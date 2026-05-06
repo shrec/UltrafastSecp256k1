@@ -8,3 +8,31 @@
 // function returns an error rather than aborting.
 // Safe to call with ctx==nullptr: callback is silently skipped.
 void secp256k1_shim_call_illegal_cb(const secp256k1_context* ctx, const char* msg) noexcept;
+
+// Context flag helpers shared across shim_*.cpp compilation units.
+// secp256k1_context_struct has flags as its first field; reinterpret_cast
+// works regardless of which TU defines the full struct.
+namespace secp256k1_shim_internal {
+
+inline unsigned int ctx_flags(const secp256k1_context* ctx) noexcept {
+    if (!ctx) return 0;
+    return *reinterpret_cast<const unsigned int*>(ctx);
+}
+
+inline bool ctx_can_sign(const secp256k1_context* ctx) noexcept {
+    unsigned int f = ctx_flags(ctx);
+    if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+    return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
+           ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
+}
+
+inline bool ctx_can_verify(const secp256k1_context* ctx) noexcept {
+    if (!ctx) return false;
+    unsigned int f = ctx_flags(ctx);
+    if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+    return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
+           (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
+           ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
+}
+
+} // namespace secp256k1_shim_internal
