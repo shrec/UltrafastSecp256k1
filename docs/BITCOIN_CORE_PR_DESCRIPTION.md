@@ -27,7 +27,7 @@ Full benchmark data: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
 ## Security properties
 
 - Constant-time signing paths: LLVM ct-verif + Valgrind taint + dudect (600s)
-- 253 exploit PoCs tests, 0 failures
+- 254 exploit PoCs tests, 0 failures
 - Wycheproof ECDSA/ECDH: all vectors pass
 - RFC 6979 nonce: 35/35 test vectors
 - BIP-340 Schnorr: 27/27 test vectors

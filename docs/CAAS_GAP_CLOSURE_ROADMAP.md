@@ -283,7 +283,7 @@ needing source access.
 
 ### G-9b. EXPLOIT_CATALOG ↔ THREAT_MODEL ↔ SPEC traceability join
 
-**Why it matters.** The 253 exploit PoCs, the threat model (G-1), and
+**Why it matters.** The 254 exploit PoCs, the threat model (G-1), and
 the spec traceability matrix (G-5) currently live in three separate
 docs. An auditor wants a single join: "for attacker model A targeting
 spec clause C, what PoCs exercise it and what is the residual?"

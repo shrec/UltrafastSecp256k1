@@ -29,7 +29,7 @@ CAAS replaces the *verifiable* parts of an audit with something stronger:
 | Claim → reviewer's opinion | Claim → executable test → CI gate |
 
 What a traditional firm would do:
-- Check for known attack patterns → **253 exploit PoCs tests do this continuously**
+- Check for known attack patterns → **254 exploit PoCs tests do this continuously**
 - Verify constant-time properties → **three CT pipelines do this on every commit**
 - Review parser boundary behavior → **check_libsecp_shim_parity.py does this continuously**
 - Check for known CVEs in the category → **RESEARCH_SIGNAL_MATRIX.json tracks 60+ ePrint/CVE references**
@@ -122,7 +122,7 @@ case as strong as possible — which is what CAAS measures.
 
 CAAS proves the following, verifiably:
 
-1. **253 exploit PoCs tests pass** on every commit — covering nonce bias,
+1. **254 exploit PoCs tests pass** on every commit — covering nonce bias,
    fault injection, CT leaks, type confusion, batch verify bypass, and 10+
    other attack classes.
 2. **Constant-time signing** on x86-64 and arm64 — verified by ct-verif

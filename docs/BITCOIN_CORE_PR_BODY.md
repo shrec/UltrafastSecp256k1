@@ -30,7 +30,7 @@ to work without modification.
 | 693/693 `make check` tests pass | `python3 ci/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
 | All signing paths constant-time | `python3 ci/audit_gate.py --ct-integrity` | `docs/CT_SIGNING_PATHS.md` |
 | Differential parity with libsecp256k1 | CTest `differential_*` targets | `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2` |
-| 253 exploit PoCs tests, 0 failures | `python3 ci/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
+| 254 exploit PoCs tests, 0 failures | `python3 ci/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
 | Reproducible evidence bundle | `python3 ci/verify_external_audit_bundle.py` | `docs/EXTERNAL_AUDIT_BUNDLE.json` |
 
 ### Constant-time guarantee

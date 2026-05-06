@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ultrafast-secp256k1"
-version = "1.0.0"
+version = "4.0.0"
 description = "Python bindings for UltrafastSecp256k1 — high-performance secp256k1 ECDSA, Schnorr, FROST, MuSig2, BIP-352 elliptic curve library with GPU acceleration"
 readme = "README.md"
 license = {text = "MIT"}

@@ -129,7 +129,7 @@ Two fixes were required:
 
 | Category | Status | Evidence |
 |----------|--------|---------|
-| **Code Quality** | ✅ A | CAAS 253 exploit PoCs, 0 drift |
+| **Code Quality** | ✅ A | CAAS 254 exploit PoCs, 0 drift |
 | **CT Security** | ✅ A | ct-verif, dudect, Valgrind — all sign paths CT; dead R.is_infinity() checks removed |
 | **C++17 Compatibility** | ✅ A | `PRIVATE cxx_std_20`, verified no public C++20 symbols |
 | **ABI Surface** | ✅ A | 693/693 test_bitcoin pass; `docs/BITCOIN_CORE_TEST_RESULTS.json` |

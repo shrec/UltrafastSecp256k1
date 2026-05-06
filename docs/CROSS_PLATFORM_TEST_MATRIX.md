@@ -52,7 +52,7 @@
 | 38 | fiat_crypto_linkage    | Differential        | ~50    | Independent reference linkage verification                       |
 | 39 | audit_fuzz             | Fuzz Testing        | ~500   | Fuzz-derived audit: random inputs through all paths              |
 | 40 | diag_scalar_mul        | Diagnostics         | ~50    | Scalar multiplication step-by-step diagnostic                    |
-| 41 | unified_audit          | Full Audit          | 249 modules | Unified audit runner: 60 non-exploit modules + 253 exploit PoCs in a single binary |
+| 41 | unified_audit          | Full Audit          | 249 modules | Unified audit runner: 60 non-exploit modules + 254 exploit PoCs in a single binary |
 
 ---
 
@@ -178,7 +178,7 @@ Individual check counts:
   fiat_crypto_linkage ....... ~50  checks
   audit_fuzz ................ ~500 checks
   diag_scalar_mul ........... ~50  checks
-  unified_audit ............. 249 modules (60 non-exploit + 253 exploit PoCs)
+  unified_audit ............. 249 modules (60 non-exploit + 254 exploit PoCs)
   -----------------------------------------
   TOTAL (estimated):         ~6400+ individual assertions
 ```
