@@ -2,6 +2,7 @@
 // shim_pubkey.cpp -- Public key parse/serialize/create/tweak
 // ============================================================================
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <algorithm>
@@ -121,9 +122,11 @@ int secp256k1_ec_pubkey_cmp(
     const secp256k1_context *ctx,
     const secp256k1_pubkey *pubkey1, const secp256k1_pubkey *pubkey2)
 {
-    (void)ctx;
-    // Matches libsecp256k1 illegal_callback contract: null pubkey triggers abort.
-    if (!pubkey1 || !pubkey2) { std::abort(); }
+    if (!pubkey1 || !pubkey2) {
+        secp256k1_shim_call_illegal_cb(ctx,
+            "secp256k1_ec_pubkey_cmp: invalid pubkey argument");
+        return 0;
+    }
     // Compare compressed serializations lexicographically.
     // Zero-initialize so unwritten bytes don't produce UB in memcmp.
     unsigned char c1[33]{}, c2[33]{};
@@ -213,10 +216,18 @@ void secp256k1_ec_pubkey_sort(
     const secp256k1_pubkey **pubkeys,
     size_t n_pubkeys)
 {
-    (void)ctx;
-    if (!pubkeys) { std::abort(); }
-    for (size_t i = 0; i < n_pubkeys; ++i)
-        if (!pubkeys[i]) { std::abort(); }  // matches upstream illegal_callback contract
+    if (!pubkeys) {
+        secp256k1_shim_call_illegal_cb(ctx,
+            "secp256k1_ec_pubkey_sort: NULL pubkeys array");
+        return;
+    }
+    for (size_t i = 0; i < n_pubkeys; ++i) {
+        if (!pubkeys[i]) {
+            secp256k1_shim_call_illegal_cb(ctx,
+                "secp256k1_ec_pubkey_sort: NULL pubkey element");
+            return;
+        }
+    }
 
     if (n_pubkeys == 0) return;
 

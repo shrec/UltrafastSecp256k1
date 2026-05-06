@@ -802,12 +802,24 @@ jobs:
         # genuine evidence regression that should be visible as a red step,
         # not silently downgraded to a warning the way the previous wiring did.
         #
+        # CAAS_HMAC_KEY must be set as a repo secret for forensic-grade evidence.
+        # If unset, the chain is signed with a public in-repo key — zero forensic
+        # value. We fail CI so that missing-key silently degrades evidence integrity.
+        # To set: Settings → Secrets → CAAS_HMAC_KEY (≥32 random bytes, base64).
+        # See docs/EVIDENCE_KEY_POLICY.md for rotation/escrow procedures.
+        #
         # F-18 fix: guard on checkout success — if checkout failed, the CI scripts
         # don't exist in the workspace so evidence_governance.py cannot run.
         if: always() && steps.checkout.outcome == 'success'
         env:
           CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |
+          if [ -z "${CAAS_HMAC_KEY}" ]; then
+            echo "::error::CAAS_HMAC_KEY secret is not set. Evidence chain will use a"\
+                 " public in-repo key with zero forensic value. Set CAAS_HMAC_KEY in"\
+                 " repo Settings → Secrets. See docs/EVIDENCE_KEY_POLICY.md."
+            exit 1
+          fi
           VERDICT="pass"
           if [ "${{ steps.evaluate.outputs.all_pass }}" != "true" ]; then
               VERDICT="fail"

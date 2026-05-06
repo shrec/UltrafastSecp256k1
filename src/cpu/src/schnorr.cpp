@@ -291,7 +291,14 @@ std::array<uint8_t, 64> SchnorrSignature::to_bytes() const {
 SchnorrSignature SchnorrSignature::from_bytes(const uint8_t* data64) {
     SchnorrSignature sig{};
     std::memcpy(sig.r.data(), data64, 32);
-    sig.s = Scalar::from_bytes(data64 + 32);
+    // BIP-340: s must be in [0, n-1]. Use strict parser so that s >= n values
+    // produce s = Scalar::zero() (an obviously-invalid signature) instead of
+    // silently reducing to a small value and passing schnorr_verify's is_zero
+    // check with a wrong scalar. Callers that need an infallible parser should
+    // use parse_strict() directly.
+    if (!Scalar::parse_bytes_strict(data64 + 32, sig.s)) {
+        sig.s = Scalar::zero();  // marks the signature invalid
+    }
     return sig;
 }
 
@@ -466,9 +473,13 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
                     const uint8_t* msg32,
                     const SchnorrSignature& sig) noexcept {
     // Step 0: BIP-340 strict range checks
-    // Check s: must be in [1, n-1] -- enforced at parse time by parse_strict,
-    // but also guard here for callers using from_bytes (reducing parser).
+    // BIP-340 §4: "Fail if s ≥ n". from_bytes() now enforces this at parse
+    // time (s ≥ n → s set to zero), but we guard here for defense in depth.
     if (sig.s.is_zero()) return false;
+    // Note: is_zero() is sufficient because from_bytes() now uses strict
+    // parsing; any s >= n is stored as zero. If sig was constructed directly
+    // without using from_bytes/parse_strict, is_zero() still catches s=0 and
+    // Scalar values are always reduced mod n by construction.
 
     // Check r < p: parse r bytes to 4x64 LE limbs + strict check, no FieldElement.
     std::uint64_t rL[4];

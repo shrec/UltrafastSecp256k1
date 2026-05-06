@@ -3,6 +3,7 @@
 // ============================================================================
 #include "secp256k1_extrakeys.h"
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -61,8 +62,11 @@ int secp256k1_xonly_pubkey_cmp(
     const secp256k1_xonly_pubkey *pk1,
     const secp256k1_xonly_pubkey *pk2)
 {
-    (void)ctx;
-    if (!pk1 || !pk2) { std::abort(); }  // matches libsecp256k1 illegal_callback contract
+    if (!pk1 || !pk2) {
+        secp256k1_shim_call_illegal_cb(ctx,
+            "secp256k1_xonly_pubkey_cmp: invalid pubkey argument");
+        return 0;
+    }
     return std::memcmp(pk1->data, pk2->data, 32);
 }
 

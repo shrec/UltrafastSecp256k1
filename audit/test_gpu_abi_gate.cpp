@@ -118,8 +118,10 @@ static void test_context_lifecycle() {
           "ctx_create(NONE) returns ERR_GPU_UNAVAILABLE");
 
     /* Destroy NULL is safe */
-    ufsecp_gpu_ctx_destroy(nullptr); /* should not crash */
-    CHECK(1, "ctx_destroy(NULL) does not crash");
+    ufsecp_gpu_ctx_destroy(nullptr); /* must not crash */
+    /* Post-condition: null-guard queries still work after destroy(NULL). */
+    CHECK(ufsecp_gpu_last_error(nullptr) == UFSECP_ERR_NULL_ARG,
+          "ctx_destroy(NULL) did not crash; null-guard queries still functional");
 
     /* is_ready: NULL guard */
     CHECK(ufsecp_gpu_is_ready(nullptr) == 0, "is_ready(NULL) == 0");
@@ -241,7 +243,10 @@ static void test_gpu_ops_if_available() {
     }
 
     ufsecp_gpu_ctx_destroy(ctx);
-    CHECK(1, "ctx_destroy succeeds");
+    ctx = nullptr;
+    /* Post-condition: is_ready returns 0 for NULL (destroyed) ctx. */
+    CHECK(ufsecp_gpu_is_ready(ctx) == 0,
+          "ctx_destroy succeeded; is_ready returns 0 for NULL ctx");
 }
 
 int test_gpu_abi_gate_run() {

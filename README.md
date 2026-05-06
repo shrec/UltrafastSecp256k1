@@ -239,7 +239,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
-- **Zero dependencies** -- no Boost, no OpenSSL; builds on GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, and Emscripten without modification
+- **Minimal dependencies** -- no runtime library dependencies (no Boost, no OpenSSL); build requires CMake 3.18+ and a C++17 compiler (GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, Emscripten)
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
 
@@ -373,7 +373,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 91 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 103 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (252 Tests, 20+ Coverage Areas)
 
@@ -1664,7 +1664,7 @@ cosign verify-blob SHA256SUMS \
 > No. It is an independent implementation with a different API. The C ABI (`ufsecp`) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes.
 
 **Is the API stable?**
-> The C ABI (`ufsecp`) is stable from v3.4.0. The C++ API (namespaces `fast::`, `ct::`) is mature for Tier 1 features but may change before v4.0.
+> As of v4.0, the C ABI (`ufsecp_*`) and `ct::` signing namespace are stable with SemVer guarantees. The broader C++ API (namespaces `fast::`, experimental modules) is mature for Tier 1 features; breaking changes follow a deprecation cycle. See [docs/ABI_VERSIONING.md](docs/ABI_VERSIONING.md).
 
 **What is the constant-time scope?**
 > All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.

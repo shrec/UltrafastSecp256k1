@@ -36,6 +36,10 @@ struct SchnorrSignature {
 
     // 64-byte compact encoding: r [32 bytes] concatenated with s [32 bytes]
     std::array<std::uint8_t, 64> to_bytes() const;
+    // Parse 64 bytes into SchnorrSignature. s is range-checked: if s >= n,
+    // the returned signature has s = Scalar::zero() (always fails verify).
+    // BIP-340 requires strict rejection of s >= n at verification.
+    // For callers that need explicit parse failure, use parse_strict().
     static SchnorrSignature from_bytes(const std::array<std::uint8_t, 64>& data);
     static SchnorrSignature from_bytes(const std::uint8_t* data64);
 

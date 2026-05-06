@@ -61,7 +61,7 @@ jobs:
           compute-sanitizer --tool memcheck \
             --log-file ../gpu-memcheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Memcheck Results ==="
           cat ../gpu-memcheck.log 2>/dev/null || echo "No log generated"
 
@@ -71,7 +71,7 @@ jobs:
           compute-sanitizer --tool racecheck \
             --log-file ../gpu-racecheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Racecheck Results ==="
           cat ../gpu-racecheck.log 2>/dev/null || echo "No log generated"
 
@@ -81,7 +81,7 @@ jobs:
           compute-sanitizer --tool initcheck \
             --log-file ../gpu-initcheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Initcheck Results ==="
           cat ../gpu-initcheck.log 2>/dev/null || echo "No log generated"
 
@@ -91,7 +91,7 @@ jobs:
           compute-sanitizer --tool synccheck \
             --log-file ../gpu-synccheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Synccheck Results ==="
           cat ../gpu-synccheck.log 2>/dev/null || echo "No log generated"
 
@@ -100,15 +100,25 @@ jobs:
         run: |
           cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1"
           echo "=== compute-sanitizer Summary ==="
+          FAILED=0
           for tool in memcheck racecheck initcheck synccheck; do
             log="gpu-${tool}.log"
             if [ -f "$log" ]; then
-              errors=$(grep -c "ERROR" "$log" 2>/dev/null || echo 0)
+              errors=$(python3 -c "
+import sys
+c = open('$log').read()
+print(c.count('ERROR'))
+" 2>/dev/null || echo 0)
               echo "  ${tool}: ${errors} errors"
+              if [ "${errors}" -gt 0 ]; then FAILED=1; fi
             else
               echo "  ${tool}: no log (skipped or unavailable)"
             fi
           done
+          if [ "${FAILED}" -eq 1 ]; then
+            echo "::error::GPU memory safety violations detected — see logs above"
+            exit 1
+          fi
 
       - name: Upload sanitizer logs
         if: always()

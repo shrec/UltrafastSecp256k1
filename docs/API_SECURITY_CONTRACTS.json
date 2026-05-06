@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
-  "last_updated": "2026-05-01",
-  "update_note": "2026-05-01: strict key parsing (>=n rejected), CT pubkey derivation, MuSig signer-index fail-closed, Schnorr R zero check, batch count==0 rejection — see AUDIT_CHANGELOG.md",
+  "version": "1.2.0",
+  "last_updated": "2026-05-06",
+  "update_note": "2026-05-06: SchnorrSignature::from_bytes() now strictly rejects s>=n (BIP-340 CA-001); Scalar::negate() CT-fixed (no is_zero() branch on secrets, CA-007); is_zero()->is_zero_ct() in recovery.cpp/ecdh.cpp (CA-004/TASK-04); adaptor.cpp const_cast UB fixed (TASK-05); shim abort()->illegal_callback dispatch in shim_extrakeys/shim_pubkey (CA-002). See SECURITY_CLAIMS.md.",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",

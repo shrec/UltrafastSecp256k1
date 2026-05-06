@@ -69,7 +69,9 @@ static void test_null_pointers() {
 
     /* ctx_destroy(NULL) must not crash */
     ufsecp_gpu_ctx_destroy(nullptr);
-    CHECK(1, "ctx_destroy(NULL) does not crash");
+    /* Post-condition: null-guard queries still work after destroy(NULL). */
+    CHECK(ufsecp_gpu_last_error(nullptr) == UFSECP_ERR_NULL_ARG,
+          "ctx_destroy(NULL) did not crash; null-guard queries still functional");
 }
 
 /* ============================================================================
@@ -474,8 +476,10 @@ static void test_unsupported_ops(ufsecp_gpu_ctx* ctx) {
       auto e7 = ufsecp_gpu_ecrecover_batch(ctx, buf, buf, &recid, 1, buf, buf + 64);
       if (e7 == UFSECP_ERR_GPU_UNSUPPORTED) ops_tested++;
 
-    /* At least verify that UNSUPPORTED returns are well-formed */
-    CHECK(1, "All unsupported ops return valid error codes");
+    /* Verify that unsupported ops return a non-OK error code (not silent success). */
+    CHECK(e1 != UFSECP_OK && e2 != UFSECP_OK && e3 != UFSECP_OK &&
+          e4 != UFSECP_OK && e5 != UFSECP_OK && e6 != UFSECP_OK && e7 != UFSECP_OK,
+          "Unsupported GPU ops all return non-OK error codes (not silent success)");
       std::printf("    (%d of 7 ops returned UNSUPPORTED on this backend)\n", ops_tested);
 }
 

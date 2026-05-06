@@ -1114,8 +1114,14 @@ Scalar Scalar::inverse() const {
 #endif // __SIZEOF_INT128__
 
 Scalar Scalar::negate() const noexcept {
-    if (is_zero()) return Scalar::zero();
-    return Scalar(sub_impl(ORDER, limbs_), true);
+    // CT: always compute ORDER − s; mask result to zero if s == 0.
+    // Replaces the is_zero() early-return branch which reveals timing info
+    // about whether a secret scalar is zero (relevant for nonce/key negation).
+    auto neg = sub_impl(ORDER, limbs_);
+    uint64_t const z    = uint64_t(is_zero_ct());  // 1 if zero, 0 if not
+    uint64_t const keep = z - 1ULL;                // 0 if zero, all-1s if not
+    return from_limbs({neg[0] & keep, neg[1] & keep,
+                       neg[2] & keep, neg[3] & keep});
 }
 
 bool Scalar::is_even() const noexcept {
