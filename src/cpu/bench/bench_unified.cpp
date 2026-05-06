@@ -3431,6 +3431,7 @@ int main(int argc, char** argv) {
         std::vector<ECDSASignature>         u_blk_esig(N_BLOCK);
         std::vector<std::array<uint8_t,32>> u_blk_spk(N_BLOCK);
         std::vector<SchnorrSignature>       u_blk_ssig(N_BLOCK);
+        std::vector<SchnorrXonlyPubkey>     u_blk_xonly(N_BLOCK); // pre-parsed (Variant B)
         std::vector<std::array<uint8_t,32>> blk_msg(N_BLOCK);
         std::vector<secp256k1_pubkey>           ls_blk_pk(N_BLOCK);
         std::vector<secp256k1_ecdsa_signature>  ls_blk_esig(N_BLOCK);
@@ -3444,13 +3445,16 @@ int main(int argc, char** argv) {
             Scalar sk    = Scalar::from_bytes(sk_b);
             if (SECP256K1_UNLIKELY(sk.is_zero())) sk = Scalar::one();
 
-            // Ultra side (Point already in memory — no lift_x overhead in verify)
+            // Ultra side
             u_blk_pk[i]   = Point::generator().scalar_mul(sk);
             u_blk_pk[i].normalize();
             u_blk_esig[i] = ecdsa_sign(blk_msg[i], sk);
             auto kp        = schnorr_keypair_create(sk);
             u_blk_spk[i]  = kp.px;
             u_blk_ssig[i] = schnorr_sign(kp, blk_msg[i], aux_rands[i % POOL]);
+            // Pre-parse pubkey — simulates Bitcoin Core's secp256k1_xonly_pubkey_parse.
+            // Also populates GLV cache so schnorr_verify(x32) can use prebuilt tables.
+            schnorr_xonly_pubkey_parse(u_blk_xonly[i], u_blk_spk[i]);
 
             // libsecp side (ge stored in secp256k1_pubkey at parse time)
             int rc1 = secp256k1_ec_pubkey_create(ls_ctx, &ls_blk_pk[i], sk_b.data());
@@ -3559,12 +3563,12 @@ int main(int argc, char** argv) {
                       u_cblk_mixed, ls_cblk_mixed);
         printf("\n");
 
-        g_report.add("ConnectBlock", "AllEcdsa_ultra_ms",   u_cblk_ecdsa   / 1e6);
-        g_report.add("ConnectBlock", "AllEcdsa_libsecp_ms", ls_cblk_ecdsa  / 1e6);
-        g_report.add("ConnectBlock", "AllSchnorr_ultra_ms",   u_cblk_schnorr   / 1e6);
-        g_report.add("ConnectBlock", "AllSchnorr_libsecp_ms", ls_cblk_schnorr  / 1e6);
-        g_report.add("ConnectBlock", "Mixed_ultra_ms",   u_cblk_mixed   / 1e6);
-        g_report.add("ConnectBlock", "Mixed_libsecp_ms", ls_cblk_mixed  / 1e6);
+        g_report.add("ConnectBlock", "AllEcdsa_ultra_ms",    u_cblk_ecdsa   / 1e6);
+        g_report.add("ConnectBlock", "AllEcdsa_libsecp_ms",  ls_cblk_ecdsa  / 1e6);
+        g_report.add("ConnectBlock", "AllSchnorr_ultra_ms",  u_cblk_schnorr / 1e6);
+        g_report.add("ConnectBlock", "AllSchnorr_libsecp_ms",ls_cblk_schnorr/ 1e6);
+        g_report.add("ConnectBlock", "Mixed_ultra_ms",        u_cblk_mixed   / 1e6);
+        g_report.add("ConnectBlock", "Mixed_libsecp_ms",      ls_cblk_mixed  / 1e6);
         } // closes else (blk_setup_ok)
     }
 #endif // SECP256K1_PLATFORM_ESP32
