@@ -1178,10 +1178,29 @@ inline bool ecdh_compute_xonly(thread const Scalar256 &priv, thread const Affine
 
 inline bool ecdh_compute(thread const Scalar256 &priv, thread const AffinePoint &peer,
                           thread uchar out[32]) {
+    // C8 FIX: compute both x and y affine coordinates so we can derive the
+    // correct compressed-point prefix (0x02 even / 0x03 odd).
+    // ecdh_compute_raw only returns x — do the full affine conversion here.
+    JacobianPoint shared = scalar_mul_glv(peer, priv);
+    if (shared.infinity != 0) return false;
+
+    FieldElement z_inv  = field_inv(shared.z);
+    FieldElement z_inv2 = field_sqr(z_inv);
+    FieldElement z_inv3 = field_mul(z_inv, z_inv2);
+    AffinePoint aff;
+    aff.x        = field_mul(shared.x, z_inv2);
+    aff.y        = field_mul(shared.y, z_inv3);
+    aff.infinity = 0;
+
     uchar x_bytes[32];
-    if (!ecdh_compute_raw(priv, peer, x_bytes)) return false;
+    field_to_bytes(aff.x, x_bytes);
+    uchar y_bytes[32];
+    field_to_bytes(aff.y, y_bytes);
+
+    // Prefix encodes Y parity: 0x02 = even, 0x03 = odd
+    uchar prefix = (y_bytes[31] & 1u) ? 0x03u : 0x02u;
+
     SHA256Ctx ctx; sha256_init(ctx);
-    uchar prefix = 0x02;
     sha256_update(ctx, &prefix, 1);
     sha256_update(ctx, x_bytes, 32);
     sha256_final(ctx, out);

@@ -8,6 +8,10 @@
 #ifndef SECP256K1_RECOVERY_H
 #define SECP256K1_RECOVERY_H
 
+// Required for ct_generator_mul_metal and ct_jacobian_to_affine_metal
+#include "secp256k1_ct_point.h"
+#include "secp256k1_ct_sign.h"
+
 struct RecoverableSignatureMetal {
     Scalar256 r;
     Scalar256 s;
@@ -85,14 +89,13 @@ inline RecoverableSignatureMetal ecdsa_sign_recoverable_metal(
         if (kz) return rsig;
     }
 
-    JacobianPoint R = scalar_mul_generator(k);
-    if (R.infinity) return rsig;
+    // CT-FIX (C2-class): use ct_generator_mul_metal for secret nonce k — prevents
+    // timing side-channel. scalar_mul_generator is variable-time on the scalar.
+    CTJacobianPoint R_ct = ct_generator_mul_metal(k);
+    if (R_ct.infinity != 0) return rsig;
 
-    FieldElement z_inv = field_inv(R.z);
-    FieldElement z_inv2 = field_sqr(z_inv);
-    FieldElement z_inv3 = field_mul(z_inv, z_inv2);
-    FieldElement rx_aff = field_mul(R.x, z_inv2);
-    FieldElement ry_aff = field_mul(R.y, z_inv3);
+    FieldElement rx_aff, ry_aff;
+    ct_jacobian_to_affine_metal(R_ct, rx_aff, ry_aff);
 
     uchar rx_bytes[32];
     for (int i = 0; i < 8; ++i) {
@@ -118,12 +121,20 @@ inline RecoverableSignatureMetal ecdsa_sign_recoverable_metal(
     }
     if (ry_bytes[31] & 1) recid |= 1;
 
-    bool overflow = false;
-    for (int i = 0; i < 32; ++i) {
-        if (rx_bytes[i] < RECOVERY_ORDER_BE_METAL[i]) break;
-        if (rx_bytes[i] > RECOVERY_ORDER_BE_METAL[i]) { overflow = true; break; }
+    // CT-FIX (C3-class): branchless overflow check — no early exit on nonce-derived bytes.
+    // Early `break` leaks nonce bits via iteration count (timing side-channel).
+    {
+        uint gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            uint rb = (uint)rx_bytes[i];
+            uint ob = (uint)RECOVERY_ORDER_BE_METAL[i];
+            uint byte_gt = ((ob - rb) >> 31) & 1u;
+            uint byte_lt = ((rb - ob) >> 31) & 1u;
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        if (gt != 0) recid |= 2;
     }
-    if (overflow) recid |= 2;
 
     Scalar256 k_inv = scalar_inverse(k);
     Scalar256 rd = scalar_mul_mod_n(r, private_key);
