@@ -2,6 +2,13 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-06 Performance Fix — FROST O(n²) serialization (no security-boundary change)
+
+- **`frost.cpp` (`compute_group_commitment_inline_binding`)**: Precompute all
+  `to_compressed()` calls once before the binding-factor loop. Reduces field
+  inversions from O(n²) to O(n). Nonce commitment points (hiding, binding) are
+  public — no secret material involved. No CT or zeroization change.
+
 ### 2026-05-06 Security Fixes — ultrareview P1/P2 batch
 
 - **`musig2.cpp` nonce k2**: k2 domain separator aligned to k1 via `cached_tagged_hash(g_musig_nonce_midstate)`.

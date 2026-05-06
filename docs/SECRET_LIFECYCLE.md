@@ -2,6 +2,15 @@
 
 **Last updated**: 2026-05-06 | **Version**: 4.0.0
 
+### 2026-05-06 Secret Lifecycle Changes (ultrareview P2 batch — FROST O(n²) fix)
+
+- **`frost.cpp` (`compute_group_commitment_inline_binding`)**: Refactored to
+  precompute all `to_compressed()` serializations once before the binding-factor
+  loop. This reduces field inversions from O(n²) to O(n). The precomputed
+  `FrostCommitmentSerialized` struct holds only compressed public nonce points
+  (hiding_point, binding_point) — these are NOT secret material. Secret keys and
+  signing shares are not involved in this function. No change to zeroization paths.
+
 ### 2026-05-06 Secret Lifecycle Changes (ultrareview P1/P2 batch)
 
 - **`musig2.cpp` (`musig_nonce_gen` k2 fix)**: k2 HMAC now uses

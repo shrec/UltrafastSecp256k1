@@ -96,6 +96,21 @@ jobs:
             --digest release_evidence_bundle.sha256 \
             --json > release_bundle_verify.json
 
+          # Verify bundle commit SHA matches the SHA being released
+          python3 -c "
+          import json, os, sys
+          bundle = json.load(open('release_evidence_bundle.json'))
+          bundle_sha = bundle.get('git', {}).get('commit', '')
+          expected = os.environ.get('GITHUB_SHA', '')
+          if not expected:
+              print('SKIP: GITHUB_SHA not set (local run)')
+              sys.exit(0)
+          if bundle_sha != expected:
+              print(f'FAIL: bundle commit {bundle_sha!r} != GITHUB_SHA {expected!r}', file=sys.stderr)
+              sys.exit(1)
+          print(f'OK: bundle commit {bundle_sha[:12]} matches GITHUB_SHA')
+          "
+
       - name: Upload release CAAS evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

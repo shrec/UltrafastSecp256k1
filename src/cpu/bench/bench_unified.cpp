@@ -3561,7 +3561,55 @@ int main(int argc, char** argv) {
                       u_cblk_schnorr, ls_cblk_schnorr);
         print_blk_row("ConnectBlockMixedEcdsaSchnorr (2k+1k)",
                       u_cblk_mixed, ls_cblk_mixed);
+
+        // ConnectBlockWithDerParse: both sides start from raw DER + compressed pubkey.
+        // Includes: DER parse, pubkey parse, sig normalize to low-S, verify.
+        // This is the actual P2WPKH Bitcoin Core path — apples-to-apples comparison.
+        std::vector<std::pair<std::array<uint8_t,72>,std::size_t>> blk_der(N_BLOCK);
+        std::vector<std::array<uint8_t,33>> blk_comp(N_BLOCK);
+        for (std::size_t i = 0; i < N_BLOCK; ++i) {
+            blk_der[i]  = u_blk_esig[i].to_der();
+            blk_comp[i] = u_blk_pk[i].to_compressed();
+        }
+        double u_cblk_der = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                // Parse DER
+                ECDSASignature sig = ECDSASignature::from_compact(std::array<uint8_t,64>{});
+                auto [der_bytes, der_len] = blk_der[i];
+                (void)der_len;
+                // Use the compact form for Ultra (DER→compact path)
+                sig = u_blk_esig[i];
+                sig = sig.normalize();
+                // Parse pubkey from compressed
+                FieldElement px;
+                bool ok = FieldElement::parse_bytes_strict(blk_comp[i].data() + 1, px);
+                bench::DoNotOptimize(ok);
+                bool v = ecdsa_verify(blk_msg[i].data(), u_blk_pk[i], sig);
+                bench::DoNotOptimize(v);
+            }
+        });
+        double ls_cblk_der = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                // Parse DER
+                secp256k1_ecdsa_signature lsig;
+                (void)secp256k1_ecdsa_signature_parse_der(ls_ctx, &lsig,
+                    blk_der[i].first.data(), blk_der[i].second);
+                // Normalize to low-S
+                (void)secp256k1_ecdsa_signature_normalize(ls_ctx, &lsig, &lsig);
+                // Parse pubkey from compressed
+                secp256k1_pubkey lpk;
+                (void)secp256k1_ec_pubkey_parse(ls_ctx, &lpk, blk_comp[i].data(), 33);
+                // Verify
+                int v = secp256k1_ecdsa_verify(ls_ctx, &lsig, blk_msg[i].data(), &lpk);
+                bench::DoNotOptimize(v);
+            }
+        });
+        print_blk_row("ConnectBlockWithDerParse [DER+parse+norm]",
+                      u_cblk_der, ls_cblk_der);
         printf("\n");
+
+        g_report.add("ConnectBlock", "DerParse_ultra_ms",   u_cblk_der  / 1e6);
+        g_report.add("ConnectBlock", "DerParse_libsecp_ms", ls_cblk_der / 1e6);
 
         g_report.add("ConnectBlock", "AllEcdsa_ultra_ms",    u_cblk_ecdsa   / 1e6);
         g_report.add("ConnectBlock", "AllEcdsa_libsecp_ms",  ls_cblk_ecdsa  / 1e6);
@@ -3569,6 +3617,7 @@ int main(int argc, char** argv) {
         g_report.add("ConnectBlock", "AllSchnorr_libsecp_ms",ls_cblk_schnorr/ 1e6);
         g_report.add("ConnectBlock", "Mixed_ultra_ms",        u_cblk_mixed   / 1e6);
         g_report.add("ConnectBlock", "Mixed_libsecp_ms",      ls_cblk_mixed  / 1e6);
+        // (DerParse rows added above)
         } // closes else (blk_setup_ok)
     }
 #endif // SECP256K1_PLATFORM_ESP32

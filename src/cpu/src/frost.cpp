@@ -108,42 +108,41 @@ static Scalar poly_eval(const std::vector<Scalar>& coeffs, const Scalar& x) {
     return result;
 }
 
-// Compute binding factor for FROST signing
+// Serialized nonce commitment pair (precomputed to avoid O(n²) inversions)
+struct FrostCommitmentSerialized {
+    std::array<std::uint8_t, 33> hiding;
+    std::array<std::uint8_t, 33> binding;
+};
+
+// Compute binding factor for FROST signing using pre-serialized commitments.
 // rho_i = H("FROST_binding", group_key || i || R_commitments || msg)
-static Scalar compute_binding_factor(const Point& group_key,
-                                       ParticipantId id,
-                                       const std::vector<FrostNonceCommitment>& nonce_commitments,
-                                       const std::array<std::uint8_t, 32>& msg) {
+// Pre-serialized: eliminates the O(n) to_compressed() calls per binding factor.
+static Scalar compute_binding_factor_precomputed(
+    const std::array<std::uint8_t, 33>& gpk_comp,
+    ParticipantId id,
+    const std::vector<FrostCommitmentSerialized>& serialized,
+    const std::array<std::uint8_t, 32>& msg) {
+
     SHA256 h = g_frost_binding_midstate;
+    h.update(gpk_comp.data(), 33);
 
-    // Group public key (compressed)
-    auto gpk = group_key.to_compressed();
-    h.update(gpk.data(), 33);
-
-    // Participant ID
     std::uint8_t id_be[4] = {
         std::uint8_t(id >> 24), std::uint8_t(id >> 16),
         std::uint8_t(id >> 8), std::uint8_t(id)
     };
     h.update(id_be, 4);
 
-    // All nonce commitments (sorted by ID)
-    for (const auto& nc : nonce_commitments) {
-        auto d_comp = nc.hiding_point.to_compressed();
-        auto e_comp = nc.binding_point.to_compressed();
-        h.update(d_comp.data(), 33);
-        h.update(e_comp.data(), 33);
+    for (const auto& s : serialized) {
+        h.update(s.hiding.data(), 33);
+        h.update(s.binding.data(), 33);
     }
-
-    // Message
     h.update(msg.data(), 32);
-
-    auto digest = h.finalize();
-    return Scalar::from_bytes(digest);
+    return Scalar::from_bytes(h.finalize());
 }
 
-// Compute group commitment directly from commitments without materializing
-// all binding factors on the heap.
+// Compute group commitment.
+// Precomputes all to_compressed() calls once — reduces field inversions from
+// O(n²) to O(n): 1 (group_key) + n (hiding) + n (binding) = 2n+1 total.
 static Point compute_group_commitment_inline_binding(
     const Point& group_key,
     const std::vector<FrostNonceCommitment>& nonce_commitments,
@@ -151,13 +150,24 @@ static Point compute_group_commitment_inline_binding(
     ParticipantId tracked_id,
     Scalar* tracked_binding) {
 
+    // Precompute all serializations — O(n) inversions total
+    auto gpk_comp = group_key.to_compressed();
+    std::vector<FrostCommitmentSerialized> serialized;
+    serialized.reserve(nonce_commitments.size());
+    for (const auto& nc : nonce_commitments) {
+        serialized.push_back({nc.hiding_point.to_compressed(),
+                              nc.binding_point.to_compressed()});
+    }
+
     Point R = Point::infinity();
     if (tracked_binding != nullptr) {
         *tracked_binding = Scalar::zero();
     }
 
-    for (const auto& nc : nonce_commitments) {
-        Scalar const rho = compute_binding_factor(group_key, nc.id, nonce_commitments, msg);
+    for (std::size_t i = 0; i < nonce_commitments.size(); ++i) {
+        const auto& nc = nonce_commitments[i];
+        Scalar const rho = compute_binding_factor_precomputed(
+            gpk_comp, nc.id, serialized, msg);
         if (tracked_binding != nullptr && nc.id == tracked_id) {
             *tracked_binding = rho;
         }

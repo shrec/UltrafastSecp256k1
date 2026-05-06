@@ -247,6 +247,30 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(ok); ++idx;
         });
         print_row("Schnorr verify (xonly+GLV cache)", u, l);
+
+        // Apples-to-apples: both sides pre-parse their pubkey type.
+        // Ultra: SchnorrXonlyPubkey (already computed above)
+        // libsecp: secp256k1_xonly_pubkey pre-parsed in setup — timed region = verify only.
+        std::array<secp256k1_xonly_pubkey, POOL> lpre_xonly;
+        for (std::size_t i = 0; i < POOL; ++i)
+            (void)secp256k1_xonly_pubkey_parse(lctx, &lpre_xonly[i], lxonly[i].data());
+
+        idx = 0;
+        l = H.run(N, [&]() {
+            int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(),
+                                                  msg[idx%POOL].data(), 32,
+                                                  &lpre_xonly[idx%POOL]);
+            bench::DoNotOptimize(ok); ++idx;
+        });
+        // Ultra side: reuse xonly_pks from above
+        idx = 0;
+        u = H.run(N, [&]() {
+            bool ok = secp256k1::schnorr_verify(xonly_pks[idx%POOL],
+                                                 msg[idx%POOL].data(),
+                                                 schnorr_sigs[idx%POOL]);
+            bench::DoNotOptimize(ok); ++idx;
+        });
+        print_row("Schnorr verify (both pre-parsed)", u, l);
     }
 
     printf("  %-34s\n", "");
