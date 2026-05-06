@@ -3409,6 +3409,166 @@ int main(int argc, char** argv) {
     }
 #endif
 
+    // ---- ConnectBlock: 2000-unique-pubkey block validation (MEASURED) -----------
+    // Simulates Bitcoin Core ConnectBlock: each tx has a distinct pubkey.
+    // Exposes pubkey-cache overhead in any shim middleware:
+    //   libsecp: ge stored directly in secp256k1_pubkey → zero per-verify parse.
+    //   Ultra shim: a 16-slot cache causes ~0% hit rate with unique pubkeys
+    //               → ~1,954 ns rebuild overhead × 2000 txs ≈ 3.9 ms per block.
+    // Fix (Variant B): store AffinePointCompact (64B) in secp256k1_pubkey->data
+    // at parse time; reconstruct Point in verify without any cache lookup.
+    //
+    // NOTE: This benchmark measures Ultra's NATIVE C++ verify (no shim) vs
+    // libsecp's API. Native verify has no cache overhead. A shim benchmark
+    // requires the separate Bitcoin Core integration layer.
+
+#ifndef SECP256K1_PLATFORM_ESP32
+    {
+        constexpr std::size_t N_BLOCK = 2000;
+
+        // Setup: generate N_BLOCK unique (key, msg, sig) tuples
+        std::vector<Point>                  u_blk_pk(N_BLOCK);
+        std::vector<ECDSASignature>         u_blk_esig(N_BLOCK);
+        std::vector<std::array<uint8_t,32>> u_blk_spk(N_BLOCK);
+        std::vector<SchnorrSignature>       u_blk_ssig(N_BLOCK);
+        std::vector<std::array<uint8_t,32>> blk_msg(N_BLOCK);
+        std::vector<secp256k1_pubkey>           ls_blk_pk(N_BLOCK);
+        std::vector<secp256k1_ecdsa_signature>  ls_blk_esig(N_BLOCK);
+        std::vector<secp256k1_xonly_pubkey>     ls_blk_xonly(N_BLOCK);
+        std::vector<std::array<uint8_t,64>>     ls_blk_ssig(N_BLOCK);
+
+        bool blk_setup_ok = true;
+        for (std::size_t i = 0; i < N_BLOCK; ++i) {
+            blk_msg[i]   = make_hash(0xB10C0000ULL + i);
+            auto sk_b    = make_hash(0xB10CFFFFULL + i);
+            Scalar sk    = Scalar::from_bytes(sk_b);
+            if (SECP256K1_UNLIKELY(sk.is_zero())) sk = Scalar::one();
+
+            // Ultra side (Point already in memory — no lift_x overhead in verify)
+            u_blk_pk[i]   = Point::generator().scalar_mul(sk);
+            u_blk_pk[i].normalize();
+            u_blk_esig[i] = ecdsa_sign(blk_msg[i], sk);
+            auto kp        = schnorr_keypair_create(sk);
+            u_blk_spk[i]  = kp.px;
+            u_blk_ssig[i] = schnorr_sign(kp, blk_msg[i], aux_rands[i % POOL]);
+
+            // libsecp side (ge stored in secp256k1_pubkey at parse time)
+            int rc1 = secp256k1_ec_pubkey_create(ls_ctx, &ls_blk_pk[i], sk_b.data());
+            int rc2 = secp256k1_ecdsa_sign(ls_ctx, &ls_blk_esig[i],
+                                            blk_msg[i].data(), sk_b.data(), NULL, NULL);
+            secp256k1_keypair blk_kp;
+            int rc3 = secp256k1_keypair_create(ls_ctx, &blk_kp, sk_b.data());
+            int rc4 = secp256k1_schnorrsig_sign32(ls_ctx, ls_blk_ssig[i].data(),
+                                                   blk_msg[i].data(), &blk_kp,
+                                                   aux_rands[i % POOL].data());
+            int rc5 = secp256k1_keypair_xonly_pub(ls_ctx, &ls_blk_xonly[i], NULL, &blk_kp);
+            if (SECP256K1_UNLIKELY(!rc1 || !rc2 || !rc3 || !rc4 || !rc5)) blk_setup_ok = false;
+        }
+        if (SECP256K1_UNLIKELY(!blk_setup_ok)) {
+            printf("[ConnectBlock bench] setup failed — skipping\n");
+        } else {
+
+        // Use a light-warmup harness (5 warmup × 2000 ops = 10K ops, ~0.5 s)
+        bench::Harness blk_H(5, static_cast<std::size_t>(effective_passes));
+        auto blk_bench = [&](auto fn) -> double {
+            return blk_H.run(1, fn);  // 1 call per pass = one full block
+        };
+
+        // AllEcdsa
+        double u_cblk_ecdsa = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                bool ok = ecdsa_verify(blk_msg[i].data(), u_blk_pk[i], u_blk_esig[i]);
+                bench::DoNotOptimize(ok);
+            }
+        });
+        double ls_cblk_ecdsa = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                int ok = secp256k1_ecdsa_verify(ls_ctx, &ls_blk_esig[i],
+                                                blk_msg[i].data(), &ls_blk_pk[i]);
+                bench::DoNotOptimize(ok);
+            }
+        });
+
+        // AllSchnorr
+        double u_cblk_schnorr = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                bool ok = schnorr_verify(u_blk_spk[i].data(),
+                                         blk_msg[i].data(), u_blk_ssig[i]);
+                bench::DoNotOptimize(ok);
+            }
+        });
+        double ls_cblk_schnorr = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK; ++i) {
+                int ok = secp256k1_schnorrsig_verify(ls_ctx, ls_blk_ssig[i].data(),
+                                                     blk_msg[i].data(), 32,
+                                                     &ls_blk_xonly[i]);
+                bench::DoNotOptimize(ok);
+            }
+        });
+
+        // Mixed: 2000 Schnorr + 1000 ECDSA (Taproot block approximation)
+        double u_cblk_mixed = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK + N_BLOCK / 2; ++i) {
+                std::size_t const j = i % N_BLOCK;
+                bool ok;
+                if (i < N_BLOCK)
+                    ok = schnorr_verify(u_blk_spk[j].data(), blk_msg[j].data(), u_blk_ssig[j]);
+                else
+                    ok = ecdsa_verify(blk_msg[j].data(), u_blk_pk[j], u_blk_esig[j]);
+                bench::DoNotOptimize(ok);
+            }
+        });
+        double ls_cblk_mixed = blk_bench([&]() {
+            for (std::size_t i = 0; i < N_BLOCK + N_BLOCK / 2; ++i) {
+                std::size_t const j = i % N_BLOCK;
+                int ok;
+                if (i < N_BLOCK) {
+                    ok = secp256k1_schnorrsig_verify(ls_ctx, ls_blk_ssig[j].data(),
+                                                     blk_msg[j].data(), 32,
+                                                     &ls_blk_xonly[j]);
+                } else {
+                    ok = secp256k1_ecdsa_verify(ls_ctx, &ls_blk_esig[j],
+                                                blk_msg[j].data(), &ls_blk_pk[j]);
+                }
+                bench::DoNotOptimize(ok);
+            }
+        });
+
+        printf("======================================================================\n");
+        printf("  CONNECTBLOCK: 2000-UNIQUE-PUBKEY BLOCK VALIDATION (measured)\n");
+        printf("  Ultra = native C++ API (no shim/cache overhead)\n");
+        printf("  libsecp = secp256k1_ecdsa_verify API (ge in pubkey struct)\n");
+        printf("======================================================================\n");
+        printf("\n");
+        auto print_blk_row = [](const char* name, double u_ns, double ls_ns) {
+            double u_ms  = u_ns  / 1e6;
+            double ls_ms = ls_ns / 1e6;
+            double ratio = ls_ms / u_ms;
+            const char* verdict = (ratio >= 0.99) ? "Ultra ✓" : "libsecp";
+            printf("  %-38s  %7.1f ms  %7.1f ms  %6.2fx  %s\n",
+                   name, u_ms, ls_ms, ratio, verdict);
+        };
+        printf("  %-38s  %9s  %9s  %7s\n",
+               "Scenario", "Ultra", "libsecp", "ratio");
+        printf("  %s\n", std::string(72, '-').c_str());
+        print_blk_row("ConnectBlockAllEcdsa (2000 ECDSA)",
+                      u_cblk_ecdsa, ls_cblk_ecdsa);
+        print_blk_row("ConnectBlockAllSchnorr (2000 Schnorr)",
+                      u_cblk_schnorr, ls_cblk_schnorr);
+        print_blk_row("ConnectBlockMixedEcdsaSchnorr (2k+1k)",
+                      u_cblk_mixed, ls_cblk_mixed);
+        printf("\n");
+
+        g_report.add("ConnectBlock", "AllEcdsa_ultra_ms",   u_cblk_ecdsa   / 1e6);
+        g_report.add("ConnectBlock", "AllEcdsa_libsecp_ms", ls_cblk_ecdsa  / 1e6);
+        g_report.add("ConnectBlock", "AllSchnorr_ultra_ms",   u_cblk_schnorr   / 1e6);
+        g_report.add("ConnectBlock", "AllSchnorr_libsecp_ms", ls_cblk_schnorr  / 1e6);
+        g_report.add("ConnectBlock", "Mixed_ultra_ms",   u_cblk_mixed   / 1e6);
+        g_report.add("ConnectBlock", "Mixed_libsecp_ms", ls_cblk_mixed  / 1e6);
+        } // closes else (blk_setup_ok)
+    }
+#endif // SECP256K1_PLATFORM_ESP32
+
     // ---- Block validation estimates -----------------------------------------
 
     printf("======================================================================\n");
