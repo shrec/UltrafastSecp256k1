@@ -137,7 +137,7 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 | Schnorr (BIP-340) | Stable | Tagged hashing, input validation |
 | Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5-7x penalty |
 | Batch inverse / multi-scalar | Stable | Sweep-tested up to 8192 elements |
-| GPU backends (CUDA, OpenCL, Metal; ROCm/HIP build path) | Beta | Functional, not constant-time |
+| GPU backends (CUDA, OpenCL, Metal; ROCm/HIP build path) | Beta | CT signing paths added in v4.0 (CUDA/OpenCL); Metal signing CT in progress |
 | MuSig2 / FROST / Adaptor | Experimental | API may change |
 | Pedersen Commitments | Experimental | API may change |
 | Taproot (BIP-341) | Experimental | API may change |
@@ -230,9 +230,9 @@ UltrafastSecp256k1 provides:
 
 ## API Stability
 
-The public API is **not yet stable**. Breaking changes may occur in any minor release before v4.0.
+As of v4.0, the public C ABI (`ufsecp_*` functions) and the `ct::` signing namespace are **stable**. Breaking changes to stable layers will follow semantic versioning (major version bump).
 
-Layers marked "Stable" in the Production Readiness table above have mature interfaces that are unlikely to change, but no formal compatibility guarantee exists until v4.0.
+Layers marked "Stable" in the Production Readiness table above have guaranteed backwards compatibility. Layers marked "Experimental" may change in any minor release.
 
 For detailed stability classifications, see:
 - [docs/adoption/API_STABILITY.md](docs/adoption/API_STABILITY.md) -- Tiered header classification (Stable / Provisional / Experimental / Internal)

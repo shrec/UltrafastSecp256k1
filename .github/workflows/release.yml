@@ -162,14 +162,29 @@ jobs:
       - name: Sync docs from canonical
         run: python3 ci/sync_docs_from_canonical.py
 
-      - name: Require release docs to be pre-synced
+      - name: Commit version-stamp and retag if CHANGELOG was not pre-stamped
+        # REL-09 fix: the tagged commit must contain the stamped CHANGELOG, not
+        # [Unreleased]. If the developer forgot to stamp before tagging, we stamp
+        # here, commit to dev, and move the tag to that new commit so that
+        # `git checkout v4.0.0 && cat CHANGELOG.md` shows the versioned header.
         run: |
-          if ! git diff --quiet; then
-            echo "::error::Release docs/version refs are stale. Run the sync scripts locally and commit the result before tagging."
-            git diff --stat
-            exit 1
+          if git diff --quiet; then
+            echo "CHANGELOG already stamped — no commit needed."
+            exit 0
           fi
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -A
+          git commit -m "chore(release): stamp CHANGELOG [Unreleased] → ${RELEASE_VERSION#v} [skip ci]"
+          git push origin dev
+          # Move the tag to the new stamped commit so the tagged tree is correct.
+          NEW_SHA=$(git rev-parse HEAD)
+          git tag -f "${RELEASE_TAG}" "$NEW_SHA"
+          git push origin "${RELEASE_TAG}" --force-with-lease
+          echo "Tag ${RELEASE_TAG} moved to stamped commit ${NEW_SHA}."
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ==========================================================================
   # 2) Desktop native binaries (Linux x64, macOS ARM64, Windows x64)

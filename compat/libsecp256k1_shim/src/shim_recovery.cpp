@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "secp256k1_recovery.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -20,28 +21,11 @@
 
 using namespace secp256k1::fast;
 
-// Context flag helpers (mirrors shim_ecdsa.cpp)
-namespace {
-    inline unsigned int ctx_flags(const secp256k1_context *ctx) {
-        if (!ctx) return 0;
-        return *reinterpret_cast<const unsigned int *>(ctx);
-    }
-    inline bool ctx_can_sign(const secp256k1_context *ctx) {
-        if (!ctx) return false;
-        unsigned int f = ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
-    }
-    inline bool ctx_can_verify(const secp256k1_context *ctx) {
-        if (!ctx) return true;
-        unsigned int f = ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
-               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN)   ||
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
-    }
-}
+// Context flag helpers — use the canonical implementations from shim_internal.hpp.
+// NULL ctx returns false (matches libsecp256k1: triggers illegal callback, returns 0).
+using secp256k1_shim_internal::ctx_flags;
+using secp256k1_shim_internal::ctx_can_sign;
+using secp256k1_shim_internal::ctx_can_verify;
 
 // Internal helpers that mirror shim_ecdsa.cpp conventions ----------------
 

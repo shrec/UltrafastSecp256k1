@@ -220,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-> Full ABI audit coverage: 155 `ufsecp_*` + 23 `ufsecp_gpu_*` functions, 70-module unified runner (AUDIT-READY), GPU C ABI null-guard path integration.
+> Full ABI audit coverage: 155 `ufsecp_*` + 23 `ufsecp_gpu_*` functions, 352-module unified runner (AUDIT-READY), GPU C ABI null-guard path integration.
 
 ### Added
 

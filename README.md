@@ -87,7 +87,7 @@ cmake --build out/release -j
 
 **Package install**
 ```bash
-sudo apt install libufsecp3        # Linux
+sudo apt install libufsecp4        # Linux
 pip install ufsecp                 # Python
 npm i ufsecp                       # Node.js
 ```
@@ -682,7 +682,7 @@ Get a working selftest in under a minute:
 
 **Option A -- Linux (apt)**
 ```bash
-sudo apt install libufsecp3
+sudo apt install libufsecp4
 ufsecp_selftest          # Expected: "OK (version 3.x, backend CPU)"
 ```
 
@@ -717,7 +717,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 
 | Target | Backend | Install / Entry Point | Status |
 |--------|---------|----------------------|--------|
-| **Linux x64** | CPU | `apt install libufsecp3` | [OK] Stable |
+| **Linux x64** | CPU | `apt install libufsecp4` | [OK] Stable |
 | **Windows x64** | CPU | NuGet `UltrafastSecp256k1` / [Release .zip](https://github.com/shrec/UltrafastSecp256k1/releases) | [OK] Stable |
 | **macOS (x64/ARM64)** | CPU + Metal | `brew install ufsecp` / build from source | [OK] Stable |
 | **Android ARM64** | CPU | `implementation 'io.github.shrec:ufsecp'` (Maven) | [OK] Stable |
@@ -747,7 +747,7 @@ echo "deb [signed-by=/etc/apt/keyrings/ultrafastsecp256k1.gpg] https://shrec.git
 sudo apt update
 
 # Install (runtime only)
-sudo apt install libufsecp3
+sudo apt install libufsecp4
 
 # Install (development -- headers, static lib, cmake/pkgconfig)
 sudo apt install libufsecp-dev

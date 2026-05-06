@@ -2,6 +2,25 @@
 
 **Last updated**: 2026-05-06 | **Version**: 4.0.0
 
+### 2026-05-06 Secret Lifecycle Changes (ultrareview TASK-04/05 — is_zero_ct + adaptor const_cast UB)
+
+- **`recovery.cpp` (`ecdsa_sign_recoverable`)**: `private_key.is_zero()` and `k.is_zero()`
+  replaced with `private_key.is_zero_ct()` and `k.is_zero_ct()`. The VT `is_zero()` method
+  returns early on the first non-zero limb, leaking timing information about the magnitude of
+  the secret scalar. `is_zero_ct()` reads all 4 limbs unconditionally, eliminating this oracle.
+  No change to zeroization paths (nonce `k` erased after use via caller chain).
+- **`ecdh.cpp` (`ecdh_compute`, `ecdh_compute_xonly`, `ecdh_compute_raw`)**: All three ECDH
+  variants had `private_key.is_zero()` → `private_key.is_zero_ct()`. Same rationale: the
+  early-exit path in VT `is_zero()` reveals whether the private key is small (many leading
+  zero limbs). The CT variant reads all limbs before deciding. `shared_point` erased on all
+  paths after `ct::scalar_mul` (unchanged).
+- **`adaptor.cpp` (`ecdsa_adaptor_sign`)**: `Scalar const k` and `Scalar const binding`
+  declarations changed to `Scalar k` / `Scalar binding`. Calling `secure_erase` on a
+  `const`-qualified object via `const_cast<Scalar*>` is C++ UB — LTO / `-O3` may observe
+  that the object is "never modified" and elide the zeroization entirely, leaving the secret
+  nonce `k` live in memory after the function returns. The fix removes `const`; zeroization
+  calls now operate on non-const lvalues and cannot be optimized away.
+
 ### 2026-05-06 Secret Lifecycle Changes (ultrareview P1/P2 — BIP32 strict parse + FROST CT inverse)
 
 - **`bip32.cpp` (`ExtendedKey::derive_child`)**: Replaced `Scalar::from_bytes(key)` (reducing,

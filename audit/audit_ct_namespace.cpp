@@ -25,13 +25,18 @@
 //   src/cpu/src/bip32.cpp       -- BIP-32 HD key derivation
 //   src/cpu/src/taproot.cpp     -- Taproot key tweak
 //   src/cpu/src/musig2.cpp      -- MuSig2 nonce & signing
+//   src/cpu/src/recovery.cpp    -- Recoverable ECDSA signing
+//   src/cpu/src/adaptor.cpp     -- Adaptor signature signing
+//   src/cpu/src/bip324.cpp      -- BIP-324 ECDH session key derivation
+//   src/cpu/src/frost.cpp       -- FROST threshold signing
 //
 // CNS-1  … CNS-5  : ct_sign.cpp — CT call pattern verification
 // CNS-6  … CNS-8  : ecdh.cpp — CT usage for secret scalar multiply
 // CNS-9  … CNS-11 : bip32.cpp — CT for child key derivation
 // CNS-12 … CNS-13 : taproot.cpp — CT for key tweak
 // CNS-14 … CNS-16 : musig2.cpp — CT for nonce / aggregate signing
-// CNS-17 … CNS-20 : Prohibited pattern cross-checks
+// CNS-17 … CNS-20 : recovery.cpp, adaptor.cpp, bip324.cpp, frost.cpp
+// CNS-21 …        : Prohibited pattern cross-checks
 // ============================================================================
 
 #include <cstdio>
@@ -240,6 +245,34 @@ static const FileAudit AUDITS[] = {
         "src/cpu/src/musig2.cpp",
         /* required  */ { "secp256k1/ct/" },
         /* prohibited */ { "fast::generator_mul" }
+    },
+    // recovery.cpp: Recoverable ECDSA signing uses CT generator mul + scalar arithmetic
+    {
+        "recovery.cpp",
+        "src/cpu/src/recovery.cpp",
+        /* required  */ { "secp256k1/ct/" },
+        /* prohibited */ { "fast::generator_mul", "fast::scalar_mul" }
+    },
+    // adaptor.cpp: Adaptor signature signing uses CT for all secret scalar paths
+    {
+        "adaptor.cpp",
+        "src/cpu/src/adaptor.cpp",
+        /* required  */ { "secp256k1/ct/" },
+        /* prohibited */ { "fast::generator_mul", "fast::scalar_mul" }
+    },
+    // bip324.cpp: BIP-324 session uses CT for ECDH key derivation
+    {
+        "bip324.cpp",
+        "src/cpu/src/bip324.cpp",
+        /* required  */ { "secp256k1/ct/" },
+        /* prohibited */ { "fast::generator_mul", "fast::scalar_mul" }
+    },
+    // frost.cpp: FROST threshold signing uses CT for nonce and share arithmetic
+    {
+        "frost.cpp",
+        "src/cpu/src/frost.cpp",
+        /* required  */ { "secp256k1/ct/" },
+        /* prohibited */ { "fast::generator_mul", "fast::scalar_mul" }
     },
 };
 

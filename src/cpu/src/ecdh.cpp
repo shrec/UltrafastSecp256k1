@@ -15,7 +15,7 @@ std::array<std::uint8_t, 32> ecdh_compute(
     const Scalar& private_key,
     const Point& public_key) {
 
-    if (private_key.is_zero()) return {};
+    if (private_key.is_zero_ct()) return {};
 
     auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};
@@ -36,7 +36,7 @@ std::array<std::uint8_t, 32> ecdh_compute_xonly(
     const Scalar& private_key,
     const Point& public_key) {
 
-    if (private_key.is_zero()) return {};
+    if (private_key.is_zero_ct()) return {};
 
     auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};
@@ -56,7 +56,7 @@ std::array<std::uint8_t, 32> ecdh_compute_raw(
     const Scalar& private_key,
     const Point& public_key) {
 
-    if (private_key.is_zero()) return {};
+    if (private_key.is_zero_ct()) return {};
 
     auto shared_point = ct::scalar_mul(public_key, private_key);
     if (shared_point.is_infinity()) return {};

@@ -58,11 +58,11 @@ RecoverableSignature ecdsa_sign_recoverable(
     const std::array<uint8_t, 32>& msg_hash,
     const Scalar& private_key) {
 
-    if (private_key.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    if (private_key.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     auto z = Scalar::from_bytes(msg_hash);
     auto k = rfc6979_nonce(private_key, msg_hash);
-    if (k.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
     // R = k * G  (k is non-zero by check above; kG is never infinity)
     auto R = signing_generator_mul(k);

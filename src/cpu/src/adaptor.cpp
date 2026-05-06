@@ -211,10 +211,10 @@ ECDSAAdaptorSig
 ecdsa_adaptor_sign(const Scalar& private_key,
                    const std::array<std::uint8_t, 32>& msg_hash,
                    const Point& adaptor_point) {
-    // Generate nonce
-    Scalar const k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
+    // Generate nonce — must be non-const so secure_erase can zero them after use
+    Scalar k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
 
-    Scalar const binding = ecdsa_adaptor_binding(adaptor_point);
+    Scalar binding = ecdsa_adaptor_binding(adaptor_point);
     Point const base_nonce = ct::generator_mul(k);  // CT: k is secret
     Point const binding_point = ct::generator_mul(binding);
 
@@ -243,9 +243,9 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     Scalar const s_hat = ct::scalar_mul(k_inv,
                              ct::scalar_add(z, ct::scalar_mul(r, private_key)));
 
-    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
+    detail::secure_erase(&k, sizeof(k));
     detail::secure_erase(&k_inv, sizeof(k_inv));
-    detail::secure_erase(const_cast<Scalar*>(&binding), sizeof(binding));
+    detail::secure_erase(&binding, sizeof(binding));
 
     return ECDSAAdaptorSig{R_hat, s_hat, r};
 }

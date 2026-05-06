@@ -66,35 +66,11 @@ struct ShimPkCache {
 static thread_local ShimPkCache s_pk_cache;
 } // namespace
 
-// Context flag helpers (match upstream libsecp256k1 contract).
-// secp256k1_context_struct is defined in shim_context.cpp.  Its first field is
-// `unsigned int flags`, which we read via reinterpret_cast without including the
-// full struct definition (it is intentionally opaque in the public header).
-namespace {
-    // Return the raw flags from an opaque context pointer.
-    // Relies on flags being the first field (unsigned int) in secp256k1_context_struct.
-    inline unsigned int ctx_flags(const secp256k1_context *ctx) {
-        if (!ctx) return 0;
-        return *reinterpret_cast<const unsigned int *>(ctx);
-    }
-    inline bool ctx_can_sign(const secp256k1_context *ctx) {
-        if (!ctx) return true;  // NULL ctx: treat as SIGN|VERIFY (CFB-9 contract)
-        unsigned int f = ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;  // invalid context
-        // libsecp v0.6+: CONTEXT_NONE accepted for all ops (signing is context-independent).
-        // Bitcoin Core creates signing contexts with SECP256K1_CONTEXT_NONE since v26.
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||  // old-style CONTEXT_SIGN
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);   // CONTEXT_NONE (only type bit)
-    }
-    inline bool ctx_can_verify(const secp256k1_context *ctx) {
-        if (!ctx) return true;
-        unsigned int f = ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
-               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN)   ||
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);  // CONTEXT_NONE (v0.6+)
-    }
-}
+// Context flag helpers — use the canonical implementations from shim_internal.hpp.
+// NULL ctx returns false (matches libsecp256k1: triggers illegal callback, returns 0).
+using secp256k1_shim_internal::ctx_flags;
+using secp256k1_shim_internal::ctx_can_sign;
+using secp256k1_shim_internal::ctx_can_verify;
 
 // -- Internal: opaque sig stores r (32 BE) || s (32 BE) -------------------
 static void ecdsa_sig_to_data(const secp256k1::ECDSASignature& sig, unsigned char data[64]) {
@@ -348,11 +324,16 @@ int secp256k1_ecdsa_sign(
     return 1;
 }
 
-// -- RFC 6979 nonce function pointers (stubs -- sign uses internal RFC 6979) -
+// -- RFC 6979 nonce function pointers -----------------------------------------
+// The shim's ecdsa_sign uses its own internal RFC6979 nonce derivation and does
+// NOT call these function pointers. They are exported for ABI compatibility only.
+// Returning 0 (failure) is correct: a direct call to these pointers means no
+// nonce bytes were written, so the caller MUST treat it as a failure.
+// (Returning 1 from a stub that writes nothing is a silent ABI trap — SC-08.)
 
 static int nonce_function_rfc6979_stub(unsigned char *, const unsigned char *,
     const unsigned char *, const unsigned char *, void *, unsigned int)
-{ return 1; }
+{ return 0; }
 
 const secp256k1_nonce_function secp256k1_nonce_function_rfc6979 = nonce_function_rfc6979_stub;
 const secp256k1_nonce_function secp256k1_nonce_function_default = nonce_function_rfc6979_stub;

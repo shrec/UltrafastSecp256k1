@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-06 Security Fixes — ultrareview TASK-04/05 — is_zero_ct + adaptor const_cast UB
+
+- **`recovery.cpp` / `ecdh.cpp` (TASK-04 / RT-05 / CT-12)**: `is_zero()` (variable-time,
+  early-return on first non-zero limb) replaced with `is_zero_ct()` for all zero-checks on
+  secret scalars (private key, ECDH key). CT claim for `ecdsa_sign_recoverable` and the three
+  ECDH variants now holds at the public C++ layer.
+- **`adaptor.cpp` (TASK-05 / RT-04)**: `const_cast<Scalar*>` on `const`-qualified `k` and
+  `binding` removed by dropping the `const` qualifiers. C++ UB eliminated: `secure_erase`
+  now operates on non-const lvalues and cannot be optimized away by LTO. Zeroization of
+  secret nonce `k` after `ecdsa_adaptor_sign` is now guaranteed at the language level.
+
 ### 2026-05-06 Performance Fix — FROST O(n²) serialization (no security-boundary change)
 
 - **`frost.cpp` (`compute_group_commitment_inline_binding`)**: Precompute all

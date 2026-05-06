@@ -513,10 +513,21 @@ int test_ct_verif_formal_run() {
     g_pass = g_fail = 0;
 
     bool active = ct_verif_active();
-    (void)printf("  CT-verif backend: %s\n",
-                 active ? "ACTIVE (Valgrind/MSAN -- formal checking enabled)"
-                        : "PASSIVE (no-op -- compile with -DSECP256K1_CT_VALGRIND=ON "
-                          "and run under valgrind for formal check)");
+    if (!active) {
+        // Without Valgrind memcheck or MSAN, CLASSIFY/DECLASSIFY are no-ops.
+        // Running the tests would only check arithmetic correctness — not CT
+        // properties. Return 77 (ADVISORY_SKIP_CODE) to signal an honest skip
+        // rather than a false green.
+        //
+        // To run the formal check:
+        //   cmake -DSECP256K1_CT_VALGRIND=ON ... && ninja test_ct_verif_formal_standalone
+        //   valgrind --tool=memcheck --error-exitcode=42 ./test_ct_verif_formal_standalone
+        (void)printf("[ct_verif_formal] SKIPPED — not running under Valgrind/MSAN. "
+                     "Formal CT verification requires instrumentation.\n");
+        return 77;
+    }
+
+    (void)printf("  CT-verif backend: ACTIVE (Valgrind/MSAN -- formal checking enabled)\n");
 
     test_ct_field_ops();
     test_ct_scalar_ops();
