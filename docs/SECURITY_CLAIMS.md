@@ -2,6 +2,13 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-06 Build Fix — ecdsa.cpp always_inline (no security boundary change)
+
+- **`ecdsa.cpp` (`ECDSASignature::is_low_s_ct`)**: Removed `__attribute__((always_inline))`
+  that caused `-Werror=attributes` with GCC-13 (`always_inline function might not be inlinable`).
+  No change to CT properties, secret paths, or API semantics. The function body, branching
+  behaviour, and memory access patterns are unchanged.
+
 ### 2026-05-06 Security Fixes — ultrareview TASK-04/05 — is_zero_ct + adaptor const_cast UB
 
 - **`recovery.cpp` / `ecdh.cpp` (TASK-04 / RT-05 / CT-12)**: `is_zero()` (variable-time,

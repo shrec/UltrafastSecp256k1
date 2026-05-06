@@ -109,9 +109,6 @@ bool ECDSASignature::is_low_s() const {
     return true;
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((always_inline))
-#endif
 bool ECDSASignature::is_low_s_ct() const {
     // CT comparison: s <= n/2 using bitmask logic, fully unrolled (no loop overhead).
     const auto& sl = s.limbs();

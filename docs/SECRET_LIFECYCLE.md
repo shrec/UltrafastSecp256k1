@@ -2,6 +2,13 @@
 
 **Last updated**: 2026-05-06 | **Version**: 4.0.0
 
+### 2026-05-06 Secret Lifecycle Changes (CA-build-fix — ecdsa.cpp always_inline removed)
+
+- **`ecdsa.cpp` (`ECDSASignature::is_low_s_ct`)**: Removed `__attribute__((always_inline))`
+  which GCC-13 rejected with `-Werror=attributes` when the function body was too complex to
+  inline. No change to cryptographic logic, constant-time properties, or secret paths. The
+  function body is unchanged; only the compiler hint is removed.
+
 ### 2026-05-06 Secret Lifecycle Changes (ultrareview TASK-04/05 — is_zero_ct + adaptor const_cast UB)
 
 - **`recovery.cpp` (`ecdsa_sign_recoverable`)**: `private_key.is_zero()` and `k.is_zero()`
