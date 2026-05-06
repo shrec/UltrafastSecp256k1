@@ -147,6 +147,20 @@ run_caas_check "Security autonomy"   python3 ci/security_autonomy_check.py
 run_caas_check "Shim parity"         python3 ci/check_libsecp_shim_parity.py
 echo ""
 
+# ── Protocol & Backend Parity Gates (~5s) ───────────────────────────────────
+# These gates catch copy-paste divergence and protocol invariant violations —
+# the root cause of 6 of the 8 confirmed red-team bugs (C1–C8).
+#   check_backend_parity         → C1 C2 C3 C8 (copy-paste across sign/ECDH backends)
+#   check_secret_parse_strictness → C4       (Rule 11: scalar_parse_strict on secret inputs)
+#   check_protocol_invariants    → C5        (FROST threshold invariant at ABI boundary)
+#   check_nonce_erase_coverage   → C6 C7     (nonce/secnonce scope-guard coverage)
+echo -e "${BOLD}[5] Protocol & Backend Parity Gates${NC}"
+run_caas_check "Backend parity (copy-paste divergence)" python3 ci/check_backend_parity.py
+run_caas_check "Secret parse strictness (Rule 11)"      python3 ci/check_secret_parse_strictness.py
+run_caas_check "Protocol invariants (FROST threshold)"  python3 ci/check_protocol_invariants.py
+run_caas_check "Nonce erase coverage (BIP-327)"         python3 ci/check_nonce_erase_coverage.py
+echo ""
+
 if [[ $FULL -eq 0 ]]; then
   echo -e "${YELLOW}Tip: run with --full to also build + test (catches MSan-class issues)${NC}"
   echo ""

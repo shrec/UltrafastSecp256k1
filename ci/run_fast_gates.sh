@@ -61,6 +61,13 @@ run "Module count sync"      ci/sync_module_count.py --dry-run
 run "Audit scripts"          ci/test_audit_scripts.py --quick
 run "Assurance validation"   ci/validate_assurance.py
 
+# Protocol & Backend Parity Gates — catch copy-paste divergence and
+# protocol invariant violations (root cause of confirmed red-team bugs C1–C8).
+run "Backend parity"                           ci/check_backend_parity.py
+run "Secret parse strictness (Rule 11)"        ci/check_secret_parse_strictness.py
+run "Protocol invariants (FROST threshold)"    ci/check_protocol_invariants.py
+run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
+
 if [[ "${FAILED}" -gt 0 ]]; then
     echo ""
     echo "  \033[0;31m${FAILED} gate(s) FAILED\033[0m"
