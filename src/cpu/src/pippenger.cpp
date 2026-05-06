@@ -84,8 +84,10 @@ Point pippenger_msm(const Scalar* scalars,
     }
 
     unsigned const c = pippenger_optimal_window(n);
-    std::size_t const num_buckets = static_cast<std::size_t>(1) << c; // 2^c
+    std::size_t const num_buckets_unsigned = static_cast<std::size_t>(1) << c; // 2^c
     unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
+    // eff_buckets: 2^c unsigned, or 2^(c-1) signed — set after signed-digit init
+    std::size_t num_buckets = num_buckets_unsigned;
 
     // Pre-allocate bucket / scratch arrays.
     // Stack for small windows (c<=6, 64 entries); thread_local pool for larger
@@ -100,15 +102,15 @@ Point pippenger_msm(const Scalar* scalars,
     std::size_t*  touched = touched_stack;
     std::uint8_t  used_stack[STACK_BUCKETS];
     std::uint8_t* used = used_stack;
-    if (num_buckets > STACK_BUCKETS) {
-        if (tl_buckets.size() < num_buckets) tl_buckets.resize(num_buckets);
-        if (tl_touched.size() < num_buckets) tl_touched.resize(num_buckets);
-        if (tl_used.size()    < num_buckets) tl_used.resize(num_buckets);
+    if (num_buckets_unsigned > STACK_BUCKETS) {
+        if (tl_buckets.size() < num_buckets_unsigned) tl_buckets.resize(num_buckets_unsigned);
+        if (tl_touched.size() < num_buckets_unsigned) tl_touched.resize(num_buckets_unsigned);
+        if (tl_used.size()    < num_buckets_unsigned) tl_used.resize(num_buckets_unsigned);
         buckets = tl_buckets.data();
         touched = tl_touched.data();
         used    = tl_used.data();
     }
-    std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
+    std::memset(used, 0, num_buckets_unsigned * sizeof(std::uint8_t));
 
     // Pre-extract all scalar digits — thread_local pool avoids 208KB+ malloc
     // per call (n=4096, c=10, num_windows=26 → 212992 bytes).
@@ -125,6 +127,39 @@ Point pippenger_msm(const Scalar* scalars,
                 static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
         }
     }
+    // Signed-digit conversion for c >= 7: halves bucket count from 2^c to 2^(c-1).
+    // Carry propagation: for each digit d > 2^(c-1), d -= 2^c and carry +1 to next window.
+    // Scatter: positive digits add point, negative digits add negated point.
+    // Savings: ~50% fewer buckets → ~50% less aggregate work per window.
+    // Overhead: O(n × num_windows) carry compare-and-branch (~2ns each, negligible).
+    bool const use_signed = (c >= 7);
+    static thread_local std::vector<std::int16_t> tl_sdigits;
+    std::int16_t* sdigits = nullptr;
+    if (use_signed) {
+        if (tl_sdigits.size() < digits_count) tl_sdigits.resize(digits_count);
+        sdigits = tl_sdigits.data();
+        // Copy unsigned digits to signed buffer
+        for (std::size_t k = 0; k < digits_count; ++k) {
+            sdigits[k] = static_cast<std::int16_t>(digits[k]);
+        }
+        // Carry propagation (window-major, LSB→MSB)
+        int16_t const half  = static_cast<int16_t>(1 << (c - 1));
+        int16_t const base  = static_cast<int16_t>(1 << c);
+        for (unsigned w = 0; w < num_windows; ++w) {
+            std::int16_t* row      = sdigits + w * n;
+            std::int16_t* next_row = (w + 1 < num_windows) ? sdigits + (w + 1) * n : nullptr;
+            for (std::size_t i = 0; i < n; ++i) {
+                if (row[i] > half) {
+                    row[i] = static_cast<std::int16_t>(row[i] - base);
+                    if (next_row) next_row[i]++;
+                }
+            }
+        }
+        // Halve bucket count: only need [1, 2^(c-1)]. TLS pools already sized above.
+        num_buckets >>= 1;
+        std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
+    }
+
     // Scan ALL points to determine if all non-infinity points are affine.
     // The first-point heuristic (B-11) was incorrect: mixed affine/Jacobian
     // input caused wrong results when the first point was affine but later ones
@@ -153,13 +188,51 @@ Point pippenger_msm(const Scalar* scalars,
         std::size_t max_touched_digit = 0;
 
         // -- Scatter: distribute points into buckets --
-        // Prefetch distance: 8 points ahead keeps L2/L3 latency hidden for
-        // the ~40-byte affine FE52 point load.
         constexpr std::size_t PREFETCH_DIST = 8;
-        // Window-major layout: row points to digits[w * n], so digits for this
-        // window are contiguous — sequential read in the inner i-loop.
-        const std::uint16_t* const wrow = digits + static_cast<std::size_t>(w) * n;
-        if (all_affine) {
+        const std::uint16_t* const wrow  = digits  + static_cast<std::size_t>(w) * n;
+        const std::int16_t*  const swrow = sdigits ? sdigits + static_cast<std::size_t>(w) * n : nullptr;
+        if (use_signed) {
+            // Signed scatter: bucket[|d|] += (d>0 ? P : -P)
+            for (std::size_t i = 0; i < n; ++i) {
+                if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+#ifdef __GNUC__
+                    __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+#endif
+                }
+                std::int16_t const sd = swrow[i];
+                if (SECP256K1_UNLIKELY(sd == 0) || SECP256K1_UNLIKELY(points[i].is_infinity())) continue;
+                bool const is_neg = sd < 0;
+                std::size_t const abs_d = is_neg ? static_cast<std::size_t>(-sd)
+                                                  : static_cast<std::size_t>(sd);
+                if (!used[abs_d]) {
+                    used[abs_d] = 1;
+                    touched[touched_count++] = abs_d;
+                    max_touched_digit = std::max(max_touched_digit, abs_d);
+#if defined(SECP256K1_FAST_52BIT)
+                    buckets[abs_d] = Point::from_affine52(points[i].X52(), points[i].Y52());
+#else
+                    buckets[abs_d] = Point::from_affine(points[i].X(), points[i].Y());
+#endif
+                    if (is_neg) buckets[abs_d].negate_inplace();
+                    continue;
+                }
+#if defined(SECP256K1_FAST_52BIT)
+                if (is_neg) {
+                    buckets[abs_d].add_mixed52_neg_inplace(points[i].X52(), points[i].Y52());
+                } else {
+                    buckets[abs_d].add_mixed52_inplace(points[i].X52(), points[i].Y52());
+                }
+#else
+                if (is_neg) {
+                    Point neg = points[i]; neg.negate_inplace();
+                    buckets[abs_d].add_inplace(neg);
+                } else {
+                    buckets[abs_d].add_inplace(points[i]);
+                }
+#endif
+                used[abs_d] = 2;
+            }
+        } else if (all_affine) {
             for (std::size_t i = 0; i < n; ++i) {
                 if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
 #ifdef __GNUC__
