@@ -80,6 +80,11 @@ extern "C" {
 const secp256k1_context * const secp256k1_context_static = &g_static_ctx;
 
 secp256k1_context *secp256k1_context_create(unsigned int flags) {
+    // libsecp256k1: invalid flags type triggers error callback (default: abort).
+    if ((flags & SECP256K1_FLAGS_TYPE_MASK) != SECP256K1_FLAGS_TYPE_CONTEXT) {
+        default_illegal_callback("secp256k1_context_create: invalid flags", nullptr);
+        return nullptr;
+    }
     shim_ensure_fixed_base();
     void* mem = std::malloc(sizeof(secp256k1_context));
     if (!mem) return nullptr;
