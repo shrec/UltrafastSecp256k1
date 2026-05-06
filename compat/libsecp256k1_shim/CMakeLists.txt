@@ -18,6 +18,7 @@ add_library(secp256k1_shim STATIC
     src/shim_ellswift.cpp
     src/shim_ecdh.cpp
     src/shim_musig.cpp
+    src/shim_batch_verify.cpp
 )
 
 # C++20 is needed to compile the shim (it includes UF C++ headers),
