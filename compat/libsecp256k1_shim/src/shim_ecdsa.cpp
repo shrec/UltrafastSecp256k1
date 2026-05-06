@@ -25,30 +25,41 @@ namespace {
 struct ShimPkCache {
     static constexpr std::size_t SLOTS = 256;
     struct Slot {
-        std::uint8_t              raw[64]{};
+        std::uint64_t             fingerprint{0};  // FNV-1a over 8×uint64; replaces raw[64]+memcmp
         secp256k1::EcdsaPublicKey epk{};
         bool                      valid = false;
     };
     Slot slots[SLOTS]{};
 
-    static std::size_t slot_of(const unsigned char data[64]) noexcept {
-        std::uint64_t h = 14695981039346656037ULL;
-        for (int i = 0; i < 8; ++i) h = (h ^ data[i]) * 1099511628211ULL;
-        return static_cast<std::size_t>(h & (SLOTS - 1));
+    // Hash 64 bytes as 8 × uint64 words — 8× fewer iterations than byte-loop.
+    // Returns slot index AND full fingerprint in one pass.
+    static void hash64(const unsigned char data[64],
+                       std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
+        std::uint64_t h = 14695981039346656037ULL, w;
+        for (int i = 0; i < 8; ++i) {
+            __builtin_memcpy(&w, data + i * 8, 8);
+            h = (h ^ w) * 1099511628211ULL;
+        }
+        fp_out  = h;
+        idx_out = static_cast<std::size_t>(h & (SLOTS - 1));
     }
 
     const secp256k1::EcdsaPublicKey* get(const unsigned char data[64]) const noexcept {
-        const Slot& s = slots[slot_of(data)];
-        if (s.valid && std::memcmp(s.raw, data, 64) == 0) return &s.epk;
+        std::size_t idx; std::uint64_t fp;
+        hash64(data, idx, fp);
+        const Slot& s = slots[idx];
+        if (s.valid && s.fingerprint == fp) return &s.epk;
         return nullptr;
     }
 
     const secp256k1::EcdsaPublicKey* put(const unsigned char data[64]) noexcept {
-        Slot& s = slots[slot_of(data)];
+        std::size_t idx; std::uint64_t fp;
+        hash64(data, idx, fp);
+        Slot& s = slots[idx];
         unsigned char unc[65]; unc[0] = 0x04;
         std::memcpy(unc + 1, data, 64);
         s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
-        if (s.valid) std::memcpy(s.raw, data, 64);
+        if (s.valid) s.fingerprint = fp;
         return s.valid ? &s.epk : nullptr;
     }
 };

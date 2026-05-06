@@ -19,33 +19,41 @@ using namespace secp256k1::fast;
 
 // -- Thread-local Schnorr xonly pubkey cache ----------------------------------
 // Eliminates ~2,600 ns lift_x (sqrt) + build_glv52_table_zr per verify on hit.
-// Direct-mapped 16 slots, keyed by first 8 bytes of pubkey->data (x-only 32 B).
 namespace {
 struct ShimSchnorrCache {
     static constexpr std::size_t SLOTS = 256;
     struct Slot {
-        std::uint8_t              raw[32]{};
+        std::uint64_t             fingerprint{0};  // FNV-1a over 4×uint64; replaces raw[32]+memcmp
         secp256k1::SchnorrXonlyPubkey epk{};
         bool                      valid = false;
     };
     Slot slots[SLOTS]{};
 
-    static std::size_t slot_of(const unsigned char data[32]) noexcept {
-        std::uint64_t h = 14695981039346656037ULL;
-        for (int i = 0; i < 8; ++i) h = (h ^ data[i]) * 1099511628211ULL;
-        return static_cast<std::size_t>(h & (SLOTS - 1));
+    static void hash32(const unsigned char data[32],
+                       std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
+        std::uint64_t h = 14695981039346656037ULL, w;
+        for (int i = 0; i < 4; ++i) {
+            __builtin_memcpy(&w, data + i * 8, 8);
+            h = (h ^ w) * 1099511628211ULL;
+        }
+        fp_out  = h;
+        idx_out = static_cast<std::size_t>(h & (SLOTS - 1));
     }
 
     const secp256k1::SchnorrXonlyPubkey* get(const unsigned char data[32]) const noexcept {
-        const Slot& s = slots[slot_of(data)];
-        if (s.valid && std::memcmp(s.raw, data, 32) == 0) return &s.epk;
+        std::size_t idx; std::uint64_t fp;
+        hash32(data, idx, fp);
+        const Slot& s = slots[idx];
+        if (s.valid && s.fingerprint == fp) return &s.epk;
         return nullptr;
     }
 
     const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
-        Slot& s = slots[slot_of(data)];
+        std::size_t idx; std::uint64_t fp;
+        hash32(data, idx, fp);
+        Slot& s = slots[idx];
         s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
-        if (s.valid) std::memcpy(s.raw, data, 32);
+        if (s.valid) s.fingerprint = fp;
         return s.valid ? &s.epk : nullptr;
     }
 };
