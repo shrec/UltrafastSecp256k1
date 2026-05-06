@@ -35,7 +35,7 @@ matrix) are now closed with documented evidence.
 |---|------|--------|--------------|
 | 5 | `.cpp` implementation files in `include/` | ✅ **DONE** | Moved to `src/cpu/src/` — 0 `.cpp` files remain in `include/ufsecp/impl/` |
 | 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current 232-test count |
-| 7 | `VERSION.txt` stale | ✅ **DONE** | `VERSION.txt` = `3.68.0` (matches release tag) |
+| 7 | `VERSION.txt` stale | ✅ **DONE** | `VERSION.txt` = `4.0.0` (matches release tag) |
 | 8 | Wycheproof CI not visible | ✅ **DONE** | `.github/workflows/wycheproof.yml` — 11 test targets, artifact upload, weekly schedule |
 | 9 | Cross-platform build CI | ✅ **DONE** | Linux x86_64 (`ci.yml`), macOS ARM64 (`macos-shim.yml`), Windows x86_64 (`ci.yml`) |
 

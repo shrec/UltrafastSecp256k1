@@ -122,13 +122,13 @@ jobs:
         PYEOF
 
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
-      # Stores the result to gh-pages and FAILS the job if any operation is
-      # >100% slower (i.e. >2x), expressed as alert-threshold: '200%' in the
-      # github-action-benchmark vocabulary (200% of baseline duration = 2x).
-      # Threshold is generous because push events run on shared CI runners
-      # with high variance; the baseline auto-updates on each push anyway.
-      # auto-push: true is required so future runs have a baseline to compare.
-      # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
+      # Baseline update policy: auto-push is DISABLED to prevent floating baseline.
+      # A regression that passes the threshold (shared-runner noise) would otherwise
+      # silently become the new baseline, masking further regressions.
+      # To reset/update the baseline: trigger workflow_dispatch manually on a
+      # known-good commit; review the JSON artifact before accepting it.
+      # alert-threshold: '150%' = alert if ≥50% slower than baseline (1.5×).
+      # This is the tightest threshold viable on shared runners (±15% variance).
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
@@ -136,7 +136,7 @@ jobs:
         tool: 'customSmallerIsBetter'
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: true
+        auto-push: false
         alert-threshold: '150%'
         comment-on-alert: true
         fail-on-alert: true

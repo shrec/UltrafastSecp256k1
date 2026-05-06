@@ -336,7 +336,7 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     SECP_ASSERT_SCALAR_VALID(private_key);
     SchnorrKeypair kp{};
     auto d_prime = private_key;
-    if (d_prime.is_zero()) return kp;
+    if (ct::scalar_is_zero(d_prime)) return kp;
 
     auto P = ct::generator_mul(d_prime);
     auto [px, p_y_odd] = P.x_bytes_and_parity();

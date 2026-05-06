@@ -7,6 +7,57 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-06 — Ultrareview P0/P1/P2 Batch (TASK-001..012 + P2-005, CT-003)
+
+### CT Security Fixes (shim)
+- **RT-001/CT-001**: `shim_schnorr.cpp` `sign_custom` — `s = k + e*kp.d` via `fast::operator*`
+  on secret nonce+key replaced with `ct::scalar_add(k, ct::scalar_mul(e, kp.d))`.
+- **CT-006**: `shim_extrakeys.cpp` `keypair_xonly_tweak_add` — `sk + t` via `fast::operator+`
+  on secret key replaced with `ct::scalar_add(sk, t)`.
+- **CT-003**: `schnorr.cpp` `schnorr_keypair_create` — `d_prime.is_zero()` (VT) replaced
+  with `ct::scalar_is_zero(d_prime)`.
+- **CT-002**: `frost.cpp` `frost_lagrange_coefficient` — `den.inverse()` (VT GCD) replaced
+  with `ct::scalar_inverse(den)` in both lagrange functions.
+- **RT-007**: `bip32.cpp` `derive_child` — `Scalar::from_bytes(key)` replaced with
+  `parse_bytes_strict_nonzero`; `parent_scalar` erased on all exit paths.
+
+### Shim Correctness
+- **SC-010**: `shim_pubkey.cpp` `pubkey_combine` — per-element NULL check prevents UB crash.
+- **SC-007/P2-005**: `shim_schnorr.cpp` `sign_custom` — `ndata` now forwarded as `aux_rand32`
+  on both 32-byte and variable-length paths. Matches `libsecp nonce_function_bip340` contract.
+- **SC-002**: `shim_internal.hpp` + 4 key functions — illegal callback wired on NULL arg paths.
+
+### Audit File Renames (naming convention — CLAUDE.md compliance)
+Opaque audit-round labels replaced with descriptive technical names:
+- `test_exploit_red_team_audit.cpp` → `test_exploit_abi_recoverable_schnorr_ct_regression.cpp`
+- `test_exploit_bugbounty.cpp` → `test_exploit_frost_ocl_shim_bip32_ct_regression.cpp`
+- `test_exploit_redteam_round3.cpp` → `test_exploit_musig2_nonce_erasure_le32_ecdh.cpp`
+- `test_regression_perf_review_sec.cpp` → `test_regression_signing_ct_scalar_correctness.cpp`
+All `_run()` symbols, `ALL_MODULES` keys, CMakeLists.txt targets, and
+`docs/EXPLOIT_TEST_CATALOG.md` entries updated. `check_exploit_wiring.py`: PASS.
+
+### Evidence / CI Integrity
+- `bench_unified.cpp`: hardcoded `"500 warmup, 11 passes"` libsecp header string replaced
+  with dynamic `effective_warmup`/`effective_passes`. `run_mode` field added to JSON output.
+- `bench-regression.yml`: `auto-push: true` → `auto-push: false` (prevents floating baseline).
+- FAST-vs-CT section header in bench source labeled `[diagnostic only]`.
+
+### Documentation
+- README.md: CT signing `1.09–1.33×` → compiler-qualified (Clang 19 / GCC 13).
+- `docs/BENCHMARKS.md`: CT signing ratios annotated with compiler; GCC 13 note added.
+- `docs/BITCOIN_CORE_PR_BLOCKERS.md`: version `3.68.0` → `4.0.0`.
+- `docs/BITCOIN_CORE_BENCH_RESULTS.json`: synthetic SHAs replaced with `PLACEHOLDER_*`
+  and `"_template": true` sentinel.
+- `ci/sync_module_count.py`: count logic fixed (section name vs key prefix); 8 new README
+  patterns added. README synced: 341 total / 251 exploit_poc / 90 non-exploit.
+
+### Packaging
+- `packaging/debian/control`: `libufsecp3` → `libufsecp4` (SONAME 4 matches RPM).
+- `packaging/debian/changelog`: `4.0.0-1` entry added.
+- `packaging/cocoapods/UltrafastSecp256k1.podspec`: `cpu/src/**` → `src/cpu/src/**`.
+
+---
+
 ## 2026-05-06 — Performance Review: 17 Findings Fixed (Correctness×1, Security×2, Perf×14)
 
 Full hot-path performance audit. Three bug classes warranted CAAS test coverage.
