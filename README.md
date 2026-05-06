@@ -16,8 +16,8 @@ It is not a trust request. It is a verification package.
   </a>
 </p>
 
-[![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
-[![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
+[![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=dev)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=dev)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19685027-blue.svg)](https://doi.org/10.5281/zenodo.19685027)
 
@@ -30,6 +30,33 @@ It is not a trust request. It is a verification package.
 - **Bindings/FFI** — language integration surfaces (`bindings/`): C, Python, Node.js, Go, Swift, Rust, Java, Dart, C#, WASM, Android.
 - **CAAS** — continuous audit and evidence system (`audit/`, `ci/`); not runtime code.
 - **Reviewer docs** — scoped evidence, known limitations, replay commands (`docs/`).
+
+---
+
+## For Bitcoin Core Reviewers
+
+**Scope:** CPU secp256k1 backend only — ECDSA/Schnorr sign/verify, RFC 6979 nonce, DER parsing, constant-time signing, libsecp256k1-compatible shim. GPU, FFI, bindings, WASM, ZK, multi-coin, and wallet tooling are out of scope for this evaluation.
+
+**NOT A REPLACEMENT.** This PR adds an opt-in compile-time alternative backend (`-DUSE_ULTRAFAST_SECP256K1=ON`, default: OFF). When OFF, the build is byte-for-byte identical to today. The existing `src/secp256k1/` path and all existing behavior is unchanged.
+
+**Reproduce in 3 commands:**
+```bash
+# Integration patch applies to public Bitcoin Core v28.0
+git clone https://github.com/bitcoin/bitcoin && cd bitcoin && git checkout v28.0
+git apply /path/to/UltrafastSecp256k1/docs/INTEGRATION_PATCH.patch
+cmake -B build -DUSE_ULTRAFAST_SECP256K1=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && ctest --test-dir build -j$(nproc)
+```
+
+**CAAS evidence entry point:**
+```bash
+python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
+```
+
+→ [`docs/CAAS_REVIEWER_QUICKSTART.md`](docs/CAAS_REVIEWER_QUICKSTART.md) — start here  
+→ [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md) — evidence package  
+→ [`docs/DER_PARITY_MATRIX.md`](docs/DER_PARITY_MATRIX.md) — DER/parser parity
+
+**CT signing performance (CT-vs-CT, production-equivalent):** 1.09–1.33× vs libsecp256k1. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for methodology and full numbers.
 
 ---
 
@@ -65,7 +92,7 @@ pip install ufsecp                 # Python
 npm i ufsecp                       # Node.js
 ```
 
-→ [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/PLATFORM_SUPPORT.md)
+→ [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)
 
 ---
 

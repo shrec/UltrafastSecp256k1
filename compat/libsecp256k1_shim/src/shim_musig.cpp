@@ -457,10 +457,14 @@ int secp256k1_musig_partial_sig_verify(
     std::array<unsigned char, 33> pk33;
     std::memcpy(pk33.data(), buf, 33);
 
+    // Fail-closed signer lookup (Rule 13): returning 0 for "not found" is banned
+    // because 0 is a valid signer index. Use explicit found flag.
+    bool found = false;
     std::size_t idx = 0;
     for (std::size_t i = 0; i < e->compressed.size(); ++i) {
-        if (e->compressed[i] == pk33) { idx = i; break; }
+        if (e->compressed[i] == pk33) { idx = i; found = true; break; }
     }
+    if (!found) return 0;  // unrecognized signer — fail, do not sign as signer 0
 
     std::array<unsigned char, 32> pk_x;
     std::memcpy(pk_x.data(), buf + 1, 32);

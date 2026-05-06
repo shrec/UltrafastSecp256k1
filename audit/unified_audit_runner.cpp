@@ -1700,7 +1700,8 @@ int main(int argc, char* argv[]) {
 
     int modules_passed = 0;
     int modules_failed = 0;
-    int modules_advisory_warned = 0;
+    int modules_advisory_warned = 0;  // skips + advisory failures combined
+    int modules_advisory_failed = 0;  // advisory actual failures (rc != SKIP_CODE, rc != 0)
 
     // Track which section we're in for console grouping
     const char* current_section = "";
@@ -1749,10 +1750,10 @@ int main(int argc, char* argv[]) {
             if (!json_only) std::printf("PASS  (%.0f ms)\n", ms);
         } else if (m.advisory) {
             ++modules_advisory_warned;
-            // MEDIUM-5: distinguish advisory-skip from advisory-fail in console output
             if (rc == ADVISORY_SKIP_CODE) {
                 if (!json_only) std::printf("SKIP  (%.0f ms) [advisory — infrastructure absent]\n", ms);
             } else {
+                ++modules_advisory_failed;  // actual advisory failure, not a skip
                 if (!json_only) std::printf("WARN  (%.0f ms) [advisory]\n", ms);
             }
         } else {
@@ -1818,10 +1819,12 @@ int main(int argc, char* argv[]) {
         // F-13 fix: match the three-way verdict that the JSON report emits.
         // Previously the console always said "AUDIT-READY" when total_fail == 0,
         // even when advisory modules had failed (AUDIT-READY-DEGRADED).
+        // Use modules_advisory_failed (not modules_advisory_warned) so that
+        // pure advisory skips (infrastructure absent) do not cause DEGRADED.
         const char* console_verdict =
-            (total_fail > 0)               ? "AUDIT-BLOCKED"       :
-            (modules_advisory_warned > 0)  ? "AUDIT-READY-DEGRADED" :
-                                             "AUDIT-READY";
+            (total_fail > 0)                ? "AUDIT-BLOCKED"        :
+            (modules_advisory_failed > 0)   ? "AUDIT-READY-DEGRADED" :
+                                              "AUDIT-READY";
         std::printf("  AUDIT VERDICT: %s\n", console_verdict);
         std::printf("  TOTAL: %d/%d modules passed", total_pass, total_count);
         if (total_fail == 0) {

@@ -1,6 +1,29 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-05 | **Version**: 4.0.0
+**Last updated**: 2026-05-06 | **Version**: 4.0.0
+
+### 2026-05-06 Secret Lifecycle Changes (ultrareview P1/P2 batch)
+
+- **`musig2.cpp` (`musig_nonce_gen` k2 fix)**: k2 HMAC now uses
+  `cached_tagged_hash(g_musig_nonce_midstate, ...)` matching k1. Both k1/k2 now derive
+  under the same domain separator — eliminates tag-mismatch risk. Secret nonce material
+  (k1, k2) already erased via `secure_erase` on all exit paths; no change to zeroization.
+- **`musig2.cpp` (`musig2_partial_sig_agg`)**: Added `s.is_zero_ct() || R.is_infinity()`
+  fail-closed check before serializing the final signature. Degenerate aggregated s=0
+  returns all-zero array instead of silently serializing an invalid signature. No secret
+  material involved — s is the sum of public partial signatures.
+- **`frost.cpp` (`frost_aggregate`)**: Same s==0 fail-closed check added. Accumulation now
+  uses `ct::scalar_add` (was `operator+`) for consistency with CT discipline even though
+  partial sig accumulation is not secret-bearing in the aggregator role.
+- **`frost.cpp` (DKG signing_share accumulation)**: `signing_share += share.value` changed
+  to `ct::scalar_add` — signing_share is secret key material. Zeroization via caller
+  (keypkg struct) remains unchanged.
+- **`bip324.cpp` (constructor, ephemeral key)**: Replaced `Scalar::from_bytes(privkey)` with
+  `Scalar::parse_bytes_strict_nonzero` in both CSPRNG and caller-supplied paths. Retry loop
+  added for CSPRNG path (probability ≈ 2^-128). `secure_erase(&sk)` on all paths unchanged.
+- **`bip324.cpp` (`complete_handshake`)**: Same strict parsing for stored privkey. Returns
+  false immediately if stored key fails strict check (invariant: should not occur with
+  correct constructor usage). `sk` stack variable erased after ECDH (unchanged).
 
 ### 2026-05-05 Secret Lifecycle Changes (perf audit P1/P2 batch)
 

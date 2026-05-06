@@ -141,9 +141,12 @@ bool Bip324Cipher::decrypt(
 
 Bip324Session::Bip324Session(bool initiator) noexcept
     : initiator_(initiator) {
-    // Generate ephemeral private key
+    // Generate ephemeral private key — retry until valid (≈ 2^-128 chance of retry)
+    fast::Scalar sk;
     csprng_fill(privkey_.data(), 32);
-    auto sk = fast::Scalar::from_bytes(privkey_);
+    while (!fast::Scalar::parse_bytes_strict_nonzero(privkey_.data(), sk)) {
+        csprng_fill(privkey_.data(), 32);
+    }
     our_encoding_ = ellswift_create(sk);
     detail::secure_erase(&sk, sizeof(sk));
 }
@@ -151,7 +154,13 @@ Bip324Session::Bip324Session(bool initiator) noexcept
 Bip324Session::Bip324Session(bool initiator, const std::uint8_t* privkey) noexcept
     : initiator_(initiator) {
     std::memcpy(privkey_.data(), privkey, 32);
-    auto sk = fast::Scalar::from_bytes(privkey_);
+    fast::Scalar sk;
+    if (!fast::Scalar::parse_bytes_strict_nonzero(privkey_.data(), sk)) {
+        // Invalid caller-supplied key: zero out and produce unusable session
+        std::memset(privkey_.data(), 0, 32);
+        our_encoding_ = {};
+        return;
+    }
     our_encoding_ = ellswift_create(sk);
     detail::secure_erase(&sk, sizeof(sk));
 }
@@ -161,7 +170,10 @@ bool Bip324Session::complete_handshake(const std::uint8_t* peer_encoding) noexce
 
     std::memcpy(peer_encoding_.data(), peer_encoding, 64);
 
-    auto sk = fast::Scalar::from_bytes(privkey_);
+    fast::Scalar sk;
+    if (!fast::Scalar::parse_bytes_strict_nonzero(privkey_.data(), sk)) {
+        return false;  // invalid stored key (should not happen if constructors are used)
+    }
 
     // Determine ell_a and ell_b (initiator = a, responder = b)
     const std::uint8_t* ell_a = initiator_ ? our_encoding_.data() : peer_encoding_.data();

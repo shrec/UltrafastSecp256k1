@@ -41,22 +41,21 @@ cmake --build build --target bench_unified
 
 #### Timing Method
 
-```cpp
-// Warmup phase: 100 iterations (discarded)
-for (int i = 0; i < 100; ++i) DoNotOptimize(operation());
+The actual `bench_unified` harness (`bench/benchmark_harness.hpp`):
 
-// Measurement phase: 1000 iterations
-auto t0 = high_resolution_clock::now();
-for (int i = 0; i < 1000; ++i) DoNotOptimize(operation());
-auto t1 = high_resolution_clock::now();
-auto ns = duration_cast<nanoseconds>(t1 - t0).count() / 1000;
+```
+1. CPU frequency warm-up: 3-second wall-clock spin at full load (establishes
+   stable TSC rate before any measurement begins)
+2. Per-operation runs: 11 passes, each timed with RDTSCP
+3. IQR trimming: discard values outside [Q1 − 1.5×IQR, Q3 + 1.5×IQR]
+4. Report: median of trimmed values converted to nanoseconds via TSC calibration
 ```
 
-- **`DoNotOptimize`**: Compiler barrier preventing dead-code elimination
-  (equivalent to Google Benchmark's `DoNotOptimize`)
-- **Clock**: `std::chrono::high_resolution_clock`
-- **Iterations**: 1,000 minimum per operation (adjusted for fast ops)
-- **Warmup**: 100 iterations to stabilize cache and branch predictor
+- **Timer**: `RDTSCP` (serialising read of TSC — no out-of-order reordering)
+- **Warmup**: 3-second wall-clock CPU frequency stabilisation, then 500
+  discarded iterations per operation before measurement begins
+- **Passes**: 11 timed passes per operation; IQR outlier removal applied
+- **CPU pinning**: `taskset -c 0` + turbo disabled for all published results
 
 ### Output Format
 

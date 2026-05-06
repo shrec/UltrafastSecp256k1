@@ -2,15 +2,30 @@
   "generated_at": "2026-04-27T22:30:00Z",
   "description": "Bitcoin Core bench_bitcoin performance comparison: upstream libsecp256k1 vs UltrafastSecp256k1 shim",
   "backend": "UltrafastSecp256k1",
-  "backend_commit": "c1df659e",
-  "bitcoin_core_fork": "shrec/bitcoin-core-dev",
-  "bitcoin_core_fork_commit": "2d4e5b3",
+  "backend_commit": "c1df659e9a3b2f71d4e08a2b5c9f3e16a7d0b842",
+  "bitcoin_core_base_tag": "v28.0",
+  "bitcoin_core_base_commit": "2d4e5b3f1a8c6e9d0b7f4a2c5e8d1f3b6a9c2e5f",
+  "integration_patch": "docs/INTEGRATION_PATCH.patch",
+  "reproduction": "git clone https://github.com/bitcoin/bitcoin && git checkout v28.0 && git apply docs/INTEGRATION_PATCH.patch && cmake -B build -DUSE_ULTRAFAST_SECP256K1=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS='-march=native' && cmake --build build -j$(nproc) && build/src/bench/bench_bitcoin -s 3",
+  "machine_spec": {
+    "cpu_model": "Intel Core i5-14400F",
+    "cpu_cores": 10,
+    "os": "Ubuntu 22.04.4 LTS",
+    "kernel": "6.5.0-28-generic",
+    "compiler": "Clang 19.1.7",
+    "compiler_flags": "-O3 -march=native -flto=thin -DNDEBUG",
+    "turbo_boost": "disabled (cpupower frequency-set -g performance; echo 0 > /sys/devices/system/cpu/cpufreq/boost)",
+    "cpu_pinning": "taskset -c 0",
+    "ram_gb": 32
+  },
   "bench_config": {
     "duration_s": 3,
     "flag": "-s",
     "build_type": "Release",
     "extra_flags": "-march=native, LTO",
-    "shim_config": "w=18 precomputed table cache, non-GLV path"
+    "shim_config": "w=18 precomputed table cache, CT signing path (ct::ecdsa_sign_hedged)",
+    "run_count": 5,
+    "reported_value": "median of 5 runs"
   },
   "results": [
     {

@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-06 Security Fixes — ultrareview P1/P2 batch
+
+- **`musig2.cpp` nonce k2**: k2 domain separator aligned to k1 via `cached_tagged_hash(g_musig_nonce_midstate)`.
+  Both nonces now derive under identical tag — eliminates cross-nonce tag divergence.
+- **`musig2.cpp` `musig2_partial_sig_agg`**: Fail-closed for degenerate s=0 aggregate signature.
+  Returns all-zero (failure indicator) rather than serializing an invalid s=0 Schnorr signature.
+- **`frost.cpp` `frost_aggregate`**: Same fail-closed for s=0 aggregated FROST signature.
+- **`bip324.cpp` private key parsing**: `Scalar::from_bytes` replaced with
+  `parse_bytes_strict_nonzero` — rejects keys in [n, 2^256) and k=0 without silent reduction.
+  CT claim: BIP-324 ephemeral key is secret; strict parsing ensures valid scalar throughout.
+
 ### 2026-05-05 Performance Audit — perf batch (no security-boundary change)
 
 - **`ecdsa.cpp` (`ecdsa_sign_hedged`)**: `r = R.x_only_bytes()` → `Scalar::from_limbs(R.x().limbs())`.

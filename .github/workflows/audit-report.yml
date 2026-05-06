@@ -125,18 +125,27 @@ jobs:
             out/audit-output/caas_autonomy.json
           retention-days: 90
 
+      - name: Validate SARIF before upload
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python3 -c "
+          import json, sys
+          try:
+            d = json.load(open('out/audit-output/audit_report.sarif'))
+            assert 'runs' in d and isinstance(d['runs'], list), 'missing runs[]'
+            print('SARIF validation OK')
+          except Exception as e:
+            print(f'SARIF validation FAILED: {e}', file=sys.stderr)
+            sys.exit(1)
+          "
+
       - name: Upload SARIF to GitHub Code Scanning
-        # Surface SARIF upload failures as a yellow step rather than hiding
-        # them. continue-on-error keeps the rest of the job running, but the
-        # yellow square is visible to anyone watching Code Scanning health.
-        # Removed the silently-green `continue-on-error: true` previously here.
         if: always() && github.event_name != 'pull_request'
         id: sarif_upload
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner
-        continue-on-error: true
 
       - name: Surface SARIF upload outcome
         if: always() && github.event_name != 'pull_request'
@@ -256,15 +265,27 @@ jobs:
             out/audit-output/caas_autonomy.json
           retention-days: 90
 
+      - name: Validate SARIF before upload
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python3 -c "
+          import json, sys
+          try:
+            d = json.load(open('out/audit-output/audit_report.sarif'))
+            assert 'runs' in d and isinstance(d['runs'], list), 'missing runs[]'
+            print('SARIF validation OK')
+          except Exception as e:
+            print(f'SARIF validation FAILED: {e}', file=sys.stderr)
+            sys.exit(1)
+          "
+
       - name: Upload SARIF to GitHub Code Scanning
-        # See linux-gcc job for rationale on continue-on-error + visible outcome.
         if: always() && github.event_name != 'pull_request'
         id: sarif_upload
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner-clang
-        continue-on-error: true
 
       - name: Surface SARIF upload outcome
         if: always() && github.event_name != 'pull_request'

@@ -535,7 +535,12 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
     // Aggregate: s = Sum z_i
     Scalar s = Scalar::zero();
     for (const auto& ps : partial_sigs) {
-        s = s + ps.z_i;
+        s = ct::scalar_add(s, ps.z_i);
+    }
+
+    // Fail-closed: degenerate aggregated signature is a protocol failure
+    if (s.is_zero_ct() || R.is_infinity()) {
+        return SchnorrSignature{{}, Scalar::zero()};
     }
 
     SchnorrSignature sig;

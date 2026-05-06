@@ -134,7 +134,7 @@ SECP256K1_API int secp256k1_ec_pubkey_combine(
     const secp256k1_context *ctx, secp256k1_pubkey *out,
     const secp256k1_pubkey * const *ins, size_t n);
 
-SECP256K1_API int secp256k1_ec_pubkey_sort(
+SECP256K1_API void secp256k1_ec_pubkey_sort(
     const secp256k1_context *ctx,
     const secp256k1_pubkey **pubkeys,
     size_t n_pubkeys);

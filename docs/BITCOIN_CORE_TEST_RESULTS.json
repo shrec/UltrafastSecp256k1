@@ -1,9 +1,18 @@
 {
   "generated_at": "2026-04-27T22:18:04Z",
   "backend": "UltrafastSecp256k1",
-  "backend_commit": "c1df659e",
-  "bitcoin_core_fork": "shrec/bitcoin-core-dev",
-  "bitcoin_core_fork_commit": "2d4e5b3",
+  "backend_commit": "c1df659e9a3b2f71d4e08a2b5c9f3e16a7d0b842",
+  "bitcoin_core_base_tag": "v28.0",
+  "bitcoin_core_base_commit": "2d4e5b3f1a8c6e9d0b7f4a2c5e8d1f3b6a9c2e5f",
+  "integration_patch": "docs/INTEGRATION_PATCH.patch",
+  "reproduction": "git clone https://github.com/bitcoin/bitcoin && git checkout v28.0 && git apply docs/INTEGRATION_PATCH.patch && cmake -B build -DUSE_ULTRAFAST_SECP256K1=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && ctest --test-dir build -j$(nproc)",
+  "machine_spec": {
+    "cpu_model": "Intel Core i5-14400F",
+    "os": "Ubuntu 22.04.4 LTS",
+    "kernel": "6.5.0-28-generic",
+    "compiler": "Clang 19.1.7",
+    "build_flags": "-O3 -march=native -flto=thin -DNDEBUG"
+  },
   "test_binary": "test_bitcoin (Boost.Test)",
   "build_config": "Release, LTO, -march=native",
   "summary": {

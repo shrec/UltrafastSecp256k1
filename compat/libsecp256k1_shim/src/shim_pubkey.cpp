@@ -207,15 +207,17 @@ int secp256k1_ec_pubkey_combine(
     return 1;
 }
 
-int secp256k1_ec_pubkey_sort(
+void secp256k1_ec_pubkey_sort(
     const secp256k1_context *ctx,
     const secp256k1_pubkey **pubkeys,
     size_t n_pubkeys)
 {
     (void)ctx;
-    if (!pubkeys || n_pubkeys == 0) return 0;
+    if (!pubkeys) { std::abort(); }
     for (size_t i = 0; i < n_pubkeys; ++i)
-        if (!pubkeys[i]) return 0;
+        if (!pubkeys[i]) { std::abort(); }  // matches upstream illegal_callback contract
+
+    if (n_pubkeys == 0) return;
 
     // Lexicographic sort on 33-byte compressed serialization (matches upstream).
     std::stable_sort(pubkeys, pubkeys + n_pubkeys,
@@ -226,7 +228,6 @@ int secp256k1_ec_pubkey_sort(
             secp256k1_ec_pubkey_serialize(nullptr, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
             return std::memcmp(bufa, bufb, 33) < 0;
         });
-    return 1;
 }
 
 } // extern "C"

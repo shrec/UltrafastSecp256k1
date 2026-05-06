@@ -180,9 +180,9 @@ This page keeps the last trustworthy result per platform. When a rerun only prov
 experiment is unstable or not worth shipping, it is recorded here but not promoted as a retained
 default.
 
-The stable GPU host ABI in `ufsecp_gpu.h` now covers 19 backend-neutral batch
-operations, and the compiled CUDA, OpenCL, and Metal backends implement that
-stable surface. Internal kernel experiments, signing benchmarks, and backend-only
+The stable GPU host ABI in `ufsecp_gpu.h` covers 13 backend-neutral batch
+operations (8 core ops + 5 extended ZK/BIP-324 ops), and the compiled CUDA,
+OpenCL, and Metal backends implement that stable surface. Internal kernel experiments, signing benchmarks, and backend-only
 test hooks may cover additional primitives beyond the public ABI, but they are
 documented separately from the stable host interface.
 

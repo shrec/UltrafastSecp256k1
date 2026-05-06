@@ -202,7 +202,7 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         std::memcpy(nonce_input + 64, agg_pub_key.data(), 32);
         std::memcpy(nonce_input + 96, msg.data(), 32);
         nonce_input[128] = 0x02;
-        auto k2_hash = tagged_hash("MuSig/nonce", nonce_input, 129);
+        auto k2_hash = cached_tagged_hash(g_musig_nonce_midstate, nonce_input, 129);
         sec.k2 = Scalar::from_bytes(k2_hash);
         secure_erase(nonce_input, sizeof(nonce_input));
         secure_erase(k2_hash.data(), k2_hash.size());
@@ -433,6 +433,11 @@ std::array<uint8_t, 64> musig2_partial_sig_agg(
     Scalar s = Scalar::zero();
     for (const auto& si : partial_sigs) {
         s += si;
+    }
+
+    // Fail-closed: degenerate aggregated signature is a security failure
+    if (s.is_zero_ct() || session.R.is_infinity()) {
+        return {};  // all-zero array signals failure to caller
     }
 
     // Final signature: (R.x, s)
