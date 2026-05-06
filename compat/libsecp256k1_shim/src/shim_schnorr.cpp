@@ -159,18 +159,17 @@ int secp256k1_schnorrsig_sign_custom(
         noncefp = extraparams->noncefp;
         ndata   = extraparams->ndata;
     }
-    (void)ndata;  // ndata accepted for API compat but not forwarded (see header doc)
-
     // Fail-closed: reject non-canonical nonce functions.
     if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
 
     if (!sig64 || !keypair) return 0;
     if (msglen > 0 && !msg) return 0;
 
-    // Fast path: 32-byte message uses optimised internal sign32 directly.
-    // sign32 accepts aux_rand32 == nullptr → deterministic zero-aux nonce.
+    // Fast path: 32-byte message — forward ndata as aux_rand32 matching libsecp contract.
+    // ndata == nullptr → deterministic zero-aux nonce (same as sign32 with null aux).
     if (msglen == 32)
-        return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair, nullptr);
+        return secp256k1_schnorrsig_sign32(ctx, sig64, msg, keypair,
+                                           static_cast<const unsigned char*>(ndata));
 
     // Variable-length path: full BIP-340 with arbitrary-length msg in hashes.
     // Upstream libsecp256k1 sign_custom includes msg verbatim in:
@@ -181,13 +180,11 @@ int secp256k1_schnorrsig_sign_custom(
     auto kp = secp256k1::ct::schnorr_keypair_create(sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
 
-    // t = d XOR H_BIP0340/aux(zero_aux)
-    // NULL / missing aux_rand path: aux is always 32 zero bytes here.
-    // DIVERGENCE from upstream sign_custom: upstream passes extraparams->ndata
-    // as aux to the nonce function. This shim uses zero aux for the variable-
-    // length path because ndata is not forwarded (see above).
-    static constexpr uint8_t kZeroAux[32] = {};
-    auto t_hash = secp256k1::tagged_hash("BIP0340/aux", kZeroAux, 32);
+    // t = d XOR H_BIP0340/aux(ndata)  — matches libsecp nonce_function_bip340 contract:
+    // ndata (if non-null, 32 bytes) is the aux_rand32 input; null → 32 zero bytes.
+    uint8_t aux32[32] = {};
+    if (ndata != nullptr) std::memcpy(aux32, ndata, 32);
+    auto t_hash = secp256k1::tagged_hash("BIP0340/aux", aux32, 32);
     auto d_bytes = kp.d.to_bytes();
     uint8_t t[32];
     for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
@@ -225,6 +222,7 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1::detail::secure_erase(&kp.d,   sizeof(kp.d));
     secp256k1::detail::secure_erase(d_bytes.data(), d_bytes.size());
     secp256k1::detail::secure_erase(t, sizeof(t));
+    secp256k1::detail::secure_erase(aux32, sizeof(aux32));
 
     if (s.is_zero()) return 0;
     {
