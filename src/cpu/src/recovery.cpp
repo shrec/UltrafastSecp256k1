@@ -2,6 +2,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/detail/secure_erase.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -101,13 +102,29 @@ RecoverableSignature ecdsa_sign_recoverable(
     auto r_times_d  = ct::scalar_mul(r, private_key);
     auto z_plus_rd  = ct::scalar_add(z, r_times_d);
     auto s          = ct::scalar_mul(k_inv, z_plus_rd);
-    if (s.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+    if (s.is_zero()) {
+        detail::secure_erase(&k,          sizeof(k));
+        detail::secure_erase(&k_inv,      sizeof(k_inv));
+        detail::secure_erase(&r_times_d,  sizeof(r_times_d));
+        detail::secure_erase(&z_plus_rd,  sizeof(z_plus_rd));
+        detail::secure_erase(&s,          sizeof(s));
+        return {{Scalar::zero(), Scalar::zero()}, 0};
+    }
 
     // Normalize to low-S (BIP-62): CT path — no branch on secret s
     ECDSASignature sig{r, s};
     std::uint64_t const s_was_high = ct::scalar_is_high(s);
     sig = ct::ct_normalize_low_s(sig);
     recid ^= static_cast<int>(s_was_high & 1u); // flip y parity if s was negated
+
+    // Erase secret locals: k, k_inv, and intermediate products.
+    // These contain nonce material and key-derived values that must not linger
+    // on the stack after return (stack-scrubbing defence, mirrors ct_sign.cpp).
+    detail::secure_erase(&k,          sizeof(k));
+    detail::secure_erase(&k_inv,      sizeof(k_inv));
+    detail::secure_erase(&r_times_d,  sizeof(r_times_d));
+    detail::secure_erase(&z_plus_rd,  sizeof(z_plus_rd));
+    detail::secure_erase(&s,          sizeof(s));
 
     return {sig, recid};
 }
