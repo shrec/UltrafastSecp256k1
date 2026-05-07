@@ -947,14 +947,14 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bug004_batch_failclosed", "BUG-004 + Guardrail #4: batch fail-closed + zero-sig ABI checks (BFC-1..9) — 2026-05-01", "exploit_poc", test_exploit_bug004_batch_failclosed_run, false },
     // Section 14: 2026-05-01 security audit fixes (shim layer)
     // ===================================================================
-    { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, false },
-    { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, false },
-    // === 2026-05-01 Red Team Audit Fixes ===
-    { "test_exploit_legacy_capi_key_parsing",    "Legacy C API invalid private key rejection (KP-1..14) — 2026-05-01",                          "exploit_poc", test_exploit_legacy_capi_key_parsing_run,    false },
-    { "test_exploit_legacy_capi_degenerate_sig", "Legacy C API degenerate zero-sig output guard (DSG-1..7) — 2026-05-01",                       "exploit_poc", test_exploit_legacy_capi_degenerate_sig_run, false },
-    { "test_exploit_musig_unknown_signer",       "MuSig2 partial_sign with unknown signer key (MUS-1..5) — 2026-05-01",                         "exploit_poc", test_exploit_musig_unknown_signer_run,       false },
-    { "test_exploit_bchn_schnorr_strict_parsing","BCHN Schnorr shim strict private key parsing (BCH-1..9) — 2026-05-01",                        "exploit_poc", test_exploit_bchn_schnorr_strict_parsing_run, false },
-    { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement bypass (CFB-1..9) — 2026-05-01",                   "exploit_poc", test_exploit_context_flag_bypass_run,        false },
+    { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, true },
+    { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, true },
+    // === 2026-05-01 Red Team Audit Fixes — advisory=true: shim not linked in unified runner ===
+    { "test_exploit_legacy_capi_key_parsing",    "Legacy C API invalid private key rejection (KP-1..14) — 2026-05-01",                          "exploit_poc", test_exploit_legacy_capi_key_parsing_run,    true },
+    { "test_exploit_legacy_capi_degenerate_sig", "Legacy C API degenerate zero-sig output guard (DSG-1..7) — 2026-05-01",                       "exploit_poc", test_exploit_legacy_capi_degenerate_sig_run, true },
+    { "test_exploit_musig_unknown_signer",       "MuSig2 partial_sign with unknown signer key (MUS-1..5) — 2026-05-01",                         "exploit_poc", test_exploit_musig_unknown_signer_run,       true },
+    { "test_exploit_bchn_schnorr_strict_parsing","BCHN Schnorr shim strict private key parsing (BCH-1..9) — 2026-05-01",                        "exploit_poc", test_exploit_bchn_schnorr_strict_parsing_run, true },
+    { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement bypass (CFB-1..9) — 2026-05-01",                   "exploit_poc", test_exploit_context_flag_bypass_run,        true },
     { "test_exploit_metal_schnorr_aux_rand",     "Metal Schnorr batch aux_rand uses private key CRITICAL-1 (MA-1..4) — 2026-05-01",             "exploit_poc", test_exploit_metal_schnorr_aux_rand_run,     false },
     { "test_exploit_metal_batch_failclosed",     "Metal batch sign ignored return + non-CT path CRITICAL-2+HIGH-1 (MB-1..6) — 2026-05-01",     "exploit_poc", test_exploit_metal_batch_failclosed_run,     false },
     { "test_exploit_gpu_bip352_key_erase",       "GPU BIP-352 scan key not zeroed before device memory free HIGH-3 (BK-1..8) — 2026-05-01",   "exploit_poc", test_exploit_gpu_bip352_key_erase_run,       false },
