@@ -308,6 +308,13 @@ ufsecp_error_t ufsecp_musig2_partial_sig_agg(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sigs count does not match session participant count");
     }
     auto final_sig = secp256k1::musig2_partial_sig_agg(psigs, sess);
+    // Guardrail Rule 4: zero aggregate signature = degenerate input, return error
+    bool all_zero = true;
+    for (auto b : final_sig) { if (b != 0) { all_zero = false; break; } }
+    if (all_zero) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "aggregate signature is zero");
+    }
     std::memcpy(sig64_out, final_sig.data(), 64);
     return UFSECP_OK;
     } UFSECP_CATCH_RETURN(ctx)
