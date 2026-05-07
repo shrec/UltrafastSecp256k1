@@ -69,8 +69,11 @@ struct ShimSchnorrCache {
         Slot& s = slots[idx];
         bool const matches = (s.fingerprint == fp);
         if (matches && s.seen_once && !s.valid) {
-            // Second encounter: build tables now.
-            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
+            // Second encounter: call parse TWICE to trigger the seen_once→valid
+            // lazy table build (schnorr_xonly_pubkey_parse uses a 2-call protocol:
+            // 1st call sets g_glv_cache.seen_once; 2nd call builds GLV tables).
+            secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);  // primes seen_once
+            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);  // builds tables
             return s.valid ? &s.epk : nullptr;
         }
         if (matches && s.valid) {
