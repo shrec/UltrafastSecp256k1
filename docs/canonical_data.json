@@ -1,6 +1,6 @@
 {
   "version": "4.0.0",
-  "last_updated": "2026-05-06",
+  "last_updated": "2026-05-07",
   "exploit_poc_count": 240,
   "non_exploit_modules": 103,
   "total_modules": 343,
@@ -8,7 +8,7 @@
   "ct_pipeline_count": 5,
   "bitcoin_core_tests_pass": 693,
   "bitcoin_core_tests_total": 693,
-  "shim_api_function_count": 70,
+  "shim_api_function_count": 76,
   "wycheproof_ecdsa": "89/89 PASS",
   "wycheproof_ecdh": "36/36 PASS",
   "wycheproof_extended": "1084 groups PASS",

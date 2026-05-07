@@ -94,6 +94,46 @@ SECP256K1_API int secp256k1_schnorrsig_verify(
     const unsigned char *msg, size_t msglen,
     const secp256k1_xonly_pubkey *pubkey);
 
+/* -- Pre-computed xonly pubkey for fast Schnorr verify -------------------- */
+/* Embeds pre-built GLV tables + cached lifted point.
+ * Eliminates ~2,600 ns lift_x (sqrt) + ~1,954 ns GLV table rebuild per verify.
+ * Size: sizeof(secp256k1::SchnorrXonlyPubkey), typically 1,400-1,504 bytes. */
+#ifdef __cplusplus
+#  include "secp256k1/schnorr.hpp"
+   struct secp256k1_xonly_pubkey_precomp { secp256k1::SchnorrXonlyPubkey epk; };
+#else
+#  define SECP256K1_XONLY_PUBKEY_PRECOMP_SIZE 1504
+   struct secp256k1_xonly_pubkey_precomp {
+#    ifdef __STDC_VERSION__
+       _Alignas(8) unsigned char _data[SECP256K1_XONLY_PUBKEY_PRECOMP_SIZE];
+#    else
+       unsigned char _data[SECP256K1_XONLY_PUBKEY_PRECOMP_SIZE];
+#    endif
+   };
+#endif
+typedef struct secp256k1_xonly_pubkey_precomp secp256k1_xonly_pubkey_precomp;
+
+/* Build pre-computed form from parsed secp256k1_xonly_pubkey. Returns 1/0. */
+SECP256K1_API int secp256k1_xonly_pubkey_precomp(
+    const secp256k1_context *ctx,
+    secp256k1_xonly_pubkey_precomp *out,
+    const secp256k1_xonly_pubkey *pubkey);
+
+/* Parse x-only pubkey bytes and build pre-computed tables in one step. */
+SECP256K1_API int secp256k1_xonly_pubkey_parse_precomp(
+    const secp256k1_context *ctx,
+    secp256k1_xonly_pubkey_precomp *out,
+    const unsigned char *pubkey_x32);
+
+/* Verify a Schnorr signature against a pre-computed xonly pubkey.
+ * Zero lift_x and zero GLV table rebuild overhead.
+ * Only msglen == 32 is accepted (same constraint as schnorrsig_verify). */
+SECP256K1_API int secp256k1_schnorrsig_verify_precomp(
+    const secp256k1_context *ctx,
+    const unsigned char *sig64,
+    const unsigned char *msg32,
+    const secp256k1_xonly_pubkey_precomp *pubkey);
+
 #ifdef __cplusplus
 }
 #endif

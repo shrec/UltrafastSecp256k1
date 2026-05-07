@@ -321,4 +321,58 @@ int secp256k1_schnorrsig_verify(
     return secp256k1::schnorr_verify(pubkey->data, msg32.data(), sig) ? 1 : 0;
 }
 
+// -- Pre-computed xonly pubkey API -----------------------------------------
+
+static_assert(sizeof(secp256k1_xonly_pubkey_precomp) >= sizeof(secp256k1::SchnorrXonlyPubkey),
+    "SECP256K1_XONLY_PUBKEY_PRECOMP_SIZE too small — update the #define in secp256k1_schnorrsig.h");
+static_assert(alignof(secp256k1_xonly_pubkey_precomp) >= alignof(secp256k1::SchnorrXonlyPubkey),
+    "secp256k1_xonly_pubkey_precomp alignment insufficient for SchnorrXonlyPubkey");
+
+int secp256k1_xonly_pubkey_precomp(
+    const secp256k1_context* /*ctx*/,
+    secp256k1_xonly_pubkey_precomp* out,
+    const secp256k1_xonly_pubkey* pubkey)
+{
+    if (!out || !pubkey) return 0;
+    auto* epk = reinterpret_cast<secp256k1::SchnorrXonlyPubkey*>(out);
+    // pubkey->data[0..31] = x-only key bytes
+    return secp256k1::schnorr_xonly_pubkey_parse(*epk, pubkey->data) ? 1 : 0;
+}
+
+int secp256k1_xonly_pubkey_parse_precomp(
+    const secp256k1_context* /*ctx*/,
+    secp256k1_xonly_pubkey_precomp* out,
+    const unsigned char* pubkey_x32)
+{
+    if (!out || !pubkey_x32) return 0;
+    auto* epk = reinterpret_cast<secp256k1::SchnorrXonlyPubkey*>(out);
+    // Two-call protocol: 1st call sets seen_once, 2nd call builds tables.
+    secp256k1::schnorr_xonly_pubkey_parse(*epk, pubkey_x32);  // primes seen_once
+    return secp256k1::schnorr_xonly_pubkey_parse(*epk, pubkey_x32) ? 1 : 0;
+}
+
+int secp256k1_schnorrsig_verify_precomp(
+    const secp256k1_context* ctx,
+    const unsigned char* sig64,
+    const unsigned char* msg32,
+    const secp256k1_xonly_pubkey_precomp* pubkey)
+{
+    if (!schnorr_ctx_can_verify(ctx)) return 0;
+    if (!sig64 || !msg32 || !pubkey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify_precomp: NULL argument");
+        return 0;
+    }
+    secp256k1::SchnorrSignature sig;
+    std::array<uint8_t, 64> sig_buf{};
+    std::memcpy(sig_buf.data(), sig64, 64);
+    if (!secp256k1::SchnorrSignature::parse_strict(sig_buf, sig)) return 0;
+
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msg32, 32);
+
+    const auto* epk = reinterpret_cast<const secp256k1::SchnorrXonlyPubkey*>(pubkey);
+    // Direct use of pre-built tables — zero lift_x and zero GLV rebuild overhead.
+    return secp256k1::schnorr_verify(*epk, msg, sig) ? 1 : 0;
+}
+
 } // extern "C"

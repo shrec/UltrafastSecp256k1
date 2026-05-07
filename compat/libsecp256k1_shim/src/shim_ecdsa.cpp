@@ -300,6 +300,56 @@ int secp256k1_ecdsa_verify(
     return secp256k1::ecdsa_verify(msg, local_epk, internal_sig) ? 1 : 0;
 }
 
+// -- Pre-computed pubkey API -----------------------------------------------
+
+// Safety check: the secp256k1_pubkey_precomp opaque buffer must be large enough
+// to hold EcdsaPublicKey with its GLV tables.
+static_assert(sizeof(secp256k1_pubkey_precomp) >= sizeof(secp256k1::EcdsaPublicKey),
+    "SECP256K1_PUBKEY_PRECOMP_SIZE too small — update the #define in secp256k1.h");
+static_assert(alignof(secp256k1_pubkey_precomp) >= alignof(secp256k1::EcdsaPublicKey),
+    "secp256k1_pubkey_precomp alignment insufficient for EcdsaPublicKey");
+
+int secp256k1_ec_pubkey_precomp(
+    const secp256k1_context* /*ctx*/,
+    secp256k1_pubkey_precomp* out,
+    const secp256k1_pubkey* pubkey)
+{
+    if (!out || !pubkey) return 0;
+    auto* epk = reinterpret_cast<secp256k1::EcdsaPublicKey*>(out);
+    unsigned char unc[65]; unc[0] = 0x04;
+    std::memcpy(unc + 1, pubkey->data, 64);
+    return secp256k1::ecdsa_pubkey_parse(*epk, unc, 65) ? 1 : 0;
+}
+
+int secp256k1_ec_pubkey_parse_precomp(
+    const secp256k1_context* /*ctx*/,
+    secp256k1_pubkey_precomp* out,
+    const unsigned char* input, size_t inputlen)
+{
+    if (!out || !input) return 0;
+    auto* epk = reinterpret_cast<secp256k1::EcdsaPublicKey*>(out);
+    return secp256k1::ecdsa_pubkey_parse(*epk, input, inputlen) ? 1 : 0;
+}
+
+int secp256k1_ecdsa_verify_precomp(
+    const secp256k1_context* ctx,
+    const secp256k1_ecdsa_signature* sig,
+    const unsigned char* msghash32,
+    const secp256k1_pubkey_precomp* pubkey)
+{
+    if (!ctx_can_verify(ctx)) return 0;
+    if (!sig || !msghash32 || !pubkey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_verify_precomp: NULL argument");
+        return 0;
+    }
+    const auto* epk = reinterpret_cast<const secp256k1::EcdsaPublicKey*>(pubkey);
+    auto internal_sig = ecdsa_sig_from_data(sig->data);
+    std::array<uint8_t, 32> msg{};
+    std::memcpy(msg.data(), msghash32, 32);
+    // Direct use of pre-built GLV tables — zero table rebuild overhead.
+    return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
+}
+
 // -- Sign -----------------------------------------------------------------
 // ndata: when non-null, 32 bytes of caller-supplied extra entropy.
 // Bitcoin Core's R-grinding loop (grind=true default in CKey::Sign) calls

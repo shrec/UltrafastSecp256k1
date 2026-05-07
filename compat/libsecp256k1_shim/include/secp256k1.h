@@ -34,9 +34,33 @@ extern "C" {
 typedef struct secp256k1_context_struct secp256k1_context;
 
 /* -- Public key (64 bytes opaque) ----------------------------------------- */
+/* Drop-in compatible with upstream libsecp256k1. */
 typedef struct secp256k1_pubkey {
     unsigned char data[64];
 } secp256k1_pubkey;
+
+/* -- Pre-computed public key (fast verify) --------------------------------- */
+/* Embeds pre-built GLV tables. Use secp256k1_ec_pubkey_precomp() to populate.
+ * Eliminates ~1,954 ns GLV table rebuild on every secp256k1_ecdsa_verify()
+ * call for unique pubkeys (ConnectBlock workload).
+ * Size: sizeof(secp256k1::EcdsaPublicKey) on x86-64, typically 1,400-1,504 bytes.
+ * The exact layout is opaque -- use only via the _precomp API below.
+ * C note: use alignas(8) / _Alignas(8) when declaring on stack. */
+#ifdef __cplusplus
+#  include "secp256k1/ecdsa.hpp"
+   struct secp256k1_pubkey_precomp { secp256k1::EcdsaPublicKey epk; };
+#else
+   /* C-compatible: conservatively-sized buffer; static_assert in shim verifies. */
+#  define SECP256K1_PUBKEY_PRECOMP_SIZE 1504
+   struct secp256k1_pubkey_precomp {
+#    ifdef __STDC_VERSION__
+       _Alignas(8) unsigned char _data[SECP256K1_PUBKEY_PRECOMP_SIZE];
+#    else
+       unsigned char _data[SECP256K1_PUBKEY_PRECOMP_SIZE];
+#    endif
+   };
+#endif
+typedef struct secp256k1_pubkey_precomp secp256k1_pubkey_precomp;
 
 /* -- ECDSA signature (64 bytes opaque) ------------------------------------ */
 typedef struct secp256k1_ecdsa_signature {
@@ -153,6 +177,34 @@ SECP256K1_API int secp256k1_ec_seckey_tweak_add(
 SECP256K1_API int secp256k1_ec_seckey_tweak_mul(
     const secp256k1_context *ctx, unsigned char *seckey,
     const unsigned char *tweak32);
+
+/* -- Pre-computed pubkey API ---------------------------------------------- */
+/* Build pre-computed form from an already-parsed secp256k1_pubkey.
+ * Builds GLV verify tables once. Returns 1 on success, 0 on invalid key.
+ * Faster alternative: secp256k1_ec_pubkey_parse_precomp() parses + precomputes. */
+SECP256K1_API int secp256k1_ec_pubkey_precomp(
+    const secp256k1_context *ctx,
+    secp256k1_pubkey_precomp *out,
+    const secp256k1_pubkey *pubkey);
+
+/* Parse a raw pubkey and build pre-computed tables in one step.
+ * Equivalent to secp256k1_ec_pubkey_parse() + secp256k1_ec_pubkey_precomp()
+ * but with one fewer format round-trip. Returns 1 on success, 0 on failure.
+ * input/inputlen: 33-byte compressed or 65-byte uncompressed pubkey. */
+SECP256K1_API int secp256k1_ec_pubkey_parse_precomp(
+    const secp256k1_context *ctx,
+    secp256k1_pubkey_precomp *out,
+    const unsigned char *input, size_t inputlen);
+
+/* Verify an ECDSA signature against a pre-computed pubkey.
+ * Zero GLV table rebuild overhead — tables already in out.
+ * Drop-in replacement for secp256k1_ecdsa_verify() when the pubkey is
+ * already in secp256k1_pubkey_precomp form. */
+SECP256K1_API int secp256k1_ecdsa_verify_precomp(
+    const secp256k1_context *ctx,
+    const secp256k1_ecdsa_signature *sig,
+    const unsigned char *msghash32,
+    const secp256k1_pubkey_precomp *pubkey);
 
 /* -- ECDSA ---------------------------------------------------------------- */
 SECP256K1_API int secp256k1_ecdsa_signature_parse_compact(
