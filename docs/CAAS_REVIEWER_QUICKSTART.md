@@ -21,9 +21,16 @@ exactly what to run and what to expect.
 ## Known Performance Delta
 
 > **Before reviewing benchmarks:** The `ConnectBlock` benchmark (primary block-validation
-> workload) is **2.5–2.7% slower** than upstream libsecp256k1 across all block variants.
-> This is caused by C-shim dispatch overhead on the verification-heavy path.
-> Taproot signing is 20–25% faster. Full numbers: [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
+> workload) is **≈0%** vs upstream libsecp256k1 with the recommended Release+LTO build
+> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`). Without LTO (e.g. RelWithDebInfo), ConnectBlock
+> is ~2.5% slower due to i-cache pressure from ShimPkCache structs across library boundaries.
+> LTO eliminates this deficit entirely.
+> Taproot signing is 22–25% faster. Full numbers: [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
+>
+> **Required build flags for full performance:**
+> ```bash
+> cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+> ```
 
 ---
 

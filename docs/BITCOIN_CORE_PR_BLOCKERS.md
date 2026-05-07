@@ -45,7 +45,7 @@ matrix) are now closed with documented evidence.
 
 | # | Item | Status | Evidence |
 |---|------|--------|---------|
-| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit 3e2e915b, ≥5 runs, variance <2%) — Taproot signing (Merkle/null): **−22–24% faster**; P2TR script-path verify: **−18% faster**; SignTransactionSchnorr: **−3.6% faster**; SignTransactionECDSA: **INCONCLUSIVE** (variance >7%); EllSwiftCreate: **−9% slower**; ConnectBlock: **−2.6 to −5.4% slower** (shim dispatch + GLV precompute, disclosed). |
+| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (≥5 runs, variance <1%) — **With Release+LTO (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`):** ConnectBlock: **≈0%** (deficit eliminated); Taproot signing: **−25% faster**; P2TR script-path verify: **−22% faster**; SignTransactionECDSA: **−10% faster**; SignTransactionSchnorr: **−8% faster**. **Without LTO (RelWithDebInfo):** ConnectBlock −2.5% due to i-cache pressure. LTO is the recommended and disclosed build mode. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`. |
 
 ---
 

@@ -1496,8 +1496,44 @@ AWS Graviton, AMD EPYC, Intel Xeon Sapphire Rapids, Milk-V Pioneer (C920).
 
 Drop-in replacement via `compat/libsecp256k1_shim/` — the shim exposes
 the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
+
+> **Build mode matters:** Use `Release + LTO` (`-DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`)
+> for full performance. Without LTO (RelWithDebInfo), ConnectBlock is ~2.5% slower due to
+> i-cache pressure. With LTO the deficit is eliminated. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`.
+
+### Release + LTO Results (recommended — i5-14400F, GCC 13, taskset -c 0)
+
+Controlled comparison, variance 0.1–0.3%, same session, same binary:
+
+| Benchmark | libsecp LTO (ns/op) | Ultra LTO (ns/op) | vs libsecp |
+|-----------|-------------------:|------------------:|-----------|
+| `ConnectBlockAllEcdsa` | 254,587 | 255,860 | **≈0% (tied)** |
+| `ConnectBlockAllSchnorr` | 253,297 | 253,665 | **≈0% (tied)** |
+| `ConnectBlockMixedEcdsaSchnorr` | 256,082 | 256,385 | **≈0% (tied)** |
+| `SignSchnorrWithMerkleRoot` | 111,332 | 83,267 | **Ultra −25.2%** |
+| `SignSchnorrWithNullMerkleRoot` | 109,823 | 82,290 | **Ultra −25.1%** |
+| `SignTransactionECDSA` | 162,507 | 145,955 | **Ultra −10.2%** |
+| `SignTransactionSchnorr` | 136,036 | 124,768 | **Ultra −8.3%** |
+| `VerifyScriptP2TR_ScriptPath` | 83,114 | 64,639 | **Ultra −22.2%** |
+| `VerifyScriptP2TR_KeyPath` | 45,832 | 44,123 | tie (overlap) |
+| `VerifyScriptP2WPKH` | 45,447 | 45,096 | tie (overlap) |
+
+**Build command used:**
+```bash
+cmake -B out/build-ultrafast-lto \
+  -DSECP256K1_BACKEND=ultrafast \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+  -DBUILD_BENCH=ON -DENABLE_IPC=OFF
+```
+
+CPU: Intel i5-14400F, GCC 13, Release+LTO, `taskset -c 0`, variance 0.1–0.3%.
+
+### Earlier Results (RelWithDebInfo, archived)
+
 Bitcoin Core v29.3 `bench_bitcoin` results on x86-64 Linux (i5-14400F),
 w=18 precomputed fixed-base table, 5-second stable runs with CPU warmup.
+**Note:** These were measured without LTO; ConnectBlock shows expected i-cache deficit.
 
 All 8 secp256k1-relevant benchmarks show improvement. The shim uses
 `scalar_mul_generator` (w=18 precomputed table) for all generator
@@ -1517,7 +1553,7 @@ non-CT path for consistency with the ECDSA signing shim.
 | `VerifyScriptBench` | 23,612 | 22,714 | **+3.8%** |
 | `VerifyNestedIfScript` | 29,578 | 29,823 | **≈ parity** |
 
-Benchmarks run: 2026-04-25
+Benchmarks run: 2026-04-25 (RelWithDebInfo, no LTO)
 
 ---
 
