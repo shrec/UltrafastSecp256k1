@@ -1,6 +1,26 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-06 | **Version**: 4.0.0
+**Last updated**: 2026-05-07 | **Version**: 4.0.0
+
+### 2026-05-07 Secret Lifecycle Changes — multi-agent ultrareview zeroization audit
+
+- **`recovery.cpp` (`secp256k1::ecdsa_sign_recoverable`, public C++ API)**: Added
+  `detail::secure_erase` calls for `k`, `k_inv`, `r_times_d`, `z_plus_rd`, and `s` before
+  all return paths. The CT ABI path (`ct::ecdsa_sign_recoverable` in `ct_sign.cpp`) was
+  already clean. Direct C++ callers of the lower API were exposed.
+  Erased variables: nonce `k` (SECRET), k inverse `k_inv` (SECRET), r*d product (SECRET),
+  z+r*d sum (SECRET), signature scalar `s` (SECRET before publication).
+- **`bip32.cpp` (`ExtendedKey::derive_child`)**: `child_scalar` (child private key) was
+  serialized into `child.key` but never erased from the local variable. Added
+  `detail::secure_erase(&child_scalar, sizeof(child_scalar))` after `to_bytes()`. Also
+  added erasure on the `is_zero` early-return path that previously skipped it entirely.
+- **`adaptor.cpp` (`adaptor_nonce`)**: Nonce domain separation hardened to BIP-340 tagged-hash
+  prefix pattern. This affects nonce derivation (not zeroization), but it is a secret-path
+  security boundary change. Domain-first prevents cross-protocol nonce collision.
+- **`ecdsa.cpp` (`HMAC_Ctx::compute_short`)**: Runtime guard + `assert(msg_len <= 55)` added.
+  Without the guard, `msg_len > 55` causes `size_t` unsigned wrap in
+  `std::memset(block + msg_len + 1, 0, 55 - msg_len)` — potential stack smash that could
+  corrupt secret material on the stack.
 
 ### 2026-05-06 Secret Lifecycle Changes (CA-build-fix — ecdsa.cpp always_inline removed)
 

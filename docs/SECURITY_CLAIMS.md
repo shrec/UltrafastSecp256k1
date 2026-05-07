@@ -2,6 +2,38 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-07 Multi-agent ultrareview — secret lifecycle zeroization fixes
+
+- **`recovery.cpp` (`secp256k1::ecdsa_sign_recoverable`, public C++ API)**: Added
+  `detail::secure_erase` for `k`, `k_inv`, `r_times_d`, `z_plus_rd`, and `s` before return
+  on all paths (degenerate s==0 and normal path). The production ABI (`ct::ecdsa_sign_recoverable`)
+  was already clean; this closes the gap for direct C++ API callers.
+- **`bip32.cpp` (`ExtendedKey::derive_child`)**: Added `detail::secure_erase(&child_scalar, ...)`
+  after `child.key = child_scalar.to_bytes()`, and on the `is_zero` early-return path which
+  previously skipped erasure. Child private key no longer lingers on stack after serialization.
+- **`adaptor.cpp` (`adaptor_nonce`)**: Restructured domain separation from tag-appended-last
+  to BIP-340 tagged hash prefix pattern — `H = SHA256(SHA256(tag)||SHA256(tag)||data)`.
+  Domain-first prevents cross-protocol nonce collision (tag appended last allows crafted
+  prefix to collide with BIP-340 or RFC 6979 hash inputs).
+- **`musig2.cpp` / `ufsecp_musig2.cpp` (`ufsecp_musig2_partial_sig_agg`)**: ABI wrapper now
+  checks for all-zero aggregated signature (degenerate `sum(partial_sigs) = 0 mod n`) and
+  returns `UFSECP_ERR_INTERNAL` instead of `UFSECP_OK`. Enforces Security Guardrail Rule 4.
+- **`ecdsa.cpp` (`HMAC_Ctx::compute_short`)**: Added `assert(msg_len <= 55)` and runtime
+  guard before `std::memset(block + msg_len + 1, 0, 55 - msg_len)`. Without the guard,
+  `msg_len > 55` causes `size_t` unsigned wrap to ~0ULL — potential stack smash.
+
+### 2026-05-07 libsecp256k1 shim — security hardening
+
+- **`shim_batch_verify.cpp` (`secp256k1_ecdsa_verify_batch`)**: Added `y.square() == x*x*x + 7`
+  curve membership check before `Point::from_affine` in both small-batch fallback path and
+  large-batch Pippenger build loop. An off-curve pubkey propagated to Pippenger could produce
+  false-positive batch verify results (soundness failure).
+- **`shim_tagged_hash.cpp` (`secp256k1_tagged_sha256`)**: Fixed null-byte truncation for tags
+  with embedded null bytes; replaced heap-allocating `std::string` with stack buffer.
+- **`shim_schnorr.cpp` / `shim_ecdsa.cpp`**: Two-phase pubkey cache — first encounter writes
+  fingerprint only (~8 bytes) to avoid 1.5 KB/1.4 KB slot writes for every unique pubkey
+  (ConnectBlock pattern: ~19K unique pubkeys × 1.5 KB = 27 MB cache pollution per block).
+
 ### 2026-05-06 Build Fix — ecdsa.cpp always_inline (no security boundary change)
 
 - **`ecdsa.cpp` (`ECDSASignature::is_low_s_ct`)**: Removed `__attribute__((always_inline))`

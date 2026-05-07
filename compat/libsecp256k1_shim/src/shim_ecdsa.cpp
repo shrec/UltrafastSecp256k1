@@ -289,15 +289,22 @@ int secp256k1_ecdsa_verify(
     if (epk) {
         return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
     }
-    // 1st encounter (unique pubkey): parse into a stack-local EcdsaPublicKey.
-    // Tables are built once, used immediately — no thread-local cache slot write.
-    secp256k1::EcdsaPublicKey local_epk;
+    // 1st encounter (unique pubkey): skip GLV table build entirely.
+    // pubkey->data already has X||Y parsed (ec_pubkey_parse paid sqrt once).
+    // Use Point-based verify — dual_scalar_mul_gen_point integrates table build
+    // into the Shamir loop, matching libsecp's ecmult approach.
+    // Saves ~6,500 ns vs ecdsa_pubkey_parse (which pre-builds two 8-entry tables
+    // that are only used once, then discarded for unique pubkeys).
     {
-        unsigned char unc[65]; unc[0] = 0x04;
-        std::memcpy(unc + 1, pubkey->data, 64);
-        if (!secp256k1::ecdsa_pubkey_parse(local_epk, unc, 65)) return 0;
+        std::array<uint8_t, 32> xb{}, yb{};
+        std::memcpy(xb.data(), pubkey->data,      32);
+        std::memcpy(yb.data(), pubkey->data + 32, 32);
+        auto x = secp256k1::fast::FieldElement::from_bytes(xb);
+        auto y = secp256k1::fast::FieldElement::from_bytes(yb);
+        auto pt = secp256k1::fast::Point::from_affine(x, y);
+        if (pt.is_infinity()) return 0;
+        return secp256k1::ecdsa_verify(msg.data(), pt, internal_sig) ? 1 : 0;
     }
-    return secp256k1::ecdsa_verify(msg, local_epk, internal_sig) ? 1 : 0;
 }
 
 // -- Pre-computed pubkey API -----------------------------------------------

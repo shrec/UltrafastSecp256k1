@@ -1,0 +1,66 @@
+{
+  "_schema": 1,
+  "_note": "Single source of truth for all numeric claims used across multiple documents. Update values HERE; run scripts/sync_canonical_numbers.py to propagate. Agents must never hand-edit README.md / PR_DESCRIPTION.md / BACKEND_EVIDENCE.md numbers directly — always update this file first.",
+
+  "bitcoin_core_compat": {
+    "pass": 693,
+    "total": 693,
+    "core_version": "v28.0",
+    "compiler": "Clang 19",
+    "march": "x86-64-v3",
+    "os": "Ubuntu 22.04",
+    "commit_sha": ""
+  },
+
+  "connectblock": {
+    "regression_min_pct": 2.6,
+    "regression_max_pct": 5.4,
+    "wording": "ConnectBlock aggregate block validation is 2.6–5.4% slower than libsecp256k1 depending on transaction mix."
+  },
+
+  "taproot_signing": {
+    "speedup_min_pct": 22,
+    "speedup_max_pct": 24,
+    "wording": "Taproot key-path signing is 22–24% faster than libsecp256k1."
+  },
+
+  "taproot_verify": {
+    "speedup_pct": 18,
+    "wording": "P2TR script-path verification is ~18% faster."
+  },
+
+  "schnorr_sign_merkle": {
+    "speedup_min_pct": 23.9,
+    "speedup_max_pct": 25.2,
+    "canonical_pct": 23.9,
+    "wording": "SignSchnorrWithMerkleRoot is ~23.9% faster (JSON artifact)."
+  },
+
+  "ct_signing_clang19": {
+    "speedup_min_x": 1.20,
+    "speedup_max_x": 1.33,
+    "compiler": "Clang 19",
+    "wording": "CT signing: Clang 19 = 1.20–1.33× faster than libsecp256k1."
+  },
+
+  "ct_signing_gcc": {
+    "speedup_min_x": 0.82,
+    "speedup_max_x": 0.85,
+    "compiler": "GCC 13/14",
+    "wording": "CT signing: GCC 13/14 = 0.82–0.85× (slightly slower)."
+  },
+
+  "hardware": {
+    "cpu": "Intel i5-14400F",
+    "os": "Ubuntu 22.04",
+    "build_flags": "-O2 -flto",
+    "turbo": false,
+    "cpu_pinned": true
+  },
+
+  "_exploit_counts": {
+    "_note": "Exploit and module counts are dynamic — managed by scripts/sync_module_count.py reading from audit/. Do NOT hardcode here; leave as 0 and run sync_module_count.py for live values.",
+    "exploit_poc_files": 0,
+    "registered_modules": 0
+  }
+}

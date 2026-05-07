@@ -2,6 +2,33 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-07 Multi-agent ultrareview CT Fixes (CA-007 hardening + verify/sign boundary)
+
+- **`scalar.cpp` (`Scalar::negate`)**: CT-hardened via CA-007 — replaces early-return on
+  `is_zero()` (variable-time) with unconditional `ORDER − s` + mask-to-zero via `uint64_t`
+  arithmetic. Eliminates timing leak about whether a secret scalar is zero (nonce/key negation).
+- **`scalar.cpp` (`Scalar::negate_var`)**: NEW — variable-time negate for PUBLIC scalars only
+  (challenge hash `e`, GLV sub-scalars). Branches on `is_zero()` (safe: public data cannot
+  leak secrets). Used in `schnorr_verify` for `neg_e = e.negate_var()`. Design rule: every
+  CT primitive that protects secret paths must have a paired `_var` counterpart for public paths.
+- **`taproot.cpp` (`taproot_tweak_privkey`)**: Replaced `d + t` (fast::Scalar::operator+,
+  secret-dependent branch in modular reduction) with `ct::scalar_add(d, t)`. `d` is the
+  conditionally-negated private key — a secret scalar.
+- **`frost.cpp` (`frost_sign`)**: Replaced `if (negate_R) { d.negate(); ei.negate(); }` and
+  `if (negate_key) { s_i.negate(); }` branches on secret nonces/signing share with
+  `ct::bool_to_mask` + `ct::scalar_cneg`. Branch condition `negate_R`/`negate_key` is public
+  (R.y parity), but branching on a public condition with secret operands may produce
+  conditional branch instructions that expose the nonce value to branch-predictor side-channels.
+- **`point.cpp` (`dual_scalar_mul_gen_point` MSVC path)**: Removed `ct::generator_mul(a)` from
+  the MSVC 4×64 verify path where `a = sig.s` (public). CT on public data adds overhead with
+  zero security benefit. Variable-time verify is correct when all inputs are public.
+- **Verify paths (`schnorr_verify` both overloads)**: Use `e.negate_var()` (not `e.negate()`)
+  for the challenge scalar — public data.
+
+CT/verify boundary rule established:
+  CT mandatory: private key, nonce, signing share, ECDH scalar, BIP-352 scan key.
+  Variable-time correct: all verify inputs (pubkey, sig.r, sig.s, msg_hash, challenge e).
+
 ### 2026-05-06 Performance Review CT Fix (SEC-01)
 
 - `frost.cpp` (`frost_keygen_finalize`): Replaced

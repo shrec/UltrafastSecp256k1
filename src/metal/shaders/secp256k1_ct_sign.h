@@ -199,7 +199,15 @@ inline bool ct_schnorr_sign_verified_metal(thread const Scalar256 &priv,
                                            thread const uchar msg[32],
                                            thread const uchar aux_rand[32],
                                            thread uchar sig_out[64]) {
-    return ct_schnorr_sign_metal(priv, msg, aux_rand, sig_out);
+    if (!ct_schnorr_sign_metal(priv, msg, aux_rand, sig_out)) return false;
+    // Rule 14: check s==0 and R.x all-zeros.
+    uint r_or = 0;
+    for (int _i = 0; _i < 32; ++_i) r_or |= (uint)sig_out[_i];
+    if (r_or == 0u) return false;
+    uint s_or = 0;
+    for (int _i = 32; _i < 64; ++_i) s_or |= (uint)sig_out[_i];
+    if (s_or == 0u) return false;
+    return true;
 }
 
 // CT public key

@@ -43,11 +43,13 @@ static Scalar adaptor_nonce(const Scalar& privkey,
         h.update(aux, aux_len);
     }
     auto hash = h.finalize();
-    Scalar k = Scalar::from_bytes(hash);
-    // Ensure non-zero
-    if (k.is_zero()) {
-        hash[31] ^= 1;
-        k = Scalar::from_bytes(hash);
+    // parse_bytes_strict_nonzero avoids the conditional mod-n branch that
+    // from_bytes uses when hash >= n (prob ~2^-128) and the is_zero() branch.
+    // The counter-based retry below essentially never executes in practice
+    // but prevents any data-dependent branch on the secret-derived hash.
+    Scalar k;
+    for (std::uint8_t ctr = 0; !Scalar::parse_bytes_strict_nonzero(hash.data(), k); ++ctr) {
+        hash[31] ^= static_cast<std::uint8_t>(ctr ^ 1u);
     }
     detail::secure_erase(sk_bytes.data(), sk_bytes.size());
     detail::secure_erase(hash.data(), hash.size());

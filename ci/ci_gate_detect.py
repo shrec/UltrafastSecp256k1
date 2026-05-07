@@ -70,6 +70,16 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         ".clusterfuzzlite/**",
         "codecov.yml",
     ],
+    # Security-evidence files: audit catalog, changelog, and evidence chain.
+    # These are NOT docs-only — changes here must trigger CAAS even with no
+    # source changes (CI-003 fix: a commit deleting an exploit test from disk AND
+    # from EXPLOIT_TEST_CATALOG.md previously bypassed all security gates).
+    "security-evidence": [
+        "docs/EXPLOIT_TEST_CATALOG.md",
+        "docs/AUDIT_CHANGELOG.md",
+        "docs/EVIDENCE_CHAIN.json",
+        "docs/EXTERNAL_AUDIT_BUNDLE.json",
+    ],
     "docs-only": [
         "docs/**",
         "README.md",
@@ -95,6 +105,7 @@ HARD_PROFILES = {
     "gpu-public-data",
     "audit",
     "infra",
+    "security-evidence",
 }
 
 CT_SENSITIVE_PATTERNS = [
@@ -211,7 +222,7 @@ def detect_gate_level(files: list[str], force_release: bool = False) -> dict:
     # test could slip through on a docs_only-adjacent gate classification.
     run_caas = (
         gate in {"hard", "release"}
-        or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend"))
+        or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend", "security-evidence"))
         or any(f.startswith("audit/") for f in files)  # belt-and-suspenders guard
     )
     run_bindings = gate == "release" or any(p in profiles for p in ("ffi-bindings", "wasm"))

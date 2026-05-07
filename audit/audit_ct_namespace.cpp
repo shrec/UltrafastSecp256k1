@@ -170,13 +170,15 @@ static int run_file_audit(const std::string& root, const FileAudit& audit,
     char msg[256];
 
     if (!r.opened) {
-        // File not found — skip with advisory (source tree may not be present)
+        // File not found — return ADVISORY_SKIP_CODE (77) so the unified runner
+        // records this as advisory_skipped, not passed.  Returning 0 was a
+        // false-green: a relocated ct_sign.cpp would silently pass all CT checks.
         (void)std::snprintf(msg, sizeof(msg),
             "CNS-%d: [ADVISORY] %s — source file not found at %s",
             check_num, audit.label, full_path.c_str());
         AUDIT_LOG("  [SKIP] %s\n", msg);
         ++check_num;
-        return 0;  // advisory, not a hard failure
+        return ADVISORY_SKIP_CODE;
     }
 
     // Strip comments before checking prohibited patterns

@@ -171,6 +171,13 @@ static Point compute_group_commitment_inline_binding(
         if (tracked_binding != nullptr && nc.id == tracked_id) {
             *tracked_binding = rho;
         }
+        // Variable-time scalar_mul is correct here: both operands are public.
+        // nc.binding_point (E_i = k2_i*G) is broadcast to all signers before
+        // this computation; rho (binding factor) is derived from all public
+        // nonce commitments + group key + message.  Timing on public data
+        // reveals nothing the attacker does not already know.
+        // Do NOT apply ct::scalar_mul here — that would be a performance bug
+        // with zero security benefit (CLAUDE.md CT boundary rule).
         Point const rho_E = nc.binding_point.scalar_mul(rho);
         Point const contribution = nc.hiding_point.add(rho_E);
         R = R.add(contribution);

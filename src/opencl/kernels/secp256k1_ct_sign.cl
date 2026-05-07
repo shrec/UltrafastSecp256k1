@@ -223,6 +223,16 @@ inline int ct_schnorr_sign_verified_impl(const Scalar* priv, const uchar msg[32]
     int ok = ct_schnorr_sign_impl(priv, msg, aux_rand, sig_out);
     if (!ok) return 0;
 
+    // Rule 14: check s==0 and R.x all-zeros explicitly before verify.
+    {
+        Scalar s_check;
+        scalar_from_bytes_impl(sig_out + 32, &s_check);
+        if (scalar_is_zero_impl(&s_check)) return 0;
+        uint r_or = 0;
+        for (int _i = 0; _i < 32; ++_i) r_or |= (uint)sig_out[_i];
+        if (r_or == 0u) return 0;
+    }
+
     // Derive x-only pubkey for verification (CT generator mul on secret)
     FieldElement pub_x_fe;
     ct_schnorr_pubkey_impl(priv, &pub_x_fe);

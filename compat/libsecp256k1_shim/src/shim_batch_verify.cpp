@@ -115,7 +115,8 @@ int secp256k1_ecdsa_verify_batch(
             if (!Scalar::parse_bytes_strict(sigs[i]->data,      r)) return 0;
             if (!Scalar::parse_bytes_strict(sigs[i]->data + 32, s)) return 0;
             secp256k1::ECDSASignature sig{r, s};
-            if (!sig.is_low_s()) return 0;
+            // No is_low_s() check: batch verify must accept high-S sigs to match
+            // single secp256k1_ecdsa_verify behaviour (SHIM-008 fix).
 
             // Reconstruct Point from opaque uncompressed x||y.
             std::array<uint8_t, 32> xb{}, yb{};
@@ -151,7 +152,7 @@ int secp256k1_ecdsa_verify_batch(
         if (!Scalar::parse_bytes_strict(sigs[i]->data,      r)) return 0;
         if (!Scalar::parse_bytes_strict(sigs[i]->data + 32, s)) return 0;
         e.signature = secp256k1::ECDSASignature{r, s};
-        if (!e.signature.is_low_s()) return 0;
+        // No is_low_s() check: must accept high-S to match single verify (SHIM-008).
 
         std::array<uint8_t, 32> xb{}, yb{};
         std::memcpy(xb.data(), pubkeys[i]->data,      32);

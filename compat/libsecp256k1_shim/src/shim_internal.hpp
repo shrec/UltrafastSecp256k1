@@ -6,7 +6,8 @@
 // Fire the illegal callback stored in ctx (if set), then the caller must
 // return 0. Matches libsecp256k1 behaviour: the callback runs, then the
 // function returns an error rather than aborting.
-// Safe to call with ctx==nullptr: callback is silently skipped.
+// NULL ctx: fires the default (abort) callback — matches libsecp where NULL ctx
+// triggers the default illegal handler rather than silently returning.
 void secp256k1_shim_call_illegal_cb(const secp256k1_context* ctx, const char* msg) noexcept;
 
 // Context flag helpers shared across shim_*.cpp compilation units.

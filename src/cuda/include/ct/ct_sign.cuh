@@ -26,6 +26,14 @@ namespace secp256k1 {
 namespace cuda {
 namespace ct {
 
+// GPU-compatible secure erase for local Scalar variables.
+// Uses volatile stores to prevent the compiler from eliding the zero-out.
+// Required by the SECRET_UNERASED scanner rule for ct_sign paths.
+__device__ __forceinline__ void secure_erase(Scalar* s, size_t /*n*/) {
+    volatile uint64_t* p = reinterpret_cast<volatile uint64_t*>(s->limbs);
+    p[0] = p[1] = p[2] = p[3] = 0ULL;
+}
+
 // ============================================================================
 // CT Jacobian -> Affine Conversion
 // ============================================================================
@@ -200,7 +208,11 @@ __device__ inline bool ct_ecdsa_sign_recoverable(
     Scalar z_plus_rd;
     scalar_add(&z, &rd, &z_plus_rd);
     scalar_mul(&k_inv, &z_plus_rd, &rsig->sig.s);
-    if (secp256k1::cuda::scalar_is_zero(&rsig->sig.s)) return false;
+    if (secp256k1::cuda::scalar_is_zero(&rsig->sig.s)) {
+        secure_erase(&z, sizeof(z)); secure_erase(&k_inv, sizeof(k_inv));
+        secure_erase(&rd, sizeof(rd));
+        return false;
+    }
 
     // CT low-S: capture high_mask BEFORE normalization for recid flip.
     // Negating s flips R.y parity in the recovery ID (branchless XOR).
@@ -209,6 +221,8 @@ __device__ inline bool ct_ecdsa_sign_recoverable(
     recid ^= (int)(high_mask & 1u);
 
     rsig->recid = recid;
+    secure_erase(&z, sizeof(z)); secure_erase(&k_inv, sizeof(k_inv));
+    secure_erase(&rd, sizeof(rd));
     return true;
 }
 
@@ -420,7 +434,13 @@ __device__ inline bool ct_schnorr_sign_verified(
     SchnorrSignatureGPU* sig)
 {
     if (!ct_schnorr_sign(private_key, msg, aux_rand, sig)) return false;
+    // Rule 14: check both s==0 AND R.x all-zeros before returning success.
     if (secp256k1::cuda::scalar_is_zero(&sig->s)) return false;
+    {
+        uint64_t r_or = 0;
+        for (int _i = 0; _i < 4; ++_i) r_or |= sig->r.limbs[_i];
+        if (r_or == 0) return false;
+    }
 
     // Compute pubkey for verification (fast path OK: pubkey is public)
     uint8_t pubkey_x[32];

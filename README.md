@@ -56,11 +56,11 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 → [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md) — evidence package  
 → [`docs/DER_PARITY_MATRIX.md`](docs/DER_PARITY_MATRIX.md) — DER/parser parity
 
-**CT signing performance (CT-vs-CT, production-equivalent):** Clang 19 (x86-64): 1.20–1.33×; GCC 13 (x86-64): 0.82–0.85× vs libsecp256k1. Compiler choice is significant — see [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for per-compiler breakdown and methodology.
+**CT signing performance (CT-vs-CT, production-equivalent):** Clang 19: 1.20–1.33×; GCC 13/14: 0.82–0.85× vs libsecp256k1. Compiler choice is significant — see [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for per-compiler breakdown and methodology.
 
 > **ConnectBlock (primary block-validation workload):** 2.5–2.7% slower than libsecp256k1
 > due to C-shim dispatch overhead on the verification-heavy path.
-> Taproot signing: 20–25% faster. Full numbers: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json)
+> Taproot key-path signing is 22–24% faster. Full numbers: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json)
 
 ---
 
@@ -377,7 +377,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 91 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 103 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
 ### Exploit PoC Test Suite (252 Tests, 20+ Coverage Areas)
 

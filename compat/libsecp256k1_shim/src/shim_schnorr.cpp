@@ -133,6 +133,10 @@ int secp256k1_schnorrsig_sign32(
     const secp256k1_keypair *keypair,
     const unsigned char *aux_rand32)
 {
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign32: NULL context");
+        return 0;
+    }
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
     if (!schnorr_ctx_can_sign(ctx)) return 0;
     if (!sig64 || !msg32 || !keypair) {

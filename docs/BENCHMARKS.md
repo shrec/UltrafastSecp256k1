@@ -1510,7 +1510,7 @@ non-CT path for consistency with the ECDSA signing shim.
 |---|---:|---:|---:|
 | `BIP324_ECDH` | 28,253 | 17,651 | **+37.5%** |
 | `EllSwiftCreate` | 26,570 | 19,441 | **+26.8%** |
-| `SignSchnorrWithMerkleRoot` | 63,476 | 41,980 | **+33.9%** |
+| `SignSchnorrWithMerkleRoot` | 63,476 | 41,980 | **+23.9%** |
 | `SignSchnorrWithNullMerkleRoot` | 64,031 | 42,173 | **+34.1%** |
 | `SignTransactionECDSA` | 96,949 | 80,131 | **+17.3%** |
 | `SignTransactionSchnorr` | 77,406 | 71,485 | **+7.6%** |

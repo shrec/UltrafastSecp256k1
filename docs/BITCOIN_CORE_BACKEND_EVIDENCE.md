@@ -136,7 +136,7 @@ the verification-heavy path.
 | VerifyScriptP2WPKH | SLOWER | −2.5% |
 | SignTransactionECDSA | parity | +0.2% |
 | SignTransactionSchnorr | FASTER | +5.0% |
-| SignSchnorrWithMerkleRoot (Taproot) | FASTER | +25.2% |
+| SignSchnorrWithMerkleRoot (Taproot) | FASTER | +23.9% |
 | VerifyScriptP2TR_ScriptPath | FASTER | +20.0% |
 
 Full methodology and raw numbers: `docs/BITCOIN_CORE_BENCH_RESULTS.json`

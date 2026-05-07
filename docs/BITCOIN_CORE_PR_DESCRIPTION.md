@@ -19,7 +19,7 @@ Performance vs libsecp256k1 on Intel Core i5-14400F, GCC 14, -O2 -flto, taskset 
 
 | Benchmark | libsecp256k1 | UltrafastSecp256k1 | Result |
 |---|---|---|---|
-| SignSchnorrWithMerkleRoot | 109,367 ns/op | 81,835 ns/op | **+25.2%** |
+| SignSchnorrWithMerkleRoot | 109,367 ns/op | 81,835 ns/op | **+23.9%** |
 | VerifyScriptP2TR_ScriptPath | 81,054 ns/op | 64,867 ns/op | **+20.0%** |
 | SignTransactionSchnorr | 132,729 ns/op | 126,109 ns/op | **+5.0%** |
 | SignTransactionECDSA | 156,044 ns/op | 155,714 ns/op | ≈ tie (+0.2%) |

@@ -188,7 +188,13 @@ void secp256k1_context_set_error_callback(
 
 // Internal helper — visible to all shim_*.cpp via shim_internal.hpp.
 // The struct definition lives in this TU, so the member access is valid here.
+// NULL ctx: fires the default (abort) callback matching libsecp256k1 behaviour —
+// previously this silently returned, making NULL ctx calls invisible to callers
+// that registered illegal callbacks to intercept errors.
 void secp256k1_shim_call_illegal_cb(const secp256k1_context* ctx, const char* msg) noexcept {
-    if (!ctx) return;
+    if (!ctx) {
+        default_illegal_callback(msg, nullptr);  // matches libsecp: NULL ctx → abort
+        return;
+    }
     if (ctx->illegal_cb) ctx->illegal_cb(msg, const_cast<void*>(ctx->illegal_cb_data));
 }

@@ -67,8 +67,7 @@ int secp256k1_ec_pubkey_parse(
         if (!(y.square() == y2)) return 0;
 
         // Select y with correct parity
-        auto yb = y.to_bytes();
-        bool y_is_odd = (yb[31] & 1) != 0;
+        bool y_is_odd = (y.limbs()[0] & 1u) != 0u;
         bool want_odd = (prefix == 0x03);
         if (y_is_odd != want_odd) y = y.negate();
 
@@ -91,8 +90,7 @@ int secp256k1_ec_pubkey_parse(
         if (!(y.square() == rhs)) return 0;
         // For hybrid prefix: validate Y parity matches (06 = even Y, 07 = odd Y)
         if (pfx == 0x06 || pfx == 0x07) {
-            auto yb = y.to_bytes();
-            bool y_is_odd = (yb[31] & 1) != 0;
+            bool y_is_odd = (y.limbs()[0] & 1u) != 0u;
             if (y_is_odd != (pfx == 0x07)) return 0;
         }
         auto pt = Point::from_affine(x, y);

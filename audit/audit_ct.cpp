@@ -546,52 +546,76 @@ static void test_timing_variance() {
 
     auto G = Point::generator();
 
-    // Two structurally different scalars -- one with many 0 bits, one with many 1 bits
-    auto k_low = Scalar::from_uint64(1);  // k = 1 (very sparse bits)
+    auto k_low = Scalar::from_uint64(1);  // sparse bits
     auto k_high = Scalar::from_hex(
         "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"); // n-1
 
     constexpr int TRIALS = 100;
-    double avg_low = 0, avg_high = 0;
+    double samples_low[TRIALS];
+    double samples_high[TRIALS];
+    double sum_low = 0.0, sum_high = 0.0;
 
     for (int i = 0; i < TRIALS; ++i) {
         auto t0 = std::chrono::high_resolution_clock::now();
         volatile auto r = secp256k1::ct::scalar_mul(G, k_low);
         (void)r;
         auto t1 = std::chrono::high_resolution_clock::now();
-        avg_low += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        samples_low[i] = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        sum_low += samples_low[i];
     }
-    avg_low /= TRIALS;
+    double avg_low = sum_low / TRIALS;
 
     for (int i = 0; i < TRIALS; ++i) {
         auto t0 = std::chrono::high_resolution_clock::now();
         volatile auto r = secp256k1::ct::scalar_mul(G, k_high);
         (void)r;
         auto t1 = std::chrono::high_resolution_clock::now();
-        avg_high += static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        samples_high[i] = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+        sum_high += samples_high[i];
     }
-    avg_high /= TRIALS;
+    double avg_high = sum_high / TRIALS;
+
+    // Coefficient of variation — detects multi-tenant CI noise (hypervisor jitter,
+    // frequency scaling, shared cache).  CV > 0.5 means the measurement is too
+    // unreliable to use as a security signal.
+    double var_low = 0.0, var_high = 0.0;
+    for (int i = 0; i < TRIALS; ++i) {
+        double dl = samples_low[i]  - avg_low;
+        double dh = samples_high[i] - avg_high;
+        var_low  += dl * dl;
+        var_high += dh * dh;
+    }
+    double cv_low  = (avg_low  > 0.0) ? std::sqrt(var_low  / TRIALS) / avg_low  : 1.0;
+    double cv_high = (avg_high > 0.0) ? std::sqrt(var_high / TRIALS) / avg_high : 1.0;
 
     double const ratio = (avg_high > avg_low)
         ? avg_high / avg_low
         : avg_low / avg_high;
 
-    printf("    k=1 avg: %.0f ns\n", avg_low);
-    printf("    k=n-1 avg: %.0f ns\n", avg_high);
+    printf("    k=1 avg: %.0f ns (CV=%.2f)\n",   avg_low,  cv_low);
+    printf("    k=n-1 avg: %.0f ns (CV=%.2f)\n", avg_high, cv_high);
     printf("    ratio: %.3f (ideal ~= 1.0, concern > 2.0)\n", ratio);
 
-    // Advisory-only: this is a rudimentary timing check, not formal side-channel
-    // analysis.  Real CT validation is done by dudect (ct_sidechannel_smoke).
-    // CI runners (especially macOS ARM64 GitHub Actions) are multi-tenant VMs
-    // where timing jitter routinely reaches 1.5-2.5x due to frequency scaling,
-    // shared caches, and hypervisor scheduling.  A hard CHECK here causes flaky
-    // CI failures that are not indicative of actual CT regressions.
-    // We print a warning but do NOT fail -- catastrophic regressions (e.g.
-    // branch-on-secret) are caught by dudect and the CT equivalence suite.
-    if (ratio >= 2.0) {
-        printf("  [WARN] CT mul timing ratio %.3fx >= 2.0x (advisory, not a hard failure)\n", ratio);
+    // If CV > 0.5 the environment is too noisy for a meaningful signal.
+    // Skip without incrementing g_pass or g_fail — a noisy skip is better than
+    // a false-green (old ++g_pass) or a spurious hard failure.
+    // Real CT analysis is performed by dudect in the ct_sidechannel_smoke module.
+    if (cv_low > 0.5 || cv_high > 0.5) {
+        printf("  [SKIP] Timing env too noisy (CV_low=%.2f CV_high=%.2f) — skip\n",
+               cv_low, cv_high);
+        return;
     }
-    ++g_pass;  // count as checked
+
+    // In a stable environment a 2.0x+ ratio is a catastrophic CT regression
+    // (branch-on-secret or secret-indexed table lookup).  Hard fail.
+    if (ratio >= 2.0) {
+        printf("  [FAIL] CT scalar_mul timing ratio %.3fx >= 2.0x\n", ratio);
+        ++g_fail;
+    } else {
+        ++g_pass;
+    }
 
     printf("    %d checks\n\n", g_pass);
 }

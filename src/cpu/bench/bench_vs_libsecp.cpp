@@ -98,6 +98,11 @@ int main(int argc, char** argv) {
     std::array<secp256k1_keypair,        POOL> lkps;
     std::array<std::array<uint8_t,64>,   POOL> lschnorr;
     std::array<std::array<uint8_t,32>,   POOL> lxonly;
+    // Precomp pools — native Ultra EcdsaPublicKey/SchnorrXonlyPubkey (pre-built GLV)
+    std::array<EcdsaPublicKey,           POOL> precomp_pks;
+    std::array<SchnorrXonlyPubkey,       POOL> precomp_xonly;
+    // Compressed pubkey bytes for ConnectBlock-pattern (parse+verify in same call)
+    std::array<std::array<uint8_t,33>,   POOL> comp_pks;
 
     for (int i = 0; i < POOL; ++i) {
         std::array<uint8_t,32> kb{}; kb[31]=(uint8_t)(i+1); kb[0]=(uint8_t)(0x11+i);
@@ -105,10 +110,16 @@ int main(int argc, char** argv) {
         secp256k1_ecdsa_sign(lctx, &lecdsa[i], msg[i].data(), kb.data(), nullptr, nullptr);
         secp256k1_keypair_create(lctx, &lkps[i], kb.data());
         secp256k1_schnorrsig_sign32(lctx, lschnorr[i].data(), msg[i].data(), &lkps[i], aux[i].data());
-        // x-only pubkey = bytes 1..33 of compressed pubkey
-        std::array<uint8_t,33> comp; std::size_t sz=33;
-        secp256k1_ec_pubkey_serialize(lctx,comp.data(),&sz,&lpubs[i],SECP256K1_EC_COMPRESSED);
-        std::memcpy(lxonly[i].data(), comp.data()+1, 32);
+        // compressed pubkey bytes (for ConnectBlock-pattern parse+verify)
+        std::size_t sz=33;
+        secp256k1_ec_pubkey_serialize(lctx,comp_pks[i].data(),&sz,&lpubs[i],SECP256K1_EC_COMPRESSED);
+        std::memcpy(lxonly[i].data(), comp_pks[i].data()+1, 32);
+        // precomp pools: native ecdsa_pubkey_parse builds GLV tables once
+        ecdsa_pubkey_parse(precomp_pks[i], comp_pks[i].data(), 33);
+        // Schnorr: two-call protocol to trigger seen_once→valid (builds GLV tables)
+        SchnorrXonlyPubkey tmp;
+        schnorr_xonly_pubkey_parse(tmp, lxonly[i].data());       // primes seen_once
+        schnorr_xonly_pubkey_parse(precomp_xonly[i], lxonly[i].data()); // builds tables
     }
 
     printf("\n");
@@ -161,6 +172,38 @@ int main(int argc, char** argv) {
     });
     printf("  %-34s  %8.1f  %9s  %6.2fx vs non-cached\n",
            "ECDSA verify (cached pubkey)", u_cached_ecdsa, "-", u / u_cached_ecdsa);
+
+    // ECDSA parse+verify (ConnectBlock pattern: parse fresh each call)
+    // Ultra: native ecdsa_pubkey_parse (builds GLV) + ecdsa_verify (uses tables)
+    // libsecp: ec_pubkey_parse + ecdsa_verify (libsecp path, no GLV precompute)
+    idx = 0;
+    u = H.run(N, [&]() {
+        EcdsaPublicKey pc;
+        ecdsa_pubkey_parse(pc, comp_pks[idx%POOL].data(), 33);
+        bool ok = ecdsa_verify(msg[idx%POOL], pc, ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_pubkey pk;
+        secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL], msg[idx%POOL].data(), &pk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("ECDSA parse+verify (precomp)", u, l);
+
+    // ECDSA verify (precomp — warm tables, zero rebuild per call)
+    idx = 0;
+    u = H.run(N, [&]() {
+        bool ok = ecdsa_verify(msg[idx%POOL], precomp_pks[idx%POOL], ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL], msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("ECDSA verify (precomp, warm)", u, l);
 
     printf("  %-34s\n", "");
 
@@ -272,6 +315,41 @@ int main(int argc, char** argv) {
         });
         print_row("Schnorr verify (both pre-parsed)", u, l);
     }
+
+    // Schnorr parse+verify (ConnectBlock pattern: parse fresh each call)
+    // Ultra: schnorr_xonly_pubkey_parse (lift_x+GLV) + schnorr_verify (uses tables)
+    // libsecp: xonly_pubkey_parse + schnorrsig_verify
+    idx = 0;
+    u = H.run(N, [&]() {
+        SchnorrXonlyPubkey pc, tmp;
+        schnorr_xonly_pubkey_parse(tmp, schnorr_pk[idx%POOL].data()); // primes seen_once
+        schnorr_xonly_pubkey_parse(pc,  schnorr_pk[idx%POOL].data()); // builds tables
+        bool ok = schnorr_verify(pc, msg[idx%POOL].data(), schnorr_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(), msg[idx%POOL].data(), 32, &xpk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("Schnorr parse+verify (precomp)", u, l);
+
+    // Schnorr verify (precomp — warm tables, zero lift_x/GLV rebuild per call)
+    idx = 0;
+    u = H.run(N, [&]() {
+        bool ok = schnorr_verify(precomp_xonly[idx%POOL], msg[idx%POOL].data(), schnorr_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(), msg[idx%POOL].data(), 32, &xpk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("Schnorr verify (precomp, warm)", u, l);
 
     printf("  %-34s\n", "");
 

@@ -61,7 +61,10 @@ let package = Package(
             cxxSettings: [
                 // Shared types header lives in root include/
                 .headerSearchPath("../include"),
-                // Performance defines (match CMake defaults)
+                // WARNING: SECP256K1_FAST_NO_SECURITY_CHECKS=1 disables constant-time guards.
+                // This SPM target is for VERIFICATION workloads ONLY.
+                // For secret-key SIGNING operations use CMake with CT flags enabled.
+                // DO NOT use this target in wallet, key management, or signing code.
                 .define("SECP256K1_FAST_NO_SECURITY_CHECKS", to: "1"),
                 .define("SECP256K1_ULTRA_SPEED", to: "1"),
                 .define("NDEBUG"),
