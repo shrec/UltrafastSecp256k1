@@ -9,7 +9,7 @@ Usage:
     python3 ci/sync_docs_from_canonical.py            # apply updates
     python3 ci/sync_docs_from_canonical.py --dry-run  # report drift, exit 1 if any
 
-Never edit doc numbers manually — run this script instead.
+Never edit doc numbers manually — run scripts/sync_all_docs.py instead.
 """
 
 from __future__ import annotations
@@ -83,76 +83,72 @@ _RULES: list[tuple[str, str, str]] = [
      r"\d+ independent \(LLVM ct-verif.*?ARM64 native\)",
      "{ct_pipeline_count} independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)"),
 
-    # ── WHY_ULTRAFASTSECP256K1.md ──────────────────────────────────────────
-    ("WHY_ULTRAFASTSECP256K1.md",
+    # ── docs/WHY_ULTRAFASTSECP256K1.md ────────────────────────────────────
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\d+ dedicated adversarial PoC modules across 20\+ coverage categories \(`audit/test_exploit_\*\.cpp`\) \| \d+ test files",
      "{exploit_poc_count} dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | {exploit_poc_count} test files"),
 
-    ("WHY_ULTRAFASTSECP256K1.md",
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\*\*unified_audit_runner\*\* across \d+ non-exploit modules \+ \d+ exploit-PoC modules \(\d+ total\)",
      "**unified_audit_runner** across {non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit-PoC modules ({total_modules} total)"),
 
-    ("WHY_ULTRAFASTSECP256K1.md",
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\*\*\d+ exploit-style PoC modules\*\* across 20\+ coverage categories.*?\| \*\*\d+ modules, 0 failures\*\*",
      "**{exploit_poc_count} exploit-style PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **{exploit_poc_count} modules, 0 failures**"),
 
-    ("WHY_ULTRAFASTSECP256K1.md",
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\d+ workflows, \d+ platform combinations",
      "{ci_workflow_count} workflows, 16 platform combinations"),
 
-    ("WHY_ULTRAFASTSECP256K1.md",
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\d+ independent pipelines \(LLVM ct-verif.*?ARM64 native\)",
      "{ct_pipeline_count} independent pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)"),
 
-    # ── AUDIT_COVERAGE.md (root) ────────────────────────────────────────────
-    ("AUDIT_COVERAGE.md",
+    # ── docs/AUDIT_COVERAGE.md ─────────────────────────────────────────────
+    ("docs/AUDIT_COVERAGE.md",
      r"\d+ modules, \d+\+ attack vectors",
      "{total_modules} modules, 200+ attack vectors"),
 
-    ("AUDIT_COVERAGE.md",
+    ("docs/AUDIT_COVERAGE.md",
      r"\d+ tests across \d+ attack categories",
      "{exploit_poc_count} tests across 20+ attack categories"),
 
-    # ── AUDIT_GUIDE.md ──────────────────────────────────────────────────────
-    ("AUDIT_GUIDE.md",
+    # ── docs/AUDIT_GUIDE.md ────────────────────────────────────────────────
+    ("docs/AUDIT_GUIDE.md",
      r"\d+/\d+ total modules",
      "{total_modules}/{total_modules} total modules"),
 
-    # ── docs/BITCOIN_CORE_BACKEND_EVIDENCE.md ──────────────────────────────
+    # ── docs/BITCOIN_CORE_BACKEND_EVIDENCE.md ─────────────────────────────
     ("docs/BITCOIN_CORE_BACKEND_EVIDENCE.md",
      r"\d+/\d+ test_bitcoin",
      "{bitcoin_core_tests_pass}/{bitcoin_core_tests_total} test_bitcoin"),
 
-    # ── docs/BITCOIN_CORE_PR_DESCRIPTION.md ────────────────────────────────
+    # ── docs/BITCOIN_CORE_PR_DESCRIPTION.md ───────────────────────────────
     ("docs/BITCOIN_CORE_PR_DESCRIPTION.md",
      r"\*\*\d+/\d+ test_bitcoin, 0 failures\*\*",
      "**{bitcoin_core_tests_pass}/{bitcoin_core_tests_total} test_bitcoin, 0 failures**"),
 
-    # ── BITCOIN_CORE_PR_BLOCKERS.md ─────────────────────────────────────────
-    ("BITCOIN_CORE_PR_BLOCKERS.md",
+    # ── docs/BITCOIN_CORE_PR_BLOCKERS.md ──────────────────────────────────
+    ("docs/BITCOIN_CORE_PR_BLOCKERS.md",
      r"✅ \d+/\d+.*test_bitcoin.*JSON",
      "✅ {bitcoin_core_tests_pass}/{bitcoin_core_tests_total} | `docs/BITCOIN_CORE_TEST_RESULTS.json`"),
 
-    # ── docs/EXPLOIT_TEST_CATALOG.md ───────────────────────────────────────
-    # (counts managed by AUDIT_CHANGELOG — catalog has per-file detail,
-    #  not a total line; skip to avoid over-matching)
-
-    # ── docs/API_REFERENCE.md version line ─────────────────────────────────
+    # ── docs/API_REFERENCE.md version line ────────────────────────────────
     ("docs/API_REFERENCE.md",
      r"UltrafastSecp256k1 v\d+\.\d+\.\d+",
      "UltrafastSecp256k1 v{version}"),
 
-    # ── WHY_ULTRAFASTSECP256K1.md section headers ──────────────────────────
-    ("WHY_ULTRAFASTSECP256K1.md",
+    # ── docs/WHY_ULTRAFASTSECP256K1.md section headers ────────────────────
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"## 2\. CI/CD Pipeline — \d+ Automated Workflows",
      "## 2. CI/CD Pipeline — {ci_workflow_count} Automated Workflows"),
 
-    ("WHY_ULTRAFASTSECP256K1.md",
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"quality enforcement system with \d+ GitHub Actions workflows",
      "quality enforcement system with {ci_workflow_count} GitHub Actions workflows"),
 
-    # ── WHY_ULTRAFASTSECP256K1.md security-audit.yml row ──────────────────
-    ("WHY_ULTRAFASTSECP256K1.md",
+    # ── docs/WHY_ULTRAFASTSECP256K1.md security-audit.yml row ─────────────
+    ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\d+ non-exploit \+ \d+ exploit-PoC modules, ~1M assertions",
      "{non_exploit_modules} non-exploit + {exploit_poc_count} exploit-PoC modules, ~1M assertions"),
 
@@ -165,7 +161,7 @@ _RULES: list[tuple[str, str, str]] = [
      r"Exploit PoC tests \| — \| \d+ tests, \d+ attack vectors",
      "Exploit PoC tests | — | {exploit_poc_count} tests, {exploit_poc_count} attack vectors"),
 
-    # ── docs/AUDIT_READINESS_REPORT_v1.md ──────────────────────────────────
+    # ── docs/AUDIT_READINESS_REPORT_v1.md ─────────────────────────────────
     ("docs/AUDIT_READINESS_REPORT_v1.md",
      r"# Exploit PoC security probes \(\d+ probes\)",
      "# Exploit PoC security probes ({exploit_poc_count} probes)"),
@@ -175,24 +171,24 @@ _RULES: list[tuple[str, str, str]] = [
      r"# Exploit PoC security probes \(\d+ probes\)",
      "# Exploit PoC security probes ({exploit_poc_count} probes)"),
 
-    # ── THREAT_MODEL.md version refs ──────────────────────────────────────
-    ("THREAT_MODEL.md",
+    # ── docs/THREAT_MODEL.md version refs ─────────────────────────────────
+    ("docs/THREAT_MODEL.md",
      r"\*\*Added in v\d+\.\d+\.\d+\.\*\* Provides non-interactive ZK",
      "**Added in v{version}.** Provides non-interactive ZK"),
 
-    ("THREAT_MODEL.md",
+    ("docs/THREAT_MODEL.md",
      r"\*\*⚠️ Status \(v\d+\.\d+\.\d+\):\*\*",
      "**⚠️ Status (v{version}):**"),
 
-    ("THREAT_MODEL.md",
+    ("docs/THREAT_MODEL.md",
      r"\*\*Added in v\d+\.\d+\.\d+\.\*\* Provides Ethereum-specific",
      "**Added in v{version}.** Provides Ethereum-specific"),
 
-    ("THREAT_MODEL.md",
+    ("docs/THREAT_MODEL.md",
      r"## Automated Security Measures \(v\d+\.\d+\.\d+\)",
      "## Automated Security Measures (v{version})"),
 
-    ("THREAT_MODEL.md",
+    ("docs/THREAT_MODEL.md",
      r"Internal audit report \(v\d+\.\d+\.\d+ baseline",
      "Internal audit report (v{version} baseline"),
 
@@ -201,21 +197,16 @@ _RULES: list[tuple[str, str, str]] = [
      r"Internal audit report \(v\d+\.\d+\.\d+ baseline",
      "Internal audit report (v{version} baseline"),
 
-    # ── AUDIT_GUIDE.md version ref ─────────────────────────────────────────
-    ("AUDIT_GUIDE.md",
+    # ── docs/AUDIT_GUIDE.md version ref ───────────────────────────────────
+    ("docs/AUDIT_GUIDE.md",
      r"\(v\d+\.\d+\.\d+\):",
      "(v{version}):"),
 
-    # ── docs/BACKEND_ASSURANCE_MATRIX.md ───────────────────────────────────
-    # (no numeric counts to sync here — skip)
-
     # ── ARCHITECTURE.svg ───────────────────────────────────────────────────
-    # CAAS subtitle line: "114,458 lines • NNN exploit PoC • NNN audit modules • NNN CI workflows"
     ("ARCHITECTURE.svg",
      r"\d+(?:,\d+)? lines • \d+ exploit PoC • \d+ audit modules • \d+ CI workflows",
      "114,458 lines • {exploit_poc_count} exploit PoC • {non_exploit_modules} audit modules • {ci_workflow_count} CI workflows"),
 
-    # Adversarial PoC box body: "NNN exploit PoC tests"
     ("ARCHITECTURE.svg",
      r"\d+ exploit PoC tests",
      "{exploit_poc_count} exploit PoC tests"),
@@ -259,7 +250,7 @@ def main() -> int:
 
     if not CANON_FILE.exists():
         print(f"ERROR: {CANON_FILE} not found.")
-        print("Run: python3 ci/build_canonical_data.py")
+        print("Run: python3 scripts/build_canonical_data.py")
         return 1
 
     data = json.loads(CANON_FILE.read_text())
@@ -287,7 +278,7 @@ def main() -> int:
             print(f"\n[DRIFT] {len(drift_files)} file(s) out of sync with canonical_data.json:")
             for f in drift_files:
                 print(f"    {f}")
-            print("Run: python3 ci/sync_docs_from_canonical.py")
+            print("Run: python3 scripts/sync_all_docs.py")
             return 1
         else:
             print("[OK] All docs are in sync with canonical_data.json")

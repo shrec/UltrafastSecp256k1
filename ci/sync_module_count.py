@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -47,15 +46,13 @@ PAREN_MODULES_RE = re.compile(r'(?:across|\() *\d{1,3} (?:non-exploit )?modules?
 # Matches lines like "All N exploit PoC modules pass."
 ALL_EXPLOIT_RE = re.compile(r'\bAll \d{1,3} exploit PoC modules? pass\b', re.IGNORECASE)
 
-# Matches "All N non-exploit audit modules and all N exploit PoCs" (README variant)
-ALL_BOTH_RE = re.compile(
-    r'All \d+ non-exploit audit modules and all \d+ exploit PoCs'
-)
-
 # Matches "All N non-exploit audit modules"
 ALL_NONEXPLOIT_RE = re.compile(r'\bAll \d{1,3} non-exploit audit modules?\b', re.IGNORECASE)
 
-# Matches "N non-exploit modules + N exploit PoCs across N sections, 0 failures"
+# Matches "All N non-exploit audit modules and all N exploit PoCs" (README variant)
+ALL_BOTH_RE = re.compile(r'All \d+ non-exploit audit modules and all \d+ exploit PoCs')
+
+# Matches "N non-exploit modules + N exploit PoCs across N sections, N failures"
 TABLE_EXPLOIT_ROW_RE = re.compile(
     r'\d+ non-exploit modules \+ \d+ exploit PoCs across \d+ sections, \d+ failures'
 )
@@ -76,7 +73,7 @@ EXPLOIT_FILES_REGISTERED_RE = re.compile(
 # Matches "Exploit PoC Test Suite (N Tests,"
 SUITE_HEADER_RE = re.compile(r'Exploit PoC Test Suite \(\d+ Tests,')
 
-# Matches "N exploit PoCs (all N registered as runner modules"  (bullet variant)
+# Matches "N exploit PoCs test files (all N registered as runner modules"
 EXPLOIT_POCS_ALL_RE = re.compile(
     r'\d+ exploit PoCs? test files? \(all \d+ registered as runner modules'
 )
@@ -98,9 +95,7 @@ def count_all_modules(runner: Path) -> tuple[int, int, int]:
     if start == -1 or end == -1:
         raise RuntimeError("Could not find ALL_MODULES[] in unified_audit_runner.cpp")
     block = text[start:end]
-    # Count total entries: each starts with leading whitespace + { + non-comment char
-    total = len(re.findall(r"^\s+\{[^/]", block, re.MULTILINE))
-    # Count exploit_poc section entries: section is the third quoted string in each entry
+    total = len(re.findall(r'^\s+\{[^/]', block, re.MULTILINE))
     exploit = len(re.findall(r'"exploit_poc"', block))
     non_exploit = total - exploit
     return total, exploit, non_exploit
@@ -181,38 +176,25 @@ def make_replacements(content: str,
 
     new = ALL_NONEXPLOIT_RE.sub(_replace_all_nonexploit, new)
 
-    def _sub(pattern, repl_str):
+    def _sub(pattern: re.Pattern, repl: str) -> None:
         nonlocal new, changes
-        orig = new
-        new = pattern.sub(repl_str, new)
-        if new != orig:
-            changes += orig.count(pattern.pattern) or 1
+        result = pattern.sub(repl, new)
+        if result != new:
+            changes += 1
+        new = result
 
-    # "All N non-exploit audit modules and all N exploit PoCs"
     _sub(ALL_BOTH_RE,
-         f"All {non_exploit} non-exploit audit modules and all {exploit_mods} exploit PoCs")
-
-    # Table row: "N non-exploit modules + N exploit PoCs across N sections, 0 failures"
+         f'All {non_exploit} non-exploit audit modules and all {exploit_mods} exploit PoCs')
     _sub(TABLE_EXPLOIT_ROW_RE,
-         f"{non_exploit} non-exploit modules + {exploit_mods} exploit PoCs across 9 sections, 0 failures")
-
-    # "N-module unified_audit_runner"
-    _sub(RUNNER_MODULE_COUNT_RE, f"{total}-module unified_audit_runner")
-
-    # "N registered exploit-style PoC test modules (M test files)"
+         f'{non_exploit} non-exploit modules + {exploit_mods} exploit PoCs across 9 sections, 0 failures')
+    _sub(RUNNER_MODULE_COUNT_RE, f'{total}-module unified_audit_runner')
     _sub(REGISTERED_STYLE_RE,
-         f"{exploit_mods} registered exploit-style PoC test modules ({exploit_files} test files)")
-
-    # "N exploit PoC test files (M registered as runner modules"
+         f'{exploit_mods} registered exploit-style PoC test modules ({exploit_files} test files)')
     _sub(EXPLOIT_FILES_REGISTERED_RE,
-         f"{exploit_files} exploit PoC test files ({exploit_mods} registered as runner modules")
-
-    # "Exploit PoC Test Suite (N Tests,"
-    _sub(SUITE_HEADER_RE, f"Exploit PoC Test Suite ({exploit_mods} Tests,")
-
-    # "N exploit PoCs test files (all N registered as runner modules"
+         f'{exploit_files} exploit PoC test files ({exploit_mods} registered as runner modules')
+    _sub(SUITE_HEADER_RE, f'Exploit PoC Test Suite ({exploit_mods} Tests,')
     _sub(EXPLOIT_POCS_ALL_RE,
-         f"{exploit_files} exploit PoC test files (all {exploit_mods} registered as runner modules")
+         f'{exploit_files} exploit PoC test files (all {exploit_mods} registered as runner modules')
 
     return new, changes
 
@@ -220,10 +202,10 @@ def make_replacements(content: str,
 # ── Files to update ───────────────────────────────────────────────────────────
 
 DOC_FILES = [
-    'WHY_ULTRAFASTSECP256K1.md',
+    'docs/WHY_ULTRAFASTSECP256K1.md',
     'README.md',
-    'AUDIT_GUIDE.md',
-    'AUDIT_REPORT.md',
+    'docs/AUDIT_GUIDE.md',
+    'docs/AUDIT_REPORT.md',
     'docs/AUDIT_CHANGELOG.md',
     'docs/AUDIT_TRACEABILITY.md',
     'docs/ASSURANCE_LEDGER.md',
@@ -287,7 +269,11 @@ def main() -> int:
 
     print()
     if args.dry_run:
-        print(f'Dry run: would update {total_changed_files} file(s), {total_changed_lines} occurrence(s).')
+        if total_changed_files > 0:
+            print(f'[DRIFT] would update {total_changed_files} file(s), {total_changed_lines} occurrence(s).')
+            print('Run: python3 scripts/sync_all_docs.py')
+            return 1
+        print('[OK] All docs already up to date.')
     elif total_changed_files == 0:
         print('All docs already up to date.')
     else:

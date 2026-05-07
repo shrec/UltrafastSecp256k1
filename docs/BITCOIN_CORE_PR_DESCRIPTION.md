@@ -87,7 +87,7 @@ noise (≈0% difference):
 |---|---|---|
 | ConnectBlockAllEcdsa | −2.6% | ≈0% |
 | ConnectBlockAllSchnorr | −5.4% | ≈0% |
-| ConnectBlockMixed | −3.6% | ≈0% |
+| ConnectBlockMixed | −2.6–5.4% | ≈0% |
 | VerifyScriptP2WPKH | −2.5% | ≈0% |
 
 **Root cause (without LTO):** Two compounding factors:

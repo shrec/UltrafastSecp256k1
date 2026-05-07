@@ -136,7 +136,7 @@ Controlled benchmark on Intel i5-14400F, GCC 13, `taskset -c 0`, variance 0.1–
 | ConnectBlockAllEcdsa | 255,860 | 254,587 | **≈0% (tied)** |
 | ConnectBlockAllSchnorr | 253,665 | 253,297 | **≈0% (tied)** |
 | ConnectBlockMixedEcdsaSchnorr | 256,385 | 256,082 | **≈0% (tied)** |
-| SignSchnorrWithMerkleRoot | 83,267 | 111,332 | **Ultra −25.2%** |
+| SignSchnorrWithMerkleRoot | 83,267 | 111,332 | **Ultra −23.9%** |
 | SignSchnorrWithNullMerkleRoot | 82,290 | 109,823 | **Ultra −25.1%** |
 | SignTransactionECDSA | 145,955 | 162,507 | **Ultra −10.2%** |
 | SignTransactionSchnorr | 124,768 | 136,036 | **Ultra −8.3%** |

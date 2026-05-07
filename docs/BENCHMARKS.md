@@ -1510,7 +1510,7 @@ Controlled comparison, variance 0.1–0.3%, same session, same binary:
 | `ConnectBlockAllEcdsa` | 254,587 | 255,860 | **≈0% (tied)** |
 | `ConnectBlockAllSchnorr` | 253,297 | 253,665 | **≈0% (tied)** |
 | `ConnectBlockMixedEcdsaSchnorr` | 256,082 | 256,385 | **≈0% (tied)** |
-| `SignSchnorrWithMerkleRoot` | 111,332 | 83,267 | **Ultra −25.2%** |
+| `SignSchnorrWithMerkleRoot` | 111,332 | 83,267 | **Ultra −23.9%** |
 | `SignSchnorrWithNullMerkleRoot` | 109,823 | 82,290 | **Ultra −25.1%** |
 | `SignTransactionECDSA` | 162,507 | 145,955 | **Ultra −10.2%** |
 | `SignTransactionSchnorr` | 136,036 | 124,768 | **Ultra −8.3%** |

@@ -58,6 +58,7 @@ run "Exploit wiring parity"  ci/check_exploit_wiring.py
 run "Canonical data sync"    ci/build_canonical_data.py --dry-run
 run "Docs from canonical"    ci/sync_docs_from_canonical.py --dry-run
 run "Module count sync"      ci/sync_module_count.py --dry-run
+run "Canonical numbers sync" ci/sync_canonical_numbers.py --dry-run
 run "Audit scripts"          ci/test_audit_scripts.py --quick
 run "Assurance validation"   ci/validate_assurance.py
 

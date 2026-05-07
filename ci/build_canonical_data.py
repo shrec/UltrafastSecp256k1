@@ -43,17 +43,19 @@ def _module_counts() -> dict:
 
     text = runner.read_text(errors="replace")
 
-    # Extract the ALL_MODULES[] block (same logic as sync_module_count.py)
-    m = re.search(
-        r'static const AuditModule ALL_MODULES\[\]\s*=\s*\{(.+?)^\};',
-        text, re.DOTALL | re.MULTILINE
-    )
-    if not m:
+    # Locate ALL_MODULES[] block by text anchors (avoids regex backtracking on large files)
+    start = text.find("static const AuditModule ALL_MODULES")
+    if start == -1:
+        start = text.find("ALL_MODULES[] =")
+    end = text.find("};\n\nstatic constexpr int NUM_MODULES", start)
+    if start == -1 or end == -1:
         return {"exploit_poc_count": 0, "non_exploit_modules": 0, "total_modules": 0}
 
-    block = m.group(1)
-    total   = len(re.findall(r'^\s*\{\s*"[a-z]', block, re.MULTILINE))
-    exploit = len(re.findall(r'^\s*\{\s*"exploit_', block, re.MULTILINE))
+    block = text[start:end]
+    # Count total: each entry row starts with leading whitespace + { + non-comment char
+    total   = len(re.findall(r'^\s+\{[^/]', block, re.MULTILINE))
+    # Count exploit_poc: match section field (third quoted string) == "exploit_poc"
+    exploit = len(re.findall(r'"exploit_poc"', block))
     non_exploit = total - exploit
 
     return {
@@ -103,25 +105,6 @@ def _shim_functions() -> dict:
     return {"shim_api_function_count": count}
 
 
-def _wycheproof_counts() -> dict:
-    """Static Wycheproof vector counts for this library's test suite.
-
-    These reflect the current Wycheproof test suite coverage and must be
-    updated manually when the suite is upgraded or new operations are added.
-    Single source of truth — do NOT duplicate in dashboard code.
-    """
-    return {
-        "wycheproof_ecdsa":              "89/89 PASS",
-        "wycheproof_ecdh":               "36/36 PASS",
-        "wycheproof_extended":           "1084 groups PASS",
-        "wycheproof_sha256":             "65 groups PASS",
-        "wycheproof_hmac":               "544 groups PASS",
-        "wycheproof_chacha20_poly1305":  "PASS",
-        "libsecp_eckey_api":             "17/17 PASS (L-01)",
-        "rgrinding":                     "8/8 PASS (BC-01)",
-    }
-
-
 # ---------------------------------------------------------------------------
 def build() -> dict:
     data: dict = {}
@@ -131,7 +114,6 @@ def build() -> dict:
     data.update(_workflow_counts())
     data.update(_bitcoin_core_tests())
     data.update(_shim_functions())
-    data.update(_wycheproof_counts())
     return data
 
 
@@ -156,7 +138,7 @@ def main() -> int:
                 print("\n[DRIFT DETECTED]")
                 for k, (old, new_v) in drift.items():
                     print(f"  {k}: {old!r} → {new_v!r}")
-                print("Run: python3 ci/build_canonical_data.py")
+                print("Run: python3 scripts/sync_all_docs.py")
                 return 1
             print("\n[OK] canonical_data.json is up-to-date")
         else:

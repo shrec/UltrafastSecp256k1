@@ -14,6 +14,11 @@ on:
       - 'docs/**'
       - 'README*'
       - 'CHANGELOG*'
+      - 'audit/unified_audit_runner.cpp'
+      - 'scripts/sync_*.py'
+      - 'scripts/build_canonical_data.py'
+      - 'ci/sync_*.py'
+      - 'ci/build_canonical_data.py'
   pull_request:
     branches: [dev, main]
     paths:
@@ -21,6 +26,11 @@ on:
       - 'docs/**'
       - 'README*'
       - 'CHANGELOG*'
+      - 'audit/unified_audit_runner.cpp'
+      - 'scripts/sync_*.py'
+      - 'scripts/build_canonical_data.py'
+      - 'ci/sync_*.py'
+      - 'ci/build_canonical_data.py'
   workflow_dispatch:
 
 permissions:
@@ -49,11 +59,4 @@ jobs:
           python-version: '3.12'
 
       - name: Fast deterministic gates
-        run: |
-          python3 tools/render_repo_map.py --check
-          python3 ci/check_exploit_wiring.py
-          python3 ci/build_canonical_data.py --dry-run
-          python3 ci/sync_docs_from_canonical.py --dry-run
-          python3 ci/sync_module_count.py --dry-run
-          python3 ci/test_audit_scripts.py --quick
-          python3 ci/validate_assurance.py
+        run: bash ci/run_fast_gates.sh

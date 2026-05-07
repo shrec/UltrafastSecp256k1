@@ -12,7 +12,7 @@ Agents: NEVER manually edit benchmark numbers in README.md, PR_DESCRIPTION.md,
 BACKEND_EVIDENCE.md, etc. Update canonical_numbers.json, then run this script.
 
 Usage:
-    python3 scripts/sync_canonical_numbers.py [--dry-run] [--verbose]
+    python3 ci/sync_canonical_numbers.py [--dry-run] [--verbose]
 """
 
 from __future__ import annotations
@@ -60,12 +60,10 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     text, n = _sub(pat, repl, text); total += n
 
     # ── ConnectBlock regression ───────────────────────────────────────────────
-    # Matches e.g. "−2.7%" or "−5.4%" in ConnectBlock context (narrative)
     # Only replace explicit single-number claims that contradict the range.
     pat = r'ConnectBlock[^\n]{0,120}?[−\-](\d+\.\d+)%'
     def replace_cb(m: re.Match) -> str:
         val = float(m.group(1))
-        # If the value is NOT within the canonical range, replace the whole sentence.
         if abs(val - cb["regression_min_pct"]) > 0.2 and abs(val - cb["regression_max_pct"]) > 0.2:
             return m.group(0).replace(m.group(1), f"{cb['regression_min_pct']}–{cb['regression_max_pct']}")
         return m.group(0)
@@ -85,7 +83,6 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     text, n = _sub(pat, repl, text); total += n
 
     # ── SignSchnorrWithMerkleRoot speedup ─────────────────────────────────────
-    # Canonical: JSON artifact value only
     pat = r'SignSchnorrWithMerkleRoot[^\n]{0,80}?(\d{2,4}\.\d)%'
     repl_pct = f"{sm['canonical_pct']}"
     def replace_ssmr(m: re.Match) -> str:
@@ -149,7 +146,7 @@ def main() -> int:
     verb = "Would replace" if args.dry_run else "Replaced"
     print(f"\n{verb} {total_replaced} value(s) across {len(TARGET_DOCS)} docs.")
     if args.dry_run and total_replaced > 0:
-        print("Run: python3 scripts/sync_canonical_numbers.py")
+        print("Run: python3 scripts/sync_all_docs.py")
         return 1
     return 0
 
