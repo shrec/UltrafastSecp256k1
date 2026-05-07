@@ -3596,9 +3596,11 @@ int main(int argc, char** argv) {
         print_blk_row("ConnectBlockMixedEcdsaSchnorr (2k+1k)",
                       u_cblk_mixed, ls_cblk_mixed);
 
-        // ConnectBlockWithDerParse: both sides start from raw DER + compressed pubkey.
-        // Includes: DER parse, pubkey parse, sig normalize to low-S, verify.
-        // This is the actual P2WPKH Bitcoin Core path — apples-to-apples comparison.
+        // ConnectBlockWithDerParse: both sides start from raw DER bytes + compressed pubkey.
+        // Includes: DER parse → normalize → pubkey parse → verify.
+        // Ultra side: DER parse via shim → compact → ECDSASignature, then Ultra C++ verify
+        //             with pre-computed pubkey (Ultra has no public Point::from_compressed()).
+        // libsecp side: full shim DER pipeline (shim routes through Ultra internally).
         std::vector<std::pair<std::array<uint8_t,72>,std::size_t>> blk_der(N_BLOCK);
         std::vector<std::array<uint8_t,33>> blk_comp(N_BLOCK);
         for (std::size_t i = 0; i < N_BLOCK; ++i) {
@@ -3607,17 +3609,18 @@ int main(int argc, char** argv) {
         }
         double u_cblk_der = blk_bench([&]() {
             for (std::size_t i = 0; i < N_BLOCK; ++i) {
-                // Parse DER
-                ECDSASignature sig = ECDSASignature::from_compact(std::array<uint8_t,64>{});
-                auto [der_bytes, der_len] = blk_der[i];
-                (void)der_len;
-                // Use the compact form for Ultra (DER→compact path)
-                sig = u_blk_esig[i];
-                sig = sig.normalize();
-                // Parse pubkey from compressed
-                FieldElement px;
-                bool ok = FieldElement::parse_bytes_strict(blk_comp[i].data() + 1, px);
-                bench::DoNotOptimize(ok);
+                // DER parse via shim (Ultra's DER parser under the hood)
+                secp256k1_ecdsa_signature usig_raw;
+                if (!secp256k1_ecdsa_signature_parse_der(ls_ctx, &usig_raw,
+                        blk_der[i].first.data(), blk_der[i].second))
+                    continue;
+                // Normalize low-S via shim
+                secp256k1_ecdsa_signature_normalize(ls_ctx, &usig_raw, &usig_raw);
+                // Convert to Ultra C++ ECDSASignature via compact representation
+                unsigned char compact64[64];
+                secp256k1_ecdsa_signature_serialize_compact(ls_ctx, compact64, &usig_raw);
+                ECDSASignature sig = ECDSASignature::from_compact(compact64);
+                // Verify using Ultra C++ native path with pre-computed pubkey
                 bool v = ecdsa_verify(blk_msg[i].data(), u_blk_pk[i], sig);
                 bench::DoNotOptimize(v);
             }
