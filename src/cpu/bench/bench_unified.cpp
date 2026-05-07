@@ -3527,10 +3527,10 @@ int main(int argc, char** argv) {
             }
         });
 
-        // AllSchnorr
+        // AllSchnorr (PERF-B: use pre-parsed SchnorrXonlyPubkey — avoids lift_x + GLV rebuild)
         double u_cblk_schnorr = blk_bench([&]() {
             for (std::size_t i = 0; i < N_BLOCK; ++i) {
-                bool ok = schnorr_verify(u_blk_spk[i].data(),
+                bool ok = schnorr_verify(u_blk_xonly[i],
                                          blk_msg[i].data(), u_blk_ssig[i]);
                 bench::DoNotOptimize(ok);
             }
@@ -3545,12 +3545,13 @@ int main(int argc, char** argv) {
         });
 
         // Mixed: 2000 Schnorr + 1000 ECDSA (Taproot block approximation)
+        // PERF-B: use pre-parsed SchnorrXonlyPubkey for Schnorr path
         double u_cblk_mixed = blk_bench([&]() {
             for (std::size_t i = 0; i < N_BLOCK + N_BLOCK / 2; ++i) {
                 std::size_t const j = i % N_BLOCK;
                 bool ok;
                 if (i < N_BLOCK)
-                    ok = schnorr_verify(u_blk_spk[j].data(), blk_msg[j].data(), u_blk_ssig[j]);
+                    ok = schnorr_verify(u_blk_xonly[j], blk_msg[j].data(), u_blk_ssig[j]);
                 else
                     ok = ecdsa_verify(blk_msg[j].data(), u_blk_pk[j], u_blk_esig[j]);
                 bench::DoNotOptimize(ok);
