@@ -3137,7 +3137,7 @@ static constexpr std::uint64_t K_GEN[4] = {
 struct alignas(64) CombGenTable {
     CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
     CTAffinePoint correction;
-    bool initialized;  // no default init — BSS guarantees zero (= false) at startup
+    bool initialized = false;
 };
 
 static CombGenTable g_comb_table;
