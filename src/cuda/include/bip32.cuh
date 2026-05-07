@@ -257,7 +257,7 @@ __device__ inline void bip32_fingerprint(
         Scalar sk;
         scalar_from_bytes(xkey->key, &sk);
         JacobianPoint P;
-        ct_generator_mul(&sk, &P);
+        ct::ct_generator_mul(&sk, &P);
         point_to_compressed(&P, compressed);
     } else {
         // For public keys, key[0..32] is already the compressed pubkey
@@ -299,7 +299,7 @@ __device__ inline bool bip32_derive_child(
             Scalar sk;
             scalar_from_bytes(parent->key, &sk);
             JacobianPoint P;
-            ct_generator_mul(&sk, &P);
+            ct::ct_generator_mul(&sk, &P);
             point_to_compressed(&P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent->key[i];
@@ -416,7 +416,7 @@ __device__ inline bool bip32_public_key(
         Scalar sk;
         scalar_from_bytes(xkey->key, &sk);
         JacobianPoint P;
-        ct_generator_mul(&sk, &P);
+        ct::ct_generator_mul(&sk, &P);
         return point_to_compressed(&P, compressed);
     } else {
         for (int i = 0; i < 33; i++) compressed[i] = xkey->key[i];

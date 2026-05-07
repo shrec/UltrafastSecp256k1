@@ -23,9 +23,17 @@
 #include <cstdint>
 #include <array>
 
+#if !__has_include("secp256k1_schnorrsig.h")
+// Shim headers not in include path (e.g. GPU-only builds) — stub out the test
+int test_regression_schnorr_abi_edge_cases_run() { return 0; }
+#ifdef STANDALONE_TEST
+int main() { return 0; }
+#endif
+#else  // have shim headers
+
+#include "secp256k1.h"
 #include "secp256k1_schnorrsig.h"
 #include "secp256k1_extrakeys.h"
-#include "secp256k1.h"
 
 static int g_pass = 0, g_fail = 0;
 
@@ -180,3 +188,4 @@ int test_regression_schnorr_abi_edge_cases_run() {
 #ifdef STANDALONE_TEST
 int main() { return test_regression_schnorr_abi_edge_cases_run(); }
 #endif
+#endif  // have shim headers

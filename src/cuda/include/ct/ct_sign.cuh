@@ -437,8 +437,8 @@ __device__ inline bool ct_schnorr_sign_verified(
     // Rule 14: check both s==0 AND R.x all-zeros before returning success.
     if (secp256k1::cuda::scalar_is_zero(&sig->s)) return false;
     {
-        uint64_t r_or = 0;
-        for (int _i = 0; _i < 4; ++_i) r_or |= sig->r.limbs[_i];
+        uint8_t r_or = 0;
+        for (int _i = 0; _i < 32; ++_i) r_or |= sig->r[_i];
         if (r_or == 0) return false;
     }
 

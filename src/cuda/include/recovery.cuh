@@ -97,9 +97,9 @@ __device__ inline bool ecdsa_sign_recoverable(
 
     // BUG-H2 FIX: CT generator multiply — no variable-time wNAF on secret nonce k.
     // Previously: scalar_mul (windowed wNAF, secret-dependent access) leaked k via timing.
-    CTJacobianPoint R_ct;
-    ct::generator_mul(&k, &R_ct);
-    if (R_ct.infinity != 0) return false;  // infinity mask: ~0 = infinity
+    JacobianPoint R_ct;
+    ct::ct_generator_mul(&k, &R_ct);
+    if (R_ct.infinity) return false;
 
     // Affine conversion: these field ops are data-independent (Z is not secret)
     FieldElement z_inv, z_inv2, z_inv3, rx_aff, ry_aff;
