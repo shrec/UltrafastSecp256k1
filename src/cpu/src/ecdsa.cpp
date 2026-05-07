@@ -7,6 +7,7 @@
 #include "secp256k1/ct/scalar.hpp" // ct::ct_normalize_low_s
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/debug_invariants.hpp"
+#include <cassert>
 #include <cstring>
 
 namespace secp256k1 {
@@ -201,6 +202,12 @@ struct HMAC_Ctx {
     // Total inner input: 64 (ipad midstate) + msg_len
     void compute_short(const std::uint8_t* msg, std::size_t msg_len,
                        std::uint8_t out[32]) const noexcept {
+        // Safety: msg_len > 55 causes `55 - msg_len` to wrap around as size_t
+        // (which is unsigned), producing ~0ULL and smashing the stack.
+        // This is a hard precondition violation — assert in debug, guard in release.
+        assert(msg_len <= 55 && "compute_short: msg_len must not exceed 55");
+        if (msg_len > 55) return;  // release-mode safeguard against size_t wrap
+
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
 
