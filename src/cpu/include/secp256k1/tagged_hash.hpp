@@ -29,25 +29,46 @@ inline SHA256 make_tag_midstate(std::string_view tag) {
     return ctx;
 }
 
-// Pre-computed BIP-340 midstates (constructed once, shared across TUs).
-inline const SHA256 g_aux_midstate       = make_tag_midstate("BIP0340/aux");
-inline const SHA256 g_nonce_midstate     = make_tag_midstate("BIP0340/nonce");
-inline const SHA256 g_challenge_midstate = make_tag_midstate("BIP0340/challenge");
+// Pre-computed BIP-340 midstates.
+// ESP32/bare-metal: global constructors with non-trivial init run before the
+// FreeRTOS scheduler starts; ESP-IDF's static-init mutex is null → crash.
+// Solution: EspLazySHA256 is constexpr-constructed (.bss, zero bytes, no ctor
+// call) and computes the SHA256 midstate on first operator const SHA256&() use.
+#if defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_ESP32)
+#include <new>
+class EspLazySHA256 {
+    const char* tag_;
+    alignas(SHA256) mutable unsigned char buf_[sizeof(SHA256)];
+    mutable bool ready_;
+public:
+    constexpr explicit EspLazySHA256(const char* tag) noexcept
+        : tag_(tag), buf_{}, ready_(false) {}
+    operator const SHA256&() const noexcept {
+        if (!ready_) {
+            ::new(static_cast<void*>(buf_)) SHA256(make_tag_midstate(tag_));
+            ready_ = true;
+        }
+        return *reinterpret_cast<const SHA256*>(buf_);
+    }
+};
+#  define SECP256K1_MIDSTATE(name, tag) inline EspLazySHA256 name{tag};
+#else
+#  define SECP256K1_MIDSTATE(name, tag) inline const SHA256 name = make_tag_midstate(tag);
+#endif
 
-// Taproot (BIP-341) midstates
-inline const SHA256 g_taptweak_midstate  = make_tag_midstate("TapTweak");
-inline const SHA256 g_tapbranch_midstate = make_tag_midstate("TapBranch");
-inline const SHA256 g_tapleaf_midstate   = make_tag_midstate("TapLeaf");
-
-// MuSig2 (BIP-327) midstates
-inline const SHA256 g_keyagg_list_midstate         = make_tag_midstate("KeyAgg list");
-inline const SHA256 g_keyagg_coeff_midstate        = make_tag_midstate("KeyAgg coefficient");
-inline const SHA256 g_musig_nonceblinding_midstate = make_tag_midstate("MuSig/nonceblinding");
-inline const SHA256 g_musig_aux_midstate           = make_tag_midstate("MuSig/aux");
-inline const SHA256 g_musig_nonce_midstate         = make_tag_midstate("MuSig/nonce");
-
-// FROST midstates
-inline const SHA256 g_frost_binding_midstate = make_tag_midstate("FROST_binding");
+SECP256K1_MIDSTATE(g_aux_midstate,                  "BIP0340/aux")
+SECP256K1_MIDSTATE(g_nonce_midstate,                "BIP0340/nonce")
+SECP256K1_MIDSTATE(g_challenge_midstate,            "BIP0340/challenge")
+SECP256K1_MIDSTATE(g_taptweak_midstate,             "TapTweak")
+SECP256K1_MIDSTATE(g_tapbranch_midstate,            "TapBranch")
+SECP256K1_MIDSTATE(g_tapleaf_midstate,              "TapLeaf")
+SECP256K1_MIDSTATE(g_keyagg_list_midstate,          "KeyAgg list")
+SECP256K1_MIDSTATE(g_keyagg_coeff_midstate,         "KeyAgg coefficient")
+SECP256K1_MIDSTATE(g_musig_nonceblinding_midstate,  "MuSig/nonceblinding")
+SECP256K1_MIDSTATE(g_musig_aux_midstate,            "MuSig/aux")
+SECP256K1_MIDSTATE(g_musig_nonce_midstate,          "MuSig/nonce")
+SECP256K1_MIDSTATE(g_frost_binding_midstate,        "FROST_binding")
+#undef SECP256K1_MIDSTATE
 
 // Fast tagged hash using a cached midstate (avoids re-computing tag prefix).
 #if defined(__GNUC__) && !defined(__clang__)

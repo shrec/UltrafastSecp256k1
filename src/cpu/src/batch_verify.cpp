@@ -25,7 +25,7 @@ namespace secp256k1 {
 // Seed is randomised per batch call so adversarial pubkey inputs cannot
 // pre-compute collisions and degrade lookup to O(n) (CA-010).
 struct PubkeyHash32 {
-    std::size_t seed{0xcbf29ce484222325ULL};
+    std::size_t seed{static_cast<std::size_t>(0xcbf29ce484222325ULL)};
     explicit PubkeyHash32(std::size_t s) : seed(s) {}
     std::size_t operator()(const std::array<uint8_t, 32>& k) const noexcept {
         std::size_t h = seed;
@@ -220,7 +220,7 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     // hash collisions that degrade lookup to O(n) worst-case.
     using PubkeyMap = std::unordered_map<std::array<uint8_t, 32>, Point, PubkeyHash32>;
     static thread_local std::mt19937_64 rng{std::random_device{}()};
-    PubkeyMap pubkey_index(n, PubkeyHash32{rng()});
+    PubkeyMap pubkey_index(n, PubkeyHash32{static_cast<std::size_t>(rng())});
     pubkey_index.reserve(n);
 
     // Grow-only vector reserve (no realloc when n stays the same between calls)

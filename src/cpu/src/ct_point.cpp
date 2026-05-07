@@ -51,7 +51,14 @@
 namespace secp256k1::ct {
 
 // --- secp256k1 curve constant b = 7 (4x64 for API-boundary functions) --------
+// ESP32/bare-metal: avoid runtime global ctor (triggers static-init mutex crash
+// before FreeRTOS scheduler starts). Use inline helper instead.
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
+static inline FieldElement get_b7() { return FieldElement::from_uint64(7); }
+#define B7 get_b7()
+#else
 static const FieldElement B7 = FieldElement::from_uint64(7);
+#endif
 
 // ============================================================================
 // 5x52 Optimized Path (requires __int128 / SECP256K1_FAST_52BIT)

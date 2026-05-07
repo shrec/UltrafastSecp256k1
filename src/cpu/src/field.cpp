@@ -514,6 +514,7 @@ limbs4 reduce(const wide8& t) {
         mul64(hi_limb, 977ULL, lo977, hi977);
 
         // Compound add at position i: lo977 + (hi_limb << 32) in one shot
+#ifndef SECP256K1_NO_INT128
         using u128 = unsigned __int128;
         u128 acc = static_cast<u128>(result[i])
                  + static_cast<u128>(lo977)
@@ -530,11 +531,33 @@ limbs4 reduce(const wide8& t) {
         carry = static_cast<std::uint64_t>(acc >> 64);
 
         // Branchless carry propagation (carry is 0 or 1 for secp256k1 limb bounds).
-        // Replaces add_into() which had an unbounded while-loop.
         u128 acc2 = static_cast<u128>(result[i + 2]) + carry;
         result[i + 2] = static_cast<std::uint64_t>(acc2);
         std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
         if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+#else
+        // No __int128: manual 64-bit carry arithmetic (for 32-bit MCUs)
+        auto add64c = [](std::uint64_t a, std::uint64_t b, std::uint64_t& c_out) -> std::uint64_t {
+            std::uint64_t s = a + b; c_out = (s < a) ? 1u : 0u; return s;
+        };
+        std::uint64_t c1 = 0, c2 = 0, c3 = 0;
+        std::uint64_t s = add64c(result[i], lo977, c1);
+        s = add64c(s, static_cast<std::uint64_t>(hi_limb << 32), c2);
+        result[i] = s;
+        std::uint64_t carry = c1 + c2;
+
+        std::uint64_t d1 = 0, d2 = 0, d3 = 0;
+        std::uint64_t t = add64c(result[i + 1], hi977, d1);
+        t = add64c(t, static_cast<std::uint64_t>(hi_limb >> 32), d2);
+        t = add64c(t, carry, d3);
+        result[i + 1] = t;
+        carry = d1 + d2 + d3;
+
+        std::uint64_t e = 0;
+        result[i + 2] = add64c(result[i + 2], carry, e);
+        std::uint64_t carry2 = e;
+        if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+#endif
     }
 
     // Step 3: Handle overflow in result[4] -- unrolled 2 iterations (bounded)
@@ -546,7 +569,8 @@ limbs4 reduce(const wide8& t) {
         std::uint64_t const overflow = result[4];
         result[4] = 0;
         if (overflow == 0) break;
-        // overflow * 0x1000003D1 = overflow*(2^32 + 977) in one u128 multiply
+        // overflow * 0x1000003D1 = overflow*(2^32 + 977) in one multiply
+#ifndef SECP256K1_NO_INT128
         using u128 = unsigned __int128;
         u128 const term = static_cast<u128>(overflow) * 0x1000003D1ULL;
         u128 acc0 = static_cast<u128>(result[0]) + static_cast<std::uint64_t>(term);
@@ -557,6 +581,20 @@ limbs4 reduce(const wide8& t) {
         result[1] = static_cast<std::uint64_t>(acc1);
         std::uint64_t carry = static_cast<std::uint64_t>(acc1 >> 64);
         if (carry) result[2] += carry;
+#else
+        // No __int128: use mul64 to compute overflow * 0x1000003D1 (at most 67 bits)
+        std::uint64_t term_lo = 0, term_hi = 0;
+        mul64(overflow, 0x1000003D1ULL, term_lo, term_hi);
+        auto add64c2 = [](std::uint64_t a, std::uint64_t b, std::uint64_t& c_out) -> std::uint64_t {
+            std::uint64_t s = a + b; c_out = (s < a) ? 1u : 0u; return s;
+        };
+        std::uint64_t c0 = 0, c1a = 0, c1b = 0;
+        result[0] = add64c2(result[0], term_lo, c0);
+        std::uint64_t t1 = add64c2(result[1], term_hi, c1a);
+        result[1] = add64c2(t1, c0, c1b);
+        std::uint64_t carry = c1a + c1b;
+        if (carry) result[2] += carry;
+#endif
     }
 
     // Step 4: Branchless final normalization (subtract p if value >= p)
