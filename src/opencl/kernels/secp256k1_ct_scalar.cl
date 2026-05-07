@@ -155,11 +155,11 @@ inline ulong ct_scalar_eq(const Scalar* a, const Scalar* b) {
 
 // CT scalar_is_high: returns mask if s > n/2
 inline ulong ct_scalar_is_high(const Scalar* s) {
-    const ulong half[4] = { CT_HALF_N0, CT_HALF_N1, CT_HALF_N2, CT_HALF_N3 };
-    // Compare s > half: check if half < s
-    // Subtract: half - s, if borrow then s > half
+    ulong n_half[4] = { CT_HALF_N0, CT_HALF_N1, CT_HALF_N2, CT_HALF_N3 };
+    // Compare s > n/2: check if n_half < s
+    // Subtract: n_half - s, if borrow then s > n_half
     ulong tmp[4];
-    ulong borrow = ct_sub256(half, s->limbs, tmp);
+    ulong borrow = ct_sub256(n_half, s->limbs, tmp);
     return ct_is_nonzero_mask(borrow);
 }
 

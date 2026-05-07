@@ -28,6 +28,20 @@ typedef struct {
 } CTAffinePoint;
 
 // ---------------------------------------------------------------------------
+// CT Jacobian to affine conversion (branchless field inversion)
+// Used by ct_ecdsa_sign_impl and ct_schnorr_sign_impl in secp256k1_ct_sign.cl
+// ---------------------------------------------------------------------------
+inline void ct_jacobian_to_affine(const CTJacobianPoint* p,
+                                  FieldElement* x_out, FieldElement* y_out) {
+    FieldElement zi, zi2, zi3;
+    field_inv_impl(&zi, &p->z);
+    field_sqr_impl(&zi2, &zi);
+    field_mul_impl(&zi3, &zi, &zi2);
+    field_mul_impl(x_out, &p->x, &zi2);
+    field_mul_impl(y_out, &p->y, &zi3);
+}
+
+// ---------------------------------------------------------------------------
 // Conversion utilities
 // ---------------------------------------------------------------------------
 inline void ct_point_set_infinity(CTJacobianPoint* p) {
@@ -306,12 +320,11 @@ inline void ct_scalar_mul_point(const CTJacobianPoint* p, const Scalar* k,
     }
 
     // Build endomorphism table: phi(P) = (beta*x, y)
-    __constant ulong BETA_LIMBS[4] = {
-        0x7AE96A2B657C0710UL, 0x6584D3F6EB4C3F40UL,
-        0x7F09A3680E46AB35UL, 0x851695D49A83F8EFUL
-    };
     FieldElement beta;
-    for (int i = 0; i < 4; ++i) beta.limbs[i] = BETA_LIMBS[i];
+    beta.limbs[0] = 0x7AE96A2B657C0710UL;
+    beta.limbs[1] = 0x6584D3F6EB4C3F40UL;
+    beta.limbs[2] = 0x7F09A3680E46AB35UL;
+    beta.limbs[3] = 0x851695D49A83F8EFUL;
     table_b[0] = table_a[0];
     for (int i = 1; i < CT_TABLE_SIZE; ++i) {
         field_mul_impl(&table_b[i].x, &table_a[i].x, &beta);

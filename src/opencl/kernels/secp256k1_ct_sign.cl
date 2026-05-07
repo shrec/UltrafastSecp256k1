@@ -10,18 +10,7 @@
 #ifndef SECP256K1_CT_SIGN_CL
 #define SECP256K1_CT_SIGN_CL
 
-// ---------------------------------------------------------------------------
-// CT Jacobian to affine conversion (branchless)
-// ---------------------------------------------------------------------------
-inline void ct_jacobian_to_affine(const CTJacobianPoint* p,
-                                  FieldElement* x_out, FieldElement* y_out) {
-    FieldElement zi, zi2, zi3;
-    ct_field_inv(&zi, &p->z);
-    field_sqr_impl(&zi2, &zi);
-    field_mul_impl(&zi3, &zi, &zi2);
-    field_mul_impl(x_out, &p->x, &zi2);
-    field_mul_impl(y_out, &p->y, &zi3);
-}
+// ct_jacobian_to_affine is defined in secp256k1_ct_point.cl
 
 // ---------------------------------------------------------------------------
 // CT ECDSA sign: deterministic (RFC 6979) + constant-time k*G + k^-1
