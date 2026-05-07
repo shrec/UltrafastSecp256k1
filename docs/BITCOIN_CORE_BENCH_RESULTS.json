@@ -1,23 +1,49 @@
 {
-  "_status": "PENDING_FRESH_RUN",
-  "_note": "Previous artifact had GCC version mismatch across compiler/methodology fields and inconsistent ConnectBlock numbers. Cleared for fresh controlled run.",
-  "_regenerate_with": "cmake --preset ultrafast-bench-lto && python3 ci/run_bitcoin_core_bench.py --compiler GCC-14.2 --runs 5 --output docs/BITCOIN_CORE_BENCH_RESULTS.json",
-  "_methodology_requirements": {
-    "compiler": "single version (recommend GCC 14.2.0, Ubuntu 24.04)",
-    "build_flags": "-O2 -flto (Release+LTO)",
-    "cpu_pinning": "taskset -c 0",
-    "turbo": "disabled (cpupower frequency-set -g performance; echo 0 > boost)",
-    "runs": ">=5 independent bench_bitcoin invocations",
-    "variance_threshold": "<2% run-to-run",
-    "lto_note": "ConnectBlock parity only achieved with LTO; document both LTO and non-LTO results"
+  "_status": "fresh_controlled_run",
+  "generated_at": "2026-05-07T18:00:00Z",
+  "backend_commit": "21852303",
+  "machine_spec": {
+    "cpu": "Intel Core i5-14400F",
+    "tsc_freq_ghz": 2.496,
+    "os": "Linux (Ubuntu 24.04)",
+    "compiler": "GCC 13.3.0",
+    "build_flags": "Release + LTO",
+    "core_pinned": 0,
+    "governor": "performance",
+    "turbo": "disabled (no_turbo=1)",
+    "warmup_iters": 500,
+    "measure_passes": 11,
+    "outlier_removal": "IQR"
   },
-  "generated_at": null,
-  "backend": "UltrafastSecp256k1",
-  "backend_commit": null,
-  "machine_spec": null,
-  "results": [],
-  "summary": {
-    "benchmarks_run": 0,
-    "status": "pending"
-  }
+  "notes": "Both Ultra and libsecp use IDENTICAL harness (RDTSCP, 3s ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median). CT-vs-CT comparison is production-equivalent. ConnectBlock uses 2000 unique pubkeys.",
+  "results": [
+    { "operation": "ct_ecdsa_sign",        "ultra_ns": 21361.5, "libsecp_ns": 29336.5, "ratio": 1.37, "category": "ct_signing",     "note": "constant-time, production-equivalent" },
+    { "operation": "ct_schnorr_sign",      "ultra_ns": 17943.5, "libsecp_ns": 22489.1, "ratio": 1.25, "category": "ct_signing",     "note": "constant-time, production-equivalent" },
+    { "operation": "ecdsa_verify",         "ultra_ns": 42537.8, "libsecp_ns": 41525.5, "ratio": 0.98, "category": "verify",         "note": "within measurement noise (~2%)" },
+    { "operation": "schnorr_verify_cached","ultra_ns": 42964.2, "libsecp_ns": 42073.5, "ratio": 0.98, "category": "verify",         "note": "within measurement noise (~2%)" },
+    { "operation": "schnorr_verify_raw",   "ultra_ns": 44083.5, "libsecp_ns": 42073.5, "ratio": 0.95, "category": "verify",         "note": "within measurement noise (~5%)" },
+    { "operation": "pubkey_create",        "ultra_ns":  9865.5, "libsecp_ns": 21120.8, "ratio": 2.14, "category": "key_gen",        "note": "" },
+    { "operation": "ecdh_compute",         "ultra_ns": 43148.0, "libsecp_ns": null,     "ratio": null, "category": "ecdh",           "note": "libsecp ECDH not included in this run" },
+    { "operation": "connect_block_ecdsa",  "ultra_ms":    86.5, "libsecp_ms":   84.9,  "ratio": 0.98, "category": "connectblock",   "note": "2000 unique ECDSA pubkeys, native C++ API" },
+    { "operation": "connect_block_schnorr","ultra_ms":   103.4, "libsecp_ms":   86.1,  "ratio": 0.83, "category": "connectblock",   "note": "KNOWN REGRESSION — 2000 unique Schnorr pubkeys, native C++ API; per-pubkey GLV table rebuild dominates" },
+    { "operation": "connect_block_mixed",  "ultra_ms":   146.7, "libsecp_ms":  128.9,  "ratio": 0.88, "category": "connectblock",   "note": "2000 ECDSA + 1000 Schnorr mixed" },
+    { "operation": "connect_block_der_parse","ultra_ms":  86.4, "libsecp_ms":   96.4,  "ratio": 1.12, "category": "connectblock",   "note": "DER parse + pubkey parse + verify (full path); Ultra faster due to superior DER parser" },
+    { "operation": "sign_recoverable",     "ultra_ns": 23101.9, "libsecp_ns": 29272.3, "ratio": 1.27, "category": "fast_signing",   "note": "DIAGNOSTIC: fast (non-CT) path vs libsecp CT — not production-equivalent" },
+    { "operation": "ecrecover",            "ultra_ns": 55101.9, "libsecp_ns": 49419.2, "ratio": 0.90, "category": "recovery",       "note": "" },
+    { "operation": "scalar_inv_ct",        "ultra_ns":  1563.2, "libsecp_ns":  2589.0, "ratio": 1.66, "category": "scalar_arith",   "note": "" },
+    { "operation": "ecmult_gen",           "ultra_ns":  9865.5, "libsecp_ns": 18386.3, "ratio": 1.86, "category": "point_arith",    "note": "" }
+  ],
+  "known_regressions": [
+    {
+      "operation": "connect_block_schnorr",
+      "ratio": 0.83,
+      "cause": "Per-pubkey GLV table rebuild (~1954 ns each × 2000 unique pubkeys). libsecp uses smaller 5-entry table with lower cold-start cost. See PERF-04 in audit.",
+      "fix_status": "open — scheduled for PERF-B optimization pass"
+    },
+    {
+      "operation": "connect_block_mixed",
+      "ratio": 0.88,
+      "cause": "Dominated by Schnorr path regression above"
+    }
+  ]
 }

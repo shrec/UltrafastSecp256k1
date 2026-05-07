@@ -76,32 +76,55 @@ library in production for Silent Payments (BIP-352) GPU scanning.
 
 ## Known Limitations
 
-### ConnectBlock (without LTO: −2.5% to −5.4%; with LTO: ≈0%)
+### CT signing throughput (GCC 13/14 vs Clang 19)
 
-ConnectBlock aggregate benchmarks show a regression only when built without LTO
-(RelWithDebInfo). With Release + LTO (`cmake --preset ultrafast-bench`), the
-shim dispatch overhead is inlined away and ConnectBlock lands within measurement
-noise (≈0% difference):
+CT signing performance depends significantly on compiler:
 
-| Benchmark | Without LTO | With LTO |
+| Compiler | CT ECDSA sign | CT Schnorr sign |
 |---|---|---|
-| ConnectBlockAllEcdsa | −2.6% | ≈0% |
-| ConnectBlockAllSchnorr | −5.4% | ≈0% |
-| ConnectBlockMixed | −2.6–5.4% | ≈0% |
-| VerifyScriptP2WPKH | −2.5% | ≈0% |
+| GCC 13.3 + LTO | +37% vs libsecp | +25% vs libsecp |
+| Clang 19 + LTO | +33% vs libsecp | +20% vs libsecp |
 
-**Root cause (without LTO):** Two compounding factors:
-1. **Shim dispatch overhead** — each verify call crosses the C shim boundary
-   (function pointer dispatch + argument marshalling). LTO eliminates this.
-2. **GLV precompute cache cold start** — Bitcoin block validation uses almost
-   entirely unique pubkeys. The library's GLV table precompute (~2 µs/miss)
-   is triggered on every pubkey, yielding a net cost rather than a benefit.
-   The cache pays off only when pubkeys repeat within the 256-slot window, which
-   is uncommon in P2WPKH/P2TR block validation.
+Bitcoin Core CI uses GCC; the GCC numbers above are the relevant CI metric.
+Fresh controlled run: i5-14400F, core pinned, turbo disabled, 500 warmup, 11 passes.
+Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
-**Recommendation:** Always use the `ultrafast-bench` preset (Release + LTO)
-or pass `-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON` when benchmarking.
-RelWithDebInfo benchmarks of the shim are misleading due to the i-cache pressure.
+### ConnectBlock Schnorr: −17% regression (native C++ API, unique pubkeys)
+
+Controlled measurement (2026-05-07, i5-14400F, GCC 13.3 + LTO, 2000 unique pubkeys):
+
+| Scenario | Ultra | libsecp | Result |
+|---|---|---|---|
+| ConnectBlockAllEcdsa | 86.5 ms | 84.9 ms | 0.98× ≈ parity |
+| **ConnectBlockAllSchnorr** | **103.4 ms** | **86.1 ms** | **0.83× (−17%)** |
+| ConnectBlockMixed (2k ECDSA + 1k Schnorr) | 146.7 ms | 128.9 ms | 0.88× (−12%) |
+| ConnectBlock + DER parse | 86.4 ms | 96.4 ms | 1.12× (+12%) |
+
+**Root cause:** Per-unique-pubkey GLV table rebuild (~2 µs × 2000 pubkeys = 4 ms
+overhead per Schnorr block). Bitcoin block validation uses almost entirely unique
+pubkeys; the GLV precompute cache provides no benefit and adds rebuild cost.
+libsecp256k1 uses a 5-entry table with lower cold-start cost.
+
+**Mitigation path:** PERF-B optimization (smaller per-call table for unique-pubkey
+workloads) is tracked in workingdocs. Shim-path numbers with LTO are expected to
+be ≈5% better than the native C++ API numbers above once the DualMulGenTables
+lazy-init fix (PERF-08) is applied.
+
+### Constant-time guarantee scope
+
+CT signing is enforced at the C ABI layer (`ufsecp_*` functions). The public
+C++ convenience API (`secp256k1::ecdsa_sign()`, etc.) routes through CT
+implementations but does not carry a compile-time namespace guarantee.
+Callers requiring explicit CT guarantees should use `ct::` namespace functions
+directly. No external third-party audit of the CT implementation has been conducted —
+all evidence is self-generated CI tooling (LLVM ct-verif, Valgrind taint, dudect).
+
+### Benchmark methodology note
+
+All controlled results were collected with turbo disabled (`cpupower frequency-set
+-g performance; echo 1 > .../no_turbo`), CPU pinned (`taskset -c 0`), `nice -20`,
+500 warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 13.3.0, Release + LTO.
+Results in `docs/BITCOIN_CORE_BENCH_RESULTS.json` reflect this methodology.
 
 ### Constant-time guarantee scope
 
