@@ -21,8 +21,17 @@ using namespace secp256k1::fast;
 // Layout: data[0..31] = X big-endian, data[32..63] = Y big-endian.
 
 static void point_to_pubkey_data(const Point& pt, unsigned char data[64]) {
-    auto unc = pt.to_uncompressed(); // 65 bytes: 04 || X || Y
-    std::memcpy(data, unc.data() + 1, 64);
+    if (pt.is_normalized()) {
+        // Z=1 (affine, z_one_=true): X and Y are the actual affine coordinates.
+        // Serialize directly — no field inversion needed (saves ~1,300 ns vs to_uncompressed()).
+        // from_affine() always sets z_one_=true, so parse → store paths always hit this fast path.
+        pt.x_raw().to_bytes_into(reinterpret_cast<uint8_t*>(data));
+        pt.y_raw().to_bytes_into(reinterpret_cast<uint8_t*>(data) + 32);
+    } else {
+        // Jacobian (Jacobian result from scalar_mul etc.): full inversion via to_uncompressed().
+        auto unc = pt.to_uncompressed();
+        std::memcpy(data, unc.data() + 1, 64);
+    }
 }
 
 static Point pubkey_data_to_point(const unsigned char data[64]) {
