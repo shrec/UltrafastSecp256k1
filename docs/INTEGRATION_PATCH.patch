@@ -1,0 +1,302 @@
+# UltrafastSecp256k1 — Bitcoin Core Integration Patch
+#
+# Base: bitcoin/bitcoin commit 0abbe35
+#       "Merge bitcoin/bitcoin#35148: refactor: Remove confusing DataStream::in_avail() alias"
+#       (latest upstream merge in shrec/bitcoin fork as of 2026-05-07)
+#
+# Fork: github.com/shrec/bitcoin  branch: feature/ultrafast-secp256k1-backend
+# Build preset: cmake --preset ultrafast-bench  (Release + LTO)
+#
+# Commits applied on top of base (oldest → newest):
+#   e3040fb build: add SECP256K1_BACKEND=ultrafast compile-time alternative
+#   d1f65b1 build: switch ultrafast backend to submodule, remove FetchContent
+#   fb1edf7 build: point ultrafast_secp256k1 submodule to dev branch
+#   f087ac0 build: bump ultrafast_secp256k1 submodule (MuSig2 shim complete)
+#   66b4048 chore: bump ultrafast_secp256k1 submodule (schnorr/musig/context fixes)
+#   a283ff7 chore: bump ultrafast_secp256k1 (schnorr_verify array type fix)
+#   0b7e9ec chore: bump ultrafast_secp256k1 (ellswift y-parity fix)
+#   c3a2021 chore: bump ultrafast_secp256k1 (ellswift create_fast y-parity fix)
+#   2d4e5b3 chore: bump UltrafastSecp256k1 (musig2 Y-parity + hybrid pubkey fixes)
+#   ad18551 chore: bump ultrafast_secp256k1 to latest dev (perf + security fixes)
+#   d5438d5 chore: bump ultrafast_secp256k1 (ct_point + ellswift y-parity fixes)
+#   be269c3 chore: bump ultrafast_secp256k1 (bip324 backend + ct prebuilt tables)
+#   d4d49ce chore: bump ultrafast_secp256k1 (zero-write verify + LTO discovery)
+#   5794d03 chore: add ultrafast-bench/libsecp-bench presets + LTO as default build
+#
+# Files changed (excluding src/ultrafast_secp256k1 submodule directory):
+#   .gitignore          — add out/ and build-*/ to gitignore
+#   .gitmodules         — register src/ultrafast_secp256k1 submodule
+#   CMakePresets.json   — add ultrafast-bench and libsecp-bench presets
+#   cmake/secp256k1.cmake — backend selection logic (SECP256K1_BACKEND variable)
+#   src/CMakeLists.txt  — guard add_secp256k1() call behind backend check
+#
+# To apply against a clean Bitcoin Core checkout:
+#   git clone https://github.com/bitcoin/bitcoin && cd bitcoin
+#   git checkout 0abbe35   # or the equivalent upstream state
+#   git apply /path/to/INTEGRATION_PATCH.patch
+#   git submodule update --init src/ultrafast_secp256k1
+#   cmake --preset ultrafast-bench
+#   cmake --build out/build-ultrafast-lto -j$(nproc)
+#   ctest --test-dir out/build-ultrafast-lto -j$(nproc)
+#
+# NOTE: The submodule (src/ultrafast_secp256k1) is NOT included in this patch.
+# It must be initialised separately via git submodule update --init.
+# The .gitmodules entry below points to github.com/shrec/UltrafastSecp256k1 (branch: dev).
+
+diff --git a/.gitignore b/.gitignore
+index b92988f..588279d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -27,3 +27,8 @@ target/
+ /guix-build-*
+
+ /ci/scratch/
++
++# Build directories (must go in out/)
++out/
++build-*/
++build/
+diff --git a/.gitmodules b/.gitmodules
+new file mode 100644
+index 0000000..9ed0c9c
+--- /dev/null
++++ b/.gitmodules
+@@ -0,0 +1,4 @@
++[submodule "src/ultrafast_secp256k1"]
++	path = src/ultrafast_secp256k1
++	url = https://github.com/shrec/UltrafastSecp256k1.git
++	branch = dev
+diff --git a/CMakePresets.json b/CMakePresets.json
+index a7103e2..a1ff504 100644
+--- a/CMakePresets.json
++++ b/CMakePresets.json
+@@ -59,6 +59,30 @@
+         "SANITIZERS": "fuzzer"
+       }
+     },
++    {
++      "name": "ultrafast-bench",
++      "displayName": "UltrafastSecp256k1 backend — Release + LTO (benchmark)",
++      "binaryDir": "${sourceDir}/out/build-ultrafast-lto",
++      "cacheVariables": {
++        "SECP256K1_BACKEND": "ultrafast",
++        "CMAKE_BUILD_TYPE": "Release",
++        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
++        "BUILD_BENCH": "ON",
++        "ENABLE_IPC": "OFF"
++      }
++    },
++    {
++      "name": "libsecp-bench",
++      "displayName": "libsecp256k1 backend — Release + LTO (benchmark baseline)",
++      "binaryDir": "${sourceDir}/out/build-libsecp-lto",
++      "cacheVariables": {
++        "SECP256K1_BACKEND": "libsecp",
++        "CMAKE_BUILD_TYPE": "Release",
++        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
++        "BUILD_BENCH": "ON",
++        "ENABLE_IPC": "OFF"
++      }
++    },
+     {
+       "name": "dev-mode",
+       "displayName": "Developer mode, with all features/dependencies enabled",
+diff --git a/cmake/secp256k1.cmake b/cmake/secp256k1.cmake
+index c82f361..1275cc5 100644
+--- a/cmake/secp256k1.cmake
++++ b/cmake/secp256k1.cmake
+@@ -4,54 +4,132 @@
+
+ enable_language(C)
+
+-function(add_secp256k1 subdir)
+-  message("")
+-  message("Configuring secp256k1 subtree...")
+-  set(BUILD_SHARED_LIBS OFF)
+-  set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+-
+-  # Unconditionally prevent secp's symbols from being exported by our libs
+-  set(CMAKE_C_VISIBILITY_PRESET hidden)
+-  set(SECP256K1_ENABLE_API_VISIBILITY_ATTRIBUTES OFF CACHE BOOL "" FORCE)
+-
+-  set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
+-  set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
+-  set(SECP256K1_ENABLE_MODULE_MUSIG ON CACHE BOOL "" FORCE)
+-  set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
+-  set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
+-  set(SECP256K1_BUILD_EXHAUSTIVE_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
+-  if(NOT BUILD_TESTS)
+-    # Always skip the ctime tests, if we are building no other tests.
+-    # Otherwise, they are built if Valgrind is available. See SECP256K1_VALGRIND.
+-    set(SECP256K1_BUILD_CTIME_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
++# =============================================================================
++# secp256k1 backend selection
++# =============================================================================
++# By default Bitcoin Core uses the bundled bitcoin-core/secp256k1 subtree.
++# Setting SECP256K1_BACKEND=ultrafast replaces it with UltrafastSecp256k1,
++# a C++20 library providing the same secp256k1.h API surface via a thin shim,
++# available as the git submodule at src/ultrafast_secp256k1.
++#
++# Usage:
++#   cmake -B build -DSECP256K1_BACKEND=ultrafast   # use UltrafastSecp256k1
++#   cmake -B build                                  # default: bundled secp256k1
++#
++# UltrafastSecp256k1 offers:
++#   - ~2x faster generator multiplications (w=18 precomputed table)
++#   - GLV endomorphism for variable-base scalar multiplication
++#   - SafeGCD (Bernstein-Yang) scalar inversion — 6.5x faster than Fermat
++#   - CUDA/OpenCL GPU acceleration (optional, not required)
++#   - Continuous assurance: 254 exploit PoC modules, CT-verified, 37 CI workflows
++#
++# API compatibility:
++#   secp256k1_context*, secp256k1_pubkey, secp256k1_ecdsa_signature, and all
++#   function signatures are identical to bitcoin-core/secp256k1.
++#
++# Limitation:
++#   secp256k1_context_randomize() is accepted but is a no-op. UltrafastSecp256k1
++#   uses thread-local precomputed tables for thread safety instead of per-context
++#   blinding. See src/ultrafast_secp256k1/compat/libsecp256k1_shim/README.md.
++# =============================================================================
++
++set(SECP256K1_BACKEND "bundled" CACHE STRING
++  "secp256k1 backend: 'bundled' (default) or 'ultrafast'")
++set_property(CACHE SECP256K1_BACKEND PROPERTY STRINGS bundled ultrafast)
++
++if(SECP256K1_BACKEND STREQUAL "ultrafast")
++  # ---------------------------------------------------------------------------
++  # UltrafastSecp256k1 backend — submodule at src/ultrafast_secp256k1
++  # ---------------------------------------------------------------------------
++  set(_UF_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../src/ultrafast_secp256k1")
++
++  if(NOT EXISTS "${_UF_ROOT}/CMakeLists.txt")
++    message(FATAL_ERROR
++      "UltrafastSecp256k1 submodule not found at src/ultrafast_secp256k1.\n"
++      "Run: git submodule update --init src/ultrafast_secp256k1")
+   endif()
++
++  message("")
++  message("Configuring UltrafastSecp256k1 as secp256k1 backend...")
++  message("  Submodule: ${_UF_ROOT}")
++
++  # Build only the CPU library — no GPU backends, no bench, no examples
++  set(SECP256K1_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
++  set(SECP256K1_BUILD_BENCH    OFF CACHE BOOL "" FORCE)
+   set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+-  include(GetTargetInterface)
+-  # -fsanitize and related flags apply to both C++ and C,
+-  # so we can pass them down to libsecp256k1 as CFLAGS and LDFLAGS.
+-  get_target_interface(SECP256K1_APPEND_CFLAGS "" sanitize_interface COMPILE_OPTIONS)
+-  string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CPPFLAGS}" SECP256K1_APPEND_CFLAGS)
+-  string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CFLAGS}" SECP256K1_APPEND_CFLAGS)
+-  set(SECP256K1_APPEND_CFLAGS ${SECP256K1_APPEND_CFLAGS} CACHE STRING "" FORCE)
+-  get_target_interface(SECP256K1_APPEND_LDFLAGS "" sanitize_interface LINK_OPTIONS)
+-  string(STRIP "${SECP256K1_APPEND_LDFLAGS} ${APPEND_LDFLAGS}" SECP256K1_APPEND_LDFLAGS)
+-  set(SECP256K1_APPEND_LDFLAGS ${SECP256K1_APPEND_LDFLAGS} CACHE STRING "" FORCE)
+-  # We want to build libsecp256k1 with the most tested RelWithDebInfo configuration.
+-  foreach(config IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
+-    if(config STREQUAL "")
+-      continue()
+-    endif()
+-    string(TOUPPER "${config}" config)
+-    set(CMAKE_C_FLAGS_${config} "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+-  endforeach()
+-  # If the CFLAGS environment variable is defined during building depends
+-  # and configuring this build system, its content might be duplicated.
+-  if(DEFINED ENV{CFLAGS})
+-    deduplicate_flags(CMAKE_C_FLAGS)
+-  endif()
++  set(SECP256K1_ENABLE_CUDA    OFF CACHE BOOL "" FORCE)
++  set(SECP256K1_ENABLE_OPENCL  OFF CACHE BOOL "" FORCE)
++
++  # Build the main UltrafastSecp256k1 library
++  add_subdirectory(${_UF_ROOT} ultrafast_secp256k1_build)
+
+-  add_subdirectory(${subdir})
+-  set_target_properties(secp256k1 PROPERTIES
+-    EXCLUDE_FROM_ALL TRUE
++  # Build the libsecp256k1-compatible shim (provides secp256k1.h API surface)
++  add_subdirectory(
++    ${_UF_ROOT}/compat/libsecp256k1_shim
++    ${CMAKE_BINARY_DIR}/secp256k1_shim_build
+   )
+-endfunction()
++
++  # Expose the shim under the 'secp256k1' CMake target name so all existing
++  # Bitcoin Core targets (which link against 'secp256k1') need no changes.
++  add_library(secp256k1 ALIAS secp256k1_shim)
++
++  message("  UltrafastSecp256k1 backend: enabled")
++  message("")
++
++else()
++  # ---------------------------------------------------------------------------
++  # Default: bundled bitcoin-core/secp256k1 subtree (behaviour unchanged)
++  # ---------------------------------------------------------------------------
++  function(add_secp256k1 subdir)
++    message("")
++    message("Configuring secp256k1 subtree...")
++    set(BUILD_SHARED_LIBS OFF)
++    set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
++
++    # Unconditionally prevent secp's symbols from being exported by our libs
++    set(CMAKE_C_VISIBILITY_PRESET hidden)
++    set(SECP256K1_ENABLE_API_VISIBILITY_ATTRIBUTES OFF CACHE BOOL "" FORCE)
++
++    set(SECP256K1_ENABLE_MODULE_ECDH OFF CACHE BOOL "" FORCE)
++    set(SECP256K1_ENABLE_MODULE_RECOVERY ON CACHE BOOL "" FORCE)
++    set(SECP256K1_ENABLE_MODULE_MUSIG ON CACHE BOOL "" FORCE)
++    set(SECP256K1_BUILD_BENCHMARK OFF CACHE BOOL "" FORCE)
++    set(SECP256K1_BUILD_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
++    set(SECP256K1_BUILD_EXHAUSTIVE_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
++    if(NOT BUILD_TESTS)
++      # Always skip the ctime tests, if we are building no other tests.
++      # Otherwise, they are built if Valgrind is available. See SECP256K1_VALGRIND.
++      set(SECP256K1_BUILD_CTIME_TESTS ${BUILD_TESTS} CACHE BOOL "" FORCE)
++    endif()
++    set(SECP256K1_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
++    include(GetTargetInterface)
++    # -fsanitize and related flags apply to both C++ and C,
++    # so we can pass them down to libsecp256k1 as CFLAGS and LDFLAGS.
++    get_target_interface(SECP256K1_APPEND_CFLAGS "" sanitize_interface COMPILE_OPTIONS)
++    string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CPPFLAGS}" SECP256K1_APPEND_CFLAGS)
++    string(STRIP "${SECP256K1_APPEND_CFLAGS} ${APPEND_CFLAGS}" SECP256K1_APPEND_CFLAGS)
++    set(SECP256K1_APPEND_CFLAGS ${SECP256K1_APPEND_CFLAGS} CACHE STRING "" FORCE)
++    get_target_interface(SECP256K1_APPEND_LDFLAGS "" sanitize_interface LINK_OPTIONS)
++    string(STRIP "${SECP256K1_APPEND_LDFLAGS} ${APPEND_LDFLAGS}" SECP256K1_APPEND_LDFLAGS)
++    set(SECP256K1_APPEND_LDFLAGS ${SECP256K1_APPEND_LDFLAGS} CACHE STRING "" FORCE)
++    # We want to build libsecp256k1 with the most tested RelWithDebInfo configuration.
++    foreach(config IN LISTS CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES)
++      if(config STREQUAL "")
++        continue()
++      endif()
++      string(TOUPPER "${config}" config)
++      set(CMAKE_C_FLAGS_${config} "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
++    endforeach()
++    # If the CFLAGS environment variable is defined during building depends
++    # and configuring this build system, its content might be duplicated.
++    if(DEFINED ENV{CFLAGS})
++      deduplicate_flags(CMAKE_C_FLAGS)
++    endif()
++
++    add_subdirectory(${subdir})
++    set_target_properties(secp256k1 PROPERTIES
++      EXCLUDE_FROM_ALL TRUE
++    )
++  endfunction()
++
++endif() # SECP256K1_BACKEND
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index b37f3c8..34ca352 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -24,7 +24,9 @@ if (ENABLE_IPC AND NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+   add_libmultiprocess(ipc/libmultiprocess)
+ endif()
+ include(../cmake/secp256k1.cmake)
+-add_secp256k1(secp256k1)
++if(NOT SECP256K1_BACKEND STREQUAL "ultrafast")
++  add_secp256k1(secp256k1)
++endif()
+
+ # Set top-level target output locations.
+ if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)

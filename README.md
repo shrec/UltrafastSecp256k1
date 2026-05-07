@@ -37,14 +37,26 @@ It is not a trust request. It is a verification package.
 
 **Scope:** CPU secp256k1 backend only — ECDSA/Schnorr sign/verify, RFC 6979 nonce, DER parsing, constant-time signing, libsecp256k1-compatible shim. GPU, FFI, bindings, WASM, ZK, multi-coin, and wallet tooling are out of scope for this evaluation.
 
-**NOT A REPLACEMENT.** This PR adds an opt-in compile-time alternative backend (`-DUSE_ULTRAFAST_SECP256K1=ON`, default: OFF). When OFF, the build is byte-for-byte identical to today. The existing `src/secp256k1/` path and all existing behavior is unchanged.
+**NOT A REPLACEMENT.** This PR adds an opt-in compile-time alternative backend (`-DSECP256K1_BACKEND=ultrafast`, default: `bundled`). When bundled, the build is byte-for-byte identical to today. The existing `src/secp256k1/` path and all existing behavior is unchanged.
 
-**Reproduce in 3 commands:**
+**Reproduce from the fork (recommended):**
 ```bash
-# Integration patch applies to public Bitcoin Core v28.0
-git clone https://github.com/bitcoin/bitcoin && cd bitcoin && git checkout v28.0
+# Fork: github.com/shrec/bitcoin  branch: feature/ultrafast-secp256k1-backend
+git clone https://github.com/shrec/bitcoin -b feature/ultrafast-secp256k1-backend && cd bitcoin
+git submodule update --init src/ultrafast_secp256k1
+cmake --preset ultrafast-bench   # Release + LTO — required for accurate ConnectBlock numbers
+cmake --build out/build-ultrafast-lto -j$(nproc)
+ctest --test-dir out/build-ultrafast-lto -j$(nproc)
+```
+
+**Reproduce from patch against upstream (alternative):**
+```bash
+git clone https://github.com/bitcoin/bitcoin && cd bitcoin
 git apply /path/to/UltrafastSecp256k1/docs/INTEGRATION_PATCH.patch
-cmake -B build -DUSE_ULTRAFAST_SECP256K1=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc) && ctest --test-dir build -j$(nproc)
+git submodule update --init src/ultrafast_secp256k1
+cmake --preset ultrafast-bench   # Release + LTO
+cmake --build out/build-ultrafast-lto -j$(nproc)
+ctest --test-dir out/build-ultrafast-lto -j$(nproc)
 ```
 
 **CAAS evidence entry point:**
