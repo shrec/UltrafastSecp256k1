@@ -49,7 +49,7 @@ int secp256k1_ec_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
     const unsigned char *input, size_t inputlen)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !input) return 0;
 
     if (inputlen == 33) {
@@ -105,7 +105,7 @@ int secp256k1_ec_pubkey_serialize(
     const secp256k1_context *ctx, unsigned char *output, size_t *outputlen,
     const secp256k1_pubkey *pubkey, unsigned int flags)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output || !outputlen || !pubkey) return 0;
 
     if (flags & SECP256K1_FLAGS_BIT_COMPRESSION) {
@@ -147,7 +147,7 @@ int secp256k1_ec_pubkey_create(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
     const unsigned char *seckey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !seckey) return 0;
 
     Scalar k;
@@ -161,7 +161,7 @@ int secp256k1_ec_pubkey_create(
 int secp256k1_ec_pubkey_negate(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey) return 0;
     auto P = pubkey_data_to_point(pubkey->data);
     auto neg = P.negate();
@@ -173,7 +173,7 @@ int secp256k1_ec_pubkey_tweak_add(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !tweak32) return 0;
     auto P = pubkey_data_to_point(pubkey->data);
     // tweak in [0, n-1]; 0 is valid (result == pubkey)
@@ -190,7 +190,7 @@ int secp256k1_ec_pubkey_tweak_mul(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !tweak32) return 0;
     auto P = pubkey_data_to_point(pubkey->data);
     Scalar t;
@@ -205,7 +205,7 @@ int secp256k1_ec_pubkey_combine(
     const secp256k1_context *ctx, secp256k1_pubkey *out,
     const secp256k1_pubkey * const *ins, size_t n)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!out || !ins || n == 0) return 0;
     for (size_t i = 0; i < n; ++i) { if (!ins[i]) return 0; }
     auto acc = pubkey_data_to_point(ins[0]->data);

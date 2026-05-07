@@ -1236,7 +1236,7 @@ Validation prefix: `0xb63b4601066a6971` (all platforms, both libraries match).
 - **5 GPU signature benchmarks** in `bench_cuda.cu` -- ECDSA sign, verify, sign+recid, Schnorr sign, Schnorr verify.
 - **`prepare_ecdsa_test_data()`** helper -- generates valid signatures on GPU for verify benchmark correctness.
 
-> **No other open-source GPU library provides secp256k1 ECDSA + Schnorr sign/verify.** This is the only production-ready multi-backend (CUDA + OpenCL + Metal) GPU secp256k1 library.
+> As of this release, this is the only multi-backend (CUDA + OpenCL + Metal) GPU secp256k1 library with CT-signed batch ECDSA and Schnorr sign/verify that the authors are aware of.
 
 ### Changed
 - **CUDA benchmark numbers updated** -- Scalar Mul improved to 225.8 ns (was 266.5 ns), Field Inv to 10.2 ns (was 12.1 ns) from `__launch_bounds__` thread count fix (128 vs 256 mismatch).

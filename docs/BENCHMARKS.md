@@ -411,7 +411,8 @@ paths (sign, pubkey, batch) win by 2–2.7×. CT signing beats libsecp by ~7% CT
 
 ### GPU Signature Operations
 
-> **No other open-source GPU library provides secp256k1 ECDSA + Schnorr sign/verify on GPU.**
+> As of early 2026, this is the only multi-backend (CUDA + OpenCL + Metal) secp256k1 library
+> with CT-signed batch ECDSA and Schnorr on GPU that the authors are aware of. If you know of others, please open an issue.
 
 | Operation | Time/Op | Throughput | Notes |
 |-----------|---------|------------|-------|

@@ -2,6 +2,7 @@
 // shim_tagged_hash.cpp -- BIP-340 tagged SHA256
 // ============================================================================
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -16,7 +17,7 @@ int secp256k1_tagged_sha256(
     const unsigned char *tag, size_t taglen,
     const unsigned char *msg, size_t msglen)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!hash32 || !tag || !msg) return 0;
 
     // BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || msg)

@@ -2,6 +2,7 @@
 // shim_seckey.cpp -- Secret key verification and tweaking
 // ============================================================================
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -15,7 +16,7 @@ extern "C" {
 int secp256k1_ec_seckey_verify(
     const secp256k1_context *ctx, const unsigned char *seckey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!seckey) return 0;
     Scalar k;
     return Scalar::parse_bytes_strict_nonzero(seckey, k) ? 1 : 0;
@@ -24,7 +25,7 @@ int secp256k1_ec_seckey_verify(
 int secp256k1_ec_seckey_negate(
     const secp256k1_context *ctx, unsigned char *seckey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!seckey) return 0;
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;

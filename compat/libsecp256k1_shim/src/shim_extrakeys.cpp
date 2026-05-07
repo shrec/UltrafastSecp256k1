@@ -27,7 +27,7 @@ int secp256k1_xonly_pubkey_parse(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *pubkey,
     const unsigned char *input32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !input32) return 0;
 
     // Reject x >= p (libsecp strict boundary)
@@ -51,7 +51,7 @@ int secp256k1_xonly_pubkey_serialize(
     const secp256k1_context *ctx, unsigned char *output32,
     const secp256k1_xonly_pubkey *pubkey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output32 || !pubkey) return 0;
     std::memcpy(output32, pubkey->data, 32);
     return 1;
