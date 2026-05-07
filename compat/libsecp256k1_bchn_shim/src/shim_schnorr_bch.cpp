@@ -29,6 +29,7 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::fast;
@@ -115,12 +116,8 @@ int secp256k1_schnorr_sign(
         // e = SHA256(R.x || P_compressed || msg)
         auto e = bch_schnorr_e(rx, px.data(), p_y_odd, msg);
 
-        // Fix 2c: CT arithmetic for s = k + e*d.
-        // e*d: multiply of public hash e by secret d — use ct::scalar_mul_mod.
-        // Operator* on Scalar uses Montgomery multiplication which is constant-time
-        // on secp256k1's CPU layer (no secret-dependent branches in field mul).
-        // The addition k + (e*d) is likewise a constant-time modular add.
-        auto s = k + e * d;
+        // CT arithmetic for s = k + e*d (k and d are secrets — use ct:: primitives).
+        auto s = secp256k1::ct::scalar_add(k, secp256k1::ct::scalar_mul(e, d));
         if (s.is_zero()) {
             secp256k1::detail::secure_erase(kb.data(), 32);
             secp256k1::detail::secure_erase(&d, sizeof(d));

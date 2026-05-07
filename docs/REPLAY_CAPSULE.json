@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-05-01T19:05:01.561614+00:00",
-  "commit_hash": "bfb17e09427008abc1b7a550f0f21398d6041fd9",
-  "dirty": true,
+  "generated_at": "2026-05-07T15:06:23.966888+00:00",
+  "commit_hash": "6e36360162f565f448ea8d78df39d999c8c087fb",
+  "dirty": false,
   "profile": "default",
   "build_flags": {
     "cmake_build_type": "Release",

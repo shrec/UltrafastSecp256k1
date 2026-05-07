@@ -2,7 +2,7 @@
   "generated_at": "2026-05-07T00:00:00Z",
   "description": "Bitcoin Core bench_bitcoin performance comparison: upstream libsecp256k1 vs UltrafastSecp256k1 shim",
   "backend": "UltrafastSecp256k1",
-  "backend_commit": "3e2e915b",
+  "backend_commit": "6e363601",
   "bitcoin_core_base_commit": "be269c3527896d1ac88ada1c6735213fdc9a0c7d",
   "bitcoin_core_branch": "shrec/ultrafast-backend (fork of bitcoin/bitcoin)",
   "machine_spec": {

@@ -267,9 +267,10 @@ int secp256k1_ecdsa_verify(
     const secp256k1_context *ctx, const secp256k1_ecdsa_signature *sig,
     const unsigned char *msghash32, const secp256k1_pubkey *pubkey)
 {
-    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
-    // (or a context created with CONTEXT_SIGN which is a superset).
-    // SECP256K1_CONTEXT_NONE contexts are rejected to match upstream contract.
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(nullptr, "secp256k1_ecdsa_verify: NULL context");
+        return 0;
+    }
     if (!ctx_can_verify(ctx)) return 0;
     if (!sig || !msghash32 || !pubkey) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_verify: NULL argument");
@@ -366,8 +367,10 @@ int secp256k1_ecdsa_sign(
     const unsigned char *msghash32, const unsigned char *seckey,
     secp256k1_nonce_function noncefp, const void *ndata)
 {
-    // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
-    // A context created with only CONTEXT_VERIFY is rejected for signing.
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(nullptr, "secp256k1_ecdsa_sign: NULL context");
+        return 0;
+    }
     if (!ctx_can_sign(ctx)) return 0;
     if (!sig || !msghash32 || !seckey) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_sign: NULL argument");

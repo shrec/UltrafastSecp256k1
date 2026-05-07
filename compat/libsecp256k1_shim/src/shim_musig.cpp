@@ -103,6 +103,9 @@ struct KAEntry {
 std::mutex g_mu;
 std::unordered_map<const void*, std::unique_ptr<KAEntry>> g_ka;
 
+// Hard cap prevents DoS from abandoned sessions on error paths.
+static constexpr std::size_t kMaxKaEntries = 1024;
+
 static KAEntry* ka_get(const secp256k1_musig_keyagg_cache* p) {
     std::lock_guard<std::mutex> lk(g_mu);
     auto it = g_ka.find(p);
@@ -111,6 +114,7 @@ static KAEntry* ka_get(const secp256k1_musig_keyagg_cache* p) {
 
 static KAEntry* ka_put(const secp256k1_musig_keyagg_cache* p, std::unique_ptr<KAEntry> v) {
     std::lock_guard<std::mutex> lk(g_mu);
+    if (g_ka.size() >= kMaxKaEntries) return nullptr;  // DoS cap
     auto& slot = g_ka[p];
     slot = std::move(v);
     return slot.get();

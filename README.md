@@ -16,8 +16,8 @@ It is not a trust request. It is a verification package.
   </a>
 </p>
 
-[![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
-[![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
+[![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=dev)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=dev)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19685027-blue.svg)](https://doi.org/10.5281/zenodo.19685027)
 
@@ -283,8 +283,8 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Stars)](https://github.com/shrec/UltrafastSecp256k1/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/shrec/UltrafastSecp256k1?style=flat-square&logo=github&label=Forks)](https://github.com/shrec/UltrafastSecp256k1/network/members)
-[![Gate](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/gate.yml?branch=main&label=Gate)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
-[![Research](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/research-monitor.yml?branch=main&label=Research)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
+[![Gate](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/gate.yml?branch=dev&label=Gate)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![Research](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/research-monitor.yml?branch=dev&label=Research)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++17+](https://img.shields.io/badge/C%2B%2B-17%2B-blue.svg)](https://en.cppreference.com/w/cpp/17)

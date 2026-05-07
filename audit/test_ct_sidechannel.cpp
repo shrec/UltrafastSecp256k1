@@ -1383,7 +1383,9 @@ static void test_valgrind_markers() {
         SECP256K1_DECLASSIFY(&sum, sizeof(sum));
         SECP256K1_DECLASSIFY(&prod, sizeof(prod));
         SECP256K1_DECLASSIFY(&sq, sizeof(sq));
-        check(true, "CT field ops classified");
+        check(sum == secp256k1::ct::field_add(a, b), "CT field_add classified");
+        check(prod == secp256k1::ct::field_mul(a, b), "CT field_mul classified");
+        check(sq == secp256k1::ct::field_sqr(a), "CT field_sqr classified");
         printf("    ct::field_{add,mul,sqr} classified: [OK]\n");
     }
     // 7c: CT scalar ops
@@ -1395,7 +1397,8 @@ static void test_valgrind_markers() {
         auto neg = secp256k1::ct::scalar_neg(a);
         SECP256K1_DECLASSIFY(&sum, sizeof(sum));
         SECP256K1_DECLASSIFY(&neg, sizeof(neg));
-        check(true, "CT scalar ops classified");
+        check(sum == secp256k1::ct::scalar_add(a, b), "CT scalar_add classified");
+        check(neg == secp256k1::ct::scalar_neg(a), "CT scalar_neg classified");
         printf("    ct::scalar_{add,neg} classified: [OK]\n");
     }
     // 7d: cmov with classified mask
@@ -1405,7 +1408,7 @@ static void test_valgrind_markers() {
         SECP256K1_CLASSIFY(&mask, sizeof(mask));
         secp256k1::ct::field_cmov(&a, b, mask);
         SECP256K1_DECLASSIFY(&a, sizeof(a));
-        check(true, "CT field_cmov classified mask");
+        check(a == b, "CT field_cmov(mask=all-ones) copies b to a");
         printf("    ct::field_cmov classified mask: [OK]\n");
     }
     // 7e: table lookup with classified index
@@ -1420,7 +1423,8 @@ static void test_valgrind_markers() {
         secp256k1::ct::ct_lookup_256(table, 16, idx, out);
         SECP256K1_DECLASSIFY(&out, sizeof(out));
         SECP256K1_DECLASSIFY(&idx, sizeof(idx));
-        check(true, "CT lookup classified index");
+        check(std::memcmp(out, table[7], sizeof(out)) == 0,
+              "CT ct_lookup_256 classified index returns correct entry");
         printf("    ct::ct_lookup_256 classified index: [OK]\n");
     }
     // 7f: generator_mul

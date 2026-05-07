@@ -11,14 +11,44 @@
 #ifndef SECP256K1_ECDH_CL
 #define SECP256K1_ECDH_CL
 
-// ECDH: raw x-coordinate of shared secret
+// ---------------------------------------------------------------------------
+// CT scalar multiplication for ECDH: fixed 256-iteration double-and-add.
+// No secret-dependent branches; scalar bits accessed via branchless mask.
+// ---------------------------------------------------------------------------
+inline void ct_ecdh_scalar_mul(JacobianPoint* r, const JacobianPoint* pk,
+                                const Scalar* sk)
+{
+    JacobianPoint R, T;
+    point_set_infinity(&R);
+
+    for (int i = 255; i >= 0; --i) {
+        point_double_impl(&R, &R);
+        point_add_impl(&T, &R, pk);
+
+        // CT select: if bit i of sk is 1, R = T; else R = R.
+        // mask = all-ones if bit=1, all-zeros if bit=0.
+        int word = i >> 6;
+        int bit  = (int)((sk->limbs[word] >> (i & 63)) & 1UL);
+        ulong mask = -(ulong)bit;
+        for (int j = 0; j < 4; ++j) {
+            R.x.limbs[j] ^= mask & (R.x.limbs[j] ^ T.x.limbs[j]);
+            R.y.limbs[j] ^= mask & (R.y.limbs[j] ^ T.y.limbs[j]);
+            R.z.limbs[j] ^= mask & (R.z.limbs[j] ^ T.z.limbs[j]);
+        }
+        R.infinity = (int)(((uint)R.infinity & (uint)~(uint)mask) |
+                           ((uint)T.infinity & (uint)mask));
+    }
+    *r = R;
+}
+
+// ECDH: raw x-coordinate of shared secret (CT path — secret scalar)
 // shared_secret = x-coordinate of sk * PK (32 bytes, big-endian)
 inline int ecdh_compute_raw_impl(const Scalar* private_key,
                                   const JacobianPoint* peer_pubkey,
                                   uchar out[32])
 {
     JacobianPoint shared;
-    scalar_mul_impl(&shared, peer_pubkey, private_key);
+    ct_ecdh_scalar_mul(&shared, peer_pubkey, private_key);
     if (shared.infinity) return 0;
 
     FieldElement z_inv, z_inv2, x_aff;
@@ -51,13 +81,13 @@ inline int ecdh_compute_xonly_impl(const Scalar* private_key,
     return 1;
 }
 
-// ECDH: standard compressed hash: SHA-256(0x02 || x)
+// ECDH: standard compressed hash: SHA-256(0x02 || x) (CT path — secret scalar)
 inline int ecdh_compute_impl(const Scalar* private_key,
                               const JacobianPoint* peer_pubkey,
                               uchar out[32])
 {
     JacobianPoint shared;
-    scalar_mul_impl(&shared, peer_pubkey, private_key);
+    ct_ecdh_scalar_mul(&shared, peer_pubkey, private_key);
     if (shared.infinity) return 0;
 
     // BUG-3 FIX: compute y_aff to derive the correct compressed-point prefix.

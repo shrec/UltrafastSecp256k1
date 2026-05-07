@@ -98,6 +98,9 @@ ufsecp_error_t ufsecp_musig2_nonce_agg(ufsecp_ctx* ctx,
         pns[i] = secp256k1::MuSig2PubNonce::deserialize(buf);
     }
     auto agg = secp256k1::musig2_nonce_agg(pns);
+    /* BIP-327: aggregated nonce points must not be infinity (cancellation attack) */
+    if (agg.R1.is_infinity() || agg.R2.is_infinity())
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "aggregated nonce is infinity");
     /* Serialize: R1(33) || R2(33) */
     auto r1 = agg.R1.to_compressed();
     auto r2 = agg.R2.to_compressed();

@@ -67,8 +67,8 @@ static void test_ecdh() {
     for (int i = 0; i < total; ++i) {
         auto sk_a = random_scalar();
         auto sk_b = random_scalar();
-        auto pk_a = G.scalar_mul(sk_a);
-        auto pk_b = G.scalar_mul(sk_b);
+        auto pk_a = secp256k1::ct::generator_mul(sk_a);
+        auto pk_b = secp256k1::ct::generator_mul(sk_b);
 
         // shared_secret_a = ECDH(sk_a, pk_b) == ECDH(sk_b, pk_a) = shared_secret_b
         auto secret_a = secp256k1::ecdh_compute(sk_a, pk_b);

@@ -343,7 +343,8 @@ jobs:
             python3 ci/verify_external_audit_bundle.py --json --allow-commit-mismatch \
               > caas_bundle_verify.json
           else
-            echo "::warning::docs/EXTERNAL_AUDIT_BUNDLE.json not present — skipping bundle verify"
+            echo "::error::docs/EXTERNAL_AUDIT_BUNDLE.json not present — bundle integrity cannot be verified"
+            exit 1
           fi
 
       - name: Evidence chain integrity check (SW-01 fix)
