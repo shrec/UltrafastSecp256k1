@@ -1,10 +1,3 @@
-[FAIL] lag: ZK Proofs & Commitments ratio=ns/opx (min=0.75x)
-[FAIL] lag: ADAPTOR SIGNATURES ratio=ns/opx (min=0.75x)
-[FAIL] lag: FROST THRESHOLD (2-of-3) ratio=ns/opx (min=0.75x)
-[FAIL] lag: MUSIG2 MULTI-SIGNATURES (2-of-2) ratio=ns/opx (min=0.75x)
-[FAIL] lag: ECIES ENCRYPTION ratio=ns/opx (min=0.75x)
-[FAIL] lag: MESSAGE SIGNING & HASHING ratio=ns/opx (min=0.75x)
-[FAIL] lag: BIP-39 MNEMONIC ratio=ns/opx (min=0.75x)
-[FAIL] lag: BIP-141/143/144/342 SEGWIT & TAPSCRIPT ratio=ns/opx (min=0.75x)
-[FAIL] lag: BIP-141 p2wpkh_scriptpubkey ratio=0.7x (min=0.75x)
-[FAIL] lag: BIP-324 ENCRYPTED TRANSPORT ratio=ns/opx (min=0.75x)
+# Pending fresh benchmark run.
+# Previous artifact was corrupt (ratio=ns/opx — measurement unit string, not a number).
+# Regenerate after full bench_unified run with: --json --lagging-threshold 0.75

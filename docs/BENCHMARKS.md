@@ -13,35 +13,38 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ---
 
-## Summary (release-grade)
+## Summary
 
-| Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | ZK Prove | Verify vs lib | CT Sign vs lib |
-|----------|-----------|---------------|------------|-------------|----------|---------------|----------------|
-| **x86-64 (i5-14400F, Clang 19)** | **12.8 ns** | **6.7 us** | **17.6 us** | **21.3 us** | **24.3 us** | **1.09×** | **1.20–1.33×** |
-| **x86-64 (i5-14400F, GCC 13)** | 14.3 ns | 5.7 us | 19.4 us | 22.3 us | -- | **1.15×** | **0.82–0.85×** |
-| x86-64 (Clang 21, Win) | 17 ns (5x52) | 5 us | 25 us | -- | -- | -- | -- |
-| RISC-V 64 (SiFive U74, Clang 21) | 176 ns | 40.2 us | 150.5 us | **181.8 us** | -- | **1.13×** | -- |
-| ARM64 (RK3588, A76) | 74 ns | 14 us | 131 us | -- | -- | -- | -- |
-| ESP32-S3 (LX7, 240 MHz) | 5,910 ns | 6,134 us | 12,752 us | 18,670 us | -- | **1.70×** | -- |
-| ESP32-P4 (RV32, 360 MHz) | 2,424 ns | 2,253 us | 5,256 us | 7,528 us | -- | **1.01×** | -- |
-| ESP32-C6 (RV32, 160 MHz) | 5,974 ns | 5,483 us | 12,682 us | 18,957 us | -- | -- | -- |
-| ESP32 (LX6, 240 MHz) | 6,993 ns | 6,203 us | -- | -- | -- | -- | -- |
-| STM32F103 (CM3, 72 MHz) | 15,331 ns | 37,982 us | -- | -- | -- | -- | -- |
-| CUDA (RTX 5060 Ti) | 0.2 ns | 113.5 ns | 97.7 ns | **230.2 ns** | **258.6 ns** | -- | -- |
-| CUDA (RTX 5070 Ti) | 5.8 ns | 92.1 ns | 101.4 ns | 122.8 ns | -- | -- | -- |
-| OpenCL (RTX 5060 Ti) | 0.2 ns | 113.5 ns | 97.7 ns | **230.2 ns** | **258.6 ns** | -- | -- |
-| Metal (Apple M3 Pro) | 1.9 ns | 3.00 us | 2.94 us | -- | -- | -- | -- |
+> **Status: pending fresh benchmark run across all platforms.**
+>
+> Previous data removed due to mixed compiler versions (GCC 13/14/Clang 19/21 combined
+> across runs) making cross-platform comparison invalid. A fresh controlled run with a
+> single toolchain per platform will populate this table.
+>
+> **Scheduled platforms:** x86-64 (i5-14400F), ARM64 (RK3588), RISC-V 64 (SiFive U74),
+> ESP32-C6 (160 MHz), ESP32-P4 (360 MHz), ESP32-S3 (240 MHz), CUDA (RTX), OpenCL (RTX).
+>
+> **Methodology requirements:** single compiler version per platform, Release+LTO,
+> CPU pinned, turbo disabled, ≥5 passes, variance <3%, CT-vs-CT signing comparison only.
+>
+> For historical numbers see the `[archived]` sections below.
 
-> **CT Sign vs lib** = Ultra CT signing vs libsecp256k1 CT signing (production-equivalent,
-> apples-to-apples). Compiler choice significantly affects this ratio: Clang 19 favours
-> Ultra; GCC 13 favours libsecp. The Ultra FAST (variable-time) path is ~2× faster still
-> but is only valid for non-secret scalars — see the [x86-64 Full Rerun](#x86-64-full-rerun-2026-03-24-post-exploit-fix-audit-archived)
-> sections below for the per-run labeling.
+| Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | Verify vs lib | CT Sign vs lib |
+|----------|-----------|---------------|------------|-------------|---------------|----------------|
+| x86-64 (i5-14400F) | — | — | — | — | — | — |
+| ARM64 (RK3588, A76) | — | — | — | — | — | — |
+| RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
+| ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
+| ESP32-P4 (RV32, 360 MHz) | — | — | — | — | — | — |
+| ESP32-S3 (LX7, 240 MHz) | — | — | — | — | — | — |
+| CUDA (RTX) | — | — | — | — | — | — |
+| OpenCL (RTX) | — | — | — | — | — | — |
 
-GPU rows use the latest retained local rerun per backend. The stable public GPU
-C ABI now exposes 19 backend-neutral operations, and CUDA, OpenCL, and Metal all
-implement that stable surface. Internal signing kernels and benchmark-only paths
-are tracked separately from the public GPU ABI.
+> **CT Sign vs lib** = Ultra CT signing vs libsecp256k1 CT signing (production-equivalent).
+> **Verify vs lib** = both variable-time paths on public data (fair comparison).
+> GPU rows: kernel-only throughput at standard batch sizes.
+
+---
 
 ---
 

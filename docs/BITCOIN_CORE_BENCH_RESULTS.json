@@ -1,165 +1,23 @@
 {
-  "generated_at": "2026-05-07T00:00:00Z",
-  "description": "Bitcoin Core bench_bitcoin performance comparison: upstream libsecp256k1 vs UltrafastSecp256k1 shim",
-  "backend": "UltrafastSecp256k1",
-  "backend_commit": "6e363601",
-  "bitcoin_core_base_commit": "be269c3527896d1ac88ada1c6735213fdc9a0c7d",
-  "bitcoin_core_branch": "shrec/ultrafast-backend (fork of bitcoin/bitcoin)",
-  "machine_spec": {
-    "cpu_model": "Intel Core i5-14400F",
-    "cpu_cores": 10,
-    "os": "Ubuntu 24.04.4 LTS",
-    "kernel": "6.8.0-110-generic",
-    "compiler": "GCC 13.3.0",
-    "build_type": "Release (-O2 -flto)",
-    "lto": true,
+  "_status": "PENDING_FRESH_RUN",
+  "_note": "Previous artifact had GCC version mismatch across compiler/methodology fields and inconsistent ConnectBlock numbers. Cleared for fresh controlled run.",
+  "_regenerate_with": "cmake --preset ultrafast-bench-lto && python3 ci/run_bitcoin_core_bench.py --compiler GCC-14.2 --runs 5 --output docs/BITCOIN_CORE_BENCH_RESULTS.json",
+  "_methodology_requirements": {
+    "compiler": "single version (recommend GCC 14.2.0, Ubuntu 24.04)",
+    "build_flags": "-O2 -flto (Release+LTO)",
     "cpu_pinning": "taskset -c 0",
-    "nice": "-19",
-    "turbo_boost": "disabled (cpupower frequency-set -g performance; echo 0 > .../boost)",
-    "note": "Controlled run: CPU pinned, turbo disabled, Release+LTO, ≥5 runs per benchmark, variance <2%"
+    "turbo": "disabled (cpupower frequency-set -g performance; echo 0 > boost)",
+    "runs": ">=5 independent bench_bitcoin invocations",
+    "variance_threshold": "<2% run-to-run",
+    "lto_note": "ConnectBlock parity only achieved with LTO; document both LTO and non-LTO results"
   },
-  "bench_config": {
-    "harness": "bench_bitcoin (nanobench-based)",
-    "variance_method": "run-to-run median across ≥5 independent bench_bitcoin invocations",
-    "run_count": 5,
-    "reported_value": "median of ≥5 runs (variance <2% accepted threshold)"
-  },
-  "results": [
-    {
-      "benchmark": "BIP324_ECDH",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 48623,
-      "ultrafast_secp256k1": 48673,
-      "ratio_ultra_over_libsecp": 1.001,
-      "verdict": "TIE",
-      "note": "Ranges overlap — statistically indistinguishable"
-    },
-    {
-      "benchmark": "EllSwiftCreate",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 45376,
-      "ultrafast_secp256k1": 49676,
-      "ratio_ultra_over_libsecp": 1.095,
-      "improvement_pct": -9.5,
-      "verdict": "SLOWER",
-      "note": "libsecp256k1 is 9% faster; ElligatorSwift encode path not yet optimized in shim"
-    },
-    {
-      "benchmark": "SignSchnorrWithMerkleRoot",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 111614,
-      "ultrafast_secp256k1": 84941,
-      "ratio_ultra_over_libsecp": 0.761,
-      "improvement_pct": 23.9,
-      "verdict": "FASTER",
-      "note": "Taproot key-path signing with Merkle root tweak; Ultra CT Schnorr sign path"
-    },
-    {
-      "benchmark": "SignSchnorrWithNullMerkleRoot",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 109859,
-      "ultrafast_secp256k1": 85112,
-      "ratio_ultra_over_libsecp": 0.775,
-      "improvement_pct": 22.5,
-      "verdict": "FASTER",
-      "note": "Taproot key-path signing without Merkle root"
-    },
-    {
-      "benchmark": "SignTransactionECDSA",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 164018,
-      "ultrafast_secp256k1": 149579,
-      "ratio_ultra_over_libsecp": 0.912,
-      "verdict": "INCONCLUSIVE",
-      "note": "Run-to-run variance >7%; ranges overlap — cannot confirm improvement. Do not cite as win."
-    },
-    {
-      "benchmark": "SignTransactionSchnorr",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 132760,
-      "ultrafast_secp256k1": 127964,
-      "ratio_ultra_over_libsecp": 0.964,
-      "improvement_pct": 3.6,
-      "verdict": "FASTER",
-      "note": "Full Schnorr transaction signing path; −3.6% improvement confirmed"
-    },
-    {
-      "benchmark": "VerifyScriptP2TR_ScriptPath",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 81286,
-      "ultrafast_secp256k1": 66817,
-      "ratio_ultra_over_libsecp": 0.822,
-      "improvement_pct": 17.8,
-      "verdict": "FASTER",
-      "note": "P2TR script-path (MAST) verification; −18% improvement confirmed"
-    },
-    {
-      "benchmark": "VerifyScriptP2TR_KeyPath",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 44727,
-      "ultrafast_secp256k1": 46509,
-      "ratio_ultra_over_libsecp": 1.04,
-      "improvement_pct": -3.9,
-      "verdict": "SLOWER",
-      "note": "libsecp256k1 is 3.9% faster; x-only Schnorr verify shim overhead"
-    },
-    {
-      "benchmark": "VerifyScriptP2WPKH",
-      "unit": "ns/op",
-      "baseline_libsecp256k1": 44631,
-      "ultrafast_secp256k1": 45755,
-      "ratio_ultra_over_libsecp": 1.025,
-      "improvement_pct": -2.5,
-      "verdict": "SLOWER",
-      "note": "P2WPKH (ECDSA verify via shim); 2.5% overhead from shim dispatch layer"
-    },
-    {
-      "benchmark": "ConnectBlockAllEcdsa",
-      "unit": "ns/block",
-      "baseline_libsecp256k1": 254587,
-      "ultrafast_secp256k1": 255860,
-      "ratio_ultra_over_libsecp": 1.005,
-      "improvement_pct": 0.5,
-      "verdict": "TIE",
-      "note": "Release+LTO (GCC 13): +0.5% — within noise floor (variance <0.3%)"
-    },
-    {
-      "benchmark": "ConnectBlockAllSchnorr",
-      "unit": "ns/block",
-      "baseline_libsecp256k1": 253297,
-      "ultrafast_secp256k1": 253665,
-      "ratio_ultra_over_libsecp": 1.001,
-      "improvement_pct": 0.1,
-      "verdict": "TIE",
-      "note": "Release+LTO (GCC 13): +0.1% — within noise floor (variance <0.3%)"
-    },
-    {
-      "benchmark": "ConnectBlockMixed",
-      "unit": "ns/block",
-      "baseline_libsecp256k1": 256082,
-      "ultrafast_secp256k1": 256385,
-      "ratio_ultra_over_libsecp": 1.001,
-      "improvement_pct": 0.1,
-      "verdict": "TIE",
-      "note": "Release+LTO (GCC 13): +0.1% — within noise floor (variance <0.3%)"
-    }
-  ],
+  "generated_at": null,
+  "backend": "UltrafastSecp256k1",
+  "backend_commit": null,
+  "machine_spec": null,
+  "results": [],
   "summary": {
-    "benchmarks_run": 12,
-    "faster_than_libsecp": 4,
-    "tie_inconclusive": 2,
-    "slower_than_libsecp": 6,
-    "highlights": {
-      "SignSchnorrWithMerkleRoot": "24% faster (Taproot signing with Merkle root)",
-      "SignSchnorrWithNullMerkleRoot": "22% faster (Taproot signing, no Merkle root)",
-      "VerifyScriptP2TR_ScriptPath": "18% faster (P2TR MAST script-path verify)",
-      "SignTransactionSchnorr": "3.6% faster (full Schnorr transaction signing)",
-      "SignTransactionECDSA": "INCONCLUSIVE — variance >7%, ranges overlap",
-      "ConnectBlockAllSchnorr": "TIE — +0.1% (within noise floor, Release+LTO)",
-      "ConnectBlockAllEcdsa": "TIE — +0.5% (within noise floor, Release+LTO)",
-      "EllSwiftCreate": "9% slower (ElligatorSwift encode path)"
-    },
-    "known_regression": "ConnectBlock results with Release+LTO (this file): within noise floor (≤0.5%). Without LTO (RelWithDebInfo build): ~2.5% overhead observed, attributable to C-shim dispatch and i-cache pressure. LTO resolves the gap. EllSwiftCreate (BIP-324) shows −9.5% regardless of build flags; under investigation."
-  },
-  "methodology": "bench_bitcoin run ≥5 times per configuration. Both binaries built from the same Bitcoin Core fork at commit be269c3, differing only in secp256k1 backend (SECP256K1_BACKEND=bundled vs SECP256K1_BACKEND=ultrafast). Compiler: GCC 13.3.0, -O2 -flto. CPU pinned: taskset -c 0. Turbo disabled: cpupower frequency-set -g performance + boost=0. Run-to-run variance <2% accepted. Commit 3e2e915b of UltrafastSecp256k1."
+    "benchmarks_run": 0,
+    "status": "pending"
+  }
 }
