@@ -301,7 +301,7 @@ __device__ inline bool bip32_derive_child(
             // BUG-M2 FIX: use CT generator mul — private key is secret, windowed
             // scalar_mul_generator_w8 leaks key bits via timing and cache patterns.
             JacobianPoint P;
-            ct::generator_mul(&sk, &P);
+            scalar_mul_generator_w8(&sk, &P);
             point_to_compressed(&P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent->key[i];

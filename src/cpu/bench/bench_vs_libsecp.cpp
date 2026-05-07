@@ -97,6 +97,10 @@ int main(int argc, char** argv) {
     std::array<secp256k1_ecdsa_signature,POOL> lecdsa;
     std::array<secp256k1_keypair,        POOL> lkps;
     std::array<std::array<uint8_t,64>,   POOL> lschnorr;
+    std::array<secp256k1_xonly_pubkey,   POOL> lxonly_pks;  // for xonly_pubkey_parse bench
+    // DER-encoded signatures for P2WPKH path (Bitcoin Core uses DER)
+    std::array<std::array<uint8_t,72>,   POOL> lecdsa_der;
+    std::array<std::size_t,              POOL> lecdsa_der_len{};
     std::array<std::array<uint8_t,32>,   POOL> lxonly;
     // Precomp pools — native Ultra EcdsaPublicKey/SchnorrXonlyPubkey (pre-built GLV)
     std::array<EcdsaPublicKey,           POOL> precomp_pks;
@@ -120,6 +124,11 @@ int main(int argc, char** argv) {
         SchnorrXonlyPubkey tmp;
         schnorr_xonly_pubkey_parse(tmp, lxonly[i].data());       // primes seen_once
         schnorr_xonly_pubkey_parse(precomp_xonly[i], lxonly[i].data()); // builds tables
+        // xonly_pubkey_parse for shim (Bitcoin Core P2TR path)
+        secp256k1_xonly_pubkey_parse(lctx, &lxonly_pks[i], lxonly[i].data());
+        // DER-encode signatures (Bitcoin Core uses DER for P2WPKH)
+        lecdsa_der_len[i] = 72;
+        secp256k1_ecdsa_signature_serialize_der(lctx, lecdsa_der[i].data(), &lecdsa_der_len[i], &lecdsa[i]);
     }
 
     printf("\n");
@@ -368,7 +377,211 @@ int main(int argc, char** argv) {
     });
     print_row("pubkey_create (k*G)", u, l);
 
+    // ── CONNECTBLOCK STEP-BY-STEP OVERHEAD DISSECTION ────────────────────────
+    // Isolates every shim call that Bitcoin Core makes per signature.
+    // P2WPKH path: pubkey_parse + sig_parse_der + sig_normalize + ecdsa_verify
+    // P2TR path:   xonly_pubkey_parse + schnorrsig_verify
+    // Goal: find which step contributes the 2.5% ConnectBlock deficit.
+    printf("  %-34s\n", "");
+    printf("  ── ConnectBlock Step-by-Step Overhead ──\n");
+    printf("  %-34s\n", "");
+
+    // (A) ec_pubkey_parse: compressed → X||Y stored in opaque struct
+    //     Ultra: parse X, sqrt(y²=x³+7), store X||Y  vs  libsecp: ge_storage memcpy
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_pubkey pk;
+        int ok = secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_pubkey pk;
+        int ok = secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(A) ec_pubkey_parse (shim=lib)", u, l);
+
+    // (B) ecdsa_verify — shim path (cache get/put + Point recon + GLV + Shamir)
+    //     Uses lpubs[] (pre-parsed, so (A) is not double-counted)
+    idx = 0;
+    u = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL],
+                                         msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL],
+                                         msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(B) ecdsa_verify shim (warm)", u, l);
+
+    // (C) Native Ultra: pubkey_data_to_point + dual_scalar_mul_gen_point (no cache)
+    //     Exactly what the shim 1st-encounter does after removing ecdsa_pubkey_parse
+    idx = 0;
+    u = H.run(N, [&]() {
+        std::array<uint8_t,32> xb{}, yb{};
+        std::memcpy(xb.data(), lpubs[idx%POOL].data,      32);
+        std::memcpy(yb.data(), lpubs[idx%POOL].data + 32, 32);
+        auto x  = FieldElement::from_bytes(xb);
+        auto y  = FieldElement::from_bytes(yb);
+        auto pt = Point::from_affine(x, y);
+        bool ok = ecdsa_verify(msg[idx%POOL], pt, ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL],
+                                         msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(C) Ultra Point-verify (no cache)", u, l);
+
+    // (D) Native Ultra: dual_scalar_mul_gen_point alone (Point already in pool)
+    //     Isolates the Shamir + table-build cost only
+    idx = 0;
+    u = H.run(N, [&]() {
+        bool ok = ecdsa_verify(msg[idx%POOL], pubkeys[idx%POOL], ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL],
+                                         msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(D) Ultra Point-verify (pool pt)", u, l);
+
+    // (E) Native Ultra: pre-built GLV tables (no table build — only Shamir)
+    idx = 0;
+    u = H.run(N, [&]() {
+        bool ok = ecdsa_verify(msg[idx%POOL], precomp_pks[idx%POOL], ecdsa_sigs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_ecdsa_verify(lctx, &lecdsa[idx%POOL],
+                                         msg[idx%POOL].data(), &lpubs[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(E) Ultra precomp-verify (warm)", u, l);
+
+    // (F) DER signature parse — Bitcoin Core uses DER for P2WPKH
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_ecdsa_signature sig;
+        int ok = secp256k1_ecdsa_signature_parse_der(lctx, &sig,
+            lecdsa_der[idx%POOL].data(), lecdsa_der_len[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_ecdsa_signature sig;
+        int ok = secp256k1_ecdsa_signature_parse_der(lctx, &sig,
+            lecdsa_der[idx%POOL].data(), lecdsa_der_len[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(F) ecdsa_sig_parse_der", u, l);
+
+    // (G) Signature normalize (low-S) — called after DER parse in P2WPKH
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_ecdsa_signature norm;
+        int ok = secp256k1_ecdsa_signature_normalize(lctx, &norm, &lecdsa[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_ecdsa_signature norm;
+        int ok = secp256k1_ecdsa_signature_normalize(lctx, &norm, &lecdsa[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(G) ecdsa_sig_normalize", u, l);
+
+    // (H) xonly_pubkey_parse — Bitcoin Core P2TR path
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        int ok = secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        int ok = secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(H) xonly_pubkey_parse", u, l);
+
+    // (I) schnorrsig_verify — Bitcoin Core P2TR path (warm cached)
+    idx = 0;
+    u = H.run(N, [&]() {
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(),
+            msg[idx%POOL].data(), 32, &lxonly_pks[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(),
+            msg[idx%POOL].data(), 32, &lxonly_pks[idx%POOL]);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("(I) schnorrsig_verify (warm)", u, l);
+
+    // ── FULL PATH SUMS (P2WPKH and P2TR) ─────────────────────────────────────
+    printf("  %-34s\n", "");
+    printf("  ── Full Bitcoin Core Paths ──\n");
+    printf("  %-34s\n", "");
+
+    // P2WPKH full: pubkey_parse + sig_parse_der + sig_normalize + ecdsa_verify
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_pubkey pk; secp256k1_ecdsa_signature sig, norm;
+        secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+        secp256k1_ecdsa_signature_parse_der(lctx, &sig,
+            lecdsa_der[idx%POOL].data(), lecdsa_der_len[idx%POOL]);
+        secp256k1_ecdsa_signature_normalize(lctx, &norm, &sig);
+        int ok = secp256k1_ecdsa_verify(lctx, &norm, msg[idx%POOL].data(), &pk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_pubkey pk; secp256k1_ecdsa_signature sig, norm;
+        secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+        secp256k1_ecdsa_signature_parse_der(lctx, &sig,
+            lecdsa_der[idx%POOL].data(), lecdsa_der_len[idx%POOL]);
+        secp256k1_ecdsa_signature_normalize(lctx, &norm, &sig);
+        int ok = secp256k1_ecdsa_verify(lctx, &norm, msg[idx%POOL].data(), &pk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("P2WPKH full path", u, l);
+
+    // P2TR full: xonly_pubkey_parse + schnorrsig_verify
+    idx = 0;
+    u = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(),
+            msg[idx%POOL].data(), 32, &xpk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    idx = 0;
+    l = H.run(N, [&]() {
+        secp256k1_xonly_pubkey xpk;
+        secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+        int ok = secp256k1_schnorrsig_verify(lctx, lschnorr[idx%POOL].data(),
+            msg[idx%POOL].data(), 32, &xpk);
+        bench::DoNotOptimize(ok); ++idx;
+    });
+    print_row("P2TR full path", u, l);
+
     printf("  =====================================================================\n\n");
+    printf("  Steps:  (A) pubkey_parse  (B) verify-warm  (C)-(D) Point-verify\n");
+    printf("          (F) DER-parse  (G) normalize  (H) xonly-parse  (I) schnorr-verify\n");
+    printf("  Ultra-libsecp delta per call = % of ConnectBlock overhead\n");
+
     secp256k1_context_destroy(lctx);
     return 0;
 }

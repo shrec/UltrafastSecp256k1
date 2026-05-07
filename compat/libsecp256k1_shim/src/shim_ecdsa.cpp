@@ -281,20 +281,17 @@ int secp256k1_ecdsa_verify(
     std::array<uint8_t, 32> msg{};
     std::memcpy(msg.data(), msghash32, 32);
 
-    // Two-phase cache: HIT → cached tables; 2nd-encounter → build & cache tables;
-    // 1st-encounter → build on stack (no 1.4 KB write to cache slot).
-    // ConnectBlock: ~19K unique pubkeys × 1.4 KB = 26 MB cache slot writes avoided.
-    const secp256k1::EcdsaPublicKey* epk = s_pk_cache.get(pubkey->data);
-    if (!epk) epk = s_pk_cache.put(pubkey->data);
-    if (epk) {
-        return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
-    }
-    // 1st encounter (unique pubkey): skip GLV table build entirely.
-    // pubkey->data already has X||Y parsed (ec_pubkey_parse paid sqrt once).
-    // Use Point-based verify — dual_scalar_mul_gen_point integrates table build
-    // into the Shamir loop, matching libsecp's ecmult approach.
-    // Saves ~6,500 ns vs ecdsa_pubkey_parse (which pre-builds two 8-entry tables
-    // that are only used once, then discarded for unique pubkeys).
+    // ZERO-WRITE VERIFY PATH (libsecp-style):
+    // Callgrind profiling showed Ultra had 7× libsecp's L3 write misses due to
+    // ShimPkCache (256 × ~1.4 KB = 365 KB) thrashing L2 on unique-pubkey workloads.
+    // Each cache access loaded 23 cache lines even for the fingerprint-only fast path.
+    //
+    // Fix: remove the cache from the hot verify path entirely.
+    // pubkey->data = X_be[32] || Y_be[32], already parsed by ec_pubkey_parse.
+    // Parse directly to Point → dual_scalar_mul_gen_point (integrates table build).
+    // Matches libsecp's pattern: read 64-byte struct → compute → done, zero writes.
+    //
+    // For repeated-pubkey workloads: use secp256k1_ec_pubkey_precomp() + verify_precomp().
     {
         std::array<uint8_t, 32> xb{}, yb{};
         std::memcpy(xb.data(), pubkey->data,      32);

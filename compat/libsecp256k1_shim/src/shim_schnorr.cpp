@@ -311,17 +311,15 @@ int secp256k1_schnorrsig_verify(
     std::memcpy(msg32.data(), msg, 32);
 
     // x-only key in first 32 bytes of opaque 64-byte struct.
-    // Two-phase cache: first encounter writes fingerprint only (~8 bytes) to avoid
-    // polluting ~1.5 KB SchnorrXonlyPubkey into cache for every unique pubkey.
-    // ConnectBlock with 19K unique pubkeys: saves ~27 MB/block of cache writes.
-    const secp256k1::SchnorrXonlyPubkey* epk = s_schnorr_cache.get(pubkey->data);
-    if (!epk) epk = s_schnorr_cache.put(pubkey->data);
-    if (epk) {
-        // Cache hit or second encounter with tables built: use prebuilt path.
-        return secp256k1::schnorr_verify(*epk, msg32, sig) ? 1 : 0;
-    }
-    // First encounter (unique pubkey): use x32 path directly — g_glv_cache inside
-    // schnorr_verify handles its own seen_once logic for internal table warm-up.
+    // ZERO-WRITE VERIFY PATH (libsecp-style):
+    // ShimSchnorrCache (256 × ~1.5 KB = 384 KB) caused 7× libsecp's L3 write
+    // misses — even fingerprint-only access loaded 24 cache lines per slot.
+    //
+    // Fix: call schnorr_verify(x32, ...) directly, matching libsecp's pattern.
+    // The internal g_glv_cache (64 × ~1.4 KB = 90 KB) handles repeated-pubkey
+    // warm-up efficiently without the large-struct L3 write pressure.
+    //
+    // For repeated-pubkey workloads: use secp256k1_xonly_pubkey_precomp() + verify_precomp().
     return secp256k1::schnorr_verify(pubkey->data, msg32.data(), sig) ? 1 : 0;
 }
 
