@@ -8,8 +8,8 @@
 
 | Release Type | Frequency | Branch | Trigger |
 |-------------|-----------|--------|---------|
-| **Patch** (3.14.*x*) | As needed | `main` | Bug/security fix |
-| **Minor** (3.*x*.0) | ~4-8 weeks | `main` <- `dev` | New features, non-breaking changes |
+| **Patch** (4.0.*x*) | As needed | `main` | Bug/security fix |
+| **Minor** (4.*x*.0) | ~4-8 weeks | `main` <- `dev` | New features, non-breaking changes |
 | **Major** (*x*.0.0) | When required | `main` <- `dev` | ABI-breaking changes |
 
 > **Unscheduled security releases** bypass the cadence and ship ASAP.
@@ -155,7 +155,7 @@ Build platform binaries:
 
 ## 4. Post-Release
 
-1. **Announce**: GitHub Discussions / project channels.
+1. **Announce**: Notify owner-controlled channels only. Do NOT post to GitHub Discussions (repo policy).
 2. **Monitor**: Watch issue tracker for 48h post-release for critical regressions.
 3. **Bump dev version**: On `dev`, set `VERSION.txt` to `X.Y.(Z+1)-dev` for development builds.
 4. **Update docs site**: If applicable, rebuild and deploy API reference.
@@ -166,17 +166,16 @@ Build platform binaries:
 
 For critical security fixes on a released version:
 
+**Branch policy:** No `hotfix/*` branches are created. The project uses a strict two-branch model (`dev` and `main` only). Hotfixes are applied directly to `dev`, then merged to `main` via an owner-authorized release.
+
 ```
-main  ----○--- vX.Y.Z ---○-- vX.Y.(Z+1)
-           \                /
-            hotfix/issue-N -
+dev  ----○--(fix commit)--○-- (owner merges to main) -- vX.Y.(Z+1)
 ```
 
-1. Branch `hotfix/issue-N` from `main` at the release tag.
-2. Apply the minimal fix + test.
-3. Bump `PATCH` in `VERSION.txt`.
-4. Merge to `main`, tag, release.
-5. Cherry-pick to `dev` (or merge `main` into `dev`).
+1. Apply the minimal fix + test directly on `dev`.
+2. Run `ci_local.sh` to confirm all gates pass.
+3. Bump `PATCH` in `VERSION.txt` on `dev`.
+4. Owner merges `dev` → `main`, tags, and releases.
 
 ---
 
@@ -189,18 +188,18 @@ main  ----○--- vX.Y.Z ---○-- vX.Y.(Z+1)
 | Medium (non-default config) | < 1 week acknowledge | Next scheduled release |
 | Low (cosmetic, docs) | Next triage | Next scheduled release |
 
-Report security issues to: **security@[project-domain]** (or via GitHub Security Advisories).
+Report security issues via **GitHub Security Advisories** (preferred) or email **payysoon@gmail.com**.
 
 ---
 
-## 7. Release Branch Naming
+## 7. Branch Policy
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Stable releases only |
-| `dev` | Active development |
-| `release/vX.Y` | Long-term support branches (if needed) |
-| `hotfix/issue-N` | Emergency fixes |
+| `main` | Stable releases only — never commit directly |
+| `dev` | All development work, including hotfixes |
+
+> **Strict two-branch rule:** No feature branches, release branches, or hotfix branches are created. Any branch other than `main`, `dev`, or `gh-pages` must be deleted immediately.
 
 ---
 

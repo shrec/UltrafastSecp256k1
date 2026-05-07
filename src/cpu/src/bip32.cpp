@@ -392,11 +392,15 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         auto child_scalar = ct::scalar_add(il_scalar, parent_scalar);
         detail::secure_erase(&parent_scalar, sizeof(parent_scalar));
         if (child_scalar.is_zero()) {
+            detail::secure_erase(&child_scalar, sizeof(child_scalar));
             detail::secure_erase(I.data(), I.size());
             detail::secure_erase(IL.data(), IL.size());
             return {ExtendedKey{}, false};
         }
         child.key = child_scalar.to_bytes();
+        // Erase child_scalar from stack: child private key must not linger
+        // in memory after serialization into child.key (stack-scrubbing defence).
+        detail::secure_erase(&child_scalar, sizeof(child_scalar));
         child.is_private = true;
     } else {
         // child_key = point(IL) + parent_pubkey  (comb-based: 3-5x faster)

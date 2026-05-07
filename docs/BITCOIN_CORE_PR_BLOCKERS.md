@@ -45,7 +45,7 @@ matrix) are now closed with documented evidence.
 
 | # | Item | Status | Evidence |
 |---|------|--------|---------|
-| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` — SignTransactionECDSA +17.5%, Schnorr +8.3%, VerifyScript +5.4% |
+| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit 3e2e915b, ≥5 runs, variance <2%) — Taproot signing (Merkle/null): **−22–24% faster**; P2TR script-path verify: **−18% faster**; SignTransactionSchnorr: **−3.6% faster**; SignTransactionECDSA: **INCONCLUSIVE** (variance >7%); EllSwiftCreate: **−9% slower**; ConnectBlock: **−2.6 to −5.4% slower** (shim dispatch + GLV precompute, disclosed). |
 
 ---
 

@@ -18,6 +18,15 @@ exactly what to run and what to expect.
 
 ---
 
+## Known Performance Delta
+
+> **Before reviewing benchmarks:** The `ConnectBlock` benchmark (primary block-validation
+> workload) is **2.5–2.7% slower** than upstream libsecp256k1 across all block variants.
+> This is caused by C-shim dispatch overhead on the verification-heavy path.
+> Taproot signing is 20–25% faster. Full numbers: [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
+
+---
+
 ## 5-Minute Overview
 
 | What you want to know | Where to look |

@@ -5,7 +5,6 @@
 | Version | Supported |
 |---------|-----------|
 | 4.0.x  | [OK] Active |
-| 3.21.x  | [OK] Maintained |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
 
