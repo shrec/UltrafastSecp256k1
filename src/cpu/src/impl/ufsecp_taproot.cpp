@@ -661,8 +661,9 @@ ufsecp_error_t ufsecp_bip39_to_entropy(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_schnorr_batch_verify(ufsecp_ctx* ctx,
                                            const uint8_t* entries, size_t n) {
-    if (SECP256K1_UNLIKELY(!ctx || !entries)) return UFSECP_ERR_NULL_ARG;
-    if (n == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;  /* empty batch is vacuously valid; entries ptr irrelevant */
+    if (SECP256K1_UNLIKELY(!entries)) return UFSECP_ERR_NULL_ARG;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
     std::size_t total_bytes = 0;
@@ -693,8 +694,9 @@ ufsecp_error_t ufsecp_schnorr_batch_verify(ufsecp_ctx* ctx,
 
 ufsecp_error_t ufsecp_ecdsa_batch_verify(ufsecp_ctx* ctx,
                                          const uint8_t* entries, size_t n) {
-    if (SECP256K1_UNLIKELY(!ctx || !entries)) return UFSECP_ERR_NULL_ARG;
-    if (n == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;  /* empty batch is vacuously valid; entries ptr irrelevant */
+    if (SECP256K1_UNLIKELY(!entries)) return UFSECP_ERR_NULL_ARG;
     if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
     ctx_clear_err(ctx);
     std::size_t total_bytes = 0;

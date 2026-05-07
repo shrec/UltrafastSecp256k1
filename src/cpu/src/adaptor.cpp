@@ -203,12 +203,11 @@ schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
 std::pair<Scalar, bool>
 schnorr_adaptor_extract(const SchnorrAdaptorSig& pre_sig,
                         const SchnorrSignature& sig) {
-    // t = s - s (or negation)
-    Scalar const t = sig.s - pre_sig.s_hat;
+    // adapt computed s = s_hat + t_adj where t_adj = needs_negation ? -t : t
+    // so sig.s - s_hat = t_adj; reverse the negation to recover original t
+    Scalar t = sig.s - pre_sig.s_hat;
+    if (pre_sig.needs_negation) t = t.negate();
 
-    // Verify: t*G == T (adaptor point)
-    // We can't fully verify without the adaptor point, but we can return t
-    // and let the caller check T = t*G
     if (t.is_zero()) {
         return {t, false};
     }
