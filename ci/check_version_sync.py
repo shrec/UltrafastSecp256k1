@@ -18,7 +18,7 @@ Version checks (canonical: VERSION.txt):
 Count checks (canonical: computed from source):
     Exploit PoC count  → count "exploit_poc" in audit/unified_audit_runner.cpp
     Total audit modules → count all _run entries in unified_audit_runner.cpp
-    GPU ABI functions  → count UFSECP_GPU_API in include/ufsecp/ufsecp_gpu.h
+    GPU ABI functions  → count ufsecp_error_t ufsecp_gpu_* declarations in ufsecp_gpu.h
 
 Intentionally skipped (build-time templated or historical):
     packaging/nuget/UltrafastSecp256k1.Native.nuspec  (0.0.0-dev)
@@ -212,9 +212,15 @@ def check_count_sync(root: Path) -> bool:
         auth_exploit = len(re.findall(r'"exploit_poc"', t))
     if gpu_hdr.exists():
         t = gpu_hdr.read_text(encoding='utf-8')
-        # Count stable GPU batch-op functions (skip lifecycle/utility functions)
+        # Count stable GPU batch-op functions: only ufsecp_error_t-returning
+        # ufsecp_gpu_* declarations.  This deliberately excludes utility functions
+        # that return int/void/const-char* (is_ready, last_error_msg, backend_name,
+        # backend_count, device_count, error_str) and the CPU-side prepare helper
+        # (ufsecp_bip352_prepare_scan_plan) which is not a GPU kernel dispatch.
+        # NOTE: the macro name is UFSECP_API, not UFSECP_GPU_API (which does not
+        # exist in this header). The pattern below is the authoritative count source.
         auth_gpu = len(re.findall(
-            r'^UFSECP_API\s+\S+\s+ufsecp_gpu_(?!ctx_|backend_|device_|is_avail|get_)\w+\s*\(',
+            r'^UFSECP_API\s+ufsecp_error_t\s+ufsecp_gpu_\w+\s*\(',
             t, re.MULTILINE))
 
     # Scan docs for stale exploit counts (3+ digit numbers only — small counts
