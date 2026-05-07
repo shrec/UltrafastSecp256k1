@@ -279,6 +279,7 @@ kernel void ecdsa_sign_batch(
     }
 
     Scalar256 r_sig, s_sig;
+    // GPU Guardrail 8: CT signing mandatory — variable-time ecdsa_sign() banned on secret nonces.
     // SECURITY FIX (CRITICAL-2 + HIGH-1): use CT signing path; zero output on failure (fail-closed)
     bool ok = ct_ecdsa_sign_metal(msg_bytes, sec, r_sig, s_sig);
     if (!ok) {
@@ -386,6 +387,7 @@ kernel void schnorr_sign_batch(
     for (int i = 0; i < 32; i++) aux_rand[i] = 0;
 
     uchar sig_bytes[64];
+    // GPU Guardrail 8: CT signing mandatory — variable-time schnorr_sign() banned on secret nonces.
     // SECURITY FIX (CRITICAL-2 + HIGH-1): use CT signing path; zero output on failure (fail-closed)
     bool ok = ct_schnorr_sign_metal(sec, msg_bytes, aux_rand, sig_bytes);
 
