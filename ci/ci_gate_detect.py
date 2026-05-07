@@ -205,7 +205,15 @@ def detect_gate_level(files: list[str], force_release: bool = False) -> dict:
     gate = "release" if force_release else ("light" if light_only or docs_only or not files else "hard")
 
     run_core = gate in {"hard", "release"} or any(p in profiles for p in ("core-engine", "bitcoin-core-backend"))
-    run_caas = gate in {"hard", "release"} or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend"))
+    # "audit" profile is explicitly listed here so that commits touching only
+    # audit/**  (new exploit PoC, unified_audit_runner.cpp changes, etc.) always
+    # trigger the caas-security job.  Without this, an unwired or broken exploit
+    # test could slip through on a docs_only-adjacent gate classification.
+    run_caas = (
+        gate in {"hard", "release"}
+        or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend"))
+        or any(f.startswith("audit/") for f in files)  # belt-and-suspenders guard
+    )
     run_bindings = gate == "release" or any(p in profiles for p in ("ffi-bindings", "wasm"))
     run_wasm = gate == "release" or "wasm" in profiles
     run_gpu = gate == "release" or "gpu-public-data" in profiles

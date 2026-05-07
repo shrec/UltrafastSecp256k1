@@ -349,7 +349,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **91 non-exploit modules + 252 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **103 non-exploit modules + 240 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **251 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |

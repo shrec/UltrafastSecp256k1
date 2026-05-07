@@ -119,6 +119,30 @@ by software tooling alone. This limitation is documented in RR-001
 
 ---
 
+## 2.1 Known Performance Delta — ConnectBlock Regression
+
+> **Reviewers must be aware of the following before evaluating this backend.**
+
+The `ConnectBlock` benchmark (primary block-validation workload) is **2.5–2.7% slower**
+than upstream libsecp256k1 across all block composition variants (ECDSA-only, Schnorr-only,
+mixed). This is attributable to C-shim dispatch overhead and pubkey cache cold misses on
+the verification-heavy path.
+
+| Benchmark | Result | vs libsecp |
+|-----------|--------|-----------|
+| ConnectBlockAllEcdsa | SLOWER | −2.6% |
+| ConnectBlockAllSchnorr | SLOWER | −2.7% |
+| ConnectBlockMixedEcdsaSchnorr | SLOWER | −2.5% |
+| VerifyScriptP2WPKH | SLOWER | −2.5% |
+| SignTransactionECDSA | parity | +0.2% |
+| SignTransactionSchnorr | FASTER | +5.0% |
+| SignSchnorrWithMerkleRoot (Taproot) | FASTER | +25.2% |
+| VerifyScriptP2TR_ScriptPath | FASTER | +20.0% |
+
+Full methodology and raw numbers: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
+
+---
+
 ## 3. Known Gaps and Open Items
 
 These are honest statements of residual confidence gaps. Each entry is labelled
