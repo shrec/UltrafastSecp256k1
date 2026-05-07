@@ -23,7 +23,17 @@ static Scalar adaptor_nonce(const Scalar& privkey,
                              const std::uint8_t* msg, std::size_t msg_len,
                              const Point& adaptor,
                              const std::uint8_t* aux, std::size_t aux_len) {
+    // BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || data)
+    // The double-prepended tag hash provides cross-protocol domain separation.
+    // Previously the tag was appended LAST, which is weaker — a collision-prone
+    // scheme where the hash of (data || tag) offers no isolation from untagged
+    // hash functions sharing the same prefix.
+    constexpr char domain[] = "adaptor_nonce_v1";
+    auto tag_hash = SHA256::hash(domain, sizeof(domain) - 1);
+
     SHA256 h;
+    h.update(tag_hash.data(), 32);  // SHA256(tag) prepended twice — BIP-340 pattern
+    h.update(tag_hash.data(), 32);
     auto sk_bytes = privkey.to_bytes();
     h.update(sk_bytes.data(), 32);
     h.update(msg, msg_len);
@@ -32,8 +42,6 @@ static Scalar adaptor_nonce(const Scalar& privkey,
     if (aux && aux_len > 0) {
         h.update(aux, aux_len);
     }
-    constexpr char domain[] = "adaptor_nonce_v1";
-    h.update(domain, sizeof(domain) - 1);
     auto hash = h.finalize();
     Scalar k = Scalar::from_bytes(hash);
     // Ensure non-zero
