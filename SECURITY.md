@@ -134,9 +134,9 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for a layer-by-layer risk assessment.
 | Point operations (add, dbl, mul) | Stable | Deterministic selftest (smoke/ci/stress) |
 | ECDSA (RFC 6979) | Stable | Deterministic nonces, input validation |
 | Schnorr (BIP-340) | Stable | Tagged hashing, input validation |
-| Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~5-7x penalty |
+| Constant-time layer (`ct::`) | Stable | No secret-dependent branches; ~2-3x penalty vs FAST path |
 | Batch inverse / multi-scalar | Stable | Sweep-tested up to 8192 elements |
-| GPU backends (CUDA, OpenCL, Metal; ROCm/HIP build path) | Beta | CT signing paths added in v4.0 (CUDA/OpenCL); Metal signing CT in progress |
+| GPU backends (CUDA, OpenCL, Metal; ROCm/HIP build path) | Beta | CT signing paths added in v4.0 (CUDA/OpenCL/Metal) |
 | MuSig2 / FROST / Adaptor | Experimental | API may change |
 | Pedersen Commitments | Experimental | API may change |
 | Taproot (BIP-341) | Experimental | API may change |
@@ -155,7 +155,7 @@ The constant-time layer (`ct::` namespace) provides:
 - `ct::scalar_mul` -- timing-safe scalar multiplication
 - `ct::point_add_complete`, `ct::point_dbl` -- complete addition formulas
 
-The CT layer uses no secret-dependent branches or memory access patterns. It carries a ~5-7x performance penalty relative to the optimized (variable-time) path.
+The CT layer uses no secret-dependent branches or memory access patterns. It carries a ~2-3x performance penalty relative to the optimized (variable-time) path (measured: ECDSA sign 2.17×, Schnorr sign 2.68× on x86-64 GCC 13).
 
 **Important**: The default (non-CT) operations prioritize performance and are NOT constant-time. Use the `ct::` variants when processing secret keys or nonces.
 

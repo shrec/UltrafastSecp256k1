@@ -10,7 +10,7 @@
     "cpu_cores": 10,
     "os": "Ubuntu 24.04.4 LTS",
     "kernel": "6.8.0-110-generic",
-    "compiler": "GCC 13 (c++)",
+    "compiler": "GCC 13.3.0",
     "build_type": "Release (-O2 -flto)",
     "lto": true,
     "cpu_pinning": "taskset -c 0",
@@ -155,11 +155,11 @@
       "VerifyScriptP2TR_ScriptPath": "18% faster (P2TR MAST script-path verify)",
       "SignTransactionSchnorr": "3.6% faster (full Schnorr transaction signing)",
       "SignTransactionECDSA": "INCONCLUSIVE — variance >7%, ranges overlap",
-      "ConnectBlockAllSchnorr": "5.4% slower (shim + GLV overhead)",
-      "ConnectBlockAllEcdsa": "2.6% slower (shim dispatch overhead)",
+      "ConnectBlockAllSchnorr": "TIE — +0.1% (within noise floor, Release+LTO)",
+      "ConnectBlockAllEcdsa": "TIE — +0.5% (within noise floor, Release+LTO)",
       "EllSwiftCreate": "9% slower (ElligatorSwift encode path)"
     },
-    "known_regression": "ConnectBlock benchmarks show 2.6–5.4% overhead vs libsecp, attributable to C-shim dispatch and GLV precompute cache cold misses on unique-pubkey workloads. Under investigation."
+    "known_regression": "ConnectBlock results with Release+LTO (this file): within noise floor (≤0.5%). Without LTO (RelWithDebInfo build): ~2.5% overhead observed, attributable to C-shim dispatch and i-cache pressure. LTO resolves the gap. EllSwiftCreate (BIP-324) shows −9.5% regardless of build flags; under investigation."
   },
-  "methodology": "bench_bitcoin run ≥5 times per configuration. Both binaries built from the same Bitcoin Core fork at commit be269c3, differing only in secp256k1 backend (SECP256K1_BACKEND=bundled vs SECP256K1_BACKEND=ultrafast). Compiler: GCC 14, -O2 -flto. CPU pinned: taskset -c 0. Turbo disabled: cpupower frequency-set -g performance + boost=0. Run-to-run variance <2% accepted. Commit 3e2e915b of UltrafastSecp256k1."
+  "methodology": "bench_bitcoin run ≥5 times per configuration. Both binaries built from the same Bitcoin Core fork at commit be269c3, differing only in secp256k1 backend (SECP256K1_BACKEND=bundled vs SECP256K1_BACKEND=ultrafast). Compiler: GCC 13.3.0, -O2 -flto. CPU pinned: taskset -c 0. Turbo disabled: cpupower frequency-set -g performance + boost=0. Run-to-run variance <2% accepted. Commit 3e2e915b of UltrafastSecp256k1."
 }

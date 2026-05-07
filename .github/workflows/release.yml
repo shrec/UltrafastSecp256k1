@@ -20,7 +20,7 @@ env:
   RELEASE_VERSION: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v') && format('{0}', github.event.inputs.tag || github.ref_name) || github.ref_name }}
 
 # ----------------------------------------------------------------------------
-# Global: version is always derived from the git tag (e.g. v4.0.0 -> 3.9.0)
+# Global: version is always derived from the git tag (e.g. v4.0.0 -> 4.0.0)
 # All binding configs use 0.0.0-dev as placeholder; CI overrides at build time.
 # ----------------------------------------------------------------------------
 
@@ -533,7 +533,7 @@ jobs:
       - name: Build XCFramework
         run: |
           chmod +x ci/build_xcframework.sh
-          ./scripts/build_xcframework.sh --release
+          ./ci/build_xcframework.sh --release
 
       - name: Collect release artifacts
         run: |

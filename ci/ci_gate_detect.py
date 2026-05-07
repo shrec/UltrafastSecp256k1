@@ -70,7 +70,8 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         ".clusterfuzzlite/**",
         "codecov.yml",
     ],
-    # Security-evidence files: audit catalog, changelog, and evidence chain.
+    # Security-evidence files: audit catalog, changelog, evidence chain, and
+    # KPI/benchmark JSON files whose mutation could inflate security scores.
     # These are NOT docs-only — changes here must trigger CAAS even with no
     # source changes (CI-003 fix: a commit deleting an exploit test from disk AND
     # from EXPLOIT_TEST_CATALOG.md previously bypassed all security gates).
@@ -79,6 +80,9 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         "docs/AUDIT_CHANGELOG.md",
         "docs/EVIDENCE_CHAIN.json",
         "docs/EXTERNAL_AUDIT_BUNDLE.json",
+        "docs/SECURITY_AUTONOMY_KPI.json",
+        "docs/BITCOIN_CORE_TEST_RESULTS.json",
+        "docs/BITCOIN_CORE_BENCH_RESULTS.json",
     ],
     "docs-only": [
         "docs/**",

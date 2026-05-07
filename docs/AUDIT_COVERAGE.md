@@ -9,11 +9,11 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 352 across 9 failure classes |
-| Exploit PoC tests | 254 exploit PoCs modules, 200+ attack vectors |
+| Audit modules | 343 across 9 failure classes |
+| Exploit PoC tests | 252 exploit PoC modules, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | 530,000+ parser/adversarial |
-| CI workflows | 31 GitHub Actions workflows |
+| CI workflows | 54 GitHub Actions workflows |
 | Real failures | **0** |
 
 This system continuously verifies correctness across math, protocol, constant-time, and implementation layers.
@@ -34,7 +34,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 **Version**: v4.0.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **AUDIT-READY** -- 352 modules, 9 failure classes
+**Verdict**: **AUDIT-READY** -- 343 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
 **CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (all CI-enforced)
 
@@ -45,11 +45,11 @@ This system continuously verifies correctness across math, protocol, constant-ti
 | Metric               | Value                                       |
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
-| Audit Modules        | 56 (55 + dedicated C ABI thread stress) |
-| **Exploit PoC Tests** | **232 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
+| Audit Modules        | 91 (non-exploit modules) |
+| **Exploit PoC Tests** | **252 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
-| CI Workflows         | 31 GitHub Actions workflows                 |
+| CI Workflows         | 54 GitHub Actions workflows                 |
 | CI Build Matrix      | 17 configurations, 7 architectures, 5 OSes  |
 | Sanitizers           | ASan+UBSan, TSan, Valgrind memcheck + dedicated C ABI thread stress         |
 | Fuzzing              | 3 libFuzzer harnesses + 530K deterministic   |

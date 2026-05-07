@@ -105,6 +105,42 @@ _RULES: list[tuple[str, str, str]] = [
      "{ct_pipeline_count} independent pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)"),
 
     # ── docs/AUDIT_COVERAGE.md ─────────────────────────────────────────────
+    # TL;DR table row: "Audit modules"
+    ("docs/AUDIT_COVERAGE.md",
+     r"\d+ across \d+ failure classes",
+     "{total_modules} across 9 failure classes"),
+
+    # TL;DR table row: "Exploit PoC tests"
+    ("docs/AUDIT_COVERAGE.md",
+     r"\d+ exploit PoCs modules, \d+\+ attack vectors",
+     "{exploit_poc_count} exploit PoC modules, 200+ attack vectors"),
+
+    # TL;DR table row: CI workflows
+    ("docs/AUDIT_COVERAGE.md",
+     r"\d+ GitHub Actions workflows",
+     "{ci_workflow_count} GitHub Actions workflows"),
+
+    # Summary table row: CI Workflows (second occurrence — count=1 only hits the first above)
+    ("docs/AUDIT_COVERAGE.md",
+     r"(CI Workflows\s+\|)\s*\d+ GitHub Actions workflows",
+     r"\g<1> {ci_workflow_count} GitHub Actions workflows"),
+
+    # Summary table: "Audit Modules" row
+    ("docs/AUDIT_COVERAGE.md",
+     r"\d+ \(55 \+ dedicated C ABI thread stress\)",
+     "{non_exploit_modules} (non-exploit modules)"),
+
+    # Summary table: "Exploit PoC Tests" row
+    ("docs/AUDIT_COVERAGE.md",
+     r"\*\*\d+ tests across 20\+ attack categories\*\*",
+     "**{exploit_poc_count} tests across 20+ attack categories**"),
+
+    # Verdict header line
+    ("docs/AUDIT_COVERAGE.md",
+     r"\*\*AUDIT-READY\*\* -- \d+ modules, \d+ failure classes",
+     "**AUDIT-READY** -- {total_modules} modules, 9 failure classes"),
+
+    # Generic fallback for "N modules, N+ attack vectors"
     ("docs/AUDIT_COVERAGE.md",
      r"\d+ modules, \d+\+ attack vectors",
      "{total_modules} modules, 200+ attack vectors"),

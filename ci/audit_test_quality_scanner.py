@@ -79,7 +79,10 @@ _API_CALL_RE = re.compile(
                        taproot_output_key|taproot_verify|taproot_tweak_seckey|
                        sha256|ripemd160|hash160|keccak256|hkdf_sha256|
                        wif_encode|wif_decode|addr_p2pkh|addr_p2wpkh|addr_p2tr|
-                       self_test|last_error)\s*\()""",
+                       self_test|last_error|
+                       musig2_\w+|frost_\w+|
+                       bip324_\w+|schnorr_adaptor_\w+|
+                       ecdsa_adaptor_\w+)\s*\()""",
     re.VERBOSE,
 )
 
@@ -94,13 +97,14 @@ _CHECKED_RE = re.compile(
 )
 
 # Detection of if...else...CHECK(true) over multiple lines
+# Matches both uppercase CHECK(true,...) and lowercase check(true,...) helpers
 _ELSE_OPEN_RE  = re.compile(r"^\s*\}\s*else\s*\{")
-_CHECK_TRUE_RE = re.compile(r'CHECK\s*\(\s*true\s*,\s*"([^"]*)"')
+_CHECK_TRUE_RE = re.compile(r'(?:CHECK|check)\s*\(\s*true\s*,\s*"([^"]*)"')
 # A2: expr || true tautology — always evaluates true regardless of expr
 _CHECK_OR_TRUE_RE = re.compile(r'CHECK\s*\([^)]*\|\|\s*true\s*[,)]')
 # A3: x || !x tautology
 _CHECK_OR_NOT_RE  = re.compile(r'CHECK\s*\([^)]*\b(\w+)\s*\|\|\s*!\s*\1\b')
-_ANY_CHECK_RE  = re.compile(r'CHECK\s*\(')
+_ANY_CHECK_RE  = re.compile(r'(?:CHECK|check)\s*\(')
 
 # Statistical bounds: catch things like  CHECK(x >= 32 && x <= 224, ...)
 _STAT_BOUND_RE = re.compile(

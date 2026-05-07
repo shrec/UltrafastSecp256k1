@@ -292,6 +292,11 @@ int secp256k1_schnorrsig_verify(
     const unsigned char *msg, size_t msglen,
     const secp256k1_xonly_pubkey *pubkey)
 {
+    // NULL context: fire illegal callback (matches upstream libsecp256k1 behavior)
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(NULL, "secp256k1_schnorrsig_verify: NULL context");
+        return 0;
+    }
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
     // (or a context created with CONTEXT_SIGN which is a superset).
     if (!schnorr_ctx_can_verify(ctx)) return 0;
