@@ -123,6 +123,10 @@ int secp256k1_ecdsa_verify_batch(
             std::memcpy(yb.data(), pubkeys[i]->data + 32, 32);
             auto x = FieldElement::from_bytes(xb);
             auto y = FieldElement::from_bytes(yb);
+            // Curve membership check: y² == x³ + 7
+            auto lhs = y.square();
+            auto rhs = x.square() * x + FieldElement::from_uint64(7);
+            if (!(lhs == rhs)) return 0;
             auto pt = Point::from_affine(x, y);
             if (pt.is_infinity()) return 0;
 
@@ -154,6 +158,10 @@ int secp256k1_ecdsa_verify_batch(
         std::memcpy(yb.data(), pubkeys[i]->data + 32, 32);
         auto x = FieldElement::from_bytes(xb);
         auto y = FieldElement::from_bytes(yb);
+        // Curve membership check: y² == x³ + 7
+        auto lhs = y.square();
+        auto rhs = x.square() * x + FieldElement::from_uint64(7);
+        if (!(lhs == rhs)) return 0;
         e.public_key = Point::from_affine(x, y);
         if (e.public_key.is_infinity()) return 0;
 
