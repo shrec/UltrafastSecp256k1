@@ -441,17 +441,16 @@ frost_sign(const FrostKeyPackage& key_pkg,
         key_pkg.id, nonce_commitments);
 
     // Partial signature: z_i = d_i + rho_i * e_i + lambda_i * s_i * e
-    Scalar d = nonce.hiding_nonce;
-    Scalar ei = nonce.binding_nonce;
-    if (negate_R) {
-        d = d.negate();
-        ei = ei.negate();
-    }
-
-    Scalar s_i = key_pkg.signing_share;
-    if (negate_key) {
-        s_i = s_i.negate();
-    }
+    // CT: d, ei, s_i are secret nonces/shares — use branchless ct::scalar_cneg.
+    // A conditional branch (if negate_R) on the sign of a secret scalar leaks
+    // key/nonce bits via timing even though negate_R itself is derived from a
+    // public value (R.y). The compiler may emit a conditional branch for the
+    // negate() call; ct::scalar_cneg avoids that with a bitmask select.
+    auto const negate_R_mask   = ct::bool_to_mask(negate_R);
+    auto const negate_key_mask = ct::bool_to_mask(negate_key);
+    Scalar d  = ct::scalar_cneg(nonce.hiding_nonce,  negate_R_mask);
+    Scalar ei = ct::scalar_cneg(nonce.binding_nonce, negate_R_mask);
+    Scalar s_i = ct::scalar_cneg(key_pkg.signing_share, negate_key_mask);
 
     // CT: d, ei, s_i are secret nonces/shares — use branchless CT arithmetic
     Scalar const rho_ei      = ct::scalar_mul(my_binding, ei);
