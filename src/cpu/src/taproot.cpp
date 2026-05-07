@@ -181,8 +181,8 @@ Scalar taproot_tweak_privkey(
     auto t_bytes = taproot_tweak_hash(px, merkle_root, merkle_root_len);
     auto t = Scalar::from_bytes(t_bytes);
 
-    // Tweaked private key = d + t
-    auto tweaked = d + t;
+    // Tweaked private key = d + t (CT: d is a secret scalar after conditional negate)
+    auto tweaked = ct::scalar_add(d, t);
 
     detail::secure_erase(&d, sizeof(d));
 
