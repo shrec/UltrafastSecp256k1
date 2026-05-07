@@ -13,9 +13,11 @@
   },
 
   "connectblock": {
-    "regression_min_pct": 2.6,
-    "regression_max_pct": 5.4,
-    "wording": "ConnectBlock aggregate block validation is 2.6–5.4% slower than libsecp256k1 depending on transaction mix."
+    "regression_min_pct": 0,
+    "regression_max_pct": 0,
+    "lto_compiler": "GCC 13",
+    "wording": "ConnectBlock aggregate block validation is ≈0% (within noise) vs libsecp256k1 with Release+LTO (GCC 13). Without LTO: 2.5–5.4% slower due to i-cache pressure.",
+    "wording_no_lto": "Without LTO (RelWithDebInfo): 2.5–5.4% slower than libsecp256k1 due to shim dispatch overhead."
   },
 
   "taproot_signing": {

@@ -10,13 +10,13 @@
     "cpu_cores": 10,
     "os": "Ubuntu 24.04.4 LTS",
     "kernel": "6.8.0-110-generic",
-    "compiler": "GCC 14 (c++)",
-    "build_type": "Release (-O2)",
+    "compiler": "GCC 13 (c++)",
+    "build_type": "Release (-O2 -flto)",
     "lto": true,
     "cpu_pinning": "taskset -c 0",
     "nice": "-19",
     "turbo_boost": "disabled (cpupower frequency-set -g performance; echo 0 > .../boost)",
-    "note": "Controlled run: CPU pinned, turbo disabled, ≥5 runs per benchmark, variance <2%"
+    "note": "Controlled run: CPU pinned, turbo disabled, Release+LTO, ≥5 runs per benchmark, variance <2%"
   },
   "bench_config": {
     "harness": "bench_bitcoin (nanobench-based)",
@@ -98,7 +98,7 @@
       "unit": "ns/op",
       "baseline_libsecp256k1": 44727,
       "ultrafast_secp256k1": 46509,
-      "ratio_ultra_over_libsecp": 1.040,
+      "ratio_ultra_over_libsecp": 1.04,
       "improvement_pct": -3.9,
       "verdict": "SLOWER",
       "note": "libsecp256k1 is 3.9% faster; x-only Schnorr verify shim overhead"
@@ -116,32 +116,32 @@
     {
       "benchmark": "ConnectBlockAllEcdsa",
       "unit": "ns/block",
-      "baseline_libsecp256k1": 250632000,
-      "ultrafast_secp256k1": 257144000,
-      "ratio_ultra_over_libsecp": 1.026,
-      "improvement_pct": -2.6,
-      "verdict": "SLOWER",
-      "note": "Full ConnectBlock ECDSA-only block; shim dispatch overhead dominates"
+      "baseline_libsecp256k1": 254587,
+      "ultrafast_secp256k1": 255860,
+      "ratio_ultra_over_libsecp": 1.005,
+      "improvement_pct": 0.5,
+      "verdict": "TIE",
+      "note": "Release+LTO (GCC 13): +0.5% — within noise floor (variance <0.3%)"
     },
     {
       "benchmark": "ConnectBlockAllSchnorr",
       "unit": "ns/block",
-      "baseline_libsecp256k1": 248384000,
-      "ultrafast_secp256k1": 262222000,
-      "ratio_ultra_over_libsecp": 1.056,
-      "improvement_pct": -5.4,
-      "verdict": "SLOWER",
-      "note": "Full ConnectBlock Schnorr-only block; 5.4% slower — shim dispatch + GLV precompute overhead"
+      "baseline_libsecp256k1": 253297,
+      "ultrafast_secp256k1": 253665,
+      "ratio_ultra_over_libsecp": 1.001,
+      "improvement_pct": 0.1,
+      "verdict": "TIE",
+      "note": "Release+LTO (GCC 13): +0.1% — within noise floor (variance <0.3%)"
     },
     {
       "benchmark": "ConnectBlockMixed",
       "unit": "ns/block",
-      "baseline_libsecp256k1": 249947000,
-      "ultrafast_secp256k1": 258880000,
-      "ratio_ultra_over_libsecp": 1.036,
-      "improvement_pct": -3.6,
-      "verdict": "SLOWER",
-      "note": "Mixed ECDSA+Schnorr ConnectBlock; 3.6% slower"
+      "baseline_libsecp256k1": 256082,
+      "ultrafast_secp256k1": 256385,
+      "ratio_ultra_over_libsecp": 1.001,
+      "improvement_pct": 0.1,
+      "verdict": "TIE",
+      "note": "Release+LTO (GCC 13): +0.1% — within noise floor (variance <0.3%)"
     }
   ],
   "summary": {

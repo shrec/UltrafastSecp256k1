@@ -60,19 +60,20 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     text, n = _sub(pat, repl, text); total += n
 
     # ── ConnectBlock regression ───────────────────────────────────────────────
-    # Matches e.g. "−2.7%" or "−5.4%" in ConnectBlock context (narrative)
-    # Only replace explicit single-number claims that contradict the range.
-    pat = r'ConnectBlock[^\n]{0,120}?[−\-](\d+\.\d+)%'
-    def replace_cb(m: re.Match) -> str:
-        val = float(m.group(1))
-        # If the value is NOT within the canonical range, replace the whole sentence.
-        if abs(val - cb["regression_min_pct"]) > 0.2 and abs(val - cb["regression_max_pct"]) > 0.2:
-            return m.group(0).replace(m.group(1), f"{cb['regression_min_pct']}–{cb['regression_max_pct']}")
-        return m.group(0)
-    new_text = re.sub(pat, replace_cb, text)
-    if new_text != text:
-        total += 1
-        text = new_text
+    # When canonical is ≈0% (regression_max_pct == 0): LTO claim is already
+    # correct in docs. "without LTO" percentages are accurate context — do not
+    # overwrite. When canonical is a range > 0: replace out-of-range claims.
+    if cb["regression_max_pct"] > 0:
+        pat = r'ConnectBlock[^\n]{0,120}?[−\-](\d+\.\d+)%'
+        def replace_cb(m: re.Match) -> str:
+            val = float(m.group(1))
+            if abs(val - cb["regression_min_pct"]) > 0.2 and abs(val - cb["regression_max_pct"]) > 0.2:
+                return m.group(0).replace(m.group(1), f"{cb['regression_min_pct']}–{cb['regression_max_pct']}")
+            return m.group(0)
+        new_text = re.sub(pat, replace_cb, text)
+        if new_text != text:
+            total += 1
+            text = new_text
 
     # ── Taproot signing speedup ───────────────────────────────────────────────
     pat = r'Taproot[^\n]{0,80}?(\d{2})–(\d{2})% faster'
