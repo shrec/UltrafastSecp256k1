@@ -60,7 +60,10 @@ public:
     Scalar inverse() const;
 
     // Modular negation: -a mod n  (= n - a, or 0 if a == 0)
+    // CT variant: always runs full computation — use for SECRET scalars (signing, nonces).
     Scalar negate() const noexcept;
+    // Variable-time variant: branches on is_zero() — use ONLY on PUBLIC scalars (verify paths).
+    Scalar negate_var() const noexcept;
 
     // Parity check: returns true if lowest bit is 0
     bool is_even() const noexcept;

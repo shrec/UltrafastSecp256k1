@@ -492,7 +492,7 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 
     // Step 3: e = tagged_hash("BIP0340/challenge", r || pubkey_x || msg) mod n
     const auto e = schnorr_challenge_scalar(sig.r.data(), pubkey_x32, msg32);
-    const auto neg_e = e.negate();
+    const auto neg_e = e.negate_var();  // e is public challenge — variable-time negate
 
     // Step 4: R = s*G - e*P
     // Fast path: check GLV table cache — on hit, use prebuilt tables (~1,954 ns saved).
@@ -645,7 +645,7 @@ bool schnorr_verify(const SchnorrXonlyPubkey& pubkey,
     const auto e = schnorr_challenge_scalar(sig.r.data(), pubkey.x_bytes.data(), msg32);
 
     // R = s*G - e*P  (direct Point -- no sqrt needed)
-    const auto neg_e = e.negate();
+    const auto neg_e = e.negate_var();  // e is public challenge — variable-time negate
 
 #if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
     // Fast path: use cached GLV P/phi(P) tables (skips ~1,954 ns table rebuild).

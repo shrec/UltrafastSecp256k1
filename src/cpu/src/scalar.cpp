@@ -1115,13 +1115,19 @@ Scalar Scalar::inverse() const {
 
 Scalar Scalar::negate() const noexcept {
     // CT: always compute ORDER − s; mask result to zero if s == 0.
-    // Replaces the is_zero() early-return branch which reveals timing info
-    // about whether a secret scalar is zero (relevant for nonce/key negation).
+    // Use for SECRET scalars only (signing paths, nonces, private keys).
     auto neg = sub_impl(ORDER, limbs_);
     uint64_t const z    = uint64_t(is_zero_ct());  // 1 if zero, 0 if not
     uint64_t const keep = z - 1ULL;                // 0 if zero, all-1s if not
     return from_limbs({neg[0] & keep, neg[1] & keep,
                        neg[2] & keep, neg[3] & keep});
+}
+
+Scalar Scalar::negate_var() const noexcept {
+    // Variable-time: branches on is_zero() — safe ONLY for PUBLIC scalars.
+    // Use in verify paths (challenge e, GLV sub-scalars, signature components).
+    if (is_zero()) return Scalar::zero();
+    return from_limbs(sub_impl(ORDER, limbs_));
 }
 
 bool Scalar::is_even() const noexcept {
