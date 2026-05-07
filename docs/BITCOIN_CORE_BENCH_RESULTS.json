@@ -1,49 +1,48 @@
 {
   "_status": "fresh_controlled_run",
-  "generated_at": "2026-05-07T18:00:00Z",
-  "backend_commit": "21852303",
+  "generated_at": "2026-05-07T22:00:00Z",
+  "backend_commit": "1fd2312c",
   "machine_spec": {
     "cpu": "Intel Core i5-14400F",
-    "tsc_freq_ghz": 2.496,
     "os": "Linux (Ubuntu 24.04)",
-    "compiler": "GCC 13.3.0",
-    "build_flags": "Release + LTO",
+    "compiler": "GCC 14.2.0",
     "core_pinned": 0,
     "governor": "performance",
     "turbo": "disabled (no_turbo=1)",
-    "warmup_iters": 500,
-    "measure_passes": 11,
-    "outlier_removal": "IQR"
+    "harness": "bench_bitcoin (Bitcoin Core native benchmark harness)"
   },
-  "notes": "Both Ultra and libsecp use IDENTICAL harness (RDTSCP, 3s ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median). CT-vs-CT comparison is production-equivalent. ConnectBlock uses 2000 unique pubkeys.",
-  "results": [
-    { "operation": "ct_ecdsa_sign",        "ultra_ns": 21361.5, "libsecp_ns": 29336.5, "ratio": 1.37, "category": "ct_signing",     "note": "constant-time, production-equivalent" },
-    { "operation": "ct_schnorr_sign",      "ultra_ns": 17943.5, "libsecp_ns": 22489.1, "ratio": 1.25, "category": "ct_signing",     "note": "constant-time, production-equivalent" },
-    { "operation": "ecdsa_verify",         "ultra_ns": 42537.8, "libsecp_ns": 41525.5, "ratio": 0.98, "category": "verify",         "note": "within measurement noise (~2%)" },
-    { "operation": "schnorr_verify_cached","ultra_ns": 42964.2, "libsecp_ns": 42073.5, "ratio": 0.98, "category": "verify",         "note": "within measurement noise (~2%)" },
-    { "operation": "schnorr_verify_raw",   "ultra_ns": 44083.5, "libsecp_ns": 42073.5, "ratio": 0.95, "category": "verify",         "note": "within measurement noise (~5%)" },
-    { "operation": "pubkey_create",        "ultra_ns":  9865.5, "libsecp_ns": 21120.8, "ratio": 2.14, "category": "key_gen",        "note": "" },
-    { "operation": "ecdh_compute",         "ultra_ns": 43148.0, "libsecp_ns": null,     "ratio": null, "category": "ecdh",           "note": "libsecp ECDH not included in this run" },
-    { "operation": "connect_block_ecdsa",  "ultra_ms":    86.5, "libsecp_ms":   84.9,  "ratio": 0.98, "category": "connectblock",   "note": "2000 unique ECDSA pubkeys, native C++ API" },
-    { "operation": "connect_block_schnorr","ultra_ms":   103.4, "libsecp_ms":   86.1,  "ratio": 0.83, "category": "connectblock",   "note": "KNOWN REGRESSION — 2000 unique Schnorr pubkeys, native C++ API; per-pubkey GLV table rebuild dominates" },
-    { "operation": "connect_block_mixed",  "ultra_ms":   146.7, "libsecp_ms":  128.9,  "ratio": 0.88, "category": "connectblock",   "note": "2000 ECDSA + 1000 Schnorr mixed" },
-    { "operation": "connect_block_der_parse","ultra_ms":  86.4, "libsecp_ms":   96.4,  "ratio": 1.12, "category": "connectblock",   "note": "DER parse + pubkey parse + verify (full path); Ultra faster due to superior DER parser" },
-    { "operation": "sign_recoverable",     "ultra_ns": 23101.9, "libsecp_ns": 29272.3, "ratio": 1.27, "category": "fast_signing",   "note": "DIAGNOSTIC: fast (non-CT) path vs libsecp CT — not production-equivalent" },
-    { "operation": "ecrecover",            "ultra_ns": 55101.9, "libsecp_ns": 49419.2, "ratio": 0.90, "category": "recovery",       "note": "" },
-    { "operation": "scalar_inv_ct",        "ultra_ns":  1563.2, "libsecp_ns":  2589.0, "ratio": 1.66, "category": "scalar_arith",   "note": "" },
-    { "operation": "ecmult_gen",           "ultra_ns":  9865.5, "libsecp_ns": 18386.3, "ratio": 1.86, "category": "point_arith",    "note": "" }
-  ],
-  "known_regressions": [
-    {
-      "operation": "connect_block_schnorr",
-      "ratio": 0.83,
-      "cause": "Per-pubkey GLV table rebuild (~1954 ns each × 2000 unique pubkeys). libsecp uses smaller 5-entry table with lower cold-start cost. See PERF-04 in audit.",
-      "fix_status": "open — scheduled for PERF-B optimization pass"
-    },
-    {
-      "operation": "connect_block_mixed",
-      "ratio": 0.88,
-      "cause": "Dominated by Schnorr path regression above"
-    }
+  "note": "All numbers from Bitcoin Core bench_bitcoin binary — real Bitcoin Core validation pipeline. NOT bench_unified. ConnectBlock numbers include shim dispatch overhead.",
+  "results_lto": {
+    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) — recommended production build",
+    "ConnectBlockAllEcdsa_ms":   { "ultra": 255.8, "libsecp": 255.9, "ratio": 1.00 },
+    "ConnectBlockAllSchnorr_ms": { "ultra": 254.2, "libsecp": 253.6, "ratio": 1.00 },
+    "ConnectBlockMixed_ms":      { "ultra": 256.0, "libsecp": 255.5, "ratio": 1.00 },
+    "SignSchnorrWithMerkleRoot_ns": { "ultra": 83248, "libsecp": 111524, "ratio": 1.34 },
+    "SignSchnorrWithNullMerkleRoot_ns": { "ultra": 82387, "libsecp": 111014, "ratio": 1.35 },
+    "SignTransactionECDSA_ns":   { "ultra": 143788, "libsecp": 175388, "ratio": 1.22 },
+    "SignTransactionSchnorr_ns": { "ultra": 124059, "libsecp": 137561, "ratio": 1.11 },
+    "VerifyScriptP2WPKH_ns":     { "ultra": 45064,  "libsecp": 45083,  "ratio": 1.00 },
+    "VerifyScriptP2TR_KeyPath_ns": { "ultra": 44363, "libsecp": 45667,  "ratio": 1.03 },
+    "VerifyScriptP2TR_ScriptPath_ns": { "ultra": 64975, "libsecp": 82961, "ratio": 1.28 },
+    "BIP324_ECDH_ns":            { "ultra": 48660,  "libsecp": 47887,  "ratio": 0.98 }
+  },
+  "results_nolto": {
+    "note": "Release without LTO. Ultra ConnectBlock -3% due to multi-TU core vs libsecp single-TU (secp256k1.c). LTO eliminates this gap. Signing still 17-33% faster.",
+    "ConnectBlockAllEcdsa_ms":   { "ultra": 256.1, "libsecp": 249.1, "ratio": 0.97 },
+    "ConnectBlockAllSchnorr_ms": { "ultra": 254.9, "libsecp": 247.4, "ratio": 0.97 },
+    "ConnectBlockMixed_ms":      { "ultra": 257.3, "libsecp": 249.2, "ratio": 0.97 },
+    "SignSchnorrWithMerkleRoot_ns": { "ultra": 81900, "libsecp": 109150, "ratio": 1.33 },
+    "SignTransactionECDSA_ns":   { "ultra": 144593, "libsecp": 167271, "ratio": 1.16 },
+    "VerifyScriptP2WPKH_ns":     { "ultra": 45584,  "libsecp": 43923,  "ratio": 0.96 },
+    "VerifyScriptP2TR_KeyPath_ns": { "ultra": 44792, "libsecp": 44646,  "ratio": 1.00 }
+  },
+  "test_suite": {
+    "test_bitcoin_passed": 749,
+    "test_bitcoin_failed": 0,
+    "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
+  },
+  "known_limitations": [
+    "ConnectBlock -3% without LTO: libsecp compiles as single TU (secp256k1.c), Ultra uses multi-TU core. LTO eliminates the gap. Production builds use LTO.",
+    "BIP324 ECDH: 2% slower (within noise, no optimized CT ECDH for this specific path yet)"
   ]
 }
