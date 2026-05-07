@@ -31,7 +31,8 @@ class FieldElement {
 public:
     using limbs_type = std::array<std::uint64_t, 4>;
 
-    FieldElement();
+    // Default-construct to zero (trivially constructible — avoids global ctors on MCUs)
+    constexpr FieldElement() noexcept = default;
     static FieldElement zero();
     static FieldElement one();
     static FieldElement from_uint64(std::uint64_t value);
@@ -115,7 +116,10 @@ public:
 private:
     explicit FieldElement(const limbs_type& limbs, bool normalized);
 
-    limbs_type limbs_{};
+    // No default member init — allows trivial default constructor (no global ctors on MCUs).
+    // File-scope/static FieldElement objects are zero-initialized by BSS.
+    // For local variables: explicitly zero via FieldElement::zero() if needed.
+    limbs_type limbs_;
 };
 
 // Safe conversions for FieldElement <-> MidFieldElement (memcpy, compiler-optimized)

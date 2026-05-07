@@ -2393,7 +2393,7 @@ FieldElement pow_p_minus_2_binary(FieldElement base) {
 #endif
 }
 
-FieldElement::FieldElement() = default;
+// FieldElement() = default is now defined inline in field.hpp (constexpr)
 
 FieldElement::FieldElement(const FieldElement::limbs_type& limbs, bool normalized) : limbs_(limbs) {
     if (!normalized) {

@@ -1751,7 +1751,9 @@ static constexpr std::uint64_t K_GEN[4] = {
 struct alignas(64) CombGenTable {
     CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
     CTAffinePoint correction;  // (2^264 - 2^256)*G for 264-bit correction
-    bool initialized = false;
+    // Note: no default member initializer — BSS guarantees zero (= false) at startup.
+    // Default member init would generate a global constructor on MCUs.
+    bool initialized;
 };
 
 static CombGenTable g_comb_table;
@@ -3135,11 +3137,17 @@ static constexpr std::uint64_t K_GEN[4] = {
 struct alignas(64) CombGenTable {
     CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
     CTAffinePoint correction;
-    bool initialized = false;
+    bool initialized;  // no default init — BSS guarantees zero (= false) at startup
 };
 
 static CombGenTable g_comb_table;
+// ESP32/bare-metal: std::once_flag has non-trivial ctor → .data → global ctor
+// before FreeRTOS starts. Use plain volatile bool (.bss, zero-init) instead.
+#if defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_ESP32)
+static volatile bool g_comb_init = false;
+#else
 static std::once_flag g_comb_table_once;
+#endif
 
 inline std::uint64_t extract_comb_digit(const Scalar& v,
                                          unsigned block,
@@ -3260,7 +3268,11 @@ void build_comb_table() noexcept {
 } // anonymous namespace
 
 void init_generator_table() noexcept {
+#if defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_ESP32)
+    if (!g_comb_init) { build_comb_table(); g_comb_init = true; }
+#else
     std::call_once(g_comb_table_once, build_comb_table);
+#endif
 }
 
 Point generator_mul(const Scalar& k) noexcept {

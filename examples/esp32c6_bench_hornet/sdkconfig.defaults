@@ -20,3 +20,14 @@ CONFIG_ESP_IPC_TASK_STACK_SIZE=4096
 
 # Disable IDLE watchdog (long benchmarks)
 CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=n
+
+# Workaround: coexist firmware enables timers before FreeRTOS on ESP32-C6 rev v0.2 + IDF v5.4
+# Disable WiFi/BT coexist (bench doesn't need them) to avoid spurious timer IRQs at startup
+CONFIG_ESP_COEX_ENABLED=n
+CONFIG_ESP_WIFI_ENABLED=n
+CONFIG_BT_ENABLED=n
+CONFIG_IEEE802154_ENABLED=n
+# Also disable secondary USB-JTAG console
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+# Disable NVS flash — bench doesn't need it, removes nvs_page global constructor
+CONFIG_NVS_FLASH=n

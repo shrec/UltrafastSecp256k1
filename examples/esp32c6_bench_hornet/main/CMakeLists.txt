@@ -53,6 +53,7 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
     -fomit-frame-pointer
     -fno-stack-protector
     -fno-threadsafe-statics
+    -fno-use-cxa-atexit
     -Wno-stringop-overflow
     -Wno-error=return-type
     -Wno-unused-variable
