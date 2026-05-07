@@ -29,7 +29,7 @@ static Point decompress(const unsigned char compressed[33]) {
     if (!FieldElement::parse_bytes_strict(xb.data(), x)) return Point::infinity();
     auto y2 = x * x * x + FieldElement::from_uint64(7);
     auto y = y2.sqrt();
-    if (y.square() != y2) return Point::infinity();
+    if (!(y.square() == y2)) return Point::infinity();
     bool y_odd = (y.limbs()[0] & 1) != 0;
     if (y_odd != (compressed[0] == 0x03)) y = y.negate();
     return Point::from_affine(x, y);

@@ -3615,10 +3615,10 @@ int main(int argc, char** argv) {
                         blk_der[i].first.data(), blk_der[i].second))
                     continue;
                 // Normalize low-S via shim
-                secp256k1_ecdsa_signature_normalize(ls_ctx, &usig_raw, &usig_raw);
+                (void)secp256k1_ecdsa_signature_normalize(ls_ctx, &usig_raw, &usig_raw);
                 // Convert to Ultra C++ ECDSASignature via compact representation
                 unsigned char compact64[64];
-                secp256k1_ecdsa_signature_serialize_compact(ls_ctx, compact64, &usig_raw);
+                (void)secp256k1_ecdsa_signature_serialize_compact(ls_ctx, compact64, &usig_raw);
                 ECDSASignature sig = ECDSASignature::from_compact(compact64);
                 // Verify using Ultra C++ native path with pre-computed pubkey
                 bool v = ecdsa_verify(blk_msg[i].data(), u_blk_pk[i], sig);

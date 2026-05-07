@@ -47,8 +47,10 @@ typedef struct secp256k1_pubkey {
  * The exact layout is opaque -- use only via the _precomp API below.
  * C note: use alignas(8) / _Alignas(8) when declaring on stack. */
 #ifdef __cplusplus
+}  /* suspend extern "C" — ecdsa.hpp contains C++ templates, illegal under C linkage */
 #  include "secp256k1/ecdsa.hpp"
    struct secp256k1_pubkey_precomp { secp256k1::EcdsaPublicKey epk; };
+extern "C" {  /* reopen C linkage for the rest of the shim API */
 #else
    /* C-compatible: conservatively-sized buffer; static_assert in shim verifies. */
 #  define SECP256K1_PUBKEY_PRECOMP_SIZE 1504

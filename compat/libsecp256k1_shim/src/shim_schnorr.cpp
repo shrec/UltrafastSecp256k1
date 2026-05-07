@@ -335,7 +335,7 @@ static_assert(sizeof(secp256k1_xonly_pubkey_precomp) >= sizeof(secp256k1::Schnor
 static_assert(alignof(secp256k1_xonly_pubkey_precomp) >= alignof(secp256k1::SchnorrXonlyPubkey),
     "secp256k1_xonly_pubkey_precomp alignment insufficient for SchnorrXonlyPubkey");
 
-int secp256k1_xonly_pubkey_precomp(
+int secp256k1_xonly_ec_pubkey_precomp(
     const secp256k1_context* /*ctx*/,
     secp256k1_xonly_pubkey_precomp* out,
     const secp256k1_xonly_pubkey* pubkey)

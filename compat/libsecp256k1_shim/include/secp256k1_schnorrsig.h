@@ -99,8 +99,10 @@ SECP256K1_API int secp256k1_schnorrsig_verify(
  * Eliminates ~2,600 ns lift_x (sqrt) + ~1,954 ns GLV table rebuild per verify.
  * Size: sizeof(secp256k1::SchnorrXonlyPubkey), typically 1,400-1,504 bytes. */
 #ifdef __cplusplus
+}  /* suspend extern "C" — schnorr.hpp contains C++ templates, illegal under C linkage */
 #  include "secp256k1/schnorr.hpp"
    struct secp256k1_xonly_pubkey_precomp { secp256k1::SchnorrXonlyPubkey epk; };
+extern "C" {  /* reopen C linkage for the rest of the shim API */
 #else
 #  define SECP256K1_XONLY_PUBKEY_PRECOMP_SIZE 1504
    struct secp256k1_xonly_pubkey_precomp {
@@ -114,7 +116,7 @@ SECP256K1_API int secp256k1_schnorrsig_verify(
 typedef struct secp256k1_xonly_pubkey_precomp secp256k1_xonly_pubkey_precomp;
 
 /* Build pre-computed form from parsed secp256k1_xonly_pubkey. Returns 1/0. */
-SECP256K1_API int secp256k1_xonly_pubkey_precomp(
+SECP256K1_API int secp256k1_xonly_ec_pubkey_precomp(
     const secp256k1_context *ctx,
     secp256k1_xonly_pubkey_precomp *out,
     const secp256k1_xonly_pubkey *pubkey);
