@@ -1,5 +1,5 @@
-# Target
-CONFIG_IDF_TARGET="esp32s3"
+# Target: ESP32 / ESP32-PICO-D4 (Xtensa LX6, dual-core, 240 MHz)
+CONFIG_IDF_TARGET="esp32"
 
 # Optimizer - performance for accurate benchmarks
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
@@ -8,17 +8,17 @@ CONFIG_FREERTOS_UNICORE=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 
 # Stack sizes
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=131072
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=65536
 CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=8192
 
-# Flash size (actual 8MB chip)
-CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+# Flash size (PICO-D4 has 4MB embedded flash)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 
 # Logging
 CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
-# IPC task stack (default 1280 too small with complex constructors)
+# IPC task stack
 CONFIG_ESP_IPC_TASK_STACK_SIZE=8192
 
 # Disable IDLE watchdog (long benchmarks)
