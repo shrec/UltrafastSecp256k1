@@ -428,8 +428,9 @@ inline void bip32_fingerprint_impl(const ExtendedKeyOCL* xkey, uchar fp[4]) {
     if (xkey->is_private) {
         Scalar sk;
         scalar_from_bytes_impl(xkey->key, &sk);
-        JacobianPoint P;
-        scalar_mul_generator_impl(&P, &sk);
+        CTJacobianPoint P_ct;
+        ct_generator_mul_impl(&sk, &P_ct);
+        JacobianPoint P = ct_point_to_jacobian(&P_ct);
         point_to_compressed_impl(&P, compressed);
     } else {
         for (int i = 0; i < 33; i++) compressed[i] = xkey->key[i];
@@ -559,8 +560,9 @@ inline int bip32_public_key_impl(const ExtendedKeyOCL* xkey, uchar compressed[33
     if (xkey->is_private) {
         Scalar sk;
         scalar_from_bytes_impl(xkey->key, &sk);
-        JacobianPoint P;
-        scalar_mul_generator_impl(&P, &sk);
+        CTJacobianPoint P_ct;
+        ct_generator_mul_impl(&sk, &P_ct);
+        JacobianPoint P = ct_point_to_jacobian(&P_ct);
         point_to_compressed_impl(&P, compressed);
         return 1;
     }
@@ -611,8 +613,9 @@ inline int bip32_to_public_impl(const ExtendedKeyOCL* xpriv, ExtendedKeyOCL* xpu
 
     Scalar sk;
     scalar_from_bytes_impl(xpriv->key, &sk);
-    JacobianPoint P;
-    scalar_mul_generator_impl(&P, &sk);
+    CTJacobianPoint P_ct;
+    ct_generator_mul_impl(&sk, &P_ct);
+    JacobianPoint P = ct_point_to_jacobian(&P_ct);
     point_to_compressed_impl(&P, xpub->key);
 
     for (int i = 0; i < 32; i++) xpub->chain_code[i] = xpriv->chain_code[i];

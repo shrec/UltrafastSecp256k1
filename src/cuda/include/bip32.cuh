@@ -257,7 +257,7 @@ __device__ inline void bip32_fingerprint(
         Scalar sk;
         scalar_from_bytes(xkey->key, &sk);
         JacobianPoint P;
-        scalar_mul_generator_w8(&sk, &P);
+        ct_generator_mul(&sk, &P);
         point_to_compressed(&P, compressed);
     } else {
         // For public keys, key[0..32] is already the compressed pubkey
@@ -298,10 +298,8 @@ __device__ inline bool bip32_derive_child(
         if (parent->is_private) {
             Scalar sk;
             scalar_from_bytes(parent->key, &sk);
-            // BUG-M2 FIX: use CT generator mul — private key is secret, windowed
-            // scalar_mul_generator_w8 leaks key bits via timing and cache patterns.
             JacobianPoint P;
-            scalar_mul_generator_w8(&sk, &P);
+            ct_generator_mul(&sk, &P);
             point_to_compressed(&P, data);
         } else {
             for (int i = 0; i < 33; i++) data[i] = parent->key[i];
@@ -418,7 +416,7 @@ __device__ inline bool bip32_public_key(
         Scalar sk;
         scalar_from_bytes(xkey->key, &sk);
         JacobianPoint P;
-        scalar_mul_generator_w8(&sk, &P);
+        ct_generator_mul(&sk, &P);
         return point_to_compressed(&P, compressed);
     } else {
         for (int i = 0; i < 33; i++) compressed[i] = xkey->key[i];
@@ -487,7 +485,7 @@ __device__ inline bool bip32_to_public(
     Scalar sk;
     scalar_from_bytes(xpriv->key, &sk);
     JacobianPoint P;
-    scalar_mul_generator_w8(&sk, &P);
+    ct_generator_mul(&sk, &P);
 
     if (!point_to_compressed(&P, xpub->key)) return false;
 
