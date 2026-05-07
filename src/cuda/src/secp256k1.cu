@@ -114,6 +114,7 @@ void hash160_pubkey_kernel(const uint8_t* pubkeys, int pubkey_len, uint8_t* out_
 // ============================================================================
 #if !SECP256K1_CUDA_LIMBS_32
 
+// GPU Guardrail 8: CT signing mandatory — variable-time ecdsa_sign() banned on secret nonces.
 // ECDSA Sign batch -- uses ct_ecdsa_sign (explicit CT path) for benchmark + audit.
 // Production signing goes through the CPU CT path (ufsecp_ecdsa_sign_batch → ct::ecdsa_sign).
 __global__ __launch_bounds__(128, 2)
@@ -186,6 +187,7 @@ void schnorr_snark_witness_batch_kernel(
     }
 }
 
+// GPU Guardrail 8: CT signing mandatory — variable-time schnorr_sign() banned on secret nonces.
 // Schnorr Sign batch -- each thread signs one message
 __global__ __launch_bounds__(128, 2)
 void schnorr_sign_batch_kernel(
