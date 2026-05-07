@@ -2,6 +2,21 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-07 GPU batch signing CT audit — confirmation + annotation (SEC-004/SEC-005)
+
+- **Metal batch signing (`secp256k1_kernels.metal`)**: Audit confirmed `ecdsa_sign_batch` and
+  `schnorr_sign_batch` kernels already route through `ct_ecdsa_sign_metal()` and
+  `ct_schnorr_sign_metal()` from `secp256k1_ct_sign.h`. Variable-time wrappers were replaced
+  in a prior commit (a29196b). Added explicit `// GPU Guardrail 8: CT signing mandatory`
+  annotations at both kernel entry points.
+- **CUDA batch signing (`secp256k1.cu`)**: Same confirmation — `ecdsa_sign_batch_kernel` and
+  `schnorr_sign_batch_kernel` both call `ct::ct_ecdsa_sign()` / `ct::ct_schnorr_sign()` from
+  `include/ct/ct_sign.cuh`. Both kernels zero the output buffer before signing and check the CT
+  return value, satisfying GPU Guardrails 8 and 9. Guardrail 8 annotations added.
+- **GPU CT boundary rule**: All GPU batch signing kernels (Metal, CUDA, OpenCL) are audited to
+  use CT signing primitives. Variable-time `ecdsa_sign()` / `schnorr_sign()` are banned from
+  kernels that handle secret nonces or private keys.
+
 ### 2026-05-07 Multi-agent ultrareview — secret lifecycle zeroization fixes
 
 - **`recovery.cpp` (`secp256k1::ecdsa_sign_recoverable`, public C++ API)**: Added
