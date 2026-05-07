@@ -21,6 +21,10 @@ inline unsigned int ctx_flags(const secp256k1_context* ctx) noexcept {
 }
 
 inline bool ctx_can_sign(const secp256k1_context* ctx) noexcept {
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(NULL, "secp256k1_shim: NULL context argument");
+        return false;
+    }
     unsigned int f = ctx_flags(ctx);
     if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
     return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
@@ -28,7 +32,10 @@ inline bool ctx_can_sign(const secp256k1_context* ctx) noexcept {
 }
 
 inline bool ctx_can_verify(const secp256k1_context* ctx) noexcept {
-    if (!ctx) return false;
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(NULL, "secp256k1_shim: NULL context argument");
+        return false;
+    }
     unsigned int f = ctx_flags(ctx);
     if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
     return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
