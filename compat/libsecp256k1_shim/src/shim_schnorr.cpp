@@ -18,14 +18,27 @@
 using namespace secp256k1::fast;
 
 // -- Thread-local Schnorr xonly pubkey cache ----------------------------------
-// Eliminates ~2,600 ns lift_x (sqrt) + build_glv52_table_zr per verify on hit.
+// Two-phase design to eliminate ~27 MB cache pollution for ConnectBlock:
+//
+// PHASE 1 (first encounter, ~8 bytes written): record fingerprint + seen_once=true.
+//   No SchnorrXonlyPubkey written — avoids polluting 1.5 KB × N unique pubkeys
+//   into L1/L2 cache (ConnectBlock: ~19K unique pubkeys × 1.5 KB = 27 MB/block).
+//
+// PHASE 2 (second encounter): parse + build GLV tables → store full struct.
+//   Repeated pubkeys (wallet, P2PK coinbases) amortize the table build cost.
+//
+// HOT PATH:
+//   HIT  → return cached SchnorrXonlyPubkey (tables pre-built, skip lift_x).
+//   MISS-1st → write fingerprint (8 bytes), return nullptr → caller uses x32 path.
+//   MISS-2nd → build full struct, return it for immediate use.
 namespace {
 struct ShimSchnorrCache {
     static constexpr std::size_t SLOTS = 256;
     struct Slot {
-        std::uint64_t             fingerprint{0};  // FNV-1a over 4×uint64; replaces raw[32]+memcmp
+        std::uint64_t             fingerprint{0};
         secp256k1::SchnorrXonlyPubkey epk{};
-        bool                      valid = false;
+        bool                      valid      = false;  // full struct built + usable
+        bool                      seen_once  = false;  // fingerprint recorded, struct not built
     };
     Slot slots[SLOTS]{};
 
@@ -48,13 +61,26 @@ struct ShimSchnorrCache {
         return nullptr;
     }
 
+    // Returns non-null only on second+ encounter (tables built).
+    // First encounter: records fingerprint only (~8 bytes written), returns nullptr.
     const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
         std::size_t idx; std::uint64_t fp;
         hash32(data, idx, fp);
         Slot& s = slots[idx];
-        s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
-        if (s.valid) s.fingerprint = fp;
-        return s.valid ? &s.epk : nullptr;
+        bool const matches = (s.fingerprint == fp);
+        if (matches && s.seen_once && !s.valid) {
+            // Second encounter: build tables now.
+            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
+            return s.valid ? &s.epk : nullptr;
+        }
+        if (matches && s.valid) {
+            return &s.epk;  // already built (slot collision matched)
+        }
+        // First encounter (or slot collision): record fingerprint only.
+        s.fingerprint = fp;
+        s.seen_once   = true;
+        s.valid       = false;
+        return nullptr;
     }
 };
 static thread_local ShimSchnorrCache s_schnorr_cache;
@@ -277,12 +303,19 @@ int secp256k1_schnorrsig_verify(
     std::array<uint8_t, 32> msg32{};
     std::memcpy(msg32.data(), msg, 32);
 
-    // x-only key is stored in the first 32 bytes of the opaque 64-byte struct.
-    // Use cached SchnorrXonlyPubkey to skip lift_x + build_glv52_table_zr (~2,600ns).
+    // x-only key in first 32 bytes of opaque 64-byte struct.
+    // Two-phase cache: first encounter writes fingerprint only (~8 bytes) to avoid
+    // polluting ~1.5 KB SchnorrXonlyPubkey into cache for every unique pubkey.
+    // ConnectBlock with 19K unique pubkeys: saves ~27 MB/block of cache writes.
     const secp256k1::SchnorrXonlyPubkey* epk = s_schnorr_cache.get(pubkey->data);
     if (!epk) epk = s_schnorr_cache.put(pubkey->data);
-    if (!epk) return 0;  // invalid x-coordinate
-    return secp256k1::schnorr_verify(*epk, msg32, sig) ? 1 : 0;
+    if (epk) {
+        // Cache hit or second encounter with tables built: use prebuilt path.
+        return secp256k1::schnorr_verify(*epk, msg32, sig) ? 1 : 0;
+    }
+    // First encounter (unique pubkey): use x32 path directly — g_glv_cache inside
+    // schnorr_verify handles its own seen_once logic for internal table warm-up.
+    return secp256k1::schnorr_verify(pubkey->data, msg32.data(), sig) ? 1 : 0;
 }
 
 } // extern "C"

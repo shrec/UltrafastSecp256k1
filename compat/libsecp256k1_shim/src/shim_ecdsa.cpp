@@ -16,23 +16,26 @@
 
 using namespace secp256k1::fast;
 
-// -- Thread-local pubkey GLV cache -------------------------------------------
-// Eliminates ~1,954 ns build_glv52_table_zr on repeated verify of same pubkey.
-// Direct-mapped, 16 slots, keyed by XOR of first 8 bytes of pubkey->data.
-// Even on cache miss, parsing uncompressed x||y is cheaper than the full
-// rebuild path in ecdsa_verify(Point): ~21 µs vs ~23 µs.
+// -- Thread-local ECDSA pubkey GLV cache -------------------------------------
+// Two-phase design: first encounter writes fingerprint only (~8 bytes) to avoid
+// polluting ~1.4 KB EcdsaPublicKey into cache for every unique pubkey.
+// ConnectBlock: ~19K unique pubkeys × 1.4 KB = 26 MB/block without this fix.
+//
+// PHASE 1 (1st encounter): record fingerprint + seen_once. Return nullptr.
+//   Caller falls back to ecdsa_verify(Point) which builds tables on-the-fly.
+// PHASE 2 (2nd encounter): build full EcdsaPublicKey with pre-computed tables.
+//   Subsequent calls use cached tables → ~1,954 ns faster per verify.
 namespace {
 struct ShimPkCache {
     static constexpr std::size_t SLOTS = 256;
     struct Slot {
-        std::uint64_t             fingerprint{0};  // FNV-1a over 8×uint64; replaces raw[64]+memcmp
+        std::uint64_t             fingerprint{0};
         secp256k1::EcdsaPublicKey epk{};
-        bool                      valid = false;
+        bool                      valid      = false;
+        bool                      seen_once  = false;
     };
     Slot slots[SLOTS]{};
 
-    // Hash 64 bytes as 8 × uint64 words — 8× fewer iterations than byte-loop.
-    // Returns slot index AND full fingerprint in one pass.
     static void hash64(const unsigned char data[64],
                        std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
         std::uint64_t h = 14695981039346656037ULL, w;
@@ -52,15 +55,26 @@ struct ShimPkCache {
         return nullptr;
     }
 
+    // Returns non-null only on 2nd+ encounter (tables built).
+    // 1st encounter: records fingerprint only, returns nullptr.
     const secp256k1::EcdsaPublicKey* put(const unsigned char data[64]) noexcept {
         std::size_t idx; std::uint64_t fp;
         hash64(data, idx, fp);
         Slot& s = slots[idx];
-        unsigned char unc[65]; unc[0] = 0x04;
-        std::memcpy(unc + 1, data, 64);
-        s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
-        if (s.valid) s.fingerprint = fp;
-        return s.valid ? &s.epk : nullptr;
+        bool const matches = (s.fingerprint == fp);
+        if (matches && s.seen_once && !s.valid) {
+            // 2nd encounter: build tables now.
+            unsigned char unc[65]; unc[0] = 0x04;
+            std::memcpy(unc + 1, data, 64);
+            s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
+            return s.valid ? &s.epk : nullptr;
+        }
+        if (matches && s.valid) return &s.epk;
+        // 1st encounter: fingerprint only, no 1.4 KB write.
+        s.fingerprint = fp;
+        s.seen_once   = true;
+        s.valid       = false;
+        return nullptr;
     }
 };
 static thread_local ShimPkCache s_pk_cache;
@@ -267,11 +281,23 @@ int secp256k1_ecdsa_verify(
     std::array<uint8_t, 32> msg{};
     std::memcpy(msg.data(), msghash32, 32);
 
-    // Use cached GLV tables when available; build on miss.
+    // Two-phase cache: HIT → cached tables; 2nd-encounter → build & cache tables;
+    // 1st-encounter → build on stack (no 1.4 KB write to cache slot).
+    // ConnectBlock: ~19K unique pubkeys × 1.4 KB = 26 MB cache slot writes avoided.
     const secp256k1::EcdsaPublicKey* epk = s_pk_cache.get(pubkey->data);
     if (!epk) epk = s_pk_cache.put(pubkey->data);
-    if (!epk) return 0;  // degenerate pubkey (not on curve)
-    return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
+    if (epk) {
+        return secp256k1::ecdsa_verify(msg, *epk, internal_sig) ? 1 : 0;
+    }
+    // 1st encounter (unique pubkey): parse into a stack-local EcdsaPublicKey.
+    // Tables are built once, used immediately — no thread-local cache slot write.
+    secp256k1::EcdsaPublicKey local_epk;
+    {
+        unsigned char unc[65]; unc[0] = 0x04;
+        std::memcpy(unc + 1, pubkey->data, 64);
+        if (!secp256k1::ecdsa_pubkey_parse(local_epk, unc, 65)) return 0;
+    }
+    return secp256k1::ecdsa_verify(msg, local_epk, internal_sig) ? 1 : 0;
 }
 
 // -- Sign -----------------------------------------------------------------
