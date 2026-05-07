@@ -97,6 +97,7 @@ jobs:
         mkdir -p /tmp/benchmark_results
         ./out/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
         python3 .github/scripts/parse_benchmark.py \
+          --run-mode quick \
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json
 
@@ -120,6 +121,26 @@ jobs:
             sys.exit(1)
         print(f"::notice::benchmark.json OK — {len(data)} entries, all non-zero")
         PYEOF
+
+    - name: Reject quick-mode artifact as regression baseline
+      # quick-mode runs use 3 passes with high variance — unsuitable as a baseline.
+      # Fail-fast here so a stale quick-mode result is never stored to gh-pages as
+      # a release-grade baseline.  If we move to full-mode in the future, remove
+      # this guard.  For now this workflow is diagnostic-only (auto-push: false).
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      run: |
+        META=/tmp/benchmark_results/benchmark.meta.json
+        if [ -f "$META" ]; then
+          RUN_MODE=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('run_mode','unknown'))" "$META")
+          PASSES=$(python3   -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('passes',0))"    "$META")
+          echo "::notice::Benchmark run_mode=${RUN_MODE} passes=${PASSES}"
+          if [ "$RUN_MODE" = "quick" ]; then
+            echo "::warning::Benchmark artifact is quick-mode (${PASSES} passes). " \
+                 "This workflow uses auto-push: false, so no baseline will be stored. " \
+                 "To update the baseline with a full-mode run, trigger workflow_dispatch " \
+                 "after temporarily switching to full-mode (11 passes)."
+          fi
+        fi
 
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
       # Baseline update policy: auto-push is DISABLED to prevent floating baseline.

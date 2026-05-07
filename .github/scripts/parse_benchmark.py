@@ -151,12 +151,19 @@ def parse_benchmark_output(text: str) -> list[dict]:
 
 
 def main():
-    if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <input.txt> <output.json>")
-        sys.exit(1)
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='Parse bench_unified output into github-action-benchmark JSON')
+    parser.add_argument('input', help='Raw benchmark text file (bench_unified output)')
+    parser.add_argument('output', help='Output JSON file path')
+    parser.add_argument(
+        '--run-mode', choices=['quick', 'full'], default=None,
+        help='Benchmark run mode (quick=3 passes, full=11 passes). '
+             'When provided, writes a sidecar <output>.meta.json with run_mode and passes.')
+    args = parser.parse_args()
 
-    input_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
+    input_path = Path(args.input)
+    output_path = Path(args.output)
 
     if not input_path.exists():
         print(f"Error: {input_path} not found")
@@ -179,6 +186,18 @@ def main():
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(entries, indent=2))
     print(f"Wrote {len(entries)} benchmark entries to {output_path}")
+
+    # Write sidecar metadata so downstream steps can reject quick-mode baselines.
+    if args.run_mode is not None:
+        passes = 3 if args.run_mode == 'quick' else 11
+        meta = {
+            'run_mode': args.run_mode,
+            'passes': passes,
+            'entries': len(entries),
+        }
+        meta_path = output_path.with_suffix('.meta.json')
+        meta_path.write_text(json.dumps(meta, indent=2))
+        print(f"Wrote run metadata ({args.run_mode}, {passes} passes) to {meta_path}")
 
 
 if __name__ == '__main__':
