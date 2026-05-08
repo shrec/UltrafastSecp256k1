@@ -81,8 +81,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                 if (ufsecp_bip324_create(local_ctx, 1, &loc_init, le) == UFSECP_OK &&
                     ufsecp_bip324_create(local_ctx, 0, &loc_resp, re) == UFSECP_OK)
                 {
-                    ufsecp_bip324_handshake(loc_init, re, nullptr);
-                    ufsecp_bip324_handshake(loc_resp, le, nullptr);
+                    CHECK_OK(ufsecp_bip324_handshake(loc_init, re, nullptr), "bip324_handshake");
+                    CHECK_OK(ufsecp_bip324_handshake(loc_resp, le, nullptr), "bip324_handshake");
 
                     // Feed fuzz payload as a "frame" to decrypt
                     std::vector<uint8_t> pt(plen + 64, 0);

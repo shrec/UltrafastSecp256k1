@@ -88,7 +88,7 @@ static void test_musig2_nonce_reuse() {
     std::memcpy(pubkeys, comp1, 33);
     std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
-    ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
+    CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "musig2_key_agg");
 
     uint8_t msg32[32];
     hex_to_bytes(MSG_HEX, msg32, 32);
@@ -110,9 +110,9 @@ static void test_musig2_nonce_reuse() {
     std::memcpy(pubnonces_all, pubnonce1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(pubnonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pubnonce2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, pubnonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, pubnonces_all, 2, aggnonce), "musig2_nonce_agg");
     uint8_t session[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session), "musig2_start_sign_session");
 
     // First sign -- should succeed
     uint8_t psig1[32];
@@ -177,8 +177,8 @@ static void test_hostile_bip324_lengths() {
         CHECK(ufsecp_bip324_decrypt(responder, tampered, tampered_len, zero_plain, &zero_plain_len) != UFSECP_OK,
             "bip324 decrypt rejects tampered minimum-size packet");
 
-    ufsecp_bip324_destroy(initiator);
-    ufsecp_bip324_destroy(responder);
+    CHECK_OK(ufsecp_bip324_destroy(initiator), "bip324_destroy");
+    CHECK_OK(ufsecp_bip324_destroy(responder), "bip324_destroy");
     ufsecp_ctx_destroy(ctx);
 }
 #endif
@@ -204,7 +204,7 @@ static void test_musig2_partial_sig_replay() {
     std::memcpy(pubkeys, comp1, 33);
     std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
-    ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
+    CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "musig2_key_agg");
 
     uint8_t msg1[32], msg2[32];
     hex_to_bytes(MSG_HEX, msg1, 32);
@@ -213,41 +213,41 @@ static void test_musig2_partial_sig_replay() {
     // Session 1 (msg1)
     uint8_t extra[32] = {};
     uint8_t sn1[UFSECP_MUSIG2_SECNONCE_LEN], pn1[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg1, extra, sn1, pn1);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg1, extra, sn1, pn1), "musig2_nonce_gen");
     extra[0] = 1;
     uint8_t sn2[UFSECP_MUSIG2_SECNONCE_LEN], pn2[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg1, extra, sn2, pn2);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg1, extra, sn2, pn2), "musig2_nonce_gen");
 
     uint8_t nonces_all[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all, pn1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pn2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce), "musig2_nonce_agg");
 
     uint8_t session1[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg1, session1);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg1, session1), "musig2_start_sign_session");
 
     uint8_t psig1[32];
-    ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session1, 0, psig1);
+    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session1, 0, psig1), "musig2_partial_sign");
     uint8_t psig2[32];
-    ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session1, 1, psig2);
+    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session1, 1, psig2), "musig2_partial_sign");
 
     // Session 2 (msg2) -- use DIFFERENT nonces but try to inject psig1 from session1
     extra[0] = 2;
     uint8_t sn1b[UFSECP_MUSIG2_SECNONCE_LEN], pn1b[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg2, extra, sn1b, pn1b);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg2, extra, sn1b, pn1b), "musig2_nonce_gen");
     extra[0] = 3;
     uint8_t sn2b[UFSECP_MUSIG2_SECNONCE_LEN], pn2b[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg2, extra, sn2b, pn2b);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg2, extra, sn2b, pn2b), "musig2_nonce_gen");
 
     uint8_t nonces_all2[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all2, pn1b, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all2 + UFSECP_MUSIG2_PUBNONCE_LEN, pn2b, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce2[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all2, 2, aggnonce2);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all2, 2, aggnonce2), "musig2_nonce_agg");
 
     uint8_t session2[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce2, keyagg, msg2, session2);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce2, keyagg, msg2, session2), "musig2_start_sign_session");
 
     // Replay: verify psig1 (from session1) under session2 -- must fail
     const ufsecp_error_t rc = ufsecp_musig2_partial_verify(ctx, psig1, pn1b, xonly1,
@@ -256,13 +256,13 @@ static void test_musig2_partial_sig_replay() {
 
     // Aggregate with replayed partial sig -- final sig should be invalid
     uint8_t psig2b[32];
-    ufsecp_musig2_partial_sign(ctx, sn2b, priv2, keyagg, session2, 1, psig2b);
+    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2b, priv2, keyagg, session2, 1, psig2b), "musig2_partial_sign");
 
     uint8_t psigs_mixed[64];
     std::memcpy(psigs_mixed, psig1, 32);   // replayed from session1!
     std::memcpy(psigs_mixed + 32, psig2b, 32);
     uint8_t final_sig[64];
-    ufsecp_musig2_partial_sig_agg(ctx, psigs_mixed, 2, session2, final_sig);
+    CHECK_OK(ufsecp_musig2_partial_sig_agg(ctx, psigs_mixed, 2, session2, final_sig), "musig2_partial_sig_agg");
 
     // Aggregated sig with replayed partial should NOT verify
     const ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg2, final_sig, agg_pub);
@@ -593,16 +593,16 @@ static void test_musig2_transcript_mutation() {
     uint8_t extra[32] = {};
 
     uint8_t sn1[UFSECP_MUSIG2_SECNONCE_LEN], pn1[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1), "musig2_nonce_gen");
     extra[0] = 1;
     uint8_t sn2[UFSECP_MUSIG2_SECNONCE_LEN], pn2[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2), "musig2_nonce_gen");
 
     uint8_t nonces_all[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all, pn1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pn2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce), "musig2_nonce_agg");
 
     // Corrupt keyagg blob before starting session
     uint8_t keyagg_bad[UFSECP_MUSIG2_KEYAGG_LEN];
@@ -660,25 +660,25 @@ static void test_musig2_signer_ordering() {
     std::memcpy(pubkeys, comp1, 33);
     std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
-    ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
+    CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "musig2_key_agg");
 
     uint8_t msg32[32];
     hex_to_bytes(MSG_HEX, msg32, 32);
     uint8_t extra[32] = {};
 
     uint8_t sn1[UFSECP_MUSIG2_SECNONCE_LEN], pn1[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1), "musig2_nonce_gen");
     extra[0] = 1;
     uint8_t sn2[UFSECP_MUSIG2_SECNONCE_LEN], pn2[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2), "musig2_nonce_gen");
 
     uint8_t nonces_all[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all, pn1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pn2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce), "musig2_nonce_agg");
     uint8_t session[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session), "musig2_start_sign_session");
 
     // Signer 1 signs with index=1 (should be index=0)
     uint8_t psig1_wrong[32];
@@ -717,23 +717,23 @@ static void test_musig2_malicious_aggregator() {
     std::memcpy(pubkeys, comp1, 33);
     std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
-    ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
+    CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "musig2_key_agg");
 
     uint8_t msg32[32];
     hex_to_bytes(MSG_HEX, msg32, 32);
     uint8_t extra[32] = {};
 
     uint8_t sn1[UFSECP_MUSIG2_SECNONCE_LEN], pn1[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1), "musig2_nonce_gen");
     extra[0] = 1;
     uint8_t sn2[UFSECP_MUSIG2_SECNONCE_LEN], pn2[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2), "musig2_nonce_gen");
 
     uint8_t nonces_all[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all, pn1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pn2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce), "musig2_nonce_agg");
 
     // Aggregator tampers with aggnonce (flips bytes in both points)
     uint8_t aggnonce_bad[UFSECP_MUSIG2_AGGNONCE_LEN];
@@ -746,14 +746,14 @@ static void test_musig2_malicious_aggregator() {
 
     if (rc == UFSECP_OK) {
         uint8_t psig1[32], psig2[32];
-        ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1);
-        ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session, 1, psig2);
+        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1), "musig2_partial_sign");
+        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session, 1, psig2), "musig2_partial_sign");
 
         uint8_t psigs[64];
         std::memcpy(psigs, psig1, 32);
         std::memcpy(psigs + 32, psig2, 32);
         uint8_t final_sig[64];
-        ufsecp_musig2_partial_sig_agg(ctx, psigs, 2, session, final_sig);
+        CHECK_OK(ufsecp_musig2_partial_sig_agg(ctx, psigs, 2, session, final_sig), "musig2_partial_sig_agg");
 
         // Final sig from tampered aggnonce must NOT verify
         const ufsecp_error_t vrc = ufsecp_schnorr_verify(ctx, msg32, final_sig, agg_pub);
@@ -788,7 +788,7 @@ static void test_musig2_abort_restart() {
     std::memcpy(pubkeys, comp1, 33);
     std::memcpy(pubkeys + 33, comp2, 33);
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], agg_pub[32];
-    ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub);
+    CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "musig2_key_agg");
 
     uint8_t msg32[32];
     hex_to_bytes(MSG_HEX, msg32, 32);
@@ -796,22 +796,22 @@ static void test_musig2_abort_restart() {
 
     // Session 1: generate nonces but intentionally abort (don't aggregate)
     uint8_t sn1[UFSECP_MUSIG2_SECNONCE_LEN], pn1[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1, pn1), "musig2_nonce_gen");
     extra[0] = 1;
     uint8_t sn2[UFSECP_MUSIG2_SECNONCE_LEN], pn2[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2, pn2), "musig2_nonce_gen");
 
     uint8_t nonces_all[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_all, pn1, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_all + UFSECP_MUSIG2_PUBNONCE_LEN, pn2, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_all, 2, aggnonce), "musig2_nonce_agg");
     uint8_t session[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session), "musig2_start_sign_session");
 
     // Signer 1 signs (consuming secnonce1) but we abort before signer 2
     uint8_t psig1_abort[32];
-    ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1_abort);
+    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1_abort), "musig2_partial_sign");
 
     // Verify secnonce1 was consumed -- reuse must fail
     uint8_t psig1_reuse[32];
@@ -821,18 +821,18 @@ static void test_musig2_abort_restart() {
     // Session 2: restart with completely fresh nonces -- must succeed
     extra[0] = 10;
     uint8_t sn1f[UFSECP_MUSIG2_SECNONCE_LEN], pn1f[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1f, pn1f);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv1, xonly1, agg_pub, msg32, extra, sn1f, pn1f), "musig2_nonce_gen");
     extra[0] = 11;
     uint8_t sn2f[UFSECP_MUSIG2_SECNONCE_LEN], pn2f[UFSECP_MUSIG2_PUBNONCE_LEN];
-    ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2f, pn2f);
+    CHECK_OK(ufsecp_musig2_nonce_gen(ctx, priv2, xonly2, agg_pub, msg32, extra, sn2f, pn2f), "musig2_nonce_gen");
 
     uint8_t nonces_fresh[2 * UFSECP_MUSIG2_PUBNONCE_LEN];
     std::memcpy(nonces_fresh, pn1f, UFSECP_MUSIG2_PUBNONCE_LEN);
     std::memcpy(nonces_fresh + UFSECP_MUSIG2_PUBNONCE_LEN, pn2f, UFSECP_MUSIG2_PUBNONCE_LEN);
     uint8_t aggnonce_f[UFSECP_MUSIG2_AGGNONCE_LEN];
-    ufsecp_musig2_nonce_agg(ctx, nonces_fresh, 2, aggnonce_f);
+    CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_fresh, 2, aggnonce_f), "musig2_nonce_agg");
     uint8_t session_f[UFSECP_MUSIG2_SESSION_LEN];
-    ufsecp_musig2_start_sign_session(ctx, aggnonce_f, keyagg, msg32, session_f);
+    CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce_f, keyagg, msg32, session_f), "musig2_start_sign_session");
 
     uint8_t psig1f[32], psig2f[32];
     CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1f, priv1, keyagg, session_f, 0, psig1f),
@@ -976,9 +976,9 @@ static void test_frost_malformed_commitment() {
     for (uint32_t i = 0; i < 3; ++i) {
         commits_len[i] = sizeof(commits[i]);
         shares_len[i] = sizeof(shares[i]);
-        ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
                  seeds[i], commits[i], &commits_len[i],
-                 shares[i], &shares_len[i]);
+                 shares[i], &shares_len[i]), "frost_keygen_begin");
     }
     uint8_t all_commits[2048]; size_t total_commits_len = 0;
     for (uint32_t i = 0; i < 3; ++i) {
@@ -994,10 +994,10 @@ static void test_frost_malformed_commitment() {
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
-        ufsecp_frost_keygen_finalize(ctx, i + 1,
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
                  all_commits, total_commits_len,
                  recv_shares, recv_len,
-                 threshold, n_parts, keypkgs[i]);
+                 threshold, n_parts, keypkgs[i]), "frost_keygen_finalize");
     }
     uint8_t group_pub[33];
     std::memcpy(group_pub, keypkgs[0] + 77, 33);
@@ -1008,8 +1008,8 @@ static void test_frost_malformed_commitment() {
     uint8_t nonce1[UFSECP_FROST_NONCE_LEN], nc1[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t nonce2[UFSECP_FROST_NONCE_LEN], nc2[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t ns1[32] = {1}, ns2[32] = {2};
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1);
-    ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1), "frost_sign_nonce_gen");
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2), "frost_sign_nonce_gen");
 
     // Corrupt signer 2's nonce commitment (flip bits in the commitment point)
     uint8_t nc2_bad[UFSECP_FROST_NONCE_COMMIT_LEN];
@@ -1031,7 +1031,7 @@ static void test_frost_malformed_commitment() {
         // Zero-initialize: sign may fail on the corrupted hiding point, leaving
         // psig2 unwritten; copying it into psigs_all without init triggers Valgrind.
         uint8_t psig2[36] = {};
-        ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_bad, 2, psig2);
+        CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_bad, 2, psig2), "frost_sign");
 
         uint8_t psigs_all[72];
         std::memcpy(psigs_all, psig1, 36);
@@ -1281,9 +1281,9 @@ static void test_frost_malicious_coordinator() {
     for (uint32_t i = 0; i < 3; ++i) {
         commits_len[i] = sizeof(commits[i]);
         shares_len[i] = sizeof(shares[i]);
-        ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
                  seeds[i], commits[i], &commits_len[i],
-                 shares[i], &shares_len[i]);
+                 shares[i], &shares_len[i]), "frost_keygen_begin");
     }
     uint8_t all_commits[2048]; size_t total_commits_len = 0;
     for (uint32_t i = 0; i < 3; ++i) {
@@ -1299,10 +1299,10 @@ static void test_frost_malicious_coordinator() {
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
-        ufsecp_frost_keygen_finalize(ctx, i + 1,
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
                  all_commits, total_commits_len,
                  recv_shares, recv_len,
-                 threshold, n_parts, keypkgs[i]);
+                 threshold, n_parts, keypkgs[i]), "frost_keygen_finalize");
     }
     uint8_t group_pub[33];
     std::memcpy(group_pub, keypkgs[0] + 77, 33);
@@ -1313,8 +1313,8 @@ static void test_frost_malicious_coordinator() {
     uint8_t nonce1[UFSECP_FROST_NONCE_LEN], nc1[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t nonce2[UFSECP_FROST_NONCE_LEN], nc2[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t ns1[32] = {1}, ns2[32] = {2};
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1);
-    ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1), "frost_sign_nonce_gen");
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2), "frost_sign_nonce_gen");
 
     // Coordinator gives signer 1 the correct set [nc1, nc2]
     uint8_t ncommits_good[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
@@ -1330,8 +1330,8 @@ static void test_frost_malicious_coordinator() {
     // Zero-initialize to avoid Valgrind uninit-value warnings when sign fails on
     // an adversarial input and the output buffer is later compared or aggregated.
     uint8_t psig1[36] = {}, psig2[36] = {};
-    ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, ncommits_good, 2, psig1);
-    ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_evil, 2, psig2);
+    CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, ncommits_good, 2, psig1), "frost_sign");
+    CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_evil, 2, psig2), "frost_sign");
 
     // Aggregate with either view -- final sig must not verify
     uint8_t psigs_all[72];
@@ -1369,9 +1369,9 @@ static void test_frost_duplicate_nonce() {
     for (uint32_t i = 0; i < 3; ++i) {
         commits_len[i] = sizeof(commits[i]);
         shares_len[i] = sizeof(shares[i]);
-        ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
                  seeds[i], commits[i], &commits_len[i],
-                 shares[i], &shares_len[i]);
+                 shares[i], &shares_len[i]), "frost_keygen_begin");
     }
     uint8_t all_commits[2048]; size_t total_commits_len = 0;
     for (uint32_t i = 0; i < 3; ++i) {
@@ -1387,10 +1387,10 @@ static void test_frost_duplicate_nonce() {
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
-        ufsecp_frost_keygen_finalize(ctx, i + 1,
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
                  all_commits, total_commits_len,
                  recv_shares, recv_len,
-                 threshold, n_parts, keypkgs[i]);
+                 threshold, n_parts, keypkgs[i]), "frost_keygen_finalize");
     }
     uint8_t group_pub[33];
     std::memcpy(group_pub, keypkgs[0] + 77, 33);
@@ -1400,7 +1400,7 @@ static void test_frost_duplicate_nonce() {
     // Signer 1 generates nonce
     uint8_t nonce1[UFSECP_FROST_NONCE_LEN], nc1[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t ns1[32] = {1};
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1), "frost_sign_nonce_gen");
 
     // Duplicate: submit nc1 twice (both "signers" use same commitment)
     uint8_t ncommits_dup[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
@@ -1712,9 +1712,9 @@ static void test_frost_participant_identity_mismatch() {
     for (uint32_t i = 0; i < 3; ++i) {
         commits_len[i] = sizeof(commits_buf[i]);
         shares_len[i] = sizeof(shares_buf[i]);
-        ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
                  seeds[i], commits_buf[i], &commits_len[i],
-                 shares_buf[i], &shares_len[i]);
+                 shares_buf[i], &shares_len[i]), "frost_keygen_begin");
     }
     uint8_t all_commits[2048]; size_t total_commits_len = 0;
     for (uint32_t i = 0; i < 3; ++i) {
@@ -1730,10 +1730,10 @@ static void test_frost_participant_identity_mismatch() {
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
-        ufsecp_frost_keygen_finalize(ctx, i + 1,
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
                  all_commits, total_commits_len,
                  recv_shares, recv_len,
-                 threshold, n_parts, keypkgs[i]);
+                 threshold, n_parts, keypkgs[i]), "frost_keygen_finalize");
     }
     uint8_t group_pub[33];
     std::memcpy(group_pub, keypkgs[0] + 77, 33);
@@ -1744,8 +1744,8 @@ static void test_frost_participant_identity_mismatch() {
     uint8_t nonce1[UFSECP_FROST_NONCE_LEN], nc1[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t nonce2[UFSECP_FROST_NONCE_LEN], nc2[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t ns1[32] = {1}, ns2[32] = {2};
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1);
-    ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce1, nc1), "frost_sign_nonce_gen");
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2, nc2), "frost_sign_nonce_gen");
 
     uint8_t ncommits[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
     std::memcpy(ncommits, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
@@ -1769,9 +1769,9 @@ static void test_frost_participant_identity_mismatch() {
         // should produce Lagrange coefficients for wrong signer set -> invalid sig
         uint8_t nonce2b[UFSECP_FROST_NONCE_LEN], nc2b[UFSECP_FROST_NONCE_COMMIT_LEN];
         ns2[0] = 20;
-        ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2b, nc2b);
+        CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce2b, nc2b), "frost_sign_nonce_gen");
         uint8_t psig_s2[36];
-        ufsecp_frost_sign(ctx, keypkgs[1], nonce2b, msg32, ncommits_swapped, 2, psig_s2);
+        CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[1], nonce2b, msg32, ncommits_swapped, 2, psig_s2), "frost_sign");
 
         uint8_t psigs_sw[72];
         std::memcpy(psigs_sw, psig_s, 36);
@@ -1793,13 +1793,13 @@ static void test_frost_participant_identity_mismatch() {
     // Attack B: Non-existent participant_id (id=99, not in {1,2,3})
     ns1[0] = 30;
     uint8_t nonce_x[UFSECP_FROST_NONCE_LEN], nc_x[UFSECP_FROST_NONCE_COMMIT_LEN];
-    ufsecp_frost_sign_nonce_gen(ctx, 99, ns1, nonce_x, nc_x);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 99, ns1, nonce_x, nc_x), "frost_sign_nonce_gen");
 
     uint8_t ncommits_bad_id[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
     std::memcpy(ncommits_bad_id, nc_x, UFSECP_FROST_NONCE_COMMIT_LEN);
     ns2[0] = 31;
     uint8_t nonce2c[UFSECP_FROST_NONCE_LEN], nc2c[UFSECP_FROST_NONCE_COMMIT_LEN];
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns2, nonce2c, nc2c);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns2, nonce2c, nc2c), "frost_sign_nonce_gen");
     std::memcpy(ncommits_bad_id + UFSECP_FROST_NONCE_COMMIT_LEN, nc2c, UFSECP_FROST_NONCE_COMMIT_LEN);
 
     uint8_t psig_bad[36];
@@ -1817,10 +1817,10 @@ static void test_frost_participant_identity_mismatch() {
     // Attack C: Both signers claim the same participant_id=1
     ns1[0] = 40;
     uint8_t nonce_d1[UFSECP_FROST_NONCE_LEN], nc_d1[UFSECP_FROST_NONCE_COMMIT_LEN];
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_d1, nc_d1);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_d1, nc_d1), "frost_sign_nonce_gen");
     ns1[0] = 41;
     uint8_t nonce_d2[UFSECP_FROST_NONCE_LEN], nc_d2[UFSECP_FROST_NONCE_COMMIT_LEN];
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_d2, nc_d2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_d2, nc_d2), "frost_sign_nonce_gen");
 
     uint8_t ncommits_dup_id[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
     std::memcpy(ncommits_dup_id, nc_d1, UFSECP_FROST_NONCE_COMMIT_LEN);
@@ -1832,7 +1832,7 @@ static void test_frost_participant_identity_mismatch() {
         // Two partial sigs from same id=1 -> Lagrange denominator (x_i - x_j) = 0
         // -> division by zero -> invalid or zero coefficient -> sig fails verification
         uint8_t psig_dup_id2[36];
-        ufsecp_frost_sign(ctx, keypkgs[0], nonce_d2, msg32, ncommits_dup_id, 2, psig_dup_id2);
+        CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[0], nonce_d2, msg32, ncommits_dup_id, 2, psig_dup_id2), "frost_sign");
         uint8_t psigs_did[72];
         std::memcpy(psigs_did, psig_dup_id, 36);
         std::memcpy(psigs_did + 36, psig_dup_id2, 36);
@@ -1871,9 +1871,9 @@ static void test_frost_stale_commitment_replay() {
     for (uint32_t i = 0; i < 3; ++i) {
         commits_len[i] = sizeof(commits_buf[i]);
         shares_len[i] = sizeof(shares_buf[i]);
-        ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
+        CHECK_OK(ufsecp_frost_keygen_begin(ctx, i + 1, threshold, n_parts,
                  seeds[i], commits_buf[i], &commits_len[i],
-                 shares_buf[i], &shares_len[i]);
+                 shares_buf[i], &shares_len[i]), "frost_keygen_begin");
     }
     uint8_t all_commits[2048]; size_t total_commits_len = 0;
     for (uint32_t i = 0; i < 3; ++i) {
@@ -1889,10 +1889,10 @@ static void test_frost_stale_commitment_replay() {
                         UFSECP_FROST_SHARE_LEN);
             recv_len += UFSECP_FROST_SHARE_LEN;
         }
-        ufsecp_frost_keygen_finalize(ctx, i + 1,
+        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, i + 1,
                  all_commits, total_commits_len,
                  recv_shares, recv_len,
-                 threshold, n_parts, keypkgs[i]);
+                 threshold, n_parts, keypkgs[i]), "frost_keygen_finalize");
     }
     uint8_t group_pub[33];
     std::memcpy(group_pub, keypkgs[0] + 77, 33);
@@ -1903,8 +1903,8 @@ static void test_frost_stale_commitment_replay() {
     uint8_t nonce_r1_1[UFSECP_FROST_NONCE_LEN], nc_r1_1[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t nonce_r1_2[UFSECP_FROST_NONCE_LEN], nc_r1_2[UFSECP_FROST_NONCE_COMMIT_LEN];
     uint8_t ns1[32] = {70}, ns2[32] = {71};
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_r1_1, nc_r1_1);
-    ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce_r1_2, nc_r1_2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_r1_1, nc_r1_1), "frost_sign_nonce_gen");
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce_r1_2, nc_r1_2), "frost_sign_nonce_gen");
 
     uint8_t ncommits_r1[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
     std::memcpy(ncommits_r1, nc_r1_1, UFSECP_FROST_NONCE_COMMIT_LEN);
@@ -1929,7 +1929,7 @@ static void test_frost_stale_commitment_replay() {
     // Round 2: NEW nonces for signer 2, but signer 1 replays round 1 stale commit
     uint8_t nonce_r2_2[UFSECP_FROST_NONCE_LEN], nc_r2_2[UFSECP_FROST_NONCE_COMMIT_LEN];
     ns2[0] = 72;
-    ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce_r2_2, nc_r2_2);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 2, ns2, nonce_r2_2, nc_r2_2), "frost_sign_nonce_gen");
 
     // Attack: use nc_r1_1 (stale round-1 commit) for signer 1 in round 2
     uint8_t ncommits_stale[2 * UFSECP_FROST_NONCE_COMMIT_LEN];
@@ -1939,7 +1939,7 @@ static void test_frost_stale_commitment_replay() {
     // Signer 1 creates a FRESH nonce for round 2
     uint8_t nonce_r2_1[UFSECP_FROST_NONCE_LEN], nc_r2_1[UFSECP_FROST_NONCE_COMMIT_LEN];
     ns1[0] = 73;
-    ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_r2_1, nc_r2_1);
+    CHECK_OK(ufsecp_frost_sign_nonce_gen(ctx, 1, ns1, nonce_r2_1, nc_r2_1), "frost_sign_nonce_gen");
 
     // Signer 1 signs with fresh nonce but stale commit set -> binding mismatch
     uint8_t psig_stale[36];
@@ -1948,7 +1948,7 @@ static void test_frost_stale_commitment_replay() {
     if (rc == UFSECP_OK) {
         // Signer 2 signs with fresh nonce and same stale commit set
         uint8_t psig_r2_2[36];
-        ufsecp_frost_sign(ctx, keypkgs[1], nonce_r2_2, msg32, ncommits_stale, 2, psig_r2_2);
+        CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[1], nonce_r2_2, msg32, ncommits_stale, 2, psig_r2_2), "frost_sign");
         uint8_t psigs_stale[72];
         std::memcpy(psigs_stale, psig_stale, 36);
         std::memcpy(psigs_stale + 36, psig_r2_2, 36);
@@ -2282,7 +2282,7 @@ static void test_ecdsa_adaptor_wrong_point() {
     hex_to_bytes(MSG_HEX, msg32, 32);
 
     uint8_t pre_sig[UFSECP_ECDSA_ADAPTOR_SIG_LEN];
-    ufsecp_ecdsa_adaptor_sign(ctx, priv, msg32, adaptor_point, pre_sig);
+    CHECK_OK(ufsecp_ecdsa_adaptor_sign(ctx, priv, msg32, adaptor_point, pre_sig), "ecdsa_adaptor_sign");
 
     // Verify with different adaptor point (scalar=3)
     uint8_t wrong_secret[32] = {};
@@ -2392,7 +2392,7 @@ static void test_ecdsa_adaptor_extraction_misuse() {
 
     // Pre-sign for msg1
     uint8_t pre_sig[UFSECP_ECDSA_ADAPTOR_SIG_LEN];
-    ufsecp_ecdsa_adaptor_sign(ctx, priv, msg1, adaptor_point, pre_sig);
+    CHECK_OK(ufsecp_ecdsa_adaptor_sign(ctx, priv, msg1, adaptor_point, pre_sig), "ecdsa_adaptor_sign");
 
     // Create a SEPARATE standard ECDSA sig on msg2 (unrelated)
     uint8_t unrelated_sig[64];
@@ -2481,7 +2481,7 @@ static void test_schnorr_adaptor_wrong_point() {
     uint8_t aux[32] = {};
 
     uint8_t pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN];
-    ufsecp_schnorr_adaptor_sign(ctx, priv, msg32, adaptor_point, aux, pre_sig);
+    CHECK_OK(ufsecp_schnorr_adaptor_sign(ctx, priv, msg32, adaptor_point, aux, pre_sig), "schnorr_adaptor_sign");
 
         uint8_t zero_pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN] = {};
         CHECK(ufsecp_schnorr_adaptor_verify(ctx, zero_pre_sig, xonly, msg32, adaptor_point) != UFSECP_OK,
@@ -2520,7 +2520,7 @@ static void test_schnorr_adaptor_wrong_secret() {
     uint8_t aux[32] = {};
 
     uint8_t pre_sig[UFSECP_SCHNORR_ADAPTOR_SIG_LEN];
-    ufsecp_schnorr_adaptor_sign(ctx, priv, msg32, adaptor_point, aux, pre_sig);
+    CHECK_OK(ufsecp_schnorr_adaptor_sign(ctx, priv, msg32, adaptor_point, aux, pre_sig), "schnorr_adaptor_sign");
 
     // Adapt with wrong secret (scalar=5 instead of scalar=2)
         uint8_t bad_sig[64];
@@ -4700,8 +4700,8 @@ static void test_k1_bip324_multi_packet() {
                                     stale_out, &stale_out_len),
               "K.1: tampered packet correctly rejected");
 
-    ufsecp_bip324_destroy(initiator);
-    ufsecp_bip324_destroy(responder);
+    CHECK_OK(ufsecp_bip324_destroy(initiator), "bip324_destroy");
+    CHECK_OK(ufsecp_bip324_destroy(responder), "bip324_destroy");
     ufsecp_ctx_destroy(ctx);
 }
 
@@ -4756,10 +4756,10 @@ static void test_k2_bip324_cross_session_isolation() {
     CHECK(rec_len == sizeof(msg) && std::memcmp(recovered, msg, sizeof(msg)) == 0,
           "K.2: session-A decrypted plaintext matches");
 
-    ufsecp_bip324_destroy(a_init);
-    ufsecp_bip324_destroy(a_resp);
-    ufsecp_bip324_destroy(b_init);
-    ufsecp_bip324_destroy(b_resp);
+    CHECK_OK(ufsecp_bip324_destroy(a_init), "bip324_destroy");
+    CHECK_OK(ufsecp_bip324_destroy(a_resp), "bip324_destroy");
+    CHECK_OK(ufsecp_bip324_destroy(b_init), "bip324_destroy");
+    CHECK_OK(ufsecp_bip324_destroy(b_resp), "bip324_destroy");
     ufsecp_ctx_destroy(ctx);
 }
 
@@ -4795,7 +4795,7 @@ static void test_k3_bip324_double_handshake_rejection() {
         CHECK(rc2 != UFSECP_OK, "K.3: double-handshake correctly rejected");
     }
 
-    ufsecp_bip324_destroy(sess);
+    CHECK_OK(ufsecp_bip324_destroy(sess), "bip324_destroy");
     ufsecp_ctx_destroy(ctx);
 }
 #endif /* SECP256K1_BIP324 */

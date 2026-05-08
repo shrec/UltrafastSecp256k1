@@ -152,7 +152,7 @@ static void test_mzp_secnonce_consumed() {
     std::memcpy(sn_copy, s.secnonce2, UFSECP_MUSIG2_SECNONCE_LEN);
 
     uint8_t psig[32] = {};
-    ufsecp_musig2_partial_sign(s.ctx, sn_copy, s.sk2, s.keyagg, s.session, 1, psig);
+    CHECK_OK(ufsecp_musig2_partial_sign(s.ctx, sn_copy, s.sk2, s.keyagg, s.session, 1, psig), "musig2_partial_sign");
 
     bool zeroed = true;
     for (size_t i = 0; i < UFSECP_MUSIG2_SECNONCE_LEN; ++i) zeroed &= (sn_copy[i] == 0);

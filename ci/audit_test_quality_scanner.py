@@ -371,6 +371,35 @@ class AuditTestScanner:
             prev3 = " ".join(lines[max(0, i-3):i])
             if 'CHECK(' in prev3 and raw.strip().startswith(")"):
                 continue
+            # Skip if the previous line is an open `if (` / `while (` / `&&` / `||`
+            # continuation (i.e., this `ufsecp_*(...)` is one operand of a larger
+            # boolean expression whose result IS used).
+            prev_line = lines[i-1].rstrip() if i > 0 else ""
+            if prev_line.endswith("&&") or prev_line.endswith("||"):
+                continue
+            # Skip if the full statement (call line through closing `;`) contains
+            # an explicit return-value comparison (`== UFSECP_OK`, `!= UFSECP_OK`,
+            # `== UFSECP_ERR_*`, `!= UFSECP_ERR_*`). This catches multi-line
+            # boolean chains and `bool x = call() != UFSECP_OK;` patterns where
+            # the call result IS being checked.
+            paren_depth = 0
+            stmt_end = i
+            for j in range(i, min(i + 20, len(lines))):
+                for ch in lines[j]:
+                    if ch == '(': paren_depth += 1
+                    elif ch == ')': paren_depth -= 1
+                    elif ch == ';' and paren_depth == 0:
+                        stmt_end = j
+                        break
+                if paren_depth == 0 and ';' in lines[j]:
+                    stmt_end = j
+                    break
+            stmt_text = "".join(lines[i:stmt_end+1])
+            if any(p in stmt_text for p in (
+                '== UFSECP_OK', '!= UFSECP_OK',
+                '== UFSECP_ERR', '!= UFSECP_ERR',
+            )):
+                continue
             # Look at surrounding content to classify severity
             # If this is inside a named test section (not just setup at the top), it's medium
             context_before = " ".join(lines[max(0, i - 5):i]).lower()
