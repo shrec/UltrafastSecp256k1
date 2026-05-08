@@ -224,7 +224,9 @@ def main() -> None:
     print("\n=== Phase 2: Platforms + security ===")
     _run_parallel("Platforms + security", [
         ("ci.yml",             {"phase": "platforms", "orchestrator_sha": SHA, "orchestrator_run": RUN_ID}, 7200),
-        ("security-audit.yml", None, 3600),
+        # SA's MSan job builds a custom MSan-instrumented libcxx (~30 min) plus
+        # tests; total can exceed 1h on busy runners. 2h budget mirrors ci.yml.
+        ("security-audit.yml", None, 7200),
     ])
 
     print("\n::notice::CI orchestration complete — all phases passed")
