@@ -606,6 +606,29 @@ SECP256K1_INLINE static void jac52_double_inplace(JacobianPoint52& p) noexcept {
     jac52_double_coords(p.x, p.y, p.z);
 }
 
+// Variable-time double — VERIFY paths only (uses mul_assign_var = ADCX/ADOX ASM).
+// CT signing must continue using jac52_double_inplace which goes through fe52_mul_inner.
+SECP256K1_INLINE static void jac52_double_coords_var(FieldElement52& x, FieldElement52& y, FieldElement52& z) noexcept {
+    FieldElement52 s = y.square();
+    FieldElement52 l = x.square();
+    l.mul_int_assign(3);
+    l.half_assign();
+    z.mul_assign_var(y);                  // _var
+    y = s.negate(1);
+    y.mul_assign_var(x);                  // _var
+    x = l.square();
+    x.add_assign(y);
+    x.add_assign(y);
+    s.square_inplace();
+    y.add_assign(x);
+    y.mul_assign_var(l);                  // _var
+    y.add_assign(s);
+    y.negate_assign(2);
+}
+SECP256K1_INLINE static void jac52_double_inplace_var(JacobianPoint52& p) noexcept {
+    jac52_double_coords_var(p.x, p.y, p.z);
+}
+
 // Mixed Addition (5x52, return by value): delegates to in-place variant.
 // Formula: h2-negation (libsecp-style, a=0 specialization), 8M+3S+~8A.
 static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) noexcept;  // fwd
@@ -689,6 +712,50 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     p.y = t * i_val;                                          // write directly to p.y
     p.y.add_assign(h3);                                       // Y3, mag 2
 
+    p.infinity = false;
+}
+
+// Variable-time variant of jac52_add_mixed_inplace — VERIFY paths only.
+// Identical math to jac52_add_mixed_inplace but uses mul_var/mul_assign_var
+// (ADCX/ADOX dual-carry-chain ASM on GCC x86-64).
+// CT signing must continue to use jac52_add_mixed_inplace (unchanged path).
+SECP256K1_HOT_FUNCTION SECP256K1_INLINE
+static void jac52_add_mixed_inplace_var(JacobianPoint52& p, const AffinePoint52& q) noexcept {
+    if (SECP256K1_UNLIKELY(p.infinity)) {
+        p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
+        return;
+    }
+    FieldElement52 const zz = p.z.square();
+    FieldElement52 const u2 = q.x.mul_var(zz);                  // _var
+    FieldElement52 s2 = q.y.mul_var(zz);                        // _var
+    s2.mul_assign_var(p.z);                                     // _var
+    FieldElement52 const negX1 = p.x.negate(8);
+    FieldElement52 const h = u2 + negX1;
+    if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
+        FieldElement52 const negY1 = p.y.negate(4);
+        FieldElement52 const diff = s2 + negY1;
+        if (diff.normalizes_to_zero_var()) {
+            jac52_double_inplace_var(p);                        // _var
+            return;
+        }
+        p = {FieldElement52::zero(), FieldElement52::one(), FieldElement52::zero(), true};
+        return;
+    }
+    p.z.mul_assign_var(h);                                      // _var
+    FieldElement52 const negS2 = s2.negate(1);
+    FieldElement52 const i_val = p.y + negS2;
+    FieldElement52 h2 = h.square();
+    FieldElement52 const i2 = i_val.square();
+    h2.negate_assign(1);
+    FieldElement52 h3 = h2.mul_var(h);                          // _var
+    FieldElement52 t = p.x.mul_var(h2);                         // _var
+    p.x = i2 + h3;
+    p.x.add_assign(t);
+    p.x.add_assign(t);
+    t.add_assign(p.x);
+    h3.mul_assign_var(p.y);                                     // _var
+    p.y = t.mul_var(i_val);                                     // _var
+    p.y.add_assign(h3);
     p.infinity = false;
 }
 
@@ -1132,7 +1199,8 @@ static inline void apply_wnaf_mixed52(
         std::int32_t const abs_d  = (d ^ sign32) - sign32;        // branchless abs
         AffinePoint52 pt = table[static_cast<std::size_t>((abs_d - 1) >> 1)];
         pt.y.conditional_negate_assign(sign32);                   // negate iff d < 0
-        jac52_add_mixed_inplace(result, pt);
+        // Variable-time path: apply_wnaf_mixed52 is only called from verify code.
+        jac52_add_mixed_inplace_var(result, pt);                  // _var (ADCX/ADOX ASM)
     }
 }
 
@@ -4087,7 +4155,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
             }
         }
 
-        jac52_double_inplace(result52);
+        jac52_double_inplace_var(result52);
 
         // G/H table entries — branchless sign handling (same as dual_scalar_mul_gen_prebuilt).
         {
@@ -4209,7 +4277,7 @@ Point Point::dual_scalar_mul_gen_prebuilt(
             }
         }
 
-        jac52_double_inplace(result52);
+        jac52_double_inplace_var(result52);
 
         // G/H table entries — branchless sign handling to eliminate branch mispredictions.
         // wNAF digits are random-signed → ~50% misprediction on (d>0) branches.
@@ -4248,7 +4316,7 @@ Point Point::dual_scalar_mul_gen_prebuilt(
                 // XOR the k1_neg flag with digit sign — both encoded as int32 masks (0 or -1)
                 std::int32_t const k1_mask   = -static_cast<std::int32_t>(k1_neg);
                 pt.y.conditional_negate_assign(k1_mask ^ sign32);
-                jac52_add_mixed_inplace(result52, pt);
+                jac52_add_mixed_inplace_var(result52, pt);
             }
         }
 
@@ -4262,7 +4330,7 @@ Point Point::dual_scalar_mul_gen_prebuilt(
                 AffinePoint52 pt = tbl_phi_base[idx];
                 std::int32_t const k2_mask   = -static_cast<std::int32_t>(k2_neg);
                 pt.y.conditional_negate_assign(k2_mask ^ sign32);
-                jac52_add_mixed_inplace(result52, pt);
+                jac52_add_mixed_inplace_var(result52, pt);
             }
         }
     }
