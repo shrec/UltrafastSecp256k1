@@ -1150,11 +1150,12 @@ static inline void apply_wnaf_mixed52(
     JacobianPoint52& result, const AffinePoint52* table, int32_t d)
 {
     if (d != 0) {
-        if (d > 0) {
-            jac52_add_mixed_inplace(result, table[static_cast<std::size_t>((d - 1) >> 1)]);
-        } else {
-            jac52_add_mixed_neg_inplace(result, table[static_cast<std::size_t>((-d - 1) >> 1)]);
-        }
+        // Branchless sign: wNAF digit sign is random → branch hard to predict.
+        std::int32_t const sign32 = d >> 31;                       // 0 or -1
+        std::int32_t const abs_d  = (d ^ sign32) - sign32;        // branchless abs
+        AffinePoint52 pt = table[static_cast<std::size_t>((abs_d - 1) >> 1)];
+        pt.y.conditional_negate_assign(sign32);                   // negate iff d < 0
+        jac52_add_mixed_inplace(result, pt);
     }
 }
 
@@ -4111,33 +4112,26 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         jac52_double_inplace(result52);
 
-        // G/H table entries are now AffinePoint52 — no to_affine52() conversion needed.
-        // Positive digit: pass const ref directly (zero copy). Negative: 80-byte copy + negate.
+        // G/H table entries — branchless sign handling (same as dual_scalar_mul_gen_prebuilt).
         {
             int const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                if (d > 0) {
-                    jac52_add_zinv_inplace(result52,
-                        gen_tables->tbl_G[static_cast<std::size_t>((d - 1) >> 1)], Z_shared);
-                } else {
-                    AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d - 1) >> 1)];
-                    pt.y.negate_assign(1);
-                    jac52_add_zinv_inplace(result52, pt, Z_shared);
-                }
+                std::int32_t const sign32 = static_cast<std::int32_t>(d) >> 31;
+                std::int32_t const abs_d  = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                pt.y.conditional_negate_assign(sign32);
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
         {
             int const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                if (d > 0) {
-                    jac52_add_zinv_inplace(result52,
-                        gen_tables->tbl_H[static_cast<std::size_t>((d - 1) >> 1)], Z_shared);
-                } else {
-                    AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d - 1) >> 1)];
-                    pt.y.negate_assign(1);
-                    jac52_add_zinv_inplace(result52, pt, Z_shared);
-                }
+                std::int32_t const sign32 = static_cast<std::int32_t>(d) >> 31;
+                std::int32_t const abs_d  = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                pt.y.conditional_negate_assign(sign32);
+                jac52_add_zinv_inplace(result52, pt, Z_shared);
             }
         }
 
@@ -4240,57 +4234,57 @@ Point Point::dual_scalar_mul_gen_prebuilt(
 
         jac52_double_inplace(result52);
 
-        // G/H table entries are AffinePoint52 — no to_affine52() conversion needed.
+        // G/H table entries — branchless sign handling to eliminate branch mispredictions.
+        // wNAF digits are random-signed → ~50% misprediction on (d>0) branches.
+        // Branchless: arithmetic-right-shift gives sign mask (-1 or 0), branchless abs,
+        // then conditional_negate_assign (XOR-select, no branch).
         {
             int const d = wnaf_a_lo[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                if (d > 0) {
-                    jac52_add_zinv_inplace(result52,
-                        gen_tables->tbl_G[static_cast<std::size_t>((d-1)>>1)], Z_P);
-                } else {
-                    AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((-d-1)>>1)];
-                    pt.y.negate_assign(1);
-                    jac52_add_zinv_inplace(result52, pt, Z_P);
-                }
+                std::int32_t const sign32 = static_cast<std::int32_t>(d) >> 31;  // 0 or -1
+                std::int32_t const abs_d  = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                AffinePoint52 pt = gen_tables->tbl_G[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                pt.y.conditional_negate_assign(sign32);  // negate iff d < 0
+                jac52_add_zinv_inplace(result52, pt, Z_P);
             }
         }
         {
             int const d = wnaf_a_hi[static_cast<std::size_t>(i)];
             if (SECP256K1_UNLIKELY(d != 0)) {
-                if (d > 0) {
-                    jac52_add_zinv_inplace(result52,
-                        gen_tables->tbl_H[static_cast<std::size_t>((d-1)>>1)], Z_P);
-                } else {
-                    AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((-d-1)>>1)];
-                    pt.y.negate_assign(1);
-                    jac52_add_zinv_inplace(result52, pt, Z_P);
-                }
+                std::int32_t const sign32 = static_cast<std::int32_t>(d) >> 31;
+                std::int32_t const abs_d  = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                AffinePoint52 pt = gen_tables->tbl_H[static_cast<std::size_t>((abs_d - 1) >> 1)];
+                pt.y.conditional_negate_assign(sign32);
+                jac52_add_zinv_inplace(result52, pt, Z_P);
             }
         }
 
-        // P digit: tbl_P is canonical (built from P). Apply k1_neg via y-negation.
-        // Combined negate: k1_neg (P-sign) XOR (d<0) (digit-sign).
+        // P digit: tbl_P is canonical. Combined negate: k1_neg XOR (d<0).
+        // Branchless: merge both flags into a single mask → no branch on either.
         {
             int const d = wnaf_b1[static_cast<std::size_t>(i)];
             if (d != 0) {
-                std::size_t const idx = static_cast<std::size_t>(
-                    d > 0 ? (d-1)>>1 : (-d-1)>>1);
+                std::int32_t const sign32  = static_cast<std::int32_t>(d) >> 31;
+                std::int32_t const abs_d   = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                std::size_t  const idx     = static_cast<std::size_t>((abs_d - 1) >> 1);
                 AffinePoint52 pt = tbl_P[idx];
-                bool const negate_y = k1_neg ^ (d < 0);
-                if (negate_y) pt.y.negate_assign(1);
+                // XOR the k1_neg flag with digit sign — both encoded as int32 masks (0 or -1)
+                std::int32_t const k1_mask   = -static_cast<std::int32_t>(k1_neg);
+                pt.y.conditional_negate_assign(k1_mask ^ sign32);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
 
-        // phi(P) digit: tbl_phi_base has canonical y. Apply k2_neg XOR (d<0).
+        // phi(P) digit: same pattern with k2_neg.
         {
             int const d = wnaf_b2[static_cast<std::size_t>(i)];
             if (d != 0) {
-                std::size_t const idx = static_cast<std::size_t>(
-                    d > 0 ? (d-1)>>1 : (-d-1)>>1);
+                std::int32_t const sign32  = static_cast<std::int32_t>(d) >> 31;
+                std::int32_t const abs_d   = (static_cast<std::int32_t>(d) ^ sign32) - sign32;
+                std::size_t  const idx     = static_cast<std::size_t>((abs_d - 1) >> 1);
                 AffinePoint52 pt = tbl_phi_base[idx];
-                bool const negate_y = k2_neg ^ (d < 0);
-                if (negate_y) pt.y.negate_assign(1);
+                std::int32_t const k2_mask   = -static_cast<std::int32_t>(k2_neg);
+                pt.y.conditional_negate_assign(k2_mask ^ sign32);
                 jac52_add_mixed_inplace(result52, pt);
             }
         }
