@@ -609,19 +609,19 @@ SECP256K1_INLINE static void jac52_double_inplace(JacobianPoint52& p) noexcept {
 // Variable-time double — VERIFY paths only (uses mul_assign_var = ADCX/ADOX ASM).
 // CT signing must continue using jac52_double_inplace which goes through fe52_mul_inner.
 SECP256K1_INLINE static void jac52_double_coords_var(FieldElement52& x, FieldElement52& y, FieldElement52& z) noexcept {
-    FieldElement52 s = y.square();
-    FieldElement52 l = x.square();
+    FieldElement52 s = y.square();         // 1S
+    FieldElement52 l = x.square();         // 1S
     l.mul_int_assign(3);
     l.half_assign();
-    z.mul_assign_var(y);                  // _var
+    z.mul_assign_var(y);                            // _var
     y = s.negate(1);
-    y.mul_assign_var(x);                  // _var
-    x = l.square();
+    y.mul_assign_var(x);                            // _var
+    x = l.square();                          // 1S
     x.add_assign(y);
     x.add_assign(y);
-    s.square_inplace();
+    s.square_inplace();                      // 1S
     y.add_assign(x);
-    y.mul_assign_var(l);                  // _var
+    y.mul_assign_var(l);                            // _var
     y.add_assign(s);
     y.negate_assign(2);
 }

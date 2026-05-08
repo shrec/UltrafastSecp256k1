@@ -133,6 +133,8 @@ struct alignas(8) FieldElement52 {
     // Do NOT use in CT signing, ECDH, or any private-key path.
     FieldElement52 mul_var(const FieldElement52& rhs) const noexcept;
     void mul_assign_var(const FieldElement52& rhs) noexcept;
+    FieldElement52 square_var() const noexcept;
+    void square_inplace_var() noexcept;
 
     // -- Comparison (requires normalized inputs!) ---------------------
     bool is_zero() const noexcept;

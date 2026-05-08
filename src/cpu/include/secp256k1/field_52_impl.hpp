@@ -731,6 +731,589 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
 #endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (mul)
 }
 
+// ----- fe52_mul_inner_var: variable-time field multiply (verify only, ADCX/ADOX ASM) -----
+SECP256K1_FE52_FORCE_INLINE
+void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
+                    const std::uint64_t* __restrict__ a,
+                    const std::uint64_t* __restrict__ b) noexcept {
+#if defined(SECP256K1_RISCV_FE52_V1)
+    // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
+    // On U74 in-order core, explicit register scheduling + carry hiding
+    // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
+    // with suboptimal register allocation for 25+ multiplications).
+    fe52_mul_inner_riscv64(r, a, b);
+#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) // MONOLITHIC_MUL_ASM: Disabled -- with -march=native, Clang __int128
+      // already emits optimal MULX+ADCX/ADOX code. The inline asm prevents
+      // cross-operation scheduling and increases register pressure (~30% slower
+      // point_add when enabled). Kept for reference/non-native builds.
+    // ========================================================================
+    // Monolithic x86-64 MULX + ADCX/ADOX field multiply (single asm block)
+    // ========================================================================
+    // Single asm block = ZERO optimization barriers between columns.
+    // ADCX/ADOX dual carry chains enable ILP in columns 1 & 2.
+    //
+    // Register layout — ALL clobbered registers are volatile on Win64:
+    //   [a0]-[a4] = a limbs (read-only inputs, compiler picks registers)
+    //   [bp]      = b pointer (read-only input)
+    //   r8        = d_lo accumulator (volatile, clobbered)
+    //   r9        = d_hi accumulator (volatile, clobbered)
+    //   r10       = c_lo accumulator (volatile, clobbered)
+    //   r11       = c_hi accumulator (volatile, clobbered)
+    //   rdx       = MULX source (volatile, clobbered)
+    //   rax       = MULX low / scratch (volatile, clobbered)
+    //   rcx       = MULX high / scratch (volatile, clobbered)
+    //   rbp,rsi,rbx,rdi,r12-r15 = FREE for compiler (not touched by asm)
+    // ========================================================================
+    std::uint64_t out0, out1, out2, out3 = 0, out4 = 0;
+    const std::uint64_t a0_v = a[0], a1_v = a[1], a2_v = a[2];
+    const std::uint64_t a3_v = a[3], a4_v = a[4];
+    __asm__ __volatile__ (
+        // ---- Column 3 + reduced column 8 ----
+        "xorl %%r8d, %%r8d\n\t"                // d_lo=0, clears CF+OF
+        "xorl %%r9d, %%r9d\n\t"                // d_hi=0
+
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c = a4*b4
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%r10, %%r11\n\t"
+
+        // d += R52 * c_lo
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+        // c >>= 64
+        "movq %%r11, %%r10\n\t"
+
+        // t3 = d & M52 → store to out3; d >>= 52
+        "movq %%r8, %%rax\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rcx\n\t"
+        "andq %%rcx, %%rax\n\t"
+        "movq %%rax, %[o3]\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 4 + column 8 carry ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // d += (R52 << 12) * c_lo
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+
+        // t4_full = d & M52 → r10; d >>= 52
+        "movq %%r8, %%r10\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 0 + reduced column 5 ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // u0 = ((d & M52) << 4) | (t4_full >> 48)
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "shlq $4, %%rcx\n\t"
+        "movq %%r10, %%rax\n\t"
+        "shrq $48, %%rax\n\t"
+        "orq %%rax, %%rcx\n\t"
+        // t4 = t4_full & M48 → store to out4
+        "movq $0xFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        // c = a0*b0 + u0 * (R52 >> 4)
+        "movq %[a0], %%rdx\n\t"
+        "mulxq (%[bp]), %%r10, %%r11\n\t"
+        "movabsq $0x1000003D1, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[0] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o0]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 1 + reduced column 6 (dual chain) ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c += (d & M52) * R52; d >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[1] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o1]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 2 + reduced column 7 (dual chain) ----
+        "xorl %%eax, %%eax\n\t"
+        "movq %[a0], %%rdx\n\t"
+        "mulxq 16(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq 32(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq 8(%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "movq %[a4], %%rdx\n\t"
+        "mulxq 24(%[bp]), %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq (%[bp]), %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+
+        // c += R52 * d_lo; d = d_hi
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "movq %%r9, %%r8\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        // r[2] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o2]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Finalize columns 3 and 4 ----
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "addq %[o3], %%r10\n\t"
+        "adcq $0, %%r11\n\t"
+
+        // r[3] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o3]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+
+        // r[4] = c + t4
+        "addq %[o4], %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        : [o0] "=m"(out0), [o1] "=m"(out1), [o2] "=m"(out2),
+          [o3] "+m"(out3), [o4] "+m"(out4)
+        : [a0] "r"(a0_v), [a1] "r"(a1_v), [a2] "r"(a2_v),
+          [a3] "r"(a3_v), [a4] "r"(a4_v), [bp] "r"(b)
+        : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+    r[0] = out0; r[1] = out1; r[2] = out2; r[3] = out3; r[4] = out4;
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
+    // ------------------------------------------------------------------
+    // x86-64 inline MULX + ADCX/ADOX dual carry chain path (OPT-IN)
+    // NOTE: opt-in only. In benchmarks, the overhead of asm-block
+    // optimization barriers outweighs the ADCX/ADOX parallel benefit.
+    // The __int128 fallback lets the compiler schedule across column
+    // boundaries, giving ~6% better throughput on Rocket Lake.
+    // ------------------------------------------------------------------
+    // ADCX uses CF flag, ADOX uses OF flag -- truly independent chains.
+    // When both c and d accumulators accumulate products in the same
+    // column, we interleave ADCX (d) and ADOX (c) to overlap execution.
+    //
+    // High-word carry invariant: sum of N products where each product
+    // < 2^104 (52x52 bits) gives total < N*2^104. For N<=5:
+    // 5*2^104 < 2^107 < 2^128. The 64-bit high word never overflows,
+    // so carry-out from adcx/adox on the high part is always 0.
+    // This keeps the continuous flag chain correct.
+    //
+    // Reduction multiplies between columns use __int128 C code (single
+    // MULX+ADD+ADC pair, compiler-optimal for isolated operations).
+    // ------------------------------------------------------------------
+    using u128 = unsigned __int128;
+    std::uint64_t d_lo = 0, d_hi = 0;
+    std::uint64_t c_lo = 0, c_hi = 0;
+    std::uint64_t t3, t4, tx, u0;
+    std::uint64_t sl, sh;
+    const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
+
+    // -- Column 3 + reduced column 8 ---------------------------------
+    // d = a0*b3 + a1*b2 + a2*b1 + a3*b0  (4 products, ADCX/CF)
+    // c = a4*b4                            (1 product, ADOX/OF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq 24(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq 32(%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq 16(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq 8(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq (%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4),
+          [bp] "r"(b)
+        : "rdx", "rcx", "cc"
+    );
+    // d += R52 * (uint64_t)c
+    { u128 dv = ((u128)d_hi << 64) | d_lo;
+      dv += (u128)R52 * c_lo;
+      d_lo = (std::uint64_t)dv; d_hi = (std::uint64_t)(dv >> 64); }
+    c_lo = c_hi; c_hi = 0;
+    t3 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+
+    // -- Column 4 + column 8 carry -----------------------------------
+    // d += a0*b4 + a1*b3 + a2*b2 + a3*b1 + a4*b0  (5 products, ADCX only)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq 32(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq 24(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq 16(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq 8(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq (%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4),
+          [bp] "r"(b)
+        : "rdx", "rcx", "cc"
+    );
+    // d += (R52 << 12) * c_lo  (c_lo carries column 3's c_hi)
+    { u128 dv = ((u128)d_hi << 64) | d_lo;
+      dv += (u128)(R52 << 12) * c_lo;
+      d_lo = (std::uint64_t)dv; d_hi = (std::uint64_t)(dv >> 64); }
+    t4 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    tx = (t4 >> 48); t4 &= (M52 >> 4);
+
+    // -- Column 0 + reduced column 5 ---------------------------------
+    // c = a0*b0                            (1 product, ADOX/OF)
+    // d += a1*b4 + a2*b3 + a3*b2 + a4*b1  (4 products, ADCX/CF)
+    c_lo = 0; c_hi = 0;
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq (%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq 32(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq 24(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq 16(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq 8(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4),
+          [bp] "r"(b)
+        : "rdx", "rcx", "cc"
+    );
+    u0 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    u0 = (u0 << 4) | tx;
+    // c += u0 * (R52 >> 4)
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)u0 * (R52 >> 4);
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    r[0] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Column 1 + reduced column 6 ---------------------------------
+    // c += a0*b1 + a1*b0              (2 products, ADOX/OF)
+    // d += a2*b4 + a3*b3 + a4*b2      (3 products, ADCX/CF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq 8(%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq 32(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq (%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq 24(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq 16(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4),
+          [bp] "r"(b)
+        : "rdx", "rcx", "cc"
+    );
+    // c += ((uint64_t)d & M52) * R52
+    { std::uint64_t d_masked = d_lo & M52;
+      u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)d_masked * R52;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    r[1] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Column 2 + reduced column 7 ---------------------------------
+    // c += a0*b2 + a1*b1 + a2*b0      (3 products, ADOX/OF)
+    // d += a3*b4 + a4*b3              (2 products, ADCX/CF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq 16(%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq 32(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq 8(%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq 24(%[bp]), %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq (%[bp]), %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4),
+          [bp] "r"(b)
+        : "rdx", "rcx", "cc"
+    );
+    // c += R52 * (uint64_t)d
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)R52 * d_lo;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    d_lo = d_hi; d_hi = 0;   // d >>= 64
+    r[2] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Finalize columns 3 and 4 ------------------------------------
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)(R52 << 12) * d_lo;
+      cv += t3;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    r[3] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+    c_lo += t4;
+    r[4] = c_lo;
+#else
+    using u128 = unsigned __int128;
+    u128 c = 0, d = 0;
+    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
+    const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
+
+    // -- Column 3 + reduced column 8 ---------------------------------
+    d  = (u128)a0 * b[3]
+       + (u128)a1 * b[2]
+       + (u128)a2 * b[1]
+       + (u128)a3 * b[0];
+    c  = (u128)a4 * b[4];
+    d += (u128)R52 * (std::uint64_t)c;
+    c >>= 64;
+    t3 = (std::uint64_t)d & M52;
+    d >>= 52;
+
+    // -- Column 4 + column 8 carry -----------------------------------
+    d += (u128)a0 * b[4]
+       + (u128)a1 * b[3]
+       + (u128)a2 * b[2]
+       + (u128)a3 * b[1]
+       + (u128)a4 * b[0];
+    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    t4 = (std::uint64_t)d & M52;
+    d >>= 52;
+    tx = (t4 >> 48); t4 &= (M52 >> 4);
+
+    // -- Column 0 + reduced column 5 ---------------------------------
+    c  = (u128)a0 * b[0];
+    d += (u128)a1 * b[4]
+       + (u128)a2 * b[3]
+       + (u128)a3 * b[2]
+       + (u128)a4 * b[1];
+    u0 = (std::uint64_t)d & M52;
+    d >>= 52;
+    u0 = (u0 << 4) | tx;
+    c += (u128)u0 * (R52 >> 4);
+    r[0] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Column 1 + reduced column 6 ---------------------------------
+    c += (u128)a0 * b[1]
+       + (u128)a1 * b[0];
+    d += (u128)a2 * b[4]
+       + (u128)a3 * b[3]
+       + (u128)a4 * b[2];
+    c += (u128)((std::uint64_t)d & M52) * R52;
+    d >>= 52;
+    r[1] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Column 2 + reduced column 7 ---------------------------------
+    c += (u128)a0 * b[2]
+       + (u128)a1 * b[1]
+       + (u128)a2 * b[0];
+    d += (u128)a3 * b[4]
+       + (u128)a4 * b[3];
+    c += (u128)R52 * (std::uint64_t)d;
+    d >>= 64;
+    r[2] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Finalize columns 3 and 4 ------------------------------------
+    c += (u128)(R52 << 12) * (std::uint64_t)d;
+    c += t3;
+    r[3] = (std::uint64_t)c & M52;
+    c >>= 52;
+    c += t4;
+    r[4] = (std::uint64_t)c;
+#endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (mul)
+}
+
 // ===========================================================================
 // Core Squaring Kernel (symmetry-optimized)
 // ===========================================================================
@@ -746,6 +1329,463 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
     // Cross-products doubled via shift, halving multiplication count.
     fe52_sqr_inner_riscv64(r, a);
 #elif 0 // MONOLITHIC_SQR_ASM: Disabled -- same rationale as mul ASM above.
+    // ========================================================================
+    // Monolithic x86-64 MULX + ADCX/ADOX field squaring (single asm block)
+    // ========================================================================
+    // Cross-products doubled via LEA (flags-neutral), only 15 MULXes vs 25.
+    // ALL clobbered registers are volatile on Win64 (r8-r11, rax, rcx, rdx).
+    // ========================================================================
+    std::uint64_t out0, out1, out2, out3 = 0, out4 = 0;
+    const std::uint64_t a0_v = a[0], a1_v = a[1], a2_v = a[2];
+    const std::uint64_t a3_v = a[3], a4_v = a[4];
+    __asm__ __volatile__ (
+        // ---- Column 3 + reduced column 8 ----
+        // d = 2*a0*a3 + 2*a1*a2; c = a4^2
+        "xorl %%r8d, %%r8d\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c = a4*a4
+        "movq %[a4], %%rdx\n\t"
+        "mulxq %[a4], %%r10, %%r11\n\t"
+
+        // d += R52 * c_lo
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+        // c >>= 64
+        "movq %%r11, %%r10\n\t"
+
+        // t3 = d & M52; d >>= 52
+        "movq %%r8, %%rax\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rcx\n\t"
+        "andq %%rcx, %%rax\n\t"
+        "movq %%rax, %[o3]\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 4 ----
+        // d += 2*a0*a4 + 2*a1*a3 + a2^2
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a2], %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // d += (R52 << 12) * c_lo
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r10, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r8\n\t"
+        "adcq %%rcx, %%r9\n\t"
+
+        // t4_full = d & M52; d >>= 52
+        "movq %%r8, %%r10\n\t"
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+
+        // ---- Column 0 + reduced column 5 ----
+        // c = a0^2; d += 2*a1*a4 + 2*a2*a3
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "leaq (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // u0 = ((d & M52) << 4) | (t4_full >> 48)
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "shlq $4, %%rcx\n\t"
+        "movq %%r10, %%rax\n\t"
+        "shrq $48, %%rax\n\t"
+        "orq %%rax, %%rcx\n\t"
+        // t4 = t4_full & M48
+        "movq $0xFFFFFFFFFFFF, %%rax\n\t"
+        "andq %%rax, %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        // c = a0*a0 + u0 * (R52 >> 4)
+        "movq %[a0], %%rdx\n\t"
+        "mulxq %[a0], %%r10, %%r11\n\t"
+        "movabsq $0x1000003D1, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[0] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o0]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 1 + reduced column 6 (dual chain) ----
+        // c += 2*a0*a1 (ADOX); d += 2*a2*a4 + a3^2 (ADCX)
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a1], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "leaq (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a3], %%rdx\n\t"
+        "mulxq %[a3], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+
+        // c += (d & M52) * R52; d >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r8, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "shrdq $52, %%r9, %%r8\n\t"
+        "shrq $52, %%r9\n\t"
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%rcx, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+
+        // r[1] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o1]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Column 2 + reduced column 7 (dual chain) ----
+        // c += 2*a0*a2 + a1^2 (ADOX); d += 2*a3*a4 (ADCX)
+        "xorl %%eax, %%eax\n\t"
+        "leaq (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a2], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+        "leaq (%[a3], %[a3]), %%rdx\n\t"
+        "mulxq %[a4], %%rax, %%rcx\n\t"
+        "adcxq %%rax, %%r8\n\t"
+        "adcxq %%rcx, %%r9\n\t"
+        "movq %[a1], %%rdx\n\t"
+        "mulxq %[a1], %%rax, %%rcx\n\t"
+        "adoxq %%rax, %%r10\n\t"
+        "adoxq %%rcx, %%r11\n\t"
+
+        // c += R52 * d_lo; d = d_hi
+        "movabsq $0x1000003D10, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "movq %%r9, %%r8\n\t"
+        "xorl %%r9d, %%r9d\n\t"
+
+        // r[2] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o2]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+        "shrq $52, %%r11\n\t"
+
+        // ---- Finalize columns 3 and 4 ----
+        "movabsq $0x1000003D10000, %%rdx\n\t"
+        "mulxq %%r8, %%rax, %%rcx\n\t"
+        "addq %%rax, %%r10\n\t"
+        "adcq %%rcx, %%r11\n\t"
+        "addq %[o3], %%r10\n\t"
+        "adcq $0, %%r11\n\t"
+
+        // r[3] = c & M52; c >>= 52
+        "movq $0xFFFFFFFFFFFFF, %%rax\n\t"
+        "movq %%r10, %%rcx\n\t"
+        "andq %%rax, %%rcx\n\t"
+        "movq %%rcx, %[o3]\n\t"
+        "shrdq $52, %%r11, %%r10\n\t"
+
+        // r[4] = c + t4
+        "addq %[o4], %%r10\n\t"
+        "movq %%r10, %[o4]\n\t"
+
+        : [o0] "=m"(out0), [o1] "=m"(out1), [o2] "=m"(out2),
+          [o3] "+m"(out3), [o4] "+m"(out4)
+        : [a0] "r"(a0_v), [a1] "r"(a1_v), [a2] "r"(a2_v),
+          [a3] "r"(a3_v), [a4] "r"(a4_v)
+        : "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+    r[0] = out0; r[1] = out1; r[2] = out2; r[3] = out3; r[4] = out4;
+#elif 0 // INLINE_ADX disabled: asm barriers prevent ILP, __int128 is 6% faster
+    // ------------------------------------------------------------------
+    // x86-64 inline MULX + ADCX/ADOX squaring (OPT-IN) -- see mul note
+    // ------------------------------------------------------------------
+    // Cross-products doubled via LEA (flags-neutral) then accumulated
+    // with ADCX/ADOX dual carry chains. Square terms use plain MULX.
+    // Same high-word carry invariant as fe52_mul_inner (sum < 2^128).
+    // ------------------------------------------------------------------
+    using u128 = unsigned __int128;
+    std::uint64_t d_lo = 0, d_hi = 0;
+    std::uint64_t c_lo = 0, c_hi = 0;
+    std::uint64_t t3, t4, tx, u0;
+    std::uint64_t sl, sh;
+    const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
+
+    // -- Column 3 + reduced column 8 ---------------------------------
+    // d = (a0*2)*a3 + (a1*2)*a2   (2 cross-products, ADCX/CF)
+    // c = a4*a4                    (1 square, ADOX/OF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "lea (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a3], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a4], %%rdx\n\t"
+        "mulxq %[a4], %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "lea (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a2], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4)
+        : "rdx", "rcx", "cc"
+    );
+    { u128 dv = ((u128)d_hi << 64) | d_lo;
+      dv += (u128)R52 * c_lo;
+      d_lo = (std::uint64_t)dv; d_hi = (std::uint64_t)(dv >> 64); }
+    c_lo = c_hi; c_hi = 0;
+    t3 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+
+    // -- Column 4 ----------------------------------------------------
+    // d += (a0*2)*a4 + (a1*2)*a3 + a2*a2  (3 products, ADCX only)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "lea (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a4], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "lea (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a3], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a2], %%rdx\n\t"
+        "mulxq %[a2], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4)
+        : "rdx", "rcx", "cc"
+    );
+    { u128 dv = ((u128)d_hi << 64) | d_lo;
+      dv += (u128)(R52 << 12) * c_lo;
+      d_lo = (std::uint64_t)dv; d_hi = (std::uint64_t)(dv >> 64); }
+    t4 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    tx = (t4 >> 48); t4 &= (M52 >> 4);
+
+    // -- Column 0 + reduced column 5 ---------------------------------
+    // c = a0*a0                      (1 square, ADOX/OF)
+    // d += (a1*2)*a4 + (a2*2)*a3     (2 cross-products, ADCX/CF)
+    c_lo = 0; c_hi = 0;
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "mov %[a0], %%rdx\n\t"
+        "mulxq %[a0], %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "lea (%[a1], %[a1]), %%rdx\n\t"
+        "mulxq %[a4], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "lea (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a3], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4)
+        : "rdx", "rcx", "cc"
+    );
+    u0 = d_lo & M52;
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    u0 = (u0 << 4) | tx;
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)u0 * (R52 >> 4);
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    r[0] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Column 1 + reduced column 6 ---------------------------------
+    // c += (a0*2)*a1                  (1 cross-product, ADOX/OF)
+    // d += (a2*2)*a4 + a3*a3          (2 products, ADCX/CF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "lea (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a1], %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "lea (%[a2], %[a2]), %%rdx\n\t"
+        "mulxq %[a4], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a3], %%rdx\n\t"
+        "mulxq %[a3], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4)
+        : "rdx", "rcx", "cc"
+    );
+    { std::uint64_t d_masked = d_lo & M52;
+      u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)d_masked * R52;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    d_lo = (d_lo >> 52) | (d_hi << 12); d_hi >>= 52;
+    r[1] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Column 2 + reduced column 7 ---------------------------------
+    // c += (a0*2)*a2 + a1*a1          (2 products, ADOX/OF)
+    // d += (a3*2)*a4                  (1 cross-product, ADCX/CF)
+    __asm__ __volatile__(
+        "xor %%ecx, %%ecx\n\t"
+        "lea (%[a0], %[a0]), %%rdx\n\t"
+        "mulxq %[a2], %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        "lea (%[a3], %[a3]), %%rdx\n\t"
+        "mulxq %[a4], %[sl], %[sh]\n\t"
+        "adcx %[sl], %[dl]\n\t"
+        "adcx %[sh], %[dh]\n\t"
+        "mov %[a1], %%rdx\n\t"
+        "mulxq %[a1], %[sl], %[sh]\n\t"
+        "adox %[sl], %[cl]\n\t"
+        "adox %[sh], %[ch]\n\t"
+        : [dl] "+&r"(d_lo), [dh] "+&r"(d_hi),
+          [cl] "+&r"(c_lo), [ch] "+&r"(c_hi),
+          [sl] "=&r"(sl), [sh] "=&r"(sh)
+        : [a0] "r"(a0), [a1] "r"(a1), [a2] "r"(a2), [a3] "r"(a3), [a4] "r"(a4)
+        : "rdx", "rcx", "cc"
+    );
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)R52 * d_lo;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    d_lo = d_hi; d_hi = 0;
+    r[2] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+
+    // -- Finalize columns 3 and 4 ------------------------------------
+    { u128 cv = ((u128)c_hi << 64) | c_lo;
+      cv += (u128)(R52 << 12) * d_lo;
+      cv += t3;
+      c_lo = (std::uint64_t)cv; c_hi = (std::uint64_t)(cv >> 64); }
+    r[3] = c_lo & M52;
+    c_lo = (c_lo >> 52) | (c_hi << 12); c_hi >>= 52;
+    c_lo += t4;
+    r[4] = c_lo;
+#else
+    using u128 = unsigned __int128;
+    u128 c = 0, d = 0;
+    std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
+    const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
+
+    // -- Column 3 + reduced column 8 ---------------------------------
+    d  = (u128)(a0 * 2) * a3
+       + (u128)(a1 * 2) * a2;
+    c  = (u128)a4 * a4;
+    d += (u128)R52 * (std::uint64_t)c;
+    c >>= 64;
+    t3 = (std::uint64_t)d & M52;
+    d >>= 52;
+
+    // -- Column 4 ----------------------------------------------------
+    d += (u128)(a0 * 2) * a4
+       + (u128)(a1 * 2) * a3
+       + (u128)a2 * a2;
+    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    t4 = (std::uint64_t)d & M52;
+    d >>= 52;
+    tx = (t4 >> 48); t4 &= (M52 >> 4);
+
+    // -- Column 0 + reduced column 5 ---------------------------------
+    c  = (u128)a0 * a0;
+    d += (u128)(a1 * 2) * a4
+       + (u128)(a2 * 2) * a3;
+    u0 = (std::uint64_t)d & M52;
+    d >>= 52;
+    u0 = (u0 << 4) | tx;
+    c += (u128)u0 * (R52 >> 4);
+    r[0] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Column 1 + reduced column 6 ---------------------------------
+    c += (u128)(a0 * 2) * a1;
+    d += (u128)(a2 * 2) * a4
+       + (u128)a3 * a3;
+    c += (u128)((std::uint64_t)d & M52) * R52;
+    d >>= 52;
+    r[1] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Column 2 + reduced column 7 ---------------------------------
+    c += (u128)(a0 * 2) * a2
+       + (u128)a1 * a1;
+    d += (u128)(a3 * 2) * a4;
+    c += (u128)R52 * (std::uint64_t)d;
+    d >>= 64;
+    r[2] = (std::uint64_t)c & M52;
+    c >>= 52;
+
+    // -- Finalize columns 3 and 4 ------------------------------------
+    c += (u128)(R52 << 12) * (std::uint64_t)d;
+    c += t3;
+    r[3] = (std::uint64_t)c & M52;
+    c >>= 52;
+    c += t4;
+    r[4] = (std::uint64_t)c;
+#endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (sqr)
+}
+
+// ----- fe52_sqr_inner_var: variable-time field square (verify only, ADCX/ADOX ASM) -----
+SECP256K1_FE52_FORCE_INLINE
+void fe52_sqr_inner_var(std::uint64_t* __restrict__ r,
+                    const std::uint64_t* __restrict__ a) noexcept {
+#if defined(SECP256K1_RISCV_FE52_V1)
+    // RISC-V: Symmetry-optimized squaring in asm.
+    // Cross-products doubled via shift, halving multiplication count.
+    fe52_sqr_inner_riscv64(r, a);
+#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) // MONOLITHIC_SQR_ASM: Disabled -- same rationale as mul ASM above.
     // ========================================================================
     // Monolithic x86-64 MULX + ADCX/ADOX field squaring (single asm block)
     // ========================================================================
@@ -1233,11 +2273,35 @@ FieldElement52 FieldElement52::operator*(const FieldElement52& rhs) const noexce
     return r;
 }
 
+// Variable-time variants — VERIFY paths only.
+SECP256K1_FE52_FORCE_INLINE
+FieldElement52 FieldElement52::mul_var(const FieldElement52& rhs) const noexcept {
+    FieldElement52 r;
+    fe52_mul_inner_var(r.n, n, rhs.n);
+    return r;
+}
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::mul_assign_var(const FieldElement52& rhs) noexcept {
+    fe52_mul_inner_var(n, n, rhs.n);
+}
+
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::square() const noexcept {
     FieldElement52 r;
     fe52_sqr_inner(r.n, n);
     return r;
+}
+
+// Variable-time variants — VERIFY paths only.
+SECP256K1_FE52_FORCE_INLINE
+FieldElement52 FieldElement52::square_var() const noexcept {
+    FieldElement52 r;
+    fe52_sqr_inner_var(r.n, n);
+    return r;
+}
+SECP256K1_FE52_FORCE_INLINE
+void FieldElement52::square_inplace_var() noexcept {
+    fe52_sqr_inner_var(n, n);
 }
 
 SECP256K1_FE52_FORCE_INLINE
