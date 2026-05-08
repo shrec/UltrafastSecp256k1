@@ -34,7 +34,7 @@ cmake -S . -B build-fuzz -G Ninja \
 
 cmake --build build-fuzz -j"$(nproc)" --target fastsecp256k1
 
-LIB="build-fuzz/cpu/libfastsecp256k1.a"
+LIB="build-fuzz/src/cpu/libfastsecp256k1.a"
 INC="src/cpu/include"
 
 # -- Step 2: Compile each fuzz harness and link against the library ----------
