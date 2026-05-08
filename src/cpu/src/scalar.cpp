@@ -1117,6 +1117,7 @@ Scalar Scalar::inverse() const {
 Scalar Scalar::negate() const noexcept {
     // CT: always compute ORDER − s; mask result to zero if s == 0.
     // Use for SECRET scalars only (signing paths, nonces, private keys).
+#if defined(__SIZEOF_INT128__)
     //
     // libsecp-style: compute (~limb + N_limb) with carry, mask the whole
     // result by `nonzero` (0/-1). Saves the explicit sub_impl + mask-loop
@@ -1138,6 +1139,14 @@ Scalar Scalar::negate() const noexcept {
     // for s == 0 the mask zeroes every limb. Skip from_limbs's redundant
     // ge()/sub_impl() pass.
     return Scalar({r0, r1, r2, r3}, true);
+#else
+    // Portable fallback for MSVC / platforms without __int128.
+    auto neg = sub_impl(ORDER, limbs_);
+    uint64_t const z    = uint64_t(is_zero_ct());  // 1 if zero, 0 if not
+    uint64_t const keep = z - 1ULL;                // 0 if zero, all-1s if not
+    return Scalar({neg[0] & keep, neg[1] & keep,
+                   neg[2] & keep, neg[3] & keep}, true);
+#endif
 }
 
 Scalar Scalar::negate_var() const noexcept {
