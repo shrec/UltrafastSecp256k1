@@ -47,18 +47,21 @@
     "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
   },
   "nolto_gap_root_cause": {
-    "finding": "ConnectBlock -3% without LTO is a binary code layout artifact — NOT from secp256k1 operations.",
+    "finding": "ConnectBlock -3% without LTO is caused by ultra's larger instruction footprint, NOT by secp256k1 operation latency.",
     "evidence": [
-      "VerifyScriptP2WPKH (pubkey_parse + sig_parse + ecdsa_verify): ultra ≈ libsecp (ratio 1.01) — secp256k1 ops are at parity",
-      "VerifyScriptP2TR_KeyPath (xonly_parse + schnorr_verify): ultra 1.03x FASTER than libsecp",
-      "VerifyScriptP2TR_ScriptPath: ultra 1.28x FASTER than libsecp",
-      "ConnectBlock -3% gap: 6.5ms over 2500 txns = 2.6µs/tx extra NOT in VerifyScript hot path",
-      "SECP256K1_UNITY_BUILD=ON (single-TU, libsecp model): ConnectBlock ratio unchanged at 0.97",
-      "With LTO: ConnectBlock ratio = 1.00 (gap eliminated by linker global layout optimization)"
+      "VerifyScriptP2WPKH (full verify path): ultra 45.5µs ≈ libsecp 45.1µs → secp256k1 ops at parity",
+      "VerifyScriptP2TR_KeyPath: ultra 44.5µs vs libsecp 45.7µs → ultra 1.03x FASTER",
+      "VerifyScriptP2TR_ScriptPath: ultra 64.6µs vs libsecp 83.0µs → ultra 1.28x FASTER",
+      "SECP256K1_UNITY_BUILD=ON (single-TU compilation): ConnectBlock ratio unchanged at 0.97",
+      "-ffunction-sections + --gc-sections: removes <1% of ultra binary, gap unchanged",
+      "ultra .text section: 10.5 MB vs libsecp .text: 9.6 MB (difference: ~900 KB)",
+      "ultra secp256k1 symbols: ~1.3 MB (853 symbols) vs libsecp ~400 KB",
+      "largest ultra symbols: scalar_mul_jac (72 KB), dual_scalar_mul (52 KB), ct::generator_mul (49 KB) — ALL on hot verify/sign path, none dead",
+      "With LTO: ConnectBlock ratio = 1.00 (global layout optimization eliminates cache pressure)"
     ],
-    "root_cause": "Linking a different library changes Bitcoin Core's own binary code layout. Hot functions in the non-secp256k1 path (CCheckQueue, UTXO loop) land at different memory addresses, causing L1 instruction-cache hit rate variation of ±3%. LTO eliminates this by performing a global layout pass across all translation units.",
-    "not_fixable_in": "secp256k1 code — this is a linker layout artifact intrinsic to non-LTO builds",
-    "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). For non-LTO builds, the 3% gap is a known acceptable trade-off: signing is 14-32% faster, verify paths equal or faster."
+    "root_cause": "Ultra's more sophisticated algorithms (GLV endomorphism, FieldElement52, Jacobian52, CT paths, wNAF) produce ~1.3 MB of secp256k1 code vs libsecp's ~400 KB minimal implementation. Without LTO, this extra 900 KB competes with Bitcoin Core's hot functions (CCheckQueue, UTXO loop) for L2/L3 instruction cache across 2500 ConnectBlock iterations. Every byte of the extra code IS used — it is the foundation of ultra's signing speedups (14-32%) and algorithmic improvements. LTO eliminates the gap by co-optimizing code layout globally.",
+    "not_fixable_without": "LTO (which already works) — the extra code is intentional and necessary for the algorithm speedups",
+    "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). ConnectBlock parity is confirmed with LTO. For non-LTO builds, the 3% gap is a known trade-off of richer algorithms: signing 14-32% faster, verify paths equal or faster."
   },
   "known_limitations": [
     "ConnectBlock -3% without LTO: binary code layout artifact from linking different library sizes; LTO eliminates it. NOT from secp256k1 operation latency (VerifyScript is at parity or faster).",
