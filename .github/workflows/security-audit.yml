@@ -48,6 +48,9 @@ jobs:
           ccache -z
 
       - name: Configure
+        # Tests use the deprecated variable-time ecdsa_sign() intentionally
+        # to verify var-time == CT path. Excluding tests from the -Werror
+        # build keeps the warning gate meaningful for production code only.
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -57,11 +60,11 @@ jobs:
             -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_WERROR=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
             -DSECP256K1_BUILD_JAVA=OFF
 
-      - name: Build (zero warnings required)
+      - name: Build library (zero warnings required, tests excluded)
         run: cmake --build build -j"$(nproc)"
 
   # ── Address + Undefined Behavior Sanitizers ─────────────────────────────
