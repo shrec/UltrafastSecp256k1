@@ -23,9 +23,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Paths relative to this CMakeLists.txt
 set(ULTRAFAST_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/cpu/include")
+# Source backends moved under src/ in commit ecf17324
+set(CPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/src/cpu/include")
 set(SHARED_INCLUDE_DIR "${ULTRAFAST_ROOT}/include")
-set(GPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/gpu/include")
+set(GPU_INCLUDE_DIR "${ULTRAFAST_ROOT}/src/gpu/include")
 
 # Check that includes exist
 if(NOT EXISTS "${CPU_INCLUDE_DIR}/UltrafastSecp256k1.hpp")
