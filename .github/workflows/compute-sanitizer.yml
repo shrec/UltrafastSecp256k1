@@ -104,11 +104,7 @@ jobs:
           for tool in memcheck racecheck initcheck synccheck; do
             log="gpu-${tool}.log"
             if [ -f "$log" ]; then
-              errors=$(python3 -c "
-import sys
-c = open('$log').read()
-print(c.count('ERROR'))
-" 2>/dev/null || echo 0)
+              errors=$(python3 -c "print(open('$log').read().count('ERROR'))" 2>/dev/null || echo 0)
               echo "  ${tool}: ${errors} errors"
               if [ "${errors}" -gt 0 ]; then FAILED=1; fi
             else
