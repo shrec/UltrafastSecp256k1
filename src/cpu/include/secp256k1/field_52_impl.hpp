@@ -742,7 +742,7 @@ void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
     // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
     // with suboptimal register allocation for 25+ multiplications).
     fe52_mul_inner_riscv64(r, a, b);
-#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) // MONOLITHIC_MUL_ASM: Disabled -- with -march=native, Clang __int128
+#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__) // MONOLITHIC_MUL_ASM: Disabled -- with -march=native, Clang __int128
       // already emits optimal MULX+ADCX/ADOX code. The inline asm prevents
       // cross-operation scheduling and increases register pressure (~30% slower
       // point_add when enabled). Kept for reference/non-native builds.
