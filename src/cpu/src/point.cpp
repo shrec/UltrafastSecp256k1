@@ -897,41 +897,29 @@ SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
 static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
                                     const FieldElement52& bzinv) noexcept {
-    // Handle infinity and edge cases
+    // Variable-time verify path: uses mul_var/mul_assign_var (ADCX/ADOX on GCC x86-64).
     if (SECP256K1_UNLIKELY(p.infinity)) {
-        // Result = (b.x * bzinv^2, b.y * bzinv^3, 1)
-        // This maps the true affine b into the bzinv frame with Z=1,
-        // consistent with the final result.z *= bzinv correction.
         FieldElement52 const bzinv2 = bzinv.square();             // 1S
-        FieldElement52 const bzinv3 = bzinv2 * bzinv;             // 1M
-        p.x = b.x * bzinv2;                                      // 1M
-        p.y = b.y * bzinv3;                                      // 1M
+        FieldElement52 const bzinv3 = bzinv2.mul_var(bzinv);     // 1M _var
+        p.x = b.x.mul_var(bzinv2);                               // 1M _var
+        p.y = b.y.mul_var(bzinv3);                               // 1M _var
         p.z = FieldElement52::one();
         p.infinity = false;
         return;
     }
 
-    // az = Z1 * bzinv  (modified Z for u2, s2 computation)
-    FieldElement52 const az = p.z * bzinv;                        // 1M (extra vs mixed add)
-
-    // az2 = az^2 (replaces z1z1 in mixed add)
+    FieldElement52 const az = p.z.mul_var(bzinv);                 // 1M _var
     FieldElement52 const az2 = az.square();                       // 1S
+    FieldElement52 const u2 = b.x.mul_var(az2);                   // 1M _var
+    FieldElement52 s2 = b.y.mul_var(az2);                         // 1M _var
+    s2.mul_assign_var(az);                                        // 1M _var
 
-    // u2 = b.x * az^2,  u1 = p.x  (implicit)
-    FieldElement52 const u2 = b.x * az2;                          // 1M
+    FieldElement52 const negX1 = p.x.negate(8);
+    FieldElement52 const h = u2 + negX1;
 
-    // s2 = b.y * az^3,  s1 = p.y  (implicit)
-    FieldElement52 s2 = b.y * az2;                                // 1M
-    s2.mul_assign(az);                                            // s2 = b.y * az^3, 1M
-
-    // h = u2 - u1
-    FieldElement52 const negX1 = p.x.negate(8);     // mag 9 (jac52_add x max: 7)
-    FieldElement52 const h = u2 + negX1;                      // mag 6
-
-    // Variable-time zero check (prob ~2^-256)
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
         FieldElement52 const negS2_chk = s2.negate(1);
-        FieldElement52 const diff = p.y + negS2_chk;          // Y1 - S2
+        FieldElement52 const diff = p.y + negS2_chk;
         if (diff.normalizes_to_zero_var()) {
             jac52_double_inplace(p);
             return;
@@ -940,37 +928,26 @@ static void jac52_add_zinv_inplace(JacobianPoint52& p,
         return;
     }
 
-    // Z3 = Z1 * h  (uses ORIGINAL p.z, NOT az!)
-    // In-place: p.z is not read again after this point.
-    p.z.mul_assign(h);                                            // 1M
+    p.z.mul_assign_var(h);                                        // 1M _var
 
-    // i = S1 - S2 = Y1 - S2
-    FieldElement52 const negS2 = s2.negate(1);                    // mag 2
-    FieldElement52 const i_val = p.y + negS2;                     // mag 12
+    FieldElement52 const negS2 = s2.negate(1);
+    FieldElement52 const i_val = p.y + negS2;
 
-    // h2 = h^2 [1S], i_sq = i^2 [1S] -- adjacent independent squares:
-    // OoO engine can interleave their MULX chains, so i_sq is ready by the
-    // time h3/t finish, removing it from the critical path to X3.
     FieldElement52 h2 = h.square();                               // 1S
     FieldElement52 const i_sq = i_val.square();                   // 1S
-    h2.negate_assign(1);                                          // h2 = -h^2, mag 2
+    h2.negate_assign(1);
 
-    // h3 = h * (-h^2) = -h^3
-    FieldElement52 h3 = h2 * h;                                   // 1M
+    FieldElement52 h3 = h2.mul_var(h);                            // 1M _var
+    FieldElement52 t = p.x.mul_var(h2);                           // 1M _var
 
-    // t = u1 * (-h^2) = -X1 * h^2  (p.x last read here)
-    FieldElement52 t = p.x * h2;                                  // 1M
+    p.x = i_sq + h3;
+    p.x.add_assign(t);
+    p.x.add_assign(t);
 
-    // X3 = i^2 + h3 + 2*t  -- write directly to p.x (no temp)
-    p.x = i_sq + h3;                                              // mag 2
-    p.x.add_assign(t);                                            // mag 4
-    p.x.add_assign(t);                                            // mag 5
-
-    // Y3 = i*(t + X3) + s1*(-h^3)
-    t.add_assign(p.x);                                            // t = (-u1*h^2) + X3
-    h3.mul_assign(p.y);                                           // h3 = (-h^3)*Y1, 1M (p.y last read)
-    p.y = t * i_val;                                              // write directly to p.y
-    p.y.add_assign(h3);                                           // Y3 = i*(X3-u1*h^2) - Y1*h^3
+    t.add_assign(p.x);
+    h3.mul_assign_var(p.y);                                       // 1M _var
+    p.y = t.mul_var(i_val);                                       // 1M _var
+    p.y.add_assign(h3);
 
     p.infinity = false;
 }

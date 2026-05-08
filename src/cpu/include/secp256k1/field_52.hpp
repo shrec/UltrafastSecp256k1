@@ -129,6 +129,11 @@ struct alignas(8) FieldElement52 {
     }
     void square_inplace() noexcept;
 
+    // Variable-time variants — VERIFY paths only (ADCX/ADOX ASM on GCC x86-64).
+    // Do NOT use in CT signing, ECDH, or any private-key path.
+    FieldElement52 mul_var(const FieldElement52& rhs) const noexcept;
+    void mul_assign_var(const FieldElement52& rhs) noexcept;
+
     // -- Comparison (requires normalized inputs!) ---------------------
     bool is_zero() const noexcept;
     bool operator==(const FieldElement52& rhs) const noexcept;
