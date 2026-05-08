@@ -1117,18 +1117,34 @@ Scalar Scalar::inverse() const {
 Scalar Scalar::negate() const noexcept {
     // CT: always compute ORDER − s; mask result to zero if s == 0.
     // Use for SECRET scalars only (signing paths, nonces, private keys).
-    auto neg = sub_impl(ORDER, limbs_);
-    uint64_t const z    = uint64_t(is_zero_ct());  // 1 if zero, 0 if not
-    uint64_t const keep = z - 1ULL;                // 0 if zero, all-1s if not
-    return from_limbs({neg[0] & keep, neg[1] & keep,
-                       neg[2] & keep, neg[3] & keep});
+    //
+    // libsecp-style: compute (~limb + N_limb) with carry, mask the whole
+    // result by `nonzero` (0/-1). Saves the explicit sub_impl + mask-loop
+    // by fusing the two-pass operation into a single carry chain.
+    using u128 = unsigned __int128;
+    uint64_t const nonzero =
+        0xFFFFFFFFFFFFFFFFULL * static_cast<uint64_t>(!is_zero_ct());
+
+    u128 t = static_cast<u128>(~limbs_[0]) + ORDER[0] + 1ULL;
+    uint64_t r0 = static_cast<uint64_t>(t) & nonzero; t >>= 64;
+    t += static_cast<u128>(~limbs_[1]) + ORDER[1];
+    uint64_t r1 = static_cast<uint64_t>(t) & nonzero; t >>= 64;
+    t += static_cast<u128>(~limbs_[2]) + ORDER[2];
+    uint64_t r2 = static_cast<uint64_t>(t) & nonzero; t >>= 64;
+    t += static_cast<u128>(~limbs_[3]) + ORDER[3];
+    uint64_t r3 = static_cast<uint64_t>(t) & nonzero;
+
+    // Result is already in [0, n): for s ∈ (0, n) we have n − s ∈ (0, n);
+    // for s == 0 the mask zeroes every limb. Skip from_limbs's redundant
+    // ge()/sub_impl() pass.
+    return Scalar({r0, r1, r2, r3}, true);
 }
 
 Scalar Scalar::negate_var() const noexcept {
     // Variable-time: branches on is_zero() — safe ONLY for PUBLIC scalars.
     // Use in verify paths (challenge e, GLV sub-scalars, signature components).
     if (is_zero()) return Scalar::zero();
-    return from_limbs(sub_impl(ORDER, limbs_));
+    return Scalar(sub_impl(ORDER, limbs_), true);
 }
 
 bool Scalar::is_even() const noexcept {

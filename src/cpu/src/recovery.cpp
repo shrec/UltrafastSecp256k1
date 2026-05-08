@@ -3,6 +3,7 @@
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/field_52_impl.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -15,26 +16,50 @@ using fast::FieldElement;
 // Given x, compute y such that y^2 = x^3 + 7 (mod p).
 // parity selects which square root: 0 = even y, 1 = odd y.
 // Returns {Point, bool} where bool = true if point is valid.
+//
+// Hot-path (variable-time, public-data): operate directly in FE52 to avoid
+// FE→FE52→FE roundtrips inside FieldElement::sqrt() and at point construction.
+// Mirrors schnorr.cpp lift_x_from_limbs but selects parity from `parity` arg.
 static std::pair<Point, bool> lift_x(const FieldElement& x_fe, int parity) {
+#if defined(SECP256K1_FAST_52BIT)
+    using FE52 = fast::FieldElement52;
+    static const FE52 kSeven52 = FE52::from_fe(FieldElement::from_uint64(7));
+
+    FE52 const x52 = FE52::from_fe(x_fe);
+
+    // y² = x³ + 7
+    FE52 const x3 = x52.square() * x52;
+    FE52 const y2 = x3 + kSeven52;
+
+    // sqrt + verify (skip Jacobi pre-check: bench inputs are always QR)
+    FE52 y52 = y2.sqrt();
+    FE52 check = y52.square();
+    check.negate_assign(1);
+    check.add_assign(y2);
+    if (!check.normalizes_to_zero_var()) return {Point::infinity(), false};
+
+    // Parity adjust: read LSB from normalized limbs[0]
+    FE52 y_norm = y52;
+    y_norm.normalize();
+    bool const y_is_odd = (y_norm.n[0] & 1u) != 0;
+    if ((parity != 0) != y_is_odd) {
+        y52 = y52.negate(1);
+        y52.normalize_weak();
+    }
+
+    return {Point::from_affine52(x52, y52), true};
+#else
     // y^2 = x^3 + 7
     auto x3 = x_fe.square() * x_fe;
     auto y2 = x3 + FieldElement::from_uint64(7);
-
-    // Optimized sqrt via addition chain
     auto y = y2.sqrt();
-
-    // Verify: y^2 == y2
     if (y.square() != y2) return {Point::infinity(), false};
-
-    // Adjust parity -- check LSB directly from normalized limbs (avoids
-    // expensive to_bytes() serialization just for one parity bit).
-    // FE64 limbs are always fully reduced, so limbs()[0] & 1 == value mod 2.
     bool const y_is_odd = (y.limbs()[0] & 1) != 0;
     if ((parity != 0) != y_is_odd) {
         y = FieldElement::zero() - y;
     }
-
     return {Point::from_affine(x_fe, y), true};
+#endif
 }
 
 // -- secp256k1 order n --------------------------------------------------------
@@ -168,8 +193,10 @@ std::pair<Point, bool> ecdsa_recover(
     // multi-scalar multiplication instead of 3 separate scalar muls.
     auto z = Scalar::from_bytes(msg_hash);
     auto r_inv = sig.r.inverse();
-    auto u1 = z.negate() * r_inv;    // -z * r^-1 mod n  (G coefficient)
-    auto u2 = sig.s * r_inv;         //  s * r^-1 mod n  (R coefficient)
+    // Recovery path is variable-time: recid, signature, and message hash are all
+    // public. Use negate_var() to avoid the CT mask overhead (~3 ns saved).
+    auto u1 = z.negate_var() * r_inv;  // -z * r^-1 mod n  (G coefficient)
+    auto u2 = sig.s * r_inv;           //  s * r^-1 mod n  (R coefficient)
 
     auto Q = Point::dual_scalar_mul_gen_point(u1, u2, R);
 

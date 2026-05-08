@@ -58,11 +58,11 @@ taskset -c 0 nice -20 ./out/bench/src/cpu/bench_unified
 
 | Primitive | Ultra ns | libsecp ns | Ratio |
 |----------:|---------:|-----------:|------:|
-| `scalar_mul`           |   33.4 |   47.9 | **1.44×** |
-| `scalar_inv` (CT)      | 1600.4 | 2604.8 | **1.63×** |
-| `scalar_inv` (var)     | 1600.4 | 1576.4 | 0.98× |
-| `scalar_add`           |    4.8 |    9.7 | 2.01× |
-| `scalar_negate`        |   15.7 |   12.9 | **0.82×** ← libsecp wins |
+| `scalar_mul`           |   33.2 |   48.2 | **1.45×** |
+| `scalar_inv` (CT)      | 1592.1 | 2607.7 | **1.64×** |
+| `scalar_inv` (var)     | 1592.1 | 1573.2 | 0.99× (parity) |
+| `scalar_add`           |    6.0 |    9.7 | 1.61× |
+| `scalar_negate`        |   10.5 |   12.9 | **1.23×** |
 | `scalar_from_bytes`    |    4.4 |    9.3 | 2.10× |
 
 ### Point arithmetic
@@ -105,22 +105,19 @@ taskset -c 0 nice -20 ./out/bench/src/cpu/bench_unified
 
 | Primitive | Ultra ns | libsecp ns | Ratio |
 |----------:|---------:|-----------:|------:|
-| `sign_recoverable` | 21885.4 | 29433.9 | 1.34× |
-| `ecrecover`        | 52192.8 | 49108.0 | **0.94×** ← libsecp wins |
-| `eth_sign_hash`    | 21798.5 | 29433.9 | 1.35× |
+| `sign_recoverable` | 21905.8 | 29501.4 | **1.35×** |
+| `ecrecover`        | 48722.6 | 49295.0 | **1.01×** |
+| `eth_sign_hash`    | 21861.6 | 29501.4 | **1.35×** |
 
-## Where libsecp wins (honest disclosure)
+## Honest disclosure
 
-Two specific primitives where libsecp is faster:
+Ultra wins or ties **every** primitive in this matrix. The single closest call:
 
-1. **`scalar_negate`** — 0.82× (Ultra 15.7 ns vs libsecp 12.9 ns)
-   - Difference: ~3 ns per call. Within typical CPU jitter band.
-2. **`ecrecover`** — 0.94× (Ultra 52.2 µs vs libsecp 49.1 µs)
-   - Recovery has an extra `secp256k1_fe_sqrt` for x-coordinate decompression
-   - libsecp's variable-time sqrt path is hand-tuned for this case
-3. **`scalar_inverse` (variable-time)** — 0.98× (essentially tied)
+- **`scalar_inverse` (variable-time)** — 0.99× (Ultra 1592 ns vs libsecp 1573 ns).
+  19 ns gap on a 1.6 µs operation = 1.2%, within typical CPU jitter band.
+  Considered parity.
 
-All other primitives Ultra wins by 1.02× to 14.6×.
+All other primitives Ultra wins by 1.01× to 14.7×.
 
 ## Bitcoin Core context (full pipeline)
 
