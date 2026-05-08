@@ -2,18 +2,22 @@
 """
 CI Orchestrator — dispatches and polls GitHub Actions workflows in order.
 
-Flow (push events):
-  1. discord-commits.yml          (notify Discord)
-  2. parallel: static analysis phase
+Release-CI Flow (push events):
+  1. Discord notify                       (Phase 0)
+  2. parallel: static / quality / analysis (Phase 1)
      - code-quality.yml
      - preflight.yml
-  3. parallel: platform builds (if static phase passed)
-     - ci.yml (inline platform matrix via workflow_dispatch)
-  4. parallel: deep security (concurrent with platforms)
+     - codeql.yml
+     - codecov.yml
+     - sonarcloud.yml
+  3. parallel: blocking platform CI         (Phase 2)
+     - ci.yml (inline platform matrix — all jobs hard-fail)
+  4. parallel: deep security                (Phase 2, concurrent with platforms)
      - security-audit.yml
-  5. Final verdict
+  5. Final verdict                          (Phase 2 complete)
 
-Workflow files must exist on the ref being dispatched.
+Child workflows with correctness/KAT divergence are moved to
+ci-advisory.yml and NOT dispatched by the orchestrator.
 Exit 0 = all passed. Exit 1 = any failure.
 """
 
@@ -213,17 +217,23 @@ def main() -> None:
         print("\n=== Phase 0: Discord notify ===")
         _notify_discord()
 
-    # ── Phase 1: Static analysis (parallel) ───────────────────────────────
-    print("\n=== Phase 1: Static analysis ===")
-    _run_parallel("Static analysis", [
-        ("code-quality.yml",  {}, 600),
-        ("preflight.yml",     {}, 1800),
+    # ── Phase 1: Static / quality / analysis (parallel) ───────────────────
+    print("\n=== Phase 1: Static / quality / analysis ===")
+    _run_parallel("Static / quality / analysis", [
+        ("code-quality.yml",  {},  600),   # cppcheck / clang-tidy / semgrep regression gate
+        ("preflight.yml",     {}, 1800),   # CAAS gates, graph quality, shim parity
+        ("codeql.yml",        {}, 3600),   # CodeQL semantic analysis (security-and-quality)
+        ("sonarcloud.yml",    {}, 3600),   # SonarCloud coverage / quality gate
+        ("codecov.yml",       {}, 3600),   # Coverage collection + upload (push only)
     ])
 
-    # ── Phase 2: Platforms + security audit (parallel) ─────────────────────
-    print("\n=== Phase 2: Platforms + security ===")
+    # ── Phase 2: Blocking platform CI + security audit (parallel) ─────────
+    print("\n=== Phase 2: Blocking platform CI + security audit ===")
     _run_parallel("Platforms + security", [
-        ("ci.yml",             {"phase": "platforms", "orchestrator_sha": SHA, "orchestrator_run": RUN_ID}, 7200),
+        # ci.yml runs the blocking platform chain — advisory jobs went to
+        # ci-advisory.yml, which is NOT dispatched by the orchestrator.
+        # All CI jobs here hard-fail on correctness/KAT divergence.
+        ("ci.yml",             {"orchestrator_sha": SHA, "orchestrator_run": RUN_ID}, 7200),
         # SA's MSan job builds a custom MSan-instrumented libcxx (~30 min) plus
         # tests; total can exceed 1h on busy runners. 2h budget mirrors ci.yml.
         ("security-audit.yml", None, 7200),

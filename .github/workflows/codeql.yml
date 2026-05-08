@@ -1,9 +1,9 @@
-name: CodeQL (standalone)
+name: CodeQL
 
-# Standalone manual replay only.
-# push/PR/schedule coverage is handled inside ci.yml (Code Quality / CodeQL job)
-# which runs as part of the main CI pipeline after static-analysis passes.
+# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
+# Also available for manual replay via workflow_dispatch.
 on:
+  workflow_call:
   workflow_dispatch:
 
 concurrency:

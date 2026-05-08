@@ -1,9 +1,9 @@
-name: SonarCloud (standalone)
+name: SonarCloud
 
-# Standalone manual replay only.
-# push/PR coverage is handled inside ci.yml (Code Quality / SonarCloud job)
-# which runs as part of the main CI pipeline after static-analysis passes.
+# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
+# Also available for manual replay via workflow_dispatch.
 on:
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
