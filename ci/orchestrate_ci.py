@@ -59,16 +59,17 @@ def _request(method: str, path: str, data=None):
 
 # ── Dispatch + find + wait ─────────────────────────────────────────────────────
 def _dispatch(workflow_file: str, inputs: dict | None = None) -> float:
-    """Dispatch workflow_dispatch and return the timestamp just before dispatch."""
+    """Dispatch workflow_dispatch and return the timestamp just before dispatch.
+
+    Only passes inputs that are explicitly given. Each child workflow declares
+    its own workflow_dispatch inputs, so we cannot pass orchestrator_sha
+    universally — most workflows don't accept it and reject with HTTP 422.
+    """
     t0 = time.time()
-    _request("POST", f"/repos/{REPO}/actions/workflows/{workflow_file}/dispatches", {
-        "ref": REF,
-        "inputs": {
-            "orchestrator_sha": SHA,
-            "orchestrator_run": RUN_ID,
-            **(inputs or {}),
-        },
-    })
+    payload = {"ref": REF}
+    if inputs:
+        payload["inputs"] = inputs
+    _request("POST", f"/repos/{REPO}/actions/workflows/{workflow_file}/dispatches", payload)
     print(f"  dispatched {workflow_file}")
     return t0
 
@@ -170,8 +171,8 @@ def main() -> None:
     # ── Phase 2: Platforms + security audit (parallel) ─────────────────────
     print("\n=== Phase 2: Platforms + security ===")
     _run_parallel("Platforms + security", [
-        ("ci.yml",             {"phase": "platforms"}, 7200),
-        ("security-audit.yml", {},                     3600),
+        ("ci.yml",             {"phase": "platforms", "orchestrator_sha": SHA, "orchestrator_run": RUN_ID}, 7200),
+        ("security-audit.yml", None, 3600),
     ])
 
     print("\n::notice::CI orchestration complete — all phases passed")
