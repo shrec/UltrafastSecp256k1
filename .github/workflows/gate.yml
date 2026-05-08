@@ -348,19 +348,22 @@ jobs:
           fi
 
       - name: Evidence chain integrity check (SW-01 fix)
-        # SW-01 fix: validate the evidence chain on every PR so a corrupted
-        # EVIDENCE_CHAIN.json is caught before it reaches the nightly CAAS run.
-        # Audit-fix: removed || echo + continue-on-error — a corrupted chain now
-        # blocks the gate instead of only emitting a ::warning::.
+        # SW-01 fix: validate the evidence chain on every PR.
+        # exit 77 = ADVISORY_SKIP_CODE: CAAS_HMAC_KEY not set on this runner
+        # (public key only) — treat as advisory skip, not hard failure.
         if: always()
         run: |
           if [ -f docs/EVIDENCE_CHAIN.json ]; then
-            if ! python3 ci/evidence_governance.py validate; then
+            python3 ci/evidence_governance.py validate
+            RC=$?
+            if [ "$RC" -eq 77 ]; then
+              echo "::notice::Evidence chain: advisory skip (CAAS_HMAC_KEY not provisioned)"
+            elif [ "$RC" -ne 0 ]; then
               echo "::error::Evidence chain validation failed — EVIDENCE_CHAIN.json may be corrupted or tampered"
               exit 1
             fi
           else
-            echo "::error::docs/EVIDENCE_CHAIN.json not found — evidence chain has not been initialised. Run ci/evidence_governance.py record to bootstrap."
+            echo "::error::docs/EVIDENCE_CHAIN.json not found — run ci/evidence_governance.py record to bootstrap."
             exit 1
           fi
 

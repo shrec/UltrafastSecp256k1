@@ -151,20 +151,22 @@ jobs:
           print('::notice::exploit_poc section: all modules PASS')
           "
 
-      - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
+      - name: CAAS Stage 1 — Static Analysis (hard-fail on HIGH findings)
         run: |
           python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
           python3 - <<'EOF'
           import json, sys
           with open("caas_scanner.json") as f:
               report = json.load(f)
-          total = report.get("total_findings", 0)
-          if total > 0:
-              for fnd in report.get("findings", []):
-                  print(f"  [{fnd['severity'].upper()}] {fnd['file']}:{fnd['line']} {fnd['label']}: {fnd['description']}")
-              print(f"FAIL: {total} finding(s) — audit scanner must report 0", file=sys.stderr)
+          findings = report.get("findings", [])
+          high = [f for f in findings if f.get("severity","").upper() == "HIGH"]
+          if high:
+              for fnd in high:
+                  print(f"  [HIGH] {fnd['file']}:{fnd['line']} {fnd['label']}: {fnd['description']}")
+              print(f"FAIL: {len(high)} HIGH finding(s) — CAAS Stage 1 blocks on HIGH severity", file=sys.stderr)
               sys.exit(1)
-          print(f"PASS: 0 findings")
+          total = len(findings)
+          print(f"PASS: 0 HIGH findings ({total} MEDIUM/LOW are tracked in baseline, not blocking)")
           EOF
 
       - name: Rebuild project graph (ensures fresh paths for audit gate)

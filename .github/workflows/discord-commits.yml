@@ -1,9 +1,10 @@
 name: Discord Commit Notifications
 
-# Fires on every push to main and dev — posts commit info to Discord.
+# push trigger removed — Discord notify is now the first job in ci.yml
+# so it runs in correct order (before static analysis, not in parallel).
+# This file is kept for manual replay only.
 on:
-  push:
-    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read
