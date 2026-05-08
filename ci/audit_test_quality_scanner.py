@@ -357,9 +357,19 @@ class AuditTestScanner:
     # E: Unchecked API return values (setup calls in assertion context)
     # ------------------------------------------------------------------
     def _check_E_ignored_returns(self, fname: str, lines: List[str]):
+        # Functions that return void in the public ABI — they have no return
+        # value to "ignore". Wrapping these in CHECK_OK is a compile error.
+        # See include/ufsecp/ufsecp.h: ufsecp_ctx_destroy, ufsecp_bip324_destroy.
+        VOID_RETURNING = (
+            'ufsecp_ctx_destroy',
+            'ufsecp_bip324_destroy',
+        )
         for i, raw in enumerate(lines):
             # Must match an API call pattern
             if not _API_CALL_RE.match(raw):
+                continue
+            # Skip void-returning functions (no error to check)
+            if any(v in raw for v in VOID_RETURNING):
                 continue
             # But NOT already wrapped in CHECK / assignment
             if _CHECKED_RE.search(raw):
