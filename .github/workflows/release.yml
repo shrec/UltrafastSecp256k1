@@ -345,7 +345,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S android -B build/android \
+          cmake -S bindings/android -B build/android \
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
@@ -409,7 +409,7 @@ jobs:
       - name: Build XCFramework
         run: |
           chmod +x ci/build_xcframework.sh
-          ./scripts/build_xcframework.sh --release
+          ./ci/build_xcframework.sh --release
 
       - name: Collect release artifacts
         run: |
@@ -464,7 +464,7 @@ jobs:
         run: echo "${RELEASE_VERSION#v}" > VERSION.txt
 
       - name: Configure
-        run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
+        run: emcmake cmake -S bindings/wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build/wasm -j$(nproc)
@@ -483,7 +483,7 @@ jobs:
       - name: Test WASM
         run: |
           cd build/wasm/dist
-          node ../../../wasm/bench_wasm.mjs
+          node ../../../bindings/wasm/bench_wasm.mjs
 
       - name: Collect release artifacts
         run: |

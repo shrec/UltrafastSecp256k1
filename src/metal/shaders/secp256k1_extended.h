@@ -21,6 +21,28 @@
 #include "secp256k1_point.h"
 
 // =============================================================================
+// Forward declarations -- defined in secp256k1_ct_sign.h
+// =============================================================================
+// These are referenced by inline ecdsa_sign / schnorr_sign / ecdsa_sign_recoverable
+// wrappers below. Their bodies live in secp256k1_ct_sign.h, which is included
+// after this header in secp256k1_kernels.metal.
+inline bool ct_ecdsa_sign_metal(thread const uchar msg_hash[32],
+                                thread const Scalar256 &priv,
+                                thread Scalar256 &r_out,
+                                thread Scalar256 &s_out);
+
+inline bool ct_schnorr_sign_metal(thread const Scalar256 &priv,
+                                  thread const uchar msg[32],
+                                  thread const uchar aux_rand[32],
+                                  thread uchar sig_out[64]);
+
+inline bool ct_ecdsa_sign_recoverable_metal(thread const uchar msg_hash[32],
+                                            thread const Scalar256 &priv,
+                                            thread Scalar256 &r_out,
+                                            thread Scalar256 &s_out,
+                                            thread int &recid_out);
+
+// =============================================================================
 // Constants -- 8x32 little-endian
 // =============================================================================
 
@@ -1190,7 +1212,6 @@ inline bool ecdh_compute(thread const Scalar256 &priv, thread const AffinePoint 
     AffinePoint aff;
     aff.x        = field_mul(shared.x, z_inv2);
     aff.y        = field_mul(shared.y, z_inv3);
-    aff.infinity = 0;
 
     uchar x_bytes[32];
     field_to_bytes(aff.x, x_bytes);

@@ -530,7 +530,7 @@ jobs:
       - name: Build XCFramework
         run: |
           chmod +x ci/build_xcframework.sh
-          ./scripts/build_xcframework.sh
+          ./ci/build_xcframework.sh
 
       - name: Upload XCFramework
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -611,7 +611,7 @@ jobs:
           actions-cache-folder: emsdk-cache
 
       - name: Configure (WASM)
-        run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
+        run: emcmake cmake -S bindings/wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build/wasm -j$(nproc)
@@ -632,7 +632,7 @@ jobs:
       - name: Run WASM benchmark
         run: |
           cd build/wasm/dist
-          node ../../../wasm/bench_wasm.mjs
+          node ../../../bindings/wasm/bench_wasm.mjs
 
       - name: Run WASM KAT equivalence test
         run: node build/wasm/kat/wasm_kat_test.js
@@ -675,7 +675,7 @@ jobs:
 
       - name: Configure (Android ${{ matrix.abi }})
         run: |
-          cmake -S android -B build/android \
+          cmake -S bindings/android -B build/android \
             -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \

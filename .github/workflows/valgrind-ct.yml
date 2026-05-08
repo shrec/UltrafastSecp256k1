@@ -60,7 +60,7 @@ jobs:
     - name: Run Valgrind CT analysis
       run: |
         chmod +x ci/valgrind_ct_check.sh
-        ./scripts/valgrind_ct_check.sh build/valgrind-ct
+        ./ci/valgrind_ct_check.sh build/valgrind-ct
 
     - name: Upload Valgrind reports
       if: always()
