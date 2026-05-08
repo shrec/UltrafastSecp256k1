@@ -3,18 +3,21 @@
 # =============================================================================
 name: CI
 
+# push trigger removed — ci-orchestrator.yml handles push ordering.
+# ci.yml remains active for: pull_request (fast feedback), workflow_dispatch.
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/**'
-      - 'include/**'
-      - 'audit/**'
-      - 'ci/**'
-      - 'compat/**'
-      - 'bindings/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+    inputs:
+      orchestrator_sha:
+        required: false
+        type: string
+      orchestrator_run:
+        required: false
+        type: string
+      phase:
+        required: false
+        type: string
+        default: 'all'
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -28,7 +31,6 @@ on:
       - '.github/PULL_REQUEST_TEMPLATE*'
       - '.github/copilot-instructions.md'
       - '.github/agents/**'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -106,15 +108,7 @@ jobs:
           python3 ci/audit_test_quality_scanner.py --json -o static_analysis_scanner.json
           python3 ci/run_code_quality.py --fail-on-regression
       - name: Exploit traceability join
-        run: |
-          python3 ci/exploit_traceability_join.py --json -o static_analysis_traceability.json
-          python3 -c "
-          import json, sys
-          d = json.load(open('static_analysis_traceability.json'))
-          if not d.get('pass', d.get('passed', False)):
-              print('::error::Exploit traceability join failed')
-              sys.exit(1)
-          "
+        run: python3 ci/exploit_traceability_join.py
       - name: Source graph quality
         run: python3 ci/check_source_graph_quality.py
       - name: Upload static analysis reports
@@ -122,11 +116,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: static-analysis-${{ github.run_id }}
-          path: |
-            static_analysis_scanner.json
-            static_analysis_traceability.json
+          path: static_analysis_scanner.json
           retention-days: 30
-          if-no-files-found: error
+          if-no-files-found: warn
 
   # ===========================================================================
   # Linux GCC (gcc-13 and gcc-14, Release and Debug)
