@@ -153,13 +153,54 @@ def _run_parallel(phase_name: str, tasks: list[tuple]) -> None:
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
+def _notify_discord() -> None:
+    """Post commit notification directly to Discord webhook.
+
+    We don't dispatch discord-commits.yml because workflow_dispatch loses
+    github.event.head_commit (message/author show as '(no message)'/'unknown').
+    Instead, fetch commit details via API and curl Discord directly.
+    """
+    webhook = os.environ.get("DISCORD_WEBHOOK_COMMITS", "").strip()
+    if not webhook:
+        print("  DISCORD_WEBHOOK_COMMITS not set — skipping Discord notify")
+        return
+
+    commit = _request("GET", f"/repos/{REPO}/commits/{SHA}")
+    msg = commit.get("commit", {}).get("message", "(no message)").splitlines()[0][:200]
+    author = commit.get("commit", {}).get("author", {}).get("name", "unknown")
+    short = SHA[:7]
+    url = f"https://github.com/{REPO}/commit/{SHA}"
+
+    payload = {
+        "embeds": [{
+            "title": f"New commit on {REF}",
+            "url": url,
+            "color": 7506394,
+            "description": f"[`{short}`]({url}) {msg}",
+            "fields": [
+                {"name": "Branch", "value": REF, "inline": True},
+                {"name": "Author", "value": author, "inline": True},
+            ],
+            "footer": {"text": "UltrafastSecp256k1"},
+        }]
+    }
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        webhook, data=body, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        resp.read()
+    print(f"  Discord notified: {short} '{msg[:60]}...' by {author}")
+
+
 def main() -> None:
     print(f"CI Orchestrator  repo={REPO}  ref={REF}  sha={SHA[:8]}  event={EVENT}")
 
     # ── Phase 0: Discord notification (push only) ───────────────────────────
     if EVENT == "push":
         print("\n=== Phase 0: Discord notify ===")
-        _run_workflow("discord-commits.yml", timeout_sec=300)
+        _notify_discord()
 
     # ── Phase 1: Static analysis (parallel) ───────────────────────────────
     print("\n=== Phase 1: Static analysis ===")

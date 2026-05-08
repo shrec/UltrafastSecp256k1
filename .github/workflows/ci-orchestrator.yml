@@ -44,10 +44,11 @@ jobs:
 
       - name: Run CI orchestrator
         env:
-          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_REF_NAME:   ${{ github.ref_name }}
-          GITHUB_SHA:        ${{ github.sha }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_RUN_ID:     ${{ github.run_id }}
+          GITHUB_TOKEN:           ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:      ${{ github.repository }}
+          GITHUB_REF_NAME:        ${{ github.ref_name }}
+          GITHUB_SHA:             ${{ github.sha }}
+          GITHUB_EVENT_NAME:      ${{ github.event_name }}
+          GITHUB_RUN_ID:          ${{ github.run_id }}
+          DISCORD_WEBHOOK_COMMITS: ${{ secrets.DISCORD_WEBHOOK_COMMITS }}
         run: python3 ci/orchestrate_ci.py
