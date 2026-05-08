@@ -109,6 +109,8 @@ jobs:
           python3 ci/run_code_quality.py --fail-on-regression
       - name: Exploit traceability join
         run: python3 ci/exploit_traceability_join.py
+      - name: Build project graph (needed for source graph quality)
+        run: python3 ci/build_project_graph.py --rebuild
       - name: Source graph quality
         run: python3 ci/check_source_graph_quality.py
       - name: Upload static analysis reports
