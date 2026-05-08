@@ -2679,7 +2679,8 @@ set_tests_properties(exploit_blinding_recovery_hnp PROPERTIES TIMEOUT 60 LABELS 
 # SECP256K1_BUILD_SHIM and the unified runner uses the C++ layer path.
 add_executable(test_exploit_shim_noncefp_bypass_standalone
     test_exploit_shim_noncefp_bypass.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
 audit_target_defaults(test_exploit_shim_noncefp_bypass_standalone)
 target_include_directories(test_exploit_shim_noncefp_bypass_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
@@ -2692,7 +2693,8 @@ set_tests_properties(exploit_shim_noncefp_bypass PROPERTIES TIMEOUT 60 LABELS "a
 # Shim_ecdsa.cpp included for the DER parser path in STANDALONE mode.
 add_executable(test_exploit_encoding_memory_corruption_standalone
     test_exploit_encoding_memory_corruption.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_ecdsa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
 audit_target_defaults(test_exploit_encoding_memory_corruption_standalone)
 target_include_directories(test_exploit_encoding_memory_corruption_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
