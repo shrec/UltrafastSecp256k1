@@ -891,13 +891,7 @@ jobs:
         run: |
           FAILED=0
 
-          # Static analysis is a hard gate — failure here blocks everything
-          SA="${{ needs.static-analysis.result }}"
-          if [ "$SA" != "success" ]; then
-            echo "::error::Static analysis → $SA (all platform chains were skipped)"
-            exit 1
-          fi
-          # static-gate aggregates static-analysis + codeql + sonarcloud.
+          # static-gate aggregates static-analysis + codeql + sonarcloud
           SG="${{ needs.static-gate.result }}"
           if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
             echo "::error::static-gate → $SG"
@@ -949,10 +943,10 @@ jobs:
             echo "|------|--------|------|"
           } >> "$GITHUB_STEP_SUMMARY"
           for tool in codeql sonarcloud; do
-            r="${{ needs[tool].result }}"
             case "$tool" in
               codeql)    r="${{ needs.codeql.result }}" ;;
               sonarcloud) r="${{ needs.sonarcloud.result }}" ;;
+              *) r="unknown" ;;
             esac
             if [ "$r" = "success" ]; then
               echo "| $tool | ✅ $r | |" >> "$GITHUB_STEP_SUMMARY"

@@ -108,13 +108,6 @@ on:
         type: string
         default: 'cpu'
 
-    outputs:
-      build_result:
-        value: ${{ jobs.build.result }}
-      audit_result:
-        value: ${{ jobs.audit.result }}
-      collect_result:
-        value: ${{ jobs.collect.result }}
 
 jobs:
   # =============================================================================

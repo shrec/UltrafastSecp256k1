@@ -29,46 +29,9 @@ jobs:
           MESSAGE: ${{ github.event.head_commit.message || '(no message)' }}
           SHA:     ${{ github.sha }}
         run: |
-          SHORT_SHA="${SHA:0:7}"
-          COMMIT_URL="https://github.com/${REPO}/commit/${SHA}"
-
-          # Export vars so python3 os.environ can read them
-          export SHORT_SHA COMMIT_URL BRANCH AUTHOR
-
-          # Build JSON with python3 — timestamp computed inside Python
-          PYTHON=$(command -v python3 || command -v python)
-          JSON=$("$PYTHON" - <<'PYEOF'
-import json, os
-from datetime import datetime, timezone
-
-msg    = os.environ['MESSAGE'].splitlines()[0][:200]
-short  = os.environ['SHORT_SHA']
-url    = os.environ['COMMIT_URL']
-branch = os.environ['BRANCH']
-author = os.environ['AUTHOR']
-now    = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-payload = {
-  'embeds': [{
-    'title':       f'New commit on {branch}',
-    'url':         url,
-    'color':       7506394,
-    'description': f'[`{short}`]({url}) {msg}',
-    'fields': [
-      {'name': 'Branch', 'value': branch, 'inline': True},
-      {'name': 'Author', 'value': author, 'inline': True},
-    ],
-    'footer':    {'text': 'UltrafastSecp256k1'},
-    'timestamp': now,
-  }]
-}
-print(json.dumps(payload))
-PYEOF
-          )
-
-          CURL=$(command -v curl || { echo "::error::curl not found on PATH"; exit 1; })
-          "$CURL" -sS \
-            -H "Content-Type: application/json" \
-            -d "$JSON" \
-            "$WEBHOOK"
-        shell: bash
+          SHORT="${SHA:0:7}"
+          URL="https://github.com/${REPO}/commit/${SHA}"
+          MSG=$(echo "$MESSAGE" | head -1 | cut -c1-200)
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          JSON="{\"embeds\":[{\"title\":\"New commit on ${BRANCH}\",\"url\":\"${URL}\",\"color\":7506394,\"description\":\"[\`${SHORT}\`](${URL}) ${MSG}\",\"fields\":[{\"name\":\"Branch\",\"value\":\"${BRANCH}\",\"inline\":true},{\"name\":\"Author\",\"value\":\"${AUTHOR}\",\"inline\":true}],\"footer\":{\"text\":\"UltrafastSecp256k1\"},\"timestamp\":\"${NOW}\"}]}"
+          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
