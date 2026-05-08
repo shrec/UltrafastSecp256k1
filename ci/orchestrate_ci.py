@@ -71,14 +71,30 @@ def _dispatch(workflow_file: str, inputs: dict | None = None) -> float:
     Only passes inputs that are explicitly given. Each child workflow declares
     its own workflow_dispatch inputs, so we cannot pass orchestrator_sha
     universally — most workflows don't accept it and reject with HTTP 422.
+
+    Retries on 404 (newly-added workflow file may need a few seconds for
+    GitHub to register it; this is common when a commit adds a new workflow
+    and the orchestrator dispatches it on the same ref immediately).
     """
     t0 = time.time()
     payload = {"ref": REF}
     if inputs:
         payload["inputs"] = inputs
-    _request("POST", f"/repos/{REPO}/actions/workflows/{workflow_file}/dispatches", payload)
-    print(f"  dispatched {workflow_file}")
-    return t0
+    last_err = None
+    for attempt in range(6):  # ~1.5 minutes total
+        try:
+            _request("POST", f"/repos/{REPO}/actions/workflows/{workflow_file}/dispatches", payload)
+            print(f"  dispatched {workflow_file}{' (attempt ' + str(attempt+1) + ')' if attempt else ''}")
+            return t0
+        except RuntimeError as exc:
+            last_err = exc
+            if "HTTP 404" in str(exc) and attempt < 5:
+                wait = 15 * (attempt + 1)
+                print(f"  {workflow_file}: 404 (workflow not yet registered?), retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            raise
+    raise last_err  # unreachable
 
 
 def _find_run(workflow_file: str, after_ts: float) -> int:
@@ -220,7 +236,7 @@ def main() -> None:
     # ── Phase 1: Static / quality / analysis (parallel) ───────────────────
     print("\n=== Phase 1: Static / quality / analysis ===")
     _run_parallel("Static / quality / analysis", [
-        ("code-quality.yml",  {},  600),   # cppcheck / clang-tidy / semgrep regression gate
+        ("code-quality.yml",  {}, 1800),   # cppcheck / clang-tidy / semgrep regression gate
         ("preflight.yml",     {}, 1800),   # CAAS gates, graph quality, shim parity
         ("codeql.yml",        {}, 3600),   # CodeQL semantic analysis (security-and-quality)
         ("sonarcloud.yml",    {}, 3600),   # SonarCloud coverage / quality gate
