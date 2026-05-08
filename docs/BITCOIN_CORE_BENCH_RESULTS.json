@@ -71,22 +71,22 @@
     }
   },
   "results_nolto": {
-    "note": "Release without LTO. SECP256K1_CORE_BACKEND_MODE=ON: compiled-in w=8 table, no file I/O, validated by callgrind (0 file I/O ops). Medians \u22655 stable runs.",
-    "build": "SECP256K1_BUILD_SHIM=ON + SECP256K1_CORE_BACKEND_MODE=ON (static w=8 table, no external files). Ir ratio ultra/libsecp=1.009x; timing gap from data-cache access latency in verify path.",
+    "note": "Release without LTO. SECP256K1_CORE_BACKEND_MODE=ON: static w=8 table (no file I/O) + branchless wNAF digit sign. Medians \u22655 stable runs.",
+    "build": "SECP256K1_BUILD_SHIM=ON + SECP256K1_CORE_BACKEND_MODE=ON. Branchless wNAF: conditional_negate_assign replaces branchy if(d>0)/else in all 4 wNAF streams.",
     "ConnectBlockAllEcdsa_ms": {
-      "ultra": 254.6,
+      "ultra": 252.3,
       "libsecp": 248.6,
-      "ratio": 0.976
+      "ratio": 0.985
     },
     "ConnectBlockAllSchnorr_ms": {
-      "ultra": 252.7,
+      "ultra": 251.0,
       "libsecp": 246.4,
-      "ratio": 0.976
+      "ratio": 0.981
     },
     "ConnectBlockMixed_ms": {
-      "ultra": 254.5,
+      "ultra": 252.7,
       "libsecp": 248.7,
-      "ratio": 0.977
+      "ratio": 0.984
     },
     "SignSchnorrWithMerkleRoot_ns": {
       "ultra": 82300,
@@ -152,7 +152,7 @@
     "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). ConnectBlock parity is confirmed with LTO. For non-LTO builds, the 3% gap is a known trade-off of richer algorithms: signing 14-32% faster, verify paths equal or faster."
   },
   "known_limitations": [
-    "ConnectBlock -2.4% without LTO: 1% extra instructions + 1.4% data-cache latency from verify path memory access pattern. Confirmed: static w=8 and w=10 tables give identical results (table size is not the cause). LTO eliminates gap globally (ratio=1.00).",
+    "ConnectBlock 1.5-1.9% gap without LTO: field arithmetic latency difference (C++ FieldElement52 vs libsecp hand-tuned assembly). Branch misses reduced (2.1%\u21921.97%) by branchless wNAF sign handling. LTO eliminates gap (ratio=1.00).",
     "BIP324 ECDH: 2% within noise margin (no optimized CT ECDH for this path yet)"
   ]
 }
