@@ -25,6 +25,9 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Unbuffered stdout so progress shows in real-time in CI logs
+sys.stdout.reconfigure(line_buffering=True)
+
 # ── GitHub context ────────────────────────────────────────────────────────────
 API = "https://api.github.com"
 TOKEN = os.environ["GITHUB_TOKEN"]
@@ -187,11 +190,19 @@ def _notify_discord() -> None:
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         webhook, data=body, method="POST",
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            # Discord rejects requests without a User-Agent (returns 403)
+            "User-Agent": "UltrafastSecp256k1-CI-Orchestrator/1.0",
+        },
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        resp.read()
-    print(f"  Discord notified: {short} '{msg[:60]}...' by {author}")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+        print(f"  Discord notified: {short} '{msg[:60]}...' by {author}")
+    except urllib.error.HTTPError as exc:
+        # Discord notify is non-blocking — log and continue
+        print(f"  ::warning::Discord webhook returned HTTP {exc.code} (non-blocking)")
 
 
 def main() -> None:
