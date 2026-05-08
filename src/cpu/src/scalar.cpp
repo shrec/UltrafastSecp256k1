@@ -589,6 +589,7 @@ static inline int ctz64_var(uint64_t x) {
 
 // Exactly matches secp256k1_modinv64_divsteps_62_var
 __attribute__((always_inline))
+__attribute__((always_inline))
 static inline int64_t divsteps_62_var(int64_t eta, uint64_t f0, uint64_t g0, T2x2& t) {
     uint64_t u = 1, v = 0, q = 0, r = 1;
     uint64_t f = f0, g = g0, m = 0;
