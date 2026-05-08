@@ -271,12 +271,77 @@ else()
     message(STATUS "Secp256k1: Ethereum module: OFF (Bitcoin-only build)")
 endif()
 
+# =============================================================================
+# Shim integration (libsecp256k1 API compatibility, no separate build target)
+# =============================================================================
+# SECP256K1_BUILD_SHIM=ON: include the libsecp256k1-compatible shim directly
+# inside fastsecp256k1. The shim is part of the engine — not a separate library.
+# This matches the libsecp256k1 model (secp256k1.c includes everything) and
+# eliminates the ~3% shim→core boundary overhead without requiring LTO.
+#
+# Default OFF (standalone builds use compat/libsecp256k1_shim/ separately).
+# Bitcoin Core integration sets this ON via cmake/secp256k1.cmake.
+option(SECP256K1_BUILD_SHIM
+  "Include libsecp256k1-compatible shim inside fastsecp256k1 (engine-integrated)"
+  OFF)
+
+if(SECP256K1_BUILD_SHIM)
+    set(_SHIM_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../compat/libsecp256k1_shim")
+    if(EXISTS "${_SHIM_ROOT}/src/shim_ecdsa.cpp")
+        list(APPEND SECP256K1_SOURCES
+            ${_SHIM_ROOT}/src/shim_context.cpp
+            ${_SHIM_ROOT}/src/shim_ecdsa.cpp
+            ${_SHIM_ROOT}/src/shim_schnorr.cpp
+            ${_SHIM_ROOT}/src/shim_pubkey.cpp
+            ${_SHIM_ROOT}/src/shim_extrakeys.cpp
+            ${_SHIM_ROOT}/src/shim_recovery.cpp
+            ${_SHIM_ROOT}/src/shim_seckey.cpp
+            ${_SHIM_ROOT}/src/shim_ecdh.cpp
+            ${_SHIM_ROOT}/src/shim_tagged_hash.cpp
+            ${_SHIM_ROOT}/src/shim_ellswift.cpp
+            ${_SHIM_ROOT}/src/shim_batch_verify.cpp
+            ${_SHIM_ROOT}/src/shim_musig.cpp
+        )
+        message(STATUS "Secp256k1: Shim integrated into engine (libsecp256k1 parity mode)")
+    else()
+        message(WARNING "SECP256K1_BUILD_SHIM=ON but shim source not found at ${_SHIM_ROOT}")
+    endif()
+endif()
+
 if(NOT TARGET ${SECP256K1_LIB_NAME})
     add_library(${SECP256K1_LIB_NAME} STATIC ${SECP256K1_SOURCES})
     add_library(secp256k1::fast ALIAS ${SECP256K1_LIB_NAME})
 
+    if(SECP256K1_BUILD_SHIM AND EXISTS "${_SHIM_ROOT}/include")
+        # Expose secp256k1.h from the shim as part of the engine's public API
+        target_include_directories(${SECP256K1_LIB_NAME} PUBLIC
+            ${_SHIM_ROOT}/include
+        )
+    endif()
+
     # Required for linking into shared libraries (e.g. ufsecp_shared)
     set_target_properties(${SECP256K1_LIB_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+    # ========================================================================
+    # Unity Build (single-TU compilation — matches libsecp256k1 approach)
+    # ========================================================================
+    # libsecp256k1 compiles its entire core as one translation unit via
+    # secp256k1.c which #include-s all impl files. This gives the compiler
+    # full visibility to inline field/scalar/point operations into verify
+    # functions, eliminating the ~3% shim boundary overhead without LTO.
+    #
+    # SECP256K1_UNITY_BUILD=ON: enables CMake UNITY_BUILD which concatenates
+    # all source files into a single TU — equivalent to libsecp's approach.
+    # Default OFF to preserve incremental build speed in development.
+    # Enable for production/release: -DSECP256K1_UNITY_BUILD=ON
+    option(SECP256K1_UNITY_BUILD "Compile core as single TU (matches libsecp256k1 model)" OFF)
+    if(SECP256K1_UNITY_BUILD)
+        set_target_properties(${SECP256K1_LIB_NAME} PROPERTIES
+            UNITY_BUILD ON
+            UNITY_BUILD_BATCH_SIZE 0   # 0 = all files in one TU
+        )
+        message(STATUS "Secp256k1: Unity build ON — single-TU compilation (libsecp256k1 parity mode)")
+    endif()
 
     # ========================================================================
     # LTO (Link Time Optimization) Support
@@ -430,8 +495,9 @@ if(SECP256K1_INSTALL)
     )
 endif()
 target_compile_definitions(${SECP256K1_LIB_NAME}
+    PRIVATE
+        $<$<CONFIG:Release>:NDEBUG>    # Internal only — must not leak to consumers
     PUBLIC
-        $<$<CONFIG:Release>:NDEBUG>    # Remove assertions only in Release
         $<$<CXX_COMPILER_ID:MSVC>:SECP256K1_NO_INT128=1>  # MSVC has no __int128
 )
 

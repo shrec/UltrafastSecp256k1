@@ -395,7 +395,9 @@ endif()
 
 # -- libsecp256k1 compatibility shim (Bitcoin Core integration) ---------------
 if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
-    set(SECP256K1_SHIM_BUILD_TESTS ON CACHE BOOL "" FORCE)
+    # Default ON for standalone builds; parent project can override with FORCE before
+    # calling add_subdirectory (e.g. Bitcoin Core sets SECP256K1_SHIM_BUILD_TESTS OFF FORCE).
+    set(SECP256K1_SHIM_BUILD_TESTS ON CACHE BOOL "Build shim compatibility tests")
     add_subdirectory(compat/libsecp256k1_shim)
 endif()
 
