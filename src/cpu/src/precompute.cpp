@@ -2468,7 +2468,14 @@ __attribute__((no_sanitize("memory")))
 static bool load_precompute_from_static_w8() {
     using namespace secp256k1::fast::static_w8;
     auto ctx = std::make_unique<PrecomputeContext>();
-    ctx->config        = g_config;
+    ctx->config             = g_config;
+    // The static table always includes the GLV psi-tables.  Force enable_glv=true
+    // so validate_precompute_context() does not reject non-empty psi_tables when
+    // the global config still has the default enable_glv=false.
+    ctx->config.enable_glv  = true;
+    // Also force use_cache=false so a validation failure never falls back to
+    // the 244 MB file path.
+    ctx->config.use_cache   = false;
     ctx->window_bits   = static_cast<unsigned>(kWindowBits);
     ctx->window_count  = static_cast<unsigned>(kWindowCount);
     ctx->digit_count   = static_cast<std::size_t>(kDigitCount);
