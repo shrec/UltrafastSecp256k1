@@ -1,10 +1,12 @@
 # =============================================================================
-# CI — Inline v3.68 — no reusable platform-chain.yml
+# CI — Release blocking platform chain
+#
+# Dispatched by ci-orchestrator.yml Phase 2.  All jobs hard-fail on any
+# build/audit/correctness failure — no continue-on-error masking.
+# Advisory/experimental platforms live in ci-advisory.yml.
 # =============================================================================
 name: CI
 
-# push trigger removed — ci-orchestrator.yml handles push ordering.
-# ci.yml remains active for: pull_request (fast feedback), workflow_dispatch.
 on:
   workflow_dispatch:
     inputs:
@@ -14,10 +16,6 @@ on:
       orchestrator_run:
         required: false
         type: string
-      phase:
-        required: false
-        type: string
-        default: 'all'
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -129,11 +127,6 @@ jobs:
     name: "Linux / ${{ matrix.compiler }} / ${{ matrix.build_type }}"
     needs: [static-analysis]
     if: always() && needs.static-analysis.result == 'success'
-    # Advisory: unified_audit_runner shows widespread math test failures
-    # (Mathematical Invariants 22/23 FAIL) under -DSECP256K1_MARCH=x86-64-v2
-    # since recent perf commit. Local x86_64 selftest passes; investigation
-    # ongoing.
-    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -200,8 +193,6 @@ jobs:
     name: "Linux / clang-17 / ${{ matrix.build_type }}"
     needs: [static-analysis]
     if: always() && needs.static-analysis.result == 'success'
-    # Advisory: same scalar-mul KAT divergence as gcc Release.
-    continue-on-error: true
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -244,218 +235,6 @@ jobs:
         run: cmake --build out/build -j$(nproc)
       - name: Test
         run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|py_|exploit_gpu_)'
-
-  # ===========================================================================
-  # Linux Sanitizers (ASan/TSan/MSan)
-  # ===========================================================================
-  linux-sanitizers:
-    name: "Linux / ${{ matrix.sanitizer }}"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
-    # Advisory: scalar-mul KAT divergence under sanitizer instrumentation.
-    continue-on-error: true
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - sanitizer: asan
-            san_flags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
-            link_flags: "-fsanitize=address,undefined"
-          - sanitizer: tsan
-            san_flags: "-fsanitize=thread -fno-omit-frame-pointer"
-            link_flags: "-fsanitize=thread"
-          - sanitizer: msan
-            san_flags: "-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 -stdlib=libc++"
-            link_flags: "-fsanitize=memory -stdlib=libc++ -lc++abi"
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            clang-17 lld-17 libc++-17-dev libc++abi-17-dev ccache ninja-build
-      - name: CMake configure
-        env:
-          CC: clang-17
-          CXX: clang++-17
-        run: |
-          cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_FLAGS="${{ matrix.san_flags }}" \
-            -DCMAKE_CXX_FLAGS="${{ matrix.san_flags }}" \
-            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.link_flags }}" \
-            -DSECP256K1_USE_ASM=OFF \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_EXAMPLES=OFF
-      - name: Build
-        run: cmake --build out/build -j$(nproc)
-      - name: Test
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 900 -E '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
-
-  # ===========================================================================
-  # Linux ARM64 (cross-compile)
-  # ===========================================================================
-  linux-arm64:
-    name: "Linux / arm64 (cross)"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
-    # Advisory: ARM64 portable arithmetic path hits the same scalar-mul bug.
-    continue-on-error: true
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            g++-13-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross \
-            qemu-user-static ninja-build ccache
-      - name: CMake configure
-        env:
-          CC: aarch64-linux-gnu-gcc-13
-          CXX: aarch64-linux-gnu-g++-13
-        run: |
-          cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DSECP256K1_BUILD_METAL=OFF \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=OFF
-      - name: Build
-        run: cmake --build out/build -j$(nproc)
-      - name: Smoke test (QEMU)
-        run: |
-          SELFTEST=$(find out/build -name run_selftest -type f | head -1)
-          if [ -n "$SELFTEST" ]; then
-            timeout 360 qemu-aarch64-static -L /usr/aarch64-linux-gnu "$SELFTEST" smoke
-          else
-            echo "::warning::run_selftest not found — skipping QEMU smoke test"
-          fi
-
-  # ===========================================================================
-  # Windows (MSVC)
-  # ===========================================================================
-  windows:
-    name: "Windows / MSVC"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
-    # Advisory: MSVC __int128 portability + scalar-mul math bug compound here.
-    continue-on-error: true
-    runs-on: windows-latest
-    timeout-minutes: 60
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: CMake configure
-        run: |
-          cmake -S . -B out/build -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DSECP256K1_BUILD_TESTS=ON `
-            -DSECP256K1_BUILD_BENCH=ON `
-            -DSECP256K1_BUILD_EXAMPLES=OFF
-      - name: Build
-        run: cmake --build out/build --config Release -j $env:NUMBER_OF_PROCESSORS
-      - name: Test
-        run: ctest --test-dir out/build --output-on-failure -j $env:NUMBER_OF_PROCESSORS --timeout 300 --build-config Release -E '^ct_sidechannel'
-
-  # ===========================================================================
-  # macOS (apple-clang)
-  # ===========================================================================
-  macos:
-    name: "macOS / apple-clang"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
-    # Advisory: Apple Silicon ARM64 portable arithmetic path hits the same
-    # scalar-mul KAT divergence as Linux ARM64 / WASM / sanitizers.
-    continue-on-error: true
-    runs-on: macos-14
-    timeout-minutes: 60
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: CMake configure
-        run: |
-          cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=OFF
-      - name: Build
-        run: cmake --build out/build -j$(sysctl -n hw.logicalcpu)
-      - name: Test
-        run: ctest --test-dir out/build --output-on-failure -j$(sysctl -n hw.logicalcpu) --timeout 300 -E '^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)'
-
-  # ===========================================================================
-  # WASM (Emscripten)
-  # ===========================================================================
-  wasm:
-    name: "WASM / Emscripten"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
-    # Advisory: WASM lacks x86-64 asm so it uses portable arithmetic; recent
-    # perf work introduced a 2G/3G KAT mismatch under investigation. Mark
-    # advisory so it does not block the rest of the platform matrix.
-    continue-on-error: true
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Setup Emscripten SDK
-        uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021
-        with:
-          version: 3.1.51
-          actions-cache-folder: emsdk-cache
-      - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
-        with:
-          node-version: 20
-      - name: CMake configure
-        run: |
-          emcmake cmake -S bindings/wasm -B out/build \
-            -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build out/build -j$(nproc)
-      - name: Test (KAT equivalence)
-        run: |
-          if [ -f out/build/kat/wasm_kat_test.js ]; then
-            node out/build/kat/wasm_kat_test.js
-          else
-            echo "::warning::wasm_kat_test.js not found — skipping KAT test"
-          fi
 
   # ===========================================================================
   # Android NDK (arm64-v8a)
@@ -573,11 +352,6 @@ jobs:
       - static-analysis
       - linux-gcc
       - linux-clang
-      - linux-sanitizers
-      - linux-arm64
-      - windows
-      - macos
-      - wasm
       - android
       - coverage
     if: always()
@@ -603,20 +377,13 @@ jobs:
               fi
             fi
           }
-          # Hard-fail jobs (must succeed):
+          # ALL jobs hard-fail — no advisory masking. Any failure or
+          # cancellation in any platform job turns ci-verdict red.
           check "static-analysis"   "${{ needs.static-analysis.result }}"
+          check "linux-gcc"         "${{ needs.linux-gcc.result }}"
+          check "linux-clang"       "${{ needs.linux-clang.result }}"
           check "android"           "${{ needs.android.result }}"
-          # Advisory jobs (continue-on-error: true at job level — but
-          # needs.X.result still reflects the underlying conclusion, so we
-          # also mark them advisory here to keep ci-verdict green):
-          check "linux-gcc"         "${{ needs.linux-gcc.result }}"         0
-          check "linux-clang"       "${{ needs.linux-clang.result }}"       0
-          check "linux-sanitizers"  "${{ needs.linux-sanitizers.result }}"  0
-          check "linux-arm64"       "${{ needs.linux-arm64.result }}"       0
-          check "windows"           "${{ needs.windows.result }}"           0
-          check "macos"             "${{ needs.macos.result }}"             0
-          check "wasm"              "${{ needs.wasm.result }}"              0
-          check "coverage"          "${{ needs.coverage.result }}"          0
+          check "coverage"          "${{ needs.coverage.result }}"
           [ "$FAILED" -eq 0 ] || { echo "::error::One or more required jobs failed"; exit 1; }
           echo "::notice::All required jobs passed"
         shell: bash
