@@ -832,6 +832,30 @@ PYEOF
         shell: bash
 
   # ===========================================================================
+  # ── Preflight call  (push-only — on PRs preflight.yml runs via pull_request)
+  # Called here so security invariants, CAAS smoke, and code quality run on push
+  # AFTER the static gate (not in a parallel unordered workflow).
+  # ===========================================================================
+  call-preflight:
+    name: "Preflight (push)"
+    needs: [static-gate]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/preflight.yml
+    secrets: inherit
+
+  # ===========================================================================
+  # ── Security Audit call  (push-only — deep sanitizer/valgrind suite)
+  # Runs in parallel with platform chains after the sanitizer gate passes.
+  # On PRs, security-audit.yml fires via its pull_request trigger if needed.
+  # ===========================================================================
+  call-security-audit:
+    name: "Security Audit (push)"
+    needs: [sanitizer-gate]
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/security-audit.yml
+    secrets: inherit
+
+  # ===========================================================================
   # ── Final Verdict
   # ===========================================================================
 
@@ -840,6 +864,8 @@ PYEOF
     needs:
       - static-gate
       - sanitizer-gate
+      - call-preflight
+      - call-security-audit
       - codeql
       - sonarcloud
       - chain-gcc-14
@@ -879,12 +905,22 @@ PYEOF
             exit 1
           fi
           # static-gate aggregates static-analysis + codeql + sonarcloud.
-          # A CodeQL failure skips all platform chains but leaves static-analysis=success,
-          # so ci-verdict must also check static-gate directly.
           SG="${{ needs.static-gate.result }}"
           if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
-            echo "::error::static-gate → $SG (CodeQL/SonarCloud failure; all platform chains were skipped)"
+            echo "::error::static-gate → $SG"
             exit 1
+          fi
+
+          # Preflight and security-audit are push-only; 'skipped' on PRs is fine.
+          PF="${{ needs.call-preflight.result }}"
+          if [ "$PF" = "failure" ] || [ "$PF" = "cancelled" ]; then
+            echo "::error::preflight → $PF"
+            FAILED=1
+          fi
+          SA2="${{ needs.call-security-audit.result }}"
+          if [ "$SA2" = "failure" ] || [ "$SA2" = "cancelled" ]; then
+            echo "::error::security-audit → $SA2"
+            FAILED=1
           fi
 
           # Map: platform-label → chain result

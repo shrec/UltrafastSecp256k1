@@ -47,6 +47,28 @@ static secp256k1_context_struct g_static_ctx = {
 static void shim_ensure_fixed_base() {
     static std::once_flag once;
     std::call_once(once, []() {
+#if defined(SECP256K1_CORE_BACKEND_MODE)
+        // Bitcoin Core backend mode: use a compact in-memory precomputed table
+        // (window_bits=8, 16 KB, always built without file I/O).
+        //
+        // Rationale: the default config.ini is auto-created with window_bits=18
+        // and use_cache=true, which causes a 244 MB binary file to be loaded or
+        // generated on every fresh process start — adding ~50-100 ms startup
+        // overhead amortised as ~3% across ConnectBlock benchmark iterations.
+        //
+        // Env-var overrides are still honoured so operators can opt in to a
+        // larger precomputed table when hosting a high-frequency signing service.
+        if (secp256k1::fast::configure_fixed_base_from_env()) return;
+
+        {
+            secp256k1::fast::FixedBaseConfig cfg{};
+            cfg.window_bits = 8;   // 256 precomputed multiples, 16 KB, fits L1
+            cfg.use_cache   = false; // never read/write files
+            cfg.enable_glv  = true;
+            secp256k1::fast::configure_fixed_base(cfg);
+        }
+        return;
+#else
         // Resolution order (first success wins):
         //   1. SECP256K1_CONFIG env var  -> config file path
         //   2. SECP256K1_CACHE_PATH env var -> direct .bin path
@@ -71,7 +93,7 @@ static void shim_ensure_fixed_base() {
         // Auto-detect: uses whatever precomputed tables exist on this machine,
         // falling back to w=8 (always available, no external file required).
         secp256k1::fast::configure_fixed_base_auto();
-
+#endif
     });
 }
 
