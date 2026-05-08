@@ -128,6 +128,7 @@ jobs:
   linux-gcc:
     name: "Linux / ${{ matrix.compiler }} / ${{ matrix.build_type }}"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -193,6 +194,7 @@ jobs:
   linux-clang:
     name: "Linux / clang-17 / ${{ matrix.build_type }}"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -242,6 +244,7 @@ jobs:
   linux-sanitizers:
     name: "Linux / ${{ matrix.sanitizer }}"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -295,6 +298,7 @@ jobs:
   linux-arm64:
     name: "Linux / arm64 (cross)"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -341,6 +345,7 @@ jobs:
   windows:
     name: "Windows / MSVC"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -369,6 +374,7 @@ jobs:
   macos:
     name: "macOS / apple-clang"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: macos-14
     timeout-minutes: 60
     steps:
@@ -397,6 +403,7 @@ jobs:
   wasm:
     name: "WASM / Emscripten"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -436,6 +443,7 @@ jobs:
   android:
     name: "Android / arm64-v8a"
     needs: [static-analysis]
+    if: needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
