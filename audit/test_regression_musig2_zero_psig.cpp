@@ -21,6 +21,7 @@
 static int g_fail = 0;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
 #define ASSERT_FALSE(cond, msg) do { if ( (cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
+#define CHECK_OK(expr, msg)     ASSERT_TRUE((expr) == UFSECP_OK, msg)
 
 // Helper: build a 2-of-2 musig2 state through nonce generation + session creation.
 struct MuSig2State {

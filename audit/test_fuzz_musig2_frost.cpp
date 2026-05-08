@@ -43,6 +43,7 @@
 static int g_pass = 0, g_fail = 0;
 #include "audit_check.hpp"
 
+#define CHECK_OK(expr, msg) CHECK((expr) == UFSECP_OK, msg)
 #define MUST_NOT_CRASH(expr, label) do { \
     (expr); \
     ++g_pass; \
