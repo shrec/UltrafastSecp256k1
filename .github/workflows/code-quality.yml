@@ -2,17 +2,15 @@
 #
 # Runs all three code-quality scanners on every push/PR to dev/main.
 # Fails the workflow if any severity count exceeds the committed baseline
-# in ci/code_quality_baseline.json.
+# in scripts/code_quality_baseline.json.
 
 name: Code Quality
 
-# push trigger removed — code-quality runs as part of ci.yml orchestration
-# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  workflow_call:
-  workflow_dispatch:
+  push:
+    branches: [main, dev]
   pull_request:
-    branches: [dev, main]
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -41,7 +39,7 @@ jobs:
 
       - name: Run code-quality scanners (regression gate)
         run: |
-          python3 ci/run_code_quality.py \
+          python3 scripts/run_code_quality.py \
             --fail-on-regression \
             --github-summary \
             --json -o code_quality_report.json
@@ -50,8 +48,7 @@ jobs:
 
       - name: Human-readable summary
         if: always()
-        continue-on-error: true
-        run: python3 ci/run_code_quality.py
+        run: python3 scripts/run_code_quality.py 2>/dev/null || true
         env:
           NO_COLOR: "1"
 
@@ -59,6 +56,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: code-quality-report-${{ github.run_id }}
+          name: code-quality-report
           path: code_quality_report.json
           retention-days: 30

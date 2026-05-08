@@ -1,16 +1,14 @@
 name: SonarCloud
 
-# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
-# Also available for manual replay via workflow_dispatch.
-# SonarCloud is an external static code analyzer (SonarQube Cloud) — it only
-# needs build-wrapper output (compile_commands.json) for analysis.
-# No audit tests or coverage collection are run here.
 on:
-  workflow_call:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:
-  group: sonarcloud-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -19,8 +17,9 @@ permissions:
 jobs:
   sonarcloud:
     name: SonarCloud Analysis
-    # Skip fork PRs: GitHub blocks secrets on pull_request from forks.
-    # Fork contributors see results after the PR is merged.
+    # Skip for fork PRs: GitHub does not pass secrets to pull_request events
+    # from forks (security design). SonarCloud runs on push to main/dev and on
+    # non-fork PRs. Fork contributors see results after the PR is merged.
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -32,68 +31,114 @@ jobs:
       BUILD_WRAPPER_OUT_DIR: build-wrapper-output
 
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 0  # full history for blame / new-code detection
+          fetch-depth: 0  # Full history for blame / new-code detection
 
-      - name: Install compiler and tools
+      - name: Install compiler
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            clang-17 lld-17 llvm-17 ninja-build ccache
+          sudo apt-get install -y clang-17 lld-17 ninja-build ccache
 
       - name: Cache ccache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sonar-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
+          key: ccache-sonar-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sonar-
 
       - name: Configure ccache
         run: |
-          CCACHE=$(command -v ccache || true)
-          if [ -n "$CCACHE" ]; then
-            "$CCACHE" --set-config=max_size=200M
-            "$CCACHE" --set-config=compression=true
-            "$CCACHE" -z
-          fi
+          ccache --set-config=max_size=200M
+          ccache --set-config=compression=true
+          ccache -z
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
 
       - name: Install SonarCloud build-wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
 
-      - name: Build with build-wrapper
-        env:
-          CC:  clang-17
-          CXX: clang++-17
+      - name: Build with build-wrapper (coverage-instrumented)
         run: |
-          CCACHE=$(command -v ccache || true)
-          LAUNCHER_ARGS=""
-          if [ -n "$CCACHE" ]; then
-            LAUNCHER_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE} -DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
-          fi
+          export CC=clang-17 CXX=clang++-17
           cmake -S . -B build/sonar -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            $LAUNCHER_ARGS \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DSECP256K1_USE_ASM=OFF
+            -DSECP256K1_USE_ASM=OFF \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} \
+            cmake --build build/sonar -j$(nproc)
 
-          JOBS=$(nproc 2>/dev/null || echo 4)
-          build-wrapper-linux-x86-64 \
-            --out-dir "${{ env.BUILD_WRAPPER_OUT_DIR }}" \
-            cmake --build build/sonar -j"$JOBS"
+      - name: Run tests (generate coverage data)
+        run: |
+          ctest --test-dir build/sonar --output-on-failure -j$(nproc) -E "^ct_sidechannel"
+        env:
+          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
+
+      - name: Collect coverage (llvm-cov)
+        run: |
+          # Find profraw files wherever they ended up
+          PROFRAW=$(find build/sonar -name '*.profraw' 2>/dev/null)
+          if [ -z "$PROFRAW" ]; then
+            echo "::warning::No profraw files found, skipping coverage collection"
+            exit 0
+          fi
+          echo "Found profraw files:"
+          echo "$PROFRAW"
+          llvm-profdata-17 merge -sparse $PROFRAW -o build/sonar/merged.profdata
+
+          # Use run_selftest as primary binary (links the full library)
+          MAIN_BIN=$(find build/sonar -name 'run_selftest' -type f -executable | head -1)
+          if [ -z "$MAIN_BIN" ]; then
+            echo "::error::run_selftest binary not found"
+            exit 1
+          fi
+          echo "Primary binary: $MAIN_BIN"
+
+          # Add standalone test binaries as additional objects
+          STANDALONE=$(find build/sonar -name 'test_*_standalone' -type f -executable 2>/dev/null)
+          OBJECT_ARGS=""
+          for bin in $STANDALONE; do
+            OBJECT_ARGS="$OBJECT_ARGS -object $bin"
+            echo "  +object: $bin"
+          done
+
+          llvm-cov-17 show \
+            "$MAIN_BIN" $OBJECT_ARGS \
+            -instr-profile=build/sonar/merged.profdata \
+            --show-line-counts-or-regions \
+            > build/sonar/llvm-cov-report.txt
+
+          # Verify report has content
+          LINES=$(wc -l < build/sonar/llvm-cov-report.txt)
+          echo "Coverage report: $LINES lines"
+          if [ "$LINES" -lt 10 ]; then
+            echo "::warning::Coverage report is suspiciously small ($LINES lines)"
+          fi
 
       - name: Run SonarCloud scan
-        continue-on-error: true   # Quality Gate failures are advisory
+        # Quality Gate failures are advisory; do not block CI for non-owners.
+        # We already skip fork PRs above, but keep this as a safety net.
+        continue-on-error: true
         uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -101,6 +146,7 @@ jobs:
         with:
           args: >
             -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
+            -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
             -Dsonar.host.url=https://sonarcloud.io
 
       - name: Quality Gate diagnostic
@@ -108,32 +154,22 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          REPORT_TASK=".scannerwork/report-task.txt"
-          if [ ! -f "$REPORT_TASK" ]; then
-            echo "report-task.txt not found — scan may have been skipped"
-            exit 0
-          fi
-          TASK_ID=$(grep ceTaskId "$REPORT_TASK" | cut -d= -f2)
+          # Wait for the CE task to finish processing the uploaded report
+          TASK_ID=$(grep ceTaskId .scannerwork/report-task.txt | cut -d= -f2)
           echo "CE Task ID: $TASK_ID"
-          CURL=$(command -v curl || { echo "::warning::curl not found"; exit 0; })
           for i in $(seq 1 60); do
-            TASK_JSON=$("$CURL" -sf \
-              -H "Authorization: Bearer $SONAR_TOKEN" \
-              "https://sonarcloud.io/api/ce/task?id=${TASK_ID}&additionalFields=warnings")
-            STATUS=$(echo "$TASK_JSON" | python3 -c \
-              "import json,sys; d=json.load(sys.stdin); print(d.get('task',{}).get('status','UNKNOWN'))" \
-              2>/dev/null || echo "UNKNOWN")
+            TASK_JSON=$(curl -s -H "Authorization: Bearer $SONAR_TOKEN" \
+              "https://sonarcloud.io/api/ce/task?id=$TASK_ID&additionalFields=warnings")
+            STATUS=$(echo "$TASK_JSON" | jq -r '.task.status // "UNKNOWN"')
             echo "  Attempt $i: status=$STATUS"
             if [ "$STATUS" = "SUCCESS" ] || [ "$STATUS" = "FAILED" ]; then
-              ANALYSIS_ID=$(echo "$TASK_JSON" | python3 -c \
-                "import json,sys; d=json.load(sys.stdin); print(d.get('task',{}).get('analysisId',''))" \
-                2>/dev/null || true)
+              ANALYSIS_ID=$(echo "$TASK_JSON" | jq -r '.task.analysisId // empty')
+              echo "Analysis ID: $ANALYSIS_ID"
+              # Try quality gate by analysis ID
               if [ -n "$ANALYSIS_ID" ]; then
-                "$CURL" -sf \
-                  -H "Authorization: Bearer $SONAR_TOKEN" \
-                  "https://sonarcloud.io/api/qualitygates/project_status?analysisId=${ANALYSIS_ID}" \
-                  | python3 -m json.tool 2>/dev/null \
-                  || echo "(quality gate query blocked by free plan)"
+                curl -s -H "Authorization: Bearer $SONAR_TOKEN" \
+                  "https://sonarcloud.io/api/qualitygates/project_status?analysisId=$ANALYSIS_ID" \
+                  | jq '.' 2>/dev/null || echo "(quality gate query blocked by free plan)"
               fi
               break
             fi

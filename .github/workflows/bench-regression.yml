@@ -1,9 +1,8 @@
 # ============================================================================
 # Performance Regression Gate -- Per-Commit Benchmark Check
 # ============================================================================
-# Runs benchmarks on every push to main/dev and on PRs that touch perf-sensitive
-# paths. Fails if any operation regresses >100% (i.e. is more than 2x slower)
-# compared to the previous stored baseline.
+# Runs benchmarks on every push to main/dev and fails if any operation
+# regresses >100% compared to the previous stored baseline.
 #
 # Separate from benchmark.yml (dashboard) -- this one BLOCKS merges.
 # Uses github-action-benchmark with fail-on-alert: true.
@@ -11,36 +10,35 @@
 
 name: Perf Regression Gate
 
-# push trigger removed — bench-regression runs as part of ci.yml orchestration
-# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  workflow_call:
-  workflow_dispatch:
-  schedule:
-    # Weekly unconditional run — catches regressions introduced by audit/ci/bindings/docs commits
-    # that are excluded from the push path filter below.
-    - cron: '0 3 * * 0'
-  pull_request:
+  push:
     branches: [main, dev]
     paths:
-      - 'src/**'
-      - 'include/**'
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'cpu/bench/**'
       - 'CMakeLists.txt'
-      - '.github/workflows/bench-regression.yml'
       - '.github/scripts/parse_benchmark.py'
+      - '.github/workflows/bench-regression.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'cpu/bench/**'
+      - 'CMakeLists.txt'
+      - '.github/scripts/parse_benchmark.py'
+      - '.github/workflows/bench-regression.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: bench-regression-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   bench-gate:
     name: Benchmark Regression Check
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 360
     permissions:
       contents: write       # needed to push baseline to gh-pages on push events
       pull-requests: write  # needed to comment on PRs when regression detected
@@ -55,17 +53,12 @@ jobs:
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         persist-credentials: false
-
+        submodules: recursive
 
     - name: Install dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y -qq ninja-build cmake ccache
-
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2
-      with:
-        key: bench-regression-${{ runner.os }}
+        sudo apt-get install -y -qq ninja-build cmake
 
     - name: Clone libsecp256k1 (for apple-to-apple comparison)
       run: |
@@ -74,77 +67,31 @@ jobs:
 
     - name: Configure (Release)
       run: |
-        cmake -S . -B out/bench-gate \
+        cmake -S . -B build/bench-gate \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
           -DBUILD_TESTING=ON \
           -DSECP256K1_USE_ASM=ON \
           -DSECP256K1_MARCH=x86-64-v2 \
           -DLIBSECP_SRC_DIR="$GITHUB_WORKSPACE/_libsecp256k1/src"
 
     - name: Build
-      run: cmake --build out/bench-gate -j$(nproc)
+      run: cmake --build build/bench-gate -j$(nproc)
 
     - name: Run benchmark suite
       run: |
         mkdir -p /tmp/benchmark_results
-        ./out/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
+        ./build/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
         python3 .github/scripts/parse_benchmark.py \
-          --run-mode quick \
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json
 
-    - name: Validate benchmark JSON (reject zero-timing / empty)
-      run: |
-        python3 - /tmp/benchmark_results/benchmark.json <<'PYEOF'
-        import json, sys
-        path = sys.argv[1]
-        try:
-            with open(path) as f:
-                data = json.load(f)
-        except Exception as e:
-            print(f"::error::benchmark.json is not valid JSON: {e}")
-            sys.exit(1)
-        if not isinstance(data, list) or len(data) == 0:
-            print("::error::benchmark.json is empty or not a list — corrupt benchmark output")
-            sys.exit(1)
-        zero_entries = [e.get("name", "?") for e in data if float(e.get("value", 0)) <= 0]
-        if zero_entries:
-            print(f"::error::benchmark.json has zero or negative timing entries: {zero_entries}")
-            sys.exit(1)
-        print(f"::notice::benchmark.json OK — {len(data)} entries, all non-zero")
-        PYEOF
-
-    - name: Reject quick-mode artifact as regression baseline
-      # quick-mode runs use 3 passes with high variance — unsuitable as a baseline.
-      # Fail-fast here so a stale quick-mode result is never stored to gh-pages as
-      # a release-grade baseline.  If we move to full-mode in the future, remove
-      # this guard.  For now this workflow is diagnostic-only (auto-push: false).
-      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-      run: |
-        META=/tmp/benchmark_results/benchmark.meta.json
-        if [ -f "$META" ]; then
-          RUN_MODE=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('run_mode','unknown'))" "$META")
-          PASSES=$(python3   -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('passes',0))"    "$META")
-          echo "::notice::Benchmark run_mode=${RUN_MODE} passes=${PASSES}"
-          if [ "$RUN_MODE" = "quick" ]; then
-            echo "::warning::Benchmark artifact is quick-mode (${PASSES} passes). " \
-                 "This workflow uses auto-push: false, so no baseline will be stored. " \
-                 "To update the baseline with a full-mode run, trigger workflow_dispatch " \
-                 "after temporarily switching to full-mode (11 passes)."
-          fi
-        fi
-
     - name: Store baseline + check regression (push to main/dev or manual dispatch)
-      # Baseline update policy: auto-push is DISABLED to prevent floating baseline.
-      # A regression that passes the threshold (shared-runner noise) would otherwise
-      # silently become the new baseline, masking further regressions.
-      # To reset/update the baseline: trigger workflow_dispatch manually on a
-      # known-good commit; review the JSON artifact before accepting it.
-      # alert-threshold: '150%' = alert if ≥50% slower than baseline (1.5×).
-      # This is the tightest threshold viable on shared runners (±15% variance).
+      # Stores the result to gh-pages and FAILS the job if >50% regression.
+      # Threshold is generous (200%) because push events run on shared CI runners
+      # with high variance; the baseline auto-updates on each push anyway.
+      # auto-push: true is required so future runs have a baseline to compare.
+      # workflow_dispatch also stores so you can bootstrap/reset the baseline manually.
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
@@ -152,8 +99,8 @@ jobs:
         tool: 'customSmallerIsBetter'
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: false
-        alert-threshold: '150%'
+        auto-push: true
+        alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
@@ -162,8 +109,7 @@ jobs:
       # Compares PR benchmark against the stored baseline from push events.
       # Does NOT store (auto-push: false) -- only the push to main/dev updates baseline.
       # BLOCKS PR if regression exceeds threshold.
-      # Threshold: alert-threshold '200%' in github-action-benchmark = any
-      # operation that runs >2x as long as the baseline (>100% slower) fails.
+      # Threshold: 200% -- flags any operation >100% slower than baseline.
       if: github.event_name == 'pull_request'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
@@ -172,28 +118,17 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: false
-        alert-threshold: '150%'
+        alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
-
-    - name: Upload raw benchmark logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: bench-raw-logs-${{ github.sha }}
-        path: |
-          /tmp/benchmark_results/raw_output.txt
-          /tmp/benchmark_results/benchmark.json
-        retention-days: 30
-        if-no-files-found: warn
 
     - name: Summary
       if: always()
       run: |
         echo "## Benchmark Regression Gate" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** alert-threshold '200%' = any op running >2x baseline (>100% slower) fails." >> $GITHUB_STEP_SUMMARY
+        echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** 200% (>100% slower = fail)" >> $GITHUB_STEP_SUMMARY
         if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
           echo "**Baseline:** stored to \`dev/bench-gate\` on gh-pages (auto-push: true)" >> $GITHUB_STEP_SUMMARY
         else

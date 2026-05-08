@@ -1,6 +1,20 @@
 name: ClusterFuzzLite
 
 on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cflite.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cpu/**'
+      - 'include/**'
+      - '.clusterfuzzlite/**'
+      - '.github/workflows/cflite.yml'
   workflow_dispatch:
     inputs:
       fuzz_seconds:

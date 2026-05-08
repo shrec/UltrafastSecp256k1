@@ -8,6 +8,7 @@ name: SLSA Provenance + Cosign
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -28,17 +29,15 @@ jobs:
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-  
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
 
       - name: Install build deps
         run: |
           sudo apt-get update -qq
-          # L-3 fix: use g++-13 (consistent with all other workflows).
-          # g++-14 requires ubuntu-toolchain-r PPA on ubuntu-24.04 and was
-          # causing SLSA provenance generation to fail on release tags.
           sudo apt-get install -y --no-install-recommends \
-              cmake ninja-build g++-13 libssl-dev
+              cmake ninja-build g++-14 libssl-dev
 
       - name: Configure
         run: |
@@ -46,8 +45,8 @@ jobs:
                 -B build-slsa \
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_C_COMPILER=gcc-13 \
-                -DCMAKE_CXX_COMPILER=g++-13
+                -DCMAKE_C_COMPILER=gcc-14 \
+                -DCMAKE_CXX_COMPILER=g++-14
 
       - name: Build
         run: cmake --build build-slsa --parallel

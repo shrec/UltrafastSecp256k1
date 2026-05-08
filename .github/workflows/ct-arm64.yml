@@ -10,6 +10,13 @@
 name: CT ARM64 (dudect native)
 
 on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly 04:00 UTC -- extended dudect on ARM64
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       timeout_seconds:

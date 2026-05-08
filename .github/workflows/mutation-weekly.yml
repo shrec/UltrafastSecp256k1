@@ -7,6 +7,9 @@ name: mutation-weekly
 # remains the owner-grade pre-release run.
 
 on:
+  schedule:
+    # Sunday 03:30 UTC — outside CI peak hours.
+    - cron: '30 3 * * 0'
   workflow_dispatch:
     inputs:
       threshold:
@@ -55,7 +58,7 @@ jobs:
           THRESHOLD: ${{ github.event.inputs.threshold || '75' }}
         run: |
           set +e
-          python3 ci/mutation_kill_rate.py \
+          python3 scripts/mutation_kill_rate.py \
               --build-dir build_rel \
               --threshold "$THRESHOLD" \
               --json -o mutation_report.json

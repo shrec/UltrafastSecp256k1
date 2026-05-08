@@ -5,7 +5,7 @@
 # that depends on secret key material. Zero reports = CT proven at binary
 # level for the tested paths.
 #
-# Wraps ci/valgrind_ct_check.sh which:
+# Wraps scripts/valgrind_ct_check.sh which:
 #   1. Builds with -DVALGRIND_CT_CHECK=1 (marks secrets as undefined)
 #   2. Runs CT ops under valgrind --tool=memcheck --track-origins=yes
 #   3. Reports "Conditional jump depends on uninitialised value" as FAIL
@@ -16,6 +16,21 @@
 name: Valgrind CT Taint
 
 on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'audit/**'
+      - 'scripts/valgrind_ct_check.sh'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cpu/src/**'
+      - 'cpu/include/**'
+      - 'audit/**'
+  schedule:
+    - cron: '30 3 * * *'   # Nightly at 03:30 UTC
   workflow_dispatch:
 
 permissions:
@@ -23,7 +38,7 @@ permissions:
 
 jobs:
   valgrind-ct:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
@@ -34,7 +49,8 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
+      with:
+        submodules: recursive
 
     - name: Install dependencies
       run: |
@@ -43,8 +59,8 @@ jobs:
 
     - name: Run Valgrind CT analysis
       run: |
-        chmod +x ci/valgrind_ct_check.sh
-        ./scripts/valgrind_ct_check.sh out/valgrind-ct
+        chmod +x scripts/valgrind_ct_check.sh
+        ./scripts/valgrind_ct_check.sh build/valgrind-ct
 
     - name: Upload Valgrind reports
       if: always()
@@ -52,15 +68,15 @@ jobs:
       with:
         name: valgrind-ct-reports
         path: |
-          out/valgrind-ct/valgrind_reports/valgrind_ct_report.json
-          out/valgrind-ct/valgrind_reports/valgrind_ct.log
-          out/valgrind-ct/valgrind_reports/valgrind_ct.xml
+          build/valgrind-ct/valgrind_reports/valgrind_ct_report.json
+          build/valgrind-ct/valgrind_reports/valgrind_ct.log
+          build/valgrind-ct/valgrind_reports/valgrind_ct.xml
         retention-days: 30
 
     - name: Summary
       if: always()
       run: |
-        REPORT="out/valgrind-ct/valgrind_reports/valgrind_ct_report.json"
+        REPORT="build/valgrind-ct/valgrind_reports/valgrind_ct_report.json"
         if [ -f "$REPORT" ]; then
           echo "## Valgrind CT Taint Analysis" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY

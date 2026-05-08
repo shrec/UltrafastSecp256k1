@@ -1,0 +1,97 @@
+name: Cppcheck
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cppcheck:
+    name: Static Analysis (Cppcheck)
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write  # upload SARIF to Security tab
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cppcheck ninja-build python3-pip
+          pip3 install --require-hashes --no-deps -r .github/requirements/cppcheck.txt 2>/dev/null || true
+
+      - name: Configure (generate compile_commands.json)
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+
+      - name: Run Cppcheck (XML output)
+        run: |
+          cppcheck \
+            --project=build/compile_commands.json \
+            --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=unusedFunction \
+            --suppressions-list=.cppcheck-suppressions \
+            --inline-suppr \
+            --error-exitcode=0 \
+            --std=c++20 \
+            --xml \
+            2> cppcheck-results.xml
+
+      - name: Convert to SARIF
+        run: |
+          # Try cppcheck built-in SARIF output (>= 2.13)
+          if ! cppcheck \
+            --project=build/compile_commands.json \
+            --enable=warning,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=unusedFunction \
+            --suppressions-list=.cppcheck-suppressions \
+            --inline-suppr \
+            --error-exitcode=0 \
+            --std=c++20 \
+            --output-file=cppcheck-results.sarif \
+            --output-format=sarif 2>/dev/null; then
+            # Fallback: convert XML -> SARIF with external script
+            python3 .github/scripts/xml2sarif.py cppcheck-results.xml cppcheck-results.sarif
+          fi
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: cppcheck-results.sarif
+          category: cppcheck
+        continue-on-error: true
+
+      - name: Upload Cppcheck XML report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cppcheck-report
+          path: |
+            cppcheck-results.xml
+            cppcheck-results.sarif
+          retention-days: 30
