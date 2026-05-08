@@ -2,6 +2,9 @@ name: SonarCloud
 
 # Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
 # Also available for manual replay via workflow_dispatch.
+# SonarCloud is an external static code analyzer (SonarQube Cloud) — it only
+# needs build-wrapper output (compile_commands.json) for analysis.
+# No audit tests or coverage collection are run here.
 on:
   workflow_call:
   workflow_dispatch:
@@ -61,21 +64,10 @@ jobs:
             "$CCACHE" -z
           fi
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Python audit dependencies
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" -m pip install --require-hashes \
-            -r .github/requirements/audit-deps.txt
-
       - name: Install SonarCloud build-wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
 
-      - name: Build with build-wrapper (coverage-instrumented)
+      - name: Build with build-wrapper
         env:
           CC:  clang-17
           CXX: clang++-17
@@ -90,76 +82,15 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             $LAUNCHER_ARGS \
             -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DSECP256K1_USE_ASM=OFF \
-            "-DCMAKE_C_FLAGS=-fprofile-instr-generate -fcoverage-mapping" \
-            "-DCMAKE_CXX_FLAGS=-fprofile-instr-generate -fcoverage-mapping"
+            -DSECP256K1_USE_ASM=OFF
 
           JOBS=$(nproc 2>/dev/null || echo 4)
           build-wrapper-linux-x86-64 \
             --out-dir "${{ env.BUILD_WRAPPER_OUT_DIR }}" \
             cmake --build build/sonar -j"$JOBS"
-
-      - name: Run tests (generate coverage data)
-        env:
-          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
-        run: |
-          CTEST=$(command -v ctest)
-          JOBS=$(nproc 2>/dev/null || echo 4)
-          "$CTEST" --test-dir build/sonar \
-            --output-on-failure \
-            -j"$JOBS" \
-            -E "^ct_sidechannel"
-
-      - name: Collect coverage (llvm-cov)
-        run: |
-          # Resolve llvm tools from PATH — prefer versioned, fall back to unversioned
-          LLVM_PROFDATA=$(command -v llvm-profdata-17 \
-            || command -v llvm-profdata \
-            || { echo "::error::llvm-profdata not found on PATH"; exit 1; })
-          LLVM_COV=$(command -v llvm-cov-17 \
-            || command -v llvm-cov \
-            || { echo "::error::llvm-cov not found on PATH"; exit 1; })
-
-          echo "Using: $LLVM_PROFDATA  $LLVM_COV"
-
-          # Merge raw profiles
-          PROFRAW=$(find build/sonar -name '*.profraw' 2>/dev/null)
-          if [ -z "$PROFRAW" ]; then
-            echo "::warning::No profraw files found — skipping coverage collection"
-            exit 0
-          fi
-          # shellcheck disable=SC2086
-          "$LLVM_PROFDATA" merge -sparse $PROFRAW \
-            -o build/sonar/merged.profdata
-
-          # Primary binary (links full library)
-          MAIN_BIN=$(find build/sonar -name 'run_selftest' -type f | head -1)
-          if [ -z "$MAIN_BIN" ]; then
-            echo "::error::run_selftest binary not found"
-            exit 1
-          fi
-
-          # Additional standalone test binaries
-          OBJECT_ARGS=()
-          while IFS= read -r bin; do
-            OBJECT_ARGS+=("-object" "$bin")
-          done < <(find build/sonar -name 'test_*_standalone' -type f 2>/dev/null)
-
-          "$LLVM_COV" show \
-            "$MAIN_BIN" \
-            "${OBJECT_ARGS[@]}" \
-            -instr-profile=build/sonar/merged.profdata \
-            --show-line-counts-or-regions \
-            > build/sonar/llvm-cov-report.txt
-
-          LINES=$(wc -l < build/sonar/llvm-cov-report.txt)
-          echo "Coverage report: $LINES lines"
-          if [ "$LINES" -lt 10 ]; then
-            echo "::warning::Coverage report suspiciously small ($LINES lines)"
-          fi
 
       - name: Run SonarCloud scan
         continue-on-error: true   # Quality Gate failures are advisory
@@ -170,7 +101,6 @@ jobs:
         with:
           args: >
             -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
-            -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
             -Dsonar.host.url=https://sonarcloud.io
 
       - name: Quality Gate diagnostic
