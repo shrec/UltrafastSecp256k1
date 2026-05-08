@@ -27,12 +27,12 @@
     "BIP324_ECDH_ns":            { "ultra": 48660,  "libsecp": 47887,  "ratio": 0.98 }
   },
   "results_nolto": {
-    "note": "Release without LTO. Medians from ≥3 stable runs (i5-14400F, performance governor, turbo off, taskset -c 0).",
-    "build": "SECP256K1_BUILD_SHIM=ON (shim compiled into engine, ODR-safe stub wrapper)",
-    "ConnectBlockAllEcdsa_ms":   { "ultra": 255.2, "libsecp": 248.6, "ratio": 0.97 },
-    "ConnectBlockAllSchnorr_ms": { "ultra": 253.4, "libsecp": 246.4, "ratio": 0.97 },
-    "ConnectBlockMixed_ms":      { "ultra": 255.5, "libsecp": 248.7, "ratio": 0.97 },
-    "SignSchnorrWithMerkleRoot_ns": { "ultra": 82600, "libsecp": 109000, "ratio": 1.32 },
+    "note": "Release without LTO. SECP256K1_CORE_BACKEND_MODE=ON: compiled-in w=8 table (no file I/O). Medians ≥3 stable runs (i5-14400F, performance governor, turbo off, taskset -c 0).",
+    "build": "SECP256K1_BUILD_SHIM=ON + SECP256K1_CORE_BACKEND_MODE=ON (shim+static table compiled into engine, no external files)",
+    "ConnectBlockAllEcdsa_ms":   { "ultra": 254.5, "libsecp": 248.6, "ratio": 0.976 },
+    "ConnectBlockAllSchnorr_ms": { "ultra": 252.5, "libsecp": 246.4, "ratio": 0.975 },
+    "ConnectBlockMixed_ms":      { "ultra": 254.5, "libsecp": 248.7, "ratio": 0.977 },
+    "SignSchnorrWithMerkleRoot_ns": { "ultra": 82300, "libsecp": 109000, "ratio": 1.32 },
     "SignSchnorrWithNullMerkleRoot_ns": { "ultra": 82500, "libsecp": 109000, "ratio": 1.32 },
     "SignTransactionECDSA_ns":   { "ultra": 147000, "libsecp": 167000, "ratio": 1.14 },
     "SignTransactionSchnorr_ns": { "ultra": 124000, "libsecp": 133000, "ratio": 1.07 },
@@ -64,7 +64,7 @@
     "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). ConnectBlock parity is confirmed with LTO. For non-LTO builds, the 3% gap is a known trade-off of richer algorithms: signing 14-32% faster, verify paths equal or faster."
   },
   "known_limitations": [
-    "ConnectBlock -3% without LTO: binary code layout artifact from linking different library sizes; LTO eliminates it. NOT from secp256k1 operation latency (VerifyScript is at parity or faster).",
+    "ConnectBlock -2.4% without LTO: ultra's verify path uses more sophisticated algorithms (GLV, FieldElement52, Jacobian52, CT) than libsecp's minimal wNAF. More complex code/data access patterns without LTO's global layout optimization. File I/O overhead resolved (static compiled-in w=8 table). LTO eliminates the gap (ratio=1.00).",
     "BIP324 ECDH: 2% within noise margin (no optimized CT ECDH for this path yet)"
   ]
 }
