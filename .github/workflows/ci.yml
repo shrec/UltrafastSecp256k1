@@ -158,17 +158,8 @@ jobs:
 
       - name: Audit test quality scanner
         run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" ci/audit_test_quality_scanner.py --json \
-            -o static_analysis_scanner.json
-          "$PYTHON" - <<'PYEOF'
-          import json, sys
-          d = json.load(open("static_analysis_scanner.json"))
-          n = d.get("total_findings", 0)
-          if n > 0:
-              print(f"::error::{n} audit test quality finding(s)")
-              sys.exit(1)
-          PYEOF
+          python3 ci/audit_test_quality_scanner.py --json -o static_analysis_scanner.json
+          python3 ci/run_code_quality.py --fail-on-regression
 
       - name: Exploit traceability join
         run: |
