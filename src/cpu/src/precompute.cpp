@@ -2,9 +2,15 @@
 
 // Compiled-in precomputed table for Bitcoin Core backend mode.
 // Must be included at file scope (NOT inside the anonymous namespace below)
-// to avoid the include being wrapped in (anonymous)::secp256k1::fast::static_w8.
+// to avoid the include being wrapped in (anonymous)::secp256k1::fast::static_w<N>.
 #if defined(SECP256K1_CORE_BACKEND_MODE)
-#include "precompute_static_w8.hpp"
+#  if defined(SECP256K1_STATIC_WINDOW_BITS) && SECP256K1_STATIC_WINDOW_BITS == 10
+#    include "precompute_static_w10.hpp"
+#    define STATIC_W_NS secp256k1::fast::static_w10
+#  else
+#    include "precompute_static_w8.hpp"
+#    define STATIC_W_NS secp256k1::fast::static_w8
+#  endif
 #endif
 
 // Suppress MSVC deprecation of std::getenv (safe: read-only use)
@@ -2466,7 +2472,7 @@ __attribute__((no_sanitize("memory")))
 // Called once per process when SECP256K1_CORE_BACKEND_MODE is ON.
 // No file I/O, no heap allocation for the table data itself.
 static bool load_precompute_from_static_w8() {
-    using namespace secp256k1::fast::static_w8;
+    using namespace STATIC_W_NS;
     auto ctx = std::make_unique<PrecomputeContext>();
     ctx->config             = g_config;
     // The static table always includes the GLV psi-tables.  Force enable_glv=true
