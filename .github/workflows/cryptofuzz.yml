@@ -112,7 +112,7 @@ jobs:
           # startup crashes (global constructors in libufsecp.so run before main()).
           # Only libsecp256k1 (reference) remains a dynamic dependency.
           UFSECP_LIB_DIR=$(pwd)/build-fuzz/include/ufsecp
-          CPU_LIB=$(pwd)/build-fuzz/cpu/libfastsecp256k1.a
+          CPU_LIB=$(pwd)/build-fuzz/src/cpu/libfastsecp256k1.a
           clang++-17 -std=c++20 -O2 \
             -I. \
             -I/tmp/libsecp256k1-install/include \
