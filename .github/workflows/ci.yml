@@ -1,41 +1,6 @@
 # =============================================================================
-# CI — Static Analysis Gate + Sanitizer Gate + Sequential Platform Chains
+# CI — Inline v3.68 — no reusable platform-chain.yml
 # =============================================================================
-#
-# Three-tier structure:
-#
-#   [static-analysis] → [codeql/sonarcloud] → [static-gate]
-#                                                   │
-#                                                   ▼
-#                               [asan]  [tsan]  [msan]  (parallel)
-#                                                   │
-#                                                   ▼
-#                                          [sanitizer-gate]
-#                                                   │
-#                                                   ▼
-#                               [platform chains] (parallel)
-#                               gcc-13, gcc-14, clang-17, llvm-21,
-#                               macos, windows, arm64, riscv64,
-#                               android-*, wasm, coverage
-#                                                   │
-#                                                   ▼
-#                                             [ci-verdict]
-#
-# Sanitizers must pass before any platform chain starts — sanitizer bugs
-# caught early prevent wasting runner time on all platform chains.
-#
-# Platforms
-# ───────────────────────────────────────────────────────────────────────────
-#  Linux native      gcc-14  gcc-13  clang-17  llvm-21
-#  Linux sanitizers  asan    tsan    msan
-#  Linux coverage    coverage (push-only → Codecov)
-#  macOS             apple-clang (Metal GPU)
-#  Windows           msvc
-#  Cross-compile     linux-arm64  linux-riscv64
-#  Android NDK       android-arm64-v8a  android-armeabi-v7a  android-x86_64
-#  WASM              wasm (Emscripten + Node)
-# =============================================================================
-
 name: CI
 
 on:
@@ -50,7 +15,6 @@ on:
       - 'bindings/**'
       - 'CMakeLists.txt'
       - '.github/workflows/ci.yml'
-      - '.github/workflows/platform-chain.yml'
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -75,9 +39,7 @@ concurrency:
 
 jobs:
   # ===========================================================================
-  # ── 00: Discord commit notification  (always first — ordering guaranteed)
-  # Runs before static analysis so Discord sees the commit BEFORE CI results.
-  # discord-commits.yml standalone push trigger is disabled; notify lives here.
+  # 00 — Discord commit notification
   # ===========================================================================
   discord-commit-notify:
     name: "00 / Discord Commit Notify"
@@ -108,9 +70,7 @@ jobs:
           curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
 
   # ===========================================================================
-  # ── Static Analysis Gate  (runs ONCE — all platform chains wait for this)
-  # No compiler, no build. Pure code-quality and consistency checks.
-  # Fail here → zero platform runners are wasted.
+  # 01 — Static Analysis
   # ===========================================================================
   static-analysis:
     name: "Static Analysis"
@@ -120,857 +80,517 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
         with:
           egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
-
       - name: Install audit deps
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" -m pip install --require-hashes \
-            -r .github/requirements/audit-deps.txt
-
+        run: python3 -m pip install --require-hashes -r .github/requirements/audit-deps.txt
       - name: Repo map check
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" tools/render_repo_map.py --check
-
+        run: python3 tools/render_repo_map.py --check
       - name: Exploit wiring parity
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" ci/check_exploit_wiring.py
-
+        run: python3 ci/check_exploit_wiring.py
       - name: Canonical data + doc sync
         run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" ci/build_canonical_data.py --dry-run
-          "$PYTHON" ci/sync_docs_from_canonical.py --dry-run
-          "$PYTHON" ci/sync_module_count.py --dry-run
-
-      - name: Audit test quality scanner
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
+      - name: Code quality check
         run: |
           python3 ci/audit_test_quality_scanner.py --json -o static_analysis_scanner.json
           python3 ci/run_code_quality.py --fail-on-regression
-
       - name: Exploit traceability join
         run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" ci/exploit_traceability_join.py \
-            --json -o static_analysis_traceability.json
-          "$PYTHON" - <<'PYEOF'
+          python3 ci/exploit_traceability_join.py --json -o static_analysis_traceability.json
+          python3 -c "
           import json, sys
-          d = json.load(open("static_analysis_traceability.json"))
-          if not d.get("pass", d.get("passed", False)):
-              print("::error::Exploit traceability join failed")
+          d = json.load(open('static_analysis_traceability.json'))
+          if not d.get('pass', d.get('passed', False)):
+              print('::error::Exploit traceability join failed')
               sys.exit(1)
-          PYEOF
-
+          "
       - name: Source graph quality
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" ci/check_source_graph_quality.py
-
+        run: python3 ci/check_source_graph_quality.py
       - name: Upload static analysis reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: static-analysis-${{ github.run_id }}
           path: |
             static_analysis_scanner.json
             static_analysis_traceability.json
           retention-days: 30
-          # H-2 fix: error (not warn) so a scanner crash is visible as a hard
-          # artifact failure rather than a silent empty upload.
           if-no-files-found: error
 
   # ===========================================================================
-  # ── Linux native chains  (audit_mode: full)
-  # ctest + unified_audit_runner + all Python gate scripts
+  # Linux GCC (gcc-13 and gcc-14, Release and Debug)
   # ===========================================================================
-
-  chain-gcc-14:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: gcc-14
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          g++-14 ccache ninja-build
-      cc: gcc-14
-      cxx: g++-14
-      cmake_extra: >-
-        -DSECP256K1_BUILD_METAL=ON
-        -DSECP256K1_BUILD_CROSS_TESTS=ON
-      audit_mode: full
-
-  chain-gcc-13:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: gcc-13
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          g++-13 ccache ninja-build
-      cc: gcc-13
-      cxx: g++-13
-      cmake_extra: >-
-        -DSECP256K1_BUILD_METAL=ON
-        -DSECP256K1_BUILD_CROSS_TESTS=ON
-      audit_mode: full
-
-  chain-clang-17:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: clang-17
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-17 lld-17 ccache ninja-build
-      cc: clang-17
-      cxx: clang++-17
-      cmake_extra: >-
-        -DSECP256K1_BUILD_METAL=ON
-        -DSECP256K1_BUILD_CROSS_TESTS=ON
-      audit_mode: full
-
-  chain-llvm-21:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: llvm-21
-      os: ubuntu-24.04
-      install_cmd: |
-        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-        echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" \
-          | sudo tee /etc/apt/sources.list.d/llvm21.list
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-21 lld-21 ccache ninja-build
-      cc: clang-21
-      cxx: clang++-21
-      cmake_extra: >-
-        -DSECP256K1_BUILD_METAL=ON
-        -DSECP256K1_BUILD_CROSS_TESTS=ON
-      audit_mode: full
-
-  # ===========================================================================
-  # ── Linux sanitizer chains  (audit_mode: ctest, Debug build)
-  # Each uses Clang 17 + the respective sanitizer.  ctest_timeout raised to 900s.
-  # ===========================================================================
-
-  chain-asan:
-    needs: [static-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: asan
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-17 lld-17 ccache ninja-build
-      cc: clang-17
-      cxx: clang++-17
-      sanitizer: asan
-      build_type: Debug
-      cmake_extra: >-
-        -DSECP256K1_USE_ASM=OFF
-        -DSECP256K1_BUILD_EXAMPLES=OFF
-      audit_mode: ctest
-      ctest_exclude: '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
-      ctest_timeout: 900
-
-  chain-tsan:
-    needs: [static-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: tsan
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-17 lld-17 ccache ninja-build
-      cc: clang-17
-      cxx: clang++-17
-      sanitizer: tsan
-      build_type: Debug
-      cmake_extra: >-
-        -DSECP256K1_USE_ASM=OFF
-        -DSECP256K1_BUILD_EXAMPLES=OFF
-      audit_mode: ctest
-      ctest_exclude: '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
-      ctest_timeout: 900
-
-  chain-msan:
-    needs: [static-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: msan
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-17 lld-17 libc++-17-dev libc++abi-17-dev ccache ninja-build
-      cc: clang-17
-      cxx: clang++-17
-      sanitizer: msan
-      build_type: Debug
-      cmake_extra: >-
-        -DSECP256K1_USE_ASM=OFF
-        -DSECP256K1_BUILD_EXAMPLES=OFF
-        -DSECP256K1_BUILD_JAVA=OFF
-      audit_mode: ctest
-      # MSan: whitelist approach — only run tests known-clean under MSan.
-      # ctest_include acts as -R; ctest_exclude still applied on top.
-      ctest_include: >-
-        ^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_invalid_curve|exploit_metal_field_reduce)$
-      ctest_timeout: 900
-
-  # ===========================================================================
-  # ── Sanitizer Gate
-  # Aggregates asan + tsan + msan. Platform chains wait for this single job.
-  # sanitizers are required — skipped sanitizers only tolerated when static-gate
-  # already failed (which caused them to be skipped as a cascade).
-  # ===========================================================================
-  sanitizer-gate:
-    name: "Sanitizer / Gate"
-    needs: [static-gate, chain-asan, chain-tsan, chain-msan]
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - name: Evaluate sanitizer phase
-        run: |
-          SG="${{ needs.static-gate.result }}"
-          ASAN="${{ needs.chain-asan.result }}"
-          TSAN="${{ needs.chain-tsan.result }}"
-          MSAN="${{ needs.chain-msan.result }}"
-
-          echo "static-gate : $SG"
-          echo "chain-asan  : $ASAN"
-          echo "chain-tsan  : $TSAN"
-          echo "chain-msan  : $MSAN"
-
-          FAILED=0
-
-          # static-gate must have succeeded (or be skipped due to upstream failure,
-          # but that would have already caused a failure — check explicitly).
-          if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
-            echo "::error::static-gate → $SG (sanitizer chains may have been skipped as a cascade)"
-            FAILED=1
-          fi
-
-          # Each sanitizer chain must be success.
-          # Skipped is only tolerated when static-gate already failed (sanitizers
-          # are automatically skipped when static-gate fails). Warn but don't double-fail.
-          for chain_name in asan tsan msan; do
-            case "$chain_name" in
-              asan) result="$ASAN" ;;
-              tsan) result="$TSAN" ;;
-              msan) result="$MSAN" ;;
-            esac
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              echo "::error::chain-${chain_name} → $result"
-              FAILED=1
-            elif [ "$result" = "skipped" ]; then
-              if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
-                echo "::warning::chain-${chain_name} skipped (cascade from static-gate failure)"
-              else
-                echo "::warning::chain-${chain_name} skipped for unexpected reason — sanitizer coverage gap"
-              fi
-            fi
-          done
-
-          [ "$FAILED" -eq 0 ] || exit 1
-          echo "::notice::Sanitizer phase passed — platform chains may proceed"
-        shell: bash
-
-  # ===========================================================================
-  # ── Coverage chain  (push to dev/main only — Codecov upload)
-  # ===========================================================================
-
-  chain-coverage:
-    if: github.event_name == 'push'
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: coverage
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          clang-17 llvm-17 lld-17 ninja-build
-      cc: clang-17
-      cxx: clang++-17
-      build_type: Debug
-      cmake_extra: >-
-        -DSECP256K1_USE_ASM=OFF
-        -DSECP256K1_BUILD_BENCH=OFF
-      audit_mode: coverage
-      ctest_exclude: '^ct_sidechannel'
-      codecov_flags: cpu
-
-  # ===========================================================================
-  # ── macOS chain  (audit_mode: ctest)
-  # Ninja is pre-installed on macos-14 runners.
-  # ===========================================================================
-
-  chain-macos:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: apple-clang
-      os: macos-14
-      cmake_extra: >-
-        -DSECP256K1_BUILD_METAL=ON
-      audit_mode: ctest
-      ctest_exclude: >-
-        ^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)
-
-  # ===========================================================================
-  # ── Windows chain  (audit_mode: ctest, Visual Studio generator)
-  # ===========================================================================
-
-  chain-windows:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: msvc
-      os: windows-latest
-      cmake_generator: "Visual Studio 17 2022"
-      cmake_extra: >-
-        -A x64
-        -DSECP256K1_BUILD_METAL=ON
-      build_type: Release
-      audit_mode: ctest
-      ctest_config: Release
-      ctest_exclude: '^ct_sidechannel'
-
-  # ===========================================================================
-  # ── Cross-compile Linux chains  (audit_mode: qemu-*)
-  # ===========================================================================
-
-  chain-linux-arm64:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: linux-arm64
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          g++-13-aarch64-linux-gnu \
-          libc6-arm64-cross libc6-dev-arm64-cross \
-          ninja-build ccache
-      cc: aarch64-linux-gnu-gcc-13
-      cxx: aarch64-linux-gnu-g++-13
-      cmake_extra: >-
-        -DCMAKE_SYSTEM_NAME=Linux
-        -DCMAKE_SYSTEM_PROCESSOR=aarch64
-        -DSECP256K1_BUILD_METAL=OFF
-        -DSECP256K1_BUILD_BENCH=ON
-      audit_mode: qemu-arm64
-
-  chain-linux-riscv64:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: linux-riscv64
-      os: ubuntu-24.04
-      install_cmd: |
-        sudo apt-get update -qq
-        sudo apt-get install -y --no-install-recommends \
-          g++-13-riscv64-linux-gnu \
-          libc6-riscv64-cross libc6-dev-riscv64-cross \
-          ninja-build ccache
-      cc: riscv64-linux-gnu-gcc-13
-      cxx: riscv64-linux-gnu-g++-13
-      cmake_extra: >-
-        -DCMAKE_SYSTEM_NAME=Linux
-        -DCMAKE_SYSTEM_PROCESSOR=riscv64
-        -DSECP256K1_BUILD_METAL=OFF
-        -DSECP256K1_BUILD_BENCH=ON
-      audit_mode: qemu-riscv64
-
-  # ===========================================================================
-  # ── Android NDK chains  (audit_mode: verify)
-  # NDK setup action is triggered inside platform-chain.yml for android-* platforms.
-  # The platform name (minus "android-" prefix) becomes the Android ABI string.
-  # ===========================================================================
-
-  chain-android-arm64:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: android-arm64-v8a
-      os: ubuntu-24.04
-      audit_mode: verify
-
-  chain-android-armv7:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: android-armeabi-v7a
-      os: ubuntu-24.04
-      audit_mode: verify
-
-  chain-android-x86_64:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: android-x86_64
-      os: ubuntu-24.04
-      audit_mode: verify
-
-  # ===========================================================================
-  # ── WASM chain  (audit_mode: node)
-  # Emscripten SDK setup is triggered inside platform-chain.yml for platform==wasm.
-  # ===========================================================================
-
-  chain-wasm:
-    needs: [sanitizer-gate]
-    uses: ./.github/workflows/platform-chain.yml
-    with:
-      platform: wasm
-      os: ubuntu-24.04
-      audit_mode: node
-
-  # ===========================================================================
-  # ── CodeQL SAST   needs: static-analysis → blocks all platform chains
-  # ── SonarCloud    needs: static-analysis → blocks all platform chains
-  #
-  # Static code phase (parallel):
-  #   static-analysis (fast)
-  #   codeql          (build + SAST)
-  #   sonarcloud      (build + coverage + quality)
-  #
-  # Platform chains start ONLY when all three above have passed.
-  # ===========================================================================
-
-  codeql:
-    name: "Static / CodeQL"
+  linux-gcc:
+    name: "Linux / ${{ matrix.compiler }} / ${{ matrix.build_type }}"
     needs: [static-analysis]
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      security-events: write
-      contents: read
-      actions: read
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc-14
+            cc: gcc-14
+            cxx: g++-14
+            build_type: Release
+          - compiler: gcc-14
+            cc: gcc-14
+            cxx: g++-14
+            build_type: Debug
+          - compiler: gcc-13
+            cc: gcc-13
+            cxx: g++-13
+            build_type: Release
+          - compiler: gcc-13
+            cc: gcc-13
+            cxx: g++-13
+            build_type: Debug
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
         with:
           egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            clang-17 lld-17 ninja-build ccache
-
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
-        with:
-          path: ~/.cache/ccache
-          key: ccache-codeql-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: ccache-codeql-
-
-      - name: Configure ccache
-        run: |
-          CCACHE=$(command -v ccache || true)
-          if [ -n "$CCACHE" ]; then
-            "$CCACHE" --set-config=max_size=200M
-            "$CCACHE" --set-config=compression=true
-            "$CCACHE" -z
-          fi
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
-        with:
-          languages: c-cpp
-          build-mode: manual
-          queries: security-and-quality
-          config-file: .github/codeql/codeql-config.yml
-
-      - name: Build for analysis
-        env:
-          CC:  clang-17
-          CXX: clang++-17
-        run: |
-          CCACHE=$(command -v ccache || true)
-          LAUNCHER_ARGS=()
-          if [ -n "$CCACHE" ]; then
-            LAUNCHER_ARGS=(
-              "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
-              "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
-            )
-          fi
-          JOBS=$(nproc 2>/dev/null || echo 4)
-          cmake -S . -B build/codeql -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            "${LAUNCHER_ARGS[@]}" \
-            -DSECP256K1_MARCH=x86-64-v3 \
-            -DSECP256K1_BUILD_TESTS=OFF \
-            -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DSECP256K1_USE_ASM=OFF
-          cmake --build build/codeql -j"$JOBS"
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
-        with:
-          category: "/language:c-cpp"
-
-  sonarcloud:
-    name: "Static / SonarCloud"
-    needs: [static-analysis]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    # Skip fork PRs — GitHub blocks secrets for forks
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.owner.login == github.repository_owner)
-    env:
-      BUILD_WRAPPER_OUT_DIR: build-wrapper-output
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-
       - name: Install toolchain
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            clang-17 lld-17 llvm-17 ninja-build ccache
-
+            ${{ matrix.compiler == 'gcc-14' && 'g++-14' || 'g++-13' }} ccache ninja-build
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: ~/.cache/ccache
-          key: ccache-sonar-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
-          restore-keys: ccache-sonar-
-
-      - name: Configure ccache
-        run: |
-          CCACHE=$(command -v ccache || true)
-          if [ -n "$CCACHE" ]; then
-            "$CCACHE" --set-config=max_size=200M
-            "$CCACHE" --set-config=compression=true
-            "$CCACHE" -z
-          fi
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Python audit deps
-        run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" -m pip install --require-hashes \
-            -r .github/requirements/audit-deps.txt
-
-      - name: Install SonarCloud build-wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
-
-      - name: Build with build-wrapper
+          key: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'include/**') }}
+          restore-keys: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-
+      - name: CMake configure
         env:
-          CC:  clang-17
-          CXX: clang++-17
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
-          CCACHE=$(command -v ccache || true)
-          LAUNCHER_ARGS=()
-          if [ -n "$CCACHE" ]; then
-            LAUNCHER_ARGS=(
-              "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
-              "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
-            )
-          fi
-          JOBS=$(nproc 2>/dev/null || echo 4)
-          cmake -S . -B build/sonar -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            "${LAUNCHER_ARGS[@]}" \
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v2 \
             -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=OFF \
-            -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DSECP256K1_USE_ASM=OFF \
-            "-DCMAKE_C_FLAGS=-fprofile-instr-generate -fcoverage-mapping" \
-            "-DCMAKE_CXX_FLAGS=-fprofile-instr-generate -fcoverage-mapping"
-          build-wrapper-linux-x86-64 \
-            --out-dir "${{ env.BUILD_WRAPPER_OUT_DIR }}" \
-            cmake --build build/sonar -j"$JOBS"
-
-      - name: Run tests (generate coverage data)
-        env:
-          LLVM_PROFILE_FILE: "${{ github.workspace }}/build/sonar/%p.profraw"
-        run: |
-          CTEST=$(command -v ctest)
-          JOBS=$(nproc 2>/dev/null || echo 4)
-          "$CTEST" --test-dir build/sonar \
-            --output-on-failure -j"$JOBS" -E "^ct_sidechannel"
-
-      - name: Collect coverage (llvm-cov)
-        run: |
-          LLVM_PROFDATA=$(command -v llvm-profdata-17 || command -v llvm-profdata)
-          LLVM_COV=$(command -v llvm-cov-17 || command -v llvm-cov)
-          PROFRAW=$(find build/sonar -name '*.profraw' 2>/dev/null || true)
-          if [ -z "$PROFRAW" ]; then
-            echo "::warning::No profraw files — skipping coverage"
-            exit 0
-          fi
-          # shellcheck disable=SC2086
-          "$LLVM_PROFDATA" merge -sparse $PROFRAW -o build/sonar/merged.profdata
-          MAIN_BIN=$(find build/sonar -name 'run_selftest' -type f | head -1)
-          [ -n "$MAIN_BIN" ] || { echo "::error::run_selftest not found"; exit 1; }
-          OBJECT_ARGS=()
-          while IFS= read -r bin; do OBJECT_ARGS+=("-object" "$bin"); done \
-            < <(find build/sonar -name 'test_*_standalone' -type f 2>/dev/null)
-          "$LLVM_COV" show "$MAIN_BIN" "${OBJECT_ARGS[@]}" \
-            -instr-profile=build/sonar/merged.profdata \
-            --show-line-counts-or-regions \
-            > build/sonar/llvm-cov-report.txt
-
-      - name: Run SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: >
-            -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
-            -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
-            -Dsonar.host.url=https://sonarcloud.io
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=ON
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|py_|exploit_gpu_)'
 
   # ===========================================================================
-  # ── Static Phase Gate
-  # Aggregates static-analysis + codeql + sonarcloud.
-  # Platform chains need only this single job — clean fan-out point.
-  # sonarcloud is allowed to be 'skipped' on fork PRs (no secrets available).
-  # if: always() ensures this runs even if codeql/sonarcloud were skipped.
+  # Linux Clang-17
   # ===========================================================================
-  static-gate:
-    name: "Static / Gate"
-    needs: [static-analysis, codeql, sonarcloud]
-    if: always()
+  linux-clang:
+    name: "Linux / clang-17 / ${{ matrix.build_type }}"
+    needs: [static-analysis]
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release, Debug]
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
         with:
           egress-policy: audit
-
-      - name: Evaluate static phase
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
         run: |
-          SA="${{ needs.static-analysis.result }}"
-          CQ="${{ needs.codeql.result }}"
-          SC="${{ needs.sonarcloud.result }}"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ccache ninja-build
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: ~/.cache/ccache
+          key: ccache-clang-17-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'include/**') }}
+          restore-keys: ccache-clang-17-${{ matrix.build_type }}-
+      - name: CMake configure
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v2 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=ON
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|py_|exploit_gpu_)'
 
-          echo "static-analysis : $SA"
-          echo "codeql          : $CQ"
-          echo "sonarcloud      : $SC  (skipped on fork PRs — treated as OK)"
+  # ===========================================================================
+  # Linux Sanitizers (ASan/TSan/MSan)
+  # ===========================================================================
+  linux-sanitizers:
+    name: "Linux / ${{ matrix.sanitizer }}"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: asan
+            san_flags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            link_flags: "-fsanitize=address,undefined"
+          - sanitizer: tsan
+            san_flags: "-fsanitize=thread -fno-omit-frame-pointer"
+            link_flags: "-fsanitize=thread"
+          - sanitizer: msan
+            san_flags: "-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 -stdlib=libc++"
+            link_flags: "-fsanitize=memory -stdlib=libc++ -lc++abi"
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 libc++-17-dev libc++abi-17-dev ccache ninja-build
+      - name: CMake configure
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="${{ matrix.san_flags }}" \
+            -DCMAKE_CXX_FLAGS="${{ matrix.san_flags }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.link_flags }}" \
+            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 900 -E '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
 
-          FAILED=0
-          [ "$SA" = "success" ] || { echo "::error::static-analysis → $SA"; FAILED=1; }
-          [ "$CQ" = "success" ] || { echo "::error::codeql → $CQ"; FAILED=1; }
-          # sonarcloud may be 'skipped' on fork PRs (GitHub blocks secrets).
-          # Any other non-success state is a real failure.
-          if [ "$SC" != "success" ] && [ "$SC" != "skipped" ]; then
-            echo "::error::sonarcloud → $SC"
-            FAILED=1
+  # ===========================================================================
+  # Linux ARM64 (cross-compile)
+  # ===========================================================================
+  linux-arm64:
+    name: "Linux / arm64 (cross)"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            g++-13-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross \
+            qemu-user-static ninja-build ccache
+      - name: CMake configure
+        env:
+          CC: aarch64-linux-gnu-gcc-13
+          CXX: aarch64-linux-gnu-g++-13
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DSECP256K1_BUILD_METAL=OFF \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Smoke test (QEMU)
+        run: |
+          SELFTEST=$(find out/build -name run_selftest -type f | head -1)
+          if [ -n "$SELFTEST" ]; then
+            timeout 360 qemu-aarch64-static -L /usr/aarch64-linux-gnu "$SELFTEST" smoke
+          else
+            echo "::warning::run_selftest not found — skipping QEMU smoke test"
           fi
 
-          [ "$FAILED" -eq 0 ] || exit 1
-          echo "::notice::Static phase passed — platform chains may proceed"
-        shell: bash
+  # ===========================================================================
+  # Windows (MSVC)
+  # ===========================================================================
+  windows:
+    name: "Windows / MSVC"
+    needs: [static-analysis]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: CMake configure
+        run: |
+          cmake -S . -B out/build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DSECP256K1_BUILD_TESTS=ON `
+            -DSECP256K1_BUILD_BENCH=ON `
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build --config Release -j $env:NUMBER_OF_PROCESSORS
+      - name: Test
+        run: ctest --test-dir out/build --output-on-failure -j $env:NUMBER_OF_PROCESSORS --timeout 300 --build-config Release -E '^ct_sidechannel'
 
   # ===========================================================================
-  # ── Preflight call  (push-only — on PRs preflight.yml runs via pull_request)
-  # Called here so security invariants, CAAS smoke, and code quality run on push
-  # AFTER the static gate (not in a parallel unordered workflow).
+  # macOS (apple-clang)
   # ===========================================================================
-  call-preflight:
-    name: "Preflight (push)"
-    needs: [static-gate]
+  macos:
+    name: "macOS / apple-clang"
+    needs: [static-analysis]
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: CMake configure
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build -j$(sysctl -n hw.logicalcpu)
+      - name: Test
+        run: ctest --test-dir out/build --output-on-failure -j$(sysctl -n hw.logicalcpu) --timeout 300 -E '^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)'
+
+  # ===========================================================================
+  # WASM (Emscripten)
+  # ===========================================================================
+  wasm:
+    name: "WASM / Emscripten"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Setup Emscripten SDK
+        uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021
+        with:
+          version: 3.1.51
+          actions-cache-folder: emsdk-cache
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: 20
+      - name: CMake configure
+        run: |
+          emcmake cmake -S bindings/wasm -B out/build \
+            -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test (KAT equivalence)
+        run: |
+          if [ -f out/build/kat/wasm_kat_test.js ]; then
+            node out/build/kat/wasm_kat_test.js
+          else
+            echo "::warning::wasm_kat_test.js not found — skipping KAT test"
+          fi
+
+  # ===========================================================================
+  # Android NDK (arm64-v8a)
+  # ===========================================================================
+  android:
+    name: "Android / arm64-v8a"
+    needs: [static-analysis]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Setup Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779
+        with:
+          ndk-version: r27c
+      - name: CMake configure
+        run: |
+          cmake -S bindings/android -B out/build -G Ninja \
+            "-DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Verify artifacts
+        run: |
+          LIB=$(find out/build -name "libfastsecp256k1.a" | head -1)
+          if [ -z "$LIB" ]; then
+            echo "::error::libfastsecp256k1.a not found"
+            exit 1
+          fi
+          echo "Library: $LIB  size=$(du -h "$LIB" | cut -f1)"
+
+  # ===========================================================================
+  # Coverage (push only)
+  # ===========================================================================
+  coverage:
+    name: "Coverage / clang-17"
+    needs: [static-analysis]
     if: github.event_name == 'push'
-    uses: ./.github/workflows/preflight.yml
-    secrets: inherit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 llvm-17 lld-17 ninja-build
+      - name: CMake configure
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test (with profiling)
+        env:
+          LLVM_PROFILE_FILE: "out/build/%p-%m.profraw"
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^ct_sidechannel'
+      - name: Collect LLVM coverage
+        run: |
+          find out/build -name '*.profraw' -print0 \
+            | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+          OBJECTS=()
+          while IFS= read -r bin; do
+            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
+              OBJECTS+=("-object=$bin")
+            fi
+          done < <(find out/build -maxdepth 8 -type f -executable 2>/dev/null)
+          llvm-cov-17 export --format=lcov \
+            --instr-profile=coverage.profdata \
+            "${OBJECTS[@]}" \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
+            > coverage.lcov
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+        with:
+          files: coverage.lcov
+          flags: cpu
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # ===========================================================================
-  # ── Security Audit call  (push-only — deep sanitizer/valgrind suite)
-  # Runs in parallel with platform chains after the sanitizer gate passes.
-  # On PRs, security-audit.yml fires via its pull_request trigger if needed.
+  # CI Verdict
   # ===========================================================================
-  call-security-audit:
-    name: "Security Audit (push)"
-    needs: [sanitizer-gate]
-    if: github.event_name == 'push'
-    uses: ./.github/workflows/security-audit.yml
-    secrets: inherit
-
-  # ===========================================================================
-  # ── Final Verdict
-  # ===========================================================================
-
   ci-verdict:
     name: "CI / Final Verdict"
     needs:
-      - static-gate
-      - sanitizer-gate
-      - call-preflight
-      - call-security-audit
-      - codeql
-      - sonarcloud
-      - chain-gcc-14
-      - chain-gcc-13
-      - chain-clang-17
-      - chain-llvm-21
-      - chain-asan
-      - chain-tsan
-      - chain-msan
-      - chain-coverage
-      - chain-macos
-      - chain-windows
-      - chain-linux-arm64
-      - chain-linux-riscv64
-      - chain-android-arm64
-      - chain-android-armv7
-      - chain-android-x86_64
-      - chain-wasm
+      - discord-commit-notify
+      - static-analysis
+      - linux-gcc
+      - linux-clang
+      - linux-sanitizers
+      - linux-arm64
+      - windows
+      - macos
+      - wasm
+      - android
+      - coverage
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
         with:
           egress-policy: audit
-
-      - name: Evaluate all platform chains
+      - name: Evaluate results
         run: |
           FAILED=0
-
-          # static-gate aggregates static-analysis + codeql + sonarcloud
-          SG="${{ needs.static-gate.result }}"
-          if [ "$SG" = "failure" ] || [ "$SG" = "cancelled" ]; then
-            echo "::error::static-gate → $SG"
-            exit 1
-          fi
-
-          # Preflight and security-audit are push-only; 'skipped' on PRs is fine.
-          PF="${{ needs.call-preflight.result }}"
-          if [ "$PF" = "failure" ] || [ "$PF" = "cancelled" ]; then
-            echo "::error::preflight → $PF"
-            FAILED=1
-          fi
-          SA2="${{ needs.call-security-audit.result }}"
-          if [ "$SA2" = "failure" ] || [ "$SA2" = "cancelled" ]; then
-            echo "::error::security-audit → $SA2"
-            FAILED=1
-          fi
-
-          # Map: platform-label → chain result
-          declare -A R
-          R["gcc-14"]="${{ needs.chain-gcc-14.result }}"
-          R["gcc-13"]="${{ needs.chain-gcc-13.result }}"
-          R["clang-17"]="${{ needs.chain-clang-17.result }}"
-          R["llvm-21"]="${{ needs.chain-llvm-21.result }}"
-          R["asan"]="${{ needs.chain-asan.result }}"
-          R["tsan"]="${{ needs.chain-tsan.result }}"
-          R["msan"]="${{ needs.chain-msan.result }}"
-          R["apple-clang"]="${{ needs.chain-macos.result }}"
-          R["msvc"]="${{ needs.chain-windows.result }}"
-          R["linux-arm64"]="${{ needs.chain-linux-arm64.result }}"
-          R["linux-riscv64"]="${{ needs.chain-linux-riscv64.result }}"
-          R["android-arm64-v8a"]="${{ needs.chain-android-arm64.result }}"
-          R["android-armeabi-v7a"]="${{ needs.chain-android-armv7.result }}"
-          R["android-x86_64"]="${{ needs.chain-android-x86_64.result }}"
-          R["wasm"]="${{ needs.chain-wasm.result }}"
-
-          # coverage is push-only; 'skipped' on PRs is intentional — not a failure
-          COV="${{ needs.chain-coverage.result }}"
-          if [ "$COV" = "failure" ] || [ "$COV" = "cancelled" ]; then
-            R["coverage"]="$COV"
-          elif [ "$COV" = "skipped" ] && [ "${{ github.event_name }}" = "push" ]; then
-            echo "::warning::coverage was skipped on a push — coverage data missing"
-          fi
-
-          # CodeQL and SonarCloud are advisory — failure → warning, not error
-          {
-            echo "## CI Code Quality Results"
-            echo "| Tool | Result | Note |"
-            echo "|------|--------|------|"
-          } >> "$GITHUB_STEP_SUMMARY"
-          for tool in codeql sonarcloud; do
-            case "$tool" in
-              codeql)    r="${{ needs.codeql.result }}" ;;
-              sonarcloud) r="${{ needs.sonarcloud.result }}" ;;
-              *) r="unknown" ;;
-            esac
-            if [ "$r" = "success" ]; then
-              echo "| $tool | ✅ $r | |" >> "$GITHUB_STEP_SUMMARY"
-            elif [ "$r" = "skipped" ]; then
-              echo "| $tool | ⏭️ $r | fork PR or push-only |" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "::warning::Code quality tool '$tool' → $r (advisory, not blocking)"
-              echo "| $tool | ⚠️ $r | advisory |" >> "$GITHUB_STEP_SUMMARY"
+          check() {
+            local name="$1" result="$2" required="${3:-1}"
+            echo "$name: $result"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              if [ "$required" = "1" ]; then
+                echo "::error::$name → $result"
+                FAILED=1
+              else
+                echo "::warning::$name → $result (non-blocking)"
+              fi
             fi
-          done
-
-          {
-            echo "## CI Platform Chain Results"
-            echo "| Platform | Result |"
-            echo "|----------|--------|"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          for p in "${!R[@]}"; do
-            r="${R[$p]}"
-            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
-              echo "::error::Chain '$p' → $r"
-              echo "| $p | ❌ $r |" >> "$GITHUB_STEP_SUMMARY"
-              FAILED=1
-            elif [ "$r" = "success" ]; then
-              echo "| $p | ✅ $r |" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "| $p | ⚠️  $r |" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-
-          if [ "$FAILED" -eq 1 ]; then
-            echo "::error::One or more platform chains failed"
-            exit 1
-          fi
-          echo "::notice::All platform chains passed"
+          }
+          check "static-analysis"   "${{ needs.static-analysis.result }}"
+          check "linux-gcc"         "${{ needs.linux-gcc.result }}"
+          check "linux-clang"       "${{ needs.linux-clang.result }}"
+          check "linux-sanitizers"  "${{ needs.linux-sanitizers.result }}"
+          check "linux-arm64"       "${{ needs.linux-arm64.result }}"
+          check "windows"           "${{ needs.windows.result }}"
+          check "macos"             "${{ needs.macos.result }}"
+          check "wasm"              "${{ needs.wasm.result }}"
+          check "android"           "${{ needs.android.result }}"
+          check "coverage"          "${{ needs.coverage.result }}" 0
+          [ "$FAILED" -eq 0 ] || { echo "::error::One or more required jobs failed"; exit 1; }
+          echo "::notice::All required jobs passed"
         shell: bash
