@@ -531,10 +531,16 @@ limbs4 reduce(const wide8& t) {
         carry = static_cast<std::uint64_t>(acc >> 64);
 
         // Branchless carry propagation (carry is 0 or 1 for secp256k1 limb bounds).
-        u128 acc2 = static_cast<u128>(result[i + 2]) + carry;
-        result[i + 2] = static_cast<std::uint64_t>(acc2);
-        std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
-        if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+        // i+2 == 5 on the final iteration (i=3): the array has only 5 limbs,
+        // and the algorithm's bound (290 bits ≤ 5×64 bits) guarantees this
+        // carry is 0 for any valid 256×256-bit reduction. Fuzzer inputs may
+        // exceed that domain — guard the access to avoid UB-array-overflow.
+        if (i + 2 < 5) {
+            u128 acc2 = static_cast<u128>(result[i + 2]) + carry;
+            result[i + 2] = static_cast<std::uint64_t>(acc2);
+            std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
+            if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+        }
 #else
         // No __int128: manual 64-bit carry arithmetic (for 32-bit MCUs)
         auto add64c = [](std::uint64_t a, std::uint64_t b, std::uint64_t& c_out) -> std::uint64_t {
@@ -553,10 +559,13 @@ limbs4 reduce(const wide8& t) {
         result[i + 1] = t;
         carry = d1 + d2 + d3;
 
-        std::uint64_t e = 0;
-        result[i + 2] = add64c(result[i + 2], carry, e);
-        std::uint64_t carry2 = e;
-        if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+        // Same i+2 == 5 guard as the __int128 path above.
+        if (i + 2 < 5) {
+            std::uint64_t e = 0;
+            result[i + 2] = add64c(result[i + 2], carry, e);
+            std::uint64_t carry2 = e;
+            if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+        }
 #endif
     }
 
