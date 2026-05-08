@@ -1,5 +1,12 @@
 #include <cmath>  // For std::isfinite
 
+// Compiled-in precomputed table for Bitcoin Core backend mode.
+// Must be included at file scope (NOT inside the anonymous namespace below)
+// to avoid the include being wrapped in (anonymous)::secp256k1::fast::static_w8.
+#if defined(SECP256K1_CORE_BACKEND_MODE)
+#include "precompute_static_w8.hpp"
+#endif
+
 // Suppress MSVC deprecation of std::getenv (safe: read-only use)
 #if defined(_MSC_VER)
 #pragma warning(disable: 4996)
@@ -2454,8 +2461,54 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
 #if defined(__clang__)
 __attribute__((no_sanitize("memory")))
 #endif
+#if defined(SECP256K1_CORE_BACKEND_MODE)
+// Load precomputed table from the compiled-in static arrays (precompute_static_w8.cpp).
+// Called once per process when SECP256K1_CORE_BACKEND_MODE is ON.
+// No file I/O, no heap allocation for the table data itself.
+static bool load_precompute_from_static_w8() {
+    using namespace secp256k1::fast::static_w8;
+    auto ctx = std::make_unique<PrecomputeContext>();
+    ctx->config        = g_config;
+    ctx->window_bits   = static_cast<unsigned>(kWindowBits);
+    ctx->window_count  = static_cast<unsigned>(kWindowCount);
+    ctx->digit_count   = static_cast<std::size_t>(kDigitCount);
+    ctx->beta          = FieldElement::from_bytes(kBetaBytes);
+    ctx->base_tables.resize(kWindowCount);
+    ctx->psi_tables.resize(kWindowCount);
+
+    for (unsigned w = 0; w < kWindowCount; ++w) {
+        ctx->base_tables[w].resize(kDigitCount);
+        ctx->psi_tables[w].resize(kDigitCount);
+        for (unsigned d = 0; d < kDigitCount; ++d) {
+            auto load_point = [](const StaticPoint& sp, AffinePointPacked& ap) {
+                ap.infinity = (sp.inf != 0);
+                if (!ap.infinity) {
+                    std::array<std::uint8_t, 32> xb, yb;
+                    std::copy(sp.x, sp.x + 32, xb.begin());
+                    std::copy(sp.y, sp.y + 32, yb.begin());
+                    ap.x = FieldElement::from_bytes(xb);
+                    ap.y = FieldElement::from_bytes(yb);
+                }
+            };
+            load_point(kBaseTable[w][d], ctx->base_tables[w][d]);
+            load_point(kPsiTable[w][d],  ctx->psi_tables[w][d]);
+        }
+    }
+    if (!validate_precompute_context(*ctx)) return false;
+    g_context = std::move(ctx);
+    return true;
+}
+#endif // SECP256K1_CORE_BACKEND_MODE
+
+#if defined(__clang__)
+__attribute__((no_sanitize("memory")))
+#endif
 void ensure_built_locked() {
     if (!g_context) {
+#if defined(SECP256K1_CORE_BACKEND_MODE)
+        if (load_precompute_from_static_w8()) return;
+        // Fallback: in-memory build (should not normally be reached)
+#endif
         // Try to load from cache if enabled
         if (g_config.use_cache) {
             // MSan-safe path selection: std::string::empty() reads SSO bits which
