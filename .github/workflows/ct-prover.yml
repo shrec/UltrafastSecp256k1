@@ -85,12 +85,12 @@ jobs:
           # Find all .ll files from CT compilation
           find build-ct-prover -name "*.ll" -exec cp {} ct-prover-ir/ \; 2>/dev/null || true
           # Also compile CT source directly to IR
-          for src in cpu/src/ct_point.cpp cpu/src/ct_sign.cpp cpu/src/ct_ecdh.cpp; do
+          for src in src/cpu/src/ct_point.cpp src/cpu/src/ct_sign.cpp src/cpu/src/ct_ecdh.cpp; do
             if [ -f "$src" ]; then
               base=$(basename "$src" .cpp)
               clang++-18 -std=c++20 -emit-llvm -S -O1 -g \
                 -fno-discard-value-names \
-                -I include -I cpu/include -I include/secp256k1 \
+                -I include -I src/cpu/include -I include/secp256k1 \
                 "$src" -o "ct-prover-ir/${base}.ll" 2>/dev/null || true
             fi
           done

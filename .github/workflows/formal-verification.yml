@@ -4,11 +4,11 @@ on:
   push:
     branches: [dev, main]
     paths:
-      - 'cpu/src/ct_field.cpp'
+      - 'src/cpu/src/ct_field.cpp'
       - 'audit/formal/**'
   pull_request:
     paths:
-      - 'cpu/src/ct_field.cpp'
+      - 'src/cpu/src/ct_field.cpp'
       - 'audit/formal/**'
   workflow_dispatch:
 

@@ -22,8 +22,8 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'include/ufsecp/ufsecp.h'
       - 'include/ufsecp/ufsecp_impl.cpp'
       - '.github/workflows/klee.yml'

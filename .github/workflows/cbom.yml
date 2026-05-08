@@ -73,7 +73,7 @@ jobs:
                   'curve': 'secp256k1',
                   'keySize': 256,
                   'standards': ['SEC 2', 'ANSI X9.62'],
-                  'implementation': 'cpu/src/ecdsa.cpp',
+                  'implementation': 'src/cpu/src/ecdsa.cpp',
                   'constantTime': True
               },
               {
@@ -82,7 +82,7 @@ jobs:
                   'curve': 'secp256k1',
                   'keySize': 256,
                   'standards': ['BIP-340'],
-                  'implementation': 'cpu/src/ct_sign.cpp',
+                  'implementation': 'src/cpu/src/ct_sign.cpp',
                   'constantTime': True
               },
               {
@@ -91,7 +91,7 @@ jobs:
                   'curve': 'secp256k1',
                   'keySize': 256,
                   'standards': ['ANSI X9.63'],
-                  'implementation': 'cpu/src/ct_ecdh.cpp',
+                  'implementation': 'src/cpu/src/ct_ecdh.cpp',
                   'constantTime': True
               },
               {
@@ -99,7 +99,7 @@ jobs:
                   'type': 'hash',
                   'outputSize': 256,
                   'standards': ['FIPS 180-4', 'RFC 6234'],
-                  'implementation': 'cpu/src/sha256.cpp',
+                  'implementation': 'src/cpu/src/sha256.cpp',
                   'constantTime': True
               },
               {
@@ -107,7 +107,7 @@ jobs:
                   'type': 'hash',
                   'outputSize': 512,
                   'standards': ['FIPS 180-4'],
-                  'implementation': 'cpu/src/sha512.cpp',
+                  'implementation': 'src/cpu/src/sha512.cpp',
                   'constantTime': True
               },
               {
@@ -115,7 +115,7 @@ jobs:
                   'type': 'hash',
                   'outputSize': 160,
                   'standards': ['ISO/IEC 10118-3'],
-                  'implementation': 'cpu/src/ripemd160.cpp',
+                  'implementation': 'src/cpu/src/ripemd160.cpp',
                   'constantTime': True
               },
               {
@@ -123,7 +123,7 @@ jobs:
                   'type': 'hash',
                   'outputSize': 256,
                   'standards': ['FIPS 202'],
-                  'implementation': 'cpu/src/keccak256.cpp',
+                  'implementation': 'src/cpu/src/keccak256.cpp',
                   'constantTime': True
               },
               {
@@ -131,14 +131,14 @@ jobs:
                   'type': 'mac',
                   'outputSize': 512,
                   'standards': ['RFC 2104'],
-                  'implementation': 'cpu/src/hmac.cpp',
+                  'implementation': 'src/cpu/src/hmac.cpp',
                   'constantTime': True
               },
               {
                   'name': 'RFC-6979',
                   'type': 'nonce-generation',
                   'standards': ['RFC 6979'],
-                  'implementation': 'cpu/src/rfc6979.cpp',
+                  'implementation': 'src/cpu/src/rfc6979.cpp',
                   'constantTime': True
               },
               {
@@ -146,21 +146,21 @@ jobs:
                   'type': 'aead',
                   'keySize': 256,
                   'standards': ['RFC 8439'],
-                  'implementation': 'cpu/src/chacha20_poly1305.cpp',
+                  'implementation': 'src/cpu/src/chacha20_poly1305.cpp',
                   'constantTime': True
               },
               {
                   'name': 'HKDF-SHA256',
                   'type': 'kdf',
                   'standards': ['RFC 5869'],
-                  'implementation': 'cpu/src/hkdf.cpp',
+                  'implementation': 'src/cpu/src/hkdf.cpp',
                   'constantTime': True
               },
               {
                   'name': 'PBKDF2-HMAC-SHA512',
                   'type': 'kdf',
                   'standards': ['RFC 2898', 'BIP-39'],
-                  'implementation': 'cpu/src/pbkdf2.cpp',
+                  'implementation': 'src/cpu/src/pbkdf2.cpp',
                   'constantTime': True
               },
               {
@@ -168,7 +168,7 @@ jobs:
                   'type': 'multi-signature',
                   'curve': 'secp256k1',
                   'standards': ['BIP-327'],
-                  'implementation': 'cpu/src/musig2.cpp',
+                  'implementation': 'src/cpu/src/musig2.cpp',
                   'constantTime': False,
                   'ctGap': 'Known Gap — MuSig2 CT audit pending'
               },
@@ -177,7 +177,7 @@ jobs:
                   'type': 'threshold-signature',
                   'curve': 'secp256k1',
                   'standards': ['RFC 9591'],
-                  'implementation': 'cpu/src/frost.cpp',
+                  'implementation': 'src/cpu/src/frost.cpp',
                   'constantTime': False,
                   'ctGap': 'Known Gap — FROST CT audit pending'
               },
@@ -194,21 +194,21 @@ jobs:
                   'type': 'encoding',
                   'curve': 'secp256k1',
                   'standards': ['BIP-324'],
-                  'implementation': 'cpu/src/ellswift.cpp',
+                  'implementation': 'src/cpu/src/ellswift.cpp',
                   'constantTime': True
               },
               {
                   'name': 'Pedersen Commitment',
                   'type': 'commitment',
                   'curve': 'secp256k1',
-                  'implementation': 'cpu/src/pedersen.cpp',
+                  'implementation': 'src/cpu/src/pedersen.cpp',
                   'constantTime': True
               },
               {
                   'name': 'Bulletproof Range Proof',
                   'type': 'zero-knowledge-proof',
                   'curve': 'secp256k1',
-                  'implementation': 'cpu/src/bulletproof.cpp',
+                  'implementation': 'src/cpu/src/bulletproof.cpp',
                   'constantTime': True
               }
           ]

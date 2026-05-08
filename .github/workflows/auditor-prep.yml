@@ -58,7 +58,7 @@ jobs:
           if [[ "${{ inputs.with_package }}" == "true" ]]; then
             args+=(--with-package --build-dir "${{ inputs.build_dir }}")
           fi
-          bash scripts/external_audit_prep.sh "${args[@]}"
+          bash ci/external_audit_prep.sh "${args[@]}"
 
       - name: Upload external audit artifacts
         if: always()

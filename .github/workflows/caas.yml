@@ -71,12 +71,12 @@ jobs:
         # Enforces the Conversion Standard: every audit/test_exploit_*.cpp
         # with a *_run() entry point must be registered in
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
-        run: python3 scripts/check_exploit_wiring.py
+        run: python3 ci/check_exploit_wiring.py
 
       - name: Run audit test quality scanner
         id: scanner
         run: |
-          python3 scripts/audit_test_quality_scanner.py --json -o caas_scanner.json
+          python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
           echo "Exit code: $?"
           python3 - <<'EOF'
           import json, sys
@@ -146,14 +146,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph (required by audit_gate.py)
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run audit gate
         run: |
-          python3 scripts/audit_gate.py --json -o caas_audit_gate.json
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
           EXIT=$?
           python3 - <<'EOF'
           import json, sys
@@ -195,7 +195,7 @@ jobs:
         run: |
           echo "## CAAS Stage 2 — Audit Gate (P0–P18)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 scripts/audit_gate.py 2>&1 | tail -40 || true
+          python3 ci/audit_gate.py 2>&1 | tail -40 || true
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -236,14 +236,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run security autonomy check
         run: |
-          python3 scripts/security_autonomy_check.py --json -o caas_autonomy.json
+          python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
           python3 - <<'EOF'
           import json, sys
           try:
@@ -323,14 +323,14 @@ jobs:
           cmake --build build-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph
-        run: python3 scripts/build_project_graph.py --rebuild
+        run: python3 ci/build_project_graph.py --rebuild
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Produce audit bundle (Stage 4)
         run: |
-          python3 scripts/external_audit_bundle.py
+          python3 ci/external_audit_bundle.py
           echo "Bundle produced at docs/EXTERNAL_AUDIT_BUNDLE.json"
           python3 -c "
           import json
@@ -344,7 +344,7 @@ jobs:
 
       - name: Verify audit bundle (Stage 5)
         run: |
-          python3 scripts/verify_external_audit_bundle.py --json > caas_bundle_verify.json
+          python3 ci/verify_external_audit_bundle.py --json > caas_bundle_verify.json
           python3 - <<'EOF'
           import json, sys
           try:
@@ -380,7 +380,7 @@ jobs:
         run: |
           echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 scripts/verify_external_audit_bundle.py 2>&1 | tail -20 || true
+          python3 ci/verify_external_audit_bundle.py 2>&1 | tail -20 || true
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================

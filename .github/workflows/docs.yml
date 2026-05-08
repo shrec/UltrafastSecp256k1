@@ -7,9 +7,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'cpu/include/**'
+      - 'src/cpu/include/**'
       - 'include/**'
-      - 'wasm/secp256k1_wasm.h'
+      - 'bindings/wasm/secp256k1_wasm.h'
       - 'README.md'
       - 'Doxyfile'
       - '.github/workflows/docs.yml'

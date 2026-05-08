@@ -52,7 +52,7 @@ jobs:
             --suppress=missingIncludeSystem \
             --suppress=unmatchedSuppression \
             --suppress=unusedFunction \
-            --suppressions-list=.cppcheck-suppressions \
+            --suppressions-list=ci/cppcheck-suppressions \
             --inline-suppr \
             --error-exitcode=0 \
             --std=c++20 \
@@ -68,7 +68,7 @@ jobs:
             --suppress=missingIncludeSystem \
             --suppress=unmatchedSuppression \
             --suppress=unusedFunction \
-            --suppressions-list=.cppcheck-suppressions \
+            --suppressions-list=ci/cppcheck-suppressions \
             --inline-suppr \
             --error-exitcode=0 \
             --std=c++20 \

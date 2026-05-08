@@ -24,11 +24,11 @@ on:
   push:
     branches: [dev, main]
     paths:
-      - 'gpu/**'
-      - 'cuda/**'
-      - 'opencl/**'
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/gpu/**'
+      - 'src/cuda/**'
+      - 'src/opencl/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'include/ufsecp/**'
       - 'audit/**'
       - 'CMakeLists.txt'
@@ -37,11 +37,11 @@ on:
   pull_request:
     branches: [dev, main]
     paths:
-      - 'gpu/**'
-      - 'cuda/**'
-      - 'opencl/**'
-      - 'cpu/src/**'
-      - 'cpu/include/**'
+      - 'src/gpu/**'
+      - 'src/cuda/**'
+      - 'src/opencl/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
       - 'include/ufsecp/**'
       - 'audit/**'
       - 'CMakeLists.txt'

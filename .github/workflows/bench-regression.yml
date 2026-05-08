@@ -14,18 +14,18 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
-      - 'cpu/bench/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
+      - 'src/cpu/bench/**'
       - 'CMakeLists.txt'
       - '.github/scripts/parse_benchmark.py'
       - '.github/workflows/bench-regression.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'cpu/src/**'
-      - 'cpu/include/**'
-      - 'cpu/bench/**'
+      - 'src/cpu/src/**'
+      - 'src/cpu/include/**'
+      - 'src/cpu/bench/**'
       - 'CMakeLists.txt'
       - '.github/scripts/parse_benchmark.py'
       - '.github/workflows/bench-regression.yml'

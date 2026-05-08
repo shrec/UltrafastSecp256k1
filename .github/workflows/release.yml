@@ -46,11 +46,11 @@ jobs:
         shell: bash
 
       - name: Stamp CHANGELOG [Unreleased] → version
-        run: python3 scripts/stamp_changelog.py --version "${RELEASE_VERSION#v}"
+        run: python3 ci/stamp_changelog.py --version "${RELEASE_VERSION#v}"
         shell: bash
 
       - name: Sync version strings in docs
-        run: python3 scripts/sync_version_refs.py
+        run: python3 ci/sync_version_refs.py
 
       - name: Commit synced docs (if changed)
         continue-on-error: true
@@ -408,7 +408,7 @@ jobs:
 
       - name: Build XCFramework
         run: |
-          chmod +x scripts/build_xcframework.sh
+          chmod +x ci/build_xcframework.sh
           ./scripts/build_xcframework.sh --release
 
       - name: Collect release artifacts
@@ -498,7 +498,7 @@ jobs:
           cp build/wasm/dist/package.json          "${PKG_NAME}/" 2>/dev/null || true
 
           cp LICENSE      "${PKG_NAME}/" 2>/dev/null || true
-          cp wasm/README.md "${PKG_NAME}/" 2>/dev/null || true
+          cp bindings/wasm/README.md "${PKG_NAME}/" 2>/dev/null || true
           cp CHANGELOG.md "${PKG_NAME}/" 2>/dev/null || true
 
           tar czf "${PKG_NAME}.tar.gz" "${PKG_NAME}"
@@ -1761,7 +1761,7 @@ jobs:
             LIB=$(find build -name 'libfastsecp256k1.a' -print -quit 2>/dev/null || true)
             if [ -n "$LIB" ]; then
               ${CXX:-g++} -std=c++20 -O2 \
-                -I cpu/include -I staging/include \
+                -I src/cpu/include -I staging/include \
                 /tmp/selftest_json_gen.cpp "$LIB" \
                 -o /tmp/selftest_json_gen 2>/dev/null && \
               /tmp/selftest_json_gen > selftest_report.json 2>/dev/null || \
@@ -1774,15 +1774,15 @@ jobs:
           fi
 
           # Generate verification transparency report (auto-stamps version, date, counts)
-          python3 scripts/generate_verification_report.py \
+          python3 ci/generate_verification_report.py \
             -o verification_report.md \
             --version "${RELEASE_VERSION#v}" || \
             cp docs/AUDIT_READINESS_REPORT_v1.md verification_report.md
 
           # Generate traceability matrix (Phase IV, Task 4.1.4)
-          if [ -x scripts/generate_traceability.sh ]; then
+          if [ -x ci/generate_traceability.sh ]; then
             echo "Generating traceability report..."
-            bash scripts/generate_traceability.sh 2>/dev/null || \
+            bash ci/generate_traceability.sh 2>/dev/null || \
               echo '{"error":"traceability generation failed"}' > traceability_report.json
           fi
 

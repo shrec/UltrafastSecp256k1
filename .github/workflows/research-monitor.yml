@@ -65,7 +65,7 @@ jobs:
               FAIL_FLAG='--fail-on-actionable'
             fi
           fi
-          python3 scripts/research_monitor.py \
+          python3 ci/research_monitor.py \
             --lookback-days "$LOOKBACK" \
             --max-results "$MAX_RESULTS" \
             --output-dir build/research_monitor \
@@ -120,6 +120,6 @@ jobs:
           RESEARCH_REPORT_TO: ${{ secrets.RESEARCH_REPORT_TO }}
           RESEARCH_REPORT_REPLY_TO: ${{ secrets.RESEARCH_REPORT_REPLY_TO }}
         run: |
-          python3 scripts/send_smtp_report.py \
+          python3 ci/send_smtp_report.py \
             --subject-file build/research_monitor/mail_subject.txt \
             --body-file build/research_monitor/mail_body.txt
