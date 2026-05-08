@@ -485,7 +485,7 @@ __device__ inline bool bip32_to_public(
     Scalar sk;
     scalar_from_bytes(xpriv->key, &sk);
     JacobianPoint P;
-    ct_generator_mul(&sk, &P);
+    ct::ct_generator_mul(&sk, &P);
 
     if (!point_to_compressed(&P, xpub->key)) return false;
 
