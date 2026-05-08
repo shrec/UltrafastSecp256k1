@@ -8,6 +8,12 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 4 * * 1'
+  # Self-referential push trigger so GitHub registers the workflow.
+  # Without it, workflow_dispatch + schedule alone don't index the workflow,
+  # which makes manual `gh workflow run ci-advisory.yml` return 404.
+  push:
+    paths:
+      - .github/workflows/ci-advisory.yml
 
 permissions:
   contents: read

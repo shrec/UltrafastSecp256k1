@@ -10,6 +10,12 @@ name: Codecov
 on:
   workflow_call:
   workflow_dispatch:
+  # Self-referential push trigger so GitHub registers the workflow.
+  # Without it, workflow_dispatch via API returns 404 because the workflow
+  # is never indexed (workflow_call/workflow_dispatch alone don't register).
+  push:
+    paths:
+      - .github/workflows/codecov.yml
 
 permissions:
   contents: read
