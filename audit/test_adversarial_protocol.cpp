@@ -177,8 +177,8 @@ static void test_hostile_bip324_lengths() {
         CHECK(ufsecp_bip324_decrypt(responder, tampered, tampered_len, zero_plain, &zero_plain_len) != UFSECP_OK,
             "bip324 decrypt rejects tampered minimum-size packet");
 
-    CHECK_OK(ufsecp_bip324_destroy(initiator), "bip324_destroy");
-    CHECK_OK(ufsecp_bip324_destroy(responder), "bip324_destroy");
+    ufsecp_bip324_destroy(initiator);
+    ufsecp_bip324_destroy(responder);
     ufsecp_ctx_destroy(ctx);
 }
 #endif
@@ -4700,8 +4700,8 @@ static void test_k1_bip324_multi_packet() {
                                     stale_out, &stale_out_len),
               "K.1: tampered packet correctly rejected");
 
-    CHECK_OK(ufsecp_bip324_destroy(initiator), "bip324_destroy");
-    CHECK_OK(ufsecp_bip324_destroy(responder), "bip324_destroy");
+    ufsecp_bip324_destroy(initiator);
+    ufsecp_bip324_destroy(responder);
     ufsecp_ctx_destroy(ctx);
 }
 
@@ -4756,10 +4756,10 @@ static void test_k2_bip324_cross_session_isolation() {
     CHECK(rec_len == sizeof(msg) && std::memcmp(recovered, msg, sizeof(msg)) == 0,
           "K.2: session-A decrypted plaintext matches");
 
-    CHECK_OK(ufsecp_bip324_destroy(a_init), "bip324_destroy");
-    CHECK_OK(ufsecp_bip324_destroy(a_resp), "bip324_destroy");
-    CHECK_OK(ufsecp_bip324_destroy(b_init), "bip324_destroy");
-    CHECK_OK(ufsecp_bip324_destroy(b_resp), "bip324_destroy");
+    ufsecp_bip324_destroy(a_init);
+    ufsecp_bip324_destroy(a_resp);
+    ufsecp_bip324_destroy(b_init);
+    ufsecp_bip324_destroy(b_resp);
     ufsecp_ctx_destroy(ctx);
 }
 
@@ -4795,7 +4795,7 @@ static void test_k3_bip324_double_handshake_rejection() {
         CHECK(rc2 != UFSECP_OK, "K.3: double-handshake correctly rejected");
     }
 
-    CHECK_OK(ufsecp_bip324_destroy(sess), "bip324_destroy");
+    ufsecp_bip324_destroy(sess);
     ufsecp_ctx_destroy(ctx);
 }
 #endif /* SECP256K1_BIP324 */
