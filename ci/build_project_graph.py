@@ -399,6 +399,8 @@ CREATE VIEW IF NOT EXISTS v_impact_analysis AS
   ORDER BY sf.lines DESC;
 
 -- Coverage gaps: core files with no test coverage, sorted by risk (lines DESC)
+-- Excludes pure data files (precomputed lookup tables): they contain only
+-- static arrays, no functions, no security patterns — nothing to test.
 CREATE VIEW IF NOT EXISTS v_coverage_gaps AS
   SELECT sf.path, sf.subsystem, sf.layer, sf.lines,
          (SELECT COUNT(*) FROM security_patterns WHERE source_file=sf.path) AS security_patterns,
@@ -407,6 +409,7 @@ CREATE VIEW IF NOT EXISTS v_coverage_gaps AS
   WHERE sf.category = 'cpu_core'
     AND sf.file_type IN ('cpp', 'source')
     AND sf.lines > 50
+    AND sf.path NOT LIKE '%/precompute_static_%.cpp'
     AND NOT EXISTS (
       SELECT 1 FROM edges WHERE dst_id=sf.path AND relation='covers'
     )
