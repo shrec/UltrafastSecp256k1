@@ -1,13 +1,10 @@
 name: Security Audit
 
+# push trigger removed — security-audit runs as part of ci.yml orchestration
+# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches: [dev, main]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'include/**'
   schedule:
     - cron: '0 2 * * 1'  # Weekly Monday 2am
 

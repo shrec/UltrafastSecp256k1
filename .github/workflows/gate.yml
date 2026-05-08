@@ -1,17 +1,10 @@
 name: Gate / PR-Push
 
+# push trigger removed — gate runs as part of ci.yml orchestration
+# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  push:
-    branches: [main, dev]
-    paths-ignore:
-      - 'workingdocs/**'
-      - 'README*'
-      - 'CHANGELOG*'
-      - 'LICENSE*'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/PULL_REQUEST_TEMPLATE*'
-      - '.github/copilot-instructions.md'
-      - '.github/agents/**'
+  workflow_call:
+  workflow_dispatch:
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -23,7 +16,6 @@ on:
       - '.github/PULL_REQUEST_TEMPLATE*'
       - '.github/copilot-instructions.md'
       - '.github/agents/**'
-  workflow_dispatch:
 
 permissions:
   contents: read
