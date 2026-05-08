@@ -8,6 +8,15 @@
 // Build: part of run_selftest (via CMakeLists), or standalone.
 // ============================================================================
 
+// This suite intentionally exercises the legacy variable-time
+// secp256k1::ecdsa_sign / secp256k1::schnorr_sign entry points alongside
+// their CT counterparts (separate equivalence coverage in
+// test_ct_equivalence.cpp). Suppress the deprecation warning so -Werror
+// builds (Security Audit) succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "secp256k1/test_framework.hpp"
 #include "secp256k1/fast.hpp"
 #include "secp256k1/field.hpp"

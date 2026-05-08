@@ -258,7 +258,14 @@ static void test_ecdsa_sign_equivalence() {
         auto msg_hash = rng.random_bytes();
 
         auto ct_sig = secp256k1::ct::ecdsa_sign(msg_hash, privkey);
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
         auto fast_sig = secp256k1::ecdsa_sign(msg_hash, privkey);
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
 
         bool const r_eq = (ct_sig.r.to_bytes() == fast_sig.r.to_bytes());
         bool const s_eq = (ct_sig.s.to_bytes() == fast_sig.s.to_bytes());

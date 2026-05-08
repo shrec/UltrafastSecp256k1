@@ -482,9 +482,17 @@ static void test_ct_ecdsa_sign() {
     std::array<uint8_t, 32> msg_hash{};
     msg_hash[0] = 0x42; msg_hash[1] = 0xAB; msg_hash[31] = 0x01;
 
-    // CT and fast should produce identical signatures (same RFC 6979 nonce)
+    // CT and fast should produce identical signatures (same RFC 6979 nonce).
+    // The fast (variable-time) path is intentional in this equivalence test.
     auto ct_sig   = secp256k1::ct::ecdsa_sign(msg_hash, privkey);
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     auto fast_sig = secp256k1::ecdsa_sign(msg_hash, privkey);
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
 
     CHECK(ct_sig.r.to_bytes() == fast_sig.r.to_bytes(),
           "ct::ecdsa_sign.r matches fast::ecdsa_sign.r");

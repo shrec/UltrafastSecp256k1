@@ -60,25 +60,40 @@ FieldElement fe_from_bytes_mod_p(const std::uint8_t bytes[32]) noexcept {
 //   - Encoding scratch values derived from (privkey_hash, pubkey_x):
 //     u = hash(privkey, ...) is PUBLIC (included in ell64 output)
 //   NEVER call with raw private keys, nonces, or CT secrets.
+// 32-bit platforms (ARMv7, Cortex-M, ESP32 Xtensa) lack __int128, so the
+// FieldElement52 kernel — and its jacobi_var() — is unavailable there.
+// Fall back to sqrt-and-verify, which is ~5× slower but functionally
+// equivalent. The fast Jacobi path on 64-bit platforms is preserved.
+#if defined(__SIZEOF_INT128__)
+static inline bool fe_jacobi_is_qr(const FieldElement& x) noexcept {
+    return fast::FieldElement52::from_fe(x).jacobi_var() == 1;
+}
+#else
+static inline bool fe_jacobi_is_qr(const FieldElement& x) noexcept {
+    auto s = x.sqrt();
+    return s.square() == x;
+}
+#endif
+
 bool fe_is_square(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return true;
-    return fast::FieldElement52::from_fe(x).jacobi_var() == 1;
+    return fe_jacobi_is_qr(x);
 }
 
 // Combined QR test + sqrt.
-// Fast path: Jacobi pre-check (~734 ns) before sqrt (~3.8 µs).
+// 64-bit path: Jacobi pre-check (~734 ns) before sqrt (~3.8 µs).
 // When NQR (50% of random inputs): returns false without calling sqrt.
 // When QR: Jacobi proves it, so no post-verify needed after sqrt.
+// 32-bit fallback (no __int128): always sqrt + verify.
 static inline std::pair<bool, FieldElement> fe_sqrt_checked(const FieldElement& x) noexcept {
     if (x == FieldElement::zero()) return {true, FieldElement::zero()};
-    // Jacobi pre-filter: skip 3.8 µs sqrt when NQR
-    if (fast::FieldElement52::from_fe(x).jacobi_var() != 1) return {false, FieldElement::zero()};
-    return {true, x.sqrt()};  // Jacobi proved QR → no s²==x verification needed
+    if (!fe_jacobi_is_qr(x)) return {false, FieldElement::zero()};
+    return {true, x.sqrt()};
 }
 
 // Check if (xn/xd)^3 + 7 is a quadratic residue, without division.
 // is_square((xn/xd)^3 + 7) ⟺ is_square((xn^3 + 7*xd^3) * xd)
-// Uses FE52 Jacobi symbol (posdivstep SafeGCD, ~734 ns) instead of sqrt (~3.8 µs).
+// On 64-bit, uses FE52 Jacobi (~734 ns); on 32-bit falls back to sqrt verify.
 static inline bool x_frac_on_curve(const FieldElement& xn, const FieldElement& xd) noexcept {
     auto xn2 = xn.square();
     auto xn3 = xn2 * xn;
@@ -86,9 +101,7 @@ static inline bool x_frac_on_curve(const FieldElement& xn, const FieldElement& x
     auto xd3 = xd2 * xd;
     auto g = xn3 + FieldElement::from_uint64(7) * xd3;
     auto check = g * xd;
-    // Jacobi symbol is 5× faster than sqrt for the QR check.
-    auto check52 = fast::FieldElement52::from_fe(check);
-    return check52.jacobi_var() == 1;
+    return fe_jacobi_is_qr(check);
 }
 
 // Port of libsecp256k1 secp256k1_ellswift_xswiftec_frac_var:
@@ -309,7 +322,7 @@ static std::pair<FieldElement, FieldElement> xswiftec_fwd_point(FieldElement u, 
 // Combined QR + sqrt for xswiftec_inv (needs the actual sqrt value).
 // Jacobi pre-check (~734 ns) avoids sqrt (~3.8 µs) when NQR.
 static inline std::pair<bool, FieldElement> sqrt_check(const FieldElement& x) noexcept {
-    if (fast::FieldElement52::from_fe(x).jacobi_var() != 1) return {false, FieldElement::zero()};
+    if (!fe_jacobi_is_qr(x)) return {false, FieldElement::zero()};
     return {true, x.sqrt()};
 }
 
