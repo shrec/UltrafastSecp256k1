@@ -16,6 +16,14 @@ using namespace secp256k1;
 using fast::Scalar;
 using fast::Point;
 
+// This suite intentionally exercises the legacy variable-time
+// secp256k1::ecdsa_sign / secp256k1::schnorr_sign entry points to populate
+// batch-verify input vectors. Suppress the deprecation warning so -Werror
+// builds (Security Audit) succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 static int tests_run = 0;
 static int tests_passed = 0;
 

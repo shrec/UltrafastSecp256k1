@@ -19,6 +19,13 @@
 using namespace secp256k1;
 using namespace secp256k1::fast;
 
+// Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (test vectors / benchmark harness). Suppress
+// the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 namespace {
 
 struct CliOptions {

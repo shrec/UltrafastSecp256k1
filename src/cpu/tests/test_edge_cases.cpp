@@ -38,6 +38,13 @@ using secp256k1::schnorr_sign;
 using secp256k1::schnorr_verify;
 using secp256k1::bip32_master_key;
 
+// Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (test vectors / benchmark harness). Suppress
+// the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 static int g_tests_run = 0;
 static int g_tests_passed = 0;
 

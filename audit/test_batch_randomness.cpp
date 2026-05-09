@@ -27,6 +27,13 @@
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/sha256.hpp"
 
+// Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (audit harness / cross-platform vectors).
+// Suppress the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 namespace {
 
 using secp256k1::fast::Scalar;

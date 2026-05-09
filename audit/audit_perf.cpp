@@ -22,6 +22,13 @@
 
 using namespace secp256k1::fast;
 
+// Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (audit harness / cross-platform vectors).
+// Suppress the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 static std::mt19937_64 rng(0xA0D17'BEFFA);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
 
 static Scalar random_scalar() {

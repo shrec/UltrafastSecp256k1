@@ -36,6 +36,13 @@
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_recovery.h>
 
+// Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (audit harness / cross-platform vectors).
+// Suppress the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 // Alias to avoid confusion
 namespace uf = secp256k1::fast;
 
