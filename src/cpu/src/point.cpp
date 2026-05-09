@@ -626,7 +626,9 @@ SECP256K1_INLINE static void jac52_double_coords_var(FieldElement52& x, FieldEle
     y.negate_assign(2);
 }
 SECP256K1_INLINE static void jac52_double_inplace_var(JacobianPoint52& p) noexcept {
-    jac52_double_coords_var(p.x, p.y, p.z);
+    // TEMPORARY: fall back to non-var path to rule out jac52_double_coords_var
+    // formula or mul_assign_var as source of CT/fast divergence.
+    jac52_double_inplace(p);
 }
 
 // Mixed Addition (5x52, return by value): delegates to in-place variant.
@@ -721,6 +723,11 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
 // CT signing must continue to use jac52_add_mixed_inplace (unchanged path).
 SECP256K1_HOT_FUNCTION SECP256K1_INLINE
 static void jac52_add_mixed_inplace_var(JacobianPoint52& p, const AffinePoint52& q) noexcept {
+    // TEMPORARY: fall back to non-var path to rule out jac52_add_mixed_inplace_var
+    // as source of CT/fast divergence on GCC-13/Clang-17.
+    jac52_add_mixed_inplace(p, q);
+    return;
+    // (dead code below is the original var implementation — kept for reference)
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
