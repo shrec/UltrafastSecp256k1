@@ -145,7 +145,7 @@ jobs:
             mull-runner-17 \
               --reporters=Elements \
               --report-dir=mutation-report \
-              build-mull/src/cpu/run_selftest 2>&1 | tee mutation-log.txt || true
+              build-mull/cpu/run_selftest 2>&1 | tee mutation-log.txt || true
 
           else
             echo "::warning::Mull not available, running manual mutation testing"

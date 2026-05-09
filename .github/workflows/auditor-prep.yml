@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
@@ -60,10 +60,48 @@ jobs:
           fi
           bash ci/external_audit_prep.sh "${args[@]}"
 
+      - name: Embed CAAS gate state in artifact
+        # M-7 fix: external auditors need to know whether the commit being
+        # packaged passed CAAS gates. If the gate script exists and fails,
+        # the step fails (real gate failure ≠ UNKNOWN). UNKNOWN is only used
+        # when the script is genuinely absent from this checkout.
+        run: |
+          if [ -f ci/audit_gate.py ]; then
+            python3 ci/audit_gate.py --json \
+              -o external-audit-artifacts/caas_gate_state.json
+          else
+            echo '{"verdict":"UNKNOWN","note":"audit_gate.py not present in this checkout"}' \
+              > external-audit-artifacts/caas_gate_state.json
+          fi
+          if [ -f ci/check_exploit_wiring.py ]; then
+            python3 ci/check_exploit_wiring.py --json \
+              > external-audit-artifacts/exploit_wiring_state.json
+          else
+            echo '{"result":"UNKNOWN","note":"check_exploit_wiring.py not present in this checkout"}' \
+              > external-audit-artifacts/exploit_wiring_state.json
+          fi
+
+      - name: Surface exploit wiring check outcome
+        if: always()
+        run: |
+          if [ -f external-audit-artifacts/exploit_wiring_state.json ]; then
+            PASS=$(python3 -c "import json,sys; d=json.load(open('external-audit-artifacts/exploit_wiring_state.json')); sys.exit(0 if d.get('pass', d.get('passed', False)) else 1)" 2>/dev/null)
+            if [ $? -ne 0 ]; then
+              echo "::error::Exploit wiring check FAILED — audit bundle contains unwired tests"
+            else
+              echo "::notice::Exploit wiring check passed"
+            fi
+          else
+            echo "::warning::exploit_wiring_state.json not generated — wiring check may have failed"
+          fi
+
       - name: Upload external audit artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: external-audit-artifacts
+          # M-7 fix: append run_id to prevent re-runs on the same commit from
+          # overwriting each other (previously all runs produced the same artifact
+          # name, making it impossible to retrieve a specific run's bundle).
+          name: external-audit-artifacts-${{ github.run_id }}
           path: external-audit-artifacts/
-          retention-days: 30
+          retention-days: 90

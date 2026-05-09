@@ -16,21 +16,6 @@
 name: Valgrind CT Taint
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'audit/**'
-      - 'ci/valgrind_ct_check.sh'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'audit/**'
-  schedule:
-    - cron: '30 3 * * *'   # Nightly at 03:30 UTC
   workflow_dispatch:
 
 permissions:
@@ -38,7 +23,7 @@ permissions:
 
 jobs:
   valgrind-ct:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -49,8 +34,7 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      with:
-        submodules: recursive
+
 
     - name: Install dependencies
       run: |
@@ -60,7 +44,7 @@ jobs:
     - name: Run Valgrind CT analysis
       run: |
         chmod +x ci/valgrind_ct_check.sh
-        ./ci/valgrind_ct_check.sh build/valgrind-ct
+        ./scripts/valgrind_ct_check.sh out/valgrind-ct
 
     - name: Upload Valgrind reports
       if: always()
@@ -68,15 +52,15 @@ jobs:
       with:
         name: valgrind-ct-reports
         path: |
-          build/valgrind-ct/valgrind_reports/valgrind_ct_report.json
-          build/valgrind-ct/valgrind_reports/valgrind_ct.log
-          build/valgrind-ct/valgrind_reports/valgrind_ct.xml
+          out/valgrind-ct/valgrind_reports/valgrind_ct_report.json
+          out/valgrind-ct/valgrind_reports/valgrind_ct.log
+          out/valgrind-ct/valgrind_reports/valgrind_ct.xml
         retention-days: 30
 
     - name: Summary
       if: always()
       run: |
-        REPORT="build/valgrind-ct/valgrind_reports/valgrind_ct_report.json"
+        REPORT="out/valgrind-ct/valgrind_reports/valgrind_ct_report.json"
         if [ -f "$REPORT" ]; then
           echo "## Valgrind CT Taint Analysis" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY

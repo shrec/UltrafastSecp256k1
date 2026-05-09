@@ -1,0 +1,62 @@
+# doc-gates.yml — fast doc-only verification (~30s)
+#
+# Fires ONLY when documentation/markdown files change.
+# Runs the wiring + canonical-data + doc-sync gates without a full build.
+# This satisfies branch protection for doc-only PRs without 35-min CI.
+
+name: Doc Gates
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'README*'
+      - 'CHANGELOG*'
+      - 'audit/unified_audit_runner.cpp'
+      - 'scripts/sync_*.py'
+      - 'scripts/build_canonical_data.py'
+      - 'ci/sync_*.py'
+      - 'ci/build_canonical_data.py'
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'README*'
+      - 'CHANGELOG*'
+      - 'audit/unified_audit_runner.cpp'
+      - 'scripts/sync_*.py'
+      - 'scripts/build_canonical_data.py'
+      - 'ci/sync_*.py'
+      - 'ci/build_canonical_data.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doc-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doc-gates:
+    name: Doc / Fast Gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v5.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Fast deterministic gates
+        run: bash ci/run_fast_gates.sh

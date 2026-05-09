@@ -8,12 +8,6 @@
 name: CBOM (Cryptographic Bill of Materials)
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/cpu/src/**'
-      - 'libs/UltrafastSecp256k1/include/**'
-      - 'libs/UltrafastSecp256k1/gpu/**'
   workflow_dispatch:
 
 permissions:
@@ -30,8 +24,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          submodules: recursive
+  
 
       - name: Install tools
         run: |

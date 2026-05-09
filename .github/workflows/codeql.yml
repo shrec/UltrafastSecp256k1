@@ -1,15 +1,13 @@
 name: CodeQL
 
+# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
+# Also available for manual replay via workflow_dispatch.
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
-  schedule:
-    - cron: '30 8 * * 1'  # Monday 08:30 UTC
+  workflow_call:
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: codeql-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -25,17 +23,18 @@ jobs:
       actions: read
 
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Install compiler
+      - name: Install compiler and tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y clang-17 lld-17 ninja-build ccache
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 lld-17 ninja-build ccache
 
       - name: Cache ccache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -47,9 +46,12 @@ jobs:
 
       - name: Configure ccache
         run: |
-          ccache --set-config=max_size=200M
-          ccache --set-config=compression=true
-          ccache -z
+          CCACHE=$(command -v ccache || true)
+          if [ -n "$CCACHE" ]; then
+            "$CCACHE" --set-config=max_size=200M
+            "$CCACHE" --set-config=compression=true
+            "$CCACHE" -z
+          fi
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
@@ -60,18 +62,28 @@ jobs:
           config-file: .github/codeql/codeql-config.yml
 
       - name: Build for analysis
+        env:
+          CC:  clang-17
+          CXX: clang++-17
         run: |
-          export CC=clang-17 CXX=clang++-17
+          CCACHE=$(command -v ccache || true)
+          LAUNCHER_ARGS=()
+          if [ -n "$CCACHE" ]; then
+            LAUNCHER_ARGS=(
+              "-DCMAKE_C_COMPILER_LAUNCHER=${CCACHE}"
+              "-DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE}"
+            )
+          fi
+          JOBS=$(nproc 2>/dev/null || echo 4)
           cmake -S . -B build/codeql -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            "${LAUNCHER_ARGS[@]}" \
             -DSECP256K1_MARCH=x86-64-v3 \
             -DSECP256K1_BUILD_TESTS=OFF \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
             -DSECP256K1_USE_ASM=OFF
-          cmake --build build/codeql -j$(nproc)
+          cmake --build build/codeql -j"$JOBS"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1

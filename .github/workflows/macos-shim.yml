@@ -1,0 +1,112 @@
+# ===========================================================================
+# macOS ARM64 — libsecp256k1 Shim Build + Test
+# ===========================================================================
+#
+# Builds and tests the libsecp256k1-compatible shim layer on native Apple
+# Silicon (macos-14 = M-series ARM64). Validates that:
+#
+#   1. The shim builds cleanly on macOS ARM64 with AppleClang
+#   2. shim_test passes (functional parity smoke tests)
+#   3. check_libsecp_shim_parity.py passes (API surface completeness)
+#   4. C++17 isolation check passes (no C++20 in shim headers)
+#
+# This is a required gate for the Bitcoin Core backend PR:
+# a macOS reviewer must be able to build and test the shim natively.
+# ===========================================================================
+
+name: macOS ARM64 Shim
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-arm64-shim:
+    name: macOS ARM64 / Shim Build + Test
+    runs-on: macos-14
+    timeout-minutes: 20
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Show build environment
+        run: |
+          uname -m
+          clang --version
+          cmake --version
+          python3 --version
+
+      - name: Configure (shim + CPU, Release)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_SHIM=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_METAL=OFF \
+            -DSECP256K1_BUILD_CUDA=OFF \
+            -DSECP256K1_BUILD_OPENCL=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF
+
+      - name: Build (shim + CPU only)
+        run: cmake --build build --target shim_test ufsecp_shared -j$(sysctl -n hw.logicalcpu)
+
+      - name: Run shim tests (shim_test)
+        run: ctest --test-dir build --output-on-failure -R "shim_test" -j$(sysctl -n hw.logicalcpu)
+
+      - name: Shim API surface parity check
+        run: python3 ci/check_libsecp_shim_parity.py
+
+      - name: C++17 isolation check (shim headers must not require C++20)
+        run: |
+          # Compile a minimal C++17 consumer of the shim headers.
+          # If any shim header uses C++20 features this will fail.
+          python3 - <<'EOF'
+          import subprocess, sys, tempfile, os
+          code = """
+          // Test: shim headers must be includable under C++17
+          #include "secp256k1.h"
+          #include "secp256k1_schnorrsig.h"
+          #include "secp256k1_extrakeys.h"
+          #include "secp256k1_recovery.h"
+          #include "secp256k1_ecdh.h"
+          int main() { return 0; }
+          """
+          with tempfile.NamedTemporaryFile(suffix='.cpp', mode='w', delete=False) as f:
+              f.write(code)
+              tmp = f.name
+          try:
+              r = subprocess.run(
+                  ['clang++', '-std=c++17', '-Icompat/libsecp256k1_shim/include',
+                   '-o', '/dev/null', tmp],
+                  capture_output=True, text=True
+              )
+              if r.returncode != 0:
+                  print("::error::C++17 isolation FAILED")
+                  print(r.stderr)
+                  sys.exit(1)
+              print("::notice::C++17 isolation OK — shim headers compile under C++17")
+          finally:
+              os.unlink(tmp)
+          EOF
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## macOS ARM64 Shim Test" >> $GITHUB_STEP_SUMMARY
+          echo "- Platform: \`$(uname -m)\` / \`$(sw_vers -productVersion)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Compiler: \`$(clang --version | head -1)\`" >> $GITHUB_STEP_SUMMARY

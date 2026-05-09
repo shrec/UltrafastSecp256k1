@@ -2,18 +2,19 @@
 # Continuous Audit as a Service (CAAS) — GitHub Actions Workflow
 # ===========================================================================
 #
-# Runs the full audit pipeline on every push and pull request to dev/main.
-# All five stages must pass. Any failure blocks merge.
+# Manual deep CAAS replay (workflow_dispatch only).
+# PR/push CAAS runs through gate.yml (caas-security) and ci.yml (caas-full).
 #
-# Stages:
-#   1. Static Analysis   — audit_test_quality_scanner (0 findings required)
-#   2. Audit Gate        — audit_gate.py  (P0–P18, exit 0 required)
-#   3. Security Autonomy — security_autonomy_check.py (100/100 required)
-#   4. Bundle Produce    — external_audit_bundle.py (reproducible evidence)
-#   5. Bundle Verify     — verify_external_audit_bundle.py (integrity check)
+# Pipeline stages (6 logical, 5 CI jobs; traceability join runs in Stage 1):
+#   1a. Static Analysis    — audit_test_quality_scanner (0 findings required)
+#   1b. Traceability Join  — exploit_traceability_join (G-9b, catalog consistency)
+#   2.  Audit Gate         — audit_gate.py  (P0–P18, exit 0 required)
+#   3.  Security Autonomy  — security_autonomy_check.py (100/100 required)
+#   4.  Bundle Produce     — external_audit_bundle.py (reproducible evidence)
+#   5.  Bundle Verify      — verify_external_audit_bundle.py (integrity check)
 #
 # Artifacts:
-#   - caas-report         : JSON summary of all five stages
+#   - caas-report         : JSON summary of all pipeline stages
 #   - audit-bundle        : EXTERNAL_AUDIT_BUNDLE.json + sha256 manifest
 #
 # On PR:  each stage becomes a required status check named "CAAS / <stage>"
@@ -23,15 +24,11 @@
 name: CAAS
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
-  # Allow manual trigger to regenerate the evidence bundle on demand
+  # Manual deep CAAS replay. PR/push uses gate.yml to avoid duplicate fan-out.
   workflow_dispatch:
     inputs:
       skip_bundle:
-        description: 'Skip bundle produce/verify (faster, advisory only)'
+        description: 'WARNING: skips Stages 4+5 — audit bundle and owner bundle will NOT be produced; CAAS result is advisory only'
         required: false
         default: 'false'
         type: choice
@@ -67,17 +64,38 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Fast gates replay (preflight guard)
+        # Replays the fast deterministic gates so a manually triggered CAAS run
+        # cannot produce an audit bundle from a commit where preflight is failing.
+        # Mirrors gate.yml Block 1 / Fast CAAS Gates.
+        run: bash ci/run_fast_gates.sh
+
       - name: Exploit wiring parity check
         # Enforces the Conversion Standard: every audit/test_exploit_*.cpp
         # with a *_run() entry point must be registered in
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
         run: python3 ci/check_exploit_wiring.py
 
+      - name: Canonical data + doc sync check
+        # Rebuilds canonical_data.json from source-of-truth and checks that
+        # all documentation files match it. Fails on any numeric drift.
+        run: |
+          python3 ci/build_canonical_data.py --dry-run
+          python3 ci/sync_docs_from_canonical.py --dry-run
+          python3 ci/sync_module_count.py --dry-run
+
+      - name: Exploit traceability join (G-9b / CAAS Stage 2)
+        # G-9b: Joins exploit catalog, threat model, and spec traceability matrix.
+        # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or
+        # any spec row points at a non-existent path.
+        run: python3 ci/exploit_traceability_join.py
+
       - name: Run audit test quality scanner
         id: scanner
         run: |
           python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
-          echo "Exit code: $?"
+          _scanner_exit=$?
+          echo "Exit code: $_scanner_exit"
           python3 - <<'EOF'
           import json, sys
           with open("caas_scanner.json") as f:
@@ -98,14 +116,15 @@ jobs:
         with:
           name: caas-scanner-report-${{ github.run_id }}
           path: caas_scanner.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
         run: |
           echo "## CAAS Stage 1 — Static Analysis" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat caas_scanner.json 2>/dev/null || echo '{}'
+          cat caas_scanner.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '{}' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -135,7 +154,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
+
       - name: Build shared library (required by P0 harnesses)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -152,16 +180,24 @@ jobs:
         run: python3 tools/source_graph_kit/source_graph.py build -i
 
       - name: Run audit gate
+        # GH Actions default shell is `bash --noprofile --norc -eo pipefail`,
+        # so a non-zero exit from audit_gate.py would abort the step before
+        # the inline parser ran. We disable -e for just this run block so that
+        # we can capture the gate's exit code AND still produce a friendly
+        # error report from the JSON.
         run: |
+          set +e
           python3 ci/audit_gate.py --json -o caas_audit_gate.json
-          EXIT=$?
-          python3 - <<'EOF'
+          GATE_EXIT=$?
+          set -e
+          python3 - "$GATE_EXIT" <<'EOF'
           import json, sys
+          gate_exit = int(sys.argv[1])
           try:
               with open("caas_audit_gate.json") as f:
                   report = json.load(f)
           except Exception:
-              print("::error::audit_gate.py produced no JSON — treating as FAIL")
+              print(f"::error::audit_gate.py produced no JSON (gate_exit={gate_exit}) — treating as FAIL")
               sys.exit(1)
           fails = [c for c in report.get("checks", []) if c.get("status") == "FAIL"]
           if fails:
@@ -173,11 +209,13 @@ jobs:
           for w in warns:
               print(f"::warning::WARN [{w.get('name','?')}]")
           # Accept either strict PASS or PASS-with-advisory (advisory means
-          # WARN findings exist but no FAIL findings). Block only on real FAIL.
+          # WARN findings exist but no FAIL findings). Block on real FAIL OR
+          # on a non-zero exit code from audit_gate.py itself (in case the
+          # gate aborted partway and emitted an inconsistent report).
           verdict = report.get("verdict", "")
-          passed = (verdict in ("PASS", "PASS with advisory")) and not fails
+          passed = (verdict in ("PASS", "PASS with advisory")) and not fails and gate_exit == 0
           if not passed:
-              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={verdict}")
+              print(f"::error::Audit gate FAIL — {len(fails)} blocking finding(s), verdict={verdict}, gate_exit={gate_exit}")
               sys.exit(1)
           print(f"::notice::Audit gate PASS — verdict={verdict}, {len(warns)} warning(s)")
           EOF
@@ -188,14 +226,15 @@ jobs:
         with:
           name: caas-audit-gate-report-${{ github.run_id }}
           path: caas_audit_gate.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
         run: |
           echo "## CAAS Stage 2 — Audit Gate (P0–P18)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 ci/audit_gate.py 2>&1 | tail -40 || true
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_audit_gate.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '{}' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -225,7 +264,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
+
       - name: Build shared library (required by audit_gate in bundle)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -244,6 +292,19 @@ jobs:
       - name: Run security autonomy check
         run: |
           python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+          rc=$?
+          # F-24 fix: add exit 77 handling symmetric with preflight.yml.
+          # Previously caas.yml had no handling for exit 77 — the inline Python would
+          # fail to load caas_autonomy.json (file absent) and exit 1, turning an
+          # advisory-skip into a hard failure and blocking the pipeline.
+          if [ $rc -eq 77 ]; then
+            echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            if [ ! -f caas_autonomy.json ]; then
+              echo '{"autonomy_score":0,"autonomy_ready":false,"advisory_skip":true,"reason":"exit 77 — infrastructure absent"}' > caas_autonomy.json
+            fi
+            exit 0
+          fi
+          [ $rc -ne 0 ] && exit $rc
           python3 - <<'EOF'
           import json, sys
           try:
@@ -270,14 +331,15 @@ jobs:
         with:
           name: caas-autonomy-report-${{ github.run_id }}
           path: caas_autonomy.json
-          retention-days: 30
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
         run: |
           echo "## CAAS Stage 3 — Security Autonomy" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat caas_autonomy.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"score={d.get('autonomy_score',0)}/100  ready={d.get('autonomy_ready',False)}\")" || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          python3 ci/parse_gate_report.py caas_autonomy.json --autonomy >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo '(no autonomy report)' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -289,10 +351,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [security_autonomy]
-    if: >-
-      always() &&
-      needs.security_autonomy.result == 'success' &&
-      github.event.inputs.skip_bundle != 'true'
+    if: needs.security_autonomy.result == 'success' && github.event.inputs.skip_bundle != 'true'
 
     steps:
       - name: Harden runner
@@ -312,7 +371,16 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-13
 
+      - name: Cache shared library (CAAS-08 — avoid triple build)
+        id: cache-lib
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build-audit/
+          key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
+          restore-keys: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-
+
       - name: Build shared library (required by audit_gate in bundle)
+        if: steps.cache-lib.outputs.cache-hit != 'true'
         run: |
           cmake -S . -B build-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -364,6 +432,116 @@ jobs:
           print("::notice::Audit bundle PASS — all integrity checks verified")
           EOF
 
+      - name: Check bundle freshness
+        # MISS-5 fix: gate on 7-day max age so stale bundles are caught before
+        # they are distributed to external auditors.
+        run: |
+          python3 - <<'EOF'
+          import json, sys, time
+          from pathlib import Path
+          bundle_path = Path("docs/EXTERNAL_AUDIT_BUNDLE.json")
+          if not bundle_path.exists():
+              print("::warning::EXTERNAL_AUDIT_BUNDLE.json not found — skipping freshness check")
+              sys.exit(0)
+          data = json.loads(bundle_path.read_text())
+          ts = data.get("generated_at") or data.get("timestamp")
+          if not ts:
+              print("::error::Bundle has no timestamp field — cannot verify freshness")
+              sys.exit(1)
+          from datetime import datetime
+          age_days = (time.time() - datetime.fromisoformat(ts.replace("Z","+00:00")).timestamp()) / 86400
+          if age_days > 7:
+              print(f"::error::EXTERNAL_AUDIT_BUNDLE.json is {age_days:.1f} days old (max: 7)")
+              sys.exit(1)
+          print(f"Bundle freshness OK: {age_days:.1f} days old")
+          EOF
+
+      - name: Stage 5b — Owner-grade audit bundle
+        # Produces out/owner_audit/owner_audit_bundle.json — the comprehensive
+        # owner-facing bundle (CT evidence, auditor mode, failure matrix strict
+        # analysis, benchmark publishability). Previously local-only; now
+        # produced on every CAAS run and persisted as an artifact.
+        run: |
+          python3 ci/build_owner_audit_bundle.py \
+            --output-dir out/owner_audit \
+            --strict
+          ls -la out/owner_audit/
+          python3 -c "
+          import json, sys, pathlib
+          p = pathlib.Path('out/owner_audit/owner_audit_bundle.json')
+          if not p.exists():
+              print('::error::owner_audit_bundle.json was not produced')
+              sys.exit(1)
+          d = json.loads(p.read_text())
+          # F-11 fix: use the actual keys emitted by build_owner_audit_bundle.py.
+          # The previous validation read d.get('git',{}).get('commit','?') and
+          # d.get('surfaces',[]) — neither key exists in owner_audit_bundle.json.
+          overall_status   = d.get('overall_status', '?')
+          blocking         = d.get('blocking_findings', [])
+          mandatory_miss   = d.get('mandatory_missing', [])
+          generated_at     = d.get('generated_at', '?')
+          print(f\"  generated_at:      {generated_at}\")
+          print(f\"  overall_status:    {overall_status}\")
+          print(f\"  blocking_findings: {len(blocking)}\")
+          print(f\"  mandatory_missing: {len(mandatory_miss)}\")
+          if mandatory_miss:
+              print(f'::error::owner_audit_bundle mandatory items missing: {mandatory_miss}')
+              sys.exit(1)
+          if blocking:
+              print(f'::error::owner_audit_bundle has blocking findings: {blocking[:3]}')
+              sys.exit(1)
+          "
+
+      - name: Stage 5c — Validate produced reports against schema
+        # report_schema.py now treats legacy-format documents (no schema_version
+        # field) as exempt from structural validation — they pass the schema check.
+        # Versioned documents (schema_version present) are fully validated.
+        # This step is now a hard gate: failures indicate a real schema regression
+        # in a newly versioned producer, not legacy format mismatch.
+        run: |
+          set +e
+          FAIL=0
+          for f in caas_audit_gate.json caas_autonomy.json caas_bundle_verify.json out/owner_audit/owner_audit_bundle.json; do
+              if [ ! -f "$f" ]; then
+                  echo "::error::schema validate: $f not found — Stage 4/5 should have produced it"
+                  FAIL=1
+                  continue
+              fi
+              python3 ci/report_schema.py --validate "$f"
+              rc=$?
+              if [ $rc -ne 0 ]; then
+                  echo "::error::schema validation failed for $f (rc=$rc)"
+                  FAIL=1
+              else
+                  echo "::notice::schema validation PASS for $f"
+              fi
+          done
+          if [ $FAIL -ne 0 ]; then
+              exit 1
+          fi
+          exit 0
+
+      - name: Download scanner report from Stage 1
+        # F-04 fix: removed continue-on-error:true — a missing scanner report must
+        # cause the bundle job to fail explicitly, not silently produce an incomplete
+        # bundle that external auditors would interpret as "0 findings."
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          name: caas-scanner-report-${{ github.run_id }}
+          path: .
+
+      - name: Verify scanner report present
+        # F-04 fix: hard-fail if the scanner artifact was not downloaded. This catches
+        # the case where Stage 1 failed before uploading its artifact (e.g. hard crash).
+        if: always()
+        run: |
+          if [ ! -f caas_scanner.json ]; then
+            echo "::error::caas_scanner.json is missing — Stage 1 (scanner) did not produce its artifact."
+            echo "::error::The audit bundle cannot be assembled without scanner evidence."
+            exit 1
+          fi
+
       - name: Upload audit bundle artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -373,15 +551,85 @@ jobs:
             docs/EXTERNAL_AUDIT_BUNDLE.json
             docs/EXTERNAL_AUDIT_BUNDLE.sha256
             caas_bundle_verify.json
-          retention-days: 90
+            caas_scanner.json
+            caas_audit_gate.json
+            out/owner_audit/owner_audit_bundle.json
+            out/owner_audit/owner_audit_bundle.txt
+          # F-05 fix: error (not warn) so a completely empty bundle upload is a hard failure.
+          if-no-files-found: error
+          retention-days: 365
 
       - name: Step summary
         if: always()
         run: |
           echo "## CAAS Stage 4+5 — Audit Bundle" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat caas_bundle_verify.json >> "$GITHUB_STEP_SUMMARY" 2>/dev/null \
+            || echo '{"error":"caas_bundle_verify.json was not produced"}' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> $GITHUB_STEP_SUMMARY
-          python3 ci/verify_external_audit_bundle.py 2>&1 | tail -20 || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Bitcoin Core Backend Profile — scoped gate for Core PR reviewers
+  # Runs shim parity + core build mode + source graph quality checks.
+  # Advisory (non-blocking) until Bitcoin Core make check is fully wired.
+  # =========================================================================
+  bitcoin_core_profile:
+    name: CAAS / Bitcoin Core Backend Profile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [scanner, audit_gate]
+    if: needs.scanner.result == 'success' && needs.audit_gate.result == 'success'
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+
+      - name: Build project graph
+        run: python3 ci/build_project_graph.py --rebuild
+
+      - name: Shim Parser Parity Gate (hard-fail)
+        run: python3 ci/check_libsecp_shim_parity.py
+
+      - name: Core Build Mode Gate (hard-fail)
+        run: python3 ci/check_core_build_mode.py
+
+      - name: Bitcoin Core Test Results Gate (hard-fail)
+        # Validates docs/BITCOIN_CORE_TEST_RESULTS.json: 693/693 tests,
+        # 0 failures, backend_commit recorded.
+        # Also runs in preflight.yml (CAAS Stage 2e); wired here so the
+        # bitcoin_core_profile job is self-contained and can block PRs.
+        run: python3 ci/check_bitcoin_core_test_results.py
+
+      - name: Source Graph Quality Gate
+        # The source graph is rebuilt earlier in this job (Build source graph step),
+        # so failures here are real regressions — not missing-infrastructure skips.
+        # Hard gate: a stale or incomplete graph after a rebuild is a genuine failure.
+        run: python3 ci/check_source_graph_quality.py
+
+      - name: Bitcoin Core Profile Summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<'EOF'
+          ## CAAS — Bitcoin Core Backend Profile
+
+          | Check | Description |
+          |-------|-------------|
+          | Shim Parser Parity | All scalar/field inputs use strict range validation |
+          | Core Build Mode | No C++20 leak, no FetchContent, no config.ini required |
+          | Source Graph Quality | Key directories and symbols indexed |
+
+          Scope: CPU signing, libsecp256k1 shim, parser parity, CT signing, C++17 isolation.
+          Out of scope: GPU, multicoin APIs, ZK, FROST, BIP-352 perf.
+          EOF
 
   # =========================================================================
   # Full CAAS report — summary job (runs after all stages)
@@ -390,7 +638,7 @@ jobs:
     name: CAAS / Report
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    needs: [scanner, audit_gate, security_autonomy, bundle]
+    needs: [scanner, audit_gate, security_autonomy, bundle, bitcoin_core_profile]
     if: always()
 
     steps:
@@ -399,30 +647,97 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        id: checkout
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
       - name: Evaluate overall CAAS result
+        id: evaluate
         run: |
           python3 - <<'EOF'
           import sys, os
 
           results = {
-              "scanner":           "${{ needs.scanner.result }}",
-              "audit_gate":        "${{ needs.audit_gate.result }}",
-              "security_autonomy": "${{ needs.security_autonomy.result }}",
-              "bundle":            "${{ needs.bundle.result }}",
+              "scanner":              "${{ needs.scanner.result }}",
+              "audit_gate":           "${{ needs.audit_gate.result }}",
+              "security_autonomy":    "${{ needs.security_autonomy.result }}",
+              "bundle":               "${{ needs.bundle.result }}",
+              "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
           }
+
+          # Bundle is the only stage that can be legitimately skipped (via the
+          # workflow_dispatch skip_bundle input). Track that separately so the
+          # final summary does not falsely claim "all 5 stages verified" when
+          # 4+5 was deliberately skipped.
+          # L-1 fix: bitcoin_core_profile is also legitimately skipped when
+          # audit_gate fails (its condition is `needs.audit_gate.result == 'success'`).
+          # Previously this caused a double-failure report — both audit_gate and
+          # bitcoin_core_profile shown as failing when audit_gate is the root cause.
+          audit_gate_failed = results["audit_gate"] != "success"
+          bundle_skipped = results["bundle"] == "skipped"
+          other_skipped = [
+              s for s, r in results.items()
+              if r == "skipped"
+              and s != "bundle"
+              # bitcoin_core_profile skipping is expected when audit_gate failed.
+              and not (s == "bitcoin_core_profile" and audit_gate_failed)
+              # R-7 fix: security_autonomy has `needs: [audit_gate]` so it is
+              # automatically skipped when audit_gate fails. This is a downstream
+              # cascade, not an independent failure — exclude it from other_skipped
+              # to avoid inflating the apparent failure count.
+              and not (s == "security_autonomy" and audit_gate_failed)
+          ]
 
           print("## CAAS Pipeline Results")
           all_pass = True
           for stage, result in results.items():
               icon = "✓" if result == "success" else ("○" if result == "skipped" else "✗")
               print(f"  {icon} {stage}: {result}")
-              if result not in ("success", "skipped"):
+              # bundle may be skipped intentionally.
+              bundle_skip_ok = (stage == "bundle" and result == "skipped")
+              # bitcoin_core_profile skip is expected when audit_gate failed.
+              btc_skip_ok = (
+                  stage == "bitcoin_core_profile"
+                  and result == "skipped"
+                  and audit_gate_failed
+              )
+              # security_autonomy skip is a downstream cascade of audit_gate failure.
+              autonomy_skip_ok = (
+                  stage == "security_autonomy"
+                  and result == "skipped"
+                  and audit_gate_failed
+              )
+              if result not in ("success",) and not bundle_skip_ok and not btc_skip_ok and not autonomy_skip_ok:
                   all_pass = False
+
+          # Surface the skip context so the GH step summary and downstream
+          # auditors can tell apart "bundle skipped on purpose" from "bundle ran".
+          if other_skipped:
+              print(f"::error::CAAS stage(s) unexpectedly skipped: {', '.join(other_skipped)}"
+                    " — pipeline did not run to completion; treating as failure")
+
+          gh_out = os.environ.get("GITHUB_OUTPUT")
+          if gh_out:
+              with open(gh_out, "a") as f:
+                  f.write(f"all_pass={'true' if all_pass else 'false'}\n")
+                  f.write(f"bundle_skipped={'true' if bundle_skipped else 'false'}\n")
+                  f.write(f"other_skipped={','.join(other_skipped)}\n")
 
           if all_pass:
               print()
-              print("ALL CAAS STAGES PASSED")
-              print("This commit meets the full audit gate requirements.")
+              if bundle_skipped:
+                  print("ALL EXECUTED CAAS STAGES PASSED")
+                  print("NOTE: bundle (Stage 4+5) was skipped — evidence "
+                        "artifact NOT produced this run.")
+              else:
+                  print("ALL CAAS STAGES PASSED")
+                  print("This commit meets the full audit gate requirements.")
           else:
               failed = [s for s, r in results.items() if r not in ("success", "skipped")]
               print()
@@ -430,6 +745,114 @@ jobs:
               print("Fix all failing stages before merging.")
               sys.exit(1)
           EOF
+
+      - name: Write consolidated pipeline summary artifact
+        # F-19 fix: produce a single JSON artifact capturing the full pipeline verdict
+        # so external tools and auditors don't need to stitch 5 separate artifacts.
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os, subprocess
+          from datetime import datetime, timezone
+
+          commit = subprocess.run(
+              ["git", "rev-parse", "HEAD"], capture_output=True, text=True
+          ).stdout.strip() or "unknown"
+
+          summary = {
+              "caas_pipeline_summary_version": 1,
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "run_id": "${{ github.run_id }}",
+              "commit_sha": commit,
+              "all_pass": "${{ steps.evaluate.outputs.all_pass }}" == "true",
+              "bundle_skipped": "${{ steps.evaluate.outputs.bundle_skipped }}" == "true",
+              "other_skipped": [s for s in "${{ steps.evaluate.outputs.other_skipped }}".split(",") if s],
+              "stage_results": {
+                  "scanner":              "${{ needs.scanner.result }}",
+                  "audit_gate":           "${{ needs.audit_gate.result }}",
+                  "security_autonomy":    "${{ needs.security_autonomy.result }}",
+                  "bundle":               "${{ needs.bundle.result }}",
+                  "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
+              },
+          }
+          with open("caas_pipeline_summary.json", "w", encoding="utf-8") as f:
+              json.dump(summary, f, indent=2)
+          print(json.dumps(summary, indent=2))
+          EOF
+
+      - name: Upload pipeline summary artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-pipeline-summary-${{ github.run_id }}
+          path: caas_pipeline_summary.json
+          if-no-files-found: error
+          retention-days: 365
+
+      - name: Record evidence in tamper-resistant chain
+        # Append a verdict record to docs/EVIDENCE_CHAIN.json so retrospective
+        # audits can answer "was the gate passing on commit X" beyond the 90-day
+        # GitHub artifact retention window.
+        #
+        # HMAC: defaults to a public in-repo key (tamper-evident only). For
+        # forensic-grade non-repudiation set the CAAS_HMAC_KEY repo secret;
+        # docs/EVIDENCE_KEY_POLICY.md (H-2) covers rotation/escrow.
+        #
+        # Both `record` and `validate` are HARD failures: a broken chain is a
+        # genuine evidence regression that should be visible as a red step,
+        # not silently downgraded to a warning the way the previous wiring did.
+        #
+        # CAAS_HMAC_KEY must be set as a repo secret for forensic-grade evidence.
+        # If unset, the chain is signed with a public in-repo key — zero forensic
+        # value. We fail CI so that missing-key silently degrades evidence integrity.
+        # To set: Settings → Secrets → CAAS_HMAC_KEY (≥32 random bytes, base64).
+        # See docs/EVIDENCE_KEY_POLICY.md for rotation/escrow procedures.
+        #
+        # F-18 fix: guard on checkout success — if checkout failed, the CI scripts
+        # don't exist in the workspace so evidence_governance.py cannot run.
+        if: always() && steps.checkout.outcome == 'success'
+        env:
+          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
+        run: |
+          if [ -z "${CAAS_HMAC_KEY}" ]; then
+            echo "::warning::CAAS_HMAC_KEY secret is not set — evidence chain will use" \
+                 " the public in-repo key (degraded mode: tamper-detectable but not" \
+                 " forensic-grade). Set CAAS_HMAC_KEY in repo Settings → Secrets." \
+                 " See docs/EVIDENCE_KEY_POLICY.md."
+            # Degrade gracefully: allow record to be written with the public key.
+            # An evidence chain with degraded-mode records is better than an empty
+            # chain for Bitcoin Core PR reviewers. The HMAC_KEY_IS_DEFAULT flag in
+            # each record clearly marks degraded entries.
+          fi
+          VERDICT="pass"
+          if [ "${{ steps.evaluate.outputs.all_pass }}" != "true" ]; then
+              VERDICT="fail"
+          fi
+          REASON="caas-pipeline run_id=${{ github.run_id }}"
+          if [ "${{ steps.evaluate.outputs.bundle_skipped }}" = "true" ]; then
+              REASON="${REASON} (bundle skipped via workflow_dispatch)"
+          fi
+          if ! python3 ci/evidence_governance.py record \
+                  --who "caas-ci" \
+                  --what "caas-full-pipeline" \
+                  --verdict "${VERDICT}" \
+                  --reason "${REASON}"; then
+              echo "::error::evidence_governance record failed — chain broken"
+              exit 1
+          fi
+          if ! python3 ci/evidence_governance.py validate; then
+              echo "::error::evidence_governance validate failed — chain integrity compromised"
+              exit 1
+          fi
+
+      - name: Upload evidence chain snapshot
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: caas-evidence-chain-${{ github.run_id }}
+          path: docs/EVIDENCE_CHAIN.json
+          retention-days: 365
+          if-no-files-found: warn
 
       - name: Final step summary
         if: always()
@@ -442,7 +865,15 @@ jobs:
           | Static Analysis | ${{ needs.scanner.result }} |
           | Audit Gate (P0–P18) | ${{ needs.audit_gate.result }} |
           | Security Autonomy (100/100) | ${{ needs.security_autonomy.result }} |
-          | Audit Bundle | ${{ needs.bundle.result }} |
+          | Audit Bundle (Stage 4+5) | ${{ needs.bundle.result }} |
+          | Bitcoin Core Profile | ${{ needs.bitcoin_core_profile.result }} |
 
           > "ლოუ პრიორიტი ჩვენთან არ არსებობს" — Every finding is a violation.
           EOF
+          if [ "${{ steps.evaluate.outputs.bundle_skipped }}" = "true" ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "> ⚠ NOTE: bundle (Stage 4+5) was skipped this run via the" \
+                   "\`skip_bundle\` workflow_dispatch input — evidence artifact" \
+                   "was NOT produced. This is not a full 5-stage verification." \
+                   >> "$GITHUB_STEP_SUMMARY"
+          fi

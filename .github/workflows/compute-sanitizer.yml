@@ -13,20 +13,6 @@
 name: compute-sanitizer (GPU memory safety)
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/gpu/**'
-      - 'libs/UltrafastSecp256k1/opencl/**'
-      - 'libs/UltrafastSecp256k1/kernels/**'
-      - 'libs/UltrafastSecp256k1/cuda/**'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'libs/UltrafastSecp256k1/gpu/**'
-      - 'libs/UltrafastSecp256k1/opencl/**'
-      - 'libs/UltrafastSecp256k1/kernels/**'
-      - 'libs/UltrafastSecp256k1/cuda/**'
   workflow_dispatch:
 
 permissions:
@@ -43,23 +29,23 @@ jobs:
     timeout-minutes: 90
     if: ${{ github.repository == 'shrec/UltrafastSecp256k1' }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          submodules: recursive
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+  
 
       - name: Verify compute-sanitizer availability
         run: |
+          CUDA_BIN="${CUDA_PATH:-/usr/local/cuda}/bin"
           which compute-sanitizer || {
             echo "compute-sanitizer not found in PATH"
-            echo "Expected in CUDA toolkit: /usr/local/cuda/bin/compute-sanitizer"
-            ls /usr/local/cuda/bin/compute-sanitizer 2>/dev/null || true
+            echo "Expected in CUDA toolkit: ${CUDA_BIN}/compute-sanitizer"
+            ls "${CUDA_BIN}/compute-sanitizer" 2>/dev/null || true
             exit 1
           }
           compute-sanitizer --version
 
       - name: Build with debug symbols for GPU
         run: |
-          cd libs/UltrafastSecp256k1
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1"
           mkdir -p build-sanitizer
           cd build-sanitizer
           cmake .. -GNinja \
@@ -71,58 +57,64 @@ jobs:
 
       - name: Run memcheck (uninitialized memory, OOB)
         run: |
-          cd libs/UltrafastSecp256k1/build-sanitizer
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1/build-sanitizer"
           compute-sanitizer --tool memcheck \
             --log-file ../gpu-memcheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Memcheck Results ==="
           cat ../gpu-memcheck.log 2>/dev/null || echo "No log generated"
 
       - name: Run racecheck (data races)
         run: |
-          cd libs/UltrafastSecp256k1/build-sanitizer
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1/build-sanitizer"
           compute-sanitizer --tool racecheck \
             --log-file ../gpu-racecheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Racecheck Results ==="
           cat ../gpu-racecheck.log 2>/dev/null || echo "No log generated"
 
       - name: Run initcheck (uninitialized memory access)
         run: |
-          cd libs/UltrafastSecp256k1/build-sanitizer
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1/build-sanitizer"
           compute-sanitizer --tool initcheck \
             --log-file ../gpu-initcheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Initcheck Results ==="
           cat ../gpu-initcheck.log 2>/dev/null || echo "No log generated"
 
       - name: Run synccheck (synchronization errors)
         run: |
-          cd libs/UltrafastSecp256k1/build-sanitizer
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1/build-sanitizer"
           compute-sanitizer --tool synccheck \
             --log-file ../gpu-synccheck.log \
             --error-exitcode 1 \
-            ctest --test-dir . -R "gpu" --timeout 120 2>&1 || true
+            ctest --test-dir . -R "gpu" --timeout 120 2>&1
           echo "=== GPU Synccheck Results ==="
           cat ../gpu-synccheck.log 2>/dev/null || echo "No log generated"
 
       - name: Summary
         if: always()
         run: |
-          cd libs/UltrafastSecp256k1
+          cd "${GITHUB_WORKSPACE}/libs/UltrafastSecp256k1"
           echo "=== compute-sanitizer Summary ==="
+          FAILED=0
           for tool in memcheck racecheck initcheck synccheck; do
             log="gpu-${tool}.log"
             if [ -f "$log" ]; then
-              errors=$(grep -c "ERROR" "$log" 2>/dev/null || echo 0)
+              errors=$(python3 -c "print(open('$log').read().count('ERROR'))" 2>/dev/null || echo 0)
               echo "  ${tool}: ${errors} errors"
+              if [ "${errors}" -gt 0 ]; then FAILED=1; fi
             else
               echo "  ${tool}: no log (skipped or unavailable)"
             fi
           done
+          if [ "${FAILED}" -eq 1 ]; then
+            echo "::error::GPU memory safety violations detected — see logs above"
+            exit 1
+          fi
 
       - name: Upload sanitizer logs
         if: always()

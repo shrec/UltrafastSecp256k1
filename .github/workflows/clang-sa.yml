@@ -1,0 +1,103 @@
+name: Clang Static Analyzer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clang-sa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-sa:
+    permissions:
+      security-events: write
+      actions: read
+    name: Clang Static Analyzer (scan-build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Clang + scan-build + ninja
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-18 clang-tools-18 lld-18 ninja-build
+          # Use versioned binaries
+          sudo update-alternatives --install /usr/bin/clang   clang   /usr/bin/clang-18   100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+
+      - name: Configure (generate compile_commands.json)
+        run: |
+          cmake -S . -B build/sa \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_USE_ASM=OFF
+
+      - name: Run scan-build (inter-procedural symbolic execution)
+        run: |
+          scan-build-18 \
+            --status-bugs \
+            --keep-going \
+            -enable-checker alpha.security.ArrayBoundV2 \
+            -enable-checker alpha.security.ReturnPtrRange \
+            -enable-checker alpha.core.CastSize \
+            -enable-checker alpha.core.FixedAddr \
+            -enable-checker alpha.cplusplus.STLAlgorithmModeling \
+            -enable-checker security.insecureAPI.strcpy \
+            -enable-checker security.insecureAPI.DeprecatedOrUnsafeBufferHandling \
+            -o clang-sa-report \
+            cmake --build build/sa -j$(nproc) \
+          ; EXIT=$?; \
+          echo "scan-build exit code: $EXIT"; \
+          ls -la clang-sa-report/ 2>/dev/null || echo "(no HTML report = no bugs found)"; \
+          exit $EXIT
+
+      - name: Upload Clang SA HTML report (if bugs found)
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clang-sa-report
+          path: clang-sa-report/
+          retention-days: 14
+
+      - name: Run scan-build advisory (alpha checkers, non-blocking)
+        if: always()
+        continue-on-error: true
+        run: |
+          scan-build-18 \
+            --keep-going \
+            -enable-checker alpha.security.ArrayBoundV2 \
+            -enable-checker alpha.core.BoolAssignment \
+            -enable-checker alpha.cplusplus.UninitializedObject \
+            -enable-checker alpha.cplusplus.SmartPtr \
+            -o clang-sa-alpha-report \
+            cmake --build build/sa --clean-first -j$(nproc) \
+          2>&1 | tail -30 \
+          || true
+          echo "=== Alpha checker report ==="
+          ls clang-sa-alpha-report/ 2>/dev/null && echo "(see artifact)" || echo "(no new findings)"
+
+      - name: Upload alpha report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clang-sa-alpha-report
+          path: clang-sa-alpha-report/
+          if-no-files-found: ignore
+          retention-days: 14

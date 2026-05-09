@@ -13,8 +13,6 @@
 name: Audit Report
 
 on:
-  schedule:
-    - cron: '0 6 * * 1'   # Weekly: Monday 06:00 UTC
   workflow_dispatch:
     inputs:
       section:
@@ -22,9 +20,6 @@ on:
         required: false
         default: ''
         type: string
-  push:
-    tags:
-      - 'v*'
 
 permissions:
   contents: read
@@ -65,7 +60,7 @@ jobs:
         run: cmake --build build-audit -j $(nproc)
 
       - name: Create output directory
-        run: mkdir -p audit-output
+        run: mkdir -p out/audit-output
 
       - name: Run unified audit runner
         run: |
@@ -74,48 +69,104 @@ jobs:
             SECTION_ARG="--section ${{ github.event.inputs.section }}"
           fi
           ./build-audit/audit/unified_audit_runner \
-            --report-dir ./audit-output \
+            --report-dir ./out/audit-output \
             --sarif \
             $SECTION_ARG
 
       - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
         run: |
           python3 ci/auditor_mode.py \
-            --output-dir ./audit-output/auditor-mode
+            --output-dir ./out/audit-output/auditor-mode
+
+      - name: Run CAAS gate + autonomy for bundle completeness
+        # Produces caas_audit_gate.json, caas_autonomy.json, caas_scanner.json so
+        # the 90-day artifact bundle contains the full gate state for retrospective
+        # audits (FINDING-10 fix: gate reports previously expired in 30d).
+        # C-1 fix: capture each gate exit code; fail the step if any gate fails.
+        # || true was silently green-lighting real gate failures.
+        if: always()
+        run: |
+          set +e
+          GATE_RC=0
+          # H-5 fix: capture build_project_graph.py exit code — a stale/broken
+          # graph must fail the step, not silently let gates run against bad data.
+          # (Windows MSVC job already captured this; Linux parity fix.)
+          python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_test_quality_scanner.py --json \
+            -o out/audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_gate.py --json \
+            -o out/audit-output/caas_audit_gate.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/security_autonomy_check.py --json \
+            -o out/audit-output/caas_autonomy.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          set -e
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "::error::One or more CAAS gates failed (exit $GATE_RC) — see above for details"
+            exit "$GATE_RC"
+          fi
 
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-linux-gcc13
+          name: audit-report-linux-gcc13-${{ github.run_id }}
           path: |
-            audit-output/audit_report.json
-            audit-output/audit_report.txt
-            audit-output/audit_report.sarif
-            audit-output/auditor-mode/auditor_mode_report.json
-            audit-output/auditor-mode/auditor_mode_report.txt
+            out/audit-output/audit_report.json
+            out/audit-output/audit_report.txt
+            out/audit-output/audit_report.sarif
+            out/audit-output/auditor-mode/auditor_mode_report.json
+            out/audit-output/auditor-mode/auditor_mode_report.txt
+            out/audit-output/caas_scanner.json
+            out/audit-output/caas_audit_gate.json
+            out/audit-output/caas_autonomy.json
           retention-days: 90
+
+      - name: Validate SARIF before upload
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python3 -c "
+          import json, sys
+          try:
+            d = json.load(open('out/audit-output/audit_report.sarif'))
+            assert 'runs' in d and isinstance(d['runs'], list), 'missing runs[]'
+            print('SARIF validation OK')
+          except Exception as e:
+            print(f'SARIF validation FAILED: {e}', file=sys.stderr)
+            sys.exit(1)
+          "
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always() && github.event_name != 'pull_request'
+        id: sarif_upload
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
-          sarif_file: audit-output/audit_report.sarif
+          sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner
-        continue-on-error: true
+
+      - name: Surface SARIF upload outcome
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          if [ "${{ steps.sarif_upload.outcome }}" != "success" ]; then
+            echo "::error::SARIF upload failed (outcome=${{ steps.sarif_upload.outcome }}) — Code Scanning view may be stale"
+          else
+            echo "::notice::SARIF upload OK"
+          fi
 
       - name: Print summary
         if: always()
         run: |
           echo "## Audit Report (Linux GCC-13)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          cat out/audit-output/audit_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Auditor-Mode Gap Report" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/auditor-mode/auditor_mode_report.txt 2>/dev/null || echo "Auditor-mode report not generated"
+          cat out/audit-output/auditor-mode/auditor_mode_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Auditor-mode report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -127,6 +178,8 @@ jobs:
     timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
+    permissions:
+      security-events: write
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
@@ -151,7 +204,7 @@ jobs:
         run: cmake --build build-audit -j $(nproc)
 
       - name: Create output directory
-        run: mkdir -p audit-output
+        run: mkdir -p out/audit-output
 
       - name: Run unified audit runner
         run: |
@@ -160,26 +213,100 @@ jobs:
             SECTION_ARG="--section ${{ github.event.inputs.section }}"
           fi
           ./build-audit/audit/unified_audit_runner \
-            --report-dir ./audit-output \
+            --report-dir ./out/audit-output \
+            --sarif \
             $SECTION_ARG
+
+      - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
+        run: |
+          python3 ci/auditor_mode.py \
+            --output-dir ./out/audit-output/auditor-mode
+
+      - name: Run CAAS gate + autonomy for bundle completeness (Clang-17)
+        # OBS-3 fix: linux-gcc produces CAAS gate reports for the 90-day artifact
+        # but linux-clang did not. Now both jobs produce the same gate report set
+        # so cross-compiler audit artifacts are symmetric and comparable.
+        if: always()
+        run: |
+          set +e
+          GATE_RC=0
+          # H-5 fix: capture build_project_graph.py exit code (parity with Windows MSVC).
+          python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_test_quality_scanner.py --json \
+            -o out/audit-output/caas_scanner.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/audit_gate.py --json \
+            -o out/audit-output/caas_audit_gate.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          python3 ci/security_autonomy_check.py --json \
+            -o out/audit-output/caas_autonomy.json; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
+          set -e
+          if [ "$GATE_RC" -ne 0 ]; then
+            echo "::error::One or more CAAS gates failed (Clang-17, exit $GATE_RC)"
+            exit "$GATE_RC"
+          fi
 
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-linux-clang17
+          name: audit-report-linux-clang17-${{ github.run_id }}
           path: |
-            audit-output/audit_report.json
-            audit-output/audit_report.txt
+            out/audit-output/audit_report.json
+            out/audit-output/audit_report.txt
+            out/audit-output/audit_report.sarif
+            out/audit-output/auditor-mode/auditor_mode_report.json
+            out/audit-output/auditor-mode/auditor_mode_report.txt
+            out/audit-output/caas_scanner.json
+            out/audit-output/caas_audit_gate.json
+            out/audit-output/caas_autonomy.json
           retention-days: 90
+
+      - name: Validate SARIF before upload
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          python3 -c "
+          import json, sys
+          try:
+            d = json.load(open('out/audit-output/audit_report.sarif'))
+            assert 'runs' in d and isinstance(d['runs'], list), 'missing runs[]'
+            print('SARIF validation OK')
+          except Exception as e:
+            print(f'SARIF validation FAILED: {e}', file=sys.stderr)
+            sys.exit(1)
+          "
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && github.event_name != 'pull_request'
+        id: sarif_upload
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: out/audit-output/audit_report.sarif
+          category: audit-runner-clang
+
+      - name: Surface SARIF upload outcome
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          if [ "${{ steps.sarif_upload.outcome }}" != "success" ]; then
+            echo "::error::SARIF upload failed (outcome=${{ steps.sarif_upload.outcome }}) — Code Scanning view may be stale"
+          else
+            echo "::notice::SARIF upload OK"
+          fi
 
       - name: Print summary
         if: always()
         run: |
           echo "## Audit Report (Linux Clang-17)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat audit-output/audit_report.txt 2>/dev/null || echo "Report not generated"
+          cat out/audit-output/audit_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Report not generated" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Auditor-Mode Gap Report (Clang-17)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat out/audit-output/auditor-mode/auditor_mode_report.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "Auditor-mode report not generated" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # =========================================================================
@@ -208,13 +335,13 @@ jobs:
         run: cmake --build build-audit --config Release -j
 
       - name: Create output directory
-        run: New-Item -ItemType Directory -Force -Path audit-output | Out-Null
+        run: New-Item -ItemType Directory -Force -Path out/audit-output | Out-Null
 
       - name: Run unified audit runner
         shell: pwsh
         run: |
           $section = "${{ github.event.inputs.section }}"
-          $args = @("--report-dir", ".\audit-output")
+          $args = @("--report-dir", ".\out/audit-output", "--sarif")
           if ($section) { $args += @("--section", $section) }
           & .\build-audit\audit\Release\unified_audit_runner.exe @args
           if ($LASTEXITCODE -ne 0) {
@@ -222,16 +349,75 @@ jobs:
             exit $LASTEXITCODE
           }
 
+      - name: Run auditor-mode automation (advisory)
+        # H-4 fix: always() ensures gap report is generated even when the audit
+        # runner exits non-zero, so external auditors always see coverage gaps.
+        if: always()
+        shell: pwsh
+        run: |
+          python3 ci/auditor_mode.py `
+            --output-dir out/audit-output/auditor-mode
+
+      - name: Run CAAS gate + autonomy for bundle completeness (Windows MSVC)
+        # B-2 fix: mirror the Linux jobs so Windows audit artifacts contain the
+        # same CAAS gate reports (caas_scanner.json, caas_audit_gate.json,
+        # caas_autonomy.json). Required for symmetric cross-platform audit bundles.
+        if: always()
+        shell: pwsh
+        run: |
+          $GATE_RC = 0
+          # F-02 fix: capture build_project_graph.py exit code — a stale/broken
+          # graph must fail the step, not silently let gates run against bad data.
+          python3 ci/build_project_graph.py --rebuild; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/check_exploit_wiring.py; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/audit_test_quality_scanner.py --json -o out/audit-output/caas_scanner.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/audit_gate.py --json -o out/audit-output/caas_audit_gate.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          python3 ci/security_autonomy_check.py --json -o out/audit-output/caas_autonomy.json
+          if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
+          if ($GATE_RC -ne 0) {
+            Write-Output "::error::One or more CAAS gates failed (Windows MSVC, exit $GATE_RC)"
+            exit $GATE_RC
+          }
+
       - name: Upload audit reports
         id: upload_reports
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: audit-report-windows-msvc
+          name: audit-report-windows-msvc-${{ github.run_id }}
           path: |
-            audit-output/audit_report.json
-            audit-output/audit_report.txt
+            out/audit-output/audit_report.json
+            out/audit-output/audit_report.txt
+            out/audit-output/audit_report.sarif
+            out/audit-output/auditor-mode/auditor_mode_report.json
+            out/audit-output/auditor-mode/auditor_mode_report.txt
+            out/audit-output/caas_scanner.json
+            out/audit-output/caas_audit_gate.json
+            out/audit-output/caas_autonomy.json
           retention-days: 90
+
+      - name: Upload SARIF to GitHub Code Scanning
+        # continue-on-error mirrors the Linux jobs — quota failures shouldn't
+        # block the report job. Surface outcome in the next step.
+        if: always() && github.event_name != 'pull_request'
+        id: sarif_upload
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: out/audit-output/audit_report.sarif
+          category: audit-runner-msvc
+        continue-on-error: true
+
+      - name: Surface SARIF upload outcome
+        if: always() && github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          if ("${{ steps.sarif_upload.outcome }}" -ne "success") {
+            Write-Output "::error::SARIF upload failed (outcome=${{ steps.sarif_upload.outcome }}) — Code Scanning view may be stale"
+          } else {
+            Write-Output "::notice::SARIF upload OK"
+          }
 
       - name: Print summary
         if: always()
@@ -239,8 +425,8 @@ jobs:
         run: |
           "## Audit Report (Windows MSVC)" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           '```' | Out-File -Append $env:GITHUB_STEP_SUMMARY
-          if (Test-Path audit-output/audit_report.txt) {
-            Get-Content audit-output/audit_report.txt | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          if (Test-Path out/audit-output/audit_report.txt) {
+            Get-Content out/audit-output/audit_report.txt | Out-File -Append $env:GITHUB_STEP_SUMMARY
           } else {
             "Report not generated" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           }
@@ -370,6 +556,7 @@ jobs:
           python3 ci/audit_verdict.py \
             --artifact-root audit-artifacts \
             --summary-file "$GITHUB_STEP_SUMMARY" \
+            --required-platform linux-gcc13 \
             --platform "audit-report-linux-gcc13=$LINUX_GCC_RESULT" \
             --platform "audit-report-linux-clang17=$LINUX_CLANG_RESULT" \
             --platform "audit-report-windows-msvc=$WINDOWS_MSVC_RESULT"

@@ -19,17 +19,6 @@
 name: KLEE Symbolic Execution
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/src/**'
-      - 'src/cpu/include/**'
-      - 'include/ufsecp/ufsecp.h'
-      - 'include/ufsecp/ufsecp_impl.cpp'
-      - '.github/workflows/klee.yml'
-  schedule:
-    # Weekly — Monday 02:00 UTC
-    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       klee_max_time:

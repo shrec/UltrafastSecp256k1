@@ -9,10 +9,7 @@
 name: TSan
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read

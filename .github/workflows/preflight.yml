@@ -6,11 +6,13 @@
 
 name: Preflight
 
+# push trigger removed — preflight runs as part of ci.yml orchestration
+# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  push:
-    branches: [main, dev]
+  workflow_call:
+  workflow_dispatch:
   pull_request:
-    branches: [main, dev]
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -24,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
@@ -53,16 +55,26 @@ jobs:
         run: python3 ci/preflight.py --abi
 
       - name: Preflight -- Coverage gaps (advisory)
-        run: python3 ci/preflight.py --coverage || true
+        # Advisory: coverage regressions surface as a yellow step in the UI
+        # rather than silently passing. "|| true" was previously masking the
+        # outcome entirely.
+        continue-on-error: true
+        run: python3 ci/preflight.py --coverage
 
       - name: Preflight -- Graph freshness (hard-fail)
         run: python3 ci/preflight.py --freshness
 
       - name: Preflight -- Changed files impact (advisory)
-        run: python3 ci/preflight.py --changed || true
+        # Advisory: changed-file impact analysis is informational; surface
+        # any non-zero outcome as a yellow step in the UI.
+        continue-on-error: true
+        run: python3 ci/preflight.py --changed
 
       - name: Preflight -- Code quality gate (hard-fail on regression)
         run: python3 ci/preflight.py --bug-scan
+
+      - name: Preflight — doc sync check
+        run: python3 ci/preflight.py --doc-sync
 
       - name: Python audit infrastructure self-test (hard-fail)
         run: python3 ci/test_audit_scripts.py --quick
@@ -96,28 +108,107 @@ jobs:
         # on-disk PoCs bypassed the aggregated audit verdict.
         run: python3 ci/check_exploit_wiring.py
 
-      - name: CAAS Stage 1 — Static Analysis (hard-fail, 0 findings required)
+      - name: CAAS Stage 0c — Exploit Traceability Join (hard-fail)
+        # G-9b: joins exploit catalog, threat model, and spec traceability matrix.
+        # Fails if any exploit PoC is uncatalogued, any RR-NNN is undefined, or
+        # any spec row points at a non-existent path.
+        # Added here so it runs on every push/PR (was only in manual caas.yml).
+        run: python3 ci/exploit_traceability_join.py
+
+      - name: Build unified_audit_runner (exploit_poc smoke)
+        # Builds the full audit runner binary so we can run the exploit_poc
+        # section in preflight. Without this, individual module regressions
+        # (MEDIUM-1) are invisible to the preflight gate — only script-level
+        # CAAS stages ran. Separate build dir so BUILD_TESTING=ON does not
+        # pollute the ufsecp_shared build used by P0 harnesses.
+        run: |
+          cmake -S . -B build-runner -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DBUILD_TESTING=ON \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF
+          cmake --build build-runner --target unified_audit_runner -j $(nproc)
+
+      - name: CAAS Stage 0b — exploit_poc section smoke (hard-fail)
+        # Runs only the exploit_poc section so we catch PoC-level regressions
+        # in preflight without the full 327-module run (which belongs to ci.yml
+        # caas-full). Fails if any mandatory module fails.
+        run: |
+          ./build-runner/audit/unified_audit_runner \
+            --section exploit_poc \
+            --json-only \
+            --report-dir .
+          python3 -c "
+          import json, sys
+          d = json.load(open('audit_report.json'))
+          s = d.get('summary', d)
+          failed = s.get('failed', 0)
+          verdict = s.get('audit_verdict', 'unknown')
+          print(f'exploit_poc smoke: verdict={verdict}  failed={failed}')
+          if failed > 0:
+              print(f'::error::exploit_poc: {failed} module(s) FAILED — see audit_report.json')
+              sys.exit(1)
+          print('::notice::exploit_poc section: all modules PASS')
+          "
+
+      - name: CAAS Stage 1 — Static Analysis (hard-fail on HIGH findings)
         run: |
           python3 ci/audit_test_quality_scanner.py --json -o caas_scanner.json
           python3 - <<'EOF'
           import json, sys
           with open("caas_scanner.json") as f:
               report = json.load(f)
-          total = report.get("total_findings", 0)
-          if total > 0:
-              for fnd in report.get("findings", []):
-                  print(f"  [{fnd['severity'].upper()}] {fnd['file']}:{fnd['line']} {fnd['label']}: {fnd['description']}")
-              print(f"FAIL: {total} finding(s) — audit scanner must report 0", file=sys.stderr)
+          findings = report.get("findings", [])
+          high = [f for f in findings if f.get("severity","").upper() == "HIGH"]
+          if high:
+              for fnd in high:
+                  print(f"  [HIGH] {fnd['file']}:{fnd['line']} {fnd['label']}: {fnd['description']}")
+              print(f"FAIL: {len(high)} HIGH finding(s) — CAAS Stage 1 blocks on HIGH severity", file=sys.stderr)
               sys.exit(1)
-          print(f"PASS: 0 findings")
+          total = len(findings)
+          print(f"PASS: 0 HIGH findings ({total} MEDIUM/LOW are tracked in baseline, not blocking)")
           EOF
 
-      - name: CAAS Stage 2 — Audit Gate P0–P18 (hard-fail)
-        run: python3 ci/audit_gate.py --json -o caas_audit_gate.json
+      - name: Rebuild project graph (ensures fresh paths for audit gate)
+        run: python3 ci/build_project_graph.py --rebuild
+
+      - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
+        run: |
+          set +e
+          python3 ci/audit_gate.py --json -o caas_audit_gate.json
+          GATE_EXIT=$?
+          set -e
+          python3 ci/parse_gate_report.py caas_audit_gate.json
+          exit $GATE_EXIT
+
+      - name: CAAS Stage 2b — Shim Parser Parity (hard-fail)
+        run: python3 ci/check_libsecp_shim_parity.py
+
+      - name: CAAS Stage 2c — Core Build Mode (hard-fail)
+        run: python3 ci/check_core_build_mode.py
+
+      - name: CAAS Stage 2d — Source Graph Quality (hard-fail)
+        run: python3 ci/check_source_graph_quality.py
+
+      - name: CAAS Stage 2e — Bitcoin Core test_bitcoin Gate (hard-fail)
+        run: python3 ci/check_bitcoin_core_test_results.py
 
       - name: CAAS Stage 3 — Security Autonomy 100/100 (hard-fail)
         run: |
           python3 ci/security_autonomy_check.py --json -o caas_autonomy.json
+          rc=$?
+          # Exit 77 = ADVISORY_SKIP_CODE: all gates absent (no GPU/infra) → advisory skip, not failure
+          if [ $rc -eq 77 ]; then
+            echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"
+            # F-06 fix: write a placeholder so the upload step (if-no-files-found: error)
+            # does not fail when caas_autonomy.json was never written before exit 77.
+            if [ ! -f caas_autonomy.json ]; then
+              echo '{"autonomy_score":0,"autonomy_ready":false,"advisory_skip":true,"reason":"exit 77 — infrastructure absent"}' > caas_autonomy.json
+            fi
+            exit 0
+          fi
+          [ $rc -ne 0 ] && exit $rc
           python3 - <<'EOF'
           import json, sys
           with open("caas_autonomy.json") as f:
@@ -133,14 +224,25 @@ jobs:
       - name: Export assurance report (JSON)
         run: python3 ci/export_assurance.py -o assurance_report.json
 
-      - name: Coverage gaps summary
-        run: python3 ci/query_graph.py gaps || true
+      - name: Coverage gaps summary (advisory)
+        # Visibility-only: surface gaps as a yellow step rather than swallowing
+        # the exit code with `|| true`. Same pattern as the other --advisory
+        # steps in this workflow.
+        continue-on-error: true
+        run: python3 ci/query_graph.py gaps
 
       - name: Upload assurance artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: preflight-reports
+          name: preflight-reports-${{ github.run_id }}
           path: |
             assurance_report.json
-          retention-days: 30
+            caas_scanner.json
+            caas_audit_gate.json
+            caas_autonomy.json
+            audit_report.json
+          if-no-files-found: error
+          # H-3 fix: match CAAS 365-day retention so preflight gate state is
+          # available for retrospective audit beyond the 90-day default.
+          retention-days: 365

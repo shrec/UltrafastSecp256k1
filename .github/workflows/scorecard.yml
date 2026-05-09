@@ -1,11 +1,6 @@
 name: OpenSSF Scorecard
 
 on:
-  # Run on main branch pushes and weekly
-  push:
-    branches: [main]
-  schedule:
-    - cron: '25 7 * * 1'  # Monday 07:25 UTC
   workflow_dispatch:
 
 permissions: read-all

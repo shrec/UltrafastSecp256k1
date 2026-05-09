@@ -1,26 +1,10 @@
 name: Extended Tests (Differential + dudect)
 
 on:
-  push:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/**'
-      - 'include/**'
-      - 'src/gpu/**'
-      - 'src/opencl/**'
-      - 'src/metal/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/nightly.yml'
-  pull_request:
-    branches: [main, dev]
-    paths:
-      - 'src/cpu/**'
-      - 'include/**'
-      - 'src/gpu/**'
-      - 'src/opencl/**'
-      - 'src/metal/**'
-      - 'CMakeLists.txt'
-      - '.github/workflows/nightly.yml'
+  # Nightly run at 03:00 UTC. Without a schedule the workflow file name
+  # ("nightly") was misleading — both jobs only ran on manual dispatch.
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       differential_multiplier:
@@ -75,18 +59,39 @@ jobs:
         env:
           DIFFERENTIAL_MULTIPLIER: ${{ github.event.inputs.differential_multiplier || '100' }}
         run: |
-          echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}"
-          ./build/audit/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}"
+          mkdir -p differential-results
+          echo "Multiplier: ${DIFFERENTIAL_MULTIPLIER}" | tee differential-results/run_metadata.txt
+          echo "Commit: ${GITHUB_SHA}" | tee -a differential-results/run_metadata.txt
+          echo "Started: $(date -u +%FT%TZ)" | tee -a differential-results/run_metadata.txt
+          ./build/audit/test_differential_standalone "${DIFFERENTIAL_MULTIPLIER}" \
+              2>&1 | tee differential-results/self_consistency.log
 
       - name: Run cross-library test (vs libsecp256k1 v0.6.0)
         run: |
           echo "Running cross-library differential test..."
-          ./build/audit/test_cross_libsecp256k1
+          ./build/audit/test_cross_libsecp256k1 2>&1 \
+              | tee differential-results/cross_libsecp256k1.log
 
-  # ── dudect smoke (fast PR gate ≈ 60 s) ───────────────────────────────────
+      - name: Upload differential results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: differential-results-${{ github.run_id }}
+          path: differential-results/
+          retention-days: 365
+
+  # ── dudect smoke (fast gate ≈ 60 s) ─────────────────────────────────────
+  # Smoke runs unconditionally — it is a fast (~60 s) sanity gate that the
+  # dudect harness still builds and produces a verdict. The previous
+  # `if: fromJSON(inputs.dudect_timeout) < 600` condition was effectively dead
+  # because the default input is 1800, so the smoke never ran by default.
+  # If the user dispatches with a long timeout they want the full dudect,
+  # but they always also want the smoke gate to confirm the harness still
+  # works.
+  # Note: trigger is workflow_dispatch only — pull_request condition was dead
+  # code (never reachable). Use workflow_call: from ci.yml for PR gate.
   dudect-smoke:
-    name: dudect Smoke (PR gate)
-    if: github.event_name == 'pull_request'
+    name: dudect Smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -122,10 +127,17 @@ jobs:
           fi
           echo "::notice::dudect smoke passed"
 
+      - name: Upload dudect smoke log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dudect-smoke-${{ github.run_id }}
+          path: dudect_smoke.log
+          retention-days: 30
+
   # ── dudect full statistical run (30 min) ─────────────────────────────────
   dudect-full:
     name: dudect Full Statistical Analysis
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

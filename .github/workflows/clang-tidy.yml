@@ -1,10 +1,7 @@
 name: Clang-Tidy
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -72,7 +69,7 @@ jobs:
           # Filter out .S assembly files (clang-tidy cannot process them)
           jq -r '.[].file' build/compile_commands.json \
             | grep -E '\.(cpp|cc|cxx)$' \
-            | grep -E '/(src/cpu/src|src/cpu/include|include/ufsecp|include/secp256k1|src/gpu/src|src/gpu/include|opencl|metal)/' \
+            | grep -E '/(src/cpu/src|src/cpu/include|include/ufsecp|include/secp256k1|src/gpu/src|src/gpu/include|src/opencl|src/metal)/' \
             | sort -u \
             | xargs -P "$(nproc)" -n 4 \
               clang-tidy-17 -p build --warnings-as-errors='' --quiet 2>&1 \

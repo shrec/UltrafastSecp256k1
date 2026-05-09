@@ -1,0 +1,160 @@
+# ===========================================================================
+# CAAS Freshness Check — T10 Mitigation
+# ===========================================================================
+#
+# Runs on a 6-hour schedule independently of push-triggered pipelines.
+# Evaluates evidence age against the 7-day expiry threshold.
+#
+# T10 mitigation: ensures the freshness check fires even when no commits
+# are pushed, so stale evidence is detected within 6 hours of expiry.
+#
+# Fails if:
+#   - docs/EXTERNAL_AUDIT_BUNDLE.json has not been updated in >7 days
+#   - The bundle is missing or malformed
+# ===========================================================================
+
+name: CAAS Freshness Check
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours — T10 mitigation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    name: CAAS / Evidence Freshness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 10
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Check evidence bundle freshness (T10 mitigation)
+        run: |
+          python3 - <<'EOF'
+          import json, sys, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          # Read MAX_AGE_DAYS from AUDIT_SLA.json if available so the freshness
+          # threshold stays in sync with the SLA document. Fall back to 7 days
+          # (stricter than the 30-day SLA default) to catch stale evidence quickly.
+          _sla_path = Path("docs/AUDIT_SLA.json")
+          MAX_AGE_DAYS = 7
+          if _sla_path.exists():
+              try:
+                  _sla = json.loads(_sla_path.read_text())
+                  MAX_AGE_DAYS = int(_sla.get("max_stale_evidence_days", MAX_AGE_DAYS))
+              except Exception:
+                  pass
+
+          failed = False
+
+          def _parse_generated_at(data: dict) -> str | None:
+              """Extract a generation timestamp from a JSON evidence document."""
+              # Try common field names used by different producers.
+              for key in ("generated_at", "timestamp", "produced_at", "last_updated"):
+                  val = data.get(key)
+                  if isinstance(val, str) and val:
+                      return val
+              # Try nested git.timestamp / meta.generated_at
+              for sub in ("git", "meta", "summary"):
+                  nested = data.get(sub) or {}
+                  for key in ("timestamp", "generated_at", "produced_at"):
+                      val = nested.get(key)
+                      if isinstance(val, str) and val:
+                          return val
+              return None
+
+          def check_file(path_str, label):
+              nonlocal failed
+              p = Path(path_str)
+              if not p.exists():
+                  print(f"::error::{label} not found — evidence missing")
+                  failed = True
+                  return
+              try:
+                  data = json.loads(p.read_text())
+              except Exception as e:
+                  print(f"::error::{label} parse error: {e}")
+                  failed = True
+                  return
+
+              now = datetime.now(timezone.utc)
+
+              # Prefer the JSON content's own generated_at timestamp — it reflects
+              # when the bundle was actually *produced*, not when it was committed.
+              # Git commit date drifts when content is stable (no-op commits skipped).
+              ts_str = _parse_generated_at(data)
+              date_source = "json:generated_at"
+              if not ts_str:
+                  # Fall back to git commit date only when the document has no timestamp.
+                  result = subprocess.run(
+                      ["git", "log", "-1", "--format=%cI", "--", path_str],
+                      capture_output=True, text=True, timeout=30,
+                  )
+                  ts_str = result.stdout.strip() if result.returncode == 0 else ""
+                  date_source = "git:commit"
+                  # NOTE: git commit date is unreliable as a freshness indicator.
+                  # A no-op re-commit (e.g. merge, rebase) resets the commit date even
+                  # when content is unchanged, producing a false-fresh reading.
+                  # Prefer json:generated_at whenever available.
+
+              if not ts_str:
+                  print(f"::error::{label}: no timestamp found — cannot verify evidence age (fail-closed)")
+                  failed = True
+                  return
+
+              try:
+                  evidence_date = datetime.fromisoformat(ts_str)
+              except ValueError as e:
+                  print(f"::error::{label}: cannot parse timestamp {ts_str!r}: {e}")
+                  failed = True
+                  return
+
+              age_days = (now - evidence_date).total_seconds() / 86400
+              print(f"{label}: {date_source}={ts_str} ({age_days:.1f}d ago)")
+              if age_days > MAX_AGE_DAYS:
+                  print(f"::error::{label} STALE — {age_days:.1f} days old (max {MAX_AGE_DAYS})")
+                  failed = True
+              else:
+                  print(f"::notice::{label} FRESH — {age_days:.1f} days old")
+
+          # F-22 fix: check all critical evidence files, not just 2 of them.
+          check_file("docs/EXTERNAL_AUDIT_BUNDLE.json",     "EXTERNAL_AUDIT_BUNDLE.json")
+          check_file("docs/SECURITY_AUTONOMY_KPI.json",     "SECURITY_AUTONOMY_KPI.json")
+          check_file("docs/EVIDENCE_CHAIN.json",            "EVIDENCE_CHAIN.json")
+          check_file("docs/BITCOIN_CORE_TEST_RESULTS.json", "BITCOIN_CORE_TEST_RESULTS.json")
+          check_file("docs/AUDIT_CHANGELOG.md",             "AUDIT_CHANGELOG.md")
+          check_file("docs/AUDIT_DASHBOARD.md",             "AUDIT_DASHBOARD.md")
+
+          sys.exit(1 if failed else 0)
+          EOF
+
+      - name: Step summary
+        if: always()
+        run: |
+          echo "## CAAS Evidence Freshness Check (T10 Mitigation)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          BUNDLE="docs/EXTERNAL_AUDIT_BUNDLE.json"
+          if [ -f "$BUNDLE" ]; then
+            LAST=$(git log -1 --format="%cI %s" -- "$BUNDLE")
+            echo "Last bundle update: \`$LAST\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**MISSING**: docs/EXTERNAL_AUDIT_BUNDLE.json not found" >> $GITHUB_STEP_SUMMARY
+          fi

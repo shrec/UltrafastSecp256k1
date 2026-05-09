@@ -12,10 +12,6 @@
 name: CT-Verif (compile-time CT check)
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -89,7 +85,7 @@ jobs:
         run: |
           # Compile CT-critical source files to LLVM IR for analysis
           CXXFLAGS="-std=c++20 -O2 -emit-llvm -S -fno-exceptions -fno-rtti"
-          INCLUDES="-I src/cpu/include -I src/cpu/include/secp256k1 -I cpu"
+          INCLUDES="-I src/cpu/include -I src/cpu/include/secp256k1 -I src/cpu"
 
           mkdir -p ct-ir
 
