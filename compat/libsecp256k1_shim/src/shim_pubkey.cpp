@@ -242,9 +242,12 @@ void secp256k1_ec_pubkey_sort(
     if (n_pubkeys == 0) return;
 
     // Lexicographic sort on 33-byte compressed serialization (matches upstream).
+    // bufa/bufb zero-initialised so that even on a serialize failure the memcmp
+    // is well-defined (avoids -Werror=maybe-uninitialized under GCC's
+    // conservative inter-procedural analysis).
     std::stable_sort(pubkeys, pubkeys + n_pubkeys,
         [](const secp256k1_pubkey *a, const secp256k1_pubkey *b) {
-            unsigned char bufa[33], bufb[33];
+            unsigned char bufa[33] = {}, bufb[33] = {};
             size_t lena = 33, lenb = 33;
             secp256k1_ec_pubkey_serialize(nullptr, bufa, &lena, a, SECP256K1_EC_COMPRESSED);
             secp256k1_ec_pubkey_serialize(nullptr, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
