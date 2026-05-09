@@ -29,6 +29,13 @@
 
 using namespace secp256k1::fast;
 
+// Differential test intentionally exercises the legacy variable-time
+// secp256k1::ecdsa_sign / schnorr_sign entry points to compare against
+// libsecp256k1. Suppress the deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 // -- Test infrastructure -----------------------------------------------------
 
 static int g_pass = 0, g_fail = 0;

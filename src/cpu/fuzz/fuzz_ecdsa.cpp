@@ -23,6 +23,13 @@ using secp256k1::fast::Scalar;
 using secp256k1::fast::Point;
 using secp256k1::ECDSASignature;
 
+// Fuzz target intentionally exercises the legacy variable-time
+// secp256k1::ecdsa_sign entry point. Suppress the deprecation warning
+// so any -Werror build succeeds.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 64) return 0;
 

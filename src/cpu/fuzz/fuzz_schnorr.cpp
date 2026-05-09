@@ -24,6 +24,13 @@ using secp256k1::SchnorrKeypair;
 using secp256k1::SchnorrSignature;
 using secp256k1::SchnorrXonlyPubkey;
 
+// Fuzz target intentionally exercises the legacy variable-time
+// secp256k1::schnorr_sign entry point. Suppress the deprecation warning
+// so any -Werror build succeeds.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     if (size < 96) return 0;
 
