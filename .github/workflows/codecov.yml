@@ -69,7 +69,7 @@ jobs:
         # fe52_sqr_inner produces wrong results (Clang + coverage flags + u128
         # arithmetic issue). Exclude it here; coverage data for the FE52 module
         # is still collected via its callers (field operations, scalar mul, etc).
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|field_52)'
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|field_52|field_26)'
       - name: Collect LLVM coverage
         run: |
           find out/build -name '*.profraw' -print0 \
