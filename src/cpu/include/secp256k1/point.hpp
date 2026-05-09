@@ -18,10 +18,7 @@
 // which is correct but gives no speed benefit over 4x64 FieldElement.
 // The 52-bit dual_scalar_mul_gen_point also builds huge static tables (8192 entries)
 // that are unnecessary for WASM targets.
-// SECP256K1_DISABLE_FE52: cmake/compiler escape hatch to force FE64-only
-// path. Used in coverage builds (Clang + -fprofile-instr-generate) where
-// fe52_mul_inner / fe52_sqr_inner u128 arithmetic produces wrong results.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__) && !defined(SECP256K1_DISABLE_FE52)
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
   #ifndef SECP256K1_FAST_52BIT
     #define SECP256K1_FAST_52BIT 1
   #endif

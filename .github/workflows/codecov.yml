@@ -49,9 +49,11 @@ jobs:
           CXX: clang++-17
         run: |
           cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping -DSECP256K1_DISABLE_FE52=1" \
-            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping -DSECP256K1_DISABLE_FE52=1" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O1 -g -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g -DNDEBUG" \
             -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
             -DSECP256K1_USE_ASM=OFF \
             -DSECP256K1_BUILD_TESTS=ON \
