@@ -55,7 +55,7 @@ jobs:
             -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -g -DNDEBUG" \
             -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -g -DNDEBUG" \
             -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
-            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_USE_ASM=ON \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF

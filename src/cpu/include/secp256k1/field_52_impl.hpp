@@ -149,7 +149,18 @@ using namespace fe52_constants;
 // With -mbmi2 -O3: compiles to MULX + ADD/ADC chains (verified).
 // With always_inline: zero function-call overhead.
 
+// Do NOT use SECP256K1_FE52_FORCE_INLINE (always_inline) here.
+// With always_inline the function is inlined into every caller and compiled
+// at the caller's optimization level, defeating the optimize("O2") attribute.
+// As a non-inlined static function compiled at O2, the __int128 arithmetic
+// produces correct results on GCC-13 and Clang in both Debug and coverage
+// builds where -O0 would otherwise cause wrong results.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((optimize("O2"), noinline))
+static
+#else
 SECP256K1_FE52_FORCE_INLINE
+#endif
 void fe52_mul_inner(std::uint64_t* __restrict__ r,
                     const std::uint64_t* __restrict__ a,
                     const std::uint64_t* __restrict__ b) noexcept {
@@ -1321,7 +1332,13 @@ void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
 // Uses a[i]*a[j] == a[j]*a[i] symmetry to halve cross-product count.
 // Cross-products computed once and doubled via (a[i]*2) trick.
 
+// Same noinline + optimize("O2") guard as fe52_mul_inner (see above).
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((optimize("O2"), noinline))
+static
+#else
 SECP256K1_FE52_FORCE_INLINE
+#endif
 void fe52_sqr_inner(std::uint64_t* __restrict__ r,
                     const std::uint64_t* __restrict__ a) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)

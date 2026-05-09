@@ -300,7 +300,14 @@ void FieldElement26::negate_assign(unsigned magnitude) noexcept {
 //   c: max ~10 products x 2^52 + u_k*R0 (2^40) ~= 2^55.3, fits uint64_t
 //   u_k: extracted 26-bit value, so u_k*R0 <= 2^40, u_k*R1 <= 2^36
 
-SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
+// Same noinline + optimize("O2") guard as fe52_mul_inner — see field_52_impl.hpp.
+// Cannot use `static` here because the function is declared in field_26.hpp.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((optimize("O2"), noinline))
+#else
+SECP256K1_INLINE
+#endif
+void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
                                       const std::uint32_t* SECP256K1_RESTRICT a,
                                       const std::uint32_t* SECP256K1_RESTRICT b) noexcept {
     std::uint64_t c = 0, d = 0;
@@ -478,7 +485,13 @@ SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
 // Same two-accumulator algorithm as mul, but using a[i]*a[j]=a[j]*a[i]
 // symmetry: 2*a[i]*a[j] for i!=j, a[i]^2 for i=j.
 
-SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* SECP256K1_RESTRICT r,
+// Same noinline + optimize("O2") guard as fe52_sqr_inner — see field_52_impl.hpp.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((optimize("O2"), noinline))
+#else
+SECP256K1_INLINE
+#endif
+void fe26_sqr_inner(std::uint32_t* SECP256K1_RESTRICT r,
                                       const std::uint32_t* SECP256K1_RESTRICT a) noexcept {
     std::uint64_t c = 0, d = 0;
     std::uint64_t u0 = 0, u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0, u8 = 0;
