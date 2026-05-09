@@ -59,7 +59,7 @@ elseif(TARGET secp256k1_cpu)
     target_link_libraries(ultrafast_secp256k1 PRIVATE secp256k1_cpu)
 else()
     # Standalone build: gather all CPU .cpp sources
-    file(GLOB CPU_SOURCES "${ULTRAFAST_ROOT}/cpu/src/*.cpp")
+    file(GLOB CPU_SOURCES "${ULTRAFAST_ROOT}/src/cpu/src/*.cpp")
 
     # MSVC (non clang-cl): no __uint128_t / __int128 support
     if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -80,8 +80,8 @@ else()
     # called via the GpuBackend virtual dispatch in ufsecp_gpu_impl.cpp.
     # Without it the .so has an undefined symbol that prevents loading.
     target_sources(ultrafast_secp256k1 PRIVATE
-        "${ULTRAFAST_ROOT}/gpu/src/gpu_registry.cpp"
-        "${ULTRAFAST_ROOT}/gpu/src/gpu_backend_fallback.cpp"
+        "${ULTRAFAST_ROOT}/src/gpu/src/gpu_registry.cpp"
+        "${ULTRAFAST_ROOT}/src/gpu/src/gpu_backend_fallback.cpp"
     )
 endif()
 
