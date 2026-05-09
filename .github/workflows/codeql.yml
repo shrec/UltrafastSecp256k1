@@ -1,9 +1,10 @@
 name: CodeQL
 
-# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
-# Also available for manual replay via workflow_dispatch.
 on:
-  workflow_call:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:

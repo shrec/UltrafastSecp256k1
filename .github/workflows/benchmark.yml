@@ -16,10 +16,13 @@
 
 name: Benchmark Dashboard
 
-# push trigger removed — benchmark runs as part of ci.yml orchestration
-# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  workflow_call:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
   workflow_dispatch:
 
 # Cancel older benchmark runs on the same branch — prevents queue pileup

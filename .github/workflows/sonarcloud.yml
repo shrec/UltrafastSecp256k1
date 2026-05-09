@@ -1,12 +1,14 @@
 name: SonarCloud
 
-# Dispatched by ci-orchestrator.yml Phase 1 as a blocking static-analysis step.
-# Also available for manual replay via workflow_dispatch.
 # SonarCloud is an external static code analyzer (SonarQube Cloud) — it only
 # needs build-wrapper output (compile_commands.json) for analysis.
 # No audit tests or coverage collection are run here.
+# Quality Gate failures are advisory (continue-on-error on the scan step).
 on:
-  workflow_call:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:

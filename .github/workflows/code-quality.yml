@@ -6,13 +6,12 @@
 
 name: Code Quality
 
-# push trigger removed — code-quality runs as part of ci.yml orchestration
-# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  workflow_call:
-  workflow_dispatch:
+  push:
+    branches: [main, dev]
   pull_request:
     branches: [dev, main]
+  workflow_dispatch:
 
 permissions:
   contents: read

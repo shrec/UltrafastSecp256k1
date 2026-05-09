@@ -11,15 +11,15 @@
 
 name: Perf Regression Gate
 
-# push trigger removed — bench-regression runs as part of ci.yml orchestration
-# to guarantee ordering (GitHub Actions needs: only works within one workflow).
 on:
-  workflow_call:
-  workflow_dispatch:
-  schedule:
-    # Weekly unconditional run — catches regressions introduced by audit/ci/bindings/docs commits
-    # that are excluded from the push path filter below.
-    - cron: '0 3 * * 0'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/bench-regression.yml'
+      - '.github/scripts/parse_benchmark.py'
   pull_request:
     branches: [main, dev]
     paths:
@@ -28,6 +28,11 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/bench-regression.yml'
       - '.github/scripts/parse_benchmark.py'
+  schedule:
+    # Weekly unconditional run — catches regressions in audit/ci/bindings/docs paths
+    # excluded from the push path filter above.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
 
 permissions:
   contents: read

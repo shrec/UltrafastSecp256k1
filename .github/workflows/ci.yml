@@ -1,21 +1,24 @@
 # =============================================================================
-# CI — Release blocking platform chain
+# CI — multi-platform build/test pipeline
 #
-# Dispatched by ci-orchestrator.yml Phase 2.  All jobs hard-fail on any
-# build/audit/correctness failure — no continue-on-error masking.
-# Advisory/experimental platforms live in ci-advisory.yml.
+# Triggered directly on every push to main/dev. All jobs run in parallel and
+# each fails independently (fail-fast: false on every matrix). One platform's
+# failure does NOT stop other platforms from completing.
+#
+# Codecov upload is inlined in the linux-clang Release job — no separate
+# codecov.yml workflow. Discord notify is the first job (push only).
+#
+# Test exclusions (documented per-platform):
+#   ct_sidechannel  -- dudect timing test (>10 min); runs in ct-verif workflow
+#   exploit_gpu_*   -- requires GPU runtime; runs in gpu-selfhosted workflow
+#   field_52|26     -- known FE52 mul/sqr bug under GCC+u128; in active repair
+# Python audit tests (py_*) DO run after pip install of coincurve/ecdsa/hypothesis.
 # =============================================================================
 name: CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      orchestrator_sha:
-        required: false
-        type: string
-      orchestrator_run:
-        required: false
-        type: string
+  push:
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
     paths-ignore:
@@ -29,6 +32,7 @@ on:
       - '.github/PULL_REQUEST_TEMPLATE*'
       - '.github/copilot-instructions.md'
       - '.github/agents/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,10 +43,10 @@ concurrency:
 
 jobs:
   # ===========================================================================
-  # 00 — Discord commit notification
+  # Discord commit notification (push only, non-blocking)
   # ===========================================================================
   discord-commit-notify:
-    name: "00 / Discord Commit Notify"
+    name: "Discord Commit Notify"
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     if: github.event_name == 'push'
@@ -70,14 +74,12 @@ jobs:
           curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
 
   # ===========================================================================
-  # 01 — Static Analysis
+  # Static analysis (repo-graph + doc sync + exploit wiring + code quality)
   # ===========================================================================
   static-analysis:
     name: "Static Analysis"
-    needs: [discord-commit-notify]
-    if: always() && (needs.discord-commit-notify.result == 'success' || needs.discord-commit-notify.result == 'skipped')
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
@@ -107,7 +109,7 @@ jobs:
           python3 ci/run_code_quality.py --fail-on-regression
       - name: Exploit traceability join
         run: python3 ci/exploit_traceability_join.py
-      - name: Build project graph (needed for source graph quality)
+      - name: Build project graph
         run: python3 ci/build_project_graph.py --rebuild
       - name: Source graph quality
         run: python3 ci/check_source_graph_quality.py
@@ -121,14 +123,12 @@ jobs:
           if-no-files-found: warn
 
   # ===========================================================================
-  # Linux GCC (gcc-13 and gcc-14, Release and Debug)
+  # Linux GCC matrix (gcc-13 / gcc-14 × Release / Debug)
   # ===========================================================================
   linux-gcc:
     name: "Linux / ${{ matrix.compiler }} / ${{ matrix.build_type }}"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -162,12 +162,27 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             ${{ matrix.compiler == 'gcc-14' && 'g++-14' || 'g++-13' }} ccache ninja-build
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install audit deps (for py_* tests)
+        run: pip install --quiet coincurve ecdsa hypothesis
+      # ccache key includes compiler+type, restore-keys cascade to allow partial
+      # cache reuse when sources change but compiler/type stay constant.
       - name: Cache ccache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'include/**') }}
-          restore-keys: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-
+          key: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/**', 'include/**') }}
+          restore-keys: |
+            ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-
+            ccache-${{ matrix.compiler }}-
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=400M
+          ccache --set-config=compression=true
+          ccache -z
       - name: CMake configure
         env:
           CC: ${{ matrix.cc }}
@@ -183,21 +198,22 @@ jobs:
             -DSECP256K1_BUILD_EXAMPLES=ON
       - name: Build
         run: cmake --build out/build -j$(nproc)
+      - name: ccache stats
+        if: always()
+        run: ccache -s
       - name: Test
-        # test_field_52: FE52 mul/sqr correctness under GCC-13/Clang-17 with
-        # u128 produces wrong results — under investigation. Temporarily skip
-        # until fe52_mul_inner / fe52_sqr_inner are fixed for all compilers.
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|py_|exploit_gpu_|field_52|field_26)'
+        # Excluded: ct_sidechannel (dudect, >10 min, dedicated CT workflow);
+        # exploit_gpu_* (requires GPU runtime); field_52/26 (FE52 mul/sqr u128
+        # regression under GCC, in active repair).
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|field_52|field_26)'
 
   # ===========================================================================
-  # Linux Clang-17
+  # Linux Clang-17 matrix (Release / Debug) + Codecov upload on Release
   # ===========================================================================
   linux-clang:
     name: "Linux / clang-17 / ${{ matrix.build_type }}"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -214,20 +230,51 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            clang-17 lld-17 ccache ninja-build
+            clang-17 llvm-17 lld-17 ccache ninja-build
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install audit deps
+        run: pip install --quiet coincurve ecdsa hypothesis
       - name: Cache ccache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: ~/.cache/ccache
-          key: ccache-clang-17-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'include/**') }}
-          restore-keys: ccache-clang-17-${{ matrix.build_type }}-
-      - name: CMake configure
+          key: ccache-clang-17-${{ matrix.build_type }}-${{ hashFiles('src/**', 'include/**') }}
+          restore-keys: |
+            ccache-clang-17-${{ matrix.build_type }}-
+            ccache-clang-17-
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=400M
+          ccache --set-config=compression=true
+          ccache -z
+      - name: CMake configure (Release with coverage instrumentation)
+        if: matrix.build_type == 'Release'
         env:
           CC: clang-17
           CXX: clang++-17
         run: |
           cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DSECP256K1_MARCH=x86-64-v2 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=ON
+      - name: CMake configure (Debug, no coverage)
+        if: matrix.build_type == 'Debug'
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v2 \
@@ -236,19 +283,46 @@ jobs:
             -DSECP256K1_BUILD_EXAMPLES=ON
       - name: Build
         run: cmake --build out/build -j$(nproc)
+      - name: ccache stats
+        if: always()
+        run: ccache -s
       - name: Test
-        # test_field_52: FE52 mul/sqr correctness under GCC-13/Clang-17 with
-        # u128 produces wrong results — under investigation. Temporarily skip
-        # until fe52_mul_inner / fe52_sqr_inner are fixed for all compilers.
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|py_|exploit_gpu_|field_52|field_26)'
+        env:
+          LLVM_PROFILE_FILE: "out/build/%p-%m.profraw"
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|field_52|field_26)'
+
+      # ── Codecov upload (Release variant only) ───────────────────────────
+      - name: Collect LLVM coverage
+        if: matrix.build_type == 'Release'
+        run: |
+          find out/build -name '*.profraw' -print0 \
+            | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+          OBJECTS=()
+          while IFS= read -r bin; do
+            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
+              OBJECTS+=("-object=$bin")
+            fi
+          done < <(find out/build -maxdepth 8 -type f -executable 2>/dev/null)
+          llvm-cov-17 export --format=lcov \
+            --instr-profile=coverage.profdata \
+            "${OBJECTS[@]}" \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
+            > coverage.lcov
+      - name: Upload to Codecov
+        if: matrix.build_type == 'Release'
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+        with:
+          files: coverage.lcov
+          flags: cpu
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # ===========================================================================
-  # Android NDK (arm64-v8a)
+  # Linux ARM64 (cross-compile aarch64-linux-gnu + QEMU smoke)
   # ===========================================================================
-  android:
-    name: "Android / arm64-v8a"
-    needs: [static-analysis]
-    if: always() && needs.static-analysis.result == 'success'
+  linux-arm64:
+    name: "Linux / arm64 (cross+QEMU)"
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -257,41 +331,331 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            g++-13-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross \
+            ninja-build ccache qemu-user-static
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
-          fetch-depth: 0
+          path: ~/.cache/ccache
+          key: ccache-arm64-${{ hashFiles('src/**', 'include/**') }}
+          restore-keys: ccache-arm64-
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=400M
+          ccache --set-config=compression=true
+          ccache -z
+      - name: CMake configure (aarch64 Release)
+        run: |
+          cmake -S . -B build/arm64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc-13 \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON
+      - name: Build
+        run: cmake --build build/arm64 -j$(nproc)
+      - name: ccache stats
+        if: always()
+        run: ccache -s
+      - name: QEMU smoke
+        run: |
+          set -euo pipefail
+          QEMU_AARCH64="$(command -v qemu-aarch64-static || command -v qemu-aarch64)"
+          SYSROOT="/usr/aarch64-linux-gnu"
+          SELFTEST="$(find build/arm64 -name run_selftest -type f -executable | head -1)"
+          test -n "$QEMU_AARCH64" && test -n "$SELFTEST"
+          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$SELFTEST" smoke
+
+  # ===========================================================================
+  # Linux RISC-V 64 (cross-compile riscv64-linux-gnu + QEMU smoke)
+  # ===========================================================================
+  linux-riscv64:
+    name: "Linux / riscv64 (cross+QEMU)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            g++-13-riscv64-linux-gnu libc6-riscv64-cross libc6-dev-riscv64-cross \
+            ninja-build ccache qemu-user-static
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: ~/.cache/ccache
+          key: ccache-riscv64-${{ hashFiles('src/**', 'include/**') }}
+          restore-keys: ccache-riscv64-
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=400M
+          ccache --set-config=compression=true
+          ccache -z
+      - name: CMake configure (riscv64 Release)
+        run: |
+          cmake -S . -B build/riscv64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
+            -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc-13 \
+            -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++-13 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON
+      - name: Build
+        run: cmake --build build/riscv64 -j$(nproc)
+      - name: ccache stats
+        if: always()
+        run: ccache -s
+      - name: QEMU smoke
+        run: |
+          set -euo pipefail
+          QEMU_RISCV64="$(command -v qemu-riscv64-static || command -v qemu-riscv64)"
+          SYSROOT="/usr/riscv64-linux-gnu"
+          SELFTEST="$(find build/riscv64 -name run_selftest -type f -executable | head -1)"
+          test -n "$QEMU_RISCV64" && test -n "$SELFTEST"
+          timeout 240 "$QEMU_RISCV64" -L "$SYSROOT" "$SELFTEST" smoke
+
+  # ===========================================================================
+  # Sanitizers (ASAN+UBSan, TSan) — Clang Linux
+  # ===========================================================================
+  sanitizers:
+    name: "Sanitizers (${{ matrix.label }})"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sanitizer: asan
+            label: "ASan+UBSan"
+            cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+            ldflags: "-fsanitize=address,undefined"
+          - sanitizer: tsan
+            label: "TSan"
+            cflags: "-fsanitize=thread -fno-omit-frame-pointer"
+            ldflags: "-fsanitize=thread"
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Install Clang 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ccache ninja-build
+      - name: Cache ccache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        with:
+          path: ~/.cache/ccache
+          key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('src/**', 'include/**') }}
+          restore-keys: |
+            ccache-san-${{ matrix.sanitizer }}-
+            ccache-san-
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=400M
+          ccache --set-config=compression=true
+          ccache -z
+      - name: CMake configure
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B build/${{ matrix.sanitizer }} -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSECP256K1_MARCH=x86-64-v2 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DCMAKE_C_FLAGS="${{ matrix.cflags }}" \
+            -DCMAKE_CXX_FLAGS="${{ matrix.cflags }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.ldflags }}"
+      - name: Build
+        run: cmake --build build/${{ matrix.sanitizer }} -j$(nproc)
+      - name: ccache stats
+        if: always()
+        run: ccache -s
+      - name: Test
+        # Sanitizers add 3-15x overhead → 900s per-test timeout.
+        # py_*: Python ctypes loads libufsecp.so without the sanitizer runtime
+        # preloaded — skipping here (covered in the regular linux jobs).
+        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) --timeout 900 -E '^(ct_sidechannel|py_|exploit_gpu_|field_52|field_26)'
+
+  # ===========================================================================
+  # Windows (MSVC)
+  # ===========================================================================
+  windows:
+    name: "Windows / MSVC"
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install audit deps
+        run: pip install --quiet coincurve ecdsa hypothesis
+      - name: Configure (MSVC)
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            -DSECP256K1_BUILD_TESTS=ON `
+            -DSECP256K1_BUILD_BENCH=ON `
+            -DSECP256K1_BUILD_EXAMPLES=ON
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} -j
+      - name: Test
+        env:
+          PYTHONUTF8: '1'
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j --timeout 300 -E "^(ct_sidechannel|exploit_gpu_|field_52|field_26)"
+
+  # ===========================================================================
+  # macOS (AppleClang + Metal)
+  # ===========================================================================
+  macos:
+    name: "macOS / AppleClang"
+    runs-on: macos-14
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - name: Install audit deps
+        run: pip install --quiet coincurve ecdsa hypothesis
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_EXAMPLES=ON
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.logicalcpu)
+      - name: Test
+        # secp256k1_metal_audit/gpu_ops_equivalence run on Metal-enabled hardware
+        # path; covered in macos-shim.yml workflow on dispatch.
+        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|secp256k1_metal_audit|gpu_ops_equivalence|field_52|field_26)'
+
+  # ===========================================================================
+  # iOS (Xcode, ARM64 + Simulator)
+  # ===========================================================================
+  ios:
+    name: "iOS / ${{ matrix.platform }}"
+    runs-on: macos-14
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [OS, SIMULATOR]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Configure (iOS ${{ matrix.platform }})
+        run: |
+          cmake -S . -B build/ios \
+            -G Xcode \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
+            -DIOS_PLATFORM=${{ matrix.platform }}
+      - name: Build
+        run: cmake --build build/ios --config Release --target fastsecp256k1 -- -quiet
+      - name: Verify library
+        run: |
+          LIB=$(find build/ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
+          test -n "$LIB"
+          file "$LIB"
+          lipo -info "$LIB"
+
+  # ===========================================================================
+  # Android NDK (multi-ABI)
+  # ===========================================================================
+  android:
+    name: "Android / ${{ matrix.abi }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - name: Setup Android NDK
         id: ndk
         uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779
         with:
           ndk-version: r27c
-      - name: CMake configure
+      - name: Configure (Android ${{ matrix.abi }})
         run: |
           cmake -S bindings/android -B out/build -G Ninja \
             "-DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
             -DCMAKE_BUILD_TYPE=Release
       - name: Build
         run: cmake --build out/build -j$(nproc)
-      - name: Verify artifacts
+      - name: Verify
         run: |
           LIB=$(find out/build -name "libfastsecp256k1.a" | head -1)
-          if [ -z "$LIB" ]; then
-            echo "::error::libfastsecp256k1.a not found"
-            exit 1
-          fi
+          test -n "$LIB"
           echo "Library: $LIB  size=$(du -h "$LIB" | cut -f1)"
 
   # ===========================================================================
-  # CI Verdict
+  # CI Verdict — final aggregator
   # ===========================================================================
   ci-verdict:
     name: "CI / Final Verdict"
     needs:
-      - discord-commit-notify
       - static-analysis
       - linux-gcc
       - linux-clang
+      - linux-arm64
+      - linux-riscv64
+      - sanitizers
+      - windows
+      - macos
+      - ios
       - android
     if: always()
     runs-on: ubuntu-24.04
@@ -302,26 +666,26 @@ jobs:
         with:
           egress-policy: audit
       - name: Evaluate results
+        shell: bash
         run: |
           FAILED=0
           check() {
-            local name="$1" result="$2" required="${3:-1}"
+            local name="$1" result="$2"
             echo "$name: $result"
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              if [ "$required" = "1" ]; then
-                echo "::error::$name → $result"
-                FAILED=1
-              else
-                echo "::warning::$name → $result (non-blocking)"
-              fi
+              echo "::error::$name → $result"
+              FAILED=1
             fi
           }
-          # ALL jobs hard-fail — no advisory masking. Any failure or
-          # cancellation in any platform job turns ci-verdict red.
-          check "static-analysis"   "${{ needs.static-analysis.result }}"
-          check "linux-gcc"         "${{ needs.linux-gcc.result }}"
-          check "linux-clang"       "${{ needs.linux-clang.result }}"
-          check "android"           "${{ needs.android.result }}"
+          check "static-analysis"  "${{ needs.static-analysis.result }}"
+          check "linux-gcc"        "${{ needs.linux-gcc.result }}"
+          check "linux-clang"      "${{ needs.linux-clang.result }}"
+          check "linux-arm64"      "${{ needs.linux-arm64.result }}"
+          check "linux-riscv64"    "${{ needs.linux-riscv64.result }}"
+          check "sanitizers"       "${{ needs.sanitizers.result }}"
+          check "windows"          "${{ needs.windows.result }}"
+          check "macos"            "${{ needs.macos.result }}"
+          check "ios"              "${{ needs.ios.result }}"
+          check "android"          "${{ needs.android.result }}"
           [ "$FAILED" -eq 0 ] || { echo "::error::One or more required jobs failed"; exit 1; }
           echo "::notice::All required jobs passed"
-        shell: bash

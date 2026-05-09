@@ -4,7 +4,7 @@
   "exploit_poc_count": 252,
   "non_exploit_modules": 91,
   "total_modules": 343,
-  "ci_workflow_count": 58,
+  "ci_workflow_count": 53,
   "ct_pipeline_count": 5,
   "bitcoin_core_tests_pass": 693,
   "bitcoin_core_tests_total": 693,
