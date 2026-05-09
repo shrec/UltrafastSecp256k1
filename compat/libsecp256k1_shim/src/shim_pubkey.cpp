@@ -34,6 +34,9 @@ static void point_to_pubkey_data(const Point& pt, unsigned char data[64]) {
     }
 }
 
+// `[[maybe_unused]]` because some shim TUs include this file but don't use
+// this helper directly, which trips -Werror=unused-function on GCC.
+[[maybe_unused]]
 static Point pubkey_data_to_point(const unsigned char data[64]) {
     std::array<uint8_t, 32> xb{}, yb{};
     std::memcpy(xb.data(), data, 32);

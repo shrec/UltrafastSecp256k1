@@ -102,6 +102,10 @@ static secp256k1::ECDSASignature ecdsa_sig_from_data(const unsigned char data[64
 }
 
 // -- Internal: reconstruct Point from opaque pubkey ----------------------
+// `[[maybe_unused]]` because some shim translation units enable this helper
+// while others (e.g. the standalone test_exploit_*_shim.cpp_o objects built
+// under -Werror=unused-function) include this file but don't call it.
+[[maybe_unused]]
 static Point pubkey_data_to_point(const unsigned char data[64]) {
     std::array<uint8_t, 32> xb{}, yb{};
     std::memcpy(xb.data(), data, 32);
