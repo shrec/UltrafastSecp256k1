@@ -40,6 +40,13 @@ using namespace secp256k1;
 using namespace secp256k1::fast;
 using namespace secp256k1::zk;
 
+// Intentionally exercises the legacy variable-time secp256k1::ecdsa_sign /
+// schnorr_sign entry points (test/bench/audit harness). Suppress the
+// deprecation warning so -Werror builds succeed.
+#if defined(__GNUC__) || defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 static int g_pass = 0, g_fail = 0;
 static const char* g_section = "";
 

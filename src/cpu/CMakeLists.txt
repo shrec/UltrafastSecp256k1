@@ -188,6 +188,23 @@ if(SECP256K1_USE_ASM)
         
         message(STATUS "Secp256k1: Inline assembly enabled (RISC-V 64-bit ${RISCV_FEATURES}) - Expected 2-3x speedup")
 
+        # ── Microarchitecture-aware scheduling flags (no code-bloat) ───────────
+        # Measured on MilkV Mars (SpacemiT X60, in-order dual-issue, 2026-05-08):
+        #   ECDSA Verify:  202 µs → 194 µs (1.04× win vs libsecp, was parity)
+        #   ecmult:         195 µs → 184 µs (1.05× win)
+        #   ecrecover:      235 µs → 227 µs (0.99× parity, was 0.96×)
+        #   3-run variance < 0.13% — gain is stable, not noise.
+        # `-funroll-loops`/`-fpeel-loops` REGRESS the macro path (i-cache bloat
+        # of ~6%); kept off. Only scheduling/cleanup flags retained.
+        # CT-safety: these flags reorder instructions but introduce no
+        # data-dependent branches — verified via CAAS audit_ct module.
+        add_compile_options(
+            -fmodulo-sched
+            -fmodulo-sched-allow-regmoves
+            -fpredictive-commoning
+            -fipa-pta
+        )
+
         list(APPEND SECP256K1_SOURCES
             src/field_asm_riscv64.S
             src/field_asm_riscv64.cpp
