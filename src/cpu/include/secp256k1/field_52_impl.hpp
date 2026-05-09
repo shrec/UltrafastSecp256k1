@@ -2277,15 +2277,15 @@ FieldElement52 FieldElement52::operator*(const FieldElement52& rhs) const noexce
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::mul_var(const FieldElement52& rhs) const noexcept {
     FieldElement52 r;
-    fe52_mul_inner_var(r.n, n, rhs.n);
+    // TEMPORARY: fall back to fe52_mul_inner (__int128 path) to rule out
+    // fe52_mul_inner_var ASM as the source of CT/fast divergence.
+    fe52_mul_inner(r.n, n, rhs.n);
     return r;
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::mul_assign_var(const FieldElement52& rhs) noexcept {
-    // fe52_mul_inner_var has __restrict__ on r/a/b — must not alias.
-    // Use a stack temporary to avoid r==a aliasing in the in-place form.
     std::uint64_t tmp[5];
-    fe52_mul_inner_var(tmp, n, rhs.n);
+    fe52_mul_inner(tmp, n, rhs.n);
     n[0] = tmp[0]; n[1] = tmp[1]; n[2] = tmp[2]; n[3] = tmp[3]; n[4] = tmp[4];
 }
 
@@ -2300,14 +2300,15 @@ FieldElement52 FieldElement52::square() const noexcept {
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::square_var() const noexcept {
     FieldElement52 r;
-    fe52_sqr_inner_var(r.n, n);
+    // TEMPORARY: fall back to fe52_sqr_inner (__int128 path) to rule out
+    // fe52_sqr_inner_var ASM as the source of CT/fast divergence.
+    fe52_sqr_inner(r.n, n);
     return r;
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::square_inplace_var() noexcept {
-    // fe52_sqr_inner_var has __restrict__ on r/a — must not alias.
     std::uint64_t tmp[5];
-    fe52_sqr_inner_var(tmp, n);
+    fe52_sqr_inner(tmp, n);
     n[0] = tmp[0]; n[1] = tmp[1]; n[2] = tmp[2]; n[3] = tmp[3]; n[4] = tmp[4];
 }
 
