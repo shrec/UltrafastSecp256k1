@@ -1,0 +1,88 @@
+# =============================================================================
+# Codecov — coverage collection and upload
+#
+# Dispatched by ci-orchestrator.yml Phase 1.  Runs on push only.  Fails if
+# coverage collection fails; upload is advisory (fail_ci_if_error: false)
+# since Codecov uploads can fail due to token availability (forks).
+# =============================================================================
+name: Codecov
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  # Self-referential push trigger so GitHub registers the workflow.
+  # Without it, workflow_dispatch via API returns 404 because the workflow
+  # is never indexed (workflow_call/workflow_dispatch alone don't register).
+  push:
+    paths:
+      - .github/workflows/codecov.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codecov-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: "Coverage / clang-17"
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang-17 llvm-17 lld-17 ninja-build
+      - name: CMake configure
+        env:
+          CC: clang-17
+          CXX: clang++-17
+        run: |
+          cmake -S . -B out/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DSECP256K1_USE_ASM=OFF \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build out/build -j$(nproc)
+      - name: Test (with profiling)
+        env:
+          LLVM_PROFILE_FILE: "out/build/%p-%m.profraw"
+        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^ct_sidechannel'
+      - name: Collect LLVM coverage
+        run: |
+          find out/build -name '*.profraw' -print0 \
+            | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+          OBJECTS=()
+          while IFS= read -r bin; do
+            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
+              OBJECTS+=("-object=$bin")
+            fi
+          done < <(find out/build -maxdepth 8 -type f -executable 2>/dev/null)
+          llvm-cov-17 export --format=lcov \
+            --instr-profile=coverage.profdata \
+            "${OBJECTS[@]}" \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
+            > coverage.lcov
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+        with:
+          files: coverage.lcov
+          flags: cpu
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
