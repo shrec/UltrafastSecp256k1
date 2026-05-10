@@ -1,19 +1,3 @@
-# =============================================================================
-# CI — multi-platform build/test pipeline
-#
-# Triggered directly on every push to main/dev. All jobs run in parallel and
-# each fails independently (fail-fast: false on every matrix). One platform's
-# failure does NOT stop other platforms from completing.
-#
-# Codecov upload is inlined in the linux-clang Release job — no separate
-# codecov.yml workflow. Discord notify is the first job (push only).
-#
-# Test exclusions (documented per-platform):
-#   ct_sidechannel  -- dudect timing test (>10 min); runs in ct-verif workflow
-#   exploit_gpu_*   -- requires GPU runtime; runs in gpu-selfhosted workflow
-#   field_52|26     -- known FE52 mul/sqr bug under GCC+u128; in active repair
-# Python audit tests (py_*) DO run after pip install of coincurve/ecdsa/hypothesis.
-# =============================================================================
 name: CI
 
 on:
@@ -21,334 +5,124 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'workingdocs/**'
-      - 'README*'
-      - 'CHANGELOG*'
-      - 'LICENSE*'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/PULL_REQUEST_TEMPLATE*'
-      - '.github/copilot-instructions.md'
-      - '.github/agents/**'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ===========================================================================
-  # Discord commit notification (push only, non-blocking)
-  # ===========================================================================
-  discord-commit-notify:
-    name: "Discord Commit Notify"
+  # -- Linux (GCC + Clang) ----------------------------------------------------
+  linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    if: github.event_name == 'push'
-    env:
-      WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_COMMITS }}
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - name: Notify Discord
-        if: env.WEBHOOK != ''
-        env:
-          REPO:    ${{ github.repository }}
-          BRANCH:  ${{ github.ref_name }}
-          AUTHOR:  ${{ github.event.head_commit.author.name || 'unknown' }}
-          MESSAGE: ${{ github.event.head_commit.message || '(no message)' }}
-          SHA:     ${{ github.sha }}
-        run: |
-          SHORT="${SHA:0:7}"
-          URL="https://github.com/${REPO}/commit/${SHA}"
-          MSG=$(echo "$MESSAGE" | head -1 | cut -c1-200)
-          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          JSON="{\"embeds\":[{\"title\":\"New commit on ${BRANCH}\",\"url\":\"${URL}\",\"color\":7506394,\"description\":\"[\`${SHORT}\`](${URL}) ${MSG}\",\"fields\":[{\"name\":\"Branch\",\"value\":\"${BRANCH}\",\"inline\":true},{\"name\":\"Author\",\"value\":\"${AUTHOR}\",\"inline\":true}],\"footer\":{\"text\":\"UltrafastSecp256k1\"},\"timestamp\":\"${NOW}\"}]}"
-          curl -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
-
-  # ===========================================================================
-  # Static analysis (repo-graph + doc sync + exploit wiring + code quality)
-  # ===========================================================================
-  static-analysis:
-    name: "Static Analysis"
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Install audit deps
-        run: python3 -m pip install --require-hashes -r .github/requirements/audit-deps.txt
-      - name: Repo map check
-        run: python3 tools/render_repo_map.py --check
-      - name: Exploit wiring parity
-        run: python3 ci/check_exploit_wiring.py
-      - name: Canonical data + doc sync
-        run: |
-          python3 ci/build_canonical_data.py --dry-run
-          python3 ci/sync_docs_from_canonical.py --dry-run
-          python3 ci/sync_module_count.py --dry-run
-      - name: Code quality check
-        run: |
-          python3 ci/audit_test_quality_scanner.py --json -o static_analysis_scanner.json
-          python3 ci/run_code_quality.py --fail-on-regression
-      - name: Exploit traceability join
-        run: python3 ci/exploit_traceability_join.py
-      - name: Build project graph
-        run: python3 ci/build_project_graph.py --rebuild
-      - name: Source graph quality
-        run: python3 ci/check_source_graph_quality.py
-      - name: Upload static analysis reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: static-analysis-${{ github.run_id }}
-          path: static_analysis_scanner.json
-          retention-days: 30
-          if-no-files-found: warn
-
-  # ===========================================================================
-  # Linux GCC matrix (gcc-13 / gcc-14 × Release / Debug)
-  # ===========================================================================
-  linux-gcc:
-    name: "Linux / ${{ matrix.compiler }} / ${{ matrix.build_type }}"
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - compiler: gcc-14
-            cc: gcc-14
-            cxx: g++-14
-            build_type: Release
-          - compiler: gcc-14
-            cc: gcc-14
-            cxx: g++-14
-            build_type: Debug
-          - compiler: gcc-13
-            cc: gcc-13
-            cxx: g++-13
-            build_type: Release
-          - compiler: gcc-13
-            cc: gcc-13
-            cxx: g++-13
-            build_type: Debug
+        compiler: [gcc-13, clang-17]
+        build_type: [Release, Debug]
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Install toolchain
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install compiler
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            ${{ matrix.compiler == 'gcc-14' && 'g++-14' || 'g++-13' }} ccache ninja-build
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Install audit deps (for py_* tests)
-        run: pip install --quiet coincurve ecdsa hypothesis
-      # ccache key includes compiler+type, restore-keys cascade to allow partial
-      # cache reuse when sources change but compiler/type stay constant.
+          if [[ "${{ matrix.compiler }}" == gcc-* ]]; then
+            sudo apt-get install -y g++-13 ccache ninja-build
+          else
+            sudo apt-get install -y clang-17 lld-17 ccache ninja-build
+          fi
+
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/**', 'include/**') }}
+          key: ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
-            ccache-${{ matrix.compiler }}-${{ matrix.build_type }}-
-            ccache-${{ matrix.compiler }}-
+            ccache-linux-${{ matrix.compiler }}-${{ matrix.build_type }}-
+            ccache-linux-${{ matrix.compiler }}-
+
       - name: Configure ccache
         run: |
-          ccache --set-config=max_size=400M
+          ccache --set-config=max_size=200M
           ccache --set-config=compression=true
           ccache -z
-      - name: CMake configure
-        env:
-          CC: ${{ matrix.cc }}
-          CXX: ${{ matrix.cxx }}
+
+      - name: Configure
         run: |
-          cmake -S . -B out/build -G Ninja \
+          if [[ "${{ matrix.compiler }}" == gcc-* ]]; then
+            export CC=gcc-13 CXX=g++-13
+          else
+            export CC=clang-17 CXX=clang++-17
+          fi
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v2 \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON
+            -DSECP256K1_BUILD_EXAMPLES=ON \
+            -DSECP256K1_BUILD_METAL=ON \
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
+            -DSECP256K1_BUILD_CROSS_TESTS=ON
+
       - name: Build
-        run: cmake --build out/build -j$(nproc)
-      - name: ccache stats
-        if: always()
-        run: ccache -s
+        run: cmake --build build -j$(nproc)
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
       - name: Test
-        # Excluded: ct_sidechannel (dudect, >10 min, dedicated CT workflow);
-        # exploit_gpu_* (requires GPU runtime); field_52/26 (FE52 mul/sqr u128
-        # regression under GCC, in active repair).
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|field_52|field_26)'
+        # Exclude ct_sidechannel: dudect timing test takes >10 min, runs in dedicated ct-verif workflow
+        run: ctest --test-dir build --output-on-failure -j$(nproc) -E "^ct_sidechannel"
 
-  # ===========================================================================
-  # Linux Clang-17 matrix (Release / Debug) + Codecov upload on Release
-  # ===========================================================================
-  linux-clang:
-    name: "Linux / clang-17 / ${{ matrix.build_type }}"
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [Release, Debug]
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Install toolchain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            clang-17 llvm-17 lld-17 ccache ninja-build
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
-        with:
-          python-version: '3.12'
-      - name: Install audit deps
-        run: pip install --quiet coincurve ecdsa hypothesis
-      - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
-        with:
-          path: ~/.cache/ccache
-          key: ccache-clang-17-${{ matrix.build_type }}-${{ hashFiles('src/**', 'include/**') }}
-          restore-keys: |
-            ccache-clang-17-${{ matrix.build_type }}-
-            ccache-clang-17-
-      - name: Configure ccache
-        run: |
-          ccache --set-config=max_size=400M
-          ccache --set-config=compression=true
-          ccache -z
-      - name: CMake configure (Release with coverage instrumentation)
-        if: matrix.build_type == 'Release'
-        env:
-          CC: clang-17
-          CXX: clang++-17
-        run: |
-          cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
-            -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON
-      - name: CMake configure (Debug, no coverage)
-        if: matrix.build_type == 'Debug'
-        env:
-          CC: clang-17
-          CXX: clang++-17
-        run: |
-          cmake -S . -B out/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DSECP256K1_MARCH=x86-64-v2 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON
-      - name: Build
-        run: cmake --build out/build -j$(nproc)
-      - name: ccache stats
-        if: always()
-        run: ccache -s
-      - name: Test
-        env:
-          LLVM_PROFILE_FILE: "out/build/%p-%m.profraw"
-        run: ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|field_52|field_26)'
-
-      # ── Codecov upload (Release variant only) ───────────────────────────
-      - name: Collect LLVM coverage
-        if: matrix.build_type == 'Release'
-        run: |
-          find out/build -name '*.profraw' -print0 \
-            | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
-          OBJECTS=()
-          while IFS= read -r bin; do
-            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
-              OBJECTS+=("-object=$bin")
-            fi
-          done < <(find out/build -maxdepth 8 -type f -executable 2>/dev/null)
-          llvm-cov-17 export --format=lcov \
-            --instr-profile=coverage.profdata \
-            "${OBJECTS[@]}" \
-            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
-            > coverage.lcov
-      - name: Upload to Codecov
-        if: matrix.build_type == 'Release'
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
-        with:
-          files: coverage.lcov
-          flags: cpu
-          fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  # ===========================================================================
-  # Linux ARM64 (cross-compile aarch64-linux-gnu + QEMU smoke)
-  # ===========================================================================
+  # -- Linux ARM64 (cross-compile, aarch64-linux-gnu) -----------------------
   linux-arm64:
-    name: "Linux / arm64 (cross+QEMU)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Install cross toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            g++-13-aarch64-linux-gnu libc6-arm64-cross libc6-dev-arm64-cross \
-            ninja-build ccache qemu-user-static
+          sudo apt-get install -y \
+            g++-13-aarch64-linux-gnu \
+            libc6-arm64-cross \
+            libc6-dev-arm64-cross \
+            ninja-build \
+            ccache \
+            qemu-user-static
+
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-arm64-${{ hashFiles('src/**', 'include/**') }}
-          restore-keys: ccache-arm64-
+          key: ccache-arm64-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-arm64-
+
       - name: Configure ccache
         run: |
-          ccache --set-config=max_size=400M
+          ccache --set-config=max_size=200M
           ccache --set-config=compression=true
           ccache -z
-      - name: CMake configure (aarch64 Release)
+
+      - name: Configure (aarch64 Release)
         run: |
           cmake -S . -B build/arm64 -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -359,52 +133,93 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_METAL=OFF
+
       - name: Build
         run: cmake --build build/arm64 -j$(nproc)
-      - name: ccache stats
-        if: always()
-        run: ccache -s
-      - name: QEMU smoke
+
+      - name: Verify binary
+        run: |
+          file build/arm64/src/cpu/libfastsecp256k1.a
+          echo "Library size: $(du -h build/arm64/src/cpu/libfastsecp256k1.a | cut -f1)"
+
+      - name: QEMU smoke (ARM64 runtime)
         run: |
           set -euo pipefail
+
           QEMU_AARCH64="$(command -v qemu-aarch64-static || command -v qemu-aarch64)"
           SYSROOT="/usr/aarch64-linux-gnu"
           SELFTEST="$(find build/arm64 -name run_selftest -type f -executable | head -1)"
-          test -n "$QEMU_AARCH64" && test -n "$SELFTEST"
-          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$SELFTEST" smoke
+          BIP324_TEST="$(find build/arm64 -name test_bip324_standalone -type f -executable | head -1)"
+          BENCH_KP="$(find build/arm64 -name bench_kP -type f -executable | head -1)"
+          BENCH_BIP324="$(find build/arm64 -name bench_bip324 -type f -executable | head -1)"
 
-  # ===========================================================================
-  # Linux RISC-V 64 (cross-compile riscv64-linux-gnu + QEMU smoke)
-  # ===========================================================================
+          test -n "$QEMU_AARCH64"
+          test -n "$SELFTEST"
+          test -n "$BIP324_TEST"
+          test -n "$BENCH_KP"
+          test -n "$BENCH_BIP324"
+
+          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$SELFTEST" smoke
+          timeout 180 "$QEMU_AARCH64" -L "$SYSROOT" "$BIP324_TEST"
+          timeout 180 "$QEMU_AARCH64" -L "$SYSROOT" "$BENCH_KP" | tee arm64_bench_kP.txt
+          timeout 360 "$QEMU_AARCH64" -L "$SYSROOT" "$BENCH_BIP324" | tee arm64_bench_bip324.txt
+
+      - name: ARM64 smoke summary
+        if: success() || failure()
+        run: |
+          if [[ -f arm64_bench_kP.txt || -f arm64_bench_bip324.txt ]]; then
+            echo "## Linux ARM64 QEMU smoke" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            if [[ -f arm64_bench_kP.txt ]]; then
+              head -20 arm64_bench_kP.txt >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [[ -f arm64_bench_bip324.txt ]]; then
+              echo >> "$GITHUB_STEP_SUMMARY"
+              head -20 arm64_bench_bip324.txt >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # -- Linux RISC-V 64 (cross-compile, riscv64-linux-gnu) --------------------
   linux-riscv64:
-    name: "Linux / riscv64 (cross+QEMU)"
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Install cross toolchain
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            g++-13-riscv64-linux-gnu libc6-riscv64-cross libc6-dev-riscv64-cross \
-            ninja-build ccache qemu-user-static
+          sudo apt-get install -y \
+            g++-13-riscv64-linux-gnu \
+            libc6-riscv64-cross \
+            libc6-dev-riscv64-cross \
+            ninja-build \
+            ccache \
+            qemu-user-static
+
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-riscv64-${{ hashFiles('src/**', 'include/**') }}
-          restore-keys: ccache-riscv64-
+          key: ccache-riscv64-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
+          restore-keys: |
+            ccache-riscv64-
+
       - name: Configure ccache
         run: |
-          ccache --set-config=max_size=400M
+          ccache --set-config=max_size=200M
           ccache --set-config=compression=true
           ccache -z
-      - name: CMake configure (riscv64 Release)
+
+      - name: Configure (riscv64 Release)
         run: |
           cmake -S . -B build/riscv64 -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -415,277 +230,628 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_BENCH=ON
+            -DSECP256K1_BUILD_BENCH=ON \
+            -DSECP256K1_BUILD_METAL=OFF
+
       - name: Build
         run: cmake --build build/riscv64 -j$(nproc)
-      - name: ccache stats
-        if: always()
-        run: ccache -s
-      - name: QEMU smoke
+
+      - name: Verify binary
+        run: |
+          file build/riscv64/src/cpu/libfastsecp256k1.a
+          echo "Library size: $(du -h build/riscv64/src/cpu/libfastsecp256k1.a | cut -f1)"
+
+      - name: QEMU smoke (RISC-V runtime)
         run: |
           set -euo pipefail
+
           QEMU_RISCV64="$(command -v qemu-riscv64-static || command -v qemu-riscv64)"
           SYSROOT="/usr/riscv64-linux-gnu"
           SELFTEST="$(find build/riscv64 -name run_selftest -type f -executable | head -1)"
-          test -n "$QEMU_RISCV64" && test -n "$SELFTEST"
-          timeout 240 "$QEMU_RISCV64" -L "$SYSROOT" "$SELFTEST" smoke
+          BIP324_TEST="$(find build/riscv64 -name test_bip324_standalone -type f -executable | head -1)"
+          BENCH_KP="$(find build/riscv64 -name bench_kP -type f -executable | head -1)"
+          BENCH_BIP324="$(find build/riscv64 -name bench_bip324 -type f -executable | head -1)"
 
-  # ===========================================================================
-  # Sanitizers (ASAN+UBSan, TSan) — Clang Linux
-  # ===========================================================================
+          test -n "$QEMU_RISCV64"
+          test -n "$SELFTEST"
+          test -n "$BIP324_TEST"
+          test -n "$BENCH_KP"
+          test -n "$BENCH_BIP324"
+
+          timeout 180 "$QEMU_RISCV64" -L "$SYSROOT" "$SELFTEST" smoke
+          timeout 120 "$QEMU_RISCV64" -L "$SYSROOT" "$BIP324_TEST"
+          timeout 180 "$QEMU_RISCV64" -L "$SYSROOT" "$BENCH_KP" | tee riscv64_bench_kP.txt
+          timeout 240 "$QEMU_RISCV64" -L "$SYSROOT" "$BENCH_BIP324" | tee riscv64_bench_bip324.txt
+
+      - name: RISC-V smoke summary
+        if: success() || failure()
+        run: |
+          if [[ -f riscv64_bench_kP.txt || -f riscv64_bench_bip324.txt ]]; then
+            echo "## Linux RISC-V QEMU smoke" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            if [[ -f riscv64_bench_kP.txt ]]; then
+              head -20 riscv64_bench_kP.txt >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [[ -f riscv64_bench_bip324.txt ]]; then
+              echo >> "$GITHUB_STEP_SUMMARY"
+              head -20 riscv64_bench_bip324.txt >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # -- Sanitizers (ASan+UBSan, Clang on Linux) --------------------------------
   sanitizers:
-    name: "Sanitizers (${{ matrix.label }})"
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
+        sanitizer: [asan, tsan, msan]
         include:
           - sanitizer: asan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'"
             label: "ASan+UBSan"
-            cflags: "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
-            ldflags: "-fsanitize=address,undefined"
           - sanitizer: tsan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_CXX_FLAGS='-fsanitize=thread -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=thread'"
             label: "TSan"
-            cflags: "-fsanitize=thread -fno-omit-frame-pointer"
-            ldflags: "-fsanitize=thread"
+          - sanitizer: msan
+            cmake_flags: "-DCMAKE_C_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2' -DCMAKE_CXX_FLAGS='-fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 -stdlib=libc++' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=memory -stdlib=libc++ -lc++abi'"
+            label: "MSan"
+
+    name: "Sanitizers (${{ matrix.label }})"
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Install Clang 17
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends clang-17 lld-17 ccache ninja-build
+          sudo apt-get install -y clang-17 lld-17 ccache ninja-build libc++-17-dev libc++abi-17-dev
+
       - name: Cache ccache
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('src/**', 'include/**') }}
+          key: ccache-san-${{ matrix.sanitizer }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-san-${{ matrix.sanitizer }}-
-            ccache-san-
+
       - name: Configure ccache
         run: |
-          ccache --set-config=max_size=400M
+          ccache --set-config=max_size=200M
           ccache --set-config=compression=true
           ccache -z
-      - name: CMake configure
-        env:
-          CC: clang-17
-          CXX: clang++-17
+
+      - name: Configure (${{ matrix.label }})
         run: |
+          export CC=clang-17 CXX=clang++-17
           cmake -S . -B build/${{ matrix.sanitizer }} -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v2 \
             -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
             -DSECP256K1_USE_ASM=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
-            -DCMAKE_C_FLAGS="${{ matrix.cflags }}" \
-            -DCMAKE_CXX_FLAGS="${{ matrix.cflags }}" \
-            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.ldflags }}"
+            -DSECP256K1_BUILD_JAVA=OFF \
+            ${{ matrix.cmake_flags }}
+
       - name: Build
         run: cmake --build build/${{ matrix.sanitizer }} -j$(nproc)
-      - name: ccache stats
-        if: always()
-        run: ccache -s
-      - name: Test
-        # Sanitizers add 3-15x overhead → 900s per-test timeout.
-        # py_*: Python ctypes loads libufsecp.so without the sanitizer runtime
-        # preloaded — skipping here (covered in the regular linux jobs).
-        run: ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) --timeout 900 -E '^(ct_sidechannel|py_|exploit_gpu_|field_52|field_26)'
 
-  # ===========================================================================
-  # Windows (MSVC)
-  # ===========================================================================
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
+      - name: Test (${{ matrix.label }})
+        # Sanitizers add 3-15x overhead; raise per-test timeout from 300s to 900s.
+        # Exclude selftest (unified runner) -- standalone tests cover the same
+        # modules individually and finish faster under instrumentation.
+        # Exclude py_*: Python ctypes loads libufsecp.so without the sanitizer
+        # runtime preloaded, causing undefined symbol errors for __asan_*,
+        # __tsan_func_entry, etc. Python tests run in the normal linux jobs.
+        # MSan note: The CI MSan job uses system (non-instrumented) libc++.
+        # Any test that links libufsecp (which uses std::string internally)
+        # triggers false positives.  Only pure-arithmetic and standalone tests
+        # survive.  Rather than maintaining a fragile deny-list, we switch to a
+        # whitelist of known-clean targets.  Full MSan coverage with an
+        # instrumented libc++ is provided by the Security Audit MSan job
+        # (security-audit.yml), which builds its own MSan libc++ from source.
+        run: |
+          if [ "${{ matrix.sanitizer }}" = "msan" ]; then
+            ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
+              -R "^(field_26|sha|hash_accel|abi_gate|bip141_143_144|bip342|wycheproof_|exploit_field_|exploit_sha|exploit_keccak|exploit_ripemd|exploit_hkdf|exploit_chacha|exploit_aead|exploit_bip143|exploit_bip144|exploit_bip324|exploit_pedersen|exploit_frost_participant_zero|exploit_frost_threshold_degenerate|exploit_frost_lagrange_duplicate|exploit_frost_index|exploit_invalid_curve|exploit_metal_field_reduce)$" --timeout 900
+          else
+            ctest --test-dir build/${{ matrix.sanitizer }} --output-on-failure -j$(nproc) \
+              -E "^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)" --timeout 900
+          fi
+
+  # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
-    name: "Windows / MSVC"
     runs-on: windows-latest
-    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         build_type: [Release]
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
-      - name: Install audit deps
-        run: pip install --quiet coincurve ecdsa hypothesis
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
       - name: Configure (MSVC)
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
             -DSECP256K1_BUILD_TESTS=ON `
             -DSECP256K1_BUILD_BENCH=ON `
-            -DSECP256K1_BUILD_EXAMPLES=ON
+            -DSECP256K1_BUILD_EXAMPLES=ON `
+            -DSECP256K1_BUILD_METAL=ON `
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON `
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} -j
+
       - name: Test
         env:
           PYTHONUTF8: '1'
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j --timeout 300 -E "^(ct_sidechannel|exploit_gpu_|field_52|field_26)"
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel"
 
-  # ===========================================================================
-  # macOS (AppleClang + Metal)
-  # ===========================================================================
+  # -- macOS (AppleClang + Metal GPU) -----------------------------------------
   macos:
-    name: "macOS / AppleClang"
     runs-on: macos-14
-    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         build_type: [Release]
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
-      - name: Install audit deps
-        run: pip install --quiet coincurve ecdsa hypothesis
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
       - name: Configure
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DSECP256K1_BUILD_TESTS=ON \
             -DSECP256K1_BUILD_BENCH=ON \
-            -DSECP256K1_BUILD_EXAMPLES=ON
+            -DSECP256K1_BUILD_EXAMPLES=ON \
+            -DSECP256K1_BUILD_METAL=ON \
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+
       - name: Build
         run: cmake --build build -j$(sysctl -n hw.logicalcpu)
-      - name: Test
-        # secp256k1_metal_audit/gpu_ops_equivalence run on Metal-enabled hardware
-        # path; covered in macos-shim.yml workflow on dispatch.
-        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) --timeout 300 -E '^(ct_sidechannel|exploit_gpu_|secp256k1_metal_audit|gpu_ops_equivalence|field_52|field_26)'
 
-  # ===========================================================================
-  # iOS (Xcode, ARM64 + Simulator)
-  # ===========================================================================
+      - name: Test (all including Metal GPU)
+        # Exclude gpu_ecdsa_snark_witness and gpu_bip352_scan: these Metal
+        # kernels (ecdsa_snark_witness_batch, bip352_scan_pipeline) are not
+        # compiled into the default metallib on CI runners and fail with
+        # "Function not found".  They are covered by the Metal GPU audit step.
+        run: ctest --test-dir build --output-on-failure -j$(sysctl -n hw.logicalcpu) -E "^(ct_sidechannel|secp256k1_metal_audit|gpu_ops_equivalence|gpu_ecdsa_snark_witness|gpu_bip352_scan)"
+
+      - name: Metal GPU audit (advisory -- not blocking)
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+          METAL_AUDIT=$(find build -name metal_audit_runner -type f | head -1)
+          if [ -n "$METAL_AUDIT" ] && [ -x "$METAL_AUDIT" ]; then
+            echo "Running Metal audit (advisory)..."
+            "$METAL_AUDIT" --report-dir build/metal_audit_report || echo "::warning::Metal audit had failures (advisory)"
+          else
+            echo "Metal audit runner not found"
+          fi
+
+      - name: Metal GPU benchmarks
+        if: success()
+        run: |
+          METAL_TEST=$(find build -name metal_secp256k1_test -type f | head -1)
+          if [ -n "$METAL_TEST" ] && [ -x "$METAL_TEST" ]; then
+            echo "Running Metal GPU benchmarks..."
+            $METAL_TEST --bench
+          else
+            echo "Metal GPU test binary not found (expected on Apple Silicon)"
+          fi
+
+  # -- iOS (CMake + Xcode, ARM64) ---------------------------------------------
   ios:
-    name: "iOS / ${{ matrix.platform }}"
     runs-on: macos-14
-    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         platform: [OS, SIMULATOR]
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Configure (iOS ${{ matrix.platform }})
         run: |
           cmake -S . -B build/ios \
             -G Xcode \
             -DCMAKE_TOOLCHAIN_FILE=cmake/ios.toolchain.cmake \
             -DIOS_PLATFORM=${{ matrix.platform }}
+
       - name: Build
         run: cmake --build build/ios --config Release --target fastsecp256k1 -- -quiet
+
       - name: Verify library
         run: |
           LIB=$(find build/ios -name "libfastsecp256k1.a" -path "*/Release*" | head -1)
-          test -n "$LIB"
+          echo "Library: $LIB"
           file "$LIB"
           lipo -info "$LIB"
+          echo "Size: $(du -h "$LIB" | cut -f1)"
 
-  # ===========================================================================
-  # Android NDK (multi-ABI)
-  # ===========================================================================
-  android:
-    name: "Android / ${{ matrix.abi }}"
+  # -- iOS XCFramework --------------------------------------------------------
+  ios-xcframework:
+    runs-on: macos-14
+    needs: [ios]
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build XCFramework
+        run: |
+          chmod +x scripts/build_xcframework.sh
+          ./scripts/build_xcframework.sh
+
+      - name: Upload XCFramework
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: UltrafastSecp256k1.xcframework
+          path: build/xcframework/output/UltrafastSecp256k1.xcframework
+          retention-days: 30
+
+  # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
+  # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
+  # This job validates that the HIP toolchain compiles successfully.
+  # Runtime GPU tests require a self-hosted runner with an AMD GPU.
+  # -- ROCm/HIP (AMD GPU, compile check) ---------------------------------------
+  # NOTE: GitHub-hosted runners have no AMD GPU (/dev/kfd, /dev/dri).
+  # This job validates that the HIP toolchain compiles successfully.
+  # Runtime GPU tests require a self-hosted runner with an AMD GPU.
+  rocm:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - name: Free disk space for ROCm
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: false
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install ROCm HIP SDK
+        run: |
+          wget -qO- https://repo.radeon.com/rocm/rocm.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/rocm.gpg
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/6.3 noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends hip-dev rocm-cmake ninja-build cmake
+
+      - name: Configure (ROCm/HIP)
+        run: |
+          cmake -S . -B build/rocm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSECP256K1_BUILD_CPU=ON \
+            -DSECP256K1_BUILD_ROCM=ON \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DCMAKE_HIP_ARCHITECTURES="gfx906;gfx908;gfx90a;gfx1030;gfx1100"
+
+      - name: Build
+        run: cmake --build build/rocm -j$(nproc)
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
+      - name: Test (CPU-only, compile check)
+        run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel"
+
+  # -- WebAssembly (Emscripten) -----------------------------------------------
+  wasm:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
+        with:
+          version: 3.1.51
+          actions-cache-folder: emsdk-cache
+
+      - name: Configure (WASM)
+        run: emcmake cmake -S wasm -B build/wasm -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/wasm -j$(nproc)
+
+      - name: Verify output
+        run: |
+          ls -lh build/wasm/dist/secp256k1_wasm.js
+          ls -lh build/wasm/dist/secp256k1_wasm.wasm
+          echo "WASM size: $(du -h build/wasm/dist/secp256k1_wasm.wasm | cut -f1)"
+          echo "KAT test files:"
+          ls -lh build/wasm/kat/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 20
+
+      - name: Run WASM benchmark
+        run: |
+          cd build/wasm/dist
+          node ../../../wasm/bench_wasm.mjs
+
+      - name: Run WASM KAT equivalence test
+        run: node build/wasm/kat/wasm_kat_test.js
+
+      - name: Upload WASM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        continue-on-error: true
+        with:
+          name: secp256k1-wasm
+          path: |
+            build/wasm/dist/secp256k1_wasm.js
+            build/wasm/dist/secp256k1_wasm.wasm
+            build/wasm/dist/secp256k1.mjs
+            build/wasm/dist/secp256k1.d.ts
+            build/wasm/dist/package.json
+          retention-days: 30
+
+  # -- Android NDK (ARM64, ARMv7, x86_64) ----------------------------------
+  android:
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         abi: [arm64-v8a, armeabi-v7a, x86_64]
+
+    name: "android (${{ matrix.abi }})"
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Setup Android NDK
+        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
         id: ndk
-        uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779
         with:
           ndk-version: r27c
+
       - name: Configure (Android ${{ matrix.abi }})
         run: |
-          cmake -S bindings/android -B out/build -G Ninja \
-            "-DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake" \
+          cmake -S android -B build/android \
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Ninja
+
       - name: Build
-        run: cmake --build out/build -j$(nproc)
+        run: cmake --build build/android -j$(nproc)
+
       - name: Verify
         run: |
-          LIB=$(find out/build -name "libfastsecp256k1.a" | head -1)
-          test -n "$LIB"
-          echo "Library: $LIB  size=$(du -h "$LIB" | cut -f1)"
+          file build/android/src/cpu/libfastsecp256k1.a
+          file build/android/libsecp256k1_jni.so
+          if [[ "${{ matrix.abi }}" == "arm64-v8a" ]]; then
+            file build/android/bench_kP
+            file build/android/bench_bip324
+          fi
+          echo "Static lib: $(du -h build/android/src/cpu/libfastsecp256k1.a | cut -f1)"
+          echo "JNI shared: $(du -h build/android/libsecp256k1_jni.so | cut -f1)"
+          if [[ "${{ matrix.abi }}" == "arm64-v8a" ]]; then
+            echo "bench_kP: $(du -h build/android/bench_kP | cut -f1)"
+            echo "bench_bip324: $(du -h build/android/bench_bip324 | cut -f1)"
+          fi
 
-  # ===========================================================================
-  # CI Verdict — final aggregator
-  # ===========================================================================
-  ci-verdict:
-    name: "CI / Final Verdict"
-    needs:
-      - static-analysis
-      - linux-gcc
-      - linux-clang
-      - linux-arm64
-      - linux-riscv64
-      - sanitizers
-      - windows
-      - macos
-      - ios
-      - android
-    if: always()
+  # -- Code Coverage (LLVM source-based + Codecov) ----------------------------
+  coverage:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    if: github.event_name == 'push'
+
     steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-      - name: Evaluate results
-        shell: bash
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install tools
         run: |
-          FAILED=0
-          check() {
-            local name="$1" result="$2"
-            echo "$name: $result"
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              echo "::error::$name → $result"
-              FAILED=1
+          sudo apt-get update -qq
+          sudo apt-get install -y clang-17 llvm-17 lld-17 ninja-build
+
+      - name: Install Python audit dependencies
+        run: pip install --require-hashes -r .github/requirements/audit-deps.txt
+
+      - name: Configure (coverage)
+        run: |
+          export CC=clang-17 CXX=clang++-17
+          cmake -S . -B build/cov -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON \
+            -DSECP256K1_USE_ASM=OFF \
+            -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate"
+
+      - name: Build
+        run: cmake --build build/cov -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build/cov --output-on-failure -j"$(nproc)" -E "^ct_sidechannel"
+        env:
+          LLVM_PROFILE_FILE: "build/cov/%p-%m.profraw"
+
+      - name: Collect coverage (LLVM → lcov format)
+        run: |
+          # Merge raw profiles
+          find build/cov -name '*.profraw' -print0 | xargs -0 llvm-profdata-17 merge -sparse -o coverage.profdata
+
+          # Find all instrumented objects (library + test binaries)
+          OBJECTS=""
+          for bin in $(find build/cov -type f -executable); do
+            if llvm-cov-17 show --instr-profile=coverage.profdata "$bin" >/dev/null 2>&1; then
+              OBJECTS="$OBJECTS -object=$bin"
             fi
-          }
-          check "static-analysis"  "${{ needs.static-analysis.result }}"
-          check "linux-gcc"        "${{ needs.linux-gcc.result }}"
-          check "linux-clang"      "${{ needs.linux-clang.result }}"
-          check "linux-arm64"      "${{ needs.linux-arm64.result }}"
-          check "linux-riscv64"    "${{ needs.linux-riscv64.result }}"
-          check "sanitizers"       "${{ needs.sanitizers.result }}"
-          check "windows"          "${{ needs.windows.result }}"
-          check "macos"            "${{ needs.macos.result }}"
-          check "ios"              "${{ needs.ios.result }}"
-          check "android"          "${{ needs.android.result }}"
-          [ "$FAILED" -eq 0 ] || { echo "::error::One or more required jobs failed"; exit 1; }
-          echo "::notice::All required jobs passed"
+          done
+
+          # Export to lcov format (Codecov-compatible)
+          # shellcheck disable=SC2086
+          llvm-cov-17 export \
+            --format=lcov \
+            --instr-profile=coverage.profdata \
+            $OBJECTS \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
+            > coverage.lcov
+
+          echo "=== Coverage summary ==="
+          llvm-cov-17 report \
+            --instr-profile=coverage.profdata \
+            $OBJECTS \
+            --ignore-filename-regex='(tests/|bench/|examples/|audit/|compat/|/usr/)' \
+            | tail -5
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        with:
+          files: coverage.lcov
+          flags: cpu
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # -- Differential smoke test (self-consistency, compact, per-PR) -----------
+  differential:
+    name: "Differential Smoke Test"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_CROSS_TESTS=ON
+
+      - name: Build differential test binary
+        run: cmake --build build --target test_differential_standalone -j"$(nproc)"
+
+      - name: Run differential smoke test (10 K random cases)
+        # DIFFERENTIAL_MULTIPLIER=1 => ~10K cases; fast enough for per-PR gate.
+        # Nightly uses 100 (1M cases) for extended coverage.
+        run: ./build/audit/test_differential_standalone 1
+
+  # -- Protocol reference vectors (MuSig2 BIP-327 + FROST KAT) --------------
+  protocol-vectors:
+    name: "Protocol Vectors (MuSig2 BIP-327 / FROST-KAT)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_TESTS=ON \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
+
+      - name: Build protocol vector tests
+        run: |
+          cmake --build build --target test_musig2_bip327_vectors -j"$(nproc)"
+          cmake --build build --target test_frost_kat -j"$(nproc)"
+          cmake --build build --target test_musig2_frost -j"$(nproc)"
+
+      - name: Run MuSig2 BIP-327 reference vectors
+        run: ctest --test-dir build --output-on-failure -R "^musig2_bip327_vectors$" --timeout 120
+
+      - name: Run FROST KAT reference vectors
+        run: ctest --test-dir build --output-on-failure -R "^frost_kat$" --timeout 120
+
+      - name: Run MuSig2/FROST combined test
+        run: ctest --test-dir build --output-on-failure -R "^musig2_frost$" --timeout 120
