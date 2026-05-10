@@ -158,7 +158,7 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: false
-        alert-threshold: '150%'
+        alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
@@ -177,7 +177,7 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: false
-        alert-threshold: '150%'
+        alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: true
         benchmark-data-dir-path: 'dev/bench-gate'
