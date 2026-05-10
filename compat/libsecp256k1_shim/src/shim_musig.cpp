@@ -217,7 +217,7 @@ int secp256k1_musig_pubkey_agg(
     for (size_t i = 0; i < n_pubkeys; ++i) {
         if (!pubkeys[i]) return 0;
         unsigned char buf[33]; size_t len = 33;
-        secp256k1_ec_pubkey_serialize(nullptr, buf, &len, pubkeys[i], SECP256K1_EC_COMPRESSED);
+        secp256k1_ec_pubkey_serialize(secp256k1_context_static, buf, &len, pubkeys[i], SECP256K1_EC_COMPRESSED);
         std::memcpy(comp33[i].data(), buf, 33);
     }
 
@@ -245,7 +245,7 @@ int secp256k1_musig_pubkey_get(
     if (!agg_pk || !keyagg_cache) return 0;
     KAEntry* e = ka_get(keyagg_cache);
     if (!e) return 0;
-    secp256k1_ec_pubkey_parse(nullptr, agg_pk, e->agg_pk_comp.data(), 33);
+    secp256k1_ec_pubkey_parse(secp256k1_context_static, agg_pk, e->agg_pk_comp.data(), 33);
     return 1;
 }
 
@@ -264,7 +264,7 @@ int secp256k1_musig_pubkey_ec_tweak_add(
     e->ctx.Q = e->ctx.Q.add(tG);
     if (e->ctx.Q.is_infinity()) return 0;
     compress(e->ctx.Q, e->agg_pk_comp.data());
-    if (output_pubkey) secp256k1_ec_pubkey_parse(nullptr, output_pubkey, e->agg_pk_comp.data(), 33);
+    if (output_pubkey) secp256k1_ec_pubkey_parse(secp256k1_context_static, output_pubkey, e->agg_pk_comp.data(), 33);
     return 1;
 }
 
@@ -287,7 +287,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
     e->ctx.Q = e->ctx.Q.add(tG);
     if (e->ctx.Q.is_infinity()) return 0;
     compress(e->ctx.Q, e->agg_pk_comp.data());
-    if (output_pubkey) secp256k1_ec_pubkey_parse(nullptr, output_pubkey, e->agg_pk_comp.data(), 33);
+    if (output_pubkey) secp256k1_ec_pubkey_parse(secp256k1_context_static, output_pubkey, e->agg_pk_comp.data(), 33);
     return 1;
 }
 
@@ -319,7 +319,7 @@ int secp256k1_musig_nonce_gen(
     std::array<unsigned char, 32> pub_x = {};
     if (pubkey) {
         unsigned char buf[33]; size_t len = 33;
-        secp256k1_ec_pubkey_serialize(nullptr, buf, &len, pubkey, SECP256K1_EC_COMPRESSED);
+        secp256k1_ec_pubkey_serialize(secp256k1_context_static, buf, &len, pubkey, SECP256K1_EC_COMPRESSED);
         std::memcpy(pub_x.data(), buf + 1, 32);
     }
 
@@ -457,7 +457,7 @@ int secp256k1_musig_partial_sig_verify(
     auto s  = sess_unpack(session);
 
     unsigned char buf[33]; size_t len = 33;
-    secp256k1_ec_pubkey_serialize(nullptr, buf, &len, pubkey, SECP256K1_EC_COMPRESSED);
+    secp256k1_ec_pubkey_serialize(secp256k1_context_static, buf, &len, pubkey, SECP256K1_EC_COMPRESSED);
     std::array<unsigned char, 33> pk33;
     std::memcpy(pk33.data(), buf, 33);
 

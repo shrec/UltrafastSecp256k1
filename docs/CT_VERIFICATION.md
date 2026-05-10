@@ -2,6 +2,21 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-10 ct_field::add256 — x86-64-only __builtin_addcll (ARM64 fix)
+
+- **`ct_field.cpp` (`add256`)**: The Clang `__builtin_addcll` carry-chain path
+  is now restricted to `__x86_64__`. On ARM64/AArch64 (Apple Silicon, macOS),
+  Clang does not always emit a pure ADDS/ADCS carry sequence — the carry flag
+  can be broken between chained `__builtin_addcll` calls, producing wrong
+  256-bit sums. Removing the ARM64 path causes the portable carry-chain fallback
+  to be used instead, which is correct on all platforms.
+- **CT impact: none.** The portable fallback is branchless and produces the
+  same numerical result on x86-64 and ARM64. The x86-64 ADCX/ADOX path remains
+  unchanged for performance.
+- **Evidence**: `test_ct_field_differential` in `audit_ct.cpp` confirmed
+  `ct::field_add != fast::operator+` on Apple M-series runners before this fix.
+  After the fix, both paths produce identical results on all tested platforms.
+
 ### 2026-05-10 ct_field::add256 — instrumentation-safe carry chain
 
 - **`ct_field.cpp` (`add256`)**: The Clang fast-path that uses `__builtin_addcll`

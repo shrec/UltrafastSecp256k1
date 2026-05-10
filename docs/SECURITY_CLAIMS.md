@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-10 ct_field::add256 — ARM64 carry-chain correctness
+
+- **`ct_field.cpp`**: `__builtin_addcll` carry-chain path restricted to
+  `__x86_64__`. On Apple M-series ARM64 with Clang, the carry flag was not
+  correctly propagated across chained `__builtin_addcll` calls, causing
+  `ct::field_add` to produce results different from `fast::operator+` for
+  certain inputs. The portable 64-bit carry fallback now applies to all
+  non-x86-64 platforms.
+- **CT contract unchanged.** Portable fallback is branchless on all platforms.
+  The numerical result is identical to the portable chain on x86-64.
+
 ### 2026-05-10 ct_field::add256 — sanitizer/coverage build correctness
 
 - **`ct_field.cpp`**: Disabled the `__builtin_addcll` (ADCX/ADOX) Clang

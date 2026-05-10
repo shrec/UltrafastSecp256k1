@@ -67,11 +67,15 @@ static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
 static inline std::uint64_t add256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
-#if defined(__clang__) && !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_MEMORY__) && !defined(LLVM_PROFILE_ENABLED)
-    // __builtin_addcll compiles to ADCX/ADOX for ADCX-enabled targets.
-    // Disabled under sanitizers and coverage builds: the instrumentation
-    // code inserted between calls can clobber the carry flag, producing
-    // wrong results. Falls through to the portable carry-chain below.
+#if defined(__clang__) && defined(__x86_64__) && \
+    !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && \
+    !defined(__SANITIZE_MEMORY__) && !defined(LLVM_PROFILE_ENABLED)
+    // __builtin_addcll compiles to ADCX/ADOX on x86-64 ADCX-capable targets.
+    // Restricted to x86-64: on ARM64/AArch64 the intrinsic doesn't map to
+    // carry-chain instructions as reliably and can produce wrong results when
+    // Clang doesn't emit a true ADDS/ADCS sequence (observed on macOS M-series).
+    // Disabled under sanitizers and coverage builds: instrumentation between
+    // calls clobbers the carry flag. Falls through to portable chain below.
     unsigned long long carry = 0;
     carry = __builtin_addcll(a[0], b[0], carry, (unsigned long long*)&r[0]);
     carry = __builtin_addcll(a[1], b[1], carry, (unsigned long long*)&r[1]);
