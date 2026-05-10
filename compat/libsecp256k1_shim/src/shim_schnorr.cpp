@@ -46,7 +46,10 @@ struct ShimSchnorrCache {
                        std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
         std::uint64_t h = 14695981039346656037ULL, w;
         for (int i = 0; i < 4; ++i) {
-            __builtin_memcpy(&w, data + i * 8, 8);
+            // std::memcpy compiles to the same MOV on every supported toolchain
+            // (GCC/Clang/MSVC); __builtin_memcpy is GCC/Clang-only and breaks
+            // the MSVC build with C3861 (identifier not found).
+            std::memcpy(&w, data + i * 8, 8);
             h = (h ^ w) * 1099511628211ULL;
         }
         fp_out  = h;
