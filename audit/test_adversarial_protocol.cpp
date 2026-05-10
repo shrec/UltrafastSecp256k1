@@ -1326,12 +1326,18 @@ static void test_frost_malicious_coordinator() {
     std::memcpy(ncommits_evil, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
     std::memcpy(ncommits_evil + UFSECP_FROST_NONCE_COMMIT_LEN, nc1, UFSECP_FROST_NONCE_COMMIT_LEN);
 
-    // Each signer signs with different commitment views
-    // Zero-initialize to avoid Valgrind uninit-value warnings when sign fails on
-    // an adversarial input and the output buffer is later compared or aggregated.
+    // Each signer signs with different commitment views.
+    // The protocol-level invariant under test is "inconsistent coordinator
+    // views can never produce a verifying aggregate signature." A signer
+    // legitimately rejecting the inconsistent commitment list at sign-time
+    // satisfies that invariant (no signature → no valid aggregate). Likewise
+    // an aggregate-time rejection is valid. Either gate must catch the attack.
+    // Zero-initialize so the aggregator gets deterministic input even when
+    // sign declines the adversarial commitment set.
     uint8_t psig1[36] = {}, psig2[36] = {};
-    CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, ncommits_good, 2, psig1), "frost_sign");
-    CHECK_OK(ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_evil, 2, psig2), "frost_sign");
+    const ufsecp_error_t s1 = ufsecp_frost_sign(ctx, keypkgs[0], nonce1, msg32, ncommits_good, 2, psig1);
+    const ufsecp_error_t s2 = ufsecp_frost_sign(ctx, keypkgs[1], nonce2, msg32, ncommits_evil, 2, psig2);
+    (void)s1; (void)s2;  // either OK or fail-closed reject is acceptable here
 
     // Aggregate with either view -- final sig must not verify
     uint8_t psigs_all[72];

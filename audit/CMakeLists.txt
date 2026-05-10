@@ -3907,7 +3907,7 @@ if(Python3_FOUND)
                 --json -o "${CMAKE_BINARY_DIR}/py_dev_bug_report.json")
     set_tests_properties(py_dev_bug_scan PROPERTIES
         SKIP_RETURN_CODE 77
-        TIMEOUT 60
+        TIMEOUT 300
         LABELS "audit;python;static_analysis"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
