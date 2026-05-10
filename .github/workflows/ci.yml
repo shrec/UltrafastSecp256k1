@@ -632,7 +632,7 @@ jobs:
       - name: Run WASM benchmark
         run: |
           cd build/wasm/dist
-          node ../../../wasm/bench_wasm.mjs
+          node ../../../bindings/wasm/bench_wasm.mjs
 
       - name: Run WASM KAT equivalence test
         run: node build/wasm/kat/wasm_kat_test.js
