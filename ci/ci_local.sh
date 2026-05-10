@@ -211,8 +211,8 @@ if [[ $FULL -eq 1 ]]; then
 
   if [[ $fail -eq 0 ]]; then
     echo -e "${BOLD}[5] Tests (no-ASM — mul_wide portable path)${NC}"
-    run_check "field_26 cross-check"    "$BUILD_DIR/cpu/test_field_26_standalone"
-    run_check "field_52 cross-check"    "$BUILD_DIR/cpu/test_field_52_standalone"
+    run_check "field_26 cross-check"    "$BUILD_DIR/src/cpu/test_field_26_standalone"
+    run_check "field_52 cross-check"    "$BUILD_DIR/src/cpu/test_field_52_standalone"
     # Cross-platform KAT binary may not exist in every cmake mode;
     # explicitly skip rather than masking failures with `|| true`.
     if [[ -x "$BUILD_DIR/audit/test_cross_platform_kat_standalone" ]]; then
@@ -248,7 +248,7 @@ if [[ $MSAN -eq 1 ]]; then
         > /dev/null 2>&1 && \
        cmake --build "$MSAN_DIR" --target test_field_26_standalone -j"$(nproc)" > /dev/null 2>&1; then
       run_check "MSan field_26 (no false positives)" \
-        "$MSAN_DIR/cpu/test_field_26_standalone"
+        "$MSAN_DIR/src/cpu/test_field_26_standalone"
     fi
     rm -rf "$MSAN_DIR" 2>/dev/null || true
   fi

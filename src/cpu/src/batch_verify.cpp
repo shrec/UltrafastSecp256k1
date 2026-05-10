@@ -231,8 +231,8 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     auto verify_one = [](const SchnorrBatchEntry& entry) {
         return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
     };
-    auto resolve_pubkey = [&pubkey_index](const SchnorrBatchEntry& entry,
-                             Point& out_point) {
+    auto resolve_pubkey = [&](const SchnorrBatchEntry& entry,
+                              Point& out_point) {
         // O(1) hash map lookup instead of O(k) linear scan
         auto it = pubkey_index.find(entry.pubkey_x);
         if (it != pubkey_index.end()) {
