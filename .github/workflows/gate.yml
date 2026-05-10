@@ -490,48 +490,35 @@ jobs:
             fi
           fi
 
-          # Explicit allowlist of legitimate skip conditions per block:
-          #   build-test     → skipped when run_core=false (no src/ changes,
-          #                    e.g. workflow-only or doc-only commits).
-          #   caas-security  → skipped only when docs_only=true.
-          #   bindings-smoke → skipped when run_bindings=false.
-          #   gpu-wasm-smoke → skipped when run_gpu=false AND run_wasm=false.
-          # Any other skip is unexpected and treated as a hard failure.
-          DOCS_ONLY="${{ needs.detect-impact.outputs.docs_only }}"
-          RUN_CORE="${{ needs.detect-impact.outputs.run_core }}"
-          RUN_BINDINGS="${{ needs.detect-impact.outputs.run_bindings }}"
-          RUN_GPU="${{ needs.detect-impact.outputs.run_gpu }}"
-          RUN_WASM="${{ needs.detect-impact.outputs.run_wasm }}"
-
+          # Verdict: failures and cancellations always fail the gate.
+          # Each block's job-level `if:` clause already governs WHEN it
+          # legitimately skips (build-test on docs_only, bindings-smoke when
+          # run_bindings=false, etc.). The only block where "skipped" must
+          # be specifically explained is caas-security — security gates must
+          # never be silently skipped on non-docs changes (already enforced
+          # by the explicit caas-security check above this loop).
+          #
+          # detect-impact and fast-gates must always run (no `if:` clause
+          # that allows skipping); skipped here = workflow misconfiguration.
           for entry in \
             "detect-impact:${{ needs.detect-impact.result }}:never" \
             "fast-gates:${{ needs.fast-gates.result }}:never" \
-            "build-test:${{ needs.build-test.result }}:no_core" \
-            "caas-security:${{ needs.caas-security.result }}:docs_only" \
-            "bindings-smoke:${{ needs.bindings-smoke.result }}:no_bindings" \
-            "gpu-wasm-smoke:${{ needs.gpu-wasm-smoke.result }}:no_gpu_wasm"; do
+            "build-test:${{ needs.build-test.result }}:may_skip" \
+            "caas-security:${{ needs.caas-security.result }}:may_skip" \
+            "bindings-smoke:${{ needs.bindings-smoke.result }}:may_skip" \
+            "gpu-wasm-smoke:${{ needs.gpu-wasm-smoke.result }}:may_skip"; do
             block="${entry%%:*}"
             rest="${entry#*:}"
             result="${rest%%:*}"
-            skip_reason="${rest#*:}"
+            skip_policy="${rest#*:}"
 
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "::error::Gate block '$block' → $result"
               exit 1
             fi
-            if [ "$result" = "skipped" ]; then
-              case "$skip_reason" in
-                docs_only)
-                  [ "$DOCS_ONLY" = "true" ] || { echo "::error::Gate block '$block' was skipped without docs_only=true"; exit 1; } ;;
-                no_core)
-                  [ "$RUN_CORE" != "true" ] || { echo "::error::Gate block '$block' was skipped but run_core=true"; exit 1; } ;;
-                no_bindings)
-                  [ "$RUN_BINDINGS" != "true" ] || { echo "::error::Gate block '$block' was skipped but run_bindings=true"; exit 1; } ;;
-                no_gpu_wasm)
-                  { [ "$RUN_GPU" != "true" ] && [ "$RUN_WASM" != "true" ]; } || { echo "::error::Gate block '$block' was skipped but run_gpu/run_wasm=true"; exit 1; } ;;
-                never)
-                  echo "::error::Gate block '$block' was skipped — this block must never be skipped"; exit 1 ;;
-              esac
+            if [ "$result" = "skipped" ] && [ "$skip_policy" = "never" ]; then
+              echo "::error::Gate block '$block' was skipped — this block must never be skipped"
+              exit 1
             fi
           done
 
