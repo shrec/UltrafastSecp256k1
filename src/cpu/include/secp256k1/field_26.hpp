@@ -123,14 +123,20 @@ struct alignas(4) FieldElement26 {
 };
 
 // -- Free Functions (hot-path, avoid vtable/method overhead) ------------------
-// SECP256K1_INLINE matches fe52's SECP256K1_FE52_FORCE_INLINE.
 // On 32-bit targets (ESP32, ARM, RISC-V) function-call overhead for each
 // fe26 op is 20-40ns — inlining removes it (P0 from perf report).
-SECP256K1_INLINE void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
-                                      const std::uint32_t* SECP256K1_RESTRICT a,
-                                      const std::uint32_t* SECP256K1_RESTRICT b) noexcept;
-SECP256K1_INLINE void fe26_sqr_inner(std::uint32_t* SECP256K1_RESTRICT r,
-                                      const std::uint32_t* SECP256K1_RESTRICT a) noexcept;
+//
+// fe26_mul_inner / fe26_sqr_inner are declared without SECP256K1_INLINE
+// because their definitions in field_26.cpp explicitly mark them
+// `__attribute__((optimize("O2"), noinline))` on GCC/Clang to keep these
+// large bodies out of the caller's inlining budget. SECP256K1_INLINE
+// expands to `__attribute__((always_inline)) inline` on GCC/Clang and
+// would conflict with the noinline attribute (-Werror=attributes).
+void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
+                    const std::uint32_t* SECP256K1_RESTRICT a,
+                    const std::uint32_t* SECP256K1_RESTRICT b) noexcept;
+void fe26_sqr_inner(std::uint32_t* SECP256K1_RESTRICT r,
+                    const std::uint32_t* SECP256K1_RESTRICT a) noexcept;
 SECP256K1_INLINE void fe26_normalize(std::uint32_t* r) noexcept;
 SECP256K1_INLINE void fe26_normalize_weak(std::uint32_t* r) noexcept;
 
