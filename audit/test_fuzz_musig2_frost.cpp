@@ -43,7 +43,7 @@
 static int g_pass = 0, g_fail = 0;
 #include "audit_check.hpp"
 
-#define CHECK_OK(expr, msg) CHECK((expr) == UFSECP_OK, msg)
+#define MUST_NOT_CRASH(expr, msg) CHECK((expr) == UFSECP_OK, msg)
 #define MUST_NOT_CRASH(expr, label) do { \
     (expr); \
     ++g_pass; \
@@ -79,7 +79,7 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     for (int i = 0; i < N; ++i) {
         int n_keys = static_cast<int>(rng() % 3u) + 1;
         auto keys = rand_blob(static_cast<size_t>(n_keys) * 33);
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, keys.data(), static_cast<size_t>(n_keys), keyagg_out, agg_pk32), "musig2_key_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_key_agg(ctx, keys.data(), static_cast<size_t>(n_keys), keyagg_out, agg_pk32), "musig2_key_agg");
         ++no_crash;
     }
     CHECK(no_crash == N, "musig2_key_agg: no crash on random pubkeys");
@@ -88,7 +88,7 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     int zero_rounds = 0;
     for (int i = 0; i < 100; ++i) {
         std::vector<uint8_t> zeros(33 * 3, 0);
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, zeros.data(), 3, keyagg_out, agg_pk32), "musig2_key_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_key_agg(ctx, zeros.data(), 3, keyagg_out, agg_pk32), "musig2_key_agg");
         ++zero_rounds;
     }
     CHECK(zero_rounds == 100, "musig2_key_agg: no crash on all-zero pubkeys (3)");
@@ -97,7 +97,7 @@ static void test_musig2_key_agg_random(ufsecp_ctx* ctx) {
     int single_rounds = 0;
     for (int i = 0; i < 200; ++i) {
         auto k = rand33();
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, k.data(), 1, keyagg_out, agg_pk32), "musig2_key_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_key_agg(ctx, k.data(), 1, keyagg_out, agg_pk32), "musig2_key_agg");
         ++single_rounds;
     }
     CHECK(single_rounds == 200, "musig2_key_agg: no crash on single random pubkey");
@@ -116,7 +116,7 @@ static void test_musig2_nonce_agg_random(ufsecp_ctx* ctx) {
     for (int i = 0; i < N; ++i) {
         int n = static_cast<int>(rng() % 3u) + 1;
         auto nonces = rand_blob(static_cast<size_t>(n) * UFSECP_MUSIG2_PUBNONCE_LEN);
-        CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces.data(), static_cast<size_t>(n), agg_nonce_out), "musig2_nonce_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_nonce_agg(ctx, nonces.data(), static_cast<size_t>(n), agg_nonce_out), "musig2_nonce_agg");
         ++no_crash;
     }
     CHECK(no_crash == N, "musig2_nonce_agg: no crash on random nonce blobs");
@@ -143,12 +143,12 @@ static void test_musig2_partial_verify_random(ufsecp_ctx* ctx) {
         auto msg32      = rand32();
         // flat 2-pubkey buffer
         auto pks_flat   = rand_blob(66);  // 2 * 33 compressed
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg, agg_pk32), "musig2_key_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg, agg_pk32), "musig2_key_agg");
         auto nonces_flat = rand_blob(2 * UFSECP_MUSIG2_PUBNONCE_LEN);
-        CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce), "musig2_nonce_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce), "musig2_nonce_agg");
         // start_sign_session(ctx, aggnonce, keyagg, msg32, session_out)
-        CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32.data(), session), "musig2_start_sign_session");
-        CHECK_OK(ufsecp_musig2_partial_verify(ctx, partial32.data(), pubnonce66.data(),
+        MUST_NOT_CRASH(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32.data(), session), "musig2_start_sign_session");
+        MUST_NOT_CRASH(ufsecp_musig2_partial_verify(ctx, partial32.data(), pubnonce66.data(),
                                      pubkey32.data(), keyagg, session, 0), "musig2_partial_verify");
         ++no_crash;
     }
@@ -175,13 +175,13 @@ static void test_musig2_partial_sig_agg_random(ufsecp_ctx* ctx) {
         auto partial_sigs = rand_blob(static_cast<size_t>(n) * 32);
 
         auto pks_flat = rand_blob(66);  // 2*33 compressed pubkeys
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg2, agg_pk32b), "musig2_key_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_key_agg(ctx, pks_flat.data(), 2, keyagg2, agg_pk32b), "musig2_key_agg");
         auto nonces_flat = rand_blob(2 * UFSECP_MUSIG2_PUBNONCE_LEN);
-        CHECK_OK(ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce2), "musig2_nonce_agg");
+        MUST_NOT_CRASH(ufsecp_musig2_nonce_agg(ctx, nonces_flat.data(), 2, aggnonce2), "musig2_nonce_agg");
         auto msg32 = rand32();
-        CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce2, keyagg2, msg32.data(), session2), "musig2_start_sign_session");
+        MUST_NOT_CRASH(ufsecp_musig2_start_sign_session(ctx, aggnonce2, keyagg2, msg32.data(), session2), "musig2_start_sign_session");
 
-        CHECK_OK(ufsecp_musig2_partial_sig_agg(ctx, partial_sigs.data(),
+        MUST_NOT_CRASH(ufsecp_musig2_partial_sig_agg(ctx, partial_sigs.data(),
                                       static_cast<size_t>(n), session2, sig64), "musig2_partial_sig_agg");
         ++no_crash;
     }
@@ -208,7 +208,7 @@ static void test_frost_keygen_finalize_random(ufsecp_ctx* ctx) {
         auto shares  = rand_blob(static_cast<size_t>(n_participants) * UFSECP_FROST_SHARE_LEN);
         // API: (ctx, participant_id, all_commits, commits_len, received_shares, shares_len,
         //        threshold, num_participants, keypkg_out)
-        CHECK_OK(ufsecp_frost_keygen_finalize(ctx, participant_id,
+        MUST_NOT_CRASH(ufsecp_frost_keygen_finalize(ctx, participant_id,
                                      commits.data(), commits.size(),
                                      shares.data(), shares.size(),
                                      threshold, n_participants, keypkg), "frost_keygen_finalize");
@@ -232,7 +232,7 @@ static void test_frost_sign_random(ufsecp_ctx* ctx) {
         auto msg32       = rand32();
         size_t n_signers = (rng() % 3) + 1;
         auto nonce_commits = rand_blob(UFSECP_FROST_NONCE_COMMIT_LEN * n_signers);
-        CHECK_OK(ufsecp_frost_sign(ctx, keypkg.data(), nonce.data(), msg32.data(),
+        MUST_NOT_CRASH(ufsecp_frost_sign(ctx, keypkg.data(), nonce.data(), msg32.data(),
                           nonce_commits.data(), n_signers, partial_sig_out), "frost_sign");
         ++no_crash;
     }
@@ -254,7 +254,7 @@ static void test_frost_verify_partial_random(ufsecp_ctx* ctx) {
         auto gpubkey33    = rand33();
         size_t n_signers  = (rng() % 3) + 1;
         auto nonce_commits = rand_blob(UFSECP_FROST_NONCE_COMMIT_LEN * n_signers);
-        CHECK_OK(ufsecp_frost_verify_partial(ctx, partial_sig.data(), vshare33.data(),
+        MUST_NOT_CRASH(ufsecp_frost_verify_partial(ctx, partial_sig.data(), vshare33.data(),
                                     nonce_commits.data(), n_signers,
                                     msg32.data(), gpubkey33.data()), "frost_verify_partial");
         ++no_crash;
@@ -277,7 +277,7 @@ static void test_frost_aggregate_random(ufsecp_ctx* ctx) {
         auto nonce_commits = rand_blob(UFSECP_FROST_NONCE_COMMIT_LEN * n);
         auto gpubkey33     = rand33();
         auto msg32         = rand32();
-        CHECK_OK(ufsecp_frost_aggregate(ctx, partial_sigs.data(), n,
+        MUST_NOT_CRASH(ufsecp_frost_aggregate(ctx, partial_sigs.data(), n,
                                nonce_commits.data(), n,
                                gpubkey33.data(), msg32.data(), sig64), "frost_aggregate");
         ++no_crash;
@@ -300,7 +300,7 @@ static void test_schnorr_adaptor_random(ufsecp_ctx* ctx) {
         auto adaptor_pt = rand33();
         auto aux_rand   = rand32();
         // API: (ctx, privkey, msg32, adaptor_point33, aux_rand, pre_sig_out)
-        CHECK_OK(ufsecp_schnorr_adaptor_sign(ctx, privkey32.data(), msg32.data(),
+        MUST_NOT_CRASH(ufsecp_schnorr_adaptor_sign(ctx, privkey32.data(), msg32.data(),
                                     adaptor_pt.data(), aux_rand.data(), adaptor_sig), "schnorr_adaptor_sign");
         ++no_crash_sign;
 
@@ -308,7 +308,7 @@ static void test_schnorr_adaptor_random(ufsecp_ctx* ctx) {
         auto rand_sig  = rand_blob(UFSECP_SCHNORR_ADAPTOR_SIG_LEN);
         auto pubkey_x  = rand32();
         // API: (ctx, pre_sig, pubkey_x32, msg32, adaptor_point33)
-        CHECK_OK(ufsecp_schnorr_adaptor_verify(ctx, rand_sig.data(), pubkey_x.data(),
+        MUST_NOT_CRASH(ufsecp_schnorr_adaptor_verify(ctx, rand_sig.data(), pubkey_x.data(),
                                       msg32.data(), adaptor_pt.data()), "schnorr_adaptor_verify");
         ++no_crash_verify;
     }
@@ -329,7 +329,7 @@ static void test_ecdsa_adaptor_random(ufsecp_ctx* ctx) {
         auto privkey32  = rand32();
         auto msg32      = rand32();
         auto adaptor_pt = rand33();
-        CHECK_OK(ufsecp_ecdsa_adaptor_sign(ctx, privkey32.data(), msg32.data(),
+        MUST_NOT_CRASH(ufsecp_ecdsa_adaptor_sign(ctx, privkey32.data(), msg32.data(),
                                   adaptor_pt.data(), adaptor_sig), "ecdsa_adaptor_sign");
 
         // Verify a random pre-sig (parser fuzz — no crash required)
@@ -337,7 +337,7 @@ static void test_ecdsa_adaptor_random(ufsecp_ctx* ctx) {
         auto pubkey33v   = rand33();
         auto adaptor33v  = rand33();
         // API: (ctx, pre_sig, pubkey33, msg32, adaptor_point33)
-        CHECK_OK(ufsecp_ecdsa_adaptor_verify(ctx, rand_sig.data(), pubkey33v.data(),
+        MUST_NOT_CRASH(ufsecp_ecdsa_adaptor_verify(ctx, rand_sig.data(), pubkey33v.data(),
                                     msg32.data(), adaptor33v.data()), "ecdsa_adaptor_verify");
         ++no_crash;
     }
