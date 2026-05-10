@@ -126,14 +126,20 @@ static std::string strip_comments(const std::string& src) {
 // ---------------------------------------------------------------------------
 
 static std::string find_source_root() {
-    // Try common relative paths from CWD (works when ctest is run from build/)
+    // ctest sets the test binary's CWD to its CMakeLists's build directory
+    // (e.g. <repo>/build/audit when add_test runs in audit/CMakeLists.txt).
+    // Standalone runs may have CWD = <repo>/build or <repo> itself.
+    // Submodule consumers may have CWD = <super>/build/<...>.
+    // Try a generous list of relative paths from each likely CWD.
     const char* candidates[] = {
-        "../libs/UltrafastSecp256k1",
+        ".",                                  // run from repo root
+        "..",                                 // run from <repo>/build
+        "../..",                              // run from <repo>/build/audit (ctest default)
+        "../../..",                           // run from <repo>/build/audit/<sub>
+        "../libs/UltrafastSecp256k1",         // submodule consumer, build at parent root
         "../../libs/UltrafastSecp256k1",
         "../../../libs/UltrafastSecp256k1",
         "libs/UltrafastSecp256k1",
-        ".",          // when built in-tree
-        "../",
     };
     for (const char* c : candidates) {
         // Try to open a sentinel file

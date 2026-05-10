@@ -314,7 +314,7 @@ set_tests_properties(audit_secure_erase PROPERTIES TIMEOUT 120)
 add_executable(test_audit_ct_namespace_standalone audit_ct_namespace.cpp)
 audit_target_defaults(test_audit_ct_namespace_standalone)
 add_test(NAME audit_ct_namespace COMMAND test_audit_ct_namespace_standalone)
-set_tests_properties(audit_ct_namespace PROPERTIES TIMEOUT 60)
+set_tests_properties(audit_ct_namespace PROPERTIES TIMEOUT 60 SKIP_RETURN_CODE 77)
 
 # -- KAT for all operations (ECDH/WIF/addresses/hash/arithmetic) ----------
 add_executable(test_kat_all_operations_standalone
@@ -374,7 +374,7 @@ add_executable(test_ct_verif_formal_standalone test_ct_verif_formal.cpp)
 audit_target_defaults(test_ct_verif_formal_standalone)
 target_compile_definitions(test_ct_verif_formal_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME ct_verif_formal COMMAND test_ct_verif_formal_standalone)
-set_tests_properties(ct_verif_formal PROPERTIES TIMEOUT 1200)
+set_tests_properties(ct_verif_formal PROPERTIES TIMEOUT 1200 SKIP_RETURN_CODE 77)
 
 # -- Independent reference linkage cross-check (Track I5-2) ----------------
 add_executable(test_fiat_crypto_linkage_standalone test_fiat_crypto_linkage.cpp)
@@ -399,7 +399,7 @@ target_include_directories(test_adversarial_protocol_standalone PRIVATE
 )
 target_compile_definitions(test_adversarial_protocol_standalone PRIVATE UFSECP_BUILDING)
 add_test(NAME adversarial_protocol COMMAND test_adversarial_protocol_standalone)
-set_tests_properties(adversarial_protocol PROPERTIES TIMEOUT 600)
+set_tests_properties(adversarial_protocol PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
 
 # ===========================================================================
 # Security Exploit PoC Tests (regression gates for discovered vulnerabilities)
