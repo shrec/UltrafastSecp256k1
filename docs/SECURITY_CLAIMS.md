@@ -2,6 +2,24 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-10 ct_field::add256 — sanitizer/coverage build correctness
+
+- **`ct_field.cpp`**: Disabled the `__builtin_addcll` (ADCX/ADOX) Clang
+  fast-path under AddressSanitizer, ThreadSanitizer, MemorySanitizer, and
+  coverage builds. Sanitizer/coverage instrumentation inserted between the
+  paired addcll calls clobbers the x86 carry flag, which silently produces
+  wrong addition results. The portable carry-chain fallback is now used in
+  those configurations.
+- **No security claim change.** The CT contract for `add256` is preserved:
+  both the ADCX/ADOX path and the portable fallback are constant-time and
+  free of secret-dependent branches. See `CT_VERIFICATION.md` 2026-05-10 for
+  the CT-side analysis.
+- **Why this matters for CI claims**: prior to this fix, sanitizer and
+  coverage CI runs could surface false-positive arithmetic failures in
+  field-element addition that masked or distorted real signal from those
+  build configurations. The fix restores trustworthy ASan/TSan/MSan
+  evidence.
+
 ### 2026-05-07 GPU batch signing CT audit — confirmation + annotation (SEC-004/SEC-005)
 
 - **Metal batch signing (`secp256k1_kernels.metal`)**: Audit confirmed `ecdsa_sign_batch` and

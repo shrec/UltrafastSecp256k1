@@ -2,6 +2,33 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-10 ct_field::add256 — instrumentation-safe carry chain
+
+- **`ct_field.cpp` (`add256`)**: The Clang fast-path that uses `__builtin_addcll`
+  (which lowers to ADCX/ADOX) is now disabled under AddressSanitizer,
+  ThreadSanitizer, MemorySanitizer, and coverage instrumentation
+  (`LLVM_PROFILE_ENABLED`). The instrumentation inserts code *between* the
+  back-to-back addcll calls, and that code can clobber the x86 carry flag,
+  producing wrong sums. The build now falls through to the portable
+  `add_carry_u64` chain in those configurations.
+- **CT impact: none.** Both paths are constant-time:
+  - The `__builtin_addcll` chain has no secret-dependent branches; the carry
+    is propagated through ADCX/ADOX which take constant time on every Intel
+    Broadwell+ / AMD Zen+ part we support.
+  - The portable `add_carry_u64` fallback uses unsigned arithmetic and a
+    constant-time bit operation (`(sum < a)`) for carry detection — no
+    branches, no table lookups, no secret-dependent memory access.
+- **Why this is a CT-relevant note even though semantics don't change**:
+  `add256` runs on secret 256-bit field elements (private keys, nonces) in
+  every CT scalar multiplication step. The Documentation Discipline rule
+  requires every change to a CT secret-bearing surface to be documented even
+  when the change is a portability fix rather than a CT semantics change,
+  so reviewers can confirm CT properties remain intact.
+- **Unrelated regression context**: This is paired with the ongoing FE52/FE26
+  mul-impl repair (see commits ae606aac, d152c883). The two are independent
+  but were investigated together because Clang+coverage builds were failing
+  test_field_52 and test_field_26 simultaneously.
+
 ### 2026-05-07 Multi-agent ultrareview CT Fixes (CA-007 hardening + verify/sign boundary)
 
 - **`scalar.cpp` (`Scalar::negate`)**: CT-hardened via CA-007 — replaces early-return on
