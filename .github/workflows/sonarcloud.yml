@@ -89,6 +89,12 @@ jobs:
             cmake --build build/sonar -j$(nproc)
 
       - name: Run tests (generate coverage data)
+        # Coverage data is best-effort — audit-suite test failures must not
+        # block SonarCloud's static-analysis upload (the native "SonarCloud
+        # Code Analysis" Quality Gate is the primary signal here, and it
+        # depends on the scan step running). Real audit failures are caught
+        # by the dedicated CI workflow's audit jobs.
+        continue-on-error: true
         run: |
           ctest --test-dir build/sonar --output-on-failure -j$(nproc) -E "^ct_sidechannel"
         env:
