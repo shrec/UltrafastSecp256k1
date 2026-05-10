@@ -575,15 +575,20 @@ CTJacobianPoint point_add_complete(const CTJacobianPoint& p,
 
 CTJacobianPoint point_add_mixed_complete(const CTJacobianPoint& p,
                                           const CTAffinePoint& q) noexcept {
-    FE52 const X1 = p.x;
-    FE52 const Y1 = p.y;
+    // X1, Y1, Z1 come from CTJacobianPoint which may carry high-magnitude
+    // FE52 values (e.g. accumulated from repeated point additions without
+    // intermediate normalization).  normalize_weak() reduces each limb to
+    // its canonical bit width (magnitude 1) so that t_val.negate(m) and
+    // subsequent multiplications stay within their magnitude contracts.
+    FE52 X1 = p.x; X1.normalize_weak();
+    FE52 Y1 = p.y; Y1.normalize_weak();
     FE52 const Z1 = p.z;
 
     // -- Brier-Joye unified (Z2=1): 7M + 5S --
     FE52 const zz      = Z1.square();                        // Z1^2          [sqr #1]
-    FE52 const u1      = X1;                                 // U1 = X1
+    FE52 const u1      = X1;                                 // U1 = X1 (magnitude 1)
     FE52 const u2      = q.x * zz;                           // U2 = x2*Z1^2  [mul #1]
-    FE52 const s1      = Y1;                                 // S1 = Y1
+    FE52 const s1      = Y1;                                 // S1 = Y1 (magnitude 1)
     FE52 const s2      = (q.y * zz) * Z1;                    // S2 = y2*Z1^3  [mul #2,#3]
 
     FE52 const t_val   = u1 + u2;                            // T = U1+U2
@@ -2368,7 +2373,9 @@ CTJacobianPoint point_add_complete(const CTJacobianPoint& p,
 
 CTJacobianPoint point_add_mixed_complete(const CTJacobianPoint& p,
                                           const CTAffinePoint& q) noexcept {
-    FE52 X1 = p.x, Y1 = p.y, Z1 = p.z;
+    FE52 X1 = p.x; X1.normalize_weak();
+    FE52 Y1 = p.y; Y1.normalize_weak();
+    FE52 Z1 = p.z;
 
     FE52 zz     = field_sqr(Z1);                                // [sqr 1]
     FE52 u1     = X1;
