@@ -95,7 +95,7 @@ jobs:
     - name: Run benchmark suite
       run: |
         mkdir -p /tmp/benchmark_results
-        ./out/bench-gate/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
+        ./out/bench-gate/src/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
         python3 .github/scripts/parse_benchmark.py \
           --run-mode quick \
           /tmp/benchmark_results/raw_output.txt \

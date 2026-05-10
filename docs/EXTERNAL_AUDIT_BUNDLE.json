@@ -39,8 +39,8 @@
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "4a30f011d070773c0a368739ba23d77883c1df757268832ef04bbf1ca6377b0c",
-      "size": 34666
+      "sha256": "b5c66b31ddb56b27f10d20564de7b80d02da98bf9058bf38f57ea10ca39e21c7",
+      "size": 36391
     },
     {
       "exists": true,
@@ -156,24 +156,12 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=343, critical=0, high=0, medium=195, low=56",
+                "message": "Audit test-quality findings: files=343, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
-                "message": "medium fuzz_bip324_frame.cpp:82 ignored_return_value",
-                "severity": "INFO"
-              },
-              {
-                "message": "medium fuzz_bip324_frame.cpp:84 ignored_return_value",
-                "severity": "INFO"
-              },
-              {
-                "message": "medium fuzz_bip324_frame.cpp:85 ignored_return_value",
-                "severity": "INFO"
-              },
-              {
-                "message": "195 medium-severity audit-test-quality findings remain",
-                "severity": "WARN"
+                "message": "Audit test quality is clear of critical/high findings",
+                "severity": "PASS"
               }
             ],
             "name": "P2: Audit Test Quality",
@@ -212,11 +200,11 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-07T21:15:23)",
+                "message": "1 files modified/deleted since graph build (2026-05-10T00:56:56)",
                 "severity": "WARN"
               },
               {
-                "message": "MODIFIED: workingdocs/bench_esp32s3_v4.txt",
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
                 "severity": "INFO"
               }
             ],
@@ -388,8 +376,8 @@
           {
             "findings": [
               {
-                "message": "1 changed files have matching docs",
-                "severity": "PASS"
+                "message": "CMakeLists.txt changed but docs/BUILDING.md not updated",
+                "severity": "WARN"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -398,11 +386,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 23.6 days (threshold: 14)",
+                "message": "Mutation report age: 25.7 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (23.6 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (25.7 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -604,15 +592,15 @@
                 "severity": "PASS"
               },
               {
-                "message": "Source graph DB is up-to-date relative to src/cpu/ sources",
-                "severity": "PASS"
+                "message": "18 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/ct_field.cpp', 'src/cpu/src/point.cpp', 'src/cpu/src/ellswift.cpp']",
+                "severity": "WARN"
               },
               {
                 "message": "Source graph tables: ai_handlers, ai_tasks, analysis_scores, audit_coverage, backend_map, call_edges, classes, config_files, config_keys, constants\u2026",
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1314 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1307 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -626,33 +614,33 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "528995948ecbfd6b20946652d7b242cedbe34d86",
-            "short": "528995948e"
+            "sha": "01ee442b692a19c00532b9ce7e1a1f255678bd55",
+            "short": "01ee442b69"
           }
         },
-        "generated_at": "2026-05-07T21:16:03.741098+00:00",
+        "generated_at": "2026-05-10T01:19:44.336521+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
             "available": true,
-            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/build",
+            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/build_rel",
             "flags": {
-              "CMAKE_BUILD_TYPE": "",
-              "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+              "CMAKE_BUILD_TYPE": "Release",
+              "CMAKE_CXX_COMPILER": "clang++-19",
               "CMAKE_CXX_FLAGS": "",
               "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
-              "CMAKE_C_COMPILER": "/usr/bin/cc",
+              "CMAKE_C_COMPILER": "clang-19",
               "CMAKE_C_FLAGS": "",
               "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG"
             },
-            "flags_hash": "c03bf05b8a5e9aee"
+            "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-07T21:16:03.741043+00:00",
+          "collected_at": "2026-05-10T01:19:44.336436+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "528995948ecbfd6b20946652d7b242cedbe34d86",
-            "short": "528995948e"
+            "sha": "01ee442b692a19c00532b9ce7e1a1f255678bd55",
+            "short": "01ee442b69"
           },
           "platform": {
             "machine": "x86_64",
@@ -673,7 +661,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-528995948e-20260507T211603",
+        "run_id": "audit_gate-01ee442b69-20260510T011944",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -779,31 +767,16 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=343, critical=0, high=0, medium=195, low=56"
+                "title": "Audit test-quality findings: files=343, critical=0, high=0, medium=0, low=0"
               },
               {
                 "check_id": "p2__audit_test_quality",
-                "severity": "info",
-                "title": "medium fuzz_bip324_frame.cpp:82 ignored_return_value"
-              },
-              {
-                "check_id": "p2__audit_test_quality",
-                "severity": "info",
-                "title": "medium fuzz_bip324_frame.cpp:84 ignored_return_value"
-              },
-              {
-                "check_id": "p2__audit_test_quality",
-                "severity": "info",
-                "title": "medium fuzz_bip324_frame.cpp:85 ignored_return_value"
-              },
-              {
-                "check_id": "p2__audit_test_quality",
-                "severity": "advisory:medium",
-                "title": "195 medium-severity audit-test-quality findings remain"
+                "severity": "pass",
+                "title": "Audit test quality is clear of critical/high findings"
               }
             ],
             "name": "P2: Audit Test Quality",
-            "verdict": "PASS with advisory"
+            "verdict": "PASS"
           },
           {
             "findings": [
@@ -843,12 +816,12 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-07T21:15:23)"
+                "title": "1 files modified/deleted since graph build (2026-05-10T00:56:56)"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: workingdocs/bench_esp32s3_v4.txt"
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1056,24 +1029,24 @@
             "findings": [
               {
                 "check_id": "p10__doc-code_pairing",
-                "severity": "pass",
-                "title": "1 changed files have matching docs"
+                "severity": "advisory:medium",
+                "title": "CMakeLists.txt changed but docs/BUILDING.md not updated"
               }
             ],
             "name": "P10: Doc-Code Pairing",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 23.6 days (threshold: 14)"
+                "title": "Mutation report age: 25.7 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (23.6 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (25.7 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1311,8 +1284,8 @@
               },
               {
                 "check_id": "g-12__source_graph_quality",
-                "severity": "pass",
-                "title": "Source graph DB is up-to-date relative to src/cpu/ sources"
+                "severity": "advisory:medium",
+                "title": "18 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/ct_field.cpp', 'src/cpu/src/point.cpp', 'src/cpu/src/ellswift.cpp']"
               },
               {
                 "check_id": "g-12__source_graph_quality",
@@ -1322,29 +1295,29 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1314 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1307 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           }
         ],
         "summary": {
-          "advisory": 53,
+          "advisory": 51,
           "blocking": 0,
-          "info": 46,
+          "info": 43,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 99,
-          "warnings": 7
+          "total_findings": 96,
+          "warnings": 8
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "41411d674e7dbf3634844b669fe3f7612c3b7b4dc4db755838fbfc4fafeb7c2d",
-      "stdout_sha256": "209775a1bd0cd8af0dd54e95a9743f0de37b48e812546ae9eb33ba13fbb2c3ed"
+      "stderr_sha256": "05e059f05a2ed0ef17078207a40c7f715791f780b948656d1e28953b4fb64574",
+      "stdout_sha256": "385b8865ef0e6d83f90b9735954146e84c12896a234d70ddb1b910e661daf513"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1574,8 +1547,8 @@
       "name": "security_autonomy_check",
       "parsed_json": {
         "advisory_skip_all": false,
-        "autonomy_ready": false,
-        "autonomy_score": 85,
+        "autonomy_ready": true,
+        "autonomy_score": 100,
         "gates": [
           {
             "gate": "formal_invariants",
@@ -1587,9 +1560,9 @@
           },
           {
             "gate": "risk_surface_coverage",
-            "passing": false,
-            "returncode": 1,
-            "score": 0,
+            "passing": true,
+            "returncode": 0,
+            "score": 15,
             "status": "ran",
             "weight": 15
           },
@@ -1642,17 +1615,17 @@
             "weight": 10
           }
         ],
-        "gates_passing": 7,
+        "gates_passing": 8,
         "gates_skipped": 0,
         "gates_total": 8,
-        "overall_pass": false,
-        "timestamp": "2026-05-07T21:16:11.711218+00:00"
+        "overall_pass": true,
+        "timestamp": "2026-05-10T01:19:47.123825+00:00"
       },
-      "passing": false,
+      "passing": true,
       "required": true,
-      "returncode": 1,
+      "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "41c7355816d5f7474bb3f8d5fa3f9141dcf79e644171c6473a1e3b942b266e8a"
+      "stdout_sha256": "1699567f47caccc3b2417ac46840a832149c15d3aa8e47e6ae07417e4a57df8e"
     },
     {
       "name": "supply_chain_gate",
@@ -1698,19 +1671,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-07T21:16:11.766747+00:00"
+        "timestamp": "2026-05-10T01:19:47.182946+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "d08fa34fa4db2e4275e74c552fe5d16ab88ca63fc6012c4169822cd8dba06b5d"
+      "stdout_sha256": "3bb6ed194bc61de66aecde1d717fcccf85f21d8e11d8e798a7aa5900c3aaaa7d"
     }
   ],
-  "generated_at": "2026-05-07T21:16:11.785890+00:00",
+  "generated_at": "2026-05-10T01:19:47.205432+00:00",
   "git": {
     "branch": "dev",
-    "commit": "528995948ecbfd6b20946652d7b242cedbe34d86",
+    "commit": "01ee442b692a19c00532b9ce7e1a1f255678bd55",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
@@ -1722,9 +1695,7 @@
   "schema_version": "1.0.0",
   "summary": {
     "missing_evidence": [],
-    "overall_pass": false,
-    "required_gate_failures": [
-      "security_autonomy_check"
-    ]
+    "overall_pass": true,
+    "required_gate_failures": []
   }
 }

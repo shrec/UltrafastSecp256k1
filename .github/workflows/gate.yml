@@ -352,12 +352,16 @@ jobs:
         # exit 77 = ADVISORY_SKIP_CODE: CAAS_HMAC_KEY not set on this runner
         # (public key only) — treat as advisory skip, not hard failure.
         if: always()
+        shell: bash
         run: |
+          set +e   # we capture exit code from python3 explicitly; set -e would
+                  # kill the step before we can branch on the advisory-skip code
           if [ -f docs/EVIDENCE_CHAIN.json ]; then
             python3 ci/evidence_governance.py validate
             RC=$?
             if [ "$RC" -eq 77 ]; then
               echo "::notice::Evidence chain: advisory skip (CAAS_HMAC_KEY not provisioned)"
+              exit 0
             elif [ "$RC" -ne 0 ]; then
               echo "::error::Evidence chain validation failed — EVIDENCE_CHAIN.json may be corrupted or tampered"
               exit 1
