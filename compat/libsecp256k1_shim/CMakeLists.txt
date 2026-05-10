@@ -22,9 +22,13 @@ if(SECP256K1_BUILD_SHIM)
     file(WRITE "${_STUB}" "/* stub: shim sources compiled into fastsecp256k1 */\n")
     add_library(secp256k1_shim STATIC "${_STUB}")
 
-    # Public headers (secp256k1.h, secp256k1_schnorrsig.h, etc.)
+    # Public headers (secp256k1.h, secp256k1_schnorrsig.h, etc.).
+    # Also expose the CPU C++ headers, because secp256k1.h pulls in
+    # `secp256k1/ecdsa.hpp` under `#ifdef __cplusplus` (for the inlined
+    # `secp256k1_pubkey_precomp` definition).  C consumers are unaffected.
     target_include_directories(secp256k1_shim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
     )
 
     # The stub must link the engine so callers transitively get the symbols.

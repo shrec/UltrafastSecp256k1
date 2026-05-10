@@ -519,6 +519,7 @@ int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variabl
 int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
 int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0/r>=p/s==0/s>=n ABI rejection
+int test_regression_ct_mixed_add_magnitude_run();        // CA-mixed-add: point_add_mixed_complete magnitude contract
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -991,6 +992,7 @@ static const AuditModule ALL_MODULES[] = {
     // === CT timing regression: V-01 fast::Scalar operator* on secrets ===
     { "ct_fast_scalar_v01_timing", "V-01: fast::Scalar operator* banned on secret material — Welch t-test on ECDSA sign with HW=1 vs HW=80 keys", "ct_analysis", test_regression_ct_fast_scalar_v01_run, true },
     { "schnorr_abi_edge_cases", "TQ-005: Schnorr BIP-340 ABI edge cases — r==0, r>=p, s==0, s>=n, wrong-msg, NULL args all rejected", "exploit_poc", test_regression_schnorr_abi_edge_cases_run, false },
+    { "regression_ct_mixed_add_magnitude", "CA-mixed-add: point_add_mixed_complete FE52 magnitude contract — normalize_weak X1/Y1 guard, 2G+3G=5G, blinded==unblinded, ct vs fast recover", "math_invariants", test_regression_ct_mixed_add_magnitude_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

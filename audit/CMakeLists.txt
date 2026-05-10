@@ -3620,6 +3620,9 @@ add_executable(unified_audit_runner
     test_regression_ct_fast_scalar_v01.cpp
     # TQ-005: Schnorr BIP-340 ABI edge cases (r==0, r>=p, s==0, s>=n rejection)
     test_regression_schnorr_abi_edge_cases.cpp
+    # Regression: point_add_mixed_complete magnitude contract (May 2026)
+    # Ensures normalize_weak X1/Y1 fix remains in place.
+    test_regression_ct_mixed_add_magnitude.cpp
 )
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)
@@ -4030,6 +4033,18 @@ add_test(NAME regression_bip352_ct_varbase COMMAND test_regression_bip352_ct_var
 set_tests_properties(regression_bip352_ct_varbase PROPERTIES TIMEOUT 120
     SKIP_RETURN_CODE 77
     LABELS "audit;ct_analysis;bip352;regression")
+
+# Regression: point_add_mixed_complete FE52 magnitude contract (May 2026)
+# Detects: normalize_weak X1/Y1 fix must stay in place; tests mixed-add
+# arithmetic, generator_mul_blinded equivalence, and ct vs fast divergence.
+add_executable(test_regression_ct_mixed_add_magnitude_standalone
+    test_regression_ct_mixed_add_magnitude.cpp)
+audit_target_defaults(test_regression_ct_mixed_add_magnitude_standalone)
+target_compile_definitions(test_regression_ct_mixed_add_magnitude_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ct_mixed_add_magnitude
+    COMMAND test_regression_ct_mixed_add_magnitude_standalone)
+set_tests_properties(regression_ct_mixed_add_magnitude PROPERTIES TIMEOUT 120
+    LABELS "audit;ct_analysis;regression;blinding")
 
 option(SECP256K1_BUILD_LIBFUZZER
        "Build LibFuzzer harnesses (requires clang -fsanitize=fuzzer,address)" OFF)
