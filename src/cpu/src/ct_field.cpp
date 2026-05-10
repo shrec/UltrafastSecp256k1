@@ -97,12 +97,19 @@ static inline std::uint64_t add256(std::uint64_t r[4],
 }
 
 // CT 256-bit subtraction with borrow out. Returns borrow (0 or 1).
-// Uses __builtin_subcll on Clang to emit SBB instructions (B-10).
-// GCC-13 does NOT have __builtin_subcll; falls through to portable path.
+// Uses __builtin_subcll on Clang x86-64 only to emit SBB instructions (B-10).
+// Same platform and sanitizer restrictions as add256 / __builtin_addcll above:
+//   - x86-64 only: on ARM64 the borrow-flag chain has the same carry-chain
+//     reliability issue as __builtin_addcll (observed macOS M-series failures).
+//   - Excluded under sanitizers: TSan/ASan instrumentation inserted between
+//     calls clobbers the hardware borrow flag, producing wrong results.
+// GCC-13 does NOT have __builtin_subcll; always uses the portable path.
 static inline std::uint64_t sub256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
-#if defined(__clang__)
+#if defined(__clang__) && defined(__x86_64__) && \
+    !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && \
+    !defined(__SANITIZE_MEMORY__) && !defined(LLVM_PROFILE_ENABLED)
     unsigned long long borrow = 0;
     borrow = __builtin_subcll(a[0], b[0], borrow, (unsigned long long*)&r[0]);
     borrow = __builtin_subcll(a[1], b[1], borrow, (unsigned long long*)&r[1]);

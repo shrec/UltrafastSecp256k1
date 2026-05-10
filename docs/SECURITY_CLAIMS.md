@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-10 ct_field::sub256 — ARM64/TSan borrow-chain correctness
+
+- **`ct_field.cpp` (`sub256`)**: `__builtin_subcll` now restricted to
+  `__x86_64__` and excluded under sanitizers. On ARM64 and under TSan,
+  the borrow-flag chain was broken, causing `ct::field_sub`, `ct::field_add`
+  (the p-conditional-subtraction path), and `ct::field_neg` to return wrong
+  values — detected as 84 comprehensive-test failures under TSan and as
+  "CT field_add == fast +" failures on macOS ARM64 CI runners.
+- **CT contract unchanged.** Portable borrow chain is branchless and gives
+  the same result as hardware SBB on all platforms.
+
 ### 2026-05-10 ct_field::add256 — ARM64 carry-chain correctness
 
 - **`ct_field.cpp`**: `__builtin_addcll` carry-chain path restricted to

@@ -2,6 +2,22 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-10 ct_field::sub256 — same x86-64+no-sanitizer guard as add256
+
+- **`ct_field.cpp` (`sub256`)**: `__builtin_subcll` (SBB borrow-chain instruction)
+  now has the same guards as `__builtin_addcll`: restricted to x86-64 and
+  excluded under ASan/TSan/MSan. Previously `sub256` used `__builtin_subcll`
+  unconditionally for all Clang targets, causing two categories of failure:
+  (a) On ARM64 (macOS M-series): same carry/borrow-flag reliability issue as
+  `__builtin_addcll` — Clang doesn't always emit a pure SUBS/SBCS chain.
+  (b) Under TSan: sanitizer instrumentation inserted between calls corrupts the
+  borrow flag, causing `ct::field_sub` / `ct::field_add` (which calls sub256
+  for the conditional p-subtraction) / `ct::field_neg` to return wrong values.
+  This produced 84 comprehensive-test failures under TSan and matching failures
+  on the macOS ARM64 runner.
+- **CT impact: none.** Portable carry-borrow chain produces the same results
+  on all platforms and is equally branchless.
+
 ### 2026-05-10 ct_field::add256 — x86-64-only __builtin_addcll (ARM64 fix)
 
 - **`ct_field.cpp` (`add256`)**: The Clang `__builtin_addcll` carry-chain path
