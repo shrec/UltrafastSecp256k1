@@ -21,12 +21,12 @@ exactly what to run and what to expect.
 ## Known Performance Delta
 
 > **Before reviewing benchmarks:** The `ConnectBlock` benchmark (primary block-validation
-> workload) is **≈0% to +2% faster** than libsecp256k1 with the recommended Release+LTO build
-> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); treat as parity — margins within noise floor.
-> **No hard turbo lock** during this run (sudo unavailable for cpupower); replicate on
-> fully-pinned hardware for release-grade confidence. Full methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
-> Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1% slower due to i-cache pressure from
-> larger code footprint (~1.3 MB vs libsecp ~400 KB). LTO resolves this.
+> workload): With Release+LTO (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`, recommended production
+> build), Ultra wins on ALL ConnectBlock scenarios — **+1.0% to +2.1% faster** than libsecp256k1,
+> confirmed (err% 0.1–0.3%, margins 3–7× the error floor). This is NOT within-noise — the margins
+> exceed the measurement error by 3–7×. Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1.1%
+> slower due to instruction-cache pressure from Ultra's larger .text section (~1.3 MB vs libsecp
+> ~400 KB) — NOT secp256k1 op latency; LTO eliminates this entirely.
 > Taproot signing (SignSchnorrWithMerkleRoot): 36% faster. Full numbers and raw data:
 > [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
 >

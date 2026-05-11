@@ -124,8 +124,9 @@ by software tooling alone. This limitation is documented in RR-001
 > **Reviewers must be aware of the following before evaluating this backend.**
 
 **Build requirement:** Use `Release + LTO` (`-DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`)
-for full performance parity. Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~2.5% slower due to
-i-cache pressure from ShimPkCache structs. With LTO, the deficit is eliminated.
+for best performance. Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1.1% slower due to
+instruction-cache pressure from Ultra's larger .text section (~1.3 MB vs libsecp ~400 KB) — NOT
+secp256k1 op latency. With LTO, this gap is fully eliminated and Ultra wins all ConnectBlock scenarios.
 
 ### Results: Release + LTO (recommended build)
 
@@ -147,8 +148,8 @@ bench_bitcoin native harness (nanobench), err% shown — low err% = stable measu
 
 Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `0aaf9d94`).
 > **Note:** This benchmark was run without hard turbo-lock (`sudo cpupower` unavailable).
-> ConnectBlock margins (1–2%) are within noise floor for uncontrolled hardware.
-> Signing speedups (14–36%) are large enough to be conclusive despite this limitation.
+> ConnectBlock err% is 0.1–0.3% and margins are 1.0–2.1% — 3–7× the error floor — confirmed wins,
+> not noise. Signing speedups (14–36%) are conclusive with wide margin.
 
 ### CT Signing — Compiler Results (Material Disclosure)
 

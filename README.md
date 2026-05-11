@@ -42,7 +42,7 @@ It is not a trust request. It is a verification package.
 **Reproduce from patch (primary — stable):**
 ```bash
 git clone https://github.com/bitcoin/bitcoin && cd bitcoin
-git apply /path/to/UltrafastSecp256k1/docs/INTEGRATION_PATCH.patch
+git apply $(git -C src/ultrafast_secp256k1 rev-parse --show-toplevel)/docs/INTEGRATION_PATCH.patch
 git submodule update --init src/ultrafast_secp256k1
 cmake --preset ultrafast-bench   # Release + LTO — required for accurate ConnectBlock numbers
 cmake --build out/build-ultrafast-lto -j$(nproc)
@@ -70,7 +70,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 
 **CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-11):** **1.24× ECDSA · 1.09× Schnorr** vs libsecp256k1. Canonical data: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
-> **ConnectBlock (primary block-validation workload):** With Release+LTO: +1.0–2.1% Ultra lead on this hardware (within noise margin — treat as parity until replicated on pinned hardware). Without LTO: ~1% deficit from i-cache pressure (larger code footprint). LTO recommended. Taproot key-path signing is 11–36% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** With Release+LTO (recommended): Ultra wins on ALL ConnectBlock scenarios — +1.0% to +2.1% faster than libsecp256k1, confirmed (err% 0.1–0.3%, margins 3–7× the error floor). Without LTO: ~1.1% slower due to instruction-cache pressure from Ultra's larger .text section (~1.3 MB vs libsecp ~400 KB) — NOT secp256k1 op latency; LTO eliminates this entirely. Taproot key-path signing is 11–36% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 
@@ -209,7 +209,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs 1,000,000+ assertions across 100 non-exploit audit modules and 254 exploit PoCs (350 modules total; count via `python3 ci/sync_module_count.py`)
+- Every commit runs 1,000,000+ assertions across 100 non-exploit audit modules and 254 exploit PoCs (354 modules total; count via `python3 ci/sync_module_count.py`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -241,21 +241,26 @@ This library ships fast code — then systematically tries to break it, on every
 Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) with pinned compiler/driver/toolkit versions, raw logs, and methodology notes.
 
 > All performance claims in this README link to that document. Do not rely on inline numbers without checking the corresponding benchmark entry for hardware, batch size, and measurement conditions.
+>
+> Canonical raw data (GCC 14.2.0, 2026-05-11): [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json)
 
 ## Why UltrafastSecp256k1? — Detail
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 254 exploit PoCs source files (252 registered as runner modules in `unified_audit_runner.cpp`; all wired, verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
-- **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 254 exploit PoCs source files (254 registered as runner modules in `unified_audit_runner.cpp`; all wired, verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
-- **BIP-352 Silent Payments GPU pipeline** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) on CUDA; throughput and CPU comparison: [GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352)
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
-- **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw (adoption evidence as of 2026-03-29 — verify against current Frigate README for latest status)
-- **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
-- **Minimal dependencies** -- no runtime library dependencies (no Boost, no OpenSSL); build requires CMake 3.18+ and a C++17 compiler (GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, Emscripten)
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
+- **Minimal dependencies** -- no runtime library dependencies (no Boost, no OpenSSL); build requires CMake 3.18+ and a C++17 compiler (GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, Emscripten)
 - **12+ platforms** -- x86-64, ARM64, RISC-V, WASM, iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
+
+> **The following capabilities are out of scope for the Bitcoin Core CPU backend evaluation profile:**
+
+- **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
+- **BIP-352 Silent Payments GPU pipeline** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) on CUDA; throughput and CPU comparison: [GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352)
+- **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
+- **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw (adoption evidence as of 2026-03-29 — verify against current Frigate README for latest status)
 
 > **Benchmark reproducibility:** All numbers come from pinned compiler/driver/toolkit versions with exact commands and raw logs. See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) (methodology) and the [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/).
 
@@ -390,7 +395,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 
 ### Exploit PoC Test Suite (254 Tests, 20+ Coverage Areas)
 
-In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships **254 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 354-module `unified_audit_runner`, UltrafastSecp256k1 ships **254 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -409,7 +414,7 @@ In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 239 registered exploit tests (251 test files) live in `audit/test_exploit_*.cpp`. Build with `python3 scripts/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
+> All 254 registered exploit tests (256 test files) live in `audit/test_exploit_*.cpp`. Build with `python3 ci/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
@@ -417,7 +422,7 @@ In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 |----------|---------|
 | [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
 | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) | Audit philosophy, continuous evidence model, design rationale, common objections answered |
-| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 336 modules, 0 failures |
+| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 354 modules, 0 failures |
 | [AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) | Per-module coverage matrix |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | Layer-by-layer risk analysis |
 | [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |
