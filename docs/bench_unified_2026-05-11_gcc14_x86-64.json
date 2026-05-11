@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "generated_at": "2026-05-11",
+    "cpu": "Intel Core i5-14400F",
+    "tsc_freq_ghz": 2.496,
+    "compiler": "GCC 14.2.0",
+    "arch": "x86-64",
+    "core": "1 (pinned to core 0, priority elevated)",
+    "harness": "3s ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median",
+    "timer": "RDTSCP",
+    "pool": "64 independent key/msg/sig sets",
+    "turbo": "disabled",
+    "notes": "bench_opt build dir; no hot-cache w=18 preload; canonical controlled run"
+  },
+  "ultra_field": {
+    "field_mul_ns": 19.8,
+    "field_sqr_ns": 18.6,
+    "field_inv_ns": 1221.7,
+    "field_add_ns": 9.2,
+    "field_sub_ns": 7.7
+  },
+  "ultra_scalar": {
+    "scalar_mul_ns": 37.9,
+    "scalar_inv_ns": 1565.1
+  },
+  "ultra_point": {
+    "pubkey_create_kG_ns": 8868.8,
+    "scalar_mul_kP_ns": 32935.1,
+    "dual_mul_aGbP_ns": 35407.2
+  },
+  "ultra_fast_signing": {
+    "_label": "FAST (variable-time) — diagnostic only, NOT production signing",
+    "ecdsa_sign_ns": 12229.5,
+    "schnorr_sign_ns": 9704.1
+  },
+  "ultra_ct_signing": {
+    "_label": "CT-vs-CT fair comparison — production-equivalent",
+    "ecdsa_sign_ns": 24114.3,
+    "schnorr_sign_ns": 20850.4
+  },
+  "verification": {
+    "_label": "Both variable-time — fair public-data comparison",
+    "ecdsa_verify_ns": 38398.4,
+    "schnorr_verify_cached_ns": 39051.5,
+    "schnorr_verify_raw_ns": 45801.9
+  },
+  "vs_libsecp_verification": {
+    "ecdsa_verify_ratio": 1.09,
+    "schnorr_verify_cached_ratio": 1.08,
+    "schnorr_verify_raw_ratio": 1.05
+  },
+  "vs_libsecp_ct_signing": {
+    "_label": "CT-vs-CT — production-equivalent signing comparison",
+    "ecdsa_sign_ratio": 1.24,
+    "schnorr_sign_ratio": 1.09
+  },
+  "vs_libsecp_fast_signing": {
+    "_label": "FAST vs libsecp CT — diagnostic only, not production-equivalent",
+    "ecdsa_sign_ratio": 2.45,
+    "schnorr_sign_ratio": 2.34
+  },
+  "libsecp_reference": {
+    "generator_mul_ns": 18379.8,
+    "pubkey_create_ns": 21092.7,
+    "scalar_mul_ns": 37440.3,
+    "ecdsa_sign_ns": 29952.3,
+    "ecdsa_verify_ns": 41805.2,
+    "schnorr_sign_ns": 22735.9,
+    "schnorr_verify_ns": 42124.0,
+    "schnorr_verify_raw_ns": 48129.9
+  }
+}

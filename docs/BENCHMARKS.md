@@ -15,19 +15,15 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ## Summary
 
-> **x86-64 (i5-14400F): populated 2026-05-11** `[hot-cache]` GCC 13.3.0, no LTO, turbo disabled, 11-pass IQR median  
-> Other platforms: pending fresh controlled runs with single toolchain per platform.
->
-> **Methodology requirements (full release-grade):** single compiler version, Release+LTO,
-> CPU pinned, turbo disabled, ≥11 passes IQR, variance <3%, CT-vs-CT signing comparison only.
->
-> For historical numbers see the `[archived]` sections below.
+> **x86-64 (i5-14400F): 2026-05-11** GCC 14.2.0, turbo disabled, core 0 pinned, 11-pass IQR median  
+> Canonical JSON: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`  
+> Other platforms: pending fresh controlled runs.
 
-`[hot-cache]` x86-64: GCC 13.3.0 · i5-14400F · 2.496 GHz (turbo disabled) · warm w=18 cache · **11-pass IQR median** · 2026-05-11
+x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **11-pass IQR** · 2026-05-11
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) `[hot-cache]` | 22.2 ns | 9,985 ns | 35,600 ns | 44,294 ns | 0.94× ECDSA · 0.93× Schnorr | 1.32× ECDSA · 1.20× Schnorr |
+| x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr | 1.24× ECDSA · 1.09× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
@@ -36,9 +32,9 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | CUDA (RTX) | — | — | — | — | — | — |
 | OpenCL (RTX) | — | — | — | — | — | — |
 
-> **CT Sign vs lib** = Ultra CT signing vs libsecp256k1 CT signing (production-equivalent).
-> **`[hot-cache]`** = w=18 precomputed table warm in L2/L3 after 50-iteration warm-up; GCC 13.3.0, no LTO. With LTO, Generator Mul is ~5.5–6.5 µs. CT signing ratios (1.32×/1.20×) are GCC 13 numbers — Clang 19 shows 1.33×/1.20× (slightly higher). GCC 13/14 Linux-default CT signing is 0.82–0.85× vs libsecp (slower); see `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing`. **BENCH-001:** ratio table rows for ECDSA Sign/Schnorr Sign in `benchmarks/comparison/README.md` compare Ultra FAST (variable-time) vs libsecp CT — not production-equivalent. Those rows are diagnostic only.
+> **CT Sign vs lib** = `bench_unified` CT-vs-CT section — production-equivalent comparison. Canonical data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
+> **FAST signing** (diagnostic, NOT for production signing claims): ECDSA 2.45×, Schnorr 2.34× — Ultra variable-time vs libsecp CT. See `benchmarks/comparison/README.md` §BENCH-001 note.
 > GPU rows: kernel-only throughput at standard batch sizes.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
