@@ -2,31 +2,28 @@
 """
 Formal verification runner for UltrafastSecp256k1.
 
-Runs available formal verification tools and reports results.
-Returns ADVISORY_SKIP_CODE (77) if no tools are installed.
-Returns 0 if all available tools pass.
-Returns 1 if any tool reports a proof failure.
+BLOCKING gate: Z3 SMT and Lean 4 proofs MUST pass.
+If either tool is absent or fails → exit 1 (hard failure).
 
-Tools (in order of priority):
-  Z3 SMT    — audit/formal/safegcd_z3_proof.py   (fast ~2s, pip install z3-solver)
-  Lean 4    — audit/formal/lean/  (lake build)    (slow ~10min, requires elan)
-  Cryptol   — audit/formal/cryptol/              (requires cryptol binary)
+Cryptol type-check is advisory: absent Cryptol binary → skip (not a failure).
+If Cryptol IS installed and type-check fails → exit 1.
 
-CAAS role: advisory gate — runs in ci_local.sh [4] and caas.yml Stage 3.
+Tools:
+  Z3 SMT    — audit/formal/safegcd_z3_proof.py   (~2s, pip install z3-solver)
+  Lean 4    — audit/formal/lean/  (lake build)    (~5min after elan install)
+  Cryptol   — audit/formal/cryptol/ (.cry files)  (advisory: skip if absent)
+
 Exit codes:
-  0  all available tools passed
-  1  at least one tool failed
-  77 no formal tools available (advisory skip)
+  0   all required tools passed (Cryptol skipped if absent)
+  1   any required tool missing OR any proof failed
 """
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-ADVISORY_SKIP_CODE = 77
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FORMAL_DIR = REPO_ROOT / "audit" / "formal"
 
@@ -35,36 +32,40 @@ g_fail = 0
 g_skip = 0
 
 
-def run(label: str, cmd: list[str], cwd: Path | None = None) -> int:
-    """Run a command and print result. Returns exit code."""
+def run_tool(label: str, cmd: list[str], cwd: Path | None = None) -> int:
+    """Run a command. Returns 0 on pass, 1 on fail/timeout."""
     global g_pass, g_fail
     print(f"  [{label}]", end=" ", flush=True)
     try:
         result = subprocess.run(
             cmd, cwd=cwd or REPO_ROOT,
-            capture_output=True, text=True, timeout=120
+            capture_output=True, text=True, timeout=600
         )
         if result.returncode == 0:
             print("PROVED")
             g_pass += 1
+            return 0
         else:
             print("FAILED")
-            for line in (result.stdout + result.stderr).splitlines()[-10:]:
+            for line in (result.stdout + result.stderr).splitlines()[-15:]:
                 print(f"    {line}")
             g_fail += 1
-        return result.returncode
-    except FileNotFoundError:
-        print("SKIP (tool not found)")
-        g_skip += 1
-        return ADVISORY_SKIP_CODE
+            return 1
     except subprocess.TimeoutExpired:
         print("TIMEOUT")
         g_fail += 1
         return 1
 
 
-def check_z3() -> bool:
-    """Return True if z3 Python package is importable."""
+def tool_available(name: str) -> bool:
+    try:
+        subprocess.run([name, "--version"], capture_output=True, timeout=5)
+        return True
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def z3_available() -> bool:
     try:
         import z3  # noqa: F401
         return True
@@ -72,72 +73,65 @@ def check_z3() -> bool:
         return False
 
 
-def check_lean() -> bool:
-    """Return True if `lake` binary is available."""
-    try:
-        subprocess.run(["lake", "--version"], capture_output=True, timeout=5)
-        return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
-
-def check_cryptol() -> bool:
-    """Return True if `cryptol` binary is available."""
-    try:
-        subprocess.run(["cryptol", "--version"], capture_output=True, timeout=5)
-        return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
-
 def main() -> int:
     global g_pass, g_fail, g_skip
+    rc = 0
 
     print("Formal Verification — UltrafastSecp256k1")
     print(f"  Formal dir: {FORMAL_DIR.relative_to(REPO_ROOT)}")
     print()
 
-    # ── Z3 SMT proofs ────────────────────────────────────────────────────────
+    # ── Z3 SMT proofs (REQUIRED) ─────────────────────────────────────────────
+    print("[Z3 SMT] SafeGCD / Bernstein-Yang divstep proofs  [REQUIRED]")
     z3_script = FORMAL_DIR / "safegcd_z3_proof.py"
-    if check_z3() and z3_script.exists():
-        print("[Z3 SMT] SafeGCD / Bernstein-Yang divstep proofs")
-        run("z3", [sys.executable, str(z3_script)])
+    if not z3_available():
+        print("  [z3] MISSING — z3-solver not installed (pip install z3-solver)")
+        g_fail += 1
+        rc = 1
+    elif not z3_script.exists():
+        print(f"  [z3] MISSING — {z3_script} not found")
+        g_fail += 1
+        rc = 1
     else:
-        reason = "z3 not installed" if not check_z3() else "script missing"
-        print(f"[Z3 SMT] SKIP ({reason})")
-        g_skip += 1
+        if run_tool("z3", [sys.executable, str(z3_script)]) != 0:
+            rc = 1
 
-    # ── Lean 4 proofs ─────────────────────────────────────────────────────────
+    # ── Lean 4 proofs (REQUIRED) ─────────────────────────────────────────────
+    print("[Lean 4] SafeGCD formal proofs  [REQUIRED]")
     lean_dir = FORMAL_DIR / "lean"
-    if check_lean() and lean_dir.exists():
-        print("[Lean 4] SafeGCD formal proofs (lake build)")
-        run("lean", ["lake", "build"], cwd=lean_dir)
+    if not tool_available("lake"):
+        print("  [lean] MISSING — lake/elan not installed (see audit/formal/lean/lean-toolchain)")
+        g_fail += 1
+        rc = 1
+    elif not lean_dir.exists():
+        print(f"  [lean] MISSING — {lean_dir} not found")
+        g_fail += 1
+        rc = 1
     else:
-        reason = "lake not found" if not check_lean() else "lean dir missing"
-        print(f"[Lean 4] SKIP ({reason})")
-        g_skip += 1
+        if run_tool("lean", ["lake", "build"], cwd=lean_dir) != 0:
+            rc = 1
 
-    # ── Cryptol type-check ────────────────────────────────────────────────────
+    # ── Cryptol type-check (ADVISORY: skip if absent) ────────────────────────
+    print("[Cryptol] Type-check .cry specifications  [advisory — skip if absent]")
     cryptol_dir = FORMAL_DIR / "cryptol"
-    if check_cryptol() and cryptol_dir.exists():
-        print("[Cryptol] Type-check all .cry specifications")
-        for cry_file in sorted(cryptol_dir.glob("*.cry")):
-            run(f"cryptol/{cry_file.name}", ["cryptol", "-b", str(cry_file)])
-    else:
-        reason = "cryptol not installed" if not check_cryptol() else "cryptol dir missing"
-        print(f"[Cryptol] SKIP ({reason})")
+    if not tool_available("cryptol"):
+        print("  [cryptol] SKIP (cryptol not installed — not required)")
         g_skip += 1
+    elif not cryptol_dir.exists():
+        print(f"  [cryptol] SKIP ({cryptol_dir} not found)")
+        g_skip += 1
+    else:
+        for cry_file in sorted(cryptol_dir.glob("*.cry")):
+            if run_tool(f"cryptol/{cry_file.name}", ["cryptol", "-b", str(cry_file)]) != 0:
+                rc = 1
 
     print()
     print(f"Result: {g_pass} proved, {g_fail} failed, {g_skip} skipped")
-
-    if g_fail > 0:
-        return 1
-    if g_pass == 0:
-        # Nothing ran — advisory skip
-        print("(no formal tools available — advisory skip)")
-        return ADVISORY_SKIP_CODE
-    return 0
+    if rc != 0:
+        print("FORMAL VERIFICATION FAILED — see errors above")
+    else:
+        print("FORMAL VERIFICATION PASSED")
+    return rc
 
 
 if __name__ == "__main__":
