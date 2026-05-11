@@ -27,7 +27,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) `[hot-cache, no LTO]` | 22.2 ns | 9,985 ns | 35,600 ns | 44,294 ns | 0.94× ECDSA · 0.93× Schnorr | 1.32× ECDSA · 1.20× Schnorr (Clang 19); see below |
+| x86-64 (i5-14400F) `[hot-cache]` | 22.2 ns | 9,985 ns | 35,600 ns | 44,294 ns | 0.94× ECDSA · 0.93× Schnorr | 1.32× ECDSA · 1.20× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
@@ -37,7 +37,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 | OpenCL (RTX) | — | — | — | — | — | — |
 
 > **CT Sign vs lib** = Ultra CT signing vs libsecp256k1 CT signing (production-equivalent).
-> **`[hot-cache, no LTO]`** = w=18 precomputed table warm in L2/L3 after 50-iteration warm-up; built without LTO. With LTO, Generator Mul is ~5.5–6.5 µs. CT signing with GCC 13/14 (Linux default): **0.82–0.85× vs libsecp** (slower). CT signing with Clang 19: 1.20–1.33×. **BENCH-001:** ratio table rows for ECDSA Sign/Schnorr Sign in `benchmarks/comparison/README.md` compare Ultra FAST (variable-time) vs libsecp CT — not production-equivalent. Those rows are diagnostic only.
+> **`[hot-cache]`** = w=18 precomputed table warm in L2/L3 after 50-iteration warm-up; GCC 13.3.0, no LTO. With LTO, Generator Mul is ~5.5–6.5 µs. CT signing ratios (1.32×/1.20×) are GCC 13 numbers — Clang 19 shows 1.33×/1.20× (slightly higher). GCC 13/14 Linux-default CT signing is 0.82–0.85× vs libsecp (slower); see `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing`. **BENCH-001:** ratio table rows for ECDSA Sign/Schnorr Sign in `benchmarks/comparison/README.md` compare Ultra FAST (variable-time) vs libsecp CT — not production-equivalent. Those rows are diagnostic only.
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
 > GPU rows: kernel-only throughput at standard batch sizes.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
