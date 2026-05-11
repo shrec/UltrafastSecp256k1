@@ -46,6 +46,7 @@ REVIEWER_DOCS = [
     "docs/BITCOIN_CORE_BACKEND_EVIDENCE.md",
     "docs/CAAS_REVIEWER_QUICKSTART.md",
     "docs/BITCOIN_CORE_PR_BLOCKERS.md",
+    "docs/BENCHMARKS.md",  # BENCH-001: scan primary benchmark doc for stale patterns
     "README.md",
 ]
 

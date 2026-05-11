@@ -394,6 +394,7 @@ jobs:
             ${BEFORE_SHA:+--before-sha "$BEFORE_SHA"}
 
       - name: Upload CAAS evidence
+        id: upload_caas_evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -408,7 +409,27 @@ jobs:
           # with a secondary artifact-upload error. Root cause is already visible
           # from the audit_gate step's own failure status.
           if-no-files-found: warn
-          retention-days: 90
+          # CAAS-001 fix: security/CAAS evidence artifacts retained for 365 days
+          # so retrospective audits can verify gate state beyond GitHub's 90-day default.
+          retention-days: 365
+
+      - name: Check CAAS evidence artifact not empty
+        # CAAS-002 fix: if-no-files-found:warn silently produces an empty artifact
+        # when all evidence files are missing (e.g. audit_gate step crashed before
+        # writing any JSON). Emit a visible warning so the empty-artifact case is
+        # surfaced in the step log rather than silently disappearing.
+        if: always()
+        shell: bash
+        run: |
+          found=0
+          for f in caas_audit_gate.json caas_autonomy.json caas_bundle_verify.json assurance_report.json; do
+            [ -f "$f" ] && found=$((found + 1))
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::warning::CAAS evidence artifact is empty — gate may have crashed before writing any JSON output"
+          else
+            echo "::notice::CAAS evidence artifact: $found file(s) present"
+          fi
 
   bindings-smoke:
     name: Block 3 / Bindings Smoke

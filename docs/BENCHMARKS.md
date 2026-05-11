@@ -21,7 +21,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **11-pass IQR** · 2026-05-11
 
-| Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
+| Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib (warm-cache) | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
 | x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr (pre-parsed) · 1.05× Schnorr (raw bytes, ConnectBlock-equivalent) | 1.24× ECDSA · 1.09× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
@@ -58,7 +58,9 @@ Covered flows include:
 - `silent_payment_create_output`
 - `silent_payment_scan`
 
-### Representative x86-64 / Linux Quick Snapshot
+### Representative x86-64 / Linux Quick Snapshot `[diagnostic — quick mode: 3 passes, 50 warmup]`
+
+> **Diagnostic only** — `bench_unified --quick` uses 3 passes and 50 warmup iterations (vs 11 passes / 500 warmup for release-grade runs). Numbers here are suitable for sanity-checking flow coverage, not for performance claims or citations.
 
 Quick sanity run from `bench_unified --quick` on the local x86-64 validation machine:
 

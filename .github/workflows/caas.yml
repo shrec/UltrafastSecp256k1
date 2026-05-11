@@ -831,6 +831,35 @@ jobs:
           if-no-files-found: error
           retention-days: 365
 
+      - name: Advisory-skip headline check (CAAS-006)
+        # CAAS-006 fix: when one or more stages used advisory-skip (exit 77), the
+        # overall headline still says "ALL CAAS STAGES PASSED" — which is misleading
+        # because some stages were skipped, not verified. Emit a visible warning so
+        # auditors can tell the difference between a full pass and a pass-with-skips.
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f caas_pipeline_summary.json ]; then
+            echo "::warning::caas_pipeline_summary.json not found — cannot check advisory-skip status"
+            exit 0
+          fi
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("caas_pipeline_summary.json") as f:
+                  summary = json.load(f)
+          except Exception as e:
+              print(f"::warning::Could not parse caas_pipeline_summary.json: {e}")
+              sys.exit(0)
+          skipped = summary.get("stages_advisory_skipped", [])
+          if skipped:
+              names = ", ".join(skipped)
+              print(f"::warning::CAAS passed WITH advisory skips — the following stage(s) used exit-77 advisory-skip and were NOT fully verified: {names}")
+              print(f"  Headline: ALL CAAS STAGES PASSED (advisory skips: {names})")
+          else:
+              print("::notice::CAAS advisory-skip check: no advisory skips detected — full pipeline verification")
+          EOF
+
       - name: Record evidence in tamper-resistant chain
         # Append a verdict record to docs/EVIDENCE_CHAIN.json so retrospective
         # audits can answer "was the gate passing on commit X" beyond the 90-day
@@ -901,7 +930,11 @@ jobs:
             git config user.email "caas-bot@users.noreply.github.com"
             git add docs/EVIDENCE_CHAIN.json
             git commit -m "[bot] update evidence chain — CAAS run ${{ github.run_id }} [skip ci]"
-            git push origin dev || echo "::warning::Evidence chain push failed (branch protection or concurrent push); chain is in artifact."
+            # CAAS-005 fix: retry up to 3 times to handle transient concurrent-push
+            # conflicts. Non-blocking: a push failure after retries emits ::error::
+            # but does not fail the job — the chain is still preserved as an artifact.
+            for i in 1 2 3; do git push origin dev && break || sleep 5; done \
+              || echo "::error::Evidence chain push failed after 3 retries — chain is artifact-only (docs/EVIDENCE_CHAIN.json not updated in repo)"
           else
             echo "::notice::Evidence chain unchanged; nothing to commit."
           fi
