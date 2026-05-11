@@ -3642,6 +3642,28 @@ add_executable(unified_audit_runner
     # Ensures normalize_weak X1/Y1 fix remains in place.
     test_regression_ct_mixed_add_magnitude.cpp
 )
+# Shim-independent tests: always add to unified_audit_runner.
+target_sources(unified_audit_runner PRIVATE
+    test_exploit_shim_musig_ka_cap.cpp
+    test_exploit_shim_recovery_null_arg.cpp)
+# Shim-dependent + internal-API tests: link real files when shim is available,
+# else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
+# can link and reports them as advisory-skipped instead of failing.
+if(TARGET secp256k1_shim)
+    target_sources(unified_audit_runner PRIVATE
+        test_regression_bip32_private_key_strict.cpp
+        test_regression_ellswift_ct_path.cpp
+        test_regression_musig2_nonce_strict.cpp
+        test_regression_shim_pubkey_sort.cpp
+        test_regression_shim_per_context_blinding.cpp
+        test_regression_musig2_session_token.cpp)
+    target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
+    target_include_directories(unified_audit_runner PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+else()
+    target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp)
+endif()
+
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
 if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)
     target_sources(unified_audit_runner PRIVATE test_regression_gpu_key_erase_raii.cpp)
