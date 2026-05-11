@@ -148,10 +148,15 @@ inline RecoverableSignatureMetal ecdsa_sign_recoverable_metal(
         if (sz) return rsig;
     }
 
-    // Low-S normalization: correct half-order comparison (not odd/even parity)
-    if (!scalar_is_low_s(s)) {
-        s = scalar_negate(s);
-        recid ^= 1;
+    // Low-S normalization — branchless CT (P1-SEC-002 fix).
+    // scalar_is_low_s has early-exit returns leaking 1 bit of s = f(k,d).
+    // scalar_is_high_mask_metal returns a mask with no early-exit branches.
+    {
+        uint high_mask = scalar_is_high_mask_metal(s);
+        Scalar256 neg_s = scalar_negate(s);
+        for (int i = 0; i < 8; ++i)
+            s.limbs[i] = (neg_s.limbs[i] & high_mask) | (s.limbs[i] & ~high_mask);
+        recid ^= (int)(high_mask & 1u);
     }
 
     rsig.r = r;

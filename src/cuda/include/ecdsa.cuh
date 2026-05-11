@@ -12,6 +12,7 @@
 // ============================================================================
 
 #include "secp256k1.cuh"
+#include "ct/ct_scalar.cuh"  // for ct::scalar_normalize_low_s (branchless low-S)
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -351,10 +352,10 @@ __device__ inline bool ecdsa_sign(
     scalar_mul_mod_n(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return false;
 
-    // Normalize to low-S (BIP-62)
-    if (!scalar_is_low_s(&sig->s)) {
-        scalar_negate(&sig->s, &sig->s);
-    }
+    // Normalize to low-S (BIP-62) — CT: branchless cmov, no early-exit timing leak.
+    // scalar_is_low_s() has an early-exit loop that leaks 1 bit of s = f(k, d)
+    // per signature, enabling Nguyen-Shparlinski lattice attack with ~250 sigs.
+    ct::scalar_normalize_low_s(&sig->s);
 
     return true;
 }
@@ -738,8 +739,8 @@ __device__ inline bool ecdsa_sign_hedged(
     scalar_mul_mod_n(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return false;
 
-    if (!scalar_is_low_s(&sig->s))
-        scalar_negate(&sig->s, &sig->s);
+    // CT branchless low-S (replaces early-exit scalar_is_low_s which leaked 1 bit of s).
+    ct::scalar_normalize_low_s(&sig->s);
 
     return true;
 }

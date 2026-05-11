@@ -446,7 +446,11 @@ public:
         {
             int threads = 128;
             int blocks  = (static_cast<int>(count) + threads - 1) / threads;
-            generator_mul_windowed_batch_kernel<<<blocks, threads>>>(
+            // GPU Guardrail 8: use CT kernel — scalars are private keys (pubkey derivation).
+            // ct_generator_mul_batch_kernel uses GLV comb with branchless cmov; no warp
+            // divergence on scalar nibble values, eliminating the timing side-channel that
+            // generator_mul_windowed_batch_kernel exposes on secret inputs.
+            ct_generator_mul_batch_kernel<<<blocks, threads>>>(
                 d_scalars, d_results, static_cast<int>(count));
             if (cudaGetLastError() != cudaSuccess) {
                 ret = set_error(GpuError::Launch, "generator_mul kernel"); goto gmb_cleanup; }

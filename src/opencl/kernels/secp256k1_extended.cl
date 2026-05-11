@@ -459,6 +459,21 @@ inline int scalar_is_low_s_impl(const Scalar* s) {
     return 1; // equal = low
 }
 
+// Branchless mask: returns all-ones if s > n/2, all-zeros otherwise.
+// No early-exit — avoids warp divergence on secret-derived values of s.
+inline ulong scalar_is_high_mask_impl(const Scalar* s) {
+    const ulong half[4] = { HALF_ORDER_0, HALF_ORDER_1, HALF_ORDER_2, HALF_ORDER_3 };
+    ulong gt = 0;
+    ulong eq_so_far = ~(ulong)0;
+    for (int i = 3; i >= 0; --i) {
+        ulong a_gt_h = -(ulong)(s->limbs[i] > half[i]);
+        ulong a_eq_h = -(ulong)(s->limbs[i] == half[i]);
+        gt |= (a_gt_h & eq_so_far);
+        eq_so_far &= a_eq_h;
+    }
+    return gt;
+}
+
 // =============================================================================
 // GLV Endomorphism
 // =============================================================================
@@ -1204,15 +1219,13 @@ inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASi
     scalar_mul_mod_n_impl(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return 0;
 
-    // Low-S normalization — branchless CT conditional negate.
-    // Avoids a secret-dependent branch on sig->s (derived from the secret nonce k).
-    // Note: this kernel is non-production; production signing uses ct_ecdsa_sign_impl.
+    // Low-S normalization — fully branchless CT conditional negate (P1-SEC-002 fix).
+    // scalar_is_high_mask_impl returns all-ones mask without early-exit returns,
+    // eliminating warp divergence on secret-derived s = f(k, d).
     {
         Scalar neg_s;
         scalar_negate_impl(&neg_s, &sig->s);
-        // needs_negate=1 when s > n/2, 0 otherwise; mask is all-ones or all-zeros
-        const ulong needs_negate = (ulong)(1 - scalar_is_low_s_impl(&sig->s));
-        const ulong mask = (ulong)(0UL - needs_negate);
+        const ulong mask = scalar_is_high_mask_impl(&sig->s);
         sig->s.limbs[0] = (sig->s.limbs[0] & ~mask) | (neg_s.limbs[0] & mask);
         sig->s.limbs[1] = (sig->s.limbs[1] & ~mask) | (neg_s.limbs[1] & mask);
         sig->s.limbs[2] = (sig->s.limbs[2] & ~mask) | (neg_s.limbs[2] & mask);

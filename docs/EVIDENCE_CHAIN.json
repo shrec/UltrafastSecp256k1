@@ -1,145 +1,104 @@
 {
   "version": 1,
-  "description": "SHA-anchored evidence chain for assurance claim verdicts (A-001..A-008)",
-  "last_updated": "2026-05-11T00:00:00+00:00",
-  "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
+  "description": "Tamper-resistant evidence chain for audit verdicts",
+  "last_updated": "2026-05-11T23:49:44.237411+00:00",
   "records_count": 8,
   "records": [
     {
-      "record_id": "EC-001",
-      "claim_id": "A-001",
-      "area": "CT signing",
-      "claim_summary": "Secret-bearing signing routes through CPU CT layer",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "docs/BACKEND_ASSURANCE_MATRIX.md",
-        "src/cpu/src/ct_sign.cpp",
-        "audit/audit_ct.cpp"
-      ],
-      "enforcing_workflows": ["ct-verif.yml", "ct-arm64.yml", "valgrind-ct.yml"],
-      "verdict": "PASS",
-      "verification_method": "LLVM ct-verif compile-time analysis + Valgrind MAKE_MEM_UNDEFINED taint + dudect statistical test",
-      "scope_note": "CPU x86-64 and ARM64 only; GPU paths not covered by hardware power analysis",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "CT signing routes through CPU CT layer (A-001)",
+      "when": "2026-05-11T23:49:44.001163+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "Verified by ct-verif LLVM, Valgrind taint, dudect on x86-64 and ARM64",
+      "signed_by_ci": false,
+      "signature": "8f1386fbbeb7ccb222b7a8262e0a7a988238ec64eced280a2ffcff9da960246a"
     },
     {
-      "record_id": "EC-002",
-      "claim_id": "A-002",
-      "area": "GPU ABI",
-      "claim_summary": "Stable GPU C ABI exposes 19 backend-neutral batch operations",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "include/ufsecp/ufsecp_gpu.h",
-        "docs/BACKEND_ASSURANCE_MATRIX.md",
-        "docs/GPU_VALIDATION_MATRIX.md"
-      ],
-      "enforcing_workflows": ["gpu-selfhosted.yml"],
-      "verdict": "PASS",
-      "verification_method": "Local GPU CI only (no GitHub CI GPU runners by design)",
-      "scope_note": "GPU tests are local-CI only — correct by design; GitHub CI runners have no GPU",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "GPU C ABI 19 backend-neutral batch ops stable (A-002)",
+      "when": "2026-05-11T23:49:44.034067+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "Local GPU CI only by design; CUDA/OpenCL/Metal pass backend matrix",
+      "signed_by_ci": false,
+      "signature": "6ca29d13d751520f9b2586fd4400e53f8c70e88c318c6f4dd386689ebb41b1e7"
     },
     {
-      "record_id": "EC-003",
-      "claim_id": "A-003",
-      "area": "GPU backends",
-      "claim_summary": "CUDA, OpenCL, and Metal implement the stable GPU C ABI surface",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "src/cuda/",
-        "src/opencl/",
-        "src/metal/",
-        "docs/BACKEND_ASSURANCE_MATRIX.md"
-      ],
-      "enforcing_workflows": ["gpu-selfhosted.yml"],
-      "verdict": "PASS",
-      "verification_method": "Local GPU CI backend matrix tests",
-      "scope_note": "GPU only; ROCm/HIP is early-development with no hardware validation",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "CUDA/OpenCL/Metal implement stable GPU surface (A-003)",
+      "when": "2026-05-11T23:49:44.066866+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "Local GPU CI backend matrix — no GitHub CI GPU runners by design",
+      "signed_by_ci": false,
+      "signature": "9ce5c252e4e58751e76ee9e1744aab50aff51c252ddd5c830821afbd7329590f"
     },
     {
-      "record_id": "EC-004",
-      "claim_id": "A-004",
-      "area": "Benchmark",
-      "claim_summary": "Benchmark numbers tied to documented harnesses and reproducible artifacts",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "docs/bench_unified_2026-05-11_gcc14_x86-64.json",
-        "docs/BITCOIN_CORE_BENCH_RESULTS.json",
-        "docs/BENCHMARKS.md",
-        "docs/BENCHMARK_METHODOLOGY.md"
-      ],
-      "enforcing_workflows": ["benchmark.yml", "bench-regression.yml"],
-      "verdict": "PASS",
-      "verification_method": "bench_unified harness with DoNotOptimize, rotating inputs, GCC 14.2.0, x86-64",
-      "scope_note": "JSON artifact contains median only; min/max/stddev fields pending schema update",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "Benchmark numbers tied to documented harnesses (A-004)",
+      "when": "2026-05-11T23:49:44.101640+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "bench_unified GCC14 x86-64; DoNotOptimize; rotating inputs; CT vs CT comparison",
+      "signed_by_ci": false,
+      "signature": "7565fa1d2dfc71773b085c2ad3242a94f29fe405623415cdb3d054b5c10f2b5e"
     },
     {
-      "record_id": "EC-005",
-      "claim_id": "A-005",
-      "area": "Exploit PoC tests",
-      "claim_summary": "Exploit-style PoC tests are core assurance; unified runner passes all blocking modules",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "audit/unified_audit_runner.cpp",
-        "docs/EXPLOIT_TEST_CATALOG.md",
-        "audit/test_exploit_*.cpp"
-      ],
-      "enforcing_workflows": ["caas.yml", "preflight.yml", "security-audit.yml"],
-      "verdict": "PASS",
-      "verification_method": "CAAS Stage 0-3 gates; check_exploit_wiring.py; unified_audit_runner --section exploit_poc",
-      "scope_note": "354 blocking modules; 15 advisory (GPU/shim/timing-env dependent)",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "Exploit PoC tests are core assurance (A-005)",
+      "when": "2026-05-11T23:49:44.134979+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "354 blocking + 15 advisory modules; check_exploit_wiring.py gates; unified_audit_runner CI",
+      "signed_by_ci": false,
+      "signature": "b75438c31b2ff35130df4dbd53bcc98cbedb6251b4227a04e5f8567fa3f6ccac"
     },
     {
-      "record_id": "EC-006",
-      "claim_id": "A-006",
-      "area": "Source graph",
-      "claim_summary": "Source graph is maintained and used as part of the audit workflow",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "tools/source_graph_kit/source_graph.db",
-        "tools/source_graph_kit/source_graph.toml"
-      ],
-      "enforcing_workflows": ["preflight.yml (check_source_graph_quality.py)"],
-      "verdict": "PASS",
-      "verification_method": "Source graph rebuild on every CI run; quality gate checks coverage",
-      "scope_note": "Graph covers CPU sources; GPU shaders are advisory coverage",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "Source graph maintained as part of audit workflow (A-006)",
+      "when": "2026-05-11T23:49:44.172514+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "Source graph rebuilt on every CI run; quality gate in preflight.yml",
+      "signed_by_ci": false,
+      "signature": "91116cd739b8b359aaee6f07d940e25b4fa01dbaa099876f3c28b22a2ea2419f"
     },
     {
-      "record_id": "EC-007",
-      "claim_id": "A-007",
-      "area": "Rerunnable artifacts",
-      "claim_summary": "Claims backed by rerunnable artifacts with documented reproduction steps",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "docs/REPLAY_CAPSULE.json",
-        "docs/REPLAY_CAPSULE.sha256",
-        "docs/CAAS_REVIEWER_QUICKSTART.md"
-      ],
-      "enforcing_workflows": ["caas.yml", "audit-report.yml"],
-      "verdict": "PASS",
-      "verification_method": "Replay capsule SHA256 verified by gate.yml bundle_verify step",
-      "scope_note": "--allow-commit-mismatch flag in bundle_verify allows capsule to lag HEAD by one release cycle",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "Claims backed by rerunnable artifacts (A-007)",
+      "when": "2026-05-11T23:49:44.207085+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "Replay capsule SHA256 verified by gate.yml bundle_verify",
+      "signed_by_ci": false,
+      "signature": "4724831cf9564338056923e293864d9dbfa5c89e9bb4e395b8d6583968cca93d"
     },
     {
-      "record_id": "EC-008",
-      "claim_id": "A-008",
-      "area": "ROCm/HIP",
-      "claim_summary": "ROCm/HIP backend is early-development; no hardware-validated CI exists",
-      "anchor_commit": "e6fa49805ba9863dfa88d972fa3d1f305f8a1538",
-      "artifact_paths": [
-        "docs/BACKEND_ASSURANCE_MATRIX.md",
-        "docs/GPU_VALIDATION_MATRIX.md"
-      ],
-      "enforcing_workflows": [],
-      "verdict": "ADVISORY",
-      "verification_method": "Source code review only; no hardware CI runner available",
-      "scope_note": "Correctly disclosed as early-development in all docs; no false claims of hardware validation",
-      "recorded_at": "2026-05-11T00:00:00+00:00"
+      "who": "security_autonomy_check.py",
+      "what": "ROCm/HIP is early-development no hardware CI (A-008)",
+      "when": "2026-05-11T23:49:44.237283+00:00",
+      "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+      "run_id": "local",
+      "binary_hash": "n/a",
+      "verdict": "skip",
+      "reason": "Correctly disclosed as early-development; no false hardware-validation claims",
+      "signed_by_ci": false,
+      "signature": "c5a5191ca8426fba28adba10fa49880f9160ccb000d6e5a1e25b9d36993a37ae"
     }
   ]
 }

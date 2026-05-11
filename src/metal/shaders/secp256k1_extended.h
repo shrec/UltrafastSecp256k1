@@ -472,6 +472,20 @@ inline bool scalar_is_low_s(thread const Scalar256 &s) {
     return true;
 }
 
+// Branchless mask: all-ones if s > n/2, all-zeros otherwise (P1-SEC-002 fix).
+// No early-exit — eliminates warp divergence on secret-derived values of s = f(k,d).
+inline uint scalar_is_high_mask_metal(thread const Scalar256& s) {
+    uint gt = 0u;
+    uint eq_so_far = ~0u;
+    for (int i = 7; i >= 0; --i) {
+        uint a_gt_h = (s.limbs[i] > HALF_N[i]) ? ~0u : 0u;
+        uint a_eq_h = (s.limbs[i] == HALF_N[i]) ? ~0u : 0u;
+        gt |= (a_gt_h & eq_so_far);
+        eq_so_far &= a_eq_h;
+    }
+    return gt;
+}
+
 // =============================================================================
 // wNAF Helpers for GLV Scalar Multiplication
 // =============================================================================

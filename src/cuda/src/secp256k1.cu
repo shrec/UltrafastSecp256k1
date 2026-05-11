@@ -67,6 +67,9 @@ void generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, i
 // Windowed generator multiplication kernel (w=4, shared-memory precomputed table)
 // Table[0..15] = i*G is built once per block by thread 0, then reused by all threads.
 // ~30-40% faster than plain double-and-add.
+// SECURITY NOTE: uses secret-dependent branching on scalar nibble values (warp divergence).
+// DO NOT use for secret scalars (private keys). Use ct_generator_mul_batch_kernel instead.
+// This kernel remains for public-scalar benchmarks only.
 __global__ __launch_bounds__(128, 2)
 void generator_mul_windowed_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count) {
     __shared__ JacobianPoint gen_table[16];  // ~1.6 KB shared memory
@@ -79,6 +82,17 @@ void generator_mul_windowed_batch_kernel(const Scalar* scalars, JacobianPoint* r
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
         scalar_mul_generator_windowed(gen_table, &scalars[idx], &results[idx]);
+    }
+}
+
+// CT generator multiplication batch kernel — GPU Guardrail 8.
+// Uses ct_generator_mul (GLV-decomposed comb with branchless conditional moves).
+// No warp divergence on scalar bits — safe for private key / pubkey-derivation paths.
+__global__ __launch_bounds__(128, 2)
+void ct_generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        ct_generator_mul(&scalars[idx], &results[idx]);
     }
 }
 #endif // !SECP256K1_CUDA_LIMBS_32
