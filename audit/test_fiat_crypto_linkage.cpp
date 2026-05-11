@@ -40,9 +40,16 @@
 // reference implementation. Skip entire test on MSVC.
 #if defined(_MSC_VER)
 
+// TEST-005: non-advisory module must return ADVISORY_SKIP_CODE (77) when
+// the test cannot run, not 0 (PASS). Returning 0 would falsely report
+// field arithmetic cross-validation as passing on MSVC builds.
+#ifndef ADVISORY_SKIP_CODE
+#define ADVISORY_SKIP_CODE 77
+#endif
+
 int test_fiat_crypto_linkage_run() {
-    (void)printf("  [fiat_crypto_linkage] SKIPPED -- __int128 not available on MSVC\n");
-    return 0;
+    (void)printf("  [fiat_crypto_linkage] ADVISORY-SKIP -- __int128 not available on MSVC\n");
+    return ADVISORY_SKIP_CODE;
 }
 
 #if defined(STANDALONE_TEST)
