@@ -40,9 +40,10 @@ struct secp256k1_context_struct {
 };
 
 static secp256k1_context_struct g_static_ctx = {
-    SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY, {}, false,   // B-03: match upstream
-    default_illegal_callback, nullptr,
-    default_illegal_callback, nullptr
+    SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY, {}, false,   // flags, blind, blinded
+    {}, false,                                                         // cached_r_G, cached_r_G_valid
+    default_illegal_callback, nullptr,                                 // illegal_cb, illegal_cb_data
+    default_illegal_callback, nullptr                                  // error_cb, error_cb_data
 };
 
 // Auto-initialize the fixed-base precomputed table once on first context_create.
