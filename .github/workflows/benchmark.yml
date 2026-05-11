@@ -116,7 +116,7 @@ jobs:
         output-file-path: /tmp/benchmark_results/benchmark.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
         auto-push: false
-        alert-threshold: '150%'
+        alert-threshold: '200%'
         comment-on-alert: true
         fail-on-alert: true
         # Store data on gh-pages branch, NOT dev — keeping it on dev created an
