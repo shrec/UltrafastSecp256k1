@@ -97,6 +97,11 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "follow-up commit. PERF-002 (remove y²=x³+7 check) and other PERF fixes are "
         "non-security refactors covered by existing shim differential tests.",
     ),
+    "b2e561355f": (
+        ["audit/test_exploit_shim_musig_secnonce.cpp",
+         "audit/test_exploit_shim_musig_ka_cap.cpp"],
+        "PERF-007: inline pubkey compression in musig_pubkey_agg (shim_musig.cpp). Pure performance change — inlines secp256k1_ec_pubkey_serialize call. Covered by existing MuSig2 shim tests (secnonce + ka_cap).",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
