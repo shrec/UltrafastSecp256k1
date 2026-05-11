@@ -93,6 +93,10 @@ git merge --no-ff dev -m "release: vX.Y.Z"
 
 ### 3.1.1 Mandatory CI Gate on `main`
 
+> **Note on badges:** The repository CI badge in README.md tracks the `dev` branch (active
+> development). The `main` branch only receives CI runs when a release is being cut (step 3.1).
+> Pre-release check: confirm CI is green on `dev` first; then proceed with the merge.
+
 After `dev` is merged into `main`, run the full required CI gate on `main` and wait for green status checks.
 
 Only after all required checks are green:
