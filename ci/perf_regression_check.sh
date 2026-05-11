@@ -69,8 +69,13 @@ run_bench() {
     fi
 
     info "Running: ${name}..."
-    local output
-    output=$("${binary}" 2>&1 || true)
+    local output bench_rc
+    output=$("${binary}" 2>&1); bench_rc=$?
+    # CI-008: treat binary crash as hard error instead of recording N/A silently.
+    if [[ ${bench_rc} -ne 0 ]]; then
+        echo "::error::Benchmark binary '${binary}' exited ${bench_rc} — aborting regression check." >&2
+        exit 1
+    fi
 
     # Extract timing line (look for ns/op, us/op, ms/op patterns)
     local timing

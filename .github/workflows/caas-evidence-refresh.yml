@@ -165,10 +165,12 @@ jobs:
         # failure is hard (corrupt timeline cannot be committed).
         run: |
           mkdir -p out
+          # CI-004: treat ingest failure as hard error — a masked ingest silently
+          # corrupts the trend DB and allows stale KPI values to appear current.
           python3 ci/artifact_analyzer.py \
             --db out/artifact_analyzer.db \
             ingest assurance_report.json docs/SECURITY_AUTONOMY_KPI.json \
-            || echo "::warning::artifact_analyzer ingest skipped (report schema mismatch — trend DB not updated)"
+            || { echo "::error::artifact_analyzer ingest failed (schema mismatch or import error) — aborting to prevent stale/corrupt trend DB commit"; exit 1; }
           python3 ci/artifact_analyzer.py \
             --db out/artifact_analyzer.db \
             export --format timeline \

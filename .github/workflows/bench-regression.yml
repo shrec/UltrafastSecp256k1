@@ -135,10 +135,12 @@ jobs:
           PASSES=$(python3   -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('passes',0))"    "$META")
           echo "::notice::Benchmark run_mode=${RUN_MODE} passes=${PASSES}"
           if [ "$RUN_MODE" = "quick" ]; then
-            echo "::warning::Benchmark artifact is quick-mode (${PASSES} passes). " \
-                 "This workflow uses auto-push: false, so no baseline will be stored. " \
-                 "To update the baseline with a full-mode run, trigger workflow_dispatch " \
-                 "after temporarily switching to full-mode (11 passes)."
+            # CI-003: emit ::error:: and exit 1 to prevent quick-mode from ever being
+            # stored as a regression baseline. A ::warning:: was insufficient.
+            echo "::error::Benchmark artifact is quick-mode (${PASSES} passes) — aborting. " \
+                 "Regression baseline must be built from a full-mode (11-pass) run. " \
+                 "Trigger workflow_dispatch after temporarily switching to full-mode."
+            exit 1
           fi
         fi
 

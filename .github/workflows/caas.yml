@@ -461,8 +461,10 @@ jobs:
           from pathlib import Path
           bundle_path = Path("docs/EXTERNAL_AUDIT_BUNDLE.json")
           if not bundle_path.exists():
-              print("::warning::EXTERNAL_AUDIT_BUNDLE.json not found — skipping freshness check")
-              sys.exit(0)
+              # CI-007: missing bundle is a hard error, not a skip.
+              # A commit that deletes the bundle must not silently pass freshness.
+              print("::error::EXTERNAL_AUDIT_BUNDLE.json not found — cannot verify bundle freshness")
+              sys.exit(1)
           data = json.loads(bundle_path.read_text())
           ts = data.get("generated_at") or data.get("timestamp")
           if not ts:

@@ -322,7 +322,9 @@ jobs:
 
       - name: Export assurance report
         id: export_assurance
-        if: always()
+        # CI-002: only export when audit_gate passed — prevents a "PASS" assurance
+        # report being uploaded alongside a failed audit gate in the same artifact.
+        if: steps.audit_gate.outcome == 'success'
         run: python3 ci/export_assurance.py -o assurance_report.json
 
       - name: Bundle integrity verify (F-02 fix)
