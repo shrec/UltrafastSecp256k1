@@ -812,7 +812,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_wallet_cross_domain",    "Wallet Cross-Domain Replay",                  "exploit_poc", test_exploit_wallet_cross_domain_replay_run, false },
     { "exploit_zk_adversarial",         "ZK Proof Adversarial / Malformed",            "exploit_poc", test_exploit_zk_adversarial_run, false },
     { "exploit_zk_proofs",              "ZK Proof Soundness",                          "exploit_poc", test_exploit_zk_proofs_run, false },
-    { "exploit_fe_set_b32_limit_uninit","Fe set_b32 Limit / Uninit Boundary (eprint 2025/xxx)", "exploit_poc", test_exploit_fe_set_b32_limit_uninit_run, false },
+    { "exploit_fe_set_b32_limit_uninit","Fe set_b32 Limit / Uninit Overflow Flag (libsecp PR #1839 bug class)", "exploit_poc", test_exploit_fe_set_b32_limit_uninit_run, false },
     { "exploit_zk_new_schemes",         "ZK New Schemes — Bulletproof + Anon Cred (eprint 2024/2010)", "exploit_poc", test_exploit_zk_new_schemes_run, false },
     { "exploit_foreign_field_plonk",    "Foreign-Field PLONK secp256k1 (eprint 2025/695)",   "exploit_poc", test_exploit_foreign_field_plonk_run, false },
     // Feature exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
@@ -948,7 +948,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_batch_verify_malleability",   "Batch Verify Malleability: order/dup/poison/ECDSA correctness (BVM-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_batch_verify_malleability_run, false },
     { "exploit_thread_local_blinding",       "Thread-Local Blinding Race: shared ctx concurrent randomize+sign (TLB-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_thread_local_blinding_run, false },
     { "exploit_hedged_return_value",         "Hedged Sign Return Silence: fail-closed zero-sig invariant (HEDGED-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_hedged_return_value_run, false },
-    { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, true },
+    { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, false },
     { "exploit_rs_zero_check",               "ECDSA r,s Zero Check Gap: CVE-2022-39272-class rejection (RZERO-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_rs_zero_check_run, false },
     { "exploit_bip352_address_collision",    "BIP-352 Address Collision: domain separation collision resistance (SP-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_bip352_address_collision_run, false },
     // Section 13: BUG-001..008 fixes (2026-04-28 full audit)

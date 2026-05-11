@@ -7,6 +7,13 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-11 — Audit Infrastructure Fixes
+
+- **TEST-001** `audit/unified_audit_runner.cpp`: Replaced placeholder ePrint reference `"eprint 2025/xxx"` in `exploit_fe_set_b32_limit_uninit` module description with the accurate reference `"libsecp PR #1839 bug class"`.
+- **TEST-003** `audit/test_mutation_kill_rate.cpp`: Log label for below-threshold kill rate corrected from `"WARN"` to `"FAIL"` — label now matches exit-code semantics (non-zero = failure).
+- **TEST-004** `audit/test_ct_verif_formal.cpp`: `return 77` replaced with `return ADVISORY_SKIP_CODE`; `#ifndef ADVISORY_SKIP_CODE` guard added after `using namespace` declaration so the named constant is used consistently.
+- **TEST-005** `audit/unified_audit_runner.cpp`: `exploit_gpu_memory_safety` changed from `advisory=true` to `advisory=false`. GPU-1 (NULL ctx_out) and GPU-2 (invalid backend 0xFF) checks run unconditionally without requiring GPU hardware; classifying the whole module as advisory was incorrect.
+
 ## 2026-05-11 — 10-Pass Multi-Agent Review: Round 2 — All P1 + P2 fixes (v3 — final code applied)
 
 ### P1 Security / CT Fixes

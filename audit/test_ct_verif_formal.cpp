@@ -56,6 +56,10 @@
 
 using namespace secp256k1::fast;
 
+#ifndef ADVISORY_SKIP_CODE
+#define ADVISORY_SKIP_CODE 77
+#endif
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -524,7 +528,7 @@ int test_ct_verif_formal_run() {
         //   valgrind --tool=memcheck --error-exitcode=42 ./test_ct_verif_formal_standalone
         (void)printf("[ct_verif_formal] SKIPPED — not running under Valgrind/MSAN. "
                      "Formal CT verification requires instrumentation.\n");
-        return 77;
+        return ADVISORY_SKIP_CODE;
     }
 
     (void)printf("  CT-verif backend: ACTIVE (Valgrind/MSAN -- formal checking enabled)\n");

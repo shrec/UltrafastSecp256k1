@@ -156,7 +156,7 @@ int test_mutation_kill_rate_run() {
     if (exit_code == 0) {
         std::printf("[mutation_kill_rate] PASS — kill rate above threshold\n");
     } else {
-        std::printf("[mutation_kill_rate] WARN — kill rate below threshold (exit %d)\n", exit_code);
+        std::printf("[mutation_kill_rate] FAIL — kill rate below threshold (exit %d)\n", exit_code);
     }
 
     return exit_code;
