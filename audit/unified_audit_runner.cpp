@@ -520,6 +520,12 @@ int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, csw
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
 int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0/r>=p/s==0/s>=n ABI rejection
 int test_regression_ct_mixed_add_magnitude_run();        // CA-mixed-add: point_add_mixed_complete magnitude contract
+int test_regression_ellswift_ct_path_run();              // CT-001: ellswift_create CT path + XDH round-trip
+int test_regression_musig2_nonce_strict_run();           // CT-006: MuSig2 k1/k2 strict nonce parsing
+int test_regression_bip32_private_key_strict_run();      // RT-011: BIP-32 private_key() strict parse
+int test_regression_shim_pubkey_sort_run();              // SHIM-012: pubkey_sort no-crash + correct order
+int test_regression_shim_per_context_blinding_run();     // SHIM-001: per-context blinding semantics
+int test_regression_musig2_session_token_run();          // SHIM-010: MuSig2 token-keyed map
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -993,6 +999,13 @@ static const AuditModule ALL_MODULES[] = {
     { "ct_fast_scalar_v01_timing", "V-01: fast::Scalar operator* banned on secret material — Welch t-test on ECDSA sign with HW=1 vs HW=80 keys", "ct_analysis", test_regression_ct_fast_scalar_v01_run, true },
     { "schnorr_abi_edge_cases", "TQ-005: Schnorr BIP-340 ABI edge cases — r==0, r>=p, s==0, s>=n, wrong-msg, NULL args all rejected", "exploit_poc", test_regression_schnorr_abi_edge_cases_run, false },
     { "regression_ct_mixed_add_magnitude", "CA-mixed-add: point_add_mixed_complete FE52 magnitude contract — normalize_weak X1/Y1 guard, 2G+3G=5G, blinded==unblinded, ct vs fast recover", "math_invariants", test_regression_ct_mixed_add_magnitude_run, false },
+    // === 2026-05-11 Security audit regression guards (CT-001, CT-006, RT-011, SHIM-001, SHIM-010, SHIM-012) ===
+    { "regression_ellswift_ct_path",           "CT-001: ellswift_create routes through ct::generator_mul — deterministic encoding, XDH round-trip, zero/null key rejection", "ct_analysis",    test_regression_ellswift_ct_path_run,           false },
+    { "regression_musig2_nonce_strict",        "CT-006: MuSig2 k1/k2 nonces via parse_bytes_strict_nonzero — non-zero R1/R2 commitments, distinct nonces per extra_input",  "ct_analysis",    test_regression_musig2_nonce_strict_run,        false },
+    { "regression_bip32_private_key_strict",   "RT-011: BIP-32 private_key() strict parsing — key==n → zero, key==0 → zero, valid key round-trips, HD child derivation",    "correctness",    test_regression_bip32_private_key_strict_run,   false },
+    { "regression_shim_pubkey_sort",           "SHIM-012: secp256k1_ec_pubkey_sort no longer crashes via nullptr ctx — lexicographic order correctness (PST-1..4)",          "correctness",    test_regression_shim_pubkey_sort_run,           false },
+    { "regression_shim_per_context_blinding",  "SHIM-001: per-context blinding — two contexts on same thread sign independently, unblinded ctx works, NULL seed clears",     "ct_analysis",    test_regression_shim_per_context_blinding_run,  false },
+    { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "correctness",    test_regression_musig2_session_token_run,       false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
