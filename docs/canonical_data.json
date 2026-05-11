@@ -6,9 +6,7 @@
   "total_modules": 352,
   "ci_workflow_count": 54,
   "ct_pipeline_count": 5,
-  "bitcoin_core_tests_pass": 749,
-  "bitcoin_core_tests_total": 749,
-  "bitcoin_core_tests_clang_pass": 693,
-  "bitcoin_core_tests_clang_note": "Clang 19.1.7, Bitcoin Core v28.0 — docs/BITCOIN_CORE_TEST_RESULTS.json",
+  "bitcoin_core_tests_pass": 693,
+  "bitcoin_core_tests_total": 693,
   "shim_api_function_count": 76
 }

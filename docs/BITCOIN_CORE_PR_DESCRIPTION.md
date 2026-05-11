@@ -55,7 +55,7 @@ Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
 
 | Claim | Evidence file |
 |---|---|
-| 693/693 test_bitcoin | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| 749/749 test_bitcoin | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
 | Benchmarks | `docs/BITCOIN_CORE_BENCH_RESULTS.json` |
 | CT verification | `docs/CT_VERIFICATION.md` |
 | ABI compatibility | `docs/ABI_VERSIONING.md` |

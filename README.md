@@ -70,7 +70,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 
 **CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-11):** **1.24× ECDSA · 1.09× Schnorr** vs libsecp256k1. Canonical data: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
-> **ConnectBlock (primary block-validation workload):** With Release+LTO: +1.0–2.1% Ultra lead on this hardware (within noise margin — treat as parity until replicated on pinned hardware). Without LTO: ~1% deficit from i-cache pressure (larger code footprint). LTO recommended. Taproot key-path signing is 22–24% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** With Release+LTO: +1.0–2.1% Ultra lead on this hardware (within noise margin — treat as parity until replicated on pinned hardware). Without LTO: ~1% deficit from i-cache pressure (larger code footprint). LTO recommended. Taproot key-path signing is 11–36% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 
