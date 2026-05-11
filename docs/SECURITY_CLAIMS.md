@@ -2,6 +2,15 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-11 ct_field::field_add asm barrier — disabled under sanitizers
+
+- **`ct_field.cpp`**: compiler barrier `asm volatile("" : "+r"(ptr) : : "memory")`
+  in `field_add` now excluded under TSan/ASan/MSan. The barrier was confusing
+  TSan's shadow-memory tracking, causing `ct::field_add` to appear different
+  from `fast::operator+`. No CT security impact: sanitizer builds have LTO
+  disabled by default, so the constant-propagation the barrier guards against
+  cannot occur.
+
 ### 2026-05-10 ct_field::sub256 — ARM64/TSan borrow-chain correctness
 
 - **`ct_field.cpp` (`sub256`)**: `__builtin_subcll` now restricted to

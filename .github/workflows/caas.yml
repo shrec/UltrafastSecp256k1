@@ -325,6 +325,23 @@ jobs:
           print(f"::notice::Security autonomy PASS — {score}/100")
           EOF
 
+      - name: Install Z3 solver (for formal verification)
+        run: pip install --require-hashes -r .github/requirements/formal-verification.txt
+
+      - name: Run formal verification (Z3 + Lean advisory)
+        run: |
+          python3 ci/run_formal_verification.py
+          rc=$?
+          # Exit 77 = advisory skip (tools absent) — treat as pass
+          # Exit 0  = all available proofs pass
+          # Exit 1  = at least one proof failed — hard failure
+          if [ $rc -eq 77 ]; then
+            echo "::notice::formal_verification advisory-skip (Z3/Lean not installed)"
+            exit 0
+          fi
+          [ $rc -ne 0 ] && echo "::error::Formal verification proof failure" && exit $rc
+          echo "::notice::Formal verification PASS"
+
       - name: Upload autonomy report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

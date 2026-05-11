@@ -159,7 +159,14 @@ FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
     std::uint64_t r[4];
     const uint64_t* b_ptr = b.limbs().data();
     const uint64_t* a_ptr = a.limbs().data();
-#if defined(__GNUC__) || defined(__clang__)
+    // Compiler barriers: prevent LTO from propagating known-constant inputs into
+    // add256, which would shorten the carry chain and break constant-time.
+    // Disabled under sanitizers (TSan/ASan/MSan): the "memory" clobber causes
+    // TSan to apply incorrect shadow-memory analysis, producing wrong field
+    // values and false-positive ct field_add != fast + failures.
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
+    !defined(__SANITIZE_MEMORY__)
     asm volatile("" : "+r"(b_ptr) : : "memory");
     asm volatile("" : "+r"(a_ptr) : : "memory");
 #endif

@@ -61,7 +61,7 @@ a non-existent path.
 | §3.2 | HMAC-DRBG instantiated with `int2octets(x)` ‖ `bits2octets(h)` | `src/cpu/src/ecdsa.cpp` (RFC6979 nonce) | `audit/test_exploit_ecdsa_rfc6979_kat.cpp` | OK |
 | §3.2 step h | Reject `k = 0` and `k ≥ n`; resample | `src/cpu/src/ecdsa.cpp` | `audit/test_exploit_rfc6979_truncation_bias.cpp`, `audit/test_exploit_rfc6979_minerva_amplified.cpp` | OK |
 | §3.6 | Optional `extra_data` mixed into K update | `src/cpu/src/ecdsa.cpp` | `audit/test_exploit_ecdsa_rfc6979_kat.cpp` | OK |
-| Cryptol | Bit-precise property of ECDSA over RFC6979 nonce | `formal/cryptol/Secp256k1ECDSA.cry` | `audit/test_cryptol_specs.cpp` (P12) | OK |
+| Cryptol | Bit-precise property of ECDSA over RFC6979 nonce | `audit/formal/cryptol/Secp256k1ECDSA.cry` | `audit/test_cryptol_specs.cpp` | OK |
 
 ## BIP-340 — Schnorr Signatures
 

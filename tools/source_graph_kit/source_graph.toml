@@ -37,6 +37,14 @@ extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", 
 label = "audit"
 path = "../audit"
 optional = true
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.py", "*.sh"]
+
+[[source_dirs]]
+label = "formal_verification"
+path = "../audit/formal"
+optional = true
+extensions = ["*.cry", "*.lean", "*.py", "*.saw", "*.v", "*.ml", "*.md"]
+language = "python"
 
 [[source_dirs]]
 label = "benchmarks"
@@ -239,3 +247,27 @@ source_dir = "repo_root_meta"
 match = "prefix"
 pattern = "CMake"
 category = "build_config"
+
+[[category_rules]]
+source_dir = "formal_verification"
+match = "suffix"
+pattern = ".cry"
+category = "formal_spec"
+
+[[category_rules]]
+source_dir = "formal_verification"
+match = "suffix"
+pattern = ".lean"
+category = "formal_proof"
+
+[[category_rules]]
+source_dir = "formal_verification"
+match = "suffix"
+pattern = ".py"
+category = "formal_proof"
+
+[[category_rules]]
+source_dir = "audit"
+match = "suffix"
+pattern = ".py"
+category = "tooling"

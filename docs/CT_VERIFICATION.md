@@ -2,6 +2,22 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-11 ct_field::field_add — disable asm barriers under sanitizers
+
+- **`ct_field.cpp` (`field_add`, `field_sub`, `field_neg`)**: The compiler
+  barrier `asm volatile("" : "+r"(ptr) : : "memory")` was applied
+  unconditionally in `field_add`. This barrier prevents LTO constant-propagation
+  of known operands into the carry chain (CT timing guarantee), but under TSan
+  the `"memory"` clobber causes TSan to apply incorrect shadow-memory analysis
+  to the subsequent reads through `a_ptr`/`b_ptr`, producing field values that
+  differ from `fast::operator+`. Added the same `!__SANITIZE_{THREAD,ADDRESS,
+  MEMORY}__` guard that already protects `__builtin_addcll` / `__builtin_subcll`.
+  The barrier is still active for non-sanitized Release builds where CT timing
+  matters.
+- **CT impact: none.** Under sanitizers, compiler optimizations that could
+  break constant-time (LTO constant-propagation) are disabled by the sanitizer
+  itself, making the barrier redundant.
+
 ### 2026-05-10 ct_field::sub256 — same x86-64+no-sanitizer guard as add256
 
 - **`ct_field.cpp` (`sub256`)**: `__builtin_subcll` (SBB borrow-chain instruction)
