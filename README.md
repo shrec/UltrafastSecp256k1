@@ -100,10 +100,12 @@ cmake --build out/release -j
 ```
 
 **Package install**
+
+See [docs/BUILDING.md](docs/BUILDING.md) for full install instructions.
+Build from source (all platforms):
 ```bash
-sudo apt install libufsecp4        # Linux (requires PPA — see docs/BUILDING.md)
-pip install ufsecp                 # Python
-npm i ufsecp                       # Node.js
+git clone https://github.com/shrec/UltrafastSecp256k1 && cd UltrafastSecp256k1
+cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j$(nproc)
 ```
 
 → [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)

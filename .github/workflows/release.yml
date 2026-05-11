@@ -612,6 +612,7 @@ jobs:
       - name: Test WASM
         run: |
           cd build/wasm/dist
+          # NOTE: No WASM functional/correctness tests exist yet — bench-only (TODO: add test_wasm.mjs)
           node ../../../bindings/wasm/bench_wasm.mjs
 
       - name: Collect release artifacts
