@@ -3462,6 +3462,7 @@ int main(int argc, char** argv) {
 
         // Setup: generate N_BLOCK unique (key, msg, sig) tuples
         std::vector<Point>                  u_blk_pk(N_BLOCK);
+        std::vector<EcdsaPublicKey>         u_blk_epk(N_BLOCK);   // pre-parsed (ECDSA PERF-B)
         std::vector<ECDSASignature>         u_blk_esig(N_BLOCK);
         std::vector<std::array<uint8_t,32>> u_blk_spk(N_BLOCK);
         std::vector<SchnorrSignature>       u_blk_ssig(N_BLOCK);
@@ -3486,9 +3487,17 @@ int main(int argc, char** argv) {
             auto kp        = schnorr_keypair_create(sk);
             u_blk_spk[i]  = kp.px;
             u_blk_ssig[i] = schnorr_sign(kp, blk_msg[i], aux_rands[i % POOL]);
-            // Pre-parse pubkey — simulates Bitcoin Core's secp256k1_xonly_pubkey_parse.
-            // Also populates GLV cache so schnorr_verify(x32) can use prebuilt tables.
+            // Pre-parse Schnorr pubkey — populates GLV cache (PERF-B).
             schnorr_xonly_pubkey_parse(u_blk_xonly[i], u_blk_spk[i]);
+            // Pre-parse ECDSA pubkey — builds GLV P/phi(P) tables once (ECDSA PERF-B).
+            // Simulates Bitcoin Core's secp256k1_ec_pubkey_parse path.
+            {
+                auto unc = u_blk_pk[i].to_uncompressed(); // [0x04 | x:32 | y:32]
+                uint8_t comp33[33];
+                comp33[0] = 0x02u | (unc[64] & 1u);       // parity from y LSB
+                std::memcpy(comp33 + 1, unc.data() + 1, 32);
+                ecdsa_pubkey_parse(u_blk_epk[i], comp33, 33);
+            }
 
             // libsecp side (ge stored in secp256k1_pubkey at parse time)
             int rc1 = secp256k1_ec_pubkey_create(ls_ctx, &ls_blk_pk[i], sk_b.data());
@@ -3512,10 +3521,10 @@ int main(int argc, char** argv) {
             return blk_H.run(1, fn);  // 1 call per pass = one full block
         };
 
-        // AllEcdsa
+        // AllEcdsa (PERF-B: use pre-parsed EcdsaPublicKey — avoids ~1,954 ns GLV table rebuild)
         double u_cblk_ecdsa = blk_bench([&]() {
             for (std::size_t i = 0; i < N_BLOCK; ++i) {
-                bool ok = ecdsa_verify(blk_msg[i].data(), u_blk_pk[i], u_blk_esig[i]);
+                bool ok = ecdsa_verify(blk_msg[i].data(), u_blk_epk[i], u_blk_esig[i]);
                 bench::DoNotOptimize(ok);
             }
         });
@@ -3545,7 +3554,7 @@ int main(int argc, char** argv) {
         });
 
         // Mixed: 2000 Schnorr + 1000 ECDSA (Taproot block approximation)
-        // PERF-B: use pre-parsed SchnorrXonlyPubkey for Schnorr path
+        // PERF-B: pre-parsed SchnorrXonlyPubkey (Schnorr) + pre-parsed EcdsaPublicKey (ECDSA)
         double u_cblk_mixed = blk_bench([&]() {
             for (std::size_t i = 0; i < N_BLOCK + N_BLOCK / 2; ++i) {
                 std::size_t const j = i % N_BLOCK;
@@ -3553,7 +3562,7 @@ int main(int argc, char** argv) {
                 if (i < N_BLOCK)
                     ok = schnorr_verify(u_blk_xonly[j], blk_msg[j].data(), u_blk_ssig[j]);
                 else
-                    ok = ecdsa_verify(blk_msg[j].data(), u_blk_pk[j], u_blk_esig[j]);
+                    ok = ecdsa_verify(blk_msg[j].data(), u_blk_epk[j], u_blk_esig[j]);
                 bench::DoNotOptimize(ok);
             }
         });
