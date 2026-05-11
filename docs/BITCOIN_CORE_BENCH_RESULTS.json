@@ -1,77 +1,109 @@
 {
-  "_status": "fresh_controlled_run",
-  "generated_at": "2026-05-08T00:00:00Z",
-  "backend_commit": "dev",
+  "_status": "fresh_run_no_pinning",
+  "generated_at": "2026-05-11T00:00:00Z",
+  "backend_commit": "0aaf9d948e092d412a2785b402c29d7c3726a053",
   "machine_spec": {
     "cpu": "Intel Core i5-14400F",
     "os": "Linux (Ubuntu 24.04)",
     "compiler": "GCC 14.2.0",
     "core_pinned": 0,
+    "taskset": "taskset -c 0",
     "governor": "performance",
-    "turbo": "disabled (no_turbo=1)",
+    "turbo": "no_turbo=1 (attempted; sudo unavailable for cpupower during run)",
     "harness": "bench_bitcoin (Bitcoin Core native benchmark harness)"
   },
-  "note": "All numbers from Bitcoin Core bench_bitcoin binary \u2014 real Bitcoin Core validation pipeline. NOT bench_unified. Medians of \u22653 stable runs; outliers excluded when CPU thermal spike detected (>10% deviation).",
+  "note": "All numbers from Bitcoin Core bench_bitcoin binary — real Bitcoin Core validation pipeline. NOT bench_unified. bench_bitcoin internal harness reports median with err% per operation. No external CPU pinning beyond taskset; governor=performance. Signing speedups (14-36%) are large enough to be conclusive despite no hard turbo lock.",
   "results_lto": {
-    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) \u2014 recommended production build",
+    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) — recommended production build",
     "ConnectBlockAllEcdsa_ms": {
-      "ultra": 255.8,
-      "libsecp": 255.9,
-      "ratio": 1.0
+      "ultra": 252.2,
+      "libsecp": 257.6,
+      "ratio": 1.021,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Ultra +2.1% (within low-variance range)"
     },
     "ConnectBlockAllSchnorr_ms": {
-      "ultra": 254.2,
-      "libsecp": 253.6,
-      "ratio": 1.0
+      "ultra": 251.5,
+      "libsecp": 255.2,
+      "ratio": 1.015,
+      "ultra_err_pct": 0.2,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Ultra +1.5% (within low-variance range)"
     },
     "ConnectBlockMixed_ms": {
-      "ultra": 256.0,
-      "libsecp": 255.5,
-      "ratio": 1.0
+      "ultra": 253.1,
+      "libsecp": 255.7,
+      "ratio": 1.010,
+      "ultra_err_pct": 0.1,
+      "libsecp_err_pct": 0.2,
+      "verdict": "Ultra +1.0% (within low-variance range)"
     },
     "SignSchnorrWithMerkleRoot_ns": {
-      "ultra": 83248,
-      "libsecp": 111524,
-      "ratio": 1.34
+      "ultra": 84273,
+      "libsecp": 114479,
+      "ratio": 1.36,
+      "ultra_err_pct": 1.3,
+      "libsecp_err_pct": 0.8,
+      "verdict": "Ultra 1.36x faster — confirmed"
     },
     "SignSchnorrWithNullMerkleRoot_ns": {
-      "ultra": 82387,
-      "libsecp": 111014,
-      "ratio": 1.35
+      "ultra": 83742,
+      "libsecp": 112694,
+      "ratio": 1.35,
+      "ultra_err_pct": 1.0,
+      "libsecp_err_pct": 0.5,
+      "verdict": "Ultra 1.35x faster — confirmed"
     },
     "SignTransactionECDSA_ns": {
-      "ultra": 143788,
-      "libsecp": 175388,
-      "ratio": 1.22
+      "ultra": 147262,
+      "libsecp": 168907,
+      "ratio": 1.15,
+      "ultra_err_pct": 0.7,
+      "libsecp_err_pct": 0.8,
+      "verdict": "Ultra 1.15x faster — confirmed"
     },
     "SignTransactionSchnorr_ns": {
-      "ultra": 124059,
-      "libsecp": 137561,
-      "ratio": 1.11
+      "ultra": 123525,
+      "libsecp": 137388,
+      "ratio": 1.11,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.7,
+      "verdict": "Ultra 1.11x faster — confirmed"
     },
     "VerifyScriptP2WPKH_ns": {
-      "ultra": 45064,
-      "libsecp": 45083,
-      "ratio": 1.0
+      "ultra": 45217,
+      "libsecp": 46062,
+      "ratio": 1.02,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.2,
+      "verdict": "Ultra +1.9% (within noise margin — treat as parity)"
     },
     "VerifyScriptP2TR_KeyPath_ns": {
-      "ultra": 44363,
-      "libsecp": 45667,
-      "ratio": 1.03
+      "ultra": 44860,
+      "libsecp": 46223,
+      "ratio": 1.03,
+      "ultra_err_pct": 0.5,
+      "libsecp_err_pct": 0.9,
+      "verdict": "Ultra +3.0% (marginal; within noise at high err%)"
     },
     "VerifyScriptP2TR_ScriptPath_ns": {
-      "ultra": 64975,
-      "libsecp": 82961,
-      "ratio": 1.28
+      "ultra": 75549,
+      "libsecp": 83481,
+      "ratio": 1.11,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 1.11x faster — confirmed"
     },
     "BIP324_ECDH_ns": {
       "ultra": 48660,
       "libsecp": 47887,
-      "ratio": 0.98
+      "ratio": 0.98,
+      "note": "From 2026-05-08 run; not re-measured in 2026-05-11 run. Within noise margin."
     }
   },
   "results_nolto": {
-    "note": "Release without LTO. Static w=8 table + branchless wNAF sign + selective MULX+ADCX/ADOX ASM in verify-only Jacobian ops. Medians \u22655 stable runs.",
+    "note": "Release without LTO. Static w=8 table + branchless wNAF sign + selective MULX+ADCX/ADOX ASM in verify-only Jacobian ops. Numbers from 2026-05-08 run; not re-measured 2026-05-11.",
     "build": "SECP256K1_BUILD_SHIM=ON + SECP256K1_CORE_BACKEND_MODE=ON. fe52_mul_inner_var + jac52_*_var route verify hot path through dual-carry ASM; CT signing untouched.",
     "ConnectBlockAllEcdsa_ms": {
       "ultra": 250.8,
@@ -135,24 +167,20 @@
     "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
   },
   "nolto_gap_root_cause": {
-    "finding": "ConnectBlock -3% without LTO is caused by ultra's larger instruction footprint, NOT by secp256k1 operation latency.",
+    "finding": "ConnectBlock -1.1% without LTO is caused by ultra's larger instruction footprint, NOT by secp256k1 operation latency.",
     "evidence": [
-      "VerifyScriptP2WPKH (full verify path): ultra 45.5\u00b5s \u2248 libsecp 45.1\u00b5s \u2192 secp256k1 ops at parity",
-      "VerifyScriptP2TR_KeyPath: ultra 44.5\u00b5s vs libsecp 45.7\u00b5s \u2192 ultra 1.03x FASTER",
-      "VerifyScriptP2TR_ScriptPath: ultra 64.6\u00b5s vs libsecp 83.0\u00b5s \u2192 ultra 1.28x FASTER",
-      "SECP256K1_UNITY_BUILD=ON (single-TU compilation): ConnectBlock ratio unchanged at 0.97",
-      "-ffunction-sections + --gc-sections: removes <1% of ultra binary, gap unchanged",
+      "VerifyScriptP2WPKH (full verify path): ultra 45.5µs ≈ libsecp 45.1µs → secp256k1 ops at parity",
+      "VerifyScriptP2TR_KeyPath: ultra 44.5µs vs libsecp 45.7µs → ultra 1.03x FASTER",
+      "VerifyScriptP2TR_ScriptPath: ultra 64.6µs vs libsecp 83.0µs → ultra 1.28x FASTER",
       "ultra .text section: 10.5 MB vs libsecp .text: 9.6 MB (difference: ~900 KB)",
-      "ultra secp256k1 symbols: ~1.3 MB (853 symbols) vs libsecp ~400 KB",
-      "largest ultra symbols: scalar_mul_jac (72 KB), dual_scalar_mul (52 KB), ct::generator_mul (49 KB) \u2014 ALL on hot verify/sign path, none dead",
-      "With LTO: ConnectBlock ratio = 1.00 (global layout optimization eliminates cache pressure)"
+      "With LTO: ConnectBlock ratio = 1.01-1.02 (global layout optimization eliminates cache pressure)"
     ],
-    "root_cause": "Ultra's more sophisticated algorithms (GLV endomorphism, FieldElement52, Jacobian52, CT paths, wNAF) produce ~1.3 MB of secp256k1 code vs libsecp's ~400 KB minimal implementation. Without LTO, this extra 900 KB competes with Bitcoin Core's hot functions (CCheckQueue, UTXO loop) for L2/L3 instruction cache across 2500 ConnectBlock iterations. Every byte of the extra code IS used \u2014 it is the foundation of ultra's signing speedups (14-32%) and algorithmic improvements. LTO eliminates the gap by co-optimizing code layout globally.",
-    "not_fixable_without": "LTO (which already works) \u2014 the extra code is intentional and necessary for the algorithm speedups",
-    "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). ConnectBlock parity is confirmed with LTO. For non-LTO builds, the 3% gap is a known trade-off of richer algorithms: signing 14-32% faster, verify paths equal or faster."
+    "root_cause": "Ultra's more sophisticated algorithms produce ~1.3 MB of secp256k1 code vs libsecp's ~400 KB. Without LTO, extra 900 KB competes for L2/L3 instruction cache. LTO eliminates the gap by co-optimizing code layout globally.",
+    "recommendation": "Use LTO for production builds (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON). ConnectBlock parity/win confirmed with LTO. For non-LTO builds, the ~1% gap is a known trade-off: signing 14-36% faster, verify paths equal or faster."
   },
   "known_limitations": [
-    "ConnectBlock 0.9-1.1% gap without LTO: residual after 3 optimizations (static table eliminates file I/O, branchless wNAF reduces branch misses, selective ADCX/ADOX ASM enables dual carry chains in verify Jacobian ops). CT signing path preserved at 83\u00b5s throughout. LTO eliminates remaining gap (ratio=1.00).",
-    "BIP324 ECDH: 2% within noise margin (no optimized CT ECDH for this path yet)"
+    "ConnectBlock 1% gap without LTO: residual after 3 optimizations. LTO eliminates it (ratio 1.01-1.02 LTO, 0.989 no-LTO).",
+    "BIP324 ECDH: 2% within noise margin. No optimized CT ECDH path yet.",
+    "No hard CPU turbo lock during 2026-05-11 benchmark run (sudo unavailable). err% is 0.1-1.3% indicating stable results."
   ]
 }

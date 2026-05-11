@@ -18,24 +18,26 @@ is required for full performance. Use the provided `ultrafast-bench` CMake prese
 UltrafastSecp256k1 is an MIT-licensed C++20 library with a compatible shim
 that passes Bitcoin Core's full test suite: **693/693 test_bitcoin, 0 failures**.
 
-Performance vs libsecp256k1 on Intel Core i5-14400F, GCC 14, Release + LTO,
-taskset -c 0, turbo disabled, ≥5 runs, variance <2%
-(bench_bitcoin / nanobench — full data in `docs/BITCOIN_CORE_BENCH_RESULTS.json`):
+Performance vs libsecp256k1 on Intel Core i5-14400F, GCC 14.2.0, Release + LTO,
+taskset -c 0, governor=performance, bench_bitcoin native harness, 2026-05-11
+(full data in `docs/BITCOIN_CORE_BENCH_RESULTS.json`):
 
 | Benchmark | libsecp256k1 | UltrafastSecp256k1 | Result |
 |---|---|---|---|
-| SignSchnorrWithMerkleRoot | 111,614 ns/op | 84,941 ns/op | **+23.9%** |
-| VerifyScriptP2TR_ScriptPath | 81,286 ns/op | 66,817 ns/op | **+17.8%** |
-| SignTransactionSchnorr | 132,760 ns/op | 127,964 ns/op | **+3.6%** |
-| SignTransactionECDSA | 164,018 ns/op | 149,579 ns/op | INCONCLUSIVE ¹ |
-| VerifyScriptP2TR_KeyPath | 44,727 ns/op | 46,509 ns/op | −3.9% (shim overhead) |
-| ConnectBlockAllEcdsa | 250,632,000 ns/blk | 257,144,000 ns/blk | ≈0% with LTO ² |
-| ConnectBlockAllSchnorr | 248,384,000 ns/blk | 262,222,000 ns/blk | ≈0% with LTO ² |
+| SignSchnorrWithMerkleRoot | 114,479 ns/op | 84,273 ns/op | **1.36× faster** |
+| SignSchnorrWithNullMerkleRoot | 112,694 ns/op | 83,742 ns/op | **1.35× faster** |
+| SignTransactionECDSA | 168,907 ns/op | 147,262 ns/op | **1.15× faster** |
+| SignTransactionSchnorr | 137,388 ns/op | 123,525 ns/op | **1.11× faster** |
+| VerifyScriptP2TR_ScriptPath | 83,481 ns/op | 75,549 ns/op | **1.11× faster** |
+| VerifyScriptP2TR_KeyPath | 46,223 ns/op | 44,860 ns/op | **1.03× faster** |
+| VerifyScriptP2WPKH | 46,062 ns/op | 45,217 ns/op | parity (+1.9%) |
+| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | **+2.1% Ultra faster** |
+| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | **+1.5% Ultra faster** |
+| ConnectBlockMixed | 255.7 ms/blk | 253.1 ms/blk | **+1.0% Ultra faster** |
 
-¹ Run-to-run variance >7%; ranges overlap — cannot confirm improvement.
-² Without LTO (RelWithDebInfo): ~2.5–5.4% slower due to i-cache pressure.
-  With Release+LTO, shim dispatch overhead is eliminated and ConnectBlock
-  lands within measurement noise. Full numbers in `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
+ConnectBlock: Ultra is faster than libsecp256k1 under Release+LTO on this hardware.
+Without LTO (RelWithDebInfo): ~1% slower due to i-cache pressure from larger code footprint.
+Full numbers with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
 

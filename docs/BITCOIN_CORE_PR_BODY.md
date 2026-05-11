@@ -57,11 +57,29 @@ Differential testing against bitcoin-core/secp256k1 reference:
 - The shim layer and all headers exposed to Bitcoin Core are C++17-compatible
 - No new runtime dependencies; no GPU drivers required
 
+### Performance (bench_bitcoin, Release+LTO, GCC 14.2, i5-14400F, 2026-05-11)
+
+| Operation | libsecp256k1 | Ultra | vs libsecp |
+|-----------|-------------|-------|-----------|
+| Schnorr sign (Taproot) | 114,479 ns | 84,273 ns | **1.36×** |
+| ECDSA sign | 168,907 ns | 147,262 ns | **1.15×** |
+| P2TR ScriptPath verify | 83,481 ns | 75,549 ns | **1.11×** |
+| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | **+1.5%** |
+| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | **+2.1%** |
+| P2WPKH verify | 46,062 ns | 45,217 ns | parity |
+
+Full data with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`. Note: all CT signing paths are
+unchanged from this session; these signing numbers do not include non-CT paths.
+No external third-party audit has been conducted — all CT verification is self-generated CI tooling.
+
 ### Known gaps and honest statements
 
 - macOS ARM64 CI covers shim build + test only; full GPU suite remains Linux x86-64
-- Formal verification is not claimed; software-tool CT verification only
+- Formal verification is not claimed; software-tool CT verification only (LLVM ct-verif, Valgrind, dudect)
+- No external third-party security audit has been conducted
 - Thread safety: each context is independent; concurrent use of distinct contexts is safe
+- Without LTO: ConnectBlock ~1% slower due to instruction-cache pressure from larger code footprint
+- ConnectBlock benchmark uses governor=performance, taskset -c 0; no hard turbo lock (sudo unavailable during run)
 
 ### How to verify independently
 
