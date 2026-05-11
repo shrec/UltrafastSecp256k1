@@ -2897,15 +2897,10 @@ if(TARGET secp256k1_shim)
     target_include_directories(test_regression_shim_static_ctx_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
     target_compile_definitions(test_regression_shim_static_ctx_standalone PRIVATE STANDALONE_TEST)
-else()
-    add_executable(test_regression_shim_static_ctx_standalone
-        test_regression_shim_static_ctx.cpp)
-    audit_target_defaults(test_regression_shim_static_ctx_standalone)
-    target_compile_definitions(test_regression_shim_static_ctx_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_static_ctx COMMAND test_regression_shim_static_ctx_standalone)
+    set_tests_properties(regression_shim_static_ctx PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;ct")
 endif()
-add_test(NAME regression_shim_static_ctx COMMAND test_regression_shim_static_ctx_standalone)
-set_tests_properties(regression_shim_static_ctx PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
-    LABELS "audit;regression;shim;ct")
 # -- SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (a3f56ae) --
 if(TARGET secp256k1_shim)
     add_executable(test_exploit_shim_recovery_null_arg_standalone

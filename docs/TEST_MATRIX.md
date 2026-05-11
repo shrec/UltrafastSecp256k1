@@ -363,6 +363,7 @@ validation sync so `TEST_MATRIX.md` matches the live generated CTest surface:
 - `exploit_thread_local_blinding`
 - `regression_gpu_key_erase_raii`
 - `regression_shim_per_context_blinding`
+- `regression_shim_static_ctx`
 - `regression_shim_pubkey_sort`
 - `secp256k1_noverify_tests`
 - `secp256k1_tests`
