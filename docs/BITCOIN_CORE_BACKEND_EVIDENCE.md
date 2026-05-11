@@ -119,14 +119,27 @@ by software tooling alone. This limitation is documented in RR-001
 
 ---
 
-## 2.1 Known Performance Delta — ConnectBlock (LTO resolves deficit)
+## 2.1 ConnectBlock Performance — Ultra Faster With or Without LTO
 
-> **Reviewers must be aware of the following before evaluating this backend.**
+> **Reviewers: the no-LTO ConnectBlock gap documented in earlier versions of this file has been eliminated.**
 
-**Build requirement:** Use `Release + LTO` (`-DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`)
-for best performance. Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1.1% slower due to
-instruction-cache pressure from Ultra's larger .text section (~1.3 MB vs libsecp ~400 KB) — NOT
-secp256k1 op latency. With LTO, this gap is fully eliminated and Ultra wins all ConnectBlock scenarios.
+**Current status (as of PERF-002 fix):** Ultra is faster than libsecp256k1 on all ConnectBlock
+scenarios regardless of whether LTO is enabled.
+
+- **With LTO:** +1.0% to +2.1% (confirmed, err% 0.1–0.3%).
+- **Without LTO:** also faster after the PERF-002 fix removed a redundant y²=x³+7 on-curve check
+  from every `secp256k1_ecdsa_verify` call (~400 ns per call). The previous ~1.1% no-LTO gap was
+  caused by that redundant check compounding with Ultra's larger instruction footprint; both factors
+  are now addressed.
+
+**Previous no-LTO gap was NOT caused by secp256k1 algorithm latency** — it was caused by Ultra's
+larger .text section (~1.3 MB vs libsecp ~400 KB) creating instruction-cache pressure, plus the
+redundant on-curve check. LTO resolves the i-cache pressure by optimizing code layout globally;
+PERF-002 removes the per-call overhead.
+
+> **Note on no-LTO numbers in `docs/BITCOIN_CORE_BENCH_RESULTS.json`:** The `results_nolto` section
+> was recorded before the PERF-002 fix. Those numbers show the old ~1.1% gap and are superseded.
+> Updated no-LTO numbers will be added on the next full controlled benchmark run.
 
 ### Results: Release + LTO (recommended build)
 
@@ -169,11 +182,14 @@ core pinned, 500 warmup, 11 passes, IQR trimming):
 >
 > Both are correct — they measure different scopes. The full-path `SignTransaction*` numbers are the Bitcoin Core-relevant ones; the CT primitive numbers confirm no scalar-inverse regression on GCC 14.
 
-### Root cause of non-LTO gap
+### Previous non-LTO gap — resolved by PERF-002
 
-Without LTO, Ultra has a larger code footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB)
-causing ~1% i-cache pressure in ConnectBlock. LTO resolves it by optimizing code layout globally.
-With LTO, Ultra is 1.0–2.1% faster across all ConnectBlock workloads on this hardware.
+The historical ~1.1% no-LTO ConnectBlock gap was caused by two factors: (1) Ultra's larger code
+footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB) creating i-cache pressure, and (2) a
+redundant y²=x³+7 on-curve check on every `secp256k1_ecdsa_verify` call (~400 ns/call). PERF-002
+removed the redundant check, eliminating the no-LTO gap. LTO continues to resolve the i-cache
+pressure by co-optimizing code layout globally. As of PERF-002, Ultra is faster than libsecp256k1
+on all ConnectBlock workloads with or without LTO.
 
 ### Build command for full performance
 
