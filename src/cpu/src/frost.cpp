@@ -370,6 +370,8 @@ frost_keygen_finalize(ParticipantId participant_id,
     }
 
     // Compute signing share: s_i = Sum f_j(i) for all j — CT: secret scalar
+    // RED-TEAM-011: caller must erase received_shares after this function returns.
+    // The temporary signing_share is erased below after copying to pkg.
     Scalar signing_share = Scalar::zero();
     for (const auto& share : received_shares) {
         signing_share = ct::scalar_add(signing_share, share.value);
@@ -378,6 +380,7 @@ frost_keygen_finalize(ParticipantId participant_id,
 
     // Verification share: Y_i = s_i * G
     pkg.verification_share = ct::generator_mul(signing_share);
+    secure_erase(&signing_share, sizeof(signing_share));
 
     // Group public key: Y = Sum A_{j,0} (sum of constant terms)
     Point group_key = Point::infinity();

@@ -287,9 +287,6 @@ int secp256k1_ecdsa_verify(
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
 
-    std::array<uint8_t, 32> msg{};
-    std::memcpy(msg.data(), msghash32, 32);
-
     // ZERO-WRITE VERIFY PATH (libsecp-style):
     // Callgrind profiling showed Ultra had 7× libsecp's L3 write misses due to
     // ShimPkCache (256 × ~1.4 KB = 365 KB) thrashing L2 on unique-pubkey workloads.
@@ -313,7 +310,8 @@ int secp256k1_ecdsa_verify(
         if (y.square() != x.square() * x + secp256k1::fast::FieldElement::from_uint64(7)) return 0;
         auto pt = secp256k1::fast::Point::from_affine(x, y);
         if (pt.is_infinity()) return 0;
-        return secp256k1::ecdsa_verify(msg.data(), pt, internal_sig) ? 1 : 0;
+        // PERF-006: pass msghash32 directly — the intermediate std::array copy was removed.
+        return secp256k1::ecdsa_verify(msghash32, pt, internal_sig) ? 1 : 0;
     }
 }
 

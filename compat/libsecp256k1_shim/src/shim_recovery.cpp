@@ -120,7 +120,11 @@ int secp256k1_ecdsa_sign_recoverable(
         return 0;
     }
     if (!ctx_can_sign(ctx)) return 0;
-    if (!sig || !msghash32 || !seckey) return 0;
+    // SHIM-005: NULL args must fire the illegal callback (matching libsecp behavior)
+    if (!sig || !msghash32 || !seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_sign_recoverable: NULL argument");
+        return 0;
+    }
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
     if (noncefp != nullptr &&
         noncefp != secp256k1_nonce_function_rfc6979 &&

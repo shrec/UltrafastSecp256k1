@@ -270,7 +270,10 @@ int secp256k1_musig_pubkey_agg(
 
     if (agg_pk) std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
 
-    ka_put(keyagg_cache, std::move(e));
+    // RED-TEAM-009: check ka_put return value — returns nullptr when DoS cap (1024)
+    // is hit. In that case the token was never written, so subsequent MuSig
+    // operations would fail silently. Fail-closed here instead of returning 1.
+    if (!ka_put(keyagg_cache, std::move(e))) return 0;
     return 1;
 }
 

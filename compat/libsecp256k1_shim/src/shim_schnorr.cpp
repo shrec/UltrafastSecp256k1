@@ -312,10 +312,9 @@ int secp256k1_schnorrsig_verify(
     // Only 32-byte messages supported — see asymmetry note above.
     if (!msg || msglen != 32) return 0;
 
+    // PERF-007: use raw-pointer parse_strict overload — avoids 64-byte stack copy.
     secp256k1::SchnorrSignature sig;
-    std::array<uint8_t, 64> sig_buf{};
-    std::memcpy(sig_buf.data(), sig64, 64);
-    if (!secp256k1::SchnorrSignature::parse_strict(sig_buf, sig)) return 0;
+    if (!secp256k1::SchnorrSignature::parse_strict(sig64, sig)) return 0;
 
     std::array<uint8_t, 32> msg32{};
     std::memcpy(msg32.data(), msg, 32);
