@@ -27,7 +27,7 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) `[hot-cache]` | 22.2 ns | 9,985 ns | 35,600 ns | 42,615 ns | 0.98× ECDSA · 0.94× Schnorr | 1.37× ECDSA · 1.25× Schnorr |
+| x86-64 (i5-14400F) `[hot-cache]` | 22.2 ns | 9,985 ns | 35,600 ns | 44,294 ns | 0.94× ECDSA · 0.93× Schnorr | 1.32× ECDSA · 1.20× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |

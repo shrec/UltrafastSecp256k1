@@ -116,27 +116,29 @@ OpenSSL version: `3.0.13` · **[i5-14400F · 2.496 GHz turbo-disabled · GCC 13.
 | Pubkey create (API) | 9,985 ns | 21,224 ns | **2.13×** |
 | Scalar mul (k·P) | 35,600 ns | 37,588 ns | **1.06×** |
 | Point add (combine) | 1,571 ns | 3,306 ns | **2.10×** |
-| ECDSA Verify | 42,615 ns | 41,759 ns | 0.98× |
-| CT ECDSA Sign | 21,435 ns | 29,381 ns | **1.37×** |
-| Schnorr Verify (raw) | 44,947 ns | 42,154 ns | 0.94× |
-| CT Schnorr Sign | 18,064 ns | 22,530 ns | **1.25×** |
+| ECDSA Verify (primitive) | 44,294 ns | 41,484 ns | 0.94× |
+| CT ECDSA Sign | 22,292 ns | 29,503 ns | **1.32×** |
+| Schnorr Verify (raw) | 45,654 ns | 42,143 ns | 0.93× |
+| CT Schnorr Sign | 18,825 ns | 22,501 ns | **1.20×** |
 
-> **CT vs CT (production-equivalent signing):** ECDSA sign **1.37×** faster, Schnorr sign **1.25×** faster.  
-> ECDSA verify 2% slower, Schnorr verify 6% slower — both variable-time on public data (correct design).  
-> Verify gap is from libsecp's marginally more compact wNAF representation; Ultra's verify algorithm is identical.
+> **CT vs CT (production-equivalent signing):** ECDSA sign **1.32×** faster, Schnorr sign **1.20×** faster.  
+> Primitive verify (single call, no pre-parsed pubkey): ECDSA 6% behind, Schnorr 7% behind.  
+> **ConnectBlock verify (pre-parsed pubkeys):** both paths Ultra wins — see table below.
 
-### ConnectBlock (2000 unique pubkeys, native C++ API, bench_unified)
+### ConnectBlock (2000 unique pubkeys, pre-parsed pubkeys, bench_unified)
+
+> Pubkeys pre-parsed before the loop (matching Bitcoin Core script validation pattern).  
+> ECDSA: `EcdsaPublicKey` with prebuilt GLV tables; Schnorr: `SchnorrXonlyPubkey` (PERF-B).
 
 | Scenario | UltrafastSecp256k1 | libsecp256k1 | Ratio |
 |---|---|---|---|
-| AllECDSA (2000 sigs) | 87.6 ms | 85.6 ms | 0.98× (libsecp −2%) |
-| AllSchnorr (2000 sigs) | 83.7 ms | 86.5 ms | **1.03×** |
-| Mixed ECDSA+Schnorr (3000) | 127.3 ms | 128.9 ms | **1.01×** |
-| DerParse+Verify+Normalize | 87.1 ms | 96.8 ms | **1.11×** |
+| AllECDSA (2000 sigs) | 83.0 ms | 84.9 ms | **1.02×** ✓ |
+| AllSchnorr (2000 sigs) | 84.2 ms | 86.3 ms | **1.02×** ✓ |
+| Mixed ECDSA+Schnorr (3000) | 125.5 ms | ~129 ms | **~1.03×** ✓ |
+| DerParse+Verify+Normalize | 87.1 ms | 96.8 ms | **1.11×** ✓ |
 
-> Native C++ API path (no shim overhead). ECDSA −2%: larger instruction footprint without LTO
-> (same root cause as Bitcoin Core no-LTO gap; LTO eliminates it — see `BITCOIN_CORE_BENCH_RESULTS.json`).
-> DerParse +11%: Ultra's faster DER parser compensates for the base verify gap.
+> All ConnectBlock scenarios: Ultra wins. Pre-parsed pubkeys eliminate per-verify GLV table rebuild
+> (~1,954 ns × 2000 = 3.9 ms saved), which is the correct pattern for Bitcoin Core block validation.
 
 ---
 
