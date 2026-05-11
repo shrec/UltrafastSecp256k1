@@ -209,7 +209,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs 1,000,000+ assertions across 92 non-exploit audit modules and 254 exploit PoCs
+- Every commit runs 1,000,000+ assertions across 98 non-exploit audit modules and 252 exploit PoCs (350 modules total; count via `python3 ci/sync_module_count.py`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -359,13 +359,13 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **92 non-exploit modules + 254 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **98 non-exploit modules + 252 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **254 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Differential tests (per push + manual) | **~1,300,000+ checks per deep-assurance run** |
 | Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
-| Fuzzing adversarial corpus | **530,000+ cases (libFuzzer + ClusterFuzz-Lite)** |
+| Fuzzing adversarial corpus | **libFuzzer + ClusterFuzz-Lite (see `.clusterfuzzlite/` and `src/cpu/fuzz/`; corpus count grows with CI runs and is not stored in-repo)** |
 | Static analysis tools | **4 (CodeQL, Clang-Tidy, CPPCheck, SonarCloud)** |
 | Self-audit documents in repo | **13 dedicated audit/quality documents** |
 | Self-tests passing (all backends) | **76/76** |
@@ -387,11 +387,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 92 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 98 non-exploit audit modules and all 252 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
 
-### Exploit PoC Test Suite (254 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (252 Tests, 20+ Coverage Areas)
 
-In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships **254 exploit-style PoC test files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships **252 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -582,8 +582,8 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **1 -- Core** | C ABI | `ufsecp` stable FFI (45 exports) | [OK] |
 | **2 -- Protocol** | BIP-32/44 | HD derivation, path parsing, xprv/xpub, coin-type | [OK] |
 | **2 -- Protocol** | Taproot | BIP-341/342, tweak, Merkle tree | [OK] |
-| **2 -- Protocol** | MuSig2 | BIP-327, key aggregation, 2-round signing | [OK] |
-| **2 -- Protocol** | FROST | Threshold signatures, t-of-n | [OK] |
+| **2 -- Protocol** | MuSig2 | BIP-327, key aggregation, 2-round signing | [EXPERIMENTAL] |
+| **2 -- Protocol** | FROST | Threshold signatures, t-of-n | [EXPERIMENTAL] |
 | **2 -- Protocol** | Adaptor | Schnorr + ECDSA adaptor signatures | [OK] |
 | **2 -- Protocol** | Pedersen | Commitments, homomorphic, switch commitments | [OK] |
 | **2 -- Protocol** | ZK Proofs | Schnorr sigma, DLEQ, Bulletproof range proofs (64-bit) | [OK] |
@@ -735,7 +735,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | **Windows x64** | CPU | NuGet `UltrafastSecp256k1` / [Release .zip](https://github.com/shrec/UltrafastSecp256k1/releases) | [OK] Stable |
 | **macOS (x64/ARM64)** | CPU + Metal | `brew install ufsecp` / build from source | [OK] Stable |
 | **Android ARM64** | CPU | `implementation 'io.github.shrec:ufsecp'` (Maven) | [OK] Stable |
-| **iOS ARM64** | CPU | Swift Package / CocoaPods / XCFramework | [OK] Stable |
+| **iOS ARM64** | CPU | Swift Package / CocoaPods / XCFramework | [OK] Stable — **⚠️ SPM/CocoaPods builds have CT guards disabled (verification only)** |
 | **Browser / Node.js** | WASM | `npm i ufsecp` | [OK] Stable |
 | **ESP32-S3 / ESP32** | CPU | PlatformIO / IDF component | [OK] Tested |
 | **ESP32-C6** | CPU (RISC-V RV32) | PlatformIO / IDF component | [OK] Tested |

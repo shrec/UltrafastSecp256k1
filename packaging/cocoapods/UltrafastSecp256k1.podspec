@@ -31,23 +31,24 @@ Pod::Spec.new do |s|
   ]
 
   # Exclude platform-specific assembly not for Apple ARM64
+  # VER-002: corrected paths from cpu/src/ to src/cpu/src/ after tree migration
   s.exclude_files = [
-    "cpu/src/field_asm_x64.asm",
-    "cpu/src/field_asm_x64.cpp",
-    "cpu/src/field_asm_x64_gas.S",
-    "cpu/src/field_asm_riscv64.S",
-    "cpu/src/field_asm_riscv64.cpp",
-    "cpu/src/platform_compat.h",
-    "cpu/src/decomposition_optimized.hpp",
+    "src/cpu/src/field_asm_x64.asm",
+    "src/cpu/src/field_asm_x64.cpp",
+    "src/cpu/src/field_asm_x64_gas.S",
+    "src/cpu/src/field_asm_riscv64.S",
+    "src/cpu/src/field_asm_riscv64.cpp",
+    "src/cpu/src/platform_compat.h",
+    "src/cpu/src/decomposition_optimized.hpp",
   ]
 
   # ── Public headers ────────────────────────────────────────────────────────
   s.public_header_files = [
-    "cpu/include/**/*.{hpp,h}",
+    "src/cpu/include/**/*.{hpp,h}",
     "include/**/*.{hpp,h}",
   ]
 
-  s.header_mappings_dir = "cpu/include"
+  s.header_mappings_dir = "src/cpu/include"
 
   # ── Build settings ────────────────────────────────────────────────────────
   s.pod_target_xcconfig = {

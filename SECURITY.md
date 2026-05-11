@@ -91,7 +91,7 @@ The following automated security measures are in place:
 - **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
 - **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
 - **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
-- **Internal audit suite** -- 182 active CTest targets in the current validation surface, including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, independent reference linkage, and a 70-module unified audit runner.
+- **Internal audit suite** -- active CTest targets in the current validation surface, including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, independent reference linkage, and a 350-module unified audit runner (98 non-exploit + 252 exploit PoC modules across 9 sections; exact count via `python3 ci/sync_module_count.py`).
 - **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
 - **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
 - **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration
@@ -101,7 +101,7 @@ The following automated security measures are in place:
 
 - [ ] Expand external reproducibility packs for outside reviewers (one-command audit replay, artifact bundles, and reviewer checklists)
 - [ ] **Funded bug bounty program** -- seeking sponsors to offer financial rewards for vulnerability reports
-- [ ] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol)
+- [~] Formal verification of field/scalar arithmetic (Fiat-Crypto / Cryptol) — Cryptol spec files present in `formal/cryptol/`; runs as advisory CI gate (skips when Cryptol not installed; not a hard blocking gate)
 - [x] ct-verif LLVM pass integration for compile-time CT verification (`.github/workflows/ct-verif.yml`)
 - [x] Native ARM64 / Apple Silicon dudect CI -- macos-14 M1 runner, smoke + full (`.github/workflows/ct-arm64.yml`)
 - [x] Multi-uarch dudect campaign -- x86-64 native + RISC-V via QEMU + ARM64 cross-compile

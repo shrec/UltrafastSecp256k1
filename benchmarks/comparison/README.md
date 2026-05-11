@@ -28,13 +28,19 @@ All results: UltrafastSecp256k1 FAST path, single-threaded, median timing.
 
 ## vs libsecp256k1 (on same hardware)
 
-| Operation | x86-64 ratio | ESP32-S3 ratio |
-|-----------|-------------:|---------------:|
-| Generator * k | - | 1.18x |
-| ECDSA Sign | - | 1.27x |
-| ECDSA Verify | - | 1.70x |
-| Schnorr Sign | - | 1.45x |
-| Schnorr Verify | - | 1.62x |
+> **BENCH-001 — Important labeling note:**
+> Sign rows below compare Ultra **FAST (variable-time)** vs libsecp CT signing — these are
+> NOT production-equivalent comparisons. Production signing must use the CT path. For
+> CT-vs-CT signing ratios, see `docs/BENCHMARKS.md §archived` and
+> `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing`.
+
+| Operation | x86-64 ratio | ESP32-S3 ratio | Note |
+|-----------|-------------:|---------------:|------|
+| Generator * k | - | 1.18x | FAST path |
+| ECDSA Sign | - | 1.27x | `[diagnostic: Ultra FAST vs libsecp CT — not production-equivalent]` |
+| ECDSA Verify | - | 1.70x | Both variable-time — fair comparison |
+| Schnorr Sign | - | 1.45x | `[diagnostic: Ultra FAST vs libsecp CT — not production-equivalent]` |
+| Schnorr Verify | - | 1.62x | Both variable-time — fair comparison |
 
 ## Result Files
 
