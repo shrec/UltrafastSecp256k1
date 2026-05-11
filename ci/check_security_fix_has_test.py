@@ -102,6 +102,11 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "audit/test_exploit_shim_musig_ka_cap.cpp"],
         "PERF-007: inline pubkey compression in musig_pubkey_agg (shim_musig.cpp). Pure performance change — inlines secp256k1_ec_pubkey_serialize call. Covered by existing MuSig2 shim tests (secnonce + ka_cap).",
     ),
+    "1805224a7d": (
+        ["audit/test_exploit_shim_musig_secnonce.cpp",
+         "audit/test_exploit_musig2.cpp"],
+        "SHIM-007: cache affine coords in pubnonce — musig2.cpp + shim_musig.cpp performance optimization. No new signing surface; covered by existing MuSig2 exploit and shim secnonce tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
