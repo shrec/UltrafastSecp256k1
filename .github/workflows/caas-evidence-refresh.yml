@@ -160,18 +160,20 @@ jobs:
         # Wire artifact_analyzer.py into the nightly refresh so audit quality
         # trends are tracked automatically across runs (MEDIUM-6 fix).
         # The DB is cached across runs; the exported timeline JSON is committed.
-        continue-on-error: true
+        # CAAS-004 fix: removed continue-on-error and || echo double-silencing.
+        # Ingest failure is advisory (schema mismatch won't break CI); export
+        # failure is hard (corrupt timeline cannot be committed).
         run: |
           mkdir -p out
           python3 ci/artifact_analyzer.py \
             --db out/artifact_analyzer.db \
             ingest assurance_report.json docs/SECURITY_AUTONOMY_KPI.json \
-            || echo "::warning::artifact_analyzer ingest skipped (report schema mismatch)"
+            || echo "::warning::artifact_analyzer ingest skipped (report schema mismatch — trend DB not updated)"
           python3 ci/artifact_analyzer.py \
             --db out/artifact_analyzer.db \
             export --format timeline \
             --output docs/AUDIT_TREND_TIMELINE.json \
-            || echo "::warning::artifact_analyzer timeline export skipped"
+            || { echo "::error::artifact_analyzer timeline export failed — aborting to prevent corrupt timeline commit"; exit 1; }
           # AA-05 fix: validate timeline JSON before it can be committed.
           # A failed export may produce an empty or truncated file; committing
           # it would corrupt the trend history visible in dashboards.
@@ -215,13 +217,19 @@ jobs:
       - name: Commit and push if changed
         id: commit_push
         env:
-          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN }}
+          # CAAS-009 fix: fall back to GITHUB_TOKEN when CAAS_BOT_TOKEN is not set.
+          # Previously a missing/expired CAAS_BOT_TOKEN caused silent push failure,
+          # leaving the dashboard and evidence chain stale indefinitely.
+          # GITHUB_TOKEN has contents:write at job level — sufficient for dev branch.
+          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN || secrets.GITHUB_TOKEN }}
           FORCE_COMMIT: ${{ github.event.inputs.force_commit }}
           CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |
           set -e
           git config user.name  "caas-bot"
           git config user.email "caas-bot@users.noreply.github.com"
+          # Configure remote to use token (works with both CAAS_BOT_TOKEN and GITHUB_TOKEN).
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/shrec/UltrafastSecp256k1.git"
 
           # M-1 fix: determine verdict from the outcomes of the gate steps.
           # Previously this was hardcoded "pass" unconditionally, meaning the

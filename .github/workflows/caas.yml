@@ -660,6 +660,10 @@ jobs:
     timeout-minutes: 5
     needs: [scanner, audit_gate, security_autonomy, bundle, bitcoin_core_profile]
     if: always()
+    # CAAS-001/012 fix: contents:write needed to push EVIDENCE_CHAIN.json.
+    # Previously the chain was written in-memory but never committed — zero records.
+    permissions:
+      contents: write
 
     steps:
       - name: Harden runner
@@ -795,6 +799,22 @@ jobs:
                   "bitcoin_core_profile": "${{ needs.bitcoin_core_profile.result }}",
               },
           }
+          # CAAS-008 fix: detect advisory_skip for security_autonomy.
+          # When security_autonomy exits 77, result=success but score=0. Surface this
+          # in the summary so auditors see advisory_skipped, not false success.
+          import os
+          advisory_skipped = []
+          autonomy_json = "caas_autonomy.json"
+          if os.path.exists(autonomy_json):
+              try:
+                  with open(autonomy_json) as af:
+                      adata = json.load(af)
+                  if adata.get("advisory_skip"):
+                      advisory_skipped.append("security_autonomy")
+              except Exception:
+                  pass
+          summary["stages_advisory_skipped"] = advisory_skipped
+
           with open("caas_pipeline_summary.json", "w", encoding="utf-8") as f:
               json.dump(summary, f, indent=2)
           print(json.dumps(summary, indent=2))
@@ -863,6 +883,25 @@ jobs:
           if ! python3 ci/evidence_governance.py validate; then
               echo "::error::evidence_governance validate failed — chain integrity compromised"
               exit 1
+          fi
+
+      - name: Commit evidence chain to repo
+        # CAAS-001/012 fix: previously the chain was written in-memory then uploaded
+        # as an artifact only — zero records in the committed file. This step persists
+        # the chain record to docs/EVIDENCE_CHAIN.json in the repo so retrospective
+        # "was CAAS passing on commit X" queries work beyond artifact retention.
+        if: steps.checkout.outcome == 'success'
+        env:
+          CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
+        run: |
+          if ! git diff --quiet -- docs/EVIDENCE_CHAIN.json; then
+            git config user.name  "caas-bot"
+            git config user.email "caas-bot@users.noreply.github.com"
+            git add docs/EVIDENCE_CHAIN.json
+            git commit -m "[bot] update evidence chain — CAAS run ${{ github.run_id }} [skip ci]"
+            git push origin dev || echo "::warning::Evidence chain push failed (branch protection or concurrent push); chain is in artifact."
+          else
+            echo "::notice::Evidence chain unchanged; nothing to commit."
           fi
 
       - name: Upload evidence chain snapshot
