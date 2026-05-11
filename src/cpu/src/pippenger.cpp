@@ -85,19 +85,22 @@ Point pippenger_msm(const Scalar* scalars,
 
     unsigned const c = pippenger_optimal_window(n);
     std::size_t const num_buckets_unsigned = static_cast<std::size_t>(1) << c; // 2^c
-    unsigned const num_windows = (256 + c - 1) / c;                   // ceil(256/c)
+    // BUG-01 fix (signed-digit carry overflow — last-window carry lost):
+    // When c exactly divides 256 (e.g. c=8: 256/8=32 windows, top byte [0,255]),
+    // carry propagation from window 31 has nowhere to go. For a digit d > half,
+    // subtracting 2^c makes it negative but the carry of +1 to window 32 is silently
+    // dropped, corrupting the MSM result by sum_{i: carry lost} * 2^256 * P_i.
+    // Fix: add one extra window (256/c + 1 total) so the carry lands in window 32
+    // (which starts at 0 and ends at 0 or 1, always < half → no further carry).
+    // For c that don't divide 256 (c=7,9,...), 256/c + 1 == ceil(256/c) already
+    // (floor(256/c) + 1 = ceil(256/c) when 256%c != 0), so no extra work is done.
+    bool const use_signed = (c >= 7);
+    unsigned const num_windows = use_signed
+        ? (256 / c) + 1                // +1 absorbs last-window carry for exact divisors
+        : (256 + c - 1) / c;           // ceil(256/c) for unsigned path
     // eff_buckets: 2^c unsigned, or 2^(c-1) signed — set after signed-digit init
     std::size_t num_buckets = num_buckets_unsigned;
-
-    // BUG-01 fix (signed-digit carry overflow):
-    // For the signed-digit path (c >= 7), carry propagation from the second-to-last
-    // window can push the last window's digit to (1<<c) = num_buckets_unsigned.
-    // This produces abs_d = num_buckets_unsigned, which would be an out-of-bounds
-    // access on arrays sized to exactly num_buckets_unsigned (indices 0..max-1).
-    // Allocate one extra slot so abs_d == num_buckets_unsigned is always in bounds.
-    // Example: c=8, scalar with top byte 0xFF receives carry from window 30 → digit[31]=256.
-    // abs_d=256 == num_buckets_unsigned=256, which was out of bounds (valid: 0..255).
-    std::size_t const tls_alloc_size = num_buckets_unsigned + ((c >= 7) ? 1 : 0);
+    std::size_t const tls_alloc_size = num_buckets_unsigned + (use_signed ? std::size_t{1} : std::size_t{0});
 
     // Pre-allocate bucket / scratch arrays.
     // Stack for small windows (c<=6, 64 entries); thread_local pool for larger
@@ -135,8 +138,12 @@ Point pippenger_msm(const Scalar* scalars,
     std::uint16_t* digits = tl_digits.data();
     for (std::size_t i = 0; i < n; ++i) {
         for (unsigned w = 0; w < num_windows; ++w) {
+            unsigned const bit_off = w * c;
+            // Extra carry-overflow window (bit_off >= 256): scalar bits above 255 are
+            // always 0 — carry propagation will set these to 0 or 1, never > half.
             digits[static_cast<std::size_t>(w) * n + i] =
-                static_cast<std::uint16_t>(extract_digit(scalars[i], w * c, c));
+                (bit_off < 256) ? static_cast<std::uint16_t>(extract_digit(scalars[i], bit_off, c))
+                                : 0;
         }
     }
     // Signed-digit conversion for c >= 7: halves bucket count from 2^c to 2^(c-1).
@@ -144,7 +151,7 @@ Point pippenger_msm(const Scalar* scalars,
     // Scatter: positive digits add point, negative digits add negated point.
     // Savings: ~50% fewer buckets → ~50% less aggregate work per window.
     // Overhead: O(n × num_windows) carry compare-and-branch (~2ns each, negligible).
-    bool const use_signed = (c >= 7);
+    // use_signed already declared above (moved with num_windows).
     static thread_local std::vector<std::int16_t> tl_sdigits;
     std::int16_t* sdigits = nullptr;
     if (use_signed) {
