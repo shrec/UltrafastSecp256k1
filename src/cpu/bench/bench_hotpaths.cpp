@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
             uint8_t sk[32] = {};
             sk[0] = static_cast<uint8_t>(i + 1);
             sk[31] = static_cast<uint8_t>(i * 7 + 1);
-            secp256k1_ec_pubkey_create(shim_ctx, &shim_pubkeys[i], sk);
+            if (!secp256k1_ec_pubkey_create(shim_ctx, &shim_pubkeys[i], sk)) abort();
             shim_pk_ptrs[i] = &shim_pubkeys[i];
         }
 
