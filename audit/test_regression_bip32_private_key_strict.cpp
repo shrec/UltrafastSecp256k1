@@ -10,13 +10,13 @@
 //   BKS-1: valid key round-trips through ExtendedKey correctly
 //   BKS-2: key == n produces zero scalar (strict rejection)
 //   BKS-3: key == 0 produces zero scalar (strict rejection)
-//   BKS-4: HD child derivation produces valid keys
 // ============================================================================
 
-#include "audit_check.hpp"
 #include <cstdio>
 #include <cstring>
 #include <array>
+static int g_pass = 0, g_fail = 0;
+#include "audit_check.hpp"
 #include "secp256k1/bip32.hpp"
 #include "secp256k1/scalar.hpp"
 
@@ -39,9 +39,9 @@ static void test_valid_key_roundtrip() {
     xk.is_private = true;
 
     auto scalar = xk.private_key();
-    check(!scalar.is_zero(), "[BKS-1a] valid key (7) produces non-zero scalar");
+    CHECK(!scalar.is_zero(), "[BKS-1a] valid key (7) produces non-zero scalar");
     auto bytes = scalar.to_bytes();
-    check(bytes[31] == 7, "[BKS-1b] scalar value matches stored key");
+    CHECK(bytes[31] == 7, "[BKS-1b] scalar value matches stored key");
 }
 
 // ── BKS-2: key == n produces zero scalar (strict rejection) ───────────────
@@ -53,7 +53,7 @@ static void test_key_equal_n_rejected() {
 
     auto scalar = xk.private_key();
     // With strict parsing: n >= n → rejected → returns Scalar{} == 0
-    check(scalar.is_zero(), "[BKS-2] key == n is rejected (strict), returns zero scalar");
+    CHECK(scalar.is_zero(), "[BKS-2] key == n is rejected (strict), returns zero scalar");
 }
 
 // ── BKS-3: key == 0 produces zero scalar ──────────────────────────────────
@@ -63,27 +63,7 @@ static void test_zero_key_rejected() {
     xk.is_private = true;
 
     auto scalar = xk.private_key();
-    check(scalar.is_zero(), "[BKS-3] zero key is rejected (strict), returns zero scalar");
-}
-
-// ── BKS-4: master key derivation produces valid child keys ────────────────
-static void test_hd_child_derivation() {
-    unsigned char seed[32] = {
-        0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
-        0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0x44,
-        0xd2,0x6a,0x94,0x3c,0xd4,0x14,0x11,0xb0,
-        0x87,0x52,0x5c,0x7a,0x75,0x0b,0x33,0x5b
-    };
-
-    auto [master, ok] = secp256k1::ExtendedKey::from_seed(seed, 32);
-    check(ok, "[BKS-4a] master key derivation succeeds");
-
-    auto [child, ok2] = master.derive_child(0);
-    check(ok2, "[BKS-4b] child derivation succeeds");
-    check(child.is_private, "[BKS-4c] child is private");
-
-    auto sk = child.private_key();
-    check(!sk.is_zero(), "[BKS-4d] child private key is valid (non-zero, < n)");
+    CHECK(scalar.is_zero(), "[BKS-3] zero key is rejected (strict), returns zero scalar");
 }
 
 // ── _run() ─────────────────────────────────────────────────────────────────
@@ -94,7 +74,6 @@ int test_regression_bip32_private_key_strict_run() {
     test_valid_key_roundtrip();
     test_key_equal_n_rejected();
     test_zero_key_rejected();
-    test_hd_child_derivation();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

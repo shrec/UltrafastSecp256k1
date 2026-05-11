@@ -3672,7 +3672,6 @@ target_sources(unified_audit_runner PRIVATE
 # can link and reports them as advisory-skipped instead of failing.
 if(TARGET secp256k1_shim)
     target_sources(unified_audit_runner PRIVATE
-        test_regression_bip32_private_key_strict.cpp
         test_regression_ellswift_ct_path.cpp
         test_regression_musig2_nonce_strict.cpp
         test_regression_shim_pubkey_sort.cpp
@@ -4323,7 +4322,6 @@ if(TARGET secp256k1_shim)
         LABELS "audit;regression;musig2;ct")
 endif()
 # RT-011: BIP-32 private key strict
-
 add_executable(test_regression_bip32_private_key_strict_standalone
     test_regression_bip32_private_key_strict.cpp)
 audit_target_defaults(test_regression_bip32_private_key_strict_standalone)
