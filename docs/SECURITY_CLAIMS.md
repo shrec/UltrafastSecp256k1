@@ -2,6 +2,13 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-11 ct_field::field_mul/field_sqr asm barriers — disabled under sanitizers
+
+- **`ct_field.cpp`**: FE52 limb barriers in field_mul and field_sqr also disabled
+  under TSan/ASan/MSan. Same root cause as field_add: TSan shadow-memory
+  misinterpretation caused wrong field multiplication/squaring results under
+  sanitizers. Manifested as `point_is_on_curve(kG) == false` for k=8..16.
+
 ### 2026-05-11 ct_field::field_add asm barrier — disabled under sanitizers
 
 - **`ct_field.cpp`**: compiler barrier `asm volatile("" : "+r"(ptr) : : "memory")`

@@ -2,6 +2,19 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-11 ct_field::field_mul/field_sqr — same sanitizer guard on asm barriers
+
+- **`ct_field.cpp` (`field_mul`, `field_sqr`)**: The `+r` limb barriers
+  `asm volatile("" : "+r"(fa.n[i]) ...)` were unconditional. Under TSan the
+  asm barriers in field_mul/field_sqr cause incorrect shadow-memory tracking
+  of FE52 limbs, producing wrong multiplication/squaring results. This manifested
+  as `point_is_on_curve(kG) == false` for k=8..16 under TSan comprehensive tests,
+  because `ctp::point_is_on_curve` uses field_sqr and field_mul internally.
+  Added the same `!__SANITIZE_{THREAD,ADDRESS,MEMORY}__` guard to all FE52 limb
+  barriers, consistent with the fix applied to field_add.
+- **CT contract unchanged.** Under sanitizers, LTO and constant-propagation are
+  disabled by the sanitizer build flags, making the barriers redundant.
+
 ### 2026-05-11 ct_field::field_add — disable asm barriers under sanitizers
 
 - **`ct_field.cpp` (`field_add`, `field_sub`, `field_neg`)**: The compiler

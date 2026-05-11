@@ -217,7 +217,9 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b) noexcept {
     // of known inputs (e.g. fe_one * x) into the multiply inner kernel.
     FE52 fa = FE52::from_fe(a); // NOLINT(misc-const-correctness)
     FE52 fb = FE52::from_fe(b); // NOLINT(misc-const-correctness)
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
+    !defined(__SANITIZE_MEMORY__)
     asm volatile("" : "+r"(fa.n[0]), "+r"(fa.n[1]), "+r"(fa.n[2]),
                       "+r"(fa.n[3]), "+r"(fa.n[4]));
     asm volatile("" : "+r"(fb.n[0]), "+r"(fb.n[1]), "+r"(fb.n[2]),
@@ -240,7 +242,9 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // which would create measurable timing differences vs random inputs.
     // Applied on all platforms (RISC-V, x86-64, ARM64) for uniform CT behavior.
     FE52 tmp = FE52::from_fe(a);  // NOLINT(misc-const-correctness) -- +r clobber
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && \
+    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
+    !defined(__SANITIZE_MEMORY__)
     asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
                       "+r"(tmp.n[3]), "+r"(tmp.n[4]));
 #endif
