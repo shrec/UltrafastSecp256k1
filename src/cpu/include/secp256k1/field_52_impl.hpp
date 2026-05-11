@@ -753,10 +753,14 @@ void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
     // outperforms __int128 C++ (which Clang compiles to MUL/MULHU pairs
     // with suboptimal register allocation for 25+ multiplications).
     fe52_mul_inner_riscv64(r, a, b);
-#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__) // MONOLITHIC_MUL_ASM: Disabled -- with -march=native, Clang __int128
-      // already emits optimal MULX+ADCX/ADOX code. The inline asm prevents
-      // cross-operation scheduling and increases register pressure (~30% slower
-      // point_add when enabled). Kept for reference/non-native builds.
+#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) && defined(__x86_64__) \
+      && !defined(LLVM_PROFILE_ENABLED) \
+      && !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_MEMORY__)
+      // Monolithic MULX+ADCX/ADOX ASM for GCC x86-64 Release builds.
+      // Guards: coverage instrumentation (LLVM_PROFILE_ENABLED) and sanitizers
+      // inject calls between asm statements that clobber EFLAGS (CF/OF), breaking
+      // the ADCX/ADOX dual-carry chains. Fall through to __int128 on those builds.
+      // This is the same guard pattern used in ct_field.cpp for add256/sub256.
     // ========================================================================
     // Monolithic x86-64 MULX + ADCX/ADOX field multiply (single asm block)
     // ========================================================================

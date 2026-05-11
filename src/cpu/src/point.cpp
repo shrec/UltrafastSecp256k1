@@ -626,8 +626,11 @@ SECP256K1_INLINE static void jac52_double_coords_var(FieldElement52& x, FieldEle
     y.negate_assign(2);
 }
 SECP256K1_INLINE static void jac52_double_inplace_var(JacobianPoint52& p) noexcept {
-    // TEMPORARY: fall back to non-var path to rule out jac52_double_coords_var
-    // formula or mul_assign_var as source of CT/fast divergence.
+    // _var disabled under LTO: LTO enables GCC to auto-generate ADCX/ADOX from
+    // __int128, making the monolithic ASM redundant (and slower due to register
+    // pressure). The fe52_mul_inner_var ASM is kept for no-LTO builds where it
+    // provides ~1.7% ConnectBlock improvement (see 84609eba).
+    // Coverage guard now added to fe52_mul_inner_var (field_52_impl.hpp).
     jac52_double_inplace(p);
 }
 
@@ -723,11 +726,12 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
 // CT signing must continue to use jac52_add_mixed_inplace (unchanged path).
 SECP256K1_HOT_FUNCTION SECP256K1_INLINE
 static void jac52_add_mixed_inplace_var(JacobianPoint52& p, const AffinePoint52& q) noexcept {
-    // TEMPORARY: fall back to non-var path to rule out jac52_add_mixed_inplace_var
-    // as source of CT/fast divergence on GCC-13/Clang-17.
+    // _var disabled under LTO: same rationale as jac52_double_inplace_var above.
+    // For no-LTO builds, re-enable by removing the early return below.
+    // Coverage guard now fixed in fe52_mul_inner_var (field_52_impl.hpp).
     jac52_add_mixed_inplace(p, q);
     return;
-    // (dead code below is the original var implementation — kept for reference)
+    // (original _var implementation follows — preserved for no-LTO activation)
     if (SECP256K1_UNLIKELY(p.infinity)) {
         p.x = q.x; p.y = q.y; p.z = FieldElement52::one(); p.infinity = false;
         return;
