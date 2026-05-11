@@ -15,8 +15,8 @@
 | [Bindings Release Notes Source](reports/release_notes_source_bindings_2026-03-23.md) | Release-time source note for later changelog, release body, and announcement assembly |
 | [Bindings Announcement Draft](reports/announcement_bindings_validation_2026-03-23.md) | Ready-to-post announcement draft for the completed binding validation matrix |
 | [ESP32 Setup](ESP32_SETUP.md) | ESP32-S3/PICO-D4 flashing & testing guide |
-| [RISC-V Optimizations](../RISCV_OPTIMIZATIONS.md) | RISC-V assembly & RVV details |
-| [Porting Guide](../PORTING.md) | Add new platforms, architectures, GPU backends |
+| [RISC-V Optimizations](RISCV64_BITCOIN_CORE_BENCHMARK.md) | RISC-V assembly & RVV details |
+| [Porting Guide](PORTING.md) | Add new platforms, architectures, GPU backends |
 | [Project Graph Reasoning](PROJECT_GRAPH_REASONING.md) | SQLite code graph, semantic tags, symbol reasoning, and optimization/audit workflows |
 | `ci/query_graph.py tags` | Semantic tag inventory from the repository knowledge graph |
 | `ci/query_graph.py symbol/optimize/risk` | Symbol-level crypto reasoning, gain/risk scoring, and optimization candidates |
@@ -25,13 +25,13 @@
 
 | Document | Description |
 |----------|-------------|
-| [Audit Guide](../AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
+| [Audit Guide](AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
 | [Architecture](ARCHITECTURE.md) | Technical architecture deep-dive for auditors |
 | [CT Verification](CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
 | [Test Matrix](TEST_MATRIX.md) | Function -> test coverage map with gap analysis |
 | [Security Policy](../SECURITY.md) | Vulnerability reporting, audit status, production readiness |
-| [Threat Model](../THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
-| [Audit Report](../AUDIT_REPORT.md) | Internal audit: 641,194 core checks, 247 unified modules, 14 CI workflows, 0 failures |
+| [Threat Model](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
+| [Audit Report](AUDIT_REPORT.md) | Internal audit: 641,194 core checks, 247 unified modules, 14 CI workflows, 0 failures |
 | [GPU Validation Matrix](GPU_VALIDATION_MATRIX.md) | Backend parity, GPU ABI tests, and the canonical local GPU proof path |
 
 ## Adoption & Integration
@@ -48,7 +48,7 @@
 | Document | Description |
 |----------|-------------|
 | [CUDA / ROCm GPU](../cuda/README.md) | CUDA + HIP/ROCm architecture, kernels, benchmarks |
-| [WebAssembly](../bindings/bindings/wasm/README.md) | WASM build, JS/TS API, npm package |
+| [WebAssembly](../bindings/wasm/README.md) | WASM build, JS/TS API, npm package |
 | [Contributing](../CONTRIBUTING.md) | Development workflow, coding standards, PR process |
 | [Security](../SECURITY.md) | Vulnerability reporting, security model |
 | [Changelog](../CHANGELOG.md) | Version history |

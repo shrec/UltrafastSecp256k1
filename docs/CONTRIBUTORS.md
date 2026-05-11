@@ -16,4 +16,4 @@ Thank you to everyone who has contributed to UltrafastSecp256k1.
 
 ---
 
-To add your project to the [Adopters](docs/ADOPTION.md) list, open a PR or issue.
+To add your project to the [Adopters](ADOPTION.md) list, open a PR or issue.

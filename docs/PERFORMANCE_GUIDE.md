@@ -395,4 +395,4 @@ cmake -S . -B build-profile -DCMAKE_BUILD_TYPE=RelWithDebInfo
 - [docs/BENCHMARKS.md](BENCHMARKS.md) -- Full benchmark results
 - [docs/BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) -- How benchmarks are collected
 - [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) -- Constant-time verification details
-- [PORTING.md](../PORTING.md) -- Platform porting guide
+- [PORTING.md](PORTING.md) -- Platform porting guide

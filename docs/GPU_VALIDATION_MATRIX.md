@@ -91,14 +91,14 @@ This status is intentionally fail-closed in `docs/GPU_BACKEND_EVIDENCE.json`: RO
 
 ### Main Entry Points
 
-- Benchmark: [gpu_bench_unified.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256k1/src/cuda/src/gpu_bench_unified.cu)
-- Audit runner: [gpu_audit_runner.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/gpu_audit_runner.cu)
-- Full test suite: [test_suite.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/test_suite.cu)
-- CT smoke: [test_ct_smoke.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/test_ct_smoke.cu)
+- Benchmark: [gpu_bench_unified.cu](../src/cuda/src/gpu_bench_unified.cu)
+- Audit runner: [gpu_audit_runner.cu](../src/cuda/src/gpu_audit_runner.cu)
+- Full test suite: [test_suite.cu](../src/cuda/src/test_suite.cu)
+- CT smoke: [test_ct_smoke.cu](../src/cuda/src/test_ct_smoke.cu)
 - Specialized benches:
-  - [bench_bip352.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_bip352.cu)
-  - [bench_zk.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_zk.cu)
-  - [bench_cuda.cu](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/src/cuda/src/bench_cuda.cu)
+  - [bench_bip352.cu](../src/cuda/src/bench_bip352.cu)
+  - [bench_zk.cu](../src/cuda/src/bench_zk.cu)
+  - [bench_cuda.cu](../src/cuda/src/bench_cuda.cu)
 
 ### Coverage
 
@@ -134,11 +134,11 @@ For Linux reproducibility, that story is not limited to the original developer w
 
 ### Main Entry Points
 
-- Audit runner: [opencl_audit_runner.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/opencl/src/opencl_audit_runner.cpp)
-- Selftest: [opencl_selftest.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/opencl/src/opencl_selftest.cpp)
-- Extended test + bench: [opencl_extended_test.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/opencl/tests/opencl_extended_test.cpp)
-- Basic test harness: [test_opencl.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/opencl/tests/test_opencl.cpp)
-- Benchmark app: [bench_opencl.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/opencl/benchmarks/bench_opencl.cpp)
+- Audit runner: [opencl_audit_runner.cpp](../src/opencl/src/opencl_audit_runner.cpp)
+- Selftest: [opencl_selftest.cpp](../src/opencl/src/opencl_selftest.cpp)
+- Extended test + bench: [opencl_extended_test.cpp](../src/opencl/tests/opencl_extended_test.cpp)
+- Basic test harness: [test_opencl.cpp](../src/opencl/tests/test_opencl.cpp)
+- Benchmark app: [bench_opencl.cpp](../src/opencl/benchmarks/bench_opencl.cpp)
 
 ### Coverage
 
@@ -169,11 +169,11 @@ The repo's local Docker parity environment also helps standardize the Linux-side
 
 ### Main Entry Points
 
-- Audit runner: [metal_audit_runner.mm](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/metal/src/metal_audit_runner.mm)
-- Extended test + bench: [metal_extended_test.mm](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/metal/tests/metal_extended_test.mm)
-- Host test: [test_metal_host.cpp](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/metal/tests/test_metal_host.cpp)
-- App bench/test: [metal_test.mm](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/metal/app/metal_test.mm)
-- Metal bench app: [bench_metal.mm](/home/shrek/Secp256K1/Secp256K1fast/libs/UltrafastSecp256K1/metal/app/bench_metal.mm)
+- Audit runner: [metal_audit_runner.mm](../src/metal/src/metal_audit_runner.mm)
+- Extended test + bench: [metal_extended_test.mm](../src/metal/tests/metal_extended_test.mm)
+- Host test: [test_metal_host.cpp](../src/metal/tests/test_metal_host.cpp)
+- App bench/test: [metal_test.mm](../src/metal/app/metal_test.mm)
+- Metal bench app: [bench_metal.mm](../src/metal/app/bench_metal.mm)
 
 ### Coverage
 

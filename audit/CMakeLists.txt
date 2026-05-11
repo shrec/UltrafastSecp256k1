@@ -2881,6 +2881,14 @@ target_compile_definitions(test_exploit_shim_musig_secnonce_standalone PRIVATE S
 add_test(NAME exploit_shim_musig_secnonce COMMAND test_exploit_shim_musig_secnonce_standalone)
 set_tests_properties(exploit_shim_musig_secnonce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;shim;musig;security;crit")
 
+# -- RED-TEAM-009: ka_put fail-closed DoS cap smoke (a3f56ae) --
+add_executable(test_exploit_shim_musig_ka_cap_standalone
+    test_exploit_shim_musig_ka_cap.cpp)
+audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
+target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
+set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+
 # -- P-01/02/03: Shim pubkey_create / keypair_create CT generator mul (SPC-1..10) --
 # Tests that secp256k1_ec_pubkey_create and secp256k1_keypair_create use
 # ct::generator_mul (not variable-time scalar_mul_generator) on private keys.

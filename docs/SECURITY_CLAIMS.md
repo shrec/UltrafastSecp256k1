@@ -708,10 +708,10 @@ Every release must answer: **"Did the CT scope change?"**
 ## References
 
 - [SECURITY.md](../SECURITY.md) — Vulnerability reporting
-- [THREAT_MODEL.md](../THREAT_MODEL.md) — Attack surface analysis
+- [THREAT_MODEL.md](THREAT_MODEL.md) — Attack surface analysis
 - [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) — Technical CT methodology, dudect details
 - [docs/CT_EMPIRICAL_REPORT.md](CT_EMPIRICAL_REPORT.md) — Full empirical proof report
-- [AUDIT_GUIDE.md](../AUDIT_GUIDE.md) — Auditor navigation
+- [AUDIT_GUIDE.md](AUDIT_GUIDE.md) — Auditor navigation
 - [dudect paper](https://eprint.iacr.org/2016/1123) — Reparaz et al., 2017
 
 ---

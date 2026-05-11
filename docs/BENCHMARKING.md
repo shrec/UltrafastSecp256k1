@@ -26,7 +26,7 @@ How to build, run, and interpret benchmarks on all supported platforms.
 | **`gpu_bench_unified`** | **YES** | GPU unified: FAST + CT ops, all categories, structured report |
 | `secp256k1_cuda_bench` | No | Basic GPU search throughput measurement |
 
-**`bench_unified`** is the canonical benchmark runner (see [.github/copilot-instructions.md](../.github/copilot-instructions.md) "Benchmark rules" section).
+**`bench_unified`** is the canonical benchmark runner (see .github/copilot-instructions.md "Benchmark rules" section).
 It runs ALL operation categories in a single binary and produces apple-to-apple
 comparison ratios against both libsecp256k1 and OpenSSL.
 

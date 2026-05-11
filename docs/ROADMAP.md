@@ -142,8 +142,8 @@ These items are **intentionally out of scope** for the 2026-2027 roadmap:
 Progress is tracked via:
 - [GitHub Issues](https://github.com/shrec/UltrafastSecp256k1/issues) (task-level tracking)
 - [GitHub Actions](https://github.com/shrec/UltrafastSecp256k1/actions) (CI status for all phases)
-- [CHANGELOG.md](CHANGELOG.md) (completed work per release)
-- [Audit Framework](docs/wiki/Audit-Framework.md) (comprehensive audit documentation)
-- [Benchmark Comparison](docs/wiki/Benchmark-Comparison.md) (performance vs libsecp256k1)
+- [CHANGELOG.md](../CHANGELOG.md) (completed work per release)
+- [Audit Framework](wiki/Audit-Framework.md) (comprehensive audit documentation)
+- [Benchmark Comparison](wiki/Benchmark-Comparison.md) (performance vs libsecp256k1)
 
 This roadmap is reviewed and updated quarterly. Changes are committed to the repository and noted in release documentation.

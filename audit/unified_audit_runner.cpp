@@ -473,6 +473,7 @@ int test_exploit_bug003_normalize_ct_run();   // BUG-003/008: ECDSASignature::no
 int test_exploit_bug004_batch_failclosed_run(); // BUG-004: schnorr batch sign fail-closed (BFC-1..9)
 int test_exploit_shim_der_bip66_run();        // HIGH-2/3: shim DER parser BIP-66 (DER66-1..8)
 int test_exploit_shim_musig_secnonce_run();   // CRIT-1: shim MuSig2 secnonce reuse (MSN-1..6)
+int test_exploit_shim_musig_ka_cap_run();     // RED-TEAM-009: ka_put DoS-cap fail-closed
 
 // ============================================================================
 // Forward declarations -- 2026-05-01 Red Team Audit Fixes
@@ -956,6 +957,7 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, true },
     { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, true },
+    { "exploit_shim_musig_ka_cap",      "RED-TEAM-009: ka_put DoS-cap fail-closed — pubkey_agg returns 0 at session limit",            "exploit_poc", test_exploit_shim_musig_ka_cap_run,    false },
     // === 2026-05-01 Red Team Audit Fixes — advisory=true: shim not linked in unified runner ===
     { "test_exploit_legacy_capi_key_parsing",    "Legacy C API invalid private key rejection (KP-1..14) — 2026-05-01",                          "exploit_poc", test_exploit_legacy_capi_key_parsing_run,    true },
     { "test_exploit_legacy_capi_degenerate_sig", "Legacy C API degenerate zero-sig output guard (DSG-1..7) — 2026-05-01",                       "exploit_poc", test_exploit_legacy_capi_degenerate_sig_run, true },

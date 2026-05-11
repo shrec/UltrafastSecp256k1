@@ -9,7 +9,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 254 PoC files, 252 registered modules, 0 failures |
+| Exploit tests | 255 PoC files, 253 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
 | CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
@@ -41,7 +41,7 @@ threat-model docs, adversarial exploit tests, differential checks, and a repo-lo
 SQLite source graph that makes the codebase searchable as an audit surface rather than
 just a pile of files.
 
-These top-level differentiators are claim-keyed in the ledger: exploit-audit surface `A-005`, graph-assisted review `A-006`, self-audit transparency `A-007`, and benchmark reproducibility `A-004` in [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md).
+These top-level differentiators are claim-keyed in the ledger: exploit-audit surface `A-005`, graph-assisted review `A-006`, self-audit transparency `A-007`, and benchmark reproducibility `A-004` in [docs/ASSURANCE_LEDGER.md](ASSURANCE_LEDGER.md).
 
 ### What the Audit Infrastructure Covers
 
@@ -74,14 +74,14 @@ All 254 exploit PoCs modules pass. Zero failures across all 20+ coverage categor
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | Historical formal audit report (v3.9.0): 641,194 checks, 0 failures |
 | [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) | Current coverage matrix by module and section |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk analysis — what is in scope and out of scope |
-| [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy and contact |
-| [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time formal verification evidence and methodology |
-| [audit/AUDIT_TEST_PLAN.md](audit/AUDIT_TEST_PLAN.md) | Detailed test plan covering all 8 audit sections |
-| [audit/platform-reports/](audit/platform-reports/) | Per-platform audit run results and logs |
-| [tools/source_graph_kit/source_graph.py](tools/source_graph_kit/source_graph.py) | SQLite-backed repository graph for fast impact tracing, audit scoping, and reproducible review |
-| [docs/ASSURANCE_LEDGER.md](docs/ASSURANCE_LEDGER.md) | Canonical claim-to-evidence ledger for public trust statements |
-| [docs/AI_AUDIT_PROTOCOL.md](docs/AI_AUDIT_PROTOCOL.md) | Formal protocol for AI-assisted auditor/attacker review loops |
-| [docs/FORTRESS_ROADMAP.md](docs/FORTRESS_ROADMAP.md) | Gap-closing roadmap for fortress-grade self-audit |
+| [SECURITY.md](../SECURITY.md) | Vulnerability disclosure policy and contact |
+| [docs/CT_VERIFICATION.md](CT_VERIFICATION.md) | Constant-time formal verification evidence and methodology |
+| [audit/AUDIT_TEST_PLAN.md](../audit/AUDIT_TEST_PLAN.md) | Detailed test plan covering all 8 audit sections |
+| [audit/platform-reports/](../audit/platform-reports/) | Per-platform audit run results and logs |
+| [tools/source_graph_kit/source_graph.py](../tools/source_graph_kit/source_graph.py) | SQLite-backed repository graph for fast impact tracing, audit scoping, and reproducible review |
+| [docs/ASSURANCE_LEDGER.md](ASSURANCE_LEDGER.md) | Canonical claim-to-evidence ledger for public trust statements |
+| [docs/AI_AUDIT_PROTOCOL.md](AI_AUDIT_PROTOCOL.md) | Formal protocol for AI-assisted auditor/attacker review loops |
+| [docs/FORTRESS_ROADMAP.md](FORTRESS_ROADMAP.md) | Gap-closing roadmap for fortress-grade self-audit |
 
 ---
 
@@ -174,7 +174,7 @@ UltrafastSecp256k1 applies the OpenSSF supply-chain hardening model:
 Every benchmark number in this project is:
 
 - Produced by a pinned compiler version with exact flags documented
-- Reproducible via a published command in [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
+- Reproducible via a published command in [docs/BENCHMARKS.md](BENCHMARKS.md)
 - Gated by an automated performance regression check in CI (`bench-regression.yml`)
 - Published to a [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) on pushes to dev/main
 

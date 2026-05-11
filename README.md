@@ -358,7 +358,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **98 non-exploit modules + 252 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **98 non-exploit modules + 253 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **254 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
@@ -386,11 +386,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 98 non-exploit audit modules and all 252 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 98 non-exploit audit modules and all 253 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
-### Exploit PoC Test Suite (252 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (253 Tests, 20+ Coverage Areas)
 
-In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships **252 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships **253 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -1054,7 +1054,7 @@ WebAssembly build via Emscripten -- runs secp256k1 in any modern browser or Node
 ```
 
 Output: `secp256k1_wasm.wasm` + `secp256k1.mjs` (ES6 module with TypeScript declarations).
-See [wasm/README.md](wasm/README.md) for JavaScript/TypeScript integration.
+See [wasm/README.md](bindings/wasm/README.md) for JavaScript/TypeScript integration.
 
 ---
 
@@ -1708,7 +1708,7 @@ cosign verify-blob SHA256SUMS \
 | [Threat Model](docs/THREAT_MODEL.md) | Layer-by-layer security risk assessment |
 | [Security Policy](SECURITY.md) | Vulnerability reporting and audit status |
 | [Porting Guide](docs/PORTING.md) | Add new platforms, architectures, GPU backends |
-| [RISC-V Optimizations](RISCV_OPTIMIZATIONS.md) | RISC-V assembly details |
+| [RISC-V Optimizations](docs/RISCV64_BITCOIN_CORE_BENCHMARK.md) | RISC-V assembly details |
 | [ESP32 Setup](docs/ESP32_SETUP.md) | ESP32 embedded development guide |
 | [Examples](examples/README.md) | Multi-language binding examples (C, Python, Rust, Node.js, Go, Java) |
 | [Contributing](CONTRIBUTING.md) | Development guidelines |

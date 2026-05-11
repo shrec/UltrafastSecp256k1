@@ -21,7 +21,7 @@ identifies the ways CAAS can be undermined, what mitigations exist, and what
 residual risks remain even when every mitigation is active.
 
 This document is complementary to, and distinct from,
-[THREAT_MODEL.md](../THREAT_MODEL.md), which covers threats against the
+[THREAT_MODEL.md](THREAT_MODEL.md), which covers threats against the
 cryptographic library itself. The threat model here is about threats against
 the trust infrastructure — the audit system that makes claims about the library.
 

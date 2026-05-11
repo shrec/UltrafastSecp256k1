@@ -62,4 +62,4 @@ Public package traction provides a secondary adoption signal.
 
 ---
 
-See also: [ADOPTERS.md](../ADOPTERS.md) for the full adopter list with contact and contribution details.
+See also: [ADOPTERS.md](ADOPTERS.md) for the full adopter list with contact and contribution details.

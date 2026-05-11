@@ -357,11 +357,11 @@ ctest --test-dir build-san --output-on-failure
 
 | Document | Purpose |
 |----------|---------|
-| [INTERNAL_AUDIT.md](INTERNAL_AUDIT.md) | Full audit results (718 lines, per-check detail) |
+| INTERNAL_AUDIT.md | Full audit results (718 lines, per-check detail) |
 | [INVARIANTS.md](INVARIANTS.md) | 108 mathematical invariants catalog |
 | [TEST_MATRIX.md](TEST_MATRIX.md) | Function -> test coverage map |
 | [CT_VERIFICATION.md](CT_VERIFICATION.md) | Constant-time methodology |
-| [THREAT_MODEL.md](../THREAT_MODEL.md) | Layer-by-layer risk assessment |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk assessment |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture |
 | [SAFE_DEFAULTS.md](SAFE_DEFAULTS.md) | Recommended production configuration |
 | [SECURITY.md](../SECURITY.md) | Security policy + disclosure process |

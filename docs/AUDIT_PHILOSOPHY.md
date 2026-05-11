@@ -815,8 +815,8 @@ as aspirational goals.
 | [AUDIT_SCOPE.md](AUDIT_SCOPE.md) | External engagement scope definition |
 | [BACKEND_ASSURANCE_MATRIX.md](BACKEND_ASSURANCE_MATRIX.md) | Per-backend assurance levels |
 | [ATTACK_GUIDE.md](ATTACK_GUIDE.md) | Attack vectors and PoC references |
-| [AUDIT_REPORT.md](../AUDIT_REPORT.md) | Historical baseline (641,194 checks) |
-| [WHY_ULTRAFASTSECP256K1.md](../WHY_ULTRAFASTSECP256K1.md) | Engineering discipline and audit narrative |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Historical baseline (641,194 checks) |
+| [WHY_ULTRAFASTSECP256K1.md](WHY_ULTRAFASTSECP256K1.md) | Engineering discipline and audit narrative |
 
 ---
 

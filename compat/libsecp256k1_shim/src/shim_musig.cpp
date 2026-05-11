@@ -1,3 +1,5 @@
+// RED-TEAM-009 fix: ka_put returns nullptr at DoS cap → pubkey_agg returns 0.
+// Regression test: audit/test_exploit_shim_musig_ka_cap.cpp
 #include "secp256k1_musig.h"
 #include "secp256k1_extrakeys.h"
 #include <atomic>

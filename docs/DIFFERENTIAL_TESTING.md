@@ -202,7 +202,7 @@ ctest --test-dir build -R cross_libsecp
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_READINESS_REPORT_v1.md](AUDIT_READINESS_REPORT_v1.md) | Verification transparency report |
-| [INTERNAL_AUDIT.md](INTERNAL_AUDIT.md) | Full internal audit results |
+| INTERNAL_AUDIT.md | Full internal audit results |
 | [CT_VERIFICATION.md](CT_VERIFICATION.md) | Constant-time methodology |
 | [TEST_MATRIX.md](TEST_MATRIX.md) | Full test coverage matrix |
 
