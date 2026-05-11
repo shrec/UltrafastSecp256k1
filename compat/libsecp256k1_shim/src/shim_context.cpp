@@ -191,7 +191,10 @@ void secp256k1_context_set_illegal_callback(
     secp256k1_callback_fn fun,
     const void *data)
 {
-    if (!ctx || ctx == &g_static_ctx) return;
+    if (!ctx) return;
+    // Allow setting callbacks on secp256k1_context_static — upstream libsecp v0.6+
+    // supports this. Bitcoin Core fuzzing infrastructure (SetLameCallbacks) sets a
+    // no-op callback on the static context to suppress abort() during fuzz runs.
     ctx->illegal_cb      = fun ? fun : default_illegal_callback;
     ctx->illegal_cb_data = data;
 }
@@ -201,7 +204,8 @@ void secp256k1_context_set_error_callback(
     secp256k1_callback_fn fun,
     const void *data)
 {
-    if (!ctx || ctx == &g_static_ctx) return;
+    if (!ctx) return;
+    // Same as illegal_callback: static context allowed (libsecp v0.6+ compat).
     ctx->error_cb      = fun ? fun : default_illegal_callback;
     ctx->error_cb_data = data;
 }

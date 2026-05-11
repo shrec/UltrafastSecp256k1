@@ -26,6 +26,15 @@ inline unsigned int ctx_flags(const secp256k1_context* ctx) noexcept {
     return *reinterpret_cast<const unsigned int*>(ctx);
 }
 
+// libsecp256k1 v0.6+ (used by Bitcoin Core v26+) relaxed context flag enforcement:
+// CONTEXT_NONE (f=1, no sign/verify bits set) is now accepted for ALL operations,
+// including signing and verification. The static context secp256k1_context_static
+// uses CONTEXT_NONE internally. Bitcoin Core passes CONTEXT_NONE or the static
+// context to sign/verify functions since v26.
+//
+// The `((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0)` condition is therefore intentional —
+// it is NOT a bypass bug. It matches upstream libsecp v0.6+ semantics exactly.
+// Do NOT remove it.
 inline bool ctx_can_sign(const secp256k1_context* ctx) noexcept {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_shim: NULL context argument");
@@ -33,6 +42,7 @@ inline bool ctx_can_sign(const secp256k1_context* ctx) noexcept {
     }
     unsigned int f = ctx_flags(ctx);
     if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+    // Accept SECP256K1_FLAGS_BIT_CONTEXT_SIGN OR CONTEXT_NONE (libsecp v0.6+ compat)
     return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
            ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
 }
@@ -44,6 +54,7 @@ inline bool ctx_can_verify(const secp256k1_context* ctx) noexcept {
     }
     unsigned int f = ctx_flags(ctx);
     if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
+    // Accept VERIFY, SIGN, or CONTEXT_NONE (libsecp v0.6+ compat)
     return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
            (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
            ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
