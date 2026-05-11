@@ -4257,19 +4257,18 @@ endif()
 # 2026-05-11 security audit regression standalone tests
 # ===========================================================================
 
-# CT-001 + SHIM-012: use core library only (no shim required)
-add_executable(test_regression_shim_pubkey_sort_standalone
-    test_regression_shim_pubkey_sort.cpp)
+# # SHIM-012: uses secp256k1.h — only build when shim headers are available
 if(TARGET secp256k1_shim)
-    target_link_libraries(test_regression_shim_pubkey_sort_standalone PRIVATE secp256k1_shim)
+    add_executable(test_regression_shim_pubkey_sort_standalone
+        test_regression_shim_pubkey_sort.cpp)
+    target_link_libraries(test_regression_shim_pubkey_sort_standalone PRIVATE secp256k1_shim fastsecp256k1)
     target_include_directories(test_regression_shim_pubkey_sort_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
-else()
-    audit_target_defaults(test_regression_shim_pubkey_sort_standalone)
+    target_compile_definitions(test_regression_shim_pubkey_sort_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_pubkey_sort COMMAND test_regression_shim_pubkey_sort_standalone)
+    set_tests_properties(regression_shim_pubkey_sort PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim")
 endif()
-target_compile_definitions(test_regression_shim_pubkey_sort_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_shim_pubkey_sort COMMAND test_regression_shim_pubkey_sort_standalone)
-set_tests_properties(regression_shim_pubkey_sort PROPERTIES TIMEOUT 30 LABELS "audit;regression;shim")
 
 # SHIM-001: per-context blinding
 if(TARGET secp256k1_shim)
@@ -4311,18 +4310,19 @@ if(TARGET secp256k1_shim)
     set_tests_properties(regression_ellswift_ct_path PROPERTIES TIMEOUT 30 LABELS "audit;regression;ct;ellswift")
 endif()
 
-# CT-006: MuSig2 nonce strict + RT-011: BIP-32 private key strict
-add_executable(test_regression_musig2_nonce_strict_standalone
-    test_regression_musig2_nonce_strict.cpp)
-audit_target_defaults(test_regression_musig2_nonce_strict_standalone)
+# CT-006: MuSig2 nonce strict — uses secp256k1.h/secp256k1_musig.h, requires shim include
 if(TARGET secp256k1_shim)
-    target_link_libraries(test_regression_musig2_nonce_strict_standalone PRIVATE secp256k1_shim)
+    add_executable(test_regression_musig2_nonce_strict_standalone
+        test_regression_musig2_nonce_strict.cpp)
+    target_link_libraries(test_regression_musig2_nonce_strict_standalone PRIVATE secp256k1_shim fastsecp256k1)
     target_include_directories(test_regression_musig2_nonce_strict_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_musig2_nonce_strict_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_musig2_nonce_strict COMMAND test_regression_musig2_nonce_strict_standalone)
+    set_tests_properties(regression_musig2_nonce_strict PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;musig2;ct")
 endif()
-target_compile_definitions(test_regression_musig2_nonce_strict_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_musig2_nonce_strict COMMAND test_regression_musig2_nonce_strict_standalone)
-set_tests_properties(regression_musig2_nonce_strict PROPERTIES TIMEOUT 30 LABELS "audit;regression;musig2;ct")
+# RT-011: BIP-32 private key strict
 
 add_executable(test_regression_bip32_private_key_strict_standalone
     test_regression_bip32_private_key_strict.cpp)
