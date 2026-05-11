@@ -264,6 +264,20 @@ MuSig2AggNonce musig2_nonce_agg(const std::vector<MuSig2PubNonce>& pub_nonces) {
     return agg;
 }
 
+// Fast overload: skip decompress — Points are already in affine form (SHIM-007).
+MuSig2AggNonce musig2_nonce_agg_points(
+    const std::vector<std::pair<fast::Point, fast::Point>>& pts)
+{
+    MuSig2AggNonce agg{};
+    agg.R1 = Point::infinity();
+    agg.R2 = Point::infinity();
+    for (const auto& [r1, r2] : pts) {
+        agg.R1 = agg.R1.add(r1);
+        agg.R2 = agg.R2.add(r2);
+    }
+    return agg;
+}
+
 // -- Session Start ------------------------------------------------------------
 
 MuSig2Session musig2_start_sign_session(

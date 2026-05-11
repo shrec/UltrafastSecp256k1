@@ -291,6 +291,61 @@ int main(int argc, char** argv) {
             });
 
         std::printf("  musig_pubkey_agg_100_ns=%.2f\n", musig_agg_ns);
+
+        // ── SHIM-007: pubnonce_parse + nonce_agg (double decompress issue) ───
+        // Wire format for a pubnonce is two compressed secp256k1 points (66 bytes).
+        // We construct valid wire bytes from pairs of real EC pubkeys.
+        {
+            static const int N_NONCES = 100;
+            std::vector<std::array<uint8_t, 66>> nonce_wire(N_NONCES);
+            for (int i = 0; i < N_NONCES; ++i) {
+                // R1 = pubkey[i], R2 = pubkey[(i+1) % N_SIGNERS]
+                size_t const j = static_cast<size_t>(i % N_SIGNERS);
+                size_t const k = static_cast<size_t>((i + 1) % N_SIGNERS);
+                size_t len = 33;
+                secp256k1_ec_pubkey_serialize(shim_ctx, nonce_wire[static_cast<size_t>(i)].data(),
+                                             &len, &shim_pubkeys[j], SECP256K1_EC_COMPRESSED);
+                secp256k1_ec_pubkey_serialize(shim_ctx, nonce_wire[static_cast<size_t>(i)].data() + 33,
+                                             &len, &shim_pubkeys[k], SECP256K1_EC_COMPRESSED);
+            }
+
+            // Benchmark: parse N wire-format pubnonces
+            std::vector<secp256k1_musig_pubnonce> parsed_nonces(N_NONCES);
+            std::vector<const secp256k1_musig_pubnonce*> pn_ptrs(N_NONCES);
+            for (int i = 0; i < N_NONCES; ++i)
+                pn_ptrs[static_cast<size_t>(i)] = &parsed_nonces[static_cast<size_t>(i)];
+
+            double const pubnonce_parse_ns = harness.run_and_print(
+                "musig_pubnonce_parse x100",
+                opts.quick ? 10 : 50,
+                [&]() {
+                    for (int i = 0; i < N_NONCES; ++i) {
+                        int ok = secp256k1_musig_pubnonce_parse(
+                            shim_ctx, &parsed_nonces[static_cast<size_t>(i)],
+                            nonce_wire[static_cast<size_t>(i)].data());
+                        bench::DoNotOptimize(ok);
+                    }
+                });
+
+            // Pre-parse for nonce_agg bench
+            for (int i = 0; i < N_NONCES; ++i)
+                secp256k1_musig_pubnonce_parse(shim_ctx, &parsed_nonces[static_cast<size_t>(i)],
+                    nonce_wire[static_cast<size_t>(i)].data());
+
+            secp256k1_musig_aggnonce aggnonce;
+            double const nonce_agg_ns = harness.run_and_print(
+                "musig_nonce_agg (n=100)",
+                opts.quick ? 20 : 80,
+                [&]() {
+                    int ok = secp256k1_musig_nonce_agg(shim_ctx, &aggnonce,
+                                                        pn_ptrs.data(), N_NONCES);
+                    bench::DoNotOptimize(ok);
+                });
+
+            std::printf("  musig_pubnonce_parse_100_ns=%.2f\n", pubnonce_parse_ns);
+            std::printf("  musig_nonce_agg_100_ns=%.2f\n", nonce_agg_ns);
+        }
+
         secp256k1_context_destroy(shim_ctx);
     }
 #endif

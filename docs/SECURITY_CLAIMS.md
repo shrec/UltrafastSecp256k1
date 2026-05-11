@@ -2,6 +2,15 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-11 SHIM-007 — musig2_nonce_agg_points performance overload
+
+- **`src/cpu/src/musig2.cpp` (`musig2_nonce_agg_points`)**: Adds a fast overload for nonce
+  aggregation that accepts pre-decompressed Point pairs instead of compressed byte arrays.
+  **No change to security contract**: nonce aggregation operates exclusively on public
+  broadcast nonces (R1_i, R2_i for each signer). No secret material is involved. CT invariant
+  unaffected. Signing paths unchanged. The function eliminates redundant `decompress_point`
+  (sqrt) calls that occurred when nonces had already been validated via `pubnonce_parse`.
+
 ### 2026-05-11 ct_sign.cpp — ecdsa_sign_hedged_recoverable + OpenCL low-S fix
 
 - **`src/cpu/src/ct_sign.cpp`**: `ct::ecdsa_sign_hedged_recoverable()` added.

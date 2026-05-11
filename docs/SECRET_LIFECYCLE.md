@@ -1,6 +1,14 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-07 | **Version**: 4.0.0
+**Last updated**: 2026-05-11 | **Version**: 4.0.0
+
+### 2026-05-11 SHIM-007 — musig2_nonce_agg_points (PUBLIC-DATA path, no secret material)
+
+- **`src/cpu/src/musig2.cpp` (`musig2_nonce_agg_points`)**: New function. Sums pre-decompressed
+  (R1, R2) Point pairs — these are **public nonces only**. No private key, secret scalar, or secret
+  nonce material flows through this function. The Points are affine-cached representations of
+  signer public nonces that are broadcast to all participants. Zero secret lifecycle changes.
+  Erase requirement: N/A — no secrets present.
 
 ### 2026-05-11 Secret Lifecycle Changes — 10-pass review P1/P2 fixes
 

@@ -92,6 +92,10 @@ struct MuSig2AggNonce {
 // Aggregate all signers' public nonces.
 MuSig2AggNonce musig2_nonce_agg(const std::vector<MuSig2PubNonce>& pub_nonces);
 
+// Fast overload: aggregate pre-decompressed (R1, R2) point pairs.
+// Avoids sqrt/decompress — use when Points are already cached (SHIM-007).
+MuSig2AggNonce musig2_nonce_agg_points(const std::vector<std::pair<fast::Point, fast::Point>>& pts);
+
 // -- Session (Signing) --------------------------------------------------------
 
 struct MuSig2Session {

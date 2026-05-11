@@ -40,6 +40,23 @@ static Point decompress(const unsigned char compressed[33]) {
     return Point::from_affine(x, y);
 }
 
+// Decompress and return (x, y) as byte arrays. Returns false if invalid.
+// Used by pubnonce_parse to cache affine coords, avoiding re-decompression later.
+static bool decompress_to_xy(const unsigned char compressed[33],
+                              uint8_t out_x32[32], uint8_t out_y32[32]) {
+    if (compressed[0] != 0x02 && compressed[0] != 0x03) return false;
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(compressed + 1, x)) return false;
+    auto y2 = x * x * x + FieldElement::from_uint64(7);
+    auto y  = y2.sqrt();
+    if (!(y.square() == y2)) return false;
+    bool y_odd = (y.limbs()[0] & 1) != 0;
+    if (y_odd != (compressed[0] == 0x03)) y = y.negate();
+    auto xb = x.to_bytes(); std::memcpy(out_x32, xb.data(), 32);
+    auto yb = y.to_bytes(); std::memcpy(out_y32, yb.data(), 32);
+    return true;
+}
+
 static void compress(const Point& pt, unsigned char out[33]) {
     auto arr = pt.to_compressed();
     std::memcpy(out, arr.data(), 33);
@@ -182,19 +199,64 @@ static bool sn_unpack(const secp256k1_musig_secnonce* in, Scalar& k1, Scalar& k2
            Scalar::parse_bytes_strict_nonzero(in->data + 32, k2);
 }
 
-// PubNonce: R1[33] | R2[33] in data[0..65]; data[66..131] reserved/zero.
-// Struct is 132 bytes to match upstream libsecp256k1 ABI; wire format is still 66.
-static void pn_pack(secp256k1_musig_pubnonce* out, const secp256k1::MuSig2PubNonce& pn) {
-    std::memset(out->data, 0, sizeof(out->data));  // zero all 132 bytes (B-01)
-    std::memcpy(out->data,      pn.R1.data(), 33);
-    std::memcpy(out->data + 33, pn.R2.data(), 33);
+// PubNonce internal layout (SHIM-007: caches affine coords to avoid re-decompression)
+// data[132]:
+//   [0..31]   R1.x bytes (32)
+//   [32..63]  R1.y bytes (32)
+//   [64..95]  R2.x bytes (32)
+//   [96..127] R2.y bytes (32)
+//   [128]     flags: bit7=valid, bit0=R1_y_odd, bit1=R2_y_odd
+//   [129..131] reserved
+// Wire format (66 bytes): R1_compressed[33] | R2_compressed[33]  (unchanged externally)
+
+static void pn_pack_affine(secp256k1_musig_pubnonce* out,
+                            const uint8_t rx1[32], const uint8_t ry1[32],
+                            const uint8_t rx2[32], const uint8_t ry2[32]) {
+    std::memset(out->data, 0, sizeof(out->data));
+    std::memcpy(out->data,       rx1, 32);
+    std::memcpy(out->data + 32,  ry1, 32);
+    std::memcpy(out->data + 64,  rx2, 32);
+    std::memcpy(out->data + 96,  ry2, 32);
+    uint8_t flags = 0x80;  // valid
+    if (ry1[31] & 1) flags |= 0x01;  // R1 y odd
+    if (ry2[31] & 1) flags |= 0x02;  // R2 y odd
+    out->data[128] = flags;
 }
 
+// Build a pair of Points from cached affine coords — O(1), no sqrt.
+static std::pair<Point, Point> pn_unpack_points(const secp256k1_musig_pubnonce* in) {
+    FieldElement x1, y1, x2, y2;
+    FieldElement::parse_bytes_strict(in->data,       x1);
+    FieldElement::parse_bytes_strict(in->data + 32,  y1);
+    FieldElement::parse_bytes_strict(in->data + 64,  x2);
+    FieldElement::parse_bytes_strict(in->data + 96,  y2);
+    return { Point::from_affine(x1, y1), Point::from_affine(x2, y2) };
+}
+
+// Legacy: reconstruct compressed MuSig2PubNonce from cached affine coords.
+// Only used by paths that still need the compressed representation.
 static secp256k1::MuSig2PubNonce pn_unpack(const secp256k1_musig_pubnonce* in) {
     secp256k1::MuSig2PubNonce pn;
-    std::memcpy(pn.R1.data(), in->data,      33);
-    std::memcpy(pn.R2.data(), in->data + 33, 33);
+    uint8_t flags = in->data[128];
+    // R1: parity from flags bit0, x from data[0..31]
+    pn.R1[0] = (flags & 0x01) ? 0x03 : 0x02;
+    std::memcpy(pn.R1.data() + 1, in->data,      32);
+    // R2: parity from flags bit1, x from data[64..95]
+    pn.R2[0] = (flags & 0x02) ? 0x03 : 0x02;
+    std::memcpy(pn.R2.data() + 1, in->data + 64, 32);
     return pn;
+}
+
+// Legacy pn_pack (for nonce_gen path which still uses MuSig2PubNonce internally).
+static void pn_pack(secp256k1_musig_pubnonce* out, const secp256k1::MuSig2PubNonce& pn) {
+    // Decompress both points to fill the affine layout.
+    uint8_t x1[32], y1[32], x2[32], y2[32];
+    if (!decompress_to_xy(pn.R1.data(), x1, y1) ||
+        !decompress_to_xy(pn.R2.data(), x2, y2)) {
+        std::memset(out->data, 0, sizeof(out->data));
+        return;
+    }
+    pn_pack_affine(out, x1, y1, x2, y2);
 }
 
 // Session layout in data[133]:
@@ -386,7 +448,12 @@ int secp256k1_musig_pubnonce_serialize(
     const secp256k1_musig_pubnonce* nonce)
 {
     if (!out66 || !nonce) return 0;
-    std::memcpy(out66, nonce->data, 66);
+    // Reconstruct compressed form from cached affine coords (no sqrt needed).
+    uint8_t flags = nonce->data[128];
+    out66[0] = (flags & 0x01) ? 0x03 : 0x02;
+    std::memcpy(out66 + 1,  nonce->data,      32);  // R1.x
+    out66[33] = (flags & 0x02) ? 0x03 : 0x02;
+    std::memcpy(out66 + 34, nonce->data + 64, 32);  // R2.x
     return 1;
 }
 
@@ -396,9 +463,12 @@ int secp256k1_musig_pubnonce_parse(
     const unsigned char* in66)
 {
     if (!nonce || !in66) return 0;
-    if (decompress(in66).is_infinity()) return 0;
-    if (decompress(in66 + 33).is_infinity()) return 0;
-    std::memcpy(nonce->data, in66, 66);
+    // SHIM-007: decompress once, cache affine coords. Later users call
+    // pn_unpack_points() to get Points in O(1) without re-decompressing.
+    uint8_t x1[32], y1[32], x2[32], y2[32];
+    if (!decompress_to_xy(in66,      x1, y1)) return 0;
+    if (!decompress_to_xy(in66 + 33, x2, y2)) return 0;
+    pn_pack_affine(nonce, x1, y1, x2, y2);
     return 1;
 }
 
@@ -409,13 +479,14 @@ int secp256k1_musig_nonce_agg(
     size_t n_pubnonces)
 {
     if (!aggnonce || !pubnonces || n_pubnonces == 0) return 0;
-    std::vector<secp256k1::MuSig2PubNonce> pnv;
-    pnv.reserve(n_pubnonces);
+    // SHIM-007: use pre-cached affine coords — no decompress (no sqrt) here.
+    std::vector<std::pair<Point, Point>> pts;
+    pts.reserve(n_pubnonces);
     for (size_t i = 0; i < n_pubnonces; ++i) {
         if (!pubnonces[i]) return 0;
-        pnv.push_back(pn_unpack(pubnonces[i]));
+        pts.push_back(pn_unpack_points(pubnonces[i]));
     }
-    auto agg = secp256k1::musig2_nonce_agg(pnv);
+    auto agg = secp256k1::musig2_nonce_agg_points(pts);
     std::memset(aggnonce->data, 0, sizeof(aggnonce->data));  // zero all 132 bytes (B-01)
     compress(agg.R1, aggnonce->data);
     compress(agg.R2, aggnonce->data + 33);
