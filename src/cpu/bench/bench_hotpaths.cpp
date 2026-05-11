@@ -10,6 +10,13 @@
 #include "secp256k1/scalar.hpp"
 #include "ufsecp/ufsecp.h"
 
+// MuSig shim benchmarks (PERF-007: pubkey_agg serialize-in-loop)
+// BENCH_HAS_MUSIG_SHIM is set by CMakeLists when SECP256K1_BUILD_SHIM is ON.
+#ifdef BENCH_HAS_MUSIG_SHIM
+#  include "secp256k1.h"
+#  include "secp256k1_musig.h"
+#endif
+
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -252,5 +259,41 @@ int main(int argc, char** argv) {
     std::printf("  address_p2wpkh_ns=%.2f\n", p2wpkh_ns);
 
     destroy_frost_fixture(frost_fixture);
+
+#ifdef BENCH_HAS_MUSIG_SHIM
+    // ── MuSig shim benchmarks (PERF-007) ────────────────────────────────────
+    // Benchmarks secp256k1_musig_pubkey_agg to measure the cost of the
+    // serialize-in-loop pattern vs. direct opaque-struct parity extraction.
+    {
+        static const int N_SIGNERS = 100;
+        secp256k1_context* shim_ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+        std::vector<secp256k1_pubkey> shim_pubkeys(N_SIGNERS);
+        std::vector<const secp256k1_pubkey*> shim_pk_ptrs(N_SIGNERS);
+        for (int i = 0; i < N_SIGNERS; ++i) {
+            uint8_t sk[32] = {};
+            sk[0] = static_cast<uint8_t>(i + 1);
+            sk[31] = static_cast<uint8_t>(i * 7 + 1);
+            secp256k1_ec_pubkey_create(shim_ctx, &shim_pubkeys[i], sk);
+            shim_pk_ptrs[i] = &shim_pubkeys[i];
+        }
+
+        secp256k1_musig_keyagg_cache shim_cache;
+        secp256k1_xonly_pubkey shim_agg_pk;
+
+        double const musig_agg_ns = harness.run_and_print(
+            "musig_pubkey_agg (n=100 signers)",
+            opts.quick ? 50 : 200,
+            [&]() {
+                int ok = secp256k1_musig_pubkey_agg(
+                    shim_ctx, &shim_agg_pk, &shim_cache,
+                    shim_pk_ptrs.data(), N_SIGNERS);
+                bench::DoNotOptimize(ok);
+            });
+
+        std::printf("  musig_pubkey_agg_100_ns=%.2f\n", musig_agg_ns);
+        secp256k1_context_destroy(shim_ctx);
+    }
+#endif
+
     return 0;
 }

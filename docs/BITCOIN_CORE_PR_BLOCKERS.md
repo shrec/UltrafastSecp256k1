@@ -35,7 +35,7 @@ matrix) are now closed with documented evidence.
 | # | Item | Status | How Resolved |
 |---|------|--------|--------------|
 | 5 | `.cpp` implementation files in `include/` | ✅ **DONE** | Moved to `src/cpu/src/` — 0 `.cpp` files remain in `include/ufsecp/impl/` |
-| 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current counts: 254 exploit PoCs modules (256 .cpp files) + 100 non-exploit = 354 ALL_MODULES total (verified by `sync_module_count.py 2026-05-11`) |
+| 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current counts: 256 exploit PoCs modules (256 .cpp files) + 100 non-exploit = 354 ALL_MODULES total (verified by `sync_module_count.py 2026-05-11`) |
 | 7 | `VERSION.txt` stale | ✅ **DONE** | `VERSION.txt` = `4.0.0` (matches release tag) |
 | 8 | Wycheproof CI not visible | ✅ **DONE** | `.github/workflows/wycheproof.yml` — 11 test targets, artifact upload, weekly schedule |
 | 9 | Cross-platform build CI | ✅ **DONE** | Linux x86_64 (`ci.yml`), macOS ARM64 (`macos-shim.yml`), Windows x86_64 (`ci.yml`) |
@@ -131,7 +131,7 @@ Two fixes were required:
 
 | Category | Status | Evidence |
 |----------|--------|---------|
-| **Code Quality** | ✅ A | CAAS 254 exploit PoCs, 0 drift |
+| **Code Quality** | ✅ A | CAAS 256 exploit PoCs, 0 drift |
 | **CT Security** | ✅ A | ct-verif, dudect, Valgrind — all sign paths CT; dead R.is_infinity() checks removed |
 | **C++17 Compatibility** | ✅ A | `PRIVATE cxx_std_20`, verified no public C++20 symbols |
 | **ABI Surface** | ✅ A | 693/693 (2026-04-27) · 749/749 (2026-05-11); canonical: `docs/BITCOIN_CORE_BENCH_RESULTS.json` |

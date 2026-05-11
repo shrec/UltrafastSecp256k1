@@ -17,7 +17,7 @@ The security model is CAAS-first: claims are strengthened by executable
 evidence and permanent regression tests.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
-### What It Tests (60 non-exploit modules + 254 exploit PoCs tests + standalone audit surfaces)
+### What It Tests (60 non-exploit modules + 256 exploit PoCs tests + standalone audit surfaces)
 
 | Section | Modules | Focus |
 |---------|---------|-------|

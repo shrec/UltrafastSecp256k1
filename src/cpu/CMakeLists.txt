@@ -858,6 +858,15 @@ if(SECP256K1_BUILD_BENCH)
     # Focused hot-path microbenchmarks for before/after optimization work
     add_executable(bench_hotpaths bench/bench_hotpaths.cpp)
     target_link_libraries(bench_hotpaths PRIVATE ${SECP256K1_LIB_NAME} ufsecp_shared)
+    # PERF-007: when the shim is present, include the MuSig shim bench section.
+    # The shim's secp256k1.h also pulls in secp256k1/ecdsa.hpp, so both the
+    # shim include dir and the CPU include dir must be on the search path.
+    if(SECP256K1_BUILD_SHIM)
+        target_include_directories(bench_hotpaths PRIVATE
+            ${CMAKE_SOURCE_DIR}/compat/libsecp256k1_shim/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        target_compile_definitions(bench_hotpaths PRIVATE BENCH_HAS_MUSIG_SHIM=1)
+    endif()
 
     # Field 5x52 vs 4x64 comparison (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

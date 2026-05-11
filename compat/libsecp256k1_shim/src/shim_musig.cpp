@@ -257,9 +257,10 @@ int secp256k1_musig_pubkey_agg(
     std::vector<std::array<unsigned char, 33>> comp33(n_pubkeys);
     for (size_t i = 0; i < n_pubkeys; ++i) {
         if (!pubkeys[i]) return 0;
-        unsigned char buf[33]; size_t len = 33;
-        secp256k1_ec_pubkey_serialize(secp256k1_context_static, buf, &len, pubkeys[i], SECP256K1_EC_COMPRESSED);
-        std::memcpy(comp33[i].data(), buf, 33);
+        // Direct extraction: opaque struct stores X at data[0..31], Y parity at data[63]&1.
+        // Avoids the full secp256k1_ec_pubkey_serialize call (flag validation, branch overhead).
+        comp33[i][0] = (pubkeys[i]->data[63] & 1) ? 0x03 : 0x02;
+        std::memcpy(comp33[i].data() + 1, pubkeys[i]->data, 32);
     }
 
     auto e = std::make_unique<KAEntry>();
