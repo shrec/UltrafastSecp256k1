@@ -80,6 +80,15 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         ["audit/test_regression_shim_static_ctx.cpp"],
         "Regression test added in the follow-up commit. Fix: g_static_ctx aggregate initializer was missing cached_r_G/cached_r_G_valid fields added by PERF-005, causing a compile error on shim builds.",
     ),
+    "535ece4aa7": (
+        ["audit/test_regression_pippenger_stale_used.cpp"],
+        "test_regression_pippenger_stale_used.cpp already existed and contained PIP-R9 (n=1000, c=8) which was the failing test. The commit fixed pippenger.cpp to make PIP-R9 pass — the test file is the pairing test.",
+    ),
+    "97e00a0fe3": (
+        ["audit/test_exploit_schnorr_edge_cases.cpp",
+         "audit/test_regression_schnorr_ct_arithmetic.cpp"],
+        "PERF-001 (shim_schnorr.cpp stack buf), SEC-005 (adaptor.cpp remove const_cast), SEC-008 (schnorr.cpp comment). Covered by existing schnorr edge-case and CT regression tests already in the suite.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
