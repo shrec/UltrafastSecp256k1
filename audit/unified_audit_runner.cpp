@@ -954,7 +954,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_batch_verify_malleability",   "Batch Verify Malleability: order/dup/poison/ECDSA correctness (BVM-1..6) — Original 2026-04-28", "exploit_poc", test_exploit_batch_verify_malleability_run, false },
     { "exploit_thread_local_blinding",       "Thread-Local Blinding Race: shared ctx concurrent randomize+sign (TLB-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_thread_local_blinding_run, false },
     { "exploit_hedged_return_value",         "Hedged Sign Return Silence: fail-closed zero-sig invariant (HEDGED-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_hedged_return_value_run, false },
-    { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, false },
+    { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, true },
     { "exploit_rs_zero_check",               "ECDSA r,s Zero Check Gap: CVE-2022-39272-class rejection (RZERO-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_rs_zero_check_run, false },
     { "exploit_bip352_address_collision",    "BIP-352 Address Collision: domain separation collision resistance (SP-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_bip352_address_collision_run, false },
     // Section 13: BUG-001..008 fixes (2026-04-28 full audit)
@@ -989,7 +989,7 @@ static const AuditModule ALL_MODULES[] = {
     // (forward declarations at top of file)
     { "regression_schnorr_ct_arithmetic",  "Schnorr s=k+e*d uses ct:: arithmetic, r==all-zeros rejected (HIGH-03, HIGH-06) — 2026-05-02", "exploit_poc", test_regression_schnorr_ct_arithmetic_run,  false },
     { "regression_musig2_zero_psig",       "musig2_partial_sign degenerate zero psig → UFSECP_ERR_INTERNAL (CRIT-03) — 2026-05-02",       "exploit_poc", test_regression_musig2_zero_psig_run,         false },
-    { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, false },
+    { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, true },
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
     { "signing_ct_scalar_correctness_regression", "CT signing scalar correctness: gen-mul, inv, cswap, Pippenger, BatchVerify (PRF-1..8)", "exploit_poc", test_regression_signing_ct_scalar_correctness_run, false },
