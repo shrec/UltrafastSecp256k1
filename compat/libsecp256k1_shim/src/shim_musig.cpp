@@ -1,5 +1,7 @@
 #include "secp256k1_musig.h"
 #include "secp256k1_extrakeys.h"
+#include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -100,30 +102,65 @@ struct KAEntry {
     }
 };
 
+// ---------------------------------------------------------------------------
+// SHIM-010 fix: token-keyed session map
+//
+// Previously keyed on struct address (const void*), which caused a dangling-
+// context hazard: if a secp256k1_musig_keyagg_cache is stack-allocated and
+// then freed, a new struct at the same address would retrieve the old session.
+//
+// Fix: write a monotonically-incrementing 64-bit token into data[0..7] of the
+// opaque struct at pubkey_agg time. The map is now keyed on the token value,
+// not the pointer. A new struct at the same address gets a new token → no
+// collision, no dangling context.
+//
+// secp256k1_musig_keyagg_cache is 197 bytes of caller-opaque storage; using
+// bytes 0..7 as our token is safe as long as we write a fresh token on every
+// pubkey_agg call (which we do).
+// ---------------------------------------------------------------------------
+static std::atomic<std::uint64_t> g_token_counter{1};
+
+static std::uint64_t read_token(const secp256k1_musig_keyagg_cache* p) {
+    std::uint64_t tok = 0;
+    std::memcpy(&tok, p->data, sizeof(tok));
+    return tok;
+}
+
+static void write_token(secp256k1_musig_keyagg_cache* p, std::uint64_t tok) {
+    std::memcpy(p->data, &tok, sizeof(tok));
+}
+
 std::mutex g_mu;
-std::unordered_map<const void*, std::unique_ptr<KAEntry>> g_ka;
+std::unordered_map<std::uint64_t, std::unique_ptr<KAEntry>> g_ka;
 
 // Hard cap prevents DoS from abandoned sessions on error paths.
 static constexpr std::size_t kMaxKaEntries = 1024;
 
 static KAEntry* ka_get(const secp256k1_musig_keyagg_cache* p) {
+    std::uint64_t tok = read_token(p);
+    if (tok == 0) return nullptr;  // never initialized
     std::lock_guard<std::mutex> lk(g_mu);
-    auto it = g_ka.find(p);
+    auto it = g_ka.find(tok);
     return it != g_ka.end() ? it->second.get() : nullptr;
 }
 
-static KAEntry* ka_put(const secp256k1_musig_keyagg_cache* p, std::unique_ptr<KAEntry> v) {
+static KAEntry* ka_put(secp256k1_musig_keyagg_cache* p, std::unique_ptr<KAEntry> v) {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_ka.size() >= kMaxKaEntries) return nullptr;  // DoS cap
-    auto& slot = g_ka[p];
+    // Assign a fresh monotonic token — eliminates address-reuse hazard.
+    std::uint64_t tok = g_token_counter.fetch_add(1, std::memory_order_relaxed);
+    write_token(p, tok);
+    auto& slot = g_ka[tok];
     slot = std::move(v);
     return slot.get();
 }
 
-// Called after the final protocol step — releases the side-channel entry.
+// Called after the final protocol step — releases the session entry.
 static void ka_remove(const secp256k1_musig_keyagg_cache* p) {
+    std::uint64_t tok = read_token(p);
+    if (tok == 0) return;
     std::lock_guard<std::mutex> lk(g_mu);
-    g_ka.erase(p);
+    g_ka.erase(tok);
 }
 
 // ---------------------------------------------------------------------------

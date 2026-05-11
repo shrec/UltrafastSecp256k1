@@ -60,4 +60,27 @@ inline bool ctx_can_verify(const secp256k1_context* ctx) noexcept {
            ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
 }
 
+// ---------------------------------------------------------------------------
+// Per-context blinding RAII guard (SHIM-001 fix)
+//
+// libsecp256k1 stores blinding state per-context. Our CT layer stores it
+// per-thread. Using this guard at the start of every signing call achieves
+// per-context semantics: the calling context's blinding seed is activated on
+// the calling thread for the duration of the signing operation, then restored
+// to "none" on exit.
+//
+// This eliminates SHIM-001: two contexts randomized on the same thread no
+// longer overwrite each other's blinding — each signing call applies its own
+// context's seed for the duration of the call only.
+//
+// Usage:  ContextBlindingScope _blind(ctx);  // at start of signing function
+// ---------------------------------------------------------------------------
+struct ContextBlindingScope {
+    explicit ContextBlindingScope(const secp256k1_context* ctx) noexcept;
+    ~ContextBlindingScope() noexcept;
+    // Non-copyable, non-movable
+    ContextBlindingScope(const ContextBlindingScope&) = delete;
+    ContextBlindingScope& operator=(const ContextBlindingScope&) = delete;
+};
+
 } // namespace secp256k1_shim_internal

@@ -107,6 +107,7 @@ int secp256k1_keypair_create(
 {
     (void)ctx;
     if (!keypair || !seckey) return 0;
+    secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;

@@ -146,6 +146,7 @@ int secp256k1_schnorrsig_sign32(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign32: NULL argument");
         return 0;
     }
+    secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
     Scalar sk;
     if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) return 0;
@@ -192,6 +193,7 @@ int secp256k1_schnorrsig_sign_custom(
 {
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
     if (!schnorr_ctx_can_sign(ctx)) return 0;
+    secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
     // Unpack extraparams (upstream libsecp256k1 v0.4+ API).
     secp256k1_nonce_function_hardened noncefp = nullptr;

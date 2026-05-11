@@ -4126,3 +4126,69 @@ if(SECP256K1_BUILD_LIBFUZZER_STANDALONE AND TARGET ufsecp_static)
     message(STATUS "  LibFuzzer standalone harnesses: ${_FUZZ_HARNESSES} (${CMAKE_CURRENT_BINARY_DIR})")
 endif()
 
+# ===========================================================================
+# Shim security standalone tests (TQ-003 fix)
+# These tests guard critical shim security properties:
+#   - key parsing rejection (KP-1..14)
+#   - degenerate zero-sig detection (DSG-1..7)
+#   - MuSig2 unknown-signer rejection
+#   - BCHN strict Schnorr parsing
+#   - libsecp256k1 shim context flag enforcement
+#
+# They require secp256k1_shim to be linked (Mode A: SECP256K1_BUILD_SHIM=OFF).
+# In the unified runner they return ADVISORY_SKIP_CODE(77) because the shim is
+# not linked there. These standalone targets enforce the same properties as
+# mandatory blocking CTest cases whenever the shim is available.
+# ===========================================================================
+
+if(TARGET secp256k1_shim)
+    # Helper: build a shim-linked standalone exploit test
+    macro(shim_exploit_test _name _src _label _timeout)
+        set(_target test_${_name}_shim_standalone)
+        add_executable(${_target} ${_src})
+        target_link_libraries(${_target} PRIVATE secp256k1_shim fastsecp256k1)
+        if(TARGET ufsecp_static)
+            target_link_libraries(${_target} PRIVATE ufsecp_static)
+        endif()
+        target_compile_definitions(${_target} PRIVATE STANDALONE_TEST)
+        target_include_directories(${_target} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp
+        )
+        add_test(NAME ${_name}_shim COMMAND ${_target})
+        set_tests_properties(${_name}_shim PROPERTIES
+            TIMEOUT ${_timeout}
+            LABELS "audit;exploit;shim;${_label}"
+        )
+    endmacro()
+
+    shim_exploit_test(
+        exploit_legacy_capi_key_parsing
+        test_exploit_legacy_capi_key_parsing.cpp
+        "key_parsing" 60)
+
+    shim_exploit_test(
+        exploit_legacy_capi_degenerate_sig
+        test_exploit_legacy_capi_degenerate_sig.cpp
+        "degenerate_sig" 60)
+
+    shim_exploit_test(
+        exploit_musig_unknown_signer
+        test_exploit_musig_unknown_signer.cpp
+        "musig2" 60)
+
+    shim_exploit_test(
+        exploit_bchn_schnorr_strict_parsing
+        test_exploit_bchn_schnorr_strict_parsing.cpp
+        "bchn;schnorr" 60)
+
+    shim_exploit_test(
+        exploit_context_flag_bypass
+        test_exploit_context_flag_bypass.cpp
+        "context_flags" 60)
+
+    message(STATUS "  Shim security standalone tests: 5 targets built with secp256k1_shim")
+else()
+    message(STATUS "  Shim security standalone tests: SKIPPED (secp256k1_shim target not available; build with SECP256K1_BUILD_SHIM=OFF)")
+endif()
+

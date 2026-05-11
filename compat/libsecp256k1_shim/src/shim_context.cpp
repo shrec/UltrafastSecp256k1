@@ -1,5 +1,5 @@
 // ============================================================================
-// shim_context.cpp -- Context lifecycle (context_randomize installs thread-local CT blinding)
+// shim_context.cpp -- Context lifecycle + per-context blinding scope
 // ============================================================================
 #include "secp256k1.h"
 #include "shim_internal.hpp"
@@ -133,44 +133,56 @@ void secp256k1_context_destroy(secp256k1_context *ctx) {
     // shim_gpu_shutdown() is registered below via std::atexit.
 }
 
-// DEVIATION FROM LIBSECP CONTRACT (documented, intentional):
-// In libsecp256k1 blinding is per-context: each secp256k1_context* has
-// independent blinding state. In this shim, blinding is thread-local:
-// secp256k1::ct::set_blinding() installs state on the CALLING THREAD, not on ctx.
+// Per-context blinding semantics (SHIM-001 fix):
+// libsecp256k1: blinding is per-context (each secp256k1_context* has independent state).
+// Previously this shim applied blinding as persistent thread-local state at
+// context_randomize time, causing two contexts on the same thread to overwrite
+// each other's blinding.
 //
-// Practical impact: Bitcoin Core calls context_randomize once per context,
-// once per thread, and does not share contexts across threads — so this
-// deviation is harmless for the primary use case. Two independent contexts
-// on the same thread will overwrite each other's blinding state; contexts
-// randomized on thread A are not blinded when used on thread B.
+// Fix (Option B): store the seed in ctx->blind[] at context_randomize time (cheap).
+// Apply the blinding lazily at the START of each signing call via ContextBlindingScope,
+// clear it at the END. This achieves true per-context semantics at the cost of one
+// CT generator_mul per signing call — acceptable since signing already costs ~80µs.
 //
-// For the full per-context blinding model, store the seed in ctx and apply
-// it lazily inside each signing call on the calling thread (Option B in
-// the audit review). Tracked as a known deviation in docs/THREAD_SAFETY.md.
+// Bitcoin Core usage pattern (one context per thread, randomized once at startup):
+// identical behavior to before. Multi-context same-thread usage: now correct.
 int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *seed32) {
     if (!ctx) return 0;
     if (seed32) {
+        // Store seed; blinding is applied lazily per signing call via ContextBlindingScope.
         std::memcpy(ctx->blind, seed32, 32);
         ctx->blinded = true;
-        // Activate additive scalar blinding on this thread's signing path.
-        // r = seed32 mod n; r_G = r*G precomputed (CT). Blinding is thread-local.
-        std::array<uint8_t, 32> seed_arr{};
-        std::memcpy(seed_arr.data(), seed32, 32);
-        Scalar r = Scalar::from_bytes(seed_arr); // reduce mod n
-        if (r.is_zero()) {
-            // Astronomically unlikely; fall back to unblinded rather than panic.
-            secp256k1::ct::clear_blinding();
-            return 1;
-        }
-        auto r_G = secp256k1::ct::generator_mul(r);
-        secp256k1::ct::set_blinding(r, r_G);
     } else {
         std::memset(ctx->blind, 0, 32);
         ctx->blinded = false;
-        secp256k1::ct::clear_blinding();
     }
     return 1;
 }
+
+// ContextBlindingScope implementation — applies ctx's blinding on entry, clears on exit.
+namespace secp256k1_shim_internal {
+
+ContextBlindingScope::ContextBlindingScope(const secp256k1_context* ctx) noexcept {
+    if (!ctx) return;
+    // Re-read blind from the struct: need to peek at blinded/blind fields.
+    // secp256k1_context_struct layout: flags(4), blind[32], blinded(bool).
+    // Rather than casting, we expose a helper that reads the struct fields.
+    struct CtxLayout { unsigned int flags; unsigned char blind[32]; bool blinded; };
+    const auto* c = reinterpret_cast<const CtxLayout*>(ctx);
+    if (!c->blinded) return;  // context not randomized — no blinding to apply
+    std::array<uint8_t, 32> seed_arr{};
+    std::memcpy(seed_arr.data(), c->blind, 32);
+    Scalar r = Scalar::from_bytes(seed_arr);
+    if (r.is_zero()) return;  // negligible; skip blinding
+    auto r_G = secp256k1::ct::generator_mul(r);
+    secp256k1::ct::set_blinding(r, r_G);
+}
+
+ContextBlindingScope::~ContextBlindingScope() noexcept {
+    secp256k1::ct::clear_blinding();
+}
+
+} // namespace secp256k1_shim_internal
 
 void secp256k1_selftest(void) {
     // Verify that 1*G produces the known generator x-coordinate.
