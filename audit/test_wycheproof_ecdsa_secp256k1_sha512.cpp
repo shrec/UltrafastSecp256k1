@@ -1164,7 +1164,7 @@ static void run_all_vectors() {
                 // Cannot parse this DER
                 if (sv.result == -1) {
                     char lbl[80]; snprintf(lbl, sizeof(lbl), "tcId=%d invalid-rejected", sv.tcId);
-                    check(true, lbl);  // correctly rejected at parse stage
+                    check(!der_ok, lbl);  // explicit: der_ok==false is the semantic assertion
                     ++total_invalid;
                 } else if (sv.result == 1) {
                     char lbl[80]; snprintf(lbl, sizeof(lbl), "tcId=%d valid-should-parse", sv.tcId);

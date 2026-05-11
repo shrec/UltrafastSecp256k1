@@ -326,9 +326,10 @@ int secp256k1_schnorrsig_verify(
     secp256k1::SchnorrSignature sig;
     if (!secp256k1::SchnorrSignature::parse_strict(sig64, sig)) return 0;
 
-    std::array<uint8_t, 32> msg32{};
-    std::memcpy(msg32.data(), msg, 32);
-
+    // PERF-007 (completed): pass msg directly — no 32-byte stack copy needed.
+    // schnorr_verify accepts const uint8_t* msg which is already validated non-null
+    // and exactly 32 bytes by the msglen check above.
+    //
     // x-only key in first 32 bytes of opaque 64-byte struct.
     // ZERO-WRITE VERIFY PATH (libsecp-style):
     // ShimSchnorrCache (256 × ~1.5 KB = 384 KB) caused 7× libsecp's L3 write
@@ -339,7 +340,7 @@ int secp256k1_schnorrsig_verify(
     // warm-up efficiently without the large-struct L3 write pressure.
     //
     // For repeated-pubkey workloads: use secp256k1_xonly_pubkey_precomp() + verify_precomp().
-    return secp256k1::schnorr_verify(pubkey->data, msg32.data(), sig) ? 1 : 0;
+    return secp256k1::schnorr_verify(pubkey->data, msg, sig) ? 1 : 0;
 }
 
 // -- Pre-computed xonly pubkey API -----------------------------------------

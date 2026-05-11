@@ -27,14 +27,25 @@ static secp256k1_pubkey make_pubkey(secp256k1_context* ctx, unsigned char scalar
     return pk;
 }
 
-// ── PST-1: single key sort — no crash ─────────────────────────────────────
+// ── PST-1: single key sort — key is unchanged after sort ─────────────────
 static void test_sort_single() {
     secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     secp256k1_pubkey pk = make_pubkey(ctx, 1);
     const secp256k1_pubkey* pks[1] = { &pk };
+
+    unsigned char pre_sort[33] = {};
+    size_t len = 33;
+    secp256k1_ec_pubkey_serialize(ctx, pre_sort, &len, pks[0], SECP256K1_EC_COMPRESSED);
+
     // Before fix: this would abort(). After fix: completes normally.
     secp256k1_ec_pubkey_sort(ctx, pks, 1);
-    check(true, "[PST-1] single-key sort completes without crash");
+
+    unsigned char post_sort[33] = {};
+    len = 33;
+    secp256k1_ec_pubkey_serialize(ctx, post_sort, &len, pks[0], SECP256K1_EC_COMPRESSED);
+
+    check(len == 33, "[PST-1a] N=1 sort: serialized length is 33");
+    check(memcmp(pre_sort, post_sort, 33) == 0, "[PST-1b] N=1 sort: key unchanged (single element stays in place)");
     secp256k1_context_destroy(ctx);
 }
 
@@ -92,11 +103,17 @@ static void test_sort_three_keys() {
     secp256k1_context_destroy(ctx);
 }
 
-// ── PST-4: n=0 returns immediately ────────────────────────────────────────
+// ── PST-4: n=0 with null array — no crash and canary byte unchanged ──────
 static void test_sort_zero_count() {
     secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    // canary: a real pubkey allocated adjacent to where an OOB write would land
+    secp256k1_pubkey canary = make_pubkey(ctx, 99);
+    unsigned char canary_before[64];
+    memcpy(canary_before, canary.data, 64);
+    // n=0 with null array: must not write anything, must not crash
     secp256k1_ec_pubkey_sort(ctx, nullptr, 0);
-    check(true, "[PST-4] n=0 with null array does not crash");
+    // Canary must be unchanged — OOB write would corrupt adjacent memory
+    check(memcmp(canary_before, canary.data, 64) == 0, "[PST-4] n=0 with null array: canary byte unchanged (no OOB write)");
     secp256k1_context_destroy(ctx);
 }
 

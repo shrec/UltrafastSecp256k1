@@ -4321,11 +4321,25 @@ if(TARGET secp256k1_shim)
     set_tests_properties(regression_musig2_nonce_strict PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
         LABELS "audit;regression;musig2;ct")
 endif()
-# RT-011: BIP-32 private key strict
+# RT-011: BIP-32 private key strict (also covers public_key() strict parse — BKS-4, BKS-5)
 add_executable(test_regression_bip32_private_key_strict_standalone
     test_regression_bip32_private_key_strict.cpp)
 audit_target_defaults(test_regression_bip32_private_key_strict_standalone)
 target_compile_definitions(test_regression_bip32_private_key_strict_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_bip32_private_key_strict COMMAND test_regression_bip32_private_key_strict_standalone)
 set_tests_properties(regression_bip32_private_key_strict PROPERTIES TIMEOUT 30 LABELS "audit;regression;bip32")
+
+# SEC-007: MuSig2 signer_index cross-check (Rule 13) — C++ API, no shim required
+add_executable(test_regression_musig2_signer_index_validation_standalone
+    test_regression_musig2_signer_index_validation.cpp)
+audit_target_defaults(test_regression_musig2_signer_index_validation_standalone)
+target_include_directories(test_regression_musig2_signer_index_validation_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_regression_musig2_signer_index_validation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_musig2_signer_index_validation
+    COMMAND test_regression_musig2_signer_index_validation_standalone)
+set_tests_properties(regression_musig2_signer_index_validation PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;musig2;security;rule13")
 

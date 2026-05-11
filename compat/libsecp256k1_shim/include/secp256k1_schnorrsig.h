@@ -52,10 +52,13 @@ SECP256K1_API int secp256k1_schnorrsig_sign32(
  *
  * 1. NONCE FUNCTION: only NULL and secp256k1_nonce_function_bip340 are
  *    accepted.  Any other non-NULL noncefp causes an immediate return of 0
- *    (fail-closed). The ndata argument is accepted but ignored — aux entropy
- *    must be embedded in extraparams->ndata by callers using the upstream API.
- *    DIVERGENCE: upstream passes ndata to the nonce function; this shim ignores
- *    ndata because the nonce function is not forwarded to an external callback.
+ *    (fail-closed).
+ *    The ndata field in extraparams IS used as aux_rand32 when provided:
+ *      - For msglen == 32: ndata is passed as aux_rand32 to secp256k1_schnorrsig_sign32.
+ *      - For msglen != 32: ndata is used as the 32-byte aux entropy in the
+ *        BIP-340 nonce hash H_BIP0340/nonce(ndata‖sk‖P_x‖msg).
+ *    Pass extraparams->ndata = NULL for deterministic BIP-340 nonces (32 zero bytes).
+ *    DIVERGENCE from upstream: custom noncefp callbacks are not forwarded.
  *
  * 2. AUX RAND: when noncefp == NULL (deterministic BIP-340 path), aux entropy
  *    is hardcoded to 32 zero bytes.  This matches the behaviour of upstream

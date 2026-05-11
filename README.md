@@ -358,7 +358,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **99 non-exploit modules + 254 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **100 non-exploit modules + 254 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **254 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
@@ -386,7 +386,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 99 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 100 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
 ### Exploit PoC Test Suite (254 Tests, 20+ Coverage Areas)
 
@@ -590,7 +590,7 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **3 -- Convenience** | Coins | 27 blockchains, auto-dispatch | [OK] |
 | **2 -- Protocol** | BIP-352 | Silent Payments scanning pipeline (CPU + GPU) | [OK] |
 | **2 -- Protocol** | ECIES | Elliptic curve integrated encryption | [OK] |
-| -- | GPU | CUDA, Metal, OpenCL, ROCm kernels | [OK] |
+| -- | GPU | CUDA, Metal, OpenCL kernels | [OK] · ROCm [EXPERIMENTAL] |
 | -- | GPU C ABI | `ufsecp_gpu` -- 19 functions (16 batch ops + 3 lifecycle: ctx/device/error), 3 backends, incl. FROST, BIP-324, BIP-352 | [OK] |
 | -- | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | [OK] |
 

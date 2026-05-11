@@ -525,10 +525,11 @@ int test_regression_ct_mixed_add_magnitude_run();        // CA-mixed-add: point_
 int test_regression_shim_static_ctx_run();              // ecf47967: g_static_ctx PERF-005 field alignment fix
 int test_regression_ellswift_ct_path_run();              // CT-001: ellswift_create CT path + XDH round-trip
 int test_regression_musig2_nonce_strict_run();           // CT-006: MuSig2 k1/k2 strict nonce parsing
-int test_regression_bip32_private_key_strict_run();      // RT-011: BIP-32 private_key() strict parse
+int test_regression_bip32_private_key_strict_run();      // RT-011: BIP-32 private_key()/public_key() strict parse
 int test_regression_shim_pubkey_sort_run();              // SHIM-012: pubkey_sort no-crash + correct order
 int test_regression_shim_per_context_blinding_run();     // SHIM-001: per-context blinding semantics
 int test_regression_musig2_session_token_run();          // SHIM-010: MuSig2 token-keyed map
+int test_regression_musig2_signer_index_validation_run(); // SEC-007: signer_index cross-check (Rule 13)
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -674,7 +675,8 @@ static const AuditModule ALL_MODULES[] = {
     { "c_abi_negative",    "C ABI null/bad-key/bad-sig contract tests",   "memory_safety",  test_c_abi_negative_run, false },
     { "c_abi_thread_stress", "C ABI thread stress (one ctx per thread)",  "memory_safety",  test_c_abi_thread_stress_run, false },
     { "secure_erase",      "Secure memory erasure (volatile readback)",   "memory_safety",  audit_secure_erase_run, false },
-    { "ct_namespace",      "CT namespace discipline (source-level scan)", "memory_safety",  audit_ct_namespace_run, false },
+    // advisory=true: returns ADVISORY_SKIP_CODE (77) when source tree is absent (e.g. out-of-tree build).
+    { "ct_namespace",      "CT namespace discipline (source-level scan)", "memory_safety",  audit_ct_namespace_run, true },
     { "kat_all_ops",       "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith","standard_vectors", test_kat_all_operations_run, false },
     { "nonce_uniqueness",  "RFC 6979 nonce determinism + uniqueness",     "memory_safety",  test_nonce_uniqueness_run, false },
     { "parse_strictness",  "Public parse path strictness (malformed inputs)","memory_safety", test_parse_strictness_run, false },
@@ -1006,12 +1008,17 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_ct_mixed_add_magnitude", "CA-mixed-add: point_add_mixed_complete FE52 magnitude contract — normalize_weak X1/Y1 guard, 2G+3G=5G, blinded==unblinded, ct vs fast recover", "math_invariants", test_regression_ct_mixed_add_magnitude_run, false },
     { "regression_shim_static_ctx", "ecf47967: g_static_ctx field alignment after PERF-005 cached_r_G addition", "math_invariants", test_regression_shim_static_ctx_run, true },
     // === 2026-05-11 Security audit regression guards (CT-001, CT-006, RT-011, SHIM-001, SHIM-010, SHIM-012) ===
-    { "regression_ellswift_ct_path",           "CT-001: ellswift_create routes through ct::generator_mul — deterministic encoding, XDH round-trip, zero/null key rejection", "ct_analysis",    test_regression_ellswift_ct_path_run,           false },
-    { "regression_musig2_nonce_strict",        "CT-006: MuSig2 k1/k2 nonces via parse_bytes_strict_nonzero — non-zero R1/R2 commitments, distinct nonces per extra_input",  "ct_analysis",    test_regression_musig2_nonce_strict_run,        false },
-    { "regression_bip32_private_key_strict",   "RT-011: BIP-32 private_key() strict parsing — key==n → zero, key==0 → zero, valid key round-trips, HD child derivation",    "correctness",    test_regression_bip32_private_key_strict_run,   false },
-    { "regression_shim_pubkey_sort",           "SHIM-012: secp256k1_ec_pubkey_sort no longer crashes via nullptr ctx — lexicographic order correctness (PST-1..4)",          "correctness",    test_regression_shim_pubkey_sort_run,           false },
-    { "regression_shim_per_context_blinding",  "SHIM-001: per-context blinding — two contexts on same thread sign independently, unblinded ctx works, NULL seed clears",     "ct_analysis",    test_regression_shim_per_context_blinding_run,  false },
-    { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "correctness",    test_regression_musig2_session_token_run,       false },
+    // advisory=true: these modules depend on the libsecp256k1 shim being linked.
+    // On GitHub CI (shim absent) the stubs return ADVISORY_SKIP_CODE (77).
+    // The advisory flag MUST match the stub behaviour — false would falsely claim mandatory pass.
+    { "regression_ellswift_ct_path",           "CT-001: ellswift_create routes through ct::generator_mul — deterministic encoding, XDH round-trip, zero/null key rejection", "ct_analysis",    test_regression_ellswift_ct_path_run,           true },
+    { "regression_musig2_nonce_strict",        "CT-006: MuSig2 k1/k2 nonces via parse_bytes_strict_nonzero — non-zero R1/R2 commitments, distinct nonces per extra_input",  "ct_analysis",    test_regression_musig2_nonce_strict_run,        true },
+    { "regression_bip32_private_key_strict",   "RT-011: BIP-32 private_key() strict parsing — key==n → zero, key==0 → zero, valid key round-trips, HD child derivation",    "protocol_security", test_regression_bip32_private_key_strict_run, true },
+    { "regression_shim_pubkey_sort",           "SHIM-012: secp256k1_ec_pubkey_sort no longer crashes via nullptr ctx — lexicographic order correctness (PST-1..4)",          "memory_safety",  test_regression_shim_pubkey_sort_run,           true },
+    { "regression_shim_per_context_blinding",  "SHIM-001: per-context blinding — two contexts on same thread sign independently, unblinded ctx works, NULL seed clears",     "ct_analysis",    test_regression_shim_per_context_blinding_run,  true },
+    { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "memory_safety",  test_regression_musig2_session_token_run,       true },
+    // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required)
+    { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs", "protocol_security", test_regression_musig2_signer_index_validation_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

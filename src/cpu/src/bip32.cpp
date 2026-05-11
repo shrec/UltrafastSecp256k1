@@ -231,7 +231,12 @@ std::array<uint8_t, 20> hash160(const void* data, std::size_t len) {
 
 fast::Point ExtendedKey::public_key() const {
     if (is_private) {
-        auto sk = Scalar::from_bytes(key);
+        // Strict: reject key >= n or == 0 (Rule 11). from_bytes would silently
+        // reduce mod n, masking a corrupted key as a valid (wrong) scalar.
+        Scalar sk{};
+        if (!Scalar::parse_bytes_strict_nonzero(key, sk)) {
+            return Point::infinity();
+        }
         return ct::generator_mul(sk);
     }
     // Public key: decompress from pub_prefix + key (x-coordinate)

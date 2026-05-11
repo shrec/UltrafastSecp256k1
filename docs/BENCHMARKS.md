@@ -23,7 +23,7 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr | 1.24× ECDSA · 1.09× Schnorr |
+| x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr (pre-parsed) · 1.05× Schnorr (raw bytes, ConnectBlock-equivalent) | 1.24× ECDSA · 1.09× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
@@ -219,7 +219,7 @@ documented separately from the stable host interface.
 | Batch Inverse (n=100) | 140 ns/elem | Montgomery's trick |
 | Batch Inverse (n=1000) | 92 ns/elem | |
 
-### x86-64 / Windows (Clang 21.1.0, AVX2)
+### x86-64 / Windows (Clang 21.1.0, AVX2) `[archived / diagnostic — verify against current bench before citing]`
 
 **Hardware:** x86-64 (AVX2)  
 **OS:** Windows  

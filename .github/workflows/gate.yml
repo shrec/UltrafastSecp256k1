@@ -397,9 +397,11 @@ jobs:
             caas_autonomy.json
             caas_bundle_verify.json
             assurance_report.json
-          # M-4 fix: error so a gate failure that prevents JSON generation is
-          # visible as a hard artifact failure, not a silent empty-upload warning.
-          if-no-files-found: error
+          # CI-003 fix: warn instead of error so a gate failure that prevents
+          # assurance_report.json generation doesn't obscure the root-cause gate failure
+          # with a secondary artifact-upload error. Root cause is already visible
+          # from the audit_gate step's own failure status.
+          if-no-files-found: warn
           retention-days: 90
 
   bindings-smoke:

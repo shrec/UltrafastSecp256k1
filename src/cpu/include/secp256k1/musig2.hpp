@@ -37,6 +37,12 @@ struct MuSig2KeyAggCtx {
     std::array<std::uint8_t, 32> Q_x;          // X-only aggregated pubkey
     std::vector<fast::Scalar> key_coefficients; // a_i for each signer
     bool Q_negated;                              // Whether Q was negated for even-Y
+    // Individual compressed pubkeys (33 bytes each), populated by musig2_key_agg.
+    // Empty when the context was deserialized from the ABI blob (KEYAGG_LEN does not
+    // carry individual pubkeys). When non-empty, musig2_partial_sign validates that
+    // the caller's secret_key corresponds to the claimed signer_index (Rule 13).
+    // Full ABI-layer fix scheduled for v2 (MED-3 / KEYAGG_LEN expansion).
+    std::vector<std::array<std::uint8_t, 33>> individual_pubkeys;
 };
 
 // Aggregate public keys (KeyAgg from BIP-327).

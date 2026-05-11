@@ -137,8 +137,11 @@ secp256k1_context *secp256k1_context_clone(const secp256k1_context *ctx) {
 
 void secp256k1_context_destroy(secp256k1_context *ctx) {
     if (ctx && ctx != &g_static_ctx) {
-        // Erase sensitive fields before freeing (PERF-005: cached_r_G contains key material).
+        // Erase all sensitive fields before freeing.
+        // SHIM-NEW-001 fix: also erase cached_r_G (Point object), not just the valid flag.
+        // The Point stores r*G where r comes from the blinding seed — key material.
         std::memset(ctx->blind, 0, 32);
+        secp256k1::detail::secure_erase(&ctx->cached_r_G, sizeof(ctx->cached_r_G));
         ctx->cached_r_G_valid = false;
         std::free(ctx);
     }

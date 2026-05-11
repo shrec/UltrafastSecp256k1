@@ -7,6 +7,46 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-11 — 10-Pass Multi-Agent Review: Round 2 — All P1 + P2 fixes (v3 — final code applied)
+
+### P1 Security / CT Fixes
+- **SEC-007** `musig2.hpp` + `musig2.cpp` + `ufsecp_musig2.cpp`: `musig2_partial_sign` now validates `ct::generator_mul(secret_key) == individual_pubkeys[signer_index]` when the context was built via `musig2_key_agg` (C++ API path). CT byte-comparison (no early exit). ABI-layer fix deferred to v2 (MED-3). New regression test: `audit/test_regression_musig2_signer_index_validation.cpp` (MSI-1..4).
+- **SEC-006** `bip32.cpp`: `ExtendedKey::public_key()` now uses `Scalar::parse_bytes_strict_nonzero` instead of `Scalar::from_bytes` on private key (Rule 11). Returns `Point::infinity()` for key=n or key=0. Tests BKS-4+BKS-5 added to `test_regression_bip32_private_key_strict.cpp`.
+- **SEC-003** `shim_schnorr_bch.cpp`: `pubkey_data_to_point` now verifies y²=x³+7 before constructing the Point; returns infinity for off-curve inputs.
+- **SHIM-NEW-001** `shim_context.cpp`: `secp256k1_context_destroy` now calls `secure_erase(&ctx->cached_r_G, sizeof(cached_r_G))` before free — the blinding point is fully zeroed, not just the valid flag.
+- **SHIM-NEW-003** `shim_extrakeys.cpp`: Added `SHIM_REQUIRE_CTX(ctx)` to `secp256k1_xonly_pubkey_from_pubkey`, `secp256k1_keypair_sec`, `secp256k1_keypair_pub` — NULL ctx now fires illegal callback (abort) instead of silently succeeding.
+
+### P1 CI / False-Green Fixes
+- **CI-001** `unified_audit_runner.cpp`: 6 shim-stub modules changed from `advisory=false` to `advisory=true` (matches stub return 77 behavior — CT-001, CT-006, RT-011, SHIM-012, SHIM-001, SHIM-010). Same for CI-007: `ct_namespace` changed to `advisory=true`.
+- **CI-002** `unified_audit_runner.cpp`: 3 modules using invalid section `"correctness"` updated to `"protocol_security"` / `"memory_safety"`.
+- **CI-003** `.github/workflows/gate.yml`: Artifact upload changed from `if-no-files-found: error` to `warn` to prevent secondary artifact error obscuring root-cause gate failure.
+- **CI-004** `ci/ci_gate_detect.py`: Added `docs/canonical_numbers.json` and `docs/bench_unified_*.json` to `security-evidence` profile so CAAS triggers on benchmark artifact mutations.
+
+### P1 Documentation Fixes
+- **PR-002+003** `README.md`: Stale "239/251" and "344/350" module counts removed; `sync_module_count.py` run to propagate correct 100 non-exploit + 256 exploit = 356 total.
+- **PR-004** `docs/BITCOIN_CORE_INTEGRATION.md`: Stale CMake flag `USE_ULTRAFAST_SECP256K1` → `SECP256K1_USE_ULTRAFAST` (all occurrences).
+- **PR-005** `docs/BITCOIN_CORE_INTEGRATION.md`: Stale test count 693/693 → 749/749 (GCC 14.2.0, 2026-05-11).
+- **SHIM-NEW-005** `secp256k1_schnorrsig.h`: Fixed misleading comment "ndata is ignored" — it IS used as aux_rand32.
+- **SHIM-NEW-007** `secp256k1_batch.h`: Removed incorrect "All signatures must be in low-S normalized form" from ECDSA batch verify — implementation correctly accepts high-S.
+- **SHIM-NEW-009** `docs/SHIM_KNOWN_DIVERGENCES.md`: Documented MuSig2 session raw pointer stash (process-local-only, not serializable).
+- **SHIM-NEW-013** `docs/SHIM_KNOWN_DIVERGENCES.md`: Documented DER parse r=0/s=0 asymmetry vs compact parse.
+
+### P2 Test Quality Fixes
+- **TEST-001** `test_regression_shim_pubkey_sort.cpp`: PST-1 now serializes key before/after sort and compares bytes; PST-4 uses canary byte check.
+- **TEST-002** `src/cpu/tests/test_hash_accel.cpp`: `test_feature_detection` now asserts tier ≥ SCALAR, tier_name non-empty, SHA-NI/tier consistency.
+- **TEST-005** `test_wycheproof_ecdsa_secp256k1_sha512.cpp`: DER-reject branch uses `check(!der_ok, lbl)` instead of `check(true, lbl)`.
+
+### P2 Performance Fixes
+- **PERF-007** `shim_schnorr.cpp`: Removed unnecessary 32-byte `msg32` stack copy in `secp256k1_schnorrsig_verify` — `msg` pointer passed directly to `schnorr_verify`.
+
+### P2 Documentation / Benchmark Fixes
+- **BENCH-008** `docs/canonical_numbers.json`: Added banned patterns for 2.45× ECDSA and 2.34× Schnorr FAST-path ratios.
+- **BENCH-010** `docs/BENCHMARKS.md`: Schnorr verify summary updated to show both 1.08× (pre-parsed) and 1.05× (raw bytes, ConnectBlock-equivalent).
+- **DOC-001** `docs/BENCHMARKS.md`: Windows Clang 21.1.0 table now labeled `[archived / diagnostic]`.
+- **DOC-002** `README.md`: ROCm changed from `[OK]` to `[EXPERIMENTAL]` in feature table.
+- **DOC-003** `docs/WHY_ULTRAFASTSECP256K1.md`: "530K deterministic corpus" claim replaced with "hundreds of thousands (count grows with CI runs)".
+- **CT-006** `src/cpu/src/ct_point.cpp`: `scalar_mul_jac` confirmed clean — GLV decomposition + Strauss interleaving + CT table lookups (no VT on scalar). SEC-002 confirmed false finding (normalize() is a no-op on already-affine point returned by `generator_mul_blinded`).
+
 ## 2026-05-11 — 10-Pass Multi-Agent Review: All P1 + P2 fixes (v2 — code applied)
 
 ### P1 Fixes (code)

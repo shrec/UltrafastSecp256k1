@@ -83,6 +83,10 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         "docs/SECURITY_AUTONOMY_KPI.json",
         "docs/BITCOIN_CORE_TEST_RESULTS.json",
         "docs/BITCOIN_CORE_BENCH_RESULTS.json",
+        # CI-004: benchmark evidence artifacts — mutation of these could inflate
+        # performance claims without triggering CAAS gates.
+        "docs/canonical_numbers.json",
+        "docs/bench_unified_*.json",
     ],
     "docs-only": [
         "docs/**",

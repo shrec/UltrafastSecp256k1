@@ -11,8 +11,8 @@ UltrafastSecp256k1 ships a `compat/libsecp256k1_shim` that provides the **identi
 `secp256k1.h` API surface** as bitcoin-core/secp256k1. No Bitcoin Core source changes
 are required — only the CMake configuration changes.
 
-Current integration status: **693/693 test_bitcoin pass, 0 failures.**
-Evidence: `docs/BITCOIN_CORE_TEST_RESULTS.json`
+Current integration status: **749/749 test_bitcoin pass, 0 failures** (GCC 14.2.0, 2026-05-11).
+Evidence: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (most recent) · `docs/BITCOIN_CORE_TEST_RESULTS.json` (earlier Clang 19 run, 693/693).
 
 ---
 
@@ -58,9 +58,9 @@ Pin to a specific commit hash. Do not use `GIT_TAG main` — the library is
 under active development and `main` is not a stable reference for CI:
 
 ```cmake
-option(USE_ULTRAFAST_SECP256K1 "Use UltrafastSecp256k1 instead of bundled secp256k1" OFF)
+option(SECP256K1_USE_ULTRAFAST "Use UltrafastSecp256k1 instead of bundled secp256k1" OFF)
 
-if(USE_ULTRAFAST_SECP256K1)
+if(SECP256K1_USE_ULTRAFAST)
     include(FetchContent)
     FetchContent_Declare(
         UltrafastSecp256k1
@@ -84,7 +84,7 @@ endif()
 
 Build:
 ```bash
-cmake -S . -B build -DUSE_ULTRAFAST_SECP256K1=ON
+cmake -S . -B build -DSECP256K1_USE_ULTRAFAST=ON
 cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
@@ -176,11 +176,11 @@ libsecp256k1.
 
 A minimal PR to [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin) would:
 
-1. **Add `cmake/secp256k1_backend.cmake`** — `USE_ULTRAFAST_SECP256K1` option with
+1. **Add `cmake/secp256k1_backend.cmake`** — `SECP256K1_USE_ULTRAFAST` option with
    FetchContent/alias wiring.
 2. **Modify `CMakeLists.txt`** — `include(secp256k1_backend)` before existing
    `add_subdirectory(src/secp256k1)`.
-3. **Add CI job** — builds Bitcoin Core with `-DUSE_ULTRAFAST_SECP256K1=ON`
+3. **Add CI job** — builds Bitcoin Core with `-DSECP256K1_USE_ULTRAFAST=ON`
    and runs the full test suite.
 4. **No changes to any Bitcoin Core source file** — build system only.
 

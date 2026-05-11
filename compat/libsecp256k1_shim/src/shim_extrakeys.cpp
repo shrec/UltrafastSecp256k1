@@ -74,7 +74,7 @@ int secp256k1_xonly_pubkey_from_pubkey(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *xonly_pubkey,
     int *pk_parity, const secp256k1_pubkey *pubkey)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-NEW-003: NULL ctx fires illegal callback (abort)
     if (!xonly_pubkey || !pubkey) return 0;
 
     // pubkey layout: data[0..31] = X, data[32..63] = Y (both big-endian)
@@ -129,7 +129,7 @@ int secp256k1_keypair_sec(
     const secp256k1_context *ctx, unsigned char *seckey,
     const secp256k1_keypair *keypair)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-NEW-003: NULL ctx fires illegal callback
     if (!seckey || !keypair) return 0;
     std::memcpy(seckey, keypair->data, 32);
     return 1;
@@ -139,7 +139,7 @@ int secp256k1_keypair_pub(
     const secp256k1_context *ctx, secp256k1_pubkey *pubkey,
     const secp256k1_keypair *keypair)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-NEW-003: NULL ctx fires illegal callback
     if (!pubkey || !keypair) return 0;
     std::memcpy(pubkey->data, keypair->data + 32, 64);
     return 1;

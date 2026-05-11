@@ -152,3 +152,45 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   Any other non-NULL `noncefp` returns 0.
 - **Reason:** Same as ECDSA sign custom nonce rejection.
 - **Impact:** Callers with custom BIP-340 nonce functions.
+
+---
+
+## secp256k1_musig_session — internal raw pointer (process-local-only)
+
+- **Upstream behavior:** `secp256k1_musig_session` is a 133-byte self-contained opaque
+  struct. All data needed to reconstruct the session is encoded in those bytes. The struct
+  can be copied, memcpy'd, or checkpointed safely within a process.
+- **Shim behavior:** The shim's `secp256k1_musig_session` (133 bytes) stores an 8-byte
+  raw pointer to the associated `secp256k1_musig_keyagg_cache` at byte offset 98.
+  This pointer is written by `secp256k1_musig_session_init` and read by `partial_sig_agg`.
+- **Reason:** The shim uses a global token-keyed map to associate opaque cache pointers
+  with internal state. The raw pointer allows O(1) map removal in `partial_sig_agg`.
+- **Impact:** **The session struct is process-local-only.**
+  - Safe: `memcpy` within the same process (pointer remains valid).
+  - Unsafe: serializing the session to disk/network and deserializing in a new process
+    — the pointer becomes dangling. Do not checkpoint or persist sessions.
+  - The pointer at offset 98–105 also leaks a heap address (ASLR bypass) in any
+    inter-process context (hypothetical only — MuSig2 sessions should never cross
+    process boundaries).
+- **Planned fix:** Store a token/index instead of a raw pointer (v2 scope, MED-3).
+- **Test:** Any attempt to serialize + deserialize a session across process restart
+  will produce a dangling-pointer UB. No differential test is feasible; the divergence
+  is structural.
+
+---
+
+## secp256k1_ecdsa_signature_parse_der — rejects r=0 or s=0
+
+- **Upstream behavior:** Accepts r=0 or s=0 in DER signatures at parse time; rejects
+  them at verify time (r=0 makes the group element undefined; s=0 makes the equation
+  degenerate).
+- **Shim behavior:** Uses `parse_bytes_strict_nonzero` in the DER parser — rejects
+  r=0 or s=0 at parse time.
+- **Asymmetry:** The compact signature parser (`signature_parse_compact`) uses
+  `parse_bytes_strict` and does NOT reject r=0/s=0 at parse time, matching upstream.
+  DER parse is stricter than compact parse — this asymmetry is intentional (defense-in-depth
+  for the DER path, where zero-value fields indicate malformed input).
+- **Impact:** Callers parsing DER-encoded ECDSA signatures with r=0 or s=0 (astronomically
+  rare; all such signatures are cryptographically invalid).
+- **Test:** `secp256k1_ecdsa_signature_parse_der` with DER-encoded r=0 → shim returns 0;
+  upstream libsecp returns 1 (passes to verify which then rejects).

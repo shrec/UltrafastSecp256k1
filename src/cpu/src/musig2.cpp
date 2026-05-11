@@ -149,6 +149,9 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
     }
 
     ctx.Q_x = ctx.Q.x().to_bytes();
+
+    // Store individual pubkeys for signer_index validation in musig2_partial_sign (Rule 13).
+    ctx.individual_pubkeys = pubkeys;
     return ctx;
 }
 
@@ -317,6 +320,26 @@ Scalar musig2_partial_sign(
     // Bounds check: signer_index out of range (distinct from degenerate arithmetic)
     if (signer_index >= key_agg_ctx.key_coefficients.size()) {
         return Scalar::zero();  // caller checks for zero and returns UFSECP_ERR_BAD_INPUT
+    }
+
+    // Rule 13: when individual pubkeys are available (C++ API path, not ABI-deserialized),
+    // validate that secret_key actually corresponds to the claimed signer_index.
+    // CT byte comparison — no early exit to avoid leaking which bytes differ.
+    if (!key_agg_ctx.individual_pubkeys.empty() &&
+        signer_index < key_agg_ctx.individual_pubkeys.size()) {
+        Point const derived = ct::generator_mul(secret_key);
+        if (SECP256K1_UNLIKELY(derived.is_infinity())) {
+            return Scalar::zero();
+        }
+        auto const derived_c = derived.to_compressed();
+        const auto& expected = key_agg_ctx.individual_pubkeys[signer_index];
+        std::uint64_t diff = 0;
+        for (std::size_t i = 0; i < 33; ++i) {
+            diff |= static_cast<std::uint64_t>(derived_c[i] ^ expected[i]);
+        }
+        if (diff != 0) {
+            return Scalar::zero();
+        }
     }
 
     // k = k1 + b * k2

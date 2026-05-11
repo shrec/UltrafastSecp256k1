@@ -43,8 +43,9 @@ SECP256K1_API int secp256k1_schnorrsig_verify_batch(
  * Performance: ~1.5-2x faster than n individual secp256k1_ecdsa_verify()
  * calls for n >= 32. For n < 8, falls back to individual verification.
  *
- * All signatures must already be in low-S normalized form (as returned by
- * secp256k1_ecdsa_signature_normalize). High-S signatures are rejected.
+ * High-S signatures are accepted (matching secp256k1_ecdsa_verify behavior).
+ * Use secp256k1_ecdsa_signature_normalize before storage if low-S is required
+ * by the application (e.g. BIP-62 compliance). Normalization is not enforced here.
  *
  * If any signature is invalid the function returns 0. The caller must
  * re-verify individually to identify which one(s) are invalid.

@@ -87,7 +87,10 @@
       {"regex": "2\\.5.5\\.4% slower", "reason": "Stale no-LTO deficit — actual is ~1% not 2.5-5.4%"},
       {"regex": "22.24% faster.*[Tt]aproot", "reason": "Stale taproot signing claim — actual is 11-36%"},
       {"regex": "~18% faster.*P2TR", "reason": "Stale P2TR verify claim — actual is ~11% (1.11x)"},
-      {"regex": "23\\.9%.*SignSchnorr", "reason": "Stale SignSchnorrWithMerkleRoot claim — actual is 36%"}
+      {"regex": "23\\.9%.*SignSchnorr", "reason": "Stale SignSchnorrWithMerkleRoot claim — actual is 36%"},
+      {"regex": "2\\.45.*ECDSA sign", "reason": "FAST-path sign ratio — variable-time vs libsecp CT, not production-equivalent, must not appear in reviewer docs"},
+      {"regex": "2\\.34.*Schnorr sign", "reason": "FAST-path sign ratio — variable-time vs libsecp CT, not production-equivalent, must not appear in reviewer docs"},
+      {"regex": "USE_ULTRAFAST_SECP256K1", "reason": "Stale/banned CMake flag — canonical flag is SECP256K1_USE_ULTRAFAST"}
     ]
   },
 

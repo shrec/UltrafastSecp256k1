@@ -40,8 +40,16 @@ static Point pubkey_data_to_point(const unsigned char data[64]) {
     std::array<uint8_t, 32> xb{}, yb{};
     std::memcpy(xb.data(), data,      32);
     std::memcpy(yb.data(), data + 32, 32);
-    return Point::from_affine(FieldElement::from_bytes(xb),
-                              FieldElement::from_bytes(yb));
+    FieldElement x = FieldElement::from_bytes(xb);
+    FieldElement y = FieldElement::from_bytes(yb);
+    // On-curve check: reject off-curve points that bypass secp256k1_ec_pubkey_parse.
+    // A hostile caller could write arbitrary bytes into a secp256k1_pubkey struct.
+    // y^2 == x^3 + 7 must hold; otherwise return infinity (verify will return 0).
+    auto b7 = FieldElement::from_uint64(7);
+    if (y * y != x * x * x + b7) {
+        return Point::infinity();
+    }
+    return Point::from_affine(x, y);
 }
 
 // BCH Schnorr hash: SHA256(R.x[32] || P_compressed[33] || msg[32])

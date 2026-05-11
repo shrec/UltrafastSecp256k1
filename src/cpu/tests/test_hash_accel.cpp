@@ -42,7 +42,23 @@ static void test_feature_detection() {
     (void)std::printf("  SHA-NI:    %s\n", hash::sha_ni_available() ? "yes" : "no");
     (void)std::printf("  AVX2:      %s\n", hash::avx2_available() ? "yes" : "no");
     (void)std::printf("  AVX-512:   %s\n", hash::avx512_available() ? "yes" : "no");
-    check(true, "feature detection completed");
+
+    // Tier must be a valid enum value (SCALAR is the minimum fallback)
+    check(static_cast<int>(tier) >= static_cast<int>(hash::HashTier::SCALAR),
+          "tier >= SCALAR (valid lower bound)");
+    // tier_name must return a non-empty string
+    const char* tname = hash::hash_tier_name(tier);
+    check(tname != nullptr && tname[0] != '\0', "hash_tier_name returns non-empty string");
+    // If sha_ni_available(), tier must be at least SHA_NI
+    if (hash::sha_ni_available()) {
+        check(static_cast<int>(tier) >= static_cast<int>(hash::HashTier::SHA_NI),
+              "sha_ni_available() => tier >= SHA_NI");
+    }
+    // If avx2_available() but not sha_ni, tier must be at least AVX2
+    if (hash::avx2_available() && !hash::sha_ni_available()) {
+        check(static_cast<int>(tier) >= static_cast<int>(hash::HashTier::AVX2),
+              "avx2_available() && !sha_ni => tier >= AVX2");
+    }
 }
 
 // -- Test 2: SHA-256 known vectors --------------------------------------------

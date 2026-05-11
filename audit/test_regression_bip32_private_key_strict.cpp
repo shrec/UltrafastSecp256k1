@@ -66,14 +66,37 @@ static void test_zero_key_rejected() {
     CHECK(scalar.is_zero(), "[BKS-3] zero key is rejected (strict), returns zero scalar");
 }
 
+// ── BKS-4: public_key() with key == n returns infinity (strict) ───────────
+static void test_public_key_n_rejected() {
+    secp256k1::ExtendedKey xk{};
+    xk.key = {};
+    std::memcpy(xk.key.data(), kN, 32);
+    xk.is_private = true;
+
+    auto pt = xk.public_key();
+    CHECK(pt.is_infinity(), "[BKS-4] public_key() with key==n returns Point::infinity (strict)");
+}
+
+// ── BKS-5: public_key() with key == 0 returns infinity ───────────────────
+static void test_public_key_zero_rejected() {
+    secp256k1::ExtendedKey xk{};
+    xk.key = {};  // all zeros
+    xk.is_private = true;
+
+    auto pt = xk.public_key();
+    CHECK(pt.is_infinity(), "[BKS-5] public_key() with zero key returns Point::infinity (strict)");
+}
+
 // ── _run() ─────────────────────────────────────────────────────────────────
 int test_regression_bip32_private_key_strict_run() {
     g_pass = 0; g_fail = 0;
-    std::printf("[regression_bip32_private_key_strict] strict parsing for BIP-32 private_key()\n");
+    std::printf("[regression_bip32_private_key_strict] strict parsing for BIP-32 private_key() and public_key()\n");
 
     test_valid_key_roundtrip();
     test_key_equal_n_rejected();
     test_zero_key_rejected();
+    test_public_key_n_rejected();
+    test_public_key_zero_rejected();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
