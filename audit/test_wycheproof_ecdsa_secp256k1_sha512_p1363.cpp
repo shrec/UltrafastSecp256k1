@@ -804,8 +804,9 @@ static void run_all_vectors() {
             size_t sig_len = hex_decode(sv.sig, sig_buf, sizeof(sig_buf));
             if (sig_len != 64) {
                 if (sv.result == -1) {
-                    char lbl[80]; snprintf(lbl, sizeof(lbl), "tcId=%d invalid-bad-len", sv.tcId);
-                    check(true, lbl); ++total_invalid;
+                    // Expected-invalid vector rejected at hex decode (too short/long).
+                    // Library is not called; no assertion needed — just count it.
+                    ++total_invalid;
                 }
                 continue;
             }
@@ -835,8 +836,9 @@ static void run_all_vectors() {
             }
             if (r_zero || s_zero || r_ge_n || s_ge_n) {
                 if (sv.result == -1) {
-                    char lbl[80]; snprintf(lbl, sizeof(lbl), "tcId=%d invalid-range", sv.tcId);
-                    check(true, lbl); ++total_invalid;
+                    // Expected-invalid vector rejected at range check (r/s = 0 or >= n).
+                    // Library is not called; no assertion needed — just count it.
+                    ++total_invalid;
                 } else if (sv.result == 1) {
                     char lbl[80]; snprintf(lbl, sizeof(lbl), "tcId=%d valid-rejected-range", sv.tcId);
                     check(false, lbl); ++total_valid;

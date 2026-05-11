@@ -206,14 +206,16 @@ static void test_invalid_content_core_ops(ufsecp_gpu_ctx* ctx) {
 
     out_result[0] = 1;
     auto e2 = ufsecp_gpu_ecdsa_verify_batch(ctx, msg32, invalid_pub33, ecdsa_sig64, 1, out_result);
-    CHECK(e2 == UFSECP_ERR_GPU_UNSUPPORTED || e2 != UFSECP_OK || out_result[0] == 0,
-          "ecdsa_verify_batch invalid pubkey rejects or marks invalid");
+    CHECK(e2 == UFSECP_ERR_GPU_UNSUPPORTED || e2 == UFSECP_ERR_BAD_INPUT
+              || (e2 == UFSECP_OK && out_result[0] == 0),
+          "ecdsa_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
 
     schnorr_sig64[0] ^= 0x80;
     out_result[0] = 1;
     auto e3 = ufsecp_gpu_schnorr_verify_batch(ctx, msg32, xonly_pub32, schnorr_sig64, 1, out_result);
-    CHECK(e3 == UFSECP_ERR_GPU_UNSUPPORTED || e3 != UFSECP_OK || out_result[0] == 0,
-          "schnorr_verify_batch invalid signature rejects or marks invalid");
+    CHECK(e3 == UFSECP_ERR_GPU_UNSUPPORTED || e3 == UFSECP_ERR_BAD_INPUT
+              || (e3 == UFSECP_OK && out_result[0] == 0),
+          "schnorr_verify_batch invalid signature: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
     schnorr_sig64[0] ^= 0x80;
 
     auto e4 = ufsecp_gpu_ecdh_batch(ctx, seckey32, invalid_pub33, 1, out_secret32);
@@ -326,8 +328,9 @@ static void test_ecrecover_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
           "cpu recoverable sign for ecrecover fixture setup");
 
     auto err = ufsecp_gpu_ecrecover_batch(ctx, msg32, sig64, &invalid_recid, 1, out_pub33, out_valid);
-    CHECK(err == UFSECP_ERR_GPU_UNSUPPORTED || err != UFSECP_OK || out_valid[0] == 0,
-          "ecrecover_batch invalid recid rejects or marks invalid");
+    CHECK(err == UFSECP_ERR_GPU_UNSUPPORTED || err == UFSECP_ERR_BAD_INPUT
+              || (err == UFSECP_OK && out_valid[0] == 0),
+          "ecrecover_batch invalid recid: UNSUPPORTED, ERR_BAD_INPUT, or marks valid[0]=0");
 
     ufsecp_ctx_destroy(cpu_ctx);
 }
@@ -382,24 +385,28 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     auto e1 = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, invalid_compressed33, compressed33,
                                                     compressed33, scalar32, scalar32, out_result,
                                                     out_result, 1, out_result);
-    CHECK(e1 == UFSECP_ERR_GPU_UNSUPPORTED || e1 != UFSECP_OK || out_result[0] == 0,
-          "frost_verify_partial_batch invalid compressed point rejects or marks invalid");
+    CHECK(e1 == UFSECP_ERR_GPU_UNSUPPORTED || e1 == UFSECP_ERR_BAD_INPUT
+              || (e1 == UFSECP_OK && out_result[0] == 0),
+          "frost_verify_partial_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 1;
     auto e2 = ufsecp_gpu_zk_knowledge_verify_batch(ctx, proof64, invalid_point65, scalar32, 1, out_result);
-    CHECK(e2 == UFSECP_ERR_GPU_UNSUPPORTED || e2 != UFSECP_OK || out_result[0] == 0,
-          "zk_knowledge_verify_batch invalid pubkey rejects or marks invalid");
+    CHECK(e2 == UFSECP_ERR_GPU_UNSUPPORTED || e2 == UFSECP_ERR_BAD_INPUT
+              || (e2 == UFSECP_OK && out_result[0] == 0),
+          "zk_knowledge_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 1;
     auto e3 = ufsecp_gpu_zk_dleq_verify_batch(ctx, proof64, invalid_point65, point65,
                                               point65, point65, 1, out_result);
-    CHECK(e3 == UFSECP_ERR_GPU_UNSUPPORTED || e3 != UFSECP_OK || out_result[0] == 0,
-          "zk_dleq_verify_batch invalid proof point rejects or marks invalid");
+    CHECK(e3 == UFSECP_ERR_GPU_UNSUPPORTED || e3 == UFSECP_ERR_BAD_INPUT
+              || (e3 == UFSECP_OK && out_result[0] == 0),
+          "zk_dleq_verify_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 1;
     auto e4 = ufsecp_gpu_bulletproof_verify_batch(ctx, proof324, point65, point65, 1, out_result);
-    CHECK(e4 == UFSECP_ERR_GPU_UNSUPPORTED || e4 != UFSECP_OK || out_result[0] == 0,
-          "bulletproof_verify_batch invalid proof point rejects or marks invalid");
+    CHECK(e4 == UFSECP_ERR_GPU_UNSUPPORTED || e4 == UFSECP_ERR_BAD_INPUT
+              || (e4 == UFSECP_OK && out_result[0] == 0),
+          "bulletproof_verify_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     auto e5 = ufsecp_gpu_bip324_aead_encrypt_batch(ctx, key32, nonce12, plaintext32,
                                                    size_too_big, 32, 1, wire51);
@@ -409,14 +416,16 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     out_valid[0] = 1;
     auto e6 = ufsecp_gpu_bip324_aead_decrypt_batch(ctx, key32, nonce12, wire51,
                                                    size_too_big, 32, 1, plain_out32, out_valid);
-    CHECK(e6 == UFSECP_ERR_GPU_UNSUPPORTED || e6 != UFSECP_OK || out_valid[0] == 0,
-          "bip324_aead_decrypt_batch invalid oversized packet rejects or marks invalid");
+    CHECK(e6 == UFSECP_ERR_GPU_UNSUPPORTED || e6 == UFSECP_ERR_BAD_INPUT
+              || (e6 == UFSECP_OK && out_valid[0] == 0),
+          "bip324_aead_decrypt_batch oversized: UNSUPPORTED, ERR_BAD_INPUT, or marks invalid");
 
     out_valid[0] = 1;
     auto e7 = ufsecp_gpu_bip324_aead_decrypt_batch(ctx, key32, nonce12, wire51,
                                                    size_ok, 32, 1, plain_out32, out_valid);
-    CHECK(e7 == UFSECP_ERR_GPU_UNSUPPORTED || e7 != UFSECP_OK || out_valid[0] == 0,
-          "bip324_aead_decrypt_batch invalid tag rejects or marks invalid");
+    CHECK(e7 == UFSECP_ERR_GPU_UNSUPPORTED || e7 == UFSECP_ERR_BAD_INPUT
+              || (e7 == UFSECP_OK && out_valid[0] == 0),
+          "bip324_aead_decrypt_batch bad tag: UNSUPPORTED, ERR_BAD_INPUT, or marks invalid");
 
     /* ── schnorr_snark_witness_batch: zero_edge + invalid_content ──── */
 
@@ -433,9 +442,9 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
         uint8_t witness_out[512] = {};  /* oversized to be safe */
         auto ew = ufsecp_gpu_zk_schnorr_snark_witness_batch(
             ctx, bad_msg, bad_pk, bad_sig, 1, witness_out);
-        /* Either UNSUPPORTED (no GPU kernel yet), ERR_BAD_INPUT, or OK-with-invalid-witness */
-        CHECK(ew == UFSECP_ERR_GPU_UNSUPPORTED || ew != UFSECP_OK || ew == UFSECP_OK,
-              "schnorr_snark_witness_batch invalid content does not crash");
+        /* Either UNSUPPORTED (no GPU kernel yet) or ERR_BAD_INPUT — never OK for all-zero input */
+        CHECK(ew == UFSECP_ERR_GPU_UNSUPPORTED || ew == UFSECP_ERR_BAD_INPUT,
+              "schnorr_snark_witness_batch invalid content returns expected error code");
     }
 }
 

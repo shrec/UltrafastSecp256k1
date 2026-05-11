@@ -40,12 +40,14 @@ constexpr limbs4 ONE{1ULL, 0ULL, 0ULL, 0ULL};
 // 8-limb wide integer
 using wide8 = std::array<std::uint64_t, 8>;
 
+// CT-safe ge(): subtraction-chain, no data-dependent branches.
+// Matches field.cpp's ge() pattern. Although fast::Scalar is the
+// variable-time path, making ge() branchless eliminates secret-dependent
+// branch chains if any caller passes secret data (defense in depth).
 [[nodiscard]] bool ge(const limbs4& a, const limbs4& b) noexcept {
-    // Fully unrolled: one branch per limb (MSB first), no loop overhead.
-    if (a[3] != b[3]) return a[3] > b[3];
-    if (a[2] != b[2]) return a[2] > b[2];
-    if (a[1] != b[1]) return a[1] > b[1];
-    return a[0] >= b[0];
+    unsigned char borrow = 0;
+    for (std::size_t i = 0; i < 4; ++i) { sub64(a[i], b[i], borrow); }
+    return borrow == 0;  // no borrow → a >= b
 }
 
 // Generic scalar add/sub mod N using 64-bit limbs
