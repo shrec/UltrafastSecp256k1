@@ -2,20 +2,22 @@
 """
 Formal verification runner for UltrafastSecp256k1.
 
-BLOCKING gate: Z3 SMT and Lean 4 proofs MUST pass.
-If either tool is absent or fails → exit 1 (hard failure).
+BLOCKING gate: ALL three tools MUST be present and pass.
+  Z3 SMT   — proves SafeGCD divstep algebraic invariants
+  Lean 4   — machine-checks SafeGCD theorems via native_decide
+  Cryptol  — proves GF(p) field + EC group + ECDSA + Schnorr arithmetic
 
-Cryptol type-check is advisory: absent Cryptol binary → skip (not a failure).
-If Cryptol IS installed and type-check fails → exit 1.
+If any tool is absent or fails → exit 1 (hard failure).
+Cryptol absent = primitive correctness unverified = FAIL.
 
 Tools:
   Z3 SMT    — audit/formal/safegcd_z3_proof.py   (~2s, pip install z3-solver)
   Lean 4    — audit/formal/lean/  (lake build)    (~5min after elan install)
-  Cryptol   — audit/formal/cryptol/ (.cry files)  (advisory: skip if absent)
+  Cryptol   — audit/formal/cryptol/ (.cry files)  (apt-get install cryptol)
 
 Exit codes:
-  0   all required tools passed (Cryptol skipped if absent)
-  1   any required tool missing OR any proof failed
+  0   all tools passed
+  1   any tool missing OR any proof failed
 """
 
 from __future__ import annotations
@@ -111,15 +113,17 @@ def main() -> int:
         if run_tool("lean", ["lake", "build"], cwd=lean_dir) != 0:
             rc = 1
 
-    # ── Cryptol type-check (ADVISORY: skip if absent) ────────────────────────
-    print("[Cryptol] Type-check .cry specifications  [advisory — skip if absent]")
+    # ── Cryptol property checks (REQUIRED) ───────────────────────────────────
+    print("[Cryptol] GF(p) + EC + ECDSA + Schnorr arithmetic properties  [REQUIRED]")
     cryptol_dir = FORMAL_DIR / "cryptol"
     if not tool_available("cryptol"):
-        print("  [cryptol] SKIP (cryptol not installed — not required)")
-        g_skip += 1
+        print("  [cryptol] MISSING — cryptol not installed (apt-get install cryptol)")
+        g_fail += 1
+        rc = 1
     elif not cryptol_dir.exists():
-        print(f"  [cryptol] SKIP ({cryptol_dir} not found)")
-        g_skip += 1
+        print(f"  [cryptol] MISSING — {cryptol_dir} not found")
+        g_fail += 1
+        rc = 1
     else:
         for cry_file in sorted(cryptol_dir.glob("*.cry")):
             if run_tool(f"cryptol/{cry_file.name}", ["cryptol", "-b", str(cry_file)]) != 0:

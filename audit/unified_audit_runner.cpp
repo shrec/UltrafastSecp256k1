@@ -181,7 +181,7 @@ int test_exploit_musig2_partial_forgery_run();        // ePrint 2020/1261 MuSig2
 int test_exploit_adaptor_extraction_soundness_run();  // ePrint 2020/476 adaptor extraction soundness
 int test_exploit_ecdh_twist_injection_run();          // ePrint 2015/1233 ECDH twist injection
 int test_exploit_schnorr_batch_inflation_run();       // BIP-340 Schnorr batch inflation
-int test_cryptol_specs_run();      // Cryptol formal spec property check (advisory: needs cryptol)
+int test_cryptol_specs_run();      // Cryptol formal spec property check (blocking: apt-get install cryptol)
 int test_exploit_safegcd_divsteps_run();              // Bernstein-Yang SafeGCD divstep count + correctness
 int test_exploit_ecdsa_pmn_wraparound_run();          // ECDSA PMN wraparound: r ∈ [n,p) constant + logic (2026-05-05)
 int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cases (null/zero/n/n-1)
@@ -633,7 +633,7 @@ static const AuditModule ALL_MODULES[] = {
     { "fuzz_musig2_frost", "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)","fuzzing",        test_fuzz_musig2_frost_run, false },
     { "libfuzzer_unified", "LibFuzzer deterministic regression (6 parsers)","fuzzing",        test_libfuzzer_unified_run, false },
     { "mutation_kill_rate","Mutation kill-rate audit (advisory)",          "fuzzing",        test_mutation_kill_rate_run, true  },
-    { "cryptol_specs",     "Cryptol formal spec properties (advisory)",    "fuzzing",        test_cryptol_specs_run, true  },
+    { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "formal_proof",   test_cryptol_specs_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================

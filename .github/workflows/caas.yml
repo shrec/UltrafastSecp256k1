@@ -328,6 +328,9 @@ jobs:
       - name: Install Z3 solver
         run: pip install --require-hashes -r .github/requirements/formal-verification.txt
 
+      - name: Install Cryptol
+        run: sudo apt-get install -y cryptol
+
       - name: Install Lean 4 toolchain (elan)
         run: |
           curl -sSfL https://raw.githubusercontent.com/leanprover/elan/v4.0.0/elan-init.sh -o /tmp/elan-init.sh

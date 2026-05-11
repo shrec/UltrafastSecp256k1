@@ -2,12 +2,12 @@
 // test_cryptol_specs.cpp -- Cryptol formal spec checker for unified runner
 // ============================================================================
 //
-// Advisory module: checks that the Cryptol formal specifications in
-// formal/cryptol/ pass their QuickCheck properties via the `cryptol` REPL.
+// BLOCKING module: Cryptol properties prove the correctness of secp256k1
+// arithmetic primitives (GF(p) field, EC point group law, ECDSA, Schnorr).
+// These are foundational — if any property fails the primitives are wrong.
 //
-// ADVISORY = true: failure produces a WARN, not a hard FAIL.
-// Reason: requires the Cryptol toolchain to be installed.
-//         CI jobs run this where installed; others skip silently.
+// ADVISORY = false: failure is a hard FAIL, not a warning.
+// Requires the Cryptol toolchain:  apt-get install cryptol  (Ubuntu 22.04+)
 //
 // What this proves (when cryptol is present):
 //   - Secp256k1Field.cry   — 14 field properties: commutativity, assoc, inv, sqrt
@@ -52,13 +52,12 @@ static bool cryptol_available() {
 
 static std::string find_cryptol_dir() {
     static const char* kCandidates[] = {
-        "../formal/cryptol",
-        "formal/cryptol",
-        "../../formal/cryptol",
+        "audit/formal/cryptol",
+        "../audit/formal/cryptol",
+        "../../audit/formal/cryptol",
         nullptr
     };
     for (int i = 0; kCandidates[i]; ++i) {
-        // Check for Field spec as sentinel
         std::string path = std::string(kCandidates[i]) + "/Secp256k1Field.cry";
         if (FILE* f = std::fopen(path.c_str(), "r")) {
             std::fclose(f);
@@ -175,14 +174,15 @@ static const std::vector<std::string> kSchnorrProps = {
 // ---------------------------------------------------------------------------
 int test_cryptol_specs_run() {
     if (!cryptol_available()) {
-        std::printf("[cryptol_specs] cryptol not installed — skipping (advisory)\n");
-        return ADVISORY_SKIP_CODE;
+        std::printf("[cryptol_specs] FAIL: cryptol not installed\n");
+        std::printf("[cryptol_specs]   install: apt-get install cryptol\n");
+        return 1;
     }
 
     std::string cry_dir = find_cryptol_dir();
     if (cry_dir.empty()) {
-        std::printf("[cryptol_specs] formal/cryptol/ not found — skipping (advisory)\n");
-        return ADVISORY_SKIP_CODE;
+        std::printf("[cryptol_specs] FAIL: audit/formal/cryptol/ not found\n");
+        return 1;
     }
 
     std::printf("[cryptol_specs] Found specs at: %s\n", cry_dir.c_str());
@@ -204,15 +204,15 @@ int test_cryptol_specs_run() {
         if (rc == 0) {
             std::printf("[cryptol_specs]   %s: PASS\n", spec.name);
         } else {
-            std::printf("[cryptol_specs]   %s: WARN (property failure)\n", spec.name);
+            std::printf("[cryptol_specs]   %s: FAIL (property failure — primitive is wrong)\n", spec.name);
             ++total_fail;
         }
     }
 
     if (total_fail == 0) {
-        std::printf("[cryptol_specs] All Cryptol properties checked — PASS\n");
+        std::printf("[cryptol_specs] All Cryptol properties verified — PASS\n");
     } else {
-        std::printf("[cryptol_specs] %d spec(s) had property failures — WARN\n", total_fail);
+        std::printf("[cryptol_specs] %d spec(s) FAILED — arithmetic primitives violated\n", total_fail);
     }
 
     return total_fail == 0 ? 0 : 1;

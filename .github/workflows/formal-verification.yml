@@ -1,6 +1,17 @@
-name: Formal Verification (Z3 + Lean 4)
+name: Formal Verification (Z3 + Lean 4 + Cryptol)
 
 on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'audit/formal/**'
+      - 'src/cpu/src/ct_field.cpp'
+      - 'src/cpu/src/field.cpp'
+      - 'src/cpu/src/point.cpp'
+      - 'src/cpu/src/ecdsa.cpp'
+      - 'src/cpu/src/schnorr.cpp'
+  pull_request:
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
@@ -72,4 +83,47 @@ jobs:
           echo '## Formal Verification — SafeGCD Lean 4' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           lake build 2>&1 | tail -10 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  cryptol-specs:
+    name: Cryptol Arithmetic Spec Properties
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Cryptol
+        run: sudo apt-get install -y cryptol
+
+      - name: Check Cryptol version
+        run: cryptol --version
+
+      - name: Verify GF(p) field properties (Secp256k1Field.cry)
+        working-directory: audit/formal/cryptol
+        run: cryptol -b Secp256k1Field.cry
+
+      - name: Verify EC point group law (Secp256k1Point.cry)
+        working-directory: audit/formal/cryptol
+        run: cryptol -b Secp256k1Point.cry
+
+      - name: Verify ECDSA sign/verify properties (Secp256k1ECDSA.cry)
+        working-directory: audit/formal/cryptol
+        run: cryptol -b Secp256k1ECDSA.cry
+
+      - name: Verify Schnorr BIP-340 properties (Secp256k1Schnorr.cry)
+        working-directory: audit/formal/cryptol
+        run: cryptol -b Secp256k1Schnorr.cry
+
+      - name: Append Cryptol summary
+        if: always()
+        run: |
+          echo '## Formal Verification — Cryptol Arithmetic Specs' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cryptol --version >> "$GITHUB_STEP_SUMMARY"
+          echo 'Specs: Secp256k1Field, Secp256k1Point, Secp256k1ECDSA, Secp256k1Schnorr' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
