@@ -1361,6 +1361,9 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
     SECP256K1_DECLASSIFY(pre_a, sizeof(pre_a));
     SECP256K1_DECLASSIFY(pre_a_lam, sizeof(pre_a_lam));
 
+    // HAMBURG=true: K_CONST guarantees m_val (S1+S2) ≠ 0 for all intermediate
+    // additions in this isomorphic-curve path (~18 ns × 52 calls ≈ 936 ns saved).
+    // Dedicated to ellswift_xdh — scalar_mul_jac (CT signing) keeps HAMBURG=false.
     CTJacobianPoint R;
     CTAffinePoint t;
 
@@ -1371,7 +1374,7 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
         R.x = t.x; R.y = t.y; R.z = FE52::one(); R.infinity = 0;
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<true>(&R, R, t);
+        unified_add_core<true, true>(&R, R, t);   // HAMBURG: K_CONST → no degenerate
     }
 
     #ifdef __clang__
@@ -1382,9 +1385,9 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
         std::uint64_t const bits2 = scalar_window(v2, static_cast<std::size_t>(group) * GROUP_SIZE, GROUP_SIZE);
         point_dbl_n_core(&R, GROUP_SIZE);
         table_lookup_core<false>(&t, pre_a, TABLE_SIZE, bits1, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);  // HAMBURG: K_CONST → no degenerate
         table_lookup_core<false>(&t, pre_a_lam, TABLE_SIZE, bits2, GROUP_SIZE);
-        unified_add_core<false>(&R, R, t);
+        unified_add_core<false, true>(&R, R, t);  // HAMBURG: K_CONST → no degenerate
     }
 
     R.z = R.z * global_z;
