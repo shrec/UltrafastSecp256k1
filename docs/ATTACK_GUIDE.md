@@ -4,10 +4,18 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 254 exploit PoCs tests (all wired in `unified_audit_runner`),
-11 fuzzer harnesses, 60 non-exploit audit modules, 39 formal Cryptol properties, dudect + Valgrind
-CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
+**Current assurance state**: 252 exploit PoC modules + 98 non-exploit modules = 350 total
+(via `audit/unified_audit_runner`), 11 fuzzer harnesses, 39 formal Cryptol properties, dudect
++ Valgrind CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.
+
+**Recently hardened (2026-05-11):**
+- Schnorr batch verify: first weight was deterministically `Scalar::one()` (soundness gap vs
+  randomized batch proof). Fixed — all weights now SHA256-seeded.
+- ECDSA shim verify: no curve membership check on opaque pubkey struct. Fixed — `y²=x³+7` added.
+- CT violations in seckey tweak, adaptor, schnorr fast path. Fixed.
+- FROST DKG share equality used VT field inverse. Fixed — `ct::point_eq()`.
+- Libsecp256k1 shim: NULL ctx and context flag handling in Taproot functions. Fixed.
 
 ---
 

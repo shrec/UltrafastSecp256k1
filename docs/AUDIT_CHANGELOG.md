@@ -7,6 +7,58 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-11 — 10-Pass Multi-Agent Review: All P1 + P2 fixes
+
+### CT / Security Fixes (code)
+- **CT-001** `shim_seckey.cpp`: `secp256k1_ec_seckey_tweak_add/mul` — `fast::Scalar +/*` on private key replaced with `ct::scalar_add/mul`.
+- **CT-002** `schnorr.cpp`: `k_prime.is_zero()` → `is_zero_ct()` on secret nonce.
+- **CT-003** `musig2.cpp`: `ct::generator_mul(partial_sig)` in verify → `Point::generator().scalar_mul()` (public value, VT correct).
+- **CT-004** `adaptor.cpp`: ternary negation on secret → `ct::scalar_cneg(adaptor_secret, ct::bool_to_mask(...))`.
+- **CT-006** `frost.cpp`: DKG share equality `to_compressed()` (VT field inverse) → `ct::point_eq()`.
+- **CT-008** `schnorr.cpp`: `kp.d.is_zero()` → `is_zero_ct()` on secret private key.
+- **RED-TEAM-005** `batch_verify.cpp`: Schnorr batch first weight deterministically `Scalar::one()` removed; all weights now SHA256-seeded.
+- **RED-TEAM-008** `shim_ecdsa.cpp`: Added `y²=x³+7` curve membership check before accepting opaque `secp256k1_pubkey` struct bytes.
+- **RED-TEAM-010** `bip32.cpp`: `inner_hash` erased after HMAC-SHA512 outer update.
+- **RED-TEAM-011** `frost.cpp`: `signing_share` erased after storing to pkg in DKG finalize.
+
+### Shim Compatibility Fixes
+- **SHIM-002** `shim_schnorr.cpp`: `nonce_function_bip340_stub` returns 0 (was 1) — removes silent ABI trap.
+- **SHIM-005** `shim_recovery.cpp`: `secp256k1_ecdsa_sign_recoverable` NULL args now fires illegal callback.
+- **SHIM-006** `shim_extrakeys.cpp`: `secp256k1_xonly_pubkey_tweak_add` family — `SHIM_REQUIRE_CTX` added (NULL ctx → abort).
+- **SHIM-007** `shim_extrakeys.cpp`: `secp256k1_keypair_create` — `ctx_can_sign()` check added.
+- **RED-TEAM-009** `shim_musig.cpp`: `ka_put` return value checked; returns 0 when DoS cap hit.
+
+### Performance
+- **PERF-005** `shim_context.cpp`: `r*G` cached at `secp256k1_context_randomize` time; `ContextBlindingScope` uses cache (~50% signing throughput improvement).
+- **PERF-006** `shim_ecdsa.cpp`: redundant `msghash32` stack copy removed in verify.
+- **PERF-007** `shim_schnorr.cpp`: redundant `sig64` stack copy removed in verify.
+
+### CI / CAAS Fixes
+- **CI-002** `gate.yml`: `export_assurance` step conditioned on `audit_gate` success.
+- **CI-003** `bench-regression.yml`: quick-mode baseline guard now exits 1 (was warning).
+- **CI-004** `caas-evidence-refresh.yml`: `artifact_analyzer ingest` failure now hard-errors.
+- **CI-005** `preflight.yml`: advisory aggregation step added with `::notice::`.
+- **CI-006** `benchmark.yml`: zero-timing validation added before dashboard store.
+- **CI-007** `caas.yml`: bundle freshness check on missing bundle now exits 1 (was 0/pass).
+- **CI-008** `perf_regression_check.sh`: `|| true` on binary execution removed.
+- **CI-009** `caas-evidence-refresh.yml`: failed-gate runs only commit `EVIDENCE_CHAIN.json`.
+
+### Test Quality
+- **TEST-001** `test_exploit_ecdh_zvp_glv_static.cpp`: tautological `CHECK(rc != UFSECP_OK)` in else-branch removed.
+- **TEST-002** `test_exploit_hertzbleed_dvfs_timing.cpp`: timing threshold 4×/5× → 2×/3×.
+- **TEST-005** `test_fiat_crypto_linkage.cpp`: MSVC skip returns `ADVISORY_SKIP_CODE` (77) not 0.
+
+### Benchmark & Evidence
+- Fresh controlled bench_unified run: GCC 14.2.0, turbo off, core pinned, 11-pass IQR. Canonical JSON: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`. CT signing: 1.24× ECDSA / 1.09× Schnorr vs libsecp256k1.
+
+### Documentation
+- `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
+- `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
+- `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 252 exploit PoC = 350 total.
+
+---
+
 ## 2026-05-06 — Ultrareview P0/P1/P2 Batch (TASK-001..012 + P2-005, CT-003)
 
 ### CT Security Fixes (shim)
