@@ -1,6 +1,6 @@
 # Bitcoin Core Alternative Backend — Evidence Document
 
-> Version: 1.2 — 2026-05-01
+> Version: 1.3 — 2026-05-11
 > Profile: `bitcoin-core-backend`
 > Status: PR-prep / RC-prep — evidence refresh in progress; not yet submitted (see BITCOIN_CORE_PR_BLOCKERS.md)
 
@@ -150,27 +150,23 @@ Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `0aaf9d94`).
 > ConnectBlock margins (1–2%) are within noise floor for uncontrolled hardware.
 > Signing speedups (14–36%) are large enough to be conclusive despite this limitation.
 
-### CT Signing — Compiler Dependency (Material Disclosure)
+### CT Signing — Compiler Results (Material Disclosure)
 
-**PR-010:** CT signing performance depends significantly on compiler choice. Bitcoin Core
-Linux builders default to GCC; reviewers should be aware of this split:
+CT signing performance on GCC 14.2.0 (Linux default for Bitcoin Core CI),
+from `docs/bench_unified_2026-05-11_gcc14_x86-64.json`
+(Intel i5-14400F, turbo disabled via `intel_pstate/no_turbo=1`, governor=performance,
+core pinned, 500 warmup, 11 passes, IQR trimming):
 
-| Compiler | CT ECDSA sign | CT Schnorr sign | vs libsecp |
-|----------|----------:|----------:|-----------|
-| GCC 13/14 (Linux default) | ~15,000 ns | ~13,500 ns | **0.82–0.85× (slower)** |
-| Clang 19 | ~12,200 ns | ~10,800 ns | **1.20–1.33× (faster)** |
+| Compiler | CT ECDSA sign | CT Schnorr sign | Canonical artifact |
+|----------|:---:|:---:|---|
+| **GCC 14.2.0** (Linux default) | **1.24× faster** (+24%) | **1.09× faster** (+9%) | `docs/bench_unified_2026-05-11_gcc14_x86-64.json` |
+| Clang 19 (archived, 2026-03-24) | 1.33× faster (+33%) | ~1.09× faster | `docs/BENCHMARKS.md §archived` — not a current controlled run |
 
-The GCC regression is caused by vectorization differences in `ct_scalar_inverse`
-(SafeGCD implementation). Investigation is ongoing; see `docs/BENCHMARKS.md §archived`.
-Signing speedups on GCC (shown in the table above: 1.15×–1.36×) come from the
-`ContextBlindingScope` cached r*G optimization and pre-computed generator tables,
-not from CT scalar inverse.
-
-> **Two benchmark sets, two different measurements:** The `SignTransaction*` rows (1.11×–1.15× faster
-> on GCC) are from `bench_bitcoin` and cover the full Bitcoin Core transaction-signing path,
-> including context-blinding cache and wrapper overhead. The CT microbench rows (0.82–0.85× on GCC)
-> isolate the raw `ct_scalar_inverse` primitive only. Both numbers are correct — they measure
-> different operations and are not contradictory.
+> **Two benchmark sets, two different measurements:**
+> - `bench_unified` CT-vs-CT rows (above): isolate the raw CT signing primitive (RFC6979 + CT generator mul + CT scalar inverse). GCC 14: 1.24×/1.09× faster.
+> - `bench_bitcoin SignTransaction*` rows: cover the full Bitcoin Core transaction-signing path including context-blinding cache and pre-computed generator tables. GCC 14: 1.11–1.36× faster (see §Results table above).
+>
+> Both are correct — they measure different scopes. The full-path `SignTransaction*` numbers are the Bitcoin Core-relevant ones; the CT primitive numbers confirm no scalar-inverse regression on GCC 14.
 
 ### Root cause of non-LTO gap
 

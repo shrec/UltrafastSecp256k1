@@ -16,7 +16,7 @@ is required for full performance. Use the provided `ultrafast-bench` CMake prese
 ## Why
 
 UltrafastSecp256k1 is an MIT-licensed C++20 library with a compatible shim
-that passes Bitcoin Core's full test suite: **693/693 test_bitcoin, 0 failures**.
+that passes Bitcoin Core's full test suite: **749/749 test_bitcoin, 0 failures** (GCC 14.2.0 run, `docs/BITCOIN_CORE_BENCH_RESULTS.json`). An earlier Clang 19 run against v28.0 showed 693/693 (`docs/BITCOIN_CORE_TEST_RESULTS.json`).
 
 Performance vs libsecp256k1 on Intel Core i5-14400F, GCC 14.2.0, Release + LTO,
 taskset -c 0, governor=performance, bench_bitcoin native harness, 2026-05-11
@@ -44,7 +44,7 @@ Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
 ## Security properties
 
 - Constant-time signing paths: LLVM ct-verif + Valgrind taint + dudect (600s)
-- 254 exploit PoCs tests, 0 failures
+- 256 exploit PoCs tests, 0 failures
 - Wycheproof ECDSA/ECDH: all vectors pass
 - RFC 6979 nonce: 35/35 test vectors
 - BIP-340 Schnorr: 27/27 test vectors
@@ -78,18 +78,18 @@ library in production for Silent Payments (BIP-352) GPU scanning.
 
 ## Known Limitations
 
-### CT signing throughput (GCC 13/14 vs Clang 19)
+### CT signing throughput (GCC 14.2.0 — CT-vs-CT, production-equivalent)
 
-CT signing performance depends significantly on compiler:
+All numbers from `docs/bench_unified_2026-05-11_gcc14_x86-64.json`
+(Intel i5-14400F, turbo disabled, core pinned, 500 warmup, 11 passes, IQR trimming):
 
-| Compiler | CT ECDSA sign | CT Schnorr sign |
-|---|---|---|
-| GCC 13.3 + LTO | +37% vs libsecp | +25% vs libsecp |
-| Clang 19 + LTO | +33% vs libsecp | +20% vs libsecp |
+| Compiler | CT ECDSA sign | CT Schnorr sign | Notes |
+|---|---|---|---|
+| **GCC 14.2.0 + LTO** | **+24% vs libsecp (1.24×)** | **+9% vs libsecp (1.09×)** | CT-vs-CT, canonical controlled run |
+| Clang 19 (archived, 2026-03-24) | +33% vs libsecp | ~+9% vs libsecp | Archived; not a current controlled run |
 
-Bitcoin Core CI uses GCC; the GCC numbers above are the relevant CI metric.
-Fresh controlled run: i5-14400F, core pinned, turbo disabled, 500 warmup, 11 passes.
-Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
+Bitcoin Core Linux CI uses GCC; the GCC 14 row is the relevant metric.
+Full raw data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
 
 ### ConnectBlock Schnorr: −17% regression (native C++ API, unique pubkeys)
 
@@ -120,29 +120,11 @@ implementations but does not carry a compile-time namespace guarantee.
 Callers requiring explicit CT guarantees should use `ct::` namespace functions
 directly. No external third-party audit of the CT implementation has been conducted —
 all evidence is self-generated CI tooling (LLVM ct-verif, Valgrind taint, dudect).
+The ABI layer is the production-safe surface.
 
 ### Benchmark methodology note
 
-All controlled results were collected with turbo disabled (`cpupower frequency-set
--g performance; echo 1 > .../no_turbo`), CPU pinned (`taskset -c 0`), `nice -20`,
-500 warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 13.3.0, Release + LTO.
-Results in `docs/BITCOIN_CORE_BENCH_RESULTS.json` reflect this methodology.
-
-### Constant-time guarantee scope
-
-CT signing is enforced at the C ABI layer (`ufsecp_*` functions). The public
-C++ convenience API (`secp256k1::ecdsa_sign()`, etc.) routes through CT
-implementations but does not carry a compile-time namespace guarantee.
-Callers requiring explicit CT guarantees should use `ct::` namespace functions
-directly. The ABI layer is the production-safe surface.
-
-### Benchmark methodology note
-
-All controlled results were collected with turbo disabled (`cpupower frequency-set
--g performance; echo 0 > .../boost`), CPU pinned (`taskset -c 0`), `nice -19`,
-≥5 runs, variance <2%. Results in `docs/BITCOIN_CORE_BENCH_RESULTS.json` reflect
-this methodology. The `ultrafast-bench` CMake preset (Release + LTO) is the
-reference build for all performance claims.
+All controlled results were collected with: turbo disabled (`echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo`, governor=performance), CPU pinned (`taskset -c 0`), `nice -20`, 500 warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 14.2.0, Release + LTO. Canonical data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`. Bitcoin Core integration data: `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 ### Scope of this PR
 

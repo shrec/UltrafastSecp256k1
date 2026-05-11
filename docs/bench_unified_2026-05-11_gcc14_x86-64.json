@@ -9,8 +9,9 @@
     "harness": "3s ramp-up, 500 warmup/op, 11 passes, IQR outlier removal, median",
     "timer": "RDTSCP",
     "pool": "64 independent key/msg/sig sets",
-    "turbo": "disabled",
-    "notes": "bench_opt build dir; no hot-cache w=18 preload; canonical controlled run"
+    "turbo": "disabled (intel_pstate/no_turbo=1, governor=performance; confirmed 2026-05-11)",
+    "notes": "bench_opt build dir; no hot-cache w=18 preload; canonical controlled run. Verified 2026-05-11 with fresh run: CT ECDSA 1.23x, CT Schnorr 1.10x — within 1% of stored ratios; no update needed.",
+    "cache_state": "warm (64-key pool, 500 warmup/op) — all lift_x and GLV cache slots populated; represents steady-state not cold-start unique-pubkey workloads"
   },
   "ultra_field": {
     "field_mul_ns": 19.8,

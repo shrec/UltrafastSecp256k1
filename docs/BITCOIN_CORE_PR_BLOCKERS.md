@@ -35,7 +35,7 @@ matrix) are now closed with documented evidence.
 | # | Item | Status | How Resolved |
 |---|------|--------|--------------|
 | 5 | `.cpp` implementation files in `include/` | ✅ **DONE** | Moved to `src/cpu/src/` — 0 `.cpp` files remain in `include/ufsecp/impl/` |
-| 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current 232-test count |
+| 6 | README exploit test count stale (189→N) | ✅ **DONE** | README reflects current counts: 254 exploit-PoC modules (256 .cpp files) + 98 non-exploit = 352 ALL_MODULES total (verified by `sync_module_count.py 2026-05-11`) |
 | 7 | `VERSION.txt` stale | ✅ **DONE** | `VERSION.txt` = `4.0.0` (matches release tag) |
 | 8 | Wycheproof CI not visible | ✅ **DONE** | `.github/workflows/wycheproof.yml` — 11 test targets, artifact upload, weekly schedule |
 | 9 | Cross-platform build CI | ✅ **DONE** | Linux x86_64 (`ci.yml`), macOS ARM64 (`macos-shim.yml`), Windows x86_64 (`ci.yml`) |
@@ -46,7 +46,7 @@ matrix) are now closed with documented evidence.
 
 | # | Item | Status | Evidence |
 |---|------|--------|---------|
-| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (≥5 runs, variance <1%) — **With Release+LTO (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`):** ConnectBlock: **≈0%** (deficit eliminated); Taproot signing: **−25% faster**; P2TR script-path verify: **−22% faster**; SignTransactionECDSA: **−10% faster**; SignTransactionSchnorr: **−8% faster**. **Without LTO (RelWithDebInfo):** ConnectBlock −2.5% due to i-cache pressure. LTO is the recommended and disclosed build mode. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`. |
+| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` — **With Release+LTO:** ConnectBlock: **+1.0–2.1% Ultra faster** (within noise margin — treat as parity); Taproot signing (SignSchnorrWithMerkleRoot): **+36% faster (1.36×)**; P2TR script-path verify: **+11% faster (1.11×)**; SignTransactionECDSA: **+15% faster (1.15×)**; SignTransactionSchnorr: **+11% faster (1.11×)**. **Without LTO:** ConnectBlock ~1% slower due to i-cache pressure from larger code footprint. LTO is the recommended build. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`. |
 
 ---
 

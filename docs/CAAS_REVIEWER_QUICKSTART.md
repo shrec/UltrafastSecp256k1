@@ -21,11 +21,13 @@ exactly what to run and what to expect.
 ## Known Performance Delta
 
 > **Before reviewing benchmarks:** The `ConnectBlock` benchmark (primary block-validation
-> workload) is **≈0%** vs upstream libsecp256k1 with the recommended Release+LTO build
-> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`). Without LTO (e.g. RelWithDebInfo), ConnectBlock
-> is ~2.5% slower due to i-cache pressure from ShimPkCache structs across library boundaries.
-> LTO eliminates this deficit entirely.
-> Taproot signing is 22–25% faster. Full numbers: [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
+> workload) is **≈0% to +2% faster** than libsecp256k1 with the recommended Release+LTO build
+> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); treat as parity — margins are within noise floor
+> of the measurement hardware (no hard turbo lock available during this run).
+> Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1% slower due to i-cache pressure from
+> larger code footprint (~1.3 MB vs libsecp ~400 KB). LTO resolves this.
+> Taproot signing (SignSchnorrWithMerkleRoot): 36% faster. Full numbers and raw data:
+> [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
 >
 > **Required build flags for full performance:**
 > ```bash
@@ -45,7 +47,7 @@ exactly what to run and what to expect.
 | How does CAAS work? | [`docs/CAAS_PROTOCOL.md`](CAAS_PROTOCOL.md) |
 | Why CAAS instead of a snapshot PDF? | [`docs/CAAS_FAQ.md`](CAAS_FAQ.md) |
 | CT verification evidence | [`docs/CT_VERIFICATION.md`](CT_VERIFICATION.md) |
-| 254 exploit PoCs catalog | [`docs/EXPLOIT_TEST_CATALOG.md`](EXPLOIT_TEST_CATALOG.md) |
+| 256 exploit PoCs catalog | [`docs/EXPLOIT_TEST_CATALOG.md`](EXPLOIT_TEST_CATALOG.md) |
 | libsecp parity status | [`docs/BACKEND_PARITY.md`](BACKEND_PARITY.md) |
 | Thread safety guarantees | [`docs/THREAD_SAFETY.md`](THREAD_SAFETY.md) |
 | ABI versioning policy | [`docs/ABI_VERSIONING.md`](ABI_VERSIONING.md) |
@@ -110,7 +112,7 @@ The `bitcoin-core-backend` profile verifies:
 
 CAAS makes the following **verifiable** claims:
 
-- **254 exploit PoCs tests** covering known attack classes against secp256k1 — all pass on every commit.
+- **256 exploit PoCs tests** covering known attack classes against secp256k1 — all pass on every commit.
 - **Constant-time signing** — verified by three independent pipelines (ct-verif/LLVM IR, Valgrind taint, dudect statistical) on x86-64 and arm64.
 - **Parser strict parity** — shim boundary functions reject inputs outside the valid domain exactly as libsecp does.
 - **Zero ABI-incompatible changes** without an ABI version bump (enforced by test_abi_gate).
