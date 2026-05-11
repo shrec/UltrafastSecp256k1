@@ -4,6 +4,23 @@
 
 ---
 
+## Security Note: Swift Package Manager (SPM) Build
+
+> **Warning:** The Swift Package Manager target (`Package.swift`) unconditionally sets
+> `SECP256K1_FAST_NO_SECURITY_CHECKS=1` and `SECP256K1_ULTRA_SPEED=1`.
+> This disables constant-time security checks and enables variable-time optimizations.
+>
+> **The SPM target is suitable for verification workloads only (pubkey validation, signature verification).**
+> **Do NOT use the SPM target for signing operations, key management, or any code that processes secret keys.**
+>
+> For signing, build via CMake without these flags:
+> ```bash
+> cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+> cmake --build build
+> ```
+
+---
+
 ## Overview
 
 All bindings wrap the stable **ufsecp C ABI v1** (`include/ufsecp/ufsecp.h`).

@@ -93,7 +93,10 @@ Full raw data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
 
 ### ConnectBlock Schnorr: −17% regression (native C++ API, unique pubkeys)
 
-Controlled measurement (2026-05-07, i5-14400F, GCC 13.3 + LTO, 2000 unique pubkeys):
+**Note: measured with GCC 13.3 on native C++ API path (not shim path, not GCC 14).**
+GCC 14.2.0 shim-path numbers are expected to be ≈5% better once PERF-B/PERF-08 applied (unconfirmed projection).
+
+Controlled measurement (2026-05-07, i5-14400F, **GCC 13.3** + LTO, 2000 unique pubkeys, native C++ API — NOT the libsecp-compatible shim path):
 
 | Scenario | Ultra | libsecp | Result |
 |---|---|---|---|
@@ -107,10 +110,10 @@ overhead per Schnorr block). Bitcoin block validation uses almost entirely uniqu
 pubkeys; the GLV precompute cache provides no benefit and adds rebuild cost.
 libsecp256k1 uses a 5-entry table with lower cold-start cost.
 
-**Mitigation path:** PERF-B optimization (smaller per-call table for unique-pubkey
+**Mitigation path (unconfirmed projection):** PERF-B optimization (smaller per-call table for unique-pubkey
 workloads) is tracked in workingdocs. Shim-path numbers with LTO are expected to
 be ≈5% better than the native C++ API numbers above once the DualMulGenTables
-lazy-init fix (PERF-08) is applied.
+lazy-init fix (PERF-08) is applied. Treat as projection until controlled measurement confirms.
 
 ### Constant-time guarantee scope
 

@@ -51,7 +51,7 @@ Mandatory rules:
 | `VERSION.txt` | Set `MAJOR.MINOR.PATCH` |
 | `include/ufsecp/ufsecp_version.h.in` | Verify `UFSECP_ABI_VERSION` (bump if ABI changed) |
 | `CHANGELOG.md` | Add release section with date, summary, breaking changes |
-| Binding manifests** | Update version where needed (Cargo.toml, package.json, etc.) |
+| Binding manifests** | Update version where needed: `Cargo.toml`, `package.json`, **`conanfile.py`**, **`vcpkg.json`** (these hardcode `4.0.0` — must be bumped manually alongside `VERSION.txt`) |
 
 **Single commit**: `release: vX.Y.Z` on `dev`.
 
