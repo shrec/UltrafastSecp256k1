@@ -1,7 +1,7 @@
 {
   "name": "ultrafast-secp256k1",
-  "version": "1.0.0",
-  "description": "Node.js bindings for UltrafastSecp256k1 \u2014 high-performance secp256k1 ECDSA, Schnorr, FROST, MuSig2, BIP-352 with GPU acceleration",
+  "version": "0.0.0-dev",
+  "description": "Node.js bindings for UltrafastSecp256k1 \u2014 high-performance secp256k1 ECDSA, Schnorr, FROST, MuSig2, BIP-352 with GPU acceleration (version overridden at release time by CI from git tag)",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [

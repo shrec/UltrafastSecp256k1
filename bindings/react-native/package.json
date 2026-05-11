@@ -1,7 +1,7 @@
 {
   "name": "react-native-ultrafast-secp256k1",
-  "version": "1.0.0",
-  "description": "React Native bindings for UltrafastSecp256k1 \u2014 high-performance secp256k1 ECDSA, Schnorr, Bitcoin/Ethereum crypto for mobile apps",
+  "version": "0.0.0-dev",
+  "description": "React Native bindings for UltrafastSecp256k1 \u2014 high-performance secp256k1 ECDSA, Schnorr, Bitcoin/Ethereum crypto for mobile apps (version overridden at release time by CI from git tag)",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "react-native": "lib/index.js",

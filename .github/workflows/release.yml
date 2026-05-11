@@ -50,6 +50,9 @@ jobs:
 
       - name: Install release gate dependencies
         run: |
+          # NOTE: Using GCC 13 here for CI compatibility. Canonical performance benchmarks
+          # use GCC 14.2.0 locally. CT signing ratios differ between GCC 13 and GCC 14.
+          # See docs/BENCHMARKS.md for the GCC 14 canonical numbers.
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends g++-13 ninja-build
 

@@ -192,5 +192,7 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   for the DER path, where zero-value fields indicate malformed input).
 - **Impact:** Callers parsing DER-encoded ECDSA signatures with r=0 or s=0 (astronomically
   rare; all such signatures are cryptographically invalid).
-- **Test:** `secp256k1_ecdsa_signature_parse_der` with DER-encoded r=0 → shim returns 0;
-  upstream libsecp returns 1 (passes to verify which then rejects).
+- **Test:** `test_shim_der_zero_r.cpp` in `compat/libsecp256k1_shim/tests/` —
+  calls `secp256k1_ecdsa_signature_parse_der` with a hardcoded DER blob encoding r=0
+  and verifies return value is 0. Upstream libsecp returns 1 (passes to verify which
+  then rejects).
