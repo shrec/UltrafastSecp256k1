@@ -354,6 +354,11 @@ jobs:
         # SW-01 fix: validate the evidence chain on every PR.
         # exit 77 = ADVISORY_SKIP_CODE: CAAS_HMAC_KEY not set on this runner
         # (public key only) — treat as advisory skip, not hard failure.
+        # CI-008 note: caas_report job uses degraded-mode-continue when key absent,
+        # which writes records with the public in-repo key. This step's advisory-skip
+        # means those degraded-mode records are not validated here. The inconsistency
+        # is documented; full fix requires ensuring caas_report also uses advisory-skip
+        # when the key is absent (v2 scope).
         if: always()
         shell: bash
         run: |

@@ -132,7 +132,7 @@ schnorr_adaptor_sign(const Scalar& private_key,
     // s = k + e * sk — CT: both k (secret nonce) and sk (secret key) are secret
     Scalar const s_hat = ct::scalar_add(k, ct::scalar_mul(e, sk));
 
-    detail::secure_erase(const_cast<Scalar*>(&k), sizeof(k));
+    detail::secure_erase(&k, sizeof(k));  // SEC-005: const_cast was unnecessary — k is non-const
     detail::secure_erase(&sk, sizeof(sk));
     return SchnorrAdaptorSig{R_hat, s_hat, needs_neg};
 }

@@ -101,7 +101,7 @@ cmake --build out/release -j
 
 **Package install**
 ```bash
-sudo apt install libufsecp4        # Linux
+sudo apt install libufsecp4        # Linux (requires PPA — see docs/BUILDING.md)
 pip install ufsecp                 # Python
 npm i ufsecp                       # Node.js
 ```
@@ -275,7 +275,7 @@ Frigate 1.4.0 switched its DuckDB extension to `ufsecp.duckdb_extension` using U
 
 See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [Frigate README](https://github.com/sparrowwallet/frigate/blob/master/README.md) · [Details →](docs/ADOPTION.md)
 
-Package traction: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total (as of 2026-03-29).
+Package traction: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total *(figures as of 2026-03-29 — verify against current sources for latest status; see [docs/ADOPTION.md](docs/ADOPTION.md)).*
 
 Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
@@ -432,6 +432,8 @@ In addition to the 344-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 ---
 
 ## Performance
+
+> **Note for Bitcoin Core reviewers:** The GPU table below is **out of scope** for the Bitcoin Core backend evaluation. CPU backend numbers are in the "For Bitcoin Core Reviewers" section above and in [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
 **RTX 5060 Ti (CUDA 12, kernel throughput)**
 

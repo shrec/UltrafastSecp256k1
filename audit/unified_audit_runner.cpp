@@ -996,9 +996,7 @@ static const AuditModule ALL_MODULES[] = {
     // C3: FROST n_signers<threshold  C4: FROST signing share strict_nonzero
     // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
     { "frost_ocl_shim_bip32_ct_regression", "FROST+OCL+shim+BIP32 CT regression guards", "exploit_poc", test_exploit_frost_ocl_shim_bip32_ct_regression_run, false },
-    // === 2026-05-05 Red-Team Round 3: BUG-1..4+6 ===
     { "musig2_nonce_erasure_le32_ecdh", "MuSig2 secnonce/nonce erasure + LE32 round-trip + ECDH Y-parity prefix", "memory_safety", test_exploit_musig2_nonce_erasure_le32_ecdh_run, false },
-    // === 2026-05-06 Performance Review: correctness + security fixes ===
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
     { "exploit_frost_secret_share_ct",   "FROST DKG share.value processed with ct::generator_mul not variable-time scalar_mul (SEC-01, FROST-CT1..5)", "ct_analysis",    test_exploit_frost_secret_share_ct_run,    false },
     { "regression_comb_gen_lockfree",    "comb_gen_mul/ct lock-free after once_flag init: no mutex on read path (CRIT-01, COMB-LF1..6)", "math_invariants", test_regression_comb_gen_lockfree_run,     false },

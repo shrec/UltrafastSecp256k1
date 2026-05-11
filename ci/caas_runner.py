@@ -532,6 +532,10 @@ def build_json_report(
         # F-05/F-12 fix: exclude advisory-skipped extra_checks from the verdict.
         real_extra = [ec for ec in extra_check_results if not ec.get("advisory_skip")]
         overall_pass = overall_pass and (all(ec["passed"] for ec in real_extra) if real_extra else True)
+    # CI-005: collect advisory-skipped stage IDs for pipeline summary visibility.
+    # Previously only security_autonomy was surfaced as advisory-skipped; all
+    # stages that returned 77 now appear explicitly in stages_advisory_skipped.
+    stages_advisory_skipped = [r["id"] for r in results if r.get("advisory_skip")]
     report: dict = {
         "caas_version": CAAS_VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -540,6 +544,7 @@ def build_json_report(
             capture_output=True, text=True, cwd=str(LIB_ROOT),
         ).stdout.strip() or "unknown",
         "overall_pass": overall_pass,
+        "stages_advisory_skipped": stages_advisory_skipped,
         "total_duration_s": round(total_s, 2),
         "profile": profile_key,
         "profile_scope": profile["scope_description"] if profile else "",

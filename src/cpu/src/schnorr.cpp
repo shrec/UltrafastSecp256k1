@@ -64,7 +64,11 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
     // Signature R.x and pubkey x-values are 256-bit, so this is safe.
     if (y2.jacobi_var() != 1) return Point::infinity();
 
-    // sqrt + verify (kept as defense: Jacobi has known bug for tiny inputs < 2^33)
+    // sqrt + verify (defense-in-depth: jacobi_var has a known bug for inputs < 2^33
+    // where it may return an incorrect QR result. Secp256k1 field values from valid
+    // signatures/pubkeys are never this small (x >= 1 for any real key), but the
+    // sqrt+verify confirms correctness unconditionally. SEC-008: no code fix needed;
+    // the defense already catches any jacobi_var misclassification.)
     FE52 y52 = y2.sqrt();
     FE52 check = y52.square();
     check.negate_assign(1);

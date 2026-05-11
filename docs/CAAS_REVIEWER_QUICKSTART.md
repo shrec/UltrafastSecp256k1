@@ -22,8 +22,9 @@ exactly what to run and what to expect.
 
 > **Before reviewing benchmarks:** The `ConnectBlock` benchmark (primary block-validation
 > workload) is **≈0% to +2% faster** than libsecp256k1 with the recommended Release+LTO build
-> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); treat as parity — margins are within noise floor
-> of the measurement hardware (no hard turbo lock available during this run).
+> (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`); treat as parity — margins within noise floor.
+> **No hard turbo lock** during this run (sudo unavailable for cpupower); replicate on
+> fully-pinned hardware for release-grade confidence. Full methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 > Without LTO (e.g. RelWithDebInfo), ConnectBlock is ~1% slower due to i-cache pressure from
 > larger code footprint (~1.3 MB vs libsecp ~400 KB). LTO resolves this.
 > Taproot signing (SignSchnorrWithMerkleRoot): 36% faster. Full numbers and raw data:

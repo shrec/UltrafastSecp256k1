@@ -3666,7 +3666,8 @@ add_executable(unified_audit_runner
 target_sources(unified_audit_runner PRIVATE
     test_exploit_shim_musig_ka_cap.cpp
     test_exploit_shim_recovery_null_arg.cpp
-    test_regression_shim_static_ctx.cpp)
+    test_regression_shim_static_ctx.cpp
+    test_regression_musig2_signer_index_validation.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
 # can link and reports them as advisory-skipped instead of failing.

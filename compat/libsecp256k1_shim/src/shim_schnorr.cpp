@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <array>
+#include <memory>
 #include <vector>
 #include <cstdint>
 
@@ -246,11 +247,17 @@ int secp256k1_schnorrsig_sign_custom(
     for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
 
     // k' = H_BIP0340/nonce(t || P_x || msg)
-    std::vector<uint8_t> nonce_input(64 + msglen);
-    std::memcpy(nonce_input.data(),      t,             32);
-    std::memcpy(nonce_input.data() + 32, kp.px.data(), 32);
-    if (msglen > 0) std::memcpy(nonce_input.data() + 64, msg, msglen);
-    auto rand_hash = secp256k1::tagged_hash("BIP0340/nonce", nonce_input.data(), nonce_input.size());
+    // PERF-001: use stack buffer for common message sizes (≤256 bytes); heap only for larger.
+    constexpr std::size_t kStackMsgMax = 256;
+    std::uint8_t nonce_stack[64 + kStackMsgMax];
+    std::unique_ptr<std::uint8_t[]> nonce_heap;
+    std::uint8_t* nonce_input = (msglen <= kStackMsgMax)
+        ? nonce_stack
+        : (nonce_heap.reset(new std::uint8_t[64 + msglen]), nonce_heap.get());
+    std::memcpy(nonce_input,      t,             32);
+    std::memcpy(nonce_input + 32, kp.px.data(), 32);
+    if (msglen > 0) std::memcpy(nonce_input + 64, msg, msglen);
+    auto rand_hash = secp256k1::tagged_hash("BIP0340/nonce", nonce_input, 64 + msglen);
     auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero()) {
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
@@ -265,11 +272,16 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1::detail::secure_erase(&k_prime, sizeof(k_prime));
 
     // e = H_BIP0340/challenge(R_x || P_x || msg)
-    std::vector<uint8_t> challenge_input(64 + msglen);
-    std::memcpy(challenge_input.data(),      rx.data(),     32);
-    std::memcpy(challenge_input.data() + 32, kp.px.data(), 32);
-    if (msglen > 0) std::memcpy(challenge_input.data() + 64, msg, msglen);
-    auto e_hash = secp256k1::tagged_hash("BIP0340/challenge", challenge_input.data(), challenge_input.size());
+    // PERF-001: same stack-buffer strategy as nonce_input above.
+    std::uint8_t challenge_stack[64 + kStackMsgMax];
+    std::unique_ptr<std::uint8_t[]> challenge_heap;
+    std::uint8_t* challenge_input = (msglen <= kStackMsgMax)
+        ? challenge_stack
+        : (challenge_heap.reset(new std::uint8_t[64 + msglen]), challenge_heap.get());
+    std::memcpy(challenge_input,      rx.data(),     32);
+    std::memcpy(challenge_input + 32, kp.px.data(), 32);
+    if (msglen > 0) std::memcpy(challenge_input + 64, msg, msglen);
+    auto e_hash = secp256k1::tagged_hash("BIP0340/challenge", challenge_input, 64 + msglen);
     auto e = Scalar::from_bytes(e_hash);
 
     // s = k + e * d  — CT: both k (nonce) and kp.d (secret key) are secret
