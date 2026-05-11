@@ -2,6 +2,14 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-11 scalar_mul_jac_fe52_z1 — HAMBURG=true, degenerate-case check removed
+
+- **`ct_point.cpp`**: Enabled HAMBURG mode for `scalar_mul_jac_fe52_z1`.
+  The function is exclusively called from `ecmult_const_xonly` (ellswift_xdh)
+  where K_CONST encoding ensures `m_val ≠ 0` throughout, making the 18 ns
+  degenerate-case guard unnecessary. CT security unchanged; this is a ~18 ns
+  per-call optimization on the xdh path.
+
 ### 2026-05-11 ct_field::field_mul/field_sqr asm barriers — disabled under sanitizers
 
 - **`ct_field.cpp`**: FE52 limb barriers in field_mul and field_sqr also disabled

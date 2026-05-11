@@ -2,6 +2,19 @@
 
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
+### 2026-05-11 ct_point::scalar_mul_jac_fe52_z1 — HAMBURG=true (xdh-dedicated path)
+
+- **`ct_point.cpp` / `ellswift.cpp`**: `scalar_mul_jac_fe52_z1` is exclusively
+  called from `ecmult_const_xonly` (→ ellswift_xdh). In that path, K_CONST
+  encoding guarantees `m_val = S1+S2 ≠ 0` for all 52 intermediate
+  `unified_add_core` calls, making the degenerate-case check
+  (`fe52_normalizes_to_zero` + cmovs, ~18 ns/call) provably unnecessary.
+  Setting `HAMBURG=true` removes the check, saving ~18 ns per unified-add.
+- **CT impact: none.** The degenerate-case branch handles `m_val==0` (P=-Q),
+  which is the point at infinity result. Skipping it is safe here because the
+  K_CONST encoding prohibits m_val=0; the proof is in the commit message for
+  `9f524c1f`. The CT execution trace of the scalar multiplication is unchanged.
+
 ### 2026-05-11 ct_field::field_mul/field_sqr — same sanitizer guard on asm barriers
 
 - **`ct_field.cpp` (`field_mul`, `field_sqr`)**: The `+r` limb barriers
