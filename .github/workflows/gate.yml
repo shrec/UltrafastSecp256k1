@@ -136,7 +136,7 @@ jobs:
     name: Block 3 / Security Gate (aggregator)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
-    needs: [fast-gates, caas-security, bindings-smoke, gpu-wasm-smoke]
+    needs: [detect-impact, fast-gates, caas-security, bindings-smoke, gpu-wasm-smoke]
     if: always()
     steps:
       - name: Harden runner
@@ -159,9 +159,10 @@ jobs:
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "::error::$label → $result — blocking build phase"
               FAILED=1
-            elif [ "$result" = "skipped" ] && [ "$label" = "caas-security" ]; then
-              # caas-security must not skip on a non-docs-only change; a skipped
-              # security gate on real code changes is a CI misconfiguration.
+            elif [ "$result" = "skipped" ] && [ "$label" = "caas-security" ] && \
+                 [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then
+              # caas-security must not skip on a non-docs-only change.
+              # For docs-only changes detect-impact sets docs_only=true → skip is expected.
               echo "::error::$label → skipped — security gate must not skip on non-docs-only changes"
               FAILED=1
             else
