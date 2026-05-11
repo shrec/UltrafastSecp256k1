@@ -1,7 +1,7 @@
 # Bitcoin Core PR Readiness — Current Status Matrix
 
-**Commit:** `0a41666f` (main branch, 2026-05-01)
-**Date:** 2026-04-28
+**Commit:** `5513f04c` (dev branch, 2026-05-11)
+**Date:** 2026-05-11
 **Overall PR Readiness:** **~99%** (all 10 original + 3 surface blockers closed)
 
 ---
@@ -146,7 +146,7 @@ Two fixes were required:
 
 | Gate | Status | What it checks |
 |------|--------|---------------|
-| Stage 0 — exploit wiring | ✅ 235/235 | Every `test_exploit_*.cpp` has `_run()` in runner |
+| Stage 0 — exploit wiring | ✅ 254/254 | Every `test_exploit_*.cpp` has `_run()` in runner |
 | Stage 1 — CT analysis | ✅ PASS | Constant-time verification on signing paths |
 | Stage 2a — core build mode | ✅ PASS | CMake build config correctness |
 | Stage 2b — ABI stability | ✅ PASS | `static_assert` struct layout guards |
@@ -156,4 +156,4 @@ Two fixes were required:
 
 ---
 
-*Last updated: 2026-05-01 — Security audit fixes: CRIT-1 MuSig2 secnonce reuse protection (sn_unpack nonzero), CRIT-2 zero-sig guardrail #4 in 7 native ABI functions, HIGH-1 sign32 shim CT path, HIGH-2/3 DER negative-int + trailing-byte enforcement, MED-1 musig zero-key, MED-2 sign_custom CT nonce branch. Stage 0 updated 228→235. All 10 original + 3 surface blockers remain closed.*
+*Last updated: 2026-05-11 — Security fixes: CT-001 ellswift non-CT gen_mul, CT-003 schnorr_xonly branchless parity, RT-004 HMAC pad erase, CT-006 MuSig2 k1/k2 strict parsing, RT-011 BIP32 private_key() strict, SHIM-002 context_create callback, SHIM-012 pubkey_sort crash. Stage 0 updated 235→254. ConnectBlock: Ultra +1.5-2.1% faster with LTO (re-measured 2026-05-11). All blockers remain closed.*

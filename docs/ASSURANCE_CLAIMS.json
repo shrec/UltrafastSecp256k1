@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-03-24",
+  "updated_at": "2026-05-11",
   "source": "docs/ASSURANCE_LEDGER.md",
   "claims": [
     {
@@ -28,9 +28,15 @@
       "stale_risk": "Medium",
       "owner_surface": [
         "src/cpu/src/ct_*",
+        "src/cpu/src/schnorr.cpp",
+        "src/cpu/src/musig2.cpp",
+        "src/cpu/src/bip32.cpp",
+        "src/cpu/src/ecdsa.cpp",
+        "compat/libsecp256k1_shim/src/shim_ellswift.cpp",
         "SECURITY.md",
         "docs/BACKEND_ASSURANCE_MATRIX.md"
-      ]
+      ],
+      "notes_2026_05_11": "CT fixes: ellswift_create now CT (shim_ellswift.cpp), schnorr_xonly_from_keypair branchless parity (schnorr.cpp), HMAC pad erased (ecdsa.cpp), MuSig2 k1/k2 strict parsing (musig2.cpp), BIP32 private_key() strict (bip32.cpp)"
     },
     {
       "claim_id": "A-002",

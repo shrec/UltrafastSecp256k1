@@ -129,26 +129,29 @@ i-cache pressure from ShimPkCache structs. With LTO, the deficit is eliminated.
 
 ### Results: Release + LTO (recommended build)
 
-Controlled benchmark on Intel i5-14400F, GCC 13, `taskset -c 0`, variance 0.1–0.3%:
+Benchmark on Intel i5-14400F, GCC 14.2.0, `taskset -c 0`, governor=performance, 2026-05-11.
+bench_bitcoin native harness (nanobench), err% shown — low err% = stable measurement:
 
-| Benchmark | Ultra LTO (ns) | libsecp LTO (ns) | vs libsecp |
-|-----------|---------------:|---------------:|-----------|
-| ConnectBlockAllEcdsa | 255,860 | 254,587 | **≈0% (tied)** |
-| ConnectBlockAllSchnorr | 253,665 | 253,297 | **≈0% (tied)** |
-| ConnectBlockMixedEcdsaSchnorr | 256,385 | 256,082 | **≈0% (tied)** |
-| SignSchnorrWithMerkleRoot | 83,267 | 111,332 | **Ultra −23.9%** |
-| SignSchnorrWithNullMerkleRoot | 82,290 | 109,823 | **Ultra −25.1%** |
-| SignTransactionECDSA | 145,955 | 162,507 | **Ultra −10.2%** |
-| SignTransactionSchnorr | 124,768 | 136,036 | **Ultra −8.3%** |
-| VerifyScriptP2TR_ScriptPath | 64,639 | 83,114 | **Ultra −22.2%** |
-| VerifyScriptP2TR_KeyPath | 44,123 | 45,832 | tie (overlap) |
-| VerifyScriptP2WPKH | 45,096 | 45,447 | tie (overlap) |
+| Benchmark | Ultra LTO | libsecp LTO | vs libsecp | err% |
+|-----------|----------:|----------:|-----------|------|
+| ConnectBlockAllEcdsa | 252.2 ms/blk | 257.6 ms/blk | **Ultra +2.1%** | 0.3% |
+| ConnectBlockAllSchnorr | 251.5 ms/blk | 255.2 ms/blk | **Ultra +1.5%** | 0.2% |
+| ConnectBlockMixed | 253.1 ms/blk | 255.7 ms/blk | **Ultra +1.0%** | 0.1% |
+| SignSchnorrWithMerkleRoot | 84,273 ns/op | 114,479 ns/op | **1.36× faster** | 1.3% |
+| SignSchnorrWithNullMerkleRoot | 83,742 ns/op | 112,694 ns/op | **1.35× faster** | 1.0% |
+| SignTransactionECDSA | 147,262 ns/op | 168,907 ns/op | **1.15× faster** | 0.7% |
+| SignTransactionSchnorr | 123,525 ns/op | 137,388 ns/op | **1.11× faster** | 0.3% |
+| VerifyScriptP2TR_ScriptPath | 75,549 ns/script | 83,481 ns/script | **1.11× faster** | 0.3% |
+| VerifyScriptP2TR_KeyPath | 44,860 ns/script | 46,223 ns/script | **1.03× faster** | 0.5% |
+| VerifyScriptP2WPKH | 45,217 ns/script | 46,062 ns/script | parity (+1.9%) | 0.3% |
 
-### Root cause (Callgrind profiling)
+Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `5513f04c`).
 
-Without LTO, Ultra had 7× more L3 write misses than libsecp (ShimPkCache structs).
-LTO fixes i-cache pressure by optimizing across library boundaries. With LTO the
-deficit disappears entirely — ConnectBlock lands at ≈0%.
+### Root cause of non-LTO gap
+
+Without LTO, Ultra has a larger code footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB)
+causing ~1% i-cache pressure in ConnectBlock. LTO resolves it by optimizing code layout globally.
+With LTO, Ultra is 1.0–2.1% faster across all ConnectBlock workloads on this hardware.
 
 ### Build command for full performance
 
