@@ -5505,10 +5505,22 @@ def scan_symbol_metadata(conn):
             caller_count >= 3 or
             (loop_count >= 2 and line_span >= 40)
         )
+        # ct_sensitive = 1 means: secret-bearing path that MUST use CT primitives.
+        # Verify functions operate on PUBLIC data only — timing reveals nothing.
+        # _var functions are explicitly variable-time (correct for public data).
+        # Neither should ever be marked ct_sensitive.
+        _is_verify_or_var = any(
+            token in lower_symbol for token in (
+                "verify", "validate", "check_sig", "batch_verify",
+                "_var", "jacobi_var", "normalizes_to_zero_var",
+            )
+        )
         ct_sensitive = int(
-            (profile["security_sensitive"] if profile else 0) or
-            bool(tags & SECURITY_TAGS) or
-            any(token in lower_symbol for token in ("auth", "login", "password", "secure", "warehouse", "token", "session"))
+            not _is_verify_or_var and (
+                (profile["security_sensitive"] if profile else 0) or
+                bool(tags & SECURITY_TAGS) or
+                any(token in lower_symbol for token in ("auth", "login", "password", "secure", "warehouse", "token", "session"))
+            )
         )
         batchable = int(
             any(token in lower_symbol for token in ("batch", "scan", "verify", "broadcast", "sendall", "foreach")) or
