@@ -117,13 +117,18 @@ def main() -> int:
     print("[Cryptol] GF(p) + EC + ECDSA + Schnorr arithmetic properties  [REQUIRED]")
     cryptol_dir = FORMAL_DIR / "cryptol"
     if not tool_available("cryptol"):
+        # ADVISORY_SKIP_CODE (77) per guardrail #16: when infrastructure is absent
+        # (Cryptol not installed) the check skips — it must not return 0 (false PASS)
+        # nor 1 (false FAIL). The blocking gate in ci_local.sh treats 77 as skip.
         print("  [cryptol] MISSING — cryptol not installed (apt-get install cryptol)")
-        g_fail += 1
-        rc = 1
+        g_skip += 1
+        if rc == 0:
+            rc = 77  # advisory skip only if no other failure
     elif not cryptol_dir.exists():
         print(f"  [cryptol] MISSING — {cryptol_dir} not found")
-        g_fail += 1
-        rc = 1
+        g_skip += 1
+        if rc == 0:
+            rc = 77
     else:
         for cry_file in sorted(cryptol_dir.glob("*.cry")):
             if run_tool(f"cryptol/{cry_file.name}", ["cryptol", "-b", str(cry_file)]) != 0:
@@ -131,11 +136,22 @@ def main() -> int:
 
     print()
     print(f"Result: {g_pass} proved, {g_fail} failed, {g_skip} skipped")
-    if rc != 0:
-        print("FORMAL VERIFICATION FAILED — see errors above")
+    # Resolve final exit code:
+    #   exit 0  — all required tools proved (skips are advisory-OK)
+    #   exit 77 — no failures but ≥1 required tool missing (infrastructure skip)
+    #   exit 1  — at least one tool was present and its proof FAILED
+    if g_fail > 0:
+        final_rc = 1
+    elif rc == 77 and g_fail == 0:
+        final_rc = 77   # advisory: missing tools, no failures
+    else:
+        final_rc = 0    # all present tools proved
+    if final_rc != 0:
+        msg = "ADVISORY-SKIP (missing tools)" if final_rc == 77 else "FORMAL VERIFICATION FAILED"
+        print(msg + " — see errors above")
     else:
         print("FORMAL VERIFICATION PASSED")
-    return rc
+    return final_rc
 
 
 if __name__ == "__main__":

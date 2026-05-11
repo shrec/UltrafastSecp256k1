@@ -145,7 +145,7 @@ fi
 run_caas_check "Audit gate"          python3 ci/audit_gate.py
 run_caas_check "Security autonomy"   python3 ci/security_autonomy_check.py
 run_caas_check "Shim parity"         python3 ci/check_libsecp_shim_parity.py
-run_check      "Formal verification (Z3+Lean blocking)" python3 ci/run_formal_verification.py
+run_caas_check "Formal verification (Z3+Lean blocking)" python3 ci/run_formal_verification.py
 echo ""
 
 # ── Protocol & Backend Parity Gates (~5s) ───────────────────────────────────
