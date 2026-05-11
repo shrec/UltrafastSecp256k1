@@ -197,6 +197,11 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1_schnorrsig_extraparams *extraparams)
 {
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
+    // NULL ctx must fire the illegal callback (PASS3-008 divergence fix).
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(nullptr, "secp256k1_schnorrsig_sign_custom: NULL context");
+        return 0;
+    }
     if (!schnorr_ctx_can_sign(ctx)) return 0;
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 

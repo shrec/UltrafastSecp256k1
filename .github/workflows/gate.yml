@@ -159,6 +159,11 @@ jobs:
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "::error::$label → $result — blocking build phase"
               FAILED=1
+            elif [ "$result" = "skipped" ] && [ "$label" = "caas-security" ]; then
+              # caas-security must not skip on a non-docs-only change; a skipped
+              # security gate on real code changes is a CI misconfiguration.
+              echo "::error::$label → skipped — security gate must not skip on non-docs-only changes"
+              FAILED=1
             else
               echo "$label → $result"
             fi

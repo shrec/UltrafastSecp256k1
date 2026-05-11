@@ -2888,15 +2888,40 @@ audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
 target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
 set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+
+# Regression: g_static_ctx initializer for PERF-005 cached_r_G field (ecf47967)
+if(TARGET secp256k1_shim)
+    add_executable(test_regression_shim_static_ctx_standalone
+        test_regression_shim_static_ctx.cpp)
+    target_link_libraries(test_regression_shim_static_ctx_standalone PRIVATE secp256k1_shim fastsecp256k1)
+    target_include_directories(test_regression_shim_static_ctx_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_shim_static_ctx_standalone PRIVATE STANDALONE_TEST)
+else()
+    add_executable(test_regression_shim_static_ctx_standalone
+        test_regression_shim_static_ctx.cpp)
+    audit_target_defaults(test_regression_shim_static_ctx_standalone)
+    target_compile_definitions(test_regression_shim_static_ctx_standalone PRIVATE STANDALONE_TEST)
+endif()
+add_test(NAME regression_shim_static_ctx COMMAND test_regression_shim_static_ctx_standalone)
+set_tests_properties(regression_shim_static_ctx PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+    LABELS "audit;regression;shim;ct")
 # -- SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (a3f56ae) --
-add_executable(test_exploit_shim_recovery_null_arg_standalone
-    test_exploit_shim_recovery_null_arg.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
-audit_target_defaults(test_exploit_shim_recovery_null_arg_standalone)
-target_compile_definitions(test_exploit_shim_recovery_null_arg_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME exploit_shim_recovery_null_arg COMMAND test_exploit_shim_recovery_null_arg_standalone)
-set_tests_properties(exploit_shim_recovery_null_arg PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;recovery;security")
+if(TARGET secp256k1_shim)
+    add_executable(test_exploit_shim_recovery_null_arg_standalone
+        test_exploit_shim_recovery_null_arg.cpp)
+    target_link_libraries(test_exploit_shim_recovery_null_arg_standalone PRIVATE secp256k1_shim fastsecp256k1)
+    if(TARGET ufsecp_static)
+        target_link_libraries(test_exploit_shim_recovery_null_arg_standalone PRIVATE ufsecp_static)
+    endif()
+    target_include_directories(test_exploit_shim_recovery_null_arg_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp)
+    target_compile_definitions(test_exploit_shim_recovery_null_arg_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME exploit_shim_recovery_null_arg COMMAND test_exploit_shim_recovery_null_arg_standalone)
+    set_tests_properties(exploit_shim_recovery_null_arg PROPERTIES
+        TIMEOUT 30 SKIP_RETURN_CODE 77 LABELS "audit;exploit;shim;recovery;security")
+endif()
 
 
 # -- P-01/02/03: Shim pubkey_create / keypair_create CT generator mul (SPC-1..10) --
@@ -3645,7 +3670,8 @@ add_executable(unified_audit_runner
 # Shim-independent tests: always add to unified_audit_runner.
 target_sources(unified_audit_runner PRIVATE
     test_exploit_shim_musig_ka_cap.cpp
-    test_exploit_shim_recovery_null_arg.cpp)
+    test_exploit_shim_recovery_null_arg.cpp
+    test_regression_shim_static_ctx.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
 # can link and reports them as advisory-skipped instead of failing.

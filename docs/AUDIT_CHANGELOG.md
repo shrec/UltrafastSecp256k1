@@ -7,6 +7,22 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-11 — 10-Pass Multi-Agent Review: All P1 + P2 fixes (v2 — code applied)
+
+### P1 Fixes (code)
+- **P1-001** `secp256k1_extended.cl`: `ecdsa_sign_impl` low-S normalization — VT branch `if (!scalar_is_low_s)` on secret nonce `s` replaced with branchless bitmask conditional negate.
+- **P1-002** `ct_sign.cpp` + `shim_recovery.cpp`: Added `ct::ecdsa_sign_hedged_recoverable()` that derives recid from K's y-parity during signing. `secp256k1_ecdsa_sign_recoverable` with ndata no longer runs 4× `ecdsa_recover` loop (Bitcoin Core CKey::Sign R-grinding path).
+- **P1-003** `gate.yml`: `caas-gate` now fails when `caas-security=skipped` on non-docs-only changes (security gate race fix).
+- **P1-004** `test_exploit_kat_corpus.cpp` + `unified_audit_runner.cpp`: `kat_corpus` module now returns `ADVISORY_SKIP_CODE` (77) when corpus absent; changed to `advisory=true` to correctly classify skip.
+- **P1-005** `source_graph.py`: Added `os.chmod(DB_PATH, 0o664)` after DB creation to prevent umask-induced 644 permissions blocking concurrent writers.
+- **P1-006** `ci_local.sh` + `sync_module_count.py`: `run_check` now handles exit code 77 as advisory-skip (was counted as failure); module counts verified correct (352 total / 254 exploit / 98 non-exploit).
+- **P1-007** `frost.cpp`: `frost_sign` C++ layer now enforces `nonce_commitments.size() >= threshold` (was only at ABI layer). `derive_scalar` and `derive_scalar_pair` now use `parse_bytes_strict_nonzero` with counter-based retry loop instead of silent `from_bytes` mod-n reduction.
+
+### P2 Fixes (code)
+- **PASS3-008** `shim_schnorr.cpp`: `secp256k1_schnorrsig_sign_custom` with NULL ctx now fires illegal callback (was silent return 0).
+- **PASS3-011** `shim_pubkey.cpp`: `secp256k1_ec_pubkey_serialize` with invalid flags now fires illegal callback (was silent uncompressed output).
+- **P2-004** `bip324.cpp`: ECDH shared-secret all-zero check replaced with constant-time byte-accumulator (was early-exit loop leaking leading-zero timing).
+
 ## 2026-05-11 — 10-Pass Multi-Agent Review: All P1 + P2 fixes
 - **`audit/test_exploit_shim_musig_ka_cap.cpp`** — RED-TEAM-009: secp256k1_musig_pubkey_agg fail-closed when DoS-cap (1024 sessions) hit. Smoke test verifying ka_put-fail-closed fix compiles and links correctly.
 - **`audit/test_exploit_shim_recovery_null_arg.cpp`** — SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (retroactive coverage for a3f56ae). Tests REC-NULL-1..4: NULL sig/msghash/seckey all return 0; valid args return 1.

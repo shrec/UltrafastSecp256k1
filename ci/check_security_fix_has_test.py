@@ -76,6 +76,10 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "(shim_recovery_null_arg). PERF-006 (shim_ecdsa.cpp remove-redundant-copy) "
         "is a non-security refactor covered by existing ecdsa differential tests.",
     ),
+    "ecf47967ae": (
+        ["audit/test_regression_shim_static_ctx.cpp"],
+        "Regression test added in the follow-up commit. Fix: g_static_ctx aggregate initializer was missing cached_r_G/cached_r_G_valid fields added by PERF-005, causing a compile error on shim builds.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.

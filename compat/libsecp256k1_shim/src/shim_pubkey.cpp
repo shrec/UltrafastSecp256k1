@@ -111,6 +111,16 @@ int secp256k1_ec_pubkey_serialize(
     SHIM_REQUIRE_CTX(ctx);
     if (!output || !outputlen || !pubkey) return 0;
 
+    // Validate flags: only SECP256K1_EC_COMPRESSED or SECP256K1_EC_UNCOMPRESSED
+    // are valid. Garbage flags (e.g. 0xDEAD) must fire the illegal callback
+    // (PASS3-011 divergence fix — matches upstream libsecp256k1 behavior).
+    const unsigned int valid_flags = SECP256K1_EC_COMPRESSED | SECP256K1_EC_UNCOMPRESSED;
+    if ((flags & ~valid_flags) != 0 ||
+        (flags != SECP256K1_EC_COMPRESSED && flags != SECP256K1_EC_UNCOMPRESSED)) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_serialize: invalid flags");
+        return 0;
+    }
+
     if (flags & SECP256K1_FLAGS_BIT_COMPRESSION) {
         // Compressed
         if (*outputlen < 33) return 0;

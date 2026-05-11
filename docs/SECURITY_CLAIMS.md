@@ -2,6 +2,31 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-11 ct_sign.cpp — ecdsa_sign_hedged_recoverable + OpenCL low-S fix
+
+- **`src/cpu/src/ct_sign.cpp`**: `ct::ecdsa_sign_hedged_recoverable()` added.
+  Hedged RFC 6979 + aux_rand nonce with recid from K's y-parity during signing.
+  Eliminates the 4× ecdsa_recover loop in `secp256k1_ecdsa_sign_recoverable` (ndata path).
+  CT contract: recid derivation and low-S normalization are branchless (bitmask operations).
+  All secret nonce material (`k`, `k_inv`, `z`, `s`, `pre_sig`) erased via `secure_erase`.
+- **`src/opencl/kernels/secp256k1_extended.cl` (`ecdsa_sign_impl`)**: Low-S normalization
+  replaced from `if (!scalar_is_low_s) scalar_negate(s)` to branchless bitmask conditional
+  negate. The non-CT kernel is not a production path (ct_ecdsa_sign_impl is used instead)
+  but the VT branch on the secret nonce-derived `s` was architecturally incorrect.
+- **CT contract unchanged** for all production signing paths (ct_sign.cpp, ct_ecdsa_sign_impl).
+
+### 2026-05-11 frost.cpp — threshold enforcement + derive_scalar strict parsing
+
+- **`src/cpu/src/frost.cpp` (`frost_sign`)**: Threshold enforcement added at C++ layer.
+  Direct C++ callers can no longer bypass the sub-quorum guard (was only at ABI layer).
+  Returns zero partial sig on sub-quorum input; nonces erased before return.
+- **`src/cpu/src/frost.cpp` (`derive_scalar`, `derive_scalar_pair`)**: `Scalar::from_bytes`
+  (silent mod-n reduction) replaced with `parse_bytes_strict_nonzero` + counter retry via
+  new helper `derive_scalar_from_hash`. Hash material is erased inside the helper.
+  CT contract: nonce and polynomial coefficient scalars now guaranteed non-zero and in [1,n-1].
+
+
+
 ### 2026-05-11 scalar_mul_jac_fe52_z1 — HAMBURG=true, degenerate-case check removed
 
 - **`ct_point.cpp`**: Enabled HAMBURG mode for `scalar_mul_jac_fe52_z1`.

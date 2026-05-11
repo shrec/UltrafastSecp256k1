@@ -1,5 +1,21 @@
 # Constant-Time Verification
 
+### 2026-05-11 ct_sign.cpp — ecdsa_sign_hedged_recoverable added
+
+- **`src/cpu/src/ct_sign.cpp`**: Added `ct::ecdsa_sign_hedged_recoverable()` that returns a
+  `RecoverableSignature` with recid derived from `R.y` parity and `R.x >= n` overflow during
+  signing. This eliminates the 4× `ecdsa_recover` loop in `secp256k1_ecdsa_sign_recoverable`
+  when `ndata != NULL` (Bitcoin Core CKey::Sign path).
+- **CT status**: Recovery ID derivation is branchless throughout:
+  - Bit 0: `R.y().limbs()[0] & 1u` — no branch on nonce
+  - Bit 1: byte-cascade comparison of `r_bytes` vs `ORDER_BYTES` — no early exit
+  - Low-S flip: `recid ^= static_cast<int>(high_mask & 1)` — branchless XOR
+  - All secret nonce material erased via `secure_erase` before return
+- **Audit method**: Code review; same implementation pattern as `ct::ecdsa_sign_recoverable`
+  (line 302), which passed CT review in 2026-05-07 ultrareview.
+
+
+
 **UltrafastSecp256k1 v4.0.0** -- CT Layer Methodology & Audit Status
 
 ### 2026-05-11 ct_point::scalar_mul_jac_fe52_z1 — HAMBURG=true (xdh-dedicated path)

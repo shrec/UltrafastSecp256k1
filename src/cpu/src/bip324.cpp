@@ -182,12 +182,12 @@ bool Bip324Session::complete_handshake(const std::uint8_t* peer_encoding) noexce
     // 1. ECDH via ElligatorSwift
     auto shared_secret = ellswift_xdh(ell_a, ell_b, sk, initiator_);
 
-    // Check for failure (all zeros)
-    bool all_zero = true;
-    for (auto b : shared_secret) {
-        if (b != 0) { all_zero = false; break; }
-    }
-    if (all_zero) {
+    // Check for failure (all zeros) — constant-time accumulator, no early exit.
+    // An early-exit loop leaks timing about the number of leading zero bytes in
+    // the shared secret (P1-009 fix). The probability of all-zero is < 2^-256.
+    std::uint8_t acc = 0;
+    for (auto b : shared_secret) acc |= b;
+    if (acc == 0) {
         // BUG-FIX: zeroize sk before early return so the ephemeral private key
         // scalar does not remain on the stack after an attacker-induced ECDH failure.
         detail::secure_erase(&sk, sizeof(sk));

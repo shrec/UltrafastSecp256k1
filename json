@@ -1,0 +1,891 @@
+
+──────────────────────────────────────────────────────────────────────
+  bindings/android/test/libsecp_bench.c  (16 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   65  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_create(...); if (rc != 0) { ... }`
+  Line   73  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_create(...); if (rc != 0) { ... }`
+  Line   88  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line   94  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line  106  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_create(ctx, &pubkey, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_create(...); if (rc != 0) { ... }`
+  Line  107  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(ctx, &sig, msg, test_seckey, NULL, NULL);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line  110  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_verify(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_verify(ctx, &sig, msg, &pubkey);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_verify(...); if (rc != 0) { ... }`
+  Line  128  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(ctx, &keypair, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  133  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(ctx, &keypair, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  143  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(ctx, &keypair, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  153  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_sign32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_sign32(...); if (rc != 0) { ... }`
+  Line  159  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_sign32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_sign32(...); if (rc != 0) { ... }`
+  Line  169  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(ctx, &keypair, test_seckey);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  172  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_xonly_pub(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_xonly_pub(ctx, &xonly_pk, NULL, &keypair);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_xonly_pub(...); if (rc != 0) { ... }`
+  Line  179  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_sign32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_sign32(ctx, sig64, msg, &keypair, aux);
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_sign32(...); if (rc != 0) { ... }`
+  Line  182  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_verify(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_verify(ctx, sig64, msg, 32, &xonly_pk);
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_verify(...); if (rc != 0) { ... }`
+
+──────────────────────────────────────────────────────────────────────
+  bindings/ruby/lib/ufsecp.rb  (5 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   58  [[33mMEDIUM[0m]  [CPASTE]
+           `ERR_NULL_ARG` assigned at line 46 and again at line 58 with no read in between — first assignment is dead
+           ▶  ERR_NULL_ARG => 'null argument', ERR_BAD_KEY => 'invalid private key',
+           ✦  Remove the redundant assignment at line 46, or check for a copy-paste error where different variables were intended
+  Line   59  [[33mMEDIUM[0m]  [CPASTE]
+           `ERR_BAD_PUBKEY` assigned at line 48 and again at line 59 with no read in between — first assignment is dead
+           ▶  ERR_BAD_PUBKEY => 'invalid public key', ERR_BAD_SIG => 'invalid signature',
+           ✦  Remove the redundant assignment at line 48, or check for a copy-paste error where different variables were intended
+  Line   60  [[33mMEDIUM[0m]  [CPASTE]
+           `ERR_BAD_INPUT` assigned at line 50 and again at line 60 with no read in between — first assignment is dead
+           ▶  ERR_BAD_INPUT => 'bad input', ERR_VERIFY_FAIL => 'verification failed',
+           ✦  Remove the redundant assignment at line 50, or check for a copy-paste error where different variables were intended
+  Line   61  [[33mMEDIUM[0m]  [CPASTE]
+           `ERR_ARITH` assigned at line 52 and again at line 61 with no read in between — first assignment is dead
+           ▶  ERR_ARITH => 'arithmetic error', ERR_SELFTEST => 'selftest failed',
+           ✦  Remove the redundant assignment at line 52, or check for a copy-paste error where different variables were intended
+  Line   62  [[33mMEDIUM[0m]  [CPASTE]
+           `ERR_INTERNAL` assigned at line 54 and again at line 62 with no read in between — first assignment is dead
+           ▶  ERR_INTERNAL => 'internal error', ERR_BUF_SMALL => 'buffer too small',
+           ✦  Remove the redundant assignment at line 54, or check for a copy-paste error where different variables were intended
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/bench/bench_unified.cpp  (4 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  551  [[36mLOW   [0m]  [DBLINIT]
+           `effective_passes` first set at line 546 then immediately overwritten at line 551 — first value is never read
+           ▶  effective_passes = 3;
+           ✦  Remove the redundant initialization at line 546 or check for a copy-paste error
+  Line  552  [[36mLOW   [0m]  [DBLINIT]
+           `effective_warmup` first set at line 547 then immediately overwritten at line 552 — first value is never read
+           ▶  effective_warmup = 50;
+           ✦  Remove the redundant initialization at line 547 or check for a copy-paste error
+  Line 1949  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_xonly_pub(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_xonly_pub(ls_ctx, &ls_xonly[i], NULL, &ls_keypairs[i]);
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_xonly_pub(...); if (rc != 0) { ... }`
+  Line 1957  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(ls_ctx, &ls_esigs[i], ls_msgs[i], ls_seckeys[i], NULL, NULL);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/bench/bench_vs_libsecp.cpp  (24 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  120  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_create(lctx, &lpubs[i], kb.data());
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_create(...); if (rc != 0) { ... }`
+  Line  121  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(lctx, &lecdsa[i], msg[i].data(), kb.data(), nullptr, nullptr);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line  122  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(lctx, &lkps[i], kb.data());
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  123  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_sign32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_sign32(lctx, lschnorr[i].data(), msg[i].data(), &lkps[i], aux[i].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_sign32(...); if (rc != 0) { ... }`
+  Line  126  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_serialize(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_serialize(lctx,comp_pks[i].data(),&sz,&lpubs[i],SECP256K1_EC_COMPRESSED);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_serialize(...); if (rc != 0) { ... }`
+  Line  135  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx, &lxonly_pks[i], lxonly[i].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  138  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_signature_serialize_der(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_signature_serialize_der(lctx, lecdsa_der[i].data(), &lecdsa_der_len[i], &lecdsa[i]);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_signature_serialize_der(...); if (rc != 0) { ... }`
+  Line  164  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_sign(lctx,&s,msg[idx%POOL].data(),kb.data(),nullptr,nullptr);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line  205  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  236  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_keypair_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_keypair_create(lctx,&kp,kb.data());
+           ✦  Store the return value and check it: `int rc = secp256k1_keypair_create(...); if (rc != 0) { ... }`
+  Line  250  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_schnorrsig_sign32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_schnorrsig_sign32(lctx,s.data(),msg[idx%POOL].data(),&lkps[idx%POOL],aux[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_schnorrsig_sign32(...); if (rc != 0) { ... }`
+  Line  264  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx,&xpk,lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  278  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx,&xpk,lxonly[0].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  304  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx,&xpk,lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  349  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  364  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  382  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_create(lctx,&p,kb.data());
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_create(...); if (rc != 0) { ... }`
+  Line  549  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  552  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_signature_normalize(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_signature_normalize(lctx, &norm, &sig);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_signature_normalize(...); if (rc != 0) { ... }`
+  Line  559  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ec_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ec_pubkey_parse(lctx, &pk, comp_pks[idx%POOL].data(), 33);
+           ✦  Store the return value and check it: `int rc = secp256k1_ec_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  562  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_ecdsa_signature_normalize(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_ecdsa_signature_normalize(lctx, &norm, &sig);
+           ✦  Store the return value and check it: `int rc = secp256k1_ecdsa_signature_normalize(...); if (rc != 0) { ... }`
+  Line  572  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  580  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_xonly_pubkey_parse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_xonly_pubkey_parse(lctx, &xpk, lxonly[idx%POOL].data());
+           ✦  Store the return value and check it: `int rc = secp256k1_xonly_pubkey_parse(...); if (rc != 0) { ... }`
+  Line  588  [[33mMEDIUM[0m]  [POINT_NO_VALIDATION]
+           pubkey parser present but no on-curve / subgroup validation found in the same file — invalid-curve attack risk
+           ▶  printf("  Steps:  (A) pubkey_parse  (B) verify-warm  (C)-(D) Point-verify\n");
+           ✦  Verify the parsed point lies on secp256k1 and (where applicable) in the prime-order subgroup before exposing it to scalar mul.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/bench/libsecp_provider.c  (17 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   35  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_set_b32_mod(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_set_b32_mod(&a, in32);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_set_b32_mod(...); if (rc != 0) { ... }`
+  Line   36  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_inv_var(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_inv_var(&r, &a);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_inv_var(...); if (rc != 0) { ... }`
+  Line   37  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_normalize_var(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_normalize_var(&r);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_normalize_var(...); if (rc != 0) { ... }`
+  Line   38  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_get_b32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_get_b32(out32, &r);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_get_b32(...); if (rc != 0) { ... }`
+  Line   42  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_inv_var(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_inv_var((secp256k1_fe *)r, (const secp256k1_fe *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_inv_var(...); if (rc != 0) { ... }`
+  Line   47  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_mul(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_mul((secp256k1_fe *)r, (const secp256k1_fe *)a, (const secp256k1_fe *)b);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_mul(...); if (rc != 0) { ... }`
+  Line   51  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_sqr(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_sqr((secp256k1_fe *)r, (const secp256k1_fe *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_sqr(...); if (rc != 0) { ... }`
+  Line   55  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_add(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_add((secp256k1_fe *)r, (const secp256k1_fe *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_add(...); if (rc != 0) { ... }`
+  Line   59  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_negate_unchecked(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_negate_unchecked((secp256k1_fe *)r, (const secp256k1_fe *)a, m);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_negate_unchecked(...); if (rc != 0) { ... }`
+  Line   63  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_normalize(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_normalize((secp256k1_fe *)r);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_normalize(...); if (rc != 0) { ... }`
+  Line   67  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_fe_set_b32_mod(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_fe_set_b32_mod((secp256k1_fe *)r, b32);
+           ✦  Store the return value and check it: `int rc = secp256k1_fe_set_b32_mod(...); if (rc != 0) { ... }`
+  Line   77  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_scalar_inverse(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_scalar_inverse((secp256k1_scalar *)r, (const secp256k1_scalar *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_scalar_inverse(...); if (rc != 0) { ... }`
+  Line   81  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_scalar_inverse_var(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_scalar_inverse_var((secp256k1_scalar *)r, (const secp256k1_scalar *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_scalar_inverse_var(...); if (rc != 0) { ... }`
+  Line   90  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_scalar_negate(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_scalar_negate((secp256k1_scalar *)r, (const secp256k1_scalar *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_scalar_negate(...); if (rc != 0) { ... }`
+  Line   94  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_scalar_set_b32(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_scalar_set_b32((secp256k1_scalar *)r, b32, overflow);
+           ✦  Store the return value and check it: `int rc = secp256k1_scalar_set_b32(...); if (rc != 0) { ... }`
+  Line   99  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_gej_double_var(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_gej_double_var((secp256k1_gej *)r, (const secp256k1_gej *)a, NULL);
+           ✦  Store the return value and check it: `int rc = secp256k1_gej_double_var(...); if (rc != 0) { ... }`
+  Line  126  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `secp256k1_gej_set_ge(...)` silently discarded — error conditions will be silently ignored
+           ▶  secp256k1_gej_set_ge((secp256k1_gej *)r, (const secp256k1_ge *)a);
+           ✦  Store the return value and check it: `int rc = secp256k1_gej_set_ge(...); if (rc != 0) { ... }`
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/adaptor.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  290  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  Scalar t_inv = ct::scalar_inverse(adaptor_secret); // CT: SafeGCD inverse on secret
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/bip39.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  158  [[36mLOW   [0m]  [DBLINIT]
+           `bit_in_byte` first set at line 154 then immediately overwritten at line 158 — first value is never read
+           ▶  bit_in_byte = 7 - (cs_bit % 8);
+           ✦  Remove the redundant initialization at line 154 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/coin_address.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  190  [[36mLOW   [0m]  [DBLINIT]
+           `len` first set at line 187 then immediately overwritten at line 190 — first value is never read
+           ▶  len = 34;
+           ✦  Remove the redundant initialization at line 187 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/ct_scalar.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  536  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  Scalar scalar_inverse(const Scalar& a) noexcept {
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/ct_sign.cpp  (3 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   58  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  auto k_inv = ct::scalar_inverse(k);
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+  Line  356  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  auto k_inv = ct::scalar_inverse(k);
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+  Line  441  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  auto k_inv = ct::scalar_inverse(k);
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/ellswift.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  357  [[33mMEDIUM[0m]  [UNREACH]
+           Unreachable statement — code after unconditional `return`/`throw` in same scope
+           ▶  const auto u2 = u.square();
+           ✦  Remove this dead code or restructure the control flow
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/impl/ufsecp_zk.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  602  [[36mLOW   [0m]  [DBLINIT]
+           `scalar_ok` first set at line 598 then immediately overwritten at line 602 — first value is never read
+           ▶  scalar_ok = false;
+           ✦  Remove the redundant initialization at line 598 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/pippenger.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  182  [[36mLOW   [0m]  [DBLINIT]
+           `all_affine` first set at line 179 then immediately overwritten at line 182 — first value is never read
+           ▶  all_affine = false;
+           ✦  Remove the redundant initialization at line 179 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/point.cpp  (4 findings)
+──────────────────────────────────────────────────────────────────────
+  Line 3799  [[36mLOW   [0m]  [DBLINIT]
+           `all_affine` first set at line 3796 then immediately overwritten at line 3799 — first value is never read
+           ▶  all_affine = false;
+           ✦  Remove the redundant initialization at line 3796 or check for a copy-paste error
+  Line 3864  [[36mLOW   [0m]  [DBLINIT]
+           `all_affine` first set at line 3861 then immediately overwritten at line 3864 — first value is never read
+           ▶  all_affine = false;
+           ✦  Remove the redundant initialization at line 3861 or check for a copy-paste error
+  Line 3927  [[36mLOW   [0m]  [DBLINIT]
+           `all_affine` first set at line 3924 then immediately overwritten at line 3927 — first value is never read
+           ▶  all_affine = false;
+           ✦  Remove the redundant initialization at line 3924 or check for a copy-paste error
+  Line 4373  [[33mMEDIUM[0m]  [UNREACH]
+           Unreachable statement — code after unconditional `return`/`throw` in same scope
+           ▶  derive_phi52_table(out_tbl_P.data(), out_tbl_phi_base.data(),
+           ✦  Remove this dead code or restructure the control flow
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/selftest.cpp  (2 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  798  [[36mLOW   [0m]  [DBLINIT]
+           `ok` first set at line 793 then immediately overwritten at line 798 — first value is never read
+           ▶  ok = false;
+           ✦  Remove the redundant initialization at line 793 or check for a copy-paste error
+  Line 1037  [[36mLOW   [0m]  [DBLINIT]
+           `ok` first set at line 1032 then immediately overwritten at line 1037 — first value is never read
+           ▶  ok = false;
+           ✦  Remove the redundant initialization at line 1032 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/src/unicode_nfkd.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  628  [[33mMEDIUM[0m]  [CPASTE]
+           `changed` assigned at line 622 and again at line 628 with no read in between — first assignment is dead
+           ▶  changed = true;
+           ✦  Remove the redundant assignment at line 622, or check for a copy-paste error where different variables were intended
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_bip324.cpp  (6 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  208  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `sk` in secret path — no secure_erase found before function exit
+           ▶  Scalar sk = Scalar::from_bytes(KEY_A);
+           ✦  Add secure_erase(&sk, sizeof(sk)) on all exit paths
+  Line  225  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `sk_b` in secret path — no secure_erase found before function exit
+           ▶  Scalar sk_b = Scalar::from_bytes(KEY_B);
+           ✦  Add secure_erase(&sk_b, sizeof(sk_b)) on all exit paths
+  Line  337  [[31mHIGH  [0m]  [SPTR]
+           `sizeof(msg)` passed to `memcmp` but `msg` is a pointer — sizeof gives ptr width (8), not buffer size
+           ▶  CHECK(std::memcmp(dec.data(), msg, sizeof(msg) - 1) == 0,
+           ✦  Replace sizeof(msg) with the actual byte count or use sizeof(*msg) * count
+  Line  430  [[31mHIGH  [0m]  [SPTR]
+           `sizeof(msg)` passed to `memcmp` but `msg` is a pointer — sizeof gives ptr width (8), not buffer size
+           ▶  CHECK(!dec1.empty() && std::memcmp(dec1.data(), msg, sizeof(msg) - 1) == 0,
+           ✦  Replace sizeof(msg) with the actual byte count or use sizeof(*msg) * count
+  Line  435  [[31mHIGH  [0m]  [SPTR]
+           `sizeof(msg)` passed to `memcmp` but `msg` is a pointer — sizeof gives ptr width (8), not buffer size
+           ▶  CHECK(!dec2.empty() && std::memcmp(dec2.data(), msg, sizeof(msg) - 1) == 0,
+           ✦  Replace sizeof(msg) with the actual byte count or use sizeof(*msg) * count
+  Line  554  [[31mHIGH  [0m]  [SPTR]
+           `sizeof(msg)` passed to `memcmp` but `msg` is a pointer — sizeof gives ptr width (8), not buffer size
+           ▶  CHECK(std::memcmp(dec.data(), msg, sizeof(msg) - 1) == 0,
+           ✦  Replace sizeof(msg) with the actual byte count or use sizeof(*msg) * count
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_bip340_strict.cpp  (15 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   90  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(Scalar::parse_bytes_strict(bytes, out), "s=1 accepted");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line   98  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(Scalar::parse_bytes_strict(bytes, out), "s=n-1 accepted");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  105  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!Scalar::parse_bytes_strict(bytes, out), "s=n rejected (not reduced)");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  112  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!Scalar::parse_bytes_strict(bytes, out), "s=n+1 rejected (not reduced)");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  119  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!Scalar::parse_bytes_strict(bytes, out), "s=2^256-1 rejected");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  126  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(Scalar::parse_bytes_strict(bytes, out), "s=0: strict accepts");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  127  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!Scalar::parse_bytes_strict_nonzero(bytes, out), "s=0: strict_nonzero rejects");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  134  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!Scalar::parse_bytes_strict_nonzero(bytes, out), "s=n: strict_nonzero rejects");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  141  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(Scalar::parse_bytes_strict_nonzero(bytes, out), "s=1: strict_nonzero accepts");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  154  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(FieldElement::parse_bytes_strict(bytes, out), "x=1 accepted");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  161  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(FieldElement::parse_bytes_strict(bytes, out), "x=p-1 accepted");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  168  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!FieldElement::parse_bytes_strict(bytes, out), "x=p rejected (not reduced)");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  175  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!FieldElement::parse_bytes_strict(bytes, out), "x=p+1 rejected (not reduced)");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  182  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(!FieldElement::parse_bytes_strict(bytes, out), "x=2^256-1 rejected");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+  Line  189  [[31mHIGH  [0m]  [PARSE_RETVAL_IGNORED]
+           Return value of `parse_bytes_strict_nonzero` / `parse_bytes_strict` silently discarded — output Scalar is indeterminate if input >= N or == 0. SonarCloud flags this as MAJOR C Reliability bug.
+           ▶  CHECK(FieldElement::parse_bytes_strict(bytes, out), "x=0 accepted");
+           ✦  Add: `if (!Scalar::parse_bytes_strict_nonzero(..., out)) return {};` or propagate the bool return to the caller.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_bip39.cpp  (2 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   69  [[31mHIGH  [0m]  [MEMCMP_SECRET]
+           `memcmp` on apparent auth material — early-exit timing leak (forgeable MAC/tag class, Xbox 360 Hypervisor 2007, Java JCE 2014)
+           ▶  CHECK(std::memcmp(output, expected, 64) == 0, "PBKDF2-HMAC-SHA512 (c=1)");
+           ✦  Use a constant-time compare (e.g. ct_memeq, secp256k1_memcmp_var-style) that always touches the full length.
+  Line   82  [[31mHIGH  [0m]  [MEMCMP_SECRET]
+           `memcmp` on apparent auth material — early-exit timing leak (forgeable MAC/tag class, Xbox 360 Hypervisor 2007, Java JCE 2014)
+           ▶  CHECK(std::memcmp(output, expected, 64) == 0, "PBKDF2-HMAC-SHA512 (c=2)");
+           ✦  Use a constant-time compare (e.g. ct_memeq, secp256k1_memcmp_var-style) that always touches the full length.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_exhaustive.cpp  (2 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  397  [[33mMEDIUM[0m]  [CPASTE]
+           `p2` assigned at line 394 and again at line 397 with no read in between — first assignment is dead
+           ▶  p2 = p1;
+           ✦  Remove the redundant assignment at line 394, or check for a copy-paste error where different variables were intended
+  Line  397  [[36mLOW   [0m]  [DBLINIT]
+           `p2` first set at line 394 then immediately overwritten at line 397 — first value is never read
+           ▶  p2 = p1;
+           ✦  Remove the redundant initialization at line 394 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_ffi_coverage.cpp  (5 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   71  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `ufsecp_pedersen_switch_commit(...)` silently discarded — error conditions will be silently ignored
+           ▶  ufsecp_pedersen_switch_commit(ctx, value, blinding, switch_blind, commitment2);
+           ✦  Store the return value and check it: `int rc = ufsecp_pedersen_switch_commit(...); if (rc != 0) { ... }`
+  Line  302  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `ufsecp_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  ufsecp_pubkey_create(ctx, privkey, pubkey33);
+           ✦  Store the return value and check it: `int rc = ufsecp_pubkey_create(...); if (rc != 0) { ... }`
+  Line  308  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `ufsecp_ecdsa_sign(...)` silently discarded — error conditions will be silently ignored
+           ▶  ufsecp_ecdsa_sign(ctx, msg, privkey, sig64);
+           ✦  Store the return value and check it: `int rc = ufsecp_ecdsa_sign(...); if (rc != 0) { ... }`
+  Line  324  [[36mLOW   [0m]  [DBLINIT]
+           `limbs_ok` first set at line 319 then immediately overwritten at line 324 — first value is never read
+           ▶  limbs_ok = false;
+           ✦  Remove the redundant initialization at line 319 or check for a copy-paste error
+  Line  366  [[31mHIGH  [0m]  [RETVAL]
+           Return value of `ufsecp_pubkey_create(...)` silently discarded — error conditions will be silently ignored
+           ▶  ufsecp_pubkey_create(ctx, privkey, pubkey33);
+           ✦  Store the return value and check it: `int rc = ufsecp_pubkey_create(...); if (rc != 0) { ... }`
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_hash_accel.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  165  [[31mHIGH  [0m]  [MEMCMP_SECRET]
+           `memcmp` on apparent auth material — early-exit timing leak (forgeable MAC/tag class, Xbox 360 Hypervisor 2007, Java JCE 2014)
+           ▶  check(std::memcmp(h.data(), expected, 20) == 0, "RIPEMD160(\"message digest\") known vector");
+           ✦  Use a constant-time compare (e.g. ct_memeq, secp256k1_memcmp_var-style) that always touches the full length.
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_multiscalar_batch.cpp  (2 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  157  [[36mLOW   [0m]  [DBLINIT]
+           `individual_ok` first set at line 153 then immediately overwritten at line 157 — first value is never read
+           ▶  individual_ok = false;
+           ✦  Remove the redundant initialization at line 153 or check for a copy-paste error
+  Line  186  [[36mLOW   [0m]  [DBLINIT]
+           `cache_parse_ok` first set at line 183 then immediately overwritten at line 186 — first value is never read
+           ▶  cache_parse_ok = false;
+           ✦  Remove the redundant initialization at line 183 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_point_edge_cases.cpp  (3 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  284  [[36mLOW   [0m]  [DBLINIT]
+           `all_match` first set at line 281 then immediately overwritten at line 284 — first value is never read
+           ▶  all_match = false;
+           ✦  Remove the redundant initialization at line 281 or check for a copy-paste error
+  Line  296  [[36mLOW   [0m]  [DBLINIT]
+           `xonly_match` first set at line 293 then immediately overwritten at line 296 — first value is never read
+           ▶  xonly_match = false;
+           ✦  Remove the redundant initialization at line 293 or check for a copy-paste error
+  Line  308  [[36mLOW   [0m]  [DBLINIT]
+           `norm_match` first set at line 305 then immediately overwritten at line 308 — first value is never read
+           ▶  norm_match = false;
+           ✦  Remove the redundant initialization at line 305 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cpu/tests/test_zk.cpp  (2 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  248  [[36mLOW   [0m]  [DBLINIT]
+           `all_valid` first set at line 245 then immediately overwritten at line 248 — first value is never read
+           ▶  all_valid = false;
+           ✦  Remove the redundant initialization at line 245 or check for a copy-paste error
+  Line  370  [[36mLOW   [0m]  [DBLINIT]
+           `all_valid` first set at line 366 then immediately overwritten at line 370 — first value is never read
+           ▶  all_valid = false;
+           ✦  Remove the redundant initialization at line 366 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/batch_verify.cuh  (3 findings)
+──────────────────────────────────────────────────────────────────────
+  Line   60  [[33mMEDIUM[0m]  [MISSING_LOW_S_CHECK]
+           ECDSA verify path has no low-S / high-S reference — signature malleability risk (BIP-62, segwit policy)
+           ▶  __global__ void ecdsa_batch_verify_kernel(
+           ✦  Reject signatures with s > n/2 in policy-strict verify paths; or document a deliberate non-strict mode.
+  Line  121  [[36mLOW   [0m]  [DBLINIT]
+           `all_valid` first set at line 117 then immediately overwritten at line 121 — first value is never read
+           ▶  all_valid = false;
+           ✦  Remove the redundant initialization at line 117 or check for a copy-paste error
+  Line  175  [[36mLOW   [0m]  [DBLINIT]
+           `all_valid` first set at line 171 then immediately overwritten at line 175 — first value is never read
+           ▶  all_valid = false;
+           ✦  Remove the redundant initialization at line 171 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/bip32.cuh  (5 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  322  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `IL` in secret path — no secure_erase found before function exit
+           ▶  Scalar IL;
+           ✦  Add secure_erase(&IL, sizeof(IL)) on all exit paths
+  Line  327  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `raw` in secret path — no secure_erase found before function exit
+           ▶  Scalar raw;
+           ✦  Add secure_erase(&raw, sizeof(raw)) on all exit paths
+  Line  339  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `kpar` in secret path — no secure_erase found before function exit
+           ▶  Scalar kpar;
+           ✦  Add secure_erase(&kpar, sizeof(kpar)) on all exit paths
+  Line  342  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `child_key` in secret path — no secure_erase found before function exit
+           ▶  Scalar child_key;
+           ✦  Add secure_erase(&child_key, sizeof(child_key)) on all exit paths
+  Line  485  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `sk` in secret path — no secure_erase found before function exit
+           ▶  Scalar sk;
+           ✦  Add secure_erase(&sk, sizeof(sk)) on all exit paths
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/ct/ct_scalar.cuh  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  102  [[33mMEDIUM[0m]  [SCALAR_NOT_REDUCED]
+           scalar_inverse without adjacent reduction or zero check — risk of inverting an unreduced or zero scalar
+           ▶  __device__ inline void scalar_inverse(const Scalar* a, Scalar* r) {
+           ✦  Reduce the scalar mod n and reject is_zero before inversion.
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/ct/ct_sign.cuh  (6 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  208  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `z_plus_rd` in secret path — no secure_erase found before function exit
+           ▶  Scalar z_plus_rd;
+           ✦  Add secure_erase(&z_plus_rd, sizeof(z_plus_rd)) on all exit paths
+  Line  292  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `d` in secret path — no secure_erase found before function exit
+           ▶  Scalar d;
+           ✦  Add secure_erase(&d, sizeof(d)) on all exit paths
+  Line  387  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `k_prime` in secret path — no secure_erase found before function exit
+           ▶  Scalar k_prime;
+           ✦  Add secure_erase(&k_prime, sizeof(k_prime)) on all exit paths
+  Line  402  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `k` in secret path — no secure_erase found before function exit
+           ▶  Scalar k;
+           ✦  Add secure_erase(&k, sizeof(k)) on all exit paths
+  Line  417  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `e` in secret path — no secure_erase found before function exit
+           ▶  Scalar e;
+           ✦  Add secure_erase(&e, sizeof(e)) on all exit paths
+  Line  421  [[31mHIGH  [0m]  [SECRET_UNERASED]
+           Scalar `ed` in secret path — no secure_erase found before function exit
+           ▶  Scalar ed;
+           ✦  Add secure_erase(&ed, sizeof(ed)) on all exit paths
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/schnorr.cuh  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line   80  [[33mMEDIUM[0m]  [HASH_NO_DOMAIN_SEP]
+           Plain SHA-256 in BIP-340/Schnorr/Taproot file without tagged_hash context — cross-protocol signature reuse risk (BIP-340 §3.2)
+           ▶  sha256_update(&ctx, data, data_len);
+           ✦  Use sha256_initialize_tagged("BIP0340/...") or the equivalent tagged-hash helper instead of plain SHA-256 in BIP-340 context.
+
+──────────────────────────────────────────────────────────────────────
+  src/cuda/include/zk.cuh  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line 2238  [[33mMEDIUM[0m]  [CPASTE]
+           `my_scalar` assigned at line 2230 and again at line 2238 with no read in between — first assignment is dead
+           ▶  my_scalar = smem->xj_inv_sq[j];
+           ✦  Remove the redundant assignment at line 2230, or check for a copy-paste error where different variables were intended
+
+──────────────────────────────────────────────────────────────────────
+  src/gpu/src/gpu_backend_cuda.cu  (36 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  442  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 440 and again at line 442 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "generator_mul d_results"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 440, or check for a copy-paste error where different variables were intended
+  Line  442  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 440 then immediately overwritten at line 442 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "generator_mul d_results"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 440 or check for a copy-paste error
+  Line  445  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 442 and again at line 445 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "generator_mul upload"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 442, or check for a copy-paste error where different variables were intended
+  Line  445  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 442 then immediately overwritten at line 445 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "generator_mul upload"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 442 or check for a copy-paste error
+  Line  454  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 452 and again at line 454 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "generator_mul d_out"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 452, or check for a copy-paste error where different variables were intended
+  Line  454  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 452 then immediately overwritten at line 454 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "generator_mul d_out"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 452 or check for a copy-paste error
+  Line  458  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 454 and again at line 458 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "jac_to_compressed"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 454, or check for a copy-paste error where different variables were intended
+  Line  458  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 454 then immediately overwritten at line 458 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "jac_to_compressed"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 454 or check for a copy-paste error
+  Line  460  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 458 and again at line 460 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "generator_mul sync"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 458, or check for a copy-paste error where different variables were intended
+  Line  460  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 458 then immediately overwritten at line 460 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "generator_mul sync"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 458 or check for a copy-paste error
+  Line  463  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 460 and again at line 463 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "generator_mul download"); goto gmb_cleanup; }
+           ✦  Remove the redundant assignment at line 460, or check for a copy-paste error where different variables were intended
+  Line  463  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 460 then immediately overwritten at line 463 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "generator_mul download"); goto gmb_cleanup; }
+           ✦  Remove the redundant initialization at line 460 or check for a copy-paste error
+  Line 1120  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1118 and again at line 1120 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324e nonce"); goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1118, or check for a copy-paste error where different variables were intended
+  Line 1120  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1118 then immediately overwritten at line 1120 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324e nonce"); goto enc_cleanup; }
+           ✦  Remove the redundant initialization at line 1118 or check for a copy-paste error
+  Line 1122  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1120 and again at line 1122 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324e pt");    goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1120, or check for a copy-paste error where different variables were intended
+  Line 1122  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1120 then immediately overwritten at line 1122 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324e pt");    goto enc_cleanup; }
+           ✦  Remove the redundant initialization at line 1120 or check for a copy-paste error
+  Line 1124  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1122 and again at line 1124 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324e sizes"); goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1122, or check for a copy-paste error where different variables were intended
+  Line 1124  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1122 then immediately overwritten at line 1124 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324e sizes"); goto enc_cleanup; }
+           ✦  Remove the redundant initialization at line 1122 or check for a copy-paste error
+  Line 1126  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1124 and again at line 1126 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324e wire");  goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1124, or check for a copy-paste error where different variables were intended
+  Line 1126  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1124 then immediately overwritten at line 1126 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324e wire");  goto enc_cleanup; }
+           ✦  Remove the redundant initialization at line 1124 or check for a copy-paste error
+  Line 1132  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1126 and again at line 1132 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "bip324e upload"); goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1126, or check for a copy-paste error where different variables were intended
+  Line 1144  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1141 and again at line 1144 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "bip324e download"); goto enc_cleanup; }
+           ✦  Remove the redundant assignment at line 1141, or check for a copy-paste error where different variables were intended
+  Line 1144  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1141 then immediately overwritten at line 1144 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "bip324e download"); goto enc_cleanup; }
+           ✦  Remove the redundant initialization at line 1141 or check for a copy-paste error
+  Line 1181  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1179 and again at line 1181 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324d nonce"); goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1179, or check for a copy-paste error where different variables were intended
+  Line 1181  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1179 then immediately overwritten at line 1181 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324d nonce"); goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1179 or check for a copy-paste error
+  Line 1183  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1181 and again at line 1183 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324d wire");  goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1181, or check for a copy-paste error where different variables were intended
+  Line 1183  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1181 then immediately overwritten at line 1183 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324d wire");  goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1181 or check for a copy-paste error
+  Line 1185  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1183 and again at line 1185 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324d sizes"); goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1183, or check for a copy-paste error where different variables were intended
+  Line 1185  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1183 then immediately overwritten at line 1185 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324d sizes"); goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1183 or check for a copy-paste error
+  Line 1187  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1185 and again at line 1187 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324d pt");    goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1185, or check for a copy-paste error where different variables were intended
+  Line 1187  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1185 then immediately overwritten at line 1187 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324d pt");    goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1185 or check for a copy-paste error
+  Line 1189  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1187 and again at line 1189 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Memory, "bip324d ok");    goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1187, or check for a copy-paste error where different variables were intended
+  Line 1189  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1187 then immediately overwritten at line 1189 — first value is never read
+           ▶  ret = set_error(GpuError::Memory, "bip324d ok");    goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1187 or check for a copy-paste error
+  Line 1195  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1189 and again at line 1195 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "bip324d upload"); goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1189, or check for a copy-paste error where different variables were intended
+  Line 1207  [[33mMEDIUM[0m]  [CPASTE]
+           `ret` assigned at line 1204 and again at line 1207 with no read in between — first assignment is dead
+           ▶  ret = set_error(GpuError::Launch, "bip324d pt dl"); goto dec_cleanup; }
+           ✦  Remove the redundant assignment at line 1204, or check for a copy-paste error where different variables were intended
+  Line 1207  [[36mLOW   [0m]  [DBLINIT]
+           `ret` first set at line 1204 then immediately overwritten at line 1207 — first value is never read
+           ▶  ret = set_error(GpuError::Launch, "bip324d pt dl"); goto dec_cleanup; }
+           ✦  Remove the redundant initialization at line 1204 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/metal/src/metal_audit_runner.mm  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line 1239  [[36mLOW   [0m]  [DBLINIT]
+           `report_dir` first set at line 1234 then immediately overwritten at line 1239 — first value is never read
+           ▶  report_dir = argv[++i];
+           ✦  Remove the redundant initialization at line 1234 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/opencl/src/opencl_context.cpp  (11 findings)
+──────────────────────────────────────────────────────────────────────
+  Line  289  [[36mLOW   [0m]  [DBLINIT]
+           `score` first set at line 287 then immediately overwritten at line 289 — first value is never read
+           ▶  score = 10;
+           ✦  Remove the redundant initialization at line 287 or check for a copy-paste error
+  Line 1853  [[33mMEDIUM[0m]  [CPASTE]
+           `kernel_batch_jacobian_to_affine` assigned at line 1850 and again at line 1853 with no read in between — first assignment is dead
+           ▶  kernel_batch_jacobian_to_affine = nullptr;
+           ✦  Remove the redundant assignment at line 1850, or check for a copy-paste error where different variables were intended
+  Line 1853  [[36mLOW   [0m]  [DBLINIT]
+           `kernel_batch_jacobian_to_affine` first set at line 1850 then immediately overwritten at line 1853 — first value is never read
+           ▶  kernel_batch_jacobian_to_affine = nullptr;
+           ✦  Remove the redundant initialization at line 1850 or check for a copy-paste error
+  Line 1861  [[33mMEDIUM[0m]  [CPASTE]
+           `kernel_affine_add` assigned at line 1858 and again at line 1861 with no read in between — first assignment is dead
+           ▶  kernel_affine_add = nullptr;
+           ✦  Remove the redundant assignment at line 1858, or check for a copy-paste error where different variables were intended
+  Line 1861  [[36mLOW   [0m]  [DBLINIT]
+           `kernel_affine_add` first set at line 1858 then immediately overwritten at line 1861 — first value is never read
+           ▶  kernel_affine_add = nullptr;
+           ✦  Remove the redundant initialization at line 1858 or check for a copy-paste error
+  Line 1866  [[33mMEDIUM[0m]  [CPASTE]
+           `kernel_affine_add_lambda` assigned at line 1863 and again at line 1866 with no read in between — first assignment is dead
+           ▶  kernel_affine_add_lambda = nullptr;
+           ✦  Remove the redundant assignment at line 1863, or check for a copy-paste error where different variables were intended
+  Line 1866  [[36mLOW   [0m]  [DBLINIT]
+           `kernel_affine_add_lambda` first set at line 1863 then immediately overwritten at line 1866 — first value is never read
+           ▶  kernel_affine_add_lambda = nullptr;
+           ✦  Remove the redundant initialization at line 1863 or check for a copy-paste error
+  Line 1871  [[33mMEDIUM[0m]  [CPASTE]
+           `kernel_affine_add_x_only` assigned at line 1868 and again at line 1871 with no read in between — first assignment is dead
+           ▶  kernel_affine_add_x_only = nullptr;
+           ✦  Remove the redundant assignment at line 1868, or check for a copy-paste error where different variables were intended
+  Line 1871  [[36mLOW   [0m]  [DBLINIT]
+           `kernel_affine_add_x_only` first set at line 1868 then immediately overwritten at line 1871 — first value is never read
+           ▶  kernel_affine_add_x_only = nullptr;
+           ✦  Remove the redundant initialization at line 1868 or check for a copy-paste error
+  Line 1876  [[33mMEDIUM[0m]  [CPASTE]
+           `kernel_jacobian_to_affine` assigned at line 1873 and again at line 1876 with no read in between — first assignment is dead
+           ▶  kernel_jacobian_to_affine = nullptr;
+           ✦  Remove the redundant assignment at line 1873, or check for a copy-paste error where different variables were intended
+  Line 1876  [[36mLOW   [0m]  [DBLINIT]
+           `kernel_jacobian_to_affine` first set at line 1873 then immediately overwritten at line 1876 — first value is never read
+           ▶  kernel_jacobian_to_affine = nullptr;
+           ✦  Remove the redundant initialization at line 1873 or check for a copy-paste error
+
+──────────────────────────────────────────────────────────────────────
+  src/opencl/src/opencl_selftest.cpp  (1 finding)
+──────────────────────────────────────────────────────────────────────
+  Line  568  [[36mLOW   [0m]  [DBLINIT]
+           `pass` first set at line 563 then immediately overwritten at line 568 — first value is never read
+           ▶  pass = false;
+           ✦  Remove the redundant initialization at line 563 or check for a copy-paste error
+
+══════════════════════════════════════════════════════════════════════
+  TOTAL: 187 finding(s)  [97 HIGH, 43 MEDIUM, 47 LOW]

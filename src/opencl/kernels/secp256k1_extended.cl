@@ -1204,9 +1204,20 @@ inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASi
     scalar_mul_mod_n_impl(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return 0;
 
-    // Low-S normalization
-    if (!scalar_is_low_s_impl(&sig->s))
-        scalar_negate_impl(&sig->s, &sig->s);
+    // Low-S normalization — branchless CT conditional negate.
+    // Avoids a secret-dependent branch on sig->s (derived from the secret nonce k).
+    // Note: this kernel is non-production; production signing uses ct_ecdsa_sign_impl.
+    {
+        Scalar neg_s;
+        scalar_negate_impl(&neg_s, &sig->s);
+        // needs_negate=1 when s > n/2, 0 otherwise; mask is all-ones or all-zeros
+        const ulong needs_negate = (ulong)(1 - scalar_is_low_s_impl(&sig->s));
+        const ulong mask = (ulong)(0UL - needs_negate);
+        sig->s.limbs[0] = (sig->s.limbs[0] & ~mask) | (neg_s.limbs[0] & mask);
+        sig->s.limbs[1] = (sig->s.limbs[1] & ~mask) | (neg_s.limbs[1] & mask);
+        sig->s.limbs[2] = (sig->s.limbs[2] & ~mask) | (neg_s.limbs[2] & mask);
+        sig->s.limbs[3] = (sig->s.limbs[3] & ~mask) | (neg_s.limbs[3] & mask);
+    }
 
     return 1;
 }

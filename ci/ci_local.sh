@@ -45,10 +45,17 @@ declare -A gate_results  # gate label → pass|fail|adv-skip, for local artifact
 run_check() {
   local label="$1"; shift
   printf "  %-52s" "$label..."
-  if output=$("$@" 2>&1); then
+  local output rc
+  output=$("$@" 2>&1); rc=$?
+  if [[ $rc -eq 0 ]]; then
     echo -e "${GREEN}OK${NC}"
     ((pass++))
     gate_results["$label"]="pass"
+  elif [[ $rc -eq 77 ]]; then
+    # Advisory skip (ADVISORY_SKIP_CODE=77): infrastructure absent, not a failure.
+    echo -e "${YELLOW}ADV-SKIP${NC} (no required infrastructure)"
+    ((adv_skip++))
+    gate_results["$label"]="adv-skip"
   else
     echo -e "${RED}FAIL${NC}"
     echo "$output" | tail -10 | sed 's/^/    /'

@@ -522,6 +522,7 @@ int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, csw
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
 int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0/r>=p/s==0/s>=n ABI rejection
 int test_regression_ct_mixed_add_magnitude_run();        // CA-mixed-add: point_add_mixed_complete magnitude contract
+int test_regression_shim_static_ctx_run();              // ecf47967: g_static_ctx PERF-005 field alignment fix
 int test_regression_ellswift_ct_path_run();              // CT-001: ellswift_create CT path + XDH round-trip
 int test_regression_musig2_nonce_strict_run();           // CT-006: MuSig2 k1/k2 strict nonce parsing
 int test_regression_bip32_private_key_strict_run();      // RT-011: BIP-32 private_key() strict parse
@@ -720,7 +721,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip39_nfkd",             "BIP-39 NFKD Normalization Correctness",       "exploit_poc", test_exploit_bip39_nfkd_run, false },
     { "exploit_btc_msg_signing",        "Bitcoin Message Signing Security",             "exploit_poc", test_exploit_bitcoin_message_signing_run, false },
     { "exploit_chacha20_kat",           "ChaCha20-Poly1305 RFC 8439 KAT",              "exploit_poc", test_exploit_chacha20_kat_run, false },
-    { "exploit_kat_corpus",             "KAT Corpus — runtime JSON loader (all layers)", "exploit_poc", test_exploit_kat_corpus_run, false },
+    { "exploit_kat_corpus",             "KAT Corpus — runtime JSON loader (all layers)", "exploit_poc", test_exploit_kat_corpus_run, true  },
     { "exploit_primitive_kat",           "Primitive-layer KAT (bitops/QR/block/AEAD)",   "exploit_poc", test_exploit_primitive_kat_run, false },
     { "exploit_chacha20_nonce_reuse",   "ChaCha20-Poly1305 Nonce Reuse",               "exploit_poc", test_exploit_chacha20_nonce_reuse_run, false },
     { "exploit_chacha20_poly1305",      "ChaCha20-Poly1305 AEAD (RFC 8439)",           "exploit_poc", test_exploit_chacha20_poly1305_run, false },
@@ -1003,6 +1004,7 @@ static const AuditModule ALL_MODULES[] = {
     { "ct_fast_scalar_v01_timing", "V-01: fast::Scalar operator* banned on secret material — Welch t-test on ECDSA sign with HW=1 vs HW=80 keys", "ct_analysis", test_regression_ct_fast_scalar_v01_run, true },
     { "schnorr_abi_edge_cases", "TQ-005: Schnorr BIP-340 ABI edge cases — r==0, r>=p, s==0, s>=n, wrong-msg, NULL args all rejected", "exploit_poc", test_regression_schnorr_abi_edge_cases_run, false },
     { "regression_ct_mixed_add_magnitude", "CA-mixed-add: point_add_mixed_complete FE52 magnitude contract — normalize_weak X1/Y1 guard, 2G+3G=5G, blinded==unblinded, ct vs fast recover", "math_invariants", test_regression_ct_mixed_add_magnitude_run, false },
+    { "regression_shim_static_ctx", "ecf47967: g_static_ctx field alignment after PERF-005 cached_r_G addition", "math_invariants", test_regression_shim_static_ctx_run, true },
     // === 2026-05-11 Security audit regression guards (CT-001, CT-006, RT-011, SHIM-001, SHIM-010, SHIM-012) ===
     { "regression_ellswift_ct_path",           "CT-001: ellswift_create routes through ct::generator_mul — deterministic encoding, XDH round-trip, zero/null key rejection", "ct_analysis",    test_regression_ellswift_ct_path_run,           false },
     { "regression_musig2_nonce_strict",        "CT-006: MuSig2 k1/k2 nonces via parse_bytes_strict_nonzero — non-zero R1/R2 commitments, distinct nonces per extra_input",  "ct_analysis",    test_regression_musig2_nonce_strict_run,        false },

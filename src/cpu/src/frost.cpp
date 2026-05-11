@@ -24,6 +24,29 @@ using detail::cached_tagged_hash;
 
 // -- Internal Helpers ---------------------------------------------------------
 
+// Strict nonzero scalar from a 32-byte hash with counter-based retry.
+// Replaces Scalar::from_bytes() for secret-material paths where a zero or
+// out-of-range value (hash >= n) must not silently produce a wrong scalar.
+// Probability of needing retry is < 2^-127; loop terminates in 1 iteration
+// for all practical purposes.
+static Scalar derive_scalar_from_hash(std::array<std::uint8_t, 32> hash) {
+    Scalar result;
+    for (std::uint32_t counter = 0; ; ++counter) {
+        if (Scalar::parse_bytes_strict_nonzero(hash.data(), result)) break;
+        // hash == 0 mod n or >= n (P < 2^-127): rehash with counter and retry.
+        SHA256 retry_h;
+        std::uint8_t c_be[4] = {
+            std::uint8_t(counter >> 24), std::uint8_t(counter >> 16),
+            std::uint8_t(counter >> 8),  std::uint8_t(counter)
+        };
+        retry_h.update(hash.data(), 32);
+        retry_h.update(c_be, 4);
+        hash = retry_h.finalize();
+    }
+    secure_erase(hash.data(), hash.size());
+    return result;
+}
+
 // Deterministic scalar from seed + context
 template<std::size_t N>
 static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
@@ -43,9 +66,9 @@ static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
     };
     h.update(idx_be, 4);
     auto hash = h.finalize();
-    auto result = Scalar::from_bytes(hash);
-    secure_erase(hash.data(), hash.size());
-    return result;
+    // Use strict nonzero parsing: hash >= n or == 0 must retry, not silently
+    // reduce to a wrong scalar (polynomial coefficient / nonce is secret material).
+    return derive_scalar_from_hash(hash);
 }
 
 template<std::size_t N>
@@ -68,9 +91,9 @@ static Scalar derive_scalar_pair(const std::uint8_t* seed, std::size_t seed_len,
     h.update(idx_be, sizeof(idx_be));
 
     auto hash = h.finalize();
-    auto result = Scalar::from_bytes(hash);
-    secure_erase(hash.data(), hash.size());
-    return result;
+    // Polynomial coefficients are secret: use strict parsing to prevent silent
+    // zero or out-of-range values from producing a wrong (weak) coefficient.
+    return derive_scalar_from_hash(hash);
 }
 
 static bool valid_unique_participant_ids(const std::vector<ParticipantId>& ids) {
@@ -418,6 +441,16 @@ frost_sign(const FrostKeyPackage& key_pkg,
            FrostNonce& nonce,
            const std::array<std::uint8_t, 32>& msg,
            const std::vector<FrostNonceCommitment>& nonce_commitments) {
+    // Enforce threshold at the C++ layer so direct C++ callers cannot bypass it.
+    // The ABI wrapper ufsecp_frost_sign also checks this, but the C++ API must
+    // be fail-closed independently — returning a zero partial sig is safe because
+    // aggregate_signatures() will reject any partial sig with z_i == 0.
+    if (nonce_commitments.size() < static_cast<std::size_t>(key_pkg.threshold)) {
+        secure_erase(&nonce.hiding_nonce, sizeof(nonce.hiding_nonce));
+        secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
+        return FrostPartialSig{key_pkg.id, Scalar::zero()};
+    }
+
     if (!valid_unique_nonce_commitment_ids(nonce_commitments)) {
         secure_erase(&nonce.hiding_nonce, sizeof(nonce.hiding_nonce));
         secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));

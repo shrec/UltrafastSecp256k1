@@ -141,27 +141,16 @@ int secp256k1_ecdsa_sign_recoverable(
 
     secp256k1::RecoverableSignature rsig;
     if (ndata) {
-        // RFC 6979 + extra entropy: sign hedged then derive recovery ID.
+        // RFC 6979 + extra entropy: sign hedged and derive recid from R's y-parity
+        // during signing — no post-sign ecdsa_recover loop needed.
+        // Previously this called ecdsa_sign_hedged() then 4x ecdsa_recover (4-5×
+        // overhead per grind iteration). ecdsa_sign_hedged_recoverable() eliminates
+        // the recovery loop by computing recid from K's affine y-coordinate and
+        // x-overflow flag, the same as ct::ecdsa_sign_recoverable().
         std::array<uint8_t, 32> aux{};
         std::memcpy(aux.data(), ndata, 32);
-        auto plain_sig = secp256k1::ct::ecdsa_sign_hedged(msg, privkey_scalar, aux);
-        if (plain_sig.r.is_zero() || plain_sig.s.is_zero()) return 0;
-
-        // Derive recid: always evaluate all 4 candidates unconditionally so
-        // the iteration count does not depend on which recid is correct.
-        // Cache expected_pk serialization once outside the loop.
-        auto expected_pk = secp256k1::ct::generator_mul(privkey_scalar);
-        auto expected_unc = expected_pk.to_uncompressed();
-        int found_recid = -1;
-        for (int rid = 0; rid < 4; ++rid) {
-            auto [pk_try, ok] = secp256k1::ecdsa_recover(msg, plain_sig, rid);
-            if (ok && !pk_try.is_infinity() &&
-                pk_try.to_uncompressed() == expected_unc) {
-                if (found_recid < 0) found_recid = rid; // no early exit
-            }
-        }
-        if (found_recid < 0) return 0;
-        rsig = {plain_sig, found_recid};
+        rsig = secp256k1::ct::ecdsa_sign_hedged_recoverable(msg, privkey_scalar, aux);
+        if (rsig.sig.r.is_zero() || rsig.sig.s.is_zero()) return 0;
     } else {
         rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, privkey_scalar);
     }

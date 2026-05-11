@@ -84,6 +84,43 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_context_randomize — seed >= n
+
+- **Upstream behavior:** Seeds are treated as opaque bytes for blinding; no range check.
+- **Shim behavior:** Uses `Scalar::from_bytes` (mod-n reduction) on the seed. Seeds with
+  value >= n are silently reduced, so the cached blinding scalar does not correspond to
+  the raw seed bytes.
+- **Reason:** The shim's context blinding uses the seed as a scalar for `r*G` computation;
+  this requires it to be in [0, n-1]. Silent reduction is safe here because the blinding
+  scalar is never derived from or compared against the seed.
+- **Impact:** None for callers using the recommended 32 bytes of fresh randomness from OS.
+- **Test:** Not testable as a divergence — upstream behavior on seeds >= n is unspecified.
+
+---
+
+## secp256k1_schnorrsig_sign_custom — NULL context
+
+- **Upstream behavior:** Fires illegal callback (default: abort) when ctx is NULL.
+- **Shim behavior:** Fires illegal callback via explicit NULL check before `schnorr_ctx_can_sign`.
+  **Fixed 2026-05-11** (PASS3-008). Previously `schnorr_ctx_can_sign(NULL)` returned false
+  without firing the callback — a silent return 0 instead of abort.
+- **Impact:** None for correct callers (NULL ctx is always a bug).
+- **Test:** Differential test: `secp256k1_schnorrsig_sign_custom(NULL, ...)` — verify callback fires.
+
+---
+
+## secp256k1_ec_pubkey_serialize — invalid flags
+
+- **Upstream behavior:** Fires illegal callback for any flags value other than
+  `SECP256K1_EC_COMPRESSED` or `SECP256K1_EC_UNCOMPRESSED`.
+- **Shim behavior:** Fires illegal callback and returns 0 for invalid flags.
+  **Fixed 2026-05-11** (PASS3-011). Previously garbage flags (e.g. `0xDEAD`) were
+  treated as `SECP256K1_EC_UNCOMPRESSED` — silent wrong output.
+- **Impact:** None for correct callers (invalid flags are always a bug).
+- **Test:** Differential test: `secp256k1_ec_pubkey_serialize(ctx, ..., 0xDEAD)` — verify return 0 + callback fires.
+
+---
+
 ## secp256k1_ecdsa_recoverable_signature_parse_compact — r/s zero check
 
 - **Upstream behavior:** Accepts r=0 or s=0 at parse time; rejects at recover time.

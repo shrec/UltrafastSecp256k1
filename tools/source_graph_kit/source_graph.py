@@ -2431,6 +2431,7 @@ def create_db(preserve_persistent=False):
             conn.close()
             DB_PATH.unlink()
             conn = sqlite3.connect(str(DB_PATH))
+            os.chmod(str(DB_PATH), 0o664)  # ensure writable after umask-induced 644
             conn.row_factory = sqlite3.Row
             conn.executescript(SCHEMA)
             # Restore persistent data
@@ -2447,6 +2448,7 @@ def create_db(preserve_persistent=False):
         else:
             DB_PATH.unlink()
     conn = sqlite3.connect(str(DB_PATH))
+    os.chmod(str(DB_PATH), 0o664)  # ensure writable after umask-induced 644
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     conn.commit()

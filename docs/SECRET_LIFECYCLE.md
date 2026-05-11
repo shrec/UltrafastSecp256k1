@@ -2,6 +2,21 @@
 
 **Last updated**: 2026-05-07 | **Version**: 4.0.0
 
+### 2026-05-11 Secret Lifecycle Changes — 10-pass review P1/P2 fixes
+
+- **`src/cpu/src/ct_sign.cpp` (`ct::ecdsa_sign_hedged_recoverable`)**: New function.
+  Secret material erased before all return paths: nonce `k`, `k_inv`, `z`, `s`, `pre_sig`.
+  Pattern mirrors `ct::ecdsa_sign_recoverable` (line 374–378) which was audited 2026-05-07.
+- **`src/cpu/src/frost.cpp` (`derive_scalar`, `derive_scalar_pair`)**: Helper function
+  `derive_scalar_from_hash` added — erases the hash copy in the loop before return via
+  `secure_erase(hash.data(), hash.size())`. Replaces `Scalar::from_bytes` (silent mod-n
+  reduction) with `parse_bytes_strict_nonzero` + counter retry to prevent zero polynomial
+  coefficients and nonces from being silently accepted.
+- **`src/cpu/src/bip324.cpp` (`Bip324Session::complete_handshake`)**: ECDH shared-secret
+  all-zero check replaced with constant-time byte accumulator. Not a secret lifecycle change
+  per se, but a CT boundary fix on the ECDH path. The `secure_erase(&sk, sizeof(sk))` before
+  early return was already present.
+
 ### 2026-05-07 Secret Lifecycle Changes — multi-agent ultrareview zeroization audit
 
 - **`recovery.cpp` (`secp256k1::ecdsa_sign_recoverable`, public C++ API)**: Added

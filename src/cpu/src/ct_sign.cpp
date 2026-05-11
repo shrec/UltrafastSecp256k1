@@ -380,4 +380,82 @@ RecoverableSignature ecdsa_sign_recoverable(
     return {sig, recid};
 }
 
+// ============================================================================
+// CT ECDSA Sign Hedged with Recovery ID
+// ============================================================================
+// Combines ecdsa_sign_hedged() with recovery-ID derivation from R's y-parity
+// during signing. Avoids the 4x ecdsa_recover loop used by the shim when
+// ndata != NULL (Bitcoin Core's CKey::Sign R-grinding path).
+//
+// This is the correct path for secp256k1_ecdsa_sign_recoverable when ndata
+// is provided. The recid bits are derived from K the same way as
+// ecdsa_sign_recoverable() above.
+
+RecoverableSignature ecdsa_sign_hedged_recoverable(
+    const std::array<uint8_t, 32>& msg_hash,
+    const Scalar& private_key,
+    const std::array<uint8_t, 32>& aux_rand) {
+
+    static const std::array<uint8_t, 32> ORDER_BYTES = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+    };
+
+    if (private_key.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    auto z = Scalar::from_bytes(msg_hash);
+
+    // RFC 6979 + aux_rand hedging (extra entropy defense-in-depth)
+    auto k = secp256k1::rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
+    if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    // R = k * G  -- CT path
+    auto R = ct::generator_mul(k);
+
+    // r = R.x mod n
+    auto r_fe = R.x();
+    auto r_bytes = r_fe.to_bytes();
+    auto r = Scalar::from_bytes(r_bytes);
+    if (r.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    // Recovery ID bit 0: parity of R.y (branchless, no branch on secret nonce).
+    int recid = static_cast<int>(R.y().limbs()[0] & 1u);
+
+    // Recovery ID bit 1: R.x >= n (overflow) — branchless byte comparison.
+    {
+        unsigned gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            unsigned const rb = static_cast<unsigned>(r_bytes[i]);
+            unsigned const ob = static_cast<unsigned>(ORDER_BYTES[i]);
+            unsigned const byte_gt = ((ob - rb) >> 31) & 1u;
+            unsigned const byte_lt = ((rb - ob) >> 31) & 1u;
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= static_cast<int>(gt) << 1;
+    }
+
+    // s = k^{-1} * (z + r * d) mod n  (CT arithmetic throughout)
+    auto k_inv = ct::scalar_inverse(k);
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    if (s.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    // CT low-S normalization; if s was negated, flip recid bit 0.
+    ECDSASignature pre_sig{r, s};
+    std::uint64_t const high_mask = ct::scalar_is_high(pre_sig.s);
+    const ECDSASignature sig = ct::ct_normalize_low_s(pre_sig);
+    recid ^= static_cast<int>(high_mask & 1);
+
+    // Erase all secret-derived stack material.
+    secure_erase(&k,       sizeof(k));
+    secure_erase(&k_inv,   sizeof(k_inv));
+    secure_erase(&z,       sizeof(z));
+    secure_erase(&s,       sizeof(s));
+    secure_erase(&pre_sig, sizeof(pre_sig));
+
+    return {sig, recid};
+}
+
 } // namespace secp256k1::ct

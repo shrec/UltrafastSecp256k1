@@ -65,6 +65,27 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 32>& ms
                                           const fast::Scalar& private_key,
                                           const std::array<std::uint8_t, 32>& aux_rand);
 
+// -- CT ECDSA Sign Hedged with Recovery ID ------------------------------------
+// Like ecdsa_sign_hedged() but also returns the recovery ID (0-3) derived
+// directly from R's y-parity and x-overflow during signing — no post-sign
+// ecdsa_recover loop required. Preferred over calling ecdsa_sign_hedged()
+// followed by 4x ecdsa_recover (the shim recoverable path with ndata).
+//
+// Recovery ID bits:
+//   bit 0 -- R.y parity (before low-S normalization, adjusted after)
+//   bit 1 -- R.x >= n (overflow; extremely rare, ≈2^-127)
+RecoverableSignature ecdsa_sign_hedged_recoverable(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const fast::Scalar& private_key,
+    const std::array<std::uint8_t, 32>& aux_rand);
+
+inline RecoverableSignature ecdsa_sign_hedged_recoverable(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const PrivateKey& private_key,
+    const std::array<std::uint8_t, 32>& aux_rand) {
+    return ecdsa_sign_hedged_recoverable(msg_hash, private_key.scalar(), aux_rand);
+}
+
 // -- CT ECDSA Sign with Recovery ID -------------------------------------------
 // Like ecdsa_sign() but also returns the recovery ID (0-3) needed for public key
 // recovery. Uses ct::generator_mul() for R=k*G and ct::scalar_inverse() for
