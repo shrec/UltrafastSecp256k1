@@ -69,6 +69,19 @@ jobs:
         continue-on-error: true
         run: python3 ci/preflight.py --changed
 
+      - name: Preflight -- Advisory summary (CI-005)
+        # Aggregate outcomes of continue-on-error advisory steps and surface them
+        # as a visible ::notice:: in the step summary so coverage/impact regressions
+        # are not silently dropped even when they don't block the job.
+        if: always()
+        run: |
+          python3 ci/preflight.py --coverage --summary-only 2>/dev/null \
+            && echo "::notice::Coverage advisory: PASS" \
+            || echo "::notice::Coverage advisory: FAIL — review coverage gaps before merge"
+          python3 ci/preflight.py --changed --summary-only 2>/dev/null \
+            && echo "::notice::Impact advisory: PASS" \
+            || echo "::notice::Impact advisory: FAIL — changed-file analysis flagged issues"
+
       - name: Preflight -- Code quality gate (hard-fail on regression)
         run: python3 ci/preflight.py --bug-scan
 

@@ -294,11 +294,13 @@ SchnorrSignature SchnorrSignature::from_bytes(const uint8_t* data64) {
     std::memcpy(sig.r.data(), data64, 32);
     // BIP-340: s must be in [0, n-1]. Use strict parser so that s >= n values
     // produce s = Scalar::zero() (an obviously-invalid signature) instead of
-    // silently reducing to a small value and passing schnorr_verify's is_zero
-    // check with a wrong scalar. Callers that need an infallible parser should
-    // use parse_strict() directly.
+    // silently reducing to a small value. s == 0 is accepted at parse time and
+    // rejected at verify time (schnorr_verify checks is_zero(sig.s) → false).
+    // This is intentional: from_bytes is a permissive parser; parse_strict rejects
+    // s == 0 if strict non-zero is required. Callers needing strict rejection
+    // should call parse_strict() directly. (RED-TEAM-012: documented by design.)
     if (!Scalar::parse_bytes_strict(data64 + 32, sig.s)) {
-        sig.s = Scalar::zero();  // marks the signature invalid
+        sig.s = Scalar::zero();  // s >= n → zero-marks the signature invalid
     }
     return sig;
 }

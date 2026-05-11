@@ -107,6 +107,26 @@ jobs:
           /tmp/benchmark_results/raw_output.txt \
           /tmp/benchmark_results/benchmark.json
 
+    - name: Validate benchmark artifact (CI-006 — reject zero-timing artifacts)
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      run: |
+        python3 - <<'EOF'
+        import json, sys
+        try:
+            data = json.load(open("/tmp/benchmark_results/benchmark.json"))
+        except Exception as e:
+            print(f"::error::Failed to parse benchmark.json: {e}")
+            sys.exit(1)
+        if not data:
+            print("::error::benchmark.json is empty — bench_unified may not have run")
+            sys.exit(1)
+        zeros = [e["name"] for e in data if float(e.get("value", 1)) == 0.0]
+        if zeros:
+            print(f"::error::Zero-timing entries found (bench may have crashed): {zeros}")
+            sys.exit(1)
+        print(f"Benchmark artifact OK: {len(data)} entries, no zero timings")
+        EOF
+
     - name: Store benchmark result
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1

@@ -263,19 +263,34 @@ jobs:
             exit 1
           fi
 
+          # CI-009: on failed gate runs, commit only EVIDENCE_CHAIN.json (recording the
+          # failure). Do NOT commit assurance_report.json or KPI JSON on failure — those
+          # would appear as "current" evidence with today's date while actually reflecting
+          # a failed gate state, misleading future auditors who check file mtimes.
           CHANGED=0
-          for f in assurance_report.json \
-                   docs/EXTERNAL_AUDIT_BUNDLE.json \
-                   docs/EXTERNAL_AUDIT_BUNDLE.sha256 \
-                   docs/SECURITY_AUTONOMY_KPI.json \
-                   docs/AUDIT_DASHBOARD.md \
-                   docs/EXPLOIT_TRACEABILITY_JOIN.md \
-                   docs/EVIDENCE_CHAIN.json; do
-            if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
-              git add "$f"
-              CHANGED=1
-            fi
-          done
+          if [ "$GATE_VERDICT" = "fail" ]; then
+            # Failure path: only persist the evidence chain record
+            for f in docs/EVIDENCE_CHAIN.json; do
+              if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
+                git add "$f"
+                CHANGED=1
+              fi
+            done
+          else
+            # Success path: commit all evidence artifacts
+            for f in assurance_report.json \
+                     docs/EXTERNAL_AUDIT_BUNDLE.json \
+                     docs/EXTERNAL_AUDIT_BUNDLE.sha256 \
+                     docs/SECURITY_AUTONOMY_KPI.json \
+                     docs/AUDIT_DASHBOARD.md \
+                     docs/EXPLOIT_TRACEABILITY_JOIN.md \
+                     docs/EVIDENCE_CHAIN.json; do
+              if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
+                git add "$f"
+                CHANGED=1
+              fi
+            done
+          fi
 
           if [ "$CHANGED" -eq 0 ] && [ "${FORCE_COMMIT}" != "true" ]; then
             echo "::notice::No evidence changed; nothing to commit"

@@ -49,6 +49,8 @@ std::array<std::uint8_t, 64> hmac_sha512(const uint8_t* key, std::size_t key_len
     detail::secure_erase(k_buf, sizeof(k_buf));
     detail::secure_erase(ipad, sizeof(ipad));
     detail::secure_erase(opad, sizeof(opad));
+    // RED-TEAM-010: erase inner_hash — derived from secret key material in BIP-32 hardened paths.
+    detail::secure_erase(inner_hash.data(), inner_hash.size());
     return result;
 }
 

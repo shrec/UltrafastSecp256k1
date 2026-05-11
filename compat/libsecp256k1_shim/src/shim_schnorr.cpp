@@ -119,10 +119,15 @@ namespace {
 
 extern "C" {
 
+// SHIM-002 fix: return 0 (failure). This stub is exported for ABI compatibility
+// only — the shim never calls this pointer; it uses its own BIP-340 aux_rand nonce
+// derivation internally. Returning 1 from a function that writes nothing would be
+// a silent ABI trap: any caller using the pointer as an independent hash primitive
+// would receive "success" with zero output bytes.
 static int nonce_function_bip340_stub(unsigned char *, const unsigned char *,
     size_t, const unsigned char *, const unsigned char *,
     const unsigned char *, size_t, void *)
-{ return 1; }
+{ return 0; }
 
 const secp256k1_nonce_function_hardened secp256k1_nonce_function_bip340 =
     nonce_function_bip340_stub;

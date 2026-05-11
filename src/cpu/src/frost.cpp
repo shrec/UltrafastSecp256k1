@@ -364,9 +364,11 @@ frost_keygen_finalize(ParticipantId participant_id,
             x_pow = x_pow * x_i;
         }
 
-        auto lhs_c = lhs.to_compressed();
-        auto rhs_c = rhs.to_compressed();
-        if (lhs_c != rhs_c) return {pkg, false};
+        // CT-006: use ct::point_eq (Jacobian equality, no VT field inversion).
+        // lhs = ct::generator_mul(share.value) — secret input; avoid to_compressed
+        // which requires a full VT field inverse on the Z coordinate.
+        // ct::point_eq returns all-ones mask if equal, 0 if not.
+        if (ct::point_eq(lhs, rhs) == 0) return {pkg, false};
     }
 
     // Compute signing share: s_i = Sum f_j(i) for all j — CT: secret scalar

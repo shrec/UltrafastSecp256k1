@@ -39,20 +39,20 @@ It is not a trust request. It is a verification package.
 
 **NOT A REPLACEMENT.** This PR adds an opt-in compile-time alternative backend (`-DSECP256K1_BACKEND=ultrafast`, default: `bundled`). When bundled, the build is byte-for-byte identical to today. The existing `src/secp256k1/` path and all existing behavior is unchanged.
 
-**Reproduce from the fork (recommended):**
+**Reproduce from patch (primary — stable):**
 ```bash
-# Fork: github.com/shrec/bitcoin  branch: feature/ultrafast-secp256k1-backend
-git clone https://github.com/shrec/bitcoin -b feature/ultrafast-secp256k1-backend && cd bitcoin
+git clone https://github.com/bitcoin/bitcoin && cd bitcoin
+git apply /path/to/UltrafastSecp256k1/docs/INTEGRATION_PATCH.patch
 git submodule update --init src/ultrafast_secp256k1
 cmake --preset ultrafast-bench   # Release + LTO — required for accurate ConnectBlock numbers
 cmake --build out/build-ultrafast-lto -j$(nproc)
 ctest --test-dir out/build-ultrafast-lto -j$(nproc)
 ```
 
-**Reproduce from patch against upstream (alternative):**
+**Reproduce from fork (alternative — may be rebased):**
 ```bash
-git clone https://github.com/bitcoin/bitcoin && cd bitcoin
-git apply /path/to/UltrafastSecp256k1/docs/INTEGRATION_PATCH.patch
+# Fork branch may be rebased; prefer the patch path above for reproducibility.
+git clone https://github.com/shrec/bitcoin -b feature/ultrafast-secp256k1-backend && cd bitcoin
 git submodule update --init src/ultrafast_secp256k1
 cmake --preset ultrafast-bench   # Release + LTO
 cmake --build out/build-ultrafast-lto -j$(nproc)
@@ -251,7 +251,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments GPU pipeline** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) on CUDA; throughput and CPU comparison: [GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352)
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
-- **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw
+- **Known production adoption** -- publicly disclosed production use includes [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate), with permission to publish the adoption note from Craig Raw (adoption evidence as of 2026-03-29 — verify against current Frigate README for latest status)
 - **Field-tested GPU pipeline** -- the CUDA engine has been stress-tested in live high-throughput workflows over long-running sessions and very large point volumes, not only in short synthetic benchmarks
 - **Minimal dependencies** -- no runtime library dependencies (no Boost, no OpenSSL); build requires CMake 3.18+ and a C++17 compiler (GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, Emscripten)
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
@@ -387,7 +387,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 98 non-exploit audit modules and all 252 exploit PoCs return `AUDIT-READY` status. Zero failures across all tested platforms.
+- All 98 non-exploit audit modules and all 252 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
 ### Exploit PoC Test Suite (252 Tests, 20+ Coverage Areas)
 
@@ -592,7 +592,7 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **2 -- Protocol** | BIP-352 | Silent Payments scanning pipeline (CPU + GPU) | [OK] |
 | **2 -- Protocol** | ECIES | Elliptic curve integrated encryption | [OK] |
 | -- | GPU | CUDA, Metal, OpenCL, ROCm kernels | [OK] |
-| -- | GPU C ABI | `ufsecp_gpu` -- 16 batch ops across 3 backends, incl. FROST, BIP-324, BIP-352 | [OK] |
+| -- | GPU C ABI | `ufsecp_gpu` -- 19 functions (16 batch ops + 3 lifecycle: ctx/device/error), 3 backends, incl. FROST, BIP-324, BIP-352 | [OK] |
 | -- | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | [OK] |
 
 > **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
