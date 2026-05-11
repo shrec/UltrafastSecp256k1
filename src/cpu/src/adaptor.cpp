@@ -183,8 +183,10 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
 SchnorrSignature
 schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
                       const Scalar& adaptor_secret) {
-    // Adjust t based on nonce negation during signing
-    Scalar t = pre_sig.needs_negation ? adaptor_secret.negate() : adaptor_secret;
+    // CT-004: use ct::scalar_cneg for explicit branchlessness on adaptor secret.
+    // needs_negation is a public flag; adaptor_secret is a secret scalar.
+    Scalar t = ct::scalar_cneg(adaptor_secret,
+                               ct::bool_to_mask(pre_sig.needs_negation));
 
     // R = R^ + t_adj*G (should have even y since we ensured it during signing)
     Point const R = pre_sig.R_hat.add(ct::generator_mul(t));

@@ -381,7 +381,8 @@ bool musig2_partial_verify(
     // s_i * G should equal R_i + b * R2_i + e * a_i * P_i
     // (with appropriate negation adjustments)
 
-    auto sG = ct::generator_mul(partial_sig);
+    // CT-003: partial_sig is a public value — use variable-time scalar_mul, not CT.
+    auto sG = Point::generator().scalar_mul(partial_sig);
 
     auto R1_i = decompress_point(pub_nonce.R1);
     auto R2_i = decompress_point(pub_nonce.R2);

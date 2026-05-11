@@ -8,6 +8,7 @@
 #include <array>
 
 #include "secp256k1/scalar.hpp"
+#include "secp256k1/ct/scalar.hpp"
 
 using namespace secp256k1::fast;
 
@@ -39,14 +40,14 @@ int secp256k1_ec_seckey_tweak_add(
     const secp256k1_context *ctx, unsigned char *seckey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!seckey || !tweak32) return 0;
     Scalar k, t;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
     // tweak in [0, n-1]; 0 is valid (result == seckey)
     if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
-    auto result = k + t;
-    if (result.is_zero()) return 0;
+    auto result = secp256k1::ct::scalar_add(k, t);  // CT-001: k is secret
+    if (result.is_zero_ct()) return 0;
     auto out = result.to_bytes();
     std::memcpy(seckey, out.data(), 32);
     return 1;
@@ -56,13 +57,13 @@ int secp256k1_ec_seckey_tweak_mul(
     const secp256k1_context *ctx, unsigned char *seckey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!seckey || !tweak32) return 0;
     Scalar k, t;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
     if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
-    auto result = k * t;
-    if (result.is_zero()) return 0;
+    auto result = secp256k1::ct::scalar_mul(k, t);  // CT-001: k is secret
+    if (result.is_zero_ct()) return 0;
     auto out = result.to_bytes();
     std::memcpy(seckey, out.data(), 32);
     return 1;

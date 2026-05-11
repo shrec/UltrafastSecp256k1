@@ -361,7 +361,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
                               const std::array<uint8_t, 32>& msg,
                               const std::array<uint8_t, 32>& aux_rand) {
     SECP_ASSERT_SCALAR_VALID(kp.d);
-    if (kp.d.is_zero()) return SchnorrSignature{};
+    if (kp.d.is_zero_ct()) return SchnorrSignature{};  // CT-008: kp.d is secret
 
     // Step 1: t = d XOR tagged_hash("BIP0340/aux", aux_rand)
     auto t_hash = cached_tagged_hash(g_aux_midstate, aux_rand.data(), 32);
@@ -376,7 +376,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
     auto k_prime = Scalar::from_bytes(rand_hash);
-    if (k_prime.is_zero()) {
+    if (k_prime.is_zero_ct()) {  // CT-002: k_prime is a secret nonce
         // Zeroize all secret-derived data before early return (~2^-128 probability).
         detail::secure_erase(d_bytes.data(), d_bytes.size());
         detail::secure_erase(t_hash.data(), t_hash.size());

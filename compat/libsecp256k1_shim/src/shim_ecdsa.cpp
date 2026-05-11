@@ -13,6 +13,7 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/ct/sign.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1::fast;
 
@@ -306,6 +307,10 @@ int secp256k1_ecdsa_verify(
         std::memcpy(yb.data(), pubkey->data + 32, 32);
         auto x = secp256k1::fast::FieldElement::from_bytes(xb);
         auto y = secp256k1::fast::FieldElement::from_bytes(yb);
+        // RED-TEAM-008: verify y² = x³ + 7 before trusting opaque struct bytes.
+        // pubkey->data is populated by secp256k1_ec_pubkey_parse (on-curve), but
+        // a hostile caller may write directly to the struct. Reject off-curve input.
+        if (y.square() != x.square() * x + secp256k1::fast::FieldElement::from_uint64(7)) return 0;
         auto pt = secp256k1::fast::Point::from_affine(x, y);
         if (pt.is_infinity()) return 0;
         return secp256k1::ecdsa_verify(msg.data(), pt, internal_sig) ? 1 : 0;

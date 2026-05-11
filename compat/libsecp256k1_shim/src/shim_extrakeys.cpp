@@ -105,7 +105,8 @@ int secp256k1_keypair_create(
     const secp256k1_context *ctx, secp256k1_keypair *keypair,
     const unsigned char *seckey)
 {
-    (void)ctx;
+    // SHIM-007: require sign-capable context (NULL ctx fires illegal callback/abort)
+    if (!secp256k1_shim_internal::ctx_can_sign(ctx)) return 0;
     if (!keypair || !seckey) return 0;
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
@@ -191,7 +192,7 @@ int secp256k1_xonly_pubkey_tweak_add(
     const secp256k1_xonly_pubkey *internal_pubkey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-006: NULL ctx must fire illegal callback
     if (!output_pubkey || !internal_pubkey || !tweak32) return 0;
 
     auto P = xonly_to_point(internal_pubkey);
@@ -217,7 +218,7 @@ int secp256k1_xonly_pubkey_tweak_add_check(
     const secp256k1_xonly_pubkey *internal_pubkey,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-006: NULL ctx must fire illegal callback
     if (!tweaked_pubkey32 || !internal_pubkey || !tweak32) return 0;
 
     auto P = xonly_to_point(internal_pubkey);
@@ -242,7 +243,7 @@ int secp256k1_keypair_xonly_tweak_add(
     secp256k1_keypair *keypair,
     const unsigned char *tweak32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);  // SHIM-006: NULL ctx must fire illegal callback
     if (!keypair || !tweak32) return 0;
 
     Scalar sk;

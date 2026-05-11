@@ -60,13 +60,13 @@ constexpr std::size_t kSchnorrBatchIndividualCutoff = 96;
 // Generate deterministic weights for batch verification.
 // batch_seed: SHA256 over all signature data (binds to entire batch).
 // Returns a_i = SHA256(batch_seed || i) interpreted as scalar.
-// The first weight a_0 = 1 (optimization: skip one scalar_mul).
+// All weights are derived from SHA256(batch_seed || i_le32) for every index
+// including index 0. Fixing a_0 = 1 deviates from the batch-verify soundness
+// proof which requires all weights to be uniform random.
 // Compact midstate variant: avoids copying the full SHA256 object (104 bytes)
 // per call. SHA256::Midstate holds only the 8×uint32 state + 64-bit counter
 // (40 bytes). buf_[64] is always zero-filled in a midstate context.
 Scalar batch_weight(const SHA256::Midstate& midstate, uint32_t index) {
-    if (index == 0) return Scalar::one(); // optimization
-
     uint8_t index_bytes[4];
     index_bytes[0] = static_cast<uint8_t>(index & 0xFF);
     index_bytes[1] = static_cast<uint8_t>((index >> 8) & 0xFF);
