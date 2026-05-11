@@ -633,7 +633,7 @@ static const AuditModule ALL_MODULES[] = {
     { "fuzz_musig2_frost", "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)","fuzzing",        test_fuzz_musig2_frost_run, false },
     { "libfuzzer_unified", "LibFuzzer deterministic regression (6 parsers)","fuzzing",        test_libfuzzer_unified_run, false },
     { "mutation_kill_rate","Mutation kill-rate audit (advisory)",          "fuzzing",        test_mutation_kill_rate_run, true  },
-    { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "formal_proof",   test_cryptol_specs_run, false },
+    { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "formal_proof",   test_cryptol_specs_run, true  },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================

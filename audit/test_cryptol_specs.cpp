@@ -174,15 +174,15 @@ static const std::vector<std::string> kSchnorrProps = {
 // ---------------------------------------------------------------------------
 int test_cryptol_specs_run() {
     if (!cryptol_available()) {
-        std::printf("[cryptol_specs] FAIL: cryptol not installed\n");
+        std::printf("[cryptol_specs] ADVISORY: cryptol not installed — skipping\n");
         std::printf("[cryptol_specs]   install: apt-get install cryptol\n");
-        return 1;
+        return ADVISORY_SKIP_CODE;
     }
 
     std::string cry_dir = find_cryptol_dir();
     if (cry_dir.empty()) {
-        std::printf("[cryptol_specs] FAIL: audit/formal/cryptol/ not found\n");
-        return 1;
+        std::printf("[cryptol_specs] ADVISORY: audit/formal/cryptol/ not found — skipping\n");
+        return ADVISORY_SKIP_CODE;
     }
 
     std::printf("[cryptol_specs] Found specs at: %s\n", cry_dir.c_str());

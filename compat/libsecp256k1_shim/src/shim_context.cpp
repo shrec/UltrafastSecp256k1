@@ -102,9 +102,13 @@ extern "C" {
 const secp256k1_context * const secp256k1_context_static = &g_static_ctx;
 
 secp256k1_context *secp256k1_context_create(unsigned int flags) {
-    // libsecp256k1: invalid flags type triggers error callback (default: abort).
+    // libsecp256k1: invalid flags type triggers the static context's illegal callback.
+    // We consult g_static_ctx.illegal_cb so a user-installed no-op callback (e.g. fuzzing
+    // harnesses that call secp256k1_context_set_illegal_callback on secp256k1_context_static)
+    // is respected rather than unconditionally aborting.
     if ((flags & SECP256K1_FLAGS_TYPE_MASK) != SECP256K1_FLAGS_TYPE_CONTEXT) {
-        default_illegal_callback("secp256k1_context_create: invalid flags", nullptr);
+        g_static_ctx.illegal_cb("secp256k1_context_create: invalid flags",
+                                const_cast<void*>(g_static_ctx.illegal_cb_data));
         return nullptr;
     }
     shim_ensure_fixed_base();

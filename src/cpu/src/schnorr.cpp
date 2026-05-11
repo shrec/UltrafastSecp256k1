@@ -602,20 +602,14 @@ bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,
 
 SchnorrXonlyPubkey schnorr_xonly_from_keypair(const SchnorrKeypair& kp) {
     SchnorrXonlyPubkey pub{};
+    // CT: compute point to learn parity, then CT-negate the scalar if Y is odd.
+    // Avoids branching on the secret-derived p_y_odd bit.
     auto P = ct::generator_mul(kp.d);
     auto [px, p_y_odd] = P.x_bytes_and_parity();
-    if (p_y_odd) {
-#if defined(SECP256K1_FAST_52BIT)
-        FE52 neg_y = P.Y52().negate(1);
-        neg_y.normalize_weak();
-        P = Point::from_jacobian52(P.X52(), neg_y, P.Z52(), false);
-#else
-        const auto y_neg = P.y().negate();
-        P = Point::from_jacobian_coords(P.x(), y_neg, P.z(), false);
-#endif
-    }
-    P.normalize();
-    pub.point = P;
+    auto d_adj = ct::scalar_cneg(kp.d, ct::bool_to_mask(p_y_odd));
+    auto P_even = ct::generator_mul(d_adj);
+    P_even.normalize();
+    pub.point = P_even;
     pub.x_bytes = px;
     return pub;
 }

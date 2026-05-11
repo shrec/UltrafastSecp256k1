@@ -131,10 +131,9 @@ int secp256k1_ellswift_create(
     Scalar sk;
     if (!Scalar::parse_bytes_strict_nonzero(kb, sk)) return 0;
 
-    // Use fast (non-CT) generator mul: EllSwiftCreate reveals the public key
-    // in its output, so generator mul timing does not leak sk beyond what is
-    // already visible.  Matches libsecp256k1's secp256k1_ecmult_gen approach.
-    auto enc = secp256k1::ellswift_create_fast(sk, auxrnd32);
+    // CT path: secret key requires constant-time generator multiplication.
+    // ellswift_create() uses ct::generator_mul() internally.
+    auto enc = secp256k1::ellswift_create(sk, auxrnd32);
     std::memcpy(ell64, enc.data(), 64);
     return 1;
 }

@@ -175,7 +175,7 @@ jobs:
           # AA-05 fix: validate timeline JSON before it can be committed.
           # A failed export may produce an empty or truncated file; committing
           # it would corrupt the trend history visible in dashboards.
-          python3 ci/validate_timeline.py || true
+          python3 ci/validate_timeline.py || { echo "::error::timeline validation failed — aborting commit to protect trend history"; exit 1; }
 
       - name: Regenerate exploit traceability join (G-9b)
         run: |

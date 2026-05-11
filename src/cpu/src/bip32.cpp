@@ -258,7 +258,17 @@ fast::Point ExtendedKey::public_key() const {
 }
 
 fast::Scalar ExtendedKey::private_key() const {
-    return Scalar::from_bytes(key);
+    // Strict: reject keys >= n or == 0. A valid BIP-32 private key is always in [1, n).
+    // from_bytes() would silently reduce mod n, masking a corrupted key.
+    Scalar sk{};
+    if (!Scalar::parse_bytes_strict_nonzero(key, sk)) {
+        // Return a zero scalar on invalid key — callers must check is_private and
+        // validate the key before calling private_key(). A zero scalar here will
+        // produce the identity point if used for signing, which CT signing detects
+        // as a degenerate case and returns an error.
+        return Scalar{};
+    }
+    return sk;
 }
 
 ExtendedKey ExtendedKey::to_public() const {

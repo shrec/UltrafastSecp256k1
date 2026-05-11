@@ -249,8 +249,10 @@ void secp256k1_ec_pubkey_sort(
         [](const secp256k1_pubkey *a, const secp256k1_pubkey *b) {
             unsigned char bufa[33] = {}, bufb[33] = {};
             size_t lena = 33, lenb = 33;
-            secp256k1_ec_pubkey_serialize(nullptr, bufa, &lena, a, SECP256K1_EC_COMPRESSED);
-            secp256k1_ec_pubkey_serialize(nullptr, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
+            // Use secp256k1_context_static (not nullptr) to avoid triggering
+            // the illegal callback inside ec_pubkey_serialize's NULL ctx check.
+            secp256k1_ec_pubkey_serialize(secp256k1_context_static, bufa, &lena, a, SECP256K1_EC_COMPRESSED);
+            secp256k1_ec_pubkey_serialize(secp256k1_context_static, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
             return std::memcmp(bufa, bufb, 33) < 0;
         });
 }

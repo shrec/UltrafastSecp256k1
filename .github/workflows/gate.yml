@@ -5,8 +5,6 @@ on:
     branches: [main, dev]
     paths-ignore:
       - 'workingdocs/**'
-      - 'README*'
-      - 'CHANGELOG*'
       - 'LICENSE*'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/PULL_REQUEST_TEMPLATE*'
@@ -16,8 +14,6 @@ on:
     branches: [main, dev]
     paths-ignore:
       - 'workingdocs/**'
-      - 'README*'
-      - 'CHANGELOG*'
       - 'LICENSE*'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/PULL_REQUEST_TEMPLATE*'

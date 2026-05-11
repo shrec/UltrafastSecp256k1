@@ -55,6 +55,7 @@ run() {
 
 run "Repo map check"          tools/render_repo_map.py --check
 run "Exploit wiring parity"  ci/check_exploit_wiring.py
+run "Version + count sync"   ci/check_version_sync.py
 run "Canonical data sync"    ci/build_canonical_data.py --dry-run
 run "Docs from canonical"    ci/sync_docs_from_canonical.py --dry-run
 run "Module count sync"      ci/sync_module_count.py --dry-run

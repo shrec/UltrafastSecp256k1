@@ -189,7 +189,11 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         std::memcpy(nonce_input + 96, msg.data(), 32);
         nonce_input[128] = 0x01;
         auto k1_hash = cached_tagged_hash(g_musig_nonce_midstate, nonce_input, 129);
-        sec.k1 = Scalar::from_bytes(k1_hash);
+        // Strict: parse_bytes_strict_nonzero rejects >= n or == 0. Retry with counter
+        // on the negligible-probability failure (same pattern as rfc6979_nonce).
+        for (std::uint8_t ctr = 0;
+             !Scalar::parse_bytes_strict_nonzero(k1_hash, sec.k1);
+             k1_hash[31] ^= static_cast<std::uint8_t>(ctr ^ 0x01u), ++ctr) {}
         secure_erase(nonce_input, sizeof(nonce_input));
         secure_erase(k1_hash.data(), k1_hash.size());
     }
@@ -203,7 +207,9 @@ std::pair<MuSig2SecNonce, MuSig2PubNonce> musig2_nonce_gen(
         std::memcpy(nonce_input + 96, msg.data(), 32);
         nonce_input[128] = 0x02;
         auto k2_hash = cached_tagged_hash(g_musig_nonce_midstate, nonce_input, 129);
-        sec.k2 = Scalar::from_bytes(k2_hash);
+        for (std::uint8_t ctr = 0;
+             !Scalar::parse_bytes_strict_nonzero(k2_hash, sec.k2);
+             k2_hash[31] ^= static_cast<std::uint8_t>(ctr ^ 0x02u), ++ctr) {}
         secure_erase(nonce_input, sizeof(nonce_input));
         secure_erase(k2_hash.data(), k2_hash.size());
     }

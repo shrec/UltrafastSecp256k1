@@ -196,6 +196,8 @@ struct HMAC_Ctx {
         std::memset(pad + 32, 0x5c, 32);
         std::memcpy(outer_mid, SHA256_IV, 32);
         detail::sha256_compress_dispatch(pad, outer_mid);
+        // Erase stack buffer: it held key XOR ipad/opad derivations (secret material).
+        detail::secure_erase(pad, sizeof(pad));
     }
 
     // HMAC for short messages (msg_len <= 55): 1 inner compress + 1 outer
@@ -505,9 +507,10 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
         // R = k * G
         auto R = signing_generator_mul(k);
         if (!R.is_infinity()) {
-            // r = R.x mod n — normalize to affine, then copy limbs directly.
-            // from_limbs() skips the byte-swap round-trip vs from_bytes(to_bytes());
-            // ge(ORDER) check is still performed (secp256k1 p > n).
+            // Normalize to affine before reading x-coordinate limbs: from_limbs()
+            // reads the affine X directly and skips the byte-swap round-trip.
+            // Normalization is required — Jacobian X = affine_x * Z^2 (wrong if not Z=1).
+            R.normalize();
             auto r = Scalar::from_limbs(R.x().limbs());
             if (!r.is_zero()) {
                 // s = k^{-1} * (z + r * d) mod n  (CT scalar arithmetic)
