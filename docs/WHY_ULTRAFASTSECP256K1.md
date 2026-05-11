@@ -51,7 +51,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 254 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 253 wired, 0 failures |
+| Exploit PoC tests | 254 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 254 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -60,8 +60,8 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 85 non-exploit modules + 254 exploit PoCs modules (338 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **254 exploit PoCs modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **253 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 100 non-exploit modules + 254 exploit PoCs modules (354 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **254 exploit PoCs modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **254 modules, 0 failures** |
 
 All 100 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
 All 254 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
