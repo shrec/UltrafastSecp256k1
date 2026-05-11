@@ -10,10 +10,12 @@
 #include "secp256k1/scalar.hpp"
 #include "ufsecp/ufsecp.h"
 
-// MuSig shim benchmarks (PERF-007: pubkey_agg serialize-in-loop)
+// MuSig + Schnorr shim benchmarks (PERF-007/SHIM-007/PERF-008)
 // BENCH_HAS_MUSIG_SHIM is set by CMakeLists when SECP256K1_BUILD_SHIM is ON.
 #ifdef BENCH_HAS_MUSIG_SHIM
 #  include "secp256k1.h"
+#  include "secp256k1_extrakeys.h"
+#  include "secp256k1_schnorrsig.h"
 #  include "secp256k1_musig.h"
 #endif
 
@@ -344,6 +346,50 @@ int main(int argc, char** argv) {
 
             std::printf("  musig_pubnonce_parse_100_ns=%.2f\n", pubnonce_parse_ns);
             std::printf("  musig_nonce_agg_100_ns=%.2f\n", nonce_agg_ns);
+        }
+
+        // ── PERF-008: Schnorr verify with unique pubkeys (GLV cache miss path) ─
+        // Verifies that the cache-miss fallthrough (dual_scalar_mul_gen_point,
+        // no cache write) handles unique-pubkey workloads correctly.
+        {
+            static const int N_VERIFY = 64;
+            std::vector<uint8_t> xpk_pool(N_VERIFY * 32);
+            std::vector<std::array<uint8_t, 64>> sig_pool(N_VERIFY);
+            std::vector<std::array<uint8_t, 32>> msg_pool(N_VERIFY);
+            secp256k1_keypair kp;
+            for (int i = 0; i < N_VERIFY; ++i) {
+                uint8_t sk[32] = {};
+                sk[0] = static_cast<uint8_t>(i + 1);
+                sk[31] = static_cast<uint8_t>(i * 11 + 3);
+                msg_pool[static_cast<size_t>(i)][0] = static_cast<uint8_t>(i);
+                if (secp256k1_keypair_create(shim_ctx, &kp, sk)) {
+                    secp256k1_xonly_pubkey xpk;
+                    secp256k1_keypair_xonly_pub(shim_ctx, &xpk, nullptr, &kp);
+                    secp256k1_xonly_pubkey_serialize(shim_ctx,
+                        xpk_pool.data() + static_cast<size_t>(i) * 32, &xpk);
+                    secp256k1_schnorrsig_sign32(shim_ctx,
+                        sig_pool[static_cast<size_t>(i)].data(),
+                        msg_pool[static_cast<size_t>(i)].data(), &kp, nullptr);
+                }
+            }
+
+            // Rotate through N unique pubkeys — all will be cache misses.
+            int verify_idx = 0;
+            double const schnorr_unique_ns = harness.run_and_print(
+                "schnorr_verify (unique pubkeys, cache miss)",
+                opts.quick ? 8 : 32,
+                [&]() {
+                    size_t const idx = static_cast<size_t>(verify_idx % N_VERIFY);
+                    secp256k1_xonly_pubkey xpk;
+                    secp256k1_xonly_pubkey_parse(shim_ctx, &xpk,
+                        xpk_pool.data() + idx * 32);
+                    int ok = secp256k1_schnorrsig_verify(shim_ctx,
+                        sig_pool[idx].data(), msg_pool[idx].data(), 32, &xpk);
+                    bench::DoNotOptimize(ok);
+                    ++verify_idx;
+                });
+
+            std::printf("  schnorr_verify_unique_pubkey_ns=%.2f\n", schnorr_unique_ns);
         }
 
         secp256k1_context_destroy(shim_ctx);
