@@ -3677,7 +3677,10 @@ if(TARGET secp256k1_shim)
         test_regression_musig2_nonce_strict.cpp
         test_regression_shim_pubkey_sort.cpp
         test_regression_shim_per_context_blinding.cpp
-        test_regression_musig2_session_token.cpp)
+        test_regression_musig2_session_token.cpp
+        # 2026-05-11 shim regression tests (Agent 5) — live in compat/
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
@@ -4329,6 +4332,32 @@ audit_target_defaults(test_regression_bip32_private_key_strict_standalone)
 target_compile_definitions(test_regression_bip32_private_key_strict_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_bip32_private_key_strict COMMAND test_regression_bip32_private_key_strict_standalone)
 set_tests_properties(regression_bip32_private_key_strict PROPERTIES TIMEOUT 30 LABELS "audit;regression;bip32")
+
+# 2026-05-11 shim regression: DER parse r=0 rejection (Agent 5)
+if(TARGET secp256k1_shim)
+    add_executable(test_shim_der_zero_r_standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp)
+    target_link_libraries(test_shim_der_zero_r_standalone PRIVATE secp256k1_shim fastsecp256k1)
+    target_include_directories(test_shim_der_zero_r_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_shim_der_zero_r_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME shim_der_zero_r COMMAND test_shim_der_zero_r_standalone)
+    set_tests_properties(shim_der_zero_r PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;der")
+endif()
+
+# 2026-05-11 shim regression: NULL context illegal-callback enforcement (SHIM-001/002/003)
+if(TARGET secp256k1_shim)
+    add_executable(test_shim_null_ctx_standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp)
+    target_link_libraries(test_shim_null_ctx_standalone PRIVATE secp256k1_shim fastsecp256k1)
+    target_include_directories(test_shim_null_ctx_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_shim_null_ctx_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME shim_null_ctx COMMAND test_shim_null_ctx_standalone)
+    set_tests_properties(shim_null_ctx PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;null-ctx")
+endif()
 
 # SEC-007: MuSig2 signer_index cross-check (Rule 13) — C++ API, no shim required
 add_executable(test_regression_musig2_signer_index_validation_standalone

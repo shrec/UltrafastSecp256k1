@@ -506,6 +506,12 @@ int test_regression_schnorr_ct_arithmetic_run();  // HIGH-03+HIGH-06: schnorr_si
 int test_regression_musig2_zero_psig_run();       // CRIT-03: musig2 zero partial-sig → UFSECP_ERR_INTERNAL
 
 // ============================================================================
+// Forward declarations -- 2026-05-11 shim regression tests (SHIM-001/002/003 + DER r=0)
+// ============================================================================
+int test_shim_der_zero_r_run();   // DER parse r=0 rejection (shim vs libsecp divergence)
+int test_shim_null_ctx_run();     // NULL context illegal-callback enforcement (SHIM-001/002/003)
+
+// ============================================================================
 // Forward declarations -- 2026-05-06 performance review fixes
 // ============================================================================
 int test_regression_pippenger_stale_used_run();  // BUG-01: Pippenger used[] stale across windows
@@ -1017,6 +1023,11 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "memory_safety",  test_regression_musig2_session_token_run,       true },
     // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required)
     { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs", "protocol_security", test_regression_musig2_signer_index_validation_run, false },
+    // === 2026-05-11 Shim regression tests (Agent 5) ===
+    // advisory=true: depend on the libsecp256k1 shim being linked.
+    // On GitHub CI (shim absent) the stubs return ADVISORY_SKIP_CODE (77).
+    { "exploit_shim_der_zero_r", "DER parse r=0 rejection (shim vs libsecp divergence)", "exploit_poc", test_shim_der_zero_r_run, true },
+    { "exploit_shim_null_ctx",   "NULL context illegal-callback enforcement (SHIM-001/002/003)", "exploit_poc", test_shim_null_ctx_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

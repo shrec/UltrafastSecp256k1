@@ -17,3 +17,6 @@ int test_regression_musig2_nonce_strict_run()        { return ADVISORY_SKIP_CODE
 int test_regression_shim_pubkey_sort_run()           { return ADVISORY_SKIP_CODE; }
 int test_regression_shim_per_context_blinding_run()  { return ADVISORY_SKIP_CODE; }
 int test_regression_musig2_session_token_run()       { return ADVISORY_SKIP_CODE; }
+// 2026-05-11 shim regression tests (Agent 5)
+int test_shim_der_zero_r_run()                       { return ADVISORY_SKIP_CODE; }
+int test_shim_null_ctx_run()                         { return ADVISORY_SKIP_CODE; }

@@ -7,6 +7,12 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-11 — Shim Regression Tests Wired (Agent 5)
+
+- **exploit_shim_der_zero_r** `compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp` + `audit/unified_audit_runner.cpp`: DER parse r=0 rejection wired into unified runner (`exploit_poc`, `advisory=true`). Test confirms shim rejects r=0 at parse time (stricter than upstream libsecp256k1). Standalone CTest target `shim_der_zero_r` added.
+- **exploit_shim_null_ctx** `compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp` + `audit/unified_audit_runner.cpp`: NULL context illegal-callback enforcement for `secp256k1_ecdh`, `secp256k1_ellswift_encode/create`, `secp256k1_musig_pubkey_agg` wired into unified runner (`exploit_poc`, `advisory=true`). Standalone CTest target `shim_null_ctx` added.
+- Both tests are shim-dependent: compiled via `if(TARGET secp256k1_shim)` block; `shim_run_stubs_unified.cpp` provides ADVISORY_SKIP_CODE (77) stubs when shim is absent (GitHub CI).
+
 ## 2026-05-11 — Audit Infrastructure Fixes
 
 - **TEST-001** `audit/unified_audit_runner.cpp`: Replaced placeholder ePrint reference `"eprint 2025/xxx"` in `exploit_fe_set_b32_limit_uninit` module description with the accurate reference `"libsecp PR #1839 bug class"`.
