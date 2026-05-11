@@ -233,6 +233,20 @@ def detect_gate_level(files: list[str], force_release: bool = False) -> dict:
         or any(p in profiles for p in ("audit", "infra", "bitcoin-core-backend", "security-evidence"))
         or any(f.startswith("audit/") for f in files)  # belt-and-suspenders guard
     )
+
+    # CAAS-003: Safety net for unregistered src/ subdirectories.
+    # Any file under src/ that is a C++ source or header must trigger security
+    # gates even if no other PROFILE_PATTERNS entry matched it.  Without this,
+    # a newly-added subdirectory (e.g. src/riscv/, src/experimental/) would be
+    # silently classified as "unknown" or even "docs-only" on its first commit,
+    # letting a broken or non-CT implementation slip through all security gates.
+    if any(
+        f.startswith("src/") and (f.endswith(".cpp") or f.endswith(".hpp"))
+        for f in files
+    ):
+        run_core = True
+        run_caas = True
+
     run_bindings = gate == "release" or any(p in profiles for p in ("ffi-bindings", "wasm"))
     run_wasm = gate == "release" or "wasm" in profiles
     run_gpu = gate == "release" or "gpu-public-data" in profiles

@@ -430,6 +430,28 @@ jobs:
           print(f\"  gates:   {[g.get('name','?') for g in b.get('gate_results',[])]}\")
           "
 
+      - name: CAAS-004 — Warn if bundle generated from dirty working tree
+        # A dirty working tree means the bundle SHA evidence may not match the
+        # committed source.  This is rare on ephemeral GitHub-hosted runners but
+        # can occur on self-hosted runners with persistent workspaces.  Emit a
+        # warning (not error) so the pipeline still completes while making the
+        # condition visible to auditors who inspect the step log.
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          try:
+              with open("docs/EXTERNAL_AUDIT_BUNDLE.json") as f:
+                  bundle = json.load(f)
+          except Exception as e:
+              print(f"::warning::Could not read EXTERNAL_AUDIT_BUNDLE.json to check dirty flag: {e}")
+              sys.exit(0)
+          dirty = bundle.get("git", {}).get("dirty", False)
+          if dirty:
+              print("::warning::Audit bundle generated from a dirty working tree — SHA evidence is unreliable")
+          else:
+              print("Bundle dirty-tree check: OK (clean working tree)")
+          EOF
+
       - name: Verify audit bundle (Stage 5)
         run: |
           python3 ci/verify_external_audit_bundle.py --json > caas_bundle_verify.json

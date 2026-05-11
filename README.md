@@ -280,7 +280,7 @@ Frigate 1.4.0 switched its DuckDB extension to `ufsecp.duckdb_extension` using U
 
 See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [Frigate README](https://github.com/sparrowwallet/frigate/blob/master/README.md) · [Details →](docs/ADOPTION.md)
 
-Package traction: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total *(figures as of 2026-03-29 — verify against current sources for latest status; see [docs/ADOPTION.md](docs/ADOPTION.md)).*
+Package traction *(snapshot 2026-03-29 — see linked package pages for current figures)*: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total. *(See [docs/ADOPTION.md](docs/ADOPTION.md) for full adoption evidence.)*
 
 Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
@@ -363,12 +363,12 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **100 non-exploit modules + 254 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **100 non-exploit modules + 256 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **254 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
 | Differential tests (per push + manual) | **~1,300,000+ checks per deep-assurance run** |
-| Constant-time verification pipelines | **5 independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)** |
+| Constant-time verification pipelines | **5 independent (3 in GitHub CI: LLVM ct-verif, Valgrind taint, ct-prover; 2 manual/local: dudect statistical, ARM64 native)** |
 | Fuzzing adversarial corpus | **libFuzzer + ClusterFuzz-Lite (see `.clusterfuzzlite/` and `src/cpu/fuzz/`; corpus count grows with CI runs and is not stored in-repo)** |
 | Static analysis tools | **4 (CodeQL, Clang-Tidy, CPPCheck, SonarCloud)** |
 | Self-audit documents in repo | **13 dedicated audit/quality documents** |
@@ -386,16 +386,16 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 ### What "Self-Audit Culture" Means in Practice
 
 - Every field arithmetic property is verified algebraically: commutativity, associativity, distributivity, carry propagation, canonical form
-- Every constant-time path is verified under **5 independent pipelines: LLVM ct-verif, Valgrind taint, ct-prover (sPIN), dudect (statistical), ARM64 native**
+- Every constant-time path is verified under **5 independent pipelines: LLVM ct-verif, Valgrind taint, ct-prover (sPIN) in GitHub CI; dudect (statistical) and ARM64 native run locally/manually**
 - Every ECDSA/Schnorr implementation is cross-validated against **Wycheproof vectors, independent reference golden vectors, and BIP test vectors**
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 100 non-exploit audit modules and all 254 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 100 non-exploit audit modules and all 256 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
-### Exploit PoC Test Suite (254 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (256 Tests, 20+ Coverage Areas)
 
-In addition to the 354-module `unified_audit_runner`, UltrafastSecp256k1 ships **254 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 354-module `unified_audit_runner`, UltrafastSecp256k1 ships **256 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -449,7 +449,7 @@ In addition to the 354-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 | ECDSA verify | **4.05 M verifies/sec** | Shamir+GLV (+66% vs prev) |
 | Schnorr sign (BIP-340) | **3.66 M sigs/sec** | BIP-340 tagged hash |
 | Schnorr verify (BIP-340) | **5.38 M verifies/sec** | BIP-340+GLV (+91% vs prev) |
-| FROST partial verify | **1.34 M verifies/sec** | ⭐ New — first open-source GPU FROST |
+| FROST partial verify | **1.34 M verifies/sec** | ⭐ New — one of the first open-source GPU-accelerated FROST implementations (to our knowledge, as of early 2026) |
 | Batch point compress (J→SEC1) | **97.2 M pts/sec** | New kernel |
 
 ## Architecture

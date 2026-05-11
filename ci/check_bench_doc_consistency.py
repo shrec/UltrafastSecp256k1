@@ -142,6 +142,32 @@ BANNED: list[tuple[str, str, str | None]] = [
         "Stale SignSchnorrWithMerkleRoot speedup — actual is ~36% (1.36×)",
         None,
     ),
+    # ── Clang 19 archived CT signing ratios cited without qualifier ───────────
+    # These ratios (1.33× CT ECDSA, 1.20× CT Schnorr) belong to the archived
+    # Clang 19 bench run.  If cited without "Clang 19" or "[archived]" context
+    # they mislead reviewers into thinking the GCC 14 baseline matches them.
+    # The canonical GCC 14.2.0 ratios are 1.24× ECDSA and 1.09× Schnorr.
+    # Note: context-aware banning (requires adjacent "Clang 19" or "archived")
+    # is not yet implemented — these patterns are documented here so future
+    # reviews can detect them, and a comment-only entry marks the intent.
+    #
+    # TODO(BENCH-005): implement context-aware banning once the pattern engine
+    # supports negative lookahead or a "must NOT have adjacent" context_hint.
+    # For now, exact banned strings are listed below and rely on the reviewer-doc
+    # set being small enough that false positives are unlikely.
+    (
+        r"1\.33.*CT ECDSA",
+        "Clang 19 archived CT ECDSA ratio (1.33×) cited without 'Clang 19' or '[archived]' qualifier — canonical GCC 14 ratio is 1.24×",
+        # context_hint: only ban when NOT in a section already marked archived.
+        # The current pattern engine matches on presence, so this fires when
+        # 1.33× CT ECDSA appears anywhere; reviewers must check context manually.
+        None,
+    ),
+    (
+        r"1\.20.*CT Schnorr",
+        "Clang 19 archived CT Schnorr ratio (1.20×) cited without 'Clang 19' or '[archived]' qualifier — canonical GCC 14 ratio is 1.09×",
+        None,
+    ),
 ]
 
 # ---------------------------------------------------------------------------

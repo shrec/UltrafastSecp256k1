@@ -9,11 +9,11 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 256 PoC files, 254 registered modules, 0 failures |
+| Exploit tests | 256 PoC files, 256 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
 | CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
-| CT verification | 5 independent pipelines (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) |
+| CT verification | 5 independent CT verification pipelines (3 in GitHub CI: LLVM ct-verif, Valgrind taint, ct-prover; 2 manual/local: dudect statistical, ARM64 native) |
 | GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
 | Philosophy | Don't trust — reproduce |
 

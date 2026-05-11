@@ -341,7 +341,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.${{ matrix.ext }}
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 2) Linux ARM64 (cross-compile on Ubuntu x64)
@@ -427,7 +427,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 3) Android (NDK arm64-v8a -- .so + JNI .so + static .a)
@@ -513,7 +513,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 4) iOS XCFramework (Device arm64 + Simulator arm64)
@@ -565,7 +565,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 5) WebAssembly (Emscripten -- .wasm + .js + .mjs + .d.ts)
@@ -638,7 +638,7 @@ jobs:
         with:
           name: ${{ env.PKG_NAME }}
           path: ${{ env.PKG_NAME }}.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 6) Package bindings -- Python wheels (per-platform, bundled native lib)
@@ -732,7 +732,7 @@ jobs:
         with:
           name: ufsecp-python-wheels
           path: bindings/python/wheelhouse/
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 7) Package bindings -- npm (prebuilds per platform)
@@ -817,7 +817,7 @@ jobs:
         with:
           name: ufsecp-npm
           path: bindings/nodejs/ufsecp-*.tgz
-          retention-days: 5
+          retention-days: 30
 
       - name: Publish to GitHub Packages (npm)
         continue-on-error: true
@@ -935,7 +935,7 @@ jobs:
         with:
           name: ufsecp-nuget
           path: bindings/csharp/Ufsecp/nupkgs/*.nupkg
-          retention-days: 5
+          retention-days: 30
 
       - name: Publish to GitHub Packages (NuGet)
         continue-on-error: true
@@ -1025,7 +1025,7 @@ jobs:
         with:
           name: ufsecp-gem
           path: bindings/ruby/ufsecp-*.gem
-          retention-days: 5
+          retention-days: 30
 
       - name: Publish to GitHub Packages (RubyGems)
         run: |
@@ -1131,7 +1131,7 @@ jobs:
         with:
           name: ufsecp-java
           path: bindings/java/ufsecp-*.jar
-          retention-days: 5
+          retention-days: 30
 
       - name: Publish to GitHub Packages (Maven)
         run: |
@@ -1258,7 +1258,7 @@ jobs:
         with:
           name: ufsecp-go
           path: ufsecp-go-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 12) Package bindings -- Rust crate (source + native libs)
@@ -1333,7 +1333,7 @@ jobs:
         with:
           name: ufsecp-rust
           path: ufsecp-rust-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 13) Package bindings -- Dart/Flutter (source + native libs)
@@ -1412,7 +1412,7 @@ jobs:
         with:
           name: ufsecp-dart
           path: ufsecp-dart-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 14) Package bindings -- PHP Composer (source + native libs)
@@ -1484,7 +1484,7 @@ jobs:
         with:
           name: ufsecp-php
           path: ufsecp-php-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 15) Package bindings -- React Native (npm + Android/iOS native libs)
@@ -1567,7 +1567,7 @@ jobs:
         with:
           name: ufsecp-react-native
           path: bindings/react-native/react-native-ufsecp-*.tgz
-          retention-days: 5
+          retention-days: 30
 
       - name: Publish to GitHub Packages (npm -- React Native)
         continue-on-error: true
@@ -1663,7 +1663,7 @@ jobs:
         with:
           name: ufsecp-swift
           path: ufsecp-swift-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 17) Package -- C/C++ headers + native libs (all platforms)
@@ -1737,7 +1737,7 @@ jobs:
         with:
           name: ufsecp-c-headers
           path: ufsecp-c-*.tar.gz
-          retention-days: 5
+          retention-days: 30
 
   # ==========================================================================
   # 18) Create GitHub Release (collects ALL artifacts)
