@@ -89,6 +89,14 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "audit/test_regression_schnorr_ct_arithmetic.cpp"],
         "PERF-001 (shim_schnorr.cpp stack buf), SEC-005 (adaptor.cpp remove const_cast), SEC-008 (schnorr.cpp comment). Covered by existing schnorr edge-case and CT regression tests already in the suite.",
     ),
+    "ddd3897cda": (
+        ["compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp",
+         "compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp"],
+        "SHIM-001 (ecdh null ctx), SHIM-002 (ellswift null ctx), SHIM-003 (musig null ctx), "
+        "SHIM-004 (musig partial_sig_agg zero-output guard). Tests added retroactively in "
+        "follow-up commit. PERF-002 (remove y²=x³+7 check) and other PERF fixes are "
+        "non-security refactors covered by existing shim differential tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
