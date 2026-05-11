@@ -70,7 +70,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 
 **CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-11):** **1.24× ECDSA · 1.09× Schnorr** vs libsecp256k1. Canonical data: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
-> **ConnectBlock (primary block-validation workload):** ~1–2% slower than libsecp256k1 in tested runs (within noise margin for uncontrolled hardware). Release+LTO build recommended. Taproot key-path signing is 22–24% faster. Full numbers and methodology caveats in [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** With Release+LTO: +1.0–2.1% Ultra lead on this hardware (within noise margin — treat as parity until replicated on pinned hardware). Without LTO: ~1% deficit from i-cache pressure (larger code footprint). LTO recommended. Taproot key-path signing 35–36% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 
@@ -246,7 +246,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 254 exploit PoC test files (all wired and verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; 1,000,000+ assertions per release evidence run, 254 exploit PoC source files (252 registered as runner modules in `unified_audit_runner.cpp`; all wired, verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
 - **Differentiated GPU secp256k1 surface** -- CUDA, OpenCL, and Metal all implement the stable 16-op GPU C ABI, while CUDA also carries the highest-throughput signing and verification kernels plus **GPU FROST partial verification** ([reproducible benchmark suite and raw logs](docs/BENCHMARKS.md))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **BIP-352 Silent Payments GPU pipeline** -- the full 7-stage GPU pipeline (k×P → hash → k×G → add → match) on CUDA; throughput and CPU comparison: [GPU bench](docs/BENCHMARKS.md), [standalone CPU benchmark by @craigraw](https://github.com/craigraw/bench_bip352)
@@ -291,7 +291,6 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12011/badge)](https://www.bestpractices.dev/projects/12011)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=security_rating)](https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1)
-[![codecov](https://codecov.io/gh/shrec/UltrafastSecp256k1/graph/badge.svg)](https://codecov.io/gh/shrec/UltrafastSecp256k1)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-5865F2?logo=discord&logoColor=white)](https://discord.gg/E4BK8SeMYU)
 
 **Supported Blockchains (secp256k1-based):**

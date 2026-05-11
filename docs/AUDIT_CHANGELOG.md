@@ -1557,9 +1557,10 @@ MuSig2, FROST, ECIES, schnorr, ECDSA, BIP-32, taproot: no unchecked returns rema
   (`ArrayBoundV2`, `ReturnPtrRange`, `CastSize`, `UninitializedObject`).
   Inter-procedural symbolic execution; catches cross-function null-deref and
   uninitialized-read paths that clang-tidy misses.
-- **`.github/workflows/gcc-analyzer.yml`** — GCC 14 `-fanalyzer` CI workflow.
-  Different SE engine from Clang SA; complements it with GCC-specific path analysis
-  (CWE-mapped findings, use-after-free across stack frames).
+- **GCC 14 `-fanalyzer` analysis** — different SE engine from Clang SA; complements
+  it with GCC-specific path analysis (CWE-mapped findings, use-after-free across stack
+  frames). *(Dedicated `gcc-analyzer.yml` workflow was subsequently removed; GCC static
+  analysis coverage continues via `clang-sa.yml` and local `ci_local.sh` toolchain.)*
 - **`address.cpp:804`** — fixed unchecked `parse_bytes_strict_nonzero` return in
   `compute_a_eff` (unit scalar constant 1; always succeeds but now explicitly checked).
 

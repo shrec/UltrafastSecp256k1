@@ -70,6 +70,7 @@ run "Backend parity"                           ci/check_backend_parity.py
 run "Secret parse strictness (Rule 11)"        ci/check_secret_parse_strictness.py
 run "Protocol invariants (FROST threshold)"    ci/check_protocol_invariants.py
 run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
+run "Doc drift (badges, removed files)"        ci/check_doc_drift.py
 
 if [[ "${FAILED}" -gt 0 ]]; then
     echo ""

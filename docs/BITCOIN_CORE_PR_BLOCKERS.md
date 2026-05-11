@@ -11,7 +11,8 @@
 All four MUST-FIX blockers are closed. All SHOULD-FIX items are closed including
 cross-platform CI (#9, now fully evidenced across Linux x86_64, macOS ARM64, and
 Windows x86_64). The Bitcoin Core test suite runs **693/693 pass, 0 failures**
-with UltrafastSecp256k1 as the backend.
+(2026-04-27, `docs/BITCOIN_CORE_TEST_RESULTS.json`); a more recent run
+(2026-05-11) shows **749/749** (`docs/BITCOIN_CORE_BENCH_RESULTS.json`).
 
 All three remaining surface items (cross-platform CI, noncefp proof, DER parity
 matrix) are now closed with documented evidence.
@@ -23,7 +24,7 @@ matrix) are now closed with documented evidence.
 | # | Item | Status | How Resolved |
 |---|------|--------|--------------|
 | 1 | C++20 → C++17 build (PUBLIC propagation) | ✅ **DONE** | `PRIVATE cxx_std_20` — not propagated to consumers |
-| 2 | Bitcoin Core `make check` integration test | ✅ **DONE** | 693/693 pass, 0 failures — `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| 2 | Bitcoin Core `make check` integration test | ✅ **DONE** | 693/693 pass (2026-04-27, `docs/BITCOIN_CORE_TEST_RESULTS.json`); 749/749 in 2026-05-11 run (`docs/BITCOIN_CORE_BENCH_RESULTS.json`) |
 | 3 | Thread safety doc reference in public header | ✅ **DONE** | `ufsecp.h:18` — "Full policy: docs/THREAD_SAFETY.md" |
 | 4 | ABI versioning policy documented | ✅ **DONE** | `docs/ABI_VERSIONING.md` — referenced from `ufsecp.h:14` |
 
@@ -100,7 +101,7 @@ correctness with default nonce function, confirmed passing).
 ### C. DER Hostile Parity Matrix
 
 **Context:** Bitcoin Core's script validation rejects malleable DER-encoded
-signatures. The shim passes all 693 test_bitcoin cases, but an explicit hostile
+signatures. The shim passes all 693 test_bitcoin cases (2026-04-27; 749 in 2026-05-11 run), but an explicit hostile
 parity matrix (paired encoding, sign-flip, R length injection, leading-zero
 stripping) against libsecp256k1's canonical output is not yet documented.
 
@@ -117,7 +118,8 @@ extended with a DER comparison section.
 |------|--------|--------|--------|------|
 | 2026-04-27 | a0d89669 | 0 | 661 | Before hybrid pubkey fix |
 | 2026-04-27 | a0d89669 + local patch | 623 | 70 | After hybrid pubkey fix |
-| 2026-04-27 | **c1df659e** | **693** | **0** | After musig2 Y-parity fix — **current** |
+| 2026-04-27 | **c1df659e** | **693** | **0** | After musig2 Y-parity fix |
+| 2026-05-11 | **0aaf9d94** | **749** | **0** | Fresh bench run, GCC 14.2.0 — **current** (`docs/BITCOIN_CORE_BENCH_RESULTS.json`) |
 
 Two fixes were required:
 1. **hybrid pubkey prefix**: shim rejected `0x06`/`0x07` prefixes in 65-byte parse path (`shim_pubkey.cpp`)
@@ -132,7 +134,7 @@ Two fixes were required:
 | **Code Quality** | ✅ A | CAAS 254 exploit PoCs, 0 drift |
 | **CT Security** | ✅ A | ct-verif, dudect, Valgrind — all sign paths CT; dead R.is_infinity() checks removed |
 | **C++17 Compatibility** | ✅ A | `PRIVATE cxx_std_20`, verified no public C++20 symbols |
-| **ABI Surface** | ✅ A | 693/693 test_bitcoin pass; `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| **ABI Surface** | ✅ A | 693/693 (2026-04-27) · 749/749 (2026-05-11); canonical: `docs/BITCOIN_CORE_BENCH_RESULTS.json` |
 | **Build Compatibility** | ✅ A | No PUBLIC C++ standard leak; shim builds standalone |
 | **Documentation** | ✅ A | Thread safety, ABI versioning, integration guide, API reference, DER parity matrix all current |
 | **Evidence Package** | ✅ A | Wycheproof CI, bench results, CAAS gates, differential tests |

@@ -2,7 +2,7 @@
 
 > Version: 1.2 — 2026-05-01
 > Profile: `bitcoin-core-backend`
-> Status: PR-ready — all blockers closed (see BITCOIN_CORE_PR_BLOCKERS.md)
+> Status: PR-prep / RC-prep — evidence refresh in progress; not yet submitted (see BITCOIN_CORE_PR_BLOCKERS.md)
 
 This document presents structured evidence for Bitcoin Core reviewers evaluating
 UltrafastSecp256k1 as an alternative CPU backend for libsecp256k1. It is written
@@ -166,6 +166,12 @@ Signing speedups on GCC (shown in the table above: 1.15×–1.36×) come from th
 `ContextBlindingScope` cached r*G optimization and pre-computed generator tables,
 not from CT scalar inverse.
 
+> **Two benchmark sets, two different measurements:** The `SignTransaction*` rows (1.11×–1.15× faster
+> on GCC) are from `bench_bitcoin` and cover the full Bitcoin Core transaction-signing path,
+> including context-blinding cache and wrapper overhead. The CT microbench rows (0.82–0.85× on GCC)
+> isolate the raw `ct_scalar_inverse` primitive only. Both numbers are correct — they measure
+> different operations and are not contradictory.
+
 ### Root cause of non-LTO gap
 
 Without LTO, Ultra has a larger code footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB)
@@ -194,7 +200,7 @@ These are honest statements of residual confidence gaps. Each entry is labelled
 
 | Item | PR blocker? | Residual gap / notes |
 |------|-------------|----------------------|
-| ~~Bitcoin Core's full test suite has not been run~~ | **Closed (2026-04-27)** | 693/693 `make check` pass; see `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| ~~Bitcoin Core's full test suite has not been run~~ | **Closed (2026-04-27)** | 693/693 `test_bitcoin` pass (2026-04-27, `docs/BITCOIN_CORE_TEST_RESULTS.json`); 749/749 in more recent run (2026-05-11, `docs/BITCOIN_CORE_BENCH_RESULTS.json`) |
 | Windows and macOS CI coverage | **Not a blocker** — macOS ARM64 shim build+test active (`macos-shim.yml`); Windows x86-64 build + bench covered in CI | Residual gap: GPU suite and extended CT tools (Valgrind, dudect nightly) run Linux-only; acceptable for a CPU-only backend PR |
 | `ndata` / R-grinding parity | **Not a blocker** — Bitcoin Core 28.x production signing paths use `NULL` noncefp (verified by grep of Core source); shim accepts NULL / default / rfc6979 and fails-closed on any unknown noncefp | Residual gap: arbitrary custom nonce callback emulation is intentionally unsupported; not needed for Core's usage pattern |
 | Thread safety: multiple contexts sharing blinding state | **Not a blocker** — each context has its own blinding state; concurrent use of distinct contexts is safe and documented in `docs/THREAD_SAFETY.md` | Residual gap: interleaved calls across contexts on the same thread are not CI-tested; THREAD_SAFETY.md §7 marks this as a known limitation; not exercised by Core |
