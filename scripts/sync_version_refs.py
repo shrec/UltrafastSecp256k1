@@ -208,7 +208,15 @@ def compute_exploit_poc_count(root: Path) -> int:
     if not runner.exists():
         return 0
     text = runner.read_text(encoding='utf-8')
-    return len(re.findall(r'"exploit_poc"', text))
+    # Count only within the ALL_MODULES[] block (mirrors build_canonical_data.py logic).
+    # The full file also contains SECTIONS[] definitions and comments, which would
+    # overcount by ~2 entries.
+    start = text.find("static const AuditModule ALL_MODULES")
+    if start == -1:
+        start = text.find("ALL_MODULES[] =")
+    end = text.find("};\n\nstatic constexpr int NUM_MODULES", start)
+    block = text[start:end] if start != -1 and end != -1 else text
+    return len(re.findall(r'"exploit_poc"', block))
 
 
 def compute_total_audit_modules(root: Path) -> int:

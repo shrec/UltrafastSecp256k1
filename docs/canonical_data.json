@@ -6,7 +6,7 @@
   "total_modules": 352,
   "ci_workflow_count": 54,
   "ct_pipeline_count": 5,
-  "bitcoin_core_tests_pass": 693,
-  "bitcoin_core_tests_total": 693,
+  "bitcoin_core_tests_pass": 749,
+  "bitcoin_core_tests_total": 749,
   "shim_api_function_count": 76
 }

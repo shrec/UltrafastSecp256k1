@@ -209,7 +209,15 @@ def check_count_sync(root: Path) -> bool:
     auth_gpu = 0
     if runner.exists():
         t = runner.read_text(encoding='utf-8')
-        auth_exploit = len(re.findall(r'"exploit_poc"', t))
+        # Count only within the ALL_MODULES[] block (mirrors build_canonical_data.py logic).
+        # Counting the full file includes SECTIONS[] definitions and comments which are
+        # not module entries, producing a 2-unit overcounting vs. the canonical count.
+        start = t.find("static const AuditModule ALL_MODULES")
+        if start == -1:
+            start = t.find("ALL_MODULES[] =")
+        end = t.find("};\n\nstatic constexpr int NUM_MODULES", start)
+        block = t[start:end] if start != -1 and end != -1 else t
+        auth_exploit = len(re.findall(r'"exploit_poc"', block))
     if gpu_hdr.exists():
         t = gpu_hdr.read_text(encoding='utf-8')
         # Count stable GPU batch-op functions: only ufsecp_error_t-returning

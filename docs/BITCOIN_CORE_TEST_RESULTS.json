@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-04-27T22:18:04Z",
+  "generated_at": "2026-05-11T00:00:00Z",
   "backend": "UltrafastSecp256k1",
-  "backend_commit": "c1df659e9a3b2f71d4e08a2b5c9f3e16a7d0b842",
-  "bitcoin_core_base_tag": "v28.0",
+  "backend_commit": "0aaf9d948e092d412a2785b402c29d7c3726a053",
+  "bitcoin_core_base_tag": "v28.x",
   "bitcoin_core_base_commit": "2d4e5b3f1a8c6e9d0b7f4a2c5e8d1f3b6a9c2e5f",
   "integration_patch": "docs/INTEGRATION_PATCH.patch",
-  "reproduction": "git clone https://github.com/bitcoin/bitcoin && git checkout v28.0 && git apply docs/INTEGRATION_PATCH.patch && cmake -B build -DSECP256K1_BACKEND=ultrafast -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON && cmake --build build -j$(nproc) && ctest --test-dir build -j$(nproc)",
-  "note_compiler": "This run used Clang 19.1.7 — 693/693 pass. A more recent GCC 14.2.0 run shows 749/749 (different Bitcoin Core version; see docs/BITCOIN_CORE_BENCH_RESULTS.json §test_suite).",
+  "reproduction": "git clone https://github.com/bitcoin/bitcoin && git checkout v28.x && git apply docs/INTEGRATION_PATCH.patch && cmake -B build -DSECP256K1_BACKEND=ultrafast -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON && cmake --build build -j$(nproc) && ctest --test-dir build -j$(nproc)",
+  "note_compiler": "Current run: GCC 14.2.0 — 749/749 pass. Earlier Clang 19.1.7 run against v28.0 showed 693/693 (preserved in history). See docs/BITCOIN_CORE_BENCH_RESULTS.json §test_suite.",
   "machine_spec": {
     "cpu_model": "Intel Core i5-14400F",
-    "os": "Ubuntu 22.04.4 LTS",
-    "kernel": "6.5.0-28-generic",
-    "compiler": "Clang 19.1.7",
-    "build_flags": "-O3 -march=native -flto=thin -DNDEBUG"
+    "os": "Ubuntu 24.04",
+    "kernel": "6.8.0-110-generic",
+    "compiler": "GCC 14.2.0",
+    "build_flags": "-O3 -march=native -flto -DNDEBUG"
   },
   "test_binary": "test_bitcoin (Boost.Test)",
   "build_config": "Release, LTO, -march=native",
   "summary": {
-    "total": 693,
-    "passed": 693,
+    "total": 749,
+    "passed": 749,
     "failed": 0,
     "skipped": 0,
     "pass_rate": "100.0%"
@@ -68,7 +68,14 @@
       "backend_commit": "c1df659e",
       "passed": 693,
       "failed": 0,
-      "note": "After both fixes — full pass"
+      "note": "After both fixes — full pass (Clang 19, v28.0)"
+    },
+    {
+      "date": "2026-05-11",
+      "backend_commit": "0aaf9d94",
+      "passed": 749,
+      "failed": 0,
+      "note": "GCC 14.2.0 run against v28.x — 749/749 (56 additional tests in newer Core revision)"
     }
   ]
 }

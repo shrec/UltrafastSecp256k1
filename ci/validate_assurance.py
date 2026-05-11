@@ -182,6 +182,8 @@ def _graph_candidate_paths(fs_path: Path):
         'bindings', '.github',
         # src/ is the new canonical prefix (src/cpu, src/cuda, etc.)
         'src',
+        # compat/ holds libsecp256k1_shim — graph indexes without compat/ prefix
+        'compat',
     }
     if parts[0] in graph_root_dirs and len(parts) > 1:
         candidates.append(str(Path(*parts[1:])).replace('\\', '/'))
