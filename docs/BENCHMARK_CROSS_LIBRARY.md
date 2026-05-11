@@ -9,39 +9,67 @@ UltrafastSecp256k1 shim is a **drop-in replacement** — same benchmark code, en
 
 ## Summary Table
 
-| Operation | UltrafastSecp256k1 | libsecp256k1 | Knuth secp256k1 | OpenSSL 3.x | UF vs libsecp | UF vs Knuth | UF vs OpenSSL |
-|---|---|---|---|---|---|---|---|
-| k·G (generator mul) | 4,969 ns | 9,883 ns | — | 215,921 ns | **+1.99×** | — | **+43.5×** |
-| ECDSA Sign | 17,478 ns | 15,917 ns | 63,200 ns | 251,478 ns | 0.91× | **+3.6×** | **+14.4×** |
-| ECDSA Sign + DER | 17,500 ns | ~17,000 ns | 63,200 ns | — | ~1.0× | **+3.8×** | — |
-| ECDSA Verify | 20,502 ns | 22,860 ns | 71,500 ns | 226,884 ns | **+1.12×** | **+3.5×** | **+11.1×** |
-| Schnorr Sign (BIP-340) | 13,311 ns | 12,234 ns | — | N/A | 0.92× | — | N/A |
-| Schnorr Verify | 23,721 ns | 22,843 ns | — | N/A | 0.96× | — | N/A |
-| Field mul | 11.1 ns | 13.0 ns | — | — | **+1.17×** | — | — |
-| Scalar inv (CT) | 855 ns | 1,412 ns | — | — | **+1.65×** | — | — |
-| Pubkey create | 4,969 ns | 11,409 ns | — | — | **+2.30×** | — | — |
+**[CPU: i5-14400F · 2.496 GHz turbo-disabled · GCC 13.3.0 · warm w=18 cache · **11-pass IQR median** · 2026-05-11]**  
+**[hot-cache; CT-vs-CT for signing; Knuth data [archived]]**
 
-> **Note on ECDSA Sign vs libsecp:** UF is 0.91× (9% slower) in the fastest FAST signing mode.
-> This is intentional — the FAST path bypasses precomputed wNAF tables that libsecp uses.
-> The **CT (constant-time) signing path** has identical throughput (1:1 ratio) while providing
-> side-channel resistance. For production wallet use, CT path is mandatory.
+| Operation | UltrafastSecp256k1 | libsecp256k1 | Knuth [arch] | OpenSSL 3.x | UF vs libsecp | UF vs Knuth | UF vs OpenSSL |
+|---|---|---|---|---|---|---|---|
+| k·G (generator mul) | 9,985 ns | 21,224 ns | — | 397,829 ns | **2.13×** | — | **39.8×** |
+| CT ECDSA Sign | 21,435 ns | 29,381 ns | 63,200 ns | 422,124 ns | **1.37×** | **2.9×** | **19.7×** |
+| ECDSA Verify | 42,615 ns | 41,759 ns | 71,500 ns | 402,147 ns | 0.98× | **1.7×** | **9.4×** |
+| CT Schnorr Sign | 18,064 ns | 22,530 ns | — | N/A | **1.25×** | — | N/A |
+| Schnorr Verify | 44,947 ns | 42,154 ns | — | N/A | 0.94× | — | N/A |
+| Field mul | 22.2 ns | 23.5 ns | — | — | **1.06×** | — | — |
+| Scalar inv (CT) | 1,558 ns | 2,601 ns | — | — | **1.67×** | — | — |
+| Pubkey create | 9,985 ns | 21,224 ns | — | — | **2.13×** | — | — |
+
+> **CT vs CT signing:** ECDSA sign **1.37×** faster, Schnorr sign **1.25×** faster than libsecp256k1.  
+> ECDSA verify 2% slower; Schnorr verify 6% slower (both variable-time, public data — acceptable).  
+> `[arch]` = Knuth data from archived run; not re-measured 2026-05-11.
 
 ---
 
 ## Bitcoin Core Integration
 
 **Method:** Bitcoin Core's own `bench_bitcoin` binary, shim swapped in via CMake.  
-Commit: `9606ea9` · Build: `-DCMAKE_BUILD_TYPE=Release`
+**Source:** `docs/BITCOIN_CORE_BENCH_RESULTS.json` · Generated: 2026-05-08  
+**Machine:** Intel Core i5-14400F · Ubuntu 24.04 · GCC 14.2.0 · turbo disabled  
+**Note:** These numbers are from the `bench_bitcoin` pipeline (full Bitcoin Core transaction/script context), NOT from `bench_unified`. Medians of ≥3 stable runs.
 
-| Benchmark | libsecp256k1 (Core default) | UltrafastSecp256k1 shim | Speedup |
+### Release + LTO (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`) — recommended production build
+
+| Benchmark | libsecp256k1 | UltrafastSecp256k1 shim | Speedup |
 |---|---|---|---|
-| `SignTransactionECDSA` | 96,006 ns/op | 79,196 ns/op | **+17.5%** |
-| `SignTransactionSchnorr` | 80,368 ns/op | 73,663 ns/op | **+8.3%** |
-| `SignSchnorrWithMerkleRoot` | 66,520 ns/op | 39,131 ns/op | **+41.1%** |
-| `SignSchnorrWithNullMerkleRoot` | 65,637 ns/op | 39,107 ns/op | **+40.4%** |
-| `VerifyScriptBench` | 24,555 ns/op | 23,231 ns/op | **+5.4%** |
+| `SignTransactionECDSA` | 175,388 ns | 143,788 ns | **+22%** |
+| `SignTransactionSchnorr` | 137,561 ns | 124,059 ns | **+11%** |
+| `SignSchnorrWithMerkleRoot` | 111,524 ns | 83,248 ns | **+34%** |
+| `SignSchnorrWithNullMerkleRoot` | 111,014 ns | 82,387 ns | **+35%** |
+| `VerifyScriptP2WPKH` | 45,083 ns | 45,064 ns | **parity** |
+| `VerifyScriptP2TR_KeyPath` | 45,667 ns | 44,363 ns | **+3%** |
+| `VerifyScriptP2TR_ScriptPath` | 82,961 ns | 64,975 ns | **+28%** |
+| `ConnectBlockAllEcdsa` | 255.9 ms | 255.8 ms | **parity** |
+| `ConnectBlockAllSchnorr` | 253.6 ms | 254.2 ms | **parity** |
+| `ConnectBlockMixed` | 255.5 ms | 256.0 ms | **parity** |
 
-Source: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
+### Release without LTO
+
+| Benchmark | libsecp256k1 | UltrafastSecp256k1 shim | Speedup |
+|---|---|---|---|
+| `SignTransactionECDSA` | 167,000 ns | 147,000 ns | **+14%** |
+| `SignTransactionSchnorr` | 133,000 ns | 124,000 ns | **+7%** |
+| `SignSchnorrWithMerkleRoot` | 109,000 ns | 82,300 ns | **+32%** |
+| `SignSchnorrWithNullMerkleRoot` | 109,000 ns | 82,500 ns | **+32%** |
+| `VerifyScriptP2WPKH` | 45,083 ns | 45,460 ns | ~parity (+1%) |
+| `VerifyScriptP2TR_KeyPath` | 45,667 ns | 44,540 ns | **+2%** |
+| `VerifyScriptP2TR_ScriptPath` | 82,961 ns | 64,620 ns | **+28%** |
+| `ConnectBlockAllEcdsa` | 248.6 ms | 250.8 ms | −1% (libsecp) |
+| `ConnectBlockAllSchnorr` | 246.4 ms | 249.2 ms | −1% (libsecp) |
+| `ConnectBlockMixed` | 248.7 ms | 251.5 ms | −1% (libsecp) |
+
+> **ConnectBlock without LTO:** Ultra's larger instruction footprint (~900 KB extra secp256k1 code
+> vs libsecp's ~400 KB) causes ~1% L2/L3 cache pressure over 2500 iterations. LTO eliminates this
+> by co-optimizing code layout globally. The signing speedups (14–35%) are not affected by LTO.
+> See `nolto_gap_root_cause` in `BITCOIN_CORE_BENCH_RESULTS.json` for root-cause evidence.
 
 ---
 
@@ -60,35 +88,55 @@ Knuth version: `d446f597` · Modules: ECDH, Schnorr (BCH), Recovery, Multiset
 ## OpenSSL 3.x (secp256k1)
 
 **Method:** UltrafastSecp256k1's own `bench_unified` harness — same IQR/passes for both.  
-OpenSSL version: `3.0.13`
+OpenSSL version: `3.0.13` · **[i5-14400F · 2.496 GHz turbo-disabled · GCC 13.3.0 · 11-pass IQR · 2026-05-11]**
 
-| Benchmark | OpenSSL 3.x | UltrafastSecp256k1 | Speedup |
+| Benchmark | OpenSSL 3.x | UltrafastSecp256k1 (CT) | Speedup |
 |---|---|---|---|
-| Generator mul (k·G) | 215,921 ns | 4,969 ns | **+43.5×** |
-| ECDSA Sign | 251,478 ns | 17,478 ns | **+14.4×** |
-| ECDSA Verify | 226,884 ns | 20,502 ns | **+11.1×** |
+| Generator mul (k·G) | 397,829 ns | 9,985 ns | **39.8×** |
+| CT ECDSA Sign | 422,124 ns | 21,435 ns | **19.7×** |
+| ECDSA Verify | 402,147 ns | 42,615 ns | **9.4×** |
 
 > OpenSSL's secp256k1 uses generic curve code without the optimized field arithmetic
-> that libsecp256k1 and UltrafastSecp256k1 implement.
+> that libsecp256k1 and UltrafastSecp256k1 implement. CT signing path used for Ultra.
 
 ---
 
 ## libsecp256k1 (bitcoin-core/secp256k1 v0.7.x)
 
-**Method:** UltrafastSecp256k1's `bench_unified` — identical harness, identical operation count.
+**Method:** UltrafastSecp256k1's `bench_unified` — identical harness, identical operation count.  
+**[CPU: i5-14400F · 2.496 GHz (turbo disabled) · GCC 13.3.0 · warm w=18 cache · **11-pass IQR median** · 2026-05-11]**  
+**[hot-cache — w=18 precomputed table warm; no LTO]**
 
 | Operation | UltrafastSecp256k1 | libsecp256k1 | Ratio |
 |---|---|---|---|
-| Field mul | 11.1 ns | 13.0 ns | **1.17×** |
-| Field inv | 645.1 ns | 845.8 ns | **1.31×** |
-| Scalar inv (CT) | 854.8 ns | 1,411.8 ns | **1.65×** |
-| k·G (generator mul) | 4,969 ns | 9,883 ns | **1.99×** |
-| Pubkey create | 4,969 ns | 11,409 ns | **2.30×** |
-| Point add (combine) | 877 ns | 1,786 ns | **2.04×** |
-| ECDSA Verify | 20,502 ns | 22,860 ns | **1.12×** |
-| ECDSA Sign (CT path) | 17,514 ns | 15,917 ns | 0.91× |
-| Schnorr Verify | 23,721 ns | 22,843 ns | 0.96× |
-| Schnorr Sign | 13,340 ns | 12,234 ns | 0.92× |
+| Field mul | 22.2 ns | 23.5 ns | **1.06×** |
+| Field inv (SafeGCD) | 1,271 ns | 1,513 ns | **1.19×** |
+| Scalar inv (CT) | 1,558 ns | 2,601 ns | **1.67×** |
+| k·G (ecmult_gen raw) | 9,985 ns | 18,451 ns | **1.85×** |
+| Pubkey create (API) | 9,985 ns | 21,224 ns | **2.13×** |
+| Scalar mul (k·P) | 35,600 ns | 37,588 ns | **1.06×** |
+| Point add (combine) | 1,571 ns | 3,306 ns | **2.10×** |
+| ECDSA Verify | 42,615 ns | 41,759 ns | 0.98× |
+| CT ECDSA Sign | 21,435 ns | 29,381 ns | **1.37×** |
+| Schnorr Verify (raw) | 44,947 ns | 42,154 ns | 0.94× |
+| CT Schnorr Sign | 18,064 ns | 22,530 ns | **1.25×** |
+
+> **CT vs CT (production-equivalent signing):** ECDSA sign **1.37×** faster, Schnorr sign **1.25×** faster.  
+> ECDSA verify 2% slower, Schnorr verify 6% slower — both variable-time on public data (correct design).  
+> Verify gap is from libsecp's marginally more compact wNAF representation; Ultra's verify algorithm is identical.
+
+### ConnectBlock (2000 unique pubkeys, native C++ API, bench_unified)
+
+| Scenario | UltrafastSecp256k1 | libsecp256k1 | Ratio |
+|---|---|---|---|
+| AllECDSA (2000 sigs) | 87.6 ms | 85.6 ms | 0.98× (libsecp −2%) |
+| AllSchnorr (2000 sigs) | 83.7 ms | 86.5 ms | **1.03×** |
+| Mixed ECDSA+Schnorr (3000) | 127.3 ms | 128.9 ms | **1.01×** |
+| DerParse+Verify+Normalize | 87.1 ms | 96.8 ms | **1.11×** |
+
+> Native C++ API path (no shim overhead). ECDSA −2%: larger instruction footprint without LTO
+> (same root cause as Bitcoin Core no-LTO gap; LTO eliminates it — see `BITCOIN_CORE_BENCH_RESULTS.json`).
+> DerParse +11%: Ultra's faster DER parser compensates for the base verify gap.
 
 ---
 
@@ -118,15 +166,4 @@ All benchmarks are reproducible locally:
 ```bash
 # UltrafastSecp256k1 vs libsecp256k1 vs OpenSSL
 cmake -S . -B build-bench -DLIBSECP_SRC_DIR=/path/to/libsecp256k1/src
-cmake --build build-bench --target bench_unified
-SECP256K1_CACHE_PATH=cache_w18.bin ./build-bench/cpu/bench_unified --suite core
-
-# Bitcoin Core (requires Bitcoin Core fork checkout)
-# see docs/BITCOIN_CORE_BACKEND_EVIDENCE.md
-
-# Knuth secp256k1
-git clone https://github.com/k-nuth/secp256k1
-# build both natively and with shim — see ci/bench_knuth.sh (TODO)
-```
-
-GPU benchmarks: see `docs/BENCHMARKS.md` (CUDA/OpenCL/Metal BIP-352 scanning).
+cmake --build b

@@ -15,23 +15,19 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ## Summary
 
-> **Status: pending fresh benchmark run across all platforms.**
+> **x86-64 (i5-14400F): populated 2026-05-11** `[hot-cache]` GCC 13.3.0, no LTO, turbo disabled, 11-pass IQR median  
+> Other platforms: pending fresh controlled runs with single toolchain per platform.
 >
-> Previous data removed due to mixed compiler versions (GCC 13/14/Clang 19/21 combined
-> across runs) making cross-platform comparison invalid. A fresh controlled run with a
-> single toolchain per platform will populate this table.
->
-> **Scheduled platforms:** x86-64 (i5-14400F), ARM64 (RK3588), RISC-V 64 (SiFive U74),
-> ESP32-C6 (160 MHz), ESP32-P4 (360 MHz), ESP32-S3 (240 MHz), CUDA (RTX), OpenCL (RTX).
->
-> **Methodology requirements:** single compiler version per platform, Release+LTO,
-> CPU pinned, turbo disabled, ≥5 passes, variance <3%, CT-vs-CT signing comparison only.
+> **Methodology requirements (full release-grade):** single compiler version, Release+LTO,
+> CPU pinned, turbo disabled, ≥11 passes IQR, variance <3%, CT-vs-CT signing comparison only.
 >
 > For historical numbers see the `[archived]` sections below.
 
-| Platform | Field Mul | Generator Mul | Scalar Mul | ECDSA Verify | Verify vs lib | CT Sign vs lib |
+`[hot-cache]` x86-64: GCC 13.3.0 · i5-14400F · 2.496 GHz (turbo disabled) · warm w=18 cache · **11-pass IQR median** · 2026-05-11
+
+| Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) | — | — | — | — | — | — |
+| x86-64 (i5-14400F) `[hot-cache]` | 22.2 ns | 9,985 ns | 35,600 ns | 42,615 ns | 0.98× ECDSA · 0.94× Schnorr | 1.37× ECDSA · 1.25× Schnorr |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
@@ -42,7 +38,9 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 > **CT Sign vs lib** = Ultra CT signing vs libsecp256k1 CT signing (production-equivalent).
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
+> **`[hot-cache]`** = w=18 precomputed table warm in L2/L3 after 50-iteration warm-up.
 > GPU rows: kernel-only throughput at standard batch sizes.
+> For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 ---
 
