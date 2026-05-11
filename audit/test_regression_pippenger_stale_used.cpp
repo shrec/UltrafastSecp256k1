@@ -1,20 +1,25 @@
 // ============================================================================
 // REGRESSION: Pippenger stale used[] across windows (BUG-01)
 // ============================================================================
-// Root cause: a single memset(used, 0) before the outer window loop meant
-// window W's dirty used[] bits persisted into window W+1. The first point in
-// a reused bucket slot was added into stale data instead of assigned, producing
-// a wrong MSM result for n>=48 (c<=6 unsigned path).
-//
+// Root cause A (unsigned path, c<=6): a single memset(used, 0) before the outer
+// window loop meant window W's dirty used[] bits persisted into window W+1.
 // Fix: memset(used, 0) at the top of EVERY window iteration.
 //
-// Tests exercise the exact boundary conditions where the bug manifested:
-//   PIP-R1: n=48 (smallest n hitting Pippenger, c=5, unsigned path)
+// Root cause B (signed-digit path, c>=7): carry propagation from the second-to-last
+// window could push the last window's digit to (1<<c) = num_buckets_unsigned, producing
+// abs_d == num_buckets_unsigned — an out-of-bounds access on TLS arrays sized to exactly
+// num_buckets_unsigned. Fix: allocate one extra slot (tls_alloc_size = num_buckets_unsigned+1).
+//
+// Tests:
+//   PIP-R1: n=48 (c=5, unsigned path)
 //   PIP-R2: n=64 (c=5)
 //   PIP-R3: n=80 (c=6)
 //   PIP-R4: n=128 (c=6)
 //   PIP-R5: Repeated scalar: all s_i == s forces maximum bucket reuse
 //   PIP-R6: Multi-window with negated inputs
+//   PIP-R7: All-zero scalars -> infinity
+//   PIP-R8: n=512 (c=7, signed path)  — covers Root cause B fix
+//   PIP-R9: n=1000 (c=8, signed path) — covers Root cause B fix
 // ============================================================================
 
 #include <cstdio>
@@ -142,16 +147,18 @@ int main() {
 int test_regression_pippenger_stale_used_run() {
 #endif
     printf("====================================================================\n");
-    printf("REGRESSION: Pippenger stale used[] across windows (BUG-01)\n");
+    printf("REGRESSION: Pippenger stale used[] / signed carry overflow (BUG-01)\n");
     printf("====================================================================\n\n");
 
-    pip_stale_used_boundary(48,  "PIP-R1 n=48  c=5 unsigned");
-    pip_stale_used_boundary(64,  "PIP-R2 n=64  c=5 unsigned");
-    pip_stale_used_boundary(80,  "PIP-R3 n=80  c=6 unsigned");
-    pip_stale_used_boundary(128, "PIP-R4 n=128 c=6 unsigned");
+    pip_stale_used_boundary(48,  "PIP-R1 n=48  c=5");
+    pip_stale_used_boundary(64,  "PIP-R2 n=64  c=5");
+    pip_stale_used_boundary(80,  "PIP-R3 n=80  c=6");
+    pip_stale_used_boundary(128, "PIP-R4 n=128 c=6");
     pip_stale_used_repeated_scalar();
     pip_stale_used_negated_inputs();
     pip_stale_used_identity_check();
+    pip_stale_used_boundary(512,  "PIP-R8  n=512  c=7 signed");
+    pip_stale_used_boundary(1000, "PIP-R9  n=1000 c=8 signed");
 
     printf("\n--- Result: %d passed, %d failed ---\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

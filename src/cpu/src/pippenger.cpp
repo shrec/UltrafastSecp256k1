@@ -89,6 +89,16 @@ Point pippenger_msm(const Scalar* scalars,
     // eff_buckets: 2^c unsigned, or 2^(c-1) signed — set after signed-digit init
     std::size_t num_buckets = num_buckets_unsigned;
 
+    // BUG-01 fix (signed-digit carry overflow):
+    // For the signed-digit path (c >= 7), carry propagation from the second-to-last
+    // window can push the last window's digit to (1<<c) = num_buckets_unsigned.
+    // This produces abs_d = num_buckets_unsigned, which would be an out-of-bounds
+    // access on arrays sized to exactly num_buckets_unsigned (indices 0..max-1).
+    // Allocate one extra slot so abs_d == num_buckets_unsigned is always in bounds.
+    // Example: c=8, scalar with top byte 0xFF receives carry from window 30 → digit[31]=256.
+    // abs_d=256 == num_buckets_unsigned=256, which was out of bounds (valid: 0..255).
+    std::size_t const tls_alloc_size = num_buckets_unsigned + ((c >= 7) ? 1 : 0);
+
     // Pre-allocate bucket / scratch arrays.
     // Stack for small windows (c<=6, 64 entries); thread_local pool for larger
     // windows — avoids malloc/free on every Pippenger call (V-PERF-02/P1-3).
@@ -103,9 +113,9 @@ Point pippenger_msm(const Scalar* scalars,
     std::uint8_t  used_stack[STACK_BUCKETS];
     std::uint8_t* used = used_stack;
     if (num_buckets_unsigned > STACK_BUCKETS) {
-        if (tl_buckets.size() < num_buckets_unsigned) tl_buckets.resize(num_buckets_unsigned);
-        if (tl_touched.size() < num_buckets_unsigned) tl_touched.resize(num_buckets_unsigned);
-        if (tl_used.size()    < num_buckets_unsigned) tl_used.resize(num_buckets_unsigned);
+        if (tl_buckets.size() < tls_alloc_size) tl_buckets.resize(tls_alloc_size);
+        if (tl_touched.size() < tls_alloc_size) tl_touched.resize(tls_alloc_size);
+        if (tl_used.size()    < tls_alloc_size) tl_used.resize(tls_alloc_size);
         buckets = tl_buckets.data();
         touched = tl_touched.data();
         used    = tl_used.data();
@@ -157,7 +167,8 @@ Point pippenger_msm(const Scalar* scalars,
                 }
             }
         }
-        // Halve bucket count: only need [1, 2^(c-1)]. TLS pools already sized above.
+        // Halve bucket count for aggregate loop bounds. TLS pools sized to
+        // num_buckets_unsigned+1 above to accommodate the carry-overflow slot.
         num_buckets >>= 1;
     }
 
@@ -187,7 +198,12 @@ Point pippenger_msm(const Scalar* scalars,
 
         // Zero used[] at the start of every window so stale bits from window W
         // do not cause window W+1's first-touch path to skip bucket initialization.
-        std::memset(used, 0, num_buckets * sizeof(std::uint8_t));
+        // For the signed-digit path, zero tls_alloc_size bytes (= num_buckets_unsigned+1)
+        // to also cover the overflow slot at index num_buckets_unsigned, which can be
+        // reached when the last window receives a carry and abs_d == num_buckets_unsigned.
+        std::size_t const memset_size = (num_buckets_unsigned > STACK_BUCKETS)
+            ? tls_alloc_size : num_buckets;
+        std::memset(used, 0, memset_size * sizeof(std::uint8_t));
         std::size_t touched_count = 0;
         std::size_t max_touched_digit = 0;
 
