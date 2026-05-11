@@ -2,6 +2,7 @@
 // Regression test: audit/test_exploit_shim_musig_ka_cap.cpp
 #include "secp256k1_musig.h"
 #include "secp256k1_extrakeys.h"
+#include "shim_internal.hpp"
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -244,12 +245,13 @@ extern "C" {
 // ---------------------------------------------------------------------------
 
 int secp256k1_musig_pubkey_agg(
-    const secp256k1_context* /*ctx*/,
+    const secp256k1_context* ctx,
     secp256k1_xonly_pubkey* agg_pk,
     secp256k1_musig_keyagg_cache* keyagg_cache,
     const secp256k1_pubkey* const* pubkeys,
     size_t n_pubkeys)
 {
+    SHIM_REQUIRE_CTX(ctx);
     if (!keyagg_cache || !pubkeys || n_pubkeys == 0) return 0;
 
     std::vector<std::array<unsigned char, 33>> comp33(n_pubkeys);
@@ -338,7 +340,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
 // ---------------------------------------------------------------------------
 
 int secp256k1_musig_nonce_gen(
-    const secp256k1_context* /*ctx*/,
+    const secp256k1_context* ctx,
     secp256k1_musig_secnonce* secnonce,
     secp256k1_musig_pubnonce* pubnonce,
     const unsigned char* session_id32,
@@ -348,6 +350,7 @@ int secp256k1_musig_nonce_gen(
     const secp256k1_musig_keyagg_cache* /*keyagg_cache*/,
     const unsigned char* /*extra_input32*/)
 {
+    SHIM_REQUIRE_CTX(ctx);
     if (!secnonce || !pubnonce || !session_id32) return 0;
 
     Scalar sk;
@@ -444,13 +447,14 @@ int secp256k1_musig_nonce_process(
 }
 
 int secp256k1_musig_partial_sign(
-    const secp256k1_context* /*ctx*/,
+    const secp256k1_context* ctx,
     secp256k1_musig_partial_sig* partial_sig,
     secp256k1_musig_secnonce* secnonce,
     const secp256k1_keypair* keypair,
     const secp256k1_musig_keyagg_cache* keyagg_cache,
     const secp256k1_musig_session* session)
 {
+    SHIM_REQUIRE_CTX(ctx);
     if (!partial_sig || !secnonce || !keypair || !keyagg_cache || !session) return 0;
     KAEntry* e = ka_get(keyagg_cache);
     if (!e) return 0;
@@ -518,12 +522,13 @@ int secp256k1_musig_partial_sig_verify(
 }
 
 int secp256k1_musig_partial_sig_agg(
-    const secp256k1_context* /*ctx*/,
+    const secp256k1_context* ctx,
     unsigned char* sig64,
     const secp256k1_musig_session* session,
     const secp256k1_musig_partial_sig* const* partial_sigs,
     size_t n_sigs)
 {
+    SHIM_REQUIRE_CTX(ctx);
     if (!sig64 || !session || !partial_sigs || n_sigs == 0) return 0;
     std::vector<Scalar> psigs(n_sigs);
     for (size_t i = 0; i < n_sigs; ++i) {
@@ -532,6 +537,15 @@ int secp256k1_musig_partial_sig_agg(
     }
     auto s = sess_unpack(session);
     auto final_sig = secp256k1::musig2_partial_sig_agg(psigs, s);
+    // SHIM-004: fail-closed on all-zero signature — degenerate aggregation result.
+    // A 64-byte all-zero Schnorr signature is always invalid; returning it as success
+    // would allow a caller to serialize and broadcast a trivially invalid signature.
+    bool all_zero = true;
+    for (int i = 0; i < 64; ++i) { if (final_sig[i] != 0) { all_zero = false; break; } }
+    if (all_zero) {
+        ka_remove(sess_load_cache_ptr(session));
+        return 0;
+    }
     std::memcpy(sig64, final_sig.data(), 64);
     // Protocol complete — release the side-channel map entry so the
     // keyagg_cache address can be safely reused by a future session.

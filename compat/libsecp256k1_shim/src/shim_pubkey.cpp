@@ -7,6 +7,8 @@
 #include <cstring>
 #include <algorithm>
 #include <array>
+#include <vector>
+#include <numeric>
 
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
@@ -251,20 +253,30 @@ void secp256k1_ec_pubkey_sort(
 
     if (n_pubkeys == 0) return;
 
-    // Lexicographic sort on 33-byte compressed serialization (matches upstream).
-    // bufa/bufb zero-initialised so that even on a serialize failure the memcmp
-    // is well-defined (avoids -Werror=maybe-uninitialized under GCC's
-    // conservative inter-procedural analysis).
-    std::stable_sort(pubkeys, pubkeys + n_pubkeys,
-        [](const secp256k1_pubkey *a, const secp256k1_pubkey *b) {
-            unsigned char bufa[33] = {}, bufb[33] = {};
-            size_t lena = 33, lenb = 33;
-            // Use secp256k1_context_static (not nullptr) to avoid triggering
-            // the illegal callback inside ec_pubkey_serialize's NULL ctx check.
-            secp256k1_ec_pubkey_serialize(secp256k1_context_static, bufa, &lena, a, SECP256K1_EC_COMPRESSED);
-            secp256k1_ec_pubkey_serialize(secp256k1_context_static, bufb, &lenb, b, SECP256K1_EC_COMPRESSED);
-            return std::memcmp(bufa, bufb, 33) < 0;
+    // PERF-004: pre-compute all compressed serializations before sorting to avoid
+    // O(N log N) calls to secp256k1_ec_pubkey_serialize inside the comparator.
+    // Each comparator call previously serialized both keys — O(N log N) × 2 ops.
+    // Now: O(N) serializations up-front, then sort indices on pre-computed buffers.
+    std::vector<std::array<unsigned char, 33>> bufs(n_pubkeys);
+    for (size_t i = 0; i < n_pubkeys; ++i) {
+        bufs[i] = {};  // zero-initialize: well-defined memcmp even on serialize failure
+        size_t len = 33;
+        secp256k1_ec_pubkey_serialize(secp256k1_context_static, bufs[i].data(), &len,
+                                      pubkeys[i], SECP256K1_EC_COMPRESSED);
+    }
+
+    // Sort an index array, then apply the permutation to pubkeys in-place.
+    std::vector<size_t> idx(n_pubkeys);
+    std::iota(idx.begin(), idx.end(), 0);
+    std::stable_sort(idx.begin(), idx.end(),
+        [&bufs](size_t a, size_t b) {
+            return std::memcmp(bufs[a].data(), bufs[b].data(), 33) < 0;
         });
+
+    // Apply permutation: build sorted pointer array, then copy back.
+    std::vector<const secp256k1_pubkey*> sorted(n_pubkeys);
+    for (size_t i = 0; i < n_pubkeys; ++i) sorted[i] = pubkeys[idx[i]];
+    for (size_t i = 0; i < n_pubkeys; ++i) pubkeys[i] = sorted[i];
 }
 
 } // extern "C"

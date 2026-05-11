@@ -396,17 +396,14 @@ int secp256k1_schnorrsig_verify_precomp(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify_precomp: NULL argument");
         return 0;
     }
+    // PERF-001: use raw-pointer parse_strict overload — avoids 64-byte stack copy.
     secp256k1::SchnorrSignature sig;
-    std::array<uint8_t, 64> sig_buf{};
-    std::memcpy(sig_buf.data(), sig64, 64);
-    if (!secp256k1::SchnorrSignature::parse_strict(sig_buf, sig)) return 0;
-
-    std::array<uint8_t, 32> msg{};
-    std::memcpy(msg.data(), msg32, 32);
+    if (!secp256k1::SchnorrSignature::parse_strict(sig64, sig)) return 0;
 
     const auto* epk = reinterpret_cast<const secp256k1::SchnorrXonlyPubkey*>(pubkey);
+    // PERF-001: pass msg32 directly — avoids 32-byte stack copy.
     // Direct use of pre-built tables — zero lift_x and zero GLV rebuild overhead.
-    return secp256k1::schnorr_verify(*epk, msg, sig) ? 1 : 0;
+    return secp256k1::schnorr_verify(*epk, msg32, sig) ? 1 : 0;
 }
 
 } // extern "C"

@@ -8,6 +8,7 @@
 
 #include "secp256k1_ecdh.h"
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -49,7 +50,7 @@ int secp256k1_ecdh(
     secp256k1_ecdh_hashfp hashfp,
     void* data)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output || !pubkey || !seckey) return 0;
 
     if (!hashfp) hashfp = default_hashfp;
@@ -74,9 +75,21 @@ int secp256k1_ecdh(
     auto result = secp256k1::ct::scalar_mul(pk, sk);
     if (result.is_infinity()) return 0;
 
-    // Extract affine X, Y
-    auto unc = result.to_uncompressed(); // 04 || X[32] || Y[32]
-    return hashfp(output, unc.data() + 1, unc.data() + 33, data);
+    // PERF-003: extract X and Y directly from the affine form via point_to_pubkey_data
+    // layout rather than allocating a 65-byte to_uncompressed() array.
+    // point_to_pubkey_data writes X[0..31] || Y[32..63] into a 64-byte buffer.
+    unsigned char xy64[64];
+    {
+        if (result.is_normalized()) {
+            result.x_raw().to_bytes_into(reinterpret_cast<uint8_t*>(xy64));
+            result.y_raw().to_bytes_into(reinterpret_cast<uint8_t*>(xy64) + 32);
+        } else {
+            auto unc = result.to_uncompressed();
+            std::memcpy(xy64,      unc.data() + 1,  32);
+            std::memcpy(xy64 + 32, unc.data() + 33, 32);
+        }
+    }
+    return hashfp(output, xy64, xy64 + 32, data);
 }
 
 } // extern "C"

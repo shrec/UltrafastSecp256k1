@@ -17,6 +17,19 @@
 
 using namespace secp256k1::fast;
 
+// PERF-006: local copy of the point_to_pubkey_data helper from shim_pubkey.cpp.
+// Writes X[0..31] || Y[32..63] into a 64-byte buffer using the fast affine path
+// when Z=1 (from_affine result), falling back to to_uncompressed() for Jacobian points.
+static void point_to_pubkey_data(const Point& pt, unsigned char data[64]) {
+    if (pt.is_normalized()) {
+        pt.x_raw().to_bytes_into(reinterpret_cast<uint8_t*>(data));
+        pt.y_raw().to_bytes_into(reinterpret_cast<uint8_t*>(data) + 32);
+    } else {
+        auto unc = pt.to_uncompressed();
+        std::memcpy(data, unc.data() + 1, 64);
+    }
+}
+
 extern "C" {
 
 // -- X-only public key ----------------------------------------------------
@@ -206,8 +219,10 @@ int secp256k1_xonly_pubkey_tweak_add(
     auto Q  = P.add(tG);
     if (Q.is_infinity()) return 0;
 
-    auto unc = Q.to_uncompressed();
-    std::memcpy(output_pubkey->data, unc.data() + 1, 64);
+    // PERF-006: use point_to_pubkey_data instead of to_uncompressed() to avoid
+    // a 65-byte allocation. point_to_pubkey_data uses the fast affine path when
+    // Z=1, falling back to to_uncompressed() only for Jacobian results.
+    point_to_pubkey_data(Q, output_pubkey->data);
     return 1;
 }
 
@@ -231,11 +246,14 @@ int secp256k1_xonly_pubkey_tweak_add_check(
     auto Q  = P.add(tG);
     if (Q.is_infinity()) return 0;
 
-    auto unc = Q.to_uncompressed(); // 65 bytes: 04 || X || Y
-    int q_parity = (unc[64] & 1) ? 1 : 0;
+    // PERF-006: extract X and Y via point_to_pubkey_data instead of to_uncompressed().
+    // point_to_pubkey_data writes X[0..31] || Y[32..63] — avoids 65-byte allocation.
+    unsigned char qdata[64];
+    point_to_pubkey_data(Q, qdata);
+    int q_parity = (qdata[63] & 1) ? 1 : 0;
 
     if (q_parity != tweaked_pk_parity) return 0;
-    return std::memcmp(unc.data() + 1, tweaked_pubkey32, 32) == 0 ? 1 : 0;
+    return std::memcmp(qdata, tweaked_pubkey32, 32) == 0 ? 1 : 0;
 }
 
 int secp256k1_keypair_xonly_tweak_add(

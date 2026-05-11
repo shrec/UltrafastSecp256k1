@@ -179,6 +179,23 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_context_clone — blinding seed copied verbatim
+
+- **Upstream behavior:** `secp256k1_context_clone` creates a deep copy of the context,
+  including the blinding seed set by `secp256k1_context_randomize`. The clone shares
+  the same blinding scalar as the original until re-randomized.
+- **Shim behavior:** Identical to upstream — `secp256k1_context_clone` copies all
+  context fields including the stored blinding seed. The clone starts with the same
+  blinding state as the original. This is intentional and matches libsecp256k1 exactly.
+- **Reason:** There is no security benefit to generating a new blinding seed in the clone;
+  the original and clone are equally trusted contexts. Re-randomizing each clone separately
+  is the caller's responsibility, as it is in libsecp256k1.
+- **Impact:** None for correct callers. Callers who want independent blinding in the clone
+  must call `secp256k1_context_randomize` on the cloned context with fresh randomness.
+- **Test:** N/A — behavior is identical to upstream; no differential test needed.
+
+---
+
 ## secp256k1_ecdsa_signature_parse_der — rejects r=0 or s=0
 
 - **Upstream behavior:** Accepts r=0 or s=0 in DER signatures at parse time; rejects

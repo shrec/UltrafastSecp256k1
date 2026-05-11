@@ -3,6 +3,7 @@
 // ============================================================================
 #include "secp256k1_ellswift.h"
 #include "secp256k1.h"
+#include "shim_internal.hpp"
 
 #include <cstring>
 #include <array>
@@ -70,7 +71,7 @@ int secp256k1_ellswift_encode(
     const secp256k1_pubkey* pubkey,
     const unsigned char* rnd32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!ell64 || !pubkey || !rnd32) return 0;
 
     std::array<uint8_t, 32> xb{};
@@ -88,7 +89,7 @@ int secp256k1_ellswift_decode(
     secp256k1_pubkey* pubkey,
     const unsigned char* ell64)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !ell64) return 0;
 
     auto x = secp256k1::ellswift_decode(ell64);
@@ -122,7 +123,7 @@ int secp256k1_ellswift_create(
     const unsigned char* seckey32,
     const unsigned char* auxrnd32)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!ell64 || !seckey32) return 0;
 
     std::array<uint8_t, 32> kb{};
@@ -150,7 +151,7 @@ int secp256k1_ellswift_xdh(
     secp256k1_ellswift_xdh_hash_function hashfp,
     void* data)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output || !ell_a64 || !ell_b64 || !seckey32 || !hashfp) return 0;
 
     std::array<uint8_t, 32> kb{};
