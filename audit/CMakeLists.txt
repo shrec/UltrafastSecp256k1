@@ -3674,6 +3674,8 @@ target_sources(unified_audit_runner PRIVATE
 if(TARGET secp256k1_shim)
     target_sources(unified_audit_runner PRIVATE
         test_regression_ellswift_ct_path.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp
         test_regression_musig2_nonce_strict.cpp
         test_regression_shim_pubkey_sort.cpp
         test_regression_shim_per_context_blinding.cpp
