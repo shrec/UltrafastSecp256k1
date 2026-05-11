@@ -2888,6 +2888,16 @@ audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
 target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
 set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+# -- SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (a3f56ae) --
+add_executable(test_exploit_shim_recovery_null_arg_standalone
+    test_exploit_shim_recovery_null_arg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
+audit_target_defaults(test_exploit_shim_recovery_null_arg_standalone)
+target_compile_definitions(test_exploit_shim_recovery_null_arg_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_shim_recovery_null_arg COMMAND test_exploit_shim_recovery_null_arg_standalone)
+set_tests_properties(exploit_shim_recovery_null_arg PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;recovery;security")
+
 
 # -- P-01/02/03: Shim pubkey_create / keypair_create CT generator mul (SPC-1..10) --
 # Tests that secp256k1_ec_pubkey_create and secp256k1_keypair_create use

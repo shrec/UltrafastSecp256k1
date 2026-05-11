@@ -8,6 +8,9 @@ evidence upgrades, and changes to what the repository can honestly claim.
 ---
 
 ## 2026-05-11 — 10-Pass Multi-Agent Review: All P1 + P2 fixes
+- **`audit/test_exploit_shim_musig_ka_cap.cpp`** — RED-TEAM-009: secp256k1_musig_pubkey_agg fail-closed when DoS-cap (1024 sessions) hit. Smoke test verifying ka_put-fail-closed fix compiles and links correctly.
+- **`audit/test_exploit_shim_recovery_null_arg.cpp`** — SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (retroactive coverage for a3f56ae). Tests REC-NULL-1..4: NULL sig/msghash/seckey all return 0; valid args return 1.
+
 
 ### CT / Security Fixes (code)
 - **CT-001** `shim_seckey.cpp`: `secp256k1_ec_seckey_tweak_add/mul` — `fast::Scalar +/*` on private key replaced with `ct::scalar_add/mul`.

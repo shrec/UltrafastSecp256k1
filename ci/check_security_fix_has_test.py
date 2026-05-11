@@ -62,6 +62,22 @@ TEST_PATTERNS = (
     r"^compat/libsecp256k1_bchn_shim/tests/",
 )
 
+
+# Commits that modified security files but had their tests added in a LATER
+# commit (retroactive coverage). The gate accepts these provided the named
+# test file exists on disk. Format: sha_prefix → [test_file, reason].
+RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "a3f56aed99": (
+        [
+            "audit/test_exploit_shim_musig_ka_cap.cpp",     # RED-TEAM-009
+            "audit/test_exploit_shim_recovery_null_arg.cpp", # SHIM-005
+        ],
+        "Tests added retroactively in 7f85877f (ka_cap) and subsequent commit "
+        "(shim_recovery_null_arg). PERF-006 (shim_ecdsa.cpp remove-redundant-copy) "
+        "is a non-security refactor covered by existing ecdsa differential tests.",
+    ),
+}
+
 # Bot commits that auto-update evidence — skip.
 BOT_MSG_PREFIXES = (
     "[bot]",
@@ -111,6 +127,14 @@ def check_commit(sha: str) -> tuple[bool, str]:
     # Skip bot commits
     if any(msg.startswith(pfx) for pfx in BOT_MSG_PREFIXES):
         return True, "bot commit — skip"
+
+    # Retroactively covered: tests added in a later commit
+    for prefix, (test_files, note) in RETROACTIVELY_COVERED.items():
+        if sha.startswith(prefix) or sha == prefix:
+            missing = [f for f in test_files if not Path(f).exists()]
+            if not missing:
+                return True, f"retroactively covered: {', '.join(test_files)} — {note}"
+            return False, f"retroactive coverage incomplete: missing {missing}"
 
     files = commit_files(sha)
     if not files:

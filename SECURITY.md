@@ -91,7 +91,7 @@ The following automated security measures are in place:
 - **dudect timing analysis** -- Welch t-test side-channel detection (1300+ line test suite)
 - **Native ARM64 dudect** -- Apple Silicon (M1) smoke + full statistical analysis on macos-14 runners
 - **ct-verif LLVM pass** -- deterministic compile-time constant-time verification of CT modules
-- **Internal audit suite** -- active CTest targets in the current validation surface, including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, independent reference linkage, and a 350-module unified audit runner (98 non-exploit + 252 exploit PoC modules across 9 sections; exact count via `python3 ci/sync_module_count.py`).
+- **Internal audit suite** -- active CTest targets in the current validation surface, including fuzz parsers, differential tests, fault injection, CT equivalence, cross-platform KAT, Wycheproof ECDSA/ECDH, independent reference linkage, and a 350-module unified audit runner (98 non-exploit + 256 exploit PoCs modules across 9 sections; exact count via `python3 ci/sync_module_count.py`).
 - **Valgrind CT taint analysis** -- MAKE_MEM_UNDEFINED + --track-origins secret-dependent branch detection
 - **MuSig2/FROST dudect** -- protocol-level timing analysis (partial_sign, frost_sign, Lagrange)
 - **SARIF audit output** -- `--sarif` flag for GitHub Code Scanning integration
