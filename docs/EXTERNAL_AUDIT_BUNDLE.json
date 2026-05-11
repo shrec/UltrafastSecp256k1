@@ -33,8 +33,8 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "49de67329eb3b7967c00ea8d155041a61748438c528838fcb32adea918b9b0ee",
-      "size": 51539
+      "sha256": "c1ebaad1bd382743dd5801c7ec483443ee03e90c4074f5b964d346641ad1f6e5",
+      "size": 51677
     },
     {
       "exists": true,
@@ -65,7 +65,7 @@
     {
       "name": "audit_gate",
       "parsed_json": {
-        "audit_verdict": "PASS with advisory",
+        "audit_verdict": "FAIL",
         "checks": [
           {
             "findings": [
@@ -126,12 +126,24 @@
           {
             "findings": [
               {
-                "message": "No changed secret-bearing paths detected",
-                "severity": "PASS"
+                "message": "CT secret-bearing surfaces: src/cpu/src/ct_sign.cpp",
+                "severity": "INFO"
+              },
+              {
+                "message": "CT secret-bearing surfaces missing paired docs: docs/CT_VERIFICATION.md, docs/SECURITY_CLAIMS.md",
+                "severity": "FAIL"
+              },
+              {
+                "message": "Secret lifecycle and zeroization surfaces: src/cpu/src/frost.cpp",
+                "severity": "INFO"
+              },
+              {
+                "message": "Secret lifecycle and zeroization surfaces missing paired docs: docs/SECRET_LIFECYCLE.md, docs/SECURITY_CLAIMS.md",
+                "severity": "FAIL"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
-            "status": "PASS"
+            "status": "FAIL"
           },
           {
             "findings": [
@@ -156,7 +168,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=352, critical=0, high=0, medium=0, low=2",
+                "message": "Audit test-quality findings: files=353, critical=0, high=0, medium=0, low=2",
                 "severity": "INFO"
               },
               {
@@ -178,7 +190,7 @@
           {
             "findings": [
               {
-                "message": "All 581 security patterns preserved",
+                "message": "All 587 security patterns preserved",
                 "severity": "PASS"
               }
             ],
@@ -208,27 +220,15 @@
           {
             "findings": [
               {
-                "message": "8 files modified/deleted since graph build (2026-05-11T17:01:11)",
+                "message": "2 files modified/deleted since graph build (2026-05-11T17:50:18)",
                 "severity": "WARN"
               },
               {
-                "message": "MODIFIED: README.md",
+                "message": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: docs/AUDIT_COVERAGE.md",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/AUDIT_READINESS_REPORT_v1.md",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/AUDIT_SCOPE.md",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/BITCOIN_CORE_PR_DESCRIPTION.md",
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
                 "severity": "INFO"
               }
             ],
@@ -268,7 +268,7 @@
           {
             "findings": [
               {
-                "message": "27 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow",
+                "message": "23 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow",
                 "severity": "WARN"
               }
             ],
@@ -400,8 +400,16 @@
           {
             "findings": [
               {
-                "message": "10 changed files have matching docs",
-                "severity": "PASS"
+                "message": "src/cpu/src/frost.cpp changed but docs/API_REFERENCE.md not updated",
+                "severity": "WARN"
+              },
+              {
+                "message": "src/cpu/src/ct_sign.cpp changed but docs/CT_VERIFICATION.md not updated",
+                "severity": "WARN"
+              },
+              {
+                "message": "src/cpu/src/ct_sign.cpp changed but docs/SECURITY_CLAIMS.md not updated",
+                "severity": "WARN"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -424,11 +432,11 @@
           {
             "findings": [
               {
-                "message": "Total crash risks: 1 (div_zero=1)",
+                "message": "Total crash risks: 0 ()",
                 "severity": "INFO"
               },
               {
-                "message": "No crash risks in CT-sensitive code (1 total, none in CT paths)",
+                "message": "No crash risks in CT-sensitive code (0 total, none in CT paths)",
                 "severity": "PASS"
               }
             ],
@@ -624,12 +632,12 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1344 rows (threshold: 200)",
-                "severity": "PASS"
+                "message": "Source graph \"files\" has only 0 rows (threshold: 200) \u2014 graph may be incomplete",
+                "severity": "FAIL"
               }
             ],
             "name": "G-12: Source Graph Quality",
-            "status": "PASS"
+            "status": "FAIL"
           }
         ],
         "commit": {
@@ -638,11 +646,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "1bc9e6691b99bb7fda7f8a5d1ec608a4d66bfb37",
-            "short": "1bc9e6691b"
+            "sha": "0afe211489c2e27b907827510004df38b00768b0",
+            "short": "0afe211489"
           }
         },
-        "generated_at": "2026-05-11T17:07:48.445466+00:00",
+        "generated_at": "2026-05-11T17:50:57.905705+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -659,12 +667,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-11T17:07:48.445429+00:00",
+          "collected_at": "2026-05-11T17:50:57.905651+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "1bc9e6691b99bb7fda7f8a5d1ec608a4d66bfb37",
-            "short": "1bc9e6691b"
+            "sha": "0afe211489c2e27b907827510004df38b00768b0",
+            "short": "0afe211489"
           },
           "platform": {
             "machine": "x86_64",
@@ -685,7 +693,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-1bc9e6691b-20260511T170748",
+        "run_id": "audit_gate-0afe211489-20260511T175057",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -757,12 +765,27 @@
             "findings": [
               {
                 "check_id": "p0__secret-path_change_gate",
-                "severity": "pass",
-                "title": "No changed secret-bearing paths detected"
+                "severity": "info",
+                "title": "CT secret-bearing surfaces: src/cpu/src/ct_sign.cpp"
+              },
+              {
+                "check_id": "p0__secret-path_change_gate",
+                "severity": "blocking:critical",
+                "title": "CT secret-bearing surfaces missing paired docs: docs/CT_VERIFICATION.md, docs/SECURITY_CLAIMS.md"
+              },
+              {
+                "check_id": "p0__secret-path_change_gate",
+                "severity": "info",
+                "title": "Secret lifecycle and zeroization surfaces: src/cpu/src/frost.cpp"
+              },
+              {
+                "check_id": "p0__secret-path_change_gate",
+                "severity": "blocking:critical",
+                "title": "Secret lifecycle and zeroization surfaces missing paired docs: docs/SECRET_LIFECYCLE.md, docs/SECURITY_CLAIMS.md"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
-            "verdict": "PASS"
+            "verdict": "FAIL"
           },
           {
             "findings": [
@@ -791,7 +814,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=352, critical=0, high=0, medium=0, low=2"
+                "title": "Audit test-quality findings: files=353, critical=0, high=0, medium=0, low=2"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -817,7 +840,7 @@
               {
                 "check_id": "p3__security_patterns",
                 "severity": "pass",
-                "title": "All 581 security patterns preserved"
+                "title": "All 587 security patterns preserved"
               }
             ],
             "name": "P3: Security Patterns",
@@ -850,32 +873,17 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "8 files modified/deleted since graph build (2026-05-11T17:01:11)"
+                "title": "2 files modified/deleted since graph build (2026-05-11T17:50:18)"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: README.md"
+                "title": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: docs/AUDIT_COVERAGE.md"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/AUDIT_READINESS_REPORT_v1.md"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/AUDIT_SCOPE.md"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/BITCOIN_CORE_PR_DESCRIPTION.md"
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -922,7 +930,7 @@
               {
                 "check_id": "p8__test_documentation",
                 "severity": "advisory:medium",
-                "title": "27 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
+                "title": "23 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
               }
             ],
             "name": "P8: Test Documentation",
@@ -1083,12 +1091,22 @@
             "findings": [
               {
                 "check_id": "p10__doc-code_pairing",
-                "severity": "pass",
-                "title": "10 changed files have matching docs"
+                "severity": "advisory:medium",
+                "title": "src/cpu/src/frost.cpp changed but docs/API_REFERENCE.md not updated"
+              },
+              {
+                "check_id": "p10__doc-code_pairing",
+                "severity": "advisory:medium",
+                "title": "src/cpu/src/ct_sign.cpp changed but docs/CT_VERIFICATION.md not updated"
+              },
+              {
+                "check_id": "p10__doc-code_pairing",
+                "severity": "advisory:medium",
+                "title": "src/cpu/src/ct_sign.cpp changed but docs/SECURITY_CLAIMS.md not updated"
               }
             ],
             "name": "P10: Doc-Code Pairing",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
@@ -1111,12 +1129,12 @@
               {
                 "check_id": "p3__crash_risks",
                 "severity": "info",
-                "title": "Total crash risks: 1 (div_zero=1)"
+                "title": "Total crash risks: 0 ()"
               },
               {
                 "check_id": "p3__crash_risks",
                 "severity": "pass",
-                "title": "No crash risks in CT-sensitive code (1 total, none in CT paths)"
+                "title": "No crash risks in CT-sensitive code (0 total, none in CT paths)"
               }
             ],
             "name": "P3: Crash Risks",
@@ -1348,30 +1366,30 @@
               },
               {
                 "check_id": "g-12__source_graph_quality",
-                "severity": "pass",
-                "title": "Source graph \"files\" has 1344 rows (threshold: 200)"
+                "severity": "blocking:critical",
+                "title": "Source graph \"files\" has only 0 rows (threshold: 200) \u2014 graph may be incomplete"
               }
             ],
             "name": "G-12: Source Graph Quality",
-            "verdict": "PASS"
+            "verdict": "FAIL"
           }
         ],
         "summary": {
-          "advisory": 56,
-          "blocking": 0,
-          "info": 49,
+          "advisory": 58,
+          "blocking": 3,
+          "info": 48,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 102,
-          "warnings": 7
+          "total_findings": 104,
+          "warnings": 10
         },
-        "verdict": "PASS with advisory"
+        "verdict": "FAIL"
       },
-      "passing": true,
+      "passing": false,
       "required": true,
-      "returncode": 0,
-      "stderr_sha256": "b00cecb0bbd0c0bbd10baab945a74b9d2ca9dc56413542206db185b0c10f0e73",
-      "stdout_sha256": "af7c230679c6de7798c4bdc6d931679ac4ffbdda5ef6f3546cc88ae22e659664"
+      "returncode": 1,
+      "stderr_sha256": "2f3d44806a7872a626546dfcf57e0487b6b68195cb16676ea6a1954c9c4c711d",
+      "stdout_sha256": "5d6d74df4f4339383a60d107c127d441253488cad2b75321fbe92291edff98e5"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1601,8 +1619,8 @@
       "name": "security_autonomy_check",
       "parsed_json": {
         "advisory_skip_all": false,
-        "autonomy_ready": true,
-        "autonomy_score": 100,
+        "autonomy_ready": false,
+        "autonomy_score": 85,
         "gates": [
           {
             "gate": "formal_invariants",
@@ -1614,9 +1632,9 @@
           },
           {
             "gate": "risk_surface_coverage",
-            "passing": true,
-            "returncode": 0,
-            "score": 15,
+            "passing": false,
+            "returncode": 1,
+            "score": 0,
             "status": "ran",
             "weight": 15
           },
@@ -1669,17 +1687,17 @@
             "weight": 10
           }
         ],
-        "gates_passing": 8,
+        "gates_passing": 7,
         "gates_skipped": 0,
         "gates_total": 8,
-        "overall_pass": true,
-        "timestamp": "2026-05-11T17:07:50.328561+00:00"
+        "overall_pass": false,
+        "timestamp": "2026-05-11T17:50:59.768062+00:00"
       },
-      "passing": true,
+      "passing": false,
       "required": true,
-      "returncode": 0,
+      "returncode": 1,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "d6fe9b3a2ee393582ad5dad3102916807458f8a5f2a9131f37c0d0860a6448c0"
+      "stdout_sha256": "638d191ea4d3f77b4d35e2718c236280e3adb122f0edccafa2e68af847f6ea92"
     },
     {
       "name": "supply_chain_gate",
@@ -1725,19 +1743,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-11T17:07:50.369818+00:00"
+        "timestamp": "2026-05-11T17:50:59.808193+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "9ffa6b15b662af24e37cdd7094a463f17578b0e0439e72d73dcd8a223dec5d08"
+      "stdout_sha256": "ccda2f1b0cb485aa4743bc31a345af5003d85bb5170da3ee911426b551063ba7"
     }
   ],
-  "generated_at": "2026-05-11T17:07:50.385913+00:00",
+  "generated_at": "2026-05-11T17:50:59.822821+00:00",
   "git": {
     "branch": "dev",
-    "commit": "1bc9e6691b99bb7fda7f8a5d1ec608a4d66bfb37",
+    "commit": "0afe211489c2e27b907827510004df38b00768b0",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
@@ -1749,7 +1767,10 @@
   "schema_version": "1.0.0",
   "summary": {
     "missing_evidence": [],
-    "overall_pass": true,
-    "required_gate_failures": []
+    "overall_pass": false,
+    "required_gate_failures": [
+      "audit_gate",
+      "security_autonomy_check"
+    ]
   }
 }
