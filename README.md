@@ -68,9 +68,9 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 → [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md) — evidence package  
 → [`docs/DER_PARITY_MATRIX.md`](docs/DER_PARITY_MATRIX.md) — DER/parser parity
 
-**CT signing performance (CT-vs-CT, production-equivalent):** Clang 19: 1.20–1.33×; GCC 13/14: 0.82–0.85× vs libsecp256k1 (archived controlled runs — see [docs/BENCHMARKS.md §archived](docs/BENCHMARKS.md) for per-compiler data; primary table pending fresh run with unified toolchain).
+**CT signing (CT-vs-CT, production-equivalent):** GCC 13/14 (Linux default): **0.82–0.85× vs libsecp256k1** (slower — compiler-dependent); Clang 19: 1.20–1.33× (faster). Compiler choice is material. See [docs/BENCHMARKS.md §archived](docs/BENCHMARKS.md) and `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing`.
 
-> **ConnectBlock (primary block-validation workload):** ≈0% difference vs libsecp256k1 with Release+LTO build (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`). Without LTO (RelWithDebInfo): ~2.5% slower due to i-cache pressure. Taproot key-path signing is 22–24% faster. Full numbers in [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** ~1–2% slower than libsecp256k1 in tested runs (within noise margin for uncontrolled hardware). Release+LTO build recommended. Taproot key-path signing is 22–24% faster. Full numbers and methodology caveats in [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 

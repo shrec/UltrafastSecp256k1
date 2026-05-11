@@ -145,7 +145,26 @@ bench_bitcoin native harness (nanobench), err% shown — low err% = stable measu
 | VerifyScriptP2TR_KeyPath | 44,860 ns/script | 46,223 ns/script | **1.03× faster** | 0.5% |
 | VerifyScriptP2WPKH | 45,217 ns/script | 46,062 ns/script | parity (+1.9%) | 0.3% |
 
-Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `5513f04c`).
+Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `0aaf9d94`).
+> **Note:** This benchmark was run without hard turbo-lock (`sudo cpupower` unavailable).
+> ConnectBlock margins (1–2%) are within noise floor for uncontrolled hardware.
+> Signing speedups (14–36%) are large enough to be conclusive despite this limitation.
+
+### CT Signing — Compiler Dependency (Material Disclosure)
+
+**PR-010:** CT signing performance depends significantly on compiler choice. Bitcoin Core
+Linux builders default to GCC; reviewers should be aware of this split:
+
+| Compiler | CT ECDSA sign | CT Schnorr sign | vs libsecp |
+|----------|----------:|----------:|-----------|
+| GCC 13/14 (Linux default) | ~15,000 ns | ~13,500 ns | **0.82–0.85× (slower)** |
+| Clang 19 | ~12,200 ns | ~10,800 ns | **1.20–1.33× (faster)** |
+
+The GCC regression is caused by vectorization differences in `ct_scalar_inverse`
+(SafeGCD implementation). Investigation is ongoing; see `docs/BENCHMARKS.md §archived`.
+Signing speedups on GCC (shown in the table above: 1.15×–1.36×) come from the
+`ContextBlindingScope` cached r*G optimization and pre-computed generator tables,
+not from CT scalar inverse.
 
 ### Root cause of non-LTO gap
 
