@@ -522,6 +522,11 @@ int test_regression_shim_high_s_verify_run();
 int test_regression_shim_perf_correctness_run(); // PERF-001: recovery fast path, PERF-005: schnorr verify raw ptr
 
 // ============================================================================
+// Forward declarations -- 2026-05-12 SEC-001 MuSig2 ABI signer-index fix
+// ============================================================================
+int test_regression_musig2_abi_signer_index_run(); // SEC-001: partial_sign_v2 validates privkey<->signer_index
+
+// ============================================================================
 // Forward declarations -- 2026-05-12 SEC-002/004/006/010 security fixes
 // ============================================================================
 int test_regression_opencl_bip352_scan_key_boundary_run(); // SEC-002
@@ -1055,6 +1060,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-12 PERF-001/005: shim hot-path optimization correctness ===
     // advisory=false: uses C++ API directly, no shim dependency.
     { "regression_shim_perf_correctness", "PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse — recovery roundtrip, ECDSA/Schnorr correctness (SPC-1..4)", "differential", test_regression_shim_perf_correctness_run, false },
+    // === 2026-05-12 SEC-001: MuSig2 ABI signer-index cross-validation ===
+    // advisory=false: uses C ABI via ufsecp_static, no GPU dependency.
+    { "regression_musig2_abi_signer_index", "SEC-001: ufsecp_musig2_partial_sign_v2 enforces privkey<->signer_index at ABI boundary — wrong index → UFSECP_ERR_BAD_KEY (SIV-1..7)", "exploit_poc", test_regression_musig2_abi_signer_index_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

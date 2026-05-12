@@ -4486,3 +4486,17 @@ add_test(NAME regression_shim_perf_correctness
     COMMAND test_regression_shim_perf_correctness_standalone)
 set_tests_properties(regression_shim_perf_correctness PROPERTIES TIMEOUT 60
     LABELS "audit;regression;perf;shim;recovery;schnorr;perf-001;perf-005")
+
+# SEC-001: MuSig2 ABI signer-index cross-validation (ufsecp_musig2_partial_sign_v2)
+# Uses C ABI via ufsecp_static. advisory=false in unified runner.
+add_executable(test_regression_musig2_abi_signer_index_standalone
+    test_regression_musig2_abi_signer_index.cpp)
+audit_target_defaults(test_regression_musig2_abi_signer_index_standalone)
+target_include_directories(test_regression_musig2_abi_signer_index_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp
+    ${CMAKE_CURRENT_BINARY_DIR}/../include/ufsecp)
+target_compile_definitions(test_regression_musig2_abi_signer_index_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_musig2_abi_signer_index
+    COMMAND test_regression_musig2_abi_signer_index_standalone)
+set_tests_properties(regression_musig2_abi_signer_index PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;musig2;abi;security;sec-001")

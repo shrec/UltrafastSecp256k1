@@ -233,6 +233,69 @@ ufsecp_error_t ufsecp_musig2_partial_sign(
     return UFSECP_OK;
 }
 
+ufsecp_error_t ufsecp_musig2_partial_sign_v2(
+    ufsecp_ctx* ctx,
+    uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],
+    const uint8_t privkey[32],
+    const uint8_t* pubkeys,
+    const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
+    const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
+    size_t signer_index,
+    uint8_t partial_sig32_out[32]) {
+    // SEC-001 fix: validate privkey <-> signer_index before signing.
+    // Derives pubkey = ct::generator_mul(sk) and compares against
+    // pubkeys[signer_index] (caller-supplied, 33 bytes per entry).
+    // Rejects with UFSECP_ERR_BAD_KEY if they do not match.
+    if (SECP256K1_UNLIKELY(!ctx || !secnonce || !privkey || !pubkeys || !keyagg || !session || !partial_sig32_out)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    ctx_clear_err(ctx);
+
+    // Parse and validate the private key first (strict: rejects 0, >= n).
+    Scalar sk;
+    if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
+    }
+
+    // Parse keyagg to determine participant count (needed for bounds check).
+    secp256k1::MuSig2KeyAggCtx kagg_check;
+    {
+        const ufsecp_error_t rc = parse_musig2_keyagg(ctx, keyagg, kagg_check);
+        if (rc != UFSECP_OK) {
+            secp256k1::detail::secure_erase(&sk, sizeof(sk));
+            return rc;
+        }
+    }
+    if (signer_index >= kagg_check.key_coefficients.size()) {
+        secp256k1::detail::secure_erase(&sk, sizeof(sk));
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "signer_index out of range");
+    }
+
+    // SEC-001: Derive compressed pubkey from privkey using CT generator_mul.
+    // Compare against the caller-supplied pubkey at position signer_index.
+    Point derived_pubkey = secp256k1::ct::generator_mul(sk);
+    auto derived_compressed = derived_pubkey.to_compressed();  // 33 bytes
+
+    const uint8_t* expected_pubkey33 = pubkeys + signer_index * 33;
+    // Constant-time comparison to avoid branch-based timing leak on secret key.
+    uint8_t diff = 0;
+    for (size_t i = 0; i < 33; ++i) {
+        diff |= (derived_compressed[i] ^ expected_pubkey33[i]);
+    }
+    if (SECP256K1_UNLIKELY(diff != 0)) {
+        secp256k1::detail::secure_erase(&sk, sizeof(sk));
+        secp256k1::detail::secure_erase(derived_compressed.data(), derived_compressed.size());
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
+            "privkey does not match pubkeys[signer_index] — wrong signer_index");
+    }
+    secp256k1::detail::secure_erase(derived_compressed.data(), derived_compressed.size());
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+
+    // Validation passed: delegate to the canonical signing function.
+    return ufsecp_musig2_partial_sign(ctx, secnonce, privkey, keyagg, session,
+                                      signer_index, partial_sig32_out);
+}
+
 ufsecp_error_t ufsecp_musig2_partial_verify(
     ufsecp_ctx* ctx,
     const uint8_t partial_sig32[32],

@@ -818,11 +818,39 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_start_sign_session(
  *  IMPORTANT: secnonce is zeroed after use to prevent nonce reuse.
  *  keyagg must be a valid opaque context previously produced by ufsecp_musig2_key_agg.
  *  signer_index must be a valid participant index within the aggregated key set.
- *  session must carry the same participant count as keyagg. */
+ *  session must carry the same participant count as keyagg.
+ *
+ *  SECURITY WARNING (SEC-001): This function does NOT validate that privkey
+ *  corresponds to the claimed signer_index.  A wrong signer_index produces a
+ *  misrouted partial signature that only fails at aggregation — after the
+ *  secret nonce has been consumed.  Prefer ufsecp_musig2_partial_sign_v2()
+ *  which enforces this cross-validation at the ABI boundary. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
     ufsecp_ctx* ctx,
     uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],
     const uint8_t privkey[32],
+    const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
+    const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
+    size_t signer_index,
+    uint8_t partial_sig32_out[32]);
+
+/** Produce a partial signature with signer-index cross-validation (SEC-001 fix).
+ *  Identical to ufsecp_musig2_partial_sign() but also accepts the full pubkeys
+ *  array (n * 33 bytes, compressed, same order as passed to ufsecp_musig2_key_agg)
+ *  so that privkey <-> signer_index can be validated at the ABI boundary.
+ *
+ *  The validation derives pubkey = ct::generator_mul(privkey) (constant-time) and
+ *  compares it against pubkeys[signer_index * 33 .. +33] in constant time.
+ *  If they do not match, the function returns UFSECP_ERR_BAD_KEY before consuming
+ *  any secret material (secnonce is NOT zeroed on validation failure).
+ *
+ *  @param pubkeys  Array of n compressed public keys (33 bytes each), in the same
+ *                  order that was passed to ufsecp_musig2_key_agg.  Must not be NULL. */
+UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign_v2(
+    ufsecp_ctx* ctx,
+    uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],
+    const uint8_t privkey[32],
+    const uint8_t* pubkeys,
     const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN],
     const uint8_t session[UFSECP_MUSIG2_SESSION_LEN],
     size_t signer_index,
