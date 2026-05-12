@@ -92,7 +92,7 @@ __global__ __launch_bounds__(128, 2)
 void ct_generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
-        ct_generator_mul(&scalars[idx], &results[idx]);
+        ct::ct_generator_mul(&scalars[idx], &results[idx]);
     }
 }
 #endif // !SECP256K1_CUDA_LIMBS_32
