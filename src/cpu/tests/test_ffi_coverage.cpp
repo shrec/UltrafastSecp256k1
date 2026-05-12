@@ -271,8 +271,7 @@ static void test_bip324_session(ufsecp_ctx* ctx) {
     ufsecp_bip324_destroy(session_a);
     ufsecp_bip324_destroy(session_b);
     // Double-free safety: destroy(NULL) must be safe
-    ufsecp_bip324_destroy(nullptr);
-    CHECK(true, "bip324_destroy(NULL) is safe");
+    ufsecp_bip324_destroy(nullptr); // crash-safety: reaching this line is the test
 }
 
 #endif /* SECP256K1_BIP324 */
@@ -299,13 +298,13 @@ static void test_zk_ecdsa_snark_witness(ufsecp_ctx* ctx) {
     privkey[0] &= 0x7F;  /* keep in valid scalar range */
 
     std::uint8_t pubkey33[33];
-    ufsecp_pubkey_create(ctx, privkey, pubkey33);
+    CHECK(ufsecp_pubkey_create(ctx, privkey, pubkey33) == UFSECP_OK, "pubkey_create setup");
 
     std::uint8_t msg[32];
     fill_det(msg, 32, 0xB3);
 
     std::uint8_t sig64[64];
-    ufsecp_ecdsa_sign(ctx, msg, privkey, sig64);
+    CHECK(ufsecp_ecdsa_sign(ctx, msg, privkey, sig64) == UFSECP_OK, "ecdsa_sign setup");
 
     /* Happy-path: valid signature */
     ufsecp_ecdsa_snark_witness_t w{};
@@ -363,7 +362,7 @@ static void test_zk_schnorr_snark_witness(ufsecp_ctx* ctx) {
     privkey[0] &= 0x7F;
 
     std::uint8_t pubkey33[33];
-    ufsecp_pubkey_create(ctx, privkey, pubkey33);
+    CHECK(ufsecp_pubkey_create(ctx, privkey, pubkey33) == UFSECP_OK, "pubkey_create setup");
 
     /* Extract x-only from compressed pubkey (drop prefix byte) */
     std::uint8_t pubkey_x32[32];

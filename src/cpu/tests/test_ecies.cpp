@@ -100,7 +100,7 @@ static void test_empty_plaintext() {
         auto recovered = ecies_decrypt(sk, ct.data(), ct.size());
         CHECK(recovered.empty(), "empty plaintext → empty recovery");
     } else {
-        CHECK(true, "encrypt(empty) returns empty (implementation choice)");
+        CHECK(ct.empty(), "encrypt(empty) returns empty (implementation choice)");
     }
 }
 

@@ -127,6 +127,14 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp"],
         "P2-SHIM-001: add SHIM_REQUIRE_CTX(ctx) to 5 parse/serialize/normalize functions in shim_ecdsa.cpp. NULL ctx now fires illegal callback and returns 0, matching libsecp256k1 ARG_CHECK(ctx!=NULL). Covered by existing NULL ctx and DER edge-case shim tests.",
     ),
+    "0327d09b33": (
+        ["audit/test_exploit_shim_recovery_null_arg.cpp",
+         "audit/test_exploit_schnorr_edge_cases.cpp"],
+        "T-01–T-10 security review findings: T-05 adds NULL arg checks to secp256k1_ecdsa_recover "
+        "(shim_recovery.cpp) and secp256k1_schnorrsig_sign_custom (shim_schnorr.cpp). T-06 changes "
+        "shim_batch_verify.cpp from per-call std::vector to thread_local scratch (performance). "
+        "Covered by existing NULL arg test (shim_recovery_null_arg) and schnorr edge-case tests.",
+    ),
     "be7ec0ad06": (
         ["audit/test_exploit_shim_musig_ka_cap.cpp",
          "audit/test_exploit_shim_musig_secnonce.cpp"],
