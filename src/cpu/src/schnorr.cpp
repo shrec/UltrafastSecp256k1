@@ -553,6 +553,55 @@ bool schnorr_verify(const uint8_t* pubkey_x32,
 #endif
 }
 
+// -- schnorr_verify(Point) — P1-PERF-001 ----------------------------------
+// Same as schnorr_verify(pubkey_x32, ...) but skips lift_x since the
+// caller has already validated and stored the point (e.g. shim_schnorr
+// reads data[32..63] set by secp256k1_xonly_pubkey_parse). Eliminates
+// the lift_x sqrt (~900ns Jacobi + ~2.9µs sqrt) on every unique-pubkey call.
+
+bool schnorr_verify(const fast::Point& P,
+                    const uint8_t* pubkey_x32,
+                    const uint8_t* msg32,
+                    const SchnorrSignature& sig) noexcept {
+    if (sig.s.is_zero()) return false;
+    std::uint64_t rL[4];
+    if (!parse_and_check_lt_p(sig.r.data(), rL)) return false;
+    // P is pre-validated — skip lift_x_cached entirely.
+    if (P.is_infinity()) return false;
+
+    const auto e    = schnorr_challenge_scalar(sig.r.data(), pubkey_x32, msg32);
+    const auto neg_e = e.negate_var();
+
+#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+    const auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, P);
+#else
+    const auto R = Point::dual_scalar_mul_gen_point(sig.s, neg_e, P);
+#endif
+
+    if (R.is_infinity()) return false;
+
+#if defined(SECP256K1_FAST_52BIT)
+    FE52 const z_inv = R.Z52().inverse_safegcd();
+    FE52 const z_inv2 = z_inv.square();
+    FE52 x_aff = R.X52() * z_inv2;
+    FE52 const z_inv3 = z_inv * z_inv2;
+    FE52 y_aff = R.Y52() * z_inv3;
+
+    const FE52 r52 = FE52::from_4x64_limbs(rL);
+    x_aff.normalize_weak();
+    return (x_aff == r52) & ((y_aff.limbs()[0] & 1) == 0);
+#else
+    FieldElement z_inv = R.z_raw().inverse_safegcd();
+    FieldElement z_inv2 = z_inv * z_inv;
+    FieldElement x_aff = R.x_raw() * z_inv2;
+    FieldElement z_inv3 = z_inv * z_inv2;
+    FieldElement y_aff = R.y_raw() * z_inv3;
+    FieldElement r_fe_check;
+    r_fe_check.from_4x64_limbs(rL);
+    return (x_aff == r_fe_check) & ((y_aff.limbs()[0] & 1) == 0);
+#endif
+}
+
 // -- Pre-cached X-only Pubkey -------------------------------------------------
 
 bool schnorr_xonly_pubkey_parse(SchnorrXonlyPubkey& out,

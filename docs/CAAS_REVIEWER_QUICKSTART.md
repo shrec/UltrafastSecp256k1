@@ -20,22 +20,16 @@ exactly what to run and what to expect.
 
 ## ConnectBlock Performance
 
-> **Before reviewing benchmarks:** Ultra is faster than libsecp256k1 on ALL ConnectBlock scenarios,
-> with or without LTO.
->
 > - **With LTO** (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`, recommended production build):
->   **+1.0% to +2.1% faster** than libsecp256k1, confirmed (err% 0.1–0.3%, margins 3–7× the
->   error floor). This is NOT within-noise — the margins exceed the measurement error by 3–7×.
-> - **Without LTO** (e.g. RelWithDebInfo): also faster, after PERF-002 removed a redundant
->   y²=x³+7 on-curve check from every `secp256k1_ecdsa_verify` call (~400 ns per call). The
->   previous ~1.1% no-LTO gap documented in older versions of this file has been eliminated.
+>   **+1.0% to +2.1% faster** than libsecp256k1, confirmed (err% 0.1–0.3%). Run without hard
+>   turbo lock — treat margins as parity until replicated on fully-pinned hardware.
+> - **Without LTO** (e.g. RelWithDebInfo): PERF-002 removed a redundant on-curve check from
+>   `secp256k1_ecdsa_verify` (~400 ns/call). A controlled re-benchmark is pending — the
+>   `results_nolto` block in `BITCOIN_CORE_BENCH_RESULTS.json` predates this fix and should
+>   not be cited as the current no-LTO result.
 >
-> **With or without LTO: Ultra wins on ConnectBlock.** The previous no-LTO instruction-cache gap
-> was eliminated by removing the redundant on-curve check from secp256k1_ecdsa_verify (PERF-002).
->
-> Taproot signing (SignSchnorrWithMerkleRoot): 36% faster. Full numbers and raw data:
+> Taproot signing (SignSchnorrWithMerkleRoot): 36% faster (controlled run, LTO). Full numbers:
 > [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
-> (note: `results_nolto` section predates PERF-002; updated no-LTO numbers pending next bench run)
 >
 > **Recommended build flags for maximum performance:**
 > ```bash

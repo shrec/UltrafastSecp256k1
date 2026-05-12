@@ -3,6 +3,10 @@
 How to use UltrafastSecp256k1 as a **compile-time alternative** to bitcoin-core/secp256k1
 inside Bitcoin Core's build system.
 
+> **This is not a replacement for libsecp256k1.** It is an optional compile-time alternative;
+> the default build path is entirely unchanged. The `-DSECP256K1_BACKEND` flag defaults to
+> `bundled`, meaning Bitcoin Core continues to use its vendored libsecp256k1 by default.
+
 ---
 
 ## TL;DR
@@ -65,7 +69,7 @@ if(SECP256K1_USE_ULTRAFAST)
     FetchContent_Declare(
         UltrafastSecp256k1
         GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
-        GIT_TAG        c1df659e  # pin to a tested commit hash, never "main"
+        GIT_TAG        bb8ddc23  # pin to a tested commit hash, never "main"
     )
     FetchContent_MakeAvailable(UltrafastSecp256k1)
 

@@ -112,6 +112,15 @@ SchnorrKeypair schnorr_keypair_create(const fast::Scalar& private_key);
                     const std::uint8_t* msg32,
                     const SchnorrSignature& sig) noexcept;
 
+// Point overload: skip lift_x when the caller already has the validated Point.
+// P must be the even-Y point for pubkey_x32 (as stored by secp256k1_xonly_pubkey_parse).
+// pubkey_x32 is still required for the BIP-340 challenge hash (r || pubkey_x || msg).
+// Use this from shim_schnorr when data[32..63] holds the pre-validated Y coordinate.
+[[nodiscard]] bool schnorr_verify(const fast::Point& P,
+                    const std::uint8_t* pubkey_x32,
+                    const std::uint8_t* msg32,
+                    const SchnorrSignature& sig) noexcept;
+
 // Array convenience wrappers
 [[nodiscard]] bool schnorr_verify(const std::array<std::uint8_t, 32>& pubkey_x,
                     const std::array<std::uint8_t, 32>& msg,

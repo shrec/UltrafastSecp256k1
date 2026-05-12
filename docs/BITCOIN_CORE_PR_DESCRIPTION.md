@@ -31,12 +31,13 @@ taskset -c 0, governor=performance, bench_bitcoin native harness, 2026-05-11
 | VerifyScriptP2TR_ScriptPath | 83,481 ns/op | 75,549 ns/op | **1.11× faster** |
 | VerifyScriptP2TR_KeyPath | 46,223 ns/op | 44,860 ns/op | **1.03× faster** |
 | VerifyScriptP2WPKH | 46,062 ns/op | 45,217 ns/op | parity (+1.9%) |
-| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | **+2.1% Ultra faster** |
-| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | **+1.5% Ultra faster** |
-| ConnectBlockMixed | 255.7 ms/blk | 253.1 ms/blk | **+1.0% Ultra faster** |
+| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | +2.1% (see note ¹) |
+| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | +1.5% (see note ¹) |
+| ConnectBlockMixed | 255.7 ms/blk | 253.1 ms/blk | +1.0% (see note ¹) |
 
-ConnectBlock margins (+1.0–2.1%): ranges non-overlapping in this run but no hard turbo lock was available —
-treat as parity until replicated on fully-pinned hardware. Without LTO (RelWithDebInfo): ~1% slower.
+¹ ConnectBlock: no hard turbo lock was available during this run — treat as parity until
+replicated on fully-pinned hardware. Without LTO (RelWithDebInfo): pre-PERF-002 run shows
+~1% slower; a controlled post-PERF-002 re-benchmark is pending.
 Full numbers with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
