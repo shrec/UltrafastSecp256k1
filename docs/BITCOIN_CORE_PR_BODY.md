@@ -27,7 +27,7 @@ to work without modification.
 
 | Claim | Verification command | Evidence |
 |-------|----------------------|----------|
-| 693/693 `make check` tests pass | `python3 ci/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_TEST_RESULTS.json` |
+| 749/749 `make check` tests pass | `python3 ci/check_bitcoin_core_test_results.py` | `docs/BITCOIN_CORE_BENCH_RESULTS.json` |
 | All signing paths constant-time | `python3 ci/audit_gate.py --ct-integrity` | `docs/CT_VERIFICATION.md` |
 | Differential parity with libsecp256k1 | CTest `differential_*` targets | `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2` |
 | 256 exploit PoCs tests, 0 failures | `python3 ci/check_exploit_wiring.py` | `audit/unified_audit_runner.cpp` |
@@ -57,15 +57,16 @@ Differential testing against bitcoin-core/secp256k1 reference:
 - The shim layer and all headers exposed to Bitcoin Core are C++17-compatible
 - No new runtime dependencies; no GPU drivers required
 
-### Performance (bench_bitcoin, Release+LTO, GCC 14.2, i5-14400F, 2026-05-11)
+### Performance (bench_bitcoin, Release+LTO, GCC 14.2.0, i5-14400F, hard turbo lock (intel_pstate/no_turbo=1), taskset -c 0, nice -20, 2026-05-12)
 
 | Operation | libsecp256k1 | Ultra | vs libsecp |
 |-----------|-------------|-------|-----------|
 | Schnorr sign (Taproot) | 114,479 ns | 84,273 ns | **1.36×** |
 | ECDSA sign | 168,907 ns | 147,262 ns | **1.15×** |
 | P2TR ScriptPath verify | 83,481 ns | 75,549 ns | **1.11×** |
-| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | **+1.5%** |
-| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | **+2.1%** |
+| ConnectBlockAllSchnorr | 255.3 ms/blk | 253.0 ms/blk | **+0.9%** |
+| ConnectBlockAllEcdsa | 257.4 ms/blk | 254.3 ms/blk | **+1.2%** |
+| ConnectBlockMixed | 257.7 ms/blk | 253.9 ms/blk | **+1.5%** |
 | P2WPKH verify | 46,062 ns | 45,217 ns | parity |
 
 Full data with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`. Note: all CT signing paths are
@@ -78,8 +79,8 @@ No external third-party audit has been conducted — all CT verification is self
 - Formal verification is not claimed; software-tool CT verification only (LLVM ct-verif, Valgrind, dudect)
 - No external third-party security audit has been conducted
 - Thread safety: each context is independent; concurrent use of distinct contexts is safe
-- Without LTO: ConnectBlock ~1% slower due to instruction-cache pressure from larger code footprint
-- ConnectBlock benchmark uses governor=performance, taskset -c 0; no hard turbo lock (sudo unavailable during run)
+- Without LTO: ConnectBlock ~0.5–1.0% slower due to instruction-cache pressure from larger code footprint (~1.3 MB vs libsecp ~400 KB); gap closes with LTO
+- ConnectBlock benchmark uses governor=performance, taskset -c 0, hard turbo lock (intel_pstate/no_turbo=1, sudo pinned, 2026-05-12).
 
 ### How to verify independently
 

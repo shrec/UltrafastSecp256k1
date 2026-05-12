@@ -54,8 +54,9 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     ct_gc = c["ct_signing_gcc"]
 
     # ── Bitcoin Core test pass count ─────────────────────────────────────────
-    # Matches e.g. "693/693 Bitcoin Core tests" or "693/693 tests pass"
-    pat = r'\b\d{3}/\d{3}\b(?= Bitcoin Core| test)'
+    # Matches e.g. "693/693 Bitcoin Core tests", "693/693 tests pass",
+    # "693/693 `make check` tests pass" in evidence tables
+    pat = r'\b\d{3}/\d{3}\b(?= Bitcoin Core| test| `make check`)'
     repl = f"{bc['pass']}/{bc['total']}"
     text, n = _sub(pat, repl, text); total += n
 
@@ -107,13 +108,76 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     repl = f"GCC 13/14: {ct_gc['speedup_min_x']:.2f}–{ct_gc['speedup_max_x']:.2f}×"
     text, n = _sub(pat, repl, text); total += n
 
-    # ── ConnectBlock without-LTO wording ─────────────────────────────────────
-    # Replaces "Without LTO: ~N.N% slower ... LTO eliminates this [entirely]." with
-    # canonical wording. Matches the full known phrase to avoid partial replacements.
-    nolto = c.get("connectblock", {}).get("wording_no_lto", "")
+    # ── ConnectBlock LTO range in QUICKSTART / PR_BODY narrative ─────────────
+    # Matches inline "+N.N% to +N.N% faster ... confirmed (err% ...)"
+    # Used in CAAS_REVIEWER_QUICKSTART.md and similar reviewer-facing summaries.
+    cb_lto_range = cb.get("wording_lto_range", "")
+    if cb_lto_range:
+        pat = (r'\*\*\+[\d.]+%\s*to\s*\+[\d.]+%\s*faster\*\*[^\n]*?'
+               r'confirmed\s*\([^\n]*?\)\.')
+        if re.search(pat, text):
+            text = re.sub(pat, cb_lto_range, text)
+            total += 1
+
+    # ── ConnectBlock LTO table rows in PR_BODY ────────────────────────────────
+    # Replaces individual benchmark table rows with canonical ms values + delta.
+    # Format: | ConnectBlock{Key} | {libsecp} ms/blk | {ultra} ms/blk | **+{pct}%** |
+    lto_rows = cb.get("lto_rows", {})
+    for key, row in lto_rows.items():
+        pat = (rf'\|\s*ConnectBlock{key}\s*\|'
+               rf'\s*[\d.]+\s*ms/blk\s*\|\s*[\d.]+\s*ms/blk\s*\|\s*\*\*\+[\d.]+%\*\*\s*\|')
+        repl = (f'| ConnectBlock{key} | {row["libsecp_ms"]} ms/blk'
+                f' | {row["ultra_ms"]} ms/blk | **+{row["delta_pct"]}%** |')
+        new_text, n = _sub(pat, repl, text)
+        if n:
+            text = new_text
+            total += n
+
+    # ── Performance table header date in PR_BODY ──────────────────────────────
+    # Updates "bench_bitcoin, Release+LTO, GCC 14.2, i5-14400F, YYYY-MM-DD"
+    bench_note = cb.get("wording_bench_note", "")
+    if bench_note:
+        pat = r'### Performance \(bench_bitcoin,[^\n]+\)'
+        repl = f'### Performance ({bench_note})'
+        text, n = _sub(pat, repl, text); total += n
+
+    # ── ConnectBlock turbo-lock note in PR_BODY Known Gaps ────────────────────
+    # Replaces stale "no hard turbo lock (sudo unavailable during run)"
+    pat = (r'ConnectBlock benchmark uses[^\n]*?no hard turbo lock[^\n]*')
+    repl = ('ConnectBlock benchmark uses governor=performance, taskset -c 0,'
+            ' hard turbo lock (intel_pstate/no_turbo=1, sudo pinned, 2026-05-12).')
+    text, n = _sub(pat, repl, text); total += n
+
+    # ── QUICKSTART / PR_BODY: stale "pending re-benchmark" paragraph ─────────
+    # Replaces the old "PERF-002 removed ... A controlled re-benchmark is pending"
+    # blockquote section (with or without leading "> " markers) with current data.
+    nolto_wording = cb.get("wording_no_lto", "")
+    if nolto_wording:
+        # Pattern accounts for optional blockquote "> " or ">   " line prefixes.
+        pat = (r'(?:>[ \t]*)?\s*PERF-002 removed a redundant on-curve check from.*?'
+               r'A controlled re-benchmark is pending[^\n]*\n'
+               r'(?:>[ \t]*)?[^\n]*`results_nolto`[^\n]*\n'
+               r'(?:>[ \t]*)?[^\n]*not be cited as the current no-LTO result\.')
+        new_text = re.sub(pat, nolto_wording, text, flags=re.DOTALL)
+        if new_text != text:
+            text = new_text
+            total += 1
+
+    # ── PR_BODY Known Gaps: "~1% slower" → precise range ─────────────────────
+    # Updates the bullet point about no-LTO ConnectBlock deficit.
+    nolto_min = abs(cb.get("nolto_rows", {}).get("AllEcdsa", {}).get("delta_pct", -0.5))
+    nolto_max = abs(cb.get("nolto_rows", {}).get("AllSchnorr", {}).get("delta_pct", -1.0))
+    if nolto_min and nolto_max:
+        pat = (r'Without LTO: ConnectBlock ~\d+[\.,\-–\d]*%\s+slower'
+               r'[^\n]*instruction-cache pressure[^\n]*')
+        repl = (f'Without LTO: ConnectBlock ~{nolto_min}–{nolto_max}% slower due to'
+                f' instruction-cache pressure from larger code footprint'
+                f' (~1.3 MB vs libsecp ~400 KB); gap closes with LTO')
+        text, n = _sub(pat, repl, text); total += n
+
+    # ── ConnectBlock without-LTO wording (legacy full-sentence pattern) ───────
+    nolto = cb.get("wording_no_lto", "")
     if nolto:
-        # Match the specific stale phrase from .text section to end of that sentence.
-        # Anchored tightly so it doesn't consume text it shouldn't.
         pat = (r'Without LTO:\s*~\d+[\.,]\d+%\s*slower due to instruction-cache pressure'
                r'[^*\n|]*?LTO eliminates this(?:\s+entirely)?(?:\.|(?=\s))')
         if re.search(pat, text):
@@ -150,6 +214,9 @@ TARGET_DOCS = [
     "docs/THREAD_SAFETY.md",
     "docs/BITCOIN_CORE_PR_BLOCKERS.md",
     "docs/WHY_ULTRAFASTSECP256K1.md",
+    # Reviewer-facing docs that contain inline benchmark claims
+    "docs/CAAS_REVIEWER_QUICKSTART.md",
+    "docs/BITCOIN_CORE_PR_BODY.md",
 ]
 
 

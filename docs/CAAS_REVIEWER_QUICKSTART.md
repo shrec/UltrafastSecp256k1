@@ -21,12 +21,10 @@ exactly what to run and what to expect.
 ## ConnectBlock Performance
 
 > - **With LTO** (`-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`, recommended production build):
->   **+1.0% to +2.1% faster** than libsecp256k1, confirmed (err% 0.1–0.3%). Run without hard
->   turbo lock — treat margins as parity until replicated on fully-pinned hardware.
-> - **Without LTO** (e.g. RelWithDebInfo): PERF-002 removed a redundant on-curve check from
->   `secp256k1_ecdsa_verify` (~400 ns/call). A controlled re-benchmark is pending — the
->   `results_nolto` block in `BITCOIN_CORE_BENCH_RESULTS.json` predates this fix and should
->   not be cited as the current no-LTO result.
+>   **+0.9% to +1.5% faster** than libsecp256k1, confirmed (err% 0.2–0.5%, hard turbo lock: intel_pstate/no_turbo=1, 2026-05-12).
+> - **Without LTO** (e.g. RelWithDebInfo): ~0.5–1.0% slower than libsecp256k1 (AllEcdsa −0.5%, AllSchnorr −1.0%, Mixed −0.8%;
+>   measured 2026-05-12, hard turbo lock, 3 runs). PERF-002 reduced the gap from ~1.1% but did not eliminate it.
+>   Use Release+LTO for production Bitcoin Core builds.
 >
 > Taproot signing (SignSchnorrWithMerkleRoot): 36% faster (controlled run, LTO). Full numbers:
 > [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](BITCOIN_CORE_BENCH_RESULTS.json)
