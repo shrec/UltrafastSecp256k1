@@ -57,16 +57,27 @@ static Scalar adaptor_nonce(const Scalar& privkey,
 }
 
 static Scalar ecdsa_adaptor_binding(const Point& adaptor_point) {
-    SHA256 h;
+    // BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || data).
+    // Provides cross-protocol domain separation. Changed from "SHA256(tag || data)"
+    // in v2 — this is a wire-format change for ECDSA adaptor signatures.
+    // Protocol version: ecdsa_adaptor_bind_v2.
+    constexpr char tag[] = "ecdsa_adaptor_bind_v2";
+    auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>(tag),
+                                 sizeof(tag) - 1);
     auto adaptor_bytes = adaptor_point.to_compressed();
-    constexpr char domain[] = "ecdsa_adaptor_bind_v1";
-    h.update(reinterpret_cast<const std::uint8_t*>(domain), sizeof(domain) - 1);
+
+    SHA256 h;
+    h.update(tag_hash.data(), 32);
+    h.update(tag_hash.data(), 32);
     h.update(adaptor_bytes.data(), adaptor_bytes.size());
     auto hash = h.finalize();
-    Scalar binding = Scalar::from_bytes(hash);
-    if (binding.is_zero()) {
-        hash[31] ^= 1;
-        binding = Scalar::from_bytes(hash);
+
+    // Counter-based retry guards against the ~2^-128 probability that the hash
+    // equals zero or >= n after reduction. parse_bytes_strict_nonzero avoids
+    // both the silent mod-n branch (from_bytes) and the is_zero branch.
+    Scalar binding;
+    for (std::uint8_t ctr = 0; !Scalar::parse_bytes_strict_nonzero(hash.data(), binding); ++ctr) {
+        hash[31] ^= static_cast<std::uint8_t>(ctr ^ 1u);
     }
     detail::secure_erase(hash.data(), hash.size());
     return binding;

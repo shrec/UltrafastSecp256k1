@@ -369,10 +369,12 @@ int main(int argc, char** argv) {
 
     printf("  %-34s\n", "");
 
-    // pubkey_create
+    // pubkey_create — CT (production-equivalent, constant-time generator mul)
+    // This is the apple-to-apple comparison: Ultra ct::generator_mul vs libsecp
+    // secp256k1_ec_pubkey_create (which always uses the CT ecmult_gen comb).
     idx = 0;
     u = H.run(N, [&]() {
-        auto p = Point::generator().scalar_mul(sk[idx%POOL]);
+        auto p = secp256k1::ct::generator_mul(sk[idx%POOL]);
         bench::DoNotOptimize(p); ++idx;
     });
     idx = 0;
@@ -382,7 +384,17 @@ int main(int argc, char** argv) {
         secp256k1_ec_pubkey_create(lctx,&p,kb.data());
         bench::DoNotOptimize(p); ++idx;
     });
-    print_row("pubkey_create (k*G)", u, l);
+    print_row("pubkey_create (CT vs CT)", u, l);
+
+    // pubkey_create — FAST variable-time path [diagnostic only — NOT for secret keys]
+    // Ultra fast::generator().scalar_mul() is variable-time. libsecp always uses CT.
+    // This ratio is INVALID for production comparisons; shown for throughput reference only.
+    idx = 0;
+    u = H.run(N, [&]() {
+        auto p = Point::generator().scalar_mul(sk[idx%POOL]);
+        bench::DoNotOptimize(p); ++idx;
+    });
+    print_row("[diag FAST] pubkey_create", u, l);
 
     // ── CONNECTBLOCK STEP-BY-STEP OVERHEAD DISSECTION ────────────────────────
     // Isolates every shim call that Bitcoin Core makes per signature.

@@ -3667,7 +3667,8 @@ target_sources(unified_audit_runner PRIVATE
     test_exploit_shim_musig_ka_cap.cpp
     test_exploit_shim_recovery_null_arg.cpp
     test_regression_shim_static_ctx.cpp
-    test_regression_musig2_signer_index_validation.cpp)
+    test_regression_musig2_signer_index_validation.cpp
+    test_regression_adaptor_binding_domain.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
 # can link and reports them as advisory-skipped instead of failing.
@@ -4360,6 +4361,20 @@ if(TARGET secp256k1_shim)
     set_tests_properties(shim_null_ctx PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
         LABELS "audit;regression;shim;null-ctx")
 endif()
+
+# SEC-010: adaptor binding BIP-340 domain separation (ecdsa_adaptor_bind_v2)
+add_executable(test_regression_adaptor_binding_domain_standalone
+    test_regression_adaptor_binding_domain.cpp)
+audit_target_defaults(test_regression_adaptor_binding_domain_standalone)
+target_include_directories(test_regression_adaptor_binding_domain_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_regression_adaptor_binding_domain_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_adaptor_binding_domain
+    COMMAND test_regression_adaptor_binding_domain_standalone)
+set_tests_properties(regression_adaptor_binding_domain PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;adaptor;security;domain-separation")
 
 # SEC-007: MuSig2 signer_index cross-check (Rule 13) — C++ API, no shim required
 add_executable(test_regression_musig2_signer_index_validation_standalone

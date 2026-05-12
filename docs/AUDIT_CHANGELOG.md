@@ -7,6 +7,29 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-12 — P1 Closure: adaptor binding domain separation + bench + module sync
+
+### Security Fixes
+- **SEC-010** `src/cpu/src/adaptor.cpp`: `ecdsa_adaptor_binding()` changed from plain
+  `SHA256(tag || data)` (v1) to BIP-340 tagged hash `SHA256(SHA256(tag) || SHA256(tag) || data)` (v2).
+  This provides cross-protocol domain separation matching the pattern used in `adaptor_nonce_v1`.
+  Also fixed: zero-retry now uses a counter loop with `parse_bytes_strict_nonzero` instead of
+  a single XOR on byte 31 with `from_bytes`. **Wire format change** for ECDSA adaptor signatures —
+  callers must regenerate existing pre-signatures. Protocol tag: `ecdsa_adaptor_bind_v2`.
+- **test_regression_adaptor_binding_domain** wired into unified runner (SEC-010, advisory=false).
+  Tests: ADB-1 (Schnorr round-trip), ADB-2 (needs_negation tamper rejected), ADB-3 (adapt produces
+  valid BIP-340 sig), ADB-4 (extract recovers adaptor secret), ADB-5 (ECDSA round-trip),
+  ADB-6 (v2 hash differs from v1 plain-SHA256 — domain separation confirmed).
+
+### Benchmark Fix
+- **bench_vs_libsecp.cpp** `pubkey_create`: added CT-vs-CT row using `ct::generator_mul(sk)`.
+  FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
+  This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
+
+### Module count: 357 total (101 non-exploit + 256 exploit PoC)
+
+---
+
 ## 2026-05-12 — 10-Pass Multi-Agent Review: Documentation + Security Fixes
 
 ### Documentation / Canonical Data

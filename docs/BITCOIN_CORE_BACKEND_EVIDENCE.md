@@ -160,9 +160,12 @@ bench_bitcoin native harness (nanobench), err% shown — low err% = stable measu
 | VerifyScriptP2WPKH | 45,217 ns/script | 46,062 ns/script | parity (+1.9%) | 0.3% |
 
 Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `0aaf9d94`).
-> **Note:** This benchmark was run without hard turbo-lock (`sudo cpupower` unavailable).
-> ConnectBlock err% is 0.1–0.3% and margins are 1.0–2.1% — 3–7× the error floor — confirmed wins,
-> not noise. Signing speedups (14–36%) are conclusive with wide margin.
+> **Note:** This benchmark was run with `governor=performance + intel_pstate/no_turbo=1` (file write)
+> but without hard `cpupower` turbo lock (sudo unavailable during run). The err% 0.1–0.3% and
+> margins 1.0–2.1% (3–7× error floor) indicate the data is stable. Signing speedups (14–36%)
+> are conclusive regardless of turbo state. **Pre-PR action required:** run the `_rerun_commands`
+> block in `docs/BITCOIN_CORE_BENCH_RESULTS.json` with root access to obtain a hard-turbo-locked
+> baseline before final PR submission.
 
 ### CT Signing — Compiler Results (Material Disclosure)
 

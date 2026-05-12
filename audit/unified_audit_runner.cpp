@@ -536,6 +536,7 @@ int test_regression_shim_pubkey_sort_run();              // SHIM-012: pubkey_sor
 int test_regression_shim_per_context_blinding_run();     // SHIM-001: per-context blinding semantics
 int test_regression_musig2_session_token_run();          // SHIM-010: MuSig2 token-keyed map
 int test_regression_musig2_signer_index_validation_run(); // SEC-007: signer_index cross-check (Rule 13)
+int test_regression_adaptor_binding_domain_run();         // SEC-010: adaptor binding BIP-340 domain separation (ADB-1..6)
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -1023,6 +1024,8 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "memory_safety",  test_regression_musig2_session_token_run,       true },
     // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required)
     { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs", "protocol_security", test_regression_musig2_signer_index_validation_run, false },
+    // SEC-010: adaptor binding BIP-340 domain separation (wire format: ecdsa_adaptor_bind_v2)
+    { "regression_adaptor_binding_domain",     "SEC-010: ecdsa_adaptor_binding uses BIP-340 tagged hash (v2) — sign/verify/adapt/extract round-trips, needs_negation integrity, domain separation confirmed", "protocol_security", test_regression_adaptor_binding_domain_run, false },
     // === 2026-05-11 Shim regression tests (Agent 5) ===
     // advisory=true: depend on the libsecp256k1 shim being linked.
     // On GitHub CI (shim absent) the stubs return ADVISORY_SKIP_CODE (77).

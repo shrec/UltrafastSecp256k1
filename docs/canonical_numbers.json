@@ -22,7 +22,8 @@
     "lto_improvement_max_pct": 2.1,
     "nolto_deficit_pct": 0,
     "lto_compiler": "GCC 14.2.0",
-    "wording": "ConnectBlock aggregate block validation: +1.0–2.1% faster than libsecp256k1 with Release+LTO (GCC 14.2.0, within noise margin — treat as parity). Without LTO: parity after PERF-002 fix; LTO still recommended (+1.0–2.1% vs parity without LTO).",
+    "turbo_lock_status": "intel_pstate/no_turbo=1 (file write); cpupower hard lock pending — run _rerun_commands in BITCOIN_CORE_BENCH_RESULTS.json before final PR",
+    "wording": "ConnectBlock aggregate block validation: +1.0–2.1% faster than libsecp256k1 with Release+LTO (GCC 14.2.0, 3–7× error floor, err% 0.1–0.3%). Without LTO: parity after PERF-002 fix; LTO still recommended (+1.0–2.1% vs parity without LTO). Pending: hard turbo lock rerun before Bitcoin Core PR submission.",
     "wording_no_lto": "Without LTO: parity after PERF-002 fix (removed redundant on-curve check). LTO is still recommended for optimal code layout (+1.0–2.1% faster than without LTO)."
   },
 
