@@ -50,11 +50,13 @@ jobs:
 
       - name: Install release gate dependencies
         run: |
-          # NOTE: Using GCC 13 here for CI compatibility. Canonical performance benchmarks
-          # use GCC 14.2.0 locally. CT signing ratios differ between GCC 13 and GCC 14.
-          # See docs/BENCHMARKS.md for the GCC 14 canonical numbers.
+          # CI-007: Updated to GCC 14 to match canonical performance benchmarks.
+          # All CT signing ratio claims in docs/BENCHMARKS.md and canonical_numbers.json
+          # use GCC 14.2.0. Building with GCC 13 produced materially different CT signing
+          # ratios (0.82-0.85× slower vs GCC 14's 1.09-1.24× faster), making the
+          # release evidence incompatible with the documented canonical numbers.
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+          sudo apt-get install -y --no-install-recommends g++-14 ninja-build
 
       - name: Select release profiles
         id: release-impact
@@ -81,7 +83,7 @@ jobs:
         run: |
           cmake -S . -B out/release-caas -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
             -DBUILD_TESTING=OFF \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF

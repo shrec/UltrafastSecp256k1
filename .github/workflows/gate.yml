@@ -283,13 +283,13 @@ jobs:
           python-version: '3.12'
 
       - name: Install build dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-14 ninja-build
 
       - name: Build audit shared library
         run: |
           cmake -S . -B out/ci-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
             -DBUILD_TESTING=OFF \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF
@@ -393,6 +393,42 @@ jobs:
             --base "$BASE_REF" \
             ${BEFORE_SHA:+--before-sha "$BEFORE_SHA"}
 
+      - name: Add shim audit cross-reference to assurance report
+        # CI-008: assurance_report.json (non-shim build) shows shim modules as
+        # advisory_skipped. A reviewer must also check the 'gate-shim-audit-*'
+        # artifact from the shim-gate job. This step annotates assurance_report.json
+        # with a cross-reference so the link is explicit in the primary evidence artifact.
+        if: always()
+        shell: bash
+        run: |
+          if [ -f assurance_report.json ]; then
+            python3 - <<'PYEOF'
+          import json, os
+          with open("assurance_report.json") as f:
+              report = json.load(f)
+          run_id = os.environ.get("GITHUB_RUN_ID", "unknown")
+          report["_ci008_shim_audit_cross_reference"] = {
+              "note": "Shim-dependent modules appear as advisory_skipped in this non-shim build. "
+                      "The mandatory shim security audit runs in the parallel shim-gate job.",
+              "shim_audit_artifact": f"gate-shim-audit-{run_id}",
+              "shim_modules_validated": [
+                  "exploit_shim_der_bip66", "exploit_shim_musig_secnonce",
+                  "exploit_shim_recovery_null_arg", "exploit_shim_pubkey_ct",
+                  "exploit_shim_noncefp_bypass", "regression_shim_pubkey_sort",
+                  "regression_shim_per_context_blinding", "regression_musig2_session_token",
+                  "exploit_shim_der_zero_r", "exploit_shim_null_ctx",
+              ],
+              "how_to_verify": "Download both gate-caas-evidence-<run_id> AND gate-shim-audit-<run_id> "
+                               "artifacts. Shim modules in shim_audit_report.json must show result=passed."
+          }
+          with open("assurance_report.json", "w") as f:
+              json.dump(report, f, indent=2)
+          print("CI-008: shim audit cross-reference added to assurance_report.json")
+          PYEOF
+          else
+            echo "::notice::assurance_report.json not present — skipping CI-008 cross-reference annotation"
+          fi
+
       - name: Upload CAAS evidence
         id: upload_caas_evidence
         if: always()
@@ -453,7 +489,7 @@ jobs:
       - name: Build C API and Python smoke
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ninja-build g++-13
+          sudo apt-get install -y --no-install-recommends ninja-build g++-14
           cmake -S bindings/c_api -B out/ci-bindings-capi -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build out/ci-bindings-capi -j"$(nproc)"
           python3 -m py_compile bindings/python/ultrafast_secp256k1/__init__.py
@@ -481,13 +517,13 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Install build dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-14 ninja-build
 
       - name: Build with shim (unified_audit_runner + shim linked)
         run: |
           cmake -S . -B out/ci-shim -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_CXX_COMPILER=g++-14 \
             -DSECP256K1_BUILD_SHIM=ON \
             -DBUILD_TESTING=ON \
             -DSECP256K1_BUILD_TESTS=OFF \
@@ -499,15 +535,24 @@ jobs:
           cmake --build out/ci-shim --target unified_audit_runner -j"$(nproc)"
 
       - name: Run shim security regression modules (must not be advisory-skipped)
+        # CI-012: Extended to validate the full shim advisory cluster (not just 2 binaries).
+        # All shim-dependent security modules are checked:
+        #   (a) mandatory shim modules must NOT be advisory_skipped (stubs in effect = gate fail)
+        #   (b) all advisory modules that require only CPU (no GPU/Python/Cryptol) must return
+        #       ADVISORY_SKIP_CODE (77) when their infrastructure is absent, never 0 (false pass)
         run: |
           ./out/ci-shim/audit/unified_audit_runner --json-only \
             -o shim_audit_report.json
-          # Fail if any shim module was advisory-skipped (stubs still in effect)
           python3 - <<'PYEOF'
           import json, sys
           with open("shim_audit_report.json") as f:
               r = json.load(f)
-          shim_keys = [
+          modules = r.get("modules", [])
+
+          # (a) Mandatory shim modules — must NOT be advisory_skipped when shim is linked.
+          # These were registered as advisory=true only because CI didn't link the shim;
+          # with SECP256K1_BUILD_SHIM=ON, they must run and pass.
+          shim_mandatory_keys = [
               "exploit_shim_der_bip66", "exploit_shim_musig_secnonce",
               "exploit_shim_recovery_null_arg", "exploit_shim_pubkey_ct",
               "exploit_shim_noncefp_bypass",
@@ -516,21 +561,47 @@ jobs:
               "regression_shim_pubkey_sort", "regression_shim_per_context_blinding",
               "regression_musig2_session_token", "exploit_shim_der_zero_r",
               "exploit_shim_null_ctx",
+              # SEC-007 + PERF-001/005 coverage — shim-linked build runs these
+              "regression_shim_high_s_verify", "regression_shim_perf_correctness",
+              # SEC-001 MuSig2 ABI signer-index — C ABI, no GPU required
+              "regression_musig2_abi_signer_index",
           ]
           advisory_skipped = []
-          for key in shim_keys:
-              mod = next((m for m in r.get("modules", []) if m.get("key") == key), None)
+          for key in shim_mandatory_keys:
+              mod = next((m for m in modules if m.get("key") == key), None)
               if mod and mod.get("result") == "advisory_skipped":
                   advisory_skipped.append(key)
           if advisory_skipped:
               print(f"::error::Shim modules advisory-skipped (stubs still in effect): {advisory_skipped}")
               print("The shim was not linked — secp256k1_shim target may be missing from this build.")
               sys.exit(1)
-          failed = [m["key"] for m in r.get("modules", []) if m.get("result") == "failed"]
+
+          # (b) CI-012: Verify that all non-GPU advisory modules return ADVISORY_SKIP_CODE (77)
+          # not 0 (false pass) when their infrastructure is absent. In this shim build,
+          # GPU is absent so GPU-advisory modules should return 77. Non-GPU advisory modules
+          # (Python-dependent, Cryptol, OpenSSL-differential) should also return 77.
+          # A module returning 0 on a skip path is a false-pass bug (Rule 16).
+          advisory_false_pass = []
+          for mod in modules:
+              if mod.get("advisory") and mod.get("result") == "passed":
+                  # advisory=true + result=passed is only acceptable if the module
+                  # actually ran and tested something (elapsed_ms > 1 and skipped=false).
+                  # If skipped=true but result=passed, that is a false-pass (old behavior before fix).
+                  if mod.get("skipped") is True:
+                      advisory_false_pass.append(mod.get("key", "?"))
+          if advisory_false_pass:
+              print(f"::error::Advisory modules showing false-pass (skipped=True but result=passed): {advisory_false_pass}")
+              print("These modules returned 0 on a skip path instead of ADVISORY_SKIP_CODE (77). Rule 16 violation.")
+              sys.exit(1)
+
+          failed = [m["key"] for m in modules if m.get("result") == "failed"]
           if failed:
               print(f"::error::Shim security modules FAILED: {failed}")
               sys.exit(1)
-          print(f"::notice::Shim gate passed — {len(shim_keys)} security modules are non-advisory and pass")
+
+          advisory_skipped_count = len([m for m in modules if m.get("result") == "advisory_skipped"])
+          print(f"::notice::Shim gate passed — {len(shim_mandatory_keys)} mandatory modules non-advisory, "
+                f"{advisory_skipped_count} advisory-skipped (infrastructure absent), 0 false-pass, 0 failed")
           PYEOF
 
       - name: Upload shim audit report
