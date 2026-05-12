@@ -74,7 +74,17 @@ Copy this checklist into the release PR description. All items must be checked b
 - [ ] Breaking changes explicitly documented
 - [ ] `docs/SECURITY_AUTONOMY_PLAN.md` and `docs/AUDIT_SLA.json` current
 
-### 7. Release Artifacts
+### 7. 2026-05 Security Guardrails (added 2026-05-12)
+
+- [ ] GPU CT signing route verified: batch signing goes through `ct_generator_mul_batch_kernel`, not VT windowed kernel (GPU Guardrail 8 / Rule 10)
+- [ ] GPU batch signing fail-closed: kernel checks return values and zeros output on failure (GPU Guardrail 9)
+- [ ] GPU private key material erased: `cudaMemset` / `clEnqueueFillBuffer` / Metal `memset` before device memory release (GPU Guardrail 10)
+- [ ] Batch sign APIs reject `count == 0` with `UFSECP_ERR_BAD_INPUT` (Rule 15)
+- [ ] Advisory modules return `ADVISORY_SKIP_CODE (77)` on skip, not `0` — run `unified_audit_runner` and confirm no blocking module shows PASS when infra absent (Rule 16)
+- [ ] `EVIDENCE_CHAIN.json` has ≥1 SHA-anchored record per ASSURANCE_CLAIMS entry (P1-DOC-002)
+- [ ] `docs/GPU_VALIDATION_MATRIX.md` op count (prose vs table) is consistent
+
+### 8. Release Artifacts
 
 - [ ] Git tag format: `vX.Y.Z` (e.g., `v3.15.0`)
 - [ ] Tag is annotated: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`

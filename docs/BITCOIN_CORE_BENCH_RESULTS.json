@@ -103,6 +103,8 @@
     }
   },
   "results_nolto": {
+    "deprecated": true,
+    "deprecated_reason": "Numbers from 2026-05-08 run, before PERF-002 fix (removed redundant on-curve check from secp256k1_ecdsa_verify, ~400ns/call). These ratios < 1.0 reflect the pre-fix state and MUST NOT be cited as current performance. Re-benchmark with post-PERF-002 controlled run pending.",
     "note": "Release without LTO. Static w=8 table + branchless wNAF sign + selective MULX+ADCX/ADOX ASM in verify-only Jacobian ops. Numbers from 2026-05-08 run; not re-measured 2026-05-11. SUPERSEDED: no-LTO ConnectBlock gap has been eliminated by PERF-002 fix (see nolto_superseded). These numbers reflect the state BEFORE that fix.",
     "build": "SECP256K1_BUILD_SHIM=ON + SECP256K1_CORE_BACKEND_MODE=ON. fe52_mul_inner_var + jac52_*_var route verify hot path through dual-carry ASM; CT signing untouched.",
     "nolto_superseded": "no-LTO gap eliminated by PERF-002 fix (removed redundant y²=x³+7 on-curve check from secp256k1_ecdsa_verify, ~400ns per call). Re-benchmark with next full bench run.",

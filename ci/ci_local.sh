@@ -167,6 +167,10 @@ run_caas_check "Backend parity (copy-paste divergence)" python3 ci/check_backend
 run_caas_check "Secret parse strictness (Rule 11)"      python3 ci/check_secret_parse_strictness.py
 run_caas_check "Protocol invariants (FROST threshold)"  python3 ci/check_protocol_invariants.py
 run_caas_check "Nonce erase coverage (BIP-327)"         python3 ci/check_nonce_erase_coverage.py
+# P2-CI-004: these three gates run in gate.yml caas-security but were missing locally
+run_caas_check "Source graph quality"                   python3 ci/check_source_graph_quality.py
+run_caas_check "Bitcoin Core test results"              python3 ci/check_bitcoin_core_test_results.py
+run_caas_check "Core build mode"                        python3 ci/check_core_build_mode.py
 echo ""
 
 if [[ $FULL -eq 0 ]]; then

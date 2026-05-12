@@ -41,7 +41,7 @@
     {
       "claim_id": "A-002",
       "area": "GPU ABI",
-      "claim": "Stable public GPU C ABI exposes 19 backend-neutral batch operations",
+      "claim": "Stable public GPU C ABI exposes 13 backend-neutral batch operations",
       "scope": "Public host ABI only; excludes benchmark-only kernels and internal experiments",
       "primary_evidence": [
         "include/ufsecp/ufsecp_gpu.h",

@@ -112,6 +112,11 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "audit/test_regression_schnorr_ct_arithmetic.cpp"],
         "P1-PERF-001: Schnorr verify lift_x elimination in schnorr.cpp + shim_schnorr.cpp. Pure verification optimization — eliminates redundant lift_x call. Covered by existing schnorr edge-case and CT regression tests.",
     ),
+    "d9ecdc1883": (
+        ["audit/test_exploit_schnorr_edge_cases.cpp",
+         "audit/test_regression_schnorr_ct_arithmetic.cpp"],
+        "P1-PERF-001 follow-up: fix FE52 API in schnorr_verify(Point) overload (y_aff.n[0] not .limbs()). Same scope as e0ba350d40 — pure verify path optimization. Covered by existing schnorr edge-case and CT regression tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.

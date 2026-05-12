@@ -17,7 +17,7 @@ It is intended as an engineering checklist, not a marketing page.
 
 ## C ABI Ops -- Per-Backend Status
 
-The C ABI layer (`ufsecp_gpu.h`) currently exposes 19 backend-neutral GPU batch
+The C ABI layer (`ufsecp_gpu.h`) currently exposes 13 backend-neutral GPU batch
 operations. CUDA, OpenCL, and Metal all implement that stable public surface.
 `UFSECP_ERR_GPU_UNSUPPORTED` (104) remains part of the ABI for unsupported
 backend selection, missing device/runtime capability, or invalid execution
@@ -42,7 +42,7 @@ context, not as a standing parity gap for the stable 19-op surface.
 
 ### Expansion Roadmap
 
-- Unified 19/19 GPU C ABI parity is closed across CUDA, OpenCL, and Metal.
+- Unified 13/13 GPU C ABI parity is closed across CUDA, OpenCL, and Metal.
 - The five ZK/BIP-324 batch ops are implemented on all three backends and exposed through the stable C ABI.
 - Remaining GPU governance work is no longer backend parity; it is hardware-backed publishability, artifact retention, and cross-device reproducibility.
 
