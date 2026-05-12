@@ -1,5 +1,12 @@
 # Audit Changelog
 
+## 2026-05-12 — PERF-003 shim_ecdsa pubkey parse zero-copy
+
+- **PERF-003** `shim_ecdsa.cpp` `pubkey_data_to_point` + `secp256k1_ecdsa_verify`:
+  eliminated two 32-byte stack copies by binding directly to pubkey opaque buffer
+  via `reinterpret_cast<const std::array<uint8_t,32>*>`. Correctness covered by
+  `test_regression_shim_perf_correctness.cpp` SPC-2 (ECDSA verify correctness).
+
 ## 2026-05-12 — SEC-001 MuSig2 ABI signer-index cross-validation
 
 ### Security Fix

@@ -34,6 +34,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/ct/point.hpp"
 
 using namespace secp256k1;
 using secp256k1::fast::Scalar;

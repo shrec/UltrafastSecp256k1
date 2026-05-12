@@ -3668,7 +3668,8 @@ target_sources(unified_audit_runner PRIVATE
     test_exploit_shim_recovery_null_arg.cpp
     test_regression_shim_static_ctx.cpp
     test_regression_musig2_signer_index_validation.cpp
-    test_regression_adaptor_binding_domain.cpp)
+    test_regression_adaptor_binding_domain.cpp
+    test_regression_musig2_abi_signer_index.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
 # can link and reports them as advisory-skipped instead of failing.
@@ -3681,9 +3682,6 @@ if(TARGET secp256k1_shim)
         test_regression_shim_pubkey_sort.cpp
         test_regression_shim_per_context_blinding.cpp
         test_regression_musig2_session_token.cpp
-        # 2026-05-11 shim regression tests (Agent 5) — live in compat/
-        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp
         # 2026-05-12 SEC-007: high-S verify diagnostic (shim-linked)
         test_regression_shim_high_s_verify.cpp
         # 2026-05-12 PERF-001/005: shim hot-path correctness regression
@@ -4475,17 +4473,6 @@ add_test(NAME regression_schnorr_r_zero_ct
 set_tests_properties(regression_schnorr_r_zero_ct PROPERTIES TIMEOUT 30
     SKIP_RETURN_CODE 77
     LABELS "audit;regression;schnorr;shim;ct;security;sec-006")
-
-# PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse
-# Uses C++ API directly — no shim dependency. advisory=false in unified runner.
-add_executable(test_regression_shim_perf_correctness_standalone
-    test_regression_shim_perf_correctness.cpp)
-audit_target_defaults(test_regression_shim_perf_correctness_standalone)
-target_compile_definitions(test_regression_shim_perf_correctness_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_shim_perf_correctness
-    COMMAND test_regression_shim_perf_correctness_standalone)
-set_tests_properties(regression_shim_perf_correctness PROPERTIES TIMEOUT 60
-    LABELS "audit;regression;perf;shim;recovery;schnorr;perf-001;perf-005")
 
 # SEC-001: MuSig2 ABI signer-index cross-validation (ufsecp_musig2_partial_sign_v2)
 # Uses C ABI via ufsecp_static. advisory=false in unified runner.

@@ -44,12 +44,10 @@ static secp256k1::ECDSASignature ecdsa_sig_from_data(const unsigned char data[64
 // under -Werror=unused-function) include this file but don't call it.
 [[maybe_unused]]
 static Point pubkey_data_to_point(const unsigned char data[64]) {
-    std::array<uint8_t, 32> xb{}, yb{};
-    std::memcpy(xb.data(), data, 32);
-    std::memcpy(yb.data(), data + 32, 32);
-    auto x = FieldElement::from_bytes(xb);
-    auto y = FieldElement::from_bytes(yb);
-    return Point::from_affine(x, y);
+    // PERF-003: bind directly — avoids two 32-byte stack copies per verify call.
+    const auto& xb = *reinterpret_cast<const std::array<uint8_t,32>*>(data);
+    const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(data + 32);
+    return Point::from_affine(FieldElement::from_bytes(xb), FieldElement::from_bytes(yb));
 }
 
 extern "C" {
@@ -237,9 +235,10 @@ int secp256k1_ecdsa_verify(
     //
     // For repeated-pubkey workloads: use secp256k1_ec_pubkey_precomp() + verify_precomp().
     {
-        std::array<uint8_t, 32> xb{}, yb{};
-        std::memcpy(xb.data(), pubkey->data,      32);
-        std::memcpy(yb.data(), pubkey->data + 32, 32);
+        // PERF-003: bind directly to pubkey->data — avoids two 32-byte stack copies.
+        // std::array<uint8_t,32> has identical layout to uint8_t[32] (§23.3.2.1).
+        const auto& xb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data);
+        const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data + 32);
         auto x = secp256k1::fast::FieldElement::from_bytes(xb);
         auto y = secp256k1::fast::FieldElement::from_bytes(yb);
         // PERF-002: the on-curve check (y²=x³+7) is omitted here.
