@@ -70,7 +70,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 
 **CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-11):** **1.24× ECDSA · 1.09× Schnorr** vs libsecp256k1. Canonical data: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
-> **ConnectBlock (primary block-validation workload):** With Release+LTO (recommended): Ultra wins on ALL ConnectBlock scenarios — +1.0% to +2.1% faster than libsecp256k1, confirmed (err% 0.1–0.3%, margins 3–7× the error floor). Without LTO: parity after PERF-002 fix (removed redundant on-curve check). LTO is still recommended for optimal code layout (+1.0–2.1% faster than without LTO). Taproot key-path signing is 11–36% faster; SignTransaction ECDSA/Schnorr 11–15% faster. Full numbers and methodology: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** With Release+LTO (recommended): Ultra wins on ALL ConnectBlock scenarios — +0.9% to +1.5% faster than libsecp256k1, confirmed (err% 0.1–0.5%, hard turbo lock, 5 runs). Without LTO: ~0.5–1.0% slower due to i-cache pressure from larger code footprint; PERF-002 reduced the gap from ~1.1% but LTO is required for Ultra to win. Taproot key-path signing is 10–35% faster. Full numbers: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 

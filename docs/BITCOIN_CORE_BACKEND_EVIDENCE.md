@@ -143,29 +143,23 @@ PERF-002 removes the per-call overhead.
 
 ### Results: Release + LTO (recommended build)
 
-Benchmark on Intel i5-14400F, GCC 14.2.0, `taskset -c 0`, governor=performance, 2026-05-11.
-bench_bitcoin native harness (nanobench), err% shown — low err% = stable measurement:
+Benchmark on Intel i5-14400F, GCC 14.2.0, `cpupower` hard turbo lock, `taskset -c 0`, `nice -20`, 5 runs, 2026-05-12.
+bench_bitcoin native harness (nanobench, `-min-time=3000ms`), medians from 5 runs, err% from nanobench per-run:
 
 | Benchmark | Ultra LTO | libsecp LTO | vs libsecp | err% |
 |-----------|----------:|----------:|-----------|------|
-| ConnectBlockAllEcdsa | 252.2 ms/blk | 257.6 ms/blk | **Ultra +2.1%** | 0.3% |
-| ConnectBlockAllSchnorr | 251.5 ms/blk | 255.2 ms/blk | **Ultra +1.5%** | 0.2% |
-| ConnectBlockMixed | 253.1 ms/blk | 255.7 ms/blk | **Ultra +1.0%** | 0.1% |
-| SignSchnorrWithMerkleRoot | 84,273 ns/op | 114,479 ns/op | **1.36× faster** | 1.3% |
-| SignSchnorrWithNullMerkleRoot | 83,742 ns/op | 112,694 ns/op | **1.35× faster** | 1.0% |
-| SignTransactionECDSA | 147,262 ns/op | 168,907 ns/op | **1.15× faster** | 0.7% |
-| SignTransactionSchnorr | 123,525 ns/op | 137,388 ns/op | **1.11× faster** | 0.3% |
-| VerifyScriptP2TR_ScriptPath | 75,549 ns/script | 83,481 ns/script | **1.11× faster** | 0.3% |
-| VerifyScriptP2TR_KeyPath | 44,860 ns/script | 46,223 ns/script | **1.03× faster** | 0.5% |
-| VerifyScriptP2WPKH | 45,217 ns/script | 46,062 ns/script | parity (+1.9%) | 0.3% |
+| ConnectBlockAllEcdsa | 254.3 ms/blk | 257.4 ms/blk | **Ultra +1.2%** | 0.4% |
+| ConnectBlockAllSchnorr | 253.0 ms/blk | 255.3 ms/blk | **Ultra +0.9%** | 0.5% |
+| ConnectBlockMixed | 253.9 ms/blk | 257.7 ms/blk | **Ultra +1.5%** | 0.5% |
+| SignSchnorrWithMerkleRoot | 83,930 ns/op | 113,410 ns/op | **1.35× faster** | 0.2% |
+| SignSchnorrWithNullMerkleRoot | 83,980 ns/op | 112,960 ns/op | **1.35× faster** | 0.4% |
+| SignTransactionECDSA | 149,520 ns/op | 165,140 ns/op | **1.10× faster** | 0.4% |
+| SignTransactionSchnorr | 125,380 ns/op | 137,500 ns/op | **1.10× faster** | 0.5% |
+| VerifyScriptP2TR_ScriptPath | 76,451 ns/script | 83,812 ns/script | **1.10× faster** | 0.2% |
+| VerifyScriptP2TR_KeyPath | 45,406 ns/script | 46,333 ns/script | **Ultra +2.0%** | 0.2% |
+| VerifyScriptP2WPKH | 45,978 ns/script | 45,777 ns/script | parity (0.4% slower) | 0.3% |
 
-Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `0aaf9d94`).
-> **Note:** This benchmark was run with `governor=performance + intel_pstate/no_turbo=1` (file write)
-> but without hard `cpupower` turbo lock (sudo unavailable during run). The err% 0.1–0.3% and
-> margins 1.0–2.1% (3–7× error floor) indicate the data is stable. Signing speedups (14–36%)
-> are conclusive regardless of turbo state. **Pre-PR action required:** run the `_rerun_commands`
-> block in `docs/BITCOIN_CORE_BENCH_RESULTS.json` with root access to obtain a hard-turbo-locked
-> baseline before final PR submission.
+Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `48e7c02f`, 2026-05-12, hard turbo lock confirmed).
 
 ### CT Signing — Compiler Results (Material Disclosure)
 
@@ -185,14 +179,14 @@ core pinned, 500 warmup, 11 passes, IQR trimming):
 >
 > Both are correct — they measure different scopes. The full-path `SignTransaction*` numbers are the Bitcoin Core-relevant ones; the CT primitive numbers confirm no scalar-inverse regression on GCC 14.
 
-### Previous non-LTO gap — resolved by PERF-002
+### Without-LTO gap — partially reduced by PERF-002
 
-The historical ~1.1% no-LTO ConnectBlock gap was caused by two factors: (1) Ultra's larger code
-footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB) creating i-cache pressure, and (2) a
-redundant y²=x³+7 on-curve check on every `secp256k1_ecdsa_verify` call (~400 ns/call). PERF-002
-removed the redundant check, eliminating the no-LTO gap. LTO continues to resolve the i-cache
-pressure by co-optimizing code layout globally. As of PERF-002, Ultra is faster than libsecp256k1
-on all ConnectBlock workloads with or without LTO.
+Without LTO, Ultra is ~0.5–1.0% slower than libsecp256k1 on ConnectBlock (measured 2026-05-12,
+hard turbo lock): AllEcdsa −0.5%, AllSchnorr −1.0%, Mixed −0.8%. The gap stems from Ultra's
+larger code footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB) creating i-cache pressure
+without LTO. PERF-002 (removed redundant y²=x³+7 on-curve check, ~400 ns/call) reduced the gap
+from ~1.1% to ~0.5–1.0%, but did not fully eliminate it. **Use Release+LTO for production Bitcoin
+Core builds** — LTO eliminates the i-cache pressure by co-optimizing code layout globally.
 
 ### Build command for full performance
 

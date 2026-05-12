@@ -18,31 +18,31 @@
   "connectblock": {
     "regression_min_pct": 0,
     "regression_max_pct": 0,
-    "lto_improvement_min_pct": 1.0,
-    "lto_improvement_max_pct": 2.1,
-    "nolto_deficit_pct": 0,
+    "lto_improvement_min_pct": 0.9,
+    "lto_improvement_max_pct": 1.5,
+    "nolto_deficit_pct": 0.8,
     "lto_compiler": "GCC 14.2.0",
-    "turbo_lock_status": "intel_pstate/no_turbo=1 (file write); cpupower hard lock pending — run _rerun_commands in BITCOIN_CORE_BENCH_RESULTS.json before final PR",
-    "wording": "ConnectBlock aggregate block validation: +1.0–2.1% faster than libsecp256k1 with Release+LTO (GCC 14.2.0, 3–7× error floor, err% 0.1–0.3%). Without LTO: parity after PERF-002 fix; LTO still recommended (+1.0–2.1% vs parity without LTO). Pending: hard turbo lock rerun before Bitcoin Core PR submission.",
-    "wording_no_lto": "Without LTO: parity after PERF-002 fix (removed redundant on-curve check). LTO is still recommended for optimal code layout (+1.0–2.1% faster than without LTO)."
+    "turbo_lock_status": "CONFIRMED: cpupower frequency-set -g performance + intel_pstate/no_turbo=1 (2026-05-12 hard-turbo-locked rerun)",
+    "wording": "ConnectBlock aggregate block validation: +0.9–1.5% faster than libsecp256k1 with Release+LTO (GCC 14.2.0, hard turbo lock, 5 runs, err% 0.1–0.5%). Without LTO: ~0.5–1.0% slower (i-cache pressure; PERF-002 reduced gap from ~1.1% but did not eliminate it). LTO is required for Ultra to win all ConnectBlock workloads.",
+    "wording_no_lto": "Without LTO: ~0.5–1.0% slower than libsecp256k1 due to i-cache pressure from Ultra's larger code footprint (~1.3 MB vs libsecp ~400 KB). PERF-002 reduced the gap from ~1.1% but did not fully eliminate it. Use Release+LTO for production Bitcoin Core builds."
   },
 
   "taproot_signing": {
-    "speedup_min_pct": 11,
-    "speedup_max_pct": 36,
-    "wording": "Taproot signing: 11–36% faster than libsecp256k1 (SignTransactionSchnorr 1.11×; SignSchnorrWithMerkleRoot 1.36×, GCC 14.2.0, Release+LTO, docs/BITCOIN_CORE_BENCH_RESULTS.json)."
+    "speedup_min_pct": 10,
+    "speedup_max_pct": 35,
+    "wording": "Taproot signing: 10–35% faster than libsecp256k1 (SignTransactionSchnorr 1.10×; SignSchnorrWithMerkleRoot 1.35×, GCC 14.2.0, Release+LTO, hard turbo lock, 2026-05-12, docs/BITCOIN_CORE_BENCH_RESULTS.json)."
   },
 
   "taproot_verify": {
-    "speedup_pct": 11,
-    "wording": "P2TR script-path verification is ~11% faster (1.11×, VerifyScriptP2TR_ScriptPath, GCC 14.2.0 LTO)."
+    "speedup_pct": 10,
+    "wording": "P2TR script-path verification is ~10% faster (1.10×, VerifyScriptP2TR_ScriptPath, GCC 14.2.0 LTO)."
   },
 
   "schnorr_sign_merkle": {
     "speedup_min_pct": 35,
-    "speedup_max_pct": 36,
-    "canonical_pct": 36.0,
-    "wording": "SignSchnorrWithMerkleRoot is ~36% faster (1.36×, GCC 14.2.0 LTO, docs/BITCOIN_CORE_BENCH_RESULTS.json)."
+    "speedup_max_pct": 35,
+    "canonical_pct": 35.1,
+    "wording": "SignSchnorrWithMerkleRoot is ~35% faster (1.35×, GCC 14.2.0 LTO, hard turbo lock, docs/BITCOIN_CORE_BENCH_RESULTS.json)."
   },
 
   "ct_signing_clang19": {

@@ -1522,7 +1522,7 @@ Controlled comparison, variance 0.1–0.3%, same session, same binary:
 | `ConnectBlockAllEcdsa` | 254,587 | 255,860 | **≈0% (tied)** |
 | `ConnectBlockAllSchnorr` | 253,297 | 253,665 | **≈0% (tied)** |
 | `ConnectBlockMixedEcdsaSchnorr` | 256,082 | 256,385 | **≈0% (tied)** |
-| `SignSchnorrWithMerkleRoot` | 111,332 | 83,267 | **Ultra −36.0%** |
+| `SignSchnorrWithMerkleRoot` | 111,332 | 83,267 | **Ultra −35.1%** |
 | `SignSchnorrWithNullMerkleRoot` | 109,823 | 82,290 | **Ultra −25.1%** |
 | `SignTransactionECDSA` | 162,507 | 145,955 | **Ultra −10.2%** |
 | `SignTransactionSchnorr` | 136,036 | 124,768 | **Ultra −8.3%** |
@@ -1558,7 +1558,7 @@ non-CT path for consistency with the ECDSA signing shim.
 |---|---:|---:|---:|
 | `BIP324_ECDH` | 28,253 | 17,651 | **+37.5%** |
 | `EllSwiftCreate` | 26,570 | 19,441 | **+26.8%** |
-| `SignSchnorrWithMerkleRoot` | 63,476 | 41,980 | **+36.0%** |
+| `SignSchnorrWithMerkleRoot` | 63,476 | 41,980 | **+35.1%** |
 | `SignSchnorrWithNullMerkleRoot` | 64,031 | 42,173 | **+34.1%** |
 | `SignTransactionECDSA` | 96,949 | 80,131 | **+17.3%** |
 | `SignTransactionSchnorr` | 77,406 | 71,485 | **+7.6%** |
