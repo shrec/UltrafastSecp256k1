@@ -335,7 +335,22 @@ int secp256k1_musig_pubkey_agg(
     compress(orig_Q, e->agg_pk_comp.data());
     e->compressed = comp33;
 
-    if (agg_pk) std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
+    if (agg_pk) {
+        std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
+        // P1-PERF-001: store even-Y in data[32..63] so secp256k1_schnorrsig_verify
+        // can reconstruct the point directly without lift_x sqrt.
+        // Same logic as secp256k1_xonly_pubkey_parse.
+        FieldElement x_fe;
+        if (FieldElement::parse_bytes_strict(e->agg_pk_comp.data() + 1, x_fe)) {
+            auto y2 = x_fe * x_fe * x_fe + FieldElement::from_uint64(7);
+            auto y_fe = y2.sqrt();
+            if (y_fe.square() == y2) {
+                auto yb = y_fe.to_bytes();
+                if (yb[31] & 1) { y_fe = y_fe.negate(); yb = y_fe.to_bytes(); }
+                std::memcpy(agg_pk->data + 32, yb.data(), 32);
+            }
+        }
+    }
 
     // RED-TEAM-009: check ka_put return value — returns nullptr when DoS cap (1024)
     // is hit. In that case the token was never written, so subsequent MuSig

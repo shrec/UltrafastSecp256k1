@@ -122,6 +122,11 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "audit/test_exploit_musig2.cpp"],
         "Revert P1-PERF-001 Y-shortcut in secp256k1_schnorrsig_verify: musig_pubkey_agg stores non-Y data in pubkey->data[32..63], causing wrong-point bug. Covered by existing Schnorr edge-case and MuSig2 exploit tests.",
     ),
+    "3a4b8a7841": (
+        ["compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp",
+         "compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp"],
+        "P2-SHIM-001: add SHIM_REQUIRE_CTX(ctx) to 5 parse/serialize/normalize functions in shim_ecdsa.cpp. NULL ctx now fires illegal callback and returns 0, matching libsecp256k1 ARG_CHECK(ctx!=NULL). Covered by existing NULL ctx and DER edge-case shim tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
