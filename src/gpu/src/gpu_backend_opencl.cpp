@@ -1789,8 +1789,11 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
         Bip352ScanPlan plan{};
         {
             using namespace secp256k1::fast;
-            Scalar k = Scalar::from_bytes(scan_privkey32);
-            if (k.is_zero()) return set_error(GpuError::BadKey, "zero scan key");
+            // SEC-002 (Rule 11): parse_bytes_strict_nonzero rejects scan keys >= n or == 0.
+            // from_bytes() silently reduces mod n (n+1 -> 1, n -> 0) — a Rule 11 violation.
+            Scalar k;
+            if (!Scalar::parse_bytes_strict_nonzero(scan_privkey32, k))
+                return set_error(GpuError::BadKey, "invalid scan key (zero or >= group order)");
 
             auto decomp       = glv_decompose(k);
             auto k1_bytes     = decomp.k1.to_bytes();

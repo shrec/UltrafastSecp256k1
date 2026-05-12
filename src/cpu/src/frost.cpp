@@ -450,6 +450,14 @@ frost_sign(const FrostKeyPackage& key_pkg,
     // The ABI wrapper ufsecp_frost_sign also checks this, but the C++ API must
     // be fail-closed independently — returning a zero partial sig is safe because
     // aggregate_signatures() will reject any partial sig with z_i == 0.
+    //
+    // SEC-010: threshold == 0 guard — (nonce_commitments.size() < 0u) is an unsigned
+    // comparison that is ALWAYS false, bypassing the quorum check entirely.
+    if (key_pkg.threshold == 0) {
+        secure_erase(&nonce.hiding_nonce, sizeof(nonce.hiding_nonce));
+        secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
+        return FrostPartialSig{key_pkg.id, Scalar::zero()};
+    }
     if (nonce_commitments.size() < static_cast<std::size_t>(key_pkg.threshold)) {
         secure_erase(&nonce.hiding_nonce, sizeof(nonce.hiding_nonce));
         secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));

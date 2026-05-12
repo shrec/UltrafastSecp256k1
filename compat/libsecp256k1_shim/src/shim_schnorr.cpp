@@ -160,10 +160,12 @@ int secp256k1_schnorrsig_sign32(
     secp256k1::detail::secure_erase(&sk,   sizeof(sk));
     secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
     if (sig.s.is_zero()) return 0;  // fail-closed: degenerate nonce (≈2^-256)
+    // SEC-006: CT OR accumulator replaces variable-time for+break loop.
+    // All 32 bytes of r are visited unconditionally — no early exit on signing output.
     {
-        bool r_all_zero = true;
-        for (int i = 0; i < 32; i++) { if (sig.r[i] != 0) { r_all_zero = false; break; } }
-        if (r_all_zero) return 0;
+        std::uint32_t r_nonzero = 0;
+        for (int i = 0; i < 32; i++) r_nonzero |= sig.r[i];
+        if (r_nonzero == 0) return 0;
     }
     auto sig_bytes = sig.to_bytes();
     std::memcpy(sig64, sig_bytes.data(), 64);
@@ -280,10 +282,11 @@ int secp256k1_schnorrsig_sign_custom(
     secp256k1::detail::secure_erase(aux32, sizeof(aux32));
 
     if (s.is_zero()) return 0;
+    // SEC-006: CT OR accumulator — visits all 32 bytes, no early exit on signing output.
     {
-        bool r_all_zero = true;
-        for (int i = 0; i < 32; i++) { if (rx[i] != 0) { r_all_zero = false; break; } }
-        if (r_all_zero) return 0;
+        std::uint32_t r_nonzero = 0;
+        for (int i = 0; i < 32; i++) r_nonzero |= rx[i];
+        if (r_nonzero == 0) return 0;
     }
 
     std::memcpy(sig64,      rx.data(),         32);
@@ -325,23 +328,24 @@ int secp256k1_schnorrsig_verify(
     secp256k1::SchnorrSignature sig;
     if (!secp256k1::SchnorrSignature::parse_strict(sig64, sig)) return 0;
 
+    // PERF-005: pass pubkey->data raw pointer directly — eliminates two 32-byte
+    // stack copies (xb/yb arrays) that were an avoidable memcpy per verify call.
     // P1-PERF-001: use stored Y from data[32..63] to skip lift_x sqrt per call.
     // All callers that produce secp256k1_xonly_pubkey now store X||Y:
     //   secp256k1_xonly_pubkey_parse: lift_x → store even-Y
     //   secp256k1_musig_pubkey_agg: agg key lift_x → store even-Y
     // Saves ~1.6–3.8 µs per unique pubkey (lift_x miss rate ~98% for ConnectBlock).
     {
-        std::array<uint8_t, 32> xb, yb;
-        std::memcpy(xb.data(), pubkey->data,      32);
-        std::memcpy(yb.data(), pubkey->data + 32, 32);
+        const uint8_t* xb = pubkey->data;
+        const uint8_t* yb = pubkey->data + 32;
         secp256k1::fast::FieldElement x_fe, y_fe;
-        if (!secp256k1::fast::FieldElement::parse_bytes_strict(xb.data(), x_fe)) return 0;
+        if (!secp256k1::fast::FieldElement::parse_bytes_strict(xb, x_fe)) return 0;
         // Y bytes valid → fast path (no lift_x). Y not stored → lift_x fallback.
-        if (secp256k1::fast::FieldElement::parse_bytes_strict(yb.data(), y_fe)) {
+        if (secp256k1::fast::FieldElement::parse_bytes_strict(yb, y_fe)) {
             auto P = secp256k1::fast::Point::from_affine(x_fe, y_fe);
-            return secp256k1::schnorr_verify(P, xb.data(), msg, sig) ? 1 : 0;
+            return secp256k1::schnorr_verify(P, xb, msg, sig) ? 1 : 0;
         }
-        return secp256k1::schnorr_verify(xb.data(), msg, sig) ? 1 : 0;
+        return secp256k1::schnorr_verify(xb, msg, sig) ? 1 : 0;
     }
 }
 

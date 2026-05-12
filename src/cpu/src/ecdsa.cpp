@@ -280,6 +280,10 @@ struct HMAC_Ctx {
     // Used by hedged RFC 6979: V(32) + byte(1) + x(32) + h1(32) + extra(32) = 129
     void compute_three_block(const std::uint8_t* msg, std::size_t msg_len,
                              std::uint8_t out[32]) const noexcept {
+        // SEC-004: precondition guard — msg_len < 128 causes size_t underflow in
+        // rem = msg_len - 128, producing a ~0-byte memset (catastrophic corruption).
+        // Also guard the upper bound so 55 - rem cannot wrap. Matches compute_two_block.
+        if (msg_len < 128 || msg_len > 183) return;
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
 
