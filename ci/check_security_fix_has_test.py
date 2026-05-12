@@ -127,6 +127,15 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp"],
         "P2-SHIM-001: add SHIM_REQUIRE_CTX(ctx) to 5 parse/serialize/normalize functions in shim_ecdsa.cpp. NULL ctx now fires illegal callback and returns 0, matching libsecp256k1 ARG_CHECK(ctx!=NULL). Covered by existing NULL ctx and DER edge-case shim tests.",
     ),
+    "be7ec0ad06": (
+        ["audit/test_exploit_shim_musig_ka_cap.cpp",
+         "audit/test_exploit_shim_musig_secnonce.cpp"],
+        "P1-PERF-001 restore: shim_musig.cpp stores even-Y in musig_pubkey_agg (lift_x sqrt); "
+        "shim_schnorr.cpp restores Y-shortcut using the correctly populated even-Y. "
+        "Fixes MuSig2 verify regression caused by missing Y in agg_pk->data[32..63]. "
+        "Covered by existing MuSig2 ka_cap and secnonce shim tests which exercise the full "
+        "pubkey_agg→schnorrsig_verify path that depends on the even-Y layout.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.

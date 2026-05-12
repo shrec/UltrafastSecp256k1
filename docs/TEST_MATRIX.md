@@ -834,6 +834,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_cuda_pool_cap` | `audit/test_regression_cuda_pool_cap.cpp` | CUDA memory pool capacity regression (RTX-series OOM) |
 | `regression_musig2_verify` | `audit/test_regression_musig2_verify.cpp` | MuSig2 partial signature verification regression |
 | `regression_z_fe_nonzero` | `audit/test_regression_z_fe_nonzero.cpp` | Jacobian Z-coordinate non-zero invariant regression |
+| `regression_adaptor_binding_domain` | `audit/test_regression_adaptor_binding_domain.cpp` | SEC-010: ecdsa_adaptor_binding BIP-340 tagged hash domain separation (ADB-1..6) |
 
 ## Upstream Libsecp256k1 Parity Tests (batch 3 — v3.69+)
 
