@@ -841,8 +841,9 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
  *
  *  The validation derives pubkey = ct::generator_mul(privkey) (constant-time) and
  *  compares it against pubkeys[signer_index * 33 .. +33] in constant time.
- *  If they do not match, the function returns UFSECP_ERR_BAD_KEY before consuming
- *  any secret material (secnonce is NOT zeroed on validation failure).
+ *  If they do not match, the function returns UFSECP_ERR_BAD_KEY.
+ *  IMPORTANT: secnonce is zeroed on ALL exit paths (including validation failure)
+ *  to prevent nonce reuse even when the wrong signer_index is supplied.
  *
  *  @param pubkeys  Array of n compressed public keys (33 bytes each), in the same
  *                  order that was passed to ufsecp_musig2_key_agg.  Must not be NULL. */

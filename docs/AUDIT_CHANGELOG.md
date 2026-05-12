@@ -137,7 +137,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 256 exploit PoC)
+### Module count: 357 total (101 non-exploit + 258 exploit PoC)
 
 ---
 
@@ -283,7 +283,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 252 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 258 exploit PoC = 350 total.
 
 ---
 
@@ -1158,7 +1158,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 232 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 258 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -3558,7 +3558,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 157 exploit PoC files, 59 new checks.**
+**Running total after this wave: 258 exploit PoC files, 59 new checks.**
 
 ---
 

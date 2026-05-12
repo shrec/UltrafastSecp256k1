@@ -2,6 +2,27 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-12 ufsecp_musig2.cpp -- SEC-001 MuSig2 ABI signer-index cross-validation
+
+- **`src/cpu/src/impl/ufsecp_musig2.cpp` (`ufsecp_musig2_partial_sign_v2`)**: New ABI
+  function that validates `privkey ↔ signer_index` before consuming any secret material.
+  The original `ufsecp_musig2_partial_sign()` cannot perform this check because the 165-byte
+  keyagg blob does not store individual public keys.
+- **Validation mechanism**: Derives `pubkey = secp256k1::ct::generator_mul(privkey)` (constant-time)
+  and compares it against `pubkeys[signer_index * 33 .. +33]` using a constant-time byte loop
+  (`diff |= derived[i] ^ expected[i]` for all 33 bytes). Returns `UFSECP_ERR_BAD_KEY` on mismatch.
+- **Nonce erasure**: `secnonce` is zeroed via `ScopeSecureErase` on ALL exit paths, including
+  validation failure, to prevent nonce reuse. Matches BIP-327 nonce-erasure requirements.
+- **ABI compatibility**: Original `ufsecp_musig2_partial_sign()` preserved unchanged for backward
+  compatibility; security warning added to its header doc and implementation directing callers to v2.
+- **CT contract**: The validation path (ct::generator_mul) is constant-time on the privkey input.
+  The comparison loop is constant-time (no early-exit). Validation failure does not reveal timing
+  information about the private key to an attacker controlling signer_index.
+- **Test**: `audit/test_regression_musig2_abi_signer_index.cpp` (SIV-1..7): wrong-index
+  rejected, correct-index accepted, null-pubkeys rejected, out-of-range rejected, 3-of-3
+  correct/wrong indices, full 2-of-2 round-trip.
+- **Hostile-caller coverage**: `docs/FFI_HOSTILE_CALLER.md §Section L`.
+
 ### 2026-05-12 ecdsa.cpp -- SEC-004 compute_three_block bounds guard
 
 - **`src/cpu/src/ecdsa.cpp` (`compute_three_block`)**: Bounds guard `msg_len < 128 || > 183`

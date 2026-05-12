@@ -1,12 +1,12 @@
 {
   "generated_at": "2026-04-28T08:16:31.261078+00:00",
-  "header_count": 181,
+  "header_count": 182,
   "blocking_function_count": 0,
   "coverage_counts": {
-    "null_rejection": 180,
-    "zero_edge": 168,
-    "invalid_content": 175,
-    "success_smoke": 180
+    "null_rejection": 181,
+    "zero_edge": 169,
+    "invalid_content": 176,
+    "success_smoke": 181
   },
   "functions": [
     {
@@ -10508,6 +10508,41 @@
           "test-call:audit/test_c_abi_negative.cpp:1300",
           "test-call:audit/test_c_abi_negative.cpp:1302",
           "test-call:src/cpu/tests/test_ffi_coverage.cpp:test_zk_schnorr_snark_witness"
+        ]
+      },
+      "missing_checks": [],
+      "blocking": false
+    },
+    {
+      "function": "ufsecp_musig2_partial_sign_v2",
+      "category": "cpu",
+      "header": "include/ufsecp/ufsecp.h",
+      "signature": "ufsecp_error_t ufsecp_musig2_partial_sign_v2( ufsecp_ctx* ctx, uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN], const uint8_t privkey[32], const uint8_t* pubkeys, const uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN], const uint8_t session[UFSECP_MUSIG2_SESSION_LEN], size_t signer_index, uint8_t partial_sig32_out[32])",
+      "required_checks": [
+        "success_smoke",
+        "null_rejection",
+        "zero_edge",
+        "invalid_content"
+      ],
+      "covered_checks": {
+        "null_rejection": [
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_wrong_signer_index_rejected:SIV-3-null-pubkeys",
+          "docs/FFI_HOSTILE_CALLER.md:L.1 null pointer rejection"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_wrong_signer_index_rejected:SIV-1-wrong-signer",
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_wrong_signer_index_rejected:SIV-4-oob-signer-index",
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_three_signers_all_indices:SIV-6-wrong-neighbor-index",
+          "docs/FFI_HOSTILE_CALLER.md:L.3 invalid-content rejection"
+        ],
+        "success_smoke": [
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_wrong_signer_index_rejected:SIV-2-correct-index",
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_three_signers_all_indices:SIV-5-correct-own-index",
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_full_roundtrip_via_v2:SIV-7-full-2of2-roundtrip",
+          "docs/FFI_HOSTILE_CALLER.md:L.7 success smoke"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_regression_musig2_abi_signer_index.cpp:test_wrong_signer_index_rejected:SIV-3-null-pubkeys-ERR_NULL_ARG"
         ]
       },
       "missing_checks": [],

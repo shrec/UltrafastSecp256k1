@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-06
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 181
+**Total API functions:** 182
 
 ## Legend
 
@@ -258,6 +258,7 @@
 | `ufsecp_musig2_nonce_agg` | Y | - | Y (null ctx) | - | N/A | - | - | N/A |
 | `ufsecp_musig2_start_sign_session` | Y | - | Y (null ctx) | - | N/A | - | - | N/A |
 | `ufsecp_musig2_partial_sign` | Y | - | Y (nonce reuse) | - | Y (CT sign) | - | Y (BIP-327) | Y (nonce consumed) |
+| `ufsecp_musig2_partial_sign_v2` | Y | - | Y (wrong-index, null-pubkeys, OOB-index) | - | Y (CT sign + CT compare) | - | Y (BIP-327) | Y (nonce consumed all paths) |
 | `ufsecp_musig2_partial_verify` | Y | - | Y (cross-session replay) | - | N/A (public) | - | Y (BIP-327) | N/A |
 | `ufsecp_musig2_partial_sig_agg` | Y | - | Y (replayed partial) | - | N/A | - | Y (BIP-327) | N/A |
 

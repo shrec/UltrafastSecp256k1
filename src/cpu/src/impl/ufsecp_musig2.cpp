@@ -249,7 +249,12 @@ ufsecp_error_t ufsecp_musig2_partial_sign_v2(
     if (SECP256K1_UNLIKELY(!ctx || !secnonce || !privkey || !pubkeys || !keyagg || !session || !partial_sig32_out)) {
         return UFSECP_ERR_NULL_ARG;
     }
+    // Zero output before any processing (fail-closed, Rule 3).
+    std::memset(partial_sig32_out, 0, 32);
     ctx_clear_err(ctx);
+    // BIP-327: consume (zero) secnonce on ALL exit paths — success, validation failure,
+    // or any error. Prevents nonce reuse even when validation rejects before signing.
+    ScopeSecureErase<uint8_t> secnonce_guard(secnonce, UFSECP_MUSIG2_SECNONCE_LEN);
 
     // Parse and validate the private key first (strict: rejects 0, >= n).
     Scalar sk;

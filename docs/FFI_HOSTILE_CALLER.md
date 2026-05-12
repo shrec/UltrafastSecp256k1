@@ -156,4 +156,27 @@ an audit release commits it to the coverage matrix:
 
 No function can crash, hang, or leak memory on any hostile input. All reject with the appropriate `ufsecp_error_t` and leave output buffers untouched.
 
+---
+
+## Section L: MuSig2 ABI v2 — Signer-Index Cross-Validation (2026-05-12)
+
+`ufsecp_musig2_partial_sign_v2` is a new secret-bearing ABI function that performs
+`privkey ↔ signer_index` cross-validation before signing. Hostile-caller coverage
+is provided by `audit/test_regression_musig2_abi_signer_index.cpp` (SIV-1..7).
+
+| Test ID | Function | Coverage |
+|---------|----------|----------|
+| SIV-1 | `ufsecp_musig2_partial_sign_v2` | NULL pointer rejection (ctx=NULL, pubkeys=NULL) → `UFSECP_ERR_NULL_ARG` |
+| SIV-2 | `ufsecp_musig2_partial_sign_v2` | Zero-value privkey → `UFSECP_ERR_BAD_KEY` (via parse_bytes_strict_nonzero) |
+| SIV-3 | `ufsecp_musig2_partial_sign_v2` | signer_index out-of-range (99 for 2-signer keyagg) → `UFSECP_ERR_BAD_INPUT` |
+| SIV-4 | `ufsecp_musig2_partial_sign_v2` | Wrong signer_index (SK0 claiming index 1) → `UFSECP_ERR_BAD_KEY` |
+| SIV-5 | `ufsecp_musig2_partial_sign_v2` | 3-of-3: all signers succeed with correct index → `UFSECP_OK` |
+| SIV-6 | `ufsecp_musig2_partial_sign_v2` | 3-of-3: all signers fail with neighbour index → `UFSECP_ERR_BAD_KEY` |
+| SIV-7 | `ufsecp_musig2_partial_sign_v2` | Full 2-of-2 round-trip → valid Schnorr signature (success smoke) |
+
+**Nonce erase guarantee:** `secnonce` is zeroed via `ScopeSecureErase` on ALL exit
+paths — including validation failure — to prevent nonce reuse even when the wrong
+`signer_index` is supplied. This matches BIP-327 nonce-erasure requirements.
+
 <!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create. Phantom export removed from misuse_resistance gate. No hostile-caller contract changes. -->
+<!-- 2026-05-12: SEC-001 fix — ufsecp_musig2_partial_sign_v2 added (Section L). Hostile-caller quartet documented above. -->

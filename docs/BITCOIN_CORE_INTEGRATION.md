@@ -135,7 +135,7 @@ FROST (full KAT suite), Wycheproof ECDSA/ECDH (11 suites, CI-gated weekly).
 | Scalar inversion | Fermat chain | SafeGCD (Bernstein-Yang) — 6.5× faster |
 | Context | Required, heap-allocated | Accepted; thread-safe by design |
 | CT verification | Valgrind + disassembly | LLVM ct-verif + Valgrind + dudect |
-| Audit system | Review + fuzzing | CAAS — 257 exploit PoCs modules, CI every commit |
+| Audit system | Review + fuzzing | CAAS — 258 exploit PoCs modules, CI every commit |
 | BIP-352 batch scan | Not present | Available via native `ufsecp_*` API (not relevant to Core) |
 
 ---
