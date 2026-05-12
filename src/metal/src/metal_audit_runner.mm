@@ -200,16 +200,20 @@ static bool mtl_ecdsa_sign(const uint8_t priv[32], const uint8_t msg[32],
     if (!pipe) return false;
 
     uint32_t count = 1;
-    auto msg_buf  = g_ctx.alloc_with_data(msg, 32);
-    auto key_buf  = g_ctx.alloc_with_data(priv, 32);
-    auto sig_buf  = g_ctx.alloc(64);
-    auto cnt_buf  = g_ctx.alloc_with_data(&count, sizeof(count));
+    bool results_flag = false;
+    auto msg_buf     = g_ctx.alloc_with_data(msg, 32);
+    auto key_buf     = g_ctx.alloc_with_data(priv, 32);
+    auto sig_buf     = g_ctx.alloc(64);
+    auto cnt_buf     = g_ctx.alloc_with_data(&count, sizeof(count));
+    // GPU Guardrail 9: per-slot result flag so host can distinguish signing
+    // failure (output zeroed) from a legitimately zero signature.
+    auto result_buf  = g_ctx.alloc_with_data(&results_flag, sizeof(bool));
 
-    g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf});
+    g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf, result_buf});
 
     memcpy(sig_out, [sig_buf contents], 64);
-    // Valid signature requires both r != 0 and s != 0
-    return !scalar_is_zero(sig_out) && !scalar_is_zero(sig_out + 32);
+    // Use the result flag from the kernel (Guardrail 9) instead of inferring from sig bytes.
+    return *reinterpret_cast<const bool*>([result_buf contents]);
 }
 
 // ECDSA verify: pubkey(64B = x||y BE) + msg(32B) + sig(64B = r||s BE) -> bool

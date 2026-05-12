@@ -136,7 +136,7 @@ jobs:
     name: Block 3 / Security Gate (aggregator)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
-    needs: [detect-impact, fast-gates, caas-security, bindings-smoke, gpu-wasm-smoke]
+    needs: [detect-impact, fast-gates, caas-security, bindings-smoke, gpu-wasm-smoke, shim-gate]
     if: always()
     steps:
       - name: Harden runner
@@ -458,6 +458,89 @@ jobs:
           cmake --build out/ci-bindings-capi -j"$(nproc)"
           python3 -m py_compile bindings/python/ultrafast_secp256k1/__init__.py
 
+  shim-gate:
+    name: Block 3 / Shim Security Gate
+    # Builds the unified_audit_runner WITH the libsecp256k1 shim linked so that
+    # shim-dependent security regression modules (CRIT-1 MuSig2 secnonce, HIGH-2/3
+    # DER BIP-66, SPC pubkey CT, SHIM-001/010/012) run as mandatory (not advisory).
+    # Without this job those modules return ADVISORY_SKIP_CODE (77) and a live
+    # regression would produce all_pass:true in the CAAS pipeline.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: [detect-impact, fast-gates]
+    if: >-
+      needs.detect-impact.outputs.run_core == 'true' ||
+      needs.detect-impact.outputs.run_compat == 'true' ||
+      needs.detect-impact.outputs.run_caas == 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends g++-13 ninja-build
+
+      - name: Build with shim (unified_audit_runner + shim linked)
+        run: |
+          cmake -S . -B out/ci-shim -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DSECP256K1_BUILD_SHIM=ON \
+            -DBUILD_TESTING=ON \
+            -DSECP256K1_BUILD_TESTS=OFF \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_BUILD_FUZZ_TESTS=OFF \
+            -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
+            -DSECP256K1_MARCH=x86-64-v3
+          cmake --build out/ci-shim --target unified_audit_runner -j"$(nproc)"
+
+      - name: Run shim security regression modules (must not be advisory-skipped)
+        run: |
+          ./out/ci-shim/audit/unified_audit_runner --json-only \
+            -o shim_audit_report.json
+          # Fail if any shim module was advisory-skipped (stubs still in effect)
+          python3 - <<'PYEOF'
+          import json, sys
+          with open("shim_audit_report.json") as f:
+              r = json.load(f)
+          shim_keys = [
+              "exploit_shim_der_bip66", "exploit_shim_musig_secnonce",
+              "exploit_shim_recovery_null_arg", "exploit_shim_pubkey_ct",
+              "exploit_shim_noncefp_bypass",
+              "test_exploit_bchn_schnorr_strict_parsing",
+              "test_exploit_context_flag_bypass",
+              "regression_shim_pubkey_sort", "regression_shim_per_context_blinding",
+              "regression_musig2_session_token", "exploit_shim_der_zero_r",
+              "exploit_shim_null_ctx",
+          ]
+          advisory_skipped = []
+          for key in shim_keys:
+              mod = next((m for m in r.get("modules", []) if m.get("key") == key), None)
+              if mod and mod.get("result") == "advisory_skipped":
+                  advisory_skipped.append(key)
+          if advisory_skipped:
+              print(f"::error::Shim modules advisory-skipped (stubs still in effect): {advisory_skipped}")
+              print("The shim was not linked — secp256k1_shim target may be missing from this build.")
+              sys.exit(1)
+          failed = [m["key"] for m in r.get("modules", []) if m.get("result") == "failed"]
+          if failed:
+              print(f"::error::Shim security modules FAILED: {failed}")
+              sys.exit(1)
+          print(f"::notice::Shim gate passed — {len(shim_keys)} security modules are non-advisory and pass")
+          PYEOF
+
+      - name: Upload shim audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gate-shim-audit-${{ github.run_id }}
+          path: shim_audit_report.json
+          retention-days: 90
+
   gpu-wasm-smoke:
     name: Block 3 / GPU-WASM Routing Smoke
     runs-on: ubuntu-24.04
@@ -494,6 +577,7 @@ jobs:
       - caas-security
       - bindings-smoke
       - gpu-wasm-smoke
+      - shim-gate
     if: always()
     steps:
       - name: Evaluate block results
@@ -511,6 +595,7 @@ jobs:
           echo "| caas-security | ${{ needs.caas-security.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| bindings-smoke | ${{ needs.bindings-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| gpu-wasm-smoke | ${{ needs.gpu-wasm-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| shim-gate | ${{ needs.shim-gate.result }} |" >> "$GITHUB_STEP_SUMMARY"
 
           # caas-security must never be silently skipped for non-docs changes.
           # docs_only=true is the only legitimate skip path (all changed files
@@ -538,7 +623,8 @@ jobs:
             "build-test:${{ needs.build-test.result }}:may_skip" \
             "caas-security:${{ needs.caas-security.result }}:may_skip" \
             "bindings-smoke:${{ needs.bindings-smoke.result }}:may_skip" \
-            "gpu-wasm-smoke:${{ needs.gpu-wasm-smoke.result }}:may_skip"; do
+            "gpu-wasm-smoke:${{ needs.gpu-wasm-smoke.result }}:may_skip" \
+            "shim-gate:${{ needs.shim-gate.result }}:may_skip"; do
             block="${entry%%:*}"
             rest="${entry#*:}"
             result="${rest%%:*}"

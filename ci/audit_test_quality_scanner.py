@@ -126,9 +126,21 @@ class AuditTestScanner:
     def __init__(self, audit_dir: str):
         self.audit_dir = Path(audit_dir)
         self.findings: List[Finding] = []
+        # Additional directories scanned alongside audit/ (TEST-006 fix).
+        # These are scanned for vacuous-check bugs (A/B/C/D/E) but NOT for
+        # G (unwired exploits) since tests/ files are not registered in the
+        # unified runner by design.
+        self._extra_dirs: list[Path] = [
+            self.audit_dir.parent / "src" / "cpu" / "tests",
+            *(self.audit_dir.parent / "compat").glob("*/tests"),
+        ]
 
     def scan_all(self):
         files = sorted(self.audit_dir.glob("*.cpp"))
+        # TEST-006 fix: also scan tests/ and compat/*/tests/ for vacuous-check bugs.
+        for extra_dir in self._extra_dirs:
+            if extra_dir.is_dir():
+                files = files + sorted(extra_dir.glob("*.cpp"))
         for f in files:
             try:
                 self.scan_file(f)

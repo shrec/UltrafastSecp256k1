@@ -170,7 +170,10 @@ int secp256k1_ecdsa_recover(
     const unsigned char *msghash32)
 {
     if (!ctx_can_verify(ctx)) return 0;
-    if (!pubkey || !sig || !msghash32) return 0;
+    if (!pubkey || !sig || !msghash32) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_recover: NULL argument");
+        return 0;
+    }
 
     std::array<uint8_t, 32> msg{};
     std::memcpy(msg.data(), msghash32, 32);

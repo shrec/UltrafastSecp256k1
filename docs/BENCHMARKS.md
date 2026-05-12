@@ -116,7 +116,7 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 
 No regressions vs previous rerun (2026-03-17). All 70/70 audit modules pass.
 
-> **Compiler note:** CT signing ratios above are Clang 19 results. GCC 13 produces opposite results for CT signing: CT ECDSA sign 0.85×, CT Schnorr sign 0.82× vs libsecp (i.e. slower). Compiler choice is significant for CT signing paths. The stored `benchmark_results/` artifact was generated with GCC 13 (`run_mode: quick`) and shows these slower numbers. The Clang 19 results above are from this controlled rerun.
+> **⚠ Cross-compiler disambiguation (BENCH-006):** CT signing ratios in this table (1.33×/1.20×) are **Clang 19 only, 2026-03-24**. They are **not comparable** to the current canonical GCC 14.2.0 measurements (CT ECDSA 1.24×, CT Schnorr 1.09× — see `docs/bench_unified_2026-05-11_gcc14_x86-64.json` and the summary table at the top of this document). Compiler choice materially changes CT signing ratios. GCC 13 produces even lower ratios (CT ECDSA ~0.85×, CT Schnorr ~0.82×). Always specify the compiler when citing CT signing benchmarks. The Clang 19 archive above is retained for historical reference only — do not cite as a release-grade claim.
 
 ### x86-64 Full Rerun (2026-04-05, post-musig2-bip32 optimization) `[archived]`
 

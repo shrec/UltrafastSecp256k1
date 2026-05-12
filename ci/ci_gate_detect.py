@@ -87,6 +87,12 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         # performance claims without triggering CAAS gates.
         "docs/canonical_numbers.json",
         "docs/bench_unified_*.json",
+        # CI-003 (T-10 fix): security narrative docs — a commit that deletes a
+        # documented attack mitigation or shim divergence must trigger CAAS,
+        # even though these are markdown files under docs/.
+        "docs/ATTACK_GUIDE.md",
+        "docs/API_REFERENCE.md",
+        "docs/SHIM_KNOWN_DIVERGENCES.md",
     ],
     "docs-only": [
         "docs/**",

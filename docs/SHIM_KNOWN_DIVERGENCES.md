@@ -218,3 +218,49 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   calls `secp256k1_ecdsa_signature_parse_der` with a hardcoded DER blob encoding r=0
   and verifies return value is 0. Upstream libsecp returns 1 (passes to verify which
   then rejects).
+
+---
+
+## secp256k1_ecdsa_recover — NULL pubkey/sig/msghash fires illegal callback (SHIM-NEW-001)
+
+- **Upstream behavior:** NULL required arguments (`pubkey`, `sig`, `msghash32`) trigger
+  the illegal callback (default: abort).
+- **Previous shim behavior:** Returned 0 silently without firing the callback.
+- **Current shim behavior:** Fires `secp256k1_shim_call_illegal_cb` before returning 0.
+  **Fixed 2026-05-12** (SHIM-NEW-001).
+- **Reason:** Matches libsecp256k1 contract. Silent return 0 on NULL args is a divergence
+  that could mask caller bugs.
+- **Impact:** None for correct callers. A caller that passes NULL args now gets the same
+  abort behavior as with libsecp256k1.
+- **Test:** `test_shim_recover_null_pubkey_fires_callback` — pass NULL pubkey, verify
+  callback flag is set.
+
+---
+
+## secp256k1_schnorrsig_sign_custom — NULL sig64/keypair fires illegal callback (SHIM-NEW-003)
+
+- **Upstream behavior:** NULL `sig64` or `keypair` triggers the illegal callback (default: abort).
+- **Previous shim behavior:** Returned 0 silently without firing the callback.
+- **Current shim behavior:** Fires `secp256k1_shim_call_illegal_cb` before returning 0.
+  **Fixed 2026-05-12** (SHIM-NEW-003).
+- **Reason:** Matches libsecp256k1 contract.
+- **Impact:** None for correct callers.
+- **Test:** `test_shim_schnorrsig_null_sig_fires_callback` — pass NULL sig64, verify callback fires.
+
+---
+
+## secp256k1_ecdh — uses Scalar::from_bytes (silent mod-n reduction) (SHIM-NEW-002)
+
+- **Upstream behavior:** libsecp256k1 `secp256k1_ecdh` also uses silent mod-n reduction
+  on the private key (it does not call `secp256k1_ec_seckey_verify` internally).
+  A key equal to n reduces to 0, which then causes `secp256k1_ecdh` to return 0.
+- **Shim behavior:** Uses `Scalar::from_bytes` (mod-n reduction), matching upstream.
+  This is intentional: `secp256k1_ecdh` is consistent with upstream behavior.
+- **Contrast:** All other shim signing functions use `parse_bytes_strict_nonzero` (which
+  rejects keys >= n). `secp256k1_ecdh` intentionally does NOT reject keys >= n at parse
+  time, matching upstream semantics.
+- **Reason:** Consistency with libsecp256k1 contract for `secp256k1_ecdh`.
+- **Impact:** Callers passing private keys >= n to `secp256k1_ecdh` will get 0 (ECDH fails
+  on reduced-to-zero key) rather than a strict rejection error. Same behavior as upstream.
+- **Test:** `test_shim_ecdh_from_bytes_behavior` — pass key = n, verify return is 0
+  (consistent with libsecp256k1: key reduces to 0, ECDH on 0 fails).

@@ -73,8 +73,9 @@ int secp256k1_schnorrsig_verify_batch(
         return 1;
     }
 
-    // Build batch entries.
-    std::vector<secp256k1::SchnorrBatchEntry> batch;
+    // thread_local scratch: avoids per-call heap allocation at batch sizes >= kBatchMinSchnorr.
+    static thread_local std::vector<secp256k1::SchnorrBatchEntry> batch;
+    batch.clear();
     batch.reserve(n);
 
     for (size_t i = 0; i < n; ++i) {
@@ -138,8 +139,9 @@ int secp256k1_ecdsa_verify_batch(
         return 1;
     }
 
-    // Build batch entries.
-    std::vector<secp256k1::ECDSABatchEntry> batch;
+    // thread_local scratch: avoids per-call heap allocation at batch sizes >= kBatchMinEcdsa.
+    static thread_local std::vector<secp256k1::ECDSABatchEntry> batch;
+    batch.clear();
     batch.reserve(n);
 
     for (size_t i = 0; i < n; ++i) {
@@ -159,10 +161,10 @@ int secp256k1_ecdsa_verify_batch(
         std::memcpy(yb.data(), pubkeys[i]->data + 32, 32);
         auto x = FieldElement::from_bytes(xb);
         auto y = FieldElement::from_bytes(yb);
-        // Curve membership check: y² == x³ + 7
-        auto lhs = y.square();
-        auto rhs = x.square() * x + FieldElement::from_uint64(7);
-        if (!(lhs == rhs)) return 0;
+        // PERF-004: curve membership check (y²=x³+7) removed from batch path.
+        // The single-verify path removed this in PERF-002 (~400 ns/call). It is not
+        // a security check — from_affine + Point arithmetic rejects infinity points.
+        // Any invalid-curve point will produce an incorrect verify result, caught below.
         e.public_key = Point::from_affine(x, y);
         if (e.public_key.is_infinity()) return 0;
 

@@ -200,8 +200,14 @@ int secp256k1_schnorrsig_sign_custom(
     // Fail-closed: reject non-canonical nonce functions.
     if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
 
-    if (!sig64 || !keypair) return 0;
-    if (msglen > 0 && !msg) return 0;
+    if (!sig64 || !keypair) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL argument");
+        return 0;
+    }
+    if (msglen > 0 && !msg) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL msg with nonzero msglen");
+        return 0;
+    }
 
     // Fast path: 32-byte message — forward ndata as aux_rand32 matching libsecp contract.
     // ndata == nullptr → deterministic zero-aux nonce (same as sign32 with null aux).

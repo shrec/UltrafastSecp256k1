@@ -258,6 +258,7 @@ kernel void ecdsa_sign_batch(
     device const uchar *privkeys       [[buffer(1)]],   // N × 32 bytes
     device uchar *signatures           [[buffer(2)]],   // N × 64 bytes (r ∥ s)
     constant uint &count               [[buffer(3)]],
+    device bool *results               [[buffer(4)]],   // N per-slot success flags (Guardrail 9)
     uint tid [[thread_position_in_grid]]
 ) {
     if (tid >= count) return;
@@ -285,6 +286,10 @@ kernel void ecdsa_sign_batch(
     if (!ok) {
         for (int z = 0; z < 8; z++) { r_sig.limbs[z] = 0; s_sig.limbs[z] = 0; }
     }
+
+    // GPU Guardrail 9: write per-slot success flag so host can distinguish
+    // signing failure (output zeroed) from a legitimately zero signature.
+    results[tid] = ok;
 
     // Write r ∥ s as big-endian
     uint out_off = tid * 64;

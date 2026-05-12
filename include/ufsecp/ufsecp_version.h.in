@@ -33,8 +33,9 @@ extern "C" {
 #define UFSECP_VERSION_STRING  "@PROJECT_VERSION@"
 
 /* ── ABI version (incremented ONLY on binary-incompatible changes) ────────── */
-
-#define UFSECP_ABI_VERSION     1
+/* Derived from the CMake MAJOR version: every MAJOR bump is ABI-breaking.    */
+/* Do NOT hardcode this value here — it is templated by CMake from VERSION.txt */
+#define UFSECP_ABI_VERSION     @PROJECT_VERSION_MAJOR@
 
 /* ── Runtime queries ──────────────────────────────────────────────────────── */
 
