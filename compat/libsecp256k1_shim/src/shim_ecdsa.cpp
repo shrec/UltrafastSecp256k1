@@ -127,7 +127,7 @@ int secp256k1_ecdsa_signature_parse_compact(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *input64)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!sig || !input64) return 0;
     // libsecp accepts r==0 and s==0 at parse time (verify will reject them).
     // Only r>=n or s>=n triggers a parse failure, matching upstream behaviour.
@@ -142,7 +142,7 @@ int secp256k1_ecdsa_signature_serialize_compact(
     const secp256k1_context *ctx, unsigned char *output64,
     const secp256k1_ecdsa_signature *sig)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output64 || !sig) return 0;
     std::memcpy(output64, sig->data, 64);
     return 1;
@@ -183,7 +183,7 @@ int secp256k1_ecdsa_signature_parse_der(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
     const unsigned char *input, size_t inputlen)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!sig || !input || inputlen < 8) return 0;
 
     const unsigned char *p = input;
@@ -233,7 +233,7 @@ int secp256k1_ecdsa_signature_serialize_der(
     const secp256k1_context *ctx, unsigned char *output, size_t *outputlen,
     const secp256k1_ecdsa_signature *sig)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output || !outputlen || !sig) return 0;
 
     // Max DER integer: 0x02 + len(1) + 0x00 pad(1) + 32 data = 35 bytes
@@ -259,7 +259,7 @@ int secp256k1_ecdsa_signature_normalize(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sigout,
     const secp256k1_ecdsa_signature *sigin)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!sigin) return 0;
 
     auto sig = ecdsa_sig_from_data(sigin->data);

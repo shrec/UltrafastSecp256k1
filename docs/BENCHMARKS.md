@@ -38,6 +38,12 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **
 > GPU rows: kernel-only throughput at standard batch sizes.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
+**P1-PERF-001 (2026-05-12, release-grade):** `secp256k1_schnorrsig_verify` unique-pubkey path (ConnectBlock workload).
+Eliminates redundant lift_x sqrt per call (stored Y from `secp256k1_xonly_pubkey_parse` used directly).
+Before (bb8ddc23): median **30,087 ns/op**, min 29,806, max 30,738.
+After  (a683202a): median **25,288 ns/op**, min 25,001, max 25,882.
+**~16% faster** (ranges non-overlapping). Conditions: i5-14400F, gcc -O2, taskset -c 0, performance governor, 2048 unique pubkeys (forces lift_x cache misses), 5 runs × 10 rounds each.
+
 ---
 
 ---
