@@ -144,6 +144,18 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "Covered by existing MuSig2 ka_cap and secnonce shim tests which exercise the full "
         "pubkey_agg→schnorrsig_verify path that depends on the even-Y layout.",
     ),
+    "cdc55fb189": (
+        ["audit/test_regression_hash_three_block_bounds.cpp",
+         "audit/test_regression_frost_threshold_zero.cpp",
+         "audit/test_regression_shim_high_s_verify.cpp",
+         "audit/test_regression_shim_perf_correctness.cpp"],
+        "SEC-004 (ecdsa.cpp compute_three_block bounds guard) and SEC-010 (frost.cpp "
+        "threshold==0 quorum bypass guard): tests added in the follow-up commit (dcbcb6a6). "
+        "PERF-001 (shim_recovery.cpp is_normalized fast path) and PERF-005 "
+        "(shim_schnorr.cpp raw-pointer parse): correctness tests in test_regression_shim_perf_correctness. "
+        "OpenCL scan key boundary fix (gpu_backend_opencl.cpp): covered by "
+        "test_regression_opencl_bip352_scan_key_boundary.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
