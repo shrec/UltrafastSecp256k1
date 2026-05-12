@@ -117,8 +117,8 @@ powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
 
 ### Single Run
 
-Each operation reports the **median** of 5 measurement blocks (each block = 1000
-iterations). This reduces outlier influence from OS scheduling.
+Each operation runs **11 internal passes** (500 warmup iterations, IQR outlier
+removal, median reported). This matches `benchmark_harness.hpp` `Harness(500, 11)`.
 
 ### Regression Detection
 
@@ -127,9 +127,9 @@ The CI benchmark workflow (`benchmark.yml`) uses
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| Alert threshold | 150% | Warns if >50% slower |
+| Alert threshold | 200% | Warns if >100% slower (shared-runner noise tolerance) |
 | Tool | `customSmallerIsBetter` | Lower = faster |
-| Auto-push | Yes (to `gh-pages`) | Historical tracking |
+| Auto-push | No | Manual workflow_dispatch required for baseline updates |
 | Comment-on-alert | Yes | PR notification |
 | Fail-on-alert | No | Allows investigation |
 
@@ -161,25 +161,21 @@ Benchmarks are collected on:
 
 ## Reference Numbers
 
-Current baseline (x86-64, Clang 21, AVX2, Release):
+Current baseline: see [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](bench_unified_2026-05-11_gcc14_x86-64.json)
+for canonical measurements (GCC 14.2.0, Release+LTO, Intel i5-14400F, turbo off,
+taskset -c 0, nice -20, 11 passes IQR).
+
+Key values (GCC 14.2.0, Release+LTO):
 
 | Operation | Time | Notes |
 |-----------|------|-------|
-| Field mul | 17 ns | ASM (mulx/adcx/adox) |
-| Field square | 16 ns | ASM |
-| Field inverse | 5 us | Fermat (ASM) |
-| Scalar mul | 25 us | GLV + wNAF |
-| Generator mul | 5 us | Precomputed table |
-| Point add (Jac) | 200 ns | |
-| Point double | 150 ns | |
-| ECDSA sign | 30 us | CT path: 180 us |
-| ECDSA verify | 55 us | |
-| Schnorr sign | 28 us | CT path: 170 us |
-| Schnorr verify | 50 us | |
-| Batch inv (N=1000) | 92 ns/elem | Montgomery trick |
+| CT ECDSA sign | ~24.1 µs | `ct::ecdsa_sign` — constant-time production path |
+| CT Schnorr sign | ~23.7 µs | `ct::schnorr_sign` — constant-time production path |
+| ECDSA verify | ~38.4 µs | variable-time (correct for public data) |
+| Schnorr verify | ~35.1 µs | variable-time (correct for public data) |
 
-These serve as the alert baseline. Any commit causing >50% regression on a tracked
-metric is flagged.
+These serve as the alert baseline. Any commit causing >100% regression on a tracked
+metric is flagged (200% threshold accounts for shared-runner noise).
 
 ---
 

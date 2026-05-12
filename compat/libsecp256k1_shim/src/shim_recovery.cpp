@@ -66,7 +66,7 @@ int secp256k1_ecdsa_recoverable_signature_parse_compact(
     const unsigned char *input64,
     int recid)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!sig || !input64) return 0;
     if (recid < 0 || recid > 3) return 0;
     // Validate r and s are in (0, n-1] — matches libsecp strict contract.
@@ -86,7 +86,7 @@ int secp256k1_ecdsa_recoverable_signature_serialize_compact(
     int *recid,
     const secp256k1_ecdsa_recoverable_signature *sig)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!output64 || !recid || !sig) return 0;
     *recid = static_cast<int>(sig->data[0] & 0x03);
     std::memcpy(output64, sig->data + 1, 64);
@@ -98,7 +98,7 @@ int secp256k1_ecdsa_recoverable_signature_convert(
     secp256k1_ecdsa_signature *sig,
     const secp256k1_ecdsa_recoverable_signature *sigin)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!sig || !sigin) return 0;
     // Non-recoverable sig is r||s (64 bytes); strip the recid byte.
     std::memcpy(sig->data, sigin->data + 1, 64);

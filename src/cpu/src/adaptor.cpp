@@ -154,6 +154,15 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
     if (py.limbs()[0] & 1u) py = FieldElement::zero() - py;
     Point const P = Point::from_affine(px, py);
 
+    // Integrity check: needs_negation must be consistent with the adaptor orientation.
+    // The correct value is: needs_negation == ((R_hat + T).y is odd).
+    // A tampered needs_negation bit would bind the pre-sig to the wrong adaptor secret.
+    {
+        auto [Rcheck_x, Rcheck_y_odd] = pre_sig.R_hat.add(adaptor_point).x_bytes_and_parity();
+        (void)Rcheck_x;
+        if (static_cast<bool>(Rcheck_y_odd) != pre_sig.needs_negation) return false;
+    }
+
     // Adjust T based on whether nonce was negated during signing
     Point const T_adj = pre_sig.needs_negation ? adaptor_point.negate() : adaptor_point;
 

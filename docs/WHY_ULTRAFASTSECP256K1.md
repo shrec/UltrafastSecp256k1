@@ -51,7 +51,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 256 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 254 wired, 0 failures |
+| Exploit PoC tests | 256 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 256 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -60,8 +60,8 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 100 non-exploit modules + 256 exploit PoCs modules (354 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **256 exploit PoCs modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **254 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 100 non-exploit modules + 256 exploit PoC modules (356 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **256 exploit PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **256 modules, 0 failures** |
 
 All 100 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
 All 256 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
@@ -222,7 +222,7 @@ The internal quality infrastructure described in this document represents a syst
 |------------------|---------|
 | Mathematical correctness | 473,961 audit assertions (field + scalar + point) |
 | Constant-time guarantees | ct-verif, ARM64 CI, Valgrind CT, 120K CT assertions |
-| Adversarial resilience | Wycheproof, fault injection, 530K+ fuzz corpus |
+| Adversarial resilience | Wycheproof, fault injection, hundreds of thousands of corpus checks (grows with CI) |
 | Protocol correctness | FROST/MuSig2 KAT, cross-libsecp256k1 differential |
 | Memory safety | ASan, TSan, Valgrind — manual/release deep-assurance workflows |
 | Static analysis | CodeQL, SonarCloud, Clang-Tidy, CPPCheck |

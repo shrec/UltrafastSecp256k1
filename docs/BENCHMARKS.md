@@ -1511,8 +1511,7 @@ Drop-in replacement via `compat/libsecp256k1_shim/` — the shim exposes
 the full `secp256k1.h` C API and links against `libfastsecp256k1.a`.
 
 > **Build mode matters:** Use `Release + LTO` (`-DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON`)
-> for full performance. Without LTO (RelWithDebInfo), ConnectBlock is ~2.5% slower due to
-> i-cache pressure. With LTO the deficit is eliminated. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`.
+> for full performance. Without LTO: parity after PERF-002 fix (removed redundant on-curve check). LTO is still recommended for optimal code layout (+1.0–2.1% faster than without LTO). With LTO the deficit is eliminated. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`.
 
 ### Release + LTO Results (recommended — i5-14400F, GCC 13, taskset -c 0)
 

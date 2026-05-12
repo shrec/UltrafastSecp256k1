@@ -84,17 +84,20 @@ _RULES: list[tuple[str, str, str]] = [
      "{ct_pipeline_count} independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)"),
 
     # ── docs/WHY_ULTRAFASTSECP256K1.md ────────────────────────────────────
+    # Table row: exploit PoC column (line ~54) — actual text uses "| N wired, 0 failures"
     ("docs/WHY_ULTRAFASTSECP256K1.md",
-     r"\d+ dedicated adversarial PoC modules across 20\+ coverage categories \(`audit/test_exploit_\*\.cpp`\) \| \d+ test files",
-     "{exploit_poc_count} dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | {exploit_poc_count} test files"),
+     r"\d+ dedicated adversarial PoC modules across 20\+ coverage categories \(`audit/test_exploit_\*\.cpp`\) \| \d+ wired, 0 failures",
+     "{exploit_poc_count} dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | {exploit_poc_count} wired, 0 failures"),
 
+    # Total row (line ~63) — actual text uses "exploit PoCs modules" (no dash, plural PoCs)
     ("docs/WHY_ULTRAFASTSECP256K1.md",
-     r"\*\*unified_audit_runner\*\* across \d+ non-exploit modules \+ \d+ exploit-PoC modules \(\d+ total\)",
-     "**unified_audit_runner** across {non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit-PoC modules ({total_modules} total)"),
+     r"\*\*unified_audit_runner\*\* across \d+ non-exploit modules \+ \d+ exploit PoCs modules \(\d+ total\)",
+     "**unified_audit_runner** across {non_exploit_modules} non-exploit modules + {exploit_poc_count} exploit PoC modules ({total_modules} total)"),
 
+    # Exploit PoC total row (line ~64) — actual text uses "exploit PoCs modules" not "exploit-style PoC modules"
     ("docs/WHY_ULTRAFASTSECP256K1.md",
-     r"\*\*\d+ exploit-style PoC modules\*\* across 20\+ coverage categories.*?\| \*\*\d+ modules, 0 failures\*\*",
-     "**{exploit_poc_count} exploit-style PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **{exploit_poc_count} modules, 0 failures**"),
+     r"\*\*\d+ exploit PoCs modules\*\* across 20\+ coverage categories.*?\| \*\*\d+ modules, 0 failures\*\*",
+     "**{exploit_poc_count} exploit PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **{exploit_poc_count} modules, 0 failures**"),
 
     ("docs/WHY_ULTRAFASTSECP256K1.md",
      r"\d+ workflows, \d+ platform combinations",

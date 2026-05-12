@@ -162,7 +162,7 @@ int secp256k1_keypair_xonly_pub(
     const secp256k1_context *ctx, secp256k1_xonly_pubkey *pubkey,
     int *pk_parity, const secp256k1_keypair *keypair)
 {
-    (void)ctx;
+    SHIM_REQUIRE_CTX(ctx);
     if (!pubkey || !keypair) return 0;
 
     // keypair layout: data[0..31]=sk, data[32..63]=X, data[64..95]=Y (big-endian)

@@ -107,6 +107,26 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
     repl = f"GCC 13/14: {ct_gc['speedup_min_x']:.2f}–{ct_gc['speedup_max_x']:.2f}×"
     text, n = _sub(pat, repl, text); total += n
 
+    # ── ConnectBlock without-LTO wording ─────────────────────────────────────
+    # Replaces "Without LTO: ~N.N% slower ... LTO eliminates this [entirely]." with
+    # canonical wording. Matches the full known phrase to avoid partial replacements.
+    nolto = c.get("connectblock", {}).get("wording_no_lto", "")
+    if nolto:
+        # Match the specific stale phrase from .text section to end of that sentence.
+        # Anchored tightly so it doesn't consume text it shouldn't.
+        pat = (r'Without LTO:\s*~\d+[\.,]\d+%\s*slower due to instruction-cache pressure'
+               r'[^*\n|]*?LTO eliminates this(?:\s+entirely)?(?:\.|(?=\s))')
+        if re.search(pat, text):
+            text = re.sub(pat, nolto, text)
+            total += 1
+
+    # ── Fuzz corpus Summary Table cell ───────────────────────────────────────
+    # Replaces "NNK+ fuzz corpus" (or similar stale count) with canonical cell text.
+    fc = c.get("fuzz_corpus", {}).get("summary_table_cell", "")
+    if fc:
+        pat = r'Wycheproof, fault injection, [\w\s,K+]+ fuzz corpus'
+        text, n = _sub(pat, fc, text); total += n
+
     if text == original:
         return 0
 
@@ -128,6 +148,8 @@ TARGET_DOCS = [
     "docs/BITCOIN_CORE_BACKEND_EVIDENCE.md",
     "docs/BENCHMARKS.md",
     "docs/THREAD_SAFETY.md",
+    "docs/BITCOIN_CORE_PR_BLOCKERS.md",
+    "docs/WHY_ULTRAFASTSECP256K1.md",
 ]
 
 

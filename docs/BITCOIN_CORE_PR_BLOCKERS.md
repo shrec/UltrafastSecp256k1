@@ -46,7 +46,7 @@ matrix) are now closed with documented evidence.
 
 | # | Item | Status | Evidence |
 |---|------|--------|---------|
-| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` — **With Release+LTO (recommended):** ConnectBlock: **Ultra wins ALL scenarios (+1.0–+2.1% faster)**, confirmed — err% 0.1–0.3%, margins 3–7× the error floor. Taproot signing (SignSchnorrWithMerkleRoot): **+36% faster (1.36×)**; P2TR script-path verify: **+11% faster (1.11×)**; SignTransactionECDSA: **+15% faster (1.15×)**; SignTransactionSchnorr: **+11% faster (1.11×)**. **Without LTO:** ConnectBlock ~1.1% slower due to instruction-cache pressure from Ultra's larger .text section — NOT secp256k1 op latency; LTO eliminates this. See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`. |
+| 10 | Bitcoin Core workload benchmarks | ✅ **DONE** | `docs/BITCOIN_CORE_BENCH_RESULTS.json` — **With Release+LTO (recommended):** ConnectBlock: **Ultra wins ALL scenarios (+1.0–+2.1% faster)**, confirmed — err% 0.1–0.3%, margins 3–7× the error floor. Taproot signing (SignSchnorrWithMerkleRoot): **+36% faster (1.36×)**; P2TR script-path verification is ~11% faster (1.11×)**; SignTransactionECDSA: **+15% faster (1.15×)**; SignTransactionSchnorr: **+11% faster (1.11×)**. **Without LTO: parity after PERF-002 fix (removed redundant on-curve check). LTO is still recommended for optimal code layout (+1.0–2.1% faster than without LTO).** See `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §2.1`. |
 
 ---
 

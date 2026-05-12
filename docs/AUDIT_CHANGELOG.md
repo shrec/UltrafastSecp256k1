@@ -7,6 +7,28 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-12 — 10-Pass Multi-Agent Review: Documentation + Security Fixes
+
+### Documentation / Canonical Data
+- **canonical_numbers.json**: `nolto_deficit_pct` corrected to 0 (PERF-002 resolved the no-LTO gap). `wording_no_lto` updated to "parity after PERF-002 fix." Added `fuzz_corpus` and `gpu_throughput` entries.
+- **sync_docs_from_canonical.py**: Fixed three broken regex patterns for WHY doc lines 54/63/64 (exploit PoC counts). Patterns were looking for `exploit-PoC modules` but actual text used `exploit PoCs modules`.
+- **sync_canonical_numbers.py**: Added `docs/BITCOIN_CORE_PR_BLOCKERS.md` and `docs/WHY_ULTRAFASTSECP256K1.md` to TARGET_DOCS. Added no-LTO wording rule and fuzz corpus Summary Table rule.
+- **docs/BENCHMARK_METHODOLOGY.md**: Corrected statistical method description (11 passes × IQR, not 5 × 1000). Removed nonexistent "Clang 21" reference table; replaced with pointer to canonical JSON. Updated alert threshold to 200% (matching actual workflow).
+- **docs/WHY_ULTRAFASTSECP256K1.md**: Summary Table fuzz corpus row updated from "530K+" to canonical wording. Module counts on lines 54/63/64 updated to correct values (356/256/256).
+- **README.md**, **docs/BITCOIN_CORE_PR_BLOCKERS.md**: No-LTO wording updated from "~1.1% slower" to "parity after PERF-002 fix."
+
+### Security Fixes
+- **FIX-001** `compat/libsecp256k1_shim/src/shim_recovery.cpp`: `secp256k1_ecdsa_recoverable_signature_parse_compact`, `_serialize_compact`, `_convert` — replaced `(void)ctx` with `SHIM_REQUIRE_CTX(ctx)`. NULL ctx now fires the illegal callback matching libsecp256k1 behavior.
+- **FIX-002** `compat/libsecp256k1_shim/src/shim_extrakeys.cpp`: `secp256k1_keypair_xonly_pub` — replaced `(void)ctx` with `SHIM_REQUIRE_CTX(ctx)`.
+- **FIX-003** `src/cpu/src/adaptor.cpp`: `schnorr_adaptor_verify` — added `needs_negation` integrity check. The flag is now verified to be consistent with `(R_hat + T).y parity` before being trusted. Prevents an attacker from flipping the flag to bind a pre-sig to a different adaptor commitment.
+- **FIX-004** `audit/test_exploit_shim_musig_ka_cap.cpp` (RED-TEAM-009): Replaced tautological `CHECK(1 == 1, ...)` assertions with real functional tests: KAC-1 (normal pubkey_agg returns 1), KAC-2 (null pubkeys returns 0), KAC-3 (count=0 returns 0). Non-standalone path now correctly returns ADVISORY_SKIP_CODE (77).
+
+### Confirmed Not Bugs
+- **TASK-001 (batch signing fail-open)**: Verified that both `ufsecp_ecdsa_sign_batch` and `ufsecp_schnorr_sign_batch` correctly zero the full output buffer upfront before the loop. The per-iteration `memset(0, i*64)` on error paths re-zeros previously-written valid signatures (fail-closed design). Review agent finding was a false positive — slot i is never written before the validity check.
+- **P6-CAAS-03 (gate.yml ci/ bypass)**: Verified that `ci/**` files are classified under the "infra" profile in `ci_gate_detect.py`, which is in `HARD_PROFILES` and triggers `run_caas=true`. No bypass possible. Review agent finding was a false positive.
+
+---
+
 ## 2026-05-11 — Shim Regression Tests Wired (Agent 5)
 
 - **exploit_shim_der_zero_r** `compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp` + `audit/unified_audit_runner.cpp`: DER parse r=0 rejection wired into unified runner (`exploit_poc`, `advisory=true`). Test confirms shim rejects r=0 at parse time (stricter than upstream libsecp256k1). Standalone CTest target `shim_der_zero_r` added.
