@@ -13,6 +13,8 @@
 
 int test_shim_der_zero_r_run()               { return ADVISORY_SKIP_CODE; }
 int test_shim_null_ctx_run()                 { return ADVISORY_SKIP_CODE; }
+int test_regression_shim_high_s_verify_run() { return ADVISORY_SKIP_CODE; }
+int test_regression_shim_perf_correctness_run() { return ADVISORY_SKIP_CODE; }
 int test_regression_bip32_private_key_strict_run()  { return ADVISORY_SKIP_CODE; }
 int test_regression_ellswift_ct_path_run()          { return ADVISORY_SKIP_CODE; }
 int test_regression_musig2_nonce_strict_run()        { return ADVISORY_SKIP_CODE; }

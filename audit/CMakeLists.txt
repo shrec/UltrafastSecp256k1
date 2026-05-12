@@ -3683,12 +3683,50 @@ if(TARGET secp256k1_shim)
         test_regression_musig2_session_token.cpp
         # 2026-05-11 shim regression tests (Agent 5) — live in compat/
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_null_ctx.cpp
+        # 2026-05-12 SEC-007: high-S verify diagnostic (shim-linked)
+        test_regression_shim_high_s_verify.cpp
+        # 2026-05-12 PERF-001/005: shim hot-path correctness regression
+        test_regression_shim_perf_correctness.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
 else()
     target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp)
+endif()
+
+# -- PERF-001/005: shim hot-path correctness (standalone CTest target) --
+if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
+    add_executable(test_regression_shim_perf_correctness_standalone
+        test_regression_shim_perf_correctness.cpp)
+    audit_target_defaults(test_regression_shim_perf_correctness_standalone)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_regression_shim_perf_correctness_standalone PRIVATE secp256k1_shim)
+        target_include_directories(test_regression_shim_perf_correctness_standalone PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    endif()
+    target_compile_definitions(test_regression_shim_perf_correctness_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_perf_correctness
+        COMMAND test_regression_shim_perf_correctness_standalone)
+    set_tests_properties(regression_shim_perf_correctness PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;perf;ecdsa;schnorr")
+endif()
+
+# -- SEC-007: high-S verify divergence diagnostic (standalone CTest target) --
+if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
+    add_executable(test_regression_shim_high_s_verify_standalone
+        test_regression_shim_high_s_verify.cpp)
+    audit_target_defaults(test_regression_shim_high_s_verify_standalone)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_regression_shim_high_s_verify_standalone PRIVATE secp256k1_shim)
+        target_include_directories(test_regression_shim_high_s_verify_standalone PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    endif()
+    target_compile_definitions(test_regression_shim_high_s_verify_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_high_s_verify
+        COMMAND test_regression_shim_high_s_verify_standalone)
+    set_tests_properties(regression_shim_high_s_verify PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;ecdsa;malleability")
 endif()
 
 # GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
@@ -4390,3 +4428,61 @@ add_test(NAME regression_musig2_signer_index_validation
 set_tests_properties(regression_musig2_signer_index_validation PROPERTIES TIMEOUT 30
     LABELS "audit;regression;musig2;security;rule13")
 
+
+# SEC-002: OpenCL BIP-352 scan key parse_bytes_strict_nonzero boundary (advisory for GPU path)
+add_executable(test_regression_opencl_bip352_scan_key_boundary_standalone
+    test_regression_opencl_bip352_scan_key_boundary.cpp)
+audit_target_defaults(test_regression_opencl_bip352_scan_key_boundary_standalone)
+target_compile_definitions(test_regression_opencl_bip352_scan_key_boundary_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_opencl_bip352_scan_key_boundary
+    COMMAND test_regression_opencl_bip352_scan_key_boundary_standalone)
+set_tests_properties(regression_opencl_bip352_scan_key_boundary PROPERTIES TIMEOUT 30
+    SKIP_RETURN_CODE 77
+    LABELS "audit;regression;opencl;bip352;security;sec-002")
+
+# SEC-004: compute_three_block missing bounds guard
+add_executable(test_regression_hash_three_block_bounds_standalone
+    test_regression_hash_three_block_bounds.cpp)
+audit_target_defaults(test_regression_hash_three_block_bounds_standalone)
+target_compile_definitions(test_regression_hash_three_block_bounds_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_hash_three_block_bounds
+    COMMAND test_regression_hash_three_block_bounds_standalone)
+set_tests_properties(regression_hash_three_block_bounds PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;hash;ecdsa;security;sec-004")
+
+# SEC-010: FROST frost_sign threshold==0 guard
+add_executable(test_regression_frost_threshold_zero_standalone
+    test_regression_frost_threshold_zero.cpp)
+audit_target_defaults(test_regression_frost_threshold_zero_standalone)
+target_compile_definitions(test_regression_frost_threshold_zero_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_frost_threshold_zero
+    COMMAND test_regression_frost_threshold_zero_standalone)
+set_tests_properties(regression_frost_threshold_zero PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;frost;security;sec-010")
+
+# SEC-006: Schnorr shim R-zero CT OR accumulator (advisory: shim may not be linked)
+add_executable(test_regression_schnorr_r_zero_ct_standalone
+    test_regression_schnorr_r_zero_ct.cpp)
+audit_target_defaults(test_regression_schnorr_r_zero_ct_standalone)
+if(TARGET secp256k1_shim)
+    target_link_libraries(test_regression_schnorr_r_zero_ct_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_regression_schnorr_r_zero_ct_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+endif()
+target_compile_definitions(test_regression_schnorr_r_zero_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_schnorr_r_zero_ct
+    COMMAND test_regression_schnorr_r_zero_ct_standalone)
+set_tests_properties(regression_schnorr_r_zero_ct PROPERTIES TIMEOUT 30
+    SKIP_RETURN_CODE 77
+    LABELS "audit;regression;schnorr;shim;ct;security;sec-006")
+
+# PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse
+# Uses C++ API directly — no shim dependency. advisory=false in unified runner.
+add_executable(test_regression_shim_perf_correctness_standalone
+    test_regression_shim_perf_correctness.cpp)
+audit_target_defaults(test_regression_shim_perf_correctness_standalone)
+target_compile_definitions(test_regression_shim_perf_correctness_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_shim_perf_correctness
+    COMMAND test_regression_shim_perf_correctness_standalone)
+set_tests_properties(regression_shim_perf_correctness PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;perf;shim;recovery;schnorr;perf-001;perf-005")

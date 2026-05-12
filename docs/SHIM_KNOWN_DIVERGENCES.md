@@ -264,3 +264,50 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   on reduced-to-zero key) rather than a strict rejection error. Same behavior as upstream.
 - **Test:** `test_shim_ecdh_from_bytes_behavior` — pass key = n, verify return is 0
   (consistent with libsecp256k1: key reduces to 0, ECDH on 0 fails).
+
+---
+
+## secp256k1_ecdsa_verify -- high-S signature acceptance (SEC-007)
+
+- **Upstream behavior:** libsecp256k1 internally calls `secp256k1_ecdsa_signature_normalize`
+  before verifying; high-S signatures (s > n/2) pass verification after normalization to
+  low-S form.
+- **Shim behavior:** The Ultra shim does NOT normalize before verifying. A high-S signature
+  is passed directly to `secp256k1::ecdsa_verify`, which verifies the mathematical equation
+  without enforcing the low-S constraint.
+- **Reason:** Conservative: explicit normalization preserves caller awareness of malleability.
+  Callers needing libsecp256k1-compatible behavior must call `secp256k1_ecdsa_signature_normalize`
+  before `secp256k1_ecdsa_verify`.
+- **Impact:** Any caller that passes a high-S signature directly without first normalizing will
+  see a behavioral difference. Bitcoin Core always normalizes before verify (BIP-66); standard
+  Core usage is unaffected.
+- **Test:** `audit/test_regression_shim_high_s_verify.cpp` (diagnostic test).
+
+---
+
+## All sign functions -- wrong-flag context (VERIFY-only passed to sign) (SHIM-001)
+
+- **Upstream behavior:** libsecp256k1 fires the illegal callback (default: abort) when a
+  VERIFY-only context is passed to a sign function, then returns 0.
+- **Shim behavior:** Returns 0 silently without firing the illegal callback. `ctx_can_sign()`
+  returns false and the function returns 0 immediately.
+- **Reason:** Ultra's context model does not replicate libsecp's callback architecture exactly.
+  Fail-closed (returns error) is maintained; callback notification is absent.
+- **Impact:** Fuzzing harnesses that count illegal-callback invocations will see count=0 from
+  the Ultra shim when context-misuse is tested. Callers relying on callback for error detection
+  will miss the signal. Callers that check only the return value are unaffected.
+- **Test:** Differential test -- pass VERIFY-only ctx to secp256k1_ecdsa_sign, check callback.
+
+---
+
+## secp256k1_schnorrsig_verify -- null msg without firing illegal callback (SHIM-003)
+
+- **Upstream behavior:** `secp256k1_schnorrsig_verify` with `msg=NULL` and `msglen=32` fires
+  the illegal callback (default: abort) then returns 0.
+- **Shim behavior:** The `(!msg || msglen != 32)` short-circuit guard returns 0 immediately
+  without firing the illegal callback.
+- **Reason:** Same as SHIM-001: the callback architecture is not replicated. Fail-closed
+  behavior (return 0) is preserved; callback notification is absent.
+- **Impact:** Same as SHIM-001 -- fuzzing harnesses counting illegal-callback invocations will
+  see count=0. Callers that check only return value are unaffected.
+- **Test:** Differential test -- pass null msg with msglen=32, check callback count.

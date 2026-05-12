@@ -9,15 +9,35 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 256 PoC files, 256 registered modules, 0 failures |
+| Exploit tests | 256 PoC files, 257 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
 | CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
 | CT verification | 5 independent CT verification pipelines (3 in GitHub CI: LLVM ct-verif, Valgrind taint, ct-prover; 2 manual/local: dudect statistical, ARM64 native) |
-| GPU performance | 11.00 M BIP-352 scans/s · 4.88 M ECDSA signs/s |
 | Philosophy | Don't trust — reproduce |
 
 Every exploit attempt becomes a permanent regression test. Security hardens on every commit, not just on release day.
+
+> **GPU throughput numbers:** see [GPU Profile — diagnostic, not verified against current build](#gpu-profile--diagnostic-not-verified-against-current-build) below.
+
+---
+
+## GPU Profile — diagnostic, not verified against current build
+
+> **Status:** diagnostic only. These numbers are NOT backed by a canonical JSON
+> artifact (`docs/canonical_numbers.json` marks `gpu_throughput.status` as
+> "diagnostic — no canonical JSON artifact; unverified against current GPU build").
+> Do not cite them in performance comparisons or release notes until a controlled
+> bench_unified GPU run produces a canonical `docs/bench_unified_*_gpu.json`.
+
+| GPU operation | Throughput (unverified) |
+|---------------|-------------------------|
+| BIP-352 scans/s | 11.00 M/s (CUDA, RTX 3090, 2026-Q1 — diagnostic) |
+| ECDSA signs/s | 4.88 M/s (CUDA, RTX 3090, 2026-Q1 — diagnostic) |
+
+These figures come from early development benchmarks that predate the current
+GPU build configuration. The CPU CT signing numbers in the TL;DR table above
+are authoritative and verified via controlled `bench_unified` runs.
 
 ---
 
@@ -51,7 +71,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 256 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 256 wired, 0 failures |
+| Exploit PoC tests | 257 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 257 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -60,11 +80,11 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 100 non-exploit modules + 256 exploit-PoC modules (356 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **256 exploit-PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **256 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 102 non-exploit modules + 257 exploit PoC modules (359 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **257 exploit PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **257 modules, 0 failures** |
 
-All 101 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
-All 256 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
+All 102 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
+All 257 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
 
 ### Self-Audit Documents
 

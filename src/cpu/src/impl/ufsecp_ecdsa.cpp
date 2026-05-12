@@ -462,8 +462,10 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
     if (!checked_mul_size(count, std::size_t{32}, total_msg_bytes)
         || !checked_mul_size(count, std::size_t{64}, total_sig_bytes))
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
-    // Clear output buffer upfront: on early failure caller cannot tell which
-    // indices are valid, so a zeroed buffer is the safest partial-failure state.
+    // SEC-003 Fail-closed invariant: the batch API returns EITHER all signatures
+    // OR none. A partial failure must leave no valid signatures visible to the caller.
+    // Pre-zero the full buffer: any early-return path below writes fewer than count
+    // entries, so the tail is guaranteed zeroed by this single memset.
     std::memset(sigs64_out, 0, count * 64);
     for (size_t i = 0; i < count; ++i) {
         std::array<uint8_t, 32> msg;
@@ -471,14 +473,18 @@ ufsecp_error_t ufsecp_ecdsa_sign_batch(
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
-            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
+            // Re-zero [0..i*64) even though those bytes already held valid sigs:
+            // we must leave no valid partial signatures visible after failure.
+            // Fail-closed: caller gets either all sigs or none (all zeroed).
+            std::memset(sigs64_out, 0, i * 64);
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }
         auto sig = secp256k1::ct::ecdsa_sign(msg, sk);
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         if (SECP256K1_UNLIKELY(!sig.is_valid())) {
-            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
+            // Re-zero [0..i*64) -- same fail-closed invariant as bad-key path above.
+            std::memset(sigs64_out, 0, i * 64);
             return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
         }
         auto compact = sig.to_compact();
@@ -505,14 +511,19 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
 
     static constexpr uint8_t kZeroAux[32] = {};
-    // Fail-closed: clear output before signing so partial failure leaves no valid sigs visible
+    // SEC-003 Fail-closed invariant: same as ufsecp_ecdsa_sign_batch above.
+    // Pre-zero the full buffer; re-zero [0..i*64) on failure to clear already-written sigs.
+    // Fail-closed: caller gets either all sigs or none (all zeroed).
     std::memset(sigs64_out, 0, count * 64);
 
     for (size_t i = 0; i < count; ++i) {
         Scalar sk;
         if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkeys32 + i * 32, sk))) {
             secp256k1::detail::secure_erase(&sk, sizeof(sk));
-            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
+            // Re-zero [0..i*64) even though those bytes already held valid sigs:
+            // we must leave no valid partial signatures visible after failure.
+            // Fail-closed: caller gets either all sigs or none (all zeroed).
+            std::memset(sigs64_out, 0, i * 64);
             return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY,
                                "privkey[i] is zero or >= n");
         }
@@ -527,14 +538,16 @@ ufsecp_error_t ufsecp_schnorr_sign_batch(
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
         if (SECP256K1_UNLIKELY(sig.s.is_zero())) {
-            std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
+            // Re-zero [0..i*64) -- same fail-closed invariant as bad-key path above.
+            std::memset(sigs64_out, 0, i * 64);
             return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
         }
         {
             bool r_all_zero = std::all_of(sig.r.begin(), sig.r.end(),
                                           [](uint8_t b) { return b == 0; });
             if (SECP256K1_UNLIKELY(r_all_zero)) {
-                std::memset(sigs64_out, 0, i * 64); // clear only already-written sigs 0..i-1
+                // Re-zero [0..i*64) -- same fail-closed invariant.
+                std::memset(sigs64_out, 0, i * 64);
                 return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "signing produced degenerate output");
             }
         }

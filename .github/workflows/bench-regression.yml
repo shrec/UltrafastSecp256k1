@@ -1,4 +1,16 @@
 # ============================================================================
+# Performance Smoke Test -- Per-Commit Quick Benchmark Check
+#
+# BENCH-006 LIMITATION NOTE:
+# This workflow uses --quick mode (3 internal passes / 50 warmup iterations).
+# Quick mode has +/-15-30% run-to-run variance on shared GitHub runners -- it
+# can only detect regressions of 50%+ reliably (alert-threshold: 200%).
+# It CANNOT detect 10-30% regressions. Do NOT call this a "regression gate".
+#
+# For real regression detection, use the local bench_unified protocol from
+# CLAUDE.md: CPU-pinned, turbo off, >=11 IQR-trimmed passes, controlled
+# before/after comparison on the same machine.
+# ============================================================================
 # Performance Regression Gate -- Per-Commit Benchmark Check
 # ============================================================================
 # Runs benchmarks on every push to main/dev and on PRs that touch perf-sensitive
@@ -9,7 +21,7 @@
 # Uses github-action-benchmark with fail-on-alert: true.
 # ============================================================================
 
-name: Perf Regression Gate
+name: Performance Smoke Test (quick mode -- not a regression gate)
 
 on:
   push:
@@ -43,7 +55,7 @@ concurrency:
 
 jobs:
   bench-gate:
-    name: Benchmark Regression Check
+    name: Benchmark Smoke Check (quick mode -- detects 50%+ regressions only)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -198,7 +210,7 @@ jobs:
     - name: Summary
       if: always()
       run: |
-        echo "## Benchmark Regression Gate" >> $GITHUB_STEP_SUMMARY
+        echo "## Benchmark Smoke Test (quick mode -- not a regression gate)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** alert-threshold '200%' = any op running >2x baseline (>100% slower) fails." >> $GITHUB_STEP_SUMMARY
         if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then

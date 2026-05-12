@@ -104,6 +104,14 @@ if(UFSECP_BUILD_SHARED)
     add_library(ufsecp_shared SHARED ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC})
     set_target_properties(ufsecp_shared PROPERTIES OUTPUT_NAME ufsecp)
     ufsecp_configure(ufsecp_shared)
+    # REL-002: Explicit SOVERSION/VERSION ensures Linux ldconfig symlinks work
+    # (libufsecp.so -> libufsecp.so.1 -> libufsecp.so.1.0.0). ufsecp_configure
+    # also sets these via PROJECT_VERSION_MAJOR/PROJECT_VERSION but explicit
+    # properties here make the intent visible and override-safe.
+    set_target_properties(ufsecp_shared PROPERTIES
+        SOVERSION 1
+        VERSION 1.0.0
+    )
 
     # Disable LTO when CUDA is linked (nvcc LTO version differs from host compiler)
     if(SECP256K1_BUILD_CUDA)

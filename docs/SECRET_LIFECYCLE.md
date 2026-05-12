@@ -1,6 +1,20 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-11 | **Version**: 4.0.0
+**Last updated**: 2026-05-12 | **Version**: 4.0.0
+
+### 2026-05-12 ecdsa.cpp -- SEC-004 compute_three_block bounds guard (no secret material change)
+
+- **`src/cpu/src/ecdsa.cpp` (`compute_three_block`)**: Added a `msg_len` bounds guard
+  `if (msg_len < 128 || msg_len > 183) return;` at function entry.
+  **No secret lifecycle change**: guard prevents `size_t` underflow on invalid input.
+  Secrets written in normal path are still erased in all normal completion paths.
+
+### 2026-05-12 frost.cpp -- SEC-010 threshold==0 guard (nonce erasure on early exit)
+
+- **`src/cpu/src/frost.cpp` (`frost_sign`)**: Added explicit `key_pkg.threshold == 0` guard.
+  **Secret material erased on early exit**: `nonce.hiding_nonce` and `nonce.binding_nonce`
+  erased via `secure_erase` before returning a zero partial sig, matching the existing
+  erase pattern for the quorum-failure path below.
 
 ### 2026-05-11 SHIM-007 — musig2_nonce_agg_points (PUBLIC-DATA path, no secret material)
 

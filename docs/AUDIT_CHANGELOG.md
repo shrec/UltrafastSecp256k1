@@ -1,9 +1,65 @@
 # Audit Changelog
 
+## 2026-05-12 — PERF-001/005 shim hot-path optimization correctness
+
+### Performance Optimizations with Correctness Regression Coverage
+- **PERF-001** `compat/libsecp256k1_shim/src/shim_recovery.cpp` `point_to_pubkey_data`:
+  added `is_normalized()` fast path — `ecdsa_recover` always returns an affine point
+  (Z=1), so the unconditional `to_uncompressed()` field inversion (~1,300 ns) was
+  avoidable. Mirrors the identical fast path in `shim_pubkey.cpp`.
+- **PERF-005** `compat/libsecp256k1_shim/src/shim_schnorr.cpp` `secp256k1_schnorrsig_verify`:
+  eliminated two 32-byte stack copies (`xb`/`yb` arrays) by passing `pubkey->data`
+  raw pointers directly to `FieldElement::parse_bytes_strict`. Combined with PERF-007
+  (raw-pointer sig parse), eliminates all intermediate copies in the verify hot path.
+- Test: `audit/test_regression_shim_perf_correctness.cpp` (SPC-1..4, non-advisory):
+  ECDSA recover roundtrip, ECDSA verify correctness, Schnorr verify correctness,
+  recovery recid coverage. Wired into unified runner as `differential` section.
+
+## 2026-05-12 — SEC-002/004/006/010 security fixes
+
+### Security Fixes
+- **SEC-002** `src/gpu/src/gpu_backend_opencl.cpp` `bip352_scan_batch`: replaced
+  `Scalar::from_bytes` with `Scalar::parse_bytes_strict_nonzero` for scan private key
+  (Rule 11 violation — silent mod-n reduction on key=n or n+1). Returns `GpuError::BadKey`.
+  Test: `audit/test_regression_opencl_bip352_scan_key_boundary.cpp` (SKB-1..5, advisory).
+- **SEC-004** `src/cpu/src/ecdsa.cpp` `compute_three_block`: added
+  `if (msg_len < 128 || msg_len > 183) return` — missing lower bound guard caused
+  size_t underflow (`rem = msg_len - 128 → ~0`) producing catastrophic memset.
+  Test: `audit/test_regression_hash_three_block_bounds.cpp` (HTB-1..5, non-advisory).
+- **SEC-006** `compat/libsecp256k1_shim/src/shim_schnorr.cpp`: replaced variable-time
+  for+break R-zero loop with CT OR accumulator in both sign32 and sign_custom.
+  Test: `audit/test_regression_schnorr_r_zero_ct.cpp` (SRC-1..5, advisory).
+- **SEC-010** `src/cpu/src/frost.cpp` `frost_sign`: added `if (key_pkg.threshold == 0)`
+  guard — unsigned comparison was always-false when threshold=0, bypassing quorum check.
+  Test: `audit/test_regression_frost_threshold_zero.cpp` (FTZ-1..5, non-advisory).
+
+---
+
 Focused changelog for changes to the assurance system itself.
 
 This file is not a release changelog. It records audit maturity changes,
 evidence upgrades, and changes to what the repository can honestly claim.
+
+---
+
+## 2026-05-12 -- CLAIM-008, REL-002, BENCH-006, SEC-007, SHIM-001/003, SEC-003 docs+config
+
+### Track A -- Security/Correctness
+- **SEC-007**: `audit/test_regression_shim_high_s_verify.cpp` added -- diagnostic test
+  documenting that `secp256k1_ecdsa_verify` does not normalize before verifying (high-S
+  divergence from libsecp256k1); wired into unified_audit_runner as advisory.
+- **SEC-003**: Improved fail-closed invariant comments in `ufsecp_ecdsa_sign_batch` and
+  `ufsecp_schnorr_sign_batch` -- now explicit about why [0..i*64) is re-zeroed on failure.
+
+### Track B -- Documentation
+- **CLAIM-008**: `docs/WHY_ULTRAFASTSECP256K1.md` -- moved GPU throughput from main TL;DR
+  table to a new `[GPU Profile -- diagnostic]` section; TL;DR now CPU-only.
+- **REL-002**: `include/ufsecp/CMakeLists.txt` -- added explicit `SOVERSION 1 VERSION 1.0.0`
+  on `ufsecp_shared` target for clear Linux ldconfig symlink semantics.
+- **BENCH-006**: `.github/workflows/bench-regression.yml` -- renamed to "Performance Smoke
+  Test" with comment explaining --quick limitation and local regression protocol.
+- **SHIM-001/003/SEC-007**: `docs/SHIM_KNOWN_DIVERGENCES.md` -- added three new entries:
+  high-S verify acceptance, wrong-flag context silent return, null-msg silent return.
 
 ---
 

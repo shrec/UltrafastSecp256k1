@@ -2,6 +2,18 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-12 ecdsa.cpp -- SEC-004 compute_three_block bounds guard
+
+- **`src/cpu/src/ecdsa.cpp` (`compute_three_block`)**: Bounds guard `msg_len < 128 || > 183`
+  added. Prevents `size_t` underflow in `rem = msg_len - 128`. CT contract unchanged.
+  No bypass via public API: `compute_three_block` is a `static` internal function.
+
+### 2026-05-12 frost.cpp -- SEC-010 threshold==0 quorum bypass prevention
+
+- **`src/cpu/src/frost.cpp` (`frost_sign`)**: `threshold == 0` now explicitly rejected.
+  Prevents unsigned-comparison bypass of quorum enforcement. Nonces erased on new exit path.
+  ABI layer was already guarded; this fix closes the C++ layer gap.
+
 ### 2026-05-11 SHIM-007 — musig2_nonce_agg_points performance overload
 
 - **`src/cpu/src/musig2.cpp` (`musig2_nonce_agg_points`)**: Adds a fast overload for nonce

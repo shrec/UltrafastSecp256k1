@@ -512,6 +512,24 @@ int test_shim_der_zero_r_run();   // DER parse r=0 rejection (shim vs libsecp di
 int test_shim_null_ctx_run();     // NULL context illegal-callback enforcement (SHIM-001/002/003)
 
 // ============================================================================
+// Forward declarations -- 2026-05-12 SEC-007 shim high-S verify diagnostic
+// ============================================================================
+int test_regression_shim_high_s_verify_run();
+
+// ============================================================================
+// Forward declarations -- 2026-05-12 PERF-001/005 shim hot-path correctness
+// ============================================================================
+int test_regression_shim_perf_correctness_run(); // PERF-001: recovery fast path, PERF-005: schnorr verify raw ptr
+
+// ============================================================================
+// Forward declarations -- 2026-05-12 SEC-002/004/006/010 security fixes
+// ============================================================================
+int test_regression_opencl_bip352_scan_key_boundary_run(); // SEC-002
+int test_regression_hash_three_block_bounds_run();          // SEC-004
+int test_regression_frost_threshold_zero_run();             // SEC-010
+int test_regression_schnorr_r_zero_ct_run();                // SEC-006 // SEC-007: high-S sig acceptance divergence diagnostic
+
+// ============================================================================
 // Forward declarations -- 2026-05-06 performance review fixes
 // ============================================================================
 int test_regression_pippenger_stale_used_run();  // BUG-01: Pippenger used[] stale across windows
@@ -1031,6 +1049,12 @@ static const AuditModule ALL_MODULES[] = {
     // On GitHub CI (shim absent) the stubs return ADVISORY_SKIP_CODE (77).
     { "exploit_shim_der_zero_r", "DER parse r=0 rejection (shim vs libsecp divergence)", "exploit_poc", test_shim_der_zero_r_run, true },
     { "exploit_shim_null_ctx",   "NULL context illegal-callback enforcement (SHIM-001/002/003)", "exploit_poc", test_shim_null_ctx_run, true },
+    // === 2026-05-12 SEC-007: high-S verify divergence diagnostic ===
+    // advisory=true: depends on shim being linked; documents intentional divergence.
+    { "regression_shim_high_s_verify", "SEC-007: secp256k1_ecdsa_verify high-S divergence diagnostic -- no normalize before verify (intentional)", "exploit_poc", test_regression_shim_high_s_verify_run, true },
+    // === 2026-05-12 PERF-001/005: shim hot-path optimization correctness ===
+    // advisory=false: uses C++ API directly, no shim dependency.
+    { "regression_shim_perf_correctness", "PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse — recovery roundtrip, ECDSA/Schnorr correctness (SPC-1..4)", "differential", test_regression_shim_perf_correctness_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

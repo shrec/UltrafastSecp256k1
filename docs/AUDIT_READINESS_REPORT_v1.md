@@ -277,7 +277,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 - 0 crashes across ~580K+ fuzz iterations (11 libFuzzer harnesses + 2 structured suites)
 - Three-tier CT verification: ct-verif (LLVM IR, CI), Valgrind CT (CI), dudect (statistical, CI) — all passing
 - Cryptol algebraic specifications for field, point, ECDSA, and Schnorr (QuickCheck validated)
-- 256 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
+- 257 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
 - 108 mathematical invariants cataloged, 107 fully verified
 - 263 unified audit modules across 9 failure classes — single-command reproducible
 - 14 CI workflows enforcing the above on every commit
@@ -332,7 +332,7 @@ ctest --test-dir build -R test_cross_libsecp256k1 -V
 # dudect side-channel (smoke)
 ctest --test-dir build -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (256 probes)
+# Exploit PoC security probes (257 probes)
 ctest --test-dir build -R exploit -V
 
 # Machine-readable assurance artifact
