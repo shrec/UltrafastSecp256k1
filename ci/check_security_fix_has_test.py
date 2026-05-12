@@ -107,6 +107,11 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "audit/test_exploit_musig2.cpp"],
         "SHIM-007: cache affine coords in pubnonce — musig2.cpp + shim_musig.cpp performance optimization. No new signing surface; covered by existing MuSig2 exploit and shim secnonce tests.",
     ),
+    "e0ba350d40": (
+        ["audit/test_exploit_schnorr_edge_cases.cpp",
+         "audit/test_regression_schnorr_ct_arithmetic.cpp"],
+        "P1-PERF-001: Schnorr verify lift_x elimination in schnorr.cpp + shim_schnorr.cpp. Pure verification optimization — eliminates redundant lift_x call. Covered by existing schnorr edge-case and CT regression tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
