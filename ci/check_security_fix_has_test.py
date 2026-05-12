@@ -127,6 +127,14 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
          "compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp"],
         "P2-SHIM-001: add SHIM_REQUIRE_CTX(ctx) to 5 parse/serialize/normalize functions in shim_ecdsa.cpp. NULL ctx now fires illegal callback and returns 0, matching libsecp256k1 ARG_CHECK(ctx!=NULL). Covered by existing NULL ctx and DER edge-case shim tests.",
     ),
+    "71bba05ce0": (
+        ["audit/test_regression_musig2_abi_signer_index.cpp",
+         "audit/test_regression_musig2_signer_index_validation.cpp"],
+        "SEC-001: ufsecp_musig2_partial_sign_v2 signer-index cross-validation added to "
+        "src/cpu/src/impl/ufsecp_musig2.cpp. Covered by test_regression_musig2_abi_signer_index "
+        "(new SEC-001 regression test) and test_regression_musig2_signer_index_validation "
+        "(existing signer-index boundary test).",
+    ),
     "0327d09b33": (
         ["audit/test_exploit_shim_recovery_null_arg.cpp",
          "audit/test_exploit_schnorr_edge_cases.cpp"],
