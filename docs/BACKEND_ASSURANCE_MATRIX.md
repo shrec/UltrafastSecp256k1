@@ -26,7 +26,7 @@ Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
 
 | Profile | Tier | CT Status | CAAS Gate |
 |---|---|---|---|
-| `bitcoin-core-backend` (CPU + libsecp256k1 shim) | `production` | Full CT via `secp256k1::ct::*` as of 2026-04-28/2026-05-01 | Hard (audit_gate + security_autonomy + bundle_verify) |
+| `bitcoin-core-backend` (CPU + libsecp256k1 shim) | `production` | Full CT via `secp256k1::ct::*` as of 2026-05-12 (CT-BLIND-01: nonce paths use `generator_mul_blinded`; prior CT arithmetic fixes: 2026-04-28/2026-05-01) | Hard (audit_gate + security_autonomy + bundle_verify) |
 | `cpu-signing` (public C++ API) | `production` | `signing_generator_mul()` → `ct::generator_mul_blinded()` | Hard |
 | `ffi-bindings` (legacy C API + bindings) | `beta` | CT signing as of 2026-05-01; bindings inherit from C API | Partial |
 | `wasm` | `experimental` | Prebuilt artifact — WASM-specific CT evidence is incomplete | None — do not claim production-CT without CI rebuild + timing analysis |
