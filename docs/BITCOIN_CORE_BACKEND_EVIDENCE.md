@@ -126,27 +126,23 @@ by software tooling alone. This limitation is documented in RR-001
 
 ---
 
-## 2.1 ConnectBlock Performance — Ultra Faster With or Without LTO
+## 2.1 ConnectBlock Performance — LTO Required for Full Win
 
-> **Reviewers: the no-LTO ConnectBlock gap documented in earlier versions of this file has been eliminated.**
+> **With LTO (recommended production build): Ultra wins all ConnectBlock scenarios (+0.9–1.5%).
+> Without LTO: Ultra is ~0.5–1.0% slower than libsecp256k1. Use Release+LTO for Bitcoin Core builds.**
 
-**Current status (as of PERF-002 fix):** Ultra is faster than libsecp256k1 on all ConnectBlock
-scenarios regardless of whether LTO is enabled.
+- **With LTO:** +0.9% to +1.5% faster on all ConnectBlock workloads (confirmed, err% 0.2–0.5%).
+  Canonical data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `48e7c02f`, 2026-05-12,
+  hard turbo lock: intel_pstate/no_turbo=1, governor=performance, taskset -c 0, nice -20).
+- **Without LTO:** ~0.5–1.0% slower than libsecp256k1 (AllEcdsa −0.5%, AllSchnorr −1.0%,
+  Mixed −0.8%; measured 2026-05-12, hard turbo lock, 3 runs, non-overlapping). PERF-002 reduced
+  the no-LTO deficit from ~1.1% to ~0.5–1.0% by removing a redundant y²=x³+7 on-curve check
+  (~400 ns/call), but did not eliminate it. The remaining gap is caused by Ultra's larger code
+  footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB) creating i-cache pressure without LTO.
+  LTO resolves this by co-optimizing code layout globally.
 
-- **With LTO:** +1.0% to +2.1% (confirmed, err% 0.1–0.3%).
-- **Without LTO:** also faster after the PERF-002 fix removed a redundant y²=x³+7 on-curve check
-  from every `secp256k1_ecdsa_verify` call (~400 ns per call). The previous ~1.1% no-LTO gap was
-  caused by that redundant check compounding with Ultra's larger instruction footprint; both factors
-  are now addressed.
-
-**Previous no-LTO gap was NOT caused by secp256k1 algorithm latency** — it was caused by Ultra's
-larger .text section (~1.3 MB vs libsecp ~400 KB) creating instruction-cache pressure, plus the
-redundant on-curve check. LTO resolves the i-cache pressure by optimizing code layout globally;
-PERF-002 removes the per-call overhead.
-
-> **Note on no-LTO numbers in `docs/BITCOIN_CORE_BENCH_RESULTS.json`:** The `results_nolto` section
-> was recorded before the PERF-002 fix. Those numbers show the old ~1.1% gap and are superseded.
-> Updated no-LTO numbers will be added on the next full controlled benchmark run.
+Full no-LTO data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (`results_nolto` section,
+post-PERF-002 measured run, 2026-05-12).
 
 ### Results: Release + LTO (recommended build)
 

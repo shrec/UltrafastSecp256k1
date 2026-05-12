@@ -48,6 +48,11 @@ REVIEWER_DOCS = [
     "docs/BITCOIN_CORE_PR_BLOCKERS.md",
     "docs/BENCHMARKS.md",  # BENCH-001: scan primary benchmark doc for stale patterns
     "README.md",
+    # CI-003: previously unscanned reviewer-facing docs — added 2026-05-12
+    "docs/WHY_ULTRAFASTSECP256K1.md",
+    "docs/BACKEND_ASSURANCE_MATRIX.md",
+    "docs/ASSURANCE_LEDGER.md",
+    "docs/BITCOIN_CORE_PR_BODY.md",
 ]
 
 # ---------------------------------------------------------------------------

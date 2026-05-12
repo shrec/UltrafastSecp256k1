@@ -191,6 +191,39 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
         pat = r'Wycheproof, fault injection, [\w\s,K+]+ fuzz corpus'
         text, n = _sub(pat, fc, text); total += n
 
+    # ── Evidence commit SHA in PR_BODY.md git checkout line ──────────────────
+    # Replaces: git checkout <commit>  OR  git checkout <40-hex-sha>
+    # With the canonical evidence commit SHA from BITCOIN_CORE_BENCH_RESULTS.json.
+    ec = c.get("evidence_commit", {})
+    sha_full = ec.get("sha_full", "")
+    if sha_full:
+        # Match unfilled placeholder
+        pat = r'git checkout <commit>'
+        repl = f'git checkout {sha_full}'
+        text, n = _sub(pat, repl, text); total += n
+        # Match any 40-char hex SHA that differs from canonical (stale SHA)
+        pat = r'(git checkout )([0-9a-f]{40})\b'
+        def replace_sha(m: re.Match) -> str:
+            if m.group(2) != sha_full:
+                return m.group(1) + sha_full
+            return m.group(0)
+        new_text = re.sub(pat, replace_sha, text)
+        if new_text != text:
+            total += 1
+            text = new_text
+
+    # ── ConnectBlock LTO range bullet in BACKEND_EVIDENCE.md ─────────────────
+    # Matches list bullets like "- **With LTO:** +N.N% to +N.N% (confirmed, err% N–N%)"
+    # that use stale range values.
+    cb_min = cb.get("lto_improvement_min_pct", 0)
+    cb_max = cb.get("lto_improvement_max_pct", 0)
+    cb_err = cb.get("lto_err_range", "")
+    if cb_min and cb_max and cb_err:
+        pat = (r'(\*\*With LTO:\*\* )\+[\d.]+%\s+to\s+\+[\d.]+%'
+               r'(\s+\(confirmed,\s+err%\s+)[\d.–]+(%\))')
+        repl = rf'\g<1>+{cb_min}% to +{cb_max}%\g<2>{cb_err}\g<3>'
+        text, n = _sub(pat, repl, text); total += n
+
     if text == original:
         return 0
 

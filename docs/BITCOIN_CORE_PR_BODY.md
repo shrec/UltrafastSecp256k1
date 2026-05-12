@@ -88,7 +88,7 @@ No external third-party audit has been conducted — all CT verification is self
 # Clone and check out the evidence commit
 git clone https://github.com/shrec/UltrafastSecp256k1
 cd UltrafastSecp256k1
-git checkout <commit>
+git checkout 48e7c02fff02d823d2396f7eb05e425dfb3689e4
 
 # Reproduce the evidence bundle
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
