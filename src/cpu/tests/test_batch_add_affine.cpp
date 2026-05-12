@@ -326,11 +326,46 @@ static void test_large_batch() {
 
 static void test_empty() {
     (void)std::printf("[BatchAffine] Empty batch...\n");
-    std::vector<FieldElement> scratch;
-    FieldElement const base_x = FieldElement::from_uint64(1);
-    FieldElement const base_y = FieldElement::from_uint64(2);
-    batch_add_affine_x(base_x, base_y, nullptr, nullptr, 0, scratch);
-    check(true, "empty batch: no crash");
+
+    // Verify n=1 works correctly first (establishes state is clean)
+    {
+        auto g_table = precompute_g_multiples(1);
+        Scalar const s10 = Scalar::from_uint64(10);
+        Point const P = scalar_mul_generator(s10);
+        FieldElement out_x[1];
+        std::vector<FieldElement> scratch;
+        batch_add_affine_x(P.x(), P.y(), g_table.data(), out_x, 1, scratch);
+
+        Scalar const s11 = Scalar::from_uint64(11);
+        Point const expected = scalar_mul_generator(s11);
+        check(out_x[0] == expected.x(), "n=1 before empty: 10G + 1G == 11G");
+    }
+
+    // n=0: output buffer must be unchanged after the call
+    {
+        FieldElement sentinel = FieldElement::from_uint64(0xdeadbeef);
+        FieldElement out_x[1];
+        out_x[0] = sentinel;
+        std::vector<FieldElement> scratch;
+        FieldElement const base_x = FieldElement::from_uint64(1);
+        FieldElement const base_y = FieldElement::from_uint64(2);
+        batch_add_affine_x(base_x, base_y, nullptr, out_x, 0, scratch);
+        check(out_x[0] == sentinel, "empty batch: output buffer unchanged");
+    }
+
+    // n=1 again: state not corrupted by the n=0 call
+    {
+        auto g_table = precompute_g_multiples(1);
+        Scalar const s5 = Scalar::from_uint64(5);
+        Point const P = scalar_mul_generator(s5);
+        FieldElement out_x[1];
+        std::vector<FieldElement> scratch;
+        batch_add_affine_x(P.x(), P.y(), g_table.data(), out_x, 1, scratch);
+
+        Scalar const s6 = Scalar::from_uint64(6);
+        Point const expected = scalar_mul_generator(s6);
+        check(out_x[0] == expected.x(), "n=1 after empty: 5G + 1G == 6G (state not corrupted)");
+    }
 }
 
 // -- Test 9: Small precompute edge cases -------------------------------------

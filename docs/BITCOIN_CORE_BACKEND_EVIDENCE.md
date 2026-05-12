@@ -9,6 +9,13 @@ UltrafastSecp256k1 as an alternative CPU backend for libsecp256k1. It is written
 to be honest and verifiable. Each claim cites the evidence file, CI gate, and
 verification command a reviewer can use to independently check it.
 
+> **Scope note:** This is an opt-in compile-time alternative backend, not a replacement
+> for libsecp256k1. The default build (`SECP256K1_BACKEND=bundled`) is byte-for-byte
+> identical to today. GPU operations, language bindings (Rust/Python/Node/Go), BIP-352
+> Silent Payments pipeline, FROST/MuSig2 advanced protocols, and WASM targets are
+> **out of scope** for this Bitcoin Core evaluation. Only the CPU secp256k1 path and
+> its libsecp256k1-compatible shim are relevant for the PR.
+
 ---
 
 ## 1. Scope Definition

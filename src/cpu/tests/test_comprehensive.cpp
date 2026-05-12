@@ -2250,12 +2250,17 @@ static void test_recovery() {
     CHECK(pt_eq(recovered, pubkey), "recovered pubkey matches");
     
     // 29.3: Wrong recid fails or gives wrong key
+    // Correct recid must already have succeeded (checked in 29.2 above).
+    // Now verify that a different recid does NOT produce the correct pubkey.
     int const wrong_recid = (rsig.recid + 1) % 4;
     auto [recovered2, success2] = secp256k1::ecdsa_recover(msg, rsig.sig, wrong_recid);
     if (success2) {
         CHECK(!pt_eq(recovered2, pubkey), "wrong recid -> wrong key");
     } else {
-        CHECK(true, "wrong recid -> recovery failed (expected)");
+        // Recovery failed for wrong_recid — that is a valid outcome.
+        // Guard: correct recid must have succeeded (already asserted in 29.2),
+        // so the failure here is truly due to the wrong recid, not a broken impl.
+        CHECK(success, "correct recid succeeded (guards wrong-recid failure path)");
     }
     
     // 29.4: Compact roundtrip

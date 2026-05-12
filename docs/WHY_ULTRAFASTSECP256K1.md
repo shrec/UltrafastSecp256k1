@@ -188,15 +188,18 @@ Every benchmark number in this project is:
 | Schnorr verify (BIP-340) | 5.38 M/s |
 | FROST partial verify | 1.34 M/s |
 
-**Sample verified numbers (x86-64 rerun, i5-14400F, Clang 19):**
+**Sample verified numbers (x86-64, i5-14400F, GCC 14.2.0 — current canonical):**
+
+See [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](bench_unified_2026-05-11_gcc14_x86-64.json) for raw measurements.
 
 | Operation | Latency | Note |
 |-----------|---------|------|
-| Generator multiplication (kG) | 5.9 µs | CT path |
-| Scalar multiplication (kP) | 16.0 µs | CT path |
-| CT ECDSA sign | 12.3 µs | Production-safe CT path |
-| ECDSA verify | 20.2 µs | — |
-| ECDSA sign (FAST) | 7.8 µs | `[diagnostic: variable-time, NOT for production signing]` |
+| CT ECDSA sign | ~24.1 µs | Production-safe CT path (GCC 14, Release+LTO) |
+| CT Schnorr sign | ~23.7 µs | Production-safe CT path (GCC 14, Release+LTO) |
+| ECDSA verify | ~38.4 µs | Variable-time (correct for public data) |
+| Schnorr verify | ~35.1 µs | Variable-time (correct for public data) |
+
+*[archived — Clang 19, 2026-03-24 numbers no longer current; GCC 14 canonical above]*
 
 ---
 

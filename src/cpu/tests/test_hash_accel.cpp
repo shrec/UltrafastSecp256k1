@@ -292,13 +292,15 @@ static void test_batch_ops() {
 
 // -- Test 9: SHA-NI vs Scalar cross-check -------------------------------------
 
+static int test_shani_skip_code = 0; // set to 77 when SHA-NI unavailable so run() can propagate
+
 static void test_shani_vs_scalar() {
     (void)std::printf("[HashAccel] SHA-NI vs Scalar cross-check...\n");
 
 #ifdef SECP256K1_X86_TARGET
     if (!hash::sha_ni_available()) {
         (void)std::printf("  SHA-NI not available, skipping\n");
-        check(true, "SHA-NI not available (skip)");
+        test_shani_skip_code = 77; // ADVISORY_SKIP_CODE
         return;
     }
 
@@ -320,7 +322,7 @@ static void test_shani_vs_scalar() {
     }
 #else
     (void)std::printf("  Not x86, skipping SHA-NI test\n");
-    check(true, "Not x86 (skip)");
+    test_shani_skip_code = 77; // ADVISORY_SKIP_CODE
 #endif
 }
 
@@ -380,8 +382,19 @@ static void test_benchmark() {
         (void)std::printf("  Auto   Hash160_33: %.1f ns/call\n", ns / ITERS);
     }
 
-    // Old SHA256 class (reference baseline)
+    // Old SHA256 class (reference baseline) — also cross-checks auto-dispatch output
     {
+        std::uint8_t ref32[32];
+        // Compute reference result for the same input used by auto-dispatch above
+        {
+            auto h = SHA256::hash(comp.data(), 33);
+            std::memcpy(ref32, h.data(), 32);
+        }
+        // Cross-check: auto-dispatch output must equal old SHA256::hash output
+        // (out32 was last written by the auto-dispatch SHA256_33 loop above)
+        check(std::memcmp(out32, ref32, 32) == 0,
+              "benchmark: auto-dispatch SHA256_33 matches SHA256::hash reference");
+
         auto t0 = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < ITERS; ++i) {
             auto h = SHA256::hash(comp.data(), 33);
@@ -419,7 +432,6 @@ static void test_benchmark() {
                     BATCH, per_key, 1e9 / per_key / 1e6);
     }
 
-    check(true, "benchmark complete");
 }
 
 // -- Test 11: Double-SHA256 ---------------------------------------------------
@@ -455,7 +467,10 @@ int test_hash_accel_run() {
     test_benchmark();
 
     (void)std::printf("\n  Hash accel: %d passed, %d failed\n", g_pass, g_fail);
-    return g_fail;
+    if (g_fail > 0) return 1;
+    // Propagate advisory skip when SHA-NI was unavailable (all other tests passed)
+    if (test_shani_skip_code != 0) return test_shani_skip_code;
+    return 0;
 }
 
 #ifdef STANDALONE_TEST

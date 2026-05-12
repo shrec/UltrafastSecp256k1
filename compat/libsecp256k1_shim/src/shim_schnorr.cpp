@@ -93,30 +93,11 @@ struct ShimSchnorrCache {
 static thread_local ShimSchnorrCache s_schnorr_cache;
 } // namespace
 
-// Context flag helpers (mirrors shim_ecdsa.cpp; flags is first field in struct).
-namespace {
-    inline unsigned int schnorr_ctx_flags(const secp256k1_context *ctx) {
-        if (!ctx) return 0;
-        return *reinterpret_cast<const unsigned int *>(ctx);
-    }
-    inline bool schnorr_ctx_can_sign(const secp256k1_context *ctx) {
-        if (!ctx) return false;
-        unsigned int f = schnorr_ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
-        // libsecp v0.6+: CONTEXT_NONE accepted for signing (Bitcoin Core uses it since v26)
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
-    }
-    inline bool schnorr_ctx_can_verify(const secp256k1_context *ctx) {
-        if (!ctx) return false;
-        unsigned int f = schnorr_ctx_flags(ctx);
-        if (!(f & SECP256K1_FLAGS_TYPE_CONTEXT)) return false;
-        // CONTEXT_NONE, CONTEXT_VERIFY, or CONTEXT_SIGN all allow verify
-        return (f & SECP256K1_FLAGS_BIT_CONTEXT_VERIFY) ||
-               (f & SECP256K1_FLAGS_BIT_CONTEXT_SIGN) ||
-               ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
-    }
-}
+// Use the canonical context flag helpers from shim_internal.hpp.
+// These replace the previous local reinterpret_cast copies — a single
+// implementation prevents silent divergence if the struct layout changes.
+using secp256k1_shim_internal::ctx_can_sign;
+using secp256k1_shim_internal::ctx_can_verify;
 
 extern "C" {
 
@@ -147,7 +128,7 @@ int secp256k1_schnorrsig_sign32(
         return 0;
     }
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_SIGN.
-    if (!schnorr_ctx_can_sign(ctx)) return 0;
+    if (!ctx_can_sign(ctx)) return 0;
     if (!sig64 || !msg32 || !keypair) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign32: NULL argument");
         return 0;
@@ -203,7 +184,7 @@ int secp256k1_schnorrsig_sign_custom(
         secp256k1_shim_call_illegal_cb(nullptr, "secp256k1_schnorrsig_sign_custom: NULL context");
         return 0;
     }
-    if (!schnorr_ctx_can_sign(ctx)) return 0;
+    if (!ctx_can_sign(ctx)) return 0;
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
     // Unpack extraparams (upstream libsecp256k1 v0.4+ API).
@@ -326,7 +307,7 @@ int secp256k1_schnorrsig_verify(
     }
     // Context flag enforcement: upstream libsecp256k1 requires CONTEXT_VERIFY
     // (or a context created with CONTEXT_SIGN which is a superset).
-    if (!schnorr_ctx_can_verify(ctx)) return 0;
+    if (!ctx_can_verify(ctx)) return 0;
     if (!sig64 || !pubkey) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify: NULL argument");
         return 0;
@@ -394,7 +375,7 @@ int secp256k1_schnorrsig_verify_precomp(
     const unsigned char* msg32,
     const secp256k1_xonly_pubkey_precomp* pubkey)
 {
-    if (!schnorr_ctx_can_verify(ctx)) return 0;
+    if (!ctx_can_verify(ctx)) return 0;
     if (!sig64 || !msg32 || !pubkey) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify_precomp: NULL argument");
         return 0;

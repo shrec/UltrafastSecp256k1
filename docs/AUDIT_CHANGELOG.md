@@ -7,6 +7,46 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ---
 
+## 2026-05-12 — Engineering Masterpiece Pass: P2+P3 hardening (all tracks)
+
+### Track A — Security/Correctness
+- **context_destroy**: added `ctx->~secp256k1_context_struct()` destructor call before `std::free()` — fixes UB from placement-new without explicit destructor invocation
+- **BCHN shim schnorr_sign/verify**: replaced `(void)ctx` with `if (!ctx) return 0` null guard (fail-closed)
+- **shim_schnorr.cpp**: replaced local `schnorr_ctx_can_sign/verify` reinterpret_cast copies with `using secp256k1_shim_internal::ctx_can_sign/verify` — single canonical implementation
+- **compute_two_block**: added precondition guard `if (msg_len <= 64 || msg_len > 119) return` to prevent unsigned wraparound in `55 - rem` on out-of-range input
+- **frost_sign**: documented caller API contract — callers must erase `key_pkg.signing_share` after use
+- **musig2.cpp**: added CT invariant comment on `to_compressed()` path — documents why SafeGCD is constant-time even on secret-Z input
+
+### Track B — Performance
+- **shim_ecdsa.cpp**: removed dead 365 KB thread-local `ShimPkCache` — was no longer read in verify hot path
+- **shim_musig.cpp pubkey_agg**: eliminated redundant `lift_x` sqrt via `to_uncompressed()` direct path (~3.8 µs saved per session)
+- **shim_pubkey.cpp secp256k1_ec_pubkey_sort**: SBO for N≤16 — stack arrays replace 3 heap allocations for common MuSig2 case
+- **shim_context.cpp ContextBlindingScope**: cached `Scalar r` in context struct at `context_randomize` time — eliminates `from_bytes()` reconstruction on every signing call; `cached_r` securely erased on context_destroy
+
+### Track C — CAAS/CI
+- **run_fast_gates.sh**: mandatory gates now FAIL on rc=77 (was SKIP); advisory gates unchanged; new `check_advisory_skip_returns.sh` gate added
+- **check_bench_doc_consistency.py**: added `BENCH-ARCHIVE-START/END` block exclusion so archived Clang-19 tables don't cause false-positive CI failures; added FAST-path ratio ban patterns (2.45×/2.34×/pubkey_create 2.2×)
+
+### Track D — Test Quality
+- **test_batch_add_affine**: replaced `check(true, "no crash")` with real n=1 correctness + state-corruption assertions
+- **test_comprehensive + test_ecdh_recovery_taproot**: fixed vacuous `else { check(true, ...) }` recovery branches — now require correct recid to succeed before testing wrong recid
+- **test_hash_accel**: SHA-NI unavailable returns ADVISORY_SKIP_CODE (77) instead of `check(true, "skip")`; benchmark now includes byte-equality cross-check
+- **test_exploit_kat_corpus**: zero-pass guard — returns 77 when no vector files loaded
+- **mutation_kill_rate**: confirmed `advisory=true` already set
+
+### Track E — Documentation
+- **WHY doc §6**: replaced stale Clang 19 numbers with GCC 14 canonical + `[archived]` label
+- **BACKEND_EVIDENCE.md**: added opt-in scope note at document top
+- **CITATION.cff**: updated to 5 CT pipelines with full names
+- **BACKEND_ASSURANCE_MATRIX.md**: added ¹ footnote clarifying GPU CI is local-only, not GitHub CI
+
+### Track F — Misc P3
+- **shim_ecdsa.cpp DER parser**: added explicit BER long-form check `if (seqlen & 0x80) return 0` before the `> 70` check — documents intent, not relying on accidental rejection
+- **BENCHMARKS.md**: wrapped archived Clang-19 tables in `<!-- BENCH-ARCHIVE-START/END -->` blocks — CI banned-pattern gate now skips these correctly
+- **SHIM_KNOWN_DIVERGENCES.md**: expanded MuSig2 session map cap entry with leak-risk documentation and test reference
+
+---
+
 ## 2026-05-12 — P1 Closure: adaptor binding domain separation + bench + module sync
 
 ### Security Fixes

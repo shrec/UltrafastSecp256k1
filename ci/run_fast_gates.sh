@@ -37,6 +37,38 @@ FAILED=0
 SUMMARY=0
 [[ "${1:-}" == "--summary" ]] && SUMMARY=1
 
+# Gates where rc=77 (SKIP) must be treated as FAIL.
+# These scripts must never return 77 in a healthy repo — canonical JSON is
+# always present, wiring checks always run, etc.
+MANDATORY_GATES=(
+    "ci/check_exploit_wiring.py"
+    "ci/check_security_fix_has_test.py"
+    "ci/check_version_sync.py"
+    "ci/build_canonical_data.py"
+    "ci/sync_docs_from_canonical.py"
+    "ci/sync_module_count.py"
+    "ci/sync_canonical_numbers.py"
+    "ci/check_bench_doc_consistency.py"
+    "ci/check_backend_parity.py"
+    "ci/check_secret_parse_strictness.py"
+    "ci/check_protocol_invariants.py"
+    "ci/check_nonce_erase_coverage.py"
+    "ci/check_doc_drift.py"
+    "tools/render_repo_map.py"
+    "ci/validate_assurance.py"
+)
+
+is_mandatory() {
+    local script="$1"
+    local g
+    for g in "${MANDATORY_GATES[@]}"; do
+        if [[ "$script" == *"$g"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 run() {
     local label="$1"; shift
     printf "  %-48s" "${label}..."
@@ -45,6 +77,31 @@ run() {
     if [ "$rc" -eq 0 ]; then
         printf " \033[0;32mOK\033[0m\n"
     elif [ "$rc" -eq 77 ]; then
+        # rc=77 on a mandatory gate is a FAIL (missing artifact / broken gate)
+        if is_mandatory "$*"; then
+            printf " \033[0;31mFAIL\033[0m (rc=77 on mandatory gate — missing artifact or broken skip logic)\n"
+            printf "%s\n" "$out" | sed 's/^/    /'
+            FAILED=$((FAILED + 1))
+        else
+            printf " \033[0;33mSKIP\033[0m\n"
+        fi
+    else
+        printf " \033[0;31mFAIL\033[0m\n"
+        printf "%s\n" "$out" | sed 's/^/    /'
+        FAILED=$((FAILED + 1))
+    fi
+}
+
+run_sh() {
+    local label="$1"; shift
+    printf "  %-48s" "${label}..."
+    local out rc
+    rc=0
+    out=$(bash "$@" 2>&1) || rc=$?  # || prevents set -e from firing on non-zero exit
+    if [ "$rc" -eq 0 ]; then
+        printf " \033[0;32mOK\033[0m\n"
+    elif [ "$rc" -eq 77 ]; then
+        # Advisory shell gates: rc=77 = SKIP (e.g. GPU not present)
         printf " \033[0;33mSKIP\033[0m\n"
     else
         printf " \033[0;31mFAIL\033[0m\n"
@@ -72,6 +129,9 @@ run "Protocol invariants (FROST threshold)"    ci/check_protocol_invariants.py
 run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
 run "Doc drift (badges, removed files)"        ci/check_doc_drift.py
 run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py
+
+# Advisory gates — rc=77 means infrastructure absent (GPU etc.), not a failure
+run_sh "Advisory skip codes"  ci/check_advisory_skip_returns.sh
 
 if [[ "${FAILED}" -gt 0 ]]; then
     echo ""

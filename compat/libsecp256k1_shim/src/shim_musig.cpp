@@ -332,23 +332,33 @@ int secp256k1_musig_pubkey_agg(
     // musig2_key_agg normalizes Q to even-Y for signing, but secp256k1_musig_pubkey_get
     // must return the plain (possibly odd-Y) aggregate key. Restore original Y if negated.
     Point orig_Q = e->ctx.Q_negated ? e->ctx.Q.negate() : e->ctx.Q;
-    compress(orig_Q, e->agg_pk_comp.data());
+
+    // PERF-B2: compute to_uncompressed() ONCE to get both X and Y in a single
+    // field inversion. Previously: compress() (1 inversion) + lift_x sqrt (~3.8 µs).
+    // Now: to_uncompressed() (1 inversion) → fill agg_pk_comp AND agg_pk->data
+    // directly, eliminating the sqrt entirely.
+    auto unc = orig_Q.to_uncompressed();  // [04][X:32][Y:32]
+    bool y_is_odd = (unc[64] & 1) != 0;
+    e->agg_pk_comp[0] = y_is_odd ? 0x03 : 0x02;
+    std::memcpy(e->agg_pk_comp.data() + 1, unc.data() + 1, 32);
     e->compressed = comp33;
 
     if (agg_pk) {
-        std::memcpy(agg_pk->data, e->agg_pk_comp.data() + 1, 32);
+        // X coordinate directly from uncompressed form.
+        std::memcpy(agg_pk->data, unc.data() + 1, 32);
         // P1-PERF-001: store even-Y in data[32..63] so secp256k1_schnorrsig_verify
         // can reconstruct the point directly without lift_x sqrt.
-        // Same logic as secp256k1_xonly_pubkey_parse.
-        FieldElement x_fe;
-        if (FieldElement::parse_bytes_strict(e->agg_pk_comp.data() + 1, x_fe)) {
-            auto y2 = x_fe * x_fe * x_fe + FieldElement::from_uint64(7);
-            auto y_fe = y2.sqrt();
-            if (y_fe.square() == y2) {
-                auto yb = y_fe.to_bytes();
-                if (yb[31] & 1) { y_fe = y_fe.negate(); yb = y_fe.to_bytes(); }
-                std::memcpy(agg_pk->data + 32, yb.data(), 32);
-            }
+        // Y is already available from to_uncompressed() — no sqrt needed.
+        if (y_is_odd) {
+            // Negate Y: for byte representation, Y_even = p - Y_odd.
+            // Use FieldElement to compute the negation cleanly.
+            std::array<uint8_t, 32> yb{};
+            std::memcpy(yb.data(), unc.data() + 33, 32);
+            FieldElement y_fe = FieldElement::from_bytes(yb);
+            auto y_even = y_fe.negate();
+            y_even.to_bytes_into(reinterpret_cast<uint8_t*>(agg_pk->data) + 32);
+        } else {
+            std::memcpy(agg_pk->data + 32, unc.data() + 33, 32);
         }
     }
 

@@ -239,8 +239,12 @@ struct HMAC_Ctx {
     }
 
     // HMAC for medium messages (55 < msg_len <= 119): 2 inner compress + 1 outer
+    // Precondition: msg_len in (64, 119] so that rem = msg_len-64 is in [1,55].
+    // If violated, 55-rem wraps as size_t (unsigned), producing a huge memset count.
     void compute_two_block(const std::uint8_t* msg, std::size_t msg_len,
                            std::uint8_t out[32]) const noexcept {
+        if (msg_len <= 64 || msg_len > 119) return;  // precondition guard
+
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
 

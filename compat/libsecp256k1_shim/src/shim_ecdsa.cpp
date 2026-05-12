@@ -17,73 +17,6 @@
 
 using namespace secp256k1::fast;
 
-// -- Thread-local ECDSA pubkey GLV cache -------------------------------------
-// Two-phase design: first encounter writes fingerprint only (~8 bytes) to avoid
-// polluting ~1.4 KB EcdsaPublicKey into cache for every unique pubkey.
-// ConnectBlock: ~19K unique pubkeys × 1.4 KB = 26 MB/block without this fix.
-//
-// PHASE 1 (1st encounter): record fingerprint + seen_once. Return nullptr.
-//   Caller falls back to ecdsa_verify(Point) which builds tables on-the-fly.
-// PHASE 2 (2nd encounter): build full EcdsaPublicKey with pre-computed tables.
-//   Subsequent calls use cached tables → ~1,954 ns faster per verify.
-namespace {
-struct ShimPkCache {
-    static constexpr std::size_t SLOTS = 256;
-    struct Slot {
-        std::uint64_t             fingerprint{0};
-        secp256k1::EcdsaPublicKey epk{};
-        bool                      valid      = false;
-        bool                      seen_once  = false;
-    };
-    Slot slots[SLOTS]{};
-
-    static void hash64(const unsigned char data[64],
-                       std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
-        std::uint64_t h = 14695981039346656037ULL, w;
-        for (int i = 0; i < 8; ++i) {
-            // std::memcpy compiles to the same MOV on every supported toolchain
-            // (GCC/Clang/MSVC); __builtin_memcpy is GCC/Clang-only and breaks
-            // the MSVC build with C3861 (identifier not found).
-            std::memcpy(&w, data + i * 8, 8);
-            h = (h ^ w) * 1099511628211ULL;
-        }
-        fp_out  = h;
-        idx_out = static_cast<std::size_t>(h & (SLOTS - 1));
-    }
-
-    const secp256k1::EcdsaPublicKey* get(const unsigned char data[64]) const noexcept {
-        std::size_t idx; std::uint64_t fp;
-        hash64(data, idx, fp);
-        const Slot& s = slots[idx];
-        if (s.valid && s.fingerprint == fp) return &s.epk;
-        return nullptr;
-    }
-
-    // Returns non-null only on 2nd+ encounter (tables built).
-    // 1st encounter: records fingerprint only, returns nullptr.
-    const secp256k1::EcdsaPublicKey* put(const unsigned char data[64]) noexcept {
-        std::size_t idx; std::uint64_t fp;
-        hash64(data, idx, fp);
-        Slot& s = slots[idx];
-        bool const matches = (s.fingerprint == fp);
-        if (matches && s.seen_once && !s.valid) {
-            // 2nd encounter: build tables now.
-            unsigned char unc[65]; unc[0] = 0x04;
-            std::memcpy(unc + 1, data, 64);
-            s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
-            return s.valid ? &s.epk : nullptr;
-        }
-        if (matches && s.valid) return &s.epk;
-        // 1st encounter: fingerprint only, no 1.4 KB write.
-        s.fingerprint = fp;
-        s.seen_once   = true;
-        s.valid       = false;
-        return nullptr;
-    }
-};
-static thread_local ShimPkCache s_pk_cache;
-} // namespace
-
 // Context flag helpers — use the canonical implementations from shim_internal.hpp.
 // NULL ctx returns false (matches libsecp256k1: triggers illegal callback, returns 0).
 using secp256k1_shim_internal::ctx_flags;
@@ -191,6 +124,11 @@ int secp256k1_ecdsa_signature_parse_der(
 
     if (*p++ != 0x30) return 0;
     size_t seqlen = *p++;
+    // BIP-66: explicitly reject BER long-form length encoding (0x80, 0x81, 0x82...).
+    // In BER, a length byte with the high bit set means multi-byte length follows.
+    // BIP-66 strict DER requires short-form only. libsecp256k1 rejects this explicitly
+    // via (seqlen & 0x80) != 0; we do the same to document intent, not rely on seqlen>70.
+    if (seqlen & 0x80) return 0;
     // BIP-66: reject if SEQUENCE content overflows OR if there are trailing
     // bytes after the SEQUENCE (libsecp256k1 enforces exact boundary match).
     if (seqlen > 70 || p + seqlen != end) return 0;

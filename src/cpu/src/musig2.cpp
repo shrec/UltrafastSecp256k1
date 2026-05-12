@@ -345,6 +345,10 @@ Scalar musig2_partial_sign(
         if (SECP256K1_UNLIKELY(derived.is_infinity())) {
             return Scalar::zero();
         }
+        // CT invariant: to_compressed() calls SafeGCD field inverse (Bernstein-Yang,
+        // fixed 59 divstep iterations) on the Jacobian Z from ct::generator_mul.
+        // The Z value is secret-dependent, but SafeGCD runs a fixed number of steps
+        // regardless of input, so this path is constant-time.
         auto const derived_c = derived.to_compressed();
         const auto& expected = key_agg_ctx.individual_pubkeys[signer_index];
         std::uint64_t diff = 0;

@@ -27,8 +27,10 @@ keywords:
 abstract: >-
   Constant-time secp256k1 implementation designed as a secondary,
   compile-time-selectable CPU backend for Bitcoin Core. Provides
-  libsecp256k1-compatible shim, CT signing verified by three independent
-  tools, and parity on ConnectBlock workloads (Release+LTO build).
+  libsecp256k1-compatible shim, CT signing verified by five independent
+  pipelines (three CI-enforced: LLVM ct-verif, Valgrind taint, ct-prover;
+  two manual/local: dudect statistical, ARM64 native), and +0.9–1.5%
+  faster on ConnectBlock workloads with Release+LTO (GCC 14.2.0).
   GPU-accelerated batch operations (CUDA, OpenCL, Metal) are available
   for high-throughput non-signing workloads and are out of scope for
   the Bitcoin Core CPU backend integration.

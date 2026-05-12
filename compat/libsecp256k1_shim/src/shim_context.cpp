@@ -33,6 +33,11 @@ struct secp256k1_context_struct {
     // ct::generator_mul(r) per call (~9 µs saved per sign operation).
     secp256k1::fast::Point cached_r_G;
     bool cached_r_G_valid{false};
+    // PERF-B4: r (the blinding scalar) cached alongside cached_r_G so that
+    // ContextBlindingScope avoids Scalar::from_bytes() reconstruction on every
+    // signing call. Scalar::from_bytes() involves a memcpy + Montgomery conversion
+    // — caching it eliminates that work from the sign hot path.
+    secp256k1::fast::Scalar cached_r{};
     secp256k1_callback_fn illegal_cb{default_illegal_callback};
     const void* illegal_cb_data{nullptr};
     secp256k1_callback_fn error_cb{default_illegal_callback};
@@ -42,6 +47,7 @@ struct secp256k1_context_struct {
 static secp256k1_context_struct g_static_ctx = {
     SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY, {}, false,   // flags, blind, blinded
     {}, false,                                                         // cached_r_G, cached_r_G_valid
+    {},                                                                // cached_r
     default_illegal_callback, nullptr,                                 // illegal_cb, illegal_cb_data
     default_illegal_callback, nullptr                                  // error_cb, error_cb_data
 };
@@ -142,7 +148,12 @@ void secp256k1_context_destroy(secp256k1_context *ctx) {
         // The Point stores r*G where r comes from the blinding seed — key material.
         std::memset(ctx->blind, 0, 32);
         secp256k1::detail::secure_erase(&ctx->cached_r_G, sizeof(ctx->cached_r_G));
+        secp256k1::detail::secure_erase(&ctx->cached_r, sizeof(ctx->cached_r));
         ctx->cached_r_G_valid = false;
+        // ctx was created with placement-new (new(mem) secp256k1_context{}), so the
+        // destructor must be explicitly invoked before free(). Without this call, any
+        // non-trivially-destructible members (e.g. Point's internal state) would leak.
+        ctx->~secp256k1_context_struct();
         std::free(ctx);
     }
     // GPU context is process-wide; shut down on last destroy via atexit instead.
@@ -170,11 +181,13 @@ int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *see
         ctx->blinded = true;
         // PERF-005: pre-compute r*G here (once) so ContextBlindingScope can use
         // the cached value rather than calling ct::generator_mul on every sign call.
+        // PERF-B4: also cache r itself so ContextBlindingScope skips from_bytes().
         std::array<uint8_t, 32> seed_arr{};
         std::memcpy(seed_arr.data(), seed32, 32);
         Scalar r = Scalar::from_bytes(seed_arr);
         secp256k1::detail::secure_erase(seed_arr.data(), 32);
         if (!r.is_zero()) {
+            ctx->cached_r         = r;
             ctx->cached_r_G       = secp256k1::ct::generator_mul(r);
             ctx->cached_r_G_valid = true;
         } else {
@@ -184,6 +197,7 @@ int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *see
         std::memset(ctx->blind, 0, 32);
         ctx->blinded = false;
         ctx->cached_r_G_valid = false;
+        secp256k1::detail::secure_erase(&ctx->cached_r, sizeof(ctx->cached_r));
     }
     return 1;
 }
@@ -196,15 +210,20 @@ ContextBlindingScope::ContextBlindingScope(const secp256k1_context* ctx) noexcep
     // secp256k1_context_struct is defined in this TU — use it directly.
     const auto* c = ctx;
     if (!c->blinded) return;  // context not randomized — no blinding to apply
-    std::array<uint8_t, 32> seed_arr{};
-    std::memcpy(seed_arr.data(), c->blind, 32);
-    Scalar r = Scalar::from_bytes(seed_arr);
-    if (r.is_zero()) return;  // negligible; skip blinding
-    // PERF-005: use cached r*G (computed once at context_randomize time) to
-    // avoid a ~9 µs CT generator_mul on every signing call.
+    // PERF-B4: use cached_r directly — avoids Scalar::from_bytes() reconstruction
+    // (memcpy + Montgomery conversion) on every signing call. When cached_r_G_valid,
+    // r was already validated non-zero at context_randomize time, so no is_zero()
+    // check is needed here. Fallback path still reconstructs from blind[] for
+    // contexts where cached_r_G_valid is false (e.g. r was zero — negligible case).
     if (c->cached_r_G_valid) {
-        secp256k1::ct::set_blinding(r, c->cached_r_G);
+        secp256k1::ct::set_blinding(c->cached_r, c->cached_r_G);
     } else {
+        std::array<uint8_t, 32> seed_arr{};
+        std::memcpy(seed_arr.data(), c->blind, 32);
+        Scalar r = Scalar::from_bytes(seed_arr);
+        if (r.is_zero()) return;  // negligible; skip blinding
+        // PERF-005: use cached r*G (computed once at context_randomize time) to
+        // avoid a ~9 µs CT generator_mul on every signing call.
         secp256k1::ct::set_blinding(r, secp256k1::ct::generator_mul(r));
     }
 }

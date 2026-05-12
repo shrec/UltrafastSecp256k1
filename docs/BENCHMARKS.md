@@ -85,6 +85,7 @@ These values are mainly intended as workflow reference points. For publishable
 cross-machine comparisons, use the full pinned benchmark methodology and JSON
 artifacts from `bench_unified`.
 
+<!-- BENCH-ARCHIVE-START -->
 ### x86-64 Full Rerun (2026-03-24, post-exploit-fix audit) `[archived]`
 
 Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.  
@@ -194,6 +195,7 @@ Recent retained reruns and validation passes across the active optimization camp
 This page keeps the last trustworthy result per platform. When a rerun only proves that an
 experiment is unstable or not worth shipping, it is recorded here but not promoted as a retained
 default.
+<!-- BENCH-ARCHIVE-END -->
 
 The stable GPU host ABI in `ufsecp_gpu.h` covers 13 backend-neutral batch
 operations (8 core ops + 5 extended ZK/BIP-324 ops), and the compiled CUDA,

@@ -135,13 +135,18 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ## secp256k1_musig_pubkey_agg — session map cap
 
-- **Upstream behavior:** Unlimited concurrent MuSig2 sessions.
+- **Upstream behavior:** Unlimited concurrent MuSig2 sessions; all state stored inline in opaque structs.
 - **Shim behavior:** Hard cap at 1024 concurrent sessions (`kMaxKaEntries`). The 1025th
   call returns 0. **Fixed 2026-05-11:** previously returned 1 even when cap was hit.
-- **Reason:** The shim uses a global map to associate opaque `secp256k1_musig_keyagg_cache`
-  pointers with internal session state. Unbounded growth is a DoS risk.
+- **Reason:** The shim uses a global `unordered_map` to associate opaque `secp256k1_musig_keyagg_cache`
+  pointers with internal session state (because the opaque struct is too small for variable-length
+  data). Unbounded growth is a DoS risk.
 - **Impact:** Applications that open >1024 simultaneous unfinished MuSig2 sessions.
   Sessions that complete normally free their slot.
+- **Leak risk:** If a caller errors out before completing a session, the map entry persists
+  until the cache address is reused. Callers must ensure sessions are completed or abandoned
+  cleanly. A future `secp256k1_musig_keyagg_cache_destroy` API could address this.
+- **Test:** `audit/test_exploit_shim_musig_ka_cap.cpp` KAC-1..3.
 
 ---
 

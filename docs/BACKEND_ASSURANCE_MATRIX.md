@@ -15,9 +15,9 @@ Backend trust is measured, not assumed.
 |---------|----------------|-------|
 | CPU (fast path) | **HIGH** | Full audit coverage, all invariants, CI enforced |
 | CPU (CT path) | **HIGH** | Formal CT verification (LLVM + empirical + Valgrind) |
-| CUDA | **HIGH** | Full GPU ABI audit, benchmark validated, CI enforced |
-| OpenCL | **MEDIUM** | ABI-complete, partial differential coverage |
-| Metal | **MEDIUM** | ABI-complete, CI validated, hardware-level CT unprotected |
+| CUDA | **HIGH** | Full GPU ABI audit, benchmark validated, CI enforced¹ |
+| OpenCL | **MEDIUM** | ABI-complete, partial differential coverage¹ |
+| Metal | **MEDIUM** | ABI-complete, CI validated, hardware-level CT unprotected¹ |
 | ROCm/HIP | **EXPERIMENTAL** | ABI partial, hardware-backed validation pending |
 
 ### Non-GPU Product Profile Assurance (Added 2026-05-01)
@@ -37,6 +37,10 @@ Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
 - **HIGH** — full audit coverage, CI-enforced, reproducible locally
 - **MEDIUM** — ABI-complete, partial coverage, evolving
 - **EXPERIMENTAL** — limited validation, not recommended for critical paths
+
+¹ GPU CI enforcement is local-only (self-hosted GPU runner with RTX hardware).
+  GitHub CI covers CPU audit only — GPU advisory modules return ADVISORY_SKIP_CODE (77)
+  in the absence of GPU hardware. "CI enforced" above refers to local CI pipeline.
 
 ---
 

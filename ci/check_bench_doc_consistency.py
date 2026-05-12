@@ -168,6 +168,44 @@ BANNED: list[tuple[str, str, str | None]] = [
         "Clang 19 archived CT Schnorr ratio (1.20×) cited without 'Clang 19' or '[archived]' qualifier — canonical GCC 14 ratio is 1.09×",
         None,
     ),
+    # ── FAST-path ratios cited in reviewer docs ───────────────────────────────
+    # These ratios (2.45× ECDSA sign, 2.34× Schnorr sign) reflect variable-time
+    # FAST-path vs libsecp256k1 CT.  They must not appear in reviewer docs because
+    # production UltraFast uses CT signing, making the comparison non-equivalent.
+    (
+        r"2\.45[^\n]{0,60}ECDSA.?sign",
+        "FAST-path ECDSA sign ratio (2.45×) — variable-time vs libsecp CT; not production-equivalent; must not appear in reviewer docs",
+        None,
+    ),
+    (
+        r"ECDSA.?sign[^\n]{0,60}2\.45",
+        "FAST-path ECDSA sign ratio (2.45×) — variable-time vs libsecp CT; not production-equivalent; must not appear in reviewer docs",
+        None,
+    ),
+    (
+        r"2\.34[^\n]{0,60}[Ss]chnorr.?sign",
+        "FAST-path Schnorr sign ratio (2.34×) — variable-time vs libsecp CT; not production-equivalent; must not appear in reviewer docs",
+        None,
+    ),
+    (
+        r"[Ss]chnorr.?sign[^\n]{0,60}2\.34",
+        "FAST-path Schnorr sign ratio (2.34×) — variable-time vs libsecp CT; not production-equivalent; must not appear in reviewer docs",
+        None,
+    ),
+    # ── Invalid pubkey_create VT vs CT comparison ─────────────────────────────
+    # 2.2× pubkey_create is a variable-time (VT) vs CT comparison — not valid
+    # because production pubkey_create uses CT.  Any "pubkey_create.*2.2×"
+    # or "2.2.*pubkey_create" claim in reviewer docs is misleading.
+    (
+        r"pubkey.?create[^\n]{0,60}2\.2[0-9×x]",
+        "Invalid pubkey_create VT-vs-CT ratio (2.2×) — production pubkey_create uses CT; cite CT-vs-CT ratio instead",
+        None,
+    ),
+    (
+        r"2\.2[0-9×x][^\n]{0,60}pubkey.?create",
+        "Invalid pubkey_create VT-vs-CT ratio (2.2×) — production pubkey_create uses CT; cite CT-vs-CT ratio instead",
+        None,
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -264,10 +302,55 @@ def check_canonical_vs_bench_json(canon: dict, verbose: bool) -> list[str]:
     return violations
 
 
+def build_archive_ranges(text: str) -> list[tuple[int, int]]:
+    """Return a list of (start, end) character ranges that are inside
+    BENCH-ARCHIVE-START / BENCH-ARCHIVE-END blocks.  Both HTML comment
+    syntax (<!-- BENCH-ARCHIVE-START -->) and plain comment syntax
+    (# BENCH-ARCHIVE-START) are recognised.
+
+    Lines inside these blocks are excluded from banned-pattern checking so
+    that archived tables (e.g. old Clang-19 results) do not cause false
+    positives.
+    """
+    # Match both <!-- BENCH-ARCHIVE-START --> and # BENCH-ARCHIVE-START
+    start_pat = re.compile(
+        r"(?:<!--\s*BENCH-ARCHIVE-START\s*-->|#\s*BENCH-ARCHIVE-START\b)"
+    )
+    end_pat = re.compile(
+        r"(?:<!--\s*BENCH-ARCHIVE-END\s*-->|#\s*BENCH-ARCHIVE-END\b)"
+    )
+    ranges: list[tuple[int, int]] = []
+    pos = 0
+    while pos < len(text):
+        sm = start_pat.search(text, pos)
+        if sm is None:
+            break
+        em = end_pat.search(text, sm.end())
+        if em is None:
+            # Unclosed archive block — treat to end-of-file
+            ranges.append((sm.start(), len(text)))
+            break
+        ranges.append((sm.start(), em.end()))
+        pos = em.end()
+    return ranges
+
+
+def in_archive_block(pos: int, ranges: list[tuple[int, int]]) -> bool:
+    """Return True if character position *pos* falls inside any archive range."""
+    for start, end in ranges:
+        if start <= pos < end:
+            return True
+    return False
+
+
 def check_banned(text: str, path: str, verbose: bool) -> list[str]:
     violations: list[str] = []
+    archive_ranges = build_archive_ranges(text)
     for pattern, reason, context_hint in BANNED:
         for m in re.finditer(pattern, text, re.IGNORECASE):
+            # Skip matches that fall inside a BENCH-ARCHIVE-START/END block
+            if in_archive_block(m.start(), archive_ranges):
+                continue
             start = max(0, m.start() - 100)
             end = min(len(text), m.end() + 100)
             ctx = text[start:end]

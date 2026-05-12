@@ -217,15 +217,22 @@ static void test_recovery_wrong_recid() {
 
     auto rsig = ecdsa_sign_recoverable(msg, sk);
 
-    // Try wrong recid -- should either fail or give wrong key
+    // Guard: the correct recid must recover the right key before testing wrong recids.
+    auto [correct_pk, correct_ok] = ecdsa_recover(msg, rsig.sig, rsig.recid);
+    check(correct_ok, "Recovery: correct recid succeeds");
+    check(correct_pk.to_compressed() == pk.to_compressed(),
+          "Recovery: correct recid recovers the right key");
+
+    // Try wrong recid -- should either fail or give a different key
     int const wrong_recid = (rsig.recid + 1) % 4;
     auto [wrong_pk, ok] = ecdsa_recover(msg, rsig.sig, wrong_recid);
-    // It might succeed but give a different key, or it might fail
     if (ok) {
         check(wrong_pk.to_compressed() != pk.to_compressed(),
               "Recovery: wrong recid gives different key");
     } else {
-        check(true, "Recovery: wrong recid correctly failed");
+        // Recovery failed for wrong_recid — valid outcome.
+        // correct_ok already asserted above, so the failure is due to wrong recid, not a broken impl.
+        check(correct_ok, "Recovery: wrong recid failed (correct recid still succeeded)");
     }
 }
 

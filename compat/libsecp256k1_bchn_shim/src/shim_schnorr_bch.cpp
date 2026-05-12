@@ -82,7 +82,7 @@ int secp256k1_schnorr_sign(
     secp256k1_nonce_function /*noncefp*/,
     const void* /*ndata*/)
 {
-    (void)ctx;
+    if (!ctx) return 0;  // fail-closed: NULL context is invalid
     if (!sig64 || !msg32 || !seckey) return 0;
 
     try {
@@ -153,7 +153,7 @@ int secp256k1_schnorr_verify(
     const unsigned char* msg32,
     const secp256k1_pubkey* pubkey)
 {
-    (void)ctx;
+    if (!ctx) return 0;  // fail-closed: NULL context is invalid
     if (!sig64 || !msg32 || !pubkey) return 0;
 
     try {

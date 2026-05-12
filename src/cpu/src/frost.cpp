@@ -436,6 +436,11 @@ frost_sign_nonce_gen(ParticipantId participant_id,
     return {nonce, commitment};
 }
 
+// API contract (callers):
+//   key_pkg.signing_share contains secret key material. The caller MUST erase it
+//   after use (success or failure): secure_erase(&key_pkg.signing_share, sizeof(...)).
+//   frost_sign does not erase key_pkg.signing_share internally — the package is
+//   owned by the caller and may be reused across multiple signing rounds.
 FrostPartialSig
 frost_sign(const FrostKeyPackage& key_pkg,
            FrostNonce& nonce,
