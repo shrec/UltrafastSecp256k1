@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-05-12 — CT-BLIND-01 CT nonce path uses generator_mul_blinded
+
+### Security Fix
+- **CT-BLIND-01** `src/cpu/src/ct_sign.cpp`: all five nonce-path calls to
+  `ct::generator_mul(k)` for R = k·G replaced with `ct::generator_mul_blinded(k)`.
+  Affected functions: `ct::ecdsa_sign`, `ct::ecdsa_sign_hedged`, `ct::schnorr_sign`,
+  `ct::ecdsa_sign_recoverable`, `ct::ecdsa_sign_hedged_recoverable`.
+  The blinding is mathematically transparent (blinded(k)·G = k·G), so signatures
+  remain deterministic. Without blinding, `secp256k1_context_randomize()` had no
+  effect on the dedicated CT signing paths — DPA defense was inactive.
+  The fast-path `schnorr_sign` in `schnorr.cpp` already used `generator_mul_blinded`
+  (correct since prior fix); only the ct_sign.cpp dedicated CT functions were missing it.
+- Test: `audit/test_regression_ct_blinding_nonce_path.cpp` (non-advisory):
+  verifies blinded and unblinded produce identical deterministic signatures,
+  both verify correctly, and 20 random keys behave consistently.
+  Wired into unified runner as `ct_analysis / ct_blinding_nonce` (advisory=false).
+
 ## 2026-05-12 — PERF-003 shim_ecdsa pubkey parse zero-copy
 
 - **PERF-003** `shim_ecdsa.cpp` `pubkey_data_to_point` + `secp256k1_ecdsa_verify`:
@@ -68,8 +85,11 @@ evidence upgrades, and changes to what the repository can honestly claim.
 
 ### Track A -- Security/Correctness
 - **SEC-007**: `audit/test_regression_shim_high_s_verify.cpp` added -- diagnostic test
-  documenting that `secp256k1_ecdsa_verify` does not normalize before verifying (high-S
-  divergence from libsecp256k1); wired into unified_audit_runner as advisory.
+  confirming that `secp256k1_ecdsa_verify` verifies high-S signatures (no normalization).
+  **Correction 2026-05-12:** the original entry claimed this was a divergence from
+  libsecp256k1. It is not — upstream libsecp256k1 also accepts high-S in verify.
+  The test still serves as behavioral documentation. SHIM_KNOWN_DIVERGENCES.md SEC-007
+  entry updated to reflect that no divergence exists.
 - **SEC-003**: Improved fail-closed invariant comments in `ufsecp_ecdsa_sign_batch` and
   `ufsecp_schnorr_sign_batch` -- now explicit about why [0..i*64) is re-zeroed on failure.
 

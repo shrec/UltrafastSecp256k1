@@ -7,8 +7,15 @@
 
 ## cmake: add optional secp256k1 backend evaluation path
 
-This PR introduces an **opt-in, compile-time alternative backend** for libsecp256k1.
-No existing code paths change. Bitcoin Core behavior is identical when using the default backend.
+This PR introduces **UltrafastSecp256k1 as an optional secondary backend**, selectable at
+compile time. **This is not a replacement for libsecp256k1**, which remains the default and
+the ecosystem reference implementation. No existing code paths change. Bitcoin Core behavior
+is identical when using the default backend.
+
+The motivation is a compile-time opt-in for evaluation on hardware where the measurably
+faster CT signing paths (+10–35% on Taproot/ECDSA sign workloads, controlled benchmarks
+with raw evidence below) may benefit validation performance — while maintaining full
+libsecp256k1 C ABI compatibility.
 
 ### What this adds
 
@@ -61,16 +68,17 @@ Differential testing against bitcoin-core/secp256k1 reference:
 
 | Operation | libsecp256k1 | Ultra | vs libsecp |
 |-----------|-------------|-------|-----------|
-| Schnorr sign (Taproot) | 114,479 ns | 84,273 ns | **1.36×** |
-| ECDSA sign | 168,907 ns | 147,262 ns | **1.15×** |
-| P2TR ScriptPath verify | 83,481 ns | 75,549 ns | **1.11×** |
+| Schnorr sign (Taproot/Merkle) | 113,410 ns | 83,930 ns | **1.35×** |
+| ECDSA sign | 165,140 ns | 149,520 ns | **1.10×** |
+| P2TR ScriptPath verify | 83,812 ns | 76,451 ns | **1.10×** |
 | ConnectBlockAllSchnorr | 255.3 ms/blk | 253.0 ms/blk | **+0.9%** |
 | ConnectBlockAllEcdsa | 257.4 ms/blk | 254.3 ms/blk | **+1.2%** |
 | ConnectBlockMixed | 257.7 ms/blk | 253.9 ms/blk | **+1.5%** |
-| P2WPKH verify | 46,062 ns | 45,217 ns | parity |
+| P2WPKH verify | 45,777 ns | 45,978 ns | ≈parity (0.4% slower, within noise margin) |
 
-Full data with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`. Note: all CT signing paths are
-unchanged from this session; these signing numbers do not include non-CT paths.
+Full data with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `48e7c02f`, 2026-05-12,
+hard turbo lock, GCC 14.2.0). All CT signing paths use `generator_mul_blinded` for nonce
+multiplication (DPA defense active when `secp256k1_context_randomize` is called).
 No external third-party audit has been conducted — all CT verification is self-generated CI tooling.
 
 ### Known gaps and honest statements

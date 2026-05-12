@@ -189,6 +189,14 @@ int secp256k1_schnorrsig_sign_custom(
     if (!ctx_can_sign(ctx)) return 0;
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
+    // NULL output-arg check fires before extraparams parsing (matches upstream ordering:
+    // libsecp256k1 calls the illegal callback for NULL sig64/keypair before inspecting
+    // extraparams or rejecting non-canonical nonce functions).
+    if (!sig64 || !keypair) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL argument");
+        return 0;
+    }
+
     // Unpack extraparams (upstream libsecp256k1 v0.4+ API).
     secp256k1_nonce_function_hardened noncefp = nullptr;
     void *ndata = nullptr;
@@ -201,11 +209,6 @@ int secp256k1_schnorrsig_sign_custom(
     }
     // Fail-closed: reject non-canonical nonce functions.
     if (noncefp != nullptr && noncefp != secp256k1_nonce_function_bip340) return 0;
-
-    if (!sig64 || !keypair) {
-        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL argument");
-        return 0;
-    }
     if (msglen > 0 && !msg) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL msg with nonzero msglen");
         return 0;

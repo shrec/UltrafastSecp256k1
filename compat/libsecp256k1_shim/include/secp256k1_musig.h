@@ -15,6 +15,10 @@ typedef struct secp256k1_musig_keyagg_cache { unsigned char data[197]; } secp256
 typedef struct secp256k1_musig_secnonce    { unsigned char data[132]; } secp256k1_musig_secnonce;
 typedef struct secp256k1_musig_pubnonce    { unsigned char data[132]; } secp256k1_musig_pubnonce;
 typedef struct secp256k1_musig_aggnonce    { unsigned char data[132]; } secp256k1_musig_aggnonce;
+/* WARNING: secp256k1_musig_session contains internal heap pointers (bytes 98-105).
+   It is NOT safely serializable (memcpy to disk/network will produce dangling pointers
+   on restore). It is NOT safely memcpy-able across process boundaries.
+   Use secp256k1_musig_session_save/load for persistence across calls. */
 typedef struct secp256k1_musig_session     { unsigned char data[133]; } secp256k1_musig_session;
 typedef struct secp256k1_musig_partial_sig { unsigned char data[36];  } secp256k1_musig_partial_sig;
 

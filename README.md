@@ -70,7 +70,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 
 **CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-11):** **1.24× ECDSA · 1.09× Schnorr** vs libsecp256k1. Canonical data: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](docs/bench_unified_2026-05-11_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
-> **ConnectBlock (primary block-validation workload):** With Release+LTO (recommended): Ultra wins on ALL ConnectBlock scenarios — +0.9% to +1.5% faster than libsecp256k1, confirmed (err% 0.1–0.5%, hard turbo lock, 5 runs). Without LTO: ~0.5–1.0% slower due to i-cache pressure from larger code footprint; PERF-002 reduced the gap from ~1.1% but LTO is required for Ultra to win. Taproot key-path signing is 10–35% faster. Full numbers: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
+> **ConnectBlock (primary block-validation workload):** With Release+LTO (recommended): Ultra wins on ALL ConnectBlock scenarios — +0.9% to +1.5% faster than libsecp256k1, confirmed (err% 0.2–0.5%, hard turbo lock, 5 runs). Without LTO: ~0.5–1.0% slower due to i-cache pressure from larger code footprint; PERF-002 reduced the gap from ~1.1% but LTO is required for Ultra to win. Taproot key-path signing is 10–35% faster. Full numbers: [docs/BITCOIN_CORE_BENCH_RESULTS.json](docs/BITCOIN_CORE_BENCH_RESULTS.json).
 
 ---
 
@@ -365,7 +365,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **~1,000,000+** |
-| Audit modules (`unified_audit_runner`) | **102 non-exploit modules + 258 exploit PoCs across 9 sections, 0 failures** |
+| Audit modules (`unified_audit_runner`) | **103 non-exploit modules + 258 exploit PoCs across 9 sections, 0 failures** |
 | Exploit PoC test files | **254 tests, 20+ coverage areas, 0 failures** |
 | CI/CD workflows | **54 GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 combinations** |
@@ -393,7 +393,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 102 non-exploit audit modules and all 258 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 103 non-exploit audit modules and all 258 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
 ### Exploit PoC Test Suite (258 Tests, 20+ Coverage Areas)
 

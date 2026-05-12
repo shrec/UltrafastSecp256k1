@@ -267,21 +267,20 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
-## secp256k1_ecdsa_verify -- high-S signature acceptance (SEC-007)
+## secp256k1_ecdsa_verify -- high-S signature acceptance (SEC-007 — NOT A DIVERGENCE)
 
-- **Upstream behavior:** libsecp256k1 internally calls `secp256k1_ecdsa_signature_normalize`
-  before verifying; high-S signatures (s > n/2) pass verification after normalization to
-  low-S form.
-- **Shim behavior:** The Ultra shim does NOT normalize before verifying. A high-S signature
-  is passed directly to `secp256k1::ecdsa_verify`, which verifies the mathematical equation
-  without enforcing the low-S constraint.
-- **Reason:** Conservative: explicit normalization preserves caller awareness of malleability.
-  Callers needing libsecp256k1-compatible behavior must call `secp256k1_ecdsa_signature_normalize`
-  before `secp256k1_ecdsa_verify`.
-- **Impact:** Any caller that passes a high-S signature directly without first normalizing will
-  see a behavioral difference. Bitcoin Core always normalizes before verify (BIP-66); standard
-  Core usage is unaffected.
-- **Test:** `audit/test_regression_shim_high_s_verify.cpp` (diagnostic test).
+- **Upstream behavior:** libsecp256k1 `secp256k1_ecdsa_verify` does NOT internally normalize
+  before verifying. Both low-S and high-S signatures pass `secp256k1_ecdsa_verify` (the
+  mathematical ECDSA equation is valid for either s value). BIP-62 low-S enforcement in
+  Bitcoin Core is done separately at the script validation layer, not inside libsecp.
+- **Shim behavior:** Identical — the shim passes signatures directly to
+  `secp256k1::ecdsa_verify` without normalizing. Both low-S and high-S signatures verify.
+- **Verdict:** No behavioral divergence. A prior version of this entry incorrectly claimed
+  that upstream "internally normalizes" before verify. That claim was factually wrong.
+  SEC-007 is closed: the behavior is identical between shim and upstream.
+- **Impact:** None — behavior matches upstream exactly.
+- **Test:** `audit/test_regression_shim_high_s_verify.cpp` confirms shim behavior matches
+  upstream: high-S signatures verify successfully in both implementations.
 
 ---
 

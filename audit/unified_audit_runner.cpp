@@ -185,6 +185,7 @@ int test_cryptol_specs_run();      // Cryptol formal spec property check (blocki
 int test_exploit_safegcd_divsteps_run();              // Bernstein-Yang SafeGCD divstep count + correctness
 int test_exploit_ecdsa_pmn_wraparound_run();          // ECDSA PMN wraparound: r ∈ [n,p) constant + logic (2026-05-05)
 int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cases (null/zero/n/n-1)
+int test_regression_ct_blinding_nonce_path_run();    // CT nonce path uses generator_mul_blinded (2026-05-12)
 
 // ============================================================================
 // Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
@@ -643,6 +644,7 @@ static const AuditModule ALL_MODULES[] = {
     { "ct_sidechannel",    "Side-channel dudect (smoke)",                  "ct_analysis",    test_ct_sidechannel_smoke_run, true },
     { "ct_verif_formal",   "Formal CT verification (ctgrind/MSAN)",       "ct_analysis",    test_ct_verif_formal_run, true },
     { "diag_scalar_mul",   "CT scalar_mul vs fast (diagnostic)",           "ct_analysis",    diag_scalar_mul_run, false },
+    { "ct_blinding_nonce", "CT nonce path uses generator_mul_blinded",      "ct_analysis",    test_regression_ct_blinding_nonce_path_run, false },
 
     // ===================================================================
     // Section 3: Differential & Cross-Library Testing
@@ -673,7 +675,7 @@ static const AuditModule ALL_MODULES[] = {
     { "fuzz_musig2_frost", "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)","fuzzing",        test_fuzz_musig2_frost_run, false },
     { "libfuzzer_unified", "LibFuzzer deterministic regression (6 parsers)","fuzzing",        test_libfuzzer_unified_run, false },
     { "mutation_kill_rate","Mutation kill-rate audit (advisory)",          "fuzzing",        test_mutation_kill_rate_run, true  },
-    { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "formal_proof",   test_cryptol_specs_run, true  },
+    { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "differential",   test_cryptol_specs_run, true  },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================

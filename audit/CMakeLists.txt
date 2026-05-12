@@ -3050,6 +3050,24 @@ add_test(NAME regression_comb_gen_lockfree
 set_tests_properties(regression_comb_gen_lockfree PROPERTIES
     TIMEOUT 60 LABELS "audit;regression;comb;ecmult_gen;thread;lockfree")
 
+# -- 2026-05-12 Review: CT nonce path must use generator_mul_blinded ----------
+# Guards that ct::ecdsa_sign / ct::schnorr_sign use generator_mul_blinded for
+# R = k*G, activating secp256k1_context_randomize DPA blinding on CT paths.
+add_executable(test_regression_ct_blinding_nonce_path_standalone
+    test_regression_ct_blinding_nonce_path.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
+audit_target_defaults(test_regression_ct_blinding_nonce_path_standalone)
+target_include_directories(test_regression_ct_blinding_nonce_path_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+)
+target_compile_definitions(test_regression_ct_blinding_nonce_path_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_ct_blinding_nonce_path
+    COMMAND test_regression_ct_blinding_nonce_path_standalone)
+set_tests_properties(regression_ct_blinding_nonce_path PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;ct;signing;blinding;dpa")
+
 # ===========================================================================
 # Cross-library differential test (vs bitcoin-core/libsecp256k1)
 # ===========================================================================
@@ -3661,6 +3679,9 @@ add_executable(unified_audit_runner
     # Regression: point_add_mixed_complete magnitude contract (May 2026)
     # Ensures normalize_weak X1/Y1 fix remains in place.
     test_regression_ct_mixed_add_magnitude.cpp
+    # Regression: CT nonce path uses generator_mul_blinded (2026-05-12)
+    # Guards that ct::ecdsa_sign / ct::schnorr_sign activate DPA blinding.
+    test_regression_ct_blinding_nonce_path.cpp
 )
 # Shim-independent tests: always add to unified_audit_runner.
 target_sources(unified_audit_runner PRIVATE

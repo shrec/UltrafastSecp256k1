@@ -2,8 +2,10 @@
 // ct_sign.cpp -- Constant-Time Signing Functions
 // ============================================================================
 // Drop-in CT replacements for ecdsa_sign() and schnorr_sign().
-// Uses ct::generator_mul() (data-independent execution trace) for all
-// point multiplications involving secret nonces or private keys.
+// Nonce multiplications (R = k*G) use ct::generator_mul_blinded() for DPA
+// defense when secp256k1_context_randomize() has been called.
+// Pubkey derivations in fault-check verify steps use ct::generator_mul()
+// (public output, DPA blinding not required there).
 // ============================================================================
 
 #include "secp256k1/ct/sign.hpp"
@@ -40,11 +42,11 @@ ECDSASignature ecdsa_sign(const std::array<uint8_t, 32>& msg_hash,
     // probability); not a timing concern since k is never zero in practice.
     if (k.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
-    // R = k * G  -- CT path
-    auto R = ct::generator_mul(k);
+    // R = k * G  -- blinded CT path (DPA defense via secp256k1_context_randomize)
+    auto R = ct::generator_mul_blinded(k);
     // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
-    // r = R.x mod n (R.x is public after ct::generator_mul)
+    // r = R.x mod n (R.x is public after ct::generator_mul_blinded)
     // from_limbs() skips the byte-swap round-trip; ge(ORDER) check is still
     // performed because secp256k1 p > n (rare values in [n,p) need reduction).
     auto r = Scalar::from_limbs(R.x().limbs());  // NOT a secret scalar — public curve point x-coord
@@ -111,8 +113,8 @@ ECDSASignature ecdsa_sign_hedged(const std::array<uint8_t, 32>& msg_hash,
     // k.is_zero_ct() guards against RFC 6979 exhaustion (≈2^−8000 probability).
     if (k.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
 
-    // R = k * G  -- CT path
-    auto R = ct::generator_mul(k);
+    // R = k * G  -- blinded CT path (DPA defense via secp256k1_context_randomize)
+    auto R = ct::generator_mul_blinded(k);
     // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
     // from_limbs: direct 4×64 copy + ge(ORDER) check — same as ct::ecdsa_sign.
@@ -221,8 +223,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero_ct()) return SchnorrSignature{};
 
-    // Step 3: R = k' * G -- CT path
-    auto R = ct::generator_mul(k_prime);
+    // Step 3: R = k' * G -- blinded CT path (DPA defense via secp256k1_context_randomize)
+    auto R = ct::generator_mul_blinded(k_prime);
     auto [rx, r_y_odd] = R.x_bytes_and_parity();
 
     // Step 4: k = k' if even_y(R), else n - k'
@@ -319,11 +321,11 @@ RecoverableSignature ecdsa_sign_recoverable(
     // k.is_zero_ct() guards against RFC 6979 exhaustion (≈2^−8000 probability).
     if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
-    // R = k * G  -- CT path (data-independent execution trace)
-    auto R = ct::generator_mul(k);
+    // R = k * G  -- blinded CT path (DPA defense via secp256k1_context_randomize)
+    auto R = ct::generator_mul_blinded(k);
     // k != 0 on secp256k1's prime-order group guarantees R ≠ ∞; no check needed.
 
-    // r = R.x mod n (R.x is public after ct::generator_mul)
+    // r = R.x mod n (R.x is public after ct::generator_mul_blinded)
     auto r_fe = R.x();
     auto r_bytes = r_fe.to_bytes();
     auto r = Scalar::from_bytes(r_bytes);
@@ -411,8 +413,8 @@ RecoverableSignature ecdsa_sign_hedged_recoverable(
     auto k = secp256k1::rfc6979_nonce_hedged(private_key, msg_hash, aux_rand);
     if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
 
-    // R = k * G  -- CT path
-    auto R = ct::generator_mul(k);
+    // R = k * G  -- blinded CT path (DPA defense via secp256k1_context_randomize)
+    auto R = ct::generator_mul_blinded(k);
 
     // r = R.x mod n
     auto r_fe = R.x();
