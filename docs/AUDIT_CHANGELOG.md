@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-05-12 — SEC-001 MuSig2 ABI signer-index cross-validation
+
+### Security Fix
+- **SEC-001** `src/cpu/src/impl/ufsecp_musig2.cpp`: added `ufsecp_musig2_partial_sign_v2()`
+  which accepts the original pubkeys array and validates `privkey ↔ signer_index` at the
+  ABI boundary before consuming any secret material. Derives `pubkey = ct::generator_mul(sk)`
+  (constant-time) and compares against `pubkeys[signer_index]` in a constant-time byte loop.
+  Returns `UFSECP_ERR_BAD_KEY` on mismatch without zeroing the secnonce.
+  The original `ufsecp_musig2_partial_sign()` is preserved for ABI compatibility with a
+  SECURITY WARNING comment pointing callers to v2.
+- `include/ufsecp/ufsecp.h`: declared `ufsecp_musig2_partial_sign_v2()` with security notes.
+- Test: `audit/test_regression_musig2_abi_signer_index.cpp` (SIV-1..7, non-advisory):
+  wrong-index rejected, correct-index accepted, NULL pubkeys rejected, out-of-range rejected,
+  3-of-3 correct indices succeed, 3-of-3 wrong indices rejected, full 2-of-2 roundtrip.
+
 ## 2026-05-12 — PERF-001/005 shim hot-path optimization correctness
 
 ### Performance Optimizations with Correctness Regression Coverage
