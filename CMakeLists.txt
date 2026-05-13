@@ -389,6 +389,25 @@ endif()
 
 # -- Audit infrastructure (standalone CTest targets + unified runner) -------
 # All audit-specific targets live in audit/ to keep the library source clean.
+#
+# NOTE on ordering: audit/ is added BEFORE compat/libsecp256k1_shim/ on purpose.
+# In audit/CMakeLists.txt, several `if(TARGET secp256k1_shim)` blocks gate
+# shim-dependent test targets — they fail closed (skip) when the shim target
+# is not yet declared. Adding the shim BEFORE audit/ would CHANGE the build:
+# shim regression tests (test_regression_ellswift_ct_path.cpp,
+# test_regression_musig2_nonce_strict.cpp, test_regression_shim_pubkey_sort.cpp,
+# test_regression_shim_per_context_blinding.cpp, test_regression_musig2_session_token.cpp,
+# test_regression_shim_security_v7/v8.cpp, test_regression_shim_perf_correctness.cpp)
+# would compile INTO unified_audit_runner — but these files have accumulated API
+# drift (missing g_pass declarations, wrong arg types for changed APIs like
+# musig_partial_sign, missing custom shim entry points like ufsecp_ecdsa_verify_batch).
+# Until those test files are cleaned up, they MUST stay as standalone CTest targets
+# only (built with `if(TARGET secp256k1_shim)` after the shim is declared).
+#
+# In unified_audit_runner mode, the stubs in audit/shim_run_stubs_unified.cpp
+# return ADVISORY_SKIP_CODE(77) for these tests — they appear as advisory WARN
+# in the audit report. To actually exercise them, run the standalone CTest
+# targets via `ctest -R shim` after a build that has SECP256K1_BUILD_SHIM=ON.
 if(SECP256K1_BUILD_CPU AND BUILD_TESTING)
     add_subdirectory(audit)
 endif()

@@ -35,7 +35,7 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **
 > **CT Sign vs lib** = `bench_unified` CT-vs-CT section — production-equivalent comparison. Canonical data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
 > **ConnectBlock note:** +0.9–1.5% faster than libsecp256k1 **with Release+LTO**. Without LTO: ~0.5–1.0% **slower**. LTO is required for the positive result. See `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
-> **FAST signing** (diagnostic, NOT for production signing claims): ECDSA 2.45×, Schnorr 2.34× — Ultra variable-time vs libsecp CT. See `benchmarks/comparison/README.md` §BENCH-001 note.
+> **FAST signing**: diagnostic-only variable-time vs libsecp CT comparison; **not** a production claim. Production-equivalent numbers are the **CT Sign vs lib** column above. For the diagnostic raw ratios, see `benchmarks/comparison/README.md` §BENCH-001 note.
 > GPU rows: kernel-only throughput at standard batch sizes.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 

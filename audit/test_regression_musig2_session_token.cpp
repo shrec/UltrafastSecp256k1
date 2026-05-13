@@ -17,6 +17,8 @@
 // ============================================================================
 
 #include "audit_check.hpp"
+
+static int g_pass = 0, g_fail = 0;
 #include <cstdio>
 #include <cstring>
 #include <cstdint>

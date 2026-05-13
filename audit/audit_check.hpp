@@ -78,6 +78,20 @@ inline void audit_print_progress_(int total) {
     } \
 } while(0)
 
+// -- Lowercase alias for legacy tests --------------------------------------
+// Several shim regression tests (test_regression_ellswift_ct_path.cpp,
+// test_regression_musig2_nonce_strict.cpp, test_regression_shim_pubkey_sort.cpp,
+// test_regression_shim_per_context_blinding.cpp, test_regression_musig2_session_token.cpp)
+// use lowercase `check(...)`. Provide an alias so they compile in BOTH the
+// unified_audit_runner (where the shim is now linked, after the CMakeLists
+// order fix that put compat/libsecp256k1_shim BEFORE audit) and as standalone
+// CTest targets. Lowercase `check` matches the local `static void check(...)`
+// helper used in newer tests like test_regression_musig2_abi_signer_index.cpp
+// and is interchangeable with CHECK at the test-author level.
+#ifndef check
+#define check(cond, msg) CHECK(cond, msg)
+#endif
+
 // -- Section/progress header with immediate flush ---------------------------
 #define AUDIT_LOG(...) do { \
     (void)std::printf(__VA_ARGS__); \

@@ -197,6 +197,20 @@ BANNED: list[tuple[str, str, str | None]] = [
         "FAST-path Schnorr sign ratio (2.34×) — variable-time vs libsecp CT; not production-equivalent; must not appear in reviewer docs",
         None,
     ),
+    # BENCH-001 (v9): the original patterns above match only the order
+    # "2.45× ECDSA sign" or "ECDSA sign … 2.45×".  Reviewer docs were leaking the
+    # reversed order "ECDSA 2.45×" / "Schnorr 2.34×" which the original regex
+    # missed.  Catch both word orders defensively.
+    (
+        r"ECDSA[^\n]{0,8}2\.4[5-9][×x]",
+        "FAST-path ECDSA sign ratio (2.45×) in reversed word order — variable-time vs libsecp CT; not production-equivalent",
+        None,
+    ),
+    (
+        r"[Ss]chnorr[^\n]{0,8}2\.3[0-9][×x]",
+        "FAST-path Schnorr sign ratio (2.34×) in reversed word order — variable-time vs libsecp CT; not production-equivalent",
+        None,
+    ),
     # ── Invalid pubkey_create VT vs CT comparison ─────────────────────────────
     # 2.2× pubkey_create is a variable-time (VT) vs CT comparison — not valid
     # because production pubkey_create uses CT.  Any "pubkey_create.*2.2×"

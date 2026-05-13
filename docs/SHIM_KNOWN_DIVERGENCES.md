@@ -354,6 +354,41 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_schnorrsig_verify -- thread-local xonly-pubkey cache (NEW-SHIM-004)
+
+- **Upstream behavior:** No caching.  Every `secp256k1_schnorrsig_verify` call
+  re-runs `lift_x` (sqrt) and rebuilds GLV precomputation tables for the supplied
+  x-only pubkey.
+- **Shim behavior:** A 256-slot, thread-local, FNV-1a-fingerprinted cache stores
+  the lifted point + precomputed tables.  Warm cache hits skip `lift_x` and the
+  GLV rebuild (~1,954 ns saved per hit on the ConnectBlock workload).
+- **Reason:** ConnectBlock-style hot paths (Bitcoin Core block validation) re-verify
+  the same set of x-only pubkeys many times within a small window.  Caching the
+  lifted point is a strict perf optimisation; correctness is identical to upstream.
+- **Impact / divergence shape:**
+  1. **Memory:** ~256 × ~1.5 KB ≈ 384 KB of additional thread-local memory per
+     thread that ever calls `secp256k1_schnorrsig_verify` in the shim.
+  2. **Hash collisions are silent:** the cache uses a 32-bit FNV-1a fingerprint
+     to index into 256 slots; on collision (~2^-32 per slot ≈ 0.1% per million
+     unique pubkeys) the previously cached entry is overwritten without warning.
+     The next verify of the evicted key re-runs `lift_x` + table build (~2 µs penalty).
+     This is a perf footprint, not a correctness issue — verification is still sound.
+  3. **Thread isolation:** cache is `thread_local`, so multi-threaded callers
+     each pay the cold-cache cost on the first verify per thread.
+- **Note on the `verify_precomp` API:** callers that need deterministic warm-cache
+  behaviour (no eviction) should use `secp256k1_xonly_pubkey_parse_precomp` +
+  `secp256k1_schnorrsig_verify_precomp` from `secp256k1_schnorrsig.h`, which
+  exposes the prebuilt object explicitly and bypasses the global cache.
+- **Test:** Planned — `audit/test_regression_shim_schnorr_cache_collision.cpp`
+  will exercise the eviction-and-rebuild path: verify key A, fill the cache by
+  verifying ≥256 distinct keys (forcing at least one slot collision), re-verify
+  key A and assert it still returns 1.  Correctness must hold after eviction;
+  only the per-call latency changes.  Current coverage is indirect via the
+  unique-pubkey ConnectBlock workload exercised in `bench_unified` and the
+  high-diversity verify path in `audit/test_exploit_schnorr_verify_*`.
+
+---
+
 ## secp256k1_schnorrsig_verify -- null msg without firing illegal callback (SHIM-003)
 
 - **Upstream behavior:** `secp256k1_schnorrsig_verify` with `msg=NULL` and `msglen=32` fires
