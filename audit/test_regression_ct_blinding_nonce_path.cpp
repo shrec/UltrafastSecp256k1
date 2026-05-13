@@ -203,7 +203,7 @@ static void test_ecdsa_random_keys_blinded() {
 
         // Unblinded (fresh ctx without randomize == no blinding).
         ufsecp_ctx* ctx2 = nullptr;
-        ufsecp_ctx_create(&ctx2);
+        if (ufsecp_ctx_create(&ctx2) != UFSECP_OK) continue;
         // ctx2 has blinding OFF (not randomized).
 
         auto sig_nb = secp256k1::ct::ecdsa_sign(msgb, sk);
