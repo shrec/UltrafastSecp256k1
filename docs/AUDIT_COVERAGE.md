@@ -9,7 +9,7 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 363 across 9 failure classes |
+| Audit modules | 364 across 9 failure classes |
 | Exploit PoC tests | 261 exploit PoCs test files, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | 530,000+ parser/adversarial |
@@ -34,7 +34,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 **Version**: v4.0.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **AUDIT-READY** -- 363 modules, 9 failure classes
+**Verdict**: **AUDIT-READY** -- 364 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
 **CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (all CI-enforced)
 
@@ -46,7 +46,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
 | Audit Modules        | 91 (non-exploit modules) |
-| **Exploit PoC Tests** | **260 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
+| **Exploit PoC Tests** | **261 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 54 GitHub Actions workflows                 |
