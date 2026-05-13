@@ -313,6 +313,24 @@ jobs:
           python3 ci/security_autonomy_check.py --json -o caas_autonomy.json; rc=$?
           [ $rc -eq 77 ] && { echo "::notice::security_autonomy advisory-skip (exit 77 — GPU/infrastructure absent)"; exit 0; } || exit $rc
 
+      - name: Annotate autonomy report on failed audit gate (CI-015)
+        # CI-015 fix: if audit_gate failed, the autonomy.json may still show 100/100
+        # because it measures a different dimension. Annotate the JSON so external
+        # auditors reading only the autonomy report cannot mistake it for an OK signal.
+        if: always() && steps.audit_gate.outcome != 'success'
+        run: |
+          if [ -f caas_autonomy.json ]; then
+            python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("caas_autonomy.json")
+          d = json.loads(p.read_text())
+          d["audit_gate_result"] = "FAIL"
+          d["warning"] = ("audit_gate failed — autonomy score is not a valid "
+                          "signal of release readiness; see caas_audit_gate.json")
+          p.write_text(json.dumps(d, indent=2))
+          PY
+          fi
+
       - name: Source graph quality check
         id: source_graph_quality
         if: always()
