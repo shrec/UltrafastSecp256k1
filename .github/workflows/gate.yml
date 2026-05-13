@@ -561,8 +561,11 @@ jobs:
         #   (b) all advisory modules that require only CPU (no GPU/Python/Cryptol) must return
         #       ADVISORY_SKIP_CODE (77) when their infrastructure is absent, never 0 (false pass)
         run: |
-          ./out/ci-shim/audit/unified_audit_runner --json-only \
-            -o shim_audit_report.json
+          # unified_audit_runner CLI exposes --report-dir, NOT -o. It writes
+          # audit_report.json in the report dir. We rename it to keep the
+          # downstream artifact name stable.
+          ./out/ci-shim/audit/unified_audit_runner --json-only --report-dir .
+          mv audit_report.json shim_audit_report.json
           python3 - <<'PYEOF'
           import json, sys
           with open("shim_audit_report.json") as f:
