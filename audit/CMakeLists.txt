@@ -140,6 +140,13 @@ target_compile_definitions(test_carry_propagation PRIVATE STANDALONE_TEST)
 add_test(NAME carry_propagation COMMAND test_carry_propagation)
 set_tests_properties(carry_propagation PROPERTIES TIMEOUT 900)
 
+# -- u128_compat parity test (portable 128-bit struct vs native __int128) --
+add_executable(test_u128_compat_parity test_u128_compat_parity.cpp)
+audit_target_defaults(test_u128_compat_parity)
+target_compile_definitions(test_u128_compat_parity PRIVATE STANDALONE_TEST)
+add_test(NAME u128_compat_parity COMMAND test_u128_compat_parity)
+set_tests_properties(u128_compat_parity PROPERTIES TIMEOUT 60)
+
 # -- Wycheproof ECDSA secp256k1 vectors (Track I3-1) ----------------------
 add_executable(test_wycheproof_ecdsa test_wycheproof_ecdsa.cpp)
 audit_target_defaults(test_wycheproof_ecdsa)
@@ -3270,6 +3277,7 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_ecc_properties.cpp
     # -- standalone audit modules (in this directory) --
     test_carry_propagation.cpp
+    test_u128_compat_parity.cpp
     test_fault_injection.cpp
     test_fiat_crypto_vectors.cpp
     test_cross_platform_kat.cpp

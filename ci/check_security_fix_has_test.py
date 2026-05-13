@@ -67,6 +67,13 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "a0b35c8c6f": (
+        ["audit/test_u128_compat_parity.cpp"],
+        "WASM portable u128 fix in field_52.cpp / field_52_impl.hpp / "
+        "u128_compat.hpp. The parity test was added in the follow-up "
+        "commit and stress-tests 240,000 ops comparing the portable "
+        "struct to native __int128.",
+    ),
     "a3f56aed99": (
         [
             "audit/test_exploit_shim_musig_ka_cap.cpp",     # RED-TEAM-009

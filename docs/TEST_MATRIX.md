@@ -49,6 +49,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_abi_gate.cpp` | -- | ABI compatibility gate: version checks, symbol presence, struct sizes |
 | `test_batch_randomness.cpp` | -- | Batch randomness: nonce independence, distribution, uniqueness |
 | `test_carry_propagation.cpp` | -- | Carry propagation: field arithmetic edge cases across limb boundaries |
+| `test_u128_compat_parity.cpp` | -- | Portable `u128_compat` struct parity vs native `__int128` (FE52 op patterns; 240,000 iterations) |
 | `test_cross_libsecp256k1.cpp` | -- | Cross-implementation: differential test against bitcoin-core/secp256k1 |
 | `test_cross_platform_kat.cpp` | -- | Cross-platform known-answer tests: deterministic outputs across architectures |
 | `test_debug_invariants.cpp` | -- | Debug invariants: internal consistency checks under debug mode |
