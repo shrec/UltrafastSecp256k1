@@ -997,7 +997,9 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "exploit_shim_der_bip66",         "HIGH-2/3: shim DER parser BIP-66 negative-int + trailing-bytes (DER66-1..8) — 2026-05-01", "exploit_poc", test_exploit_shim_der_bip66_run, true },
     { "exploit_shim_musig_secnonce",    "CRIT-1: shim MuSig2 secnonce reuse key-leak prevention (MSN-1..6) — 2026-05-01",           "exploit_poc", test_exploit_shim_musig_secnonce_run, true },
-    { "exploit_shim_musig_ka_cap",      "RED-TEAM-009: ka_put DoS-cap fail-closed — pubkey_agg returns 0 at session limit",            "exploit_poc", test_exploit_shim_musig_ka_cap_run,    false },
+    // advisory=true: in UNIFIED mode the test returns ADVISORY_SKIP_CODE (77)
+    // because it requires the shim's secp256k1.h API; standalone build covers it.
+    { "exploit_shim_musig_ka_cap",      "RED-TEAM-009: ka_put DoS-cap fail-closed — pubkey_agg returns 0 at session limit",            "exploit_poc", test_exploit_shim_musig_ka_cap_run,    true  },
     { "exploit_shim_recovery_null_arg", "SHIM-005: secp256k1_ecdsa_sign_recoverable NULL arg fail-closed (REC-NULL-1..4)",                "exploit_poc", test_exploit_shim_recovery_null_arg_run, true },
     // === 2026-05-01 Red Team Audit Fixes — advisory=true: shim not linked in unified runner ===
     { "test_exploit_legacy_capi_key_parsing",    "Legacy C API invalid private key rejection (KP-1..14) — 2026-05-01",                          "exploit_poc", test_exploit_legacy_capi_key_parsing_run,    true },
@@ -1067,8 +1069,10 @@ static const AuditModule ALL_MODULES[] = {
     // advisory=true: depends on shim being linked; documents intentional divergence.
     { "regression_shim_high_s_verify", "SEC-007: secp256k1_ecdsa_verify high-S divergence diagnostic -- no normalize before verify (intentional)", "exploit_poc", test_regression_shim_high_s_verify_run, true },
     // === 2026-05-12 PERF-001/005: shim hot-path optimization correctness ===
-    // advisory=false: uses C++ API directly, no shim dependency.
-    { "regression_shim_perf_correctness", "PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse — recovery roundtrip, ECDSA/Schnorr correctness (SPC-1..4)", "differential", test_regression_shim_perf_correctness_run, false },
+    // advisory=true: stub in shim_run_stubs_unified.cpp returns ADVISORY_SKIP_CODE
+    // when the shim is not linked into unified_audit_runner. Standalone CTest target
+    // (regression_shim_perf_correctness_standalone) exercises the real shim path.
+    { "regression_shim_perf_correctness", "PERF-001/005: shim_recovery is_normalized fast path + schnorr_verify raw-ptr parse — recovery roundtrip, ECDSA/Schnorr correctness (SPC-1..4)", "differential", test_regression_shim_perf_correctness_run, true  },
     // === 2026-05-12 SEC-001: MuSig2 ABI signer-index cross-validation ===
     // advisory=false: uses C ABI via ufsecp_static, no GPU dependency.
     { "regression_musig2_abi_signer_index", "SEC-001: ufsecp_musig2_partial_sign_v2 enforces privkey<->signer_index at ABI boundary — wrong index → UFSECP_ERR_BAD_KEY (SIV-1..7)", "exploit_poc", test_regression_musig2_abi_signer_index_run, false },
