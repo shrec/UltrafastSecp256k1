@@ -181,6 +181,8 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "contract on frost_keygen_finalize. No semantic change. FROST CT correctness "
         "covered by test_regression_signing_ct_scalar_correctness and FROST exploit tests.",
     ),
+    # Placeholder — actual SHA inserted by the schnorr_adaptor_verify fix commit.
+    # See README of check_security_fix_has_test for the retroactive-coverage pattern.
 }
 
 # Bot commits that auto-update evidence — skip.

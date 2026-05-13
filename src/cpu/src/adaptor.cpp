@@ -165,19 +165,23 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
     if (py.limbs()[0] & 1u) py = FieldElement::zero() - py;
     Point const P = Point::from_affine(px, py);
 
-    // Integrity check: needs_negation must be consistent with the adaptor orientation.
-    // The correct value is: needs_negation == ((R_hat + T).y is odd).
-    // A tampered needs_negation bit would bind the pre-sig to the wrong adaptor secret.
-    {
-        auto [Rcheck_x, Rcheck_y_odd] = pre_sig.R_hat.add(adaptor_point).x_bytes_and_parity();
-        (void)Rcheck_x;
-        if (static_cast<bool>(Rcheck_y_odd) != pre_sig.needs_negation) return false;
-    }
-
     // Adjust T based on whether nonce was negated during signing
     Point const T_adj = pre_sig.needs_negation ? adaptor_point.negate() : adaptor_point;
 
-    // Reconstruct R = R^ + T_adj (should have even y)
+    // Reconstruct R = R^ + T_adj (should have even y).
+    //
+    // BUG FIX (2026-05-13): the prior implementation also computed
+    //   (pre_sig.R_hat + adaptor_point).y_odd == pre_sig.needs_negation
+    // as an "integrity check". That check is broken when needs_negation == true:
+    // pre_sig.R_hat is the POST-negation R_hat (== -original_R_hat), so
+    // (pre_sig.R_hat + T).y is unrelated to original_R.y and the comparison
+    // fails for valid signatures. The cryptographic binding of needs_negation
+    // is already provided by:
+    //   (a) the R_y_odd check below — a flipped needs_neg yields R = R_hat ± T
+    //       with the wrong T sign, which generally produces an odd-y R;
+    //   (b) the s*G == R_hat + e*P verification — a tampered R changes e via
+    //       the challenge hash so the signature equation fails.
+    // The redundant-and-wrong check is removed.
     Point const R = pre_sig.R_hat.add(T_adj);
     auto [R_x, R_y_odd] = R.x_bytes_and_parity();
     if (R_y_odd) return false;
