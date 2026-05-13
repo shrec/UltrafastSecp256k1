@@ -142,6 +142,16 @@
     "xonly_pubkey_parse_shim_ns": null,
     "ecdsa_recover_shim_ns": null,
     "shim_overhead_vs_direct_pct": null,
-    "wording": "[pending — shim microbenchmarks will be added after all P1/P2 fixes and a controlled bench_unified --shim run]"
+    "wording": "[pending — shim microbenchmarks will be added after all P1/P2 fixes and a controlled bench_unified --shim run]",
+
+    "t11_schnorr_cache_first": {
+      "_note": "BENCH-005: T-11 Schnorr verify cache-first optimization (commit 2cc88ba4).",
+      "_status": "DIAGNOSTIC / THEORETICAL — not release-grade",
+      "claimed_saving_ns": 1954,
+      "claim_basis": "Derived from the known build_schnorr_verify_tables GLV table-build cost on bench_unified (which uses a 64-key warm pool). NOT measured via a controlled before/after shim-mode bench run with CPU pinning, turbo lock, and >=5 invocations.",
+      "release_grade": false,
+      "do_not_quote_in_reviewer_docs": true,
+      "promote_to_release_grade_when": "A bench_unified --shim controlled run populates the per-function ns fields above with non-null values and the ci/check_bench_doc_consistency gate accepts the delta."
+    }
   }
 }

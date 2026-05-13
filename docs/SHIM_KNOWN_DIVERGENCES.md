@@ -11,6 +11,27 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_musig_nonce_agg / nonce_process / partial_sig_verify / pubkey_get — `ctx` ignored
+
+- **Upstream behavior:** These four MuSig2 functions accept a `secp256k1_context*`
+  argument but do not require it to be non-NULL in upstream libsecp256k1-zkp at
+  the version targeted by this shim. The argument is reserved for forward
+  compatibility but is currently unused.
+- **Shim behavior:** Same — the `ctx` parameter is declared `/*ctx*/` (unused).
+  A NULL `ctx` will NOT fire the illegal-callback path on these functions; only
+  the explicit argument checks apply.
+- **Reason:** Matches upstream. These calls do not consume context state
+  (no signing context flags, no blinding, no callbacks needed for the operation).
+- **Impact:** Callers relying on a NULL-ctx illegal-callback firing for these
+  specific functions will not see it. The illegal-callback contract holds for
+  every other shim function that uses the context.
+- **Test:** Covered indirectly by `audit/test_regression_shim_security_v7.cpp`
+  (musig2 partial sign + verify round-trip) and `audit/test_exploit_shim_musig_*`
+  family. A targeted differential test against upstream libsecp256k1-zkp can be
+  added if a divergence ever appears.
+
+---
+
 ## secp256k1_ecdh — private key >= curve order rejected
 
 - **Upstream behavior:** `secp256k1_ecdh` with a private key value `>= n` (curve order)

@@ -420,6 +420,37 @@ jobs:
         run: |
           python3 ci/external_audit_bundle.py
           echo "Bundle produced at docs/EXTERNAL_AUDIT_BUNDLE.json"
+          # CI-011: inject security_autonomy advisory_skip flag into the bundle so
+          # the artifact is self-describing. Without this, an auditor reading only
+          # the bundle JSON cannot tell that autonomy was advisory-skipped on a
+          # runner missing GPU/Cryptol/Z3 infrastructure.
+          python3 - <<'PY'
+          import json, pathlib
+          bundle_path = pathlib.Path("docs/EXTERNAL_AUDIT_BUNDLE.json")
+          if not bundle_path.exists():
+              print("::warning::EXTERNAL_AUDIT_BUNDLE.json missing — CI-011 annotation skipped")
+              raise SystemExit(0)
+          bundle = json.loads(bundle_path.read_text())
+          autonomy_path = pathlib.Path("caas_autonomy.json")
+          if autonomy_path.exists():
+              auto = json.loads(autonomy_path.read_text())
+              bundle["security_autonomy"] = {
+                  "advisory_skip":   auto.get("advisory_skip", False),
+                  "audit_gate_result": auto.get("audit_gate_result", "PASS"),
+                  "score":           auto.get("autonomy_score") or auto.get("score"),
+              }
+              bundle_path.write_text(json.dumps(bundle, indent=2))
+              print(f"CI-011: annotated bundle with autonomy advisory_skip={bundle['security_autonomy']['advisory_skip']}")
+          else:
+              bundle["security_autonomy"] = {
+                  "advisory_skip":   True,
+                  "audit_gate_result": "UNKNOWN",
+                  "score":           None,
+                  "warning":         "caas_autonomy.json not present at bundle time",
+              }
+              bundle_path.write_text(json.dumps(bundle, indent=2))
+              print("CI-011: caas_autonomy.json absent — bundle marked advisory_skip=True")
+          PY
           python3 -c "
           import json
           with open('docs/EXTERNAL_AUDIT_BUNDLE.json') as f:
@@ -428,6 +459,7 @@ jobs:
           print(f\"  dirty:   {b.get('git',{}).get('dirty','?')}\")
           print(f\"  files:   {len(b.get('evidence',[]))}\")
           print(f\"  gates:   {[g.get('name','?') for g in b.get('gate_results',[])]}\")
+          print(f\"  autonomy:{b.get('security_autonomy', '(not annotated)')}\")
           "
 
       - name: CAAS-004 — Warn if bundle generated from dirty working tree

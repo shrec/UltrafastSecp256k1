@@ -323,6 +323,13 @@ frost_keygen_begin(ParticipantId participant_id,
     return {commitment, shares};
 }
 
+// frost_keygen_finalize — combine received polynomial shares into the local
+// signing share. `received_shares` is CONST REF (caller-owned). The caller MUST
+// `secp256k1::detail::secure_erase` every entry in `received_shares` after this
+// function returns — they are independent partial secrets and leaking them to
+// an adversary with heap-read capability weakens the DKG. The ABI wrapper
+// `ufsecp_frost_keygen_finalize` (src/impl/ufsecp_musig2.cpp::erase_shares)
+// handles this automatically; direct C++ callers are responsible (NEW-003).
 std::pair<FrostKeyPackage, bool>
 frost_keygen_finalize(ParticipantId participant_id,
                       const std::vector<FrostCommitment>& commitments,
