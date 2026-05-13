@@ -104,13 +104,15 @@ if(UFSECP_BUILD_SHARED)
     add_library(ufsecp_shared SHARED ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC})
     set_target_properties(ufsecp_shared PROPERTIES OUTPUT_NAME ufsecp)
     ufsecp_configure(ufsecp_shared)
-    # REL-002: Explicit SOVERSION/VERSION ensures Linux ldconfig symlinks work
-    # (libufsecp.so -> libufsecp.so.1 -> libufsecp.so.1.0.0). ufsecp_configure
-    # also sets these via PROJECT_VERSION_MAJOR/PROJECT_VERSION but explicit
-    # properties here make the intent visible and override-safe.
+    # VER-008: Explicit SOVERSION/VERSION ensures Linux ldconfig symlinks work
+    # (libufsecp.so -> libufsecp.so.${MAJOR} -> libufsecp.so.${FULL}). Use
+    # PROJECT_VERSION_MAJOR/PROJECT_VERSION sourced from VERSION.txt so the
+    # SONAME stays in lockstep with VERSION.txt, RPM (libufsecp.spec %global
+    # soversion) and Debian (control: libufsecp${MAJOR}). Hardcoded 1/1.0.0
+    # previously drifted from VERSION.txt and broke versioned symlinks.
     set_target_properties(ufsecp_shared PROPERTIES
-        SOVERSION 1
-        VERSION 1.0.0
+        SOVERSION ${PROJECT_VERSION_MAJOR}
+        VERSION   ${PROJECT_VERSION}
     )
 
     # Disable LTO when CUDA is linked (nvcc LTO version differs from host compiler)
