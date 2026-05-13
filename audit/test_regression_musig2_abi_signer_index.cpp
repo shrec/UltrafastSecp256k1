@@ -360,8 +360,9 @@ static void test_full_roundtrip_via_v2() {
     check(ufsecp_musig2_partial_sig_agg(ctx, partial_sigs, 2, session, sig64) == UFSECP_OK,
           "partial_sig_agg ok");
 
-    // Verify the final Schnorr signature against the aggregated pubkey
-    check(ufsecp_schnorr_verify(ctx, MSG32, agg_pk32, sig64) == UFSECP_OK,
+    // Verify the final Schnorr signature against the aggregated pubkey.
+    // ABI signature: ufsecp_schnorr_verify(ctx, msg32, sig64, pubkey_x32).
+    check(ufsecp_schnorr_verify(ctx, MSG32, sig64, agg_pk32) == UFSECP_OK,
           "final Schnorr sig verifies against aggregated key");
 
     ufsecp_ctx_destroy(ctx);
