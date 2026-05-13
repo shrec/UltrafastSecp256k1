@@ -53,9 +53,11 @@
 
 #include "audit_check.hpp"
 
-#ifndef UNIFIED_AUDIT_RUNNER
-#include "ufsecp_abi.h"
-#endif
+// ufsecp_* C ABI used by activate_blinding/deactivate_blinding helpers.
+// Must be included unconditionally — the unified runner also compiles this
+// file and uses the same helpers (UNIFIED_AUDIT_RUNNER is defined at target
+// scope, not just for unified_audit_runner.cpp).
+#include "ufsecp.h"
 
 using namespace secp256k1;
 using secp256k1::fast::Scalar;

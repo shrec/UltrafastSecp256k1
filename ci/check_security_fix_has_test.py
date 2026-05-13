@@ -174,6 +174,13 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "NEW-PERF-002 sign+verify round-trip. The cache cleanup is covered by existing "
         "Schnorr verify regression tests that exercise the warm-cache path via repeated calls.",
     ),
+    "ac63c0ad38": (
+        ["audit/test_regression_shim_security_v8.cpp",
+         "audit/test_regression_signing_ct_scalar_correctness.cpp"],
+        "NEW-003 (frost.cpp): doc-only comment change strengthening the caller-erasure "
+        "contract on frost_keygen_finalize. No semantic change. FROST CT correctness "
+        "covered by test_regression_signing_ct_scalar_correctness and FROST exploit tests.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
