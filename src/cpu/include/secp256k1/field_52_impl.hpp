@@ -24,11 +24,15 @@
 #pragma once
 
 #include <cstdint>
+#include "secp256k1/u128_compat.hpp"
 
-// Guard: __int128 required for the 5x52 kernels
-// __SIZEOF_INT128__ is the canonical check -- defined on 64-bit GCC/Clang,
-// NOT on 32-bit (ESP32 Xtensa, Cortex-M, etc.) even though __GNUC__ is set.
-#if defined(__SIZEOF_INT128__)
+// Guard: 5x52 kernels need a 128-bit accumulator.
+// On 64-bit GCC/Clang with native __int128 (SECP256K1_NO_INT128 undefined),
+// u128_compat aliases unsigned __int128 — zero overhead.
+// On wasm32 / 32-bit targets / SECP256K1_NO_INT128 set, u128_compat is a
+// portable 32-bit-safe struct with explicit 64x64->128 multiplication.
+// Either way, the kernels compile.
+#if defined(__SIZEOF_INT128__) || defined(SECP256K1_NO_INT128)
 
 // Suppress GCC -Wpedantic for __int128 (universally supported on 64-bit GCC/Clang)
 #if defined(__GNUC__)
@@ -451,7 +455,7 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
     // Reduction multiplies between columns use __int128 C code (single
     // MULX+ADD+ADC pair, compiler-optimal for isolated operations).
     // ------------------------------------------------------------------
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     std::uint64_t d_lo = 0, d_hi = 0;
     std::uint64_t c_lo = 0, c_hi = 0;
     std::uint64_t t3, t4, tx, u0;
@@ -670,7 +674,7 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
     c_lo += t4;
     r[4] = c_lo;
 #else
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     u128 c = 0, d = 0;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
@@ -1038,7 +1042,7 @@ void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
     // Reduction multiplies between columns use __int128 C code (single
     // MULX+ADD+ADC pair, compiler-optimal for isolated operations).
     // ------------------------------------------------------------------
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     std::uint64_t d_lo = 0, d_hi = 0;
     std::uint64_t c_lo = 0, c_hi = 0;
     std::uint64_t t3, t4, tx, u0;
@@ -1257,7 +1261,7 @@ void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
     c_lo += t4;
     r[4] = c_lo;
 #else
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     u128 c = 0, d = 0;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
@@ -1567,7 +1571,7 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
     // with ADCX/ADOX dual carry chains. Square terms use plain MULX.
     // Same high-word carry invariant as fe52_mul_inner (sum < 2^128).
     // ------------------------------------------------------------------
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     std::uint64_t d_lo = 0, d_hi = 0;
     std::uint64_t c_lo = 0, c_hi = 0;
     std::uint64_t t3, t4, tx, u0;
@@ -1736,7 +1740,7 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
     c_lo += t4;
     r[4] = c_lo;
 #else
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     u128 c = 0, d = 0;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
@@ -2024,7 +2028,7 @@ void fe52_sqr_inner_var(std::uint64_t* __restrict__ r,
     // with ADCX/ADOX dual carry chains. Square terms use plain MULX.
     // Same high-word carry invariant as fe52_mul_inner (sum < 2^128).
     // ------------------------------------------------------------------
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     std::uint64_t d_lo = 0, d_hi = 0;
     std::uint64_t c_lo = 0, c_hi = 0;
     std::uint64_t t3, t4, tx, u0;
@@ -2193,7 +2197,7 @@ void fe52_sqr_inner_var(std::uint64_t* __restrict__ r,
     c_lo += t4;
     r[4] = c_lo;
 #else
-    using u128 = unsigned __int128;
+    using u128 = ::secp256k1::detail::u128_compat;
     u128 c = 0, d = 0;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];

@@ -13,20 +13,21 @@
 
 #include "secp256k1/field_52.hpp"
 #include <cstring>
+#include "secp256k1/u128_compat.hpp"
 #include "secp256k1/field_52_impl.hpp"
 
-// Require 128-bit integer support for the mul/sqr kernels.
-// __SIZEOF_INT128__ is the canonical check -- defined on 64-bit GCC/Clang,
-// NOT on 32-bit targets (armv7, i686, ESP32) even though __GNUC__ is set.
-#if defined(__SIZEOF_INT128__)
-#if defined(__GNUC__)
+// 128-bit accumulator support. Aliases u128_compat which is either native
+// __int128 (zero overhead on 64-bit GCC/Clang) or a portable 32-bit-safe
+// struct (wasm32 with SECP256K1_NO_INT128, where emulated __int128 is buggy).
+#if defined(__SIZEOF_INT128__) || defined(SECP256K1_NO_INT128)
+#if defined(__GNUC__) && defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-    using uint128_t = unsigned __int128;
+    using uint128_t = ::secp256k1::detail::u128_compat;
     #define SECP256K1_HAS_UINT128 1
 #else
-    // 32-bit or MSVC: __int128 unavailable.
+    // No 128-bit accumulator available at all.
     // FieldElement52 is unavailable; this TU compiles as empty.
     // The portable FieldElement (4x64 with carry chains) is used instead.
 #endif

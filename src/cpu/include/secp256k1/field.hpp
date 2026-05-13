@@ -291,7 +291,9 @@ void fe_batch_inverse_nonzero(FieldElement* elements, size_t count);
 // Direct 5x52 SafeGCD inverse — bypasses 4x64 intermediate.
 // Input: 5 limbs (52-bit each, normalized). Output: 5 limbs (52-bit, normalized).
 // Declared outside namespace for C-style linkage from FE52 code.
-#if defined(__SIZEOF_INT128__)
+// Same guard as field_52_impl.hpp / field_52.cpp: available whenever a 128-bit
+// accumulator (native or portable struct) is usable.
+#if defined(__SIZEOF_INT128__) || defined(SECP256K1_NO_INT128)
 namespace secp256k1::fast {
 void fe52_inverse_safegcd_var(const std::uint64_t* in5, std::uint64_t* out5);
 }

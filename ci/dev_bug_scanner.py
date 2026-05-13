@@ -1413,12 +1413,16 @@ def check_shift_ub(path: str, lines: List[str]) -> List[Finding]:
     full_text = '\n'.join(lines)
     _128_aliases: set[str] = set()
     for alias_m in re.finditer(
-            r'(?:typedef\s+(?:unsigned\s+)?__int128\s+|using\s+)(\w+)\s*=\s*(?:__uint128_t|__int128|unsigned\s+__int128)',
+            r'(?:typedef\s+(?:unsigned\s+)?__int128\s+|using\s+)(\w+)\s*=\s*'
+            r'(?:__uint128_t|__int128|unsigned\s+__int128|'
+            r'(?:::)?(?:secp256k1::)?(?:detail::)?u128_compat)',
             full_text):
         name = alias_m.group(1)
         if name not in ('typedef', 'using', 'unsigned'):
             _128_aliases.add(name)
-    _128_pat = r'__(?:u?int)?128|unsigned\s+__int128'
+    # u128_compat is the portable 128-bit struct used on wasm32 / NO_INT128
+    # builds — treat its mentions the same as __int128 for shift analysis.
+    _128_pat = r'__(?:u?int)?128|unsigned\s+__int128|\bu128_compat\b'
     if _128_aliases:
         _128_pat += '|\\b(?:' + '|'.join(re.escape(a) for a in _128_aliases) + r')\b'
 
