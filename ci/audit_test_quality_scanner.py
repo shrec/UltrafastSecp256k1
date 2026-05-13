@@ -4,7 +4,7 @@ audit_test_quality_scanner.py
 
 External-auditor-grade static analyzer for audit C++ test files.
 
-Detects seven bug classes that human auditors catch but automated test runs miss:
+Detects eight bug classes that human auditors catch but automated test runs miss:
 
   A: Vacuous checks — CHECK(true, ...) always passes, regardless of actual behavior
   B: Mandatory security gap — security-critical else-branch has CHECK(true) weasel-out
@@ -15,6 +15,11 @@ Detects seven bug classes that human auditors catch but automated test runs miss
   G: Unwired exploit PoC — on-disk test_exploit_*.cpp is not registered in
      unified_audit_runner.cpp (runs only as standalone CTest, bypassing the
      aggregated audit verdict).
+  H: Argument-order mismatch — call passes a buffer of size N where size M is
+     expected at position p, OR positional types don't match the declared signature.
+     A test that scrambles `verify(ctx, msg, sig, pubkey)` into
+     `verify(ctx, msg, pubkey, sig)` will always FAIL verify silently and the
+     test will pass (testing "verify returns failure") — masking real bugs.
 
 Usage:
     python3 ci/audit_test_quality_scanner.py [--audit-dir audit/] [--json] [-o report.json]
@@ -165,6 +170,7 @@ class AuditTestScanner:
         self._check_D_weak_stats(fname, lines)
         self._check_E_ignored_returns(fname, lines)
         self._check_F_missing_unconditional_reject(fname, lines)
+        self._check_H_argument_order(fname, lines)
 
     # ------------------------------------------------------------------
     # A: Vacuous CHECK(true, ...) — A1/A2/A3
@@ -484,6 +490,92 @@ class AuditTestScanner:
                       fname,
                       'Add at least one CHECK(adversarial_call() != UFSECP_OK, '
                       '"must unconditionally fail") per threat scenario.')
+
+    # ------------------------------------------------------------------
+    # H: ABI call argument-order mismatch
+    # ------------------------------------------------------------------
+    # The verifier checks specific ufsecp_* calls against a hand-maintained
+    # registry of expected argument positions + buffer SIZES. If the test passes
+    # a fixed-size buffer of the wrong size at a position, that's an arg-order
+    # bug (the canonical failure: passing a 32-byte pubkey where a 64-byte sig
+    # is expected, or vice-versa).
+    #
+    # The registry maps function name → list of (position_index, expected_name_pattern, expected_size).
+    # The scanner looks at the literal C identifiers used at each call site and
+    # cross-references their typical sizes from the test's own `uint8_t name[N]`
+    # declarations elsewhere in the same file.
+    _ABI_SIGNATURES = {
+        # ufsecp_schnorr_verify(ctx, msg32, sig64, pubkey_x32)
+        "ufsecp_schnorr_verify": [
+            (1, None, 32),  # msg32
+            (2, None, 64),  # sig64
+            (3, None, 32),  # pubkey_x32
+        ],
+        # ufsecp_ecdsa_verify(ctx, msg32, sig64, pubkey33)
+        "ufsecp_ecdsa_verify": [
+            (1, None, 32),  # msg32
+            (2, None, 64),  # sig64
+            (3, None, 33),  # pubkey33
+        ],
+    }
+
+    def _check_H_argument_order(self, fname: str, lines: List[str]):
+        # Collect local buffer declarations of the form `uint8_t name[N]` and
+        # `static const uint8_t name[N]`.  Map: var_name -> declared size.
+        buf_sizes: dict = {}
+        decl_re = re.compile(
+            r'(?:static\s+(?:const\s+)?)?(?:const\s+)?uint8_t\s+(\w+)\s*\[\s*(\d+|UFSECP_\w+_LEN)\s*\]'
+        )
+        size_consts = {
+            "UFSECP_MUSIG2_SECNONCE_LEN": 64,
+            "UFSECP_MUSIG2_PUBNONCE_LEN": 66,
+            "UFSECP_MUSIG2_AGGNONCE_LEN": 66,
+            "UFSECP_MUSIG2_KEYAGG_LEN": None,  # large blob, skip
+            "UFSECP_MUSIG2_SESSION_LEN": None,
+            "UFSECP_FROST_SHARE_LEN": None,
+            "UFSECP_SCHNORR_ADAPTOR_SIG_LEN": 97,
+        }
+        for raw in lines:
+            for m in decl_re.finditer(raw):
+                name = m.group(1)
+                size_lit = m.group(2)
+                if size_lit.isdigit():
+                    buf_sizes[name] = int(size_lit)
+                elif size_lit in size_consts and size_consts[size_lit] is not None:
+                    buf_sizes[name] = size_consts[size_lit]
+
+        # Scan for calls to registered ABI functions.
+        # Skip `(void)ufsecp_*(...)` discard-result patterns — those are
+        # intentional fuzz / coverage probes where the call is expected to fail
+        # and the test author is deliberately ignoring the return value.
+        for i, raw in enumerate(lines):
+            stripped = raw.lstrip()
+            if stripped.startswith("(void)"):
+                continue
+            for fn, spec in self._ABI_SIGNATURES.items():
+                # Match "fn(arg1, arg2, arg3, arg4)" — naive but works for the
+                # common case where all args are bare identifiers on one line.
+                pat = re.compile(rf'\b{re.escape(fn)}\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,)]+)\s*\)')
+                m = pat.search(raw)
+                if not m:
+                    continue
+                for (pos_idx, _name_pat, expected_size) in spec:
+                    arg = m.group(pos_idx + 1).strip()
+                    # Strip qualifiers (& etc.)
+                    arg = re.sub(r'^[&*]+', '', arg)
+                    # Look up the buffer size if the arg is a simple identifier
+                    if arg in buf_sizes:
+                        actual_size = buf_sizes[arg]
+                        if actual_size != expected_size:
+                            self._add(
+                                fname, i + 1, "high", "H", "abi_arg_order_mismatch",
+                                f'{fn}: argument {pos_idx + 1} is `{arg}` '
+                                f'(declared size {actual_size}) but signature expects '
+                                f'a {expected_size}-byte buffer here. '
+                                f'Likely an arg-order bug — verify will silently fail.',
+                                raw.strip(),
+                                f'Check that the call matches the {fn} signature in include/ufsecp/ufsecp.h.'
+                            )
 
     # ------------------------------------------------------------------
     # Helpers
