@@ -243,9 +243,15 @@ int secp256k1_ecdsa_verify(
         const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data + 32);
         auto x = secp256k1::fast::FieldElement::from_bytes(xb);
         auto y = secp256k1::fast::FieldElement::from_bytes(yb);
-        // PERF-002: the on-curve check (y²=x³+7) is omitted here.
-        // ec_pubkey_parse validates the point at parse time; the opaque struct
-        // invariant is sufficient. libsecp256k1 does not re-check in ecdsa_verify.
+        // P1-SEC-RED-TEAM-008: add curve membership check to match batch-verify path.
+        // A hostile caller who writes off-curve coords directly to secp256k1_pubkey.data
+        // (bypassing ec_pubkey_parse) would previously be accepted here while batch-verify
+        // rejected them — an inconsistency. Curve check cost is negligible vs verify itself.
+        {
+            auto lhs = y.square();
+            auto rhs = x.square() * x + secp256k1::fast::FieldElement::from_uint64(7);
+            if (!(lhs == rhs)) return 0;
+        }
         auto pt = secp256k1::fast::Point::from_affine(x, y);
         if (pt.is_infinity()) return 0;
         return secp256k1::ecdsa_verify(msghash32, pt, internal_sig) ? 1 : 0;

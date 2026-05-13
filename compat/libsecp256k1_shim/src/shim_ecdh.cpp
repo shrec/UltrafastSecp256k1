@@ -55,12 +55,13 @@ int secp256k1_ecdh(
 
     if (!hashfp) hashfp = default_hashfp;
 
-    // Deserialize private key — silent mod-n reduction (matches libsecp ECDH contract:
-    // values >= n are reduced, not rejected). Still reject zero after reduction.
+    // P1-SEC-NEW-001 (Rule 11): private key MUST use strict parsing — values >= n
+    // must be rejected, not silently reduced. libsecp256k1 reduces silently; this shim
+    // is stricter. Divergence documented in docs/SHIM_KNOWN_DIVERGENCES.md.
     std::array<uint8_t, 32> kb{};
     std::memcpy(kb.data(), seckey, 32);
-    Scalar sk = Scalar::from_bytes(kb);
-    if (sk.is_zero()) return 0;
+    Scalar sk;
+    if (!Scalar::parse_bytes_strict_nonzero(kb.data(), sk)) return 0;
 
     // Deserialize public key (shim layout: X || Y, 64 bytes)
     std::array<uint8_t, 32> xb{}, yb{};
@@ -68,6 +69,14 @@ int secp256k1_ecdh(
     std::memcpy(yb.data(), pubkey->data + 32, 32);
     auto x = FieldElement::from_bytes(xb);
     auto y = FieldElement::from_bytes(yb);
+    // P2-SEC-NEW-002: curve membership check prevents invalid-curve (small-order subgroup)
+    // attack. A hostile caller who bypasses ec_pubkey_parse could supply an off-curve point;
+    // ECDH on a small-order point leaks private key bits modulo the subgroup order.
+    {
+        auto lhs = y.square();
+        auto rhs = x.square() * x + FieldElement::from_uint64(7);
+        if (!(lhs == rhs)) return 0;
+    }
     auto pk = Point::from_affine(x, y);
     if (pk.is_infinity()) return 0;
 
