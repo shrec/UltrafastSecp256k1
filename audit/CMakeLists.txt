@@ -4527,21 +4527,27 @@ add_test(NAME regression_frost_threshold_zero
 set_tests_properties(regression_frost_threshold_zero PROPERTIES TIMEOUT 30
     LABELS "audit;regression;frost;security;sec-010")
 
-# SEC-006: Schnorr shim R-zero CT OR accumulator (advisory: shim may not be linked)
-add_executable(test_regression_schnorr_r_zero_ct_standalone
-    test_regression_schnorr_r_zero_ct.cpp)
-audit_target_defaults(test_regression_schnorr_r_zero_ct_standalone)
-if(TARGET secp256k1_shim)
-    target_link_libraries(test_regression_schnorr_r_zero_ct_standalone PRIVATE secp256k1_shim)
-    target_include_directories(test_regression_schnorr_r_zero_ct_standalone PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+# SEC-006: Schnorr shim R-zero CT OR accumulator
+# Test directly references libsecp256k1 shim C symbols (secp256k1_*). On macOS
+# ld64 these resolve to undefined and reject linking even with weak_import
+# attributes because there's no dylib to resolve against. Build the target only
+# when the shim is actually present in this build configuration.
+if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
+    add_executable(test_regression_schnorr_r_zero_ct_standalone
+        test_regression_schnorr_r_zero_ct.cpp)
+    audit_target_defaults(test_regression_schnorr_r_zero_ct_standalone)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_regression_schnorr_r_zero_ct_standalone PRIVATE secp256k1_shim)
+        target_include_directories(test_regression_schnorr_r_zero_ct_standalone PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    endif()
+    target_compile_definitions(test_regression_schnorr_r_zero_ct_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_schnorr_r_zero_ct
+        COMMAND test_regression_schnorr_r_zero_ct_standalone)
+    set_tests_properties(regression_schnorr_r_zero_ct PROPERTIES TIMEOUT 30
+        SKIP_RETURN_CODE 77
+        LABELS "audit;regression;schnorr;shim;ct;security;sec-006")
 endif()
-target_compile_definitions(test_regression_schnorr_r_zero_ct_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_schnorr_r_zero_ct
-    COMMAND test_regression_schnorr_r_zero_ct_standalone)
-set_tests_properties(regression_schnorr_r_zero_ct PROPERTIES TIMEOUT 30
-    SKIP_RETURN_CODE 77
-    LABELS "audit;regression;schnorr;shim;ct;security;sec-006")
 
 # SEC-001: MuSig2 ABI signer-index cross-validation (ufsecp_musig2_partial_sign_v2)
 # Uses C ABI via ufsecp_static. advisory=false in unified runner.
