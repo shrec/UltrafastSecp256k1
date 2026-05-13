@@ -79,11 +79,10 @@ struct ShimSchnorrCache {
         // T-08: check full 32-byte identity, not fingerprint alone.
         bool const matches = (s.fingerprint == fp && std::memcmp(s.x_bytes, data, 32) == 0);
         if (matches && s.seen_once && !s.valid) {
-            // Second encounter: call parse TWICE to trigger the seen_once→valid
-            // lazy table build (schnorr_xonly_pubkey_parse uses a 2-call protocol:
-            // 1st call sets g_glv_cache.seen_once; 2nd call builds GLV tables).
-            secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);  // primes seen_once
-            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);  // builds tables
+            // NEW-PERF-001/004: schnorr_xonly_pubkey_parse builds GLV tables
+            // eagerly on first call — no two-call protocol exists. A single call
+            // suffices to populate s.epk with valid prebuilt tables.
+            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
             return s.valid ? &s.epk : nullptr;
         }
         if (matches && s.valid) {

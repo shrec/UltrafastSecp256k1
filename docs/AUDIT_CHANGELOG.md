@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-05-13 — Performance Cleanups (NEW-PERF-001/002/004)
+
+### Performance / Code Quality
+- **NEW-PERF-002** `compat/libsecp256k1_shim/src/shim_extrakeys.cpp:288`:
+  `secp256k1_keypair_xonly_tweak_add`: replaced `P.to_uncompressed()` + memcpy
+  pattern with `point_to_pubkey_data(P, keypair->data + 32)`, matching the
+  PERF-004 fix already applied to `secp256k1_xonly_pubkey_tweak_add{,_check}`.
+  Avoids one 65-byte stack array + one memcpy per Taproot keypair tweak.
+- **NEW-PERF-001/004** `compat/libsecp256k1_shim/src/shim_schnorr.cpp:81-88`:
+  Removed redundant double call to `schnorr_xonly_pubkey_parse` in
+  `ShimSchnorrCache::put`. The original comment claimed a "two-call protocol"
+  but `schnorr_xonly_pubkey_parse` builds GLV tables eagerly on the first call.
+  Single call suffices; the second call was just a wasted GLV cache lookup.
+
 ## 2026-05-13 — CT Boundary Fixes (NEW-006, P2-T07)
 
 ### Constant-Time Fixes

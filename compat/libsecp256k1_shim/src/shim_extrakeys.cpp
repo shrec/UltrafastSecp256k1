@@ -284,8 +284,10 @@ int secp256k1_keypair_xonly_tweak_add(
 
     auto new_skb = new_sk.to_bytes();
     std::memcpy(keypair->data, new_skb.data(), 32);
-    auto unc = P.to_uncompressed();
-    std::memcpy(keypair->data + 32, unc.data() + 1, 64);
+    // NEW-PERF-002: use point_to_pubkey_data to avoid to_uncompressed() 65-byte
+    // allocation + extra memcpy. secp256k1_xonly_pubkey_tweak_add and
+    // secp256k1_xonly_pubkey_tweak_add_check already use this pattern (PERF-004 fix).
+    point_to_pubkey_data(P, keypair->data + 32);
     return 1;
 }
 
