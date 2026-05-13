@@ -139,14 +139,51 @@ static void test_shim_recovery_recid() {
     printf("[shim_perf] SPC-4: %d/40 recoveries succeeded and matched\n", succeeded);
 }
 
+// ── SPC-5: T-11 — SchnorrXonlyPubkey verify (GLV cached) agrees with raw path ──
+// Verifies that schnorr_verify(SchnorrXonlyPubkey, ...) gives the same result as
+// schnorr_verify(raw_x_bytes, ...) for both valid and invalid signatures.
+// This is the correctness guard for the T-11 shim verify cache-first optimization.
+static void test_t11_glv_cached_verify_correctness() {
+    printf("[shim_perf] SPC-5: T-11 GLV-cached verify agrees with raw-bytes verify\n");
+
+    for (uint8_t i = 1; i <= 20; ++i) {
+        auto sk  = make_sk(i);
+        auto msg = make_msg(i);
+        std::array<uint8_t, 32> aux{};
+        auto sig = secp256k1::ct::schnorr_sign(sk, msg.data(), aux.data());
+        auto pk  = secp256k1::ct::generator_mul(sk);
+        auto px  = pk.to_xonly_bytes();
+
+        // Parse into SchnorrXonlyPubkey (builds GLV tables).
+        secp256k1::SchnorrXonlyPubkey xonly{};
+        bool parsed = secp256k1::schnorr_xonly_pubkey_parse(xonly, px.data());
+        CHECK(parsed, "SPC-5: schnorr_xonly_pubkey_parse succeeds");
+
+        // Both paths must agree on valid signature.
+        bool raw_ok    = secp256k1::schnorr_verify(px.data(), msg.data(), sig);
+        bool cached_ok = secp256k1::schnorr_verify(xonly, msg.data(), sig);
+        CHECK(raw_ok && cached_ok, "SPC-5: valid sig — both paths accept");
+        CHECK(raw_ok == cached_ok, "SPC-5: valid sig — both paths agree");
+
+        // Both paths must agree on wrong message.
+        auto wrong_msg = make_msg(static_cast<uint8_t>(i + 100));
+        bool raw_bad    = secp256k1::schnorr_verify(px.data(), wrong_msg.data(), sig);
+        bool cached_bad = secp256k1::schnorr_verify(xonly, wrong_msg.data(), sig);
+        CHECK(!raw_bad && !cached_bad, "SPC-5: wrong msg — both paths reject");
+        CHECK(raw_bad == cached_bad, "SPC-5: wrong msg — both paths agree");
+    }
+    printf("[shim_perf] SPC-5: %d/%d\n", g_pass, g_pass + g_fail);
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 int test_regression_shim_perf_correctness_run() {
-    printf("[shim_perf_correctness] Regression: PERF-001/005 hot-path correctness\n");
+    printf("[shim_perf_correctness] Regression: PERF-001/005/T-11 hot-path correctness\n");
 
     test_shim_recovery_roundtrip();
     test_shim_ecdsa_verify_correctness();
     test_shim_schnorrsig_verify_correctness();
     test_shim_recovery_recid();
+    test_t11_glv_cached_verify_correctness();
 
     printf("[shim_perf_correctness] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail;

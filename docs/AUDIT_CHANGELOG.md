@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-05-13 — T-11 Shim Schnorr Verify GLV Cache-First Optimization
+
+### Performance Fix
+- **T-11** `compat/libsecp256k1_shim/src/shim_schnorr.cpp`:
+  `secp256k1_schnorrsig_verify` now checks `ShimSchnorrCache` before the Y-stored
+  fast path. On cache hit, routes to `schnorr_verify(SchnorrXonlyPubkey, ...)` which
+  uses prebuilt GLV tables — saving ~1,954 ns/call vs `schnorr_verify(Point, ...)`.
+  On cache miss, primes the two-phase cache via `put()` and uses the returned entry
+  if GLV tables were just built (second encounter). Falls back to `schnorr_verify(Point)`.
+- Regression: `test_regression_shim_perf_correctness.cpp` SPC-5 added — verifies
+  `schnorr_verify(SchnorrXonlyPubkey, ...)` agrees with `schnorr_verify(raw_x, ...)`
+  for both valid and invalid signatures on 20 key/message pairs.
+
 ## 2026-05-13 — v7 Security Regression Guards (T-01, T-07, T-08, T-09, T-10)
 
 ### Security Fixes

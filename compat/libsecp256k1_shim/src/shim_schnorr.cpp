@@ -341,20 +341,30 @@ int secp256k1_schnorrsig_verify(
     // PERF-005: pass pubkey->data raw pointer directly — eliminates two 32-byte
     // stack copies (xb/yb arrays) that were an avoidable memcpy per verify call.
     // P1-PERF-001: use stored Y from data[32..63] to skip lift_x sqrt per call.
-    // All callers that produce secp256k1_xonly_pubkey now store X||Y:
-    //   secp256k1_xonly_pubkey_parse: lift_x → store even-Y
-    //   secp256k1_musig_pubkey_agg: agg key lift_x → store even-Y
-    // Saves ~1.6–3.8 µs per unique pubkey (lift_x miss rate ~98% for ConnectBlock).
+    // T-11: check ShimSchnorrCache first — on cache hit, use SchnorrXonlyPubkey
+    //   overload with prebuilt GLV tables, saving ~1,954 ns per repeated-pubkey call.
     {
         const uint8_t* xb = pubkey->data;
         const uint8_t* yb = pubkey->data + 32;
+
+        // T-11: GLV table cache hit → use prebuilt tables (~1,954 ns saved vs Point path).
+        if (const secp256k1::SchnorrXonlyPubkey* cached = s_schnorr_cache.get(xb)) {
+            return secp256k1::schnorr_verify(*cached, msg, sig) ? 1 : 0;
+        }
+
+        // Cache miss: fall through to Y-stored or lift_x path.
         secp256k1::fast::FieldElement x_fe, y_fe;
         if (!secp256k1::fast::FieldElement::parse_bytes_strict(xb, x_fe)) return 0;
-        // Y bytes valid → fast path (no lift_x). Y not stored → lift_x fallback.
         if (secp256k1::fast::FieldElement::parse_bytes_strict(yb, y_fe)) {
             auto P = secp256k1::fast::Point::from_affine(x_fe, y_fe);
+            // T-11: prime two-phase cache; on second encounter put() returns prebuilt entry.
+            if (const secp256k1::SchnorrXonlyPubkey* built = s_schnorr_cache.put(xb)) {
+                return secp256k1::schnorr_verify(*built, msg, sig) ? 1 : 0;
+            }
             return secp256k1::schnorr_verify(P, xb, msg, sig) ? 1 : 0;
         }
+        // Y not stored (older parse path): lift_x fallback, also prime cache.
+        s_schnorr_cache.put(xb);
         return secp256k1::schnorr_verify(xb, msg, sig) ? 1 : 0;
     }
 }
