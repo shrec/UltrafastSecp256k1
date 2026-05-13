@@ -11,6 +11,40 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_ecdh — private key >= curve order rejected
+
+- **Upstream behavior:** `secp256k1_ecdh` with a private key value `>= n` (curve order)
+  reduces the key silently mod n and proceeds. A key equal to `n` reduces to 0 and is
+  rejected (returns 0); `n+1` reduces to 1 and succeeds.
+- **Shim behavior:** Any private key value `>= n` returns 0 immediately.
+  `parse_bytes_strict_nonzero` is used instead of `from_bytes` (CLAUDE.md Rule 11).
+- **Reason:** Rule 11 requires strict private key parsing for all functions accepting a
+  secret key byte array. Silent mod-n reduction can mask caller errors (e.g., passing
+  `n+1` believing it is invalid). Strict rejection is the safer default.
+- **Impact:** Any caller passing a private key value `>= n` to `secp256k1_ecdh`.
+  In practice, well-formed private keys from `secp256k1_ec_seckey_verify` or
+  `secp256k1_keypair_create` are always `< n` and are unaffected.
+- **Test:** `test_ecdh_privkey_out_of_range` in
+  `audit/test_regression_shim_security_v8.cpp` (checks ORDER, ORDER+1, 0xff..ff).
+
+---
+
+## secp256k1_ecdh — off-curve pubkey rejected
+
+- **Upstream behavior:** libsecp256k1 trusts the `secp256k1_pubkey` opaque struct to
+  contain a valid on-curve point (invariant: always populated via `ec_pubkey_parse`).
+  No runtime on-curve check is performed in `secp256k1_ecdh` itself.
+- **Shim behavior:** The shim performs a `y²=x³+7` check before the scalar
+  multiplication. If the point is off-curve, returns 0.
+- **Reason:** An invalid-curve attack using a small-order subgroup point can recover
+  private key bits modulo the subgroup order. While normal use routes through
+  `ec_pubkey_parse` (which validates), the C ABI struct can be written directly by
+  hostile callers. The check cost is negligible vs the ECDH scalar multiplication.
+- **Impact:** None for normal callers. Only affects callers who bypass `ec_pubkey_parse`.
+- **Test:** `test_ecdh_pubkey_off_curve` in `audit/test_regression_shim_security_v8.cpp`.
+
+---
+
 ## secp256k1_ecdsa_sign — custom nonce function
 
 - **Upstream behavior:** Any non-NULL `noncefp` is called unconditionally; the

@@ -563,6 +563,8 @@ int test_regression_musig2_signer_index_validation_run(); // SEC-007: signer_ind
 int test_regression_adaptor_binding_domain_run();         // SEC-010: adaptor binding BIP-340 domain separation (ADB-1..6)
 int test_regression_shim_security_v7_run();               // 2026-05-13 v7: T-01/T-07/T-08/T-10 shim security regression
 int test_regression_adaptor_degenerate_v7_run();          // 2026-05-13 v7: T-09 adaptor degenerate output guard
+// 2026-05-13 v8 security fixes (P1-SEC-NEW-001, RED-TEAM-008, P2-SEC-NEW-002)
+int test_regression_shim_security_v8_run();               // advisory=true: shim must be linked
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -1075,6 +1077,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_shim_security_v7", "v7: T-01 MuSig2 blinding scope + T-07 sig strict parse + T-08 cache memcmp + T-10 context_randomize NULL callback", "exploit_poc", test_regression_shim_security_v7_run, true },
     // advisory=false: uses C++ API + ufsecp_static, no shim/GPU dependency.
     { "regression_adaptor_degenerate_v7", "v7: T-09 ufsecp_ecdsa_adaptor_sign degenerate output guard (R_hat/s_hat/r non-zero) + round-trip + null-arg fail-closed", "exploit_poc", test_regression_adaptor_degenerate_v7_run, false },
+    // === 2026-05-13 v8 security regression guards ===
+    // advisory=true: depend on the libsecp256k1 shim being linked.
+    { "regression_shim_security_v8", "v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve", "exploit_poc", test_regression_shim_security_v8_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

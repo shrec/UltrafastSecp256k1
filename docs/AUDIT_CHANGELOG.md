@@ -1,5 +1,28 @@
 # Audit Changelog
 
+## 2026-05-13 — v8 Security Fixes (P1-SEC-NEW-001, RED-TEAM-008, P2-SEC-NEW-002)
+
+### Security Fixes
+- **P1-SEC-NEW-001** `compat/libsecp256k1_shim/src/shim_ecdh.cpp:62`:
+  `secp256k1_ecdh` now uses `Scalar::parse_bytes_strict_nonzero` instead of
+  `Scalar::from_bytes` for the private key input. Values `>= n` are now rejected
+  (return 0) rather than silently reduced mod n. This complies with CLAUDE.md Rule 11.
+  Behavioral divergence from upstream libsecp256k1 (which reduces silently) is
+  documented in `docs/SHIM_KNOWN_DIVERGENCES.md`.
+- **P1-SEC-RED-TEAM-008** `compat/libsecp256k1_shim/src/shim_ecdsa.cpp:246`:
+  `secp256k1_ecdsa_verify` now includes `y²=x³+7` curve membership check on the
+  incoming pubkey struct, consistent with `secp256k1_ecdsa_verify_batch`. A hostile
+  caller writing off-curve coordinates directly to `secp256k1_pubkey.data` is now
+  rejected by single verify and batch verify alike.
+- **P2-SEC-NEW-002** `compat/libsecp256k1_shim/src/shim_ecdh.cpp:68`:
+  `secp256k1_ecdh` now validates that the input pubkey lies on the secp256k1 curve
+  (`y²=x³+7`) before computing the scalar multiplication. Without this check, an
+  adversary supplying a small-order subgroup point (bypassing `ec_pubkey_parse`) could
+  recover private key bits modulo the subgroup order (invalid-curve attack).
+- **Regression test:** `audit/test_regression_shim_security_v8.cpp` — covers all three
+  findings with functional checks (ORDER rejected, ORDER+1 rejected, off-curve → 0).
+  Wired in unified_audit_runner as `advisory=true` (shim-dependent).
+
 ## 2026-05-13 — T-11 Shim Schnorr Verify GLV Cache-First Optimization
 
 ### Performance Fix

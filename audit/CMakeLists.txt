@@ -3708,12 +3708,29 @@ if(TARGET secp256k1_shim)
         # 2026-05-12 PERF-001/005: shim hot-path correctness regression
         test_regression_shim_perf_correctness.cpp
         # 2026-05-13 v7: T-01/T-07/T-08/T-10 shim security regression guards
-        test_regression_shim_security_v7.cpp)
+        test_regression_shim_security_v7.cpp
+        # 2026-05-13 v8: P1-SEC-NEW-001 ecdh strict privkey + RED-TEAM-008 on-curve + P2-SEC-NEW-002
+        test_regression_shim_security_v8.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
 else()
     target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp)
+endif()
+
+# -- v8: shim security regression guards — standalone CTest target (shim-dependent) --
+if(TARGET secp256k1_shim)
+    add_executable(test_regression_shim_security_v8_standalone
+        test_regression_shim_security_v8.cpp)
+    audit_target_defaults(test_regression_shim_security_v8_standalone)
+    target_link_libraries(test_regression_shim_security_v8_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_regression_shim_security_v8_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_shim_security_v8_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_security_v8
+        COMMAND test_regression_shim_security_v8_standalone)
+    set_tests_properties(regression_shim_security_v8 PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;security;ecdh;ecdsa")
 endif()
 
 # -- v7 T-09: adaptor degenerate output guard (standalone CTest target) -------
