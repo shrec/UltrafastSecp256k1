@@ -192,6 +192,39 @@ static void test_ecdh_pubkey_off_curve() {
     secp256k1_context_destroy(ctx);
 }
 
+// ── NEW-PERF-002: keypair_xonly_tweak_add round-trip after point_to_pubkey_data ──
+// Verifies the cleanup that replaced to_uncompressed() with point_to_pubkey_data
+// in secp256k1_keypair_xonly_tweak_add produces a correctly-tweaked keypair.
+
+static void test_keypair_xonly_tweak_add_roundtrip() {
+    std::printf("  [keypair_xonly_tweak_add_roundtrip] NEW-PERF-002\n");
+    secp256k1_context *ctx = secp256k1_context_create(
+        SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
+    unsigned char sk[32] = {0};
+    sk[31] = 7;
+    secp256k1_keypair kp;
+    CHECK(secp256k1_keypair_create(ctx, &kp, sk) == 1, "keypair_create");
+
+    unsigned char tweak[32] = {0};
+    tweak[31] = 13;
+    CHECK(secp256k1_keypair_xonly_tweak_add(ctx, &kp, tweak) == 1,
+          "NEW-PERF-002: keypair_xonly_tweak_add (point_to_pubkey_data path) succeeds");
+
+    // After the tweak the keypair must still be a valid signing key.
+    unsigned char msg[32] = {0xDE};
+    unsigned char sig[64];
+    CHECK(secp256k1_schnorrsig_sign32(ctx, sig, msg, &kp, nullptr) == 1,
+          "NEW-PERF-002: sign with tweaked keypair succeeds");
+
+    secp256k1_xonly_pubkey xonly;
+    secp256k1_keypair_xonly_pub(ctx, &xonly, nullptr, &kp);
+    CHECK(secp256k1_schnorrsig_verify(ctx, sig, msg, 32, &xonly) == 1,
+          "NEW-PERF-002: verify with tweaked keypair's xonly pubkey succeeds");
+
+    secp256k1_context_destroy(ctx);
+}
+
 // ── NEW-006: schnorrsig_sign32 ct::scalar_cneg (not ternary) ─────────────────
 // The fix replaces `kp.d = y_odd ? sk.negate() : sk` with `ct::scalar_cneg`.
 // This test verifies correctness: the signed message must verify regardless of
@@ -243,6 +276,7 @@ int test_regression_shim_security_v8_run() {
     test_ecdh_privkey_out_of_range();
     test_ecdsa_verify_off_curve_pubkey();
     test_ecdh_pubkey_off_curve();
+    test_keypair_xonly_tweak_add_roundtrip();
     test_schnorrsig_sign32_y_parity();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
