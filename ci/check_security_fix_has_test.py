@@ -181,8 +181,16 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "contract on frost_keygen_finalize. No semantic change. FROST CT correctness "
         "covered by test_regression_signing_ct_scalar_correctness and FROST exploit tests.",
     ),
-    # Placeholder — actual SHA inserted by the schnorr_adaptor_verify fix commit.
-    # See README of check_security_fix_has_test for the retroactive-coverage pattern.
+    "0e25ff9e42": (
+        ["audit/test_exploit_adaptor_parity.cpp",
+         "audit/test_ffi_round_trip.cpp",
+         "audit/test_exploit_adaptor_extended.cpp"],
+        "schnorr_adaptor_verify: remove redundant-and-incorrect integrity check that "
+        "compared (pre_sig.R_hat + T).y_odd to needs_negation. The check rejected valid "
+        "pre-sigs with needs_negation=true (~50% of cases). Covered by the existing "
+        "test_exploit_adaptor_parity (which had been failing as [105] in unified runner), "
+        "test_ffi_round_trip [28] Adaptor signatures, and test_exploit_adaptor_extended.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
