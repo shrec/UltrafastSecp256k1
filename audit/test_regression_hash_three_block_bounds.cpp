@@ -42,7 +42,7 @@ static void test_hedged_sign_produces_valid_sig() {
     std::array<uint8_t, 32> aux{}; aux[0] = 0xDE;
     auto sig = secp256k1::ecdsa_sign_hedged(msg, sk, aux);
     ASSERT_FALSE(sig.s.is_zero(), "[HTB-1] hedged sig s must not be zero");
-    auto b = sig.to_bytes();
+    auto b = sig.to_compact();
     uint32_t r = 0; for (int i = 0; i < 32; ++i) r |= b[i];
     ASSERT_TRUE(r != 0, "[HTB-1] hedged sig r must not be all-zero");
 }
@@ -56,7 +56,7 @@ static void test_hedged_sign_is_deterministic() {
     auto sig1 = secp256k1::ecdsa_sign_hedged(msg, sk, aux);
     auto sig2 = secp256k1::ecdsa_sign_hedged(msg, sk, aux);
     ASSERT_TRUE(sig1.s == sig2.s, "[HTB-2] hedged signing must be deterministic (s)");
-    auto b1 = sig1.to_bytes(); auto b2 = sig2.to_bytes();
+    auto b1 = sig1.to_compact(); auto b2 = sig2.to_compact();
     ASSERT_TRUE(std::memcmp(b1.data(), b2.data(), 64) == 0, "[HTB-2] deterministic (r||s)");
 }
 
@@ -90,7 +90,7 @@ static void test_hedged_sign_verifies() {
     std::array<uint8_t, 32> aux{}; aux[0] = 0x99;
     auto sig = secp256k1::ecdsa_sign_hedged(msg, sk, aux);
     ASSERT_FALSE(sig.s.is_zero(), "[HTB-5] sig s not zero");
-    ASSERT_TRUE(secp256k1::ecdsa_verify(sig, msg, pubkey), "[HTB-5] sig must verify");
+    ASSERT_TRUE(secp256k1::ecdsa_verify(msg, pubkey, sig), "[HTB-5] sig must verify");
 }
 
 int test_regression_hash_three_block_bounds_run() {
