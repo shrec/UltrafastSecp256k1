@@ -160,7 +160,11 @@ int secp256k1_schnorrsig_sign32(
     secp256k1::SchnorrKeypair kp;
     {
         bool const y_odd = (keypair->data[95] & 1u) != 0u;
-        kp.d = y_odd ? sk.negate() : sk;
+        // NEW-006: use ct::scalar_cneg instead of ternary to avoid variable-time
+        // branch on y_odd that is correlated with the secret signing key d.
+        // Y-parity of a pubkey is public, but the compiler may emit a branch
+        // that leaks via timing. ct::scalar_cneg is branchless.
+        kp.d = secp256k1::ct::scalar_cneg(sk, secp256k1::ct::bool_to_mask(y_odd));
         std::memcpy(kp.px.data(), keypair->data + 32, 32);
     }
     auto sig = secp256k1::ct::schnorr_sign(kp, msg, aux);

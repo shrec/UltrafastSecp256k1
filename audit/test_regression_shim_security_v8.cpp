@@ -192,15 +192,58 @@ static void test_ecdh_pubkey_off_curve() {
     secp256k1_context_destroy(ctx);
 }
 
+// ── NEW-006: schnorrsig_sign32 ct::scalar_cneg (not ternary) ─────────────────
+// The fix replaces `kp.d = y_odd ? sk.negate() : sk` with `ct::scalar_cneg`.
+// This test verifies correctness: the signed message must verify regardless of
+// whether the pubkey has even or odd Y-parity.
+
+static void test_schnorrsig_sign32_y_parity() {
+    std::printf("  [schnorrsig_sign32_y_parity] NEW-006: ct::scalar_cneg correctness\n");
+    secp256k1_context *ctx = secp256k1_context_create(
+        SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
+    unsigned char msg[32] = {0xCC};
+
+    // Find a key with even-Y pubkey and one with odd-Y pubkey to test both branches
+    // sk=1 → generator G, Y is even (G's Y-coordinate is odd in secp256k1 — but
+    // the BIP-340 negation depends on Y parity; test both cases via loop)
+    int even_y_ok = 0, odd_y_ok = 0;
+    for (unsigned char i = 1; i <= 20 && !(even_y_ok && odd_y_ok); ++i) {
+        unsigned char sk[32] = {};
+        sk[31] = i;
+
+        secp256k1_keypair kp;
+        if (!secp256k1_keypair_create(ctx, &kp, sk)) continue;
+
+        int y_parity = -1;
+        secp256k1_xonly_pubkey xonly;
+        secp256k1_keypair_xonly_pub(ctx, &xonly, &y_parity, &kp);
+
+        unsigned char sig[64];
+        CHECK(secp256k1_schnorrsig_sign32(ctx, sig, msg, &kp, nullptr) == 1,
+              "NEW-006: schnorrsig_sign32 succeeds");
+        CHECK(secp256k1_schnorrsig_verify(ctx, sig, msg, 32, &xonly) == 1,
+              "NEW-006: signature verifies after ct::scalar_cneg fix");
+
+        if (y_parity == 0) even_y_ok = 1;
+        else               odd_y_ok  = 1;
+    }
+    CHECK(even_y_ok, "NEW-006: tested even-Y keypair");
+    CHECK(odd_y_ok,  "NEW-006: tested odd-Y keypair");
+
+    secp256k1_context_destroy(ctx);
+}
+
 } // namespace
 
 int test_regression_shim_security_v8_run() {
     g_pass = 0; g_fail = 0;
-    std::printf("[regression_shim_security_v8] P1-SEC-NEW-001 / RED-TEAM-008 / P2-SEC-NEW-002\n");
+    std::printf("[regression_shim_security_v8] P1-SEC-NEW-001 / RED-TEAM-008 / P2-SEC-NEW-002 / NEW-006\n");
 
     test_ecdh_privkey_out_of_range();
     test_ecdsa_verify_off_curve_pubkey();
     test_ecdh_pubkey_off_curve();
+    test_schnorrsig_sign32_y_parity();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-05-13 — CT Boundary Fixes (NEW-006, P2-T07)
+
+### Constant-Time Fixes
+- **NEW-006** `compat/libsecp256k1_shim/src/shim_schnorr.cpp:163`:
+  `secp256k1_schnorrsig_sign32` fast path: replaced `kp.d = y_odd ? sk.negate() : sk`
+  (ternary branch on a value correlated with the secret signing key) with
+  `ct::scalar_cneg(sk, ct::bool_to_mask(y_odd))` — branchless, matching the pattern
+  used in `ct_sign.cpp::schnorr_sign` and `shim_schnorr.cpp::schnorrsig_sign_custom`.
+  Correctness unchanged; both code paths produce identical results.
+- **P2-T07** `src/cpu/src/bip32.cpp:384`:
+  Replaced `il_scalar.is_zero()` with `il_scalar.is_zero_ct()` in `derive_child`
+  for hardened paths. IL is HMAC-derived from the private key, making `is_zero()`
+  technically variable-time on the secret path. Probability ~2^-256 of triggering,
+  but CT discipline must be uniform.
+
 ## 2026-05-13 — v8 Security Fixes (P1-SEC-NEW-001, RED-TEAM-008, P2-SEC-NEW-002)
 
 ### Security Fixes

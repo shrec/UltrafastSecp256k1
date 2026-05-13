@@ -380,8 +380,11 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
     auto il_scalar = Scalar{};
     // BIP-32: IL must be < curve order n; reject (skip to next index) if >= n
     if (!Scalar::parse_bytes_strict(IL, il_scalar)) return {ExtendedKey{}, false};
-    // Also reject zero
-    if (il_scalar.is_zero()) return {ExtendedKey{}, false};
+    // Also reject zero — use is_zero_ct() because il_scalar is HMAC-derived from
+    // the private key on hardened paths (data = 0x00 || private_key || index).
+    // is_zero() has a data-dependent branch; is_zero_ct() is branchless.
+    // Probability of IL==0 is ~2^-256 but the CT discipline must be maintained.
+    if (il_scalar.is_zero_ct()) return {ExtendedKey{}, false};
 
     ExtendedKey child{};
     child.chain_code = IR;
