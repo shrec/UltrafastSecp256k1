@@ -30,15 +30,26 @@ static int g_fail = 0;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, (msg)); ++g_fail; } } while(0)
 #define ASSERT_FALSE(cond, msg) do { if ( (cond)) { std::printf("FAIL [%s]: %s\n", __func__, (msg)); ++g_fail; } } while(0)
 
+// Weak attribute so macOS ld64 doesn't fail when the libsecp256k1 shim is
+// not linked into the unified_audit_runner target. On platforms where the
+// shim is absent these resolve to nullptr → ctx_create returns null →
+// ADVISORY_SKIP_CODE. Linux ld permits undefined weaks by default; macOS
+// requires the explicit __attribute__((weak_import)) (alias of weak).
+#if defined(__APPLE__)
+#  define SHIM_WEAK __attribute__((weak_import))
+#else
+#  define SHIM_WEAK __attribute__((weak))
+#endif
+
 extern "C" {
     typedef struct { unsigned char data[64]; } secp256k1_pubkey;
     typedef struct { unsigned char data[96]; } secp256k1_keypair;
     typedef struct secp256k1_context_struct secp256k1_context;
-    secp256k1_context* secp256k1_context_create(unsigned int flags);
-    void secp256k1_context_destroy(secp256k1_context* ctx);
-    int secp256k1_keypair_create(const secp256k1_context*, secp256k1_keypair*, const unsigned char*);
-    int secp256k1_schnorrsig_sign32(const secp256k1_context*, unsigned char*, const unsigned char*, const secp256k1_keypair*, const unsigned char*);
-    int secp256k1_schnorrsig_sign_custom(const secp256k1_context*, unsigned char*, const unsigned char*, size_t, const secp256k1_keypair*, void*);
+    SHIM_WEAK secp256k1_context* secp256k1_context_create(unsigned int flags);
+    SHIM_WEAK void secp256k1_context_destroy(secp256k1_context* ctx);
+    SHIM_WEAK int secp256k1_keypair_create(const secp256k1_context*, secp256k1_keypair*, const unsigned char*);
+    SHIM_WEAK int secp256k1_schnorrsig_sign32(const secp256k1_context*, unsigned char*, const unsigned char*, const secp256k1_keypair*, const unsigned char*);
+    SHIM_WEAK int secp256k1_schnorrsig_sign_custom(const secp256k1_context*, unsigned char*, const unsigned char*, size_t, const secp256k1_keypair*, void*);
 }
 
 static constexpr unsigned int CTX_SIGN = 0x0101;
@@ -107,6 +118,14 @@ static void test_sign_custom_64byte(secp256k1_context* ctx) {
 
 int test_regression_schnorr_r_zero_ct_run() {
     g_fail = 0;
+    // When the libsecp256k1 shim is not linked into this binary the weak
+    // function pointers resolve to nullptr — guard against that before calling.
+    if (!secp256k1_context_create || !secp256k1_context_destroy ||
+        !secp256k1_keypair_create || !secp256k1_schnorrsig_sign32 ||
+        !secp256k1_schnorrsig_sign_custom) {
+        std::printf("SKIP SEC-006: shim not linked\n");
+        return ADVISORY_SKIP_CODE;
+    }
     secp256k1_context* ctx = secp256k1_context_create(CTX_SIGN | CTX_VERIFY);
     if (!ctx) {
         std::printf("SKIP SEC-006: shim not linked\n");

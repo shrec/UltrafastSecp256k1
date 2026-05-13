@@ -2883,19 +2883,23 @@ set_tests_properties(exploit_shim_musig_secnonce PROPERTIES TIMEOUT 60 LABELS "a
 
 # -- RED-TEAM-009: ka_put fail-closed DoS cap smoke (a3f56ae) --
 # STANDALONE_TEST mode pulls in the shim secp256k1.h/secp256k1_extrakeys.h/secp256k1_musig.h
-# headers. In Mode B (SECP256K1_BUILD_SHIM=ON, shim integrated into engine), the
-# shim symbols are provided by fastsecp256k1, and audit_target_defaults links it.
-# The shim include directory is added explicitly here so STANDALONE_TEST builds
-# find the shim headers (previously missing — caused 'secp256k1.h not found'
-# on Security Audit / ASan+UBSan runners that don't have libsecp256k1 installed).
-add_executable(test_exploit_shim_musig_ka_cap_standalone
-    test_exploit_shim_musig_ka_cap.cpp)
-audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
-target_include_directories(test_exploit_shim_musig_ka_cap_standalone PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
-target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
-set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+# headers and ABI symbols. The shim is provided either by Mode B (integrated into
+# fastsecp256k1 via SECP256K1_BUILD_SHIM=ON) or Mode A (standalone secp256k1_shim
+# target). On Security Audit / TSan runners with neither, the symbols are
+# undefined — skip the target in that case rather than fail-link.
+if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
+    add_executable(test_exploit_shim_musig_ka_cap_standalone
+        test_exploit_shim_musig_ka_cap.cpp)
+    audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_exploit_shim_musig_ka_cap_standalone PRIVATE secp256k1_shim)
+    endif()
+    target_include_directories(test_exploit_shim_musig_ka_cap_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
+    set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+endif()
 
 # Regression: g_static_ctx initializer for PERF-005 cached_r_G field (ecf47967)
 if(TARGET secp256k1_shim)
