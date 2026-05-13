@@ -845,6 +845,8 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_musig2_verify` | `audit/test_regression_musig2_verify.cpp` | MuSig2 partial signature verification regression |
 | `regression_z_fe_nonzero` | `audit/test_regression_z_fe_nonzero.cpp` | Jacobian Z-coordinate non-zero invariant regression |
 | `regression_adaptor_binding_domain` | `audit/test_regression_adaptor_binding_domain.cpp` | SEC-010: ecdsa_adaptor_binding BIP-340 tagged hash domain separation (ADB-1..6) |
+| `regression_adaptor_degenerate_v7` | `audit/test_regression_adaptor_degenerate_v7.cpp` | v7: T-09 ufsecp_ecdsa_adaptor_sign degenerate output guard + round-trip + null-arg fail-closed |
+| `regression_shim_security_v8` | `audit/test_regression_shim_security_v8.cpp` | v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve + NEW-006 schnorr ct::scalar_cneg |
 
 ## Upstream Libsecp256k1 Parity Tests (batch 3 — v3.69+)
 
