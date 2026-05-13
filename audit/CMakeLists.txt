@@ -2882,12 +2882,20 @@ add_test(NAME exploit_shim_musig_secnonce COMMAND test_exploit_shim_musig_secnon
 set_tests_properties(exploit_shim_musig_secnonce PROPERTIES TIMEOUT 60 LABELS "audit;exploit;shim;musig;security;crit")
 
 # -- RED-TEAM-009: ka_put fail-closed DoS cap smoke (a3f56ae) --
-add_executable(test_exploit_shim_musig_ka_cap_standalone
-    test_exploit_shim_musig_ka_cap.cpp)
-audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
-target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
-set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+# STANDALONE_TEST mode pulls in the shim secp256k1.h/secp256k1_extrakeys.h/secp256k1_musig.h
+# headers — only build the standalone target when the shim target is actually available,
+# and add the shim include path explicitly.
+if(TARGET secp256k1_shim)
+    add_executable(test_exploit_shim_musig_ka_cap_standalone
+        test_exploit_shim_musig_ka_cap.cpp)
+    audit_target_defaults(test_exploit_shim_musig_ka_cap_standalone)
+    target_link_libraries(test_exploit_shim_musig_ka_cap_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_exploit_shim_musig_ka_cap_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_exploit_shim_musig_ka_cap_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME exploit_shim_musig_ka_cap COMMAND test_exploit_shim_musig_ka_cap_standalone)
+    set_tests_properties(exploit_shim_musig_ka_cap PROPERTIES TIMEOUT 30 LABELS "audit;exploit;shim;musig;security")
+endif()
 
 # Regression: g_static_ctx initializer for PERF-005 cached_r_G field (ecf47967)
 if(TARGET secp256k1_shim)
