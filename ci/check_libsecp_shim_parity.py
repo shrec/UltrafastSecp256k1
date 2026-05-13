@@ -333,26 +333,28 @@ CHECKS = [
         ],
     },
     # ---- shim_ecdh.cpp -----------------------------------------------
-    # DELIBERATE EXCEPTION: secp256k1_ecdh uses Scalar::from_bytes (silent
-    # mod-n reduction) rather than parse_bytes_strict_nonzero.  This matches
-    # libsecp256k1's own contract: ECDH silently reduces the scalar mod n so
-    # that callers passing a raw 256-bit hash never see a spurious rejection.
-    # The check below ENFORCES the from_bytes usage so a future "fix" that
-    # swaps it for strict parsing does not silently introduce a parity break.
+    # P1-SEC-NEW-001 (2026-05-13 v8 audit): secp256k1_ecdh now uses
+    # parse_bytes_strict_nonzero per CLAUDE.md Rule 11 (every function
+    # accepting a private key byte array MUST use strict parsing). The
+    # behavioral divergence from upstream libsecp256k1 (which silently
+    # reduces mod n) is intentional and documented in
+    # docs/SHIM_KNOWN_DIVERGENCES.md ("secp256k1_ecdh — private key >= curve
+    # order rejected"). This check now ENFORCES the strict parsing so a
+    # regression to from_bytes is caught at the parity gate.
     {
         "file": "shim_ecdh.cpp",
         "function": "secp256k1_ecdh",
-        "description": "ECDH deliberately uses Scalar::from_bytes (reduces mod n) — matches libsecp silent-reduction contract",
+        "description": "ECDH uses parse_bytes_strict_nonzero (Rule 11) — intentional divergence from libsecp documented in SHIM_KNOWN_DIVERGENCES.md",
         "checks": [
             {
                 "kind": "require",
-                "pattern": r"Scalar::from_bytes",
-                "message": "ECDH must use Scalar::from_bytes to match libsecp silent mod-n reduction behavior",
+                "pattern": r"parse_bytes_strict_nonzero",
+                "message": "ECDH must use parse_bytes_strict_nonzero per CLAUDE.md Rule 11 (P1-SEC-NEW-001)",
             },
             {
                 "kind": "forbid",
-                "pattern": r"Scalar::parse_bytes_strict_nonzero",
-                "message": "ECDH must NOT use parse_bytes_strict_nonzero — that would reject inputs libsecp accepts (parity break)",
+                "pattern": r"Scalar::from_bytes\s*\(",
+                "message": "ECDH must NOT regress to Scalar::from_bytes (silent mod-n reduction violates Rule 11)",
             },
         ],
     },
