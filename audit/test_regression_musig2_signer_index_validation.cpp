@@ -166,9 +166,10 @@ static void test_abi_ctx_skips_check() {
     // With empty individual_pubkeys, wrong index skips validation (ABI limitation, documented MED-3)
     // The partial sig is non-zero (wrong but not caught — ABI-level protection is MED-3 / v2 scope)
     auto psig_skip = musig2_partial_sign(sn1, sk1, kagg, sess, 1);
-    // We can't assert on the result value here; just confirm it compiles and runs
+    // NEW-TEST-001: do not use CHECK(true,...) — it inflates g_pass without testing.
+    // This sub-case has no assertion (MED-3 ABI gap, tracked separately). Just log skip.
     (void)psig_skip;
-    CHECK(true, "[MSI-4] ABI ctx (empty individual_pubkeys) runs without crash (check skipped per MED-3)");
+    std::printf("  [MSI-4] SKIP — ABI ctx (empty individual_pubkeys) check deferred to MED-3\n");
 }
 
 // ── _run() ───────────────────────────────────────────────────────────────

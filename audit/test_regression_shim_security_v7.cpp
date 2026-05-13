@@ -40,6 +40,18 @@ static void test_context_randomize_null_ctx() {
     // T-10 fix: must return 0 (and call illegal callback, not crash or UB).
     int rc = secp256k1_context_randomize(nullptr, seed);
     CHECK(rc == 0, "context_randomize(NULL) returns 0");
+
+    // NEW-TEST-003: install illegal-callback on a real ctx, then call randomize(NULL).
+    // The callback is global (or per-ctx); the NULL-ctx path triggers the default
+    // illegal callback. We can't reliably observe the global default callback firing
+    // without overriding it process-wide (which would conflict with other tests).
+    // Confirm at least that subsequent normal calls still work — i.e., the NULL ctx
+    // call did not corrupt any global state.
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    unsigned char seed_ok[32] = {0x01};
+    int rc_ok = secp256k1_context_randomize(ctx, seed_ok);
+    CHECK(rc_ok == 1, "T-10: subsequent randomize(valid_ctx) succeeds after NULL call (no state corruption)");
+    secp256k1_context_destroy(ctx);
 }
 
 // ── T-07: verify rejects opaque sig with r=n (should zero after strict parse) ─

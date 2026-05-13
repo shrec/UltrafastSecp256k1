@@ -91,6 +91,13 @@ static void test_adaptor_roundtrip() {
           std::memcmp(neg_pt, adaptor_pt, 33) == 0,
           "extracted secret reproduces adaptor point (or negation)");
 
+    // NEW-TEST-004: the adapted final signature must verify against the signer's
+    // pubkey. This closes the round-trip: sign → verify → adapt → verify_final.
+    // Without this check, a degenerate adapt that emits an invalid sig64 would
+    // not be caught by the extraction check alone.
+    CHECK(ufsecp_ecdsa_verify(ctx, kMsg, sig64, pub33) == UFSECP_OK,
+          "NEW-TEST-004: adapted sig64 verifies under signer pubkey (full round-trip)");
+
     ufsecp_ctx_destroy(ctx);
 }
 

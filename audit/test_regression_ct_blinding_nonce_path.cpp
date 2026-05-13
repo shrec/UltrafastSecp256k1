@@ -25,6 +25,17 @@
 //   3. CT Schnorr sign produces the same valid signature with blinding ON.
 //   4. 20 random keys: sign + verify identical with and without blinding.
 //
+// LIMITATION (NEW-TEST-002, 2026-05-13 v8 audit)
+//   This test verifies FUNCTIONAL CORRECTNESS only: that the signed output is
+//   identical whether or not blinding is applied. It does NOT verify that
+//   generator_mul_blinded is actually invoked at the call site. A revert from
+//   `ct::generator_mul_blinded(k)` to `ct::generator_mul(k)` would still PASS
+//   this test, because the unblinded path produces the same mathematical result.
+//
+//   Verifying actual blinding requires CT instrumentation (Valgrind ct-verif,
+//   MSAN, or a taint-tracking build that classifies the random scalar `r` as
+//   secret-tainted) — see audit/test_ct_verif_formal.cpp for that path.
+//
 // ============================================================================
 
 #include <cstdio>
