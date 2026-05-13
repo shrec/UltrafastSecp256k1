@@ -164,6 +164,16 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "OpenCL scan key boundary fix (gpu_backend_opencl.cpp): covered by "
         "test_regression_opencl_bip352_scan_key_boundary.",
     ),
+    "d5b1565632": (
+        ["audit/test_regression_shim_security_v8.cpp"],
+        "NEW-PERF-002 (shim_extrakeys.cpp: secp256k1_keypair_xonly_tweak_add — replace "
+        "to_uncompressed() with point_to_pubkey_data) and NEW-PERF-001/004 (shim_schnorr.cpp "
+        "ShimSchnorrCache::put — remove redundant double schnorr_xonly_pubkey_parse call). "
+        "Pure performance cleanups, no new signing surface. test_keypair_xonly_tweak_add_roundtrip "
+        "added retroactively in 22f840c9 to test_regression_shim_security_v8.cpp verifies "
+        "NEW-PERF-002 sign+verify round-trip. The cache cleanup is covered by existing "
+        "Schnorr verify regression tests that exercise the warm-cache path via repeated calls.",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
