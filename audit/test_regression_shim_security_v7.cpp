@@ -141,14 +141,17 @@ static void test_musig2_partial_sign_with_blinding() {
     const secp256k1_pubkey* pubs[2] = {&pub1, &pub2};
     secp256k1_musig_keyagg_cache kagg;
     secp256k1_xonly_pubkey aggpub;
-    CHECK(secp256k1_musig_pubkey_agg(ctx, nullptr, &aggpub, &kagg, pubs, 2) == 1,
+    // Signature: pubkey_agg(ctx, agg_pk, keyagg_cache, pubkeys, n)
+    CHECK(secp256k1_musig_pubkey_agg(ctx, &aggpub, &kagg, pubs, 2) == 1,
           "pubkey_agg");
 
     secp256k1_musig_secnonce sn1, sn2;
     secp256k1_musig_pubnonce pn1, pn2;
     unsigned char sid1[32] = {1}, sid2[32] = {2};
-    secp256k1_musig_nonce_gen(ctx, &sn1, &pn1, sid1, &kp1, nullptr, nullptr, nullptr);
-    secp256k1_musig_nonce_gen(ctx, &sn2, &pn2, sid2, &kp2, nullptr, nullptr, nullptr);
+    // Signature: nonce_gen(ctx, secnonce, pubnonce, sid32, seckey, pubkey, msg32,
+    //                     keyagg_cache, extra_input32)
+    secp256k1_musig_nonce_gen(ctx, &sn1, &pn1, sid1, sk1, &pub1, nullptr, nullptr, nullptr);
+    secp256k1_musig_nonce_gen(ctx, &sn2, &pn2, sid2, sk2, &pub2, nullptr, nullptr, nullptr);
 
     const secp256k1_musig_pubnonce* pnonces[2] = {&pn1, &pn2};
     secp256k1_musig_aggnonce aggnonce;

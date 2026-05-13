@@ -283,9 +283,11 @@ ufsecp_error_t ufsecp_musig2_partial_sign_v2(
 
     const uint8_t* expected_pubkey33 = pubkeys + signer_index * 33;
     // Constant-time comparison to avoid branch-based timing leak on secret key.
+    // Use unsigned widening to silence -Wconversion: uint8_t ^ uint8_t in C++
+    // promotes through int, so the result must be explicitly narrowed back.
     uint8_t diff = 0;
     for (size_t i = 0; i < 33; ++i) {
-        diff |= (derived_compressed[i] ^ expected_pubkey33[i]);
+        diff |= static_cast<uint8_t>(derived_compressed[i] ^ expected_pubkey33[i]);
     }
     if (SECP256K1_UNLIKELY(diff != 0)) {
         secp256k1::detail::secure_erase(&sk, sizeof(sk));
