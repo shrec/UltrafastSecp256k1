@@ -32,10 +32,12 @@ static void ecdsa_sig_to_data(const secp256k1::ECDSASignature& sig, unsigned cha
 }
 
 static secp256k1::ECDSASignature ecdsa_sig_from_data(const unsigned char data[64]) {
-    std::array<uint8_t, 32> rb{}, sb{};
-    std::memcpy(rb.data(), data, 32);
-    std::memcpy(sb.data(), data + 32, 32);
-    return { Scalar::from_bytes(rb), Scalar::from_bytes(sb) };
+    // T-07: use strict parse to reject r,s >= n (silently clears to zero if out-of-range,
+    // causing downstream verify to fail cleanly rather than silently reducing mod n).
+    Scalar r_scalar, s_scalar;
+    if (!Scalar::parse_bytes_strict(data,      r_scalar)) r_scalar = Scalar::zero();
+    if (!Scalar::parse_bytes_strict(data + 32, s_scalar)) s_scalar = Scalar::zero();
+    return { r_scalar, s_scalar };
 }
 
 // -- Internal: reconstruct Point from opaque pubkey ----------------------

@@ -561,6 +561,8 @@ int test_regression_shim_per_context_blinding_run();     // SHIM-001: per-contex
 int test_regression_musig2_session_token_run();          // SHIM-010: MuSig2 token-keyed map
 int test_regression_musig2_signer_index_validation_run(); // SEC-007: signer_index cross-check (Rule 13)
 int test_regression_adaptor_binding_domain_run();         // SEC-010: adaptor binding BIP-340 domain separation (ADB-1..6)
+int test_regression_shim_security_v7_run();               // 2026-05-13 v7: T-01/T-07/T-08/T-10 shim security regression
+int test_regression_adaptor_degenerate_v7_run();          // 2026-05-13 v7: T-09 adaptor degenerate output guard
 
 // ============================================================================
 // Report section IDs -- 9 audit categories
@@ -1048,7 +1050,10 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_shim_per_context_blinding",  "SHIM-001: per-context blinding — two contexts on same thread sign independently, unblinded ctx works, NULL seed clears",     "ct_analysis",    test_regression_shim_per_context_blinding_run,  true },
     { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "memory_safety",  test_regression_musig2_session_token_run,       true },
     // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required)
-    { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs", "protocol_security", test_regression_musig2_signer_index_validation_run, false },
+    // advisory=true: Rule 13 cannot be fully tested at C++ API level when individual_pubkeys
+    // is empty (ABI-deserialized state, MED-3). The test_abi_ctx_skips_check case uses
+    // CHECK(true,...) for that sub-case — marked advisory to reflect partial coverage.
+    { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs (T-04: advisory=true, MED-3 ABI gap)", "protocol_security", test_regression_musig2_signer_index_validation_run, true },
     // SEC-010: adaptor binding BIP-340 domain separation (wire format: ecdsa_adaptor_bind_v2)
     { "regression_adaptor_binding_domain",     "SEC-010: ecdsa_adaptor_binding uses BIP-340 tagged hash (v2) — sign/verify/adapt/extract round-trips, needs_negation integrity, domain separation confirmed", "protocol_security", test_regression_adaptor_binding_domain_run, false },
     // === 2026-05-11 Shim regression tests (Agent 5) ===
@@ -1065,6 +1070,11 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-12 SEC-001: MuSig2 ABI signer-index cross-validation ===
     // advisory=false: uses C ABI via ufsecp_static, no GPU dependency.
     { "regression_musig2_abi_signer_index", "SEC-001: ufsecp_musig2_partial_sign_v2 enforces privkey<->signer_index at ABI boundary — wrong index → UFSECP_ERR_BAD_KEY (SIV-1..7)", "exploit_poc", test_regression_musig2_abi_signer_index_run, false },
+    // === 2026-05-13 v7 security regression guards ===
+    // advisory=true: shim must be linked.
+    { "regression_shim_security_v7", "v7: T-01 MuSig2 blinding scope + T-07 sig strict parse + T-08 cache memcmp + T-10 context_randomize NULL callback", "exploit_poc", test_regression_shim_security_v7_run, true },
+    // advisory=false: uses C++ API + ufsecp_static, no shim/GPU dependency.
+    { "regression_adaptor_degenerate_v7", "v7: T-09 ufsecp_ecdsa_adaptor_sign degenerate output guard (R_hat/s_hat/r non-zero) + round-trip + null-arg fail-closed", "exploit_poc", test_regression_adaptor_degenerate_v7_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

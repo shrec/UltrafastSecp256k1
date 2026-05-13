@@ -1,5 +1,46 @@
 # Audit Changelog
 
+## 2026-05-13 — v7 Security Regression Guards (T-01, T-07, T-08, T-09, T-10)
+
+### Security Fixes
+- **T-01** `compat/libsecp256k1_shim/src/shim_musig.cpp`: `secp256k1_musig_partial_sign`
+  now applies `ContextBlindingScope` matching ECDSA/Schnorr shim signing paths.
+  DPA blinding was absent for all MuSig2 partial signing when context was randomized.
+- **T-07** `compat/libsecp256k1_shim/src/shim_ecdsa.cpp` + `shim_recovery.cpp`:
+  `ecdsa_sig_from_data` and `rsig_from_data` now use `Scalar::parse_bytes_strict`
+  instead of `Scalar::from_bytes` — values >= n are zeroed rather than silently reduced.
+- **T-08** `compat/libsecp256k1_shim/src/shim_schnorr.cpp`: `ShimSchnorrCache::Slot`
+  now stores full 32-byte x_bytes; `get()` verifies via `memcmp` (not fingerprint alone).
+  Eliminates ~2^32 birthday-collision attack risk for attacker-controlled pubkey bytes.
+- **T-09** `src/cpu/src/impl/ufsecp_zk.cpp`: `ufsecp_ecdsa_adaptor_sign` now checks for
+  degenerate output (s_hat=0, r=0, R_hat=infinity) and returns `UFSECP_ERR_INTERNAL`
+  rather than emitting zero bytes as success (Rule 4).
+- **T-10** `compat/libsecp256k1_shim/src/shim_context.cpp`: `secp256k1_context_randomize(NULL, ...)`
+  now calls `secp256k1_shim_call_illegal_cb` matching upstream libsecp256k1 behavior.
+- **T-06** `src/cpu/src/schnorr.cpp`: Added documentation comment explaining the known
+  CT limitation of `Scalar::from_bytes` on the BIP-340 nonce hash (prob ~2^-128).
+- **T-04** `audit/unified_audit_runner.cpp`: `regression_musig2_signer_index` changed to
+  `advisory=true` — Rule 13 cannot be fully verified at C++ API level (MED-3 gap).
+- **T-14** `audit/test_exploit_kat_corpus.cpp`: Partial corpus now propagates `g_fail++`
+  so `[FAIL]` log and non-zero return code are consistent.
+
+### Tests Added
+- `audit/test_regression_shim_security_v7.cpp` (advisory=true, shim-linked):
+  covers T-01 (MuSig2 blinding), T-07 (sig strict parse), T-08 (cache memcmp),
+  T-10 (context_randomize NULL). Wired as `exploit_poc / regression_shim_security_v7`.
+- `audit/test_regression_adaptor_degenerate_v7.cpp` (advisory=false):
+  covers T-09 (adaptor degenerate guard) + round-trip + null-arg fail-closed.
+  Wired as `exploit_poc / regression_adaptor_degenerate_v7`.
+
+### CI/CAAS Fixes
+- `gate.yml`: T-02 shim gate JSON field names fixed (`"key"` → `"id"`, flat → nested sections).
+- `security_autonomy_check.py`: T-03 advisory-skip now sets `"passing": False` (not True).
+- `ci_gate_detect.py`: T-03 git diff failure forces hard gate (not silent light gate).
+- `gate.yml`: T-16 empty CAAS artifact emits `::error::` + exit 1 (not `::warning::`).
+- `gate.yml`: T-16 selftest binary not found is now a CI error (not silent skip).
+- `caas.yml`: T-16 bundle freshness step has `if: always()`.
+- `caas.yml`: T-16 evidence chain push failure uses explicit push_ok variable + `::warning::`.
+
 ## 2026-05-12 — CT-BLIND-01 CT nonce path uses generator_mul_blinded
 
 ### Security Fix

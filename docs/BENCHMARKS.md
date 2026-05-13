@@ -33,6 +33,7 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **
 | OpenCL (RTX) | — | — | — | — | — | — |
 
 > **CT Sign vs lib** = `bench_unified` CT-vs-CT section — production-equivalent comparison. Canonical data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
+> **ConnectBlock note:** +0.9–1.5% faster than libsecp256k1 **with Release+LTO**. Without LTO: ~0.5–1.0% **slower**. LTO is required for the positive result. See `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
 > **FAST signing** (diagnostic, NOT for production signing claims): ECDSA 2.45×, Schnorr 2.34× — Ultra variable-time vs libsecp CT. See `benchmarks/comparison/README.md` §BENCH-001 note.
 > GPU rows: kernel-only throughput at standard batch sizes.
@@ -64,9 +65,9 @@ Covered flows include:
 - `silent_payment_create_output`
 - `silent_payment_scan`
 
-### Representative x86-64 / Linux Quick Snapshot `[diagnostic — quick mode: 3 passes, 50 warmup]`
+### Quick-Mode Sanity Check `[diagnostic — 3 passes, 50 warmup, NOT FOR CITATION]`
 
-> **Diagnostic only** — `bench_unified --quick` uses 3 passes and 50 warmup iterations (vs 11 passes / 500 warmup for release-grade runs). Numbers here are suitable for sanity-checking flow coverage, not for performance claims or citations.
+> **Diagnostic only** — `bench_unified --quick` uses 3 passes and 50 warmup iterations (vs 11 passes / 500 warmup for release-grade runs). IQR outlier removal is disabled (requires ≥4 passes). Numbers here are suitable for sanity-checking flow coverage only — **do not cite, quote, or compare these numbers externally**.
 
 Quick sanity run from `bench_unified --quick` on the local x86-64 validation machine:
 
@@ -86,6 +87,11 @@ cross-machine comparisons, use the full pinned benchmark methodology and JSON
 artifacts from `bench_unified`.
 
 <!-- BENCH-ARCHIVE-START -->
+> **⚠️ ARCHIVED DATA — Clang 19.1.7** — the following sections use Clang 19.1.7, not the current
+> canonical GCC 14.2.0 build. Clang 19 vs GCC 14 produces 10–40% different results for CT signing
+> and generator multiplication. **Do not compare these numbers to the current canonical JSON.**
+> For current numbers see the summary table above.
+
 ### x86-64 Full Rerun (2026-03-24, post-exploit-fix audit) `[archived]`
 
 Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.  

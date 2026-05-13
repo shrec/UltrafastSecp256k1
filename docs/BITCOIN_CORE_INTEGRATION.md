@@ -69,7 +69,7 @@ if(SECP256K1_USE_ULTRAFAST)
     FetchContent_Declare(
         UltrafastSecp256k1
         GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
-        GIT_TAG        bb8ddc23  # pin to a tested commit hash, never "main"
+        GIT_TAG        48e7c02f  # canonical evidence commit (updated 2026-05-13)
     )
     FetchContent_MakeAvailable(UltrafastSecp256k1)
 

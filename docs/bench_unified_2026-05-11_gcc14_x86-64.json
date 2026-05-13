@@ -55,10 +55,14 @@
     "ecdsa_sign_ratio": 1.24,
     "schnorr_sign_ratio": 1.09
   },
-  "vs_libsecp_fast_signing": {
-    "_label": "FAST vs libsecp CT — diagnostic only, not production-equivalent",
-    "ecdsa_sign_ratio": 2.45,
-    "schnorr_sign_ratio": 2.34
+  "diagnostic_only": {
+    "_DIAGNOSTIC_ONLY": true,
+    "_label": "FAST vs libsecp CT — diagnostic only, NOT production-equivalent. Tools MUST read _DIAGNOSTIC_ONLY=true before using these ratios.",
+    "vs_libsecp_fast_signing": {
+      "_label": "FAST vs libsecp CT — diagnostic only, not production-equivalent",
+      "ecdsa_sign_ratio": 2.45,
+      "schnorr_sign_ratio": 2.34
+    }
   },
   "libsecp_reference": {
     "generator_mul_ns": 18379.8,

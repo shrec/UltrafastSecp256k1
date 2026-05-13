@@ -553,6 +553,8 @@ int secp256k1_musig_partial_sign(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!partial_sig || !secnonce || !keypair || !keyagg_cache || !session) return 0;
+    // T-01: Apply DPA blinding for the duration of this signing call (matches ECDSA/Schnorr shim).
+    secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
     KAEntry* e = ka_get(keyagg_cache);
     if (!e) return 0;
 

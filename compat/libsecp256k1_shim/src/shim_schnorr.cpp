@@ -37,6 +37,10 @@ struct ShimSchnorrCache {
     static constexpr std::size_t SLOTS = 256;
     struct Slot {
         std::uint64_t             fingerprint{0};
+        // T-08: store full 32-byte x-coordinate so get() verifies via memcmp, not
+        // fingerprint alone. A 64-bit FNV-1a fingerprint is ~2^32-birthday-attackable
+        // when the attacker controls pubkey bytes — full memcmp eliminates this.
+        uint8_t                   x_bytes[32]{};
         secp256k1::SchnorrXonlyPubkey epk{};
         bool                      valid      = false;  // full struct built + usable
         bool                      seen_once  = false;  // fingerprint recorded, struct not built
@@ -61,17 +65,19 @@ struct ShimSchnorrCache {
         std::size_t idx; std::uint64_t fp;
         hash32(data, idx, fp);
         const Slot& s = slots[idx];
-        if (s.valid && s.fingerprint == fp) return &s.epk;
+        // T-08: require full 32-byte match — fingerprint alone is ~2^32-birthday-collidable.
+        if (s.valid && s.fingerprint == fp && std::memcmp(s.x_bytes, data, 32) == 0) return &s.epk;
         return nullptr;
     }
 
     // Returns non-null only on second+ encounter (tables built).
-    // First encounter: records fingerprint only (~8 bytes written), returns nullptr.
+    // First encounter: records fingerprint + x_bytes (~40 bytes written), returns nullptr.
     const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
         std::size_t idx; std::uint64_t fp;
         hash32(data, idx, fp);
         Slot& s = slots[idx];
-        bool const matches = (s.fingerprint == fp);
+        // T-08: check full 32-byte identity, not fingerprint alone.
+        bool const matches = (s.fingerprint == fp && std::memcmp(s.x_bytes, data, 32) == 0);
         if (matches && s.seen_once && !s.valid) {
             // Second encounter: call parse TWICE to trigger the seen_once→valid
             // lazy table build (schnorr_xonly_pubkey_parse uses a 2-call protocol:
@@ -83,8 +89,9 @@ struct ShimSchnorrCache {
         if (matches && s.valid) {
             return &s.epk;  // already built (slot collision matched)
         }
-        // First encounter (or slot collision): record fingerprint only.
+        // First encounter (or slot collision): record fingerprint + full key bytes.
         s.fingerprint = fp;
+        std::memcpy(s.x_bytes, data, 32);
         s.seen_once   = true;
         s.valid       = false;
         return nullptr;

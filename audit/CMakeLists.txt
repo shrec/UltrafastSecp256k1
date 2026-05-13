@@ -3706,13 +3706,32 @@ if(TARGET secp256k1_shim)
         # 2026-05-12 SEC-007: high-S verify diagnostic (shim-linked)
         test_regression_shim_high_s_verify.cpp
         # 2026-05-12 PERF-001/005: shim hot-path correctness regression
-        test_regression_shim_perf_correctness.cpp)
+        test_regression_shim_perf_correctness.cpp
+        # 2026-05-13 v7: T-01/T-07/T-08/T-10 shim security regression guards
+        test_regression_shim_security_v7.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
 else()
     target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp)
 endif()
+
+# -- v7 T-09: adaptor degenerate output guard (standalone CTest target) -------
+add_executable(test_regression_adaptor_degenerate_v7_standalone
+    test_regression_adaptor_degenerate_v7.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
+audit_target_defaults(test_regression_adaptor_degenerate_v7_standalone)
+target_include_directories(test_regression_adaptor_degenerate_v7_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include)
+target_compile_definitions(test_regression_adaptor_degenerate_v7_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_adaptor_degenerate_v7
+    COMMAND test_regression_adaptor_degenerate_v7_standalone)
+set_tests_properties(regression_adaptor_degenerate_v7 PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;adaptor;degenerate")
+# Also add to unified runner sources (non-shim, uses ufsecp_static)
+target_sources(unified_audit_runner PRIVATE test_regression_adaptor_degenerate_v7.cpp)
 
 # -- PERF-001/005: shim hot-path correctness (standalone CTest target) --
 if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)

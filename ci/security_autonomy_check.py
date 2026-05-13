@@ -72,7 +72,11 @@ def _run_gate(gate: dict, timeout: int = 300) -> dict:
                 "gate": gate["name"],
                 "weight": gate["weight"],
                 "status": "advisory_skip",
-                "passing": True,
+                # T-03 fix: advisory-skip is NOT a pass — it means the gate did not run.
+                # External tools reading "passing": True for a skipped gate would see a
+                # false-positive (CAAS headline "ALL PASSED" when 0 gates executed).
+                "passing": False,
+                "did_run": False,
                 # F-01 fix: skipped gates earn 0 score and are excluded from the
                 # denominator — awarding full weight inflated the score to 100
                 # when all infrastructure was absent (all gates skipping).

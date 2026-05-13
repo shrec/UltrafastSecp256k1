@@ -183,10 +183,17 @@ def get_changed_files(base: str = 'origin/dev') -> list[str]:
             capture_output=True, text=True, cwd=str(LIB_ROOT),
         )
         if result.returncode == 0:
-            return [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
+            files = [f.strip() for f in result.stdout.strip().splitlines() if f.strip()]
+            # T-03 fix: if git diff succeeded but returned an empty list (e.g. merge_base_sha
+            # was 'HEAD~1' on a repo with only one commit, or a pathological first-push case),
+            # return a sentinel list so callers force hard gate instead of silently skipping CAAS.
+            return files if files else ['__unknown_git_diff_empty__']
+        # T-03 fix: git diff failed — treat as unknown files changed → force hard gate.
+        return ['__unknown_git_diff_error__']
     except Exception:
         pass
-    return []
+    # T-03 fix: any exception means we cannot determine changed files → force hard gate.
+    return ['__unknown_git_diff_exception__']
 
 
 def matches(path: str, patterns: list[str]) -> bool:

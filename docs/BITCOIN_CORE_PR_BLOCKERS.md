@@ -10,9 +10,9 @@
 
 All four MUST-FIX blockers are closed. All SHOULD-FIX items are closed including
 cross-platform CI (#9, now fully evidenced across Linux x86_64, macOS ARM64, and
-Windows x86_64). The Bitcoin Core test suite runs **693/693 pass, 0 failures**
-(2026-04-27, `docs/BITCOIN_CORE_TEST_RESULTS.json`); a more recent run
-(2026-05-11) shows **749/749** (`docs/BITCOIN_CORE_BENCH_RESULTS.json`).
+Windows x86_64). The Bitcoin Core test suite runs **749/749 pass, 0 failures**
+(GCC 14.2.0, 2026-05-11, `docs/BITCOIN_CORE_BENCH_RESULTS.json`). An earlier
+Clang 19 run showed **693/693** (2026-04-27, `docs/BITCOIN_CORE_TEST_RESULTS.json`).
 
 All three remaining surface items (cross-platform CI, noncefp proof, DER parity
 matrix) are now closed with documented evidence.

@@ -477,6 +477,9 @@ jobs:
       - name: Check bundle freshness
         # MISS-5 fix: gate on 7-day max age so stale bundles are caught before
         # they are distributed to external auditors.
+        # T-16 fix: added if: always() so this step runs even after prior step failures,
+        # ensuring bundle-produce failure is caught and reported, not silently skipped.
+        if: always()
         run: |
           python3 - <<'EOF'
           import json, sys, time
@@ -953,10 +956,15 @@ jobs:
             git add docs/EVIDENCE_CHAIN.json
             git commit -m "[bot] update evidence chain — CAAS run ${{ github.run_id }} [skip ci]"
             # CAAS-005 fix: retry up to 3 times to handle transient concurrent-push
-            # conflicts. Non-blocking: a push failure after retries emits ::error::
-            # but does not fail the job — the chain is still preserved as an artifact.
-            for i in 1 2 3; do git push origin dev && break || sleep 5; done \
-              || echo "::error::Evidence chain push failed after 3 retries — chain is artifact-only (docs/EVIDENCE_CHAIN.json not updated in repo)"
+            # conflicts. T-16 fix: push failure now surfaces as ::warning:: in summary
+            # (non-blocking intentionally — chain is preserved as artifact regardless).
+            # We use a variable to capture the failure so the step itself still exits 0,
+            # but the warning is clearly recorded.
+            push_ok=false
+            for i in 1 2 3; do git push origin dev && push_ok=true && break || sleep 5; done
+            if [ "$push_ok" != "true" ]; then
+              echo "::warning::Evidence chain push failed after 3 retries — chain is artifact-only (docs/EVIDENCE_CHAIN.json not committed to repo)"
+            fi
           else
             echo "::notice::Evidence chain unchanged; nothing to commit."
           fi

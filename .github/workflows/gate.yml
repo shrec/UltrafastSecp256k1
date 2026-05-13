@@ -227,7 +227,9 @@ jobs:
           elif [ -f out/ci-release/run_selftest ]; then
             ./out/ci-release/run_selftest
           else
-            echo "selftest binary not found — skipping smoke (library built OK)"
+            # T-16: selftest binary absence = cmake misconfiguration, not a harmless skip.
+            echo "::error::selftest binary not found — cmake build may be misconfigured"
+            exit 1
           fi
 
       - name: Determinism gate (RFC 6979 + ECDH + BIP32)
@@ -450,10 +452,9 @@ jobs:
           retention-days: 365
 
       - name: Check CAAS evidence artifact not empty
-        # CAAS-002 fix: if-no-files-found:warn silently produces an empty artifact
-        # when all evidence files are missing (e.g. audit_gate step crashed before
-        # writing any JSON). Emit a visible warning so the empty-artifact case is
-        # surfaced in the step log rather than silently disappearing.
+        # T-16 fix: empty artifact is a gate failure, not just a warning.
+        # caas_audit_gate.json is always written on non-crash runs; if it's absent
+        # the audit_gate step crashed, which must fail CI (not just warn).
         if: always()
         shell: bash
         run: |
@@ -462,7 +463,8 @@ jobs:
             [ -f "$f" ] && found=$((found + 1))
           done
           if [ "$found" -eq 0 ]; then
-            echo "::warning::CAAS evidence artifact is empty — gate may have crashed before writing any JSON output"
+            echo "::error::CAAS evidence artifact is empty — gate crashed before writing any JSON output"
+            exit 1
           else
             echo "::notice::CAAS evidence artifact: $found file(s) present"
           fi
@@ -547,11 +549,15 @@ jobs:
           import json, sys
           with open("shim_audit_report.json") as f:
               r = json.load(f)
-          modules = r.get("modules", [])
+          # T-02 fix: modules are nested under sections[].modules[], not a flat top-level array.
+          # Field name is "id" (not "key"). Result is encoded as passed:bool + return_code:int.
+          modules = [m for s in r.get("sections", []) for m in s.get("modules", [])]
+          if not modules:
+              print("::error::Shim gate: no modules found in JSON — sections parse failed or empty report.")
+              sys.exit(1)
 
           # (a) Mandatory shim modules — must NOT be advisory_skipped when shim is linked.
-          # These were registered as advisory=true only because CI didn't link the shim;
-          # with SECP256K1_BUILD_SHIM=ON, they must run and pass.
+          # advisory_skipped = advisory:true AND return_code:77 (ADVISORY_SKIP_CODE).
           shim_mandatory_keys = [
               "exploit_shim_der_bip66", "exploit_shim_musig_secnonce",
               "exploit_shim_recovery_null_arg", "exploit_shim_pubkey_ct",
@@ -565,42 +571,44 @@ jobs:
               "regression_shim_high_s_verify", "regression_shim_perf_correctness",
               # SEC-001 MuSig2 ABI signer-index — C ABI, no GPU required
               "regression_musig2_abi_signer_index",
+              # 2026-05-13 v7 shim security regression
+              "regression_shim_security_v7",
           ]
           advisory_skipped = []
           for key in shim_mandatory_keys:
-              mod = next((m for m in modules if m.get("key") == key), None)
-              if mod and mod.get("result") == "advisory_skipped":
+              mod = next((m for m in modules if m.get("id") == key), None)
+              if mod and mod.get("advisory") is True and mod.get("return_code") == 77:
                   advisory_skipped.append(key)
           if advisory_skipped:
               print(f"::error::Shim modules advisory-skipped (stubs still in effect): {advisory_skipped}")
               print("The shim was not linked — secp256k1_shim target may be missing from this build.")
               sys.exit(1)
 
-          # (b) CI-012: Verify that all non-GPU advisory modules return ADVISORY_SKIP_CODE (77)
-          # not 0 (false pass) when their infrastructure is absent. In this shim build,
-          # GPU is absent so GPU-advisory modules should return 77. Non-GPU advisory modules
-          # (Python-dependent, Cryptol, OpenSSL-differential) should also return 77.
-          # A module returning 0 on a skip path is a false-pass bug (Rule 16).
+          # (b) CI-012: Advisory modules that returned 0 when they should return 77 (Rule 16).
+          # In the current JSON format, return_code=77 sets passed=false. An advisory module
+          # with passed=true AND return_code=0 that should have skipped is a false-pass.
+          # We detect GPU-advisory modules specifically (no GPU in shim CI).
           advisory_false_pass = []
           for mod in modules:
-              if mod.get("advisory") and mod.get("result") == "passed":
-                  # advisory=true + result=passed is only acceptable if the module
-                  # actually ran and tested something (elapsed_ms > 1 and skipped=false).
-                  # If skipped=true but result=passed, that is a false-pass (old behavior before fix).
-                  if mod.get("skipped") is True:
-                      advisory_false_pass.append(mod.get("key", "?"))
+              if mod.get("advisory") is True and mod.get("passed") is True and mod.get("return_code") == 0:
+                  mid = mod.get("id", "")
+                  # GPU-advisory modules should always return 77 in a no-GPU CI environment.
+                  if any(kw in mid for kw in ("gpu", "cuda", "metal", "opencl")):
+                      advisory_false_pass.append(mid)
           if advisory_false_pass:
-              print(f"::error::Advisory modules showing false-pass (skipped=True but result=passed): {advisory_false_pass}")
-              print("These modules returned 0 on a skip path instead of ADVISORY_SKIP_CODE (77). Rule 16 violation.")
+              print(f"::error::GPU advisory modules showing false-pass (returned 0 instead of 77): {advisory_false_pass}")
+              print("Rule 16 violation: advisory skip paths must return ADVISORY_SKIP_CODE (77), not 0.")
               sys.exit(1)
 
-          failed = [m["key"] for m in modules if m.get("result") == "failed"]
+          failed = [m.get("id", "?") for m in modules
+                    if not m.get("passed") and not (m.get("advisory") and m.get("return_code") == 77)]
           if failed:
               print(f"::error::Shim security modules FAILED: {failed}")
               sys.exit(1)
 
-          advisory_skipped_count = len([m for m in modules if m.get("result") == "advisory_skipped"])
-          print(f"::notice::Shim gate passed — {len(shim_mandatory_keys)} mandatory modules non-advisory, "
+          advisory_skipped_count = len([m for m in modules
+                                        if m.get("advisory") is True and m.get("return_code") == 77])
+          print(f"::notice::Shim gate passed — {len(shim_mandatory_keys)} mandatory modules checked, "
                 f"{advisory_skipped_count} advisory-skipped (infrastructure absent), 0 false-pass, 0 failed")
           PYEOF
 

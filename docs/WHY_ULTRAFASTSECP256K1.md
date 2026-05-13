@@ -9,7 +9,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 256 PoC files, 258 registered modules, 0 failures |
+| Exploit tests | 256 PoC files, 260 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
 | CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
@@ -71,7 +71,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 258 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 258 wired, 0 failures |
+| Exploit PoC tests | 260 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 260 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -80,8 +80,8 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 102 non-exploit modules + 258 exploit-PoC modules (360 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **258 exploit-PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **257 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 102 non-exploit modules + 260 exploit-PoC modules (360 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **260 exploit-PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **257 modules, 0 failures** |
 
 All 103 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
 All 258 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
@@ -198,7 +198,7 @@ Every benchmark number in this project is:
 - Gated by an automated performance regression check in CI (`bench-regression.yml`)
 - Published to a [live dashboard](https://shrec.github.io/UltrafastSecp256k1/dev/bench/) on pushes to dev/main
 
-**Sample verified numbers (RTX 5060 Ti, CUDA 12):**
+**Diagnostic GPU throughput (RTX 5060 Ti, CUDA 12) [unverified against current build — see GPU Profile section]:**
 
 | Operation | Throughput |
 |-----------|-----------|
@@ -208,16 +208,19 @@ Every benchmark number in this project is:
 | Schnorr verify (BIP-340) | 5.38 M/s |
 | FROST partial verify | 1.34 M/s |
 
-**Sample verified numbers (x86-64, i5-14400F, GCC 14.2.0 — current canonical):**
+*These are point-in-time diagnostic measurements. `canonical_numbers.json` status: "diagnostic — no canonical JSON artifact; unverified against current GPU build." Out of scope for Bitcoin Core evaluation.*
 
-See [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](bench_unified_2026-05-11_gcc14_x86-64.json) for raw measurements.
+**Canonical x86-64 numbers (i5-14400F, GCC 14.2.0, 2026-05-11):**
+
+Source: [`docs/bench_unified_2026-05-11_gcc14_x86-64.json`](bench_unified_2026-05-11_gcc14_x86-64.json)
 
 | Operation | Latency | Note |
 |-----------|---------|------|
 | CT ECDSA sign | ~24.1 µs | Production-safe CT path (GCC 14, Release+LTO) |
-| CT Schnorr sign | ~23.7 µs | Production-safe CT path (GCC 14, Release+LTO) |
+| CT Schnorr sign | ~20.9 µs | Production-safe CT path (GCC 14, Release+LTO) |
 | ECDSA verify | ~38.4 µs | Variable-time (correct for public data) |
-| Schnorr verify | ~35.1 µs | Variable-time (correct for public data) |
+| Schnorr verify (raw) | ~45.8 µs | Variable-time, no GLV cache warmup |
+| Schnorr verify (cached) | ~39.1 µs | Variable-time, warm GLV cache (64-key pool) |
 
 *[archived — Clang 19, 2026-03-24 numbers no longer current; GCC 14 canonical above]*
 

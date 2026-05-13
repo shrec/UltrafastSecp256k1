@@ -13,9 +13,10 @@ the ecosystem reference implementation. No existing code paths change. Bitcoin C
 is identical when using the default backend.
 
 The motivation is a compile-time opt-in for evaluation on hardware where the measurably
-faster CT signing paths (+10–35% on Taproot/ECDSA sign workloads, controlled benchmarks
-with raw evidence below) may benefit validation performance — while maintaining full
-libsecp256k1 C ABI compatibility.
+faster CT signing paths (+10–35% on Taproot/ECDSA sign workloads with Release+LTO,
+controlled benchmarks with raw evidence below; ConnectBlock aggregate +0.9–1.5% faster
+with LTO but ~0.5–1.0% slower without LTO) may benefit validation performance — while
+maintaining full libsecp256k1 C ABI compatibility.
 
 ### What this adds
 
@@ -23,8 +24,9 @@ A thin shim layer (`compat/libsecp256k1_shim/`) that maps the existing `secp256k
 C API surface to UltrafastSecp256k1 internals. To enable it:
 
 ```cmake
-# In CMakeLists.txt (or as -D flag):
-set(SECP256K1_BACKEND ultrafastsecp256k1)
+# In CMakeLists.txt (or as -D flag) — canonical flag name:
+option(SECP256K1_USE_ULTRAFAST "Use UltrafastSecp256k1 instead of bundled secp256k1" OFF)
+# Or equivalently: -DSECP256K1_USE_ULTRAFAST=ON
 ```
 
 No other changes are required. All `secp256k1_*` call sites in Bitcoin Core continue

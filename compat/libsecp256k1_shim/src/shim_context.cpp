@@ -174,7 +174,10 @@ void secp256k1_context_destroy(secp256k1_context *ctx) {
 // Bitcoin Core usage pattern (one context per thread, randomized once at startup):
 // identical behavior to before. Multi-context same-thread usage: now correct.
 int secp256k1_context_randomize(secp256k1_context *ctx, const unsigned char *seed32) {
-    if (!ctx) return 0;
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(nullptr, "secp256k1_context_randomize: NULL context");
+        return 0;
+    }
     if (seed32) {
         // Store seed; blinding is applied lazily per signing call via ContextBlindingScope.
         std::memcpy(ctx->blind, seed32, 32);

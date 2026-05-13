@@ -160,6 +160,11 @@ ufsecp_error_t ufsecp_ecdsa_adaptor_sign(
     }
     auto pre = secp256k1::ecdsa_adaptor_sign(sk, msg_arr, ap);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    // T-09: degenerate output guard — Rule 4: ABI wrappers must not emit zero/infinity
+    // pre-signatures as success (prob ~2^-128, but a fault-injection target).
+    if (pre.s_hat.is_zero() || pre.r.is_zero() || pre.R_hat.is_infinity()) {
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "adaptor sign produced degenerate output");
+    }
     auto rhat = pre.R_hat.to_compressed();
     auto shat = pre.s_hat.to_bytes();
     auto r_bytes = pre.r.to_bytes();

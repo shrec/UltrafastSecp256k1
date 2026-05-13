@@ -55,11 +55,12 @@ static void rsig_to_data(const secp256k1::RecoverableSignature& rsig,
 }
 
 static secp256k1::RecoverableSignature rsig_from_data(const unsigned char data[65]) {
-    std::array<uint8_t, 32> rb{}, sb{};
-    std::memcpy(rb.data(), data + 1,  32);
-    std::memcpy(sb.data(), data + 33, 32);
+    // T-07: strict parse — values >= n are cleared to zero so downstream verify fails cleanly.
+    Scalar r_scalar, s_scalar;
+    if (!Scalar::parse_bytes_strict(data + 1,  r_scalar)) r_scalar = Scalar::zero();
+    if (!Scalar::parse_bytes_strict(data + 33, s_scalar)) s_scalar = Scalar::zero();
     return {
-        { Scalar::from_bytes(rb), Scalar::from_bytes(sb) },
+        { r_scalar, s_scalar },
         static_cast<int>(data[0] & 0x03)
     };
 }
