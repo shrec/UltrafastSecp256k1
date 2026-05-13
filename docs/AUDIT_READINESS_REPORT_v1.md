@@ -277,7 +277,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 - 0 crashes across ~580K+ fuzz iterations (11 libFuzzer harnesses + 2 structured suites)
 - Three-tier CT verification: ct-verif (LLVM IR, CI), Valgrind CT (CI), dudect (statistical, CI) — all passing
 - Cryptol algebraic specifications for field, point, ECDSA, and Schnorr (QuickCheck validated)
-- 260 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
+- 261 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
 - 108 mathematical invariants cataloged, 107 fully verified
 - 263 unified audit modules across 9 failure classes — single-command reproducible
 - 14 CI workflows enforcing the above on every commit

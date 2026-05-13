@@ -47,7 +47,7 @@ exactly what to run and what to expect.
 | How does CAAS work? | [`docs/CAAS_PROTOCOL.md`](CAAS_PROTOCOL.md) |
 | Why CAAS instead of a snapshot PDF? | [`docs/CAAS_FAQ.md`](CAAS_FAQ.md) |
 | CT verification evidence | [`docs/CT_VERIFICATION.md`](CT_VERIFICATION.md) |
-| 260 exploit PoCs catalog | [`docs/EXPLOIT_TEST_CATALOG.md`](EXPLOIT_TEST_CATALOG.md) |
+| 261 exploit PoCs catalog | [`docs/EXPLOIT_TEST_CATALOG.md`](EXPLOIT_TEST_CATALOG.md) |
 | libsecp parity status | [`docs/BACKEND_PARITY.md`](BACKEND_PARITY.md) |
 | Thread safety guarantees | [`docs/THREAD_SAFETY.md`](THREAD_SAFETY.md) |
 | ABI versioning policy | [`docs/ABI_VERSIONING.md`](ABI_VERSIONING.md) |
@@ -112,7 +112,7 @@ The `bitcoin-core-backend` profile verifies:
 
 CAAS makes the following **verifiable** claims:
 
-- **260 exploit PoCs tests** covering known attack classes against secp256k1 — all pass on every commit.
+- **261 exploit PoCs tests** covering known attack classes against secp256k1 — all pass on every commit.
 - **Constant-time signing** — verified by three independent pipelines (ct-verif/LLVM IR, Valgrind taint, dudect statistical) on x86-64 and arm64.
 - **Parser strict parity** — shim boundary functions reject inputs outside the valid domain exactly as libsecp does.
 - **Zero ABI-incompatible changes** without an ABI version bump (enforced by test_abi_gate).

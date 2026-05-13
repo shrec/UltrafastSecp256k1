@@ -131,7 +131,7 @@ Two fixes were required:
 
 | Category | Status | Evidence |
 |----------|--------|---------|
-| **Code Quality** | ✅ A | CAAS 260 exploit PoCs, 0 drift |
+| **Code Quality** | ✅ A | CAAS 261 exploit PoCs, 0 drift |
 | **CT Security** | ✅ A | ct-verif, dudect, Valgrind — all sign paths CT; dead R.is_infinity() checks removed |
 | **C++17 Compatibility** | ✅ A | `PRIVATE cxx_std_20`, verified no public C++20 symbols |
 | **ABI Surface** | ✅ A | 693/693 (2026-04-27) · 749/749 (2026-05-11); canonical: `docs/BITCOIN_CORE_BENCH_RESULTS.json` |
