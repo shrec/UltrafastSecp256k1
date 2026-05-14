@@ -49,6 +49,20 @@ static inline bool gpu_runtime_unusable(int err) {
            err == UFSECP_ERR_GPU_DEVICE;
 }
 
+/* "Host-side input rejection" — error codes that the GPU host wrapper
+ * may return when it parses adversarial inputs BEFORE dispatching the
+ * kernel. UFSECP_ERR_BAD_INPUT / BAD_PUBKEY / BAD_SIG / BAD_KEY are all
+ * valid "we rejected this without computing a signature" responses for
+ * the negative-input batch tests below. The original test only accepted
+ * BAD_INPUT and missed BAD_PUBKEY which the frost/zk/bulletproof host
+ * functions return for malformed point encodings (prefix != 0x02/0x03/0x04). */
+static inline bool host_rejected_input(int err) {
+    return err == UFSECP_ERR_BAD_INPUT   ||
+           err == UFSECP_ERR_BAD_PUBKEY  ||
+           err == UFSECP_ERR_BAD_SIG     ||
+           err == UFSECP_ERR_BAD_KEY;
+}
+
 /* ============================================================================
  * 1. NULL pointer tests (no context needed)
  * ============================================================================ */
@@ -224,14 +238,14 @@ static void test_invalid_content_core_ops(ufsecp_gpu_ctx* ctx) {
 
     out_result[0] = 1;
     auto e2 = ufsecp_gpu_ecdsa_verify_batch(ctx, msg32, invalid_pub33, ecdsa_sig64, 1, out_result);
-    CHECK(gpu_runtime_unusable(e2) || e2 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e2) || host_rejected_input(e2)
               || (e2 == UFSECP_OK && out_result[0] == 0),
           "ecdsa_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
 
     schnorr_sig64[0] ^= 0x80;
     out_result[0] = 1;
     auto e3 = ufsecp_gpu_schnorr_verify_batch(ctx, msg32, xonly_pub32, schnorr_sig64, 1, out_result);
-    CHECK(gpu_runtime_unusable(e3) || e3 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e3) || host_rejected_input(e3)
               || (e3 == UFSECP_OK && out_result[0] == 0),
           "schnorr_verify_batch invalid signature: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
     schnorr_sig64[0] ^= 0x80;
@@ -422,26 +436,26 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     auto e1 = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, invalid_compressed33, compressed33,
                                                     compressed33, scalar32, scalar32, neg_r_in,
                                                     neg_k_in, 1, frost_out);
-    CHECK(gpu_runtime_unusable(e1) || e1 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e1) || host_rejected_input(e1)
               || (e1 == UFSECP_OK && frost_out[0] == 0),
           "frost_verify_partial_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 0;
     auto e2 = ufsecp_gpu_zk_knowledge_verify_batch(ctx, proof64, invalid_point65, scalar32, 1, out_result);
-    CHECK(gpu_runtime_unusable(e2) || e2 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e2) || host_rejected_input(e2)
               || (e2 == UFSECP_OK && out_result[0] == 0),
           "zk_knowledge_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 0;
     auto e3 = ufsecp_gpu_zk_dleq_verify_batch(ctx, proof64, invalid_point65, point65,
                                               point65, point65, 1, out_result);
-    CHECK(gpu_runtime_unusable(e3) || e3 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e3) || host_rejected_input(e3)
               || (e3 == UFSECP_OK && out_result[0] == 0),
           "zk_dleq_verify_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 0;
     auto e4 = ufsecp_gpu_bulletproof_verify_batch(ctx, proof324, point65, point65, 1, out_result);
-    CHECK(gpu_runtime_unusable(e4) || e4 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e4) || host_rejected_input(e4)
               || (e4 == UFSECP_OK && out_result[0] == 0),
           "bulletproof_verify_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
@@ -453,14 +467,14 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     out_valid[0] = 1;
     auto e6 = ufsecp_gpu_bip324_aead_decrypt_batch(ctx, key32, nonce12, wire51,
                                                    size_too_big, 32, 1, plain_out32, out_valid);
-    CHECK(gpu_runtime_unusable(e6) || e6 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e6) || host_rejected_input(e6)
               || (e6 == UFSECP_OK && out_valid[0] == 0),
           "bip324_aead_decrypt_batch oversized: UNSUPPORTED, ERR_BAD_INPUT, or marks invalid");
 
     out_valid[0] = 1;
     auto e7 = ufsecp_gpu_bip324_aead_decrypt_batch(ctx, key32, nonce12, wire51,
                                                    size_ok, 32, 1, plain_out32, out_valid);
-    CHECK(gpu_runtime_unusable(e7) || e7 == UFSECP_ERR_BAD_INPUT
+    CHECK(gpu_runtime_unusable(e7) || host_rejected_input(e7)
               || (e7 == UFSECP_OK && out_valid[0] == 0),
           "bip324_aead_decrypt_batch bad tag: UNSUPPORTED, ERR_BAD_INPUT, or marks invalid");
 
@@ -481,7 +495,7 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
             ctx, bad_msg, bad_pk, bad_sig, 1, witness_out);
         /* Either UNSUPPORTED (no GPU kernel yet) or ERR_BAD_INPUT — never OK for
          * all-zero input. Also accept LAUNCH/MEMORY/etc. for software Metal. */
-        CHECK(gpu_runtime_unusable(ew) || ew == UFSECP_ERR_BAD_INPUT,
+        CHECK(gpu_runtime_unusable(ew) || host_rejected_input(ew),
               "schnorr_snark_witness_batch invalid content returns expected error code");
     }
 }
