@@ -456,29 +456,22 @@ inline void mul_add_to(wide8& acc, std::size_t index, std::uint64_t a, std::uint
 }
 
 wide8 mul_wide(const limbs4& a, const limbs4& b) {
-#if defined(__SIZEOF_INT128__)
-    // Fully unrolled 4x4 Comba using __int128 accumulator per column.
-    // Eliminates all add_into() carry-chain while-loops from the portable path.
-    using u128 = unsigned __int128;
-    wide8 prod{};
-    u128 c;
-    c  = (u128)a[0]*b[0];
-    prod[0] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[0]*b[1] + (u128)a[1]*b[0];
-    prod[1] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[0]*b[2] + (u128)a[1]*b[1] + (u128)a[2]*b[0];
-    prod[2] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[0]*b[3] + (u128)a[1]*b[2] + (u128)a[2]*b[1] + (u128)a[3]*b[0];
-    prod[3] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[1]*b[3] + (u128)a[2]*b[2] + (u128)a[3]*b[1];
-    prod[4] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[2]*b[3] + (u128)a[3]*b[2];
-    prod[5] = (std::uint64_t)c; c >>= 64;
-    c += (u128)a[3]*b[3];
-    prod[6] = (std::uint64_t)c;
-    prod[7] = (std::uint64_t)(c >> 64);
-    return prod;
-#else
+    // mul_wide is reached only when SECP256K1_NO_ASM is defined (sanitizer /
+    // coverage / certain cross-compile builds). Performance is not critical
+    // on that path; correctness is.
+    //
+    // The prior "fast" __int128 single-accumulator Comba unrolling had a
+    // silent overflow at column 3: with all-max 64-bit limbs (e.g. p-1 or
+    // the test "large" vector), the column sum is up to 4 * (2^64-1)^2 plus
+    // the column-2 carry — roughly 2^130, which truncates inside the 128-bit
+    // accumulator. That caused wrong FE64 multiplication results for inputs
+    // whose 4x64 limbs approached p, which in turn broke FE52 vs FE64
+    // cross-checks in test_field_52 (and downstream selftest "Boundary
+    // Scalar KAT", Point::add SECP_ASSERT_ON_CURVE under Debug, etc.) on
+    // every Sanitizer / coverage / no-asm CI job.
+    //
+    // The portable add_into-based path used here propagates carries across
+    // the full wide8 array per product, so column overflow is impossible.
     wide8 prod{};
     for (std::size_t i = 0; i < 4; ++i) {
         for (std::size_t j = 0; j < 4; ++j) {
@@ -486,7 +479,6 @@ wide8 mul_wide(const limbs4& a, const limbs4& b) {
         }
     }
     return prod;
-#endif
 }
 
 // Phase 5.5: Fast modular reduction for secp256k1 prime
@@ -513,7 +505,9 @@ limbs4 reduce(const wide8& t) {
         std::uint64_t lo977 = 0, hi977 = 0;
         mul64(hi_limb, 977ULL, lo977, hi977);
 
-        // Compound add at position i: lo977 + (hi_limb << 32) in one shot
+        // Compound add at position i: lo977 + (hi_limb << 32) in one shot.
+        // `hi_limb << 32` in u64 loses the upper 32 bits, but that's intentional:
+        // the upper 32 bits are carried into position i+1 via `hi_limb >> 32`.
 #ifndef SECP256K1_NO_INT128
         using u128 = unsigned __int128;
         u128 acc = static_cast<u128>(result[i])
