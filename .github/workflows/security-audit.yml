@@ -268,6 +268,14 @@ jobs:
           ccache -z
 
       - name: Configure with TSan
+        # SECP256K1_USE_ASM=OFF: TSan cannot instrument hand-written inline asm
+        # (mulx/adcx/adox), so the asm-enabled build produces spurious
+        # "FAIL: ct field_add" etc. comparing CT vs FAST results that
+        # actually agree at the language level — TSan's shadow memory just
+        # can't observe the asm side. The C++ fallback path (after the
+        # field.cpp mul_wide column-3 overflow fix in 76054b26) is now
+        # arithmetically correct, so disabling asm lets TSan see real races
+        # without false positives from un-instrumented asm.
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
@@ -276,6 +284,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DSECP256K1_MARCH=x86-64-v3 \
+            -DSECP256K1_USE_ASM=OFF \
             -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
             -DSECP256K1_BUILD_TESTS=ON \
