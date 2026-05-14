@@ -52,23 +52,23 @@ static void test_large_squared_matches_truth() {
     FieldElement const mul = a * a;
 
     // Ground truth from Python: pow(2**255-1, 2, 2**256-0x1000003D1)
-    //                         = 0x400000000000000000000000000000000000000000000000400001e740039f64
+    //   = 0x400000000000000000000000000000000000000000000000400001e740039f64
+    // Bytes (BE, MSB first): the result is deterministic — no RFC-6979
+    // randomness here, so we compare all 32 bytes exactly.
     std::uint8_t const expected[32] = {
         0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x1e, 0x74,
+        0x40, 0x00, 0x01, 0xe7, 0x40, 0x03, 0x9f, 0x64,
     };
 
     auto sq_bytes = sq.to_bytes();
     auto mul_bytes = mul.to_bytes();
 
-    // Test only the deterministic high bits — the low 4 bytes carry per-build
-    // BIP-340 / RFC-6979 nondeterminism but the high portion is constant.
-    CHECK(std::memcmp(sq_bytes.data(), expected, 28) == 0,
-          "FE.square(): high 28 bytes match Python ground truth");
-    CHECK(std::memcmp(mul_bytes.data(), expected, 28) == 0,
-          "FE.operator*: high 28 bytes match Python ground truth");
+    CHECK(std::memcmp(sq_bytes.data(), expected, 32) == 0,
+          "FE.square(): all 32 bytes match Python ground truth");
+    CHECK(std::memcmp(mul_bytes.data(), expected, 32) == 0,
+          "FE.operator*: all 32 bytes match Python ground truth");
     CHECK(sq == mul, "square() == operator*");
 }
 
