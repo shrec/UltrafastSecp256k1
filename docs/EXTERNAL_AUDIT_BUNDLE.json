@@ -204,8 +204,12 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-14T04:49:19)",
+                "message": "2 files modified/deleted since graph build (2026-05-14T04:49:19)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
@@ -380,7 +384,7 @@
           {
             "findings": [
               {
-                "message": "7 changed files have matching docs",
+                "message": "2 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -618,11 +622,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "9572d8adfd0f7eea63874bc1553213a5145aa340",
-            "short": "9572d8adfd"
+            "sha": "e3f3d121fdd5f7c549ce691232bbd73402e24940",
+            "short": "e3f3d121fd"
           }
         },
-        "generated_at": "2026-05-14T04:49:58.590313+00:00",
+        "generated_at": "2026-05-14T05:15:44.418276+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -639,12 +643,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-14T04:49:58.590257+00:00",
+          "collected_at": "2026-05-14T05:15:44.418238+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "9572d8adfd0f7eea63874bc1553213a5145aa340",
-            "short": "9572d8adfd"
+            "sha": "e3f3d121fdd5f7c549ce691232bbd73402e24940",
+            "short": "e3f3d121fd"
           },
           "platform": {
             "machine": "x86_64",
@@ -665,7 +669,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-9572d8adfd-20260514T044958",
+        "run_id": "audit_gate-e3f3d121fd-20260514T051544",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -825,7 +829,12 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-14T04:49:19)"
+                "title": "2 files modified/deleted since graph build (2026-05-14T04:49:19)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1039,7 +1048,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "7 changed files have matching docs"
+                "title": "2 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1312,12 +1321,12 @@
           }
         ],
         "summary": {
-          "advisory": 52,
+          "advisory": 53,
           "blocking": 0,
-          "info": 44,
+          "info": 45,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 97,
+          "total_findings": 98,
           "warnings": 8
         },
         "verdict": "PASS with advisory"
@@ -1325,8 +1334,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "8bd27f0ba51b72f81ac4482a426dfa66cd24b611036e54c123da244f2588035c",
-      "stdout_sha256": "5b22bdff5954cecad942fad0f6b88c86810183e018bc3eca5e2c7c3a0647c9ce"
+      "stderr_sha256": "df59f2db5acebb5c37acdf316737472d2aa4308c04883ce9b6c37d340136dd3d",
+      "stdout_sha256": "0cd606a66fa5f2a731f353436085dac5e7a3cd67c7053d1d45ccac2301a96784"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1628,13 +1637,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-14T04:49:59.846700+00:00"
+        "timestamp": "2026-05-14T05:15:45.669352+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "8c415f28392dc5002eed733da4a021a58c7657b7e0e0d3e22cc87b4a49bdc063"
+      "stdout_sha256": "d5ed11b89abfb57b525d7db2b8adb26a92924fd20ac9e11ddfbe358016baa7b5"
     },
     {
       "name": "supply_chain_gate",
@@ -1680,19 +1689,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-14T04:49:59.885343+00:00"
+        "timestamp": "2026-05-14T05:15:45.706263+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "464c06f2e196f501a9fa463eac4fa3b311dc184de16a67ad0d9455326e78ea4c"
+      "stdout_sha256": "b8913810f5706920f7302f94d954f9fa5682194183fe8be818fd11a036e8993e"
     }
   ],
-  "generated_at": "2026-05-14T04:49:59.899211+00:00",
+  "generated_at": "2026-05-14T05:15:45.719467+00:00",
   "git": {
     "branch": "dev",
-    "commit": "9572d8adfd0f7eea63874bc1553213a5145aa340",
+    "commit": "e3f3d121fdd5f7c549ce691232bbd73402e24940",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
