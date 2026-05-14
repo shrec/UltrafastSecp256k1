@@ -126,7 +126,7 @@
           {
             "findings": [
               {
-                "message": "No uncommitted changes to evaluate",
+                "message": "No changed secret-bearing paths detected",
                 "severity": "PASS"
               }
             ],
@@ -204,8 +204,12 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-14T00:23:49)",
+                "message": "2 files modified/deleted since graph build (2026-05-14T01:05:05)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/AUDIT_CHANGELOG.md",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
@@ -380,7 +384,7 @@
           {
             "findings": [
               {
-                "message": "No uncommitted changes",
+                "message": "5 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -596,7 +600,7 @@
                 "severity": "PASS"
               },
               {
-                "message": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/field_52.cpp']",
+                "message": "2 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/schnorr.cpp', 'src/cpu/src/field_52.cpp']",
                 "severity": "WARN"
               },
               {
@@ -616,13 +620,13 @@
           "reason": null,
           "status": "available",
           "value": {
-            "dirty": false,
+            "dirty": true,
             "ref": "dev",
-            "sha": "8fdb29e2043600fd6e7fe373e7140fe596201d8e",
-            "short": "8fdb29e204"
+            "sha": "ec2464e9e15e6525148e6b4f9e7f6d7555ddc66c",
+            "short": "ec2464e9e1"
           }
         },
-        "generated_at": "2026-05-14T00:24:30.562396+00:00",
+        "generated_at": "2026-05-14T01:06:38.762057+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -639,12 +643,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-14T00:24:30.562356+00:00",
+          "collected_at": "2026-05-14T01:06:38.762017+00:00",
           "git": {
-            "dirty": false,
+            "dirty": true,
             "ref": "dev",
-            "sha": "8fdb29e2043600fd6e7fe373e7140fe596201d8e",
-            "short": "8fdb29e204"
+            "sha": "ec2464e9e15e6525148e6b4f9e7f6d7555ddc66c",
+            "short": "ec2464e9e1"
           },
           "platform": {
             "machine": "x86_64",
@@ -665,7 +669,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-8fdb29e204-20260514T002430",
+        "run_id": "audit_gate-ec2464e9e1-20260514T010638",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -738,7 +742,7 @@
               {
                 "check_id": "p0__secret-path_change_gate",
                 "severity": "pass",
-                "title": "No uncommitted changes to evaluate"
+                "title": "No changed secret-bearing paths detected"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
@@ -825,7 +829,12 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-14T00:23:49)"
+                "title": "2 files modified/deleted since graph build (2026-05-14T01:05:05)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/AUDIT_CHANGELOG.md"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1039,7 +1048,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "No uncommitted changes"
+                "title": "5 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1294,7 +1303,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "advisory:medium",
-                "title": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/field_52.cpp']"
+                "title": "2 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/schnorr.cpp', 'src/cpu/src/field_52.cpp']"
               },
               {
                 "check_id": "g-12__source_graph_quality",
@@ -1312,12 +1321,12 @@
           }
         ],
         "summary": {
-          "advisory": 52,
+          "advisory": 53,
           "blocking": 0,
-          "info": 44,
+          "info": 45,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 97,
+          "total_findings": 98,
           "warnings": 8
         },
         "verdict": "PASS with advisory"
@@ -1325,8 +1334,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "4adbd05b9dbe5ad8f50fd49768aedf71416357a3d105a89753c77748fec2cbbe",
-      "stdout_sha256": "b299e8b4674cd4ee18376444ad1d51f47395b7de8b8d77e3fd93da6e7a20729f"
+      "stderr_sha256": "e837783a1b25e39cafe80eb4dfb7b4d9aff82308c6e73f5c0cd58b78cdf97321",
+      "stdout_sha256": "13bd11d3da9a5596ef1deccf46b8806d6be97b740fa5aca5bf488358953885b3"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1628,13 +1637,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-14T00:24:31.860845+00:00"
+        "timestamp": "2026-05-14T01:06:39.990499+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "46889554d27a8b45f04397ea6cd93a33dbd85144a93239bc1fdc95d867237377"
+      "stdout_sha256": "e1191232dc1fb90fa7fa34aafe64e99d75ad0cfa41333b6331461065890608bc"
     },
     {
       "name": "supply_chain_gate",
@@ -1680,19 +1689,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-14T00:24:31.894809+00:00"
+        "timestamp": "2026-05-14T01:06:40.030716+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "4d3582ef7ae49d20188c23a8967abc00ebbacb7eaf58c95178394f875a328ba7"
+      "stdout_sha256": "0950f065c6660864ece543506daa63ff7f2b09d5c399372ca285672d8c181b3d"
     }
   ],
-  "generated_at": "2026-05-14T00:24:31.909654+00:00",
+  "generated_at": "2026-05-14T01:06:40.044043+00:00",
   "git": {
     "branch": "dev",
-    "commit": "8fdb29e2043600fd6e7fe373e7140fe596201d8e",
+    "commit": "ec2464e9e15e6525148e6b4f9e7f6d7555ddc66c",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

@@ -347,7 +347,13 @@ std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
 // -- SchnorrKeypair Creation --------------------------------------------------
 
 SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
-    SECP_ASSERT_SCALAR_VALID(private_key);
+    // NOTE: This function intentionally accepts a zero scalar and returns
+    // an empty SchnorrKeypair (kp.px == 0). Audit/regression tests
+    // (test_abi_recoverable_recovery_ct_schnorr etc.) deliberately invoke
+    // the function with zero to verify graceful rejection — asserting
+    // non-zero here would crash those tests in Debug builds. Caller code
+    // either passes a strict-parsed scalar (which is already non-zero) or
+    // is testing the zero-input behaviour explicitly.
     SchnorrKeypair kp{};
     auto d_prime = private_key;
     if (ct::scalar_is_zero(d_prime)) return kp;

@@ -1,5 +1,36 @@
 # Audit Changelog
 
+## 2026-05-14 — CI/Build Cleanup Cycle (linux + armv7 + macOS + Debug)
+
+### Build / Test
+- **CI-armv7** `src/cpu/include/secp256k1/field_52_impl.hpp:2750`:
+  Replaced 4 direct `unsigned __int128` uses in `fe52_from_4x64_overflow`
+  with `::secp256k1::detail::u128_compat`. After widening the FE52 guard
+  in commit `a0b35c8c` to also activate under `SECP256K1_NO_INT128`, this
+  function body became reachable on armv7 (which sets `SECP256K1_NO_INT128=1`
+  in `src/cpu/CMakeLists.txt:667`) but still contained a native-only type.
+  Android `armeabi-v7a` build was failing with
+  `error: __int128 is not supported on this target`.
+- **CI-test-NULLctx** `audit/test_exploit_encoding_memory_corruption.cpp`
+  + `audit/test_exploit_shim_der_bip66.cpp`:
+  Both tests called shim DER parser functions with `nullptr` as ctx,
+  triggering libsecp256k1's default illegal_callback (which aborts). Linux
+  Release+Debug CTest runs reported `Subprocess aborted` instead of running
+  the actual adversarial-input checks. Fixed: create a real
+  `secp256k1_context` + install a no-op illegal callback so the parsers
+  return 0 for bad input rather than crashing the process. Eight + six
+  adversarial DER/encoding inputs now report PASS/FAIL cleanly.
+- **CI-debug-assert** `src/cpu/src/schnorr.cpp:350`:
+  Removed redundant `SECP_ASSERT_SCALAR_VALID(private_key)` in
+  `schnorr_keypair_create`. The function already has a graceful zero-scalar
+  path (`if (ct::scalar_is_zero(d_prime)) return kp;`) — the assertion
+  contradicted that contract and crashed Linux Debug builds when audit
+  tests (e.g. `test_abi_recoverable_recovery_ct_schnorr`) deliberately
+  invoked the function with zero to verify rejection.
+
+### Documentation
+- Updated this changelog with the four CI-track cleanup fixes above.
+
 ## 2026-05-13 — Performance Cleanups (NEW-PERF-001/002/004)
 
 ### Performance / Code Quality
