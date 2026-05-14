@@ -67,6 +67,20 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "9572d8adfd": (
+        ["src/cpu/tests/test_arithmetic_correctness.cpp",
+         "src/cpu/tests/test_large_scalar_multiplication.cpp"],
+        "WASM/MSVC follow-up to 76054b26: gated scalar.cpp's residual "
+        "__int128 sites with !SECP256K1_NO_INT128 so wasm32 takes the "
+        "portable safegcd30 + manual-carry negate path, plus added a "
+        "SECP256K1_RESTRICT macro shim so the MSVC field_52_impl.hpp "
+        "build no longer fails on __restrict__ syntax. The existing "
+        "scalar arithmetic test suite (test_arithmetic_correctness + "
+        "test_large_scalar_multiplication) covers inverse + negate on "
+        "the safegcd / negate paths — every USE_ASM=OFF build re-runs "
+        "them and they catch any divergence between the int128 and "
+        "portable scalar code paths.",
+    ),
     "76054b2683": (
         ["src/cpu/tests/test_field_52.cpp"],
         "FE64 mul_wide column-3 u128 overflow fix. The existing test_field_52 "

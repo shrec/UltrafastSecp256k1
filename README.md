@@ -41,8 +41,13 @@ It is not a trust request. It is a verification package.
 
 **Reproduce from patch (primary — stable):**
 ```bash
+# Point UFSECP at an existing UltrafastSecp256k1 clone (absolute path).
+# Required because the patch sits inside docs/ of THIS repo, and on a
+# fresh Bitcoin Core clone src/ultrafast_secp256k1 does not exist yet —
+# `git -C src/ultrafast_secp256k1 ...` would fail before submodule init.
+UFSECP=/absolute/path/to/UltrafastSecp256k1
 git clone https://github.com/bitcoin/bitcoin && cd bitcoin
-git apply $(git -C src/ultrafast_secp256k1 rev-parse --show-toplevel)/docs/INTEGRATION_PATCH.patch
+git apply "$UFSECP/docs/INTEGRATION_PATCH.patch"
 git submodule update --init src/ultrafast_secp256k1
 cmake --preset ultrafast-bench   # Release + LTO — required for accurate ConnectBlock numbers
 cmake --build out/build-ultrafast-lto -j$(nproc)

@@ -195,6 +195,27 @@ Reports are:
 3. Available for `diff`, `divergence`, and `flakes` analysis
 4. SARIF exports uploaded to GitHub Code Scanning
 
+## Workflow consolidation history
+
+The repository historically had two separate workflows that have since been
+consolidated; their removal is intentional and the replacements are listed
+here so reviewers do not chase deleted files.
+
+The legacy `pipeline.yml` (a `workflow_run`-chained phased CI) was removed
+in commit `a009cfaf` and replaced by `gate.yml` (impact-based block gate)
+plus `ci.yml` (platform/sanitizer matrix) — both run directly on push/PR
+with no `workflow_run` indirection.
+
+The standalone `gcc-analyzer.yml` job was removed in commit `25c8aa8f`
+when the static-analysis surface was consolidated. The replacement
+coverage is provided by `cppcheck.yml`, `clang-sa.yml`, `clang-tidy.yml`,
+`infer.yml`, `codeql.yml`, and `code-quality.yml`. GCC's `-fanalyzer` was
+dropped because it duplicated Clang Static Analyzer findings without
+adding new signals in our codebase.
+
+The `check_doc_drift.py` gate enforces that no doc references the
+removed names outside this exempted tombstone paragraph.
+
 ## SKIP handling
 
 When a check cannot run due to platform or feature constraints:
