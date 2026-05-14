@@ -594,11 +594,23 @@ jobs:
           # (b) CI-012: Advisory modules that returned 0 when they should return 77 (Rule 16).
           # In the current JSON format, return_code=77 sets passed=false. An advisory module
           # with passed=true AND return_code=0 that should have skipped is a false-pass.
-          # We detect GPU-advisory modules specifically (no GPU in shim CI).
+          # We detect GPU-advisory modules specifically (no GPU in shim CI) — UNLESS the
+          # module is a source-code content check that does not require GPU runtime.
+          # Source-content tests legitimately return 0 (PASS) when their target file is
+          # found at the runtime cwd; they correctly return 77 only when the file path
+          # cannot be resolved. Their advisory=true reflects that source-tree availability
+          # is environmental, not their semantics.
+          source_content_allowlist = {
+              # Reads src/metal/shaders/secp256k1_extended.h and pattern-matches
+              # for the SECURITY FIX (CRITICAL-1) annotation. No Metal runtime invoked.
+              "test_exploit_metal_schnorr_aux_rand",
+          }
           advisory_false_pass = []
           for mod in modules:
               if mod.get("advisory") is True and mod.get("passed") is True and mod.get("return_code") == 0:
                   mid = mod.get("id", "")
+                  if mid in source_content_allowlist:
+                      continue
                   # GPU-advisory modules should always return 77 in a no-GPU CI environment.
                   if any(kw in mid for kw in ("gpu", "cuda", "metal", "opencl")):
                       advisory_false_pass.append(mid)
