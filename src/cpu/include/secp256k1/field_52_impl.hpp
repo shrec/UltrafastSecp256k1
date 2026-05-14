@@ -2805,11 +2805,13 @@ FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
 
 // Forward declaration (defined in field.cpp alongside fe52_inverse_safegcd_var)
 // fe52_jacobi_var is defined in src/field.cpp under a __SIZEOF_INT128__ guard
-// (SafeGCD posdivstep needs __int128). MSVC has no __int128 and would link-fail
-// on the symbol; the FE52::jacobi_var() inline wrapper is hidden in lockstep
-// to avoid emitting a use-site reference. Callers on MSVC must use the 4x64
-// FieldElement::jacobi_var() which has its own non-int128 path.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
+// (SafeGCD posdivstep operates on __int128). MSVC has no __int128 and would
+// link-fail on the symbol; hide the inline wrapper in lockstep to avoid
+// emitting a use-site reference. Callers on MSVC must use the 4x64
+// FieldElement::jacobi_var() which has its own non-int128 path. Wasm and
+// other 32-bit-with-__int128 targets DO emit the function (Emscripten
+// supplies emulated __int128 via compiler-rt).
+#if defined(__SIZEOF_INT128__)
 extern int fe52_jacobi_var(const std::uint64_t* in5);
 
 SECP256K1_FE52_FORCE_INLINE

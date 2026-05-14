@@ -166,9 +166,12 @@ struct alignas(8) FieldElement52 {
     // -- Jacobi / Legendre symbol (QR check via posdivstep SafeGCD) --
     // Returns +1 if quadratic residue mod p, -1 if not, 0 if zero.
     // ~734 ns (posdivstep SafeGCD), 5× faster than Fermat sqrt (~3.8 µs).
-    // Implementation requires __int128 (SafeGCD posdivstep); on MSVC use the
-    // 4x64 FieldElement::jacobi_var() instead.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
+    // Requires __int128 (SafeGCD posdivstep operates on 128-bit accumulators).
+    // MSVC does NOT define __SIZEOF_INT128__, so this declaration is hidden
+    // and MSVC callers must route through FieldElement::jacobi_var() (the
+    // 4x64 path has its own implementation). Wasm and other 32-bit-with-
+    // __int128-emulation targets DO define __SIZEOF_INT128__ and use this.
+#if defined(__SIZEOF_INT128__)
     int jacobi_var() const noexcept;
 #endif
 
