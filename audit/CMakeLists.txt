@@ -3702,6 +3702,9 @@ add_executable(unified_audit_runner
     # Regression: Clang sanitizer detection in ct_field.cpp (2026-05-14)
     # Guards that SECP256K1_HAS_SANITIZER covers GCC + Clang spellings.
     test_regression_ct_sanitizer_detection.cpp
+    # Regression: FE64 reduce() carry propagation in field.cpp (2026-05-14)
+    # Guards the result[2]→[3]→[4] cascade for (2^255-1)^2 mod p.
+    test_regression_field_reduce_carry.cpp
     # Regression: CT nonce path uses generator_mul_blinded (2026-05-12)
     # Guards that ct::ecdsa_sign / ct::schnorr_sign activate DPA blinding.
     test_regression_ct_blinding_nonce_path.cpp
@@ -4240,6 +4243,18 @@ add_test(NAME regression_ct_sanitizer_detection
     COMMAND test_regression_ct_sanitizer_detection_standalone)
 set_tests_properties(regression_ct_sanitizer_detection PROPERTIES TIMEOUT 60
     LABELS "audit;ct_analysis;regression;sanitizer")
+
+# 2026-05-14: regression guard for FE64 reduce() carry propagation.
+# Verifies (2^255-1)^2 mod p matches Python ground truth, which is the
+# input pattern that previously triggered the result[2] overflow drop.
+add_executable(test_regression_field_reduce_carry_standalone
+    test_regression_field_reduce_carry.cpp)
+audit_target_defaults(test_regression_field_reduce_carry_standalone)
+target_compile_definitions(test_regression_field_reduce_carry_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_field_reduce_carry
+    COMMAND test_regression_field_reduce_carry_standalone)
+set_tests_properties(regression_field_reduce_carry PROPERTIES TIMEOUT 30
+    LABELS "audit;math;regression;field")
 
 option(SECP256K1_BUILD_LIBFUZZER
        "Build LibFuzzer harnesses (requires clang -fsanitize=fuzzer,address)" OFF)

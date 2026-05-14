@@ -583,7 +583,24 @@ limbs4 reduce(const wide8& t) {
                   + static_cast<std::uint64_t>(acc0 >> 64);
         result[1] = static_cast<std::uint64_t>(acc1);
         std::uint64_t carry = static_cast<std::uint64_t>(acc1 >> 64);
-        if (carry) result[2] += carry;
+        // Carry MUST be propagated through every higher limb until it lands
+        // in a non-overflowing slot — `result[2] += carry` alone silently
+        // drops any overflow into result[3], which was the actual cause of
+        // the "mul(large, large)" / "square(large)" / Boundary Scalar KAT
+        // failures: result[2] was 0xFFFF.. so += 1 wrapped to 0 without
+        // ever bumping result[3]. The propagation also covers result[3],
+        // since high-magnitude inputs can land overflow there too.
+        if (carry) {
+            u128 acc2 = static_cast<u128>(result[2]) + carry;
+            result[2] = static_cast<std::uint64_t>(acc2);
+            std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
+            if (carry2) {
+                u128 acc3 = static_cast<u128>(result[3]) + carry2;
+                result[3] = static_cast<std::uint64_t>(acc3);
+                std::uint64_t carry3 = static_cast<std::uint64_t>(acc3 >> 64);
+                if (carry3) result[4] += carry3;
+            }
+        }
 #else
         // No __int128: use mul64 to compute overflow * 0x1000003D1 (at most 67 bits)
         std::uint64_t term_lo = 0, term_hi = 0;
@@ -596,7 +613,16 @@ limbs4 reduce(const wide8& t) {
         std::uint64_t t1 = add64c2(result[1], term_hi, c1a);
         result[1] = add64c2(t1, c0, c1b);
         std::uint64_t carry = c1a + c1b;
-        if (carry) result[2] += carry;
+        // Same full-cascade propagation as the __int128 path (see note above).
+        if (carry) {
+            std::uint64_t c2 = 0;
+            result[2] = add64c2(result[2], carry, c2);
+            if (c2) {
+                std::uint64_t c3 = 0;
+                result[3] = add64c2(result[3], c2, c3);
+                if (c3) result[4] += c3;
+            }
+        }
 #endif
     }
 

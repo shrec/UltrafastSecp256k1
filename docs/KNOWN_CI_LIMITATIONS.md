@@ -13,16 +13,25 @@ should we pretend the fixes are simple one-liners.
 
 ## 1. ~~FE52 generic Comba multiplication has wrong outputs~~ — RESOLVED 2026-05-14 (c389c984)
 
-**RESOLUTION 2026-05-14:** The root cause was **not** the FE52 Comba
-algorithm. The actual cause was that `ct_field.cpp` used GCC-only
-`__SANITIZE_*` macros to disable an LTO-defeating asm memory barrier
-under sanitizers. Clang does not define those macros, so under Clang
-TSan/MSan/ASan the barrier ran and was instrumented by the shadow
-memory tracker, producing wrong field arithmetic.
+**RESOLUTION 2026-05-14:** Two independent bugs, both pre-existing:
 
-Fixed by introducing `SECP256K1_HAS_SANITIZER` (covering both GCC and
-Clang `__has_feature`). See `c389c984`. Original hypothesis preserved
-below for historical context.
+1. **`ct_field.cpp` Clang sanitizer detection (commit `c389c984`).**
+   GCC-only `__SANITIZE_*` macros were used as guards. Clang does not
+   define those, so under Clang TSan/MSan/ASan the LTO-defeating asm
+   memory barrier ran and was instrumented by the shadow memory
+   tracker — producing wrong `ct field_add` etc. results. Fixed via
+   `SECP256K1_HAS_SANITIZER` macro that covers both GCC + Clang.
+
+2. **`field.cpp::reduce()` second-half carry drop (commit `2026-05-14`).**
+   After the `mul_wide` column-3 fix at `76054b26`, the `reduce()`
+   overflow-fold step still had `if (carry) result[2] += carry;` with
+   no further propagation. For `large × large` inputs the
+   `result[2]` overflow was silently dropped, yielding a value off by
+   2^192. Fixed by cascading the carry through `result[2] →
+   result[3] → result[4]`.
+
+The FE52 generic Comba algorithm was NEVER the bug — it produced
+correct results all along.
 
 ---
 

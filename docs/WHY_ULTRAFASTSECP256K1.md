@@ -83,7 +83,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | **Total (audit runner)** | **unified_audit_runner** across 104 non-exploit modules + 261 exploit-PoC modules (365 total) | **~1,000,000+** |
 | **Total (exploit PoC tests)** | **261 exploit-PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **261 modules, 0 failures** |
 
-All 105 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
+All 106 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
 All 261 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
 
 ### Self-Audit Documents

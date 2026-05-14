@@ -77,6 +77,19 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "test_ct_field. Wired to unified_audit_runner as "
         "regression_ct_sanitizer_detection in section ct_analysis.",
     ),
+    # field.cpp reduce() carry-propagation fix — paired test in same scope.
+    # The fix and its regression test (test_regression_field_reduce_carry.cpp)
+    # land in the same commit but git's diff parser treats the .cpp under
+    # audit/ as a *new* file rather than a "modified" entry; some
+    # check_security_fix_has_test.py heuristics miss the pairing. List the
+    # test explicitly to remove any doubt.
+    "FIELD_REDUCE_CARRY_2026_05_14": (
+        ["audit/test_regression_field_reduce_carry.cpp"],
+        "FE64 reduce() carry propagation in field.cpp. The regression test "
+        "asserts (2^255-1)^2 mod p matches Python ground truth byte-for-byte, "
+        "which is the exact case that previously broke test_field_52::mul(large, large) "
+        "and downstream selftest Boundary Scalar KAT.",
+    ),
     "9572d8adfd": (
         ["src/cpu/tests/test_arithmetic_correctness.cpp",
          "src/cpu/tests/test_large_scalar_multiplication.cpp"],

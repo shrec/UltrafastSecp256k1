@@ -1,5 +1,32 @@
 # Audit Changelog
 
+## 2026-05-14 — Fix: FE64 reduce() carry propagation (second-half)
+
+### Root cause
+After commit `76054b26` corrected the `mul_wide` column-3 overflow,
+`field.cpp::reduce()` Step 3 ("fold overflow") still had a silent
+carry drop:
+```cpp
+if (carry) result[2] += carry;
+```
+When `result[2] == 0xFFFF...F` (the exact state reached when reducing
+the wide-product of `(2^255-1)^2`), the `+= carry` wrapped to 0 and the
+new carry into `result[3]` was discarded. The final value differed
+from the correct mod-p answer by exactly 2^192, manifesting as:
+- `FAIL: mul(large, large)` / `square(large)` in `test_field_52`
+- `Boundary Scalar KAT` mismatch in `selftest`
+- Debug `SECP_ASSERT_ON_CURVE FAILED` in `Point::add` via FE52 mul
+on every USE_ASM=OFF build (sanitizers, coverage, no-asm cross).
+
+### Fix
+Replaced the single-line update with a full carry cascade through
+`result[2] → result[3] → result[4]`, identical structure on the
+`SECP256K1_NO_INT128` portable branch. Verified locally: 270/270
+test_field_52 vectors pass; selftest 30/30 modules.
+
+Regression test: `audit/test_regression_field_reduce_carry.cpp`
+asserts `(2^255-1)^2 mod p` matches Python ground truth byte-for-byte.
+
 ## 2026-05-14 — Fix: Clang sanitizer detection in ct_field.cpp
 
 ### Root cause

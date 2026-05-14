@@ -156,7 +156,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=369, critical=0, high=0, medium=0, low=1",
+                "message": "Audit test-quality findings: files=370, critical=0, high=0, medium=0, low=2",
                 "severity": "INFO"
               },
               {
@@ -164,7 +164,11 @@
                 "severity": "INFO"
               },
               {
-                "message": "1 low-severity audit-test-quality findings remain",
+                "message": "low test_regression_field_reduce_carry.cpp:101 vacuous_check",
+                "severity": "INFO"
+              },
+              {
+                "message": "2 low-severity audit-test-quality findings remain",
                 "severity": "WARN"
               }
             ],
@@ -204,8 +208,16 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-14T10:34:29)",
+                "message": "3 files modified/deleted since graph build (2026-05-14T12:36:44)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/AUDIT_CHANGELOG.md",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/KNOWN_CI_LIMITATIONS.md",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
@@ -248,7 +260,7 @@
           {
             "findings": [
               {
-                "message": "30 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow",
+                "message": "31 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow",
                 "severity": "WARN"
               }
             ],
@@ -380,8 +392,8 @@
           {
             "findings": [
               {
-                "message": "1 changed files have matching docs",
-                "severity": "PASS"
+                "message": "CMakeLists.txt changed but docs/BUILDING.md not updated",
+                "severity": "WARN"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -618,11 +630,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "8181aa18b506712e32ea1c3a3202ad703ee5eb7e",
-            "short": "8181aa18b5"
+            "sha": "ed3c6bc85ecc5bae4d38cef4f696d9bc1fac1f59",
+            "short": "ed3c6bc85e"
           }
         },
-        "generated_at": "2026-05-14T11:08:06.980935+00:00",
+        "generated_at": "2026-05-14T12:40:20.581801+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -639,12 +651,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-14T11:08:06.980881+00:00",
+          "collected_at": "2026-05-14T12:40:20.581763+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "8181aa18b506712e32ea1c3a3202ad703ee5eb7e",
-            "short": "8181aa18b5"
+            "sha": "ed3c6bc85ecc5bae4d38cef4f696d9bc1fac1f59",
+            "short": "ed3c6bc85e"
           },
           "platform": {
             "machine": "x86_64",
@@ -665,7 +677,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-8181aa18b5-20260514T110806",
+        "run_id": "audit_gate-ed3c6bc85e-20260514T124020",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -771,7 +783,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=369, critical=0, high=0, medium=0, low=1"
+                "title": "Audit test-quality findings: files=370, critical=0, high=0, medium=0, low=2"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -780,8 +792,13 @@
               },
               {
                 "check_id": "p2__audit_test_quality",
+                "severity": "info",
+                "title": "low test_regression_field_reduce_carry.cpp:101 vacuous_check"
+              },
+              {
+                "check_id": "p2__audit_test_quality",
                 "severity": "advisory:medium",
-                "title": "1 low-severity audit-test-quality findings remain"
+                "title": "2 low-severity audit-test-quality findings remain"
               }
             ],
             "name": "P2: Audit Test Quality",
@@ -825,7 +842,17 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-14T10:34:29)"
+                "title": "3 files modified/deleted since graph build (2026-05-14T12:36:44)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/AUDIT_CHANGELOG.md"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/KNOWN_CI_LIMITATIONS.md"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -877,7 +904,7 @@
               {
                 "check_id": "p8__test_documentation",
                 "severity": "advisory:medium",
-                "title": "30 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
+                "title": "31 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
               }
             ],
             "name": "P8: Test Documentation",
@@ -1038,12 +1065,12 @@
             "findings": [
               {
                 "check_id": "p10__doc-code_pairing",
-                "severity": "pass",
-                "title": "1 changed files have matching docs"
+                "severity": "advisory:medium",
+                "title": "CMakeLists.txt changed but docs/BUILDING.md not updated"
               }
             ],
             "name": "P10: Doc-Code Pairing",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
@@ -1312,21 +1339,21 @@
           }
         ],
         "summary": {
-          "advisory": 51,
+          "advisory": 55,
           "blocking": 0,
-          "info": 44,
+          "info": 47,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 97,
-          "warnings": 7
+          "total_findings": 100,
+          "warnings": 8
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "7e05352a735dafc272e341f887f49722bd028e434c2b364a97f1b2151f1da075",
-      "stdout_sha256": "916930b9f7ed7dce3929ad76acdfd59def725f57371bfab72e27f88eb9c946b8"
+      "stderr_sha256": "ee6b0d861da48b867f3dc4a398550457636071487a6cffbc6a9b1a17d628b76e",
+      "stdout_sha256": "c17604ba148bc010513f3c605455ee9a45f4bc44423fc409cd9e56965c57f935"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1628,13 +1655,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-14T11:08:08.261625+00:00"
+        "timestamp": "2026-05-14T12:40:21.871030+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "8d0645bea164c0d1386e323e8a6f31b8a9992ed2dc8d87dfaaba783dbe605cc9"
+      "stdout_sha256": "62583d79975291374630086a616f00fb8bce7b36411b7651ed48e798dc794737"
     },
     {
       "name": "supply_chain_gate",
@@ -1680,19 +1707,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-14T11:08:08.302437+00:00"
+        "timestamp": "2026-05-14T12:40:21.906575+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "e4732b1ac2abdeef26c99f0d2b053121d42b313bbbb9b134f770073a345715e1"
+      "stdout_sha256": "f60056b94f1ecd79753c7aa306ef3f57b5882e512cbb3990edf1a02d22626efa"
     }
   ],
-  "generated_at": "2026-05-14T11:08:08.318560+00:00",
+  "generated_at": "2026-05-14T12:40:21.921091+00:00",
   "git": {
     "branch": "dev",
-    "commit": "8181aa18b506712e32ea1c3a3202ad703ee5eb7e",
+    "commit": "ed3c6bc85ecc5bae4d38cef4f696d9bc1fac1f59",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
