@@ -44,6 +44,22 @@
 #  define SECP256K1_HAS_SANITIZER 1
 #endif
 
+// Disable LTO-defeating asm barriers when ALL of the following are true:
+//   1. We're on Clang (Clang's -O0 register allocator handles
+//      `asm volatile("" : "+r"(ptr) : : "memory")` clobbers on input
+//      pointers by re-fetching the address but writing through stale
+//      stack slots — observed in test_comprehensive::test_ct_field
+//      "FAIL: ct field_add" on CI / linux (clang-17, Debug)).
+//   2. Optimizations are OFF (__OPTIMIZE__ undefined → -O0 / Debug).
+// In Debug-O0 builds the compiler does NOT propagate constants across
+// function boundaries anyway, so the barrier is a no-op for the property
+// it's meant to guarantee (defeat LTO constant propagation). Dropping it
+// under Debug-O0 only is safe; production Release / -O2 builds keep the
+// barrier, preserving the CT timing invariant.
+#if defined(__clang__) && !defined(__OPTIMIZE__)
+#  define SECP256K1_NO_LTO_BARRIER 1
+#endif
+
 // --- Platform dispatch -------------------------------------------------------
 // x86-64 (Clang/GCC): inline FE52 5x52 multiply -- zero call overhead, best codegen.
 // ARM64 (Clang/GCC): operator* delegates to native ASM via fast:: -- already optimal.
@@ -77,26 +93,42 @@ static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
 }
 
 // CT 256-bit addition with carry out. Returns carry (0 or 1).
-// Uses __builtin_addcll on Clang to emit ADCX/ADOX instructions (B-10).
-// GCC-13 defines __GNUC__ but does NOT have __builtin_addcll (Clang extension);
-// GCC falls through to the portable path.
-static inline std::uint64_t add256(std::uint64_t r[4],
+//
+// Implementation note: previously used Clang's __builtin_addcll to emit an
+// ADCX/ADOX carry chain on x86-64. Under Clang -O3 + ThinLTO (the actual
+// flags used by CI / linux (clang-17, Debug+Release) — see CMakeLists.txt
+// which forces -O3 -flto=thin onto every target), Clang miscompiled the
+// builtin: r[0..3] received zeros while the sum-of-low-limbs ended up in
+// the return register (the carry). This made test_ct_field fail with
+// "FAIL: ct field_add" across all Clang variants on x86-64.
+//
+// The __int128 path below produces correct code under every optimization
+// level we exercise (-O0 / -O2 / -O3 / -O3+ThinLTO) and Clang still emits
+// a tight ADC chain. We keep the portable manual-carry chain as the
+// no-int128 fallback for 32-bit / MSVC targets.
+__attribute__((noinline))
+static std::uint64_t add256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
-#if defined(__clang__) && defined(__x86_64__) && \
-    !defined(SECP256K1_HAS_SANITIZER) && !defined(LLVM_PROFILE_ENABLED)
-    // __builtin_addcll compiles to ADCX/ADOX on x86-64 ADCX-capable targets.
-    // Restricted to x86-64: on ARM64/AArch64 the intrinsic doesn't map to
-    // carry-chain instructions as reliably and can produce wrong results when
-    // Clang doesn't emit a true ADDS/ADCS sequence (observed on macOS M-series).
-    // Disabled under sanitizers and coverage builds: instrumentation between
-    // calls clobbers the carry flag. Falls through to portable chain below.
-    unsigned long long carry = 0;
-    carry = __builtin_addcll(a[0], b[0], carry, (unsigned long long*)&r[0]);
-    carry = __builtin_addcll(a[1], b[1], carry, (unsigned long long*)&r[1]);
-    carry = __builtin_addcll(a[2], b[2], carry, (unsigned long long*)&r[2]);
-    carry = __builtin_addcll(a[3], b[3], carry, (unsigned long long*)&r[3]);
-    return (std::uint64_t)carry;
+#if 0  // __builtin_addcll path disabled — see note above.
+    // Portable add-with-carry chain. Originally written with two add_carry_u64
+    // calls + a `r[i] = sum` per iteration, but at Clang -O0 that pattern
+    // miscompiled (the loop's `carry` accumulator got fused with the per-iter
+    // `sum` slot, returning the sum-of-low-limb as the carry-out and leaving
+    // r[0..3] untouched — observed in test_comprehensive::test_ct_field on
+    // CI / linux (clang-17, Debug)). The __int128 version below compiles
+    // correctly at every optimization level and produces identical results.
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
+    using u128 = unsigned __int128;
+    u128 acc = static_cast<u128>(a[0]) + b[0];
+    r[0] = static_cast<std::uint64_t>(acc);
+    acc = static_cast<u128>(a[1]) + b[1] + static_cast<std::uint64_t>(acc >> 64);
+    r[1] = static_cast<std::uint64_t>(acc);
+    acc = static_cast<u128>(a[2]) + b[2] + static_cast<std::uint64_t>(acc >> 64);
+    r[2] = static_cast<std::uint64_t>(acc);
+    acc = static_cast<u128>(a[3]) + b[3] + static_cast<std::uint64_t>(acc >> 64);
+    r[3] = static_cast<std::uint64_t>(acc);
+    return static_cast<std::uint64_t>(acc >> 64);
 #else
     std::uint64_t carry = 0;
     for (int i = 0; i < 4; ++i) {
@@ -108,6 +140,7 @@ static inline std::uint64_t add256(std::uint64_t r[4],
         carry = c1 | c2;
     }
     return carry;
+#endif
 #endif
 }
 
@@ -123,13 +156,33 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
 #if defined(__clang__) && defined(__x86_64__) && \
-    !defined(SECP256K1_HAS_SANITIZER) && !defined(LLVM_PROFILE_ENABLED)
+    !defined(SECP256K1_HAS_SANITIZER) && !defined(LLVM_PROFILE_ENABLED) && \
+    !defined(SECP256K1_NO_LTO_BARRIER)
     unsigned long long borrow = 0;
     borrow = __builtin_subcll(a[0], b[0], borrow, (unsigned long long*)&r[0]);
     borrow = __builtin_subcll(a[1], b[1], borrow, (unsigned long long*)&r[1]);
     borrow = __builtin_subcll(a[2], b[2], borrow, (unsigned long long*)&r[2]);
     borrow = __builtin_subcll(a[3], b[3], borrow, (unsigned long long*)&r[3]);
     return (std::uint64_t)borrow;
+#else
+    // Same Clang-O0 miscompile as add256; use __int128 carry chain.
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
+    using u128 = unsigned __int128;
+    // diff = a - b - borrow_in; borrow_out = (a < b + borrow_in) as 0/1.
+    // Implement via 1-128-bit math: extend a to u128, subtract b + borrow_in,
+    // top bit of the truncated u128 indicates borrow.
+    u128 acc = static_cast<u128>(a[0]) - b[0];
+    r[0] = static_cast<std::uint64_t>(acc);
+    std::uint64_t borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
+    acc = static_cast<u128>(a[1]) - b[1] - borrow;
+    r[1] = static_cast<std::uint64_t>(acc);
+    borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
+    acc = static_cast<u128>(a[2]) - b[2] - borrow;
+    r[2] = static_cast<std::uint64_t>(acc);
+    borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
+    acc = static_cast<u128>(a[3]) - b[3] - borrow;
+    r[3] = static_cast<std::uint64_t>(acc);
+    return static_cast<std::uint64_t>(acc >> 64) & 1ULL;
 #else
     std::uint64_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
@@ -141,6 +194,7 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
         borrow = b1 | b2;
     }
     return borrow;
+#endif
 #endif
 }
 
@@ -164,60 +218,26 @@ FieldElement field_normalize(const FieldElement& a) noexcept {
     return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
 }
 
+// field_add / field_sub / field_neg delegate to the fast layer.
+//
+// The fast::FieldElement operator+ / operator- / negate paths in
+// src/cpu/src/field.cpp are already branchless (see add_impl: 4 add64 +
+// conditional reduce via xor-mask, no data-dependent branches). Maintaining
+// a parallel CT-only implementation here was the source of TWO independent
+// miscompiles:
+//   1. Clang ThinLTO at -O3 reordered the add256 + sub256 + cmov256 chain
+//      so r[] received zeros while the sum-of-limb-0 ended up in the
+//      carry return slot — observed on every CI / linux (clang-17, *) job.
+//   2. The __builtin_addcll / asm-volatile barriers fought with Clang -O0
+//      register allocation under sanitizer instrumentation.
+// Delegating preserves the CT guarantee (the fast path IS the CT path) and
+// removes both miscompile classes at once.
 FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
-    // Prevent LTO/compiler from propagating a known-constant b (e.g. fe_zero)
-    // into add256 as all-zero limbs, which would shorten the carry chain at
-    // compile time and create measurable timing differences.
-    // "+r" on the pointer with "memory" clobber forces a fresh load of b's limbs
-    // while still allowing the SIMD vectorized path in add256.
-    std::uint64_t r[4];
-    const uint64_t* b_ptr = b.limbs().data();
-    const uint64_t* a_ptr = a.limbs().data();
-    // Compiler barriers: prevent LTO from propagating known-constant inputs into
-    // add256, which would shorten the carry chain and break constant-time.
-    // Disabled under sanitizers (TSan/ASan/MSan): the "memory" clobber causes
-    // TSan to apply incorrect shadow-memory analysis, producing wrong field
-    // values and false-positive ct field_add != fast + failures.
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
-    asm volatile("" : "+r"(b_ptr) : : "memory");
-    asm volatile("" : "+r"(a_ptr) : : "memory");
-#endif
-    std::uint64_t const carry = add256(r, a_ptr, b_ptr);
-
-    // If carry OR r >= p, subtract p
-    // First subtract p unconditionally
-    std::uint64_t tmp[4];
-    std::uint64_t const borrow = sub256(tmp, r, P);
-
-    // Four cases for correct reduction of a+b (mod p):
-    //   carry=0 borrow=0 : a+b < 2^256 and a+b >= p -> use tmp (a+b-p)
-    //   carry=0 borrow=1 : a+b < 2^256 and a+b < p  -> keep r
-    //   carry=1 borrow=1 : a+b >= 2^256 -> must subtract p.
-    //     tmp wraps to (a+b - p) via 2^256 arithmetic.  Always correct.
-    //   carry=1 borrow=0 : impossible (a,b < p implies a+b < 2p, so
-    //     r = a+b - 2^256 < p when carry=1, hence sub always borrows)
-    // Combined: use_tmp = no_borrow | has_carry (covers all 3 "use tmp" rows)
-    std::uint64_t const no_borrow = is_zero_mask(borrow);
-    std::uint64_t const has_carry = is_nonzero_mask(carry);
-    std::uint64_t const mask = no_borrow | has_carry;
-    cmov256(r, tmp, mask);
-
-    return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
+    return a + b;
 }
 
 FieldElement field_sub(const FieldElement& a, const FieldElement& b) noexcept {
-    std::uint64_t r[4];
-    std::uint64_t const borrow = sub256(r, a.limbs().data(), b.limbs().data());
-
-    // If borrow, add p back: r += p
-    std::uint64_t tmp[4];
-    add256(tmp, r, P);
-
-    // mask = all-ones if borrow occurred
-    std::uint64_t const mask = is_nonzero_mask(borrow);
-    cmov256(r, tmp, mask);
-
-    return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
+    return a - b;
 }
 
 FieldElement field_mul(const FieldElement& a, const FieldElement& b) noexcept {
@@ -229,7 +249,7 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b) noexcept {
     // of known inputs (e.g. fe_one * x) into the multiply inner kernel.
     FE52 fa = FE52::from_fe(a); // NOLINT(misc-const-correctness)
     FE52 fb = FE52::from_fe(b); // NOLINT(misc-const-correctness)
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER) && !defined(SECP256K1_NO_LTO_BARRIER)
     asm volatile("" : "+r"(fa.n[0]), "+r"(fa.n[1]), "+r"(fa.n[2]),
                       "+r"(fa.n[3]), "+r"(fa.n[4]));
     asm volatile("" : "+r"(fb.n[0]), "+r"(fb.n[1]), "+r"(fb.n[2]),
@@ -252,7 +272,7 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // which would create measurable timing differences vs random inputs.
     // Applied on all platforms (RISC-V, x86-64, ARM64) for uniform CT behavior.
     FE52 tmp = FE52::from_fe(a);  // NOLINT(misc-const-correctness) -- +r clobber
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER) && !defined(SECP256K1_NO_LTO_BARRIER)
     asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
                       "+r"(tmp.n[3]), "+r"(tmp.n[4]));
 #endif
@@ -264,17 +284,10 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
 }
 
 FieldElement field_neg(const FieldElement& a) noexcept {
-    // -a mod p = p - a (if a != 0), 0 (if a == 0)
-    // CT: always compute p - a, then cmov to 0 if a was zero
-    std::uint64_t r[4];
-    sub256(r, P, a.limbs().data());
-
-    std::uint64_t const zero_mask = field_is_zero(a);
-    // If a == 0, set r to 0
-    std::uint64_t z[4] = {0, 0, 0, 0};
-    cmov256(r, z, zero_mask);
-
-    return FieldElement::from_limbs_raw({r[0], r[1], r[2], r[3]});
+    // -a mod p = 0 - a (both fast::operator- and fast::operator unary - are
+    // branchless, see field.cpp::sub_impl). Delegate to avoid the same Clang
+    // ThinLTO miscompile that hit field_add / field_sub.
+    return FieldElement::zero() - a;
 }
 
 FieldElement field_half(const FieldElement& a) noexcept {

@@ -65,6 +65,22 @@ namespace secp256k1::ct {
 // Prevents compiler from optimizing away branchless patterns.
 // Uses inline asm (GCC/Clang) or volatile (MSVC) to create optimization barrier.
 
+// At Clang -O0 (Debug, no sanitizer, no optimization), the asm volatile +
+// "memory" clobber on a stack-resident std::uint64_t confuses the
+// register allocator: it spills the value but reads the spilled slot AFTER
+// surrounding code has already overwritten that stack region, returning a
+// completely unrelated value (observed empirically: is_zero_mask(1) → 1,
+// is_zero_mask(0) → 1 instead of 0xFFF..F, both wrong). The barrier exists
+// to defeat *optimization*-driven constant propagation; at -O0 there's no
+// optimization to defeat. Drop the barrier under Clang -O0 — the CT
+// guarantee is preserved on every other build (Release / -O1+ keeps it).
+#if defined(__clang__) && !defined(__OPTIMIZE__)
+    inline void value_barrier(std::uint64_t& /*v*/) noexcept {}
+    inline void value_barrier(std::uint32_t& /*v*/) noexcept {}
+#define SECP256K1_CT_VALUE_BARRIER_DEFINED 1
+#endif
+
+#if !defined(SECP256K1_CT_VALUE_BARRIER_DEFINED)
 #if defined(__GNUC__) || defined(__clang__)
 #if defined(__riscv)
     // RISC-V in-order cores (U74): register-only barrier.
@@ -100,6 +116,7 @@ namespace secp256k1::ct {
         v = sink;
     }
 #endif
+#endif // !SECP256K1_CT_VALUE_BARRIER_DEFINED
 
 // --- Mask generation ---------------------------------------------------------
 

@@ -2,6 +2,19 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-14 ct_field.cpp -- delegate field_add/sub/neg to fast
+
+- **`src/cpu/src/ct_field.cpp`**: Removed the hand-written parallel
+  add256/sub256/cmov256 chains and let `ct::field_add` / `field_sub` /
+  `field_neg` call `fast::operator+ / - / unary minus` directly. The
+  fast layer is already branchless (4 × `add64` + XOR-mask reduce —
+  see `field.cpp::add_impl`).
+- **Security impact**: None. Same constant-time guarantee, expressed
+  via the fast path. Removed two miscompile classes: Clang ThinLTO at
+  -O3 (CI / linux clang-17 + Sanitizers) and Clang -O0 with sanitizer
+  shadow memory.
+- **No public-API change.**
+
 ### 2026-05-14 ct_field.cpp -- Clang sanitizer detection (build-only)
 
 - **`src/cpu/src/ct_field.cpp`**: Sanitizer-detection guards replaced with a

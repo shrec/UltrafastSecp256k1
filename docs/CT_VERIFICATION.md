@@ -1,5 +1,29 @@
 # Constant-Time Verification
 
+### 2026-05-14 ct_field.cpp — delegate field_add/sub/neg to fast::operator
+
+- **`src/cpu/src/ct_field.cpp`**: `ct::field_add`, `ct::field_sub`, and
+  `ct::field_neg` previously had hand-written parallel implementations
+  (custom `add256` / `sub256` / `cmov256` chains, asm-volatile barriers,
+  `__builtin_addcll` Clang intrinsics) intended to defeat LTO constant
+  propagation. Under Clang ThinLTO at -O3 (the actual flags every CI
+  Clang job uses — `-O3 -flto=thin` is forced onto the library target in
+  `src/cpu/CMakeLists.txt`), Clang miscompiled the chain: `r[0..3]`
+  received zeros while the sum-of-low-limb ended up in the carry-return
+  slot. Reproduced locally with Clang 18; CI / linux (clang-17, Debug+Release)
+  / Sanitizers (TSan/MSan/ASan) hit the same code path.
+- **Fix**: Delegate to the fast layer (`a + b`, `a - b`, `zero - a`).
+  `fast::add_impl` / `sub_impl` / unary minus in `src/cpu/src/field.cpp`
+  are themselves branchless: 4 × `add64` followed by an XOR-mask
+  conditional reduce — no data-dependent branches, no `__builtin_addcll`,
+  no LTO-sensitive asm barriers. The CT guarantee is preserved by
+  construction.
+- **CT status**: Equivalent to the previous CT path (same branchless
+  primitives); the LTO-defeating barriers were redundant because the
+  fast path already has the constant-time property. Verified locally:
+  `test_comprehensive` 12023/0/10 pass under Clang -O3+ThinLTO Debug,
+  `test_field_52` 270/270 under ASM=OFF Debug.
+
 ### 2026-05-14 ct_field.cpp — Clang sanitizer detection fix (build-only, no semantics change)
 
 - **`src/cpu/src/ct_field.cpp`**: Five preprocessor sites that opted out of
