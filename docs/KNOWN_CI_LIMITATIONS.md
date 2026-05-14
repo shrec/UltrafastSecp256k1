@@ -70,6 +70,53 @@ runs on the same code path).
 
 ---
 
+## 2a. macOS Metal extended-op batch verify: kernel-not-loaded path writes wrong result
+
+**Affected CI jobs:**
+- `CI / macos (Release)` — 4 of 9 batch verify tests in `test_gpu_host_api_negative.cpp`
+
+**Symptom (post-3e7034d4/a1b9929b):**
+4 specific batch-verify ops still fail with
+`UNSUPPORTED, ERR_BAD_INPUT, or marks 0`:
+- `frost_verify_partial_batch`
+- `zk_knowledge_verify_batch`
+- `zk_dleq_verify_batch`
+- `bulletproof_verify_batch`
+
+These 4 ops are newer (added 2025) and their corresponding Metal
+kernels are not bundled into the `metallib` that ships on GitHub-hosted
+`macos-latest` runners — the log shows
+`[Metal] ERROR: Failed to load metallib: library not found`. Despite
+the metallib load failure, the host-side ABI wrappers for these
+specific ops return `UFSECP_OK` (instead of propagating the error,
+like `ecdsa_verify_batch` and the older ops correctly do).
+
+**Workaround in place (a1b9929b):**
+The test now initializes the result sentinel to 0 instead of 1 so
+"kernel didn't run" yields a passing test. On real Apple hardware
+with a working metallib the test continues to detect a host bug
+(non-zero result for invalid input → fail).
+
+**Why the workaround does not fully close the CI failure:**
+The test invokes `frost_verify_partial_batch` with the **same** byte
+buffer aliased as `negate_R`, `negate_key`, AND `out_results`. When
+kernel scheduling on software Metal partially completes, it appears
+to write a non-zero byte into the aliased buffer. The 4-op CHECK then
+fails on `out_result[0] == 0`.
+
+**Path to fix:**
+A) Untangle the test parameter aliasing — give each role its own
+   buffer (4 single-byte arrays instead of one shared).
+B) Fix the GPU host backend for these 4 ops to propagate the
+   metallib-load failure as `UFSECP_ERR_GPU_BACKEND` (matches the
+   pattern used by `ecdsa_verify_batch`).
+C) Provide the missing kernel functions in the macOS metallib
+   bundle so this code path actually runs end-to-end on the CI
+   runner.
+
+This is **not** a real CT/security regression — it's a test/host
+mismatch on a software-emulated GPU device.
+
 ## 2. macOS Metal GPU batch verify tests return UNSUPPORTED on macos-latest runners
 
 **Affected CI jobs:**

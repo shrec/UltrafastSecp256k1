@@ -84,7 +84,7 @@
           {
             "findings": [
               {
-                "message": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=174, smoke=177",
+                "message": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=172, smoke=177",
                 "severity": "INFO"
               },
               {
@@ -204,8 +204,16 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-14T06:05:29)",
+                "message": "3 files modified/deleted since graph build (2026-05-14T06:05:29)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/KNOWN_CI_LIMITATIONS.md",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
@@ -380,7 +388,7 @@
           {
             "findings": [
               {
-                "message": "4 changed files have matching docs",
+                "message": "2 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -390,11 +398,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 29.9 days (threshold: 14)",
+                "message": "Mutation report age: 30.0 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (29.9 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (30.0 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -618,11 +626,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "e910901713217c1d22792fcc9423af7905414cec",
-            "short": "e910901713"
+            "sha": "a1b9929bd04ac8fedd27d43867310f7f50ce1efd",
+            "short": "a1b9929bd0"
           }
         },
-        "generated_at": "2026-05-14T06:06:29.091264+00:00",
+        "generated_at": "2026-05-14T06:35:08.722936+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -639,12 +647,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-14T06:06:29.091227+00:00",
+          "collected_at": "2026-05-14T06:35:08.722897+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "e910901713217c1d22792fcc9423af7905414cec",
-            "short": "e910901713"
+            "sha": "a1b9929bd04ac8fedd27d43867310f7f50ce1efd",
+            "short": "a1b9929bd0"
           },
           "platform": {
             "machine": "x86_64",
@@ -665,7 +673,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-e910901713-20260514T060629",
+        "run_id": "audit_gate-a1b9929bd0-20260514T063508",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -690,7 +698,7 @@
               {
                 "check_id": "p0__abi_hostile-caller_manifest",
                 "severity": "info",
-                "title": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=174, smoke=177"
+                "title": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=172, smoke=177"
               },
               {
                 "check_id": "p0__abi_hostile-caller_manifest",
@@ -825,7 +833,17 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-14T06:05:29)"
+                "title": "3 files modified/deleted since graph build (2026-05-14T06:05:29)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/KNOWN_CI_LIMITATIONS.md"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1039,7 +1057,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "4 changed files have matching docs"
+                "title": "2 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1050,12 +1068,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 29.9 days (threshold: 14)"
+                "title": "Mutation report age: 30.0 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (29.9 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (30.0 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1312,12 +1330,12 @@
           }
         ],
         "summary": {
-          "advisory": 52,
+          "advisory": 54,
           "blocking": 0,
-          "info": 44,
+          "info": 46,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 97,
+          "total_findings": 99,
           "warnings": 8
         },
         "verdict": "PASS with advisory"
@@ -1325,8 +1343,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "269aab7c7b66f9f20ee10028bd28918c82e245fe8756d1714957e69ecd274375",
-      "stdout_sha256": "dbceeb25c51538e59ac9cf9e0f46464983ac0c7ba7026d04abfdf0b4c57e893d"
+      "stderr_sha256": "e25d93d73422046418bd9ebe85d253c7ddb321acf8b6cccb99bca280c4c77713",
+      "stdout_sha256": "f8511bb9312b0d3b481a2f387f923f8b270215dce719369f99007a98fc0745f7"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1628,13 +1646,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-14T06:06:30.323298+00:00"
+        "timestamp": "2026-05-14T06:35:09.950104+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "e685ce3d0c22063e332d340dd9d37f2a5bb9dca94cd8c12e47f7c07cf63fe3d7"
+      "stdout_sha256": "db11a482d7c18b5888ad9bfe1d6edfa130c068a88c53c1c91d1de67a0bf31184"
     },
     {
       "name": "supply_chain_gate",
@@ -1680,19 +1698,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-14T06:06:30.359452+00:00"
+        "timestamp": "2026-05-14T06:35:09.985504+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "616a2f3c9869021576e5dc649f41d82d35c22cd8fae3fb43556a63945623b861"
+      "stdout_sha256": "7fdcb2529913350abe6dac928ec3366e31a65144660866424be9dcb38a69652c"
     }
   ],
-  "generated_at": "2026-05-14T06:06:30.374240+00:00",
+  "generated_at": "2026-05-14T06:35:09.998873+00:00",
   "git": {
     "branch": "dev",
-    "commit": "e910901713217c1d22792fcc9423af7905414cec",
+    "commit": "a1b9929bd04ac8fedd27d43867310f7f50ce1efd",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

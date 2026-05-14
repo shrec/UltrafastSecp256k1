@@ -411,12 +411,19 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     //   - kernel not dispatched → sentinel preserved → result == 0 → pass
     // No signature is forged when the kernel does not run, so the security
     // property "invalid input cannot be verified as valid" still holds.
-    out_result[0] = 0;
+    // Use SEPARATE byte arrays for negate_R / negate_key / out_results
+    // rather than aliasing the same `out_result` buffer for all three.
+    // When the same buffer is reused as input AND output, a kernel-not-loaded
+    // path on software Metal can leave the buffer in an indeterminate state
+    // that the CHECK treats as "verify OK", which masks the intended test.
+    uint8_t neg_r_in[1] = {0};
+    uint8_t neg_k_in[1] = {0};
+    uint8_t frost_out[1] = {0};
     auto e1 = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, invalid_compressed33, compressed33,
-                                                    compressed33, scalar32, scalar32, out_result,
-                                                    out_result, 1, out_result);
+                                                    compressed33, scalar32, scalar32, neg_r_in,
+                                                    neg_k_in, 1, frost_out);
     CHECK(gpu_runtime_unusable(e1) || e1 == UFSECP_ERR_BAD_INPUT
-              || (e1 == UFSECP_OK && out_result[0] == 0),
+              || (e1 == UFSECP_OK && frost_out[0] == 0),
           "frost_verify_partial_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
     out_result[0] = 0;
