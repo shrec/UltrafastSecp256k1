@@ -2746,12 +2746,14 @@ FieldElement52 FieldElement52::from_bytes(const std::uint8_t* bytes) noexcept {
         if (L[i] > P[i]) { break; }
     }
     if (ge_p) {
-        // L -= P (with borrow)
-        unsigned __int128 acc = static_cast<unsigned __int128>(L[0]) + (~P[0]) + 1;
+        // L -= P (with borrow), via u128_compat so this builds on armv7 / wasm32
+        // where native __int128 is unavailable.
+        using u128 = ::secp256k1::detail::u128_compat;
+        u128 acc = u128(L[0]) + (~P[0]) + std::uint64_t(1);
         L[0] = static_cast<std::uint64_t>(acc);
-        acc = static_cast<unsigned __int128>(L[1]) + (~P[1]) + (acc >> 64);
+        acc = u128(L[1]) + (~P[1]) + static_cast<std::uint64_t>(acc >> 64);
         L[1] = static_cast<std::uint64_t>(acc);
-        acc = static_cast<unsigned __int128>(L[2]) + (~P[2]) + (acc >> 64);
+        acc = u128(L[2]) + (~P[2]) + static_cast<std::uint64_t>(acc >> 64);
         L[2] = static_cast<std::uint64_t>(acc);
         L[3] = L[3] + (~P[3]) + static_cast<std::uint64_t>(acc >> 64);
     }
