@@ -556,7 +556,11 @@ bool Scalar::operator==(const Scalar& rhs) const noexcept {
 // Ref: "Fast constant-time gcd computation and modular inversion" (2019)
 // Direct port of bitcoin-core/secp256k1 secp256k1_modinv64_var.
 // ============================================================================
-#if defined(__SIZEOF_INT128__)
+// NOTE on guard: also requires !SECP256K1_NO_INT128 so wasm32 (where
+// Emscripten's Clang defines __SIZEOF_INT128__ but emulates __int128 via
+// the buggy __multi3 compiler-rt builtin) takes the portable
+// 30-bit-divsteps fallback at line 820+ instead of producing wrong inverses.
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
 namespace scalar_safegcd {
 
 #if defined(__GNUC__)
@@ -1114,12 +1118,12 @@ Scalar Scalar::inverse() const {
     return from_limbs(scalar_safegcd30::inverse_impl(limbs_));
 }
 
-#endif // __SIZEOF_INT128__
+#endif // __SIZEOF_INT128__ && !SECP256K1_NO_INT128
 
 Scalar Scalar::negate() const noexcept {
     // CT: always compute ORDER − s; mask result to zero if s == 0.
     // Use for SECRET scalars only (signing paths, nonces, private keys).
-#if defined(__SIZEOF_INT128__)
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
     //
     // libsecp-style: compute (~limb + N_limb) with carry, mask the whole
     // result by `nonzero` (0/-1). Saves the explicit sub_impl + mask-loop

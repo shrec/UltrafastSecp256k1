@@ -67,6 +67,15 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "76054b2683": (
+        ["src/cpu/tests/test_field_52.cpp"],
+        "FE64 mul_wide column-3 u128 overflow fix. The existing test_field_52 "
+        "FE52-vs-FE64 cross-check is the regression test: before the fix, "
+        "mul(large, *), mul(p-1, *), mul(Gy, *) etc. produced wrong outputs "
+        "from FE64 mul_wide, which the cross-check detected. After the fix, "
+        "all cross-check pairs match on every USE_ASM=OFF build (sanitizers, "
+        "coverage, no-asm cross-compiles).",
+    ),
     "a0b35c8c6f": (
         ["audit/test_u128_compat_parity.cpp"],
         "WASM portable u128 fix in field_52.cpp / field_52_impl.hpp / "

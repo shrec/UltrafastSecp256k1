@@ -67,7 +67,11 @@ extern "C" {
 // Requires: SECP256K1_HAS_ASM + x86-64 (4x64 assembly always linked)
 #if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))
   #define SECP256K1_HYBRID_4X64_ACTIVE 1
-  #if defined(_WIN32)
+  // MinGW (GCC/Clang on _WIN32) uses Microsoft x64 ABI by default but our
+  // GAS asm uses System-V x64 ABI — annotate with sysv_abi so the compiler
+  // emits the right call adapter. MSVC has neither the syntax nor that
+  // problem (it uses its own field_asm_x64.asm in MASM with Win64 ABI).
+  #if defined(_WIN32) && (defined(__GNUC__) || defined(__clang__))
     extern "C" __attribute__((sysv_abi)) void field_mul_full_asm(
         const std::uint64_t* a, const std::uint64_t* b, std::uint64_t* result);
     extern "C" __attribute__((sysv_abi)) void field_sqr_full_asm(
@@ -90,6 +94,17 @@ extern "C" {
   #define SECP256K1_FE52_FORCE_INLINE __forceinline
 #else
   #define SECP256K1_FE52_FORCE_INLINE inline
+#endif
+
+// Pointer-restrict portability shim: GCC/Clang use the double-underscore
+// form, MSVC uses the single-underscore form. Without this, MSVC build
+// fails at every fe52_mul_inner / fe52_sqr_inner declaration with
+// "syntax error: missing ')'".
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__GNUC__)
+  #define SECP256K1_RESTRICT __restrict
+#else
+  // double-underscore form for GCC/Clang
+  #define SECP256K1_RESTRICT __restrict__
 #endif
 
 // -- Hybrid 4x64 helper functions (placed after SECP256K1_FE52_FORCE_INLINE) --
@@ -165,9 +180,9 @@ static
 #else
 SECP256K1_FE52_FORCE_INLINE
 #endif
-void fe52_mul_inner(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a,
-                    const std::uint64_t* __restrict__ b) noexcept {
+void fe52_mul_inner(std::uint64_t* SECP256K1_RESTRICT r,
+                    const std::uint64_t* SECP256K1_RESTRICT a,
+                    const std::uint64_t* SECP256K1_RESTRICT b) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
     // On U74 in-order core, explicit register scheduling + carry hiding
@@ -748,9 +763,9 @@ void fe52_mul_inner(std::uint64_t* __restrict__ r,
 
 // ----- fe52_mul_inner_var: variable-time field multiply (verify only, ADCX/ADOX ASM) -----
 SECP256K1_FE52_FORCE_INLINE
-void fe52_mul_inner_var(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a,
-                    const std::uint64_t* __restrict__ b) noexcept {
+void fe52_mul_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
+                    const std::uint64_t* SECP256K1_RESTRICT a,
+                    const std::uint64_t* SECP256K1_RESTRICT b) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Comba 5x52 multiply with integrated reduction in asm.
     // On U74 in-order core, explicit register scheduling + carry hiding
@@ -1347,8 +1362,8 @@ static
 #else
 SECP256K1_FE52_FORCE_INLINE
 #endif
-void fe52_sqr_inner(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a) noexcept {
+void fe52_sqr_inner(std::uint64_t* SECP256K1_RESTRICT r,
+                    const std::uint64_t* SECP256K1_RESTRICT a) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
@@ -1804,8 +1819,8 @@ void fe52_sqr_inner(std::uint64_t* __restrict__ r,
 
 // ----- fe52_sqr_inner_var: variable-time field square (verify only, ADCX/ADOX ASM) -----
 SECP256K1_FE52_FORCE_INLINE
-void fe52_sqr_inner_var(std::uint64_t* __restrict__ r,
-                    const std::uint64_t* __restrict__ a) noexcept {
+void fe52_sqr_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
+                    const std::uint64_t* SECP256K1_RESTRICT a) noexcept {
 #if defined(SECP256K1_RISCV_FE52_V1)
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
