@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-05-14 — Documentation: Known CI Limitations
+
+### Documentation
+- Added `docs/KNOWN_CI_LIMITATIONS.md` cataloging the six CI failure
+  classes that pre-date the current cleanup cycle and require dedicated
+  follow-up: (1) FE52 generic no-asm Comba multiply bug for specific
+  input patterns — root cause of TSan/MSan/ASan/coverage/sanitizer
+  failures; (2) macOS Metal batch verify UNSUPPORTED on
+  GitHub-hosted runners; (3) wasm KAT Point ops (scalar.cpp residual
+  `__int128` paths); (4) linux-arm64 + linux-riscv64 QEMU smoke;
+  (5) Windows Release fast fail; (6) rocm HIP compile.
+  Each entry includes affected jobs, root-cause hypothesis, local
+  reproducer, and the recommended path to a real fix. The document
+  also lists what the 2026-05-14 cleanup did achieve (Gate / PR-Push
+  + Shim Security Gate + CAAS Security Gates from RED → GREEN, plus
+  several build/link failures resolved).
+
 ## 2026-05-14 — CI/Build Cleanup Cycle (linux + armv7 + macOS + Debug)
 
 ### Build / Test
