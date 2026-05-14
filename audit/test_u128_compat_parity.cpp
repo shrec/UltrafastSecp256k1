@@ -38,6 +38,30 @@
 
 #include "secp256k1/u128_compat.hpp"
 
+// MSVC has neither __int128 nor the GCC/Clang extension we need for the
+// parity comparison. On those targets the test is a no-op stub that returns
+// SUCCESS — the portable struct is exercised in the engine's regular FE52
+// tests instead.
+#if !defined(__SIZEOF_INT128__)
+
+#if defined(_MSC_VER)
+#pragma message("test_u128_compat_parity: __int128 unavailable — stubbing test")
+#endif
+
+extern "C" {
+}  // keep file non-empty under MSVC
+
+int test_u128_compat_parity_run() {
+    std::printf("[u128_compat_parity] skipped — target lacks __int128 (MSVC / 32-bit)\n");
+    return 0;
+}
+
+#ifndef UNIFIED_AUDIT_RUNNER
+int main() { return test_u128_compat_parity_run(); }
+#endif
+
+#else  // __SIZEOF_INT128__ present below
+
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -188,3 +212,5 @@ int main() { return test_u128_compat_parity_run() == 0 ? 0 : 1; }
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
+
+#endif  // __SIZEOF_INT128__ guard around the native-comparison body

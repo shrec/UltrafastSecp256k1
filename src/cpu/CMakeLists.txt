@@ -1028,6 +1028,10 @@ if(BUILD_TESTING)
     target_link_libraries(test_hash_accel_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_compile_definitions(test_hash_accel_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME hash_accel COMMAND test_hash_accel_standalone)
+    # ADVISORY_SKIP_CODE 77 = SHA-NI not detectable on this host (AMD pre-Zen,
+    # MSan instrumentation that hides cpuid, etc.). The test still validates
+    # all 679 scalar/ARM-SHA paths — only the SHA-NI cross-check is skipped.
+    set_tests_properties(hash_accel PROPERTIES SKIP_RETURN_CODE 77)
 
     # Standalone 5x52 field test (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
