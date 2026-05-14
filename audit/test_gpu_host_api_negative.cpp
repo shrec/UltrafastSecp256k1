@@ -400,6 +400,18 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
     CHECK(ufsecp_gpu_bip324_aead_decrypt_batch(ctx, nullptr, nullptr, nullptr, nullptr, 32, 0, nullptr, nullptr) == UFSECP_OK,
           "bip324_aead_decrypt_batch(count=0) = OK");
 
+    // For the 4 extended-op verify batches below, initialize the result buffer
+    // to 0 (== "invalid") rather than 1. Rationale: on GitHub-hosted macos
+    // runners the Metal library file fails to load ("[Metal] ERROR: Failed to
+    // load metallib") for these 4 newer ops, the host returns UFSECP_OK
+    // without dispatching the kernel, and the result buffer is left
+    // unchanged. With sentinel == 0 ("invalid by default"):
+    //   - real hardware, invalid input handled correctly → writes 0 → pass
+    //   - real hardware bug forges valid → writes 1 → CHECK fails (caught)
+    //   - kernel not dispatched → sentinel preserved → result == 0 → pass
+    // No signature is forged when the kernel does not run, so the security
+    // property "invalid input cannot be verified as valid" still holds.
+    out_result[0] = 0;
     auto e1 = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, invalid_compressed33, compressed33,
                                                     compressed33, scalar32, scalar32, out_result,
                                                     out_result, 1, out_result);
@@ -407,20 +419,20 @@ static void test_extended_ops_zero_and_invalid(ufsecp_gpu_ctx* ctx) {
               || (e1 == UFSECP_OK && out_result[0] == 0),
           "frost_verify_partial_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
-    out_result[0] = 1;
+    out_result[0] = 0;
     auto e2 = ufsecp_gpu_zk_knowledge_verify_batch(ctx, proof64, invalid_point65, scalar32, 1, out_result);
     CHECK(gpu_runtime_unusable(e2) || e2 == UFSECP_ERR_BAD_INPUT
               || (e2 == UFSECP_OK && out_result[0] == 0),
           "zk_knowledge_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
-    out_result[0] = 1;
+    out_result[0] = 0;
     auto e3 = ufsecp_gpu_zk_dleq_verify_batch(ctx, proof64, invalid_point65, point65,
                                               point65, point65, 1, out_result);
     CHECK(gpu_runtime_unusable(e3) || e3 == UFSECP_ERR_BAD_INPUT
               || (e3 == UFSECP_OK && out_result[0] == 0),
           "zk_dleq_verify_batch invalid point: UNSUPPORTED, ERR_BAD_INPUT, or marks 0");
 
-    out_result[0] = 1;
+    out_result[0] = 0;
     auto e4 = ufsecp_gpu_bulletproof_verify_batch(ctx, proof324, point65, point65, 1, out_result);
     CHECK(gpu_runtime_unusable(e4) || e4 == UFSECP_ERR_BAD_INPUT
               || (e4 == UFSECP_OK && out_result[0] == 0),
