@@ -1,5 +1,18 @@
 # Constant-Time Verification
 
+### 2026-05-14 ct_field.cpp — drop dead add256 + add_carry_u64 (build-only cleanup)
+
+- **`src/cpu/src/ct_field.cpp`**: After delegating field_add/sub/neg
+  to the fast layer, `static add256(...)` and its helper
+  `add_carry_u64(...)` had no callers. Kept them under `#if 0` initially,
+  but `-Werror=unused-function` (Security Audit / Build with -Werror)
+  and MSVC's lack of `__attribute__((noinline))` made the leftover
+  declarations into build errors. Deleted both. The corresponding
+  `__int128` carry-chain I had added to `sub256` is also reverted —
+  the `__int128` literal trips `-Werror=pedantic` and `sub256`'s
+  portable branchless path was correct already.
+- **CT status**: No behavior change.
+
 ### 2026-05-14 ct_field.cpp — delegate field_add/sub/neg to fast::operator
 
 - **`src/cpu/src/ct_field.cpp`**: `ct::field_add`, `ct::field_sub`, and

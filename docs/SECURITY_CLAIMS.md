@@ -2,6 +2,12 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-14 ct_field.cpp -- dead-code cleanup (Werror + MSVC fix)
+
+- Deleted unused `static add256()` and `add_carry_u64()` helpers left
+  over from the prior delegate refactor. Reverted my `__int128`
+  addition to `sub256` (tripped `-Werror=pedantic`). No semantics change.
+
 ### 2026-05-14 ct_field.cpp -- delegate field_add/sub/neg to fast
 
 - **`src/cpu/src/ct_field.cpp`**: Removed the hand-written parallel

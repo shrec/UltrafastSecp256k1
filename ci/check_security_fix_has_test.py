@@ -77,6 +77,13 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "test_ct_field. Wired to unified_audit_runner as "
         "regression_ct_sanitizer_detection in section ct_analysis.",
     ),
+    "596ba97556": (
+        ["audit/test_regression_ct_sanitizer_detection.cpp"],
+        "Build-only cleanup of unused add256/add_carry_u64 helpers + revert "
+        "of __int128 sub256 (Werror=unused-function / pedantic / MSVC). No "
+        "semantics change. Covered by the same parity regression test that "
+        "the delegation refactor 92c9c719 retroactively cites.",
+    ),
     "92c9c719f9": (
         ["audit/test_regression_ct_sanitizer_detection.cpp"],
         "ThinLTO miscompile follow-up to c389c984. Delegated ct::field_add/"

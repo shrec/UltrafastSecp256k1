@@ -80,68 +80,10 @@ static constexpr std::uint64_t P[4] = {
 
 // --- Internal helpers --------------------------------------------------------
 
-static inline std::uint64_t add_carry_u64(std::uint64_t a,
-                                          std::uint64_t b,
-                                          std::uint64_t sum) noexcept {
-    return ((a & b) | ((a | b) & ~sum)) >> 63;
-}
-
-static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
+[[maybe_unused]] static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
                                            std::uint64_t b,
                                            std::uint64_t diff) noexcept {
     return (a ^ ((a ^ b) | (diff ^ a))) >> 63;
-}
-
-// CT 256-bit addition with carry out. Returns carry (0 or 1).
-//
-// Implementation note: previously used Clang's __builtin_addcll to emit an
-// ADCX/ADOX carry chain on x86-64. Under Clang -O3 + ThinLTO (the actual
-// flags used by CI / linux (clang-17, Debug+Release) — see CMakeLists.txt
-// which forces -O3 -flto=thin onto every target), Clang miscompiled the
-// builtin: r[0..3] received zeros while the sum-of-low-limbs ended up in
-// the return register (the carry). This made test_ct_field fail with
-// "FAIL: ct field_add" across all Clang variants on x86-64.
-//
-// The __int128 path below produces correct code under every optimization
-// level we exercise (-O0 / -O2 / -O3 / -O3+ThinLTO) and Clang still emits
-// a tight ADC chain. We keep the portable manual-carry chain as the
-// no-int128 fallback for 32-bit / MSVC targets.
-__attribute__((noinline))
-static std::uint64_t add256(std::uint64_t r[4],
-                                    const std::uint64_t a[4],
-                                    const std::uint64_t b[4]) noexcept {
-#if 0  // __builtin_addcll path disabled — see note above.
-    // Portable add-with-carry chain. Originally written with two add_carry_u64
-    // calls + a `r[i] = sum` per iteration, but at Clang -O0 that pattern
-    // miscompiled (the loop's `carry` accumulator got fused with the per-iter
-    // `sum` slot, returning the sum-of-low-limb as the carry-out and leaving
-    // r[0..3] untouched — observed in test_comprehensive::test_ct_field on
-    // CI / linux (clang-17, Debug)). The __int128 version below compiles
-    // correctly at every optimization level and produces identical results.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
-    using u128 = unsigned __int128;
-    u128 acc = static_cast<u128>(a[0]) + b[0];
-    r[0] = static_cast<std::uint64_t>(acc);
-    acc = static_cast<u128>(a[1]) + b[1] + static_cast<std::uint64_t>(acc >> 64);
-    r[1] = static_cast<std::uint64_t>(acc);
-    acc = static_cast<u128>(a[2]) + b[2] + static_cast<std::uint64_t>(acc >> 64);
-    r[2] = static_cast<std::uint64_t>(acc);
-    acc = static_cast<u128>(a[3]) + b[3] + static_cast<std::uint64_t>(acc >> 64);
-    r[3] = static_cast<std::uint64_t>(acc);
-    return static_cast<std::uint64_t>(acc >> 64);
-#else
-    std::uint64_t carry = 0;
-    for (int i = 0; i < 4; ++i) {
-        std::uint64_t const sum_lo = a[i] + b[i];
-        std::uint64_t const c1 = add_carry_u64(a[i], b[i], sum_lo);
-        std::uint64_t const sum = sum_lo + carry;
-        std::uint64_t const c2 = add_carry_u64(sum_lo, carry, sum);
-        r[i] = sum;
-        carry = c1 | c2;
-    }
-    return carry;
-#endif
-#endif
 }
 
 // CT 256-bit subtraction with borrow out. Returns borrow (0 or 1).
@@ -165,25 +107,6 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
     borrow = __builtin_subcll(a[3], b[3], borrow, (unsigned long long*)&r[3]);
     return (std::uint64_t)borrow;
 #else
-    // Same Clang-O0 miscompile as add256; use __int128 carry chain.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
-    using u128 = unsigned __int128;
-    // diff = a - b - borrow_in; borrow_out = (a < b + borrow_in) as 0/1.
-    // Implement via 1-128-bit math: extend a to u128, subtract b + borrow_in,
-    // top bit of the truncated u128 indicates borrow.
-    u128 acc = static_cast<u128>(a[0]) - b[0];
-    r[0] = static_cast<std::uint64_t>(acc);
-    std::uint64_t borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
-    acc = static_cast<u128>(a[1]) - b[1] - borrow;
-    r[1] = static_cast<std::uint64_t>(acc);
-    borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
-    acc = static_cast<u128>(a[2]) - b[2] - borrow;
-    r[2] = static_cast<std::uint64_t>(acc);
-    borrow = static_cast<std::uint64_t>(acc >> 64) & 1ULL;
-    acc = static_cast<u128>(a[3]) - b[3] - borrow;
-    r[3] = static_cast<std::uint64_t>(acc);
-    return static_cast<std::uint64_t>(acc >> 64) & 1ULL;
-#else
     std::uint64_t borrow = 0;
     for (int i = 0; i < 4; ++i) {
         std::uint64_t const diff = a[i] - b[i];
@@ -194,7 +117,6 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
         borrow = b1 | b2;
     }
     return borrow;
-#endif
 #endif
 }
 
