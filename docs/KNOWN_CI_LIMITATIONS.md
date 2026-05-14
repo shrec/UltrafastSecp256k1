@@ -11,7 +11,22 @@ should we pretend the fixes are simple one-liners.
 
 ---
 
-## 1. FE52 generic (no-asm) Comba multiplication has wrong outputs for certain input patterns
+## 1. ~~FE52 generic Comba multiplication has wrong outputs~~ — RESOLVED 2026-05-14 (c389c984)
+
+**RESOLUTION 2026-05-14:** The root cause was **not** the FE52 Comba
+algorithm. The actual cause was that `ct_field.cpp` used GCC-only
+`__SANITIZE_*` macros to disable an LTO-defeating asm memory barrier
+under sanitizers. Clang does not define those macros, so under Clang
+TSan/MSan/ASan the barrier ran and was instrumented by the shadow
+memory tracker, producing wrong field arithmetic.
+
+Fixed by introducing `SECP256K1_HAS_SANITIZER` (covering both GCC and
+Clang `__has_feature`). See `c389c984`. Original hypothesis preserved
+below for historical context.
+
+---
+
+## 1 (historical hypothesis). FE52 generic (no-asm) Comba multiplication has wrong outputs for certain input patterns
 
 **Affected CI jobs:**
 - `CI / Sanitizers (TSan)`

@@ -3699,6 +3699,9 @@ add_executable(unified_audit_runner
     # Regression: point_add_mixed_complete magnitude contract (May 2026)
     # Ensures normalize_weak X1/Y1 fix remains in place.
     test_regression_ct_mixed_add_magnitude.cpp
+    # Regression: Clang sanitizer detection in ct_field.cpp (2026-05-14)
+    # Guards that SECP256K1_HAS_SANITIZER covers GCC + Clang spellings.
+    test_regression_ct_sanitizer_detection.cpp
     # Regression: CT nonce path uses generator_mul_blinded (2026-05-12)
     # Guards that ct::ecdsa_sign / ct::schnorr_sign activate DPA blinding.
     test_regression_ct_blinding_nonce_path.cpp
@@ -4225,6 +4228,18 @@ add_test(NAME regression_ct_mixed_add_magnitude
     COMMAND test_regression_ct_mixed_add_magnitude_standalone)
 set_tests_properties(regression_ct_mixed_add_magnitude PROPERTIES TIMEOUT 120
     LABELS "audit;ct_analysis;regression;blinding")
+
+# 2026-05-14: regression guard for the SECP256K1_HAS_SANITIZER macro fix.
+# Verifies ct::field_add/sub/mul/sqr == fast equivalent across many values,
+# which is the exact loop that failed under Clang TSan before the fix.
+add_executable(test_regression_ct_sanitizer_detection_standalone
+    test_regression_ct_sanitizer_detection.cpp)
+audit_target_defaults(test_regression_ct_sanitizer_detection_standalone)
+target_compile_definitions(test_regression_ct_sanitizer_detection_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ct_sanitizer_detection
+    COMMAND test_regression_ct_sanitizer_detection_standalone)
+set_tests_properties(regression_ct_sanitizer_detection PROPERTIES TIMEOUT 60
+    LABELS "audit;ct_analysis;regression;sanitizer")
 
 option(SECP256K1_BUILD_LIBFUZZER
        "Build LibFuzzer harnesses (requires clang -fsanitize=fuzzer,address)" OFF)

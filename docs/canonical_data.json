@@ -1,9 +1,9 @@
 {
   "version": "4.0.0",
-  "last_updated": "2026-05-13",
+  "last_updated": "2026-05-14",
   "exploit_poc_count": 261,
-  "non_exploit_modules": 104,
-  "total_modules": 365,
+  "non_exploit_modules": 105,
+  "total_modules": 366,
   "ci_workflow_count": 54,
   "ct_pipeline_count": 5,
   "bitcoin_core_tests_pass": 749,

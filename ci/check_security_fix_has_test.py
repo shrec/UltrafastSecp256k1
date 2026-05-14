@@ -67,6 +67,16 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "c389c98443": (
+        ["audit/test_regression_ct_sanitizer_detection.cpp"],
+        "Clang sanitizer detection fix in ct_field.cpp. The regression test "
+        "was added in the immediately-following commit (test paired with the "
+        "same end-to-end fix scope). It verifies ct::field_add/sub/mul/sqr "
+        "matches the fast equivalent across many values — the same check "
+        "loop that previously failed under Clang TSan in test_comprehensive::"
+        "test_ct_field. Wired to unified_audit_runner as "
+        "regression_ct_sanitizer_detection in section ct_analysis.",
+    ),
     "9572d8adfd": (
         ["src/cpu/tests/test_arithmetic_correctness.cpp",
          "src/cpu/tests/test_large_scalar_multiplication.cpp"],

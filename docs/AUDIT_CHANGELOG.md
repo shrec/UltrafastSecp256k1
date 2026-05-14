@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-05-14 — Fix: Clang sanitizer detection in ct_field.cpp
+
+### Root cause
+Five preprocessor sites in `src/cpu/src/ct_field.cpp` gated the
+`__builtin_addcll/_subcll` ADCX path and the LTO-defeating
+`asm volatile("" :::"memory")` barriers on the GCC-only spellings
+`__SANITIZE_THREAD__ / __SANITIZE_ADDRESS__ / __SANITIZE_MEMORY__`.
+Clang does NOT define those macros; it exposes sanitizer state via
+`__has_feature(thread_sanitizer)` etc. Under Clang TSan/MSan/ASan the
+barriers ran AND were instrumented by the sanitizer's shadow memory,
+producing false positives `FAIL: ct field_add / sub / mul / neg / cneg / add #1..#64`
+in `test_comprehensive::test_ct_field`. This was the **actual** root cause
+of the long-standing TSan/MSan/ASan red CI listed in
+`KNOWN_CI_LIMITATIONS.md #1` (which had misidentified the cause as an
+FE52 generic-Comba algorithm bug).
+
+### Fix
+- Introduced `SECP256K1_HAS_SANITIZER` macro covering both GCC and
+  Clang sanitizer detection.
+- Replaced all 5 occurrences of the GCC-only guard.
+- Added `audit/test_regression_ct_sanitizer_detection.cpp` to lock in
+  the parity check that was previously failing.
+- Updated `docs/CT_VERIFICATION.md` and `docs/SECURITY_CLAIMS.md`.
+
 ## 2026-05-14 — Documentation: Known CI Limitations
 
 ### Documentation
