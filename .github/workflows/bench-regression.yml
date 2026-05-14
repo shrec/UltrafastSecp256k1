@@ -137,9 +137,13 @@ jobs:
     - name: Reject quick-mode artifact as regression baseline
       # quick-mode runs use 3 passes with high variance — unsuitable as a baseline.
       # Fail-fast here so a stale quick-mode result is never stored to gh-pages as
-      # a release-grade baseline.  If we move to full-mode in the future, remove
-      # this guard.  For now this workflow is diagnostic-only (auto-push: false).
-      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      # a release-grade baseline.
+      #
+      # NOTE: This workflow is a SMOKE check (name: "Performance Smoke Test (quick
+      # mode -- not a regression gate)"). On push, quick-mode is the EXPECTED and
+      # ONLY mode — failing on push made every push fail. Only the manual
+      # workflow_dispatch path can promote to baseline, so the guard belongs there.
+      if: github.event_name == 'workflow_dispatch'
       run: |
         META=/tmp/benchmark_results/benchmark.meta.json
         if [ -f "$META" ]; then
@@ -151,7 +155,7 @@ jobs:
             # stored as a regression baseline. A ::warning:: was insufficient.
             echo "::error::Benchmark artifact is quick-mode (${PASSES} passes) — aborting. " \
                  "Regression baseline must be built from a full-mode (11-pass) run. " \
-                 "Trigger workflow_dispatch after temporarily switching to full-mode."
+                 "Re-trigger workflow_dispatch after temporarily switching to full-mode."
             exit 1
           fi
         fi
