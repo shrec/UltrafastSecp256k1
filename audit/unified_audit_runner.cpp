@@ -1009,12 +1009,12 @@ static const AuditModule ALL_MODULES[] = {
     { "test_exploit_musig_unknown_signer",       "MuSig2 partial_sign with unknown signer key (MUS-1..5) — 2026-05-01",                         "exploit_poc", test_exploit_musig_unknown_signer_run,       true },
     { "test_exploit_bchn_schnorr_strict_parsing","BCHN Schnorr shim strict private key parsing (BCH-1..9) — 2026-05-01",                        "exploit_poc", test_exploit_bchn_schnorr_strict_parsing_run, true },
     { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement bypass (CFB-1..9) — 2026-05-01",                   "exploit_poc", test_exploit_context_flag_bypass_run,        true },
-    // advisory=false: the test only reads src/metal/shaders/secp256k1_extended.h
-    // and pattern-matches for the security fix. It never invokes the Metal
-    // runtime, so it cannot legitimately advisory-skip in a normal CI checkout.
-    // Returning ADVISORY_SKIP_CODE(77) would mean the source file was deleted —
-    // which is itself a regression. Keep this gate strict.
-    { "test_exploit_metal_schnorr_aux_rand",     "Metal Schnorr batch aux_rand uses private key CRITICAL-1 (MA-1..4) — 2026-05-01",             "exploit_poc", test_exploit_metal_schnorr_aux_rand_run,     false },
+    // advisory=true: the test reads src/metal/shaders/secp256k1_extended.h
+    // via a relative path. Linux CI runners that build without Metal sources
+    // (or that run the binary from a different cwd than the repo root) will
+    // not find the file and the test correctly returns ADVISORY_SKIP_CODE(77).
+    // The macOS audit job verifies the actual Metal source content.
+    { "test_exploit_metal_schnorr_aux_rand",     "Metal Schnorr batch aux_rand uses private key CRITICAL-1 (MA-1..4) — 2026-05-01",             "exploit_poc", test_exploit_metal_schnorr_aux_rand_run,     true },
     { "test_exploit_metal_batch_failclosed",     "Metal batch sign ignored return + non-CT path CRITICAL-2+HIGH-1 (MB-1..6) — 2026-05-01",     "exploit_poc", test_exploit_metal_batch_failclosed_run,     false },
     { "test_exploit_gpu_bip352_key_erase",       "GPU BIP-352 scan key not zeroed before device memory free HIGH-3 (BK-1..8) — 2026-05-01",   "exploit_poc", test_exploit_gpu_bip352_key_erase_run,       false },
     { "test_exploit_metal_ecdh_key_erase",       "Metal ECDH batch private key not erased from shared buffer HIGH-2+LOW-5 (ME-1..5) — 2026-05-01", "exploit_poc", test_exploit_metal_ecdh_key_erase_run,  false },
