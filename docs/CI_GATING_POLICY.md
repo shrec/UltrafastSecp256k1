@@ -197,6 +197,24 @@ Reports are:
 
 ## Workflow consolidation history
 
+> **Status (2026-05-14):** Both legacy workflows below are **intentionally
+> retired**, not lost. The canonical push/PR gates are:
+>
+> - `gate.yml` — impact-based PR-Push gate (Block 1 fast gates,
+>   Block 2 conditional, Block 3 CAAS + Shim Security + aggregator,
+>   Final Verdict)
+> - `ci.yml` — platform/sanitizer matrix (linux ×{gcc-13,clang-17}×{Debug,
+>   Release}, macOS, Windows, ARM64/RISC-V QEMU, WASM, sanitizers, coverage)
+> - `security-audit.yml` — TSan/MSan/ASan + Build-with-Werror gates
+> - `preflight.yml`, `caas.yml`, `code-quality.yml` — long-running
+>   evidence + audit refresh
+> - The static-analysis fan-out (`cppcheck`, `clang-sa`, `clang-tidy`,
+>   `infer`, `codeql`, `semgrep`)
+>
+> Anything not in this list is either a periodic schedule (mutation,
+> wycheproof), an external integration (sonarcloud, codecov), or
+> retired.
+
 The repository historically had two separate workflows that have since been
 consolidated; their removal is intentional and the replacements are listed
 here so reviewers do not chase deleted files.

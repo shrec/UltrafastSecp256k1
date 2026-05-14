@@ -219,3 +219,7 @@ benchmark_results/
 scripts/
 workingdocs/
 workingdocs/
+
+# Compiled binaries left by ad-hoc compile commands
+a.out
+*.out
