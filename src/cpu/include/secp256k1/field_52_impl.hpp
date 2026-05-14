@@ -2804,6 +2804,12 @@ FieldElement52 FieldElement52::inverse_safegcd() const noexcept {
 // Calls fe52_jacobi_var (field.cpp) — same 12-round structure as inverse_safegcd.
 
 // Forward declaration (defined in field.cpp alongside fe52_inverse_safegcd_var)
+// fe52_jacobi_var is defined in src/field.cpp under a __SIZEOF_INT128__ guard
+// (SafeGCD posdivstep needs __int128). MSVC has no __int128 and would link-fail
+// on the symbol; the FE52::jacobi_var() inline wrapper is hidden in lockstep
+// to avoid emitting a use-site reference. Callers on MSVC must use the 4x64
+// FieldElement::jacobi_var() which has its own non-int128 path.
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
 extern int fe52_jacobi_var(const std::uint64_t* in5);
 
 SECP256K1_FE52_FORCE_INLINE
@@ -2812,6 +2818,7 @@ int FieldElement52::jacobi_var() const noexcept {
     fe52_normalize_inline(tmp.n);
     return fe52_jacobi_var(tmp.n);
 }
+#endif
 
 } // namespace secp256k1::fast
 

@@ -166,7 +166,11 @@ struct alignas(8) FieldElement52 {
     // -- Jacobi / Legendre symbol (QR check via posdivstep SafeGCD) --
     // Returns +1 if quadratic residue mod p, -1 if not, 0 if zero.
     // ~734 ns (posdivstep SafeGCD), 5× faster than Fermat sqrt (~3.8 µs).
+    // Implementation requires __int128 (SafeGCD posdivstep); on MSVC use the
+    // 4x64 FieldElement::jacobi_var() instead.
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
     int jacobi_var() const noexcept;
+#endif
 
     // -- Inverse (Fermat) ---------------------------------------------
     // a^(p-2) mod p. 255 squarings + 14 multiplications in native FE52.
