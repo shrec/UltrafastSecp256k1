@@ -2,6 +2,21 @@
 
 **UltrafastSecp256k1 v4.0.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-14 ct_field.cpp -- Clang sanitizer detection (build-only)
+
+- **`src/cpu/src/ct_field.cpp`**: Sanitizer-detection guards replaced with a
+  unified `SECP256K1_HAS_SANITIZER` macro that covers both GCC
+  (`__SANITIZE_THREAD__` / `_ADDRESS_` / `_MEMORY_`) and Clang
+  (`__has_feature(thread_sanitizer)` etc.). Clang TSan/MSan/ASan were
+  previously not detected, causing the LTO-barrier asm to run under
+  sanitizers and produce false positives.
+- **Security impact**: None — CT primitives (`add256`, `sub256`, FE52 multiply,
+  SafeGCD inverse) and their constant-time guarantee are unchanged. Production
+  Release builds still use the LTO-barrier asm. Sanitizer builds correctly
+  fall through to the portable path without the barrier (which was the
+  intent from day one — the bug was the guard didn't catch Clang).
+- **No public-API change.**
+
 ### 2026-05-12 ufsecp_musig2.cpp -- SEC-001 MuSig2 ABI signer-index cross-validation
 
 - **`src/cpu/src/impl/ufsecp_musig2.cpp` (`ufsecp_musig2_partial_sign_v2`)**: New ABI

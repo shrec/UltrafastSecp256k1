@@ -28,6 +28,22 @@
 #include "secp256k1/field_52_impl.hpp"
 #endif
 
+// Unified sanitizer detection. The __SANITIZE_THREAD__ / __SANITIZE_ADDRESS__
+// / __SANITIZE_MEMORY__ predefined macros are GCC-only — Clang does NOT
+// define them and instead exposes sanitizer state via __has_feature(). Code
+// that relied on the GCC-only spellings silently allowed the asm-clobber /
+// __builtin_addcll path to run under Clang sanitizers, producing TSan/ASan/
+// MSan false positives (e.g. "FAIL: ct field_add" in test_comprehensive).
+#if defined(__has_feature)
+#  if __has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(memory_sanitizer)
+#    define SECP256K1_HAS_SANITIZER 1
+#  endif
+#endif
+#if !defined(SECP256K1_HAS_SANITIZER) && \
+    (defined(__SANITIZE_THREAD__) || defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_MEMORY__))
+#  define SECP256K1_HAS_SANITIZER 1
+#endif
+
 // --- Platform dispatch -------------------------------------------------------
 // x86-64 (Clang/GCC): inline FE52 5x52 multiply -- zero call overhead, best codegen.
 // ARM64 (Clang/GCC): operator* delegates to native ASM via fast:: -- already optimal.
@@ -68,8 +84,7 @@ static inline std::uint64_t add256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
 #if defined(__clang__) && defined(__x86_64__) && \
-    !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && \
-    !defined(__SANITIZE_MEMORY__) && !defined(LLVM_PROFILE_ENABLED)
+    !defined(SECP256K1_HAS_SANITIZER) && !defined(LLVM_PROFILE_ENABLED)
     // __builtin_addcll compiles to ADCX/ADOX on x86-64 ADCX-capable targets.
     // Restricted to x86-64: on ARM64/AArch64 the intrinsic doesn't map to
     // carry-chain instructions as reliably and can produce wrong results when
@@ -108,8 +123,7 @@ static inline std::uint64_t sub256(std::uint64_t r[4],
                                     const std::uint64_t a[4],
                                     const std::uint64_t b[4]) noexcept {
 #if defined(__clang__) && defined(__x86_64__) && \
-    !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__) && \
-    !defined(__SANITIZE_MEMORY__) && !defined(LLVM_PROFILE_ENABLED)
+    !defined(SECP256K1_HAS_SANITIZER) && !defined(LLVM_PROFILE_ENABLED)
     unsigned long long borrow = 0;
     borrow = __builtin_subcll(a[0], b[0], borrow, (unsigned long long*)&r[0]);
     borrow = __builtin_subcll(a[1], b[1], borrow, (unsigned long long*)&r[1]);
@@ -164,9 +178,7 @@ FieldElement field_add(const FieldElement& a, const FieldElement& b) noexcept {
     // Disabled under sanitizers (TSan/ASan/MSan): the "memory" clobber causes
     // TSan to apply incorrect shadow-memory analysis, producing wrong field
     // values and false-positive ct field_add != fast + failures.
-#if (defined(__GNUC__) || defined(__clang__)) && \
-    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
-    !defined(__SANITIZE_MEMORY__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
     asm volatile("" : "+r"(b_ptr) : : "memory");
     asm volatile("" : "+r"(a_ptr) : : "memory");
 #endif
@@ -217,9 +229,7 @@ FieldElement field_mul(const FieldElement& a, const FieldElement& b) noexcept {
     // of known inputs (e.g. fe_one * x) into the multiply inner kernel.
     FE52 fa = FE52::from_fe(a); // NOLINT(misc-const-correctness)
     FE52 fb = FE52::from_fe(b); // NOLINT(misc-const-correctness)
-#if (defined(__GNUC__) || defined(__clang__)) && \
-    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
-    !defined(__SANITIZE_MEMORY__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
     asm volatile("" : "+r"(fa.n[0]), "+r"(fa.n[1]), "+r"(fa.n[2]),
                       "+r"(fa.n[3]), "+r"(fa.n[4]));
     asm volatile("" : "+r"(fb.n[0]), "+r"(fb.n[1]), "+r"(fb.n[2]),
@@ -242,9 +252,7 @@ FieldElement field_sqr(const FieldElement& a) noexcept {
     // which would create measurable timing differences vs random inputs.
     // Applied on all platforms (RISC-V, x86-64, ARM64) for uniform CT behavior.
     FE52 tmp = FE52::from_fe(a);  // NOLINT(misc-const-correctness) -- +r clobber
-#if (defined(__GNUC__) || defined(__clang__)) && \
-    !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) && \
-    !defined(__SANITIZE_MEMORY__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(SECP256K1_HAS_SANITIZER)
     asm volatile("" : "+r"(tmp.n[0]), "+r"(tmp.n[1]), "+r"(tmp.n[2]),
                       "+r"(tmp.n[3]), "+r"(tmp.n[4]));
 #endif

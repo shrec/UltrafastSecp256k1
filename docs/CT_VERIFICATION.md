@@ -1,5 +1,25 @@
 # Constant-Time Verification
 
+### 2026-05-14 ct_field.cpp — Clang sanitizer detection fix (build-only, no semantics change)
+
+- **`src/cpu/src/ct_field.cpp`**: Five preprocessor sites that opted out of
+  the `__builtin_addcll/_subcll` ADCX path and the LTO-defeating `asm volatile("" :::"memory")`
+  barriers under sanitizers used the GCC-only spellings
+  `__SANITIZE_THREAD__ / __SANITIZE_ADDRESS__ / __SANITIZE_MEMORY__`. Clang does
+  **not** define these macros (Clang exposes sanitizer state via `__has_feature`),
+  so under Clang TSan/MSan/ASan the barriers still ran and produced false
+  positives like `FAIL: ct field_add` / `FAIL: ct add #1..#64` in
+  `test_comprehensive`. A new `SECP256K1_HAS_SANITIZER` macro consolidates
+  both detection forms.
+- **CT status**: Pure build-time detection change. No CT algorithm changed:
+  `field_add / field_sub / field_mul / field_sqr / field_inv` still use the
+  same constant-time primitives (`add256`, `sub256`, FE52 `mul_inner`).
+  The asm-memory-barrier intent (defeat LTO constant propagation that would
+  shorten the carry chain) is preserved on production Release builds.
+- **Audit method**: Compiler-defined-macro audit (cross-checked GCC manual
+  §3.16 + Clang `__has_feature` docs); local `clang++ -fsanitize=thread`
+  build of `ct_field.cpp` confirms no warnings on the new guard.
+
 ### 2026-05-11 ct_sign.cpp — ecdsa_sign_hedged_recoverable added
 
 - **`src/cpu/src/ct_sign.cpp`**: Added `ct::ecdsa_sign_hedged_recoverable()` that returns a
