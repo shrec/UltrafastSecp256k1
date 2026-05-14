@@ -77,6 +77,17 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "test_ct_field. Wired to unified_audit_runner as "
         "regression_ct_sanitizer_detection in section ct_analysis.",
     ),
+    "92c9c719f9": (
+        ["audit/test_regression_ct_sanitizer_detection.cpp"],
+        "ThinLTO miscompile follow-up to c389c984. Delegated ct::field_add/"
+        "sub/neg to fast::operator+/-/unary minus. The existing regression "
+        "test (test_regression_ct_sanitizer_detection.cpp wired at "
+        "c389c98443) is the regression test for this fix too — it asserts "
+        "ct::field_add/sub/mul/sqr parity with fast across 64 values + "
+        "boundaries; the same check that previously failed under Clang "
+        "ThinLTO/Sanitizers now passes (Clang Debug local repro: "
+        "test_comprehensive 12023/0/10).",
+    ),
     # field.cpp reduce() carry-propagation fix — paired test in same scope.
     # The fix and its regression test (test_regression_field_reduce_carry.cpp)
     # land in the same commit but git's diff parser treats the .cpp under
