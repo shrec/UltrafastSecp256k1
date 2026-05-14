@@ -77,7 +77,7 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "test_ct_field. Wired to unified_audit_runner as "
         "regression_ct_sanitizer_detection in section ct_analysis.",
     ),
-    "596ba97556": (
+    "d9c21c9bcc": (
         ["audit/test_regression_ct_sanitizer_detection.cpp"],
         "Build-only cleanup of unused add256/add_carry_u64 helpers + revert "
         "of __int128 sub256 (Werror=unused-function / pedantic / MSVC). No "
