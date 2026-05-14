@@ -1,5 +1,5 @@
 {
-  "library": "/home/shrek/Secp256k1/Secp256K1fast/build_opencl/include/ufsecp/libufsecp.so.3",
+  "library": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/out/release/include/ufsecp/libufsecp.so.3",
   "repeat": 5,
   "overall_pass": true,
   "issues": [],
