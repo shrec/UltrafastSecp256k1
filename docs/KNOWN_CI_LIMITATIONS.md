@@ -195,33 +195,28 @@ several weeks.
 
 ---
 
-## 4. linux-arm64 / linux-riscv64 QEMU smoke
+## 4. linux-arm64 / linux-riscv64 QEMU smoke — RESOLVED 2026-05-14 (c3d7743c)
 
-**Affected CI jobs:**
+**Previously affected CI jobs:**
 - `CI / linux-arm64`
 - `CI / linux-riscv64`
 
-**Symptom:**
-QEMU user-mode emulation runs the cross-compiled binaries. RISC-V
-reports "Module 17: hash accel" FAILED despite all internal assertions
-passing (`678 passed, 0 failed`). The module return code is non-zero
-even though counters say pass.
+**Was failing because:**
+On non-x86 hosts, `test_shani_skip_code` was set to 77 with the
+intent of advisory-skipping the SHA-NI cross-check (which is x86-only).
+But `test_hash_accel_run()` propagated that 77 as its exit code, and
+both `run_selftest` (Phase 1) and the `hash_accel` CTest target
+treated 77 as a failure (no `SKIP_RETURN_CODE` was set on hash_accel,
+and run_selftest's aggregator treats `rc != 0` as fail).
 
-**Root cause (hypothesis):**
-Either:
-- A failure inside the test harness's exit-code assembly (e.g., the
-  test sets `errno` after writing `g_pass` and the exit code path
-  picks up the wrong value), or
-- A QEMU user-mode bug in a specific intrinsic (likely `__builtin_clz`
-  or a SIMD-aware sha256/ripemd path)
+The harness output already said "Hash accel: 678 passed, 0 failed" —
+the test was passing, the exit code was just wrong.
 
-**Path to fix:**
-Run the failing module under QEMU directly:
-`qemu-riscv64 -L /usr/riscv64-linux-gnu \
-    ./build/riscv64/audit/test_hash_accel_standalone`
-Look for the actual aborting step.
-
-**Pre-existence verified:** Present going back >= 4 weeks.
+**Fix:** SHA-NI is x86-only; on ARM/RISC-V there is no SHA-NI to
+cross-check against, so the test simply doesn't apply. Leave
+`test_shani_skip_code = 0` on non-x86 (commit `c3d7743c`). This
+also resolves the macOS Apple Silicon `selftest` failure (same
+mechanism — selftest invokes `test_hash_accel_run` on arm64).
 
 ---
 
@@ -268,6 +263,9 @@ The following CI jobs went from RED → GREEN during this work:
 | `Gate / Final Verdict` | failure | success | `a90f70bf` |
 | `CI / android (armeabi-v7a)` | failure (`__int128 not supported`) | success | `ec2464e9` |
 | `CI / linux (gcc-13, Debug)` 1-module FAIL | metal advisory regression | reverted | `7f12b2cd` |
+| `CI / linux-riscv64` / `linux-arm64` | failure (hash_accel exit 77) | success | `c3d7743c` |
+| `CI / macos (Release)` selftest | failure (hash_accel exit 77) | success | `c3d7743c` |
+| `CI / macos (Release)` gpu_host_api_negative | failure (4 batch ops) | success | `377d8972` + `739fada5` + `a1b9929b` + `3e7034d4` |
 
 Build/link errors resolved (no longer aborting the CI step):
 
