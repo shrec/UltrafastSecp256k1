@@ -321,8 +321,12 @@ static void test_shani_vs_scalar() {
         pt.next_inplace();
     }
 #else
-    (void)std::printf("  Not x86, skipping SHA-NI test\n");
-    test_shani_skip_code = 77; // ADVISORY_SKIP_CODE
+    (void)std::printf("  Not x86, skipping SHA-NI test (N/A on this arch)\n");
+    // SHA-NI is x86-only. On ARM/RISC-V, the hash backend uses native
+    // ARM SHA2 / scalar fallback — there is no SHA-NI to cross-check
+    // against, so this is "not applicable", NOT a skip. Returning 77
+    // here makes selftest/CTest treat it as a failure on non-x86 hosts.
+    // Leave test_shani_skip_code = 0 so the runner exits cleanly.
 #endif
 }
 
