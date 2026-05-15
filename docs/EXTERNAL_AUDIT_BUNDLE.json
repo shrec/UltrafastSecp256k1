@@ -208,11 +208,19 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-15T14:51:02)",
+                "message": "3 files modified/deleted since graph build (2026-05-15T16:00:45)",
                 "severity": "WARN"
               },
               {
+                "message": "MODIFIED: README.md",
+                "severity": "INFO"
+              },
+              {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/WHY_ULTRAFASTSECP256K1.md",
                 "severity": "INFO"
               }
             ],
@@ -384,7 +392,7 @@
           {
             "findings": [
               {
-                "message": "1 changed files have matching docs",
+                "message": "3 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -622,11 +630,11 @@
           "value": {
             "dirty": true,
             "ref": "main",
-            "sha": "19726f8013e18f59d1c47dffc49cc18ac90107a0",
-            "short": "19726f8013"
+            "sha": "e43480dbacb133710c1995e75e6d46d9e422a3a6",
+            "short": "e43480dbac"
           }
         },
-        "generated_at": "2026-05-15T15:53:35.179124+00:00",
+        "generated_at": "2026-05-15T17:19:55.973478+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -643,12 +651,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-15T15:53:35.179086+00:00",
+          "collected_at": "2026-05-15T17:19:55.973432+00:00",
           "git": {
             "dirty": true,
             "ref": "main",
-            "sha": "19726f8013e18f59d1c47dffc49cc18ac90107a0",
-            "short": "19726f8013"
+            "sha": "e43480dbacb133710c1995e75e6d46d9e422a3a6",
+            "short": "e43480dbac"
           },
           "platform": {
             "machine": "x86_64",
@@ -669,7 +677,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-19726f8013-20260515T155335",
+        "run_id": "audit_gate-e43480dbac-20260515T171955",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -834,12 +842,22 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-15T14:51:02)"
+                "title": "3 files modified/deleted since graph build (2026-05-15T16:00:45)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: README.md"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
                 "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/WHY_ULTRAFASTSECP256K1.md"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1048,7 +1066,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "1 changed files have matching docs"
+                "title": "3 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1321,12 +1339,12 @@
           }
         ],
         "summary": {
-          "advisory": 53,
+          "advisory": 55,
           "blocking": 0,
-          "info": 45,
+          "info": 47,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 98,
+          "total_findings": 100,
           "warnings": 8
         },
         "verdict": "PASS with advisory"
@@ -1334,8 +1352,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "17d6acf410328c6eef9dbb8eb701305881c8a98db4bd2b9c438ecbc0a94be1f3",
-      "stdout_sha256": "a33d8685f7463d71a431c379eac51332a1e49a38d2003928ecdda21537b0ed26"
+      "stderr_sha256": "f99883b96d4f9cf2e9b0db6e90c3174e4ed7e64ff7c8d7e440e1ce75a730be82",
+      "stdout_sha256": "98057f66e01c1e363e23030d0d05eaaf9c174751699c69ad3aca0179af9819a8"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1637,13 +1655,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-15T15:53:36.530938+00:00"
+        "timestamp": "2026-05-15T17:19:57.425124+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "3290e5b689322d2d2900bd04434c86d6579a6259bb943086037acb6edc878587"
+      "stdout_sha256": "c60b5167d5424f8c071adcac20b715fbbbbdcdc8fc07fe982da9aa3981470bb3"
     },
     {
       "name": "supply_chain_gate",
@@ -1689,19 +1707,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-15T15:53:36.567695+00:00"
+        "timestamp": "2026-05-15T17:19:57.470780+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "e8481dd4f9331bcfaad57abecb6fa8018e4be98d45dc93b4cb81681afa27ed83"
+      "stdout_sha256": "53aa05afd2655b0045710453710ed14be4e2f88fa8ba9da95b92d1b0106cd569"
     }
   ],
-  "generated_at": "2026-05-15T15:53:36.581210+00:00",
+  "generated_at": "2026-05-15T17:19:57.485518+00:00",
   "git": {
     "branch": "main",
-    "commit": "19726f8013e18f59d1c47dffc49cc18ac90107a0",
+    "commit": "e43480dbacb133710c1995e75e6d46d9e422a3a6",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
