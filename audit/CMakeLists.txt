@@ -4096,7 +4096,12 @@ if(Python3_FOUND)
                 --json -o "${CMAKE_BINARY_DIR}/py_dev_bug_report.json")
     set_tests_properties(py_dev_bug_scan PROPERTIES
         SKIP_RETURN_CODE 77
-        TIMEOUT 300
+        # 300 s was enough on Linux/macOS but Windows GitHub runners run
+        # this scanner inside Windows Defender's real-time-scan path: every
+        # file open triggers an inline AV scan + NTFS journal write. The
+        # scan walks ~3 k C++ files, which exceeded 300 s and tripped the
+        # CTest timeout (observed on commit f314a70b). Allow ~3× headroom.
+        TIMEOUT 900
         LABELS "audit;python;static_analysis"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
