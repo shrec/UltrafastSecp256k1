@@ -659,7 +659,7 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "differential",      "Differential correctness",                     "differential",   test_differential_run, false },
     { "fiat_crypto",       "Independent reference golden vectors",         "differential",   test_fiat_crypto_vectors_run, false },
-    { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, false },
+    { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, true  /* advisory=true: requires __int128 (MSVC skips with code 77) */ },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
 
     // ===================================================================
