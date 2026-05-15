@@ -1601,6 +1601,16 @@ static void write_sarif_report(const char* path,
         if (r.passed) {
             continue;
         }
+        // Skip advisory-failed entries: a missing piece of optional
+        // infrastructure (cryptol, Z3, GPU runtime, CT-verif, etc.) is not a
+        // security finding. Surfacing every advisory_failed as a Code Scanning
+        // alert produced 27 noise entries in the GitHub Security tab whose
+        // dismissal had to be done manually — see CI ownership matrix work.
+        // Hard failures (advisory=false AND !passed) are real audit regressions
+        // and DO need a SARIF result so reviewers see them in the Security tab.
+        if (r.advisory) {
+            continue;
+        }
         if (!first_result) {
             (void)std::fprintf(f, ",\n");
         } else {
@@ -1608,7 +1618,7 @@ static void write_sarif_report(const char* path,
         }
         first_result = false;
 
-        const char* level = r.advisory ? "warning" : "error";
+        const char* level = "error";
         // Map section to a representative source file
         const char* uri = "audit/unified_audit_runner.cpp";
         if (std::strcmp(r.section, "math_invariants") == 0) {
