@@ -150,10 +150,16 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # On dev pushes, anchor the "New Code" period to main so the Quality
+          # Gate evaluates only the dev↔main delta (~hundreds of lines),
+          # not the 41 k line accumulation since the last project-version bump.
+          # On main pushes, fall back to SonarCloud's default "previous_version"
+          # mode (set in the project's Web UI).
           args: >
             -Dsonar.cfamily.compile-commands=${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json
             -Dsonar.cfamily.llvm-cov.reportPath=build/sonar/llvm-cov-report.txt
             -Dsonar.host.url=https://sonarcloud.io
+            ${{ github.ref == 'refs/heads/dev' && '-Dsonar.newCode.referenceBranch=main' || '' }}
 
       - name: Quality Gate diagnostic
         if: always()
