@@ -522,6 +522,17 @@ jobs:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
+
+      # The verdict job aggregates artifact downloads and then calls
+      # `python3 ci/audit_verdict.py`. Without checkout, the repo source
+      # (including ci/audit_verdict.py) is never on the runner — the job
+      # exits with "No such file or directory" before the aggregator runs.
+      # Observed on 2026-05-15 (run 25910315490). Fast-fetch the script-only
+      # set we need; no submodules required for the aggregator.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
       - name: Prepare artifact workspace
         run: mkdir -p audit-artifacts
 
