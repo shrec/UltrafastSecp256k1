@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
+# (Trivial touch: re-trigger Benchmark Dashboard with the workflow fix in 6896a181.)
 # Reject in-source builds and builds that land outside out/ in the source tree.
 # All build directories should be under out/ (enforced by CMakePresets.json).
 # Use: cmake --preset cpu-release  OR  cmake -S . -B out/<name>
