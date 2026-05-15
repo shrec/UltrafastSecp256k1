@@ -82,7 +82,12 @@ jobs:
               return None
 
           def check_file(path_str, label):
-              nonlocal failed
+              # The enclosing scope is module-level when this script runs as
+              # python3 - <<'EOF', so `nonlocal failed` raises:
+              #     SyntaxError: no binding for nonlocal 'failed' found
+              # Use `global failed` instead — the `failed = False` above is
+              # at module scope.
+              global failed
               p = Path(path_str)
               if not p.exists():
                   print(f"::error::{label} not found — evidence missing")
