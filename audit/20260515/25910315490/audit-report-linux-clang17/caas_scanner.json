@@ -1,0 +1,26 @@
+{
+  "total_files": 370,
+  "total_findings": 2,
+  "findings": [
+    {
+      "file": "test_point_edge_cases.cpp",
+      "line": 326,
+      "severity": "low",
+      "category": "A1",
+      "label": "vacuous_check",
+      "description": "CHECK(true, ...) always passes \u2014 behavior is never tested. Message: \"empty batch calls do not crash\"",
+      "snippet": "CHECK(true, \"empty batch calls do not crash\");",
+      "fix_hint": "Replace CHECK(true, \"...\") with an assertion that validates the actual library behavior (return code, output bytes, state)."
+    },
+    {
+      "file": "test_regression_field_reduce_carry.cpp",
+      "line": 101,
+      "severity": "low",
+      "category": "A1",
+      "label": "vacuous_check",
+      "description": "CHECK(true, ...) always passes \u2014 behavior is never tested. Message: \"large \u00d7 large does not crash\"",
+      "snippet": "CHECK(true, \"large \u00d7 large does not crash\");",
+      "fix_hint": "Replace CHECK(true, \"...\") with an assertion that validates the actual library behavior (return code, output bytes, state)."
+    }
+  ]
+}

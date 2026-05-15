@@ -1,0 +1,1258 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "audit_gate-beb7385ee5-20260515T101242",
+  "runner": "audit_gate",
+  "generated_at": "2026-05-15T10:12:42.046294+00:00",
+  "commit": {
+    "value": {
+      "sha": "beb7385ee56f1c2f919f4d84ebc30e13ccc41bd7",
+      "short": "beb7385ee5",
+      "dirty": false,
+      "ref": "main"
+    },
+    "status": "available",
+    "reason": null
+  },
+  "platform": "Linux",
+  "provenance": {
+    "collected_at": "2026-05-15T10:12:42.046237+00:00",
+    "version": "4.0.0",
+    "git": {
+      "sha": "beb7385ee56f1c2f919f4d84ebc30e13ccc41bd7",
+      "short": "beb7385ee5",
+      "dirty": false,
+      "ref": "main"
+    },
+    "submodules": null,
+    "toolchain": {
+      "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+      "c++": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "clang++": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+      "cmake": "cmake version 3.31.6",
+      "ninja": "1.13.2"
+    },
+    "build_flags": {
+      "available": true,
+      "build_dir": "/home/runner/work/UltrafastSecp256k1/UltrafastSecp256k1/build-audit",
+      "flags": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "/usr/bin/cc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/clang++-17",
+        "CMAKE_C_FLAGS": "",
+        "CMAKE_CXX_FLAGS": "",
+        "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
+      },
+      "flags_hash": "94ac0ea98c78b6e0"
+    },
+    "platform": {
+      "system": "Linux",
+      "release": "6.17.0-1013-azure",
+      "machine": "x86_64",
+      "python": "3.12.3"
+    }
+  },
+  "verdict": "PASS with advisory",
+  "audit_verdict": "PASS with advisory",
+  "summary": {
+    "total_findings": 97,
+    "blocking": 0,
+    "advisory": 50,
+    "warnings": 6,
+    "info": 44,
+    "skipped_sections": 0,
+    "sections": 26
+  },
+  "checks": [
+    {
+      "name": "P0: Failure-Class Matrix",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Failure-class matrix counts: covered=14, partial=0, deferred=1, unknown=0"
+        },
+        {
+          "severity": "PASS",
+          "message": "Failure-class matrix is structurally valid and clear of owner-grade residual blockers"
+        }
+      ]
+    },
+    {
+      "name": "P0: ABI Hostile-Caller Manifest",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=172, smoke=177"
+        },
+        {
+          "severity": "PASS",
+          "message": "All exported ABI functions satisfy the hostile-caller coverage quartet"
+        }
+      ]
+    },
+    {
+      "name": "P0: Invalid-Input Grammar",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Invalid-input grammar counts: cases=37, passed=37, failed=0"
+        },
+        {
+          "severity": "PASS",
+          "message": "Structured invalid inputs correctly rejected (37 cases)"
+        }
+      ]
+    },
+    {
+      "name": "P0: Stateful Sequence Integrity",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Stateful sequence counts: passed=121, failed=0, count=24"
+        },
+        {
+          "severity": "PASS",
+          "message": "Stateful sequence harness passed (121 checks)"
+        }
+      ]
+    },
+    {
+      "name": "P0: Secret-Path Change Gate",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "No uncommitted changes to evaluate"
+        }
+      ]
+    },
+    {
+      "name": "P1: ABI Completeness",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "42 graph functions not in headers: secp256k1_context_clone, secp256k1_context_create, secp256k1_context_destroy, secp256k1_context_randomize, secp256k1_context_set_error_callback"
+        }
+      ]
+    },
+    {
+      "name": "P2: Test Coverage",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "42 secp256k1_* shim ABI functions covered by standalone shim tests (not in unified runner call graph)"
+        }
+      ]
+    },
+    {
+      "name": "P2: Audit Test Quality",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Audit test-quality findings: files=370, critical=0, high=0, medium=0, low=2"
+        },
+        {
+          "severity": "INFO",
+          "message": "low test_point_edge_cases.cpp:326 vacuous_check"
+        },
+        {
+          "severity": "INFO",
+          "message": "low test_regression_field_reduce_carry.cpp:101 vacuous_check"
+        },
+        {
+          "severity": "WARN",
+          "message": "2 low-severity audit-test-quality findings remain"
+        }
+      ]
+    },
+    {
+      "name": "P3: Security Patterns",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "All 597 security patterns preserved"
+        }
+      ]
+    },
+    {
+      "name": "P4: CT Integrity",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "All 44 CT-routed functions documented"
+        }
+      ]
+    },
+    {
+      "name": "P5: Narrative Consistency",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "No stale narrative detected"
+        }
+      ]
+    },
+    {
+      "name": "P6: Graph Freshness",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "Graph is fresh (built: 2026-05-15T10:12:29)"
+        }
+      ]
+    },
+    {
+      "name": "P7: GPU Parity",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "9 undocumented Unsupported returns"
+        },
+        {
+          "severity": "INFO",
+          "message": "  src/gpu/include/gpu_backend.hpp:36"
+        },
+        {
+          "severity": "INFO",
+          "message": "  src/gpu/include/gpu_backend.hpp:177"
+        },
+        {
+          "severity": "INFO",
+          "message": "  src/gpu/include/gpu_backend.hpp:194"
+        },
+        {
+          "severity": "INFO",
+          "message": "  src/gpu/include/gpu_backend.hpp:210"
+        },
+        {
+          "severity": "INFO",
+          "message": "  src/gpu/include/gpu_backend.hpp:237"
+        }
+      ]
+    },
+    {
+      "name": "P8: Test Documentation",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "WARN",
+          "message": "29 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
+        }
+      ]
+    },
+    {
+      "name": "P9: Routing Consistency",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "ABI routing consistent (44 CT functions)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_seckey_negate routed CT but calls Scalar::negate"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_seckey_tweak_add routed CT but calls ct scalar add + validate"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_seckey_tweak_mul routed CT but calls ct scalar mul + validate"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_pubkey_xonly routed CT but calls schnorr_pubkey(sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_schnorr_keypair routed CT but calls generate_schnorr_keypair(sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip32_master routed CT but calls HMAC-SHA512(seed)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip32_derive routed CT but calls CKD_priv or CKD_pub"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip32_derive_path routed CT but calls multi-level CKD"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip32_privkey routed CT but calls ExtendedKey::privkey()"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_taproot_tweak_seckey routed CT but calls taproot_tweak_seckey(sk, merkle)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip39_generate routed CT but calls bip39_generate(strength)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_bip39_to_seed routed CT but calls PBKDF2-SHA512(mnemonic, passphrase)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_musig2_nonce_gen routed CT but calls musig2_nonce_gen(sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_musig2_start_sign_session routed CT but calls musig2_session_init"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_frost_keygen_begin routed CT but calls frost_keygen_begin"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_frost_sign_nonce_gen routed CT but calls frost_sign_nonce_gen"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_schnorr_adaptor_adapt routed CT but calls adaptor_adapt(pre_sig, secret)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_ecdsa_adaptor_adapt routed CT but calls ecdsa_adaptor_adapt"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_pedersen_blind_sum routed CT but calls blind factor sum"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_zk_range_proof_create routed CT but calls create_range_proof"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_zk_knowledge_prove routed CT but calls prove_knowledge(sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_zk_dleq_prove routed CT but calls dleq_prove(sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_coin_hd_derive routed CT but calls coin_hd_derive(coin, xprv, path)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_btc_message_sign routed CT but calls btc_message_sign(msg, sk)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_silent_payment_create_output routed CT but calls silent_payment_create_output"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_silent_payment_scan routed CT but calls silent_payment_scan"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_ecies_encrypt routed CT but calls ecies_encrypt(pubkey, msg)"
+        },
+        {
+          "severity": "INFO",
+          "message": "ufsecp_ecies_decrypt routed CT but calls ecies_decrypt(sk, ciphertext)"
+        }
+      ]
+    },
+    {
+      "name": "P10: Doc-Code Pairing",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "No uncommitted changes"
+        }
+      ]
+    },
+    {
+      "name": "P2: Mutation Evidence Freshness",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Mutation report age: 31.1 days (threshold: 14)"
+        },
+        {
+          "severity": "WARN",
+          "message": "Mutation report is stale (31.1 > 14 days) \u2014 rerun recommended"
+        }
+      ]
+    },
+    {
+      "name": "P3: Crash Risks",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Total crash risks: 1 (div_zero=1)"
+        },
+        {
+          "severity": "PASS",
+          "message": "No crash risks in CT-sensitive code (1 total, none in CT paths)"
+        }
+      ]
+    },
+    {
+      "name": "G-1: Threat Model",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "THREAT_MODEL.md covers all 6 STRIDE categories"
+        },
+        {
+          "severity": "PASS",
+          "message": "10 AM-N references, all defined"
+        },
+        {
+          "severity": "PASS",
+          "message": "7 RR-NNN references, all defined in register"
+        }
+      ]
+    },
+    {
+      "name": "G-1b: Residual Risk Register",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "9 RR-NNN table rows, all with Risk/Disposition/Scope/Details"
+        }
+      ]
+    },
+    {
+      "name": "G-10: Disclosure SLA + RFC 9116",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "SECURITY.md has tiered SLA (Critical/High/Medium/Low)"
+        },
+        {
+          "severity": "PASS",
+          "message": ".well-known/security.txt Expires=2027-04-21T00:00:00.000Z future"
+        }
+      ]
+    },
+    {
+      "name": "G-8: CT Tool Independence",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "9 CT-claimed functions, all 3 tools agree"
+        }
+      ]
+    },
+    {
+      "name": "P21: External-Audit Replacement Gate",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "P21: all required CAAS docs present (15 files)"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/CAAS_PROTOCOL.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/AUDIT_PHILOSOPHY.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/RESIDUAL_RISK_REGISTER.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/SECURITY_CLAIMS.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/EXPLOIT_TEST_CATALOG.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/EXTERNAL_AUDIT_BUNDLE.json present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/EXTERNAL_AUDIT_BUNDLE.sha256 present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/CAAS_REVIEWER_QUICKSTART.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/CAAS_FAQ.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/CAAS_THREAT_MODEL.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/NEGATIVE_RESULTS_LEDGER.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/THREAD_SAFETY.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/ABI_VERSIONING.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "docs/SECURITY_INCIDENT_TIMELINE.md present"
+        },
+        {
+          "severity": "PASS",
+          "message": "ci/verify_external_audit_bundle.py present"
+        }
+      ]
+    },
+    {
+      "name": "G-10: Spec Traceability",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "traceability matrix has 101 rows"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: BIP-340 / BIP340"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: RFC 6979 / RFC6979"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: libsecp / compat"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: DER"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: Taproot / taproot"
+        },
+        {
+          "severity": "PASS",
+          "message": "spec clause covered: x-only / xonly"
+        }
+      ]
+    },
+    {
+      "name": "G-11: Exploit Traceability",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "INFO",
+          "message": "Total exploit files found: 256"
+        },
+        {
+          "severity": "PASS",
+          "message": "wired in runner: 256/256"
+        },
+        {
+          "severity": "PASS",
+          "message": "in catalog: 256/256"
+        }
+      ]
+    },
+    {
+      "name": "G-12: Source Graph Quality",
+      "status": "PASS",
+      "findings": [
+        {
+          "severity": "PASS",
+          "message": "Source graph DB exists: tools/source_graph_kit/source_graph.db"
+        },
+        {
+          "severity": "PASS",
+          "message": "Source graph DB is up-to-date relative to src/cpu/ sources"
+        },
+        {
+          "severity": "INFO",
+          "message": "Source graph tables: ai_handlers, ai_tasks, analysis_scores, audit_coverage, backend_map, call_edges, classes, config_files, config_keys, constants\u2026"
+        },
+        {
+          "severity": "PASS",
+          "message": "Source graph \"files\" has 1193 rows (threshold: 200)"
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "name": "P0: Failure-Class Matrix",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p0__failure-class_matrix",
+          "severity": "info",
+          "title": "Failure-class matrix counts: covered=14, partial=0, deferred=1, unknown=0"
+        },
+        {
+          "check_id": "p0__failure-class_matrix",
+          "severity": "pass",
+          "title": "Failure-class matrix is structurally valid and clear of owner-grade residual blockers"
+        }
+      ]
+    },
+    {
+      "name": "P0: ABI Hostile-Caller Manifest",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p0__abi_hostile-caller_manifest",
+          "severity": "info",
+          "title": "ABI negative-test manifest counts: exports=177, blocking=0, null=177, zero=170, invalid=172, smoke=177"
+        },
+        {
+          "check_id": "p0__abi_hostile-caller_manifest",
+          "severity": "pass",
+          "title": "All exported ABI functions satisfy the hostile-caller coverage quartet"
+        }
+      ]
+    },
+    {
+      "name": "P0: Invalid-Input Grammar",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p0__invalid-input_grammar",
+          "severity": "info",
+          "title": "Invalid-input grammar counts: cases=37, passed=37, failed=0"
+        },
+        {
+          "check_id": "p0__invalid-input_grammar",
+          "severity": "pass",
+          "title": "Structured invalid inputs correctly rejected (37 cases)"
+        }
+      ]
+    },
+    {
+      "name": "P0: Stateful Sequence Integrity",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p0__stateful_sequence_integrity",
+          "severity": "info",
+          "title": "Stateful sequence counts: passed=121, failed=0, count=24"
+        },
+        {
+          "check_id": "p0__stateful_sequence_integrity",
+          "severity": "pass",
+          "title": "Stateful sequence harness passed (121 checks)"
+        }
+      ]
+    },
+    {
+      "name": "P0: Secret-Path Change Gate",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p0__secret-path_change_gate",
+          "severity": "pass",
+          "title": "No uncommitted changes to evaluate"
+        }
+      ]
+    },
+    {
+      "name": "P1: ABI Completeness",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p1__abi_completeness",
+          "severity": "advisory:medium",
+          "title": "42 graph functions not in headers: secp256k1_context_clone, secp256k1_context_create, secp256k1_context_destroy, secp256k1_context_randomize, secp256k1_context_set_error_callback"
+        }
+      ]
+    },
+    {
+      "name": "P2: Test Coverage",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p2__test_coverage",
+          "severity": "advisory:medium",
+          "title": "42 secp256k1_* shim ABI functions covered by standalone shim tests (not in unified runner call graph)"
+        }
+      ]
+    },
+    {
+      "name": "P2: Audit Test Quality",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p2__audit_test_quality",
+          "severity": "info",
+          "title": "Audit test-quality findings: files=370, critical=0, high=0, medium=0, low=2"
+        },
+        {
+          "check_id": "p2__audit_test_quality",
+          "severity": "info",
+          "title": "low test_point_edge_cases.cpp:326 vacuous_check"
+        },
+        {
+          "check_id": "p2__audit_test_quality",
+          "severity": "info",
+          "title": "low test_regression_field_reduce_carry.cpp:101 vacuous_check"
+        },
+        {
+          "check_id": "p2__audit_test_quality",
+          "severity": "advisory:medium",
+          "title": "2 low-severity audit-test-quality findings remain"
+        }
+      ]
+    },
+    {
+      "name": "P3: Security Patterns",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p3__security_patterns",
+          "severity": "pass",
+          "title": "All 597 security patterns preserved"
+        }
+      ]
+    },
+    {
+      "name": "P4: CT Integrity",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p4__ct_integrity",
+          "severity": "pass",
+          "title": "All 44 CT-routed functions documented"
+        }
+      ]
+    },
+    {
+      "name": "P5: Narrative Consistency",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p5__narrative_consistency",
+          "severity": "pass",
+          "title": "No stale narrative detected"
+        }
+      ]
+    },
+    {
+      "name": "P6: Graph Freshness",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p6__graph_freshness",
+          "severity": "pass",
+          "title": "Graph is fresh (built: 2026-05-15T10:12:29)"
+        }
+      ]
+    },
+    {
+      "name": "P7: GPU Parity",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "advisory:medium",
+          "title": "9 undocumented Unsupported returns"
+        },
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "info",
+          "title": "  src/gpu/include/gpu_backend.hpp:36"
+        },
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "info",
+          "title": "  src/gpu/include/gpu_backend.hpp:177"
+        },
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "info",
+          "title": "  src/gpu/include/gpu_backend.hpp:194"
+        },
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "info",
+          "title": "  src/gpu/include/gpu_backend.hpp:210"
+        },
+        {
+          "check_id": "p7__gpu_parity",
+          "severity": "info",
+          "title": "  src/gpu/include/gpu_backend.hpp:237"
+        }
+      ]
+    },
+    {
+      "name": "P8: Test Documentation",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p8__test_documentation",
+          "severity": "advisory:medium",
+          "title": "29 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, exploit_bip352_address_collision, exploit_bip39_nfkd, exploit_bug001_addr_overflow"
+        }
+      ]
+    },
+    {
+      "name": "P9: Routing Consistency",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "pass",
+          "title": "ABI routing consistent (44 CT functions)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_seckey_negate routed CT but calls Scalar::negate"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_seckey_tweak_add routed CT but calls ct scalar add + validate"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_seckey_tweak_mul routed CT but calls ct scalar mul + validate"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_pubkey_xonly routed CT but calls schnorr_pubkey(sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_schnorr_keypair routed CT but calls generate_schnorr_keypair(sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip32_master routed CT but calls HMAC-SHA512(seed)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip32_derive routed CT but calls CKD_priv or CKD_pub"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip32_derive_path routed CT but calls multi-level CKD"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip32_privkey routed CT but calls ExtendedKey::privkey()"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_taproot_tweak_seckey routed CT but calls taproot_tweak_seckey(sk, merkle)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip39_generate routed CT but calls bip39_generate(strength)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_bip39_to_seed routed CT but calls PBKDF2-SHA512(mnemonic, passphrase)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_musig2_nonce_gen routed CT but calls musig2_nonce_gen(sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_musig2_start_sign_session routed CT but calls musig2_session_init"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_frost_keygen_begin routed CT but calls frost_keygen_begin"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_frost_sign_nonce_gen routed CT but calls frost_sign_nonce_gen"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_schnorr_adaptor_adapt routed CT but calls adaptor_adapt(pre_sig, secret)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_ecdsa_adaptor_adapt routed CT but calls ecdsa_adaptor_adapt"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_pedersen_blind_sum routed CT but calls blind factor sum"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_zk_range_proof_create routed CT but calls create_range_proof"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_zk_knowledge_prove routed CT but calls prove_knowledge(sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_zk_dleq_prove routed CT but calls dleq_prove(sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_coin_hd_derive routed CT but calls coin_hd_derive(coin, xprv, path)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_btc_message_sign routed CT but calls btc_message_sign(msg, sk)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_silent_payment_create_output routed CT but calls silent_payment_create_output"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_silent_payment_scan routed CT but calls silent_payment_scan"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_ecies_encrypt routed CT but calls ecies_encrypt(pubkey, msg)"
+        },
+        {
+          "check_id": "p9__routing_consistency",
+          "severity": "info",
+          "title": "ufsecp_ecies_decrypt routed CT but calls ecies_decrypt(sk, ciphertext)"
+        }
+      ]
+    },
+    {
+      "name": "P10: Doc-Code Pairing",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p10__doc-code_pairing",
+          "severity": "pass",
+          "title": "No uncommitted changes"
+        }
+      ]
+    },
+    {
+      "name": "P2: Mutation Evidence Freshness",
+      "verdict": "PASS with advisory",
+      "findings": [
+        {
+          "check_id": "p2__mutation_evidence_freshness",
+          "severity": "info",
+          "title": "Mutation report age: 31.1 days (threshold: 14)"
+        },
+        {
+          "check_id": "p2__mutation_evidence_freshness",
+          "severity": "advisory:medium",
+          "title": "Mutation report is stale (31.1 > 14 days) \u2014 rerun recommended"
+        }
+      ]
+    },
+    {
+      "name": "P3: Crash Risks",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p3__crash_risks",
+          "severity": "info",
+          "title": "Total crash risks: 1 (div_zero=1)"
+        },
+        {
+          "check_id": "p3__crash_risks",
+          "severity": "pass",
+          "title": "No crash risks in CT-sensitive code (1 total, none in CT paths)"
+        }
+      ]
+    },
+    {
+      "name": "G-1: Threat Model",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-1__threat_model",
+          "severity": "pass",
+          "title": "THREAT_MODEL.md covers all 6 STRIDE categories"
+        },
+        {
+          "check_id": "g-1__threat_model",
+          "severity": "pass",
+          "title": "10 AM-N references, all defined"
+        },
+        {
+          "check_id": "g-1__threat_model",
+          "severity": "pass",
+          "title": "7 RR-NNN references, all defined in register"
+        }
+      ]
+    },
+    {
+      "name": "G-1b: Residual Risk Register",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-1b__residual_risk_register",
+          "severity": "pass",
+          "title": "9 RR-NNN table rows, all with Risk/Disposition/Scope/Details"
+        }
+      ]
+    },
+    {
+      "name": "G-10: Disclosure SLA + RFC 9116",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-10__disclosure_sla_+_rfc_9116",
+          "severity": "pass",
+          "title": "SECURITY.md has tiered SLA (Critical/High/Medium/Low)"
+        },
+        {
+          "check_id": "g-10__disclosure_sla_+_rfc_9116",
+          "severity": "pass",
+          "title": ".well-known/security.txt Expires=2027-04-21T00:00:00.000Z future"
+        }
+      ]
+    },
+    {
+      "name": "G-8: CT Tool Independence",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-8__ct_tool_independence",
+          "severity": "pass",
+          "title": "9 CT-claimed functions, all 3 tools agree"
+        }
+      ]
+    },
+    {
+      "name": "P21: External-Audit Replacement Gate",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "P21: all required CAAS docs present (15 files)"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/CAAS_PROTOCOL.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/AUDIT_PHILOSOPHY.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/RESIDUAL_RISK_REGISTER.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/SECURITY_CLAIMS.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/EXPLOIT_TEST_CATALOG.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/EXTERNAL_AUDIT_BUNDLE.json present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/EXTERNAL_AUDIT_BUNDLE.sha256 present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/CAAS_REVIEWER_QUICKSTART.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/CAAS_FAQ.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/CAAS_THREAT_MODEL.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/NEGATIVE_RESULTS_LEDGER.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/THREAD_SAFETY.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/ABI_VERSIONING.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "docs/SECURITY_INCIDENT_TIMELINE.md present"
+        },
+        {
+          "check_id": "p21__external-audit_replacement_gate",
+          "severity": "pass",
+          "title": "ci/verify_external_audit_bundle.py present"
+        }
+      ]
+    },
+    {
+      "name": "G-10: Spec Traceability",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "traceability matrix has 101 rows"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: BIP-340 / BIP340"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: RFC 6979 / RFC6979"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: libsecp / compat"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: DER"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: Taproot / taproot"
+        },
+        {
+          "check_id": "g-10__spec_traceability",
+          "severity": "pass",
+          "title": "spec clause covered: x-only / xonly"
+        }
+      ]
+    },
+    {
+      "name": "G-11: Exploit Traceability",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-11__exploit_traceability",
+          "severity": "info",
+          "title": "Total exploit files found: 256"
+        },
+        {
+          "check_id": "g-11__exploit_traceability",
+          "severity": "pass",
+          "title": "wired in runner: 256/256"
+        },
+        {
+          "check_id": "g-11__exploit_traceability",
+          "severity": "pass",
+          "title": "in catalog: 256/256"
+        }
+      ]
+    },
+    {
+      "name": "G-12: Source Graph Quality",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "check_id": "g-12__source_graph_quality",
+          "severity": "pass",
+          "title": "Source graph DB exists: tools/source_graph_kit/source_graph.db"
+        },
+        {
+          "check_id": "g-12__source_graph_quality",
+          "severity": "pass",
+          "title": "Source graph DB is up-to-date relative to src/cpu/ sources"
+        },
+        {
+          "check_id": "g-12__source_graph_quality",
+          "severity": "info",
+          "title": "Source graph tables: ai_handlers, ai_tasks, analysis_scores, audit_coverage, backend_map, call_edges, classes, config_files, config_keys, constants\u2026"
+        },
+        {
+          "check_id": "g-12__source_graph_quality",
+          "severity": "pass",
+          "title": "Source graph \"files\" has 1193 rows (threshold: 200)"
+        }
+      ]
+    }
+  ]
+}
