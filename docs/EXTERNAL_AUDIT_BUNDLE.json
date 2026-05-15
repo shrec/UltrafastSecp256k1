@@ -208,11 +208,15 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-15T06:27:15)",
+                "message": "2 files modified/deleted since graph build (2026-05-15T08:17:12)",
                 "severity": "WARN"
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: src/cpu/src/batch_verify.cpp",
                 "severity": "INFO"
               }
             ],
@@ -384,7 +388,7 @@
           {
             "findings": [
               {
-                "message": "1 changed files have matching docs",
+                "message": "2 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -394,11 +398,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 31.0 days (threshold: 14)",
+                "message": "Mutation report age: 31.1 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (31.0 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (31.1 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -622,11 +626,11 @@
           "value": {
             "dirty": true,
             "ref": "main",
-            "sha": "2aad6faca67cc8202c7d6ffea537b124b8703414",
-            "short": "2aad6faca6"
+            "sha": "05121e4fce01c92829f3b017a84d2e4ff8e0cb15",
+            "short": "05121e4fce"
           }
         },
-        "generated_at": "2026-05-15T08:13:18.416826+00:00",
+        "generated_at": "2026-05-15T09:09:32.262176+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -643,12 +647,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-15T08:13:18.416782+00:00",
+          "collected_at": "2026-05-15T09:09:32.262129+00:00",
           "git": {
             "dirty": true,
             "ref": "main",
-            "sha": "2aad6faca67cc8202c7d6ffea537b124b8703414",
-            "short": "2aad6faca6"
+            "sha": "05121e4fce01c92829f3b017a84d2e4ff8e0cb15",
+            "short": "05121e4fce"
           },
           "platform": {
             "machine": "x86_64",
@@ -669,7 +673,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-2aad6faca6-20260515T081318",
+        "run_id": "audit_gate-05121e4fce-20260515T090932",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -834,12 +838,17 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-15T06:27:15)"
+                "title": "2 files modified/deleted since graph build (2026-05-15T08:17:12)"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
                 "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: src/cpu/src/batch_verify.cpp"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1048,7 +1057,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "1 changed files have matching docs"
+                "title": "2 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1059,12 +1068,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 31.0 days (threshold: 14)"
+                "title": "Mutation report age: 31.1 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (31.0 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (31.1 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1321,12 +1330,12 @@
           }
         ],
         "summary": {
-          "advisory": 53,
+          "advisory": 54,
           "blocking": 0,
-          "info": 45,
+          "info": 46,
           "sections": 26,
           "skipped_sections": 0,
-          "total_findings": 98,
+          "total_findings": 99,
           "warnings": 8
         },
         "verdict": "PASS with advisory"
@@ -1334,8 +1343,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "f897d2c2a9fbce78b04e7e28c0fafe864f6312af4030a758423501554d53c852",
-      "stdout_sha256": "8a49c841119069b84bae479ef788afe8f083f2842cf517c0e20cc7be2d1c7c65"
+      "stderr_sha256": "5a60f4d86bb4d7b4d52d0b106e0c3aa260522801bb77b64bb9cc6f08e7889cac",
+      "stdout_sha256": "77f5377a9968b4d2a972938aca88c501361c940ee68a92d61c2ab063636447d7"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1637,13 +1646,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-15T08:13:20.034847+00:00"
+        "timestamp": "2026-05-15T09:09:33.876924+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "71a4031c44e6f854afcf0f88b5bd01a66bc71a3c01699ed11d871c3f9578a66f"
+      "stdout_sha256": "788d80c3c2105439e5e5b40d4b281eddf648f7f7e2d4dc85dc235037f079389d"
     },
     {
       "name": "supply_chain_gate",
@@ -1689,19 +1698,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-15T08:13:20.076785+00:00"
+        "timestamp": "2026-05-15T09:09:33.920246+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "2870d3c7c1a372226ccd95e9d2553fd403658ee077da6a87f514998b6043fcb0"
+      "stdout_sha256": "2cb81f1b500e77e1f167abb71e5a608146ac0d6d797608ea1d7cca4a19518432"
     }
   ],
-  "generated_at": "2026-05-15T08:13:20.091727+00:00",
+  "generated_at": "2026-05-15T09:09:33.934371+00:00",
   "git": {
     "branch": "main",
-    "commit": "2aad6faca67cc8202c7d6ffea537b124b8703414",
+    "commit": "05121e4fce01c92829f3b017a84d2e4ff8e0cb15",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

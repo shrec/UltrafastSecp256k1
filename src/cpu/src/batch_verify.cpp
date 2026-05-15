@@ -218,8 +218,17 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     // B-6 / CA-010: per-call seeded hash map for O(1) dedup.
     // New seed each call prevents adversarial pubkey inputs from pre-computing
     // hash collisions that degrade lookup to O(n) worst-case.
+    //
+    // Security rationale (cpp:S2245 — non-cryptographic PRNG):
+    //   mt19937_64 below is NOT used for any cryptographic purpose. It only
+    //   diversifies the hash-table seed across calls so an attacker who can
+    //   control input pubkeys cannot pre-compute hash collisions that would
+    //   flood a single bucket and turn lookup O(n²). The seed itself comes
+    //   from std::random_device (OS entropy). No secret material, signing
+    //   randomness, or curve operations use this stream. Suitable use case
+    //   for a fast PRNG; substituting a CSPRNG here would buy nothing.
     using PubkeyMap = std::unordered_map<std::array<uint8_t, 32>, Point, PubkeyHash32>;
-    static thread_local std::mt19937_64 rng{std::random_device{}()};
+    static thread_local std::mt19937_64 rng{std::random_device{}()};  // NOSONAR(cpp:S2245)
     PubkeyMap pubkey_index(n, PubkeyHash32{static_cast<std::size_t>(rng())});
     pubkey_index.reserve(n);
 
