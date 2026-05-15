@@ -28,8 +28,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Install Semgrep
+        # Pin by sha256 hash so --require-hashes is actually enforced. Without
+        # an inline --hash= or a hashed requirements file, pip would fail at
+        # runtime; even if it didn't, Scorecard's PinnedDependenciesID would
+        # rightly flag it. Hash taken from PyPI:
+        #   semgrep-1.102.0-cp39.cp310.cp311.py39.py310.py311-none-
+        #   musllinux_1_0_x86_64.manylinux2014_x86_64.whl
         run: |
-          pip3 install --quiet --require-hashes --no-deps semgrep==1.102.0
+          pip3 install --quiet --require-hashes --no-deps \
+            "semgrep==1.102.0 --hash=sha256:4afc25fedae9db030573cab96a162bfc71cc414d00d7040ac179a8c3e88c7bf8"
 
       - name: Write custom crypto rules
         run: |

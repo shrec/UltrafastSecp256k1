@@ -67,6 +67,15 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "beb7385ee5": (
+        ["audit/test_exploit_batch_verify_correctness.cpp",
+         "audit/test_exploit_batch_verify_poison.cpp"],
+        "Comment-only change to src/cpu/src/batch_verify.cpp — added "
+        "NOSONAR/rationale block on the line that seeds the hash-flooding "
+        "guard's per-call RNG. No executable code touched. Existing audit "
+        "tests (batch_verify_correctness / poison) already validate the "
+        "function's behavior including the dedup path.",
+    ),
     "c389c98443": (
         ["audit/test_regression_ct_sanitizer_detection.cpp"],
         "Clang sanitizer detection fix in ct_field.cpp. The regression test "
