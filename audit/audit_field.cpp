@@ -474,6 +474,14 @@ static void test_jacobi() {
     g_section = "jacobi";
     printf("[12] FE52 Jacobi symbol (posdivstep SafeGCD)\n");
 
+#if !defined(__SIZEOF_INT128__)
+    // MSVC has no __int128, so FE52::jacobi_var is declaration-hidden in
+    // src/cpu/include/secp256k1/field_52.hpp. The 4x64 FieldElement::jacobi_var
+    // is exercised by other tests; skipping the FE52 cross-check here keeps
+    // the build green on Windows without losing coverage.
+    printf("    skipped — __int128 not available (MSVC); FE64 Jacobi is tested elsewhere\n\n");
+    return;
+#else
     // --- Known values ---
     // 0: jacobi(0) == 0
     {
@@ -561,6 +569,7 @@ static void test_jacobi() {
     }
 
     printf("    %d checks\n\n", g_pass);
+#endif  // __SIZEOF_INT128__
 }
 
 // ============================================================================
