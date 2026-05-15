@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cache/ccache
-          key: ccache-sonar-${{ hashFiles('cpu/src/**', 'cpu/include/**', 'include/**') }}
+          key: ccache-sonar-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**') }}
           restore-keys: |
             ccache-sonar-
 

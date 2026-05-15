@@ -208,7 +208,7 @@
           {
             "findings": [
               {
-                "message": "1 files modified/deleted since graph build (2026-05-14T20:12:46)",
+                "message": "1 files modified/deleted since graph build (2026-05-15T02:38:41)",
                 "severity": "WARN"
               },
               {
@@ -384,7 +384,7 @@
           {
             "findings": [
               {
-                "message": "2 changed files have matching docs",
+                "message": "3 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -622,11 +622,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "b7d3daf80c29b1fd2486b2f66f159a6316761e8c",
-            "short": "b7d3daf80c"
+            "sha": "48e31027b80ef2035a840ade220c8efb8ecef24a",
+            "short": "48e31027b8"
           }
         },
-        "generated_at": "2026-05-15T02:31:49.204031+00:00",
+        "generated_at": "2026-05-15T03:23:20.205610+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -643,12 +643,12 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-05-15T02:31:49.203971+00:00",
+          "collected_at": "2026-05-15T03:23:20.205572+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "b7d3daf80c29b1fd2486b2f66f159a6316761e8c",
-            "short": "b7d3daf80c"
+            "sha": "48e31027b80ef2035a840ade220c8efb8ecef24a",
+            "short": "48e31027b8"
           },
           "platform": {
             "machine": "x86_64",
@@ -669,7 +669,7 @@
           },
           "version": "4.0.0"
         },
-        "run_id": "audit_gate-b7d3daf80c-20260515T023149",
+        "run_id": "audit_gate-48e31027b8-20260515T032320",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -834,7 +834,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "1 files modified/deleted since graph build (2026-05-14T20:12:46)"
+                "title": "1 files modified/deleted since graph build (2026-05-15T02:38:41)"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1048,7 +1048,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "2 changed files have matching docs"
+                "title": "3 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1334,8 +1334,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "2e096c418dcf94078a6bf9c16a2b3ff2684a7d73d5ecd40854f19b8660d6e2f3",
-      "stdout_sha256": "bf5f6cce4294c210c14d778564fd640371479ee88b2e48556dd863ed22163e54"
+      "stderr_sha256": "3b8588193d8308e8010fcbc56a506a0abca1b0e7d15b53e217eebdbccfe9c781",
+      "stdout_sha256": "cd725ba4795df544823e3910d1f987f02a96125057059a0fb8a5eb77806a356c"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1637,13 +1637,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-05-15T02:31:50.527899+00:00"
+        "timestamp": "2026-05-15T03:23:21.517608+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "8a4b707428e92174652c06624c70fcf73efab73de025d83cc733a470b06b4fef"
+      "stdout_sha256": "8c09aac531794790e87a0b7dc8e3ca1ae67b323de92c930965a81dae459776f0"
     },
     {
       "name": "supply_chain_gate",
@@ -1689,19 +1689,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-05-15T02:31:50.566578+00:00"
+        "timestamp": "2026-05-15T03:23:21.554246+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "3fa92f52cf3ef83c120a53f6fea05ea1de41b31b701ca3b88c26c17c1fc43d93"
+      "stdout_sha256": "b5edd768c13770ef090a5438ebe78df9c5198f28b646511372017e4b186cff77"
     }
   ],
-  "generated_at": "2026-05-15T02:31:50.580458+00:00",
+  "generated_at": "2026-05-15T03:23:21.567198+00:00",
   "git": {
     "branch": "dev",
-    "commit": "b7d3daf80c29b1fd2486b2f66f159a6316761e8c",
+    "commit": "48e31027b80ef2035a840ade220c8efb8ecef24a",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
