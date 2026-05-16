@@ -266,9 +266,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python audit dependencies
+        shell: bash
         run: |
-          PYTHON=$(command -v python3 || command -v python)
-          "$PYTHON" -m pip install --require-hashes \
+          python3 -m pip install --require-hashes \
             -r .github/requirements/audit-deps.txt
 
       # -- Configure --
