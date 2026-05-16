@@ -1987,7 +1987,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: "UltrafastSecp256k1 ${{ env.RELEASE_TAG }}"
           body: ${{ steps.notes.outputs.NOTES }}
-          draft: false
+          draft: true
           prerelease: ${{ contains(env.RELEASE_TAG, '-rc') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-alpha') }}
           fail_on_unmatched_files: false
           # NOTE: dist/**/* already includes .sigstore files created by
