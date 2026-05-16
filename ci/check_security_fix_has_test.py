@@ -177,6 +177,15 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "follow-up commit. PERF-002 (remove y²=x³+7 check) and other PERF fixes are "
         "non-security refactors covered by existing shim differential tests.",
     ),
+    "b8d6bd830c": (
+        ["audit/test_regression_ecdsa_batch_curve_check.cpp"],
+        "CA-001: curve membership check (y²=x³+7) restored in large-batch ECDSA verify path "
+        "(shim_batch_verify.cpp). Small-batch (n<8) had the check; large-batch (n≥8) was missing it (PERF-004). "
+        "CA-002: comment in shim_schnorr.cpp clarifies from_bytes is correct per BIP-340 §Signing step 3 "
+        "(mod-n reduction; parse_bytes_strict_nonzero would incorrectly fail at prob 2^-128). "
+        "test_regression_ecdsa_batch_curve_check verifies both small-batch and large-batch paths "
+        "reject invalid-curve pubkeys consistently (BCK-1..6).",
+    ),
     "b2e561355f": (
         ["audit/test_exploit_shim_musig_secnonce.cpp",
          "audit/test_exploit_shim_musig_ka_cap.cpp"],

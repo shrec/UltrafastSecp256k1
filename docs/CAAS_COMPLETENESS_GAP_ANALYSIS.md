@@ -24,7 +24,7 @@ CAAS was created to replace expensive snapshot-PDF review ($40k-$250k) with a co
 |-----------|--------|
 | 5-stage pipeline (static analysis -> audit gate -> autonomy -> bundle -> verify) | Closed |
 | 12 CAAS pipeline bugs fixed (d0da0c38) — C1-C12 | Closed |
-| 313 audit modules, 261 exploit PoCs, ~1M assertions (2026-04-28 audit: 312/313 PASS) | Closed |
+| 313 audit modules, 262 exploit PoCs, ~1M assertions (2026-04-28 audit: 312/313 PASS) | Closed |
 | 16+ fuzz harnesses (4066 lines) | Closed |
 | CAAS protocol spec (`CAAS_PROTOCOL.md`) | Closed |
 | CAAS hardening backlog (`CAAS_HARDENING_TODO.md`) — 12 items, all closed | Closed |

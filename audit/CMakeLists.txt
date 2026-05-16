@@ -3736,7 +3736,9 @@ if(TARGET secp256k1_shim)
         # 2026-05-13 v7: T-01/T-07/T-08/T-10 shim security regression guards
         test_regression_shim_security_v7.cpp
         # 2026-05-13 v8: P1-SEC-NEW-001 ecdh strict privkey + RED-TEAM-008 on-curve + P2-SEC-NEW-002
-        test_regression_shim_security_v8.cpp)
+        test_regression_shim_security_v8.cpp
+        # 2026-05-16 CA-001: curve membership check in large-batch ECDSA verify
+        test_regression_ecdsa_batch_curve_check.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
@@ -3757,6 +3759,19 @@ if(TARGET secp256k1_shim)
         COMMAND test_regression_shim_security_v8_standalone)
     set_tests_properties(regression_shim_security_v8 PROPERTIES
         TIMEOUT 60 LABELS "audit;regression;shim;security;ecdh;ecdsa")
+
+    # -- CA-001: curve membership check in large-batch ECDSA --
+    add_executable(test_regression_ecdsa_batch_curve_check_standalone
+        test_regression_ecdsa_batch_curve_check.cpp)
+    audit_target_defaults(test_regression_ecdsa_batch_curve_check_standalone)
+    target_link_libraries(test_regression_ecdsa_batch_curve_check_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_regression_ecdsa_batch_curve_check_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_ecdsa_batch_curve_check_standalone PRIVATE STANDALONE_TEST SECP256K1_BUILD_SHIM)
+    add_test(NAME regression_ecdsa_batch_curve_check
+        COMMAND test_regression_ecdsa_batch_curve_check_standalone)
+    set_tests_properties(regression_ecdsa_batch_curve_check PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;security;ecdsa;batch")
 endif()
 
 # -- v7 T-09: adaptor degenerate output guard (standalone CTest target) -------

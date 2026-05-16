@@ -522,6 +522,7 @@ int test_regression_shim_high_s_verify_run();
 // Forward declarations -- 2026-05-12 PERF-001/005 shim hot-path correctness
 // ============================================================================
 int test_regression_shim_perf_correctness_run(); // PERF-001: recovery fast path, PERF-005: schnorr verify raw ptr
+int test_regression_ecdsa_batch_curve_check_run(); // CA-001: curve membership check in large-batch ECDSA verify path
 
 // ============================================================================
 // Forward declarations -- 2026-05-12 SEC-001 MuSig2 ABI signer-index fix
@@ -1102,6 +1103,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-13 v8 security regression guards ===
     // advisory=true: depend on the libsecp256k1 shim being linked.
     { "regression_shim_security_v8", "v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve", "exploit_poc", test_regression_shim_security_v8_run, true },
+    // === 2026-05-16 CA-001: curve membership check restored in large-batch ECDSA verify ===
+    // advisory=true: shim must be linked (secp256k1_ecdsa_verify_batch is shim-only).
+    { "regression_ecdsa_batch_curve_check", "CA-001: secp256k1_ecdsa_verify_batch rejects invalid-curve pubkeys (y\xC2\xB2\xE2\x89\xA0x\xC2\xB3+7) consistently in small-batch (n<8) and large-batch (n\xE2\x89\xA58) paths (BCK-1..6)", "exploit_poc", test_regression_ecdsa_batch_curve_check_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

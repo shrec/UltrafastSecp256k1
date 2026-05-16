@@ -85,7 +85,7 @@ Understanding an attack class academically is not sufficient. The attack must
 be expressed as executable code that demonstrates the vulnerability, or
 demonstrates that it is not present under specific conditions.
 
-261 exploit PoCs modules exist in this repository. Each one:
+262 exploit PoCs modules exist in this repository. Each one:
 - Documents a known attack class (CVE, ePrint, published exploit)
 - Attempts the attack against the current implementation
 - Passes only if the implementation is not vulnerable
