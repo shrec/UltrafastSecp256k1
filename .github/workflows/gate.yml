@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
+          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'main' }}"
           BEFORE_SHA="${{ github.event.before }}"
           python3 ci/ci_gate_detect.py \
             --base "$BASE_REF" \
@@ -407,7 +407,7 @@ jobs:
         # |run_gpu|run_wasm — full coverage of all secret-bearing profiles.
         if: always()
         run: |
-          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'dev' }}"
+          BASE_REF="origin/${{ github.event.pull_request.base.ref || 'main' }}"
           BEFORE_SHA="${{ github.event.before }}"
           python3 ci/check_secret_path_changes.py \
             --base "$BASE_REF" \
