@@ -17,7 +17,11 @@ It is not a trust request. It is a verification package.
 </p>
 
 [![Gate](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/gate.yml)
+[![CI](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/security-audit.yml)
 [![CAAS](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/caas.yml)
+[![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=shrec_UltrafastSecp256k1)
+[![CodeQL](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/codeql.yml)
 [![OSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://securityscorecards.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19685027-blue.svg)](https://doi.org/10.5281/zenodo.19685027)
 
