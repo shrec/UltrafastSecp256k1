@@ -134,7 +134,7 @@ static void test_small_batch_invalid_curve() {
     std::vector<SlotData> slots = { make_valid_slot(2) };
     corrupt_pubkey_y(slots[0].pubkey_xy);  // y² ≠ x³+7
     int r = run_batch(ctx, slots);
-    CHECK(r == 0, "BCK-2: small-batch invalid-curve pubkey must be rejected");
+    CHECK(!r, "BCK-2: small-batch off-curve pubkey must not verify");
     secp256k1_context_destroy(ctx);
 }
 
@@ -153,7 +153,7 @@ static void test_large_batch_invalid_middle() {
     for (int i = 1; i <= 9; ++i) slots.push_back(make_valid_slot(i));
     corrupt_pubkey_y(slots[4].pubkey_xy);  // slot 4 off-curve
     int r = run_batch(ctx, slots);
-    CHECK(r == 0, "BCK-4: large-batch with off-curve pubkey at slot 4 must be rejected");
+    CHECK(!r, "BCK-4: large-batch with off-curve pubkey at slot 4 must not verify");
     secp256k1_context_destroy(ctx);
 }
 
@@ -163,7 +163,7 @@ static void test_large_batch_invalid_first() {
     for (int i = 1; i <= 9; ++i) slots.push_back(make_valid_slot(i));
     corrupt_pubkey_y(slots[0].pubkey_xy);
     int r = run_batch(ctx, slots);
-    CHECK(r == 0, "BCK-5: large-batch with off-curve pubkey at slot 0 must be rejected");
+    CHECK(!r, "BCK-5: large-batch with off-curve pubkey at slot 0 must not verify");
     secp256k1_context_destroy(ctx);
 }
 
@@ -173,7 +173,7 @@ static void test_large_batch_invalid_last() {
     for (int i = 1; i <= 9; ++i) slots.push_back(make_valid_slot(i));
     corrupt_pubkey_y(slots[8].pubkey_xy);
     int r = run_batch(ctx, slots);
-    CHECK(r == 0, "BCK-6: large-batch with off-curve pubkey at last slot must be rejected");
+    CHECK(!r, "BCK-6: large-batch with off-curve pubkey at last slot must not verify");
     secp256k1_context_destroy(ctx);
 }
 
