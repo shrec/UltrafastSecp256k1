@@ -3738,7 +3738,9 @@ if(TARGET secp256k1_shim)
         # 2026-05-13 v8: P1-SEC-NEW-001 ecdh strict privkey + RED-TEAM-008 on-curve + P2-SEC-NEW-002
         test_regression_shim_security_v8.cpp
         # 2026-05-16 CA-001: curve membership check in large-batch ECDSA verify
-        test_regression_ecdsa_batch_curve_check.cpp)
+        test_regression_ecdsa_batch_curve_check.cpp
+        # 2026-05-16 PERF-VAR: fe52 var-time paths correctness
+        test_regression_fe52_var_paths.cpp)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
@@ -3773,6 +3775,16 @@ if(TARGET secp256k1_shim)
     set_tests_properties(regression_ecdsa_batch_curve_check PROPERTIES
         TIMEOUT 60 LABELS "audit;regression;shim;security;ecdsa;batch")
 endif()
+
+# -- PERF-VAR: fe52 var-time paths correctness — standalone CTest --
+add_executable(test_regression_fe52_var_paths_standalone
+    test_regression_fe52_var_paths.cpp)
+audit_target_defaults(test_regression_fe52_var_paths_standalone)
+target_compile_definitions(test_regression_fe52_var_paths_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_fe52_var_paths
+    COMMAND test_regression_fe52_var_paths_standalone)
+set_tests_properties(regression_fe52_var_paths PROPERTIES
+    TIMEOUT 30 LABELS "audit;regression;field;math_invariants")
 
 # -- v7 T-09: adaptor degenerate output guard (standalone CTest target) -------
 add_executable(test_regression_adaptor_degenerate_v7_standalone

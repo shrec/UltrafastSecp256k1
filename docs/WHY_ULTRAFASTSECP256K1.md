@@ -71,7 +71,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 261 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 261 wired, 0 failures |
+| Exploit PoC tests | 262 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 262 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -83,7 +83,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | **Total (audit runner)** | **unified_audit_runner** across 106 non-exploit modules + 262 exploit-PoC modules (367 total) | **~1,000,000+** |
 | **Total (exploit PoC tests)** | **262 exploit-PoC modules** across 20+ coverage categories, all in `audit/test_exploit_*.cpp` | **261 modules, 0 failures** |
 
-All 106 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
+All 107 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures.
 All 262 exploit PoCs modules pass. Zero failures across all 20+ coverage categories.
 
 ### Self-Audit Documents

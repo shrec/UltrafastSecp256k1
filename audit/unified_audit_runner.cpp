@@ -523,6 +523,7 @@ int test_regression_shim_high_s_verify_run();
 // ============================================================================
 int test_regression_shim_perf_correctness_run(); // PERF-001: recovery fast path, PERF-005: schnorr verify raw ptr
 int test_regression_ecdsa_batch_curve_check_run(); // CA-001: curve membership check in large-batch ECDSA verify path
+int test_regression_fe52_var_paths_run();          // PERF-VAR: fe52 mul_var/square_var must use var-time path (not CT fallback)
 
 // ============================================================================
 // Forward declarations -- 2026-05-12 SEC-001 MuSig2 ABI signer-index fix
@@ -1106,6 +1107,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-16 CA-001: curve membership check restored in large-batch ECDSA verify ===
     // advisory=true: shim must be linked (secp256k1_ecdsa_verify_batch is shim-only).
     { "regression_ecdsa_batch_curve_check", "CA-001: secp256k1_ecdsa_verify_batch rejects invalid-curve pubkeys (y^2 != x^3+7) consistently in small-batch (n<8) and large-batch (n>=8) paths (BCK-1..6)", "exploit_poc", test_regression_ecdsa_batch_curve_check_run, true },
+    // === 2026-05-16 PERF-VAR: fe52 var-time paths correctness ===
+    // advisory=false: uses C++ API only, no GPU/shim dependency.
+    { "regression_fe52_var_paths", "PERF-VAR: FE52 mul_var/mul_assign_var/square_var/square_inplace_var produce same results as CT paths (VAR-1..4)", "math_invariants", test_regression_fe52_var_paths_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
