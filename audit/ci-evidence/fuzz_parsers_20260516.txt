@@ -1,0 +1,68 @@
+===============================================================
+  AUDIT III -- Fuzzing & Adversarial Testing
+===============================================================
+
+[1] Malformed public key rejection
+    3 checks
+
+[2] Invalid ECDSA signatures
+    7 checks
+
+[3] Invalid Schnorr signatures
+    11 checks
+
+[4] Oversized scalars
+    15 checks
+
+[5] Boundary field elements
+    19 checks
+
+[6] ECDSA recovery edge cases (1K)
+      rec_edge 201/1000
+      rec_edge 402/1000
+      rec_edge 603/1000
+      rec_edge 804/1000
+    [#...................] 4096 OK
+    4769 checks
+
+[7] Random operation sequence (10K)
+      rnd_ops 1001/10000
+      rnd_ops 2002/10000
+      rnd_ops 3003/10000
+      rnd_ops 4004/10000
+      rnd_ops 5005/10000
+      rnd_ops 6006/10000
+      rnd_ops 7007/10000
+      rnd_ops 8008/10000
+      rnd_ops 9009/10000
+    6461 checks
+
+[8] DER encoding round-trip (1K)
+      der 201/1000
+      der 402/1000
+    [##..................] 8192 OK
+      der 603/1000
+      der 804/1000
+    9461 checks
+
+[9] Schnorr signature byte round-trip (1K)
+      schn_rt 201/1000
+      schn_rt 402/1000
+      schn_rt 603/1000
+      schn_rt 804/1000
+    11461 checks
+
+[10] Signature normalization / low-S (1K)
+      sig_norm 201/1000
+    [###.................] 12288 OK
+      sig_norm 402/1000
+      sig_norm 603/1000
+      sig_norm 804/1000
+    15461 checks
+
+[11] Field reduce carry propagation regression (field_reduce_carry)
+    27 checks
+
+===============================================================
+  FUZZ AUDIT: 15488 passed, 0 failed
+===============================================================
