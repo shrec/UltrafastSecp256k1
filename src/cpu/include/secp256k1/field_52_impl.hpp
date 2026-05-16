@@ -1825,7 +1825,7 @@ void fe52_sqr_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
     // RISC-V: Symmetry-optimized squaring in asm.
     // Cross-products doubled via shift, halving multiplication count.
     fe52_sqr_inner_riscv64(r, a);
-#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) // MONOLITHIC_SQR_ASM: Disabled -- same rationale as mul ASM above.
+#elif defined(SECP256K1_HAS_ASM) && defined(__GNUC__) && !defined(__clang__) && (defined(__x86_64__) || defined(_M_X64)) // MONOLITHIC_SQR_ASM: Disabled -- same rationale as mul ASM above.
     // ========================================================================
     // Monolithic x86-64 MULX + ADCX/ADOX field squaring (single asm block)
     // ========================================================================
