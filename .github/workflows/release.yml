@@ -90,6 +90,8 @@ jobs:
           cmake --build out/release-caas --target ufsecp_shared -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Release CAAS evidence gates
+        env:
+          UFSECP_LIB_PATH: ${{ github.workspace }}/out/release-caas
         run: |
           python3 ci/build_project_graph.py --rebuild
           python3 tools/source_graph_kit/source_graph.py build -i
