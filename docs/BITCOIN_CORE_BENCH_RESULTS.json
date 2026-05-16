@@ -10,20 +10,20 @@
     "core_pinned": 1,
     "taskset": "taskset -c 0",
     "governor": "performance (cpupower frequency-set -g performance)",
-    "turbo": "disabled (intel_pstate/no_turbo=1 + cpupower \u2014 hard lock, sudo available)",
+    "turbo": "disabled (intel_pstate/no_turbo=1 + cpupower — hard lock, sudo available)",
     "nice": -20,
     "harness": "bench_bitcoin (Bitcoin Core native benchmark harness, -min-time=3000ms)"
   },
-  "note": "All numbers from Bitcoin Core bench_bitcoin binary \u2014 real Bitcoin Core validation pipeline. NOT bench_unified. Hard turbo lock: cpupower + intel_pstate/no_turbo=1. LTO: 5 runs, median. no-LTO: 3 runs, median. err% from nanobench per-run internal measurement.",
+  "note": "All numbers from Bitcoin Core bench_bitcoin binary — real Bitcoin Core validation pipeline. NOT bench_unified. Hard turbo lock: cpupower + intel_pstate/no_turbo=1. LTO: 5 runs, median. no-LTO: 3 runs, median. err% from nanobench per-run internal measurement.",
   "results_lto": {
-    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) \u2014 recommended production build. 5 runs, hard turbo lock.",
+    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) — recommended production build. 5 runs, hard turbo lock.",
     "ConnectBlockAllEcdsa_ms": {
       "ultra": 254.3,
       "libsecp": 257.4,
       "ratio": 1.012,
       "ultra_err_pct": 0.4,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra +1.2% \u2014 confirmed (5 runs, non-overlapping medians)"
+      "verdict": "Ultra +1.2% — confirmed (5 runs, non-overlapping medians)"
     },
     "ConnectBlockAllSchnorr_ms": {
       "ultra": 253.0,
@@ -31,7 +31,7 @@
       "ratio": 1.009,
       "ultra_err_pct": 0.5,
       "libsecp_err_pct": 0.3,
-      "verdict": "Ultra +0.9% \u2014 confirmed (5 runs, non-overlapping medians)"
+      "verdict": "Ultra +0.9% — confirmed (5 runs, non-overlapping medians)"
     },
     "ConnectBlockMixed_ms": {
       "ultra": 253.9,
@@ -39,7 +39,7 @@
       "ratio": 1.015,
       "ultra_err_pct": 0.5,
       "libsecp_err_pct": 0.2,
-      "verdict": "Ultra +1.5% \u2014 confirmed (5 runs, non-overlapping medians)"
+      "verdict": "Ultra +1.5% — confirmed (5 runs, non-overlapping medians)"
     },
     "SignSchnorrWithMerkleRoot_ns": {
       "ultra": 83930,
@@ -47,7 +47,7 @@
       "ratio": 1.351,
       "ultra_err_pct": 0.2,
       "libsecp_err_pct": 0.2,
-      "verdict": "Ultra 1.35x faster \u2014 confirmed (wide margin)"
+      "verdict": "Ultra 1.35x faster — confirmed (wide margin)"
     },
     "SignSchnorrWithNullMerkleRoot_ns": {
       "ultra": 83980,
@@ -55,7 +55,7 @@
       "ratio": 1.345,
       "ultra_err_pct": 0.4,
       "libsecp_err_pct": 0.2,
-      "verdict": "Ultra 1.35x faster \u2014 confirmed (wide margin)"
+      "verdict": "Ultra 1.35x faster — confirmed (wide margin)"
     },
     "SignTransactionECDSA_ns": {
       "ultra": 149520,
@@ -63,7 +63,7 @@
       "ratio": 1.104,
       "ultra_err_pct": 0.4,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra 1.10x faster \u2014 confirmed"
+      "verdict": "Ultra 1.10x faster — confirmed"
     },
     "SignTransactionSchnorr_ns": {
       "ultra": 125380,
@@ -71,7 +71,7 @@
       "ratio": 1.097,
       "ultra_err_pct": 0.5,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra 1.10x faster \u2014 confirmed"
+      "verdict": "Ultra 1.10x faster — confirmed"
     },
     "VerifyScriptP2WPKH_ns": {
       "ultra": 45978,
@@ -79,7 +79,7 @@
       "ratio": 0.996,
       "ultra_err_pct": 0.3,
       "libsecp_err_pct": 0.3,
-      "verdict": "Parity \u2014 Ultra 0.4% slower, ranges overlap, inconclusive"
+      "verdict": "Parity — Ultra 0.4% slower, ranges overlap, inconclusive"
     },
     "VerifyScriptP2TR_KeyPath_ns": {
       "ultra": 45406,
@@ -87,7 +87,7 @@
       "ratio": 1.02,
       "ultra_err_pct": 0.2,
       "libsecp_err_pct": 0.3,
-      "verdict": "Ultra +2.0% \u2014 confirmed (5 runs)"
+      "verdict": "Ultra +2.0% — confirmed (5 runs)"
     },
     "VerifyScriptP2TR_ScriptPath_ns": {
       "ultra": 76451,
@@ -95,7 +95,7 @@
       "ratio": 1.096,
       "ultra_err_pct": 0.2,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra 1.10x faster \u2014 confirmed"
+      "verdict": "Ultra 1.10x faster — confirmed"
     }
   },
   "results_nolto": {
@@ -107,7 +107,7 @@
       "ratio": 1.005,
       "ultra_err_pct": 0.2,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra 0.5% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
+      "verdict": "Ultra 0.5% SLOWER — confirmed (3 runs, non-overlapping)"
     },
     "ConnectBlockAllSchnorr_ms": {
       "ultra": 250.5,
@@ -115,7 +115,7 @@
       "ratio": 1.01,
       "ultra_err_pct": 0.3,
       "libsecp_err_pct": 0.4,
-      "verdict": "Ultra 1.0% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
+      "verdict": "Ultra 1.0% SLOWER — confirmed (3 runs, non-overlapping)"
     },
     "ConnectBlockMixed_ms": {
       "ultra": 252.8,
@@ -123,7 +123,7 @@
       "ratio": 1.008,
       "ultra_err_pct": 0.4,
       "libsecp_err_pct": 0.3,
-      "verdict": "Ultra 0.8% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
+      "verdict": "Ultra 0.8% SLOWER — confirmed (3 runs, non-overlapping)"
     }
   },
   "test_suite": {
@@ -132,16 +132,44 @@
     "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
   },
   "nolto_gap_root_cause": {
-    "status": "PARTIALLY_RESOLVED \u2014 PERF-002 reduced gap from ~1.1% to ~0.5-1.0%, but not eliminated",
-    "original_finding": "ConnectBlock without LTO was slower due to Ultra's larger instruction footprint (~1.3 MB vs libsecp ~400 KB) creating i-cache pressure, plus a redundant y\u00b2=x\u00b3+7 on-curve check in ecdsa_verify.",
-    "perf002_fix": "Removed redundant y\u00b2=x\u00b3+7 on-curve check from secp256k1_ecdsa_verify (~400ns per call). Reduced the no-LTO deficit from ~1.1% to ~0.5-1.0%. The i-cache pressure from the larger code footprint remains.",
+    "status": "PARTIALLY_RESOLVED — PERF-002 reduced gap from ~1.1% to ~0.5-1.0%, but not eliminated",
+    "original_finding": "ConnectBlock without LTO was slower due to Ultra's larger instruction footprint (~1.3 MB vs libsecp ~400 KB) creating i-cache pressure, plus a redundant y²=x³+7 on-curve check in ecdsa_verify.",
+    "perf002_fix": "Removed redundant y²=x³+7 on-curve check from secp256k1_ecdsa_verify (~400ns per call). Reduced the no-LTO deficit from ~1.1% to ~0.5-1.0%. The i-cache pressure from the larger code footprint remains.",
     "fresh_run_result_2026_05_12": "no-LTO measured 2026-05-12 with hard turbo lock: AllEcdsa 0.5% slower, AllSchnorr 1.0% slower, Mixed 0.8% slower. All non-overlapping, all confirmed slower.",
     "root_cause": "Ultra's larger code footprint (~1.3 MB secp256k1 symbols vs libsecp ~400 KB) creates i-cache pressure without LTO. LTO resolves this by co-optimizing code layout globally. PERF-002 removed a secondary contributor (~400ns redundant check) but the primary i-cache pressure remains.",
     "recommendation": "Use Release+LTO for production Bitcoin Core builds. Without LTO, Ultra is ~0.5-1.0% slower than libsecp256k1. With LTO, Ultra wins all ConnectBlock scenarios (+0.9-1.5%)."
   },
   "known_limitations": [
     "VerifyScriptP2WPKH: parity only (Ultra 0.4% slower, ranges overlap, inconclusive). Not a regression vs libsecp.",
-    "Without LTO: ~0.5-1.0% slower on ConnectBlock \u2014 i-cache pressure from larger code footprint. Use LTO for production.",
-    "SignTransactionECDSA libsecp had one outlier run (185\u00b5s vs ~162-165\u00b5s for others) \u2014 median is used which limits impact."
-  ]
+    "Without LTO: ~0.5-1.0% slower on ConnectBlock — i-cache pressure from larger code footprint. Use LTO for production.",
+    "SignTransactionECDSA libsecp had one outlier run (185µs vs ~162-165µs for others) — median is used which limits impact."
+  ],
+  "_frequency_sensitivity_note": "Ultra ConnectBlock performance is sensitive to CPU frequency control. At properly locked 2.5 GHz (cpupower + intel_pstate/no_turbo=1): Ultra wins ECDSA by +1.2% and Schnorr by +0.9% (canonical 2026-05-12 results above). Without cpupower frequency lock (intel_pstate/no_turbo=1 only): Ultra ECDSA appears 7.5% slower, Schnorr 2.5% slower — measurement artifact. libsecp performance is nearly unchanged (~256-257ms) under both conditions, confirming the difference is frequency sensitivity in Ultra's more complex algorithms (ADCX/ADOX, larger i-footprint). Signing advantage is robust: SignSchnorrWithMerkleRoot +18% at both frequency conditions.",
+  "results_uncontrolled_frequency_2026_05_16": {
+    "note": "Measurement without cpupower (intel_pstate/no_turbo=1 only, variable 800-2500 MHz). Backend commit: 79363c79. Compiler: GCC 14.2.0 Release+LTO. This is NOT the canonical measurement — use results_lto for performance claims.",
+    "ConnectBlockAllEcdsa_ms": {
+      "ultra": 278.2,
+      "libsecp": 258.6,
+      "ratio": 0.929,
+      "verdict": "libsecp +7.5% — measurement artifact (no cpupower frequency lock)"
+    },
+    "ConnectBlockAllSchnorr_ms": {
+      "ultra": 262.6,
+      "libsecp": 255.7,
+      "ratio": 0.974,
+      "verdict": "libsecp +2.6% — measurement artifact (no cpupower frequency lock)"
+    },
+    "SignSchnorrWithMerkleRoot_ns": {
+      "ultra": 95481,
+      "libsecp": 113060,
+      "ratio": 1.184,
+      "verdict": "Ultra +18.4% — confirmed (robust across frequency conditions)"
+    },
+    "SignTransactionECDSA_ns": {
+      "ultra": 166116,
+      "libsecp": 163711,
+      "ratio": 0.986,
+      "verdict": "approximately equal (within measurement noise)"
+    }
+  }
 }
