@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-05-13 — Fix: bench_unified scalar_mul LTO constant-folding + shim curve check + README ratios
+
+- **bench_unified.cpp (scalar_mul):** Replaced compile-time constants `sc_a * sc_b` with pool-indexed
+  inputs (`privkeys[idx % POOL]`) to prevent Release+LTO constant-folding that produced bogus ~4119 ns
+  measurements instead of the actual ~100 ns scalar multiplication cost.
+- **bench_unified.cpp (labels):** Added `[cold/no-precomp]` labels to POINT ARITHMETIC rows and
+  `[cold-path Point]` to ECDSA Verify to prevent reviewer confusion (Ultra uses no precomputed tables
+  in these paths; libsecp uses warm precomputed tables).
+- **shim_batch_verify.cpp (CA-001):** Restored `y²=x³+7` curve membership check in large-batch
+  ECDSA path (n >= 8). Small-batch path had this check; large-batch was missing it (PERF-004 removal).
+  Both paths now consistent: invalid-curve points rejected before batch MSM.
+- **shim_schnorr.cpp (CA-002):** Added explanatory comment clarifying that `Scalar::from_bytes()` is
+  correct for BIP-340 nonce derivation (mod-n reduction as spec requires); `parse_bytes_strict_nonzero`
+  would incorrectly reject hash values >= n (probability 2^-128) rather than wrapping.
+- **README.md:** Updated CT signing ratios from stale 1.24× ECDSA / 1.09× Schnorr (2026-05-11 bench)
+  to canonical 1.30× ECDSA / 1.28× Schnorr (2026-05-16 bench, `docs/canonical_numbers.json`).
+
 ## 2026-05-14 — Fix: FE64 reduce() carry propagation (second-half)
 
 ### Root cause

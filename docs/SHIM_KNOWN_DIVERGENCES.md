@@ -354,6 +354,26 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## secp256k1_ecdsa_verify_batch — large-batch curve membership check (CA-001, RESOLVED 2026-05-13)
+
+- **Previous shim behavior (PERF-004, now removed):** The large-batch ECDSA path (n >= 8)
+  omitted the `y²=x³+7` curve membership check that the small-batch path (n < 8) performed.
+  Comment stated: "from_affine + Point arithmetic rejects infinity points" and "incorrect verify
+  result, caught below." This was a P1 security inconsistency — an invalid-curve point could
+  pass through `from_affine` (which does not validate the curve equation) and enter the batch MSM.
+- **Current behavior:** Both small-batch and large-batch paths now perform the `y²=x³+7` check
+  before calling `Point::from_affine`. Invalid-curve points are rejected at input time, not
+  downstream. **Fixed 2026-05-13 (CA-001).**
+- **Upstream behavior:** libsecp256k1 does not expose a batch ECDSA verify API; this is an
+  additive shim-only function with no upstream divergence to track.
+- **Impact:** None for callers with valid public keys (all keys from `secp256k1_ec_pubkey_parse`
+  are on-curve). Only affects callers who bypass `ec_pubkey_parse` and write the opaque struct
+  directly with an off-curve point.
+- **Test:** Covered by `audit/test_regression_shim_security_v8.cpp` `test_ecdh_pubkey_off_curve`
+  pattern; a targeted batch-ECDSA off-curve test should be added in a follow-up.
+
+---
+
 ## secp256k1_schnorrsig_verify -- thread-local xonly-pubkey cache (NEW-SHIM-004)
 
 - **Upstream behavior:** No caching.  Every `secp256k1_schnorrsig_verify` call

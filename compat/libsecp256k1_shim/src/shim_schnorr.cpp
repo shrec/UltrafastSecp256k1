@@ -260,6 +260,10 @@ int secp256k1_schnorrsig_sign_custom(
     std::memcpy(nonce_input + 32, kp.px.data(), 32);
     if (msglen > 0) std::memcpy(nonce_input + 64, msg, msglen);
     auto rand_hash = secp256k1::tagged_hash("BIP0340/nonce", nonce_input, 64 + msglen);
+    // BIP-340 §Signing step 3: k = int(hash_BIP0340/nonce(...)) mod n.
+    // from_bytes() performs the mod-n reduction as specified.
+    // parse_bytes_strict_nonzero() is WRONG here — it would incorrectly fail
+    // if the hash >= n (probability 2^-128), rather than wrapping as BIP-340 requires.
     auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero()) {
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));

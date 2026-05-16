@@ -775,8 +775,11 @@ int main(int argc, char** argv) {
     auto sc_a = make_scalar(0xdeadbeef01ULL);
     auto sc_b = make_scalar(0xdeadbeef02ULL);
 
+    idx = 0;
     const double smul = bench_ns([&]() {
-        auto r = sc_a * sc_b; bench::DoNotOptimize(r);
+        // Pool inputs prevent constant-folding under Release+LTO.
+        auto r = privkeys[idx % POOL] * privkeys[(idx + 1) % POOL];
+        bench::DoNotOptimize(r); ++idx;
     }, N_FIELD);
     print_row("scalar_mul", smul);
 
@@ -2493,15 +2496,18 @@ int main(int argc, char** argv) {
     printf("\n");
 
     // ---- Point Arithmetic ----
-    print_header_3col("POINT ARITHMETIC");
+    // NOTE: Ultra FAST paths here have no precomputed tables (cold path).
+    // libsecp256k1 uses precomputed ecmult_gen/ecmult tables (warm).
+    // For warm-path comparison use CT section: ct::generator_mul beats libsecp ecmult_gen.
+    print_header_3col("POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp]");
     print_row_3col("dbl (Jacobian)",     ptdbl,         ls_pt_dbl);
     print_row_3col("add (mixed J+A)",    ptadd_mixed,   ls_pt_add_ge);
-    print_row_3col("ecmult (a*P+b*G)",   dualmul,       ls_ecmult);
-    print_row_3col("ecmult_gen (k*G raw)",keygen,        ls_ecmult_gen);
-    print_row_3col("pubkey_create (API)", keygen,        ls_gen);
-    print_row_3col("scalar_mul (k*P)",    scalarmul,     ls_kP);
-    print_row_3col("scalar_mul (KPlan)",  plan_mul,      ls_kP);
-    print_row_3col("point_add (combine)", ptadd,         ls_point_add);
+    print_row_3col("ecmult (a*P+b*G) [cold]",  dualmul,       ls_ecmult);
+    print_row_3col("ecmult_gen (k*G) [cold]",  keygen,        ls_ecmult_gen);
+    print_row_3col("pubkey_create (API) [cold]",keygen,        ls_gen);
+    print_row_3col("scalar_mul (k*P) [cold]",   scalarmul,     ls_kP);
+    print_row_3col("scalar_mul (KPlan) [cold]", plan_mul,      ls_kP);
+    print_row_3col("point_add (combine)",        ptadd,         ls_point_add);
     print_sep_3col();
     printf("\n");
 
@@ -2520,8 +2526,10 @@ int main(int argc, char** argv) {
     print_sep_3col();
     printf("\n");
 
+    // ECDSA Verify: cold-path (Point arg, no precomputed GLV table).
+    // Production performance (EcdsaPublicKey, warm) shown in ConnectBlock section.
     print_header_3col("VERIFICATION");
-    print_row_3col("ECDSA Verify",              u_ecdsa_verify,       ls_ecdsa_verify);
+    print_row_3col("ECDSA Verify [cold-path Point]", u_ecdsa_verify, ls_ecdsa_verify);
     print_row_3col("Schnorr Verify (cached)",   u_schnorr_verify,     ls_schnorr_verify);
     print_row_3col("Schnorr Verify (raw)",      u_schnorr_verify_raw, ls_schnorr_verify);
     print_sep_3col();
