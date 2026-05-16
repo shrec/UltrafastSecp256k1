@@ -1,9 +1,9 @@
 {
   "_schema": 1,
   "_note": "Single source of truth for all numeric claims used across multiple documents. Update values HERE; run ci/sync_canonical_numbers.py to propagate. Agents must never hand-edit README.md / PR_DESCRIPTION.md / BACKEND_EVIDENCE.md numbers directly — always update this file first.",
-  "_canonical_bench_artifact": "docs/bench_unified_2026-05-11_gcc14_x86-64.json",
+  "_canonical_bench_artifact": "docs/bench_unified_2026-05-16_gcc14_x86-64.json",
   "_canonical_btc_artifact": "docs/BITCOIN_CORE_BENCH_RESULTS.json",
-  "_generated": "2026-05-11 — verified by fresh controlled run (intel_pstate/no_turbo=1, governor=performance, taskset -c 0, nice -20, GCC 14.2.0)",
+  "_generated": "2026-05-16 — verified by fresh controlled run (intel_pstate/no_turbo=1, governor=performance, taskset -c 0, nice -20, GCC 14.2.0, 5 runs, R3-R5 stable <1% variance)",
 
   "bitcoin_core_compat": {
     "pass": 749,
@@ -67,13 +67,13 @@
   },
 
   "ct_signing_gcc": {
-    "speedup_min_x": 1.09,
-    "speedup_max_x": 1.24,
+    "speedup_min_x": 1.28,
+    "speedup_max_x": 1.30,
     "compiler": "GCC 14.2.0",
-    "wording": "CT signing GCC 14.2.0: 1.09–1.24× faster than libsecp256k1 (CT Schnorr 1.09×; CT ECDSA 1.24×; CT-vs-CT, bench_unified_2026-05-11_gcc14_x86-64.json).",
-    "ecdsa_ratio": 1.24,
-    "schnorr_ratio": 1.09,
-    "artifact": "docs/bench_unified_2026-05-11_gcc14_x86-64.json"
+    "wording": "CT signing GCC 14.2.0: 1.28–1.30× faster than libsecp256k1 (CT Schnorr 1.28×; CT ECDSA 1.30×; CT-vs-CT co-measured, bench_unified_2026-05-16_gcc14_x86-64.json).",
+    "ecdsa_ratio": 1.30,
+    "schnorr_ratio": 1.28,
+    "artifact": "docs/bench_unified_2026-05-16_gcc14_x86-64.json"
   },
 
   "hardware": {

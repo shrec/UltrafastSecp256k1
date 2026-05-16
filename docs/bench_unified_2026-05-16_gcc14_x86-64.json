@@ -1,0 +1,237 @@
+{
+  "_schema": 1,
+  "_note": "Canonical bench_unified artifact — Release+LTO, GCC 14.2.0, x86-64-v3, i5-14400F, Ubuntu 24.04",
+  "_methodology": "intel_pstate/no_turbo=1, cpupower frequency-set -g performance, taskset -c 0, nice -20, 11 passes per operation, IQR outlier removal, median. 5 runs collected; runs 1-2 excluded (TSC calibration warmup); runs 3-5 used for absolute ns values (variance < 1%). All ratios from same-run co-measurements (TSC-independent).",
+  "_stability": "ct_ecdsa_ns variance R3-R5: 0.5%; ct_schnorr_ns variance R3-R5: 0.6%; connectblock_ecdsa_ms variance: 0.8%",
+  "_date": "2026-05-16",
+  "_compiler": "GCC 14.2.0",
+  "_arch": "x86-64-v3",
+  "_cpu": "Intel Core i5-14400F",
+  "_os": "Ubuntu 24.04",
+  "_build": "Release + LTO (-O3 -flto=auto)",
+  "_turbo": false,
+  "_turbo_method": "intel_pstate/no_turbo=1",
+  "_cpu_pinned": "core 0",
+  "_nice": -20,
+  "_warmup_per_op": 500,
+  "_passes_per_op": 11,
+  "_timer": "RDTSCP",
+  "_pool": "64 independent key/msg/sig sets",
+  "_libsecp_version": "bitcoin-core libsecp256k1 v0.7.x",
+  "_openssl_version": "OpenSSL 3.0.13 30 Jan 2024",
+  "_module_baseline": "367 total (261 exploit_poc, 106 non_exploit)",
+
+  "field_arithmetic_ultra_ns": {
+    "field_mul":          20.1,
+    "field_sqr":          18.7,
+    "field_inv":        1253.9,
+    "field_add":          12.6,
+    "field_sub":          14.8,
+    "field_negate":       10.4,
+    "field_from_bytes":    4.8
+  },
+
+  "scalar_arithmetic_ultra_ns": {
+    "scalar_mul":       4119.8,
+    "scalar_inv":       1578.0,
+    "scalar_add":         15.8,
+    "scalar_negate":      10.5,
+    "scalar_from_bytes":   6.9
+  },
+
+  "point_arithmetic_ultra_ns": {
+    "pubkey_create":    826061.3,
+    "scalar_mul_kP":   2496514.9,
+    "dual_mul_aGbP":   2907284.8,
+    "point_add_JA":      20663.3,
+    "point_dbl":           158.5,
+    "normalize_J_aff":       4.4,
+    "batch_normalize_pt":   16.0
+  },
+
+  "ecdsa_ultra_fast_ns": {
+    "ecdsa_sign":        1660321.3,
+    "ecdsa_sign_verified": 5810647.9,
+    "ecdsa_verify":      2911145.3
+  },
+
+  "schnorr_ultra_fast_ns": {
+    "schnorr_keypair_create": 1265884.3,
+    "schnorr_sign":           1267021.3,
+    "schnorr_sign_verified":   128117.4,
+    "schnorr_verify_cached":    84275.3,
+    "schnorr_verify_raw":       84839.2
+  },
+
+  "ct_point_arithmetic_ns": {
+    "ct_scalar_inverse":          2523.0,
+    "ct_generator_mul":          33476.7,
+    "ct_scalar_mul":             81901.8,
+    "ct_point_dbl":                147.9,
+    "ct_point_add_complete":       712.9,
+    "ct_point_add_mixed_complete": 595.1,
+    "ct_point_add_mixed_unified":  579.8
+  },
+
+  "ct_signing_ns": {
+    "_note": "Median of stable runs R3-R5 for absolute ns; ratio co-measured in single run (TSC-independent)",
+    "ct_ecdsa_sign":            21643.0,
+    "ct_ecdsa_sign_verified":  158685.4,
+    "ct_schnorr_sign":          18128.0,
+    "ct_schnorr_sign_verified": 121700.2,
+    "ct_schnorr_keypair_create": 35961.8
+  },
+
+  "ct_vs_libsecp_ratios": {
+    "_note": "Co-measured in same bench run (TSC-independent). Ultra CT faster = ratio > 1.0",
+    "ct_ecdsa_sign_ratio":   1.30,
+    "ct_schnorr_sign_ratio": 1.28,
+    "libsecp_ecdsa_sign_ns":   59669.4,
+    "libsecp_schnorr_sign_ns": 46543.2
+  },
+
+  "field_vs_libsecp_ratios": {
+    "field_mul":   1.32,
+    "field_sqr":   1.19,
+    "field_inv":   1.20,
+    "field_negate": 1.13,
+    "field_normalize": 2.40,
+    "field_from_bytes": 2.70
+  },
+
+  "scalar_vs_libsecp_ratios": {
+    "scalar_inv_ct":  1.66,
+    "scalar_inv_var": 1.01,
+    "scalar_negate":  1.23,
+    "scalar_from_bytes": 2.11
+  },
+
+  "connectblock_bench_unified_ms": {
+    "_note": "bench_unified ConnectBlock — native C++ API (no shim overhead). NOT equivalent to bench_bitcoin. Stable wall-clock, median of R3-R5.",
+    "AllEcdsa_ultra":       77.0,
+    "AllEcdsa_libsecp":     85.1,
+    "AllEcdsa_ratio":       1.11,
+    "AllSchnorr_ultra":     78.3,
+    "AllSchnorr_libsecp":   86.5,
+    "AllSchnorr_ratio":     1.10,
+    "Mixed_ultra":         116.9,
+    "Mixed_libsecp":       129.3,
+    "Mixed_ratio":          1.11,
+    "DerParse_ultra":       83.3,
+    "DerParse_libsecp":     96.8,
+    "DerParse_ratio":       1.16
+  },
+
+  "ethereum_ns": {
+    "keccak256_32b":       854.9,
+    "ethereum_address":    739.9,
+    "eth_sign_hash":     47817.3,
+    "ecdsa_sign_recoverable": 48039.8,
+    "ecrecover":        104852.4
+  },
+
+  "real_world_flows_ns": {
+    "ecdh_compute":        84054.5,
+    "taproot_output_key":  58090.9,
+    "taproot_tweak_privkey": 36617.5,
+    "bip32_master_key":     1836.0,
+    "bip32_coin_derive":  193309.8,
+    "silent_payment_create": 104808.3,
+    "silent_payment_scan":  135524.4,
+    "fast_scan_batch_N256":  84612.0
+  },
+
+  "batch_verify_schnorr_ns": {
+    "N4_per_sig":    81399.0,
+    "N16_per_sig":   80974.7,
+    "N64_per_sig":   86277.1,
+    "N128_per_sig":  76766.9,
+    "N192_per_sig":  67649.5
+  },
+
+  "batch_verify_ecdsa_ns": {
+    "N4_per_sig":    81040.1,
+    "N16_per_sig":   78632.9,
+    "N64_per_sig":   80664.0,
+    "N128_per_sig":  79876.9,
+    "N192_per_sig":  80351.8
+  },
+
+  "zk_ns": {
+    "pedersen_commit":     109790.9,
+    "knowledge_prove":      84987.3,
+    "knowledge_verify":     92776.1,
+    "dleq_prove":          166399.2,
+    "dleq_verify":         236972.9,
+    "bulletproof_prove":  53817568.4,
+    "bulletproof_verify":  6413700.8
+  },
+
+  "adaptor_ns": {
+    "schnorr_adaptor_sign":    82173.6,
+    "schnorr_adaptor_verify":  118026.4,
+    "schnorr_adaptor_adapt":    35336.9,
+    "ecdsa_adaptor_sign":      154899.0,
+    "ecdsa_adaptor_verify":    129525.9
+  },
+
+  "frost_ns": {
+    "keygen_begin":  56305.8,
+    "nonce_gen":     61672.7,
+    "partial_sign":  170742.8,
+    "partial_verify": 332885.9,
+    "aggregate":     159507.5
+  },
+
+  "musig2_ns": {
+    "key_agg":       129230.3,
+    "nonce_gen":      74104.5,
+    "partial_sign":   35311.2,
+    "partial_verify": 217293.2,
+    "sig_agg":          1375.2
+  },
+
+  "bip324_ns": {
+    "elligator_create":   108032.7,
+    "elligator_xdh":       96558.1,
+    "aead_encrypt_256b":     893.2,
+    "session_handshake":  465731.1,
+    "session_encrypt_256b": 1054.0,
+    "session_roundtrip_256b": 2165.5
+  },
+
+  "libsecp_ns": {
+    "field_mul":          26.5,
+    "field_sqr":          22.3,
+    "field_inv_var":    1506.0,
+    "scalar_mul":        108.5,
+    "scalar_inverse_ct": 2599.4,
+    "scalar_inverse_var": 1578.8,
+    "point_dbl":         148.4,
+    "point_add_mixed":   558.3,
+    "ecmult":          81150.9,
+    "ecmult_gen":      36406.7,
+    "generator_mul":   45074.9,
+    "scalar_mul_P":    93944.1,
+    "ecdsa_sign":      59669.4,
+    "ecdsa_verify":    84026.2,
+    "schnorr_sign":    46543.2,
+    "schnorr_verify":  84297.4
+  },
+
+  "openssl_ns": {
+    "generator_mul":   802269.4,
+    "ecdsa_sign":      846448.9,
+    "ecdsa_verify":    805402.5
+  },
+
+  "throughput_summary": {
+    "_note": "Stable wall-clock + co-measured ratios. CT values from median of R3-R5.",
+    "ct_ecdsa_sign_kops":     46.2,
+    "ct_schnorr_sign_kops":   55.2,
+    "schnorr_verify_kops":    11.9,
+    "ecdh_kops":              11.9,
+    "bip32_derive_kops":       5.2,
+    "silent_payment_scan_kops": 7.4
+  }
+}

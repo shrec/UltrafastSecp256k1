@@ -178,7 +178,7 @@ core pinned, 500 warmup, 11 passes, IQR trimming):
 
 > **Two benchmark sets, two different measurements:**
 > - `bench_unified` CT-vs-CT rows (above): isolate the raw CT signing primitive (RFC6979 + CT generator mul + CT scalar inverse). GCC 14: 1.24×/1.09× faster.
-> - `bench_bitcoin SignTransaction*` rows: cover the full Bitcoin Core transaction-signing path including context-blinding cache and pre-computed generator tables. GCC 13/14: 1.09–1.24× faster (see §Results table above).
+> - `bench_bitcoin SignTransaction*` rows: cover the full Bitcoin Core transaction-signing path including context-blinding cache and pre-computed generator tables. GCC 13/14: 1.28–1.30× faster (see §Results table above).
 >
 > Both are correct — they measure different scopes. The full-path `SignTransaction*` numbers are the Bitcoin Core-relevant ones; the CT primitive numbers confirm no scalar-inverse regression on GCC 14.
 
