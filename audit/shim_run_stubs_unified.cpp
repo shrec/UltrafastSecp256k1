@@ -23,3 +23,4 @@ int test_regression_shim_per_context_blinding_run()  { return ADVISORY_SKIP_CODE
 int test_regression_musig2_session_token_run()       { return ADVISORY_SKIP_CODE; }
 int test_regression_shim_security_v7_run()           { return ADVISORY_SKIP_CODE; }
 int test_regression_shim_security_v8_run()           { return ADVISORY_SKIP_CODE; }
+int test_regression_ecdsa_batch_curve_check_run()    { return ADVISORY_SKIP_CODE; }

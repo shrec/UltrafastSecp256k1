@@ -3745,7 +3745,9 @@ if(TARGET secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
 else()
-    target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp)
+    target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp
+        # fe52_var_paths does not need the shim — include in non-shim build.
+        test_regression_fe52_var_paths.cpp)
 endif()
 
 # -- v8: shim security regression guards — standalone CTest target (shim-dependent) --

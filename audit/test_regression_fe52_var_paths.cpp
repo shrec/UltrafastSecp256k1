@@ -41,9 +41,10 @@ static FE52 make_fe(uint64_t seed) {
 }
 
 static bool fe_eq(const FE52& a, const FE52& b) {
-    auto ba = a.to_bytes();
-    auto bb = b.to_bytes();
-    return ba == bb;
+    // FE52 has no to_bytes() — convert via FieldElement (4x64) which normalizes.
+    auto fa = a.to_fe();
+    auto fb = b.to_fe();
+    return fa == fb;
 }
 
 static void test_mul_var_matches_ct() {

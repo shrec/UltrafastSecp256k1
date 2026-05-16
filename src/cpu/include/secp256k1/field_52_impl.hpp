@@ -2322,7 +2322,9 @@ FieldElement52 FieldElement52::mul_var(const FieldElement52& rhs) const noexcept
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::mul_assign_var(const FieldElement52& rhs) noexcept {
-    fe52_mul_inner_var(n, n, rhs.n);
+    std::uint64_t tmp[5];
+    fe52_mul_inner_var(tmp, n, rhs.n);
+    n[0]=tmp[0]; n[1]=tmp[1]; n[2]=tmp[2]; n[3]=tmp[3]; n[4]=tmp[4];
 }
 
 SECP256K1_FE52_FORCE_INLINE
@@ -2341,7 +2343,9 @@ FieldElement52 FieldElement52::square_var() const noexcept {
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::square_inplace_var() noexcept {
-    fe52_sqr_inner_var(n, n);
+    std::uint64_t tmp[5];
+    fe52_sqr_inner_var(tmp, n);
+    n[0]=tmp[0]; n[1]=tmp[1]; n[2]=tmp[2]; n[3]=tmp[3]; n[4]=tmp[4];
 }
 
 SECP256K1_FE52_FORCE_INLINE
