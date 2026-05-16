@@ -81,17 +81,17 @@ jobs:
 
       - name: Build audit shared library
         run: |
-          cmake -S . -B out/release-caas -G Ninja \
+          cmake -S . -B out/release -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-14 \
             -DBUILD_TESTING=OFF \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF
-          cmake --build out/release-caas --target ufsecp_shared -j"$(nproc 2>/dev/null || echo 4)"
+          cmake --build out/release --target ufsecp_shared -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Release CAAS evidence gates
         env:
-          UFSECP_LIB_PATH: ${{ github.workspace }}/out/release-caas
+          UFSECP_LIB_PATH: ${{ github.workspace }}/out/release
         run: |
           python3 ci/build_project_graph.py --rebuild
           python3 tools/source_graph_kit/source_graph.py build -i
