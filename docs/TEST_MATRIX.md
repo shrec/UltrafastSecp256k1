@@ -848,6 +848,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_adaptor_binding_domain` | `audit/test_regression_adaptor_binding_domain.cpp` | SEC-010: ecdsa_adaptor_binding BIP-340 tagged hash domain separation (ADB-1..6) |
 | `regression_adaptor_degenerate_v7` | `audit/test_regression_adaptor_degenerate_v7.cpp` | v7: T-09 ufsecp_ecdsa_adaptor_sign degenerate output guard + round-trip + null-arg fail-closed |
 | `regression_shim_security_v8` | `audit/test_regression_shim_security_v8.cpp` | v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve + NEW-006 schnorr ct::scalar_cneg |
+| `regression_ecdsa_batch_curve_check` | `audit/test_regression_ecdsa_batch_curve_check.cpp` | CA-001: secp256k1_ecdsa_verify_batch rejects invalid-curve pubkeys (y^2 != x^3+7) in both small-batch (n<8) and large-batch (n>=8) paths (BCK-1..6) |
 
 ## Upstream Libsecp256k1 Parity Tests (batch 3 — v3.69+)
 
