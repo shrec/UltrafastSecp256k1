@@ -121,7 +121,7 @@ set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect
 
 # Warning policy: promote warnings to errors (recommended for CI)
 option(SECP256K1_WERROR "Treat compiler warnings as errors (-Werror / /WX)" OFF)
-option(UFSECP_REFRESH_SOURCE_GRAPH "Refresh the repo source graph during builds" ON)
+option(UFSECP_REFRESH_SOURCE_GRAPH "Refresh the repo source graph during builds (mutates source tree — OFF by default for reproducibility)" OFF)
 
 # Reproducible build mode (G-7 gate).
 # Forces deterministic compiler output: strips source paths, fixes march, disables

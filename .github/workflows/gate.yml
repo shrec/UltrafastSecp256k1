@@ -634,6 +634,16 @@ jobs:
                 f"0 false-pass, 0 failed")
           PYEOF
 
+      - name: Run standalone shim regression CTest targets
+        # The unified_audit_runner above has advisory stubs for shim tests (by-design
+        # CMakeLists ordering). The standalone CTest targets are built with the real
+        # shim-linked test bodies. Invoke them explicitly so shim security regressions
+        # produce a hard FAIL, not a silent advisory-skip.
+        run: |
+          ctest --test-dir out/ci-shim \
+            -R "regression_shim|regression_ecdsa_batch_curve|exploit_shim|test_shim" \
+            --output-on-failure -j"$(nproc)" --timeout 120
+
       - name: Upload shim audit report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
