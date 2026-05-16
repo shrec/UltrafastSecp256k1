@@ -2015,12 +2015,12 @@ jobs:
           if [ -z "$WEBHOOK" ]; then echo "No webhook configured, skipping"; exit 0; fi
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           PYTHON=$(command -v python3 || command -v python)
-          JSON=$("$PYTHON" -c "
+          JSON=$(NOW="$NOW" "$PYTHON" -c "
           import json, os
           tag    = os.environ['TAG']
           repo   = os.environ['REPO']
           status = os.environ['STATUS']
-          now    = os.environ['NOW']
+          now    = os.environ.get('NOW', '')
           color  = 3066993 if status == 'success' else 15158332
           url    = f'https://github.com/{repo}/releases/tag/{tag}'
           desc   = f'**Tag:** \`{tag}\`\n**Status:** {status}\n\n[View Release]({url})'
@@ -2028,6 +2028,6 @@ jobs:
             'url': url, 'color': color, 'description': desc,
             'footer': {'text': 'UltrafastSecp256k1 CI'}, 'timestamp': now}]}
           print(json.dumps(payload))
-          " NOW="$NOW")
+          ")
           CURL=$(command -v curl || { echo "::error::curl not found on PATH"; exit 1; })
           "$CURL" -sS -H "Content-Type: application/json" -d "$JSON" "$WEBHOOK"
