@@ -1105,7 +1105,7 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_shim_security_v8", "v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve", "exploit_poc", test_regression_shim_security_v8_run, true },
     // === 2026-05-16 CA-001: curve membership check restored in large-batch ECDSA verify ===
     // advisory=true: shim must be linked (secp256k1_ecdsa_verify_batch is shim-only).
-    { "regression_ecdsa_batch_curve_check", "CA-001: secp256k1_ecdsa_verify_batch rejects invalid-curve pubkeys (y\xC2\xB2\xE2\x89\xA0x\xC2\xB3+7) consistently in small-batch (n<8) and large-batch (n\xE2\x89\xA58) paths (BCK-1..6)", "exploit_poc", test_regression_ecdsa_batch_curve_check_run, true },
+    { "regression_ecdsa_batch_curve_check", "CA-001: secp256k1_ecdsa_verify_batch rejects invalid-curve pubkeys (y^2 != x^3+7) consistently in small-batch (n<8) and large-batch (n>=8) paths (BCK-1..6)", "exploit_poc", test_regression_ecdsa_batch_curve_check_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
