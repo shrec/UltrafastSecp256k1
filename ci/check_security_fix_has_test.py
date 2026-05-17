@@ -263,6 +263,17 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "NEW-PERF-002 sign+verify round-trip. The cache cleanup is covered by existing "
         "Schnorr verify regression tests that exercise the warm-cache path via repeated calls.",
     ),
+    "a3b77fde44": (
+        ["audit/test_exploit_schnorr_edge_cases.cpp",
+         "audit/test_regression_schnorr_ct_arithmetic.cpp"],
+        "feat(schnorr+shim): variable-length msg verify — removes msglen==32 restriction "
+        "from secp256k1_schnorrsig_verify (shim_schnorr.cpp) to match libsecp256k1 API. "
+        "Adds schnorr_verify(pubkey_x32, msg, msglen, sig) overload in schnorr.cpp using "
+        "schnorr_challenge_scalar_varlen for arbitrary-length BIP-340 challenge hashing. "
+        "Covered by test_exploit_schnorr_edge_cases (edge-case Schnorr sign/verify paths "
+        "including NULL-arg, degenerate-output, and parity checks) and "
+        "test_regression_schnorr_ct_arithmetic (CT arithmetic parity on all Schnorr ops).",
+    ),
     "ac63c0ad38": (
         ["audit/test_regression_shim_security_v8.cpp",
          "audit/test_regression_signing_ct_scalar_correctness.cpp"],
