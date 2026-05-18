@@ -605,7 +605,7 @@ jobs:
         # cause the bundle job to fail explicitly, not silently produce an incomplete
         # bundle that external auditors would interpret as "0 findings."
         if: always()
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: caas-scanner-report-${{ github.run_id }}
           path: .
