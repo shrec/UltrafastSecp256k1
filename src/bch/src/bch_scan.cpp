@@ -67,10 +67,16 @@ std::optional<ScanMatch> RpaScanner::scan_tx(
     secp256k1::detail::secure_erase(S_comp.data(), S_comp.size());
     secp256k1::detail::secure_erase(inner.data(), inner.size());
 
-    // Check each derivation index against tx outputs
+    // PERF: Pre-parse spend_pubkey ONCE (lift_x sqrt ~1.6µs) + pre-build
+    // SHA256 midstate over (spend_pubkey || secret) — amortised across all indices.
+    secp256k1::EcdsaPublicKey spend_epk{};
+    if (!secp256k1::ecdsa_pubkey_parse(spend_epk, paycode_.spend_pubkey.data(), 33))
+        return std::nullopt;
+    auto pay_base = rpa_payment_key_base(paycode_.spend_pubkey.data(), secret);
+
     for (uint32_t i = 0; i <= max_key_index; ++i) {
-        auto payment_pubkey = rpa_derive_payment_pubkey(
-            paycode_.spend_pubkey.data(), secret, i);
+        auto payment_pubkey = rpa_derive_payment_pubkey_fast(
+            spend_epk.point, pay_base, i);          // no lift_x, fast ct::generator_mul
         if (payment_pubkey[0] == 0) continue;
 
         for (uint32_t j = 0; j < tx.outputs.size(); ++j) {

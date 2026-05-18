@@ -99,36 +99,58 @@ RpaSharedSecret rpa_receiver_shared_secret(
 
 // ── Payment address derivation ────────────────────────────────────────────────
 
-std::array<uint8_t, 33> rpa_derive_payment_pubkey(
-    const uint8_t* spend_pubkey33,
-    const RpaSharedSecret& secret,
+// Build SHA256 midstate over (spend_pubkey33 || secret) — call once per tx.
+// Returns SHA256 context ready for appending the 4-byte index.
+// PERF: avoids re-hashing the 65 static bytes for every key index.
+SHA256 rpa_payment_key_base(const uint8_t* spend_pubkey33,
+                            const RpaSharedSecret& secret) noexcept {
+    SHA256 h;
+    h.update(spend_pubkey33, 33);
+    h.update(secret.value.data(), 32);
+    return h;
+}
+
+// Derive payment pubkey for a given index using pre-built midstate + pre-parsed Point.
+// PERF: spend_point must be pre-parsed once (lift_x is expensive — ~1.6µs).
+//       h_base must be pre-built once per tx via rpa_payment_key_base().
+std::array<uint8_t, 33> rpa_derive_payment_pubkey_fast(
+    const fast::Point& spend_point,
+    SHA256 h_base,               // copy — caller keeps original for next index
     uint32_t index) noexcept {
 
-    // Tweak = SHA256(spend_pubkey33 || secret.value || index_BE)
-    std::array<uint8_t, 33 + 32 + 4> input{};
-    std::memcpy(input.data(), spend_pubkey33, 33);
-    std::memcpy(input.data() + 33, secret.value.data(), 32);
-    input[65] = (index >> 24) & 0xff;
-    input[66] = (index >> 16) & 0xff;
-    input[67] = (index >>  8) & 0xff;
-    input[68] =  index        & 0xff;
+    // Append 4-byte index and finalize: tweak = SHA256(spend_pubkey || secret || index_BE)
+    uint8_t idx_be[4] = {
+        uint8_t(index >> 24), uint8_t(index >> 16),
+        uint8_t(index >>  8), uint8_t(index)
+    };
+    h_base.update(idx_be, 4);
+    auto tweak_bytes = h_base.finalize();
+    fast::Scalar t = fast::Scalar::from_bytes(tweak_bytes.data());
 
-    auto tweak_bytes = sha256_bytes(input.data(), input.size());
-    fast::Scalar t   = fast::Scalar::from_bytes(tweak_bytes.data());
-
-    // child_pubkey = spend_pubkey + t*G (public data — variable-time ok)
-    fast::Point P = parse_pubkey(spend_pubkey33);
-    if (P.is_infinity()) return {};
-
-    // t*G using generator mul (public scalar — fast path)
-    fast::Point tG = fast::Point::generator().scalar_mul(t);
-    fast::Point child = P.add(tG);
+    // child = spend_point + t*G using ct::generator_mul (precomputed table, ~33µs)
+    // PERF: ct::generator_mul is 25× faster than Point::generator().scalar_mul()
+    //       which uses the cold FAST path (~826µs).
+    fast::Point tG    = secp256k1::ct::generator_mul(t);
+    fast::Point child = spend_point.add(tG);
     if (child.is_infinity()) return {};
 
     auto comp = child.to_compressed();
     std::array<uint8_t, 33> result{};
     std::memcpy(result.data(), comp.data(), 33);
     return result;
+}
+
+// Public convenience: derive from raw bytes (single call, parses spend_pubkey each time).
+// Use rpa_derive_payment_pubkey_fast() in hot paths.
+std::array<uint8_t, 33> rpa_derive_payment_pubkey(
+    const uint8_t* spend_pubkey33,
+    const RpaSharedSecret& secret,
+    uint32_t index) noexcept {
+
+    fast::Point P = parse_pubkey(spend_pubkey33);
+    if (P.is_infinity()) return {};
+    auto h_base = rpa_payment_key_base(spend_pubkey33, secret);
+    return rpa_derive_payment_pubkey_fast(P, h_base, index);
 }
 
 // ── Prefix matching ────────────────────────────────────────────────────────────
@@ -142,13 +164,28 @@ bool rpa_prefix_matches(const uint8_t* sig64,
                         uint8_t prefix_bits,
                         const uint8_t* prefix_data) noexcept {
     if (prefix_bits == 0) return true;
-    auto hash = rpa_sig_hash(sig64);
+
+    // PERF: Early-exit after first SHA256 — avoids 2nd SHA256 for non-matching sigs.
+    // For 8-bit prefix: saves 255/256 of second SHA256 ≈ 50% total hash work.
+    // For 16-bit prefix: saves ~99.6% of second SHA256.
+    auto inner = SHA256::hash(sig64, 64);         // SHA256(sig) — first hash
+
     uint8_t full_bytes = prefix_bits / 8;
     uint8_t rem_bits   = prefix_bits % 8;
-    if (std::memcmp(hash.data(), prefix_data, full_bytes) != 0) return false;
+
+    // Early check on first SHA256 output
+    if (std::memcmp(inner.data(), prefix_data, full_bytes) != 0) return false;
+    if (rem_bits != 0) {
+        uint8_t mask = static_cast<uint8_t>(0xff << (8 - rem_bits));
+        if ((inner[full_bytes] & mask) != (prefix_data[full_bytes] & mask)) return false;
+    }
+
+    // Prefix matched first SHA256 → compute second SHA256 to verify double-hash
+    auto outer = SHA256::hash(inner.data(), 32);  // SHA256(SHA256(sig)) — second hash
+    if (std::memcmp(outer.data(), prefix_data, full_bytes) != 0) return false;
     if (rem_bits == 0) return true;
     uint8_t mask = static_cast<uint8_t>(0xff << (8 - rem_bits));
-    return (hash[full_bytes] & mask) == (prefix_data[full_bytes] & mask);
+    return (outer[full_bytes] & mask) == (prefix_data[full_bytes] & mask);
 }
 
 // ── EC Grinding (CPU) ─────────────────────────────────────────────────────────

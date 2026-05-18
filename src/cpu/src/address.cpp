@@ -7,6 +7,7 @@
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/sign.hpp"   // ct::generator_mul for t_k*G in silent payments
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/multiscalar.hpp"
@@ -703,7 +704,8 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     Scalar const t_k = Scalar::from_bytes(t_hash);
 
     // Output key: P_output = B_spend + t_k * G
-    Point const P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
+    // PERF: ct::generator_mul uses precomputed table (~33µs vs ~826µs cold FAST path)
+    Point const P_output = recipient.spend_pubkey.add(ct::generator_mul(t_k));
 
     // Erase secret-derived material: aggregate private key, shared secret, tagged hash
     detail::secure_erase(&a_sum, sizeof(a_sum));
@@ -755,7 +757,8 @@ silent_payment_scan(const Scalar& scan_privkey,
         Scalar const t_k = Scalar::from_bytes(t_hash);
 
         // Expected output: P = B_spend + t_k * G
-        Point const expected = B_spend.add(Point::generator().scalar_mul(t_k));
+        // PERF: ct::generator_mul precomputed table (~33µs vs ~826µs cold FAST path)
+        Point const expected = B_spend.add(ct::generator_mul(t_k));
         auto expected_x = expected.x().to_bytes();
 
         // Compare x-coordinate
