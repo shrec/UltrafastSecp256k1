@@ -26,7 +26,8 @@ coverage:
         # arithmetic must be exercised by at least one audit check.
 
   # Only measure coverage on production source code
-  # (exclude tests, benchmarks, examples, third-party, build artifacts)
+  # (exclude tests, benchmarks, examples, third-party, build artifacts,
+  #  build system files, and generated header templates)
 
 ignore:
   - "src/cpu/tests/**"
@@ -42,6 +43,12 @@ ignore:
   - "ci/**"
   - "cmake/**"
   - "docs/**"
+  # Build system and generated files — not compiled C++
+  - "**/CMakeLists.txt"
+  - "**/*.cmake"
+  - "**/*.h.in"       # CMake-generated header templates
+  - "CMakePresets.json"
+  - "**/*.json"
   # Platform-specific code never compiled on Linux coverage runner
   - "src/metal/**"
   - "src/gpu/src/gpu_backend_metal.mm"
