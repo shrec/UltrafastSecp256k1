@@ -1,0 +1,53 @@
+{
+  "_schema": 1,
+  "_note": "BCH RPA CPU benchmark — canonical artifact",
+  "_date": "2026-05-18",
+  "_hardware": "Intel Core i5-14400F, Ubuntu 24.04",
+  "_compiler": "GCC 14.2.0",
+  "_build": "Release, -O3 -march=native",
+  "_cpu_pinned": "taskset -c 0-15",
+  "_nice": -20,
+  "_turbo": false,
+  "_turbo_method": "intel_pstate/no_turbo=1",
+  "_governor": "performance (cpupower)",
+
+  "grinding": {
+    "_note": "CT ECDSA sign (RFC6979 hedged) + double-SHA256 + prefix check per attempt",
+    "single_core_ks": 78,
+    "cores_16_ks": 590,
+    "time_8bit_ms_1core": 3.3,
+    "time_16bit_ms_1core": 840,
+    "time_8bit_ms_16core": 0.4,
+    "time_16bit_ms_16core": 111,
+    "_16bit_expected_attempts": 65536
+  },
+
+  "scan": {
+    "_note": "ECDH + SHA256 midstate (BIP-352 optimization ported) + pubkey derivation",
+    "single_core_tx_per_s": 20000,
+    "cores_16_tx_per_s": 153000,
+    "bch_mainnet_tx_per_s": 11.5,
+    "realtime_margin_1core": 1739,
+    "realtime_margin_16core": 13304,
+    "historical_sync_2B_txs": {
+      "cpu_16core_hours": 3.6,
+      "gpu_rtx5060ti_minutes": 3
+    }
+  },
+
+  "gpu_estimates": {
+    "_source": "ct_ecdsa_sign_batch RTX 5060 Ti benchmark + double-SHA256 overhead",
+    "_status": "estimated — grinding kernel compiled, awaiting controlled GPU bench run",
+    "grinding_rtx5060ti_Ms": 7.5,
+    "time_16bit_ms": 8.7,
+    "scan_rtx5060ti_M_tx_per_s": 11,
+    "speedup_grinding_vs_cpu16c": 12,
+    "speedup_scan_vs_cpu16c": 72
+  },
+
+  "context": {
+    "bch_mainnet_tx_per_day": 1000000,
+    "prefix_8bit_filter_ratio": 0.00390625,
+    "prefix_16bit_filter_ratio": 0.0000152588
+  }
+}
