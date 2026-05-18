@@ -129,7 +129,9 @@ inline constexpr CoinParams Litecoin = {
     .xprv_version       = 0x0488ADE4,
     .xpub_version       = 0x0488B21E,
     .chain_id           = 0,
-    .features           = {true, false, true, true, false, false},
+    // supports_taproot=true: Litecoin activated Taproot (MWEB) May 2023
+    // uses_schnorr=true: BIP-340 Schnorr active on LTC
+    .features           = {true, true, true, true, false, true},
 };
 
 // -- Dogecoin (DOGE) ----------------------------------------------------------
