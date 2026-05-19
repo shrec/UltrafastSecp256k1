@@ -402,11 +402,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 126 non-exploit audit modules and all 263 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 107 non-exploit audit modules and all 263 exploit PoCs return `AUDIT-READY` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
 ### Exploit PoC Test Suite (263 Tests, 20+ Coverage Areas)
 
-In addition to the 367-module `unified_audit_runner`, UltrafastSecp256k1 ships **244 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 367-module `unified_audit_runner`, UltrafastSecp256k1 ships **263 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
