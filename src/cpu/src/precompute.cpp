@@ -3813,13 +3813,11 @@ void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size
 }
 
 bool save_precompute_cache(const std::string& path) {
-    (void)path;
-    return false; // Not implemented on specialized build
+    return save_precompute_cache_locked(path);
 }
 
 bool load_precompute_cache(const std::string& path, unsigned max_windows) {
-    (void)path; (void)max_windows;
-    return false; // Not implemented on specialized build
+    return load_precompute_cache_locked(path, max_windows);
 }
 
 Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {

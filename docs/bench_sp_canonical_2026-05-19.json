@@ -58,5 +58,17 @@
     "btc_cuda_lut_M_tx_s": 10.98,
     "ltc_cuda_glv_M_tx_s": 5.36,
     "ltc_opencl_glv_M_tx_s": 5.38
+  },
+  "ltcsp_w18_cache": {
+    "cache_file": "cache_w18.bin",
+    "cache_size_mb": 244,
+    "loaded": true,
+    "threads_1": 137740,
+    "threads_16": 471550,
+    "vs_w8": {
+      "threads_1_delta": "+10%",
+      "threads_16_delta": "~parity (-0.2%)",
+      "note": "w=18 244MB blows out L3 (12MB i5-14400F) for multi-thread. Optimal for single-thread wallets; w=8 (1MB, fits L3) wins at 16 threads."
+    }
   }
 }
