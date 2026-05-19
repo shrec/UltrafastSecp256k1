@@ -437,6 +437,7 @@ add_test(NAME exploit_musig2_ordering COMMAND test_exploit_musig2_ordering_stand
 set_tests_properties(exploit_musig2_ordering PROPERTIES
     TIMEOUT 120 LABELS "audit;exploit;musig2")
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST polynomial index collision (participant_id * 1000 + j formula)
 add_executable(test_exploit_frost_index_standalone test_exploit_frost_index.cpp)
 audit_target_defaults(test_exploit_frost_index_standalone)
@@ -464,13 +465,16 @@ audit_target_defaults(test_exploit_frost_lagrange_duplicate_standalone)
 target_compile_definitions(test_exploit_frost_lagrange_duplicate_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_lagrange_duplicate COMMAND test_exploit_frost_lagrange_duplicate_standalone)
 set_tests_properties(exploit_frost_lagrange_duplicate PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost")
+endif() # SECP256K1_BUILD_FROST
 
+if(SECP256K1_BUILD_ADAPTOR)
 # -- PoC: Schnorr adaptor signature R.y parity not verified (DoS on atomic swaps)
 add_executable(test_exploit_adaptor_parity_standalone test_exploit_adaptor_parity.cpp)
 audit_target_defaults(test_exploit_adaptor_parity_standalone)
 target_compile_definitions(test_exploit_adaptor_parity_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_adaptor_parity COMMAND test_exploit_adaptor_parity_standalone)
 set_tests_properties(exploit_adaptor_parity PROPERTIES TIMEOUT 60 LABELS "audit;exploit;adaptor")
+endif() # SECP256K1_BUILD_ADAPTOR
 
 # -- PoC: Scalar arithmetic edge cases and invariant violations
 add_executable(test_exploit_scalar_invariants_standalone test_exploit_scalar_invariants.cpp)
@@ -493,12 +497,14 @@ target_compile_definitions(test_exploit_schnorr_edge_cases_standalone PRIVATE ST
 add_test(NAME exploit_schnorr_edge_cases COMMAND test_exploit_schnorr_edge_cases_standalone)
 set_tests_properties(exploit_schnorr_edge_cases PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr")
 
+if(SECP256K1_BUILD_ECIES)
 # -- PoC: ECIES authentication bypass and ciphertext tampering tests
 add_executable(test_exploit_ecies_auth_standalone test_exploit_ecies_auth.cpp)
 audit_target_defaults(test_exploit_ecies_auth_standalone)
 target_compile_definitions(test_exploit_ecies_auth_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecies_auth COMMAND test_exploit_ecies_auth_standalone)
 set_tests_properties(exploit_ecies_auth PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ecies")
+endif() # SECP256K1_BUILD_ECIES
 
 # -- PoC: Schnorr batch verification soundness (invalid sig detection, a_0=1 weight)
 add_executable(test_exploit_batch_soundness_standalone test_exploit_batch_soundness.cpp)
@@ -507,12 +513,14 @@ target_compile_definitions(test_exploit_batch_soundness_standalone PRIVATE STAND
 add_test(NAME exploit_batch_soundness COMMAND test_exploit_batch_soundness_standalone)
 set_tests_properties(exploit_batch_soundness PROPERTIES TIMEOUT 120 LABELS "audit;exploit;batch")
 
+if(SECP256K1_BUILD_WALLET)
 # -- PoC: BIP-32 path parser overflow and boundary conditions
 add_executable(test_exploit_bip32_path_overflow_standalone test_exploit_bip32_path_overflow.cpp)
 audit_target_defaults(test_exploit_bip32_path_overflow_standalone)
 target_compile_definitions(test_exploit_bip32_path_overflow_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip32_path_overflow COMMAND test_exploit_bip32_path_overflow_standalone)
 set_tests_properties(exploit_bip32_path_overflow PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32")
+endif() # SECP256K1_BUILD_WALLET
 
 # -- PoC: MuSig2 nonce reuse attack (private key recovery, single-use enforcement)
 add_executable(test_exploit_musig2_nonce_reuse_standalone test_exploit_musig2_nonce_reuse.cpp)
@@ -579,27 +587,34 @@ target_compile_definitions(test_exploit_chacha20_nonce_reuse_standalone PRIVATE 
 add_test(NAME exploit_chacha20_nonce_reuse COMMAND test_exploit_chacha20_nonce_reuse_standalone)
 set_tests_properties(exploit_chacha20_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;aead")
 
+if(SECP256K1_BUILD_ZK)
 # -- PoC: ZK proof soundness (knowledge, DLEQ, range proofs)
 add_executable(test_exploit_zk_proofs_standalone test_exploit_zk_proofs.cpp)
 audit_target_defaults(test_exploit_zk_proofs_standalone)
 target_compile_definitions(test_exploit_zk_proofs_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_zk_proofs COMMAND test_exploit_zk_proofs_standalone)
 set_tests_properties(exploit_zk_proofs PROPERTIES TIMEOUT 120 LABELS "audit;exploit;zk")
+endif() # SECP256K1_BUILD_ZK
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST threshold signing end-to-end (DKG + sign + verify)
 add_executable(test_exploit_frost_signing_standalone test_exploit_frost_signing.cpp)
 audit_target_defaults(test_exploit_frost_signing_standalone)
 target_compile_definitions(test_exploit_frost_signing_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_signing COMMAND test_exploit_frost_signing_standalone)
 set_tests_properties(exploit_frost_signing PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+endif() # SECP256K1_BUILD_FROST
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST stale commitment replay / subset fork
 add_executable(test_exploit_frost_commitment_reuse_standalone test_exploit_frost_commitment_reuse.cpp)
 audit_target_defaults(test_exploit_frost_commitment_reuse_standalone)
 target_compile_definitions(test_exploit_frost_commitment_reuse_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_commitment_reuse COMMAND test_exploit_frost_commitment_reuse_standalone)
 set_tests_properties(exploit_frost_commitment_reuse PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+endif() # SECP256K1_BUILD_FROST
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST participant-set malleability (Wagner attack, 2024 research)
 add_executable(test_exploit_frost_participant_set_malleability_standalone
     test_exploit_frost_participant_set_malleability.cpp
@@ -625,6 +640,7 @@ target_include_directories(test_exploit_frost_ct_nonce_standalone PRIVATE
 target_compile_definitions(test_exploit_frost_ct_nonce_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_ct_nonce COMMAND test_exploit_frost_ct_nonce_standalone)
 set_tests_properties(exploit_frost_ct_nonce PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;ct")
+endif() # SECP256K1_BUILD_FROST
 
 # -- PoC: Binding-layer invalid-curve attack (CVE-2024-48930 class)
 add_executable(test_exploit_binding_invalid_curve_standalone
@@ -652,12 +668,14 @@ target_compile_definitions(test_exploit_musig2_parallel_session_cross_standalone
 add_test(NAME exploit_musig2_parallel_session_cross COMMAND test_exploit_musig2_parallel_session_cross_standalone)
 set_tests_properties(exploit_musig2_parallel_session_cross PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
 
+if(SECP256K1_BUILD_WALLET)
 # -- PoC: BIP-39 mnemonic entropy and checksum security
 add_executable(test_exploit_bip39_entropy_standalone test_exploit_bip39_entropy.cpp)
 audit_target_defaults(test_exploit_bip39_entropy_standalone)
 target_compile_definitions(test_exploit_bip39_entropy_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip39_entropy COMMAND test_exploit_bip39_entropy_standalone)
 set_tests_properties(exploit_bip39_entropy PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip39")
+endif() # SECP256K1_BUILD_WALLET
 
 # -- PoC: ElligatorSwift (BIP-324) ECDH security
 add_executable(test_exploit_ellswift_standalone test_exploit_ellswift.cpp)
@@ -696,11 +714,13 @@ target_compile_definitions(test_exploit_multiscalar_standalone PRIVATE STANDALON
 add_test(NAME exploit_multiscalar COMMAND test_exploit_multiscalar_standalone)
 set_tests_properties(exploit_multiscalar PROPERTIES TIMEOUT 60 LABELS "audit;exploit;msm")
 
+if(SECP256K1_BUILD_ZK)
 add_executable(test_exploit_pedersen_homomorphism_standalone test_exploit_pedersen_homomorphism.cpp)
 audit_target_defaults(test_exploit_pedersen_homomorphism_standalone)
 target_compile_definitions(test_exploit_pedersen_homomorphism_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_pedersen_homomorphism COMMAND test_exploit_pedersen_homomorphism_standalone)
 set_tests_properties(exploit_pedersen_homomorphism PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pedersen")
+endif() # SECP256K1_BUILD_ZK
 
 add_executable(test_exploit_hkdf_security_standalone test_exploit_hkdf_security.cpp)
 audit_target_defaults(test_exploit_hkdf_security_standalone)
@@ -732,11 +752,13 @@ target_compile_definitions(test_exploit_bip143_sighash_standalone PRIVATE STANDA
 add_test(NAME exploit_bip143_sighash COMMAND test_exploit_bip143_sighash_standalone)
 set_tests_properties(exploit_bip143_sighash PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip143")
 
+if(SECP256K1_BUILD_ECIES)
 add_executable(test_exploit_ecies_roundtrip_standalone test_exploit_ecies_roundtrip.cpp)
 audit_target_defaults(test_exploit_ecies_roundtrip_standalone)
 target_compile_definitions(test_exploit_ecies_roundtrip_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecies_roundtrip COMMAND test_exploit_ecies_roundtrip_standalone)
 set_tests_properties(exploit_ecies_roundtrip PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies")
+endif() # SECP256K1_BUILD_ECIES
 
 add_executable(test_exploit_ecdh_variants_standalone test_exploit_ecdh_variants.cpp)
 audit_target_defaults(test_exploit_ecdh_variants_standalone)
@@ -768,17 +790,21 @@ target_compile_definitions(test_exploit_musig2_key_agg_standalone PRIVATE STANDA
 add_test(NAME exploit_musig2_key_agg COMMAND test_exploit_musig2_key_agg_standalone)
 set_tests_properties(exploit_musig2_key_agg PROPERTIES TIMEOUT 60 LABELS "audit;exploit;musig2")
 
+if(SECP256K1_BUILD_WALLET)
 add_executable(test_exploit_bip32_derivation_standalone test_exploit_bip32_derivation.cpp)
 audit_target_defaults(test_exploit_bip32_derivation_standalone)
 target_compile_definitions(test_exploit_bip32_derivation_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip32_derivation COMMAND test_exploit_bip32_derivation_standalone)
 set_tests_properties(exploit_bip32_derivation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32")
+endif() # SECP256K1_BUILD_WALLET
 
+if(SECP256K1_BUILD_ADAPTOR)
 add_executable(test_exploit_adaptor_extended_standalone test_exploit_adaptor_extended.cpp)
 audit_target_defaults(test_exploit_adaptor_extended_standalone)
 target_compile_definitions(test_exploit_adaptor_extended_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_adaptor_extended COMMAND test_exploit_adaptor_extended_standalone)
 set_tests_properties(exploit_adaptor_extended PROPERTIES TIMEOUT 60 LABELS "audit;exploit;adaptor")
+endif() # SECP256K1_BUILD_ADAPTOR
 
 add_executable(test_exploit_chacha20_poly1305_standalone test_exploit_chacha20_poly1305.cpp)
 audit_target_defaults(test_exploit_chacha20_poly1305_standalone)
@@ -834,6 +860,7 @@ target_compile_definitions(test_exploit_eip712_kat_standalone PRIVATE STANDALONE
 add_test(NAME exploit_eip712_kat COMMAND test_exploit_eip712_kat_standalone)
 set_tests_properties(exploit_eip712_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ethereum;eip712")
 
+if(SECP256K1_BUILD_WALLET)
 add_executable(test_exploit_bitcoin_message_signing_standalone test_exploit_bitcoin_message_signing.cpp)
 audit_target_defaults(test_exploit_bitcoin_message_signing_standalone)
 target_compile_definitions(test_exploit_bitcoin_message_signing_standalone PRIVATE STANDALONE_TEST)
@@ -845,6 +872,7 @@ audit_target_defaults(test_exploit_coin_hd_derivation_standalone)
 target_compile_definitions(test_exploit_coin_hd_derivation_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_coin_hd_derivation COMMAND test_exploit_coin_hd_derivation_standalone)
 set_tests_properties(exploit_coin_hd_derivation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip44")
+endif() # SECP256K1_BUILD_WALLET
 
 add_executable(test_exploit_sha512_kat_standalone test_exploit_sha512_kat.cpp)
 audit_target_defaults(test_exploit_sha512_kat_standalone)
@@ -870,6 +898,7 @@ target_compile_definitions(test_exploit_ecdh_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecdh COMMAND test_exploit_ecdh_standalone)
 set_tests_properties(exploit_ecdh PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdh")
 
+if(SECP256K1_BUILD_WALLET)
 add_executable(test_exploit_bip39_mnemonic_standalone test_exploit_bip39_mnemonic.cpp)
 audit_target_defaults(test_exploit_bip39_mnemonic_standalone)
 target_compile_definitions(test_exploit_bip39_mnemonic_standalone PRIVATE STANDALONE_TEST)
@@ -881,6 +910,7 @@ audit_target_defaults(test_exploit_bip39_nfkd_standalone)
 target_compile_definitions(test_exploit_bip39_nfkd_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip39_nfkd COMMAND test_exploit_bip39_nfkd_standalone)
 set_tests_properties(exploit_bip39_nfkd PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip39;nfkd")
+endif() # SECP256K1_BUILD_WALLET
 
 add_executable(test_exploit_musig2_standalone test_exploit_musig2.cpp)
 audit_target_defaults(test_exploit_musig2_standalone)
@@ -888,23 +918,29 @@ target_compile_definitions(test_exploit_musig2_standalone PRIVATE STANDALONE_TES
 add_test(NAME exploit_musig2 COMMAND test_exploit_musig2_standalone)
 set_tests_properties(exploit_musig2 PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2")
 
+if(SECP256K1_BUILD_ECIES)
 add_executable(test_exploit_ecies_encryption_standalone test_exploit_ecies_encryption.cpp)
 audit_target_defaults(test_exploit_ecies_encryption_standalone)
 target_compile_definitions(test_exploit_ecies_encryption_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecies_encryption COMMAND test_exploit_ecies_encryption_standalone)
 set_tests_properties(exploit_ecies_encryption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies")
+endif() # SECP256K1_BUILD_ECIES
 
+if(SECP256K1_BUILD_WALLET)
 add_executable(test_exploit_wallet_api_standalone test_exploit_wallet_api.cpp)
 audit_target_defaults(test_exploit_wallet_api_standalone)
 target_compile_definitions(test_exploit_wallet_api_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_wallet_api COMMAND test_exploit_wallet_api_standalone)
 set_tests_properties(exploit_wallet_api PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wallet")
+endif() # SECP256K1_BUILD_WALLET
 
+if(SECP256K1_BUILD_FROST)
 add_executable(test_exploit_frost_dkg_standalone test_exploit_frost_dkg.cpp)
 audit_target_defaults(test_exploit_frost_dkg_standalone)
 target_compile_definitions(test_exploit_frost_dkg_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_dkg COMMAND test_exploit_frost_dkg_standalone)
 set_tests_properties(exploit_frost_dkg PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost")
+endif() # SECP256K1_BUILD_FROST
 
 add_executable(test_exploit_taproot_scripts_standalone test_exploit_taproot_scripts.cpp)
 audit_target_defaults(test_exploit_taproot_scripts_standalone)
@@ -1021,12 +1057,14 @@ target_compile_definitions(test_exploit_ecdsa_rfc6979_kat_standalone PRIVATE STA
 add_test(NAME exploit_ecdsa_rfc6979_kat COMMAND test_exploit_ecdsa_rfc6979_kat_standalone)
 set_tests_properties(exploit_ecdsa_rfc6979_kat PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;rfc6979")
 
+if(SECP256K1_BUILD_FROST)
 # -- FROST byzantine fault injection (bad partial, forged aggregate) ---------
 add_executable(test_exploit_frost_byzantine_standalone test_exploit_frost_byzantine.cpp)
 audit_target_defaults(test_exploit_frost_byzantine_standalone)
 target_compile_definitions(test_exploit_frost_byzantine_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_byzantine COMMAND test_exploit_frost_byzantine_standalone)
 set_tests_properties(exploit_frost_byzantine PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;byzantine")
+endif() # SECP256K1_BUILD_FROST
 
 # -- MuSig2/FROST Byzantine 3-of-5 multi-party adversarial tests -------------
 add_executable(test_exploit_musig2_byzantine_multiparty_standalone test_exploit_musig2_byzantine_multiparty.cpp)
@@ -1104,19 +1142,23 @@ target_compile_definitions(test_exploit_batch_schnorr_forge_standalone PRIVATE S
 add_test(NAME exploit_batch_schnorr_forge COMMAND test_exploit_batch_schnorr_forge_standalone)
 set_tests_properties(exploit_batch_schnorr_forge PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
 
+if(SECP256K1_BUILD_WALLET)
 # -- PoC: BIP-32 hardened derivation edge cases — isolation and xpub guard
 add_executable(test_exploit_bip32_ckd_hardened_standalone test_exploit_bip32_ckd_hardened.cpp)
 audit_target_defaults(test_exploit_bip32_ckd_hardened_standalone)
 target_compile_definitions(test_exploit_bip32_ckd_hardened_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip32_ckd_hardened COMMAND test_exploit_bip32_ckd_hardened_standalone)
 set_tests_properties(exploit_bip32_ckd_hardened PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;hardened")
+endif() # SECP256K1_BUILD_WALLET
 
+if(SECP256K1_BUILD_ZK)
 # -- PoC: ZK adversarial / malformed inputs — forged proofs, overflow, identity
 add_executable(test_exploit_zk_adversarial_standalone test_exploit_zk_adversarial.cpp)
 audit_target_defaults(test_exploit_zk_adversarial_standalone)
 target_compile_definitions(test_exploit_zk_adversarial_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_zk_adversarial COMMAND test_exploit_zk_adversarial_standalone)
 set_tests_properties(exploit_zk_adversarial PROPERTIES TIMEOUT 120 LABELS "audit;exploit;zk;adversarial")
+endif() # SECP256K1_BUILD_ZK
 
 # -- PoC: fe_set_b32_limit uninitialized overflow flag regression (PR #1839) --
 add_executable(test_exploit_fe_set_b32_limit_uninit_standalone
@@ -1134,6 +1176,7 @@ add_test(NAME exploit_fe_set_b32_limit_uninit
 set_tests_properties(exploit_fe_set_b32_limit_uninit PROPERTIES
     TIMEOUT 60 LABELS "audit;exploit;field;overflow")
 
+if(SECP256K1_BUILD_ZK)
 # -- PoC: ZK new schemes — Bulletproof boundaries/batch/hiding/binding +
 #         DLEQ anonymous credential (eprint 2024/2010) ----------------------
 add_executable(test_exploit_zk_new_schemes_standalone
@@ -1143,6 +1186,7 @@ target_compile_definitions(test_exploit_zk_new_schemes_standalone PRIVATE STANDA
 add_test(NAME exploit_zk_new_schemes COMMAND test_exploit_zk_new_schemes_standalone)
 set_tests_properties(exploit_zk_new_schemes PROPERTIES
     TIMEOUT 120 LABELS "audit;exploit;zk;bulletproof;range")
+endif() # SECP256K1_BUILD_ZK
 
 # -- PoC: Foreign-field arithmetic — PLONK/SNARK secp256k1 constraints (eprint 2025/695) --
 add_executable(test_exploit_foreign_field_plonk_standalone
@@ -1153,12 +1197,14 @@ add_test(NAME exploit_foreign_field_plonk COMMAND test_exploit_foreign_field_plo
 set_tests_properties(exploit_foreign_field_plonk PROPERTIES
     TIMEOUT 60 LABELS "audit;exploit;field;plonk;snark;foreign-field")
 
+if(SECP256K1_BUILD_ZK)
 # -- PoC: Pedersen adversarial / switch-commit — binding, negation, double-spend
 add_executable(test_exploit_pedersen_adversarial_standalone test_exploit_pedersen_adversarial.cpp)
 audit_target_defaults(test_exploit_pedersen_adversarial_standalone)
 target_compile_definitions(test_exploit_pedersen_adversarial_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_pedersen_adversarial COMMAND test_exploit_pedersen_adversarial_standalone)
 set_tests_properties(exploit_pedersen_adversarial PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pedersen;adversarial")
+endif() # SECP256K1_BUILD_ZK
 
 # -- Ethereum differential: our output vs. go-ethereum/web3.py/ethers.js KATs
 add_executable(test_exploit_ethereum_differential_standalone test_exploit_ethereum_differential.cpp)
@@ -1167,6 +1213,7 @@ target_compile_definitions(test_exploit_ethereum_differential_standalone PRIVATE
 add_test(NAME exploit_ethereum_differential COMMAND test_exploit_ethereum_differential_standalone)
 set_tests_properties(exploit_ethereum_differential PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ethereum;differential")
 
+if(SECP256K1_BUILD_FROST)
 # -- MuSig2/FROST/adaptor parser fuzz (deterministic, no libFuzzer required) --
 add_executable(test_fuzz_musig2_frost_standalone test_fuzz_musig2_frost.cpp)
 audit_target_defaults(test_fuzz_musig2_frost_standalone)
@@ -1180,6 +1227,7 @@ target_compile_definitions(test_fuzz_musig2_frost_standalone PRIVATE
     STANDALONE_TEST "UFSECP_API=")
 add_test(NAME fuzz_musig2_frost COMMAND test_fuzz_musig2_frost_standalone)
 set_tests_properties(fuzz_musig2_frost PROPERTIES TIMEOUT 120 LABELS "audit;fuzz;musig2;frost;adaptor")
+endif() # SECP256K1_BUILD_FROST
 
 # -- PoC: Invalid curve / twist point injection (Tier-1 audit probe) ---------
 add_executable(test_exploit_invalid_curve_twist_standalone test_exploit_invalid_curve_twist.cpp)
@@ -1269,33 +1317,41 @@ target_compile_definitions(test_exploit_taproot_merkle_path_alias_standalone PRI
 add_test(NAME exploit_taproot_merkle_path_alias COMMAND test_exploit_taproot_merkle_path_alias_standalone)
 set_tests_properties(exploit_taproot_merkle_path_alias PROPERTIES TIMEOUT 60 LABELS "audit;exploit;taproot;merkle")
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST binding factor mismatch -------------------------------------
 add_executable(test_exploit_frost_binding_factor_mismatch_standalone test_exploit_frost_binding_factor_mismatch.cpp)
 audit_target_defaults(test_exploit_frost_binding_factor_mismatch_standalone)
 target_compile_definitions(test_exploit_frost_binding_factor_mismatch_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_binding_factor_mismatch COMMAND test_exploit_frost_binding_factor_mismatch_standalone)
 set_tests_properties(exploit_frost_binding_factor_mismatch PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;binding")
+endif() # SECP256K1_BUILD_FROST
 
+if(SECP256K1_BUILD_WALLET)
 # -- PoC: BIP-32 parent fingerprint confusion --------------------------------
 add_executable(test_exploit_bip32_parent_fingerprint_confusion_standalone test_exploit_bip32_parent_fingerprint_confusion.cpp)
 audit_target_defaults(test_exploit_bip32_parent_fingerprint_confusion_standalone)
 target_compile_definitions(test_exploit_bip32_parent_fingerprint_confusion_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip32_parent_fingerprint_confusion COMMAND test_exploit_bip32_parent_fingerprint_confusion_standalone)
 set_tests_properties(exploit_bip32_parent_fingerprint_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;fingerprint")
+endif() # SECP256K1_BUILD_WALLET
 
+if(SECP256K1_BUILD_ECIES)
 # -- PoC: ECIES envelope confusion ------------------------------------------
 add_executable(test_exploit_ecies_envelope_confusion_standalone test_exploit_ecies_envelope_confusion.cpp)
 audit_target_defaults(test_exploit_ecies_envelope_confusion_standalone)
 target_compile_definitions(test_exploit_ecies_envelope_confusion_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ecies_envelope_confusion COMMAND test_exploit_ecies_envelope_confusion_standalone)
 set_tests_properties(exploit_ecies_envelope_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies;envelope")
+endif() # SECP256K1_BUILD_ECIES
 
+if(SECP256K1_BUILD_WALLET)
 # -- PoC: Wallet cross-domain replay ----------------------------------------
 add_executable(test_exploit_wallet_cross_domain_replay_standalone test_exploit_wallet_cross_domain_replay.cpp)
 audit_target_defaults(test_exploit_wallet_cross_domain_replay_standalone)
 target_compile_definitions(test_exploit_wallet_cross_domain_replay_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_wallet_cross_domain_replay COMMAND test_exploit_wallet_cross_domain_replay_standalone)
 set_tests_properties(exploit_wallet_cross_domain_replay PROPERTIES TIMEOUT 60 LABELS "audit;exploit;wallet;replay;domain")
+endif() # SECP256K1_BUILD_WALLET
 
 # -- PoC: GPU host API shape (hostile caller) --------------------------------
 add_executable(test_exploit_gpu_host_api_shape_standalone test_exploit_gpu_host_api_shape.cpp
@@ -1309,6 +1365,7 @@ target_compile_definitions(test_exploit_gpu_host_api_shape_standalone PRIVATE ST
 add_test(NAME exploit_gpu_host_api_shape COMMAND test_exploit_gpu_host_api_shape_standalone)
 set_tests_properties(exploit_gpu_host_api_shape PROPERTIES TIMEOUT 60 LABELS "audit;exploit;gpu;ffi;hostile")
 
+if(SECP256K1_BUILD_BIP352)
 # -- PoC: Silent Payment confusion (BIP-352 key role / output isolation) -----
 add_executable(test_exploit_silent_payment_confusion_standalone test_exploit_silent_payment_confusion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
@@ -1320,6 +1377,7 @@ target_include_directories(test_exploit_silent_payment_confusion_standalone PRIV
 target_compile_definitions(test_exploit_silent_payment_confusion_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_silent_payment_confusion COMMAND test_exploit_silent_payment_confusion_standalone)
 set_tests_properties(exploit_silent_payment_confusion PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip352;silent_payment")
+endif() # SECP256K1_BUILD_BIP352
 
 # -- PoC: CT vs Fast implementation equivalence ------------------------------
 add_executable(test_exploit_ct_fast_equivalence_standalone test_exploit_ct_fast_equivalence.cpp)
@@ -1328,13 +1386,16 @@ target_compile_definitions(test_exploit_ct_fast_equivalence_standalone PRIVATE S
 add_test(NAME exploit_ct_fast_equivalence COMMAND test_exploit_ct_fast_equivalence_standalone)
 set_tests_properties(exploit_ct_fast_equivalence PROPERTIES TIMEOUT 120 LABELS "audit;exploit;ct;equivalence")
 
+if(SECP256K1_BUILD_ZK)
 # -- PoC: Pedersen switch commitment misuse ----------------------------------
 add_executable(test_exploit_pedersen_switch_misuse_standalone test_exploit_pedersen_switch_misuse.cpp)
 audit_target_defaults(test_exploit_pedersen_switch_misuse_standalone)
 target_compile_definitions(test_exploit_pedersen_switch_misuse_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_pedersen_switch_misuse COMMAND test_exploit_pedersen_switch_misuse_standalone)
 set_tests_properties(exploit_pedersen_switch_misuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pedersen;switch")
+endif() # SECP256K1_BUILD_ZK
 
+if(SECP256K1_BUILD_ECIES)
 # -- ECIES regression + C ABI prefix enforcement ----------------------------
 add_executable(test_ecies_regression_standalone test_ecies_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp)
@@ -1347,6 +1408,7 @@ target_compile_definitions(test_ecies_regression_standalone PRIVATE
     UFSECP_BUILDING STANDALONE_ECIES_REGRESSION)
 add_test(NAME ecies_regression COMMAND test_ecies_regression_standalone)
 set_tests_properties(ecies_regression PROPERTIES TIMEOUT 600 LABELS "audit")
+endif() # SECP256K1_BUILD_ECIES
 
 # ===========================================================================
 # Feature Exploit PoC Standalone Tests (P2SH, BIP-85, BIP-340, BIP-322, GCS, PSBT, Desc)
@@ -1655,6 +1717,7 @@ endif()
 add_test(NAME exploit_differential_openssl COMMAND test_exploit_differential_openssl_standalone)
 set_tests_properties(exploit_differential_openssl PROPERTIES TIMEOUT 120 LABELS "audit;exploit;differential;interop;advisory")
 
+if(SECP256K1_BUILD_BIP352)
 # -- PoC: BIP-352 scanning DoS prevention (A6 gap)
 add_executable(test_exploit_bip352_scan_dos_standalone
     test_exploit_bip352_scan_dos.cpp
@@ -1665,6 +1728,7 @@ target_include_directories(test_exploit_bip352_scan_dos_standalone PRIVATE
 target_compile_definitions(test_exploit_bip352_scan_dos_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bip352_scan_dos COMMAND test_exploit_bip352_scan_dos_standalone)
 set_tests_properties(exploit_bip352_scan_dos PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;dos")
+endif() # SECP256K1_BUILD_BIP352
 
 # -- PoC: Taproot commitment adversarial (ePrint 2025/1307, A7 gap)
 add_executable(test_exploit_taproot_commitment_adversarial_standalone
@@ -1677,6 +1741,7 @@ target_compile_definitions(test_exploit_taproot_commitment_adversarial_standalon
 add_test(NAME exploit_taproot_commitment_adversarial COMMAND test_exploit_taproot_commitment_adversarial_standalone)
 set_tests_properties(exploit_taproot_commitment_adversarial PROPERTIES TIMEOUT 60 LABELS "audit;exploit;taproot")
 
+if(SECP256K1_BUILD_BIP352)
 # -- PoC: BIP-352 parity confusion in ECDH (C2 gap)
 add_executable(test_exploit_bip352_parity_confusion_standalone
     test_exploit_bip352_parity_confusion.cpp
@@ -1706,6 +1771,7 @@ target_include_directories(test_bip352_kat_standalone PRIVATE
 target_compile_definitions(test_bip352_kat_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME bip352_kat COMMAND test_bip352_kat_standalone)
 set_tests_properties(bip352_kat PROPERTIES TIMEOUT 60 LABELS "audit;kat;bip352;silent-payment;regression")
+endif() # SECP256K1_BUILD_BIP352
 
 # -- PoC: RFC 6979 nonce truncation bias (C5 gap)
 add_executable(test_exploit_rfc6979_truncation_bias_standalone
@@ -1740,6 +1806,7 @@ target_compile_definitions(test_exploit_quantum_exposure_standalone PRIVATE STAN
 add_test(NAME exploit_quantum_exposure COMMAND test_exploit_quantum_exposure_standalone)
 set_tests_properties(exploit_quantum_exposure PROPERTIES TIMEOUT 60 LABELS "audit;exploit;quantum")
 
+if(SECP256K1_BUILD_ECIES)
 # -- PoC: ECIES ephemeral key reuse detection (LOW)
 add_executable(test_exploit_ecies_ephemeral_reuse_standalone
     test_exploit_ecies_ephemeral_reuse.cpp
@@ -1750,6 +1817,7 @@ target_include_directories(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE
 target_compile_definitions(test_exploit_ecies_ephemeral_reuse_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_ecies_ephemeral_reuse COMMAND test_exploit_ecies_ephemeral_reuse_standalone)
 set_tests_properties(exploit_ecies_ephemeral_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecies")
+endif() # SECP256K1_BUILD_ECIES
 
 # -- PoC: Address prefix collision resistance (LOW)
 add_executable(test_exploit_address_prefix_collision_standalone
@@ -1773,6 +1841,7 @@ target_compile_definitions(test_exploit_ecdh_zvp_glv_static_standalone PRIVATE S
 add_test(NAME exploit_ecdh_zvp_glv_static COMMAND test_exploit_ecdh_zvp_glv_static_standalone)
 set_tests_properties(exploit_ecdh_zvp_glv_static PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdh;zvp;glv")
 
+if(SECP256K1_BUILD_FROST)
 # -- PoC: FROST adaptive corruption misuse regression -----------------------
 add_executable(test_exploit_frost_adaptive_corruption_standalone
     test_exploit_frost_adaptive_corruption.cpp
@@ -1783,6 +1852,7 @@ target_include_directories(test_exploit_frost_adaptive_corruption_standalone PRI
 target_compile_definitions(test_exploit_frost_adaptive_corruption_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_adaptive_corruption COMMAND test_exploit_frost_adaptive_corruption_standalone)
 set_tests_properties(exploit_frost_adaptive_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;adaptive")
+endif() # SECP256K1_BUILD_FROST
 
 # -- PoC: Point::scalar_mul edge-case and correctness attack surface --------
 add_executable(test_exploit_scalar_mul_standalone
@@ -2049,6 +2119,7 @@ target_compile_definitions(test_exploit_schnorr_nonce_reuse_standalone PRIVATE S
 add_test(NAME exploit_schnorr_nonce_reuse COMMAND test_exploit_schnorr_nonce_reuse_standalone)
 set_tests_properties(exploit_schnorr_nonce_reuse PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;nonce_reuse")
 
+if(SECP256K1_BUILD_WALLET)
 # -- BIP-32 non-hardened child key → parent private key recovery (CKA-1..CKA-8) --
 add_executable(test_exploit_bip32_child_key_attack_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_bip32_child_key_attack.cpp)
@@ -2056,7 +2127,9 @@ audit_target_defaults(test_exploit_bip32_child_key_attack_standalone)
 target_compile_definitions(test_exploit_bip32_child_key_attack_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bip32_child_key_attack COMMAND test_exploit_bip32_child_key_attack_standalone)
 set_tests_properties(exploit_bip32_child_key_attack PROPERTIES TIMEOUT 60 LABELS "audit;exploit;bip32;key_derivation")
+endif() # SECP256K1_BUILD_WALLET
 
+if(SECP256K1_BUILD_FROST)
 # -- FROST identifiable abort / per-participant attribution (FIA-1..FIA-9) --
 add_executable(test_exploit_frost_identifiable_abort_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/test_exploit_frost_identifiable_abort.cpp)
@@ -2064,6 +2137,7 @@ audit_target_defaults(test_exploit_frost_identifiable_abort_standalone)
 target_compile_definitions(test_exploit_frost_identifiable_abort_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_frost_identifiable_abort COMMAND test_exploit_frost_identifiable_abort_standalone)
 set_tests_properties(exploit_frost_identifiable_abort PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;identifiable_abort")
+endif() # SECP256K1_BUILD_FROST
 
 # -- Hash algorithm & format isolation (HAS-1..HAS-8) ----------------------
 add_executable(test_exploit_hash_algo_sig_isolation_standalone
@@ -2165,6 +2239,7 @@ target_compile_definitions(test_exploit_ros_concurrent_schnorr_standalone PRIVAT
 add_test(NAME exploit_ros_concurrent_schnorr COMMAND test_exploit_ros_concurrent_schnorr_standalone)
 set_tests_properties(exploit_ros_concurrent_schnorr PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ros;schnorr;concurrent")
 
+if(SECP256K1_BUILD_FROST)
 # -- ePrint 2026/075, 2025/1001: FROST weak binding & adaptive corruption ----
 add_executable(test_exploit_frost_weak_binding_standalone
     test_exploit_frost_weak_binding.cpp
@@ -2177,6 +2252,7 @@ target_include_directories(test_exploit_frost_weak_binding_standalone PRIVATE
 target_compile_definitions(test_exploit_frost_weak_binding_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_weak_binding COMMAND test_exploit_frost_weak_binding_standalone)
 set_tests_properties(exploit_frost_weak_binding PROPERTIES TIMEOUT 60 LABELS "audit;exploit;frost;binding;adaptive")
+endif() # SECP256K1_BUILD_FROST
 
 # -- ePrint 2024/589, 2025/935: Blind-Folded SPA & CT cmov/cswap leak ------
 add_executable(test_exploit_blind_spa_cmov_leak_standalone
@@ -2243,6 +2319,7 @@ target_compile_definitions(test_exploit_bip324_aead_forgery_standalone PRIVATE S
 add_test(NAME exploit_bip324_aead_forgery COMMAND test_exploit_bip324_aead_forgery_standalone)
 set_tests_properties(exploit_bip324_aead_forgery PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip324;aead")
 
+if(SECP256K1_BUILD_FROST)
 # -- FROST rogue-key / key-cancellation (ePrint 2020/852, 2023/899) --
 add_executable(test_exploit_frost_rogue_key_standalone
     test_exploit_frost_rogue_key.cpp
@@ -2255,6 +2332,7 @@ target_include_directories(test_exploit_frost_rogue_key_standalone PRIVATE
 target_compile_definitions(test_exploit_frost_rogue_key_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_frost_rogue_key COMMAND test_exploit_frost_rogue_key_standalone)
 set_tests_properties(exploit_frost_rogue_key PROPERTIES TIMEOUT 120 LABELS "audit;exploit;frost;rogue-key")
+endif() # SECP256K1_BUILD_FROST
 
 # -- MuSig2 partial signature forgery & session binding (ePrint 2020/1261) --
 add_executable(test_exploit_musig2_partial_forgery_standalone
@@ -2269,6 +2347,7 @@ target_compile_definitions(test_exploit_musig2_partial_forgery_standalone PRIVAT
 add_test(NAME exploit_musig2_partial_forgery COMMAND test_exploit_musig2_partial_forgery_standalone)
 set_tests_properties(exploit_musig2_partial_forgery PROPERTIES TIMEOUT 120 LABELS "audit;exploit;musig2;forgery")
 
+if(SECP256K1_BUILD_ADAPTOR)
 # -- Schnorr adaptor extraction soundness (ePrint 2020/476, 2021/150) --
 add_executable(test_exploit_adaptor_extraction_soundness_standalone
     test_exploit_adaptor_extraction_soundness.cpp
@@ -2281,6 +2360,7 @@ target_include_directories(test_exploit_adaptor_extraction_soundness_standalone 
 target_compile_definitions(test_exploit_adaptor_extraction_soundness_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_adaptor_extraction_soundness COMMAND test_exploit_adaptor_extraction_soundness_standalone)
 set_tests_properties(exploit_adaptor_extraction_soundness PROPERTIES TIMEOUT 120 LABELS "audit;exploit;adaptor;soundness")
+endif() # SECP256K1_BUILD_ADAPTOR
 
 # -- ECDH twist point injection / Pohlig-Hellman (ePrint 2015/1233) --
 add_executable(test_exploit_ecdh_twist_injection_standalone
@@ -2362,6 +2442,7 @@ target_compile_definitions(test_exploit_dark_skippy_exfil_standalone PRIVATE STA
 add_test(NAME exploit_dark_skippy_exfil COMMAND test_exploit_dark_skippy_exfil_standalone)
 set_tests_properties(exploit_dark_skippy_exfil PROPERTIES TIMEOUT 30 LABELS "audit;exploit;nonce;ecdsa;schnorr;dark_skippy")
 
+if(SECP256K1_BUILD_ZK)
 # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 -
 add_executable(test_exploit_fiat_shamir_frozen_heart_standalone
     test_exploit_fiat_shamir_frozen_heart.cpp
@@ -2374,6 +2455,7 @@ target_include_directories(test_exploit_fiat_shamir_frozen_heart_standalone PRIV
 target_compile_definitions(test_exploit_fiat_shamir_frozen_heart_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_fiat_shamir_frozen_heart COMMAND test_exploit_fiat_shamir_frozen_heart_standalone)
 set_tests_properties(exploit_fiat_shamir_frozen_heart PROPERTIES TIMEOUT 30 LABELS "audit;exploit;zk;fiat-shamir;frozen-heart")
+endif() # SECP256K1_BUILD_ZK
 
 # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 -
 add_executable(test_exploit_hertzbleed_scalar_blind_standalone
@@ -2519,6 +2601,7 @@ target_compile_definitions(test_exploit_eth_signing_ct_standalone PRIVATE STANDA
 add_test(NAME exploit_eth_signing_ct COMMAND test_exploit_eth_signing_ct_standalone)
 set_tests_properties(exploit_eth_signing_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;ethereum;ecdsa")
 
+if(SECP256K1_BUILD_WALLET)
 # -- B-02 fix: Wallet sign_hash CT path (WALCT-1..8) — 2026-04-27 ----------
 add_executable(test_exploit_wallet_sign_ct_standalone
     test_exploit_wallet_sign_ct.cpp
@@ -2535,6 +2618,7 @@ target_include_directories(test_exploit_wallet_sign_ct_standalone PRIVATE
 target_compile_definitions(test_exploit_wallet_sign_ct_standalone PRIVATE STANDALONE_TEST SECP256K1_BUILD_ETHEREUM)
 add_test(NAME exploit_wallet_sign_ct COMMAND test_exploit_wallet_sign_ct_standalone)
 set_tests_properties(exploit_wallet_sign_ct PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ct;wallet;ecdsa")
+endif() # SECP256K1_BUILD_WALLET
 
 # -- B-04 fix: Monolith split integrity (MONO-1..12) — 2026-04-27 -----------
 add_executable(test_exploit_monolith_split_standalone
@@ -2790,6 +2874,7 @@ target_compile_definitions(test_exploit_rs_zero_check_standalone PRIVATE STANDAL
 add_test(NAME exploit_rs_zero_check COMMAND test_exploit_rs_zero_check_standalone)
 set_tests_properties(exploit_rs_zero_check PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ecdsa;schnorr;zero;cve")
 
+if(SECP256K1_BUILD_BIP352)
 # -- N13: BIP-352 Address Collision (SP-1..4) — Original 2026-04-28 ----------
 # Domain separation collision resistance: 1000 random (scan,spend) pairs
 # must produce unique Silent Payment addresses.
@@ -2807,6 +2892,7 @@ target_include_directories(test_exploit_bip352_address_collision_standalone PRIV
 target_compile_definitions(test_exploit_bip352_address_collision_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
 add_test(NAME exploit_bip352_address_collision COMMAND test_exploit_bip352_address_collision_standalone)
 set_tests_properties(exploit_bip352_address_collision PROPERTIES TIMEOUT 120 LABELS "audit;exploit;bip352;silent-payments;collision")
+endif() # SECP256K1_BUILD_BIP352
 
 # -- BUG-001/007: addr off-by-one overflow + p2sh null ---------------------
 add_executable(test_exploit_bug001_addr_overflow_standalone
@@ -3259,14 +3345,14 @@ add_executable(unified_audit_runner
     ${CPU_TESTS_DIR}/test_ct_equivalence.cpp
     ${CPU_TESTS_DIR}/test_ecdsa_schnorr.cpp
     ${CPU_TESTS_DIR}/test_multiscalar_batch.cpp
-    ${CPU_TESTS_DIR}/test_bip32.cpp
-    ${CPU_TESTS_DIR}/test_bip32_vectors.cpp
-    ${CPU_TESTS_DIR}/test_bip39.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:${CPU_TESTS_DIR}/test_bip32.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:${CPU_TESTS_DIR}/test_bip32_vectors.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:${CPU_TESTS_DIR}/test_bip39.cpp>
     ${CPU_TESTS_DIR}/test_musig2.cpp
     ${CPU_TESTS_DIR}/test_ecdh_recovery_taproot.cpp
-    ${CPU_TESTS_DIR}/test_edge_cases.cpp
-    ${CPU_TESTS_DIR}/test_v4_features.cpp
-    ${CPU_TESTS_DIR}/test_coins.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:${CPU_TESTS_DIR}/test_edge_cases.cpp>
+    $<$<AND:$<BOOL:${SECP256K1_BUILD_FROST}>,$<BOOL:${SECP256K1_BUILD_ZK}>>:${CPU_TESTS_DIR}/test_v4_features.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:${CPU_TESTS_DIR}/test_coins.cpp>
     ${CPU_TESTS_DIR}/test_batch_add_affine.cpp
     ${CPU_TESTS_DIR}/test_hash_accel.cpp
     ${CPU_TESTS_DIR}/test_exhaustive.cpp
@@ -3283,7 +3369,7 @@ add_executable(unified_audit_runner
     test_cross_platform_kat.cpp
     test_debug_invariants.cpp
     test_abi_gate.cpp
-    test_ct_sidechannel.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_ct_sidechannel.cpp>
     differential_test.cpp
     # -- Wycheproof (Track I3) --
     test_wycheproof_ecdsa.cpp
@@ -3295,17 +3381,17 @@ add_executable(unified_audit_runner
     # -- Independent reference linkage (Track I5-2) --
     test_fiat_crypto_linkage.cpp
     # -- MuSig2 / FROST / adversarial / fuzz --
-    test_musig2_frost.cpp
-    test_musig2_frost_advanced.cpp
-    test_frost_kat.cpp
-    test_musig2_bip327_vectors.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_musig2_frost.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_musig2_frost_advanced.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_frost_kat.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_musig2_bip327_vectors.cpp>
     test_ffi_round_trip.cpp
     test_adversarial_protocol.cpp
-    test_ecies_regression.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_ecies_regression.cpp>
     audit_fuzz.cpp
     test_fuzz_parsers.cpp
     test_fuzz_address_bip32_ffi.cpp
-    test_fuzz_musig2_frost.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_fuzz_musig2_frost.cpp>
     # -- LibFuzzer deterministic regression + mutation + formal spec (advisory) --
     test_libfuzzer_unified.cpp
     test_mutation_kill_rate.cpp
@@ -3316,9 +3402,9 @@ add_executable(unified_audit_runner
     audit_point.cpp
     audit_ct.cpp
     audit_integration.cpp
-    audit_security.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:audit_security.cpp>
     audit_perf.cpp
-    audit_zk.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:audit_zk.cpp>
     # -- Specification oracle & invariant monitor --
     test_secp256k1_spec.cpp
     audit_invariants.cpp
@@ -3327,8 +3413,8 @@ add_executable(unified_audit_runner
     test_c_abi_thread_stress.cpp
     # -- Zeroization / ZK fault injection / secret lifecycle --
     test_zeroization.cpp
-    test_fault_zk_adaptor.cpp
-    test_secret_lifecycle.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_fault_zk_adaptor.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_secret_lifecycle.cpp>
     # -- Field / scalar / point arithmetic edge cases --
     test_field_scalar_edge.cpp
     test_point_group_law.cpp
@@ -3351,8 +3437,8 @@ add_executable(unified_audit_runner
     # -- diagnostics --
     ${CPU_TESTS_DIR}/diag_scalar_mul.cpp
     # -- Exploit PoC tests (Section 9) --
-    test_exploit_adaptor_extended.cpp
-    test_exploit_adaptor_parity.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ADAPTOR}>:test_exploit_adaptor_extended.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ADAPTOR}>:test_exploit_adaptor_parity.cpp>
     test_exploit_address_encoding.cpp
     test_exploit_address_generation.cpp
     test_exploit_bech32_underflow.cpp
@@ -3368,21 +3454,21 @@ add_executable(unified_audit_runner
     test_exploit_bip324_counter_desync.cpp
     test_exploit_bip324_session.cpp
     test_exploit_bip324_transcript_splice.cpp
-    test_exploit_bip32_ckd_hardened.cpp
-    test_exploit_bip32_depth.cpp
-    test_exploit_bip32_derivation.cpp
-    test_exploit_bip32_parent_fingerprint_confusion.cpp
-    test_exploit_bip32_path_overflow.cpp
-    test_exploit_bip39_entropy.cpp
-    test_exploit_bip39_mnemonic.cpp
-    test_exploit_bip39_nfkd.cpp
-    test_exploit_bitcoin_message_signing.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_ckd_hardened.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_depth.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_derivation.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_parent_fingerprint_confusion.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_path_overflow.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip39_entropy.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip39_mnemonic.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip39_nfkd.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bitcoin_message_signing.cpp>
     test_exploit_chacha20_kat.cpp
     test_exploit_chacha20_nonce_reuse.cpp
     test_exploit_kat_corpus.cpp
     test_exploit_primitive_kat.cpp
     test_exploit_chacha20_poly1305.cpp
-    test_exploit_coin_hd_derivation.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_coin_hd_derivation.cpp>
     test_exploit_ct_fast_equivalence.cpp
     test_exploit_ct_recov.cpp
     test_exploit_ct_systematic.cpp
@@ -3398,10 +3484,10 @@ add_executable(unified_audit_runner
     test_exploit_binding_retval.cpp
     test_exploit_ecdsa_recovery.cpp
     test_exploit_ecdsa_rfc6979_kat.cpp
-    test_exploit_ecies_auth.cpp
-    test_exploit_ecies_encryption.cpp
-    test_exploit_ecies_envelope_confusion.cpp
-    test_exploit_ecies_roundtrip.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_exploit_ecies_auth.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_exploit_ecies_encryption.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_exploit_ecies_envelope_confusion.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_exploit_ecies_roundtrip.cpp>
     test_exploit_ecrecover_confusion.cpp
     test_exploit_ellswift.cpp
     test_exploit_ellswift_ecdh.cpp
@@ -3410,17 +3496,17 @@ add_executable(unified_audit_runner
     test_exploit_eip712_kat.cpp
     test_exploit_field_arithmetic.cpp
     test_exploit_field_boundary_exhaustive.cpp
-    test_exploit_frost_binding_factor_mismatch.cpp
-    test_exploit_frost_byzantine.cpp
-    test_exploit_frost_commitment_reuse.cpp
-    test_exploit_frost_ct_nonce.cpp
-    test_exploit_frost_participant_set_malleability.cpp
-    test_exploit_frost_dkg.cpp
-    test_exploit_frost_index.cpp
-    test_exploit_frost_lagrange_duplicate.cpp
-    test_exploit_frost_participant_zero.cpp
-    test_exploit_frost_signing.cpp
-    test_exploit_frost_threshold_degenerate.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_binding_factor_mismatch.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_byzantine.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_commitment_reuse.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_ct_nonce.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_participant_set_malleability.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_dkg.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_index.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_lagrange_duplicate.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_participant_zero.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_signing.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_threshold_degenerate.cpp>
     test_exploit_glv_endomorphism.cpp
     test_exploit_glv_kat.cpp
     test_exploit_gpu_cpu_divergence.cpp
@@ -3436,9 +3522,9 @@ add_executable(unified_audit_runner
     test_exploit_musig2_nonce_reuse.cpp
     test_exploit_musig2_ordering.cpp
     test_exploit_musig2_transcript_fork.cpp
-    test_exploit_pedersen_adversarial.cpp
-    test_exploit_pedersen_homomorphism.cpp
-    test_exploit_pedersen_switch_misuse.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_pedersen_adversarial.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_pedersen_homomorphism.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_pedersen_switch_misuse.cpp>
     test_exploit_pippenger_msm.cpp
     test_exploit_point_group_law.cpp
     test_exploit_point_serialization.cpp
@@ -3458,16 +3544,16 @@ add_executable(unified_audit_runner
     test_exploit_sha256_kat.cpp
     test_exploit_sha512_kat.cpp
     test_exploit_sha_kat.cpp
-    test_exploit_silent_payment_confusion.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_silent_payment_confusion.cpp>
     test_exploit_taproot_merkle_path_alias.cpp
     test_exploit_taproot_scripts.cpp
     test_exploit_taproot_tweak.cpp
-    test_exploit_wallet_api.cpp
-    test_exploit_wallet_cross_domain_replay.cpp
-    test_exploit_zk_adversarial.cpp
-    test_exploit_zk_proofs.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_wallet_api.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_wallet_cross_domain_replay.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_zk_adversarial.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_zk_proofs.cpp>
     test_exploit_fe_set_b32_limit_uninit.cpp
-    test_exploit_zk_new_schemes.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_zk_new_schemes.cpp>
     test_exploit_foreign_field_plonk.cpp
     test_infinity_edge_cases.cpp
     test_exploit_seckey_arith.cpp
@@ -3492,18 +3578,18 @@ add_executable(unified_audit_runner
     test_exploit_buffer_type_confusion.cpp
     test_exploit_differential_libsecp.cpp
     test_exploit_differential_openssl.cpp
-    test_exploit_bip352_scan_dos.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_bip352_scan_dos.cpp>
     test_exploit_taproot_commitment_adversarial.cpp
-    test_exploit_bip352_parity_confusion.cpp
-    test_exploit_bip352_batch_correctness.cpp
-    test_bip352_kat.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_bip352_parity_confusion.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_bip352_batch_correctness.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_bip352_kat.cpp>
     test_exploit_rfc6979_truncation_bias.cpp
     test_exploit_binding_adversarial_api.cpp
     test_exploit_quantum_exposure.cpp
-    test_exploit_ecies_ephemeral_reuse.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ECIES}>:test_exploit_ecies_ephemeral_reuse.cpp>
     test_exploit_address_prefix_collision.cpp
     test_exploit_ecdh_zvp_glv_static.cpp
-    test_exploit_frost_adaptive_corruption.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_adaptive_corruption.cpp>
     test_exploit_scalar_mul.cpp
     test_exploit_ecdsa_fault_injection.cpp
     test_exploit_cache_sidechannel_amplification.cpp
@@ -3525,12 +3611,12 @@ add_executable(unified_audit_runner
     # -- Network selector validation bypass --
     test_exploit_network_validation_bypass.cpp
     # -- Previously standalone-only exploit tests (unified audit gap closure) --
-    test_exploit_bip32_child_key_attack.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_bip32_child_key_attack.cpp>
     test_exploit_boundary_sentinels.cpp
     test_exploit_ecdsa_r_overflow.cpp
     test_exploit_ecdsa_pmn_wraparound.cpp
     test_exploit_ecdsa_sign_sentinels.cpp
-    test_exploit_frost_identifiable_abort.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_identifiable_abort.cpp>
     test_exploit_hash_algo_sig_isolation.cpp
     test_exploit_schnorr_nonce_reuse.cpp
     # -- Affine nonce relation key recovery (ePrint 2025/705) --
@@ -3558,7 +3644,7 @@ add_executable(unified_audit_runner
     # -- ROS concurrent blind Schnorr forgery (ePrint 2020/945) --
     test_exploit_ros_concurrent_schnorr.cpp
     # -- FROST weak binding adaptive corruption (ePrint 2026/075, 2025/1001) --
-    test_exploit_frost_weak_binding.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_weak_binding.cpp>
     # -- Blind-Folded SPA & cmov/cswap leak (ePrint 2024/589, 2025/935) --
     test_exploit_blind_spa_cmov_leak.cpp
     # -- ECTester point order/infinity (ePrint 2025/1293) --
@@ -3570,11 +3656,11 @@ add_executable(unified_audit_runner
     # -- BIP-324 AEAD forgery & ChaCha20-Poly1305 boundary (BIP-324, RFC 8439) --
     test_exploit_bip324_aead_forgery.cpp
     # -- FROST rogue-key attack (ePrint 2020/852, 2023/899) --
-    test_exploit_frost_rogue_key.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_rogue_key.cpp>
     # -- MuSig2 partial signature forgery (ePrint 2020/1261) --
     test_exploit_musig2_partial_forgery.cpp
     # -- Adaptor extraction soundness (ePrint 2020/476, 2021/150) --
-    test_exploit_adaptor_extraction_soundness.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ADAPTOR}>:test_exploit_adaptor_extraction_soundness.cpp>
     # -- ECDH twist point injection (ePrint 2015/1233) --
     test_exploit_ecdh_twist_injection.cpp
     # -- Schnorr batch verify inflation (BIP-340, ePrint 2012/549) --
@@ -3590,7 +3676,7 @@ add_executable(unified_audit_runner
     # -- Dark Skippy nonce exfiltration (DS-1..8) — ePrint 2024/1225 --
     test_exploit_dark_skippy_exfil.cpp
     # -- Frozen Heart ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411 --
-    test_exploit_fiat_shamir_frozen_heart.cpp
+    $<$<BOOL:${SECP256K1_BUILD_ZK}>:test_exploit_fiat_shamir_frozen_heart.cpp>
     # -- Hertzbleed scalar blinding Hamming-weight defence (SB-1..9) — ePrint 2022/823 --
     test_exploit_hertzbleed_scalar_blind.cpp
     # -- Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5) — 2026-04-27 --
@@ -3613,7 +3699,7 @@ add_executable(unified_audit_runner
     # B-01: Ethereum signing CT path (ETHCT-1..8)
     test_exploit_eth_signing_ct.cpp
     # B-02: Wallet sign_hash CT path (WALCT-1..8)
-    test_exploit_wallet_sign_ct.cpp
+    $<$<BOOL:${SECP256K1_BUILD_WALLET}>:test_exploit_wallet_sign_ct.cpp>
     # B-04: Monolith split integrity (MONO-1..12)
     test_exploit_monolith_split.cpp
     # B-08/B-09: GPU secret erase + batch sign partial
@@ -3648,7 +3734,7 @@ add_executable(unified_audit_runner
     test_exploit_hedged_return_value.cpp
     test_exploit_gpu_memory_safety.cpp
     test_exploit_rs_zero_check.cpp
-    test_exploit_bip352_address_collision.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_bip352_address_collision.cpp>
     # BUG-001..008 fixes (2026-04-28 full audit)
     test_exploit_bug001_addr_overflow.cpp
     test_exploit_bug002_recovery_ct.cpp
@@ -3665,7 +3751,7 @@ add_executable(unified_audit_runner
     test_exploit_context_flag_bypass.cpp
     test_exploit_metal_schnorr_aux_rand.cpp
     test_exploit_metal_batch_failclosed.cpp
-    test_exploit_gpu_bip352_key_erase.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_gpu_bip352_key_erase.cpp>
     test_exploit_metal_ecdh_key_erase.cpp
     # 2026-05-01 Red Team Audit Round 3 (P-01..P-09) — advisory-skip in unified runner
     test_exploit_shim_pubkey_ct.cpp
@@ -3676,20 +3762,20 @@ add_executable(unified_audit_runner
     # 2026-05-02 Bitcoin Core PR security audit fixes
     test_regression_schnorr_ct_arithmetic.cpp
     test_regression_musig2_zero_psig.cpp
-    test_regression_bip352_ct_varbase.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_regression_bip352_ct_varbase.cpp>
     # CT signing scalar correctness regression guards (PRF-1..8)
     test_regression_signing_ct_scalar_correctness.cpp
     # ABI recid+recov+schnorr_verified CT regression guards
     test_exploit_abi_recoverable_schnorr_ct_regression.cpp
     # FROST+OCL+shim+BIP32 CT regression guards
-    test_exploit_frost_ocl_shim_bip32_ct_regression.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_ocl_shim_bip32_ct_regression.cpp>
     # MuSig2 secnonce/nonce erasure + LE32 + ECDH Y-parity regression guards
     test_exploit_musig2_nonce_erasure_le32_ecdh.cpp
     # 2026-05-06 Performance review: correctness + security fixes
     # BUG-01: Pippenger stale used[] across windows
     test_regression_pippenger_stale_used.cpp
     # SEC-01: FROST DKG non-CT generator mul on secret share
-    test_exploit_frost_secret_share_ct.cpp
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_secret_share_ct.cpp>
     # CRIT-01: comb_gen_mul lock-free after once_flag init
     test_regression_comb_gen_lockfree.cpp
     # V-01 timing regression: fast::Scalar operator* banned on secrets (advisory)
@@ -3715,8 +3801,11 @@ target_sources(unified_audit_runner PRIVATE
     test_exploit_shim_recovery_null_arg.cpp
     test_regression_shim_static_ctx.cpp
     test_regression_musig2_signer_index_validation.cpp
-    test_regression_adaptor_binding_domain.cpp
-    test_regression_musig2_abi_signer_index.cpp)
+    $<$<BOOL:${SECP256K1_BUILD_ADAPTOR}>:test_regression_adaptor_binding_domain.cpp>
+    test_regression_musig2_abi_signer_index.cpp
+    # Feature module stubs: when a module is OFF, these provide advisory-skip
+    # _run() implementations so unified_audit_runner links without the real files.
+    feature_run_stubs_unified.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner
 # can link and reports them as advisory-skipped instead of failing.
@@ -3803,7 +3892,7 @@ add_test(NAME regression_adaptor_degenerate_v7
 set_tests_properties(regression_adaptor_degenerate_v7 PROPERTIES
     TIMEOUT 60 LABELS "audit;regression;adaptor;degenerate")
 # Also add to unified runner sources (non-shim, uses ufsecp_static)
-target_sources(unified_audit_runner PRIVATE test_regression_adaptor_degenerate_v7.cpp)
+target_sources(unified_audit_runner PRIVATE $<$<BOOL:${SECP256K1_BUILD_ADAPTOR}>:test_regression_adaptor_degenerate_v7.cpp>)
 
 # -- PERF-001/005: shim hot-path correctness (standalone CTest target) --
 if(SECP256K1_BUILD_SHIM AND SECP256K1_BUILD_CPU)
@@ -3965,38 +4054,34 @@ set_tests_properties(
     parse_strictness
     unified_audit
     exploit_ct_recov exploit_bip32_depth exploit_musig2_ordering
-    exploit_frost_index exploit_frost_participant_zero exploit_frost_threshold_degenerate
-    exploit_frost_lagrange_duplicate exploit_adaptor_parity exploit_scalar_invariants
-    exploit_ecdh_degenerate exploit_schnorr_edge_cases exploit_ecies_auth
-    exploit_batch_soundness exploit_bip32_path_overflow exploit_musig2_nonce_reuse
+    exploit_scalar_invariants
+    exploit_ecdh_degenerate exploit_schnorr_edge_cases
+    exploit_batch_soundness exploit_musig2_nonce_reuse
     exploit_point_group_law
     exploit_ecdsa_recovery exploit_ecdsa_edge_cases exploit_taproot_tweak
-    exploit_chacha20_nonce_reuse exploit_zk_proofs
-    exploit_frost_signing exploit_bip39_entropy exploit_ellswift
+    exploit_chacha20_nonce_reuse
+    exploit_ellswift
     exploit_address_generation exploit_bip324_session exploit_multiscalar
-    exploit_pedersen_homomorphism exploit_hkdf_security exploit_batch_schnorr
+    exploit_hkdf_security exploit_batch_schnorr
     exploit_segwit_encoding exploit_private_key exploit_bip143_sighash
-    exploit_ecies_roundtrip exploit_ecdh_variants exploit_glv_endomorphism
+    exploit_ecdh_variants exploit_glv_endomorphism
     exploit_sha_kat exploit_bip144_serialization
-    exploit_musig2_key_agg exploit_bip32_derivation
+    exploit_musig2_key_agg
     exploit_ct_systematic exploit_backend_divergence
     exploit_schnorr_bip340_kat exploit_ripemd160_kat exploit_chacha20_kat
     exploit_point_serialization exploit_ecdsa_rfc6979_kat
-    exploit_frost_byzantine exploit_scalar_systematic
+    exploit_scalar_systematic
     exploit_ecdsa_malleability exploit_glv_kat exploit_aead_integrity
-    exploit_batch_schnorr_forge exploit_bip32_ckd_hardened
-    exploit_zk_adversarial exploit_pedersen_adversarial
-    exploit_silent_payment_confusion
-    exploit_ct_fast_equivalence exploit_pedersen_switch_misuse
-    exploit_frost_participant_set_malleability exploit_frost_ct_nonce
+    exploit_batch_schnorr_forge
+    exploit_ct_fast_equivalence
     exploit_binding_invalid_curve exploit_musig2_parallel_session_cross
     exploit_musig2_byzantine_multiparty
     exploit_buffer_type_confusion exploit_differential_libsecp
-    exploit_bip352_scan_dos exploit_taproot_commitment_adversarial
-    exploit_bip352_parity_confusion bip352_kat exploit_rfc6979_truncation_bias
+    exploit_taproot_commitment_adversarial
+    exploit_rfc6979_truncation_bias
     exploit_binding_adversarial_api exploit_quantum_exposure
-    exploit_ecies_ephemeral_reuse exploit_address_prefix_collision
-    exploit_ecdh_zvp_glv_static exploit_frost_adaptive_corruption
+    exploit_address_prefix_collision
+    exploit_ecdh_zvp_glv_static
     exploit_scalar_mul
     exploit_ecdsa_fault_injection exploit_cache_sidechannel_amplification
     exploit_ladderleak_subbit_nonce exploit_minerva_noisy_hnp
@@ -4005,9 +4090,57 @@ set_tests_properties(
     exploit_ellswift_xdh_overflow exploit_buff_kr_ecdsa
     exploit_minerva_cve_2024_23342 exploit_rfc6979_minerva_amplified
     exploit_ellswift_bad_scalar_ecdh
-    exploit_fe_set_b32_limit_uninit exploit_zk_new_schemes exploit_foreign_field_plonk
+    exploit_fe_set_b32_limit_uninit exploit_foreign_field_plonk
     PROPERTIES LABELS "audit"
 )
+# Module-guarded label assignments (only when the module is compiled in)
+if(SECP256K1_BUILD_FROST)
+    set_tests_properties(
+        exploit_frost_index exploit_frost_participant_zero
+        exploit_frost_threshold_degenerate exploit_frost_lagrange_duplicate
+        exploit_frost_signing exploit_frost_byzantine
+        exploit_frost_participant_set_malleability exploit_frost_ct_nonce
+        exploit_frost_adaptive_corruption exploit_frost_binding_factor_mismatch
+        exploit_frost_dkg exploit_frost_commitment_reuse
+        PROPERTIES LABELS "audit"
+    )
+endif()
+if(SECP256K1_BUILD_ADAPTOR)
+    set_tests_properties(
+        exploit_adaptor_parity exploit_adaptor_extended exploit_adaptor_extraction_soundness
+        PROPERTIES LABELS "audit"
+    )
+endif()
+if(SECP256K1_BUILD_ECIES)
+    set_tests_properties(
+        exploit_ecies_auth exploit_ecies_encryption exploit_ecies_roundtrip
+        exploit_ecies_envelope_confusion exploit_ecies_ephemeral_reuse
+        PROPERTIES LABELS "audit"
+    )
+endif()
+if(SECP256K1_BUILD_BIP352)
+    set_tests_properties(
+        exploit_bip352_scan_dos exploit_bip352_parity_confusion bip352_kat
+        exploit_silent_payment_confusion exploit_bip352_batch_correctness
+        PROPERTIES LABELS "audit"
+    )
+endif()
+if(SECP256K1_BUILD_ZK)
+    set_tests_properties(
+        exploit_zk_proofs exploit_zk_adversarial exploit_zk_new_schemes
+        exploit_pedersen_adversarial exploit_pedersen_homomorphism exploit_pedersen_switch_misuse
+        PROPERTIES LABELS "audit"
+    )
+endif()
+if(SECP256K1_BUILD_WALLET)
+    set_tests_properties(
+        exploit_bip39_entropy exploit_bip32_derivation exploit_bip32_ckd_hardened
+        exploit_bip32_path_overflow exploit_bip32_depth exploit_musig2_ordering
+        exploit_coin_hd_derivation exploit_wallet_api exploit_bip39_mnemonic exploit_bip39_nfkd
+        exploit_bitcoin_message_signing exploit_bip32_child_key_attack
+        PROPERTIES LABELS "audit"
+    )
+endif()
 if(SECP256K1_BUILD_PROTOCOL_TESTS)
     set_tests_properties(
         musig2_frost musig2_frost_advanced frost_kat musig2_bip327_vectors

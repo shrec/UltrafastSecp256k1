@@ -55,6 +55,33 @@
 #define GIT_HASH "unknown"
 #endif
 
+// ============================================================================
+// Feature detection macros (zero-default guards)
+// Actual 1/0 values are injected by CMake via add_compile_definitions()
+// in src/cpu/CMakeLists.txt when the corresponding module is enabled.
+// ============================================================================
+#if __has_include("secp256k1/secp256k1_features.h")
+#include "secp256k1/secp256k1_features.h"
+#endif
+#ifndef SECP256K1_HAS_FROST
+#define SECP256K1_HAS_FROST 0
+#endif
+#ifndef SECP256K1_HAS_ZK
+#define SECP256K1_HAS_ZK 0
+#endif
+#ifndef SECP256K1_HAS_ECIES
+#define SECP256K1_HAS_ECIES 0
+#endif
+#ifndef SECP256K1_HAS_BIP352
+#define SECP256K1_HAS_BIP352 0
+#endif
+#ifndef SECP256K1_HAS_ADAPTOR
+#define SECP256K1_HAS_ADAPTOR 0
+#endif
+#ifndef SECP256K1_HAS_WALLET
+#define SECP256K1_HAS_WALLET 0
+#endif
+
 // Audit framework version (bump when report schema changes)
 static constexpr const char* AUDIT_FRAMEWORK_VERSION = "2.0.0";
 
@@ -669,10 +696,14 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     { "bip340_vectors",    "BIP-340 official vectors",                     "standard_vectors", test_bip340_vectors_run, false },
     { "bip340_strict",     "BIP-340 strict encoding (non-canonical)",      "standard_vectors", test_bip340_strict_run, false },
+#if SECP256K1_HAS_WALLET
     { "bip32_vectors",     "BIP-32 official vectors TV1-5",               "standard_vectors", test_bip32_vectors_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "rfc6979_vectors",   "RFC 6979 ECDSA vectors",                      "standard_vectors", test_rfc6979_vectors_run, false },
+#if SECP256K1_HAS_FROST
     { "frost_kat",         "FROST reference KAT vectors",                 "standard_vectors", test_frost_kat_run, false },
     { "musig2_bip327",     "MuSig2 BIP-327 reference vectors",            "standard_vectors", test_musig2_bip327_vectors_run, false },
+#endif // SECP256K1_HAS_FROST
     { "wycheproof_ecdsa",  "Wycheproof ECDSA secp256k1 vectors",          "standard_vectors", test_wycheproof_ecdsa_run, false },
     { "wycheproof_ecdh",   "Wycheproof ECDH secp256k1 vectors",           "standard_vectors", test_wycheproof_ecdh_run, false },
 
@@ -682,7 +713,9 @@ static const AuditModule ALL_MODULES[] = {
     { "audit_fuzz",        "Adversarial fuzz (malform/edge)",              "fuzzing",        test_audit_fuzz_run, false },
     { "fuzz_parsers",      "Parser fuzz (DER/Schnorr/Pubkey)",            "fuzzing",        test_fuzz_parsers_run, false },
     { "fuzz_addr_bip32",   "Address/BIP32/FFI boundary fuzz",             "fuzzing",        test_fuzz_address_bip32_ffi_run, false },
+#if SECP256K1_HAS_FROST
     { "fuzz_musig2_frost", "Parser fuzz: MuSig2/FROST/Adaptor (15 probes)","fuzzing",        test_fuzz_musig2_frost_run, false },
+#endif // SECP256K1_HAS_FROST
     { "libfuzzer_unified", "LibFuzzer deterministic regression (6 parsers)","fuzzing",        test_libfuzzer_unified_run, false },
     { "mutation_kill_rate","Mutation kill-rate audit (advisory)",          "fuzzing",        test_mutation_kill_rate_run, true  },
     { "cryptol_specs",     "Cryptol formal spec — arithmetic primitives",  "differential",   test_cryptol_specs_run, true  },
@@ -692,17 +725,25 @@ static const AuditModule ALL_MODULES[] = {
     // Section 6: Protocol Security (ECDSA, Schnorr, MuSig2, FROST)
     // ===================================================================
     { "ecdsa_schnorr",     "ECDSA + Schnorr",                             "protocol_security", test_ecdsa_schnorr_run, false },
+#if SECP256K1_HAS_WALLET
     { "bip32",             "BIP-32 HD derivation",                        "protocol_security", test_bip32_run, false },
     { "bip39",             "BIP-39 mnemonic seed phrases",                "protocol_security", test_bip39_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "musig2",            "MuSig2",                                       "protocol_security", test_musig2_run, false },
     { "ecdh_recovery",     "ECDH + recovery + taproot",                   "protocol_security", test_ecdh_recovery_taproot_run, false },
+#if SECP256K1_HAS_FROST && SECP256K1_HAS_ZK
     { "v4_features",       "v4 (Pedersen/FROST/etc)",                     "protocol_security", test_v4_features_run, false },
+#endif // SECP256K1_HAS_FROST && SECP256K1_HAS_ZK
     { "coins",             "Coins layer",                                  "protocol_security", test_coins_run, false },
+#if SECP256K1_HAS_FROST
     { "musig2_frost",      "MuSig2 + FROST protocol suite",              "protocol_security", test_musig2_frost_protocol_run, false },
     { "musig2_frost_adv",  "MuSig2 + FROST advanced/adversar",           "protocol_security", test_musig2_frost_advanced_run, false },
+#endif // SECP256K1_HAS_FROST
     { "audit_integration", "Integration (ECDH/batch/cross-proto)",        "protocol_security", audit_integration_run, false },
     { "batch_randomness",  "Batch verify weight randomness audit",        "protocol_security", test_batch_randomness_run, false },
+#if SECP256K1_HAS_ZK
     { "audit_zk",          "ZK proofs (knowledge/DLEQ/Bulletproof range)","protocol_security", audit_zk_run, false },
+#endif // SECP256K1_HAS_ZK
 #ifdef SECP256K1_BUILD_ETHEREUM
     { "ethereum",          "Ethereum signing layer (EIP-191/155/ecrecover)","protocol_security", test_ethereum_run, false },
 #endif
@@ -723,7 +764,9 @@ static const AuditModule ALL_MODULES[] = {
     { "nonce_uniqueness",  "RFC 6979 nonce determinism + uniqueness",     "memory_safety",  test_nonce_uniqueness_run, false },
     { "parse_strictness",  "Public parse path strictness (malformed inputs)","memory_safety", test_parse_strictness_run, false },
     { "adversarial_proto", "Adversarial protocol & FFI hostile-caller",   "fuzzing",         test_adversarial_protocol_run, false },
+#if SECP256K1_HAS_ECIES
     { "ecies_regression",  "ECIES regression + C ABI prefix enforce",   "fuzzing",         test_ecies_regression_run, false },
+#endif // SECP256K1_HAS_ECIES
     { "gpu_api_negative",  "GPU C ABI null/invalid-backend/error paths", "memory_safety",   test_gpu_host_api_negative_run, false },
     { "gpu_abi_gate",      "GPU ABI discovery, lifecycle, ops-if-avail", "memory_safety",   test_gpu_abi_gate_run, false },
 
@@ -745,8 +788,10 @@ static const AuditModule ALL_MODULES[] = {
     // ===================================================================
     // Section 9: Exploit PoC Security Probes
     // ===================================================================
+#if SECP256K1_HAS_ADAPTOR
     { "exploit_adaptor_extended",       "Adaptor Signature Extended Security",          "exploit_poc", test_exploit_adaptor_extended_run, false },
     { "exploit_adaptor_parity",         "Adaptor Signature R.y Parity",                "exploit_poc", test_exploit_adaptor_parity_run, false },
+#endif // SECP256K1_HAS_ADAPTOR
     { "exploit_address_encoding",       "Bitcoin Address Encoding Security",            "exploit_poc", test_exploit_address_encoding_run, false },
     { "exploit_address_generation",     "Bitcoin Address Generation Security",          "exploit_poc", test_exploit_address_generation_run, false },
     { "exploit_bech32_underflow",       "bech32_decode SIZE_MAX Underflow Regression",  "exploit_poc", test_exploit_bech32_underflow_run, false },
@@ -762,6 +807,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip324_counter_desync",  "BIP-324 Counter Desync via Forged Packet",    "exploit_poc", test_exploit_bip324_counter_desync_run, false },
     { "exploit_bip324_session",         "BIP-324 Encrypted Transport Session",         "exploit_poc", test_exploit_bip324_session_run, false },
     { "exploit_bip324_transcript_splice","BIP-324 Transcript Splice / Packet Mix",     "exploit_poc", test_exploit_bip324_transcript_splice_run, false },
+#if SECP256K1_HAS_WALLET
     { "exploit_bip32_ckd_hardened",     "BIP-32 Hardened Derivation Edge Cases",       "exploit_poc", test_exploit_bip32_ckd_hardened_run, false },
     { "exploit_bip32_depth",            "BIP-32 Depth uint8_t Silent Overflow",        "exploit_poc", test_exploit_bip32_depth_run, false },
     { "exploit_bip32_derivation",       "BIP-32 HD Key Derivation",                    "exploit_poc", test_exploit_bip32_derivation_run, false },
@@ -771,12 +817,15 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_bip39_mnemonic",         "BIP-39 Mnemonic Security Properties",         "exploit_poc", test_exploit_bip39_mnemonic_run, false },
     { "exploit_bip39_nfkd",             "BIP-39 NFKD Normalization Correctness",       "exploit_poc", test_exploit_bip39_nfkd_run, false },
     { "exploit_btc_msg_signing",        "Bitcoin Message Signing Security",             "exploit_poc", test_exploit_bitcoin_message_signing_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "exploit_chacha20_kat",           "ChaCha20-Poly1305 RFC 8439 KAT",              "exploit_poc", test_exploit_chacha20_kat_run, false },
     { "exploit_kat_corpus",             "KAT Corpus — runtime JSON loader (all layers)", "exploit_poc", test_exploit_kat_corpus_run, true  },
     { "exploit_primitive_kat",           "Primitive-layer KAT (bitops/QR/block/AEAD)",   "exploit_poc", test_exploit_primitive_kat_run, false },
     { "exploit_chacha20_nonce_reuse",   "ChaCha20-Poly1305 Nonce Reuse",               "exploit_poc", test_exploit_chacha20_nonce_reuse_run, false },
     { "exploit_chacha20_poly1305",      "ChaCha20-Poly1305 AEAD (RFC 8439)",           "exploit_poc", test_exploit_chacha20_poly1305_run, false },
+#if SECP256K1_HAS_WALLET
     { "exploit_coin_hd_derivation",     "Multi-Coin BIP-44 HD Derivation",             "exploit_poc", test_exploit_coin_hd_derivation_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "exploit_ct_fast_equiv",          "CT vs Fast Signing Equivalence",              "exploit_poc", test_exploit_ct_fast_equivalence_run, false },
     { "exploit_ct_recov",              "CT ct::ecdsa_sign_recoverable",               "exploit_poc", test_exploit_ct_recov_run, false },
     { "exploit_ct_systematic",          "CT vs FAST Output Divergence",                "exploit_poc", test_exploit_ct_systematic_run, false },
@@ -794,10 +843,12 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_binding_retval",         "ABI Return-Value Coverage (binding guard)",   "exploit_poc", test_exploit_binding_retval_run, false },
     { "exploit_ecdsa_recovery",         "ECDSA Key Recovery Edge Cases",               "exploit_poc", test_exploit_ecdsa_recovery_run, false },
     { "exploit_ecdsa_rfc6979_kat",      "ECDSA RFC 6979 Nonce KAT",                   "exploit_poc", test_exploit_ecdsa_rfc6979_kat_run, false },
+#if SECP256K1_HAS_ECIES
     { "exploit_ecies_auth",             "ECIES Authentication Bypass",                 "exploit_poc", test_exploit_ecies_auth_run, false },
     { "exploit_ecies_encryption",       "ECIES Encryption Security",                   "exploit_poc", test_exploit_ecies_encryption_run, false },
     { "exploit_ecies_envelope",         "ECIES Envelope Confusion",                    "exploit_poc", test_exploit_ecies_envelope_confusion_run, false },
     { "exploit_ecies_roundtrip",        "ECIES End-to-End Security",                   "exploit_poc", test_exploit_ecies_roundtrip_run, false },
+#endif // SECP256K1_HAS_ECIES
     { "exploit_ecrecover_confusion",    "ECDSA ecrecover Key Confusion",               "exploit_poc", test_exploit_ecrecover_confusion_run, false },
     { "exploit_ellswift",               "ElligatorSwift (BIP-324) Security",           "exploit_poc", test_exploit_ellswift_run, false },
     { "exploit_ellswift_ecdh",          "ElligatorSwift BIP-324 ECDH",                 "exploit_poc", test_exploit_ellswift_ecdh_run, false },
@@ -805,6 +856,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_eth_signing",            "Ethereum Signing / ecrecover",                "exploit_poc", test_exploit_eth_signing_run, false },
     { "exploit_field_arithmetic",       "Field Arithmetic Invariants",                 "exploit_poc", test_exploit_field_arithmetic_run, false },
     { "exploit_field_boundary",         "Field Boundary / Carry Exhaustive",           "exploit_poc", test_exploit_field_boundary_exhaustive_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_binding",          "FROST Binding Factor Mismatch",               "exploit_poc", test_exploit_frost_binding_factor_mismatch_run, false },
     { "exploit_frost_byzantine",        "FROST Byzantine Signer Detection",            "exploit_poc", test_exploit_frost_byzantine_run, false },
     { "exploit_frost_commit_reuse",     "FROST Commitment Reuse",                      "exploit_poc", test_exploit_frost_commitment_reuse_run, false },
@@ -814,6 +866,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_frost_part_zero",        "FROST Participant Zero",                      "exploit_poc", test_exploit_frost_participant_zero_run, false },
     { "exploit_frost_signing",          "FROST Threshold Signing E2E",                 "exploit_poc", test_exploit_frost_signing_run, false },
     { "exploit_frost_threshold_degen",  "FROST Degenerate Threshold",                  "exploit_poc", test_exploit_frost_threshold_degenerate_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_glv_endomorphism",       "GLV Endomorphism Correctness",                "exploit_poc", test_exploit_glv_endomorphism_run, false },
     { "exploit_glv_kat",                "GLV Decomposition KAT",                       "exploit_poc", test_exploit_glv_kat_run, false },
     { "exploit_gpu_cpu_divergence",     "GPU/CPU Algebraic Consistency",               "exploit_poc", test_exploit_gpu_cpu_divergence_run, false },
@@ -830,9 +883,11 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_musig2_nonce_reuse",     "MuSig2 Nonce Reuse Attack",                   "exploit_poc", test_exploit_musig2_nonce_reuse_run, false },
     { "exploit_musig2_ordering",        "MuSig2 Key Aggregation Order",                "exploit_poc", test_exploit_musig2_ordering_run, false },
     { "exploit_musig2_transcript_fork", "MuSig2 Transcript Fork",                     "exploit_poc", test_exploit_musig2_transcript_fork_run, false },
+#if SECP256K1_HAS_ZK
     { "exploit_pedersen_adversarial",   "Pedersen Adversarial / Switch-Commit",        "exploit_poc", test_exploit_pedersen_adversarial_run, false },
     { "exploit_pedersen_homomorphism",  "Pedersen Commitment Homomorphic",             "exploit_poc", test_exploit_pedersen_homomorphism_run, false },
     { "exploit_pedersen_switch_misuse", "Pedersen Switch Commitment Misuse",           "exploit_poc", test_exploit_pedersen_switch_misuse_run, false },
+#endif // SECP256K1_HAS_ZK
     { "exploit_pippenger_msm",          "Pippenger MSM Security",                      "exploit_poc", test_exploit_pippenger_msm_run, false },
     { "exploit_point_group_law",        "Point Group Law Correctness",                 "exploit_poc", test_exploit_point_group_law_run, false },
     { "exploit_point_serialization",    "Point Serialization Edge Cases",              "exploit_poc", test_exploit_point_serialization_run, false },
@@ -853,16 +908,24 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_sha256_kat",             "SHA-256 KAT + BIP-340 Tagged Hash",           "exploit_poc", test_exploit_sha256_kat_run, false },
     { "exploit_sha512_kat",             "SHA-512 KAT Vectors",                         "exploit_poc", test_exploit_sha512_kat_run, false },
     { "exploit_sha_kat",                "SHA-256/512 NIST FIPS 180-4 KAT",             "exploit_poc", test_exploit_sha_kat_run, false },
+#if SECP256K1_HAS_BIP352
     { "exploit_silent_payment",         "Silent Payment BIP-352 Confusion",            "exploit_poc", test_exploit_silent_payment_confusion_run, false },
+#endif // SECP256K1_HAS_BIP352
     { "exploit_taproot_merkle",         "Taproot Merkle Path Alias",                   "exploit_poc", test_exploit_taproot_merkle_path_alias_run, false },
     { "exploit_taproot_scripts",        "Taproot Script Tree Security",                "exploit_poc", test_exploit_taproot_scripts_run, false },
     { "exploit_taproot_tweak",          "Taproot Key Tweak / Commitment",              "exploit_poc", test_exploit_taproot_tweak_run, false },
+#if SECP256K1_HAS_WALLET
     { "exploit_wallet_api",             "Unified Wallet API Security",                 "exploit_poc", test_exploit_wallet_api_run, false },
     { "exploit_wallet_cross_domain",    "Wallet Cross-Domain Replay",                  "exploit_poc", test_exploit_wallet_cross_domain_replay_run, false },
+#endif // SECP256K1_HAS_WALLET
+#if SECP256K1_HAS_ZK
     { "exploit_zk_adversarial",         "ZK Proof Adversarial / Malformed",            "exploit_poc", test_exploit_zk_adversarial_run, false },
     { "exploit_zk_proofs",              "ZK Proof Soundness",                          "exploit_poc", test_exploit_zk_proofs_run, false },
+#endif // SECP256K1_HAS_ZK
     { "exploit_fe_set_b32_limit_uninit","Fe set_b32 Limit / Uninit Overflow Flag (libsecp PR #1839 bug class)", "exploit_poc", test_exploit_fe_set_b32_limit_uninit_run, false },
+#if SECP256K1_HAS_ZK
     { "exploit_zk_new_schemes",         "ZK New Schemes — Bulletproof + Anon Cred (eprint 2024/2010)", "exploit_poc", test_exploit_zk_new_schemes_run, false },
+#endif // SECP256K1_HAS_ZK
     { "exploit_foreign_field_plonk",    "Foreign-Field PLONK secp256k1 (eprint 2025/695)",   "exploit_poc", test_exploit_foreign_field_plonk_run, false },
     // Feature exploit PoC tests (P2SH, BIP-85, BIP-340 var, BIP-322, GCS, PSBT, Desc)
     { "exploit_p2sh_addr_confusion",    "P2SH / P2SH-P2WPKH Address Type Confusion",  "exploit_poc", test_exploit_p2sh_address_confusion_run, false },
@@ -880,21 +943,31 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_buffer_type_confusion",  "Buffer/Type-Confusion (BTC-0..12)",           "exploit_poc", test_exploit_buffer_type_confusion_run, false },
     { "exploit_differential_libsecp",   "Differential Correctness (DIF-1..10)",        "exploit_poc", test_exploit_differential_libsecp_run, false },
     { "exploit_differential_openssl",   "INTEROP: Differential vs OpenSSL libcrypto",  "differential", test_exploit_differential_openssl_run, true },
+#if SECP256K1_HAS_BIP352
     { "exploit_bip352_scan_dos",        "BIP-352 Scan DoS Prevention (DOS-0..3)",      "exploit_poc", test_exploit_bip352_scan_dos_run, false },
+#endif // SECP256K1_HAS_BIP352
     { "exploit_taproot_commit_adv",     "Taproot Commitment Adversarial (TCA-1..5)",   "exploit_poc", test_exploit_taproot_commitment_adversarial_run, false },
+#if SECP256K1_HAS_BIP352
     { "exploit_bip352_parity",          "BIP-352 Parity Confusion (PAR-1..6)",         "exploit_poc", test_exploit_bip352_parity_confusion_run, false },
     { "exploit_bip352_batch_correct",   "BIP-352 Batch ScalarMul + Input Agg (BSM/IAG-1..10)", "math_invariants", test_exploit_bip352_batch_correctness_run, false },
+#endif // SECP256K1_HAS_BIP352
     { "exploit_rfc6979_trunc_bias",     "RFC6979 Nonce Truncation Bias (NTB-1..5)",    "exploit_poc", test_exploit_rfc6979_truncation_bias_run, false },
     { "exploit_binding_adv_api",        "Binding Adversarial API (BAT-1..11)",         "exploit_poc", test_exploit_binding_adversarial_api_run, false },
     { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6)",         "exploit_poc", test_exploit_quantum_exposure_run, false },
+#if SECP256K1_HAS_ECIES
     { "exploit_ecies_ephemeral_reuse",  "ECIES Ephemeral Reuse (EKR-1..4)",            "exploit_poc", test_exploit_ecies_ephemeral_reuse_run, false },
+#endif // SECP256K1_HAS_ECIES
     { "exploit_addr_prefix_collision",  "Address Prefix Collision (APC-1..6)",         "exploit_poc", test_exploit_address_prefix_collision_run, false },
     { "exploit_binding_invalid_curve",  "Binding Invalid Curve (BIC)",                 "exploit_poc", test_exploit_binding_invalid_curve_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_ct_nonce",         "FROST CT Nonce (FCN)",                        "exploit_poc", test_exploit_frost_ct_nonce_run, false },
     { "exploit_frost_part_set_mall",    "FROST Participant Set Malleability (FPS)",    "exploit_poc", test_exploit_frost_participant_set_malleability_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_musig2_par_session",     "MuSig2 Parallel Session Cross (MPS)",         "exploit_poc", test_exploit_musig2_parallel_session_cross_run, false },
     { "exploit_ecdh_zvp_glv_static",    "ECDH ZVP/GLV Static-Key Abuse",               "exploit_poc", test_exploit_ecdh_zvp_glv_static_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_adaptive_corr",    "FROST Adaptive Corruption Misuse",            "exploit_poc", test_exploit_frost_adaptive_corruption_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_ecdsa_fault_injection",  "Deterministic ECDSA Fault-Injection Surface", "exploit_poc", test_exploit_ecdsa_fault_injection_run, false },
     { "exploit_cache_sidechannel_amp",  "Cache Side-Channel Amplification Surface",    "exploit_poc", test_exploit_cache_sidechannel_amplification_run, false },
     { "exploit_ladderleak_subbit_nonce", "LadderLeak-Style Sub-Bit Nonce Leakage",     "exploit_poc", test_exploit_ladderleak_subbit_nonce_run, false },
@@ -920,15 +993,21 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_deterministic_sig_dfa",     "Det. Sig DFA RFC 6979 (DSDFA-1..8)",         "exploit_poc", test_exploit_deterministic_sig_dfa_run, false },
     { "exploit_sign_type_confusion",       "Type Confusion k-Reuse (STCK-1..10)",        "exploit_poc", test_exploit_sign_type_confusion_kreuse_run, false },
     { "exploit_ros_concurrent_schnorr",    "ROS Concurrent Schnorr (ROS-1..10)",         "exploit_poc", test_exploit_ros_concurrent_schnorr_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_weak_binding",        "FROST Weak Binding (FWB-1..8)",              "exploit_poc", test_exploit_frost_weak_binding_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_blind_spa_cmov_leak",       "Blind SPA & cmov Leak (BSPA-1..12)",        "exploit_poc", test_exploit_blind_spa_cmov_leak_run, false },
     { "exploit_ectester_point_validation", "ECTester Point Validation (ECT-1..18)",     "exploit_poc", test_exploit_ectester_point_validation_run, false },
     { "exploit_ros_dimensional_erosion",   "ROS Dimensional eROS (RDE-1..12)",          "exploit_poc", test_exploit_ros_dimensional_erosion_run, false },
     { "exploit_ecdsa_batch_verify_rand",   "ECDSA Batch Verify Rand (BVR-1..16)",      "exploit_poc", test_exploit_ecdsa_batch_verify_rand_run, false },
     { "exploit_bip324_aead_forgery",       "BIP-324 AEAD Forgery (BAF-1..15)",          "exploit_poc", test_exploit_bip324_aead_forgery_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_rogue_key",           "FROST Rogue-Key Attack (FRK-1..12)",        "exploit_poc", test_exploit_frost_rogue_key_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_musig2_partial_forgery",    "MuSig2 Partial Forgery (MPF-1..10)",        "exploit_poc", test_exploit_musig2_partial_forgery_run, false },
+#if SECP256K1_HAS_ADAPTOR
     { "exploit_adaptor_extraction",        "Adaptor Extraction Soundness (ASE-1..12)",  "exploit_poc", test_exploit_adaptor_extraction_soundness_run, false },
+#endif // SECP256K1_HAS_ADAPTOR
     { "exploit_ecdh_twist_injection",      "ECDH Twist Injection (ETP-1..12)",          "exploit_poc", test_exploit_ecdh_twist_injection_run, false },
     { "exploit_schnorr_batch_inflation",   "Schnorr Batch Inflation (SBI-1..12)",       "exploit_poc", test_exploit_schnorr_batch_inflation_run, false },
 
@@ -937,7 +1016,9 @@ static const AuditModule ALL_MODULES[] = {
     // between on-disk audit/test_exploit_*.cpp files and registered modules
     // per the Conversion Standard in docs/EXPLOIT_BACKLOG.md.
     // ===================================================================
+#if SECP256K1_HAS_WALLET
     { "exploit_bip32_child_key_attack",    "BIP-32 Child Key Attack",                   "exploit_poc", test_exploit_bip32_child_key_attack_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "exploit_boundary_sentinels",        "ABI Boundary Sentinel / OOB Detection",     "exploit_poc", test_exploit_boundary_sentinels_run, false },
     { "exploit_buff_kr_ecdsa",             "BUFF KR-ECDSA Binding (ePrint 2021/1514)",  "exploit_poc", test_exploit_buff_kr_ecdsa_run, false },
     { "exploit_ecdsa_affine_nonce_rel",    "ECDSA Affine Nonce Relation Attack",        "exploit_poc", test_exploit_ecdsa_affine_nonce_relation_run, false },
@@ -946,7 +1027,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_eip712_kat",                "EIP-712 Typed Structured Data KAT",         "exploit_poc", test_exploit_eip712_kat_run, false },
     { "exploit_ellswift_bad_scalar_ecdh",  "ElligatorSwift Bad-Scalar ECDH",            "exploit_poc", test_exploit_ellswift_bad_scalar_ecdh_run, false },
     { "exploit_ellswift_xdh_overflow",     "ElligatorSwift xDH Overflow",               "exploit_poc", test_exploit_ellswift_xdh_overflow_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_identifiable_abort",  "FROST Identifiable Abort (ePrint 2022/550)", "exploit_poc", test_exploit_frost_identifiable_abort_run, false },
+#endif // SECP256K1_HAS_FROST
     { "exploit_hash_algo_sig_isolation",   "Hash-Algorithm vs Signature Scheme Isolation", "exploit_poc", test_exploit_hash_algo_sig_isolation_run, false },
     { "exploit_minerva_cve_2024_23342",    "Minerva CVE-2024-23342 Regression",         "exploit_poc", test_exploit_minerva_cve_2024_23342_run, false },
     { "exploit_musig2_byzantine_multi",    "MuSig2 Byzantine Multi-Party",              "exploit_poc", test_exploit_musig2_byzantine_multiparty_run, false },
@@ -961,7 +1044,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_nonce_injection",   "RFC 6979 nonce edge cases: null/zero/n/n-1/det (NIN-1..15)",    "protocol_security", test_exploit_custom_nonce_injection_run, false },
     { "exploit_jni_retval_ignored", "JNI Return-Value Ignored: sha256/hash160/tagged_hash/negate (RVI-1..8)", "exploit_poc", test_exploit_jni_retval_ignored_run, false },
     { "exploit_dark_skippy_exfil",         "Dark Skippy Nonce Exfiltration: RFC6979/aux_rand anti-grinding (DS-1..8) — ePrint 2024/1225",         "exploit_poc", test_exploit_dark_skippy_exfil_run, false },
+#if SECP256K1_HAS_ZK
     { "exploit_fiat_shamir_frozen_heart",  "Frozen Heart: ZK Fiat-Shamir incomplete binding (FH-1..10) — ePrint 2022/411",                       "exploit_poc", test_exploit_fiat_shamir_frozen_heart_run, false },
+#endif // SECP256K1_HAS_ZK
     { "exploit_hertzbleed_scalar_blind",   "Hertzbleed Scalar Blinding: Hamming-weight oracle + aux_rand mitigation (SB-1..9) — ePrint 2022/823",  "exploit_poc", test_exploit_hertzbleed_scalar_blind_run, false },
     { "exploit_thread_unsafe_lazy_init",   "Thread-safe gen_fb_table lazy init: std::once_flag regression (TIR-1..5)",                             "exploit_poc", test_exploit_thread_unsafe_lazy_init_run, false },
     { "regression_z_fe_nonzero",           "z_fe_nonzero | vs & correctness regression (ZFN-1..6)",                                                 "math_invariants", test_regression_z_fe_nonzero_run, false },
@@ -975,7 +1060,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_recoverable_sign_ct",         "C ABI recovery signing CT path (RCTX-1..8) — C-1 fix 2026-04-27",              "exploit_poc",   test_exploit_recoverable_sign_ct_run, false },
     { "exploit_pippenger_batch_regression",  "Pippenger batch verify regression guard (PIPBATCH-1..8) — M-6 2026-04-27",     "exploit_poc",   test_exploit_pippenger_batch_regression_run, false },
     { "exploit_eth_signing_ct",              "Ethereum signing CT path (ETHCT-1..8) — B-01 fix 2026-04-27",                  "exploit_poc",   test_exploit_eth_signing_ct_run, false },
+#if SECP256K1_HAS_WALLET
     { "exploit_wallet_sign_ct",              "Wallet sign_hash CT path (WALCT-1..8) — B-02 fix 2026-04-27",                  "exploit_poc",   test_exploit_wallet_sign_ct_run, false },
+#endif // SECP256K1_HAS_WALLET
     { "exploit_monolith_split",              "ufsecp_impl.cpp unity-build split integrity (MONO-1..12) — B-04 2026-04-27",   "exploit_poc",   test_exploit_monolith_split_run, false },
     { "exploit_gpu_secret_erase",            "GPU secret erase + batch sign partial (B08-1..4, B09-1..5) — B-08/B-09 2026-04-27", "exploit_poc", test_exploit_gpu_secret_erase_run, false },
     { "exploit_libsecp_eckey_api",           "libsecp256k1 EC key API compat (ECKEY-1..17) — L-01 2026-04-27",                   "differential", test_exploit_libsecp_eckey_api_run, false },
@@ -1002,7 +1089,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_hedged_return_value",         "Hedged Sign Return Silence: fail-closed zero-sig invariant (HEDGED-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_hedged_return_value_run, false },
     { "exploit_gpu_memory_safety",           "GPU Kernel Memory Safety: NULL/invalid API boundary (GPU-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_gpu_memory_safety_run, true },
     { "exploit_rs_zero_check",               "ECDSA r,s Zero Check Gap: CVE-2022-39272-class rejection (RZERO-1..5) — Original 2026-04-28", "exploit_poc", test_exploit_rs_zero_check_run, false },
+#if SECP256K1_HAS_BIP352
     { "exploit_bip352_address_collision",    "BIP-352 Address Collision: domain separation collision resistance (SP-1..4) — Original 2026-04-28", "exploit_poc", test_exploit_bip352_address_collision_run, false },
+#endif // SECP256K1_HAS_BIP352
     // Section 13: BUG-001..008 fixes (2026-04-28 full audit)
     // ===================================================================
     { "exploit_bug001_addr_overflow",    "BUG-001/007: ufsecp_addr_* off-by-one overflow + p2sh null (AOF-1..15) — 2026-04-28", "exploit_poc", test_exploit_bug001_addr_overflow_run, false },
@@ -1030,7 +1119,9 @@ static const AuditModule ALL_MODULES[] = {
     // The macOS audit job verifies the actual Metal source content.
     { "test_exploit_metal_schnorr_aux_rand",     "Metal Schnorr batch aux_rand uses private key CRITICAL-1 (MA-1..4) — 2026-05-01",             "exploit_poc", test_exploit_metal_schnorr_aux_rand_run,     true },
     { "test_exploit_metal_batch_failclosed",     "Metal batch sign ignored return + non-CT path CRITICAL-2+HIGH-1 (MB-1..6) — 2026-05-01",     "exploit_poc", test_exploit_metal_batch_failclosed_run,     false },
+#if SECP256K1_HAS_BIP352
     { "test_exploit_gpu_bip352_key_erase",       "GPU BIP-352 scan key not zeroed before device memory free HIGH-3 (BK-1..8) — 2026-05-01",   "exploit_poc", test_exploit_gpu_bip352_key_erase_run,       false },
+#endif // SECP256K1_HAS_BIP352
     { "test_exploit_metal_ecdh_key_erase",       "Metal ECDH batch private key not erased from shared buffer HIGH-2+LOW-5 (ME-1..5) — 2026-05-01", "exploit_poc", test_exploit_metal_ecdh_key_erase_run,  false },
     { "test_exploit_opencl_runner_key_erase",    "OpenCL audit runner d_priv/d_scalar not zeroed before release Q-01/02/03 (OCR-1..8) — 2026-05-02", "exploit_poc", test_exploit_opencl_runner_key_erase_run, false },
     { "test_exploit_ecdsa_fast_path_isolation",  "ecdsa.cpp fast path isolation: public APIs must use ct::ecdsa_sign (FPI-1..10) — 2026-05-02",       "exploit_poc", test_exploit_ecdsa_fast_path_isolation_run, false },
@@ -1043,7 +1134,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_schnorr_ct_arithmetic",  "Schnorr s=k+e*d uses ct:: arithmetic, r==all-zeros rejected (HIGH-03, HIGH-06) — 2026-05-02", "exploit_poc", test_regression_schnorr_ct_arithmetic_run,  false },
     { "regression_musig2_zero_psig",       "musig2_partial_sign degenerate zero psig → UFSECP_ERR_INTERNAL (CRIT-03) — 2026-05-02",       "exploit_poc", test_regression_musig2_zero_psig_run,         false },
     { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, true },
+#if SECP256K1_HAS_BIP352
     { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
+#endif // SECP256K1_HAS_BIP352
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
     { "signing_ct_scalar_correctness_regression", "CT signing scalar correctness: gen-mul, inv, cswap, Pippenger, BatchVerify (PRF-1..8)", "exploit_poc", test_regression_signing_ct_scalar_correctness_run, false },
     // === 2026-05-05 Full Red-Team Audit Regression Guards ===
@@ -1054,10 +1147,14 @@ static const AuditModule ALL_MODULES[] = {
     // C1: OCL recovery scalar_is_even→scalar_is_low_s  C2: non-CT nonce k*G
     // C3: FROST n_signers<threshold  C4: FROST signing share strict_nonzero
     // H1: GPU BIP32 depth overflow  H3: shim secp256k1_ecdsa_sign_recoverable ctx_can_sign
+#if SECP256K1_HAS_FROST
     { "frost_ocl_shim_bip32_ct_regression", "FROST+OCL+shim+BIP32 CT regression guards", "exploit_poc", test_exploit_frost_ocl_shim_bip32_ct_regression_run, false },
+#endif // SECP256K1_HAS_FROST
     { "musig2_nonce_erasure_le32_ecdh", "MuSig2 secnonce/nonce erasure + LE32 round-trip + ECDH Y-parity prefix", "memory_safety", test_exploit_musig2_nonce_erasure_le32_ecdh_run, false },
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
+#if SECP256K1_HAS_FROST
     { "exploit_frost_secret_share_ct",   "FROST DKG share.value processed with ct::generator_mul not variable-time scalar_mul (SEC-01, FROST-CT1..5)", "ct_analysis",    test_exploit_frost_secret_share_ct_run,    false },
+#endif // SECP256K1_HAS_FROST
     { "regression_comb_gen_lockfree",    "comb_gen_mul/ct lock-free after once_flag init: no mutex on read path (CRIT-01, COMB-LF1..6)", "math_invariants", test_regression_comb_gen_lockfree_run,     false },
     // === CT timing regression: V-01 fast::Scalar operator* on secrets ===
     { "ct_fast_scalar_v01_timing", "V-01: fast::Scalar operator* banned on secret material — Welch t-test on ECDSA sign with HW=1 vs HW=80 keys", "ct_analysis", test_regression_ct_fast_scalar_v01_run, true },
@@ -1072,7 +1169,9 @@ static const AuditModule ALL_MODULES[] = {
     // The advisory flag MUST match the stub behaviour — false would falsely claim mandatory pass.
     { "regression_ellswift_ct_path",           "CT-001: ellswift_create routes through ct::generator_mul — deterministic encoding, XDH round-trip, zero/null key rejection", "ct_analysis",    test_regression_ellswift_ct_path_run,           true },
     { "regression_musig2_nonce_strict",        "CT-006: MuSig2 k1/k2 nonces via parse_bytes_strict_nonzero — non-zero R1/R2 commitments, distinct nonces per extra_input",  "ct_analysis",    test_regression_musig2_nonce_strict_run,        true },
+#if SECP256K1_HAS_WALLET
     { "regression_bip32_private_key_strict",   "RT-011: BIP-32 private_key() strict parsing — key==n → zero, key==0 → zero, valid key round-trips, HD child derivation",    "protocol_security", test_regression_bip32_private_key_strict_run, true },
+#endif // SECP256K1_HAS_WALLET
     { "regression_shim_pubkey_sort",           "SHIM-012: secp256k1_ec_pubkey_sort no longer crashes via nullptr ctx — lexicographic order correctness (PST-1..4)",          "memory_safety",  test_regression_shim_pubkey_sort_run,           true },
     { "regression_shim_per_context_blinding",  "SHIM-001: per-context blinding — two contexts on same thread sign independently, unblinded ctx works, NULL seed clears",     "ct_analysis",    test_regression_shim_per_context_blinding_run,  true },
     { "regression_musig2_session_token",       "SHIM-010: MuSig2 token-keyed session map — non-zero token after agg, distinct tokens, reuse gets fresh token, 2-of-2 sign", "memory_safety",  test_regression_musig2_session_token_run,       true },
@@ -1082,7 +1181,9 @@ static const AuditModule ALL_MODULES[] = {
     // CHECK(true,...) for that sub-case — marked advisory to reflect partial coverage.
     { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — wrong index returns zero, correct index signs (T-04: advisory=true, MED-3 ABI gap)", "protocol_security", test_regression_musig2_signer_index_validation_run, true },
     // SEC-010: adaptor binding BIP-340 domain separation (wire format: ecdsa_adaptor_bind_v2)
+#if SECP256K1_HAS_ADAPTOR
     { "regression_adaptor_binding_domain",     "SEC-010: ecdsa_adaptor_binding uses BIP-340 tagged hash (v2) — sign/verify/adapt/extract round-trips, needs_negation integrity, domain separation confirmed", "protocol_security", test_regression_adaptor_binding_domain_run, false },
+#endif // SECP256K1_HAS_ADAPTOR
     // === 2026-05-11 Shim regression tests (Agent 5) ===
     // advisory=true: depend on the libsecp256k1 shim being linked.
     // On GitHub CI (shim absent) the stubs return ADVISORY_SKIP_CODE (77).
@@ -1103,7 +1204,9 @@ static const AuditModule ALL_MODULES[] = {
     // advisory=true: shim must be linked.
     { "regression_shim_security_v7", "v7: T-01 MuSig2 blinding scope + T-07 sig strict parse + T-08 cache memcmp + T-10 context_randomize NULL callback", "exploit_poc", test_regression_shim_security_v7_run, true },
     // advisory=false: uses C++ API + ufsecp_static, no shim/GPU dependency.
+#if SECP256K1_HAS_ADAPTOR
     { "regression_adaptor_degenerate_v7", "v7: T-09 ufsecp_ecdsa_adaptor_sign degenerate output guard (R_hat/s_hat/r non-zero) + round-trip + null-arg fail-closed", "exploit_poc", test_regression_adaptor_degenerate_v7_run, false },
+#endif // SECP256K1_HAS_ADAPTOR
     // === 2026-05-13 v8 security regression guards ===
     // advisory=true: depend on the libsecp256k1 shim being linked.
     { "regression_shim_security_v8", "v8: P1-SEC-NEW-001 ecdh strict privkey (Rule 11) + RED-TEAM-008 ecdsa_verify on-curve + P2-SEC-NEW-002 ecdh pubkey on-curve", "exploit_poc", test_regression_shim_security_v8_run, true },
