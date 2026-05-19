@@ -23,7 +23,11 @@ RpaScanner::RpaScanner(const RpaPaycode& paycode,
                        const fast::Scalar& scan_privkey)
     : paycode_(paycode)
     , scan_privkey_(scan_privkey)
-    , network_(paycode.network()) {}
+    , network_(paycode.network()) {
+    // Precompute spend_epk once — avoids repeated lift_x (~1.6 µs) per tx
+    spend_epk_valid_ = secp256k1::ecdsa_pubkey_parse(
+        spend_epk_, paycode_.spend_pubkey.data(), 33);
+}
 
 bool RpaScanner::prefix_matches(const uint8_t* sig64) const noexcept {
     if (paycode_.prefix_bits == 0) return true;
@@ -47,7 +51,8 @@ std::optional<ScanMatch> RpaScanner::scan_tx(
     secp256k1::EcdsaPublicKey epk{};
     if (!secp256k1::ecdsa_pubkey_parse(epk, tx.input_pubkey.data(), 33))
         return std::nullopt;
-    fast::Point S = secp256k1::ct::scalar_mul(epk.point, scan_privkey_);
+    // input_pubkey is public on-chain — variable-time GLV safe here
+    fast::Point S = epk.point.scalar_mul(scan_privkey_);
 
     // BIP-352 midstate trick: SHA256 base = SHA256(SHA256(S_compressed))
     // Pre-computed once; outpoint fed inside per-index loop.
@@ -67,16 +72,13 @@ std::optional<ScanMatch> RpaScanner::scan_tx(
     secp256k1::detail::secure_erase(S_comp.data(), S_comp.size());
     secp256k1::detail::secure_erase(inner.data(), inner.size());
 
-    // PERF: Pre-parse spend_pubkey ONCE (lift_x sqrt ~1.6µs) + pre-build
-    // SHA256 midstate over (spend_pubkey || secret) — amortised across all indices.
-    secp256k1::EcdsaPublicKey spend_epk{};
-    if (!secp256k1::ecdsa_pubkey_parse(spend_epk, paycode_.spend_pubkey.data(), 33))
-        return std::nullopt;
+    // Use precomputed spend_epk from constructor (lift_x amortised across all txs)
+    if (!spend_epk_valid_) return std::nullopt;
     auto pay_base = rpa_payment_key_base(paycode_.spend_pubkey.data(), secret);
 
     for (uint32_t i = 0; i <= max_key_index; ++i) {
         auto payment_pubkey = rpa_derive_payment_pubkey_fast(
-            spend_epk.point, pay_base, i);          // no lift_x, fast ct::generator_mul
+            spend_epk_.point, pay_base, i);          // no lift_x, fast ct::generator_mul
         if (payment_pubkey[0] == 0) continue;
 
         for (uint32_t j = 0; j < tx.outputs.size(); ++j) {

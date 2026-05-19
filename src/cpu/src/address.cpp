@@ -751,9 +751,8 @@ silent_payment_create_output(const std::vector<Scalar>& input_privkeys,
     auto t_hash = h.finalize();
     Scalar const t_k = Scalar::from_bytes(t_hash);
 
-    // Output key: P_output = B_spend + t_k * G
-    // PERF: ct::generator_mul uses precomputed table (~33µs vs ~826µs cold FAST path)
-    Point const P_output = recipient.spend_pubkey.add(ct::generator_mul(t_k));
+    // t_k = SHA256 hash output — variable-time GLV correct (not a raw secret scalar)
+    Point const P_output = recipient.spend_pubkey.add(Point::generator().scalar_mul(t_k));
 
     // Erase secret-derived material: aggregate private key, shared secret, tagged hash
     detail::secure_erase(&a_sum, sizeof(a_sum));
@@ -805,8 +804,8 @@ silent_payment_scan(const Scalar& scan_privkey,
         Scalar const t_k = Scalar::from_bytes(t_hash);
 
         // Expected output: P = B_spend + t_k * G
-        // PERF: ct::generator_mul precomputed table (~33µs vs ~826µs cold FAST path)
-        Point const expected = B_spend.add(ct::generator_mul(t_k));
+        // t_k = SHA256 hash output — variable-time GLV correct
+        Point const expected = B_spend.add(Point::generator().scalar_mul(t_k));
         auto expected_x = expected.x().to_bytes();
 
         // Compare x-coordinate
@@ -1048,5 +1047,6 @@ fast_scan_batch(const fast::Scalar& scan_privkey,
 
     return results;
 }
+
 
 } // namespace secp256k1

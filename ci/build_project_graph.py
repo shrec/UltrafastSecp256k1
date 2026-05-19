@@ -1756,6 +1756,8 @@ def populate_edges(cur: sqlite3.Cursor):
         'exploit_bip39_nfkd': ['src/cpu/src/unicode_nfkd.cpp', 'src/cpu/src/bip39.cpp'],
         # LTC-SP: cross-chain isolation + roundtrip (covers ltc_sp.cpp implementation)
         'exploit_ltcsp_isolation': ['src/cpu/src/ltc/ltc_sp.cpp'],
+        # SilentPaymentScanner (BTC equivalent of LtcSpScanner) — same algorithm
+        'exploit_bip352_address_collision': ['src/cpu/src/sp_scanner.cpp'],
     }
     for test, files in test_coverage.items():
         for f in files:

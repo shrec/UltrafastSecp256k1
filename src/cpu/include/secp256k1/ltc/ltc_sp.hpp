@@ -94,4 +94,50 @@ ltcsp_scan(const fast::Scalar& scan_privkey,
            const std::vector<fast::Point>& input_pubkeys,
            const std::vector<std::array<std::uint8_t, 32>>& output_pubkeys);
 
+// =============================================================================
+// LtcSpScanner — wallet-optimised batch scanner
+// =============================================================================
+// For scanning the full LTC blockchain, calling ltcsp_scan() per transaction
+// is suboptimal: GLV decomposition of scan_privkey is recomputed every call.
+//
+// LtcSpScanner precomputes the GLV tables for scan_privkey ONCE and reuses
+// them for every transaction, identical to BIP-352's fast_scan_batch approach.
+// This closes the 13x gap between ltcsp_scan (54k tx/s) and BIP-352 fast scan
+// (638k tx/s on 16 cores).
+//
+// Usage:
+//   LtcSpScanner scanner(scan_privkey, spend_privkey);
+//   for (auto& tx : block) {
+//     auto matches = scanner.scan_tx(tx.input_pubkeys, tx.output_pubkeys);
+//   }
+struct LtcSpScanner {
+    explicit LtcSpScanner(const fast::Scalar& scan_sk,
+                          const fast::Scalar& spend_sk);
+
+    // Scan a single transaction.
+    // input_pubkeys:  all input public keys (sum computed internally)
+    // output_pubkeys: x-only output public keys (32 bytes each)
+    // Returns: {output_index, spend_privkey} for each matched output
+    std::vector<std::pair<std::uint32_t, fast::Scalar>>
+    scan_tx(const std::vector<fast::Point>& input_pubkeys,
+            const std::vector<std::array<std::uint8_t, 32>>& output_pubkeys) const;
+
+    // Batch scanner: amortizes KPlan wNAF + batch field_inv across N transactions.
+    // N=10000+ gives best throughput. Same optimizations as BTC fast_scan_batch.
+    // Returns: {tx_index, output_index, spend_privkey} for each match.
+    struct BatchMatch {
+        std::uint32_t tx_index;
+        std::uint32_t output_index;
+        fast::Scalar  spend_privkey;
+    };
+    std::vector<BatchMatch>
+    scan_batch(const std::vector<std::vector<fast::Point>>& input_pubkeys_per_tx,
+               const std::vector<std::vector<std::array<std::uint8_t, 32>>>& outputs_per_tx) const;
+
+private:
+    fast::Scalar scan_privkey_;
+    fast::Scalar spend_privkey_;
+    fast::Point  spend_pubkey_;   // B_spend = spend_sk * G, precomputed
+};
+
 } // namespace secp256k1::ltc

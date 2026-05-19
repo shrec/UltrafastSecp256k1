@@ -186,6 +186,24 @@ silent_payment_scan(const fast::Scalar& scan_privkey,
                     const std::vector<fast::Point>& input_pubkeys,
                     const std::vector<std::array<std::uint8_t, 32>>& output_pubkeys);
 
+// ── SilentPaymentScanner — wallet-optimised per-tx scanner ───────────────────
+// Equivalent to LtcSpScanner: precomputes B_spend = spend_sk*G once in
+// constructor. Use scan_tx() per transaction for optimal throughput.
+struct SilentPaymentScanner {
+    explicit SilentPaymentScanner(const fast::Scalar& scan_sk,
+                                  const fast::Scalar& spend_sk);
+
+    // Scan one transaction. Returns {output_index, spend_privkey} for matches.
+    std::vector<std::pair<std::uint32_t, fast::Scalar>>
+    scan_tx(const std::vector<fast::Point>& input_pubkeys,
+            const std::vector<std::array<std::uint8_t, 32>>& output_pubkeys) const;
+
+private:
+    fast::Scalar scan_privkey_;
+    fast::Scalar spend_privkey_;
+    fast::Point  spend_pubkey_;   // precomputed B_spend = spend_sk * G
+};
+
 // ── Fast batch scanner (wallet-optimised, non-CT) ────────────────────────────
 //
 // For full-blockchain scanning: scan_privkey is constant across millions of txs.

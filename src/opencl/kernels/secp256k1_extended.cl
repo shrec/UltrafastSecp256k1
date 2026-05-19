@@ -462,12 +462,12 @@ inline int scalar_is_low_s_impl(const Scalar* s) {
 // Branchless mask: returns all-ones if s > n/2, all-zeros otherwise.
 // No early-exit — avoids warp divergence on secret-derived values of s.
 inline ulong scalar_is_high_mask_impl(const Scalar* s) {
-    const ulong half[4] = { HALF_ORDER_0, HALF_ORDER_1, HALF_ORDER_2, HALF_ORDER_3 };
+    const ulong half_order[4] = { HALF_ORDER_0, HALF_ORDER_1, HALF_ORDER_2, HALF_ORDER_3 };
     ulong gt = 0;
     ulong eq_so_far = ~(ulong)0;
     for (int i = 3; i >= 0; --i) {
-        ulong a_gt_h = -(ulong)(s->limbs[i] > half[i]);
-        ulong a_eq_h = -(ulong)(s->limbs[i] == half[i]);
+        ulong a_gt_h = -(ulong)(s->limbs[i] > half_order[i]);
+        ulong a_eq_h = -(ulong)(s->limbs[i] == half_order[i]);
         gt |= (a_gt_h & eq_so_far);
         eq_so_far &= a_eq_h;
     }

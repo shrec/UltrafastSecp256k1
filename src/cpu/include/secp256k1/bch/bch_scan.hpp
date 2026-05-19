@@ -2,6 +2,7 @@
 #include "bch_types.hpp"
 #include "rpa.hpp"
 #include "cashaddr.hpp"
+#include "secp256k1/ecdsa.hpp"
 #include <vector>
 #include <functional>
 
@@ -34,9 +35,12 @@ public:
     [[nodiscard]] bool prefix_matches(const uint8_t* sig64) const noexcept;
     const RpaPaycode& paycode() const noexcept { return paycode_; }
 private:
-    RpaPaycode   paycode_;
-    fast::Scalar scan_privkey_;
-    Network      network_;
+    RpaPaycode        paycode_;
+    fast::Scalar      scan_privkey_;
+    Network           network_;
+    // Precomputed once — avoids repeated lift_x (√ ~1.6 µs) per tx
+    secp256k1::EcdsaPublicKey spend_epk_;   // parsed spend_pubkey from paycode
+    bool              spend_epk_valid_ = false;
 };
 
 struct ScanRateEstimate {

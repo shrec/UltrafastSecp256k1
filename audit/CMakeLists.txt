@@ -2902,6 +2902,13 @@ audit_target_defaults(test_exploit_ltcsp_isolation_standalone)
 target_compile_definitions(test_exploit_ltcsp_isolation_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_ltcsp_isolation COMMAND test_exploit_ltcsp_isolation_standalone)
 set_tests_properties(exploit_ltcsp_isolation PROPERTIES TIMEOUT 60 LABELS "audit;exploit;ltcsp;silent-payments;cross-chain")
+
+add_executable(test_exploit_sp_scanner_parity_standalone
+    test_exploit_sp_scanner_parity.cpp)
+audit_target_defaults(test_exploit_sp_scanner_parity_standalone)
+target_compile_definitions(test_exploit_sp_scanner_parity_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_sp_scanner_parity COMMAND test_exploit_sp_scanner_parity_standalone)
+set_tests_properties(exploit_sp_scanner_parity PROPERTIES TIMEOUT 60 LABELS "audit;exploit;sp;ltcsp;parity;scan-batch")
 endif() # SECP256K1_BUILD_LTC_SP
 
 # -- BUG-001/007: addr off-by-one overflow + p2sh null ---------------------
@@ -3746,6 +3753,7 @@ add_executable(unified_audit_runner
     test_exploit_rs_zero_check.cpp
     $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_bip352_address_collision.cpp>
     $<$<BOOL:${SECP256K1_BUILD_LTC_SP}>:test_exploit_ltcsp_isolation.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_LTC_SP}>:test_exploit_sp_scanner_parity.cpp>
     # BUG-001..008 fixes (2026-04-28 full audit)
     test_exploit_bug001_addr_overflow.cpp
     test_exploit_bug002_recovery_ct.cpp

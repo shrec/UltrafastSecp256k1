@@ -1,0 +1,69 @@
+{
+  "_meta": {
+    "date": "2026-05-19",
+    "gpu": "NVIDIA GeForce RTX 5060 Ti (SM 12.0, 36 SMs, 2602 MHz)",
+    "cuda": "13.2 (clang-18 host)",
+    "n_per_pass": 500000,
+    "passes": 11,
+    "stat": "IQR-trimmed median",
+    "validation": "GPU kernels mutually consistent (all agree on 0x8d7f74f7...). CPU mismatch expected: C++ API still uses BIP0352/ tags; GPU uses LTCSP/ tags. Fix: update CPU KPlan path to use LTCSP tagged_hash.",
+    "note": "LUT+PreSer is a precomputed-serialization variant (sender precomputes compressed shared secrets offline). Realistic wallet scanning uses LUT or LUT+Pretbl+SHA256opt."
+  },
+  "results": {
+    "cpu_naive_ns": 50477.5,
+    "cpu_kplan_ns": 50614.0,
+    "gpu_glv_ns": 186.6,
+    "gpu_lut_ns": 91.1,
+    "gpu_lut_pretbl_ns": 76.4,
+    "gpu_lut_pretbl_sha256opt_ns": 76.4,
+    "gpu_lut_preser_ns": 15.7
+  },
+  "throughput_M_tx_s": {
+    "cpu_1core": 0.0198,
+    "gpu_glv": 5.36,
+    "gpu_lut": 10.98,
+    "gpu_lut_pretbl_sha256opt": 13.09,
+    "gpu_lut_preser": 63.69
+  },
+  "speedup_vs_cpu": {
+    "gpu_glv": 271,
+    "gpu_lut": 556,
+    "gpu_lut_pretbl_sha256opt": 662,
+    "gpu_lut_preser": 3234
+  },
+  "per_op_breakdown_ns": {
+    "scalar_mul_kP_cpu": 32258.4,
+    "scalar_mul_kP_gpu": 613.1,
+    "tagged_sha256_cpu": 76.2,
+    "tagged_sha256_gpu": 13.1,
+    "generator_mul_lut_cpu": 11339.4,
+    "generator_mul_lut_gpu": 76.4,
+    "point_add_cpu": 2664.5,
+    "point_add_gpu": 10.3
+  },
+  "opencl": {
+    "device": "NVIDIA GeForce RTX 5060 Ti (OpenCL 3.0 CUDA, driver 580.126.20)",
+    "kernel": "ltcsp_pipeline_kernel (GLV, fused)",
+    "local_size": 384,
+    "n_per_pass": 500000,
+    "passes": 11,
+    "median_ns_per_tx": 185.9,
+    "M_tx_s": 5.38,
+    "cuda_glv_ns": 186.6,
+    "opencl_vs_cuda": "1.004x (essentially identical)",
+    "validation": "GPU prefix 0x3fc937e9d7e43bd9 consistent. CPU mismatch expected (BIP0352 vs LTCSP tags).",
+    "note": "Throughput: not yet measured \u2014 LUT and LUT+Pretbl kernels for OpenCL pending."
+  },
+  "opencl_clean_gpu": {
+    "note": "GPU fully free \u2014 LUT cache warm. Previous run (GPU busy) had LUT cache evicted: 199.7 ns \u2192 now 93.9 ns",
+    "bip352_glv_ns": 185.9,
+    "bip352_glv_M_tx_s": 5.38,
+    "bip352_lut_ns": 93.9,
+    "bip352_lut_M_tx_s": 10.65,
+    "ltcsp_glv_ns": 185.8,
+    "ltcsp_glv_M_tx_s": 5.38,
+    "ltcsp_lut_ns": 93.9,
+    "ltcsp_lut_M_tx_s": 10.65,
+    "bip352_eq_ltcsp": "identical throughput \u2014 same algorithm, different tag string only"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "date": "2026-05-19",
+    "machine": "Intel Core i5-14400F, 16 threads (6P+10E)",
+    "compiler": "g++ 14.2.0 -O3 -march=native -flto",
+    "cpu_governor": "performance (cpupower frequency-set -g performance)",
+    "turbo": "disabled (intel_pstate/no_turbo=1)",
+    "taskset": "taskset -c 0-15",
+    "nice": -20,
+    "note": "All Silent Payments variants measured under identical conditions. BTC and BCH use raw per-tx API (spend_pubkey recomputed each call). LTC-SP uses LtcSpScanner::scan_tx() with precomputed spend_pubkey — closer to production wallet usage.",
+    "api_note": "BTC: silent_payment_scan(). BCH: RpaScanner::scan_tx(). LTC-SP: LtcSpScanner::scan_tx() (spend_pubkey precomputed in constructor)."
+  },
+  "btc_bip352_scan": {
+    "api": "secp256k1::silent_payment_scan(scan_sk, spend_sk, input_pubs, output_pubs)",
+    "spend_pubkey_precomputed": false,
+    "threads_1": 13684,
+    "threads_4": 52659,
+    "threads_8": 62162,
+    "threads_16": 91275
+  },
+  "bch_rpa_scan": {
+    "api": "RpaScanner::scan_tx() with spend_epk precomputed in constructor",
+    "spend_pubkey_precomputed": true,
+    "threads_1": 13883,
+    "threads_16": 97426,
+    "note": "spend_epk (lift_x) precomputed in constructor since 2026-05-19 fix"
+  },
+  "bch_rpa_grinding": {
+    "api": "RpaScanner::prefix_matches() — CT ECDSA sign + double-SHA256",
+    "threads_1_ks": 45,
+    "threads_16_ks": 326
+  },
+  "ltc_sp_scan": {
+    "api": "LtcSpScanner::scan_tx() with spend_pubkey precomputed in constructor",
+    "spend_pubkey_precomputed": true,
+    "threads_1": 28806,
+    "threads_4": 110060,
+    "threads_8": 136078,
+    "threads_16": 191965
+  },
+  "comparison_note": "LTC-SP 2.1x faster than BTC BIP-352 per-call due to spend_pubkey precomputation in LtcSpScanner. With equivalent optimization (SilentPaymentScanner class), BTC throughput would be comparable.",
+  "mainnet_context": {
+    "btc_tx_per_day": 400000,
+    "ltc_tx_per_day": 35000,
+    "bch_tx_per_day": 1000000,
+    "btc_gpu_speedup_vs_cpu_16core": "91k CPU → 5.36M GPU = 59x",
+    "ltc_gpu_speedup_vs_cpu_16core": "192k CPU → 5.38M GPU = 28x"
+  }
+}

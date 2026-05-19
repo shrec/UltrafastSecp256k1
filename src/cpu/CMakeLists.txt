@@ -145,7 +145,8 @@ option(SECP256K1_BUILD_WALLET
     "HD wallet stack (BIP-32/39, coin types, Bitcoin message signing)" ON)
 if(SECP256K1_BUILD_WALLET)
     list(APPEND SECP256K1_SOURCES
-        src/bip32.cpp          # BIP-32 HD key derivation
+        src/sp_scanner.cpp     # SilentPaymentScanner (isolated TU for LTO efficiency)
+    src/bip32.cpp          # BIP-32 HD key derivation
         src/bip39.cpp          # BIP-39 mnemonic seed phrases
         src/unicode_nfkd.cpp   # UTF-8 NFKD normalization (BIP-39 spec)
         src/coin_address.cpp   # Unified per-coin address generation

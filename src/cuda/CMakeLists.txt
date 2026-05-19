@@ -261,6 +261,35 @@ set_target_properties(bench_bip352 PROPERTIES
 )
 target_link_options(bench_bip352 PRIVATE -fno-lto)
 
+# ===== LTC-SP Scanner Benchmark =====
+set(_BENCH_LTCSP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../ltc/cuda/bench_ltcsp.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_LTCSP_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_ltcsp ${_BENCH_LTCSP_SOURCES})
+    target_compile_options(bench_ltcsp PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(bench_ltcsp ${_BENCH_LTCSP_SOURCES})
+    target_compile_options(bench_ltcsp PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_ltcsp PRIVATE secp256k1_cuda_lib)
+target_include_directories(bench_ltcsp PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+)
+target_link_libraries(bench_ltcsp PRIVATE fastsecp256k1)
+set_target_properties(bench_ltcsp PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION FALSE
+    CUDA_SEPARABLE_COMPILATION OFF
+)
+target_link_options(bench_ltcsp PRIVATE -fno-lto)
+
 # ===== ECDSA SNARK Witness Benchmark (CPU vs GPU, C ABI) =====
 set(_BENCH_SNARK_SOURCES src/bench_snark_witness.cu)
 if(_GPU_LANG STREQUAL "HIP")

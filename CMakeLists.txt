@@ -306,6 +306,7 @@ if(SECP256K1_BUILD_BCH)
     add_subdirectory(src/bch)
 endif()
 
+
 if(SECP256K1_BUILD_CUDA)
     # On some platforms (notably Windows), nvcc requires an MSVC host compiler (cl.exe).
     # If it's not available, we'd rather fall back to CPU-only than fail configuration.

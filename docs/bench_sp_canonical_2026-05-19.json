@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "date": "2026-05-19",
+    "machine": "Intel Core i5-14400F (6P+10E), 16 threads",
+    "compiler": "g++ 14.2.0 -O3 -march=native -flto",
+    "cpu_governor": "performance",
+    "turbo": "enabled",
+    "taskset": "taskset -c 0-15",
+    "methodology": "spend_pubkey precomputed in constructor for all three. max_key_index=0 (1 output/tx). SilentPaymentScanner in isolated TU (sp_scanner.cpp) for equal LTO treatment.",
+    "ecdh": "variable-time GLV for all three (input pubkeys are public on-chain)",
+    "btc_api": "SilentPaymentScanner::scan_tx()",
+    "ltc_api": "LtcSpScanner::scan_tx()",
+    "bch_api": "RpaScanner::scan_tx(tx, 0)",
+    "bch_overhead": "BCH ~25% slower: ecdsa_pubkey_parse per tx + double-SHA256+outpoint hash structure"
+  },
+  "results_turbo_on": {
+    "btc_bip352": {
+      "threads_1": 48206,
+      "threads_4": 185742,
+      "threads_8": 234054,
+      "threads_16": 307363
+    },
+    "bch_rpa": {
+      "threads_1": 34603,
+      "threads_4": 132575,
+      "threads_8": 167968,
+      "threads_16": 228568
+    },
+    "ltc_sp": {
+      "threads_1": 48053,
+      "threads_4": 189405,
+      "threads_8": 233994,
+      "threads_16": 318427
+    }
+  },
+  "results_turbo_off": {
+    "btc_bip352": {
+      "threads_1": 17288,
+      "threads_4": 68239,
+      "threads_8": 80344,
+      "threads_16": 109771
+    },
+    "bch_rpa": {
+      "threads_1": 13943,
+      "threads_4": 51058,
+      "threads_8": 62917,
+      "threads_16": 89925
+    },
+    "ltc_sp": {
+      "threads_1": 29137,
+      "threads_4": 110968,
+      "threads_8": 125967,
+      "threads_16": 172019
+    }
+  },
+  "gpu_rtx5060ti": {
+    "btc_cuda_glv_M_tx_s": 5.36,
+    "btc_cuda_lut_M_tx_s": 10.98,
+    "ltc_cuda_glv_M_tx_s": 5.36,
+    "ltc_opencl_glv_M_tx_s": 5.38
+  }
+}

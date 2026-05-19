@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "date": "2026-05-19",
+    "machine": "Intel Core i5-14400F, 16 threads",
+    "compiler": "g++ 14.2.0 -O3 -march=native -flto",
+    "cpu_governor": "performance",
+    "turbo": "disabled",
+    "methodology": "spend_pubkey precomputed in constructor for all three. max_key_index=0 (1 output/tx). Same N=10000, 5 repeats, wall-clock.",
+    "btc_api": "SilentPaymentScanner::scan_tx() \u2014 NEW class, spend_pubkey precomputed",
+    "ltc_api": "LtcSpScanner::scan_tx() \u2014 spend_pubkey precomputed",
+    "bch_api": "RpaScanner::scan_tx(tx, 0) \u2014 spend_epk precomputed, max_key_index=0",
+    "ecdh_note": "LTC-SP uses variable-time GLV (A_sum is public). BTC/BCH use ct::scalar_mul. This explains LTC-SP 1.7x advantage."
+  },
+  "results": {
+    "btc_bip352": {
+      "threads_1": 17473,
+      "threads_4": 65812,
+      "threads_8": 78118,
+      "threads_16": 99697
+    },
+    "bch_rpa": {
+      "threads_1": 13797,
+      "threads_4": 54167,
+      "threads_8": 61691,
+      "threads_16": 85000
+    },
+    "ltc_sp": {
+      "threads_1": 29105,
+      "threads_4": 109891,
+      "threads_8": 105471,
+      "threads_16": 178406
+    }
+  }
+}
