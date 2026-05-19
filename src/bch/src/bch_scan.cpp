@@ -11,6 +11,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/ecdsa.hpp"
+#include "secp256k1/precompute.hpp"  // batch_scalar_mul_generator, KPlan
 #include <cstring>
 
 namespace secp256k1::bch {
@@ -128,6 +129,127 @@ ScanRateEstimate estimate_scan_rate(uint8_t prefix_bits) noexcept {
     double scan_per_day  = est.cpu_tx_per_sec * 86400.0 * filter_ratio;
     est.days_to_full_sync = est.chain_tx_per_day / scan_per_day;
     return est;
+}
+
+// -- RpaScanner::scan_batch (optimised) --------------------------------------
+// KPlan::from_scalar(scan_privkey) once + batch_scalar_mul_fixed_k +
+// batch_to_compressed + compress_to_scalar + batch_scalar_mul_generator +
+// batch_x_only_bytes (all Montgomery H-trick batch inversions).
+// Thread-local scratch buffers: no heap allocation after first call.
+
+std::vector<RpaScanner::BatchMatch>
+RpaScanner::scan_batch(
+    const std::vector<std::vector<std::array<uint8_t,33>>>& input_pubkeys_per_tx,
+    const std::vector<std::vector<std::array<uint8_t,33>>>& outputs_per_tx,
+    const std::vector<std::array<uint8_t,36>>& outpoints_per_tx,
+    uint32_t max_key_index) const
+{
+    (void)max_key_index;  // k=0 only for batch (extend later)
+    std::vector<BatchMatch> results;
+    const std::size_t N = input_pubkeys_per_tx.size();
+    if (N == 0) return results;
+
+    // Thread-local scratch
+    static thread_local std::vector<fast::Point>                   tl_a_sums;
+    static thread_local std::vector<fast::Point>                   tl_shared;
+    static thread_local std::vector<std::array<uint8_t,33>>        tl_S_comps;
+    static thread_local std::vector<uint64_t>                      tl_out_map;
+    static thread_local std::vector<fast::Scalar>                  tl_t_scalars;
+    static thread_local std::vector<fast::Point>                   tl_candidates;
+    static thread_local std::vector<std::array<uint8_t,32>>        tl_x_bytes;
+
+    // Stage 1: aggregate input pubkeys → A_sum per tx
+    tl_a_sums.assign(N, fast::Point::infinity());
+    for (std::size_t i = 0; i < N; ++i) {
+        for (const auto& pk33 : input_pubkeys_per_tx[i]) {
+            secp256k1::EcdsaPublicKey epk{};
+            if (secp256k1::ecdsa_pubkey_parse(epk, pk33.data(), 33))
+                tl_a_sums[i] = tl_a_sums[i].add(epk.point);
+        }
+    }
+
+    // Stage 1b: S_i = scan_privkey × A_sum_i (KPlan + batch field_inv)
+    fast::KPlan plan = fast::KPlan::from_scalar(scan_privkey_);
+    tl_shared.resize(N);
+    fast::Point::batch_scalar_mul_fixed_k(plan, tl_a_sums.data(), N, tl_shared.data());
+
+    tl_S_comps.resize(N);
+    fast::Point::batch_to_compressed(tl_shared.data(), N, tl_S_comps.data());
+
+    // Pass 2a: BCH shared-secret hash + payment key hash (raw SHA256 blocks)
+    // c = SHA256(SHA256(S_comp[33]) || outpoint[36])
+    // t_k = SHA256(spend_pubkey[33] || c[32] || 0x00000000)
+    tl_out_map.clear();
+    tl_t_scalars.clear();
+
+    const uint8_t* spend_pk33 = paycode_.spend_pubkey.data();
+
+    for (std::uint32_t tx = 0; tx < static_cast<std::uint32_t>(N); ++tx) {
+        if (tl_shared[tx].is_infinity()) continue;
+        const auto& S_comp = tl_S_comps[tx];
+
+        // c = SHA256(SHA256(S_comp) || outpoint)
+        std::array<uint8_t,32> inner, c;
+        {
+            auto h = SHA256::hash(S_comp.data(), 33);
+            inner = h;
+        }
+        {
+            uint8_t buf[68];
+            std::memcpy(buf,      inner.data(), 32);
+            if (tx < outpoints_per_tx.size())
+                std::memcpy(buf+32, outpoints_per_tx[tx].data(), 36);
+            else
+                std::memset(buf+32, 0, 36);
+            c = SHA256::hash(buf, 68);
+        }
+
+        // t_k = SHA256(spend_pk33 || c || ser32(0)) for k=0
+        {
+            uint8_t buf2[69];
+            std::memcpy(buf2,    spend_pk33, 33);
+            std::memcpy(buf2+33, c.data(),   32);
+            buf2[65]=buf2[66]=buf2[67]=buf2[68]=0;
+            auto t_hash = SHA256::hash(buf2, 69);
+            fast::Scalar t_k = fast::Scalar::from_bytes(t_hash);
+            tl_out_map.push_back((static_cast<uint64_t>(tx) << 32) | 0u);
+            tl_t_scalars.push_back(t_k);
+        }
+    }
+
+    if (tl_t_scalars.empty()) return results;
+
+    // Pass 2b: batch t_k*G
+    const std::size_t M = tl_t_scalars.size();
+    std::vector<fast::Point> out_jac(M);
+    secp256k1::fast::batch_scalar_mul_generator(tl_t_scalars.data(), out_jac.data(), M);
+
+    // Pass 2c: spend_point + t_k*G
+    tl_candidates.resize(M);
+    for (std::size_t i = 0; i < M; ++i)
+        tl_candidates[i] = spend_epk_.point.add(out_jac[i]);
+
+    // Pass 2d: batch x-only extraction (H-trick)
+    tl_x_bytes.resize(M);
+    fast::Point::batch_x_only_bytes(tl_candidates.data(), M, tl_x_bytes.data());
+
+    // Pass 2e: compare with expected outputs
+    for (std::size_t i = 0; i < M; ++i) {
+        std::uint32_t tx = static_cast<std::uint32_t>(tl_out_map[i] >> 32);
+        const auto& outs = outputs_per_tx[tx];
+        for (std::uint32_t j = 0; j < static_cast<std::uint32_t>(outs.size()); ++j) {
+            // Compare x-only (first 32 bytes of compressed output after parity byte)
+            if (std::memcmp(tl_x_bytes[i].data(), outs[j].data()+1, 32) == 0) {
+                BatchMatch m;
+                m.tx_index = tx;
+                m.output_index = j;
+                m.payment_pubkey = outs[j];
+                m.cashaddr = cashaddr_from_pubkey(outs[j].data(), network_);
+                results.push_back(std::move(m));
+            }
+        }
+    }
+    return results;
 }
 
 } // namespace secp256k1::bch

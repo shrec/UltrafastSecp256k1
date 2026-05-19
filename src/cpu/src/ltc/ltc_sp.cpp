@@ -274,21 +274,28 @@ LtcSpScanner::scan_batch(
     const std::size_t N = input_pubkeys_per_tx.size();
     if (N == 0) return results;
 
-    // Build A_sum per tx (Σ input pubkeys)
-    std::vector<Point> a_sums(N, Point::infinity());
+    // Thread-local scratch buffers — no heap allocation after first call per thread.
+    // Resize-in-place only when N exceeds the previous high-water mark.
+    static thread_local std::vector<Point>                       tl_a_sums;
+    static thread_local std::vector<Point>                       tl_shared;
+    static thread_local std::vector<std::array<uint8_t,33>>      tl_S_comps;
+    static thread_local std::vector<uint64_t>                    tl_out_map;
+    static thread_local std::vector<Scalar>                      tl_t_scalars;
+    static thread_local std::vector<Point>                       tl_candidates;
+    static thread_local std::vector<std::array<uint8_t,32>>      tl_x_bytes;
+
+    tl_a_sums.assign(N, Point::infinity());
     for (std::size_t i = 0; i < N; ++i)
         for (const auto& P : input_pubkeys_per_tx[i])
-            a_sums[i] = a_sums[i].add(P);
+            tl_a_sums[i] = tl_a_sums[i].add(P);
 
-    // Stage 1: S_i = scan_privkey × A_sum_i
-    // KPlan: shared wNAF schedule across N txs
-    // batch_to_compressed: ONE field_inv for all N shared secrets (Montgomery's trick)
+    // Stage 1: S_i = scan_privkey × A_sum_i (KPlan + batch field_inv)
     fast::KPlan plan = fast::KPlan::from_scalar(scan_privkey_);
-    std::vector<Point> shared(N);
-    Point::batch_scalar_mul_fixed_k(plan, a_sums.data(), N, shared.data());
+    tl_shared.resize(N);
+    Point::batch_scalar_mul_fixed_k(plan, tl_a_sums.data(), N, tl_shared.data());
 
-    std::vector<std::array<std::uint8_t, 33>> S_comps(N);
-    Point::batch_to_compressed(shared.data(), N, S_comps.data());
+    tl_S_comps.resize(N);
+    Point::batch_to_compressed(tl_shared.data(), N, tl_S_comps.data());
 
     // LTCSP base state: SHA256 state after processing tag||tag (64 bytes, one block).
     // Precomputed once per process — avoids rebuilding SHA256 context per output.
@@ -307,14 +314,12 @@ LtcSpScanner::scan_batch(
     }();
 
     // Pass 2a: compute all t_k scalars via raw SHA256 block compression (no context).
-    // block layout: S_comp[33] || k_be[4] || 0x80 || zeros || 0x03 0x28
-    //   bit-length = (64 + 37) * 8 = 808 = 0x0328  (one block from base state)
-    std::vector<std::uint64_t> out_map;
-    std::vector<Scalar> t_scalars;
+    tl_out_map.clear();
+    tl_t_scalars.clear();
 
     for (std::uint32_t tx = 0; tx < static_cast<std::uint32_t>(N); ++tx) {
-        if (shared[tx].is_infinity()) continue;
-        const auto& S_comp = S_comps[tx];
+        if (tl_shared[tx].is_infinity()) continue;
+        const auto& S_comp = tl_S_comps[tx];
 
         // Build block1 template for this tx
         std::uint8_t blk[64];
@@ -342,35 +347,33 @@ LtcSpScanner::scan_batch(
                 t_bytes[b*4+3] = std::uint8_t(h[b]);
             }
             Scalar t_k = Scalar::from_bytes(t_bytes);
-            out_map.push_back((static_cast<std::uint64_t>(tx) << 32) | k);
-            t_scalars.push_back(t_k);
+            tl_out_map.push_back((static_cast<std::uint64_t>(tx) << 32) | k);
+            tl_t_scalars.push_back(t_k);
         }
     }
 
-    if (t_scalars.empty()) return results;
+    if (tl_t_scalars.empty()) return results;
 
-    // Pass 2b: batch t_k*G — ONE precomputed-table scan (shared wNAF schedule)
-    const std::size_t M = t_scalars.size();
+    // Pass 2b: batch t_k*G — ONE precomputed-table scan
+    const std::size_t M = tl_t_scalars.size();
     std::vector<Point> out_jac(M);
-    secp256k1::fast::batch_scalar_mul_generator(t_scalars.data(), out_jac.data(), M);
+    secp256k1::fast::batch_scalar_mul_generator(tl_t_scalars.data(), out_jac.data(), M);
 
-    // Pass 2c: spend_pubkey + t_k*G for all M candidate outputs
-    std::vector<Point> candidates(M);
+    // Pass 2c: spend_pubkey + t_k*G for all M outputs (thread_local)
+    tl_candidates.resize(M);
     for (std::size_t i = 0; i < M; ++i)
-        candidates[i] = spend_pubkey_.add(out_jac[i]);
+        tl_candidates[i] = spend_pubkey_.add(out_jac[i]);
 
-    // Pass 2d: batch x-only extraction — ONE field_inv for all M points
-    // (Montgomery's trick: H_i = Z_1*...*Z_i; invert H_M; recover Z_i^{-2} backwards)
-    std::vector<std::array<std::uint8_t, 32>> x_bytes(M);
-    Point::batch_x_only_bytes(candidates.data(), M, x_bytes.data());
+    // Pass 2d: batch x-only extraction — ONE field_inv (H-trick)
+    tl_x_bytes.resize(M);
+    Point::batch_x_only_bytes(tl_candidates.data(), M, tl_x_bytes.data());
 
     // Pass 2e: compare x-coordinates
     for (std::size_t i = 0; i < M; ++i) {
-        std::uint32_t tx = static_cast<std::uint32_t>(out_map[i] >> 32);
-        std::uint32_t k  = static_cast<std::uint32_t>(out_map[i] & 0xffffffff);
-        if (x_bytes[i] == outputs_per_tx[tx][k]) {
-            results.push_back({tx, k, spend_privkey_ + t_scalars[i]});
-        }
+        std::uint32_t tx = static_cast<std::uint32_t>(tl_out_map[i] >> 32);
+        std::uint32_t k  = static_cast<std::uint32_t>(tl_out_map[i] & 0xffffffff);
+        if (tl_x_bytes[i] == outputs_per_tx[tx][k])
+            results.push_back({tx, k, spend_privkey_ + tl_t_scalars[i]});
     }
     return results;
 }

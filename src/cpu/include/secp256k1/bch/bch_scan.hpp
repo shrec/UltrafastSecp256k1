@@ -34,6 +34,22 @@ public:
         const std::vector<ScanTx>& txs, uint32_t max_key_index = 30) const noexcept;
     [[nodiscard]] bool prefix_matches(const uint8_t* sig64) const noexcept;
     const RpaPaycode& paycode() const noexcept { return paycode_; }
+
+    // Batch scanner: KPlan + batch field_inv across N transactions.
+    // input_pubkeys_per_tx[i]: compressed input pubkeys for tx i (33 bytes each)
+    // outputs_per_tx[i]:       compressed output pubkeys for tx i (33 bytes each)
+    // outpoints_per_tx[i]:     txid[32]+vout[4] for tx i (36 bytes)
+    struct BatchMatch {
+        std::uint32_t tx_index;
+        std::uint32_t output_index;
+        std::array<uint8_t,33> payment_pubkey;
+        std::string cashaddr;
+    };
+    [[nodiscard]] std::vector<BatchMatch>
+    scan_batch(const std::vector<std::vector<std::array<uint8_t,33>>>& input_pubkeys_per_tx,
+               const std::vector<std::vector<std::array<uint8_t,33>>>& outputs_per_tx,
+               const std::vector<std::array<uint8_t,36>>& outpoints_per_tx,
+               uint32_t max_key_index = 0) const;
 private:
     RpaPaycode        paycode_;
     fast::Scalar      scan_privkey_;
