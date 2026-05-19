@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "date": "2026-05-19",
+    "machine": "Intel Core i5-14400F, x86-64",
+    "compiler": "g++ 14.2.0 -O3 -march=native -flto",
+    "cpu_governor": "performance (cpupower)",
+    "turbo": "disabled (intel_pstate/no_turbo=1)",
+    "taskset": "taskset -c 0",
+    "nice": -20,
+    "note": "LTC-SP uses identical algorithm to BIP-352. Only the HMAC domain tags differ: LTCSP/SharedSecret vs BIP0352/SharedSecret. Performance numbers are therefore directly comparable to BIP-352 benchmarks."
+  },
+  "benchmarks": {
+    "ltcsp_create_output": {
+      "value_us": 56.0,
+      "inputs": 1,
+      "note": "1 sender input key, k=0..99 averaged. CT ECDH + ct::generator_mul + SHA256 midstate. Equivalent to BIP-352 silent_payment_create_output."
+    },
+    "ltcsp_scan": {
+      "value_us": 1865.8,
+      "outputs": 100,
+      "matches": 1,
+      "note": "100 P2TR outputs scanned per call, 1 match found. SHA256 midstate amortized across all outputs. Equivalent to BIP-352 silent_payment_scan."
+    },
+    "ltcsp_paycode_encode": {
+      "value_ns": 4061.7,
+      "note": "ltcsp1... bech32m paycode encoding of (scan_pk, spend_pk) pair."
+    }
+  },
+  "throughput": {
+    "create_output_per_sec": 17857,
+    "scan_outputs_per_sec": 53614
+  },
+  "comparison_bip352": {
+    "note": "BIP-352 numbers from bench_ltc_doge_2026-05-18.json (LTC native harness).",
+    "silent_payment_create_ltc_us": 55.6,
+    "ltcsp_create_us": 56.0,
+    "delta_pct": 0.7,
+    "conclusion": "LTC-SP create is within 0.7% of BIP-352 create — confirms identical algorithm, only HMAC tag strings differ."
+  }
+}
