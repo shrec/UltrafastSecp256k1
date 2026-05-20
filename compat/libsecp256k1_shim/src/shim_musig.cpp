@@ -224,12 +224,15 @@ static void pn_pack_affine(secp256k1_musig_pubnonce* out,
 }
 
 // Build a pair of Points from cached affine coords — O(1), no sqrt.
+// Returns {infinity, infinity} if any field element fails strict parsing
+// (indicates corrupted secp256k1_musig_pubnonce struct).
 static std::pair<Point, Point> pn_unpack_points(const secp256k1_musig_pubnonce* in) {
     FieldElement x1, y1, x2, y2;
-    FieldElement::parse_bytes_strict(in->data,       x1);
-    FieldElement::parse_bytes_strict(in->data + 32,  y1);
-    FieldElement::parse_bytes_strict(in->data + 64,  x2);
-    FieldElement::parse_bytes_strict(in->data + 96,  y2);
+    if (!FieldElement::parse_bytes_strict(in->data,      x1) ||
+        !FieldElement::parse_bytes_strict(in->data + 32, y1) ||
+        !FieldElement::parse_bytes_strict(in->data + 64, x2) ||
+        !FieldElement::parse_bytes_strict(in->data + 96, y2))
+        return { Point::infinity(), Point::infinity() };
     return { Point::from_affine(x1, y1), Point::from_affine(x2, y2) };
 }
 
@@ -391,7 +394,7 @@ int secp256k1_musig_pubkey_ec_tweak_add(
     KAEntry* e = ka_get(keyagg_cache);
     if (!e) return 0;
     Scalar t;
-    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
     Point tG = secp256k1::fast::scalar_mul_generator(t);
     e->ctx.Q = e->ctx.Q.add(tG);
     if (e->ctx.Q.is_infinity()) return 0;
@@ -414,7 +417,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
         e->ctx.Q_negated = !e->ctx.Q_negated;
     }
     Scalar t;
-    if (!Scalar::parse_bytes_strict(tweak32, t)) return 0;
+    if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;
     Point tG = secp256k1::fast::scalar_mul_generator(t);
     e->ctx.Q = e->ctx.Q.add(tG);
     if (e->ctx.Q.is_infinity()) return 0;
@@ -540,6 +543,7 @@ int secp256k1_musig_nonce_process(
     std::array<unsigned char, 32> msg;
     std::memcpy(msg.data(), msg32, 32);
     auto s = secp256k1::musig2_start_sign_session(an, e->ctx, msg);
+    if (s.e.is_zero()) return 0;  // SEC-006: combined R = R1 + b*R2 was infinity
     sess_pack(session, s);
     sess_stash_cache_ptr(session, keyagg_cache);
     return 1;

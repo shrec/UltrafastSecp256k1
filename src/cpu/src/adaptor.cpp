@@ -229,6 +229,10 @@ schnorr_adaptor_adapt(const SchnorrAdaptorSig& pre_sig,
 std::pair<Scalar, bool>
 schnorr_adaptor_extract(const SchnorrAdaptorSig& pre_sig,
                         const SchnorrSignature& sig) {
+    // Reject degenerate signatures — sig.s == 0 means the signature is invalid
+    // and would produce a wrong adaptor secret (t = -s_hat) without error.
+    if (sig.s.is_zero()) return {Scalar{}, false};
+
     // adapt computed s = s_hat + t_adj where t_adj = needs_negation ? -t : t
     // so sig.s - s_hat = t_adj; reverse the negation to recover original t
     Scalar t = sig.s - pre_sig.s_hat;

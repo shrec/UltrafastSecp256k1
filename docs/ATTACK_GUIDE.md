@@ -4,8 +4,8 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 264 exploit PoCs modules + 98 non-exploit modules = 350 total
-(via `audit/unified_audit_runner`), 11 fuzzer harnesses, 39 formal Cryptol properties, dudect
+**Current assurance state**: 263 exploit PoCs modules + 108 non-exploit modules = 371 total
+(via `audit/unified_audit_runner`), 11 fuzzer harnesses, dudect
 + Valgrind CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.
 
@@ -153,8 +153,7 @@ Vulnerable edge cases:
 - k · G has r = 0 (vanishingly rare but must be re-tried in the loop)
 - k · G has r ≥ n (Stark Bank CVE class — fixed as RR-004 but verify no similar paths remain)
 
-**Formal spec**: `ecdsa_sign_r_range` and `ecdsa_sign_s_range` in
-`formal/cryptol/Secp256k1ECDSA.cry` cover some of these.
+**Exploit PoC**: `audit/test_exploit_ecdsa_nonce_reuse.cpp` covers boundary cases NSR-1..NSR-8.
 
 ---
 

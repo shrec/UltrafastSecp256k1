@@ -27,8 +27,11 @@ extern "C" {
 #define UFSECP_VERSION_PATCH   @PROJECT_VERSION_PATCH@
 
 /** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat. */
+/* REL-005: casts to unsigned int prevent signed-shift UB (MAJOR >= 128). */
 #define UFSECP_VERSION_PACKED \
-    ((UFSECP_VERSION_MAJOR << 16) | (UFSECP_VERSION_MINOR << 8) | UFSECP_VERSION_PATCH)
+    (((unsigned int)(UFSECP_VERSION_MAJOR) << 16) | \
+     ((unsigned int)(UFSECP_VERSION_MINOR) <<  8) | \
+      (unsigned int)(UFSECP_VERSION_PATCH))
 
 #define UFSECP_VERSION_STRING  "@PROJECT_VERSION@"
 

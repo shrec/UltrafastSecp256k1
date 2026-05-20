@@ -955,7 +955,7 @@ static const AuditModule ALL_MODULES[] = {
 #endif // SECP256K1_HAS_BIP352
     { "exploit_rfc6979_trunc_bias",     "RFC6979 Nonce Truncation Bias (NTB-1..5)",    "exploit_poc", test_exploit_rfc6979_truncation_bias_run, false },
     { "exploit_binding_adv_api",        "Binding Adversarial API (BAT-1..11)",         "exploit_poc", test_exploit_binding_adversarial_api_run, false },
-    { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6)",         "exploit_poc", test_exploit_quantum_exposure_run, false },
+    { "exploit_quantum_exposure",       "Quantum Exposure Surface (QEX-1..6) [functional smoke]", "math_invariants", test_exploit_quantum_exposure_run, false },
 #if SECP256K1_HAS_ECIES
     { "exploit_ecies_ephemeral_reuse",  "ECIES Ephemeral Reuse (EKR-1..4)",            "exploit_poc", test_exploit_ecies_ephemeral_reuse_run, false },
 #endif // SECP256K1_HAS_ECIES

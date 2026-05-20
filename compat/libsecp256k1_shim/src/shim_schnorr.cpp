@@ -338,8 +338,9 @@ int secp256k1_schnorrsig_verify(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify: NULL argument");
         return 0;
     }
-    // Null message with nonzero msglen is illegal.
-    if (msglen > 0 && !msg) {
+    // Null message is illegal for any msglen — protects against null deref in
+    // schnorr_verify(nullptr, ...) when msglen == 0 (SHIM-A03).
+    if (!msg) {
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_verify: NULL msg");
         return 0;
     }

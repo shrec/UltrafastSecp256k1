@@ -639,8 +639,8 @@ std::array<std::uint8_t, 32> ellswift_xdh(
 }
 
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
-    // Non-CT: use precomputed fixed-base table + SHA256 u derivation.
-    auto pub = scalar_mul_generator(privkey);
+    // CT: privkey is secret — use constant-time generator mul to avoid timing leaks.
+    auto pub = ct::generator_mul(privkey);
     // x_bytes_and_parity(): one field inverse instead of separate x()+y() calls.
     auto [x_bytes, y_odd] = pub.x_bytes_and_parity();
     auto x = FieldElement::from_bytes(x_bytes);

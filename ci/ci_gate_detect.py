@@ -93,6 +93,8 @@ PROFILE_PATTERNS: dict[str, list[str]] = {
         "docs/ATTACK_GUIDE.md",
         "docs/API_REFERENCE.md",
         "docs/SHIM_KNOWN_DIVERGENCES.md",
+        # CI-005: any new JSON in docs/ (evidence artifacts) also triggers CAAS.
+        "docs/*.json",
     ],
     "docs-only": [
         "docs/**",

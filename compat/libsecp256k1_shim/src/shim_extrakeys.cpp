@@ -75,6 +75,12 @@ int secp256k1_xonly_pubkey_cmp(
     const secp256k1_xonly_pubkey *pk1,
     const secp256k1_xonly_pubkey *pk2)
 {
+    // SHIM-A05: NULL ctx must fire callback (libsecp aborts via ARG_CHECK).
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(nullptr,
+            "secp256k1_xonly_pubkey_cmp: NULL context");
+        return 0;
+    }
     if (!pk1 || !pk2) {
         secp256k1_shim_call_illegal_cb(ctx,
             "secp256k1_xonly_pubkey_cmp: invalid pubkey argument");

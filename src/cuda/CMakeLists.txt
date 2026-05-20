@@ -261,6 +261,29 @@ set_target_properties(bench_bip352 PROPERTIES
 )
 target_link_options(bench_bip352 PRIVATE -fno-lto)
 
+# ===== BCH RPA Scanner Benchmark =====
+set(_BENCH_BCH_SCAN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../bch/cuda/bch_scan.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_BCH_SCAN_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_bch_scan ${_BENCH_BCH_SCAN_SOURCES})
+    target_compile_options(bench_bch_scan PRIVATE $<$<COMPILE_LANGUAGE:HIP>:-O3>)
+else()
+    add_executable(bench_bch_scan ${_BENCH_BCH_SCAN_SOURCES})
+    target_compile_options(bench_bch_scan PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_bch_scan PRIVATE secp256k1_cuda_lib)
+target_include_directories(bench_bch_scan PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(bench_bch_scan PRIVATE fastsecp256k1)
+set_target_properties(bench_bch_scan PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE CUDA_SEPARABLE_COMPILATION OFF)
+target_link_options(bench_bch_scan PRIVATE -fno-lto)
+
 # ===== LTC-SP Scanner Benchmark =====
 set(_BENCH_LTCSP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../ltc/cuda/bench_ltcsp.cu)
 if(_GPU_LANG STREQUAL "HIP")

@@ -197,12 +197,19 @@ static Scalar schnorr_challenge_scalar_varlen(const uint8_t* r32,
                                               const uint8_t* pubkey_x32,
                                               const uint8_t* msg,
                                               std::size_t msglen) {
-    std::vector<uint8_t> input(64 + msglen);
-    std::memcpy(input.data() +  0, r32,        32);
-    std::memcpy(input.data() + 32, pubkey_x32, 32);
-    if (msglen > 0) std::memcpy(input.data() + 64, msg, msglen);
+    // PERF-001: SBO — avoid heap alloc for messages up to 512 bytes (covers
+    // typical Tapscript leaf hashes and other short messages without malloc).
+    static constexpr std::size_t kSBOMax = 512;
+    uint8_t stack_buf[64 + kSBOMax];
+    std::unique_ptr<uint8_t[]> heap_buf;
+    uint8_t* input = (msglen <= kSBOMax)
+        ? stack_buf
+        : (heap_buf.reset(new uint8_t[64 + msglen]), heap_buf.get());
+    std::memcpy(input +  0, r32,        32);
+    std::memcpy(input + 32, pubkey_x32, 32);
+    if (msglen > 0) std::memcpy(input + 64, msg, msglen);
     return Scalar::from_bytes(secp256k1::tagged_hash("BIP0340/challenge",
-                                                      input.data(), input.size()));
+                                                      input, 64 + msglen));
 }
 
 #if !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32)

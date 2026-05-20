@@ -134,10 +134,14 @@ secp256k1_context *secp256k1_context_create(unsigned int flags) {
 }
 
 secp256k1_context *secp256k1_context_clone(const secp256k1_context *ctx) {
-    // libsecp256k1 calls the illegal callback (default: abort) on NULL ctx.
     if (!ctx) { std::abort(); }
     auto *clone = static_cast<secp256k1_context *>(std::malloc(sizeof(secp256k1_context)));
-    if (clone) std::memcpy(clone, ctx, sizeof(secp256k1_context));
+    if (!clone) {
+        // SHIM-A04: fire error callback on malloc failure (matches libsecp behavior).
+        ctx->error_cb("secp256k1_context_clone: out of memory", const_cast<void*>(ctx->error_cb_data));
+        return nullptr;
+    }
+    std::memcpy(clone, ctx, sizeof(secp256k1_context));
     return clone;
 }
 

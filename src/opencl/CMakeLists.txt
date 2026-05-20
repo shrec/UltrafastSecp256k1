@@ -252,6 +252,18 @@ if(SECP256K1_BUILD_BENCH)
         target_compile_definitions(opencl_ltcsp_benchmark PRIVATE
             SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
         )
+
+        add_executable(opencl_bch_scan_benchmark
+            ${CMAKE_CURRENT_SOURCE_DIR}/../bch/opencl/bench_bch_scan_opencl.cpp
+        )
+        target_link_libraries(opencl_bch_scan_benchmark PRIVATE
+            secp256k1_opencl
+            $<TARGET_NAME_IF_EXISTS:fastsecp256k1>
+            ${FASTSECP256K1_LIB}
+        )
+        target_compile_definitions(opencl_bch_scan_benchmark PRIVATE
+            SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
+        )
     endif()
 endif()
 

@@ -527,7 +527,8 @@ jobs:
     if: >-
       needs.detect-impact.outputs.run_core == 'true' ||
       needs.detect-impact.outputs.run_compat == 'true' ||
-      needs.detect-impact.outputs.run_caas == 'true'
+      needs.detect-impact.outputs.run_caas == 'true' ||
+      needs.detect-impact.outputs.run_bindings == 'true'
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0

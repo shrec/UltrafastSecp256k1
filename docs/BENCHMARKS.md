@@ -15,15 +15,15 @@ Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
 ## Summary
 
-> **x86-64 (i5-14400F): 2026-05-11** GCC 14.2.0, turbo disabled, core 0 pinned, 11-pass IQR median  
-> Canonical JSON: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`  
+> **x86-64 (i5-14400F): 2026-05-16** GCC 14.2.0, turbo disabled, core 0 pinned, 11-pass IQR median  
+> Canonical JSON: `docs/bench_unified_2026-05-16_gcc14_x86-64.json`  
 > Other platforms: pending fresh controlled runs.
 
-x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **11-pass IQR** · 2026-05-11
+x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **11-pass IQR** · 2026-05-16
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib (warm-cache) | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr (pre-parsed) · 1.05× Schnorr (raw bytes, ConnectBlock-equivalent) | 1.24× ECDSA · 1.09× Schnorr |
+| x86-64 (i5-14400F) | 19.8 ns | 8,869 ns | 32,935 ns | 38,399 ns | 1.09× ECDSA · 1.08× Schnorr (pre-parsed) · 1.05× Schnorr (raw bytes, ConnectBlock-equivalent) | **1.30× ECDSA · 1.28× Schnorr** |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |
 | ESP32-C6 (RV32, 160 MHz) | — | — | — | — | — | — |
@@ -32,11 +32,11 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo off · core 0 pinned · **
 | CUDA (RTX) | — | — | — | — | — | — |
 | OpenCL (RTX) | — | — | — | — | — | — |
 
-> **CT Sign vs lib** = `bench_unified` CT-vs-CT section — production-equivalent comparison. Canonical data: `docs/bench_unified_2026-05-11_gcc14_x86-64.json`.
+> **CT Sign vs lib** = `bench_unified` CT-vs-CT section — production-equivalent comparison. Canonical data: `docs/bench_unified_2026-05-16_gcc14_x86-64.json`.
 > **ConnectBlock note:** +0.9–1.5% faster than libsecp256k1 **with Release+LTO**. Without LTO: ~0.5–1.0% **slower**. LTO is required for the positive result. See `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 > **Verify vs lib** = both variable-time paths on public data (fair comparison).
 > **FAST signing**: diagnostic-only variable-time vs libsecp CT comparison; **not** a production claim. Production-equivalent numbers are the **CT Sign vs lib** column above. For the diagnostic raw ratios, see `benchmarks/comparison/README.md` §BENCH-001 note.
-> GPU rows: kernel-only throughput at standard batch sizes.
+> **GPU rows:** kernel-only throughput at standard batch sizes — **excludes PCIe host↔device transfer overhead**. Wall-clock throughput (including transfer) is lower; measure end-to-end for production estimates.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 **P1-PERF-001 (2026-05-12, release-grade):** `secp256k1_schnorrsig_verify` unique-pubkey path (ConnectBlock workload).

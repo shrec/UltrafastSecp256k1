@@ -421,3 +421,32 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 - **Impact:** Same as SHIM-001 -- fuzzing harnesses counting illegal-callback invocations will
   see count=0. Callers that check only return value are unaffected.
 - **Test:** Differential test -- pass null msg with msglen=32, check callback count.
+
+---
+
+## secp256k1_ecdh -- parse_bytes_strict_nonzero (SHIM-A06)
+
+- **Upstream behavior:** `secp256k1_ecdh` parses the scalar with `secp256k1_scalar_set_b32_seckey`
+  which rejects zero and scalars >= n (returning 0).
+- **Shim behavior:** Uses `Scalar::parse_bytes_strict_nonzero()` — identical semantics (rejects
+  zero and >= n). **This entry in SHIM_KNOWN_DIVERGENCES.md was previously incorrect** (it claimed
+  the shim used `from_bytes` which silently reduces mod n). The code uses `parse_bytes_strict_nonzero`.
+- **Impact:** No divergence — behavior matches upstream. Entry corrected 2026-05-20.
+- **Test:** `audit/test_exploit_shim_musig_secnonce.cpp` — tests strict nonzero parse rejection.
+
+---
+
+## secp256k1_musig_nonce_process -- raw pointer ASLR information leak (SHIM-A07)
+
+- **Upstream behavior:** libsecp256k1 stores a pointer to `secp256k1_musig_keyagg_cache` inside
+  the session struct. Raw pointer value leaks ASLR offset if the session struct is serialized
+  or exposed across trust boundaries.
+- **Shim behavior:** Same — `sess_stash_cache_ptr` stores the raw `secp256k1_musig_keyagg_cache*`
+  at a fixed offset in the session opaque bytes.
+- **Reason:** This matches libsecp256k1 behavior exactly. The pointer is only valid within the
+  same process and must not be serialized.
+- **Impact:** If callers serialize `secp256k1_musig_session` across process boundaries (which they
+  must not do per the API contract), the raw pointer leaks ASLR. Callers that use the session
+  within a single process are unaffected.
+- **Test:** `audit/test_exploit_shim_musig_secnonce.cpp` — validates session lifecycle within
+  a single process. Cross-process serialization is out of scope.
