@@ -252,6 +252,15 @@ static void test_frost_2of3_signing() {
     auto group_x = pkg1.group_public_key.x().to_bytes();
     bool const valid = schnorr_verify(group_x, msg, sig);
     CHECK(valid, "frost_2of3_signature_valid");
+
+    // TASK-003 coverage: frost_aggregate with zero partial sigs → invalid sig
+    {
+        std::vector<FrostPartialSig> zero_partials = {
+            {1, Scalar::zero()}, {2, Scalar::zero()}};
+        auto zero_sig = frost_aggregate(zero_partials, nonce_comms, pkg1.group_public_key, msg);
+        // The aggregated s must be zero when all partial sigs are zero
+        CHECK(zero_sig.s.is_zero(), "frost_aggregate_zero_partials_gives_zero_s");
+    }
 }
 
 // ===============================================================================
@@ -303,6 +312,14 @@ static void test_schnorr_adaptor_basic() {
     // t or -t should match
     bool const t_matches = (extracted_t == t) || (extracted_t == t.negate());
     CHECK(t_matches, "extracted_secret_matches");
+
+    // SEC-007 coverage: sig.s == 0 must be rejected (degenerate signature)
+    {
+        SchnorrSignature zero_sig{sig.r, Scalar::zero()};
+        auto [t2, ok2] = schnorr_adaptor_extract(pre_sig, zero_sig);
+        CHECK(!ok2, "adaptor_extract_rejects_zero_s");
+        (void)t2;
+    }
 }
 
 static void test_ecdsa_adaptor_basic() {
