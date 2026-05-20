@@ -52,8 +52,8 @@ int test_abi_gate_run() {
     }
     CHECK(has_digit, "Version string contains digits");
     CHECK(has_dot, "Version string contains dot separator");
-    CHECK(UFSECP_ABI_VERSION == 1, "ABI gate: library matches binding");
-    CHECK(UFSECP_ABI_VERSION == 1, "ABI gate: exact version match");
+    CHECK(UFSECP_ABI_VERSION == 4, "ABI gate: library matches binding (v4)");
+    CHECK(UFSECP_ABI_VERSION == 4, "ABI gate: exact version match (v4)");
     printf("  [abi_gate] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail > 0 ? 1 : 0;
 }
@@ -67,7 +67,7 @@ int main() {
     // 1. ABI version macro must be defined and positive
     printf("  UFSECP_ABI_VERSION:       %u\n", (unsigned)UFSECP_ABI_VERSION);
     CHECK(UFSECP_ABI_VERSION > 0, "ABI version is positive");
-    CHECK(UFSECP_ABI_VERSION == 1, "ABI version is 1 (current)");
+    CHECK(UFSECP_ABI_VERSION == 4, "ABI version is 4 (current v4.0.0)");
 
     // 2. Packed version
     unsigned int const packed = UFSECP_VERSION_PACKED;
@@ -110,7 +110,7 @@ int main() {
 
     // 7. ABI gate simulation: what a binding SHOULD check
     printf("\n  [Binding Gate Simulation]\n");
-    unsigned int const binding_expected_abi = 1;  // hardcoded in binding
+    unsigned int const binding_expected_abi = 4;  // current ABI version (v4.0.0)
     if (UFSECP_ABI_VERSION != binding_expected_abi) {
         printf("  *** ABI MISMATCH: library=%u, binding expects=%u ***\n",
                (unsigned)UFSECP_ABI_VERSION, binding_expected_abi);

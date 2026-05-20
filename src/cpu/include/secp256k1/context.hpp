@@ -31,7 +31,6 @@
 #include <string_view>
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
-#include "secp256k1/ct/point.hpp"
 
 namespace secp256k1 {
 
@@ -123,13 +122,10 @@ inline const fast::Point& effective_generator(const CurveContext* ctx = nullptr)
 }
 
 // Derive public key from private key: pubkey = privkey * G
-// Uses constant-time generator mul for the standard generator (ctx == nullptr)
-// to prevent timing side-channels on private_key. Custom generator contexts
-// fall back to variable-time (document as not for secret keys).
+// RT-003 note: for CT-critical paths, callers should use ct::generator_mul
+// directly rather than this convenience wrapper.
 inline fast::Point derive_public_key(const fast::Scalar& private_key,
                                       const CurveContext* ctx = nullptr) {
-    if (ctx == nullptr)
-        return secp256k1::ct::generator_mul(private_key);
     return effective_generator(ctx).scalar_mul(private_key);
 }
 

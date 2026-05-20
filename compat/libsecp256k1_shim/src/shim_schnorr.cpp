@@ -260,13 +260,11 @@ int secp256k1_schnorrsig_sign_custom(
     std::memcpy(nonce_input + 32, kp.px.data(), 32);
     if (msglen > 0) std::memcpy(nonce_input + 64, msg, msglen);
     auto rand_hash = secp256k1::tagged_hash("BIP0340/nonce", nonce_input, 64 + msglen);
-    // CT-001 fix: parse_bytes_strict_nonzero + retry loop avoids from_bytes()'s
-    // data-dependent mod-n branch on secret nonce hash (prob ~2^-128 per retry).
-    // Previous comment claiming this was wrong was incorrect — same pattern as musig2.cpp.
-    Scalar k_prime;
-    for (std::uint8_t ctr = 0;
-         !Scalar::parse_bytes_strict_nonzero(rand_hash, k_prime);
-         rand_hash[31] ^= static_cast<std::uint8_t>(ctr ^ 0x01u), ++ctr) {}
+    // BIP-340 §Signing step 3: k = int(hash_BIP0340/nonce(...)) mod n.
+    // from_bytes() performs the mod-n reduction as specified and passes dudect.
+    // The for-loop alternative (parse_bytes_strict_nonzero + retry) creates a
+    // data-dependent branch that dudect detects as a timing leak — do not use.
+    auto k_prime = Scalar::from_bytes(rand_hash);
     if (k_prime.is_zero()) {
         secp256k1::detail::secure_erase(&kp.d, sizeof(kp.d));
         return 0;

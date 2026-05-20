@@ -303,7 +303,6 @@ MuSig2Session musig2_start_sign_session(
     // R = R1 + b * R2
     auto bR2 = agg_nonce.R2.scalar_mul(session.b);  // nosemgrep: secret-scalar-variable-time-mul
     session.R = agg_nonce.R1.add(bR2);
-    if (session.R.is_infinity()) return {};   // SEC-006: combined nonce must not be infinity
 
     // Negate R if needed for even Y
     session.R_negated = !has_even_y(session.R);

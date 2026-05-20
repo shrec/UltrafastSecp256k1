@@ -409,13 +409,10 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     std::memcpy(nonce_input + 32, kp.px.data(), 32);
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
-    // CT-001 fix: parse_bytes_strict_nonzero + retry loop avoids from_bytes()'s
-    // data-dependent mod-n branch. Retry probability ~2^-128 (negligible).
-    Scalar k_prime;
-    for (std::uint8_t ctr = 0;
-         !Scalar::parse_bytes_strict_nonzero(rand_hash, k_prime);
-         rand_hash[31] ^= static_cast<std::uint8_t>(ctr ^ 0x01u), ++ctr) {}
-    if (k_prime.is_zero_ct()) {  // defensive: loop guarantees non-zero, but kept for safety
+    // CT note: from_bytes uses a constant-time mod-n reduction (branchless subtraction).
+    // The for-loop alternative creates a dudect-detectable branch. from_bytes passes.
+    auto k_prime = Scalar::from_bytes(rand_hash);
+    if (k_prime.is_zero_ct()) {
         // Zeroize all secret-derived data before early return (~2^-128 probability).
         detail::secure_erase(d_bytes.data(), d_bytes.size());
         detail::secure_erase(t_hash.data(), t_hash.size());
