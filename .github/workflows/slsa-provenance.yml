@@ -70,11 +70,19 @@ jobs:
           echo "hashes=$HASHES" >> "$GITHUB_OUTPUT"
 
       - name: Upload build output
+        id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ufsecp-linux-x64
           path: ufsecp-linux-x64.tar.gz
           retention-days: 30
+
+      # GitHub-native build provenance attestation — detected by Scorecard Signed-Releases
+      # (satisfies SLSA L2 provenance; Scorecard checks GitHub Attestations API).
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@c074443f1a9dfb9ae0aef112b4b33a6e7cf40acb # v2.1.0
+        with:
+          subject-path: ufsecp-linux-x64.tar.gz
 
   provenance:
     name: SLSA Provenance

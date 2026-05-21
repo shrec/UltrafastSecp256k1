@@ -1,6 +1,12 @@
 name: OpenSSF Scorecard
 
 on:
+  # Run weekly so securityscorecards.dev stays current.
+  schedule:
+    - cron: '30 1 * * 1'  # Monday 01:30 UTC
+  # Run on push to main (release cuts) so the score reflects current state.
+  push:
+    branches: ['main']
   workflow_dispatch:
 
 permissions: read-all
