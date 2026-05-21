@@ -352,6 +352,15 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "Covered by test_exploit_bitcoin_message_signing (exercises message_signing.cpp "
         "verify_message/recover_signer paths) and test_regression_ct_ops (ECDSA operations).",
     ),
+    "9a9eccb18e": (
+        ["audit/test_regression_shim_null_callback.cpp"],
+        "refactor: consolidate duplicate static helpers (pubkey_data_to_point, "
+        "point_to_pubkey_data) from shim_ecdsa.cpp, shim_pubkey.cpp, shim_extrakeys.cpp, "
+        "shim_recovery.cpp into shim_pubkey_helpers.hpp. Pure refactor — no behavioral "
+        "change, no new API surface. All four functions are exercised by "
+        "test_regression_shim_null_callback (SNC-4: pubkey_negate calls pubkey_data_to_point) "
+        "and by the existing shim differential tests.",
+    ),
     "626a372430": (
         ["audit/test_exploit_shim_musig_ka_cap.cpp",
          "audit/test_exploit_shim_musig_secnonce.cpp"],

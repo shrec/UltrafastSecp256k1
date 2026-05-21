@@ -70,29 +70,50 @@ struct ShimSchnorrCache {
         return nullptr;
     }
 
-    // Returns non-null only on second+ encounter (tables built).
-    // First encounter: records fingerprint + x_bytes (~40 bytes written), returns nullptr.
-    const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
-        std::size_t idx; std::uint64_t fp;
-        hash32(data, idx, fp);
+    // Build GLV tables on FIRST encounter — no two-phase warmup.
+    // Returns the prebuilt SchnorrXonlyPubkey immediately on first call.
+    // PERF-001: old two-phase ("fingerprint only on first encounter, tables on
+    // second") saved nothing for unique-pubkey workloads (ConnectBlock ~19K unique
+    // P2TR pubkeys): the tables were still built on every first encounter inside
+    // dual_scalar_mul_gen_point. The only effect was preventing table REUSE on the
+    // second encounter — i.e., the old design was actively anti-optimal.
+    // New design: build tables on first encounter, cache immediately, return them.
+    // The 256-slot LRU ensures max 256 × ~1.5 KB = 384 KB of GLV data in cache —
+    // fits comfortably in L2 (typically 256 KB–1 MB).
+    //
+    // PERF-OPT: takes fp/idx pre-computed by the caller (from get()) to avoid
+    // recomputing the FNV-1a hash on cache miss (get() + put() previously each
+    // called hash32, doubling the hash cost on every miss).
+    const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32],
+                                              std::size_t idx,
+                                              std::uint64_t fp) noexcept {
         Slot& s = slots[idx];
         // T-08: check full 32-byte identity, not fingerprint alone.
         bool const matches = (s.fingerprint == fp && std::memcmp(s.x_bytes, data, 32) == 0);
-        if (matches && s.seen_once && !s.valid) {
-            // NEW-PERF-001/004: schnorr_xonly_pubkey_parse builds GLV tables
-            // eagerly on first call — no two-call protocol exists. A single call
-            // suffices to populate s.epk with valid prebuilt tables.
-            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
-            return s.valid ? &s.epk : nullptr;
-        }
-        if (matches && s.valid) {
-            return &s.epk;  // already built (slot collision matched)
-        }
-        // First encounter (or slot collision): record fingerprint + full key bytes.
+        if (matches && s.valid) return &s.epk;  // warm hit (e.g. slot re-used)
+
+        // First encounter or eviction: build GLV tables immediately.
         s.fingerprint = fp;
         std::memcpy(s.x_bytes, data, 32);
         s.seen_once   = true;
-        s.valid       = false;
+        s.valid       = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
+        return s.valid ? &s.epk : nullptr;
+    }
+
+    // Convenience overload: computes hash internally (for callers without cached fp/idx).
+    const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32]) noexcept {
+        std::size_t idx; std::uint64_t fp;
+        hash32(data, idx, fp);
+        return put(data, idx, fp);
+    }
+
+    // get() variant that also returns fp/idx for reuse in put() on miss.
+    const secp256k1::SchnorrXonlyPubkey* get(const unsigned char data[32],
+                                              std::size_t& idx_out,
+                                              std::uint64_t& fp_out) const noexcept {
+        hash32(data, idx_out, fp_out);
+        const Slot& s = slots[idx_out];
+        if (s.valid && s.fingerprint == fp_out && std::memcmp(s.x_bytes, data, 32) == 0) return &s.epk;
         return nullptr;
     }
 };
@@ -383,24 +404,22 @@ int secp256k1_schnorrsig_verify(
         }
 
         // msglen == 32: use optimized paths with caching and prebuilt GLV tables.
-        // T-11: GLV table cache hit → use prebuilt tables (~1,954 ns saved vs Point path).
-        if (const secp256k1::SchnorrXonlyPubkey* cached = s_schnorr_cache.get(xb)) {
+        // PERF-OPT: compute hash once (get() returns fp/idx), pass to put() on miss.
+        // Eliminates the double FNV-1a hash that get()+put() previously caused.
+        std::size_t cache_idx; std::uint64_t cache_fp;
+        if (const secp256k1::SchnorrXonlyPubkey* cached =
+                s_schnorr_cache.get(xb, cache_idx, cache_fp)) {
             return secp256k1::schnorr_verify(*cached, msg, sig) ? 1 : 0;
         }
 
-        // Cache miss: fall through to Y-stored or lift_x path.
-        secp256k1::fast::FieldElement x_fe, y_fe;
-        if (!secp256k1::fast::FieldElement::parse_bytes_strict(xb, x_fe)) return 0;
-        if (secp256k1::fast::FieldElement::parse_bytes_strict(yb, y_fe)) {
-            auto P = secp256k1::fast::Point::from_affine(x_fe, y_fe);
-            // T-11: prime two-phase cache; on second encounter put() returns prebuilt entry.
-            if (const secp256k1::SchnorrXonlyPubkey* built = s_schnorr_cache.put(xb)) {
-                return secp256k1::schnorr_verify(*built, msg, sig) ? 1 : 0;
-            }
-            return secp256k1::schnorr_verify(P, xb, msg, sig) ? 1 : 0;
+        // Cache miss: build GLV tables immediately (PERF-001 one-phase fix).
+        // put() uses the pre-computed hash (cache_idx, cache_fp) — no re-hash.
+        if (const secp256k1::SchnorrXonlyPubkey* built =
+                s_schnorr_cache.put(xb, cache_idx, cache_fp)) {
+            return secp256k1::schnorr_verify(*built, msg, sig) ? 1 : 0;
         }
-        // Y not stored (older parse path): lift_x fallback, also prime cache.
-        s_schnorr_cache.put(xb);
+        // put() returned nullptr: x-coordinate failed schnorr_xonly_pubkey_parse
+        // (e.g. x >= p). Fall back to the raw verify path.
         return secp256k1::schnorr_verify(xb, msg, sig) ? 1 : 0;
     }
 }

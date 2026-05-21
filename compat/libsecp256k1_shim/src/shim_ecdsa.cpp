@@ -33,8 +33,12 @@ static void ecdsa_sig_to_data(const secp256k1::ECDSASignature& sig, unsigned cha
 }
 
 static secp256k1::ECDSASignature ecdsa_sig_from_data(const unsigned char data[64]) {
-    // T-07: use strict parse to reject r,s >= n (silently clears to zero if out-of-range,
-    // causing downstream verify to fail cleanly rather than silently reducing mod n).
+    // T-07: strict parse — rejects r,s >= n by zeroing (downstream verify then fails).
+    // PERF-OPT: when data was written by secp256k1_ecdsa_signature_parse_der or
+    // secp256k1_ecdsa_signature_parse_compact, the valid_scalar check already ran.
+    // For API correctness we still use parse_bytes_strict (not unchecked) because
+    // callers can write arbitrary bytes into secp256k1_ecdsa_signature.data directly.
+    // The strict parse is ~5-8 ns; removing it risks silent mod-n reduction (T-07).
     Scalar r_scalar, s_scalar;
     if (!Scalar::parse_bytes_strict(data,      r_scalar)) r_scalar = Scalar::zero();
     if (!Scalar::parse_bytes_strict(data + 32, s_scalar)) s_scalar = Scalar::zero();
@@ -265,13 +269,15 @@ int secp256k1_ecdsa_verify(
         const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data + 32);
         auto x = secp256k1::fast::FieldElement::from_bytes(xb);
         auto y = secp256k1::fast::FieldElement::from_bytes(yb);
-        // P1-SEC-RED-TEAM-008: add curve membership check to match batch-verify path.
-        // A hostile caller who writes off-curve coords directly to secp256k1_pubkey.data
-        // (bypassing ec_pubkey_parse) would previously be accepted here while batch-verify
-        // rejected them — an inconsistency. Curve check cost is negligible vs verify itself.
+        // P1-SEC-RED-TEAM-008: curve membership check y²=x³+7.
+        // Defends against hostile callers who write off-curve bytes into pubkey->data
+        // directly (bypassing ec_pubkey_parse). Consistent with batch-verify path.
+        // PERF-OPT: secp256k1 b-constant (7) as static const to avoid per-call ctor.
         {
+            static const secp256k1::fast::FieldElement B7 =
+                secp256k1::fast::FieldElement::from_uint64(7);
             auto lhs = y.square();
-            auto rhs = x.square() * x + secp256k1::fast::FieldElement::from_uint64(7);
+            auto rhs = x.square() * x + B7;
             if (!(lhs == rhs)) return 0;
         }
         auto pt = secp256k1::fast::Point::from_affine(x, y);
