@@ -5036,3 +5036,17 @@ add_test(NAME regression_nonce_candidate_erase
 set_tests_properties(regression_nonce_candidate_erase PROPERTIES TIMEOUT 60
     LABELS "audit;regression;ct;memory_safety;security;p2-ct-001;p2-ct-002;p2-ct-003;p2-ct-007")
 target_sources(unified_audit_runner PRIVATE test_regression_nonce_candidate_erase.cpp)
+
+# SHIM-A01/A02/A03/A07/A08: illegal_callback on NULL args (shim-gate only)
+add_executable(test_regression_shim_null_callback_standalone
+    test_regression_shim_null_callback.cpp)
+audit_target_defaults(test_regression_shim_null_callback_standalone)
+target_compile_definitions(test_regression_shim_null_callback_standalone PRIVATE STANDALONE_TEST)
+if(TARGET secp256k1_shim)
+    target_link_libraries(test_regression_shim_null_callback_standalone PRIVATE secp256k1_shim)
+endif()
+add_test(NAME regression_shim_null_callback
+    COMMAND test_regression_shim_null_callback_standalone)
+set_tests_properties(regression_shim_null_callback PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;shim;null_callback;shim-a01;shim-a02;shim-a03;shim-a07;shim-a08")
+target_sources(unified_audit_runner PRIVATE test_regression_shim_null_callback.cpp)

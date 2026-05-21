@@ -363,6 +363,15 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "(test_exploit_shim_musig_ka_cap and test_exploit_shim_musig_secnonce) which "
         "exercise the full partial_sig_verify, nonce_agg, and partial_sig_agg paths.",
     ),
+    "68c2aefcfa": (
+        ["audit/test_regression_shim_null_callback.cpp"],
+        "SHIM-A01/A02/A03/A07/A08: shim_ecdsa.cpp, shim_pubkey.cpp, shim_tagged_hash.cpp — "
+        "NULL argument handling now fires secp256k1_shim_call_illegal_cb instead of silently "
+        "returning 0, matching libsecp256k1 upstream ARG_CHECK behaviour. "
+        "test_regression_shim_null_callback.cpp (SNC-1..5) added in the follow-up commit "
+        "(c9c92a4a→next) and wired to unified_audit_runner as section shim_regression "
+        "(advisory=true since it requires the shim to be linked).",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.
