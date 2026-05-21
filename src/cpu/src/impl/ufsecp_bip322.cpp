@@ -117,7 +117,9 @@ ufsecp_error_t ufsecp_bip322_verify(
         // Build compact sig from first 64 bytes
         std::array<uint8_t, 64> compact64;
         std::memcpy(compact64.data(), sig, 64);
-        auto esig = secp256k1::ECDSASignature::from_compact(compact64);
+        secp256k1::ECDSASignature esig;
+        if (!secp256k1::ECDSASignature::parse_compact_strict(compact64, esig))
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "BIP-322 ECDSA sig parse failed");
         if (!esig.is_low_s()) return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "BIP-322 ECDSA high-S (non-BIP-62)");
         bool ok = secp256k1::ecdsa_verify(msg_arr, pk, esig);
         if (!ok) return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "BIP-322 ECDSA verify failed");

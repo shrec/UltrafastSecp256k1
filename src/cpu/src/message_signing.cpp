@@ -222,7 +222,7 @@ BitcoinSigDecodeResult bitcoin_sig_from_base64(const std::string& base64_str) {
     result.recid = flag & 3;
     result.compressed = (flag & 4) != 0;
 
-    result.sig = ECDSASignature::from_compact(buf + 1);
+    if (!ECDSASignature::parse_compact_strict(buf + 1, result.sig)) return result;
     result.valid = true;
     return result;
 }

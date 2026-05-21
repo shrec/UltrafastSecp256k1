@@ -188,7 +188,8 @@ bool verify_message(const CoinParams& coin, const fast::Point& pubkey,
     std::array<std::uint8_t, 64> compact{};
     std::memcpy(compact.data(), sig.r.data(), 32);
     std::memcpy(compact.data() + 32, sig.s.data(), 32);
-    auto ecdsa_sig = ECDSASignature::from_compact(compact);
+    ECDSASignature ecdsa_sig;
+    if (!ECDSASignature::parse_compact_strict(compact, ecdsa_sig)) return false;
 
 #if defined(SECP256K1_BUILD_ETHEREUM)
     if (coin.features.uses_evm || coin.default_encoding == AddressEncoding::TRON_BASE58) {
@@ -208,7 +209,8 @@ recover_signer(const CoinParams& coin,
     std::array<std::uint8_t, 64> compact{};
     std::memcpy(compact.data(), sig.r.data(), 32);
     std::memcpy(compact.data() + 32, sig.s.data(), 32);
-    auto ecdsa_sig = ECDSASignature::from_compact(compact);
+    ECDSASignature ecdsa_sig;
+    if (!ECDSASignature::parse_compact_strict(compact, ecdsa_sig)) return {{}, false};
 
 #if defined(SECP256K1_BUILD_ETHEREUM)
     if (coin.features.uses_evm || coin.default_encoding == AddressEncoding::TRON_BASE58) {

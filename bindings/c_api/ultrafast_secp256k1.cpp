@@ -272,7 +272,8 @@ int secp256k1_ecdsa_verify(const uint8_t msg_hash[32], const uint8_t sig[64],
 
     std::array<uint8_t, 64> compact;
     std::memcpy(compact.data(), sig, 64);
-    auto ecdsasig = secp256k1::ECDSASignature::from_compact(compact);
+    secp256k1::ECDSASignature ecdsasig;
+    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) return 0;
 
     auto pk = point_from_compressed(pubkey);
     return secp256k1::ecdsa_verify(msg, pk, ecdsasig) ? 1 : 0;
@@ -282,7 +283,8 @@ int secp256k1_ecdsa_signature_serialize_der(const uint8_t sig[64],
                                             uint8_t* der_out, size_t* der_len) {
     std::array<uint8_t, 64> compact;
     std::memcpy(compact.data(), sig, 64);
-    auto ecdsasig = secp256k1::ECDSASignature::from_compact(compact);
+    secp256k1::ECDSASignature ecdsasig;
+    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) return 1;
 
     auto [der, actual_len] = ecdsasig.to_der();
     if (*der_len < actual_len) return 1;
@@ -323,7 +325,8 @@ int secp256k1_ecdsa_recover(const uint8_t msg_hash[32], const uint8_t sig[64],
 
     std::array<uint8_t, 64> compact;
     std::memcpy(compact.data(), sig, 64);
-    auto ecdsasig = secp256k1::ECDSASignature::from_compact(compact);
+    secp256k1::ECDSASignature ecdsasig;
+    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, ecdsasig)) return 1;
 
     auto [point, ok] = secp256k1::ecdsa_recover(msg, ecdsasig, recid);
     if (!ok) return 1;

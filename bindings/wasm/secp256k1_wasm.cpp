@@ -133,7 +133,8 @@ int secp256k1_wasm_ecdsa_verify(const uint8_t* msg32,
 
     std::array<std::uint8_t, 64> compact;
     std::memcpy(compact.data(), sig64, 64);
-    auto sig = secp256k1::ECDSASignature::from_compact(compact);
+    secp256k1::ECDSASignature sig;
+    if (!secp256k1::ECDSASignature::parse_compact_strict(compact, sig)) return 0;
 
     return secp256k1::ecdsa_verify(msg, P, sig) ? 1 : 0;
 }
