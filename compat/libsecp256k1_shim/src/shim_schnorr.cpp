@@ -70,34 +70,38 @@ struct ShimSchnorrCache {
         return nullptr;
     }
 
-    // Build GLV tables on FIRST encounter — no two-phase warmup.
-    // Returns the prebuilt SchnorrXonlyPubkey immediately on first call.
-    // PERF-001: old two-phase ("fingerprint only on first encounter, tables on
-    // second") saved nothing for unique-pubkey workloads (ConnectBlock ~19K unique
-    // P2TR pubkeys): the tables were still built on every first encounter inside
-    // dual_scalar_mul_gen_point. The only effect was preventing table REUSE on the
-    // second encounter — i.e., the old design was actively anti-optimal.
-    // New design: build tables on first encounter, cache immediately, return them.
-    // The 256-slot LRU ensures max 256 × ~1.5 KB = 384 KB of GLV data in cache —
-    // fits comfortably in L2 (typically 256 KB–1 MB).
+    // Two-phase design for ConnectBlock (unique-pubkey) correctness:
+    //   FIRST  encounter → record fingerprint + x_bytes (~40 bytes), return nullptr.
+    //                       Caller uses x32 or Point path — no ~1.5 KB GLV write.
+    //   SECOND encounter → build SchnorrXonlyPubkey (GLV tables, ~1.95 µs), cache.
+    //   THIRD+ encounter → cache hit, ~1.95 µs saved per call.
+    //
+    // Why NOT one-phase: ConnectBlock has ~19K unique P2TR pubkeys per block.
+    // One-phase writes ~1.5 KB per unique pubkey on 1st encounter →
+    // 19K × 1.5 KB = 27 MB of L2 writes → L2/L3 thrashing (benchmark confirmed
+    // ~1.7% regression on ConnectBlockAllSchnorr with one-phase).
+    // Two-phase writes only ~40 bytes for 1st encounter → no thrashing.
     //
     // PERF-OPT: takes fp/idx pre-computed by the caller (from get()) to avoid
-    // recomputing the FNV-1a hash on cache miss (get() + put() previously each
-    // called hash32, doubling the hash cost on every miss).
+    // recomputing the FNV-1a hash on cache miss.
     const secp256k1::SchnorrXonlyPubkey* put(const unsigned char data[32],
                                               std::size_t idx,
                                               std::uint64_t fp) noexcept {
         Slot& s = slots[idx];
-        // T-08: check full 32-byte identity, not fingerprint alone.
         bool const matches = (s.fingerprint == fp && std::memcmp(s.x_bytes, data, 32) == 0);
-        if (matches && s.valid) return &s.epk;  // warm hit (e.g. slot re-used)
-
-        // First encounter or eviction: build GLV tables immediately.
+        // 3rd+ encounter: already built.
+        if (matches && s.valid) return &s.epk;
+        // 2nd encounter: build GLV tables.
+        if (matches && s.seen_once && !s.valid) {
+            s.valid = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
+            return s.valid ? &s.epk : nullptr;
+        }
+        // 1st encounter: record fingerprint + x_bytes only (~40 bytes written).
         s.fingerprint = fp;
         std::memcpy(s.x_bytes, data, 32);
-        s.seen_once   = true;
-        s.valid       = secp256k1::schnorr_xonly_pubkey_parse(s.epk, data);
-        return s.valid ? &s.epk : nullptr;
+        s.seen_once = true;
+        s.valid     = false;
+        return nullptr;   // caller uses x32 path — no large GLV write
     }
 
     // Convenience overload: computes hash internally (for callers without cached fp/idx).

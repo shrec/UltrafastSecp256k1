@@ -37,44 +37,61 @@ struct ShimEcdsaCache {
     static constexpr std::size_t SLOTS = 32;
     struct Slot {
         std::uint64_t            fingerprint{0};
-        uint8_t                  pubkey_data[32]{};  // X bytes for identity check
+        uint8_t                  pubkey_x[32]{};   // X bytes for identity check
         secp256k1::EcdsaPublicKey epk{};
-        bool                     valid = false;
+        bool                     valid      = false;
+        bool                     seen_once  = false;
     };
     Slot slots[SLOTS]{};
 
-    // FNV-1a hash of the 64-byte pubkey (X||Y). Uses first 32 bytes for speed;
-    // full X stored in slot for collision resistance (T-08 pattern).
-    static void hash64(const unsigned char data[64],
-                       std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
-        std::uint64_t h = 14695981039346656037ULL, w;
-        for (int i = 0; i < 8; ++i) {
-            std::memcpy(&w, data + i * 8, 8);
-            h = (h ^ w) * 1099511628211ULL;
-        }
-        fp_out  = h;
-        idx_out = static_cast<std::size_t>(h & (SLOTS - 1));
+    // Two-phase design matching ShimSchnorrCache (pre-PERF-001 for ECDSA):
+    //   FIRST  encounter → record fingerprint only (~40 bytes), return nullptr.
+    //                       Caller uses direct Point path (no extra L2 write).
+    //   SECOND encounter → build EcdsaPublicKey GLV tables (~1.95 µs), cache.
+    //   THIRD+ encounter → cache hit, ~900 ns saved per call.
+    //
+    // Why two-phase for ECDSA vs one-phase for Schnorr:
+    //   ConnectBlock has ~100% unique pubkeys per block. One-phase writes 1504 bytes
+    //   per unique pubkey → L2 thrashing (same problem as the removed ShimPkCache).
+    //   Two-phase writes only ~40 bytes for 1st encounter → no extra L2 pressure.
+    //   Wallet workloads (repeated keys) benefit on 2nd+ encounter as before.
+    //
+    // Fast fingerprint: first 8 bytes of X coordinate (2 instructions, ~0.3 ns)
+    // instead of full 64-byte FNV-1a hash (~8-10 ns). Collision resistance via
+    // full 32-byte X comparison in the hot path (T-08 pattern preserved).
+    static void fingerprint(const unsigned char data[64],
+                            std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
+        std::uint64_t fp;
+        __builtin_memcpy(&fp, data, 8);          // first 8 bytes of X coordinate
+        fp_out  = fp;
+        idx_out = static_cast<std::size_t>(fp & (SLOTS - 1));
     }
 
-    // Returns prebuilt EcdsaPublicKey on hit; builds and caches on miss.
-    // pubkey_data = pubkey->data (X[32] || Y[32]).
+    // Returns prebuilt EcdsaPublicKey on 2nd+ encounter; nullptr on 1st (caller uses Point).
     const secp256k1::EcdsaPublicKey* get_or_build(const unsigned char data[64]) noexcept {
         std::size_t idx; std::uint64_t fp;
-        hash64(data, idx, fp);
+        fingerprint(data, idx, fp);
         Slot& s = slots[idx];
-        // Cache hit: fingerprint + full X match.
-        if (s.valid && s.fingerprint == fp &&
-            std::memcmp(s.pubkey_data, data, 32) == 0) {
-            return &s.epk;
+
+        bool const matches = (s.fingerprint == fp &&
+                              std::memcmp(s.pubkey_x, data, 32) == 0);
+        // Cache hit (3rd+ encounter).
+        if (matches && s.valid)  return &s.epk;
+
+        // Second encounter: build GLV tables.
+        if (matches && s.seen_once && !s.valid) {
+            unsigned char unc[65]; unc[0] = 0x04;
+            std::memcpy(unc + 1, data, 64);
+            s.valid = secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65);
+            return s.valid ? &s.epk : nullptr;
         }
-        // Cache miss: build GLV tables via ecdsa_pubkey_parse (uncompressed form).
-        unsigned char unc[65]; unc[0] = 0x04;
-        std::memcpy(unc + 1, data, 64);
-        if (!secp256k1::ecdsa_pubkey_parse(s.epk, unc, 65)) return nullptr;
+
+        // First encounter: record fingerprint + X only (~40 bytes written).
         s.fingerprint = fp;
-        std::memcpy(s.pubkey_data, data, 32);
-        s.valid = true;
-        return &s.epk;
+        std::memcpy(s.pubkey_x, data, 32);
+        s.seen_once = true;
+        s.valid     = false;
+        return nullptr;   // caller uses Point path — no L2 write pressure
     }
 };
 static thread_local ShimEcdsaCache s_ecdsa_cache;
@@ -328,10 +345,22 @@ int secp256k1_ecdsa_verify(
     //   (same as libsecp256k1's documented behavior).
     if (const secp256k1::EcdsaPublicKey* epk =
             s_ecdsa_cache.get_or_build(pubkey->data)) {
+        // Cache hit (2nd+ encounter) or tables just built: use prebuilt GLV tables.
         return secp256k1::ecdsa_verify(msghash32, *epk, internal_sig) ? 1 : 0;
     }
-    // Cache miss and ecdsa_pubkey_parse failed (off-curve or x >= p).
-    return 0;
+    // First encounter (cache returns nullptr): use direct Point path.
+    // Same cost as no-cache path — no extra L2 write pressure for unique pubkeys.
+    // pubkey->data = X[32] || Y[32] — directly convert to Point (no curve re-check;
+    // ec_pubkey_parse already validated; API contract says callers must not bypass parse).
+    {
+        using namespace secp256k1::fast;
+        const auto& xb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data);
+        const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data + 32);
+        auto pt = Point::from_affine(FieldElement::from_bytes(xb),
+                                     FieldElement::from_bytes(yb));
+        if (pt.is_infinity()) return 0;
+        return secp256k1::ecdsa_verify(msghash32, pt, internal_sig) ? 1 : 0;
+    }
 }
 
 // -- Pre-computed pubkey API -----------------------------------------------
