@@ -614,6 +614,11 @@ int test_regression_adaptor_degenerate_v7_run();          // 2026-05-13 v7: T-09
 int test_regression_shim_security_v8_run();               // advisory=true: shim must be linked
 
 // ============================================================================
+// Forward declarations -- 2026-05-21 shim security edge cases
+// ============================================================================
+int test_shim_security_edge_cases_run(); // SHIM-003/004/006/008, SEC-003, PERF-003
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -1250,6 +1255,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_ct_ops", "SEC-002/007/008/010,CT-004/005: FROST lagrange CT, batch weight non-zero, adaptor fail-closed, bip32 strict nonzero, musig2 blinded nonce, ecdsa_sign_verified direct ct:: call", "ct_analysis", test_regression_ct_ops_run, false },
     // === 2026-05-21 SEC-006 ===
     { "regression_bip324_privkey_lifetime", "SEC-006: Bip324Session privkey_ raw-byte window documented; complete_handshake erases after use (full store-Scalar fix tracked SEC-006)", "memory_safety", test_regression_bip324_privkey_lifetime_run, false },
+    // === 2026-05-21 SHIM-003/004/006/008, SEC-003, PERF-003 ===
+    // advisory=true: depends on libsecp256k1 shim being linked (stub returns ADVISORY_SKIP_CODE when absent).
+    { "shim_security_edge_cases", "SHIM-003/004/006/008+SEC-003+PERF-003: NULL msg msglen==0 allowed, context_clone callback, batch msglen illegal, ellswift_xdh NULL hashfp, deprecated from_compact, small-batch raw ptr", "exploit_poc", test_shim_security_edge_cases_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

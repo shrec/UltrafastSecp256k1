@@ -148,8 +148,10 @@ static void test_shim003_null_msg_zero_msglen_no_callback() {
     int rc = secp256k1_schnorrsig_verify(ctx, sig64, nullptr, 0, &pubkey);
     int after = g_illegal_called;
 
-    CHECK_EQ(after - before, 0, "SHIM-003: NULL msg + msglen==0 must not fire illegal callback");
-    CHECK_EQ(rc, 0, "SHIM-003: NULL msg + msglen==0 must return 0 (sig is invalid anyway)");
+    // after - before == 0: zero callbacks fired — correct for NULL msg + msglen==0 (allowed by libsecp).
+    CHECK_EQ(after - before, 0, "SHIM-003: illegal callback count delta == 0 (no callback fired for NULL msg + msglen==0)");
+    // rc == 0: secp256k1_schnorrsig_verify returns 0 for INVALID sig — correct (random sig won't verify).
+    CHECK_EQ(rc, 0, "SHIM-003: schnorrsig_verify returns 0 for invalid sig (expected reject code)");
 
     secp256k1_context_destroy(ctx);
 }

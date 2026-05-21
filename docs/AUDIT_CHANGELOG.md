@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-05-21 — Fix: BIP-324 privkey_ lifetime, from_compact deprecation, shim illegal callbacks (SEC-003/006, SHIM-003/004/006/008, PERF-003)
+
+- **bip324.cpp (SEC-006):** Added `SEC-006` markers to both `Bip324Session` constructors documenting the raw-byte lifetime window. `privkey_` raw bytes persist from constructor until `complete_handshake()` erases them. Full fix (store Scalar member, erase immediately after `ellswift_create`) tracked as future work. `complete_handshake()` already proactively erases `privkey_` on success and erases `sk` on all exit paths.
+- **ecdsa.hpp + ecdsa.cpp (SEC-003):** `ECDSASignature::from_compact()` marked `[[deprecated]]` in both header and definition, directing callers to `parse_compact_strict()`. Existing callers continue to compile with a deprecation warning; no behavioral change.
+- **shim_schnorr.cpp (SHIM-003):** `secp256k1_schnorrsig_verify` NULL msg guard changed from `if (!msg)` to `if (!msg && msglen > 0)` — matches upstream libsecp256k1 which allows NULL msg when msglen==0 (zero-length message is valid BIP-340). NULL msg with msglen>0 still fires the illegal callback.
+- **shim_context.cpp (SHIM-004):** `secp256k1_context_clone(NULL)` now calls `secp256k1_shim_call_illegal_cb(nullptr, ...)` instead of `std::abort()` directly, allowing fuzz harnesses with no-op callbacks to survive NULL context calls.
+- **shim_batch_verify.cpp (SHIM-006):** `secp256k1_schnorrsig_verify_batch` with `msglen != 32` now fires the illegal callback before returning 0 (was a silent return 0).
+- **shim_ellswift.cpp (SHIM-008):** `secp256k1_ellswift_xdh` with `hashfp == NULL` now fires the illegal callback before returning 0 (was a silent return 0).
+- **shim_batch_verify.cpp (PERF-003):** Small-batch Schnorr fallback (n < 8) now uses `SchnorrSignature::parse_strict(sigs64[i], sig)` raw-pointer overload and `schnorr_verify(pubkeys[i]->data, msgs[i], sig)` directly — eliminates three 32/64-byte stack zero-init+memcpy operations per signature.
+- **docs/SHIM_KNOWN_DIVERGENCES.md:** Updated SHIM-003 entry to reflect the fix (NULL msg allowed when msglen==0).
+- **audit/test_regression_bip324_privkey_lifetime.cpp (NEW):** Regression coverage for SEC-006 risk window (PKL-1..PKL-7). Module `regression_bip324_privkey_lifetime`, section `memory_safety`, advisory=false.
+- **compat/libsecp256k1_shim/tests/test_shim_security_edge_cases.cpp (NEW):** SEC-003/SHIM-003/004/006/008/PERF-003 edge case tests. Module `shim_security_edge_cases`, section `exploit_poc`, advisory=true (shim required).
+
 ## 2026-05-21 — Fix: P1/P2 CT boundary and security hardening (SEC-002/007/008/010, CT-004/005)
 
 - **frost.cpp (SEC-002/CT-002):** `frost_lagrange_coefficient_from_commitments` num/den accumulation loop replaced `fast::operator*` with `ct::scalar_mul` / `ct::scalar_sub` — removes VT multiplication on secret-adjacent Lagrange path.

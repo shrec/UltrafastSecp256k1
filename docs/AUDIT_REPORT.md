@@ -66,7 +66,7 @@ PRNG seeds, and exact check counts are preserved for independent reproduction.
 |--------|---------------------|---------|
 | Total checks | 641,194 | ~1,000,000+ |
 | Audit modules | 8 suites | 371 modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
-| Exploit PoC tests | — | 263 exploit PoC modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
+| Exploit PoC tests | — | 264 exploit-PoC modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
 | Formal Cryptol properties | — | 39 properties (39/39 pass) |
 | Failures | 0 | 0 |
 | Verdict | ALL PASSED | AUDIT-READY |

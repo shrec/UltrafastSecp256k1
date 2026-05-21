@@ -4827,3 +4827,45 @@ add_test(NAME regression_musig2_abi_signer_index
     COMMAND test_regression_musig2_abi_signer_index_standalone)
 set_tests_properties(regression_musig2_abi_signer_index PROPERTIES TIMEOUT 60
     LABELS "audit;regression;musig2;abi;security;sec-001")
+
+# 2026-05-21 CT ops regression: CT-004/005, SEC-002/007/008
+# Uses C++ API only (no shim/GPU dependency). advisory=false.
+add_executable(test_regression_ct_ops_standalone
+    test_regression_ct_ops.cpp)
+audit_target_defaults(test_regression_ct_ops_standalone)
+target_compile_definitions(test_regression_ct_ops_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ct_ops
+    COMMAND test_regression_ct_ops_standalone)
+set_tests_properties(regression_ct_ops PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;ct;security;sec-002;sec-007;sec-008;ct-004;ct-005")
+target_sources(unified_audit_runner PRIVATE test_regression_ct_ops.cpp)
+
+# SEC-006: BIP-324 privkey_ raw-byte lifetime window (SEC-006)
+# Uses C++ API (Bip324Session) only — no shim/GPU dependency. advisory=false.
+add_executable(test_regression_bip324_privkey_lifetime_standalone
+    test_regression_bip324_privkey_lifetime.cpp)
+audit_target_defaults(test_regression_bip324_privkey_lifetime_standalone)
+target_compile_definitions(test_regression_bip324_privkey_lifetime_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_bip324_privkey_lifetime
+    COMMAND test_regression_bip324_privkey_lifetime_standalone)
+set_tests_properties(regression_bip324_privkey_lifetime PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;bip324;memory_safety;sec-006")
+target_sources(unified_audit_runner PRIVATE test_regression_bip324_privkey_lifetime.cpp)
+
+# SHIM-003/004/006/008, SEC-003, PERF-003: shim security edge cases
+# Requires secp256k1_shim. advisory=true in unified runner (stub returns 77 when shim absent).
+if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
+    add_executable(test_shim_security_edge_cases_standalone
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_security_edge_cases.cpp)
+    target_link_libraries(test_shim_security_edge_cases_standalone PRIVATE fastsecp256k1)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_shim_security_edge_cases_standalone PRIVATE secp256k1_shim)
+    endif()
+    target_include_directories(test_shim_security_edge_cases_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    add_test(NAME shim_security_edge_cases
+        COMMAND test_shim_security_edge_cases_standalone)
+    set_tests_properties(shim_security_edge_cases PROPERTIES TIMEOUT 30
+        SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;security;sec-003;shim-003;shim-004;shim-006;shim-008;perf-003")
+endif()
