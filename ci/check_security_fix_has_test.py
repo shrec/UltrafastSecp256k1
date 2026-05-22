@@ -352,6 +352,25 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "Covered by test_exploit_bitcoin_message_signing (exercises message_signing.cpp "
         "verify_message/recover_signer paths) and test_regression_ct_ops (ECDSA operations).",
     ),
+    "13eeef7e83": (
+        ["audit/test_parse_strictness.cpp",
+         "audit/test_regression_shim_security_v8.cpp"],
+        "perf(cache): two-phase ShimSchnorrCache + ShimEcdsaCache — reverted one-phase "
+        "to avoid L2 thrashing on ConnectBlock unique-pubkey workloads. Touches shim_ecdsa.cpp "
+        "and shim_schnorr.cpp (cache policy change). Covered by PS-EC-02/03 cache correctness "
+        "tests in test_parse_strictness.cpp (verify same pubkey on miss and hit paths) and "
+        "shim_security_v8 (ShimEcdsaCache roundtrip). Pure performance policy change — no "
+        "new signing surface, no behavioral change to verify results.",
+    ),
+    "4a67f9c088": (
+        ["audit/test_parse_strictness.cpp"],
+        "perf(schnorr): eliminate dead FieldElement in SchnorrSignature::parse_strict "
+        "(src/cpu/src/schnorr.cpp). Replaced FieldElement::parse_bytes_strict(r_fe) with "
+        "parse_and_check_lt_p helper — same r < p validation, avoids constructing a "
+        "FieldElement that is immediately discarded. Pure optimization — parse semantics "
+        "unchanged. Covered by test_parse_strictness PS-30c..f which verify r=0/n/n-1 "
+        "edge cases through secp256k1_ecdsa_signature_parse_der → SchnorrSignature::parse_strict.",
+    ),
     "9a9eccb18e": (
         ["audit/test_regression_shim_null_callback.cpp"],
         "refactor: consolidate duplicate static helpers (pubkey_data_to_point, "
