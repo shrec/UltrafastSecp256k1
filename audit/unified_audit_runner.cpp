@@ -666,6 +666,11 @@ int test_regression_shim_null_callback_run(); // SHIM-A01..A08: illegal_callback
 int test_regression_gpu_ecdh_extended_ct_run(); // GEC-1..7: correctness guard after VT→CT fix in extended kernels
 
 // ============================================================================
+// Forward declarations -- 2026-05-22 SHIM-013: ecdsa_verify cache consistency
+// ============================================================================
+int test_regression_ecdsa_verify_cache_consistency_run(); // CVC-1..3: 1st-encounter strict parse + curve check
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -1363,6 +1368,9 @@ static const AuditModule ALL_MODULES[] = {
     // with the constant-time bit-by-bit double-and-add loop (ct_ecdh_scalar_mul_affine /
     // ct_ecdh_scalar_mul_metal) in all three ECDH entry points: raw, xonly, and compressed.
     { "regression_gpu_ecdh_extended_ct", "P1-SEC-001: GPU extended ECDH paths use CT scalar mul — commutativity, non-zero output, zero-key rejection, determinism, key/peer sensitivity (GEC-1..7)", "ct_analysis", test_regression_gpu_ecdh_extended_ct_run, false },
+    // === 2026-05-22 SHIM-013: ecdsa_verify cache consistency ===
+    // advisory=true: depends on libsecp256k1 shim (returns 77 when absent).
+    { "regression_ecdsa_verify_cache_consistency", "SHIM-013: secp256k1_ecdsa_verify 1st-encounter direct-Point path now runs the same parse_bytes_strict + curve check (y²=x³+7) as the 2nd-encounter cache path — eliminates cache-state-dependent verify verdict for hostile callers that bypass ec_pubkey_parse (CVC-1..3: x>=p, y>=p, off-curve)", "shim_regression", test_regression_ecdsa_verify_cache_consistency_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

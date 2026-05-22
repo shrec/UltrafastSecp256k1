@@ -31,4 +31,8 @@ int test_regression_shim_ndata_rgrind_run()          { return ADVISORY_SKIP_CODE
 int test_regression_schnorr_varlen_ct_fixes_run()    { return ADVISORY_SKIP_CODE; }
 // PASS3-001/002: shim recovery parse compat + custom-noncefp illegal_callback
 int test_shim_recovery_and_noncefp_run()             { return ADVISORY_SKIP_CODE; }
+// SHIM-013: ecdsa_verify cache consistency (CVC-1..3) — real test in
+// audit/test_regression_ecdsa_verify_cache_consistency.cpp links into the
+// runner only when SECP256K1_BUILD_COMPAT_SHIM is defined.
+int test_regression_ecdsa_verify_cache_consistency_run() { return ADVISORY_SKIP_CODE; }
 // test_regression_p2_ct_shim_fixes_run is always provided by test_regression_p2_ct_shim_fixes.cpp

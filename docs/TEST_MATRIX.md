@@ -104,13 +104,13 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 391 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 392 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 391 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 392 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 391 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 392 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -859,6 +859,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `exploit_frost_absent_signer_id` | `audit/test_exploit_frost_absent_signer_id.cpp` | P1-SEC-001: frost_sign returns zero partial sig when caller ID absent from nonce_commitments signing set (FSI-1..3) |
 | `regression_schnorr_sign_e_hash_erased` | `audit/test_regression_schnorr_sign_e_hash_erased.cpp` | P1-SEC-002/SEC-009: schnorr_sign erases e_hash+e intermediates; SHE-1..4: 50 sign+verify round-trips, determinism, distinct-message distinct-sig |
 | `shim_recovery_and_noncefp` | `compat/libsecp256k1_shim/tests/test_shim_recovery_and_noncefp.cpp` | PASS3-001/002: recoverable sig parse accepts r=0/s=0 (REC-1..4); ecdsa_sign/recoverable/schnorr_sign_custom fire illegal_callback for custom noncefp (NFP-1..3) |
+| `regression_ecdsa_verify_cache_consistency` | `audit/test_regression_ecdsa_verify_cache_consistency.cpp` | SHIM-013: `secp256k1_ecdsa_verify` 1st-encounter direct-Point path now runs `parse_bytes_strict` + curve-equation check matching the 2nd-encounter cache path; CVC-1..3: x>=p, y>=p, off-curve all reject deterministically across 3 repeat calls (no cache-state divergence) |
 
 ## Upstream Libsecp256k1 Parity Tests (batch 3 — v3.69+)
 

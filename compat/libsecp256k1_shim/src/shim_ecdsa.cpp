@@ -8,6 +8,8 @@
 #include <cstring>
 #include <array>
 #include <cstdint>
+#include <chrono>     // SHIM-014: thread-local cache salt fallback
+#include <random>     // SHIM-014: std::random_device for cache salt
 
 // Portable bit/memory intrinsics. MSVC does not provide the GCC/Clang
 // __builtin_* family; map them to the std::memcpy/std::memset / MSVC-specific
@@ -48,6 +50,37 @@ using namespace secp256k1::fast;
 //   - ConnectBlock unique pubkeys: pays GLV build once, evicted quickly (32 slots)
 //     → near-zero thrashing overhead vs uncached path
 namespace {
+// SHIM-014 (closed): one-time per-thread random salt for the cache slot
+// fingerprint. Without a salt, an attacker who controls a pubkey can pick
+// X-prefix bytes that collide with a victim's slot — perpetually
+// overwriting the victim's seen_once flag and preventing the victim from
+// ever reaching the cache. With a per-thread salt the slot mapping is
+// not attacker-predictable; ~2 ns extra per lookup. We use atomic_signal_fence-
+// safe std::random_device on first use; if it fails (rare on POSIX) we
+// fall back to clock + tid mixing — any non-zero salt is sufficient.
+[[gnu::const]] inline std::uint64_t shim_cache_thread_salt() noexcept {
+    static thread_local std::uint64_t salt = []() noexcept {
+        std::uint64_t seed = 0;
+        try {
+            std::random_device rd;
+            seed = (static_cast<std::uint64_t>(rd()) << 32) ^ rd();
+        } catch (...) {
+            // random_device may throw on some embedded platforms.
+            seed = 0;
+        }
+        if (seed == 0) {
+            // Defensive fallback: time + tid.
+            auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+            seed = static_cast<std::uint64_t>(now)
+                 ^ (reinterpret_cast<std::uintptr_t>(&seed) * 0x9E3779B97F4A7C15ULL);
+        }
+        // Guarantee non-zero so XOR-with-salt does not degenerate to no-op
+        // even in the (impossible-after-fallback) all-zero case.
+        return seed | 1ULL;
+    }();
+    return salt;
+}
+
 struct ShimEcdsaCache {
     static constexpr std::size_t SLOTS = 32;
     struct Slot {
@@ -74,10 +107,13 @@ struct ShimEcdsaCache {
     // Fast fingerprint: first 8 bytes of X coordinate (2 instructions, ~0.3 ns)
     // instead of full 64-byte FNV-1a hash (~8-10 ns). Collision resistance via
     // full 32-byte X comparison in the hot path (T-08 pattern preserved).
+    // SHIM-014: XOR with thread-local salt so slot mapping is not attacker-
+    // predictable. Adds ~1 ns; eliminates the slot-hijack class entirely.
     static void fingerprint(const unsigned char data[64],
                             std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
         std::uint64_t fp;
         UFSECP_SHIM_MEMCPY(&fp, data, 8);        // first 8 bytes of X coordinate
+        fp ^= shim_cache_thread_salt();          // SHIM-014: per-thread randomisation
         fp_out  = fp;
         idx_out = static_cast<std::size_t>(fp & (SLOTS - 1));
     }
@@ -349,30 +385,39 @@ int secp256k1_ecdsa_verify(
     // On hit:  ~900 ns saved vs building tables per-call (EcdsaPublicKey path).
     // On miss: build GLV tables once, cache in 32-slot thread-local (~50 KB).
     //
-    // Curve membership check (y²=x³+7) note:
-    //   Removed to match libsecp256k1 behavior. libsecp256k1::secp256k1_ecdsa_verify
-    //   trusts the opaque secp256k1_pubkey struct invariant — it assumes the pubkey
-    //   was initialized via secp256k1_ec_pubkey_parse or secp256k1_ec_pubkey_create,
-    //   both of which enforce curve membership. We adopt the same trust model.
-    //   ecdsa_pubkey_parse (called on cache miss) performs the check during
-    //   EcdsaPublicKey construction, so off-curve inputs are caught there.
-    //   Direct struct writes that bypass ec_pubkey_parse violate the API contract
-    //   (same as libsecp256k1's documented behavior).
+    // Pubkey-bytes validation (SHIM-013 fix):
+    //   The cache-hit and 2nd-encounter paths run through ecdsa_pubkey_parse(),
+    //   which enforces both `parse_bytes_strict` (x<p / y<p) AND the curve
+    //   equation y² = x³ + 7. The 1st-encounter direct-Point path below used
+    //   to skip both checks (relying on the libsecp256k1 trust contract that
+    //   secp256k1_pubkey opaque bytes only come from ec_pubkey_parse /
+    //   ec_pubkey_create). That created a cache-state-dependent verify
+    //   verdict — a hostile or buggy caller writing raw bytes into
+    //   pubkey->data could see DIFFERENT verify results on the 1st vs 2nd
+    //   call for the same key. To make the result deterministic regardless
+    //   of how callers populate the struct, both paths now enforce the same
+    //   validation. Cost: one strict parse + one field square+cube+compare
+    //   on the 1st encounter only (~30–60 ns), negligible vs a full ECDSA
+    //   verify (~17 µs). This implements the "Option A" resolution from the
+    //   2026-05-22 review (RED-002 / SHIM-013).
     if (const secp256k1::EcdsaPublicKey* epk =
             s_ecdsa_cache.get_or_build(pubkey->data)) {
         // Cache hit (2nd+ encounter) or tables just built: use prebuilt GLV tables.
         return secp256k1::ecdsa_verify(msghash32, *epk, internal_sig) ? 1 : 0;
     }
-    // First encounter (cache returns nullptr): use direct Point path.
-    // Same cost as no-cache path — no extra L2 write pressure for unique pubkeys.
-    // pubkey->data = X[32] || Y[32] — directly convert to Point (no curve re-check;
-    // ec_pubkey_parse already validated; API contract says callers must not bypass parse).
+    // First encounter (cache returns nullptr): use direct Point path WITH
+    // the same strict parse + curve check that the cache-miss path runs
+    // inside ecdsa_pubkey_parse — so 1st-encounter and 2nd-encounter agree
+    // on what they accept.
     {
         using namespace secp256k1::fast;
-        const auto& xb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data);
-        const auto& yb = *reinterpret_cast<const std::array<uint8_t,32>*>(pubkey->data + 32);
-        auto pt = Point::from_affine(FieldElement::from_bytes(xb),
-                                     FieldElement::from_bytes(yb));
+        FieldElement x_fe, y_fe;
+        if (!FieldElement::parse_bytes_strict(pubkey->data,      x_fe)) return 0;
+        if (!FieldElement::parse_bytes_strict(pubkey->data + 32, y_fe)) return 0;
+        // y² == x³ + 7 (secp256k1 curve equation).
+        const auto b7 = FieldElement::from_uint64(7);
+        if (y_fe * y_fe != x_fe * x_fe * x_fe + b7) return 0;
+        auto pt = Point::from_affine(x_fe, y_fe);
         if (pt.is_infinity()) return 0;
         return secp256k1::ecdsa_verify(msghash32, pt, internal_sig) ? 1 : 0;
     }

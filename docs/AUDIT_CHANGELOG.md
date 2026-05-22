@@ -1,5 +1,33 @@
 # Audit Changelog
 
+## 2026-05-22 — Fix: SHIM-013 ecdsa_verify cache consistency + SHIM-014 cache slot salt + TASK-010 CT zero-skip → 77
+
+- **`compat/libsecp256k1_shim/src/shim_ecdsa.cpp::secp256k1_ecdsa_verify` (SHIM-013):**
+  the 1st-encounter direct-Point path was using `FieldElement::from_bytes()` (silent
+  mod-p reduction) and skipping the curve-equation check, while the 2nd-encounter
+  cached path runs through `ecdsa_pubkey_parse` which enforces both. Result: a
+  hostile caller writing raw bytes into `secp256k1_pubkey.data` could observe a
+  cache-state-dependent verify verdict — 1st call accepts the silently-reduced
+  point, 2nd call rejects via the stricter parse. Fixed by running
+  `parse_bytes_strict` on both X and Y plus `y² == x³ + 7` directly in the
+  1st-encounter path. Cost: ~30–60 ns once per unique pubkey; deterministic
+  regardless of cache state. Test: `audit/test_regression_ecdsa_verify_cache_consistency.cpp`
+  CVC-1..3 (x ≥ p, y ≥ p, off-curve point — all reject deterministically across 3 calls).
+- **`compat/libsecp256k1_shim/src/shim_ecdsa.cpp` `ShimEcdsaCache` + `shim_schnorr.cpp`
+  `ShimSchnorrCache` (SHIM-014):** cache slot fingerprint now XOR-mixes a per-thread
+  random salt before the slot-index reduction. Without the salt an attacker who
+  controls a pubkey can pick `X[0..7]` (ECDSA) or full X (Schnorr, FNV1a) to
+  collide with a victim's slot and perpetually overwrite the victim's
+  `seen_once` flag, preventing the cache from ever helping the victim. The salt
+  is seeded once per thread from `std::random_device` (fallback: monotonic clock
+  + tid mix). Adds ~1 ns per lookup; eliminates the slot-hijack class.
+- **`audit/test_ct_sidechannel.cpp::test_ct_sidechannel_smoke_run` (TASK-010 /
+  P1-TEST-003):** if every sub-test silently skips (CV > 0.5, dudect harness
+  missing, BARRIER_FENCE unavailable, etc.) the module previously returned 0
+  (PASS) with `g_pass == g_fail == 0` — a silent false-green. Now returns 77
+  (ADVISORY_SKIP_CODE) when no assertion ran, so the unified runner records the
+  module as advisory_skipped instead of falsely passing.
+
 ## 2026-05-22 — Annotation: commit b95c843b message-vs-content drift (CI-101)
 
 - **Context:** review finding CI-101 in `workingdocs/FINAL_AGGREGATED_REVIEW_2026-05-22.md`

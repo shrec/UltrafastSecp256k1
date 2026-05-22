@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
+#include <chrono>     // SHIM-014: thread-local cache salt fallback
+#include <random>     // SHIM-014: std::random_device for cache salt
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
@@ -47,9 +49,33 @@ struct ShimSchnorrCache {
     };
     Slot slots[SLOTS]{};
 
+    // SHIM-014: see shim_ecdsa.cpp's shim_cache_thread_salt() block for the
+    // full rationale. Schnorr's 256-slot FNV cache needs the same per-thread
+    // salt so the slot mapping is not attacker-predictable (otherwise a single
+    // attacker pubkey whose FNV1a maps to a victim's slot can perpetually
+    // keep the victim's seen_once flag overwritten, preventing cache hits).
+    static std::uint64_t thread_salt() noexcept {
+        static thread_local std::uint64_t salt = []() noexcept {
+            std::uint64_t seed = 0;
+            try {
+                std::random_device rd;
+                seed = (static_cast<std::uint64_t>(rd()) << 32) ^ rd();
+            } catch (...) {
+                seed = 0;
+            }
+            if (seed == 0) {
+                auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+                seed = static_cast<std::uint64_t>(now)
+                     ^ (reinterpret_cast<std::uintptr_t>(&seed) * 0x9E3779B97F4A7C15ULL);
+            }
+            return seed | 1ULL;
+        }();
+        return salt;
+    }
+
     static void hash32(const unsigned char data[32],
                        std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
-        std::uint64_t h = 14695981039346656037ULL, w;
+        std::uint64_t h = 14695981039346656037ULL ^ thread_salt(), w;
         for (int i = 0; i < 4; ++i) {
             // std::memcpy compiles to the same MOV on every supported toolchain
             // (GCC/Clang/MSVC); __builtin_memcpy is GCC/Clang-only and breaks

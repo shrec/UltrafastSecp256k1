@@ -1711,6 +1711,19 @@ int test_ct_sidechannel_smoke_run() {
     test_protocol_timing();
     test_assembly_info();
     printf("  [ct_sidechannel_smoke] %d passed, %d failed\n", g_pass, g_fail);
+    // TASK-010 / P1-TEST-003: when every sub-test silently skips (CV too noisy,
+    // dudect harness unavailable, BARRIER_FENCE missing, etc.), g_pass and
+    // g_fail can both be zero — the module returns 0 (PASS) without ever
+    // having checked anything. That is the silent-false-green pattern Rule 16
+    // exists to prevent. Treat "no assertions executed" as advisory-skip (77)
+    // so the unified runner records the module as advisory_skipped instead
+    // of falsely passing.
+    if (g_pass == 0 && g_fail == 0) {
+        printf("  [ct_sidechannel_smoke] no assertions executed — every sub-test silently skipped; advisory-skip\n");
+        return 77;  // ADVISORY_SKIP_CODE; defined locally rather than via
+                    // header to keep this file standalone-buildable without
+                    // the unified-runner advisory_skip.hpp include path.
+    }
     return g_fail > 0 ? 1 : 0;
 }
 

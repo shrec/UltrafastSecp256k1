@@ -4980,6 +4980,29 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
         LABELS "audit;regression;shim;security;sec-003;shim-003;shim-004;shim-006;shim-008;perf-003")
 endif()
 
+# SHIM-013: ecdsa_verify 1st-encounter cache consistency. Standalone CTest
+# target only — same architecture pattern as test_shim_recovery_and_noncefp
+# below (advisory=true in the unified runner via shim_run_stubs_unified.cpp;
+# the real test exercises the shim ABI here when SECP256K1_BUILD_SHIM=ON).
+if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
+    add_executable(test_regression_ecdsa_verify_cache_consistency_standalone
+        test_regression_ecdsa_verify_cache_consistency.cpp)
+    audit_target_defaults(test_regression_ecdsa_verify_cache_consistency_standalone)
+    target_link_libraries(test_regression_ecdsa_verify_cache_consistency_standalone PRIVATE fastsecp256k1)
+    if(TARGET secp256k1_shim)
+        target_link_libraries(test_regression_ecdsa_verify_cache_consistency_standalone PRIVATE secp256k1_shim)
+    endif()
+    target_compile_definitions(test_regression_ecdsa_verify_cache_consistency_standalone PRIVATE
+        STANDALONE_TEST SECP256K1_BUILD_COMPAT_SHIM)
+    target_include_directories(test_regression_ecdsa_verify_cache_consistency_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    add_test(NAME regression_ecdsa_verify_cache_consistency
+        COMMAND test_regression_ecdsa_verify_cache_consistency_standalone)
+    set_tests_properties(regression_ecdsa_verify_cache_consistency PROPERTIES
+        TIMEOUT 30 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;security;shim-013")
+endif()
+
 # PASS3-001/002: recoverable sig parse compat + noncefp illegal callback fix.
 # Requires secp256k1_shim. advisory=true in unified runner.
 # NOTE: the .cpp is INTENTIONALLY not added to target_sources(unified_audit_runner)
