@@ -9,6 +9,21 @@
 #include <array>
 #include <cstdint>
 
+// Portable bit/memory intrinsics. MSVC does not provide the GCC/Clang
+// __builtin_* family; map them to the std::memcpy/std::memset / MSVC-specific
+// equivalents at compile time. Used by the fast DER scalar validator and the
+// cache fingerprint helpers below.
+#if defined(_MSC_VER)
+#  include <stdlib.h>   // _byteswap_uint64
+#  define UFSECP_SHIM_MEMCPY(dst, src, n)  std::memcpy((dst), (src), (n))
+#  define UFSECP_SHIM_MEMSET(dst, val, n)  std::memset((dst), (val), (n))
+#  define UFSECP_SHIM_BSWAP64(v)           _byteswap_uint64((v))
+#else
+#  define UFSECP_SHIM_MEMCPY(dst, src, n)  __builtin_memcpy((dst), (src), (n))
+#  define UFSECP_SHIM_MEMSET(dst, val, n)  __builtin_memset((dst), (val), (n))
+#  define UFSECP_SHIM_BSWAP64(v)           __builtin_bswap64((v))
+#endif
+
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/field.hpp"
@@ -62,7 +77,7 @@ struct ShimEcdsaCache {
     static void fingerprint(const unsigned char data[64],
                             std::size_t& idx_out, std::uint64_t& fp_out) noexcept {
         std::uint64_t fp;
-        __builtin_memcpy(&fp, data, 8);          // first 8 bytes of X coordinate
+        UFSECP_SHIM_MEMCPY(&fp, data, 8);        // first 8 bytes of X coordinate
         fp_out  = fp;
         idx_out = static_cast<std::size_t>(fp & (SLOTS - 1));
     }
@@ -198,8 +213,8 @@ int secp256k1_ecdsa_signature_parse_der(
             ++p; --len;                        // skip required padding byte
         }
         if (len > 32) return false;
-        __builtin_memset(out, 0, 32u - len);   // zero only the prefix
-        __builtin_memcpy(out + 32u - len, p, len);
+        UFSECP_SHIM_MEMSET(out, 0, 32u - len);   // zero only the prefix
+        UFSECP_SHIM_MEMCPY(out + 32u - len, p, len);
         p += len;
         return true;
     };
@@ -224,8 +239,8 @@ int secp256k1_ecdsa_signature_parse_der(
     // Load 32 bytes as 4 big-endian uint64_t (avoids Scalar ctor overhead).
     auto load64be = [](const unsigned char* p) noexcept -> uint64_t {
         uint64_t v;
-        __builtin_memcpy(&v, p, 8);
-        return __builtin_bswap64(v);
+        UFSECP_SHIM_MEMCPY(&v, p, 8);
+        return UFSECP_SHIM_BSWAP64(v);
     };
 
     // Returns true if the 32-byte big-endian value is in [1, n-1].

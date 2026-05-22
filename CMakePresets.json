@@ -85,7 +85,7 @@
             "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../../cmake/arm64-toolchain.cmake",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-aarch64-linux-gnu.cmake",
                 "SECP256K1_BUILD_CPU": "ON",
                 "SECP256K1_BUILD_CUDA": "OFF",
                 "SECP256K1_BUILD_OPENCL": "OFF",
@@ -100,7 +100,7 @@
             "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../../cmake/riscv64-toolchain.cmake",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-riscv64-linux-gnu.cmake",
                 "SECP256K1_BUILD_CPU": "ON",
                 "SECP256K1_BUILD_CUDA": "OFF",
                 "SECP256K1_BUILD_OPENCL": "OFF",
