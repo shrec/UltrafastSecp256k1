@@ -83,6 +83,17 @@ _RULES: list[tuple[str, str, str]] = [
      r"\d+ independent \(LLVM ct-verif.*?ARM64 native\)",
      "{ct_pipeline_count} independent (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native)"),
 
+    # README.md line ~48: "395-module unified runner with 270 exploit PoC tests"
+    # Note: "unified runner" (no underscore) differs from RUNNER_MODULE_COUNT_RE
+    # which requires "unified_audit_runner".
+    ("README.md",
+     r"\d{3,}-module unified runner",
+     "{total_modules}-module unified runner"),
+
+    ("README.md",
+     r"\d{3,} exploit PoC tests\b",
+     "{exploit_poc_count} exploit PoC tests"),
+
     # ── docs/WHY_ULTRAFASTSECP256K1.md ────────────────────────────────────
     # Table row: exploit PoC column (line ~54) — actual text uses "| N wired, 0 failures"
     ("docs/WHY_ULTRAFASTSECP256K1.md",
@@ -128,20 +139,22 @@ _RULES: list[tuple[str, str, str]] = [
      r"(CI Workflows\s+\|)\s*\d+ GitHub Actions workflows",
      r"\g<1> {ci_workflow_count} GitHub Actions workflows"),
 
-    # Summary table: "Audit Modules" row
+    # Summary table: "Audit Modules" row (non-exploit module count)
+    # NOTE: sync_module_count.py SUMMARY_NONEXPLOIT_RE also covers this line
+    # via "| Audit Modules | N (non-exploit modules) |" — keep in sync.
     ("docs/AUDIT_COVERAGE.md",
-     r"\d+ \(55 \+ dedicated C ABI thread stress\)",
-     "{non_exploit_modules} (non-exploit modules)"),
+     r"(\| Audit Modules\s+\| )\d+( \(non-exploit modules\) \|)",
+     r"\g<1>{non_exploit_modules}\g<2>"),
 
     # Summary table: "Exploit PoC Tests" row
     ("docs/AUDIT_COVERAGE.md",
      r"\*\*\d+ tests across 20\+ attack categories\*\*",
      "**{exploit_poc_count} tests across 20+ attack categories**"),
 
-    # Verdict header line
+    # Verdict header line — matches both short "**AUDIT-READY**" and long forms
     ("docs/AUDIT_COVERAGE.md",
-     r"\*\*AUDIT-READY\*\* -- \d+ modules, \d+ failure classes",
-     "**AUDIT-READY** -- {total_modules} modules, 9 failure classes"),
+     r"-- \d+ modules, \d+ failure classes",
+     "-- {total_modules} modules, 9 failure classes"),
 
     # Generic fallback for "N modules, N+ attack vectors"
     ("docs/AUDIT_COVERAGE.md",

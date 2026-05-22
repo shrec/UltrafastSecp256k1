@@ -98,6 +98,15 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool) -> int:
         total += 1
         text = new_text
 
+    # ── CT signing dual-ratio format: "~N.NN× ECDSA · ~N.NN× Schnorr" ──────────
+    # Used in README.md §For Bitcoin Core Reviewers and similar summary lines.
+    # Distinct from the range format (N.NN–N.NN×) used in evidence docs.
+    ecdsa_r = ct_gc.get('ecdsa_ratio', 1.27)
+    schnorr_r = ct_gc.get('schnorr_ratio', 1.13)
+    pat = r'~\d+\.\d+× ECDSA · ~\d+\.\d+× Schnorr'
+    repl = f'~{ecdsa_r}× ECDSA · ~{schnorr_r}× Schnorr'
+    text, n = _sub(pat, repl, text); total += n
+
     # ── CT signing performance (Clang 19) ────────────────────────────────────
     pat = r'Clang 19[^\n]{0,60}?(\d+\.\d{2})–(\d+\.\d{2})×'
     repl = f"Clang 19: {ct_cl['speedup_min_x']:.2f}–{ct_cl['speedup_max_x']:.2f}×"

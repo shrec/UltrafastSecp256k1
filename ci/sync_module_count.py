@@ -23,9 +23,6 @@ BASE = Path(__file__).resolve().parent.parent
 
 # ── Patterns that identify stale counts in doc files ─────────────────────────
 
-# Matches e.g. "55 modules", "58 modules", "215 modules", "220 modules"
-MODULE_COUNT_RE = re.compile(r'\b\d{1,3} modules?\b')
-
 # Matches e.g. "86 exploit PoC", "135 exploit PoC", "147 exploit"
 EXPLOIT_MODULE_RE = re.compile(r'\b\d{1,3} exploit[- ]?PoC modules?\b', re.IGNORECASE)
 
