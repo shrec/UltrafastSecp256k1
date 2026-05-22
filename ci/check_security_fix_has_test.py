@@ -341,6 +341,23 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "overloads. The [[deprecated]] attribute only affects the compiler diagnostic, not "
         "the runtime signature of from_compact.",
     ),
+    "9177df7399": (
+        ["audit/test_parse_strictness.cpp",
+         "audit/test_exploit_encoding_memory_corruption.cpp"],
+        "fix(ci+build): MSVC portability for shim_ecdsa.cpp. Replaced "
+        "__builtin_memcpy/__builtin_memset/__builtin_bswap64 (GCC/Clang-only) "
+        "with the UFSECP_SHIM_MEMCPY/_MEMSET/_BSWAP64 compile-time abstraction "
+        "(std::memcpy + _byteswap_uint64 on _MSC_VER, original __builtin_* "
+        "elsewhere). Six call sites updated — fingerprint helper (load 8 X "
+        "bytes), DER int parser (zero-prefix + payload memcpy), and load64be "
+        "lambda inside the fast valid_scalar branchless check. Generated code "
+        "is identical on GCC/Clang; the fix only unblocks MSVC. No behavior or "
+        "security change. The two listed tests exercise the affected paths: "
+        "test_parse_strictness covers the DER scalar validator (load64be + the "
+        "zero-prefix memcpy in parse_int), and "
+        "test_exploit_encoding_memory_corruption hits the cache fingerprint "
+        "via repeated verify() calls through the shim.",
+    ),
     "4bb75f2e50": (
         ["audit/test_exploit_bitcoin_message_signing.cpp",
          "audit/test_regression_ct_ops.cpp"],
