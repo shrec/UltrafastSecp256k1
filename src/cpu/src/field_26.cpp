@@ -20,7 +20,18 @@
 
 namespace secp256k1::fast {
 
-using namespace fe26_constants;
+// Bring in the non-conflicting fe26 constants directly.
+// P0–P4 are NOT brought in via using-declaration because fe52_constants also
+// defines P0–P4 with the same names (different types/values) and in a Unity
+// build both namespaces are visible, causing ambiguity. Use fe26_constants::P0
+// etc. qualified wherever those constants are needed.
+using fe26_constants::M26;
+using fe26_constants::M22;
+using fe26_constants::P5;
+using fe26_constants::P6;
+using fe26_constants::P7;
+using fe26_constants::P8;
+using fe26_constants::P9;
 
 // ===========================================================================
 // Construction
@@ -187,11 +198,11 @@ SECP256K1_INLINE void fe26_normalize(std::uint32_t* r) noexcept {
     // Trial subtraction of p
     // Carry-based: compute t - p using signed differences
     std::int64_t d = 0;
-    d = (std::int64_t)z0 - P0; z0 = (std::uint32_t)d & M26; bool borrow = (d < 0);
-    d = (std::int64_t)z1 - P1 - (borrow ? 1 : 0); z1 = (std::uint32_t)d & M26; borrow = (d < 0);
-    d = (std::int64_t)z2 - P2 - (borrow ? 1 : 0); z2 = (std::uint32_t)d & M26; borrow = (d < 0);
-    d = (std::int64_t)z3 - P3 - (borrow ? 1 : 0); z3 = (std::uint32_t)d & M26; borrow = (d < 0);
-    d = (std::int64_t)z4 - P4 - (borrow ? 1 : 0); z4 = (std::uint32_t)d & M26; borrow = (d < 0);
+    d = (std::int64_t)z0 - fe26_constants::P0; z0 = (std::uint32_t)d & M26; bool borrow = (d < 0);
+    d = (std::int64_t)z1 - fe26_constants::P1 - (borrow ? 1 : 0); z1 = (std::uint32_t)d & M26; borrow = (d < 0);
+    d = (std::int64_t)z2 - fe26_constants::P2 - (borrow ? 1 : 0); z2 = (std::uint32_t)d & M26; borrow = (d < 0);
+    d = (std::int64_t)z3 - fe26_constants::P3 - (borrow ? 1 : 0); z3 = (std::uint32_t)d & M26; borrow = (d < 0);
+    d = (std::int64_t)z4 - fe26_constants::P4 - (borrow ? 1 : 0); z4 = (std::uint32_t)d & M26; borrow = (d < 0);
     d = (std::int64_t)z5 - P5 - (borrow ? 1 : 0); z5 = (std::uint32_t)d & M26; borrow = (d < 0);
     d = (std::int64_t)z6 - P6 - (borrow ? 1 : 0); z6 = (std::uint32_t)d & M26; borrow = (d < 0);
     d = (std::int64_t)z7 - P7 - (borrow ? 1 : 0); z7 = (std::uint32_t)d & M26; borrow = (d < 0);
@@ -259,11 +270,11 @@ FieldElement26 FieldElement26::negate(unsigned magnitude) const noexcept {
 
 void FieldElement26::negate_assign(unsigned magnitude) noexcept {
     std::uint32_t const m = magnitude + 1;
-    std::uint32_t const mp0 = m * P0;
-    std::uint32_t const mp1 = m * P1;
-    std::uint32_t const mp2 = m * P2;
-    std::uint32_t const mp3 = m * P3;
-    std::uint32_t const mp4 = m * P4;
+    std::uint32_t const mp0 = m * fe26_constants::P0;
+    std::uint32_t const mp1 = m * fe26_constants::P1;
+    std::uint32_t const mp2 = m * fe26_constants::P2;
+    std::uint32_t const mp3 = m * fe26_constants::P3;
+    std::uint32_t const mp4 = m * fe26_constants::P4;
     std::uint32_t const mp5 = m * P5;
     std::uint32_t const mp6 = m * P6;
     std::uint32_t const mp7 = m * P7;
@@ -672,11 +683,11 @@ FieldElement26 FieldElement26::half() const noexcept {
     std::uint32_t const mask = 0U - (tmp.n[0] & 1U);
 
     // Conditionally add p
-    std::uint32_t t0 = tmp.n[0] + (P0 & mask);
-    std::uint32_t t1 = tmp.n[1] + (P1 & mask);
-    std::uint32_t t2 = tmp.n[2] + (P2 & mask);
-    std::uint32_t t3 = tmp.n[3] + (P3 & mask);
-    std::uint32_t t4 = tmp.n[4] + (P4 & mask);
+    std::uint32_t t0 = tmp.n[0] + (fe26_constants::P0 & mask);
+    std::uint32_t t1 = tmp.n[1] + (fe26_constants::P1 & mask);
+    std::uint32_t t2 = tmp.n[2] + (fe26_constants::P2 & mask);
+    std::uint32_t t3 = tmp.n[3] + (fe26_constants::P3 & mask);
+    std::uint32_t t4 = tmp.n[4] + (fe26_constants::P4 & mask);
     std::uint32_t t5 = tmp.n[5] + (P5 & mask);
     std::uint32_t t6 = tmp.n[6] + (P6 & mask);
     std::uint32_t t7 = tmp.n[7] + (P7 & mask);

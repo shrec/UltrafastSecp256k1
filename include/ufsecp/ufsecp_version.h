@@ -62,6 +62,29 @@ extern "C" {
   #endif
 #endif
 
+/* -- Deprecation annotation ------------------------------------------------- */
+/* UFSECP_DEPRECATED("msg") marks a function as deprecated with a diagnostic
+ * message.  Use it on the declaration in ufsecp.h to guide callers to the
+ * replacement API without breaking the ABI.
+ *
+ * Example:
+ *   UFSECP_DEPRECATED("Use ufsecp_foo_v2()") UFSECP_API ufsecp_error_t ufsecp_foo(...);
+ */
+#ifndef UFSECP_DEPRECATED
+  #if defined(__cplusplus) && (__cplusplus >= 201402L)
+    /* C++14 and later: standard [[deprecated("msg")]] attribute */
+    #define UFSECP_DEPRECATED(msg) [[deprecated(msg)]]
+  #elif defined(__GNUC__) || defined(__clang__)
+    /* GCC / Clang C: __attribute__((deprecated("msg"))) */
+    #define UFSECP_DEPRECATED(msg) __attribute__((deprecated(msg)))
+  #elif defined(_MSC_VER)
+    /* MSVC: __declspec(deprecated("msg")) */
+    #define UFSECP_DEPRECATED(msg) __declspec(deprecated(msg))
+  #else
+    #define UFSECP_DEPRECATED(msg)
+  #endif
+#endif
+
 /** Return packed version at runtime (same as UFSECP_VERSION_PACKED). */
 UFSECP_API unsigned int ufsecp_version(void);
 

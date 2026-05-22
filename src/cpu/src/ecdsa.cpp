@@ -8,6 +8,7 @@
 #include "secp256k1/ct/sign.hpp"   // ct::ecdsa_sign (CT-005: direct CT path, no deprecated wrapper)
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/debug_invariants.hpp"
+#include "signing_helpers_p.hpp"
 #include <cassert>
 #include <cstring>
 
@@ -155,9 +156,7 @@ namespace {
 
 using secp256k1::detail::secure_erase;
 
-static inline Point signing_generator_mul(const Scalar& scalar) {
-    return ct::generator_mul_blinded(scalar);
-}
+// signing_generator_mul is provided by signing_helpers_p.hpp (shared with recovery.cpp)
 
 // -- SHA-256 IV ---------------------------------------------------------------
 static constexpr std::uint32_t SHA256_IV[8] = {

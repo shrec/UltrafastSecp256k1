@@ -87,6 +87,11 @@ int secp256k1_xonly_pubkey_from_pubkey(
     SHIM_REQUIRE_CTX(ctx);  // SHIM-NEW-003: NULL ctx fires illegal callback (abort)
     if (!xonly_pubkey || !pubkey) return 0;
 
+    // SHIM-A10: validate curve membership before trusting the stored bytes.
+    // pubkey_data_to_point checks y²=x³+7; returns infinity if off-curve.
+    auto pt = secp256k1_shim_internal::pubkey_data_to_point(pubkey->data);
+    if (pt.is_infinity()) return 0;
+
     // pubkey layout: data[0..31] = X, data[32..63] = Y (both big-endian)
     int y_is_odd = (pubkey->data[63] & 1) ? 1 : 0;
 

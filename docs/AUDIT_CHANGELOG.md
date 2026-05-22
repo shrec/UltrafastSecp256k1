@@ -1,5 +1,17 @@
 # Audit Changelog
 
+## 2026-05-21 — Fix: SHIM-A10 secp256k1_xonly_pubkey_from_pubkey curve membership check
+
+- **compat/libsecp256k1_shim/src/shim_extrakeys.cpp `secp256k1_xonly_pubkey_from_pubkey`:** The function copied X||Y bytes from `secp256k1_pubkey.data` directly into `secp256k1_xonly_pubkey.data` without verifying that the stored coordinates satisfy y²=x³+7. A hostile caller who crafted a `secp256k1_pubkey` with off-curve bytes (e.g. via `secp256k1_keypair_pub`) could propagate unchecked off-curve material into xonly pubkey operations. Fixed by calling `pubkey_data_to_point(pubkey->data)` (already available in `shim_pubkey_helpers.hpp`) which performs the full curve-membership check; returns 0 on failure (infinity point).
+- **audit/test_regression_shim_security_v8.cpp:** Added `test_xonly_pubkey_from_pubkey_off_curve` — verifies that off-curve and zero pubkeys are rejected with return value 0, and valid pubkeys are still accepted. Appended to `test_regression_shim_security_v8_run()`.
+
+## 2026-05-21 — Fix: P1-SEC-001 GPU extended ECDH paths use VT wNAF on secret scalar
+
+- **src/opencl/kernels/secp256k1_extended.cl (`ecdh_compute_raw_impl`, `ecdh_compute_impl`, `ecdh_compute_xonly_impl`):** All three ECDH functions called `scalar_mul_glv_impl` (variable-time GLV/wNAF) on the private key scalar — a timing side-channel enabling scalar recovery on shared-GPU or EM-observable hardware. Fixed by adding `ct_ecdh_scalar_mul_affine()` — a bit-by-bit constant-time double-and-add that mirrors `ct_ecdh_scalar_mul()` in `secp256k1_ecdh.cl`, adapted for `AffinePoint*` input. All three entry points now call `ct_ecdh_scalar_mul_affine()`.
+- **src/metal/shaders/secp256k1_extended.h (`ecdh_compute_raw`, `ecdh_compute`, `ecdh_compute_xonly`, `ecdh_shared_secret_xonly`):** All four functions called `scalar_mul_glv()` (variable-time GLV/wNAF) on the private key scalar. Fixed by adding `ct_ecdh_scalar_mul_metal()` — a bit-by-bit constant-time double-and-add using Metal's 8×32-bit limb layout. All four entry points now call `ct_ecdh_scalar_mul_metal()`.
+- The dedicated ECDH kernels (`secp256k1_ecdh.cl` / `secp256k1_ecdh.h`) already used CT paths; this fix closes the gap in the extended kernels.
+- **audit/test_regression_gpu_ecdh_extended_ct.cpp (NEW):** Correctness regression guard (GEC-1..7): commutativity, non-zero output, zero-key rejection, determinism, key/peer sensitivity. advisory=false.
+
 ## 2026-05-21 — Fix: P2-CT-001/002/003/007 nonce candidate scalar zeroization
 
 - **src/cpu/src/ecdsa.cpp `rfc6979_nonce` (P2-CT-001):** Added `secure_erase(&cand1, sizeof(cand1))` and `secure_erase(&cand2, sizeof(cand2))` immediately after `ct::scalar_select(cand1, cand2, mask1)`. Both candidate scalars hold nonce-derived secret material and must not persist as stack residue after return.

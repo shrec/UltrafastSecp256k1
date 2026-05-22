@@ -17,6 +17,7 @@
 #include "secp256k1/ct/field.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/config.hpp"
+#include "ct_carry_helpers_p.hpp"
 #include <cstring>
 #include <cstdint>
 
@@ -80,11 +81,7 @@ static constexpr std::uint64_t P[4] = {
 
 // --- Internal helpers --------------------------------------------------------
 
-[[maybe_unused]] static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
-                                           std::uint64_t b,
-                                           std::uint64_t diff) noexcept {
-    return (a ^ ((a ^ b) | (diff ^ a))) >> 63;
-}
+// sub_borrow_u64 is provided by ct_carry_helpers_p.hpp
 
 // CT 256-bit subtraction with borrow out. Returns borrow (0 or 1).
 // Uses __builtin_subcll on Clang x86-64 only to emit SBB instructions (B-10).

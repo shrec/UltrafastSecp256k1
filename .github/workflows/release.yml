@@ -1158,7 +1158,7 @@ jobs:
             <modelVersion>4.0.0</modelVersion>
             <groupId>com.ultrafast</groupId>
             <artifactId>ufsecp</artifactId>
-            <version>4.0.0</version>
+            <version>0.0.0-dev</version>
             <packaging>jar</packaging>
             <name>UltrafastSecp256k1 JNI</name>
             <description>Java JNI bindings for UltrafastSecp256k1</description>
@@ -1166,7 +1166,7 @@ jobs:
           </project>
           POMEOF
           # Fix version in POM (heredoc can't expand shell vars with quoted delimiter)
-          sed -i "s|<version>4.0.0</version>|<version>${VERSION}</version>|" pom.xml
+          sed -i "s|<version>0.0.0-dev</version>|<version>${VERSION}</version>|" pom.xml
 
           # Generate settings.xml with GitHub Packages credentials
           cat > settings.xml <<'SETEOF'

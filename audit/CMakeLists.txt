@@ -5050,3 +5050,18 @@ add_test(NAME regression_shim_null_callback
 set_tests_properties(regression_shim_null_callback PROPERTIES TIMEOUT 30
     LABELS "audit;regression;shim;null_callback;shim-a01;shim-a02;shim-a03;shim-a07;shim-a08")
 target_sources(unified_audit_runner PRIVATE test_regression_shim_null_callback.cpp)
+
+# P1-SEC-001: GPU extended ECDH paths CT fix — correctness guard.
+# Verifies ufsecp_ecdh() ECDH arithmetic after secp256k1_extended.cl and
+# secp256k1_extended.h replaced scalar_mul_glv_impl/scalar_mul_glv (VT wNAF)
+# with the CT bit-by-bit double-and-add loop. No GPU/shim dependency.
+# advisory=false.
+add_executable(test_regression_gpu_ecdh_extended_ct_standalone
+    test_regression_gpu_ecdh_extended_ct.cpp)
+audit_target_defaults(test_regression_gpu_ecdh_extended_ct_standalone)
+target_compile_definitions(test_regression_gpu_ecdh_extended_ct_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_gpu_ecdh_extended_ct
+    COMMAND test_regression_gpu_ecdh_extended_ct_standalone)
+set_tests_properties(regression_gpu_ecdh_extended_ct PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;ct;ecdh;gpu;security;p1-sec-001")
+target_sources(unified_audit_runner PRIVATE test_regression_gpu_ecdh_extended_ct.cpp)

@@ -4,6 +4,7 @@
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/field_52_impl.hpp"
+#include "signing_helpers_p.hpp"
 #include <cstring>
 
 namespace secp256k1 {
@@ -71,9 +72,7 @@ static const std::array<uint8_t, 32> SECP256K1_ORDER_BYTES = {
     0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
 };
 
-static inline Point signing_generator_mul(const Scalar& scalar) {
-    return ct::generator_mul_blinded(scalar);
-}
+// signing_generator_mul is provided by signing_helpers_p.hpp (shared with ecdsa.cpp)
 
 // -- Sign with Recovery ID ----------------------------------------------------
 // CT path: uses ct::generator_mul_blinded(k), ct::scalar_inverse(k),

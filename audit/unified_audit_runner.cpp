@@ -661,6 +661,11 @@ int test_regression_nonce_candidate_erase_run(); // P2-CT-001/002/003/007: cand1
 int test_regression_shim_null_callback_run(); // SHIM-A01..A08: illegal_callback on NULL args
 
 // ============================================================================
+// Forward declarations -- 2026-05-21 P1-SEC-001: GPU extended ECDH CT fix
+// ============================================================================
+int test_regression_gpu_ecdh_extended_ct_run(); // GEC-1..7: correctness guard after VT→CT fix in extended kernels
+
+// ============================================================================
 // Report section IDs -- 9 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -1351,6 +1356,13 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-21 SHIM-A01/A02/A03/A07/A08: null-arg illegal_callback ===
     // advisory=true: requires shim to be linked (shim-gate only).
     { "regression_shim_null_callback", "SHIM-A01/A02/A03/A07/A08: libsecp256k1 shim fires illegal_callback on NULL args — normalize(NULL sigin), pubkey_sort(NULL ctx), tagged_sha256(NULL msg/len=0 OK vs len>0 fires CB), pubkey_negate(NULL pubkey); (SNC-1..5)", "shim_regression", test_regression_shim_null_callback_run, true },
+    // === 2026-05-21 P1-SEC-001: GPU extended ECDH CT fix ===
+    // advisory=false: exercises ufsecp_ecdh() CPU API — no GPU/shim dependency.
+    // Verifies correctness of ECDH arithmetic after secp256k1_extended.cl and
+    // secp256k1_extended.h replaced scalar_mul_glv_impl/scalar_mul_glv (VT wNAF)
+    // with the constant-time bit-by-bit double-and-add loop (ct_ecdh_scalar_mul_affine /
+    // ct_ecdh_scalar_mul_metal) in all three ECDH entry points: raw, xonly, and compressed.
+    { "regression_gpu_ecdh_extended_ct", "P1-SEC-001: GPU extended ECDH paths use CT scalar mul — commutativity, non-zero output, zero-key rejection, determinism, key/peer sensitivity (GEC-1..7)", "ct_analysis", test_regression_gpu_ecdh_extended_ct_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

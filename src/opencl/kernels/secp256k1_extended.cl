@@ -1556,9 +1556,46 @@ inline int schnorr_verify_impl(const uchar pubkey_x[32], const uchar msg[32],
 // LAYER 5b: ECDH
 // =============================================================================
 
+// P1-SEC-001 FIX: constant-time scalar multiplication for ECDH on a variable
+// base point (AffinePoint input).  The GLV/wNAF path (scalar_mul_glv_impl) is
+// variable-time and MUST NOT be used when the scalar is a private key.
+// This replicates the same bit-by-bit double-and-add CT loop used by
+// ct_ecdh_scalar_mul() in secp256k1_ecdh.cl, adapted for the AffinePoint type
+// used by the extended kernel.  No GLV, no wNAF, no data-dependent branches on
+// the scalar value.
+inline void ct_ecdh_scalar_mul_affine(JacobianPoint* r,
+                                       const AffinePoint* pk,
+                                       const Scalar* sk)
+{
+    // Lift the affine peer pubkey to Jacobian (Z=1).
+    JacobianPoint P;
+    point_from_affine(&P, pk);
+
+    JacobianPoint R, T;
+    point_set_infinity(&R);
+
+    for (int i = 255; i >= 0; --i) {
+        point_double_impl(&R, &R);
+        point_add_impl(&T, &R, &P);
+
+        // CT select: if bit i of sk is 1, R = T; else R = R.
+        int word = i >> 6;
+        int bit  = (int)((sk->limbs[word] >> (i & 63)) & 1UL);
+        ulong mask = -(ulong)bit;
+        for (int j = 0; j < 4; ++j) {
+            R.x.limbs[j] ^= mask & (R.x.limbs[j] ^ T.x.limbs[j]);
+            R.y.limbs[j] ^= mask & (R.y.limbs[j] ^ T.y.limbs[j]);
+            R.z.limbs[j] ^= mask & (R.z.limbs[j] ^ T.z.limbs[j]);
+        }
+        R.infinity = (int)(((uint)R.infinity & (uint)~(uint)mask) |
+                           ((uint)T.infinity & (uint)mask));
+    }
+    *r = R;
+}
+
 inline int ecdh_compute_raw_impl(const Scalar* priv, const AffinePoint* peer, uchar out[32]) {
     JacobianPoint shared;
-    scalar_mul_glv_impl(&shared, priv, peer);
+    ct_ecdh_scalar_mul_affine(&shared, peer, priv);  // P1-SEC-001: CT path
     if (point_is_infinity(&shared)) return 0;
 
     FieldElement z_inv, z_inv2, x_aff;
@@ -1584,8 +1621,9 @@ inline int ecdh_compute_impl(const Scalar* priv, const AffinePoint* peer, uchar 
     // impossible to derive the correct compressed-point prefix.  Inline the computation
     // so we have y_aff and can determine Y parity.  Previously hardcoded 0x02 produced
     // wrong output for ~50% of key pairs (odd-Y shared point).
+    // P1-SEC-001 FIX: use CT path — private key is secret, VT wNAF is banned here.
     JacobianPoint shared;
-    scalar_mul_glv_impl(&shared, priv, peer);
+    ct_ecdh_scalar_mul_affine(&shared, peer, priv);  // P1-SEC-001: CT path
     if (point_is_infinity(&shared)) return 0;
 
     FieldElement z_inv, z_inv2, z_inv3, x_aff, y_aff;

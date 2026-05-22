@@ -820,11 +820,16 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_start_sign_session(
  *  signer_index must be a valid participant index within the aggregated key set.
  *  session must carry the same participant count as keyagg.
  *
- *  SECURITY WARNING (SEC-001): This function does NOT validate that privkey
- *  corresponds to the claimed signer_index.  A wrong signer_index produces a
- *  misrouted partial signature that only fails at aggregation — after the
- *  secret nonce has been consumed.  Prefer ufsecp_musig2_partial_sign_v2()
- *  which enforces this cross-validation at the ABI boundary. */
+ *  SECURITY WARNING (SEC-001 / P1-SEC-002): This function does NOT validate that
+ *  privkey corresponds to the claimed signer_index.  A wrong signer_index produces a
+ *  misrouted partial signature that only fails at aggregation — after the secret nonce
+ *  has been consumed.  Use ufsecp_musig2_partial_sign_v2() which enforces this
+ *  cross-validation at the ABI boundary.
+ *
+ *  @deprecated Use ufsecp_musig2_partial_sign_v2() for signer-index validation.
+ *  Full signer-index cross-validation at the ABI layer requires passing the pubkeys
+ *  array; this v1 overload cannot do so without an ABI break (deferred to v2 API). */
+UFSECP_DEPRECATED("Use ufsecp_musig2_partial_sign_v2 for signer-index validation (P1-SEC-002)")
 UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
     ufsecp_ctx* ctx,
     uint8_t secnonce[UFSECP_MUSIG2_SECNONCE_LEN],

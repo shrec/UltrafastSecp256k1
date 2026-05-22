@@ -7,6 +7,7 @@
 
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/ct/ops.hpp"
+#include "ct_carry_helpers_p.hpp"
 #include <cstring>
 
 namespace secp256k1::ct {
@@ -20,18 +21,7 @@ static constexpr std::uint64_t N[4] = {
 };
 
 // --- Internal helpers --------------------------------------------------------
-
-static inline std::uint64_t add_carry_u64(std::uint64_t a,
-                                          std::uint64_t b,
-                                          std::uint64_t sum) noexcept {
-    return ((a & b) | ((a | b) & ~sum)) >> 63;
-}
-
-static inline std::uint64_t sub_borrow_u64(std::uint64_t a,
-                                           std::uint64_t b,
-                                           std::uint64_t diff) noexcept {
-    return (a ^ ((a ^ b) | (diff ^ a))) >> 63;
-}
+// add_carry_u64 and sub_borrow_u64 are provided by ct_carry_helpers_p.hpp
 
 static inline std::uint64_t add256_scalar(std::uint64_t r[4],
                                            const std::uint64_t a[4],

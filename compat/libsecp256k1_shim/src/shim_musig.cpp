@@ -445,6 +445,11 @@ int secp256k1_musig_nonce_gen(
     const secp256k1_musig_keyagg_cache* /*keyagg_cache*/,
     const unsigned char* /*extra_input32*/)
 {
+    // TODO(SHIM-A09): extra_input32 is accepted but not forwarded to musig2_nonce_gen.
+    // BIP-327 §8.3: this provides additional entropy defense. Forwarding requires
+    // internal API change to musig2_nonce_gen. Impact: callers relying on extra_input32
+    // for defense-in-depth get the same security as without it — still sound but weaker.
+    // Tracked in docs/SHIM_KNOWN_DIVERGENCES.md as SHIM-NONCEGEN-001.
     SHIM_REQUIRE_CTX(ctx);
     if (!secnonce || !pubnonce || !session_id32) return 0;
 

@@ -1193,9 +1193,42 @@ inline bool schnorr_verify(thread const uchar pubkey_x[32], thread const uchar m
 // LAYER 5b: ECDH
 // =============================================================================
 
+// P1-SEC-001 FIX: constant-time scalar multiplication for ECDH on a variable
+// base point (AffinePoint input).  The GLV/wNAF path (scalar_mul_glv) is
+// variable-time and MUST NOT be used when the scalar is a private key.
+// Bit-by-bit double-and-add with constant-time cmov (no data-dependent branches
+// on the scalar value).  Metal uses 8×32-bit limbs (limbs[0] = LSW).
+inline JacobianPoint ct_ecdh_scalar_mul_metal(thread const AffinePoint &pk,
+                                               thread const Scalar256 &sk)
+{
+    // Lift affine peer pubkey to Jacobian (Z=1).
+    JacobianPoint P;
+    P.x = pk.x; P.y = pk.y; P.z = field_one(); P.infinity = 0;
+
+    JacobianPoint R = point_at_infinity();
+
+    for (int i = 255; i >= 0; --i) {
+        R = jacobian_double(R);
+        JacobianPoint T = jacobian_add(R, P);
+
+        // CT select: pick T if bit i of sk is 1, keep R otherwise.
+        int word = i >> 5;          // which 32-bit limb (0 = LSW)
+        int off  = i & 31;
+        uint bit = (sk.limbs[word] >> off) & 1u;
+        uint mask = -(uint)bit;     // 0xFFFFFFFF if bit=1, 0x00000000 if bit=0
+        for (int j = 0; j < 8; ++j) {
+            R.x.limbs[j] ^= mask & (R.x.limbs[j] ^ T.x.limbs[j]);
+            R.y.limbs[j] ^= mask & (R.y.limbs[j] ^ T.y.limbs[j]);
+            R.z.limbs[j] ^= mask & (R.z.limbs[j] ^ T.z.limbs[j]);
+        }
+        R.infinity = (R.infinity & ~mask) | (T.infinity & mask);
+    }
+    return R;
+}
+
 inline bool ecdh_compute_raw(thread const Scalar256 &priv, thread const AffinePoint &peer,
                               thread uchar out[32]) {
-    JacobianPoint shared = scalar_mul_glv(peer, priv);
+    JacobianPoint shared = ct_ecdh_scalar_mul_metal(peer, priv);  // P1-SEC-001: CT path
     if (shared.infinity != 0) return false;
     AffinePoint shared_aff = jacobian_to_affine(shared);
     field_to_bytes(shared_aff.x, out);
@@ -1217,7 +1250,8 @@ inline bool ecdh_compute(thread const Scalar256 &priv, thread const AffinePoint 
     // C8 FIX: compute both x and y affine coordinates so we can derive the
     // correct compressed-point prefix (0x02 even / 0x03 odd).
     // ecdh_compute_raw only returns x — do the full affine conversion here.
-    JacobianPoint shared = scalar_mul_glv(peer, priv);
+    // P1-SEC-001 FIX: use CT path — private key is secret, VT wNAF is banned here.
+    JacobianPoint shared = ct_ecdh_scalar_mul_metal(peer, priv);  // P1-SEC-001: CT path
     if (shared.infinity != 0) return false;
 
     FieldElement z_inv  = field_inv(shared.z);
@@ -1453,9 +1487,10 @@ inline bool schnorr_verify(thread const Scalar256 &msg_scalar, thread const Fiel
 }
 
 // ecdh_shared_secret_xonly: returns raw x coordinate as FieldElement
+// P1-SEC-001 FIX: use CT path — private key is secret, VT wNAF is banned here.
 inline FieldElement ecdh_shared_secret_xonly(thread const Scalar256 &priv,
                                               thread const AffinePoint &peer) {
-    JacobianPoint shared = scalar_mul_glv(peer, priv);
+    JacobianPoint shared = ct_ecdh_scalar_mul_metal(peer, priv);  // P1-SEC-001: CT path
     AffinePoint shared_aff = jacobian_to_affine(shared);
     return shared_aff.x;
 }

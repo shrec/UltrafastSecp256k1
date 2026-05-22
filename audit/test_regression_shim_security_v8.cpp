@@ -267,17 +267,64 @@ static void test_schnorrsig_sign32_y_parity() {
     secp256k1_context_destroy(ctx);
 }
 
+// ── SHIM-A10: secp256k1_xonly_pubkey_from_pubkey rejects off-curve pubkey ────
+// Before this fix the function read pubkey->data bytes directly without
+// running the y²=x³+7 curve-membership check, allowing arbitrary bytes in
+// secp256k1_pubkey to propagate into secp256k1_xonly_pubkey unchecked.
+// After the fix it calls pubkey_data_to_point which performs the check and
+// returns Point::infinity() on failure, causing the function to return 0.
+
+static void test_xonly_pubkey_from_pubkey_off_curve() {
+    std::printf("  [xonly_pubkey_from_pubkey_off_curve] SHIM-A10: curve membership check\n");
+    secp256k1_context *ctx = secp256k1_context_create(
+        SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
+    secp256k1_xonly_pubkey xonly{};
+    int parity = -1;
+
+    // Off-curve pubkey: X=1, Y=1 (1 ≠ 1³+7 mod p → not on secp256k1)
+    secp256k1_pubkey off_curve{};
+    std::memset(&off_curve, 0, sizeof(off_curve));
+    off_curve.data[31] = 1;  // X = 1
+    off_curve.data[63] = 1;  // Y = 1
+
+    int rc = secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly, &parity, &off_curve);
+    CHECK(rc == 0,
+          "SHIM-A10: xonly_pubkey_from_pubkey with off-curve pubkey must return 0");
+
+    // Zero pubkey (X=0, Y=0) is also off-curve — must be rejected
+    secp256k1_pubkey zero_pub{};
+    std::memset(&zero_pub, 0, sizeof(zero_pub));
+    rc = secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly, &parity, &zero_pub);
+    CHECK(rc == 0,
+          "SHIM-A10: xonly_pubkey_from_pubkey with zero pubkey must return 0");
+
+    // Valid pubkey must still be accepted
+    unsigned char sk[32] = {};
+    sk[31] = 5;
+    secp256k1_pubkey valid_pub{};
+    secp256k1_ec_pubkey_create(ctx, &valid_pub, sk);
+    rc = secp256k1_xonly_pubkey_from_pubkey(ctx, &xonly, &parity, &valid_pub);
+    CHECK(rc == 1,
+          "SHIM-A10: xonly_pubkey_from_pubkey with valid pubkey must return 1");
+    CHECK(parity == 0 || parity == 1,
+          "SHIM-A10: parity of valid pubkey is 0 or 1");
+
+    secp256k1_context_destroy(ctx);
+}
+
 } // namespace
 
 int test_regression_shim_security_v8_run() {
     g_pass = 0; g_fail = 0;
-    std::printf("[regression_shim_security_v8] P1-SEC-NEW-001 / RED-TEAM-008 / P2-SEC-NEW-002 / NEW-006\n");
+    std::printf("[regression_shim_security_v8] P1-SEC-NEW-001 / RED-TEAM-008 / P2-SEC-NEW-002 / NEW-006 / SHIM-A10\n");
 
     test_ecdh_privkey_out_of_range();
     test_ecdsa_verify_off_curve_pubkey();
     test_ecdh_pubkey_off_curve();
     test_keypair_xonly_tweak_add_roundtrip();
     test_schnorrsig_sign32_y_parity();
+    test_xonly_pubkey_from_pubkey_off_curve();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

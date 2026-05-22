@@ -56,7 +56,14 @@ Bitcoin Core source (unchanged)
 
 ## How to Wire Into Bitcoin Core's CMake
 
-### Recommended: local checkout
+### Recommended: local checkout (preferred for Bitcoin Core)
+
+> **Note:** `FetchContent` is **not recommended for Bitcoin Core** integration.
+> Bitcoin Core's dependency policy prefers vendored or patch-based approaches
+> rather than network-fetched dependencies at configure time. Use a vendored
+> submodule or a patch-set against the bundled `src/secp256k1` tree instead.
+> The `FetchContent` snippet below is provided for non-Bitcoin-Core projects
+> that do not have the same policy constraints.
 
 Pin to a specific commit hash. Do not use `GIT_TAG main` — the library is
 under active development and `main` is not a stable reference for CI:

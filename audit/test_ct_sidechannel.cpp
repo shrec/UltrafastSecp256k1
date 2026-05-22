@@ -23,6 +23,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <array>
@@ -145,7 +146,7 @@ struct WelchState {
 // PRNG + helpers -- pre-generation only
 // ===========================================================================
 
-static std::mt19937_64 rng(0xA0D17'51DE0);  // NOLINT(cert-msc32-c,cert-msc51-cpp)
+static std::mt19937_64 rng;  // seeded in main() via BASE_SEED (see AUDIT_SEED env var)
 
 static void random_bytes(uint8_t* out, size_t len) {
     for (size_t i = 0; i < len; i += 8) {
@@ -1344,6 +1345,14 @@ static void test_fast_not_ct() {
     double const t = std::abs(ws.t_value());
     printf("    fast::scalar_mul: |t| = %6.2f  %s\n",
            t, t >= T_THRESHOLD ? "[time]  NOT CT ()" : "~= CT-like");
+
+    // Positive control: fast:: path SHOULD show timing variance (t >= T_THRESHOLD).
+    // If t < T_THRESHOLD, the harness cannot distinguish CT from non-CT.
+    if (t < T_THRESHOLD) {
+        printf("    [ADVISORY] fast::scalar_mul appears CT-like — harness may be noisy\n");
+        // Note: do NOT increment g_fail here — noisy environments are common in CI.
+        // Log for human review.
+    }
 }
 
 // ===========================================================================
@@ -1684,6 +1693,13 @@ int test_ct_sidechannel_smoke_run() {
     return ADVISORY_SKIP_CODE;  // Rule 16: skip != pass
 #endif
     prepare_timing_environment();
+    // Seed rng: honour AUDIT_SEED env var for reproducibility, else fixed default.
+    {
+        std::uint64_t seed = 0xA0D17'51DE0;  // NOLINT(cert-msc32-c,cert-msc51-cpp)
+        if (const char* s = std::getenv("AUDIT_SEED"))
+            seed = std::strtoull(s, nullptr, 0);
+        rng.seed(seed);
+    }
     g_pass = g_fail = 0;
     test_ct_primitives();
     test_ct_field();
@@ -1748,7 +1764,11 @@ int main() {
     // eliminates intermittent RDTSC noise while catching real leaks.
     // -----------------------------------------------------------------------
     constexpr int MAX_ATTEMPTS = 7;
-    constexpr std::uint64_t BASE_SEED = 0xA0D17'51DE0;
+    std::uint64_t BASE_SEED = 0xA0D17'51DE0;  // NOLINT(cert-msc32-c,cert-msc51-cpp)
+    if (const char* s = std::getenv("AUDIT_SEED"))
+        BASE_SEED = std::strtoull(s, nullptr, 0);
+    printf("[seed] %llu (set AUDIT_SEED=N to reproduce)\n",
+           static_cast<unsigned long long>(BASE_SEED));
     int attempts_run = 0;
 
     prepare_timing_environment();
