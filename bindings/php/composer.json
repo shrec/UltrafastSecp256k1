@@ -1,7 +1,8 @@
 {
     "name": "ultrafast/secp256k1",
-    "description": "PHP bindings for UltrafastSecp256k1 — high-performance secp256k1 elliptic curve library",
-    "version": "1.0.0",
+    "description": "PHP bindings for UltrafastSecp256k1 — high-performance secp256k1 elliptic curve library. Version is overridden by CI (release.yml) at publish time; the in-tree placeholder is 0.0.0-dev.",
+    "version": "0.0.0-dev",
+    "homepage": "https://github.com/shrec/UltrafastSecp256k1",
     "type": "library",
     "license": "MIT",
     "require": {

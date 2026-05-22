@@ -444,7 +444,7 @@ In addition to the 391-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 |----------|---------|
 | [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md) | Full audit infrastructure, CI pipeline index, formal verification evidence |
 | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) | Audit philosophy, continuous evidence model, design rationale, common objections answered |
-| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Current: 376 modules, 0 failures |
+| [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Historical baseline audit (641,194 core checks). Live module count comes from `docs/canonical_data.json` (regenerated from `audit/unified_audit_runner.cpp` ALL_MODULES[]) |
 | [AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) | Per-module coverage matrix |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | Layer-by-layer risk analysis |
 | [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |
@@ -463,19 +463,17 @@ In addition to the 391-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 <details>
 <summary>GPU Performance (diagnostic — out of scope for Bitcoin Core backend evaluation)</summary>
 
-> GPU numbers below are local-only diagnostics from advisory CI runs. They are **not part of the Bitcoin Core backend evaluation**. CPU backend numbers are in the "For Bitcoin Core Reviewers" section above.
-
-**RTX 5060 Ti (CUDA 12, kernel throughput)**
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| ECC operations (field/point) | ~2.3 B ops/sec | kernel-only |
-| ECDSA sign | 4.88 M sigs/sec | RFC 6979, low-S [diagnostic — not verified against current build] |
-| ECDSA verify | 4.05 M verifies/sec | Shamir+GLV (+66% vs prev) [diagnostic] |
-| Schnorr sign (BIP-340) | 3.66 M sigs/sec | BIP-340 tagged hash [diagnostic] |
-| Schnorr verify (BIP-340) | 5.38 M verifies/sec | BIP-340+GLV (+91% vs prev) [diagnostic] |
-| FROST partial verify | 1.34 M verifies/sec | GPU-accelerated FROST [diagnostic — not verified against current build] |
-| Batch point compress (J→SEC1) | 97.2 M pts/sec | New kernel [diagnostic] |
+> GPU throughput numbers are intentionally not published in this README.
+>
+> **Why:** CLAUDE.md ABSOLUTE rule — every benchmark number must come from a measurement on the current machine and current binary; "diagnostic" or "not verified against current build" annotations on concrete numbers violate that rule even with a label. The previous RTX 5060 Ti table mixed live diagnostic figures with explicitly-stale figures; replacing both with this single pointer keeps the README honest.
+>
+> **Where to find the current numbers if you need them:**
+>
+> 1. Build and run `bench_unified --gpu` on your own hardware (the binary covers the same kernel surface the old table reported on).
+> 2. The benchmark methodology is documented in `docs/BENCHMARKS.md` (CPU section); the same controlled-run discipline applies to GPU runs (CPU pinning is not relevant for GPU, but turbo-state and PCIe-state pinning are — see the `--gpu-info` flag).
+> 3. Canonical bench artifacts live under `docs/bench_unified_*.json`; no GPU artifact is currently checked in because no controlled GPU run has been committed since the v4.0.0 baseline. When one is, this section will be updated to reference it (and `canonical_numbers.json` will carry the ratios via the same sync pipeline that handles CPU numbers).
+>
+> GPU correctness coverage IS published — see the `BACKEND_ASSURANCE_MATRIX.md` for the CT-clean status of each kernel, and the unified runner's `gpu-*` advisory modules for kernel-level invariant checks.
 
 </details>
 

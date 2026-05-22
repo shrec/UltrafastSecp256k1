@@ -1,5 +1,38 @@
 # Audit Changelog
 
+## 2026-05-22 — Annotation: commit b95c843b message-vs-content drift (CI-101)
+
+- **Context:** review finding CI-101 in `workingdocs/FINAL_AGGREGATED_REVIEW_2026-05-22.md`
+  flagged that `b95c843b "fix(misc): seed logging, timing assertion, Java POM, curve
+  check, doc"` advertised five fixes in its commit message (TEST-010 seed logging,
+  TEST-012 t-value timing assertion, REL-008 Java POM, SHIM-A10 curve check,
+  `INTEGRATION.md` FetchContent rewording) but the actual diff only touched two
+  unrelated files (`docs/SECURITY_AUTONOMY_KPI.json` timestamp + `include/ufsecp/ufsecp_version.h`
+  version comment). The four advertised fixes are NOT in that commit.
+- **Why not amend / rewrite history:** `b95c843b` is pushed and signed (per
+  CLAUDE.md release authorisation: history rewrites require explicit owner
+  instruction). The fix instead documents the drift here so:
+  - any downstream automation that closes findings by parsing commit-message
+    titles knows the four IDs were NOT actually addressed by `b95c843b`;
+  - the next set of fix commits can re-claim those IDs without ambiguity;
+  - external auditors reviewing the audit trail can reconcile the message
+    against the diff.
+- **Where each fix actually landed (or is still pending):**
+  - **TEST-010 (seed logging):** STILL OPEN. Each audit module's fixed seed
+    `0xA0D17C7C7A` is unlogged. Tracked separately; not in `b95c843b`.
+  - **TEST-012 (t-value timing assertion):** STILL OPEN. `test_fast_not_ct`
+    computes a `t_value()` without any `check()` assertion.
+  - **REL-008 (Java POM):** RESOLVED — but in a later commit, not `b95c843b`.
+    The actual fix replaces the `4.0.0` sed substitution with the `0.0.0-dev`
+    placeholder pattern matching every other binding manifest.
+  - **SHIM-A10 (xonly_pubkey_from_pubkey curve check):** RESOLVED — see the
+    entry below dated 2026-05-21. That commit IS the real SHIM-A10 fix.
+  - **INTEGRATION.md FetchContent:** STILL OPEN. The doc still names the
+    FetchContent example as primary; Bitcoin Core vendors all external code.
+- **Result:** four claimed fixes were "carry-over" optimism — the commit author
+  intended to bundle them but the diff did not include the changes. Recording
+  this here so the next reviewer does not assume the IDs are closed.
+
 ## 2026-05-21 — Fix: SHIM-A10 secp256k1_xonly_pubkey_from_pubkey curve membership check
 
 - **compat/libsecp256k1_shim/src/shim_extrakeys.cpp `secp256k1_xonly_pubkey_from_pubkey`:** The function copied X||Y bytes from `secp256k1_pubkey.data` directly into `secp256k1_xonly_pubkey.data` without verifying that the stored coordinates satisfy y²=x³+7. A hostile caller who crafted a `secp256k1_pubkey` with off-curve bytes (e.g. via `secp256k1_keypair_pub`) could propagate unchecked off-curve material into xonly pubkey operations. Fixed by calling `pubkey_data_to_point(pubkey->data)` (already available in `shim_pubkey_helpers.hpp`) which performs the full curve-membership check; returns 0 on failure (infinity point).

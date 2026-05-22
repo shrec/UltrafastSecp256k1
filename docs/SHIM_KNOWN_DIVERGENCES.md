@@ -305,12 +305,30 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   `parse_bytes_strict` and does NOT reject r=0/s=0 at parse time, matching upstream.
   DER parse is stricter than compact parse — this asymmetry is intentional (defense-in-depth
   for the DER path, where zero-value fields indicate malformed input).
+- **Reason for the divergence (per CLAUDE.md Canonical Rule 3):** the failure modes are
+  observationally equivalent for any cryptographically valid caller — a signature with
+  r=0 or s=0 fails verify on both upstream and the shim. The only place the difference
+  surfaces is in code that distinguishes between parse failure and verify failure on
+  the same input. For Bitcoin Core's consensus path that means: parse failure returns
+  `SCRIPT_ERR_SIG_DER` while verify failure (after parse OK) returns
+  `SCRIPT_ERR_SIG_VERIFY`. Bitcoin Core script validation treats both as a hard reject,
+  so the divergence is not consensus-observable in practice. Any caller that DOES want
+  to know whether a signature is structurally well-formed before verification should
+  use the compact parser (which matches upstream) or accept the DER-strictness contract.
 - **Impact:** Callers parsing DER-encoded ECDSA signatures with r=0 or s=0 (astronomically
-  rare; all such signatures are cryptographically invalid).
+  rare in practice; all such signatures are cryptographically invalid and any caller
+  that gets one is going to fail verify anyway). Probability per random 256-bit r/s:
+  ≤ 2^-128 each. No mainnet/testnet signature with r=0 or s=0 has ever been recorded.
 - **Test:** `test_shim_der_zero_r.cpp` in `compat/libsecp256k1_shim/tests/` —
   calls `secp256k1_ecdsa_signature_parse_der` with a hardcoded DER blob encoding r=0
   and verifies return value is 0. Upstream libsecp returns 1 (passes to verify which
   then rejects).
+- **Tracking:** Review finding `P1-SEC-003` / `RED-003` — kept as a documented
+  divergence rather than a fix because the no-observable-consensus-change argument
+  above stands. If a future PR needs full parse-time symmetry with upstream, the fix is
+  one-line: switch the DER parser at `compat/libsecp256k1_shim/src/shim_ecdsa.cpp:248`
+  from `Scalar::parse_bytes_strict_nonzero` to `Scalar::parse_bytes_strict`, and let
+  the verify path reject the zero scalars.
 
 ---
 

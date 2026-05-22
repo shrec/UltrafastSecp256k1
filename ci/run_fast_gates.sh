@@ -145,7 +145,15 @@ run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py
 # before the actual cmake --preset invocation fails at configure time.
 run "Profile manifest consistency" ci/profile_manifest.py --quiet
 
-# (check_advisory_skip_returns.sh moved to MANDATORY_GATES — CI-004 fix)
+# CI-102 (closed) / P1-CI-001 (closed): check_advisory_skip_returns.sh is
+# invoked from the post-build CAAS workflows (gate.yml, ci.yml) — NOT from
+# fast_gates, because fast_gates runs before any build and the script
+# requires advisory binaries on disk to verify they return 77. Wiring it
+# in here would always trip "rc=77 on mandatory gate" in the build-free
+# pre-push hook. The script itself was rewritten to enumerate all 34
+# advisory=true modules from ALL_MODULES[] (was previously 2 hand-curated
+# entries — see ci/check_advisory_skip_returns.sh) and is mandatory in the
+# build-aware contexts via MANDATORY_GATES[].
 
 if [[ "${FAILED}" -gt 0 ]]; then
     echo ""

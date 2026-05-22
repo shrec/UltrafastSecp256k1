@@ -477,13 +477,17 @@ jobs:
             echo "::error::CAAS evidence artifact is empty — gate crashed before writing any JSON output"
             exit 1
           fi
-          # CI-005: caas_audit_gate.json is the primary verdict file — must always be present.
-          # If it's absent but assurance_report.json is present, the gate ran but failed.
+          # CI-005 (closed P1-CI-003): caas_audit_gate.json is the primary verdict file.
+          # Previously absent → warning, which let a silent crash slip past CI as a soft
+          # pass. Promoted to hard failure: if any other CAAS file exists ($found > 0)
+          # but the primary verdict file does not, the audit_gate step ran far enough to
+          # write something else (e.g. assurance_report.json) and THEN crashed before
+          # writing the verdict — that is a real failure, not a warning.
           if [ ! -f "caas_audit_gate.json" ]; then
-            echo "::warning::caas_audit_gate.json absent — audit gate failed or crashed mid-run; $found other file(s) present"
-          else
-            echo "::notice::CAAS evidence artifact: $found file(s) present (caas_audit_gate.json confirmed)"
+            echo "::error::caas_audit_gate.json absent — audit gate ran ($found other JSON file(s) present) but crashed before writing the verdict file"
+            exit 1
           fi
+          echo "::notice::CAAS evidence artifact: $found file(s) present (caas_audit_gate.json confirmed)"
 
   bindings-smoke:
     name: Block 3 / Bindings Smoke

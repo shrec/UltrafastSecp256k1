@@ -4,13 +4,14 @@
     <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
     <RootNamespace>UltrafastSecp256k1</RootNamespace>
     <AssemblyName>UltrafastSecp256k1</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>0.0.0-dev</Version>
     <Authors>UltrafastSecp256k1 Contributors</Authors>
-    <Description>C# bindings for UltrafastSecp256k1 — high-performance secp256k1 elliptic curve library</Description>
+    <Description>Legacy C# bindings for UltrafastSecp256k1 — superseded by the bindings/csharp/Ufsecp project. New code should target Ufsecp; this package remains for downstream compatibility only. Version is overridden by CI (release.yml) at publish time.</Description>
     <PackageId>UltrafastSecp256k1</PackageId>
     <PackageTags>secp256k1;ecdsa;schnorr;bitcoin;cryptography;elliptic-curve</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/UltrafastSecp256k1/UltrafastSecp256k1</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/shrec/UltrafastSecp256k1</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/shrec/UltrafastSecp256k1</RepositoryUrl>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
