@@ -2709,6 +2709,9 @@ __global__ void point_dbl_kernel(const JacobianPoint* a, JacobianPoint* r, int c
 __global__ void scalar_mul_batch_kernel(const JacobianPoint* points, const Scalar* scalars, 
                                          JacobianPoint* results, int count);
 
+// Extern declaration for batch kernel to allow access from gpu_backend_cuda translation unit                                         
+__global__ void ct_generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
+
 // Generator multiplication kernel (optimized for G * k)
 __global__ void generator_mul_batch_kernel(const Scalar* scalars, JacobianPoint* results, int count);
 
