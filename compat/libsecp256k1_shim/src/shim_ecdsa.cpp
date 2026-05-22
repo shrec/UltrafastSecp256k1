@@ -202,7 +202,14 @@ int secp256k1_ecdsa_signature_serialize_compact(
     const secp256k1_ecdsa_signature *sig)
 {
     SHIM_REQUIRE_CTX(ctx);
-    if (!output64 || !sig) return 0;
+    if (!output64) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_signature_serialize_compact: output64 is NULL");
+        return 0;
+    }
+    if (!sig) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_signature_serialize_compact: sig is NULL");
+        return 0;
+    }
     std::memcpy(output64, sig->data, 64);
     return 1;
 }

@@ -219,10 +219,12 @@ int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cas
 int test_regression_ct_blinding_nonce_path_run();    // CT nonce path uses generator_mul_blinded (2026-05-12)
 int test_regression_ct_scalar_inverse_zero_run();   // SEC-001: CT scalar_inverse zero-branch removal (2026-05-21)
 int test_regression_ct_ops_run();                   // SEC-002/007/008/010, CT-004/005: CT ops regressions (2026-05-21)
+int test_regression_ct_ops_v2_run();                // SEC-002/007/008/010, CT-004/005: source-scan guards + extended checks (2026-05-21 orphan fixed 2026-05-22)
 int test_regression_bip324_privkey_lifetime_run();  // SEC-006: Bip324Session privkey_ lifetime documentation (2026-05-21)
 int test_regression_ct_secret_is_zero_run();        // SIZ-1..4: adaptor CT nonce + taproot is_zero_ct fixes (2026-05-21)
 int test_regression_rfc6979_ct_loop_run();          // RFC6979-CT: fixed 2-iteration CT nonce loop (2026-05-21)
 int test_shim_recovery_and_noncefp_run();           // PASS3-001/002: recovery parse compat + noncefp callback (2026-05-21)
+int test_regression_shim_security_v9_run();         // SHIM-NEW-012/015: serialize + seckey NULL arg callbacks (2026-05-22)
 
 // ============================================================================
 // Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
@@ -1314,6 +1316,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_ct_scalar_inverse_zero", "SEC-001-PARTIAL: ct::scalar_inverse zero-branch CT fix (int128 path only; non-int128 fast:: mul chain is SEC-001-INCOMPLETE); a*a^{-1}==1, (a^{-1})^{-1}==a, inverse(0)==0", "ct_analysis", test_regression_ct_scalar_inverse_zero_run, true },
     // === 2026-05-21 SEC-002/007/008/010, CT-004/005 ===
     { "regression_ct_ops", "SEC-002/007/008/010,CT-004/005: FROST lagrange CT, batch weight non-zero, adaptor fail-closed, bip32 strict nonzero, musig2 blinded nonce, ecdsa_sign_verified direct ct:: call", "ct_analysis", test_regression_ct_ops_run, false },
+    // === 2026-05-21 source-scan guards (orphan file fixed 2026-05-22) ===
+    // advisory=false: C++ API only, no shim/GPU dependency.
+    { "regression_ct_ops_v2", "SEC-002/007/008/010,CT-004/005,SEC-002-EXTRACT: source-scan guards confirming CT fixes — ct::scalar_sub+cneg in schnorr_adaptor_extract, is_zero_ct on adaptor result, FROST lagrange mul, batch weight, adaptor sentinel, BIP-32 strict nonzero, MuSig2 blinded nonce, ecdsa_sign_verified CT call", "ct_analysis", test_regression_ct_ops_v2_run, false },
     // === 2026-05-21 SEC-006 ===
     { "regression_bip324_privkey_lifetime", "SEC-006: Bip324Session privkey_ raw-byte window documented; complete_handshake erases after use (full store-Scalar fix tracked SEC-006)", "memory_safety", test_regression_bip324_privkey_lifetime_run, false },
     // === 2026-05-21 SHIM-010: ndata R-grind bounded termination ===
@@ -1378,6 +1383,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-22 SHIM-013: ecdsa_verify cache consistency ===
     // advisory=true: depends on libsecp256k1 shim (returns 77 when absent).
     { "regression_ecdsa_verify_cache_consistency", "SHIM-013: secp256k1_ecdsa_verify 1st-encounter direct-Point path now runs the same parse_bytes_strict + curve check (y²=x³+7) as the 2nd-encounter cache path — eliminates cache-state-dependent verify verdict for hostile callers that bypass ec_pubkey_parse (CVC-1..3: x>=p, y>=p, off-curve)", "shim_regression", test_regression_ecdsa_verify_cache_consistency_run, true },
+    // === 2026-05-22 SHIM-NEW-012/015: serialize + seckey NULL arg callbacks ===
+    // advisory=true: depends on libsecp256k1 shim (returns ADVISORY_SKIP_CODE when absent).
+    { "regression_shim_security_v9", "SHIM-NEW-012: serialize_compact/der NULL output/sig now fires illegal_callback matching libsecp256k1; SHIM-NEW-015: seckey_verify/negate/tweak_add/tweak_mul NULL seckey/tweak now fires illegal_callback (v9-012/015)", "shim_regression", test_regression_shim_security_v9_run, true },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

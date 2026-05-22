@@ -18,7 +18,10 @@ int secp256k1_ec_seckey_verify(
     const secp256k1_context *ctx, const unsigned char *seckey)
 {
     SHIM_REQUIRE_CTX(ctx);
-    if (!seckey) return 0;
+    if (!seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_verify: seckey is NULL");
+        return 0;
+    }
     Scalar k;
     return Scalar::parse_bytes_strict_nonzero(seckey, k) ? 1 : 0;
 }
@@ -27,7 +30,10 @@ int secp256k1_ec_seckey_negate(
     const secp256k1_context *ctx, unsigned char *seckey)
 {
     SHIM_REQUIRE_CTX(ctx);
-    if (!seckey) return 0;
+    if (!seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_negate: seckey is NULL");
+        return 0;
+    }
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
     // CT-SECKEY-NEGATE: use scalar_cneg with always-negate mask (all-ones) so
@@ -45,7 +51,14 @@ int secp256k1_ec_seckey_tweak_add(
     const unsigned char *tweak32)
 {
     SHIM_REQUIRE_CTX(ctx);
-    if (!seckey || !tweak32) return 0;
+    if (!seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_tweak_add: seckey is NULL");
+        return 0;
+    }
+    if (!tweak32) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_tweak_add: tweak32 is NULL");
+        return 0;
+    }
     Scalar k, t;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
     // tweak in [0, n-1]; 0 is valid (result == seckey)
@@ -62,7 +75,14 @@ int secp256k1_ec_seckey_tweak_mul(
     const unsigned char *tweak32)
 {
     SHIM_REQUIRE_CTX(ctx);
-    if (!seckey || !tweak32) return 0;
+    if (!seckey) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_tweak_mul: seckey is NULL");
+        return 0;
+    }
+    if (!tweak32) {
+        secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_seckey_tweak_mul: tweak32 is NULL");
+        return 0;
+    }
     Scalar k, t;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
     if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) return 0;

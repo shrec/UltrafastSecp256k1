@@ -265,12 +265,14 @@ schnorr_adaptor_extract(const SchnorrAdaptorSig& pre_sig,
     // and would produce a wrong adaptor secret (t = -s_hat) without error.
     if (sig.s.is_zero()) return {Scalar{}, false};
 
-    // adapt computed s = s_hat + t_adj where t_adj = needs_negation ? -t : t
-    // so sig.s - s_hat = t_adj; reverse the negation to recover original t
-    Scalar t = sig.s - pre_sig.s_hat;
-    if (pre_sig.needs_negation) t = t.negate();
+    // CT: use ct::scalar_sub + ct::scalar_cneg — t is the recovered adaptor
+    // secret (private material). fast::operator- and fast::negate() are VT
+    // and must not operate on the secret result even though the inputs
+    // (sig.s, pre_sig.s_hat) are public.
+    Scalar t = ct::scalar_sub(sig.s, pre_sig.s_hat);
+    t = ct::scalar_cneg(t, ct::bool_to_mask(pre_sig.needs_negation));
 
-    if (t.is_zero()) {
+    if (t.is_zero_ct()) {
         return {t, false};
     }
     return {t, true};
@@ -374,7 +376,7 @@ ecdsa_adaptor_extract(const ECDSAAdaptorSig& pre_sig,
     Scalar const s_inv = sig.s.inverse();
     Scalar const t = pre_sig.s_hat * s_inv;
 
-    if (t.is_zero()) return {t, false};
+    if (t.is_zero_ct()) return {t, false};
     return {t, true};
 }
 

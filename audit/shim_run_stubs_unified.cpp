@@ -35,4 +35,6 @@ int test_shim_recovery_and_noncefp_run()             { return ADVISORY_SKIP_CODE
 // audit/test_regression_ecdsa_verify_cache_consistency.cpp links into the
 // runner only when SECP256K1_BUILD_COMPAT_SHIM is defined.
 int test_regression_ecdsa_verify_cache_consistency_run() { return ADVISORY_SKIP_CODE; }
+// SHIM-NEW-012/015: serialize NULL callbacks + seckey NULL callbacks
+int test_regression_shim_security_v9_run()           { return ADVISORY_SKIP_CODE; }
 // test_regression_p2_ct_shim_fixes_run is always provided by test_regression_p2_ct_shim_fixes.cpp

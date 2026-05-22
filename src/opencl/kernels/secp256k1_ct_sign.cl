@@ -201,6 +201,14 @@ inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     Scalar s;
     ct_scalar_add_impl(&k, &ed, &s);
 
+    // Rule 14: reject degenerate output — s==0 or R.x all-zeros
+    if (scalar_is_zero_impl(&s)) return 0;
+    {
+        uint _r_or = 0u;
+        for (int _i = 0; _i < 32; ++_i) _r_or |= (uint)rx_bytes[_i];
+        if (_r_or == 0u) return 0;
+    }
+
     // Output: sig = R.x || s
     for (int i = 0; i < 32; ++i) sig_out[i] = rx_bytes[i];
     uchar s_bytes[32];

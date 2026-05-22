@@ -381,10 +381,10 @@ static void test_ecdsa_sign_verified_ct_direct() {
 
 // ── entry point ──────────────────────────────────────────────────────────────
 
-int test_regression_ct_ops_run() {
+int test_regression_ct_ops_v2_run() {
     g_pass = 0; g_fail = 0;
     printf("======================================================================\n");
-    printf("  Regression: CT ops correctness (2026-05-21)\n");
+    printf("  Regression: CT ops source-scan guards (2026-05-21)\n");
     printf("  Fixes: SEC-002/CT-002 FROST lagrange, SEC-007 batch_weight,\n");
     printf("         SEC-008 adaptor sentinel, SEC-010 BIP-32 master key,\n");
     printf("         CT-004 MuSig2 nonce gen, CT-005 ecdsa_sign_verified\n");
@@ -409,5 +409,5 @@ int test_regression_ct_ops_run() {
 }
 
 #ifdef STANDALONE_TEST
-int main() { return test_regression_ct_ops_run(); }
+int main() { return test_regression_ct_ops_v2_run(); }
 #endif

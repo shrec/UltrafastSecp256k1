@@ -3970,6 +3970,8 @@ if(TARGET secp256k1_shim)
         test_regression_shim_ndata_rgrind.cpp
         # 2026-05-21 review v8: varlen sign_custom CT fixes (VCS-1..6)
         test_regression_schnorr_varlen_ct_fixes.cpp
+        # 2026-05-22 v9: SHIM-NEW-012/015: serialize + seckey NULL arg callbacks
+        test_regression_shim_security_v9.cpp
 )
     target_compile_definitions(unified_audit_runner PRIVATE SECP256K1_BUILD_COMPAT_SHIM)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
@@ -4007,6 +4009,19 @@ if(TARGET secp256k1_shim)
         COMMAND test_regression_schnorr_varlen_ct_fixes_standalone)
     set_tests_properties(regression_schnorr_varlen_ct_fixes PROPERTIES
         TIMEOUT 60 LABELS "audit;regression;shim;schnorr;ct;varlen")
+
+    # -- v9: SHIM-NEW-012/015: serialize + seckey NULL arg callbacks (2026-05-22) --
+    add_executable(test_regression_shim_security_v9_standalone
+        test_regression_shim_security_v9.cpp)
+    audit_target_defaults(test_regression_shim_security_v9_standalone)
+    target_link_libraries(test_regression_shim_security_v9_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_regression_shim_security_v9_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_shim_security_v9_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME regression_shim_security_v9
+        COMMAND test_regression_shim_security_v9_standalone)
+    set_tests_properties(regression_shim_security_v9 PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;security;callback")
 
     # -- CA-001: curve membership check in large-batch ECDSA --
     add_executable(test_regression_ecdsa_batch_curve_check_standalone
@@ -4972,6 +4987,17 @@ add_test(NAME regression_ct_ops
 set_tests_properties(regression_ct_ops PROPERTIES TIMEOUT 60
     LABELS "audit;regression;ct;security;sec-002;sec-007;sec-008;ct-004;ct-005")
 target_sources(unified_audit_runner PRIVATE test_regression_ct_ops.cpp)
+
+# 2026-05-22 CT ops v2: source-scan guards (orphan file resolved — was test_regression_ct_ops_2026_05_21.cpp)
+add_executable(test_regression_ct_ops_v2_standalone
+    test_regression_ct_ops_2026_05_21.cpp)
+audit_target_defaults(test_regression_ct_ops_v2_standalone)
+target_compile_definitions(test_regression_ct_ops_v2_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ct_ops_v2
+    COMMAND test_regression_ct_ops_v2_standalone)
+set_tests_properties(regression_ct_ops_v2 PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;ct;security;sec-002;sec-007;sec-008;ct-004;ct-005;source-scan")
+target_sources(unified_audit_runner PRIVATE test_regression_ct_ops_2026_05_21.cpp)
 
 # SEC-006: BIP-324 privkey_ raw-byte lifetime window (SEC-006)
 # Uses C++ API (Bip324Session) only — no shim/GPU dependency. advisory=false.

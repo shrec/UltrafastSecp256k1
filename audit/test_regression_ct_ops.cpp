@@ -384,6 +384,34 @@ static void test_sec002_frost_lagrange() {
 }
 
 // ---------------------------------------------------------------------------
+// SEC-002-EXTRACT: schnorr_adaptor_extract uses ct:: arithmetic on recovered secret
+// ---------------------------------------------------------------------------
+static void test_sec002_adaptor_extract_ct() {
+    std::printf("  [SEC-002-EXTRACT] schnorr_adaptor_extract: ct::scalar_sub + ct::scalar_cneg source scan\n");
+    std::string src = read_src_file_("adaptor.cpp");
+    if (src.empty()) { std::printf("    [SKIP] adaptor.cpp not found\n"); return; }
+
+    // Verify old VT operator- is gone from schnorr_adaptor_extract
+    // The old code was: Scalar t = sig.s - pre_sig.s_hat;
+    // We check the function body for ct::scalar_sub usage.
+    bool has_ct_sub  = (src.find("ct::scalar_sub(sig.s, pre_sig.s_hat)") != std::string::npos);
+    bool has_ct_cneg = (src.find("ct::scalar_cneg(t, ct::bool_to_mask(pre_sig.needs_negation))") != std::string::npos);
+    bool has_is_zero_ct = (src.find("t.is_zero_ct()") != std::string::npos);
+    CHECK(has_ct_sub,  "SEC-002-EXTRACT: schnorr_adaptor_extract uses ct::scalar_sub");
+    CHECK(has_ct_cneg, "SEC-002-EXTRACT: schnorr_adaptor_extract uses ct::scalar_cneg");
+    CHECK(has_is_zero_ct, "SEC-002-EXTRACT: schnorr_adaptor_extract uses is_zero_ct on result");
+
+    // Verify ecdsa_adaptor_extract also uses is_zero_ct (not is_zero)
+    // Find ecdsa_adaptor_extract body (after line containing ecdsa_adaptor_extract)
+    auto pos = src.find("ecdsa_adaptor_extract");
+    if (pos != std::string::npos) {
+        std::string body = src.substr(pos, 300);
+        bool no_bare_is_zero = (body.find("t.is_zero()") == std::string::npos);
+        CHECK(no_bare_is_zero, "SEC-002-EXTRACT: ecdsa_adaptor_extract uses is_zero_ct not is_zero");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // When compiled into unified_audit_runner, test_regression_ct_ops_2026_05_21.cpp
 // provides test_regression_ct_ops_run() (it supersedes this file's version).
@@ -411,6 +439,9 @@ int test_regression_ct_ops_run() {
     test_sec008_adaptor_sentinel();
     test_sec010_bip32_strict_nonzero();
     test_sec002_frost_lagrange();
+
+    // 2026-05-22 SEC-002-EXTRACT: adaptor extract CT fix
+    test_sec002_adaptor_extract_ct();
 
     std::printf("\n  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
