@@ -4975,6 +4975,13 @@ endif()
 
 # PASS3-001/002: recoverable sig parse compat + noncefp illegal callback fix.
 # Requires secp256k1_shim. advisory=true in unified runner.
+# NOTE: the .cpp is INTENTIONALLY not added to target_sources(unified_audit_runner)
+# even when SECP256K1_BUILD_SHIM=ON. The runner always picks up the
+# ADVISORY_SKIP_CODE(77) stub from shim_run_stubs_unified.cpp because
+# audit/CMakeLists.txt is processed BEFORE compat/libsecp256k1_shim, so the
+# `if(TARGET secp256k1_shim)` guard around the stubs/include fork is always
+# in the FALSE branch (architecture note documented in .github/workflows/gate.yml
+# shim-gate step). The real test runs as the standalone CTest target below.
 if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
     add_executable(test_shim_recovery_and_noncefp_standalone
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_recovery_and_noncefp.cpp)
@@ -4989,8 +4996,6 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
     set_tests_properties(shim_recovery_and_noncefp PROPERTIES TIMEOUT 30
         SKIP_RETURN_CODE 77
         LABELS "audit;regression;shim;security;pass3-001;pass3-002")
-    target_sources(unified_audit_runner PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/tests/test_shim_recovery_and_noncefp.cpp)
 endif()
 
 # SIZ-1..4: CT is_zero → is_zero_ct fixes in adaptor.cpp and taproot.cpp.
