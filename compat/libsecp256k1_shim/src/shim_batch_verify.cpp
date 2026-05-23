@@ -49,6 +49,11 @@ int secp256k1_schnorrsig_verify_batch(
     const secp256k1_xonly_pubkey* const* pubkeys,
     size_t                           n)
 {
+    // SHIM-002: function-specific NULL ctx message (before generic ctx_can_verify).
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(NULL, "secp256k1_schnorrsig_verify_batch: NULL context");
+        return 0;
+    }
     if (!ctx_can_verify(ctx)) return 0;
     if (n == 0) return 1;  // vacuously valid
     if (!sigs64 || !msgs || !pubkeys) return 0;
@@ -119,6 +124,11 @@ int secp256k1_ecdsa_verify_batch(
     const secp256k1_pubkey* const*          pubkeys,
     size_t                                  n)
 {
+    // SHIM-002: function-specific NULL ctx message (before generic ctx_can_verify).
+    if (!ctx) {
+        secp256k1_shim_call_illegal_cb(NULL, "secp256k1_ecdsa_verify_batch: NULL context");
+        return 0;
+    }
     if (!ctx_can_verify(ctx)) return 0;
     if (n == 0) return 1;
     if (!sigs || !msgs32 || !pubkeys) return 0;

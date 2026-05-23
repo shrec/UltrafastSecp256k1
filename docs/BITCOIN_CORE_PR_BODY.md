@@ -78,7 +78,13 @@ Differential testing against bitcoin-core/secp256k1 reference:
 | ConnectBlockMixed | 257.7 ms/blk | 253.9 ms/blk | **+1.5%** ±0.3% err |
 | P2WPKH verify | 45,777 ns | 45,978 ns | ≈parity (0.4% slower, within noise margin) |
 
-Full data in `docs/BITCOIN_CORE_BENCH_RESULTS.json` (benchmark run 2026-05-12, hard turbo lock, GCC 14.2.0; P1 security fixes applied through 2026-05-22, current dev HEAD `f6b92035`). All CT signing paths use `generator_mul_blinded` for nonce multiplication (DPA defense active when `secp256k1_context_randomize` is called). CT verification is via CAAS — the project's automated multi-layer audit framework (LLVM ct-verif, Valgrind taint, dudect, 395-module unified runner).
+Full data in `docs/BITCOIN_CORE_BENCH_RESULTS.json` (benchmark run 2026-05-12, hard turbo lock, GCC 14.2.0; P1 security fixes applied through 2026-05-23). All CT signing paths use `generator_mul_blinded` for nonce multiplication (DPA defense active when `secp256k1_context_randomize` is called). CT verification is via CAAS — the project's automated multi-layer audit framework (LLVM ct-verif, Valgrind taint, dudect, 400-module unified runner).
+
+**Honest disclosure:** a 2026-05-07 native-C++-API run (GCC 13.3, 2000 unique pubkeys) showed
+ConnectBlockAllSchnorr at 0.83× (−17%) vs libsecp256k1 due to per-pubkey GLV table rebuild
+cost. The 2026-05-12 shim-path measurement above shows +0.9–1.5% faster end-to-end; the
+−17% is kept as a conservative upper bound until a direct unique-pubkey re-run on the shim
+path with GCC 14 + LTO lands. Full disclosure in `docs/BITCOIN_CORE_PR_DESCRIPTION.md`.
 
 ### Known gaps and honest statements
 

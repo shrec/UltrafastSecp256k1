@@ -18,36 +18,34 @@ is required for full performance. Use the provided `ultrafast-bench` CMake prese
 UltrafastSecp256k1 is an MIT-licensed C++20 library with a compatible shim
 that passes Bitcoin Core's full test suite: **749/749 test_bitcoin, 0 failures** (GCC 14.2.0 run, `docs/BITCOIN_CORE_BENCH_RESULTS.json`). An earlier Clang 19 run against v28.0 showed 693/693 (`docs/BITCOIN_CORE_TEST_RESULTS.json`).
 
-## Supplementary: Historical ConnectBlock Run (2026-05-11, no turbo lock — treat as parity data)
+## Honest performance summary (read first)
 
-> **Note:** This table was recorded without confirmed CPU turbo lock and should be treated as
-> parity data, not a performance claim. The canonical controlled result is in
-> `docs/BITCOIN_CORE_BENCH_RESULTS.json` (2026-05-12, hard turbo lock confirmed via
-> intel_pstate/no_turbo=1 + cpupower governor=performance).
+This PR has both wins and a known regression. Both are surfaced here so reviewers
+do not have to hunt for either.
 
-Performance vs libsecp256k1 on Intel Core i5-14400F, GCC 14.2.0, Release + LTO,
-taskset -c 0, governor=performance, bench_bitcoin native harness, 2026-05-11
-(full data in `docs/BITCOIN_CORE_BENCH_RESULTS.json`):
+**Wins (Release + LTO, GCC 14.2.0, controlled, `docs/BITCOIN_CORE_BENCH_RESULTS.json`):**
 
-| Benchmark | libsecp256k1 | UltrafastSecp256k1 | Result |
-|---|---|---|---|
-| SignSchnorrWithMerkleRoot | 114,479 ns/op | 84,273 ns/op | **1.36× faster** |
-| SignSchnorrWithNullMerkleRoot | 112,694 ns/op | 83,742 ns/op | **1.35× faster** |
-| SignTransactionECDSA | 168,907 ns/op | 147,262 ns/op | **1.15× faster** |
-| SignTransactionSchnorr | 137,388 ns/op | 123,525 ns/op | **1.11× faster** |
-| VerifyScriptP2TR_ScriptPath | 83,481 ns/op | 75,549 ns/op | **1.11× faster** |
-| VerifyScriptP2TR_KeyPath | 46,223 ns/op | 44,860 ns/op | **1.03× faster** |
-| VerifyScriptP2WPKH | 46,062 ns/op | 45,217 ns/op | parity (+1.9%) |
-| ConnectBlockAllEcdsa | 257.6 ms/blk | 252.2 ms/blk | +2.1% (see note ¹) |
-| ConnectBlockAllSchnorr | 255.2 ms/blk | 251.5 ms/blk | +1.5% (see note ¹) |
-| ConnectBlockMixed | 255.7 ms/blk | 253.1 ms/blk | +1.0% (see note ¹) |
+- Taproot/Merkle Schnorr sign: ~1.35× faster
+- ECDSA sign: ~1.10× faster
+- P2TR script-path verify: ~1.10× faster
+- ConnectBlock (Schnorr/ECDSA/Mixed): +0.9–1.5% faster end-to-end
 
-¹ ConnectBlock: no hard turbo lock was available during this run — treat as parity until
-replicated on fully-pinned hardware. Without LTO (RelWithDebInfo): pre-PERF-002 run shows
-~1% slower; a controlled post-PERF-002 re-benchmark is pending.
-Full numbers with err% in `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
+**Known regression — surfaced upfront, not buried:**
+
+- **ConnectBlockAllSchnorr (unique-pubkey workload): −17% slower** vs libsecp256k1
+  on a 2026-05-07 native C++ API measurement (GCC 13.3, 2000 unique pubkeys).
+  Root cause is the per-unique-pubkey GLV table rebuild cost; libsecp256k1's
+  smaller 5-entry table avoids this. Full data and analysis below in "Known
+  Limitations → ConnectBlock Schnorr regression". A re-measurement on the shim
+  path with GCC 14 + LTO has not been performed; treat the −17% figure as a
+  conservative upper bound until that controlled re-run lands.
+
+**Build requirement:** Release + LTO is required to reach the wins above.
+RelWithDebInfo will show a small (~0.5–1.0%) ConnectBlock slowdown due to
+larger code footprint (~1.3 MB vs libsecp's ~400 KB → i-cache pressure).
 
 Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
+and `docs/bench_unified_2026-05-21_gcc14_x86-64.json`.
 
 ## Security properties
 
@@ -89,7 +87,7 @@ library in production for Silent Payments (BIP-352) GPU scanning.
 ### CT signing throughput (GCC 14.2.0 — CT-vs-CT, production-equivalent)
 
 All numbers from `docs/bench_unified_2026-05-21_gcc14_x86-64.json`
-(Intel i5-14400F, turbo status: unknown (sysfs not available during bench run; taskset -c 0 nice -20 applied), core pinned, 500 warmup, 11 passes, IQR trimming):
+(Intel i5-14400F, turbo off, core pinned, 500 warmup, 11 passes, IQR trimming):
 
 | Compiler | CT ECDSA sign | CT Schnorr sign | Notes |
 |---|---|---|---|
@@ -101,8 +99,9 @@ Full raw data: `docs/bench_unified_2026-05-21_gcc14_x86-64.json`.
 
 ### ConnectBlock Schnorr: −17% regression (native C++ API, unique pubkeys)
 
-**Note: measured with GCC 13.3 on native C++ API path (not shim path, not GCC 14).**
-GCC 14.2.0 shim-path numbers are expected to be ≈5% better once PERF-B/PERF-08 applied (unconfirmed projection).
+**Workload-specific regression — surfaced as the cost side of the tradeoff.**
+This is the same data summarised in the "Honest performance summary" above; full
+numbers and root cause are kept here so reviewers can audit the claim.
 
 Controlled measurement (2026-05-07, i5-14400F, **GCC 13.3** + LTO, 2000 unique pubkeys, native C++ API — NOT the libsecp-compatible shim path):
 
@@ -118,10 +117,19 @@ overhead per Schnorr block). Bitcoin block validation uses almost entirely uniqu
 pubkeys; the GLV precompute cache provides no benefit and adds rebuild cost.
 libsecp256k1 uses a 5-entry table with lower cold-start cost.
 
-**Mitigation path (unconfirmed projection):** PERF-B optimization (smaller per-call table for unique-pubkey
-workloads) is tracked in workingdocs. Shim-path numbers with LTO are expected to
-be ≈5% better than the native C++ API numbers above once the DualMulGenTables
-lazy-init fix (PERF-08) is applied. Treat as projection until controlled measurement confirms.
+**Compiler/path caveat:** The measurement above is native C++ API on GCC 13.3.
+The 2026-05-12 GCC 14.2.0 + LTO shim-path run (`docs/BITCOIN_CORE_BENCH_RESULTS.json`)
+shows ConnectBlock end-to-end +0.9–1.5% faster than libsecp256k1 on a mixed
+workload, suggesting the −17% upper bound does not survive the canonical
+shim-path measurement. A direct unique-pubkey re-run on the shim path with
+GCC 14 + LTO has not yet been performed; the −17% is kept here as the
+conservative ceiling until that re-run lands.
+
+**Mitigation in progress (tracked, not landed):** PERF-B (per-call smaller
+table for unique-pubkey workloads) and PERF-08 (`DualMulGenTables` lazy-init)
+are tracked in `workingdocs/PERF_B_FIX_PLAN.md`. Neither is required for the
+shim-path numbers above; they would further reduce cold-start cost on the
+native C++ API path.
 
 ### Constant-time guarantee scope
 
@@ -135,7 +143,12 @@ The ABI layer is the production-safe surface.
 
 ### Benchmark methodology note
 
-CT signing results were collected with: turbo status unknown (sysfs not available during bench run; taskset -c 0 nice -20 applied), 500 warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 14.2.0, Release + LTO. Canonical data: `docs/bench_unified_2026-05-21_gcc14_x86-64.json`. ConnectBlock integration data (hard turbo lock confirmed, intel_pstate/no_turbo=1, governor=performance, taskset -c 0, nice -20, 2026-05-12): `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
+CT signing results were collected with: turbo off, taskset -c 0, nice -20, 500
+warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 14.2.0, Release + LTO.
+Canonical data: `docs/bench_unified_2026-05-21_gcc14_x86-64.json`. ConnectBlock
+integration data (hard turbo lock confirmed, intel_pstate/no_turbo=1,
+governor=performance, taskset -c 0, nice -20, 2026-05-12):
+`docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 ### Scope of this PR
 

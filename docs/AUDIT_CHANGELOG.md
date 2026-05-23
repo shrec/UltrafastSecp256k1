@@ -1,5 +1,12 @@
 # Audit Changelog
 
+## 2026-05-23 — Fix: SHIM-002 + TEST-001 + PR description disclosure
+
+- **`compat/libsecp256k1_shim/src/shim_batch_verify.cpp`** — `secp256k1_schnorrsig_verify_batch` and `secp256k1_ecdsa_verify_batch`: added explicit NULL-ctx guards firing function-specific illegal-callback messages (`"secp256k1_schnorrsig_verify_batch: NULL context"` / `"secp256k1_ecdsa_verify_batch: NULL context"`) before the generic `ctx_can_verify()` check. Previously the generic `"secp256k1_shim: NULL context argument"` message was emitted, which obscured which entry point received the NULL ctx (SHIM-002).
+- **`audit/test_regression_musig_noncegen_extra_input.cpp`** — restructured to self-healing pattern (TEST-001). Earlier version inverted the regression contract: tests asserted that pubnonces ARE identical, which PASSED while the SHIM-NONCEGEN-001 bug existed and would FAIL when fixed. New version dispatches on the source-marker presence in `shim_musig.cpp` — bug-open mode asserts the freeze; bug-fixed mode asserts the correct entropy mixing (different extra_input32 → different pubnonce). No manual update needed when the underlying bug is fixed; removing the marker flips the test mode.
+- **`docs/BITCOIN_CORE_PR_DESCRIPTION.md`** — added "Honest performance summary (read first)" section surfacing the −17% Schnorr ConnectBlock regression to the top of the document (was buried in "Known Limitations"). Removed the contradictory "Supplementary: Historical ConnectBlock Run (2026-05-11, no turbo lock)" table. Tightened mitigation language ("unconfirmed projection" → explicit caveat that PERF-B/PERF-08 are tracked but not landed). Updated canonical bench reference v1 → v2.
+- **`docs/BITCOIN_CORE_PR_BODY.md`** — added honest-disclosure paragraph for the −17% Schnorr ceiling. Updated module count 395 → 400 and security-fix cutoff 2026-05-22 → 2026-05-23.
+
 ## 2026-05-23 — Fix: SEC-001/CT-001/SEC-002/SEC-003/SHIM-001/CI-006
 
 - **`src/cpu/src/adaptor.cpp`** — `ecdsa_adaptor_extract()`: replaced `fast::operator*` (variable-time) with `ct::scalar_mul(s_hat, s_inv)` (CT-001); added `secure_erase(&s_inv)` after computing `t` (SEC-001). `ecdsa_adaptor_adapt()`: added `if (s.is_zero_ct()) return ECDSASignature{}` guard after `t_inv` erase (SEC-003).
