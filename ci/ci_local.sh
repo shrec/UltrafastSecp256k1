@@ -72,6 +72,41 @@ echo -e "${BOLD}[0] CI Path Integrity${NC}"
 run_check "CI paths exist"          python3 ci/check_ci_paths.py
 echo ""
 
+# ── Canonical data auto-sync — kills doc drift at the source ────────────────
+# Runs the three sync scripts unconditionally (they're idempotent: ~sub-second,
+# zero changes if nothing is stale). If any of them modify the working tree,
+# the push is blocked with an actionable message — the developer commits the
+# auto-applied sync output and re-pushes. This preserves the invariant
+# "committed code == pushed code" while making drift impossible to land.
+#
+# Triggers (logical): edits to unified_audit_runner.cpp (ALL_MODULES count),
+# docs/canonical_numbers.json, or any doc whose numbers come from the canonical
+# pipeline. We don't bother detecting which trigger fired — running all three
+# is faster than the detection logic.
+echo -e "${BOLD}[0.5] Canonical Data Auto-Sync${NC}"
+_pre_sync_status=$(git status --porcelain 2>/dev/null || true)
+_sync_fail=0
+run_check "Module count sync"        python3 ci/sync_module_count.py
+run_check "Canonical numbers sync"   python3 ci/sync_canonical_numbers.py
+run_check "Docs from canonical sync" python3 ci/sync_docs_from_canonical.py
+_post_sync_status=$(git status --porcelain 2>/dev/null || true)
+if [[ "$_pre_sync_status" != "$_post_sync_status" ]]; then
+  echo ""
+  echo -e "${RED}${BOLD}  SYNC PRODUCED CHANGES — push blocked${NC}"
+  echo -e "  ${YELLOW}One or more canonical sources changed but their derived docs"
+  echo -e "  were not updated. The sync scripts have now auto-applied the fixes${NC}"
+  echo -e "  ${YELLOW}to your working tree. To proceed:${NC}"
+  echo -e "    ${BOLD}git status${NC}                              # review the changes"
+  echo -e "    ${BOLD}git add -u && git commit --amend --no-edit${NC}  # or new commit"
+  echo -e "    ${BOLD}git push${NC}                                # re-push"
+  echo -e "  ${YELLOW}Files changed by sync:${NC}"
+  diff <(echo "$_pre_sync_status") <(echo "$_post_sync_status") \
+    | sed -n 's/^> //p' | sed 's/^/    /'
+  ((fail++))
+  gate_results["Canonical sync drift"]="fail"
+fi
+echo ""
+
 # ── Fast gates — SAME script that gate.yml runs ──────────────────────────────
 # Single source of truth: ci/run_fast_gates.sh
 # local passes == GitHub passes. No divergence possible.
