@@ -243,7 +243,7 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool,
     # the multi-pass review. Each group below addresses a specific drift class
     # that previously required hand-editing across 9 docs.
 
-    # ── CT ratio table cells (4 variants) ────────────────────────────────────
+    # ── CT ratio table cells ──────────────────────────────────────────────────
     # Source: ct_signing_gcc.ecdsa_ratio / .schnorr_ratio in canonical_numbers.json.
     # Covers the dual-ratio formats used in BENCHMARKS summary, BACKEND_EVIDENCE
     # table rows, and PR_DESCRIPTION known-limitations rows. The dual-ratio
@@ -254,60 +254,42 @@ def sync_file(path: Path, c: dict, dry_run: bool, verbose: bool,
     if ecdsa_r and schnorr_r:
         ecdsa_pct = round((ecdsa_r - 1) * 100)
         schnorr_pct = round((schnorr_r - 1) * 100)
-
-        # Variant 1: "(ECDSA N.NN×, Schnorr N.NN× — turbo lock <state>)"
-        # — BENCHMARKS.md per-column attribution table.
-        pat = r'\(ECDSA \d+\.\d+×, Schnorr \d+\.\d+× — turbo lock \w+\)'
-        repl = f'(ECDSA {ecdsa_r}×, Schnorr {schnorr_r}× — turbo lock CONFIRMED)'
-        text, n = _sub(pat, repl, text); total += n
-
-        # Variant 2: "**N.NN× ECDSA · N.NN× Schnorr** (turbo lock <state>)"
-        # — BENCHMARKS.md summary table row, bold no-`~` format.
-        pat = r'\*\*\d+\.\d+× ECDSA · \d+\.\d+× Schnorr\*\* \(turbo lock \w+\)'
-        repl = f'**{ecdsa_r}× ECDSA · {schnorr_r}× Schnorr** (turbo lock CONFIRMED)'
-        text, n = _sub(pat, repl, text); total += n
-
-        # Variant 3: Evidence table row pair
-        #   "| **N.NN× faster** (+N%) | **N.NN× faster** (+N%) |"
-        # — BACKEND_EVIDENCE.md CT signing compiler results table.
-        pat = (r'\*\*\d+\.\d+× faster\*\* \(\+\d+%\) \| '
-               r'\*\*\d+\.\d+× faster\*\* \(\+\d+%\)')
-        repl = (f'**{ecdsa_r}× faster** (+{ecdsa_pct}%) | '
-                f'**{schnorr_r}× faster** (+{schnorr_pct}%)')
-        text, n = _sub(pat, repl, text); total += n
-
-        # Variant 4: PR_DESCRIPTION known-limitations table row pair
-        #   "| **+N% vs libsecp (N.NN×)** | **+N% vs libsecp (N.NN×)** |"
-        pat = (r'\*\*\+\d+% vs libsecp \(\d+\.\d+×\)\*\* \| '
-               r'\*\*\+\d+% vs libsecp \(\d+\.\d+×\)\*\*')
-        repl = (f'**+{ecdsa_pct}% vs libsecp ({ecdsa_r}×)** | '
-                f'**+{schnorr_pct}% vs libsecp ({schnorr_r}×)**')
-        text, n = _sub(pat, repl, text); total += n
+        # (pattern, replacement) tuples. One loop covers all variants.
+        #   1: BENCHMARKS.md per-column attribution table
+        #   2: BENCHMARKS.md summary table row (bold, no `~`)
+        #   3: BACKEND_EVIDENCE.md compiler-results table row pair
+        #   4: PR_DESCRIPTION known-limitations table row pair
+        for pat, repl in [
+            (r'\(ECDSA \d+\.\d+×, Schnorr \d+\.\d+× — turbo lock \w+\)',
+             f'(ECDSA {ecdsa_r}×, Schnorr {schnorr_r}× — turbo lock CONFIRMED)'),
+            (r'\*\*\d+\.\d+× ECDSA · \d+\.\d+× Schnorr\*\* \(turbo lock \w+\)',
+             f'**{ecdsa_r}× ECDSA · {schnorr_r}× Schnorr** (turbo lock CONFIRMED)'),
+            (r'\*\*\d+\.\d+× faster\*\* \(\+\d+%\) \| \*\*\d+\.\d+× faster\*\* \(\+\d+%\)',
+             f'**{ecdsa_r}× faster** (+{ecdsa_pct}%) | **{schnorr_r}× faster** (+{schnorr_pct}%)'),
+            (r'\*\*\+\d+% vs libsecp \(\d+\.\d+×\)\*\* \| \*\*\+\d+% vs libsecp \(\d+\.\d+×\)\*\*',
+             f'**+{ecdsa_pct}% vs libsecp ({ecdsa_r}×)** | **+{schnorr_pct}% vs libsecp ({schnorr_r}×)**'),
+        ]:
+            text, n = _sub(pat, repl, text); total += n
 
     # ── Turbo wording variants ────────────────────────────────────────────────
     # When the canonical hardware spec confirms turbo is disabled (no_turbo=1),
     # rewrite all "turbo lock unconfirmed" / "turbo status unknown" mentions.
-    # Skipped for historical docs (sessions logs that record the prior state).
+    # Skipped for historical docs (session logs that record the prior state).
+    # The first entry (combined "results may vary" phrase) must run BEFORE the
+    # standalone "turbo lock unconfirmed" rewrite — otherwise the standalone
+    # rule would strip the "unconfirmed" half and leave the incompatible
+    # "results may vary" tail attached to a "CONFIRMED" claim.
     turbo_method = c.get("hardware", {}).get("turbo_method", "")
     if "no_turbo=1" in turbo_method and not is_historical:
-        # Combined variant: "turbo lock unconfirmed — results may vary; <suffix>"
-        # The "results may vary" caveat is incompatible with a CONFIRMED state;
-        # rewrite to the canonical CONFIRMED phrasing preserving any trailing
-        # bench-context (taskset, nice).
-        pat = (r'turbo lock (?:un(?:known|confirmed)) — results may vary;'
-               r'\s*([^)\n]*)')
-        repl = (r'turbo lock CONFIRMED: intel_pstate/no_turbo=1, '
-                r'governor=performance, \g<1>')
-        text, n = _sub(pat, repl, text); total += n
-        # "turbo lock unconfirmed" / "turbo lock unknown" (standalone)
-        pat = r'\bturbo lock (?:un(?:known|confirmed))\b'
-        text, n = _sub(pat, "turbo lock CONFIRMED", text); total += n
-        # "turbo status unknown" / "turbo status: unknown ..."
-        pat = r'turbo status[:\s]+unknown\b[^,)\n]*'
-        text, n = _sub(pat, "turbo lock CONFIRMED (intel_pstate/no_turbo=1)", text); total += n
-        # bare "turbo unknown" (e.g. summary "x86-64 · ... · turbo unknown · ...")
-        pat = r'\bturbo unknown\b'
-        text, n = _sub(pat, "turbo CONFIRMED disabled", text); total += n
+        for pat, repl in [
+            (r'turbo lock (?:un(?:known|confirmed)) — results may vary;\s*([^)\n]*)',
+             r'turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance, \g<1>'),
+            (r'\bturbo lock (?:un(?:known|confirmed))\b', "turbo lock CONFIRMED"),
+            (r'turbo status[:\s]+unknown\b[^,)\n]*',
+             "turbo lock CONFIRMED (intel_pstate/no_turbo=1)"),
+            (r'\bturbo unknown\b', "turbo CONFIRMED disabled"),
+        ]:
+            text, n = _sub(pat, repl, text); total += n
 
     # ── Bench artifact filename canonicalization ──────────────────────────────
     # Replaces every "bench_unified_YYYY-MM-DD_<compiler>_<arch>(_v<n>)?.json"
