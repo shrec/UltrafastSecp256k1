@@ -67,18 +67,16 @@ static_assert(offsetof(JacobianPointData, x)  == 0,  "JacobianPoint.x at offset 
 static_assert(offsetof(JacobianPointData, y)  == 32, "JacobianPoint.y at offset 32");
 static_assert(offsetof(JacobianPointData, z)  == 64, "JacobianPoint.z at offset 64");
 
-inline FieldElementData* fe_to_data(void* fe) noexcept {
-    return static_cast<FieldElementData*>(fe);
-}
-inline const FieldElementData* fe_to_data(const void* fe) noexcept {
-    return static_cast<const FieldElementData*>(fe);
-}
-inline ScalarData* sc_to_data(void* sc) noexcept {
-    return static_cast<ScalarData*>(sc);
-}
-inline const ScalarData* sc_to_data(const void* sc) noexcept {
-    return static_cast<const ScalarData*>(sc);
-}
+namespace detail {
+// Zero-cost type-erasure cast. Shared body for the typed wrappers below.
+template <typename T> inline       T* to_data_cast(      void* p) noexcept { return static_cast<      T*>(p); }
+template <typename T> inline const T* to_data_cast(const void* p) noexcept { return static_cast<const T*>(p); }
+} // namespace detail
+
+inline FieldElementData*       fe_to_data(void* fe)       noexcept { return detail::to_data_cast<FieldElementData>(fe); }
+inline const FieldElementData* fe_to_data(const void* fe) noexcept { return detail::to_data_cast<FieldElementData>(fe); }
+inline ScalarData*             sc_to_data(void* sc)       noexcept { return detail::to_data_cast<ScalarData>(sc); }
+inline const ScalarData*       sc_to_data(const void* sc) noexcept { return detail::to_data_cast<ScalarData>(sc); }
 
 } // namespace secp256k1
 

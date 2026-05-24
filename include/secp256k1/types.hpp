@@ -106,21 +106,18 @@ static_assert(offsetof(JacobianPointData, z) == 64, "JacobianPoint.z at offset 6
 // These are provided for convenience in wrapper/bridge code.
 // Within each backend, prefer using the backend's native type directly.
 
-inline FieldElementData* fe_to_data(void* fe) noexcept {
-    return static_cast<FieldElementData*>(fe);
-}
+namespace detail {
+// Zero-cost type-erasure cast. Single body shared by every typed
+// {fe,sc,...}_to_data wrapper below — kills the otherwise verbatim
+// `static_cast<T*>(p)` repetition flagged by SonarCloud / jscpd.
+template <typename T> inline       T* to_data_cast(      void* p) noexcept { return static_cast<      T*>(p); }
+template <typename T> inline const T* to_data_cast(const void* p) noexcept { return static_cast<const T*>(p); }
+} // namespace detail
 
-inline const FieldElementData* fe_to_data(const void* fe) noexcept {
-    return static_cast<const FieldElementData*>(fe);
-}
-
-inline ScalarData* sc_to_data(void* sc) noexcept {
-    return static_cast<ScalarData*>(sc);
-}
-
-inline const ScalarData* sc_to_data(const void* sc) noexcept {
-    return static_cast<const ScalarData*>(sc);
-}
+inline FieldElementData*       fe_to_data(void* fe)             noexcept { return detail::to_data_cast<FieldElementData>(fe); }
+inline const FieldElementData* fe_to_data(const void* fe)       noexcept { return detail::to_data_cast<FieldElementData>(fe); }
+inline ScalarData*             sc_to_data(void* sc)             noexcept { return detail::to_data_cast<ScalarData>(sc); }
+inline const ScalarData*       sc_to_data(const void* sc)       noexcept { return detail::to_data_cast<ScalarData>(sc); }
 
 } // namespace secp256k1
 
