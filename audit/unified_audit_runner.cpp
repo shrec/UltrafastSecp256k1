@@ -584,6 +584,7 @@ int test_regression_ct_ops_run(); // CT correctness: FROST lagrange CT, batch_we
 // ============================================================================
 int test_regression_musig2_abi_signer_index_run(); // SEC-001: partial_sign_v2 validates privkey<->signer_index
 int test_regression_musig2_v1_partial_sign_deprecated_run(); // v9 RT-001 / TASK-001: v1 partial_sign hard-fails with UFSECP_ERR_DEPRECATED_API
+int test_regression_secret_stack_residue_v9_run(); // v9 RT-006/-007/-014/-015 / TASK-022: schnorr raw-key erase + BIP32 is_zero_ct + FROST SHA erase + adaptor degen-r erase
 
 // ============================================================================
 // Forward declarations -- 2026-05-12 SEC-002/004/006/010 security fixes
@@ -1308,6 +1309,10 @@ static const AuditModule ALL_MODULES[] = {
     // v1 partial_sign now returns UFSECP_ERR_DEPRECATED_API on every call;
     // output zeroed and secnonce erased on the reject path (fail-closed).
     { "regression_musig2_v1_partial_sign_deprecated", "v9 RT-001 / TASK-001: ufsecp_musig2_partial_sign (v1) hard-fails with UFSECP_ERR_DEPRECATED_API — closes signer-index bypass that remained in v1 after parse_musig2_keyagg left individual_pubkeys empty", "exploit_poc", test_regression_musig2_v1_partial_sign_deprecated_run, false },
+    // === 2026-05-24 v9 RT-006/-007/-014/-015 / TASK-022: secret stack residue bundle ===
+    // schnorr raw-key overloads erase kp.d; BIP32 derive_child uses is_zero_ct;
+    // FROST derive_scalar erases SHA state; adaptor degenerate-r early return erases secrets.
+    { "regression_secret_stack_residue_v9", "v9 RT-006/-007/-014/-015 / TASK-022: schnorr raw-key overload + BIP32 + FROST + adaptor — secret stack residue hardening", "differential", test_regression_secret_stack_residue_v9_run, false },
     // === 2026-05-13 v7 security regression guards ===
     // advisory=true: shim must be linked.
     { "regression_shim_security_v7", "v7: T-01 MuSig2 blinding scope + T-07 sig strict parse + T-08 cache memcmp + T-10 context_randomize NULL callback", "exploit_poc", test_regression_shim_security_v7_run, true },

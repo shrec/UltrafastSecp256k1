@@ -77,7 +77,14 @@ static Scalar derive_scalar(const std::uint8_t* seed, std::size_t seed_len,
     auto hash = h.finalize();
     // Use strict nonzero parsing: hash >= n or == 0 must retry, not silently
     // reduce to a wrong scalar (polynomial coefficient / nonce is secret material).
-    return derive_scalar_from_hash(hash);
+    auto result = derive_scalar_from_hash(hash);
+    // v9 RT-014 / TASK-022: scrub the intermediate hash and SHA state on the
+    // stack — they incorporate the seed (secret material) and would otherwise
+    // linger in the stack frame after return.
+    secure_erase(hash.data(), hash.size());
+    secure_erase(tag_hash.data(), tag_hash.size());
+    secure_erase(&h, sizeof(h));
+    return result;
 }
 
 template<std::size_t N>
@@ -102,7 +109,12 @@ static Scalar derive_scalar_pair(const std::uint8_t* seed, std::size_t seed_len,
     auto hash = h.finalize();
     // Polynomial coefficients are secret: use strict parsing to prevent silent
     // zero or out-of-range values from producing a wrong (weak) coefficient.
-    return derive_scalar_from_hash(hash);
+    auto result = derive_scalar_from_hash(hash);
+    // v9 RT-014 / TASK-022: same erasure discipline as derive_scalar() above.
+    secure_erase(hash.data(), hash.size());
+    secure_erase(tag_hash.data(), tag_hash.size());
+    secure_erase(&h, sizeof(h));
+    return result;
 }
 
 static bool valid_unique_participant_ids(const std::vector<ParticipantId>& ids) {

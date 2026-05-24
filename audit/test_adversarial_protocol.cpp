@@ -116,12 +116,12 @@ static void test_musig2_nonce_reuse() {
 
     // First sign -- should succeed
     uint8_t psig1[32];
-    const ufsecp_error_t rc1 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1);
+    const ufsecp_error_t rc1 = ufsecp_musig2_partial_sign_v2(ctx, secnonce1, priv1, pubkeys, keyagg, session, 0, psig1);
     CHECK_OK(rc1, "first partial_sign should succeed");
 
     // Second sign with SAME secnonce -- should fail (nonce was consumed)
     uint8_t psig1_dup[32];
-    const ufsecp_error_t rc2 = ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1_dup);
+    const ufsecp_error_t rc2 = ufsecp_musig2_partial_sign_v2(ctx, secnonce1, priv1, pubkeys, keyagg, session, 0, psig1_dup);
     CHECK(rc2 == UFSECP_ERR_BAD_INPUT, "reuse of consumed secnonce must return UFSECP_ERR_BAD_INPUT");
 
     ufsecp_ctx_destroy(ctx);
@@ -228,9 +228,9 @@ static void test_musig2_partial_sig_replay() {
     CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg1, session1), "musig2_start_sign_session");
 
     uint8_t psig1[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session1, 0, psig1), "musig2_partial_sign");
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session1, 0, psig1), "musig2_partial_sign");
     uint8_t psig2[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session1, 1, psig2), "musig2_partial_sign");
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn2, priv2, pubkeys, keyagg, session1, 1, psig2), "musig2_partial_sign");
 
     // Session 2 (msg2) -- use DIFFERENT nonces but try to inject psig1 from session1
     extra[0] = 2;
@@ -256,7 +256,7 @@ static void test_musig2_partial_sig_replay() {
 
     // Aggregate with replayed partial sig -- final sig should be invalid
     uint8_t psig2b[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2b, priv2, keyagg, session2, 1, psig2b), "musig2_partial_sign");
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn2b, priv2, pubkeys, keyagg, session2, 1, psig2b), "musig2_partial_sign");
 
     uint8_t psigs_mixed[64];
     std::memcpy(psigs_mixed, psig1, 32);   // replayed from session1!
@@ -308,13 +308,20 @@ static void test_musig2_hostile_args() {
     CHECK(ufsecp_musig2_key_agg(ctx, buf, 0, keyagg, agg_pub) != UFSECP_OK,
           "key_agg n=0");
     // key_agg: n=2 valid pair (33-byte compressed keys)
+    // v9 RT-001 / TASK-001 migration: keep the concatenated pubkeys alive
+    // outside the inner block so v2 ABI calls below have access.
+    uint8_t pubkeys[66] = {};
     {
         uint8_t _ck1[33], _ck2[33];
         CHECK_OK(ufsecp_pubkey_create(ctx, priv1, _ck1), "pubkey_create priv1");
         CHECK_OK(ufsecp_pubkey_create(ctx, priv2, _ck2), "pubkey_create priv2");
-        std::memcpy(buf, _ck1, 33);
-        std::memcpy(buf + 33, _ck2, 33);
-        CHECK_OK(ufsecp_musig2_key_agg(ctx, buf, 2, keyagg, agg_pub), "key_agg valid pair");
+        std::memcpy(pubkeys,      _ck1, 33);
+        std::memcpy(pubkeys + 33, _ck2, 33);
+        // buf is the legacy scratch that the test originally used for the
+        // pubkeys array; keep it in sync so subsequent ufsecp_musig2_* calls
+        // that reference `buf` (e.g. partial_verify) still see consistent bytes.
+        std::memcpy(buf, pubkeys, 66);
+        CHECK_OK(ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pub), "key_agg valid pair");
     }
     // nonce_gen: null ctx
     CHECK(ufsecp_musig2_nonce_gen(nullptr, buf, buf, buf, buf, buf, secnonce, pubnonce) != UFSECP_OK,
@@ -346,9 +353,9 @@ static void test_musig2_hostile_args() {
         uint8_t zero_session[UFSECP_MUSIG2_SESSION_LEN] = {};
         uint8_t zero_secnonce[UFSECP_MUSIG2_SECNONCE_LEN] = {};
         uint8_t zero_pubnonce[UFSECP_MUSIG2_PUBNONCE_LEN] = {};
-        CHECK(ufsecp_musig2_partial_sign(ctx, zero_secnonce, priv1, keyagg, session, 0, psig) != UFSECP_OK,
+        CHECK(ufsecp_musig2_partial_sign_v2(ctx, zero_secnonce, priv1, pubkeys, keyagg, session, 0, psig) != UFSECP_OK,
             "partial_sign zero secnonce rejected");
-        CHECK(ufsecp_musig2_partial_sign(ctx, secnonce, priv1, keyagg, zero_session, 0, psig) != UFSECP_OK,
+        CHECK(ufsecp_musig2_partial_sign_v2(ctx, secnonce, priv1, pubkeys, keyagg, zero_session, 0, psig) != UFSECP_OK,
             "partial_sign zero session rejected");
         CHECK(ufsecp_musig2_partial_verify(ctx, psig, zero_pubnonce, xonly1, keyagg, session, 0) != UFSECP_OK,
             "partial_verify zero pubnonce rejected");
@@ -370,9 +377,9 @@ static void test_musig2_hostile_args() {
     CHECK(ufsecp_musig2_start_sign_session(nullptr, aggnonce, keyagg, buf, session) != UFSECP_OK,
           "start_session null ctx");
     // partial_sign: null ctx
-    CHECK(ufsecp_musig2_partial_sign(nullptr, secnonce, buf, keyagg, session, 0, psig) != UFSECP_OK,
+    CHECK(ufsecp_musig2_partial_sign_v2(nullptr, secnonce, buf, pubkeys, keyagg, session, 0, psig) != UFSECP_OK,
           "partial_sign null ctx");
-        CHECK(ufsecp_musig2_partial_sign(ctx, secnonce, buf, keyagg, session, 99, psig) != UFSECP_OK,
+        CHECK(ufsecp_musig2_partial_sign_v2(ctx, secnonce, buf, pubkeys, keyagg, session, 99, psig) != UFSECP_OK,
             "partial_sign signer_index out of range");
     // partial_verify: null ctx
     CHECK(ufsecp_musig2_partial_verify(nullptr, psig, pubnonce, buf, keyagg, session, 0) != UFSECP_OK,
@@ -434,9 +441,9 @@ static void test_musig2_hostile_args() {
              "start_sign_session for arity mismatch test");
 
         uint8_t psig1[32], psig2[32];
-        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1),
+        CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session, 0, psig1),
              "partial_sign signer1 for arity mismatch test");
-        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session, 1, psig2),
+        CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn2, priv2, pubkeys, keyagg, session, 1, psig2),
              "partial_sign signer2 for arity mismatch test");
 
         uint8_t psigs_ok[64];
@@ -463,7 +470,7 @@ static void test_musig2_hostile_args() {
         std::memcpy(session_bad + 98, &impossible_count, sizeof(impossible_count));
         CHECK(ufsecp_musig2_partial_sig_agg(ctx, psigs_ok, 2, session_bad, sig64) != UFSECP_OK,
             "partial_sig_agg rejects corrupted session participant count");
-        CHECK(ufsecp_musig2_partial_sign(ctx, psigs_extra, priv1, keyagg, session_bad, 0, psig1) != UFSECP_OK,
+        CHECK(ufsecp_musig2_partial_sign_v2(ctx, psigs_extra, priv1, pubkeys, keyagg, session_bad, 0, psig1) != UFSECP_OK,
             "partial_sign rejects session participant count mismatch");
 
         ufsecp_ctx_destroy(ctx);
@@ -615,7 +622,7 @@ static void test_musig2_transcript_mutation() {
     // If session starts, partial_sign with corrupted keyagg should produce bad sig
     if (rc == UFSECP_OK) {
         uint8_t psig[32];
-        rc = ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg_bad, session, 0, psig);
+        rc = ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg_bad, session, 0, psig);
         if (rc == UFSECP_OK) {
             // The partial sig should not verify with the original keyagg
             const ufsecp_error_t vrc = ufsecp_musig2_partial_verify(ctx, psig, pn1, xonly1,
@@ -682,7 +689,7 @@ static void test_musig2_signer_ordering() {
 
     // Signer 1 signs with index=1 (should be index=0)
     uint8_t psig1_wrong[32];
-    const ufsecp_error_t rc = ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 1, psig1_wrong);
+    const ufsecp_error_t rc = ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session, 1, psig1_wrong);
 
     if (rc == UFSECP_OK) {
         // Partial verify should catch the index mismatch
@@ -746,8 +753,8 @@ static void test_musig2_malicious_aggregator() {
 
     if (rc == UFSECP_OK) {
         uint8_t psig1[32], psig2[32];
-        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1), "musig2_partial_sign");
-        CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2, priv2, keyagg, session, 1, psig2), "musig2_partial_sign");
+        CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session, 0, psig1), "musig2_partial_sign");
+        CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn2, priv2, pubkeys, keyagg, session, 1, psig2), "musig2_partial_sign");
 
         uint8_t psigs[64];
         std::memcpy(psigs, psig1, 32);
@@ -811,11 +818,11 @@ static void test_musig2_abort_restart() {
 
     // Signer 1 signs (consuming secnonce1) but we abort before signer 2
     uint8_t psig1_abort[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1_abort), "musig2_partial_sign");
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session, 0, psig1_abort), "musig2_partial_sign");
 
     // Verify secnonce1 was consumed -- reuse must fail
     uint8_t psig1_reuse[32];
-    const ufsecp_error_t rc = ufsecp_musig2_partial_sign(ctx, sn1, priv1, keyagg, session, 0, psig1_reuse);
+    const ufsecp_error_t rc = ufsecp_musig2_partial_sign_v2(ctx, sn1, priv1, pubkeys, keyagg, session, 0, psig1_reuse);
     CHECK(rc != UFSECP_OK, "consumed secnonce reuse after abort must fail");
 
     // Session 2: restart with completely fresh nonces -- must succeed
@@ -835,9 +842,9 @@ static void test_musig2_abort_restart() {
     CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce_f, keyagg, msg32, session_f), "musig2_start_sign_session");
 
     uint8_t psig1f[32], psig2f[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn1f, priv1, keyagg, session_f, 0, psig1f),
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn1f, priv1, pubkeys, keyagg, session_f, 0, psig1f),
              "fresh session signer1 sign");
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, sn2f, priv2, keyagg, session_f, 1, psig2f),
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, sn2f, priv2, pubkeys, keyagg, session_f, 1, psig2f),
              "fresh session signer2 sign");
 
     uint8_t psigs_f[64];

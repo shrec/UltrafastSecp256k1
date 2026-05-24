@@ -3952,6 +3952,8 @@ target_sources(unified_audit_runner PRIVATE
     test_regression_musig2_abi_signer_index.cpp
     # v9 RT-001 / TASK-001: MuSig2 v1 partial_sign hard-fail closure (no special dependency)
     test_regression_musig2_v1_partial_sign_deprecated.cpp
+    # v9 RT-006/-007/-014/-015 / TASK-022: secret stack residue bundle (no special dependency)
+    test_regression_secret_stack_residue_v9.cpp
     # P1-SEC-002: schnorr_sign e_hash erasure (no special dependency)
     test_regression_schnorr_sign_e_hash_erased.cpp
     # P2: CT-001/002/003 + SHIM-002/003/004 fixes (includes secp256k1.h — needs shim include path)
@@ -5011,6 +5013,17 @@ add_test(NAME regression_musig2_v1_partial_sign_deprecated
     COMMAND test_regression_musig2_v1_partial_sign_deprecated_standalone)
 set_tests_properties(regression_musig2_v1_partial_sign_deprecated PROPERTIES TIMEOUT 60
     LABELS "audit;regression;musig2;abi;security;v9-rt-001;task-001")
+
+# v9 RT-006/-007/-014/-015 / TASK-022: secret stack residue bundle.
+# Source-scan + functional test combo, no shim/GPU dependency.
+add_executable(test_regression_secret_stack_residue_v9_standalone
+    test_regression_secret_stack_residue_v9.cpp)
+audit_target_defaults(test_regression_secret_stack_residue_v9_standalone)
+target_compile_definitions(test_regression_secret_stack_residue_v9_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_secret_stack_residue_v9
+    COMMAND test_regression_secret_stack_residue_v9_standalone)
+set_tests_properties(regression_secret_stack_residue_v9 PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;ct;stack-residue;v9;task-022")
 
 # 2026-05-21 CT ops regression: CT-004/005, SEC-002/007/008
 # Uses C++ API only (no shim/GPU dependency). advisory=false.

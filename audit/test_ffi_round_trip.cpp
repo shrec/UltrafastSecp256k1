@@ -1462,12 +1462,12 @@ static void test_musig2_flow() {
 
     // Partial sign (signer 1)
     uint8_t psig1[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, secnonce1, priv1, keyagg, session, 0, psig1),
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, secnonce1, priv1, pubkeys, keyagg, session, 0, psig1),
              "musig2: partial_sign signer1");
 
     // Partial sign (signer 2)
     uint8_t psig2[32];
-    CHECK_OK(ufsecp_musig2_partial_sign(ctx, secnonce2, priv2, keyagg, session, 1, psig2),
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(ctx, secnonce2, priv2, pubkeys, keyagg, session, 1, psig2),
              "musig2: partial_sign signer2");
 
     // Aggregate partial sigs

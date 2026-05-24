@@ -2,6 +2,53 @@
 
 **Last updated**: 2026-05-24 | **Version**: 4.1.0
 
+### 2026-05-24 — v9 RT-002 / TASK-002: Adaptor signing DPA blinding
+
+`src/cpu/src/adaptor.cpp`: every secret-scalar generator multiplication
+now uses `ct::generator_mul_blinded(...)` (was `ct::generator_mul(...)`):
+- `schnorr_adaptor_sign` long-term key derivation `P = sk*G`.
+- `ecdsa_adaptor_sign` secret nonce derivation `base_nonce = k*G`.
+A hostile caller observing power/EM traces cannot recover `sk` or the
+adaptor `k` from a single trace; the blinding mask is applied when
+`secp256k1_context_randomize()` has been called. Verifier-facing ABI
+behaviour is unchanged — these are micro-architectural side-channel
+hardening only.
+
+Hostile-caller coverage: `audit/test_regression_adaptor_blinded_nonce.cpp`
+adds `test_adaptor_blinded_all_secret_sites_source_scan` enforcing the
+presence of `generator_mul_blinded` and the absence of any bare
+`ct::generator_mul(k)` / `ct::generator_mul(private_key)` in the adaptor
+source.
+
+### 2026-05-24 — v9 RT-006/-007/-014/-015 / TASK-022: secret stack residue bundle
+
+CPU signing paths hardened against secret residue on the stack frame
+after the function returns:
+
+- `schnorr_sign(const Scalar&)` / `schnorr_sign_verified(const Scalar&)`
+  (`src/cpu/src/schnorr.cpp:502,511`): raw-key overloads now
+  `secure_erase(&kp.d, ...)` after the sub-call returns. A hostile
+  caller that scrapes its caller's stack frame after the call returns
+  finds only zeros where the negated signing scalar used to live.
+- `bip32::derive_child` (`src/cpu/src/bip32.cpp:414`): uses CT
+  `child_scalar.is_zero_ct()` on the secret-derived child scalar —
+  closes a probabilistic timing side-channel on the
+  (extremely unlikely) wraparound case.
+- FROST `derive_scalar` / `derive_scalar_pair`
+  (`src/cpu/src/frost.cpp:60-106`): SHA256 state, tag hash, and the
+  finalized hash buffer are all securely erased before return; they
+  incorporate the seed (secret material) into a stack-resident state.
+- `ecdsa_adaptor_sign` degenerate-r early return
+  (`src/cpu/src/adaptor.cpp:311`): pre-erases `k`, `binding`, and
+  `R_x_bytes` before returning the zero sentinel — the success-path
+  erase block is unreachable from this branch.
+
+Hostile-caller coverage:
+`audit/test_regression_secret_stack_residue_v9.cpp` source-scans every
+affected function for the required erase / CT-predicate calls and
+round-trips the schnorr raw-key overloads. 16/16 checks pass on the
+patched code; pre-fix code would fail the four source-scan assertions.
+
 ### 2026-05-24 — v9 RT-001 / TASK-001: MuSig2 v1 partial_sign hard-fail
 
 `ufsecp_musig2_partial_sign` (v1) at

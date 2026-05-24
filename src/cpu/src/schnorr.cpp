@@ -502,8 +502,15 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
 SchnorrSignature schnorr_sign(const Scalar& private_key,
                               const std::array<uint8_t, 32>& msg,
                               const std::array<uint8_t, 32>& aux_rand) {
-    const auto kp = schnorr_keypair_create(private_key);
-    return schnorr_sign(kp, msg, aux_rand);
+    // v9 RT-006 / TASK-022: schnorr_keypair_create materialises kp.d (negated
+    // signing scalar, possibly differing from private_key by sign). The kp
+    // structure lives on this frame's stack and must be erased before return —
+    // the kp passed to schnorr_sign(kp, ...) is a *copy* of our local. Erase
+    // our copy after the sub-call returns (sig itself is public output).
+    SchnorrKeypair kp = schnorr_keypair_create(private_key);
+    auto sig = schnorr_sign(kp, msg, aux_rand);
+    detail::secure_erase(&kp.d, sizeof(kp.d));
+    return sig;
 }
 
 // -- BIP-340 Sign (raw key) + Verify ------------------------------------------
@@ -511,8 +518,11 @@ SchnorrSignature schnorr_sign(const Scalar& private_key,
 SchnorrSignature schnorr_sign_verified(const Scalar& private_key,
                                        const std::array<uint8_t, 32>& msg,
                                        const std::array<uint8_t, 32>& aux_rand) {
-    const auto kp = schnorr_keypair_create(private_key);
-    return schnorr_sign_verified(kp, msg, aux_rand);
+    // v9 RT-006 / TASK-022: see comment in schnorr_sign(Scalar) overload above.
+    SchnorrKeypair kp = schnorr_keypair_create(private_key);
+    auto sig = schnorr_sign_verified(kp, msg, aux_rand);
+    detail::secure_erase(&kp.d, sizeof(kp.d));
+    return sig;
 }
 
 // -- BIP-340 Verify -----------------------------------------------------------

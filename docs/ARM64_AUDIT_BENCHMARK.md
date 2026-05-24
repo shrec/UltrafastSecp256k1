@@ -284,7 +284,7 @@ ctest --test-dir build --output-on-failure
 ## ✅ Audit Test Results (Android ARM64)
 
 **Full audit run:** 48/49 modules passed  
-**Advisory warning:** Side-channel dudect smoke test ( 402 modules)  
+**Advisory warning:** Side-channel dudect smoke test ( 403 modules)  
 - **Reason:** Probabilistic timing test, flakes under shared CPU scheduler on mobile OS
 - **Mitigation:** Dedicated CT verification on Apple Silicon M1 native (controlled environment)
 - **Verdict:** Not a security issue, advisory only

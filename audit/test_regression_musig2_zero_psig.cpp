@@ -30,6 +30,8 @@ struct MuSig2State {
     uint8_t pk1[33] = {}, pk2[33] = {};
     uint8_t agg_pk32[32] = {};                    // xonly agg pubkey from key_agg
     uint8_t keyagg[UFSECP_MUSIG2_KEYAGG_LEN] = {};
+    // v9 RT-001 / TASK-001 migration: v2 ABI requires the pubkeys[] buffer.
+    uint8_t pubkeys[66] = {};
     uint8_t secnonce1[UFSECP_MUSIG2_SECNONCE_LEN] = {};
     uint8_t secnonce2[UFSECP_MUSIG2_SECNONCE_LEN] = {};
     uint8_t pubnonce1[UFSECP_MUSIG2_PUBNONCE_LEN] = {};
@@ -49,10 +51,9 @@ struct MuSig2State {
         if (ufsecp_pubkey_create(ctx, sk2, pk2) != UFSECP_OK) return;
 
         // key_agg: flat byte array (33 bytes per pubkey, contiguous)
-        uint8_t pks_flat[66] = {};
-        std::memcpy(pks_flat,      pk1, 33);
-        std::memcpy(pks_flat + 33, pk2, 33);
-        if (ufsecp_musig2_key_agg(ctx, pks_flat, 2, keyagg, agg_pk32) != UFSECP_OK) return;
+        std::memcpy(pubkeys,      pk1, 33);
+        std::memcpy(pubkeys + 33, pk2, 33);
+        if (ufsecp_musig2_key_agg(ctx, pubkeys, 2, keyagg, agg_pk32) != UFSECP_OK) return;
 
         // nonce_gen: (ctx, privkey, pubkey32, agg_pubkey32, msg32, extra_in, secnonce, pubnonce)
         if (ufsecp_musig2_nonce_gen(ctx, sk1, pk1, agg_pk32, msg, nullptr,
@@ -80,8 +81,7 @@ static void test_mzp_partial_sign_succeeds() {
     if (!s.ok) { std::printf("SKIP MZP-1: setup failed\n"); return; }
 
     uint8_t psig[32] = {};
-    ufsecp_error_t rc = ufsecp_musig2_partial_sign(
-        s.ctx, s.secnonce1, s.sk1, s.keyagg, s.session, 0, psig);
+    ufsecp_error_t rc = ufsecp_musig2_partial_sign_v2(s.ctx, s.secnonce1, s.sk1, s.pubkeys, s.keyagg, s.session, 0, psig);
     ASSERT_TRUE(rc == UFSECP_OK, "MZP-1: partial_sign with valid inputs must succeed");
 
     // MZP-2: partial sig output must not be all zeros
@@ -97,8 +97,7 @@ static void test_mzp_oob_signer_rejected() {
 
     uint8_t psig[32];
     std::memset(psig, 0xCC, 32);  // sentinel
-    ufsecp_error_t rc = ufsecp_musig2_partial_sign(
-        s.ctx, s.secnonce2, s.sk2, s.keyagg, s.session, 99, psig);
+    ufsecp_error_t rc = ufsecp_musig2_partial_sign_v2(s.ctx, s.secnonce2, s.sk2, s.pubkeys, s.keyagg, s.session, 99, psig);
     // out-of-range index must be rejected
     ASSERT_FALSE(rc == UFSECP_OK, "MZP-3: OOB signer_index must be rejected");
     // output buffer must be zeroed on error (not left with sentinel)
@@ -113,10 +112,10 @@ static void test_mzp_full_round_trip() {
     if (!s.ok) { std::printf("SKIP MZP-4: setup failed\n"); return; }
 
     uint8_t psig1[32] = {}, psig2[32] = {};
-    if (ufsecp_musig2_partial_sign(s.ctx, s.secnonce1, s.sk1, s.keyagg, s.session, 0, psig1) != UFSECP_OK) {
+    if (ufsecp_musig2_partial_sign_v2(s.ctx, s.secnonce1, s.sk1, s.pubkeys, s.keyagg, s.session, 0, psig1) != UFSECP_OK) {
         std::printf("FAIL MZP-4: partial_sign1 failed\n"); ++g_fail; return;
     }
-    if (ufsecp_musig2_partial_sign(s.ctx, s.secnonce2, s.sk2, s.keyagg, s.session, 1, psig2) != UFSECP_OK) {
+    if (ufsecp_musig2_partial_sign_v2(s.ctx, s.secnonce2, s.sk2, s.pubkeys, s.keyagg, s.session, 1, psig2) != UFSECP_OK) {
         std::printf("FAIL MZP-4: partial_sign2 failed\n"); ++g_fail; return;
     }
 
@@ -139,8 +138,7 @@ static void test_mzp_null_args_rejected() {
     MuSig2State s;
     if (!s.ok) { std::printf("SKIP MZP-5: setup failed\n"); return; }
     uint8_t psig[32] = {};
-    ufsecp_error_t rc = ufsecp_musig2_partial_sign(
-        s.ctx, nullptr, s.sk1, s.keyagg, s.session, 0, psig);
+    ufsecp_error_t rc = ufsecp_musig2_partial_sign_v2(s.ctx, nullptr, s.sk1, s.pubkeys, s.keyagg, s.session, 0, psig);
     ASSERT_FALSE(rc == UFSECP_OK, "MZP-5: null secnonce must be rejected");
 }
 
@@ -153,7 +151,7 @@ static void test_mzp_secnonce_consumed() {
     std::memcpy(sn_copy, s.secnonce2, UFSECP_MUSIG2_SECNONCE_LEN);
 
     uint8_t psig[32] = {};
-    CHECK_OK(ufsecp_musig2_partial_sign(s.ctx, sn_copy, s.sk2, s.keyagg, s.session, 1, psig), "musig2_partial_sign");
+    CHECK_OK(ufsecp_musig2_partial_sign_v2(s.ctx, sn_copy, s.sk2, s.pubkeys, s.keyagg, s.session, 1, psig), "musig2_partial_sign");
 
     bool zeroed = true;
     for (size_t i = 0; i < UFSECP_MUSIG2_SECNONCE_LEN; ++i) zeroed &= (sn_copy[i] == 0);

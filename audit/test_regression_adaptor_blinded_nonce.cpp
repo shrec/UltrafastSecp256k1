@@ -182,6 +182,64 @@ static void test_adaptor_functional_roundtrip() {
 #endif
 }
 
+// ── v9 RT-002 / TASK-002: adaptor.cpp uses _blinded on all secret scalars ────
+//
+// v9 review found two additional unblinded ct::generator_mul() sites on
+// secret inputs in src/cpu/src/adaptor.cpp that the SEC-NEW-001 fix missed:
+//   * schnorr_adaptor_sign:  Point P = ct::generator_mul(private_key)
+//                             (long-term key derivation; was unblinded)
+//   * ecdsa_adaptor_sign:    Point base_nonce = ct::generator_mul(k)
+//                             (secret nonce; was unblinded)
+// Both now use ct::generator_mul_blinded(...). The binding scalar in
+// ecdsa_adaptor_sign is derived from PUBLIC adaptor_point so it stays on
+// the unblinded primitive (correct and cheaper).
+
+static void test_adaptor_blinded_all_secret_sites_source_scan() {
+    printf("[2b] v9 RT-002 / TASK-002: adaptor.cpp — _blinded on every secret site\n");
+
+    std::string src = read_source_file("src/cpu/src/adaptor.cpp");
+    if (src.empty()) {
+        src = read_source_file("adaptor.cpp");
+    }
+    if (src.empty()) {
+        printf("  [SKIP] adaptor.cpp not found — source scan skipped\n");
+        return;
+    }
+
+    // schnorr_adaptor_sign long-term key: must use blinded variant.
+    bool has_blinded_priv =
+        (src.find("generator_mul_blinded(private_key)") != std::string::npos);
+    CHECK(has_blinded_priv,
+          "adaptor.cpp: generator_mul_blinded(private_key) present in schnorr_adaptor_sign (v9 RT-002)");
+
+    // ecdsa_adaptor_sign secret nonce k: must use blinded variant.
+    // The blinded call must be present; there is also a separate
+    // generator_mul(binding) on the PUBLIC binding scalar which is correct.
+    // We just assert the blinded call appears at least once on a k argument
+    // — counted by the same pattern as SEC-NEW-001 in schnorr_adaptor_sign,
+    // so we count occurrences instead of presence/absence.
+    size_t count_blinded_k = 0;
+    size_t pos = 0;
+    while ((pos = src.find("generator_mul_blinded(k)", pos)) != std::string::npos) {
+        ++count_blinded_k;
+        pos += 24;  // len("generator_mul_blinded(k)")
+    }
+    CHECK(count_blinded_k >= 2,
+          "adaptor.cpp: generator_mul_blinded(k) appears in BOTH schnorr_adaptor_sign and ecdsa_adaptor_sign (v9 RT-002)");
+
+    // Negative-presence check: there must be NO bare ct::generator_mul(k) or
+    // ct::generator_mul(private_key) calls remaining. (Comments are fine.)
+    // We tolerate ct::generator_mul(binding) — binding is PUBLIC-derived.
+    bool has_unblinded_k =
+        (src.find("ct::generator_mul(k)") != std::string::npos);
+    bool has_unblinded_priv =
+        (src.find("ct::generator_mul(private_key)") != std::string::npos);
+    CHECK(!has_unblinded_k,
+          "adaptor.cpp: no bare ct::generator_mul(k) remains (v9 RT-002)");
+    CHECK(!has_unblinded_priv,
+          "adaptor.cpp: no bare ct::generator_mul(private_key) remains (v9 RT-002)");
+}
+
 // ── SEC-NEW-002: shim_schnorr_bch.cpp uses is_zero_ct() on nonce ─────────────
 //
 // secp256k1_schnorr_sign() in the BCH shim generates an RFC6979 nonce k and
@@ -279,6 +337,8 @@ int test_regression_adaptor_blinded_nonce_run() {
     printf("======================================================================\n\n");
 
     test_adaptor_blinded_nonce_source_scan();
+    printf("\n");
+    test_adaptor_blinded_all_secret_sites_source_scan();
     printf("\n");
     test_adaptor_functional_roundtrip();
     printf("\n");

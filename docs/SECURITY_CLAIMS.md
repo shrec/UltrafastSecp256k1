@@ -2,6 +2,53 @@
 
 **UltrafastSecp256k1 v4.1.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-05-24 — v9 RT-002 / TASK-002: Adaptor signing — DPA-blinded generator_mul on every secret
+
+`src/cpu/src/adaptor.cpp` now routes every secret-scalar generator
+multiplication through `ct::generator_mul_blinded(...)`:
+- `schnorr_adaptor_sign`: long-term key `P = sk*G` (was unblinded).
+- `ecdsa_adaptor_sign`: secret nonce `base_nonce = k*G` (was unblinded).
+The `binding` scalar in `ecdsa_adaptor_sign` is derived from the PUBLIC
+`adaptor_point` and stays on the unblinded primitive (correct + cheaper).
+
+Constraint enforced: `GENERATOR-MUL-CT` (knowledge_base). The same DPA
+blinding discipline now active on `ecdsa_sign`, `schnorr_sign`, and the
+MuSig2 sign paths is applied to adaptor signing.
+
+Regression coverage:
+`audit/test_regression_adaptor_blinded_nonce.cpp` adds
+`test_adaptor_blinded_all_secret_sites_source_scan` (counts
+`generator_mul_blinded(k)` ≥ 2 across both adaptor variants; asserts no
+bare `ct::generator_mul(k)` or `ct::generator_mul(private_key)` remains).
+
+### 2026-05-24 — v9 RT-006/-007/-014/-015 / TASK-022: secret stack residue bundle
+
+Four small fixes hardening stack-residue lifecycle on CPU signing paths:
+
+- **RT-006 (`src/cpu/src/schnorr.cpp:502,511`)** —
+  `schnorr_sign(const Scalar&)` and `schnorr_sign_verified(const Scalar&)`
+  raw-key convenience overloads now `secure_erase(&kp.d, sizeof(kp.d))`
+  after the sub-call returns. Previously the locally-constructed
+  `SchnorrKeypair`'s negated signing scalar lingered in the stack frame.
+- **RT-007 (`src/cpu/src/bip32.cpp:414`)** — `derive_child` uses
+  `child_scalar.is_zero_ct()` (was `is_zero()`). Removes data-dependent
+  branch on the secret-derived child scalar.
+- **RT-014 (`src/cpu/src/frost.cpp:60-106`)** — `derive_scalar` and
+  `derive_scalar_pair` now `secure_erase` the local SHA256 state `h`,
+  the per-tag `tag_hash`, and the finalized `hash` array before
+  returning. All three incorporate the seed (secret material).
+- **RT-015 (`src/cpu/src/adaptor.cpp:311`)** — `ecdsa_adaptor_sign`
+  degenerate-r early-return path now erases `k`, `binding`, and
+  `R_x_bytes` before returning the zero sentinel. The success-path
+  erase block is unreachable from this branch.
+
+Regression coverage:
+`audit/test_regression_secret_stack_residue_v9.cpp` (wired in
+`unified_audit_runner` as `regression_secret_stack_residue_v9`,
+advisory=false, `differential` section) source-scans for the required
+`secure_erase` / `is_zero_ct` calls AND round-trips the schnorr raw-key
+overloads to confirm no functional regression. 16/16 checks pass.
+
 ### 2026-05-24 — v9 RT-001 / TASK-001: MuSig2 v1 partial_sign DISABLED (full closure)
 
 - **MED-3 / P1-SEC-002 status:** CLOSED. Prior revisions left

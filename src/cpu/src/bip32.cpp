@@ -411,7 +411,12 @@ std::pair<ExtendedKey, bool> ExtendedKey::derive_child(uint32_t index) const {
         }
         auto child_scalar = ct::scalar_add(il_scalar, parent_scalar);
         detail::secure_erase(&parent_scalar, sizeof(parent_scalar));
-        if (child_scalar.is_zero()) {
+        // v9 RT-007 / TASK-022: use the constant-time zero predicate on the
+        // secret-derived child scalar. is_zero() would have a data-dependent
+        // branch leaking whether the (extremely unlikely, ~2^-256) wraparound
+        // (IL + parent_key) mod n == 0 case occurred — a probabilistic signal
+        // an attacker could correlate across many sessions.
+        if (child_scalar.is_zero_ct()) {
             detail::secure_erase(&child_scalar, sizeof(child_scalar));
             detail::secure_erase(I.data(), I.size());
             detail::secure_erase(IL.data(), IL.size());

@@ -122,8 +122,12 @@ schnorr_adaptor_sign(const Scalar& private_key,
                      const std::array<std::uint8_t, 32>& msg,
                      const Point& adaptor_point,
                      const std::array<std::uint8_t, 32>& aux_rand) {
-    // Compute public key P = sk * G (CT)
-    Point P = ct::generator_mul(private_key);
+    // Compute public key P = sk * G (CT, DPA-blinded — v9 RT-002 / TASK-002).
+    // private_key is a long-term secret; the blinded variant activates DPA
+    // (differential power analysis) blinding when secp256k1_context_randomize
+    // has been called. Adopts the GENERATOR-MUL-CT constraint already enforced
+    // on ecdsa_sign / schnorr_sign / musig2.
+    Point P = ct::generator_mul_blinded(private_key);
 
     // BIP-340: negate sk if P.y is odd (CT branchless)
     auto [P_x_bytes, p_y_odd] = P.x_bytes_and_parity();
@@ -288,8 +292,11 @@ ecdsa_adaptor_sign(const Scalar& private_key,
     Scalar k = adaptor_nonce(private_key, msg_hash.data(), 32, adaptor_point, nullptr, 0);
 
     Scalar binding = ecdsa_adaptor_binding(adaptor_point);
-    Point const base_nonce = ct::generator_mul(k);  // CT: k is secret
-    Point const binding_point = ct::generator_mul(binding);
+    // v9 RT-002 / TASK-002: k is the secret nonce — use DPA-blinded variant.
+    // binding is derived from the PUBLIC adaptor_point only and carries no
+    // secret data, so the unblinded primitive is correct (and cheaper) for it.
+    Point const base_nonce = ct::generator_mul_blinded(k);
+    Point const binding_point = ct::generator_mul(binding);  // PUBLIC scalar — unblinded OK
 
     // Bind the pre-signature to the advertised adaptor point without
     // changing the scalar k used for adaptation/extraction.
@@ -306,6 +313,12 @@ ecdsa_adaptor_sign(const Scalar& private_key,
         // Previously returned {R_hat, Scalar::zero(), r} which left a non-zero
         // R_hat in the output struct, creating a partially-populated degenerate
         // pre-signature that could mislead callers checking only r==0.
+        // v9 RT-015 / TASK-022: the success-path erase block (below, lines
+        // 329-331) is unreachable on this early return; mirror it here so
+        // k, binding, and R_x_bytes do not linger in the stack frame.
+        detail::secure_erase(&k, sizeof(k));
+        detail::secure_erase(&binding, sizeof(binding));
+        detail::secure_erase(R_x_bytes.data(), R_x_bytes.size());
         return ECDSAAdaptorSig{Point::infinity(), Scalar::zero(), Scalar::zero()};
     }
 

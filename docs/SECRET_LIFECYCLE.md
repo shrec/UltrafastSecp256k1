@@ -1,8 +1,74 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-23 | **Version**: 4.1.0
+**Last updated**: 2026-05-24 | **Version**: 4.1.0
 
-### 2026-05-23 musig2.cpp + ufsecp_musig2.cpp — P1-SEC-01 / MED-3 partial mitigation
+### 2026-05-24 — v9 RT-006/-007/-014/-015 / TASK-022: stack-residue hardening bundle
+
+Four small lifecycle fixes — all on the CPU signing surface — that close
+remaining stack-residue gaps surfaced in the v9 adversarial review:
+
+- **`src/cpu/src/schnorr.cpp:502,511`** — `schnorr_sign(const Scalar&)`
+  and `schnorr_sign_verified(const Scalar&)` raw-key convenience
+  overloads materialise a temporary `SchnorrKeypair` on the local stack
+  (containing the negated signing scalar `kp.d`). The new lifecycle:
+  call `schnorr_keypair_create`, run the sub-call, then
+  `detail::secure_erase(&kp.d, sizeof(kp.d))` BEFORE returning. The
+  returned `SchnorrSignature` is the public sig (no secret to erase).
+- **`src/cpu/src/bip32.cpp:414`** — `derive_child` now uses
+  `child_scalar.is_zero_ct()` (was `is_zero()`). `child_scalar` is the
+  secret-derived child private key; using the CT predicate removes a
+  data-dependent branch that would leak the (extremely unlikely,
+  ~2^-256) wraparound case across many sessions.
+- **`src/cpu/src/frost.cpp:60-106`** — `derive_scalar` and
+  `derive_scalar_pair` now `secure_erase` the local `SHA256` object
+  `h`, the per-tag `tag_hash`, and the finalized `hash` array before
+  returning. All three incorporate the seed (secret material) into a
+  stack-resident state. The output `Scalar` is moved to the return
+  value via NRVO, so no secret residue remains in the caller frame.
+- **`src/cpu/src/adaptor.cpp:311` (ecdsa_adaptor_sign)** — the
+  degenerate-r early-return path now pre-erases `k`, `binding`, and
+  `R_x_bytes` before returning the zero sentinel. The success-path
+  erase block (later in the function) is unreachable from this branch.
+
+Regression coverage: `audit/test_regression_secret_stack_residue_v9.cpp`
+(wired in `unified_audit_runner` as `regression_secret_stack_residue_v9`,
+advisory=false, `differential` section). 16/16 source-scan +
+functional-roundtrip checks pass on the patched code.
+
+### 2026-05-24 — v9 RT-002 / TASK-002: adaptor signing — DPA-blinded generator_mul
+
+`src/cpu/src/adaptor.cpp` now routes every secret-scalar generator
+multiplication through `ct::generator_mul_blinded(...)`. This applies
+the same DPA-blinding discipline already active on ECDSA/Schnorr/MuSig2
+sign paths to the adaptor variants:
+- `schnorr_adaptor_sign`: long-term key `P = sk*G` (was unblinded).
+- `ecdsa_adaptor_sign`: secret nonce `base_nonce = k*G` (was unblinded).
+The `binding` scalar in `ecdsa_adaptor_sign` is derived from the PUBLIC
+`adaptor_point` and stays on the unblinded primitive (correct + cheaper).
+
+Regression coverage:
+`audit/test_regression_adaptor_blinded_nonce.cpp` —
+`test_adaptor_blinded_all_secret_sites_source_scan` asserts both blinded
+calls are present AND no bare `ct::generator_mul(k)` or
+`ct::generator_mul(private_key)` remains in `adaptor.cpp`.
+
+### 2026-05-24 — v9 RT-001 / TASK-001: ufsecp_musig2_partial_sign (v1) DISABLED
+
+`src/cpu/src/impl/ufsecp_musig2.cpp:203` — v1 ABI now hard-fails on
+every call with `UFSECP_ERR_DEPRECATED_API`. Fail-closed lifecycle:
+- Output buffer is `memset`-zeroed before any other work.
+- `ScopeSecureErase` guards the caller-provided `secnonce`: the BIP-327
+  consume-once invariant is preserved even on the reject path, so a
+  caller that ignores the new error code cannot accidentally reuse the
+  nonce in another call.
+- NULL-arg validation still preempts (returns `UFSECP_ERR_NULL_ARG`).
+
+Rationale: v1 cannot enforce the Rule-13 (privkey↔signer_index)
+cross-check because the keyagg blob carries no per-signer pubkeys; v2
+is the only supported entry. See `docs/SECURITY_CLAIMS.md` and
+`docs/FFI_HOSTILE_CALLER.md` for full closure rationale.
+
+### 2026-05-23 musig2.cpp + ufsecp_musig2.cpp — P1-SEC-01 / MED-3 partial mitigation (SUPERSEDED 2026-05-24)
 
 - **`src/cpu/src/musig2.cpp` `musig2_partial_sign`**: Rule-13
   cross-validation block remains conditional on `individual_pubkeys`
