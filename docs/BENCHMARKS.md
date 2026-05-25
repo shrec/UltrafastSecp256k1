@@ -23,7 +23,7 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo CONFIRMED disabled · core
 
 | Platform | Field Mul | Generator Mul | Scalar Mul (k·P) | ECDSA Verify | Verify vs lib (warm-cache) | CT Sign vs lib |
 |----------|-----------|---------------|------------|-------------|---------------|----------------|
-| x86-64 (i5-14400F) | 10.5 ns | — | — | — | warm-cache (64-key pool): see below | **1.32× ECDSA · 1.27× Schnorr** (turbo lock CONFIRMED) |
+| x86-64 (i5-14400F) | 20.1 ns | — | — | — | warm-cache (64-key pool): see below | **1.32× ECDSA · 1.27× Schnorr** (turbo lock CONFIRMED) |
 | x86-64 cold-start (unique pubkeys) | — | — | — | — | pending fresh controlled run | pending |
 | ARM64 (RK3588, A76) | — | — | — | — | — | — |
 | RISC-V 64 (SiFive U74) | — | — | — | — | — | — |

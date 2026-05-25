@@ -478,6 +478,113 @@ def check_canonical_vs_bench_json(canon: dict, verbose: bool) -> list[str]:
     return violations
 
 
+def check_field_mul_vs_bench_json(verbose: bool) -> list[str]:
+    """T-02/BENCH-001 gate: verify BENCHMARKS.md summary table Field Mul value
+    matches the bench_unified JSON within 5% tolerance.
+
+    The summary table's first data row (x86-64) contains the authoritative
+    Field Mul value as '<float> ns'.  Compares against bench JSON results array
+    for section 'FIELD ARITHMETIC (Ultra)' / name 'field_mul'.
+
+    This catches label transpositions like the 2026-05-25 bug where the table
+    showed 10.5 ns (= field_negate's value) instead of 20.1 ns (= field_mul).
+    """
+    violations: list[str] = []
+
+    bench_path = find_bench_unified_json()
+    if bench_path is None:
+        return []
+
+    try:
+        with open(bench_path) as f:
+            bench = json.load(f)
+    except Exception as e:
+        violations.append(f"  ERROR: Cannot parse {bench_path.name}: {e}")
+        return violations
+
+    results = bench.get("results", [])
+    bench_ns = _find_result(results, "field arithmetic", "field_mul")
+    if bench_ns is None:
+        if verbose:
+            print(
+                "  [info] Field Mul check skipped — 'FIELD ARITHMETIC' field_mul row "
+                f"not found in {bench_path.name}"
+            )
+        return violations
+
+    benchmarks_md = ROOT / "docs" / "BENCHMARKS.md"
+    if not benchmarks_md.exists():
+        if verbose:
+            print("  [info] Field Mul check skipped — docs/BENCHMARKS.md not found")
+        return violations
+
+    text = benchmarks_md.read_text(encoding="utf-8")
+
+    # Locate the summary table header row containing "Field Mul"
+    header_match = re.search(r"\|[^\n]*Field Mul[^\n]*\|", text)
+    if not header_match:
+        if verbose:
+            print("  [info] Field Mul check skipped — 'Field Mul' column not found in BENCHMARKS.md")
+        return violations
+
+    header_line = header_match.group()
+    cols = [c.strip() for c in header_line.split("|")]
+    field_mul_col_idx: int | None = next(
+        (i for i, c in enumerate(cols) if "Field Mul" in c), None
+    )
+    if field_mul_col_idx is None:
+        return violations  # should not happen given the search above
+
+    # Find the primary x86-64 data row after the header
+    x86_match = re.search(r"\|\s*x86-64 \(i5-[^\n]+\|", text, flags=re.IGNORECASE)
+    if not x86_match:
+        if verbose:
+            print("  [info] Field Mul check skipped — x86-64 data row not found in BENCHMARKS.md")
+        return violations
+
+    data_cols = [c.strip() for c in x86_match.group().split("|")]
+    if field_mul_col_idx >= len(data_cols):
+        violations.append(
+            f"  ERROR [docs/BENCHMARKS.md]\n"
+            f"    Field Mul column index {field_mul_col_idx} out of range in x86-64 row"
+        )
+        return violations
+
+    cell = data_cols[field_mul_col_idx]
+    if cell in ("—", "-", ""):
+        if verbose:
+            print("  [info] Field Mul check skipped — cell value is '—' (not yet measured)")
+        return violations
+
+    ns_match = re.search(r"([\d.]+)\s*ns", cell)
+    if not ns_match:
+        violations.append(
+            f"  ERROR [docs/BENCHMARKS.md summary table]\n"
+            f"    Field Mul cell value {cell!r} cannot be parsed as '<float> ns'"
+        )
+        return violations
+
+    doc_ns = float(ns_match.group(1))
+    drift_pct = abs(doc_ns - bench_ns) / bench_ns
+    TOLERANCE = 0.05
+
+    if drift_pct > TOLERANCE:
+        violations.append(
+            f"  SUMMARY TABLE DRIFT [docs/BENCHMARKS.md Field Mul]\n"
+            f"    Table value   : {doc_ns:.1f} ns\n"
+            f"    Bench JSON    : {bench_ns:.2f} ns  ({bench_path.name})\n"
+            f"    Drift         : {drift_pct * 100:.1f}% > {TOLERANCE * 100:.0f}% tolerance\n"
+            f"    Fix : update BENCHMARKS.md summary table Field Mul to {bench_ns:.1f} ns"
+        )
+    elif verbose:
+        print(
+            f"  [info] Field Mul: doc={doc_ns:.1f} ns, bench={bench_ns:.2f} ns "
+            f"(drift {drift_pct * 100:.1f}% — OK)"
+        )
+
+    return violations
+
+
 def build_archive_ranges(text: str) -> list[tuple[int, int]]:
     """Return a list of (start, end) character ranges that are inside
     BENCH-ARCHIVE-START / BENCH-ARCHIVE-END blocks.  Both HTML comment
@@ -633,6 +740,9 @@ def main() -> int:
 
     # ── Validate canonical_numbers.json against bench_unified JSON ────────────
     all_violations.extend(check_canonical_vs_bench_json(canon, args.verbose))
+
+    # ── T-02: Validate BENCHMARKS.md summary table Field Mul vs bench JSON ────
+    all_violations.extend(check_field_mul_vs_bench_json(args.verbose))
 
     # ── Sanity: canonical GCC CT ratios must be >= 1.0 (GCC 14 is faster) ────
     ct_gcc = canon.get("ct_signing_gcc", {})
