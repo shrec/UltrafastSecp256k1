@@ -68,7 +68,7 @@ jobs:
         run: pip install --require-hashes -r .github/requirements/audit-deps.txt
 
       - name: Install SonarCloud build-wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
 
       - name: Build with build-wrapper (coverage-instrumented)
         run: |
@@ -145,7 +145,7 @@ jobs:
         # Quality Gate failures are advisory; do not block CI for non-owners.
         # We already skip fork PRs above, but keep this as a safety net.
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
