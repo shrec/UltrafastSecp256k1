@@ -161,9 +161,13 @@ Scalar Scalar::from_bytes(const std::uint8_t* bytes32) {
     limbs[2] = load_be64(bytes32 + 8);
     limbs[1] = load_be64(bytes32 + 16);
     limbs[0] = load_be64(bytes32 + 24);
-    if (ge(limbs, ORDER)) {
-        limbs = sub_impl(limbs, ORDER);
-    }
+    // Branchless mod-n reduction: always compute the subtracted form, select via
+    // cmov mask. Eliminates a data-dependent branch when input is nonce-derived
+    // (e.g. r = kG.x mod n in signing paths). ge() is already branchless.
+    limbs4 reduced = sub_impl(limbs, ORDER);
+    std::uint64_t mask = std::uint64_t(0) - std::uint64_t(ge(limbs, ORDER));
+    for (std::size_t i = 0; i < 4; ++i)
+        limbs[i] = (reduced[i] & mask) | (limbs[i] & ~mask);
     Scalar s;
     s.limbs_ = limbs;
     return s;

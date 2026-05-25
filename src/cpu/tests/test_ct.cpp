@@ -677,6 +677,45 @@ static void test_ct_privatekey_schnorr() {
           "ct::schnorr_keypair_create(PrivateKey).px matches Scalar");
 }
 
+// Verify Scalar::from_bytes branchless mod-n reduction.
+// Covers the cmov path added in SEC-CPU-006: ge(limbs, ORDER) branch replaced
+// with arithmetic select so nonce-derived x-coordinates don't leak timing.
+static void test_from_bytes_reduction() {
+    // secp256k1 order n
+    static const std::uint8_t ORDER_BYTES[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41
+    };
+    // n+1 → reduces to 1
+    std::uint8_t n_plus_1[32];
+    std::memcpy(n_plus_1, ORDER_BYTES, 32);
+    n_plus_1[31] += 1;  // safe: last byte is 0x41, +1 = 0x42, no carry
+
+    // n → reduces to 0
+    auto r_order = SC::from_bytes(ORDER_BYTES);
+    CHECK(r_order.is_zero(), "from_bytes(ORDER) == 0");
+
+    // n-1 → no reduction
+    std::uint8_t n_minus_1[32];
+    std::memcpy(n_minus_1, ORDER_BYTES, 32);
+    n_minus_1[31] -= 1;
+    auto r_nminus1 = SC::from_bytes(n_minus_1);
+    auto r_nminus1_ref = SC::from_bytes(n_minus_1);
+    CHECK(r_nminus1.to_bytes() == r_nminus1_ref.to_bytes(),
+          "from_bytes(ORDER-1) is deterministic");
+    CHECK(!r_nminus1.is_zero(), "from_bytes(ORDER-1) != 0");
+
+    // n+1 → 1
+    auto r_nplus1 = SC::from_bytes(n_plus_1);
+    std::uint8_t one_bytes[32] = {};
+    one_bytes[31] = 1;
+    auto r_one = SC::from_bytes(one_bytes);
+    CHECK(r_nplus1.to_bytes() == r_one.to_bytes(),
+          "from_bytes(ORDER+1) == 1");
+}
+
 // --- Main --------------------------------------------------------------------
 
 int test_ct_run() {
@@ -712,6 +751,10 @@ int test_ct_run() {
     test_scalar_cmov();
     test_scalar_bit();
     test_scalar_window();
+
+    // from_bytes branchless reduction (SEC-CPU-006)
+    std::cout << "--- Scalar from_bytes branchless reduction ---\n";
+    test_from_bytes_reduction();
 
     // Complete addition edge cases
     std::cout << "--- Complete Addition (edge cases) ---\n";
