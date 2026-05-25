@@ -773,7 +773,7 @@ jobs:
             | tail -5
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v5
         with:
           files: coverage.lcov
           flags: cpu
