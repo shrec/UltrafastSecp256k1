@@ -217,8 +217,8 @@ experiment is unstable or not worth shipping, it is recorded here but not promot
 default.
 <!-- BENCH-ARCHIVE-END -->
 
-The stable GPU host ABI in `ufsecp_gpu.h` covers 13 backend-neutral batch
-operations (8 core ops + 5 extended ZK/BIP-324 ops), and the compiled CUDA,
+The stable GPU host ABI in `ufsecp_gpu.h` covers 16 backend-neutral batch
+operations (8 core ops + 5 extended ZK/BIP-324 ops + 3 BIP-324/BIP-352 additions), and the compiled CUDA,
 OpenCL, and Metal backends implement that stable surface. Internal kernel experiments, signing benchmarks, and backend-only
 test hooks may cover additional primitives beyond the public ABI, but they are
 documented separately from the stable host interface.

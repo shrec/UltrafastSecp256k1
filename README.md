@@ -164,7 +164,7 @@ cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release && cmake --build out/releas
 | 🧠 Audit philosophy & design rationale | [docs/AUDIT_PHILOSOPHY.md](docs/AUDIT_PHILOSOPHY.md) |
 | 📐 Audit methodology specification (CAAS) | [docs/AUDIT_STANDARD.md](docs/AUDIT_STANDARD.md) |
 | 🚀 Independent reviewer quick start | [docs/AUDITOR_QUICKSTART.md](docs/AUDITOR_QUICKSTART.md) |
-| 📄 See latest audit results | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) |
+| 📄 Historical audit report (v3.9.0 baseline — ⚠ not current state) | [AUDIT_REPORT.md](docs/AUDIT_REPORT.md) |
 | 📊 Live audit dashboard | [docs/AUDIT_DASHBOARD.md](docs/AUDIT_DASHBOARD.md) |
 | 🛡️ Exploit PoC test catalog | [docs/EXPLOIT_TEST_CATALOG.md](docs/EXPLOIT_TEST_CATALOG.md) |
 | 🗺️ Exploit coverage map | [docs/EXPLOIT_COVERAGE_MAP.md](docs/EXPLOIT_COVERAGE_MAP.md) |
