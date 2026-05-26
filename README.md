@@ -805,6 +805,12 @@ g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp
 
 ## secp256k1 GPU Acceleration (CUDA / OpenCL / Metal / ROCm)
 
+> **Scope note:** The GPU backends are **not part of the Bitcoin Core secondary CPU backend PR**.
+> The Bitcoin Core PR targets the CPU-only library as a compile-time drop-in secp256k1 replacement.
+> GPU capabilities require opt-in build flags (`-DSECP256K1_BUILD_CUDA=ON` etc.) and are outside
+> the scope of consensus-critical signing paths. See the Bitcoin Core PR description for the
+> exact build configuration targeted.
+
 UltrafastSecp256k1 provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends (CUDA, OpenCL, Metal, ROCm). As of February 2026, no other open-source library was known to the authors to cover all four backends; corrections are welcome ([open an issue](https://github.com/shrec/UltrafastSecp256k1/issues)):
 
 | Backend | Hardware | kG/s | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify | FROST Verify |
@@ -898,13 +904,16 @@ Full signature support across CPU and GPU:
 
 The `ct::` namespace provides constant-time operations for secret-key material -- no secret-dependent branches or memory access patterns:
 
-| Operation | Fast | CT | Overhead |
-|-----------|------:|------:|--------:|
-| Field Mul | 17 ns | 23 ns | 1.08x |
-| Field Inverse | 0.8 us | 1.7 us | 2.05x |
-| Complete Addition | -- | 276 ns | -- |
-| Scalar Mul (kxP) | 23.6 us | 26.6 us | 1.13x |
-| Generator Mul (kxG) | 5.3 us | 9.9 us | 1.86x |
+| Operation | FAST | CT | CT overhead |
+|-----------|-----:|---:|---:|
+| Scalar Mul (k×P) | 35,593 ns | 39,056 ns | 1.10× |
+| Generator Mul (k×G) | 9,200 ns | 15,347 ns | 1.67× |
+| Scalar Inverse | — | 2,503 ns | CT-only |
+| Point Add (complete) | — | 400 ns | CT-only |
+| ECDSA sign (end-to-end) | 22,316 ns | 22,501 ns | **0.83%** |
+| Schnorr sign (end-to-end) | 17,976 ns | 17,953 ns | **≈0.00%** |
+
+*GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-05-23_gcc14_x86-64.json`](docs/bench_unified_2026-05-23_gcc14_x86-64.json)*
 
 **CT layer provides:** `ct::field_mul`, `ct::field_inv`, `ct::scalar_mul`, `ct::point_add_complete`, `ct::point_dbl`
 
@@ -1552,20 +1561,14 @@ libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
 
 ### Cross-Platform Audit Results
 
-The `unified_audit_runner` executes **135 non-exploit audit modules + 273 exploit PoCs** across 9 sections
-(mathematical invariants, constant-time analysis, differential testing, standard
-vectors, fuzzing, protocol security, ABI safety, performance validation).
+The `unified_audit_runner` executes exploit PoCs, constant-time analysis, differential
+testing, standard vectors, fuzzing, protocol security, ABI safety, and performance validation.
 
-| Platform | OS | Compiler | Modules | Verdict | Time |
-|----------|----|----------|---------|---------|------|
-| Windows (local) | Windows x86-64 | Clang 21.1.0 | 54/55 | AUDIT-READY | 42 s |
-| Linux Docker | Linux x86-64 | GCC 13.3.0 | 54/55 | AUDIT-READY | 51 s |
-| Linux CI | Linux x86-64 | Clang 17.0.6 | 55/55 | AUDIT-READY | 48 s |
-| Linux CI | Linux x86-64 | GCC 13.3.0 | 55/55 | AUDIT-READY | 52 s |
-| Windows CI | Windows x86-64 | MSVC 1944 | 55/55 | AUDIT-READY | 143 s |
-
-> 54/55 = 1 advisory warning (dudect timing smoke -- probabilistic, flakes under hypervisor noise).
-> Full reports: [audit/platform-reports/](audit/platform-reports/PLATFORM_AUDIT.md)
+> Current module counts and per-platform run results are generated automatically by
+> `ci/sync_module_count.py` and are authoritative in
+> [`audit/platform-reports/PLATFORM_AUDIT.md`](audit/platform-reports/PLATFORM_AUDIT.md).
+> The table previously shown here was a snapshot from an earlier audit cycle and has been
+> removed to avoid stale module-count contradictions — always refer to the live report.
 
 ---
 
