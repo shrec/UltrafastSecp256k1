@@ -505,6 +505,18 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "the test file was needed because of the self-healing design; the test was "
         "already wired as advisory=true and is promoted to advisory=false in this commit.",
     ),
+    "82b9c074dd": (
+        [
+            "audit/test_regression_bip324_session.cpp",
+            "audit/test_exploit_bip324_session.cpp",
+        ],
+        "Dead-code removal only: erased orphaned reference to privkey_ (renamed to "
+        "privkey_scalar_ by SEC-006 in 546b893c). No behavioral change — the code was "
+        "unreachable since privkey_ no longer existed as a member. Covered by "
+        "test_regression_bip324_session (full BIP-324 handshake + AEAD round-trip) and "
+        "test_exploit_bip324_session (adversarial session-setup paths that exercise "
+        "complete_handshake(), the function where the dead erase lived).",
+    ),
     "546b893cc4": (
         [
             "audit/test_regression_bip324_session.cpp",
