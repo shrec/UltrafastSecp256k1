@@ -142,6 +142,12 @@ int secp256k1_ecdsa_sign_recoverable(
             reinterpret_cast<const uint8_t*>(seckey), privkey_scalar)) return 0;
 
     secp256k1::RecoverableSignature rsig;
+#ifdef SECP256K1_SHIM_RFC6979_COMPAT
+    rsig = secp256k1::ct::ecdsa_sign_libsecp_compat_recoverable(
+        msg, privkey_scalar,
+        ndata ? reinterpret_cast<const uint8_t*>(ndata) : nullptr);
+    if (rsig.sig.r.is_zero() || rsig.sig.s.is_zero()) return 0;
+#else
     if (ndata) {
         // RFC 6979 + extra entropy: sign hedged and derive recid from R's y-parity
         // during signing — no post-sign ecdsa_recover loop needed.
@@ -156,6 +162,7 @@ int secp256k1_ecdsa_sign_recoverable(
     } else {
         rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, privkey_scalar);
     }
+#endif
 
     if (rsig.sig.r.is_zero() || rsig.sig.s.is_zero()) return 0;
 

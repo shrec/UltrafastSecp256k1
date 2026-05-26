@@ -532,6 +532,10 @@ int secp256k1_ecdsa_sign(
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) return 0;
 
     secp256k1::ECDSASignature result;
+#ifdef SECP256K1_SHIM_RFC6979_COMPAT
+    result = secp256k1::ct::ecdsa_sign_libsecp_compat(
+        msg, k, ndata ? reinterpret_cast<const uint8_t*>(ndata) : nullptr);
+#else
     if (ndata) {
         std::array<uint8_t, 32> aux{};
         std::memcpy(aux.data(), ndata, 32);
@@ -539,6 +543,7 @@ int secp256k1_ecdsa_sign(
     } else {
         result = secp256k1::ct::ecdsa_sign(msg, k);
     }
+#endif
     // C5: explicit error propagation via ECDSASignature::is_valid() rather than
     // ad-hoc zero-checks. is_valid() ↔ (r ∈ [1,n-1] ∧ s ∈ [1,n-1]).
     // CT signing returns zero (r,s) on any degenerate case (k≡0 mod n, etc.).

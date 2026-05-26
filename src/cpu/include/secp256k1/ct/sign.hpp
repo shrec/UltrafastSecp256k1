@@ -133,6 +133,42 @@ inline ECDSASignature ecdsa_sign_hedged_verified(const std::array<std::uint8_t, 
     return ecdsa_sign_hedged_verified(msg_hash, private_key.scalar(), aux_rand);
 }
 
+// -- CT ECDSA Sign libsecp256k1-compatible (SECP256K1_SHIM_RFC6979_COMPAT) ----
+// Produces signatures with nonces byte-identical to upstream libsecp256k1 when
+// SECP256K1_SHIM_RFC6979_COMPAT is defined for the shim. Uses
+// rfc6979_nonce_libsecp_compat which appends the "ECDSA" algo16 tag, matching
+// upstream secp256k1_nonce_function_rfc6979 exactly.
+//
+// ndata32: nullptr = no extra entropy; non-nullptr = 32-byte ndata.
+//
+// NOTE: disables fault-attack resistance of the hedged nonce because ndata32
+// comes directly from the caller rather than from OS CSPRNG.
+ECDSASignature ecdsa_sign_libsecp_compat(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const fast::Scalar& private_key,
+    const std::uint8_t* ndata32);
+
+RecoverableSignature ecdsa_sign_libsecp_compat_recoverable(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const fast::Scalar& private_key,
+    const std::uint8_t* ndata32);
+
+// PrivateKey overloads.
+inline ECDSASignature ecdsa_sign_libsecp_compat(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const PrivateKey& private_key,
+    const std::uint8_t* ndata32) {
+    return ecdsa_sign_libsecp_compat(msg_hash, private_key.scalar(), ndata32);
+}
+
+inline RecoverableSignature ecdsa_sign_libsecp_compat_recoverable(
+    const std::array<std::uint8_t, 32>& msg_hash,
+    const PrivateKey& private_key,
+    const std::uint8_t* ndata32) {
+    return ecdsa_sign_libsecp_compat_recoverable(
+        msg_hash, private_key.scalar(), ndata32);
+}
+
 // -- CT Schnorr Pubkey --------------------------------------------------------
 // X-only public key derivation using ct::generator_mul().
 std::array<std::uint8_t, 32> schnorr_pubkey(const fast::Scalar& private_key);

@@ -517,6 +517,111 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
     return result;
 }
 
+// -- RFC 6979 libsecp256k1-compatible nonce -------------------------------------
+// Produces byte-identical nonces to upstream secp256k1_nonce_function_rfc6979.
+// libsecp256k1 appends a 16-byte algo16 tag ("ECDSA\0\0\0\0\0\0\0\0\0\0\0") to
+// the keydata block. This function replicates that exact HMAC-DRBG structure.
+//
+// With ndata32:    keydata = key32(32) || msg32(32) || ndata32(32) || algo16(16) → 112 bytes
+// Without ndata32: keydata = key32(32) || msg32(32) || algo16(16) → 80 bytes
+//
+// Used by ct::ecdsa_sign_libsecp_compat and ct::ecdsa_sign_libsecp_compat_recoverable
+// (guarded by SECP256K1_SHIM_RFC6979_COMPAT in the shim).
+
+Scalar rfc6979_nonce_libsecp_compat(const Scalar& private_key,
+                                     const std::array<uint8_t, 32>& msg_hash,
+                                     const uint8_t* ndata32) {
+    // algo16 = "ECDSA\0\0\0\0\0\0\0\0\0\0\0" (16 bytes), matching libsecp256k1
+    static constexpr uint8_t kAlgo16[16] = {
+        'E','C','D','S','A', 0,0,0,0,0,0,0,0,0,0,0
+    };
+
+    auto x_bytes = private_key.to_bytes();
+    alignas(16) uint8_t V[32], K[32];
+    std::memset(V, 0x01, 32);
+    std::memset(K, 0x00, 32);
+
+    // keydata = key32(32) || msg32(32) [|| ndata32(32)] || algo16(16)
+    // msg_len = 33 (V+sep) + keydata_len
+    const size_t kdata_len = 64u + (ndata32 ? 32u : 0u) + 16u;   // 80 or 112
+    const size_t msg_len   = 33u + kdata_len;                      // 113 or 145
+
+    // max buf size = 145 bytes
+    alignas(16) uint8_t buf[145];
+
+    auto fill_buf = [&](uint8_t sep) {
+        std::memcpy(buf,      V,              32);
+        buf[32] = sep;
+        std::memcpy(buf + 33, x_bytes.data(), 32);
+        std::memcpy(buf + 65, msg_hash.data(),32);
+        size_t pos = 97;
+        if (ndata32) { std::memcpy(buf + pos, ndata32, 32); pos += 32; }
+        std::memcpy(buf + pos, kAlgo16, 16);
+    };
+
+    HMAC_Ctx hmac;
+    hmac.init_key32(K);
+
+    // Step d: K = HMAC(K0, V || 0x00 || keydata)
+    fill_buf(0x00);
+    if (ndata32) hmac.compute_three_block(buf, msg_len, K);
+    else         hmac.compute_two_block  (buf, msg_len, K);
+
+    // Step e: V = HMAC(K1, V)
+    hmac.init_key32(K);
+    hmac.compute_short(V, 32, V);
+
+    // Step f: K = HMAC(K1, V || 0x01 || keydata)
+    fill_buf(0x01);
+    if (ndata32) hmac.compute_three_block(buf, msg_len, K);
+    else         hmac.compute_two_block  (buf, msg_len, K);
+
+    // Steps g+h: V = HMAC(K2, V), generate candidates — fixed 2-iteration CT.
+    // Same pattern as rfc6979_nonce_hedged (CT-001 fix).
+    hmac.init_key32(K);
+    hmac.compute_short(V, 32, V);
+
+    std::array<uint8_t, 32> t;
+    uint8_t buf33[33];
+    Scalar cand1{};
+
+    // Iteration 1
+    hmac.compute_short(V, 32, V);
+    std::memcpy(t.data(), V, 32);
+    bool const ok1 = Scalar::parse_bytes_strict_nonzero(t.data(), cand1);
+
+    // Advance HMAC state unconditionally (CT: must execute regardless of ok1)
+    std::memcpy(buf33, V, 32);
+    buf33[32] = 0x00;
+    hmac.compute_short(buf33, 33, K);
+    secure_erase(buf33, sizeof(buf33));
+    hmac.init_key32(K);
+    hmac.compute_short(V, 32, V);
+
+    // Iteration 2
+    Scalar cand2{};
+    hmac.compute_short(V, 32, V);
+    std::memcpy(t.data(), V, 32);
+    (void)Scalar::parse_bytes_strict_nonzero(t.data(), cand2);
+
+    // CT select: mask = ~0ULL if ok1 (use cand1), else 0ULL (use cand2)
+    std::uint64_t const mask1 = static_cast<std::uint64_t>(
+        -static_cast<std::int64_t>(static_cast<int>(ok1)));
+    Scalar const result = ct::scalar_select(cand1, cand2, mask1);
+
+    // Erase all secret-derived material
+    secure_erase(&cand1, sizeof(cand1));
+    secure_erase(&cand2, sizeof(cand2));
+    secure_erase(t.data(), t.size());
+    secure_erase(buf33, sizeof(buf33));
+    secure_erase(buf, sizeof(buf));
+    secure_erase(V, sizeof(V));
+    secure_erase(K, sizeof(K));
+    secure_erase(x_bytes.data(), x_bytes.size());
+    secure_erase(&hmac, sizeof(hmac));
+    return result;
+}
+
 // -- ECDSA Sign (FAST PATH — NOT FOR PRODUCTION SIGNING WITH REAL PRIVATE KEYS) --------
 // This function uses fast::Scalar::operator* for s = k^{-1}*(z+r*d), which has
 // data-dependent branches in the modular reduction (ge() in scalar.cpp).

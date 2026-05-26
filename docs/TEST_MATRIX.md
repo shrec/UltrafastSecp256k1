@@ -104,13 +104,13 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 409 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 410 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 409 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 410 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 409 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 410 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -903,3 +903,4 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `exploit_redteam_round3_20260505` | `audit/test_exploit_redteam_round3_20260505.cpp` | 2026-05-05 red-team round 3: RR3-01/02 MuSig2 secnonce not zeroed on error paths (BUG-1), RR3-03/04 FROST nonce not zeroed on early exits (BUG-2), RR3-05 last_error_msg thread_local path (BUG-4), RR3-06 MuSig2 keyagg LE32 round-trip (BUG-6) |
 | `test_exploit_ltcsp_isolation.cpp` | `audit/test_exploit_ltcsp_isolation.cpp` | LTC-SP cross-chain isolation: LTCSP/ tagged hash prevents BTC↔LTC replay + create/scan roundtrip | exploit_ltcsp_isolation | 60 | audit;exploit;ltcsp;silent-payments;cross-chain |
 | `test_exploit_sp_scanner_parity.cpp` | `audit/test_exploit_sp_scanner_parity.cpp` | SilentPaymentScanner + LtcSpScanner parity: scan_tx==scan_batch, BTC↔LTC cross-chain isolation, spend key correctness | exploit_sp_scanner_parity | 60 | audit;exploit;sp;ltcsp;parity;scan-batch |
+| `regression_shim_rfc6979_compat` | `audit/test_regression_shim_rfc6979_compat.cpp` | SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness — same inputs same nonce, NULL vs non-NULL ndata differ, ecdsa_sign_libsecp_compat verifies (RFC-1..9); advisory=false |

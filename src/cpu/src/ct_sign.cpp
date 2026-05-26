@@ -160,6 +160,101 @@ ECDSASignature ecdsa_sign_hedged_verified(const std::array<uint8_t, 32>& msg_has
 }
 
 // ============================================================================
+// CT ECDSA Sign libsecp256k1-compatible (SECP256K1_SHIM_RFC6979_COMPAT)
+// ============================================================================
+// Identical to ecdsa_sign_hedged / ecdsa_sign_hedged_recoverable but calls
+// rfc6979_nonce_libsecp_compat instead of rfc6979_nonce_hedged.
+// ndata32 is passed directly — no OS CSPRNG mixing.
+
+ECDSASignature ecdsa_sign_libsecp_compat(const std::array<uint8_t, 32>& msg_hash,
+                                          const Scalar& private_key,
+                                          const uint8_t* ndata32) {
+    if (private_key.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
+
+    auto z = Scalar::from_bytes(msg_hash);
+    auto k = secp256k1::rfc6979_nonce_libsecp_compat(private_key, msg_hash, ndata32);
+    if (k.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
+
+    auto R = ct::generator_mul_blinded(k);
+
+    auto r = Scalar::from_limbs(R.x().limbs());
+    if (r.is_zero()) return {Scalar::zero(), Scalar::zero()};
+
+    auto k_inv = ct::scalar_inverse(k);
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    if (s.is_zero_ct()) return {Scalar::zero(), Scalar::zero()};
+
+    ECDSASignature const sig = ct::ct_normalize_low_s(ECDSASignature{r, s});
+
+    secure_erase(&k,     sizeof(k));
+    secure_erase(&k_inv, sizeof(k_inv));
+    secure_erase(&z,     sizeof(z));
+    secure_erase(&s,     sizeof(s));
+
+    return sig;
+}
+
+RecoverableSignature ecdsa_sign_libsecp_compat_recoverable(
+    const std::array<uint8_t, 32>& msg_hash,
+    const Scalar& private_key,
+    const uint8_t* ndata32) {
+
+    static const std::array<uint8_t, 32> ORDER_BYTES = {
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF, 0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6, 0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C, 0xD0,0x36,0x41,0x41
+    };
+
+    if (private_key.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    auto z = Scalar::from_bytes(msg_hash);
+    auto k = secp256k1::rfc6979_nonce_libsecp_compat(private_key, msg_hash, ndata32);
+    if (k.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    auto R = ct::generator_mul_blinded(k);
+
+    auto r_fe = R.x();
+    auto r_bytes = r_fe.to_bytes();
+    auto r = Scalar::from_bytes(r_bytes);
+    if (r.is_zero()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    // Recovery ID bit 0: parity of R.y (branchless)
+    int recid = static_cast<int>(R.y().limbs()[0] & 1u);
+
+    // Recovery ID bit 1: R.x >= n overflow (branchless byte comparison)
+    {
+        unsigned gt = 0u, eq_run = 1u;
+        for (int i = 0; i < 32; ++i) {
+            unsigned const rb = static_cast<unsigned>(r_bytes[i]);
+            unsigned const ob = static_cast<unsigned>(ORDER_BYTES[i]);
+            unsigned const byte_gt = ((ob - rb) >> 31) & 1u;
+            unsigned const byte_lt = ((rb - ob) >> 31) & 1u;
+            gt     = gt | (eq_run & byte_gt);
+            eq_run = eq_run & (1u - byte_gt) & (1u - byte_lt);
+        }
+        recid |= static_cast<int>(gt) << 1;
+    }
+
+    auto k_inv = ct::scalar_inverse(k);
+    auto s = ct::scalar_mul(k_inv, ct::scalar_add(z, ct::scalar_mul(r, private_key)));
+    if (s.is_zero_ct()) return {{Scalar::zero(), Scalar::zero()}, 0};
+
+    ECDSASignature pre_sig{r, s};
+    std::uint64_t const high_mask = ct::scalar_is_high(pre_sig.s);
+    const ECDSASignature sig = ct::ct_normalize_low_s(pre_sig);
+    recid ^= static_cast<int>(high_mask & 1);
+
+    secure_erase(&k,       sizeof(k));
+    secure_erase(&k_inv,   sizeof(k_inv));
+    secure_erase(&z,       sizeof(z));
+    secure_erase(&s,       sizeof(s));
+    secure_erase(&pre_sig, sizeof(pre_sig));
+
+    return {sig, recid};
+}
+
+// ============================================================================
 // CT Schnorr helpers
 // ============================================================================
 

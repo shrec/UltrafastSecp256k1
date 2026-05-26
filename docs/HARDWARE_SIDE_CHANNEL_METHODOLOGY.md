@@ -71,7 +71,7 @@ attacker access):
 
 | Test | Coverage |
 |------|----------|
-| `audit/test_ct_*` ( 409 modules in `ct_analysis` section) | dudect / Valgrind / ct-verif / CT IR diff |
+| `audit/test_ct_*` ( 410 modules in `ct_analysis` section) | dudect / Valgrind / ct-verif / CT IR diff |
 | `audit/test_exploit_timing_*` series | timing-channel exploit PoCs |
 | `gpu_ct_leakage_report.json` | GPU CT survey (public-data-only confirms no secret crosses GPU boundary) |
 | `audit/test_constant_time_field_ops.cpp` | per-primitive CT proof |

@@ -702,6 +702,11 @@ int test_regression_shim_keypair_null_cb_run(); // NCA-1..9: keypair_create/sec/
 int test_regression_shim_context_erase_run(); // SCE-1..5: blind erase + is_zero_ct in ContextBlindingScope
 
 // ============================================================================
+// Forward declarations -- 2026-05-26 SHIM-P3-006: rfc6979_nonce_libsecp_compat
+// ============================================================================
+int test_regression_shim_rfc6979_compat_run(); // SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness
+
+// ============================================================================
 // Report section IDs -- 10 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -1463,6 +1468,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-23 SHIM-001: musig xonly_tweak_add accepts zero tweak ===
     // advisory=true: depends on libsecp256k1 shim (secp256k1_musig.h).
     { "regression_musig_xonly_zero_tweak", "SHIM-001: secp256k1_musig_pubkey_xonly_tweak_add now accepts zero tweak32 (parse_bytes_strict, not _nonzero) matching libsecp256k1 behaviour (MXT-1..3)", "shim_regression", test_regression_musig_xonly_zero_tweak_run, true },
+    // === 2026-05-26 SHIM-P3-006: rfc6979_nonce_libsecp_compat ===
+    // advisory=false: uses CPU C++ API only, no GPU/shim dependency.
+    { "regression_shim_rfc6979_compat", "SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness — same inputs → same nonce, NULL vs non-NULL ndata differ, ecdsa_sign_libsecp_compat verifies (RFC-1..9)", "protocol_security", test_regression_shim_rfc6979_compat_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

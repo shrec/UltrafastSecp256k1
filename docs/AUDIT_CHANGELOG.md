@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-05-26 — Fix: SHIM-P3-006: rfc6979_nonce_libsecp_compat + SECP256K1_SHIM_RFC6979_COMPAT build flag
+
+- **`src/cpu/include/secp256k1/ecdsa.hpp`** — Added `rfc6979_nonce_libsecp_compat` declaration
+  and corrected misleading comment on `ecdsa_sign_hedged` (was "equivalent to libsecp nonce with
+  ndata" — not byte-identical due to missing algo16 tag).
+- **`src/cpu/src/ecdsa.cpp`** — Implemented `rfc6979_nonce_libsecp_compat`: appends 16-byte
+  `ECDSA\0...` algo16 tag to the HMAC-DRBG keydata block, matching upstream
+  `secp256k1_nonce_function_rfc6979` exactly. Fixed 2-iter CT select (same pattern as hedged).
+- **`src/cpu/include/secp256k1/ct/sign.hpp`** — Added declarations for
+  `ct::ecdsa_sign_libsecp_compat` and `ct::ecdsa_sign_libsecp_compat_recoverable` (with
+  `fast::Scalar` and `PrivateKey` overloads).
+- **`src/cpu/src/ct_sign.cpp`** — Implemented both compat signing functions using
+  `rfc6979_nonce_libsecp_compat` nonce.
+- **`compat/libsecp256k1_shim/CMakeLists.txt`** — Added `SECP256K1_SHIM_RFC6979_COMPAT` CMake
+  option (default OFF). When ON, compiles the shim with `SECP256K1_SHIM_RFC6979_COMPAT=1`.
+- **`compat/libsecp256k1_shim/src/shim_ecdsa.cpp`** — `secp256k1_ecdsa_sign`: guarded with
+  `#ifdef SECP256K1_SHIM_RFC6979_COMPAT` to call `ecdsa_sign_libsecp_compat` instead of hedged.
+- **`compat/libsecp256k1_shim/src/shim_recovery.cpp`** — `secp256k1_ecdsa_sign_recoverable`:
+  same guard to call `ecdsa_sign_libsecp_compat_recoverable`.
+- **`docs/SHIM_KNOWN_DIVERGENCES.md`** — Updated SHIM-P3-006 entry to document the fix being
+  available via the `SECP256K1_SHIM_RFC6979_COMPAT` build flag.
+- **`audit/test_regression_shim_rfc6979_compat.cpp`** — New regression test (RFC-1..9):
+  determinism, ndata sensitivity, compat sign + verify, recoverable sign, non-zero nonces.
+
 ## 2026-05-26 — Fix: PERF-008: batch_verify g_coeff*G generator term changed from CT to VT
 
 - **`src/cpu/src/batch_verify.cpp`** — Replaced `ct::generator_mul(g_coeff)` with

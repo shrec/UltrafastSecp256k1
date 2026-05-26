@@ -107,7 +107,9 @@ ECDSASignature ecdsa_sign_verified(const std::array<std::uint8_t, 32>& msg_hash,
 // This provides defense-in-depth against HMAC-SHA256 weakness or fault
 // injection while maintaining deterministic fallback behavior.
 // The nonce is deterministic for a given (key, msg, aux_rand) triple.
-// Equivalent to libsecp256k1's secp256k1_ecdsa_sign() with ndata parameter.
+// NOTE: NOT byte-identical to libsecp256k1's secp256k1_ecdsa_sign() with
+// ndata — upstream appends an algo16 tag and uses a different keydata layout.
+// Use rfc6979_nonce_libsecp_compat for byte-identical nonces.
 //
 // NOTE: CT — routes through ct::generator_mul_blinded and ct::scalar_inverse.
 // Constant-time with respect to the private key and nonce.
@@ -174,6 +176,14 @@ fast::Scalar rfc6979_nonce(const fast::Scalar& private_key,
 fast::Scalar rfc6979_nonce_hedged(const fast::Scalar& private_key,
                                    const std::array<std::uint8_t, 32>& msg_hash,
                                    const std::array<std::uint8_t, 32>& aux_rand);
+
+// RFC 6979 with libsecp256k1-compatible keydata structure.
+// Produces byte-identical nonces to upstream secp256k1_nonce_function_rfc6979
+// including the "ECDSA\0..." algo16 tag. Used by SECP256K1_SHIM_RFC6979_COMPAT.
+// ndata32: nullptr = no extra entropy; non-nullptr = 32-byte ndata.
+fast::Scalar rfc6979_nonce_libsecp_compat(const fast::Scalar& private_key,
+                                          const std::array<std::uint8_t, 32>& msg_hash,
+                                          const std::uint8_t* ndata32);
 
 } // namespace secp256k1
 

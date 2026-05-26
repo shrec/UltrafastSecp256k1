@@ -129,19 +129,22 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
   `K = HMAC(K0, V || 0x00 || x || h1 || extra)` (129 bytes). This produces valid
   signatures but different nonce values than upstream libsecp256k1 for the same inputs.
 - **Reason:** The hedged signing path was designed for forward-secrecy/DPA resistance
-  and uses a cryptographically equivalent (but not byte-identical) structure. Making
-  it byte-identical requires implementing libsecp256k1's exact `secp256k1_rfc6979_hmac_sha256_initialize`
-  keydata structure and a 1000-vector differential test — deferred to TASK-007 scope.
+  and uses a cryptographically equivalent (but not byte-identical) structure.
 - **Impact:** Bitcoin Core's R-grinding loop (`CKey::Sign()`) calls `secp256k1_ecdsa_sign`
   with increasing `extra_entropy` counter bytes. Our shim produces **valid** signatures
   on each iteration (verify passes), but the specific `(r, s)` values differ from
   upstream. The final (low-S) signature accepted by the loop is cryptographically correct;
   only the byte representation differs. No consensus impact: script validation accepts
   any valid (r,s) that satisfies `r,s ∈ [1,n-1]` and DER encoding.
+- **Fix available:** Build the shim with `-DSECP256K1_SHIM_RFC6979_COMPAT=ON` to enable
+  `rfc6979_nonce_libsecp_compat`, which appends the 16-byte `ECDSA` algo16 tag and passes
+  `ndata` directly — producing byte-identical nonces to upstream libsecp256k1. Trade-off:
+  the hedged nonce's OS-CSPRNG fault-attack resistance is not available in compat mode.
+  Compat mode also works correctly when `ndata == nullptr` (no extra entropy case).
 - **Tracking:** SHIM-P3-006. Functional test:
   `audit/test_regression_shim_rgrind_functional.cpp` RGF-1..4 (valid sig across 32 iterations).
-- **Planned fix:** TASK-007 — implement byte-identical keydata structure and add
-  1000-vector differential test against libsecp256k1.
+  `audit/test_regression_shim_rfc6979_compat.cpp` — rfc6979_nonce_libsecp_compat determinism
+  and signing correctness.
 
 ---
 

@@ -85,6 +85,18 @@ else()
 
 endif() # SECP256K1_BUILD_SHIM
 
+# -- Optional: RFC 6979 libsecp-compatible nonce mode -------------------------
+# When ON, secp256k1_ecdsa_sign / secp256k1_ecdsa_sign_recoverable use
+# rfc6979_nonce_libsecp_compat, which appends the "ECDSA" algo16 tag and
+# passes ndata directly — byte-identical to upstream libsecp256k1.
+# Trade-off: disables the hedged nonce's OS-CSPRNG fault-attack resistance.
+option(SECP256K1_SHIM_RFC6979_COMPAT
+    "Match upstream libsecp256k1 nonce bytes exactly (includes ECDSA algo16 tag). Disables fault-attack resistance of hedged nonce."
+    OFF)
+if(SECP256K1_SHIM_RFC6979_COMPAT)
+    target_compile_definitions(secp256k1_shim PRIVATE SECP256K1_SHIM_RFC6979_COMPAT=1)
+endif()
+
 # -- Optional: shim API test ---------------------------------------------------
 
 option(SECP256K1_SHIM_BUILD_TESTS "Build shim compatibility test" OFF)

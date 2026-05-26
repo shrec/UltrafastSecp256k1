@@ -5417,6 +5417,18 @@ set_tests_properties(regression_musig_xonly_zero_tweak PROPERTIES TIMEOUT 30
     LABELS "audit;regression;shim;musig;tweak;shim-001")
 target_sources(unified_audit_runner PRIVATE test_regression_musig_xonly_zero_tweak.cpp)
 
+# -- SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness
+# advisory=false: uses CPU C++ API only, no GPU/shim dependency.
+add_executable(test_regression_shim_rfc6979_compat_standalone
+    test_regression_shim_rfc6979_compat.cpp)
+audit_target_defaults(test_regression_shim_rfc6979_compat_standalone)
+target_compile_definitions(test_regression_shim_rfc6979_compat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_shim_rfc6979_compat
+    COMMAND test_regression_shim_rfc6979_compat_standalone)
+set_tests_properties(regression_shim_rfc6979_compat PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;shim;rfc6979;nonce;compat")
+target_sources(unified_audit_runner PRIVATE test_regression_shim_rfc6979_compat.cpp)
+
 # ---------------------------------------------------------------------------
 # Per-file -Wno-deprecated-declarations suppression for tests that
 # INTENTIONALLY exercise ufsecp_musig2_partial_sign (v1) to verify the ABI
