@@ -77,7 +77,7 @@ option(SECP256K1_INSTALL "Generate install target" ON)
 option(SECP256K1_INSTALL_PKGCONFIG "Install pkg-config file" ON)
 
 # Performance/safety tradeoffs
-option(SECP256K1_SPEED_FIRST "Prioritize speed over safety checks" OFF)
+option(SECP256K1_SPEED_FIRST "Reserved: SECP256K1_FAST_NO_SECURITY_CHECKS compile definition (currently has no effect — CT guards are always on)" OFF)
 option(SECP256K1_BUILD_SHARED "Build shared library" OFF)
 option(SECP256K1_BUILD_SHIM "Build libsecp256k1-compatible shim + tests" OFF)
 

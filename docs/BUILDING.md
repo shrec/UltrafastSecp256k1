@@ -210,7 +210,7 @@ or CI-oriented build trees.
 | `SECP256K1_BUILD_BENCH` | ON | Build benchmarks |
 | `SECP256K1_BUILD_EXAMPLES` | ON | Build example programs |
 | `SECP256K1_USE_LTO` | ON | Link-Time Optimization |
-| `SECP256K1_SPEED_FIRST` | OFF | Aggressive speed optimizations |
+| `SECP256K1_SPEED_FIRST` | OFF | Reserved — sets `SECP256K1_FAST_NO_SECURITY_CHECKS` compile definition (currently has no effect; CT guards are always enabled) |
 | `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 | `SECP256K1_BUILD_ETHEREUM` | ON | Ethereum/EVM signing layer (Keccak-256, EIP-155, ecrecover). OFF for Bitcoin-only builds |
 | `SECP256K1_INSTALL` | ON | Generate install target |
