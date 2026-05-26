@@ -151,11 +151,14 @@ int test_regression_schnorr_abi_edge_cases_run() {
     CHECK(secp256k1_schnorrsig_verify(ctx, valid_sig, msg32, 32, nullptr) == 0,
           "NULL pubkey rejected");
 
-    // --- msglen != 32 → returns 0 ---
+    // --- sig over 32-byte msg does not verify with wrong msglen (different BIP-340 challenge) ---
+    // Note: varlen is now SUPPORTED — these return 0 because the challenge hash changes with
+    // msglen, not because msglen is rejected. A sig over msg32[0..31] cannot verify against
+    // a 31-byte or 33-byte message interpretation of the same buffer.
     CHECK(secp256k1_schnorrsig_verify(ctx, valid_sig, msg32, 31, &xonly_pk) == 0,
-          "msglen=31 rejected");
+          "sig over 32-byte msg does not verify with msglen=31 (different challenge)");
     CHECK(secp256k1_schnorrsig_verify(ctx, valid_sig, msg32, 33, &xonly_pk) == 0,
-          "msglen=33 rejected");
+          "sig over 32-byte msg does not verify with msglen=33 (different challenge)");
 
     // --- sign32 never emits r=0 or s=0 (sign 50 times with different keys) ---
     {

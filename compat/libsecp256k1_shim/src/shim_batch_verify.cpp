@@ -59,13 +59,20 @@ int secp256k1_schnorrsig_verify_batch(
     if (n == 0) return 1;  // vacuously valid
     if (!sigs64 || !msgs || !pubkeys) return 0;
 
-    // Only 32-byte messages supported by internal batch_verify.
-    // Upstream libsecp256k1 supports varlen batch messages; shim does not, but this is
-    // a shim limitation, not an illegal call. Return 0 (fail-closed) without firing
-    // the illegal callback — callers using varlen should fall back to singular verify.
-    if (msglen != 32) return 0;
+    // Variable-length messages: MSM requires fixed 32-byte message slots, so serve
+    // varlen via individual verify (schnorr_verify varlen overload, src/schnorr.cpp:798).
+    // This matches upstream libsecp256k1 semantics — any msglen is valid per BIP-340.
+    if (msglen != 32) {
+        for (size_t i = 0; i < n; ++i) {
+            if (!sigs64[i] || !msgs[i] || !pubkeys[i]) return 0;
+            secp256k1::SchnorrSignature sig;
+            if (!secp256k1::SchnorrSignature::parse_strict(sigs64[i], sig)) return 0;
+            if (!secp256k1::schnorr_verify(pubkeys[i]->data, msgs[i], msglen, sig)) return 0;
+        }
+        return 1;
+    }
 
-    // Small batches: fall back to individual verify (lower overhead).
+    // msglen == 32: small batches fall back to individual verify (lower overhead).
     if (n < kBatchMinSchnorr) {
         for (size_t i = 0; i < n; ++i) {
             if (!sigs64[i] || !msgs[i] || !pubkeys[i]) return 0;

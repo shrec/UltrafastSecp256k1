@@ -20,9 +20,9 @@
 //          NULL ctx to reach serialize logic. Now NULL ctx is checked first.
 //          Test: call ec_pubkey_cmp(NULL, ...) with a no-op callback, verify fires.
 //
-// SHIM-006 schnorrsig_verify_batch with msglen!=32 returns 0 silently (corrected:
-//          upstream libsecp supports varlen batch; firing abort() was a divergence).
-//          Test: register callback, call with msglen=64, verify NO callback fires + rc==0.
+// batch-varlen schnorrsig_verify_batch supports any msglen per BIP-340 (SHIM-006 removed).
+//          Positive: sign with msglen=16, batch-verify → returns 1.
+//          Negative: wrong msglen → different challenge → returns 0. No callback in either case.
 //
 // SHIM-008 ellswift_xdh with NULL hashfp must fire illegal callback (not silent 0).
 //          Test: register callback, call with NULL hashfp, verify callback fires.
@@ -239,34 +239,48 @@ static void test_shim004_context_clone_null_fires_callback() {
 }
 
 // ---------------------------------------------------------------------------
-// SHIM-006: schnorrsig_verify_batch with msglen!=32 returns 0 silently
+// schnorrsig_verify_batch varlen: any msglen is valid (matches upstream)
 // ---------------------------------------------------------------------------
-// Upstream libsecp256k1 supports variable-length batch messages and does NOT
-// fire the illegal callback for msglen != 32. Firing abort() for an
-// "unsupported but not illegal" call was a divergence. Corrected to return 0
-// silently — callers needing varlen should use singular secp256k1_schnorrsig_verify.
-static void test_shim006_verify_batch_nonstandard_msglen_returns_zero() {
-    printf("  [SHIM-006] schnorrsig_verify_batch msglen!=32 returns 0 without firing callback\n");
+// BIP-340 accepts any message length. verify_batch now routes msglen!=32
+// through individual varlen verify (schnorr_verify(x, msg, msglen, sig)).
+static void test_schnorrsig_verify_batch_varlen() {
+    printf("  [batch-varlen] schnorrsig_verify_batch supports any msglen\n");
 
     secp256k1_context* ctx = make_ctx_with_counting_cb();
-    secp256k1_xonly_pubkey pubkey;
-    assert(make_xonly_pubkey(ctx, &pubkey));
 
+    // Build a keypair
+    uint8_t seckey[32] = {}; seckey[31] = 3;
+    secp256k1_keypair keypair{};
+    assert(secp256k1_keypair_create(ctx, &keypair, seckey));
+
+    secp256k1_xonly_pubkey xpk{};
+    int parity = 0;
+    secp256k1_keypair_xonly_pub(ctx, &xpk, &parity, &keypair);
+
+    // Sign a 16-byte message using sign_custom
+    uint8_t msg16[16] = { 0xde,0xad,0xbe,0xef, 0xca,0xfe,0xba,0xbe,
+                          0x01,0x23,0x45,0x67, 0x89,0xab,0xcd,0xef };
     uint8_t sig64[64] = {};
-    sig64[0] = 0x01; sig64[63] = 0x01;
-    uint8_t msg64[64] = {};
+    secp256k1_schnorrsig_extraparams ep = SECP256K1_SCHNORRSIG_EXTRAPARAMS_INIT;
+    assert(secp256k1_schnorrsig_sign_custom(ctx, sig64, msg16, 16, &keypair, &ep));
 
-    const uint8_t* sigs[1] = { sig64 };
-    const uint8_t* msgs[1] = { msg64 };
-    const secp256k1_xonly_pubkey* pubkeys[1] = { &pubkey };
+    const uint8_t* sigs[1]    = { sig64 };
+    const uint8_t* msgs[1]    = { msg16 };
+    const secp256k1_xonly_pubkey* pks[1] = { &xpk };
 
+    // Positive: valid sig + correct msglen=16 → returns 1
     int before = g_illegal_called;
-    // msglen=64 is not 32 — shim limitation: fail-closed without illegal callback
-    int rc = secp256k1_schnorrsig_verify_batch(ctx, sigs, msgs, 64, pubkeys, 1);
-    int after = g_illegal_called;
+    int rc_ok = secp256k1_schnorrsig_verify_batch(ctx, sigs, msgs, 16, pks, 1);
+    int after  = g_illegal_called;
+    CHECK_EQ(after - before, 0, "batch-varlen: no illegal callback on valid msglen=16");
+    CHECK_EQ(rc_ok, 1, "batch-varlen: valid sig verifies with msglen=16");
 
-    CHECK_EQ(after - before, 0, "SHIM-006: msglen!=32 must NOT fire illegal callback (not an illegal call)");
-    CHECK_EQ(rc, 0, "SHIM-006: msglen!=32 must return 0 (unsupported, fail-closed)");
+    // Negative: wrong message length → different challenge → returns 0
+    before = g_illegal_called;
+    int rc_bad = secp256k1_schnorrsig_verify_batch(ctx, sigs, msgs, 15, pks, 1);
+    after  = g_illegal_called;
+    CHECK_EQ(after - before, 0, "batch-varlen: no illegal callback on wrong msglen");
+    CHECK_EQ(rc_bad, 0, "batch-varlen: sig does not verify with wrong msglen=15");
 
     secp256k1_context_destroy(ctx);
 }
@@ -469,7 +483,7 @@ int test_shim_security_edge_cases_run() {
     g_fail = 0;
     g_illegal_called = 0;
 
-    printf("[test_shim_security_edge_cases] SEC-003/SHIM-003/SHIM-004/SHIM-004-PRECOMP/SHIM-005-FIX/SHIM-006/SHIM-008/PERF-003\n\n");
+    printf("[test_shim_security_edge_cases] SEC-003/SHIM-003/SHIM-004/SHIM-004-PRECOMP/SHIM-005-FIX/SHIM-008/PERF-003/batch-varlen\n\n");
 
     test_sec003_parse_compact_strict_rejects_noncanonical();
     test_shim003_null_msg_zero_msglen_no_callback();
@@ -477,7 +491,7 @@ int test_shim_security_edge_cases_run() {
     test_shim004_context_clone_null_fires_callback();
     test_shim004_precomp_null_ctx_fires_callback();
     test_shim005_pubkey_cmp_null_ctx_fires_callback();
-    test_shim006_verify_batch_nonstandard_msglen_returns_zero();
+    test_schnorrsig_verify_batch_varlen();
     test_shim008_ellswift_xdh_null_hashfp_fires_callback();
     test_perf003_small_batch_schnorr_verify_correctness();
 

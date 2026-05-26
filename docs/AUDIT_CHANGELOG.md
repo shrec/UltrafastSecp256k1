@@ -1,5 +1,21 @@
 # Audit Changelog
 
+## 2026-05-26 — Fix: SHIM-006 verify_batch varlen support
+
+- **`compat/libsecp256k1_shim/src/shim_batch_verify.cpp`** — removed `if (msglen != 32) return 0`
+  restriction from `secp256k1_schnorrsig_verify_batch`. BIP-340 accepts any message length;
+  varlen messages are now routed to individual `schnorr_verify(pubkey_x, msg, msglen, sig)` calls
+  (the varlen overload at `src/schnorr.cpp:798`). MSM path unchanged — still msglen==32 only, with
+  no performance regression on the ConnectBlock workload.
+- **`compat/libsecp256k1_shim/tests/test_shim_security_edge_cases.cpp`** — replaced
+  `test_shim006_verify_batch_nonstandard_msglen_returns_zero` with
+  `test_schnorrsig_verify_batch_varlen`: positive test (sign+batch-verify msglen=16 → 1) and
+  negative test (wrong msglen → 0, no callback). Documents the fix is fully correct.
+- **`audit/test_regression_schnorr_abi_edge_cases.cpp`** — updated comments on msglen=31/33
+  checks: these return 0 because the BIP-340 challenge changes with msglen, not because varlen
+  is rejected. The clarification prevents the tests from being read as "varlen blocked."
+- **`docs/SHIM_KNOWN_DIVERGENCES.md`** — SHIM-006 entry removed (no longer a divergence).
+
 ## 2026-05-26 — Fix: ILLCB-001/002, DER-STRICT, keypair_sec BIP-340 normalization
 
 - **`compat/libsecp256k1_shim/src/shim_pubkey.cpp`** (SHIM-ILLCB-002) — `secp256k1_ec_pubkey_parse`:
