@@ -324,7 +324,11 @@ std::vector<OclAffine> build_generator_lut_host() {
 
 BIP352ScanKeyGlv build_scan_glv_plan() {
     BIP352ScanKeyGlv out{};
-    auto scan_scalar = CpuScalar::from_bytes(SCAN_KEY);
+    CpuScalar scan_scalar{};
+    // Rule 11: use strict parser so a bad SCAN_KEY fails loudly instead of silently wrapping mod-n.
+    if (!CpuScalar::parse_bytes_strict_nonzero(SCAN_KEY, scan_scalar)) {
+        throw std::runtime_error("SCAN_KEY is zero or >= curve order n");
+    }
     auto decomp = secp256k1::fast::glv_decompose(scan_scalar);
     auto k1 = decomp.k1.to_bytes();
     auto k2 = decomp.k2.to_bytes();
