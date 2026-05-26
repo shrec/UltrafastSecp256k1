@@ -112,10 +112,20 @@ static void test_ssr2_ct_ecdsa_sign_roundtrip() {
 static void test_ssr3_musig2_agg_correctness() {
     SECP256K1_INIT();
 
-// MSan detection: in Clang, __has_feature is a preprocessor keyword (not a macro),
-// so defined(__has_feature) is always false and #ifndef overrides it — never use
-// the #ifndef/__define fallback pattern here.  Use defined(__clang__) as the guard.
-#if (defined(__clang__) && __has_feature(memory_sanitizer)) || defined(__SANITIZE_MEMORY__)
+// MSan detection: portable across Clang and GCC.
+// __has_feature is a preprocessor keyword in Clang (not a macro), so defined(__has_feature)
+// is always false and #ifndef is always true — the #ifndef fallback pattern shadows the
+// Clang builtin and breaks MSan detection.  Instead use nested #if to prevent GCC from
+// tokenizing __has_feature(...) at all.
+#if defined(__clang__)
+#  if __has_feature(memory_sanitizer)
+#    define SECP_SSR3_MSAN 1
+#  endif
+#endif
+#if defined(__SANITIZE_MEMORY__)
+#  define SECP_SSR3_MSAN 1
+#endif
+#ifdef SECP_SSR3_MSAN
     // MSan with track-origins=2 slows scalar multiplications 100-500x.
     // A full 2-party MuSig2 roundtrip (12+ scalar mults) exceeds 600s.
     // Verify the s-erasure fix via source scan instead.
@@ -135,7 +145,8 @@ static void test_ssr3_musig2_agg_correctness() {
     std::fclose(fp);
     CHECK(found, "[SSR-3] secure_erase(&s, sizeof(s)) present in musig2.cpp (MSan source scan)");
     return;
-#endif
+#  undef SECP_SSR3_MSAN
+#endif // SECP_SSR3_MSAN
 
     printf("  [SSR-3] musig2_partial_sig_agg: 2-party roundtrip (s erasure fix)\n");
 

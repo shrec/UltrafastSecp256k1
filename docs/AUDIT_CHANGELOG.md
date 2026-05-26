@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-05-26 — Fix: CI build/audit portability fixes — advisory flag + GCC __has_feature
+
+- **`audit/unified_audit_runner.cpp`** — Changed `test_exploit_context_flag_bypass` from
+  `advisory=false` to `advisory=true`. The test auto-gates on `#ifndef STANDALONE_TEST` and
+  unconditionally returns `ADVISORY_SKIP_CODE(77)` inside `unified_audit_runner` (where
+  `STANDALONE_TEST` is never defined). Registering it as `advisory=false` caused the unified
+  audit to count every run as a failure. The standalone CTest target is unaffected and still
+  provides full CFB functional coverage.
+- **`audit/test_regression_s_scalar_erasure.cpp`** — Fixed MSan detection preprocessor guard.
+  The previous `#if (defined(__clang__) && __has_feature(memory_sanitizer))` form is a parse
+  error on GCC, ARM64 cross-compiler, RISC-V cross-compiler, and MSVC because `__has_feature`
+  is a Clang keyword, not a macro. Replaced with nested `#if defined(__clang__)` / `#if
+  __has_feature(memory_sanitizer)` which GCC never tokenizes. Functional behavior unchanged.
+
 ## 2026-05-25 — Fix: P1 multi-session shim hardening — CFB semantics, MuSig2 NULL ctx, is_zero_ct, per-thread blinding docs
 
 - **`audit/test_exploit_context_flag_bypass.cpp`** — Corrected 4 assertions (CFB-2, CFB-3, CFB-4,

@@ -1229,7 +1229,10 @@ static const AuditModule ALL_MODULES[] = {
     { "test_exploit_legacy_capi_degenerate_sig", "Legacy C API degenerate zero-sig output guard (DSG-1..7) — 2026-05-01",                       "exploit_poc", test_exploit_legacy_capi_degenerate_sig_run, true },
     { "test_exploit_musig_unknown_signer",       "MuSig2 partial_sign with unknown signer key (MUS-1..5) — 2026-05-01",                         "exploit_poc", test_exploit_musig_unknown_signer_run,       true },
     { "test_exploit_bchn_schnorr_strict_parsing","BCHN Schnorr shim strict private key parsing (BCH-1..9) — 2026-05-01",                        "exploit_poc", test_exploit_bchn_schnorr_strict_parsing_run, true },
-    { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement v0.6+ semantics (CFB-1..9) — 2026-05-01",         "exploit_poc", test_exploit_context_flag_bypass_run,        false },
+    // advisory=true: the test uses #ifndef STANDALONE_TEST to gate shim-header-dependent code;
+    // inside unified_audit_runner (where STANDALONE_TEST is never defined) it always returns
+    // ADVISORY_SKIP_CODE(77). Run the standalone CTest target for functional CFB coverage.
+    { "test_exploit_context_flag_bypass",        "libsecp256k1 shim context flag enforcement v0.6+ semantics (CFB-1..9) — 2026-05-01",         "exploit_poc", test_exploit_context_flag_bypass_run,        true },
     // advisory=true: the test reads src/metal/shaders/secp256k1_extended.h
     // via a relative path. Linux CI runners that build without Metal sources
     // (or that run the binary from a different cwd than the repo root) will
