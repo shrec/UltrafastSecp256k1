@@ -202,11 +202,11 @@ Source: [`docs/bench_unified_2026-05-23_gcc14_x86-64.json`](bench_unified_2026-0
 
 | Operation | Latency | Note |
 |-----------|---------|------|
-| CT ECDSA sign | ~24.1 µs | Production-safe CT path (GCC 14, Release+LTO) |
-| CT Schnorr sign | ~20.9 µs | Production-safe CT path (GCC 14, Release+LTO) |
-| ECDSA verify | ~38.4 µs | Variable-time (correct for public data) |
-| Schnorr verify (raw) | ~45.8 µs | Variable-time, no GLV cache warmup |
-| Schnorr verify (cached) | ~39.1 µs | Variable-time, warm GLV cache (64-key pool) |
+| CT ECDSA sign | ~22.5 µs | Production-safe CT path (GCC 14, Release+LTO) |
+| CT Schnorr sign | ~18.0 µs | Production-safe CT path (GCC 14, Release+LTO) |
+| ECDSA verify | ~38.0 µs | Variable-time, warm cache (correct for public data) |
+| Schnorr verify (raw) | ~42.6 µs | Variable-time, no GLV cache warmup |
+| Schnorr verify (cached) | ~42.2 µs | Variable-time, warm GLV cache (64-key pool) |
 
 
 ---
