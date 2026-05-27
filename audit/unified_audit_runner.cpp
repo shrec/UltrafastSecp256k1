@@ -230,6 +230,7 @@ int test_regression_musig_noncegen_extra_input_run(); // SHIM-NONCEGEN-001: secp
 int test_regression_dedup_refactors_2026_05_24_run(); // DEDUP-2026-05-24: bip39 decode helper + sp_scan_batch_impl + to_data_cast + ellswift retry-loop invariants (2026-05-24)
 int test_regression_adaptor_ct_secret_extract_run(); // SEC-001/CT-001: adaptor extract uses ct::scalar_mul + erases s_inv (2026-05-23)
 int test_regression_ecdh_xy64_erase_run();           // SEC-002: shim_ecdh xy64 erased after hashfp call (2026-05-23)
+int test_regression_ecdh_off_curve_run();            // SEC-005: ecdh_compute* reject off-curve and infinity pubkeys (2026-05-27)
 int test_regression_musig_xonly_zero_tweak_run();    // SHIM-001: xonly_tweak_add accepts zero tweak (2026-05-23)
 
 // ============================================================================
@@ -1475,6 +1476,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-23 SEC-002: shim_ecdh xy64 secure_erase ===
     // advisory=true: depends on libsecp256k1 shim (secp256k1_ecdh ABI).
     { "regression_ecdh_xy64_erase", "SEC-002: secp256k1_ecdh() erases xy64 shared-secret buffer after hashfp call — correctness verified (both parties same output, X-coord match, non-zero output, null-ctx rejection) (EXY-1..4)", "shim_regression", test_regression_ecdh_xy64_erase_run, true },
+    // === 2026-05-27 SEC-005: ecdh_compute* reject off-curve and infinity pubkeys ===
+    // advisory=false: uses CPU C++ API only, no GPU/shim dependency.
+    { "regression_ecdh_off_curve", "SEC-005: ecdh_compute/ecdh_compute_xonly/ecdh_compute_raw reject off-curve pubkeys (y²≠x³+7) and point-at-infinity before ct::scalar_mul — closes ePrint 2015/1233 invalid-curve twist-injection (OCK-1..5)", "memory_safety", test_regression_ecdh_off_curve_run, false },
     // === 2026-05-23 SHIM-001: musig xonly_tweak_add accepts zero tweak ===
     // advisory=true: depends on libsecp256k1 shim (secp256k1_musig.h).
     { "regression_musig_xonly_zero_tweak", "SHIM-001: secp256k1_musig_pubkey_xonly_tweak_add now accepts zero tweak32 (parse_bytes_strict, not _nonzero) matching libsecp256k1 behaviour (MXT-1..3)", "shim_regression", test_regression_musig_xonly_zero_tweak_run, true },

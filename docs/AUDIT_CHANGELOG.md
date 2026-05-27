@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-05-27 — Regression test: SEC-005 ECDH off-curve pubkey rejection (OCK-1..5)
+
+- **SEC-005**: `ecdh_compute`, `ecdh_compute_xonly`, `ecdh_compute_raw` now reject pubkeys that
+  fail the on-curve check (y²≠x³+7 mod p) and the point-at-infinity before calling `ct::scalar_mul`,
+  closing the invalid-curve twist-injection attack (ePrint 2015/1233).
+- **Test**: `audit/test_regression_ecdh_off_curve.cpp` — OCK-1 (off-curve rejected by `ecdh_compute`),
+  OCK-2 (`ecdh_compute_xonly`), OCK-3 (`ecdh_compute_raw`), OCK-4 (infinity rejected), OCK-5 (valid
+  key still works). Wired into `unified_audit_runner.cpp` (`memory_safety`, advisory=false).
+- **Files**: `src/cpu/src/ecdh.cpp`.
+
 ## 2026-05-26 — Fix: SHIM-NEW-001/002/003 NULL non-ctx args fire illegal_callback
 
 - **SHIM-NEW-001**: `secp256k1_ec_pubkey_create` and `secp256k1_ec_pubkey_serialize`: NULL

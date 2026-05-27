@@ -537,6 +537,24 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "verify correctness including large-batch path). PERF-001 (P2): shim_schnorr.cpp "
         "ShimSchnorrCache 1-phase warm-up — pure performance, covered by shim parity tests.",
     ),
+    "abbba7b3": (
+        [
+            "audit/test_regression_ecdh_off_curve.cpp",
+        ],
+        "SEC-005 (P2): ecdh.cpp — ecdh_compute/ecdh_compute_xonly/ecdh_compute_raw now reject "
+        "off-curve pubkeys (y²≠x³+7) and the point-at-infinity before invoking ct::scalar_mul, "
+        "closing the invalid-curve twist-injection attack vector (ePrint 2015/1233). "
+        "SEC-006 (P1): frost.cpp — compute_challenge() erases e_hash after signing. "
+        "CT-008/SEC-004 (P1): ecdsa.cpp — is_zero_ct() on sig.r in hedged+verified paths. "
+        "COMPAT-010/SEC-001 (P1): BCH shim strict parse + is_zero_ct on sk. "
+        "COMPAT-001 (P2): shim_context.cpp rejects unknown flag bits above type field. "
+        "COMPAT-004 (P2): shim_schnorr.cpp sign_custom returns 0 for msglen!=32. "
+        "COMPAT-006 (P2): shim_extrakeys.cpp NULL args fire illegal callback. "
+        "CT-007 (P2): CUDA recovery overflow comparison is now branchless. "
+        "VER-006 (P2): CocoaPods podspec removes SECP256K1_FAST_NO_SECURITY_CHECKS. "
+        "Covered by test_regression_ecdh_off_curve (OCK-1..5: off-curve + infinity rejection "
+        "in all three ecdh_compute* variants, plus positive guard for valid key).",
+    ),
 }
 
 # Bot commits that auto-update evidence — skip.

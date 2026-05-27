@@ -5452,6 +5452,18 @@ set_tests_properties(regression_ecdh_xy64_erase PROPERTIES TIMEOUT 30
     LABELS "audit;regression;shim;ecdh;memory_safety;sec-002")
 target_sources(unified_audit_runner PRIVATE test_regression_ecdh_xy64_erase.cpp)
 
+# SEC-005: ecdh_compute* reject off-curve and infinity pubkeys (2026-05-27)
+# advisory=false: uses CPU C++ API only, no GPU/shim dependency.
+add_executable(test_regression_ecdh_off_curve_standalone
+    test_regression_ecdh_off_curve.cpp)
+audit_target_defaults(test_regression_ecdh_off_curve_standalone)
+target_compile_definitions(test_regression_ecdh_off_curve_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ecdh_off_curve
+    COMMAND test_regression_ecdh_off_curve_standalone)
+set_tests_properties(regression_ecdh_off_curve PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;ecdh;memory_safety;sec-005;invalid-curve")
+target_sources(unified_audit_runner PRIVATE test_regression_ecdh_off_curve.cpp)
+
 # SHIM-001: musig xonly_tweak_add accepts zero tweak (2026-05-23)
 # advisory=true: depends on secp256k1_musig shim.
 add_executable(test_regression_musig_xonly_zero_tweak_standalone

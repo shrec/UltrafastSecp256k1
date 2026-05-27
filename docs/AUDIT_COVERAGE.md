@@ -34,7 +34,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 **Version**: v4.1.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 413 modules, 9 failure classes
+**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 414 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
 **CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (all CI-enforced)
 
@@ -45,7 +45,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 | Metric               | Value                                       |
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
-| Audit Modules        | 140 (non-exploit modules) |
+| Audit Modules        | 141 (non-exploit modules) |
 | **Exploit PoC Tests** | **273 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
