@@ -68,7 +68,7 @@ All commits in a pull request **must** include this sign-off line. Commits witho
 ```bash
 # Install dependencies
 # Ubuntu/Debian
-sudo apt install cmake ninja-build g++-13 clang-tidy
+sudo apt install cmake ninja-build g++-14 clang-tidy
 
 # Arch Linux
 sudo pacman -S cmake ninja gcc clang
@@ -90,10 +90,17 @@ cmake --build out/dev -j
 
 ## 🔄 Development Process
 
-1. **Fork** the repository
-2. **Commit** your changes directly to `dev`: `git commit -m 'Add amazing feature'`
-3. **Push** to `dev`: `git push origin dev`
-4. **Open** a Pull Request against `dev`
+### For maintainer (shrec):
+
+1. **Commit** changes directly to `dev`: `git commit -m 'Add amazing feature'`
+2. **Push** immediately: `git push origin dev`
+
+### For external contributors:
+
+1. **Fork** the repository on GitHub
+2. **Commit** your changes on your fork (use `dev` as the base branch)
+3. **Push** to your fork: `git push origin dev`
+4. **Open** a Pull Request against the upstream `dev` branch
 
 ### Strict Branch Governance (Mandatory)
 
