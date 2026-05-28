@@ -1,6 +1,6 @@
 # Bitcoin Core Alternative Backend — Evidence Document
 
-> Version: 1.4 — 2026-05-21
+> Document version: 1.4 (library version: 4.1.0) — 2026-05-21
 > Profile: `bitcoin-core-backend`
 > Status: PR-prep / RC-prep — evidence refresh in progress; not yet submitted (see BITCOIN_CORE_PR_BLOCKERS.md)
 
