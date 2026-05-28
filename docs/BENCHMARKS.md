@@ -85,6 +85,8 @@ Quick sanity run from `bench_unified --quick` on the local x86-64 validation mac
 
 > **[diagnostic]** Run: `bench_unified --quick` | Machine: i5-14400F | GCC 14.2.0 | Turbo: off | Date: see git log
 
+> **[ARCHIVED — values below are hardcoded snapshots. Verify against current `bench_unified --quick` output before citing. Not maintained by CI.]**
+
 | Flow | Time |
 |------|-----:|
 | ECDH (`ecdh_compute`) | 22.8 us |
@@ -124,7 +126,7 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 | ecmult (a·P+b·G) | 19429 | 19071 | 0.98× |
 | compressed serialize | 2.9 | 12.7 | **4.34×** |
 | ECDSA verify | 20218 | 20507 | 1.01× |
-| Schnorr verify (cached) | 20741 | 20459 | 0.99× |
+| Schnorr verify (cached)† | 20741 | 20459 | 0.99× |
 | **CT ECDSA sign** | **12259** | 16314 | **1.33× (Clang 19)** |
 | **CT Schnorr sign** | **10411** | 12467 | **1.20× (Clang 19)** |
 | ECDSA sign `[diagnostic: FAST path — variable-time, NOT for production signing]` | 7825 | 16314 | 2.08× |
@@ -135,6 +137,8 @@ Run after 60-exploit-PoC audit (commit `8b25d420`). No regression detected.
 | Schnorr batch N=64 | 144876 total | — | — |
 
 No regressions vs previous rerun (2026-03-17). All 70/70 audit modules pass.
+
+† Ultra uses pre-warmed ShimSchnorrCache (GLV tables cached, lift_x skipped); libsecp256k1 rebuilds GLV tables on every call. See "cold-start" row for the symmetric comparison.
 
 > **⚠ Cross-compiler disambiguation (BENCH-006):** CT signing ratios in this table (1.33×/1.20×) are **Clang 19 only, 2026-03-24**. They are **not comparable** to the current canonical GCC 14.2.0 measurements (CT ECDSA 1.32×, CT Schnorr 1.27× — see `docs/bench_unified_2026-05-23_gcc14_x86-64.json` and the summary table at the top of this document). Compiler choice materially changes CT signing ratios. GCC 13 produces even lower ratios (CT ECDSA ~0.85×, CT Schnorr ~0.82×). Always specify the compiler when citing CT signing benchmarks. The Clang 19 archive above is retained for historical reference only — do not cite as a release-grade claim.
 
