@@ -36,7 +36,20 @@
   regression for CAAS-06 — the secret-path gate must fail-closed when `git diff <ref>..HEAD`
   errors, not silently treat the change set as empty and pass.
 
-## 2026-05-28 — Fix + test: shim/bip32 secret-key erasure + strict-DER (CT-01/SHIM-01/02/CT-02/RT-02)
+### Round 3 (CI red on ASan+UBSan / TSan / coverage / rocm)
+- **TEST-08 completion** (`test_regression_adaptor_blinded_nonce.cpp`): the fail-closed
+  source-scan guard added in Round 1 (`ef5506fd`) exposed a path-resolution fragility:
+  `read_source_file()` only tried prefixes up to `../../` (2 levels), but the sanitizer,
+  coverage and rocm jobs configure **nested** build dirs (`build/asan`, `build/tsan`,
+  `build/cov`, `build/rocm`), placing the test CWD 3 levels below the repo root. The
+  repo-root-relative scans (`src/cpu/src/adaptor.cpp`, the three `compat/.../shim_*.cpp`)
+  resolved fine in flat `build/` jobs (gcc/clang/windows/macos — green) but failed the
+  `adaptor.cpp must be readable` check in nested jobs (exit 8, "1 test failed out of N").
+  MSan stayed green only because its whitelist (`-R`) never runs this test. Replaced the
+  fixed prefix list with a **bounded walk-up** (depth ≤ 6) from the CWD, so source scans are
+  independent of build-dir nesting depth. Verified locally: nested-equivalent (depth-3 CWD)
+  and flat (depth-2 CWD) both now report **16/16 checks passed** (previously 6/8 in nested —
+  2 fails + 3 silent SKIPs; the shim scans now actually run). No product code changed.
 
 - **CT-01 (shim_ecdsa.cpp, shim_recovery.cpp)**: `secp256k1_ecdsa_sign` and
   `secp256k1_ecdsa_sign_recoverable` did not `secure_erase` the parsed private-key scalar

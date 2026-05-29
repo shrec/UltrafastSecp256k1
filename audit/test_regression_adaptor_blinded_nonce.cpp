@@ -57,22 +57,21 @@ static int g_pass = 0, g_fail = 0;
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 static std::string read_source_file(const char* rel_path) {
-    // Try several roots: repo root, src/, compat/ prefix, and build-relative paths.
-    const char* prefixes[] = {
-        "",
-        "../",
-        "../../",
-        "src/cpu/src/",
-        "../src/cpu/src/",
-        nullptr
-    };
-    for (int i = 0; prefixes[i]; ++i) {
-        std::string path = std::string(prefixes[i]) + rel_path;
-        std::ifstream f(path);
+    // rel_path is repo-root-relative (e.g. "src/cpu/src/adaptor.cpp"). The test
+    // binary's working directory sits an unknown number of levels below the repo
+    // root: build/audit/ for a flat build tree, but build/<cfg>/audit/ for nested
+    // trees (build/cov, build/asan, build/tsan, build/rocm, ...). The previous
+    // fixed prefix list only reached "../../" (2 levels), so nested build dirs
+    // failed to locate in-tree sources. Walk up from the CWD until the path
+    // resolves, making source scans independent of build-dir nesting depth.
+    std::string up;
+    for (int depth = 0; depth <= 6; ++depth) {
+        std::ifstream f(up + rel_path);
         if (f.is_open()) {
             return {std::istreambuf_iterator<char>(f),
                     std::istreambuf_iterator<char>()};
         }
+        up += "../";
     }
     return {};
 }
