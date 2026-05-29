@@ -169,10 +169,10 @@ Key values (GCC 14.2.0, Release+LTO, from `bench_unified_2026-05-23_gcc14_x86-64
 
 | Operation | Time | Notes |
 |-----------|------|-------|
-| CT ECDSA sign | ~14.6 µs | `ct::ecdsa_sign` — constant-time production path |
-| CT Schnorr sign | ~12.4 µs | `ct::schnorr_sign` — constant-time production path |
-| ECDSA verify | ~23.0 µs | variable-time (correct for public data) |
-| Schnorr verify | ~23.3 µs | variable-time, cached x-only (correct for public data) |
+| CT ECDSA sign | ~22.5 µs | `ct::ecdsa_sign` — constant-time production path (canonical `ct_signing_gcc_detail.ct_ecdsa_sign_ns` = 22500.94) |
+| CT Schnorr sign | ~18.0 µs | `ct::schnorr_sign` — constant-time production path (canonical `ct_signing_gcc_detail.ct_schnorr_sign_ns` = 17953.41) |
+| ECDSA verify | ~41.1 µs | variable-time, correct for public data (canonical `sign_verify_gcc.ecdsa_verify_ns` = 41111.04) |
+| Schnorr verify | ~42.2 µs | variable-time, cached x-only (canonical `sign_verify_gcc.schnorr_verify_cached_ns` = 42164.67) |
 
 These serve as the alert baseline. Any commit causing >100% regression on a tracked
 metric is flagged (200% threshold accounts for shared-runner noise).
