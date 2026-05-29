@@ -1502,7 +1502,7 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_shim_rfc6979_compat", "SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness — same inputs → same nonce, NULL vs non-NULL ndata differ, ecdsa_sign_libsecp_compat verifies (RFC-1..9)", "protocol_security", test_regression_shim_rfc6979_compat_run, false },
     // === 2026-05-26 ILLCB-001/002, DER-STRICT, keypair_sec BIP-340 normalization ===
     // advisory=true: depends on libsecp256k1 shim ABI.
-    { "regression_shim_divergence_fixes", "ILLCB-001/002: pubkey_parse NULL args fire illegal_cb; DER-STRICT: r=0/s=0 accepted at parse; keypair_sec BIP-340: stored sk produces even-Y pubkey (SDF-1..6)", "protocol_security", test_regression_shim_divergence_fixes_run, true },
+    { "regression_shim_divergence_fixes", "ILLCB-001/002: pubkey_parse NULL args fire illegal_cb; DER-STRICT: r=0/s=0 REJECTED at parse (minimal-encoding rule; documented divergence — verify also rejects); keypair_sec BIP-340: stored sk produces even-Y pubkey (SDF-1..6)", "protocol_security", test_regression_shim_divergence_fixes_run, true },
     // === 2026-05-28 TRNC-1..4: NULL non-ctx arg illegal_callback in extrakeys + recovery tweak/convert ===
     // advisory=true: requires shim to be linked (stub returns ADVISORY_SKIP_CODE when absent).
     { "regression_shim_tweak_recover_null_cb", "TRNC-1..4: xonly_pubkey_tweak_add, tweak_add_check, keypair_xonly_tweak_add, recoverable_sig_convert now fire illegal_callback on NULL non-ctx args (SHIM-NULL-CB-2026)", "shim_regression", test_regression_shim_tweak_recover_null_cb_run, true },

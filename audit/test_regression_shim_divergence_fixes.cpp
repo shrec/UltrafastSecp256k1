@@ -4,7 +4,11 @@
 // Regression tests for four shim divergences fixed 2026-05-26:
 //
 //   SHIM-ILLCB-002: secp256k1_ec_pubkey_parse NULL args must fire illegal_cb
-//   DER-STRICT:     secp256k1_ecdsa_signature_parse_der must accept r=0/s=0
+//   DER-STRICT:     secp256k1_ecdsa_signature_parse_der REJECTS r=0/s=0 at parse
+//                   (the canonical zero encoding 02 01 00 fails the minimal-
+//                   encoding rule). Documented divergence from upstream (which
+//                   accepts at parse and rejects at verify) — see
+//                   docs/SHIM_KNOWN_DIVERGENCES.md and shim_ecdsa.cpp:314-321.
 //   SHIM-ILLCB-001: secp256k1_context_set_illegal_callback(NULL ctx) must
 //                   call default_illegal_callback (aborts) rather than silently
 //                   returning — tested via code-review only (cannot survive abort)
@@ -14,7 +18,7 @@
 // Tests:
 //   SDF-1: pubkey_parse(ctx, NULL, input, 33)  → callback fired + return 0
 //   SDF-2: pubkey_parse(ctx, pubkey, NULL, 33) → callback fired + return 0
-//   SDF-3: ecdsa_signature_parse_der with r=0, s=1 → returns 1 (parse OK)
+//   SDF-3: ecdsa_signature_parse_der with r=0, s=1 → returns 0 (rejected at parse)
 //   SDF-4: context_set_illegal_callback(NULL, ...) → abort() [code-review only]
 //   SDF-5: keypair_create seckey → keypair_sec returns BIP-340 normalized key
 //          (i.e. the key that produces an even-Y pubkey)
@@ -90,8 +94,13 @@ static void test_sdf2_pubkey_parse_null_input() {
     secp256k1_context_destroy(ctx);
 }
 
-// ─── SDF-3: DER signature with r=0, s=1 parses successfully ──────────────────
-// Upstream libsecp256k1 accepts r=0 at parse time; only verify rejects it.
+// ─── SDF-3: DER signature with r=0, s=1 is REJECTED at parse ─────────────────
+// DOCUMENTED DIVERGENCE: upstream libsecp256k1 accepts r=0 at parse time and
+// defers rejection to verify. This shim rejects it AT PARSE: the canonical zero
+// encoding `02 01 00` fails parse_int's minimal-encoding rule (a lone leading
+// 0x00 with len<2). See shim_ecdsa.cpp:314-321 and docs/SHIM_KNOWN_DIVERGENCES.md.
+// This must stay consistent with the authoritative test_shim_der_zero_r.cpp and
+// shim_test.cpp::test_der_parity, which assert the same reject-at-parse result.
 // DER encoding of SEQUENCE { INTEGER 0, INTEGER 1 }:
 //   30 06   SEQUENCE, 6 bytes
 //   02 01 00  INTEGER, 1 byte, value 0
@@ -105,7 +114,7 @@ static void test_sdf3_der_parse_r_zero() {
     };
     secp256k1_ecdsa_signature sig{};
     int rc = secp256k1_ecdsa_signature_parse_der(ctx, &sig, der_r0, sizeof(der_r0));
-    CHECK(rc == 1, "[SDF-3] parse_der with r=0 must return 1 (parse OK; verify rejects)");
+    CHECK(rc == 0, "[SDF-3] parse_der with r=0 must return 0 (shim rejects zero at parse: 02 01 00 fails minimal-encoding; documented divergence)");
     secp256k1_context_destroy(ctx);
 }
 

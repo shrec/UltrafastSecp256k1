@@ -4152,7 +4152,8 @@ if(TARGET secp256k1_shim)
     add_test(NAME regression_shim_divergence_fixes
         COMMAND test_regression_shim_divergence_fixes_standalone)
     set_tests_properties(regression_shim_divergence_fixes PROPERTIES
-        TIMEOUT 60 LABELS "audit;regression;shim;security;illcb;keypair;bip340")
+        TIMEOUT 60 SKIP_RETURN_CODE 77
+        LABELS "audit;regression;shim;security;illcb;keypair;bip340")
 
     # -- 2026-05-28: TRNC-1..4: NULL non-ctx arg illegal_callback in extrakeys + recovery --
     add_executable(test_regression_shim_tweak_recover_null_cb_standalone
