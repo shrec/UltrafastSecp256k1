@@ -65,8 +65,9 @@ sudo ldconfig
 ```
 
 After install, applications can find the library via:
-- **pkg-config**: `pkg-config --cflags --libs ufsecp`
-- **CMake**: `find_package(ufsecp 4 REQUIRED)`
+- **pkg-config**: `pkg-config --cflags --libs secp256k1-fast`
+- **CMake**: `find_package(secp256k1-fast 4 REQUIRED)` then link the `secp256k1::fast` target
+  (matches `conanfile.py`: `cmake_file_name=secp256k1-fast`, `cmake_target_name=secp256k1::fast`)
 
 ## Package naming convention
 

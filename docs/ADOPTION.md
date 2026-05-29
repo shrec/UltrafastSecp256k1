@@ -1,6 +1,8 @@
 # Adoption
 
-Independently verified integrations of UltrafastSecp256k1 in third-party projects.
+Third-party project integrations of UltrafastSecp256k1. Where an integration was contributed
+by the maintainer (`@shrec`), it is hosted and shipped by the third party; this is noted per
+entry rather than framed as independent verification.
 
 ---
 

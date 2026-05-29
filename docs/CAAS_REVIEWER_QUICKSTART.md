@@ -2,6 +2,9 @@
 
 > **For Bitcoin Core reviewers, security researchers, and wallet integrators.**
 > You can verify everything on this page without trusting the maintainer.
+>
+> **No external third-party security audit has been performed.** All audit evidence is
+> self-generated and independently reproducible via CAAS. See [SECURITY.md](../SECURITY.md) §Audit Status.
 
 ---
 

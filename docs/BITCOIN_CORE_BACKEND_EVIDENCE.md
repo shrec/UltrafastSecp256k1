@@ -15,6 +15,10 @@ verification command a reviewer can use to independently check it.
 > Silent Payments pipeline, FROST/MuSig2 advanced protocols, and WASM targets are
 > **out of scope** for this Bitcoin Core evaluation. Only the CPU secp256k1 path and
 > its libsecp256k1-compatible shim are relevant for the PR.
+>
+> **No external third-party security audit has been performed.** All audit evidence in
+> this document is self-generated and independently reproducible via CAAS. See
+> [SECURITY.md](../SECURITY.md) §Audit Status.
 
 ---
 
@@ -89,8 +93,8 @@ known gap (see Section 3).
 
 | Claim | Evidence | CI Gate | Last Verified |
 |-------|----------|---------|---------------|
-| Constant-time ECDSA signing on x86-64: private key and nonce operations route through `secp256k1::ct::*` primitives with no variable-time branches on secret data | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
-| Constant-time Schnorr signing on x86-64: BIP-340 signing uses `secp256k1::ct::schnorr_sign`; aux_rand masking and nonce derivation are CT throughout | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Every commit |
+| Constant-time ECDSA signing on x86-64: private key and nonce operations route through `secp256k1::ct::*` primitives with no variable-time branches on secret data | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Manual / release-tag (`workflow_dispatch`) |
+| Constant-time Schnorr signing on x86-64: BIP-340 signing uses `secp256k1::ct::schnorr_sign`; aux_rand masking and nonce derivation are CT throughout | `docs/CT_VERIFICATION.md` | `ct-verif.yml` | Manual / release-tag (`workflow_dispatch`) |
 | `secp256k1_ecdsa_signature_parse_compact` rejects `r == 0`, `s == 0`, `r >= n`, `s >= n` | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
 | `secp256k1_ec_seckey_verify` rejects `key == 0` and `key >= n` | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
 | `secp256k1_xonly_pubkey_parse` rejects `x >= p` and x-coordinates with no valid y | `ci/check_libsecp_shim_parity.py` | `preflight.yml` | Every commit |
@@ -116,13 +120,27 @@ definitive; all three must pass:
 3. **dudect statistical timing** — runs the signing path under varying secret inputs and
    tests for statistically significant timing differences.
 
-Results are recorded in `docs/CT_VERIFICATION.md`. The CI gate in `ct-verif.yml` runs
-all three on every push.
+Results are recorded in `docs/CT_VERIFICATION.md`. The `ct-verif.yml` gate (and the
+companion `valgrind-ct.yml` / `ct-prover.yml` formal CT pipelines) run on **manual
+dispatch and on release-tag builds — not on every push** (they are `workflow_dispatch`
+workflows). This matches the wording in `README.md` and `CITATION.cff`; the two CT
+signing rows above are therefore marked "Manual / release-tag" rather than "Every
+commit". Per-push CT discipline is exercised by the constant-time audit modules in the
+`unified_audit_runner` (run in the preflight CAAS section), while the heavier formal
+LLVM/Valgrind/dudect layers are run on demand and at release.
 
 **Confidence ceiling:** CT verification tools can miss some attack classes. Hardware
 microarchitectural channels (cache sets, branch predictor state, power) are not covered
 by software tooling alone. This limitation is documented in RR-001
 (`docs/RESIDUAL_RISK_REGISTER.md`) and in `docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md`.
+
+**Platform scope (CT-03 / SEC-001-INCOMPLETE):** the constant-time signing guarantees above
+are established on `__int128`-capable targets — **x86-64 and ARM64**, which is the Bitcoin Core
+target. These use the fully constant-time SafeGCD scalar inverse. On non-`__int128` platforms
+(32-bit ARM Cortex-M, ESP32, WASM32) `ct::scalar_inverse` falls back to a Fermat addition chain
+that uses a variable-time multiply, so the modular inverse on secret nonces is **not** constant-time
+there. This is an out-of-scope-for-Core limitation tracked as `SEC-001-INCOMPLETE`; the
+"production CT signing" claim is scoped to `__int128` platforms.
 
 ---
 

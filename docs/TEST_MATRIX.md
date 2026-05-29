@@ -104,13 +104,13 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 417 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 418 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 417 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 418 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 417 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 418 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -388,6 +388,7 @@ fix pass (SEC-001/CT-001/SEC-002/SEC-003/SHIM-001/CI-006):
 - `regression_shim_context_erase` — T-11/12: secure_erase ctx->blind + is_zero_ct in ContextBlindingScope (advisory=true, shim)
 - `regression_shim_null_arg_cb` — SHIM-NEW-001/002/003: ec_pubkey_create/serialize, xonly_pubkey_parse/serialize, recoverable_sig_parse/serialize fire illegal_callback on NULL non-ctx args (advisory=true, shim)
 - `regression_shim_tweak_recover_null_cb` — TRNC-1..4: xonly_pubkey_tweak_add, tweak_add_check, keypair_xonly_tweak_add, recoverable_sig_convert fire illegal_callback on NULL non-ctx args (SHIM-NULL-CB-2026) (advisory=true, shim)
+- `regression_shim_seckey_erase` — CT-01/SHIM-01/02/CT-02/RT-02: shim ecdsa sign/sign_recoverable + ellswift create/xdh secure_erase parsed key on all returns; bip32 derive_child erases il_scalar; parse_der requires exact SEQUENCE consumption (source-scan + functional) (advisory=false)
 
 ### Generated Inventory Sync (2026-05-12)
 

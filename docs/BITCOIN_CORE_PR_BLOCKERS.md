@@ -3,7 +3,7 @@
 **Commit:** `f6b92035` (dev branch, 2026-05-22; doc corrections 2026-05-26)
 **Date:** 2026-05-22
 **Last updated:** 2026-05-26 — doc corrections from v8 multi-pass review: VERSION.txt reference (4.0.0→4.1.0), ConnectBlock wording (removed "wins ALL scenarios", explicit LTO/no-LTO), wiring count (254→334), GPU ABI op count (13→16 in BENCHMARKS.md)
-**Overall PR Readiness:** **~85%** (code fixes done; documentation, DOI badge, benchmark desync remain)
+**Overall PR Readiness:** **~90%** (code, documentation, and DOI badge done; the one remaining item is the benchmark canonical-ratio desync — see BENCH-01 / PRR-02 — pending the next measured bench refresh)
 
 ---
 
@@ -155,7 +155,7 @@ Two fixes were required:
 | Stage 2b — ABI stability | ✅ PASS | `static_assert` struct layout guards |
 | Stage 2c — differential | ✅ PASS | Cross-validation against libsecp256k1 |
 | Stage 2d — Wycheproof | ✅ 11/11 | All Wycheproof test suites pass |
-| Stage 2e — Bitcoin Core tests | ✅ 749/749 | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (GCC 14, 2026-05-20) |
+| Stage 2e — Bitcoin Core tests | ✅ 749/749 | `docs/BITCOIN_CORE_BENCH_RESULTS.json` (GCC 14, 2026-05-11) |
 
 ---
 

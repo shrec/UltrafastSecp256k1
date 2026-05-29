@@ -93,6 +93,56 @@ are stricter but never less safe. Callers using well-formed inputs are unaffecte
 
 ---
 
+### secp256k1_ecdsa_signature_parse_der — rejects r=0/s=0; requires exact SEQUENCE consumption
+
+- **Upstream behavior:** `secp256k1_ecdsa_sig_parse` accepts r=0 and s=0 at parse time (they
+  are syntactically valid DER INTEGERs); rejection is deferred to `secp256k1_ecdsa_sig_verify`.
+  It also consumes the SEQUENCE body exactly with r and s.
+- **Shim behavior:**
+  - **r=0 / s=0 are rejected at parse** (returns 0). The only canonical DER encoding of zero
+    is `02 01 00`, which the parser's minimal-encoding rule rejects (a single leading `0x00`
+    value byte fails the `len < 2` check), so no DER encoding of zero ever reaches the
+    in-range scalar test. Implemented inline via `in_range_scalar` + `parse_int` — this
+    replaced the earlier `parse_bytes_strict_nonzero` mechanism but preserves the same
+    reject-at-parse behavior.
+  - **Exact SEQUENCE consumption (RT-02, 2026-05-28):** after parsing r and s the parser
+    requires `p == end`. An inflated-length SEQUENCE that fills the input buffer but leaves
+    trailing bytes *inside* the SEQUENCE after s (e.g. `30 08 02 01 0F 02 01 01 7F 7F`) is
+    now rejected — matching upstream strict parsing and the native C ABI parser
+    (`src/cpu/src/impl/ufsecp_ecdsa.cpp`).
+- **Reason:** Defense-in-depth. r=0/s=0 are astronomically rare and invalid; rejecting at
+  parse is never less safe than deferring to verify (verify rejects them too). The
+  exact-SEQUENCE check rejects malformed encodings upstream also rejects.
+- **Impact:** None for well-formed signatures. Note the asymmetry: `parse_compact` uses
+  `parse_bytes_strict` and ACCEPTS r=0/s=0 (matching libsecp), while `parse_der` rejects them
+  — see KB `DER-COMPACT-ASYMMETRY`.
+- **Test:** `compat/libsecp256k1_shim/tests/test_shim_der_zero_r.cpp` (r=0, s=0, trailing-bytes,
+  valid-sig) and source-scan `audit/test_regression_shim_seckey_erase.cpp`.
+
+---
+
+### secp256k1_schnorr_sign (BCHN legacy shim) — noncefp/ndata ignored, always RFC 6979
+
+- **Scope:** Bitcoin Cash (BCHN) legacy-Schnorr compatibility shim
+  (`compat/libsecp256k1_bchn_shim/src/shim_schnorr_bch.cpp`) — **not part of the Bitcoin Core
+  CPU-backend evaluation.**
+- **Upstream behavior:** The BCHN legacy `secp256k1_schnorr_sign` API takes a `noncefp` /
+  `ndata` pair. In practice BCHN callers pass `NULL` (deterministic RFC 6979).
+- **Shim behavior:** Accepts the `noncefp` / `ndata` parameters but **silently ignores both**
+  and always uses internal RFC 6979 nonce derivation. It does **not** fire the illegal
+  callback for a non-NULL `noncefp` (unlike the BIP-340 `secp256k1_schnorrsig_sign_custom`
+  shim, which under PASS3-001 rejects unsupported custom nonce functions).
+- **Reason:** The BCHN legacy API only ever supported deterministic RFC 6979 nonces in
+  practice; a fixed RFC 6979 nonce is the correct and only behavior. The silent-ignore is
+  acceptable for this legacy compatibility surface and is documented here for completeness
+  rather than changed (BCHN callers historically pass NULL). Documented per CLAUDE.md Rule 3.
+- **Impact:** A BCHN caller passing a non-NULL `noncefp` expecting a custom nonce would get
+  RFC 6979 instead, without an error. No Bitcoin Core caller is affected (out of scope).
+- **Test:** Behavioral parity covered by the BCHN shim's own Schnorr round-trip tests; no
+  dedicated negative test (documentation-only divergence).
+
+---
+
 ### secp256k1_musig_partial_sig_agg — all-zero check uses CT accumulator (SHIM-MUSIG-CT)
 
 - **Upstream behavior:** No all-zero check — returns the aggregated value unconditionally.
