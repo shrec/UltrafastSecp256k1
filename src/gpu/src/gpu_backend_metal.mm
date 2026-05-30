@@ -634,6 +634,9 @@ public:
         if (!z_i32 || !D_i33 || !E_i33 || !Y_i33 ||
             !rho_i32 || !lambda_ie32 || !negate_R || !negate_key || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_FROST
+        return set_error(GpuError::Unsupported, "GPU FROST module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -910,6 +913,9 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!proofs64 || !pubkeys65 || !messages32 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_ZK
+        return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -961,6 +967,9 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!proofs64 || !G_pts65 || !H_pts65 || !P_pts65 || !Q_pts65 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_ZK
+        return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -1015,6 +1024,9 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!proofs324 || !commitments65 || !H_generator65 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_ZK
+        return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -1092,6 +1104,9 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!keys32 || !nonces12 || !plaintexts || !sizes || !wire_out)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_BIP324
+        return set_error(GpuError::Unsupported, "GPU BIP-324 module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -1134,6 +1149,9 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!keys32 || !nonces12 || !wire_in || !sizes || !plaintext_out || !out_valid)
             return set_error(GpuError::NullArg, "NULL buffer");
+#if !SECP256K1_GPU_HAS_BIP324
+        return set_error(GpuError::Unsupported, "GPU BIP-324 module disabled at build time");
+#endif
 
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
@@ -1178,6 +1196,9 @@ public:
         if (!msg_hashes32 || !pubkeys33 || !sigs64 || !witness_flat_out)
             return set_error(GpuError::NullArg, "NULL pointer passed to snark_witness_batch");
         if (!count) return GpuError::Ok;
+#if !SECP256K1_GPU_HAS_ZK
+        return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
+#endif
 
         /* Decompress pubkeys: 33-byte SEC1 → 64-byte uncompressed BE (x‖y) */
         auto* h_pubs = g_metal_batch_scratch.ensure_pubkeys64(count);
@@ -1220,6 +1241,9 @@ public:
         if (!msgs32 || !pubkeys_x32 || !sigs64 || !out_flat)
             return set_error(GpuError::NullArg, "NULL pointer passed to schnorr_snark_witness_batch");
         if (!count) return GpuError::Ok;
+#if !SECP256K1_GPU_HAS_ZK
+        return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
+#endif
 
         auto buf_msgs  = runtime_->alloc_buffer_shared(count * 32);
         auto buf_pubs  = runtime_->alloc_buffer_shared(count * 32);
@@ -1252,6 +1276,9 @@ public:
         if (!scan_privkey32 || !spend_pubkey33 || !tweak_pubkeys33 || !prefix64_out)
             return set_error(GpuError::NullArg, "NULL pointer passed to bip352_scan_batch");
         if (!n_tweaks) return GpuError::Ok;
+#if !SECP256K1_GPU_HAS_BIP352
+        return set_error(GpuError::Unsupported, "GPU BIP-352 module disabled at build time");
+#endif
 
         /* Parse scan private key: BE 32 bytes → MetalScalar256 */
         MetalScalar256 scan_scalar = be32_to_metal_scalar(scan_privkey32);
