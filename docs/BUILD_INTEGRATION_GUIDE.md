@@ -214,3 +214,34 @@ not the source of the no-LTO deficit.
 `SECP256K1_UNITY_BUILD=ON` is the primary lever for no-LTO performance.
 `SECP256K1_BUILD_AS_OBJECT=ON` is the lever for tightest embedding.
 Both can be combined.
+
+## GPU Feature Modules (independent of CPU modules)
+
+The GPU op surface has its own per-feature build flags, **separate** from the
+CPU feature modules — a consumer may want, e.g., BIP-324 on the CPU but stripped
+from the GPU build, or a node that only needs GPU ECDSA/Schnorr signature
+verification with everything else removed:
+
+| Flag (default ON) | Strips when OFF |
+|-------------------|-----------------|
+| `SECP256K1_GPU_BUILD_ZK`     | ZK GPU ops: knowledge / DLEQ / bulletproof / SNARK witness kernels + dispatch |
+| `SECP256K1_GPU_BUILD_BIP324` | BIP-324 AEAD encrypt/decrypt kernels + dispatch |
+| `SECP256K1_GPU_BUILD_FROST`  | FROST partial-verify kernel + dispatch |
+| `SECP256K1_GPU_BUILD_BIP352` | BIP-352 silent-payment scan kernel + dispatch |
+
+When a module is OFF, its kernels are not compiled into any GPU backend
+(CUDA/OpenCL/Metal) and the stable C ABI entry point returns
+`UFSECP_ERR_GPU_UNSUPPORTED` rather than dispatching. Core ECDSA/Schnorr batch
+verification is never gated.
+
+Measured (CUDA, RTX 5060 Ti build, static-archive sizes — all four GPU modules
+OFF): `secp256k1_gpu_host` ≈ −17% (27.5 → 22.7 MB), `secp256k1_cuda_lib` ≈ −20%
+(9.6 → 7.6 MB). Core batch verify still passes (ECDSA + Schnorr) with all
+optional modules stripped.
+
+```bash
+# Minimal GPU node build: only ECDSA/Schnorr batch verify on the GPU.
+cmake --preset cpu-release -DSECP256K1_BUILD_CUDA=ON \
+    -DSECP256K1_GPU_BUILD_ZK=OFF -DSECP256K1_GPU_BUILD_BIP324=OFF \
+    -DSECP256K1_GPU_BUILD_FROST=OFF -DSECP256K1_GPU_BUILD_BIP352=OFF
+```
