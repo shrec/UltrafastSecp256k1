@@ -43,7 +43,12 @@ def read_module_counts() -> dict[str, int]:
         raise RuntimeError("ALL_MODULES[] not found in unified_audit_runner.cpp")
     block = m.group(1)
     total = len(re.findall(r"^\s*\{\s*\"[a-z]", block, re.MULTILINE))
-    exploit = len(re.findall(r"^\s*\{\s*\"exploit_", block, re.MULTILINE))
+    # Count exploit modules by SECTION field ("exploit_poc") — the canonical
+    # method used by build_canonical_data.py, sync_module_count.py and
+    # check_version_sync.py. The previous key-prefix count (entries whose KEY
+    # starts with "exploit_") undercounted, because some exploit_poc-section
+    # modules have keys that do not start with "exploit_" (247 vs 273 drift).
+    exploit = len(re.findall(r'"exploit_poc"', block))
     poc_files = len(list((ROOT / "audit").glob("test_exploit_*.cpp")))
     return {
         "total": total,

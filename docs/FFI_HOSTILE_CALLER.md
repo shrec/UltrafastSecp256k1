@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-05-28 | **Version**: 4.1.5
+**Last updated**: 2026-05-28 | **Version**: 4.1.0
 
 ### 2026-05-28 — batch parallel dispatch: hostile-caller contract
 

@@ -110,6 +110,28 @@ def _extract_pkgbuild(root: Path) -> str | None:
     return m.group(1) if m else None
 
 
+def _extract_docs_readme_header(root: Path) -> str | None:
+    # docs/README.md header line: "> **Version 4.1.0** -- ..."
+    # (bold version with a space, no colon). Synced by sync_version_refs.py.
+    p = root / 'docs' / 'README.md'
+    if not p.exists():
+        return None
+    text = p.read_text(encoding='utf-8')
+    m = re.search(r'\*\*Version\s+(\d+\.\d+\.\d+)\*\*', text)
+    return m.group(1) if m else None
+
+
+def _extract_package_swift_example(root: Path) -> str | None:
+    # Package.swift SPM usage example: '.package(url: "...", from: "4.1.0")'.
+    # Synced by sync_version_refs.py (requires '.swift' in its target_suffixes).
+    p = root / 'Package.swift'
+    if not p.exists():
+        return None
+    text = p.read_text(encoding='utf-8')
+    m = re.search(r'\.package\(url:[^)]*from:\s*"(\d+\.\d+\.\d+)"', text)
+    return m.group(1) if m else None
+
+
 # ---------------------------------------------------------------------------
 # Count extractors (from docs, to compare against authoritative source)
 # ---------------------------------------------------------------------------
@@ -176,6 +198,8 @@ def check_version_sync(root: Path) -> bool:
         ('cocoapods podspec  s.version',        _extract_podspec(root)),
         ('rpm spec  Version:',                  _extract_rpm_spec(root)),
         ('arch PKGBUILD  pkgver',               _extract_pkgbuild(root)),
+        ('docs/README.md  **Version** header',  _extract_docs_readme_header(root)),
+        ('Package.swift  SPM example from:',     _extract_package_swift_example(root)),
         ('rpm spec  soversion (expect major)',  _extract_rpm_soversion(root)),
     ]
 

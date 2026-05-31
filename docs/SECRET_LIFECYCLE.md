@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-28 | **Version**: 4.1.6
+**Last updated**: 2026-05-28 | **Version**: 4.1.0
 
 ### 2026-05-28 — defense-in-depth: erase nonce-derived r in ecdsa_sign_hedged
 

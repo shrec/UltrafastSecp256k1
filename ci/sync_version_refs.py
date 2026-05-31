@@ -46,6 +46,18 @@ RULES = [
     # UltrafastSecp256k1 v3.4.0  (standalone line / sentence)
     (r'(UltrafastSecp256k1\s+v)[\d]+\.[\d]+\.[\d]+', r'\g<1>{v}'),
 
+    # > **Version 4.0.0** -- ...   (docs/README.md header: bold version with a
+    # space and NO trailing colon — distinct from the "**Version**:" rule above.
+    # This format previously drifted because no rule matched it.)
+    (r'(\*\*Version\s+)[\d]+\.[\d]+\.[\d]+(\*\*)', r'\g<1>{v}\g<2>'),
+
+    # .package(url: "...shrec/UltrafastSecp256k1...", from: "4.0.0")  (Package.swift
+    # + docs SPM usage examples — requires '.swift' in target_suffixes below).
+    # SCOPED to our own repo URL so third-party SPM bindings (e.g. a community
+    # ufsecp-swift wrapper with its own SemVer) are never rewritten.
+    (r'(\.package\(url:\s*"https://github\.com/shrec/UltrafastSecp256k1[^"]*"\s*,\s*from:\s*")[\d]+\.[\d]+\.[\d]+(")',
+     r'\g<1>{v}\g<2>'),
+
     # conan install ultrafastsecp256k1/3.4.0@
     (r'(ultrafastsecp256k1/)[\d]+\.[\d]+\.[\d]+(@)', r'\g<1>{v}\g<2>'),
 
@@ -158,7 +170,7 @@ def sync_version(root: Path, version: str, dry_run: bool) -> int:
 
     # Scan .md and .yml files in docs/, include/, .github/, root
     scan_dirs = [root / 'docs', root / 'include', root / '.github', root]
-    target_suffixes = {'.md', '.yml', '.yaml'}
+    target_suffixes = {'.md', '.yml', '.yaml', '.swift'}
 
     visited = set()
     for scan_dir in scan_dirs:

@@ -20,7 +20,7 @@ env:
   RELEASE_VERSION: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'v') && format('{0}', github.event.inputs.tag || github.ref_name) || github.ref_name }}
 
 # ----------------------------------------------------------------------------
-# Global: version is always derived from the git tag (e.g. v4.1.0 -> 4.0.0)
+# Global: version is always derived from the git tag (the leading 'v' is stripped).
 # All binding configs use 0.0.0-dev as placeholder; CI overrides at build time.
 # ----------------------------------------------------------------------------
 
