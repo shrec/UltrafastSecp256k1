@@ -149,6 +149,35 @@ int main() {
         CHECK(ninv == 1 && inv[0] == 7, "schnorr: invalid index == 7 after corruption");
     }
 
+    /* --- C++ wrapper: sizing contract = record count + key size, no buffer
+     *     size. The span overload takes the COUNT from span.size() (never a byte
+     *     buffer size), with key_size implied 0. --- */
+    {
+        const size_t N = 16;
+        auto rows = build_ecdsa(sctx, N, 0); /* tightly packed EcdsaRecords */
+        ufsecp::lbtc::Controller wrap;       /* RAII, AUTO backend */
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t ninv = 0;
+#ifdef UFSECP_LBTC_HAS_SPAN
+        const auto* recs = reinterpret_cast<const ufsecp::lbtc::EcdsaRecord*>(rows.data());
+        auto rc = wrap.verify(std::span<const ufsecp::lbtc::EcdsaRecord>(recs, N),
+                              res.data(), nullptr, 0, &ninv);
+#else
+        auto rc = wrap.verify_ecdsa(rows.data(), N, 0, res.data(), nullptr, 0, &ninv);
+#endif
+        CHECK(rc == UFSECP_OK && ninv == 0, "wrapper: count from span.size(), all valid");
+        rows[3 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x04; /* flip a sig byte */
+        ninv = 0;
+#ifdef UFSECP_LBTC_HAS_SPAN
+        wrap.verify(std::span<const ufsecp::lbtc::EcdsaRecord>(
+                        reinterpret_cast<const ufsecp::lbtc::EcdsaRecord*>(rows.data()), N),
+                    res.data(), nullptr, 0, &ninv);
+#else
+        wrap.verify_ecdsa(rows.data(), N, 0, res.data(), nullptr, 0, &ninv);
+#endif
+        CHECK(ninv == 1 && res[3] == 0, "wrapper: corruption detected, row 3 marked");
+    }
+
     /* --- empty batch --- */
     {
         size_t ninv = 123;

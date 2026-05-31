@@ -61,6 +61,14 @@ invalid row can be mapped back to its block/tx **without a second side table**.
 
 - `key_size` is passed on the call and is **variable**. `key_size == 0` disables
   the column entirely (fastest; row stride == record size).
+- **Sizing contract (record count + key size, no buffer size).** The call passes
+  exactly two of `{record count, key size, buffer size}` — the **record count**
+  and the **key size**. The buffer size is *implied*, always
+  `count * (RECORD + key_size)`. There is deliberately **no buffer-size argument**,
+  so there is no buffer/stride mismatch and **no corresponding error condition**.
+  The C++ `Controller::verify(std::span<const Record>)` overload takes the count
+  from `span.size()` (never a byte count) with `key_size == 0`; the keyed case
+  uses `verify_ecdsa(rows, count, key_size, …)`.
 - The caller builds **one unified table**; the controller internally splits each
   row into the signature payload (→ verify) and the opaque tail (→ carried).
 

@@ -31,6 +31,11 @@
  *     to its block/tx without a second side table.
  *   - The opaque key column is VARIABLE-sized: pass `key_size` on the call.
  *     `key_size == 0` disables it entirely (fastest; row stride == record size).
+ *   - SIZING CONTRACT (per the libbitcoin maintainer): the call passes exactly
+ *     two of {record count, key size, buffer size} — namely the RECORD COUNT and
+ *     the KEY SIZE. The buffer size is IMPLIED, always = count * (RECORD +
+ *     key_size). There is no buffer-size argument, so there is no buffer/stride
+ *     mismatch and no corresponding error condition.
  *   - Results are returned directly: a per-row pass/fail array AND, optionally,
  *     a compact list of the failing row indices.
  *
@@ -108,7 +113,9 @@ const char*       ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl);
  *   rows          n rows, each (RECORD + key_size) bytes, tightly packed.
  *                 The signature record occupies the first RECORD bytes; the
  *                 trailing key_size bytes are the caller's opaque tag.
- *   n             number of rows.
+ *   n             number of rows (the record COUNT). With key_size this fully
+ *                 determines the buffer: n * (RECORD + key_size) bytes. No
+ *                 separate buffer-size argument is taken or needed.
  *   key_size      opaque trailing bytes per row; 0 to disable.
  *   results       OUT, optional. If non-NULL, must be n bytes: results[i] is
  *                 1 if row i is valid, 0 if invalid.
@@ -122,7 +129,10 @@ const char*       ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl);
  * Return value:
  *   UFSECP_OK              the batch was processed (inspect results / counts);
  *                          all rows valid iff *invalid_count == 0.
- *   UFSECP_ERR_BAD_INPUT   n overflow, malformed stride, etc.
+ *   UFSECP_ERR_BAD_INPUT   reserved for arithmetic overflow of n * stride. There
+ *                          is NO buffer-size / stride-mismatch error: the buffer
+ *                          is implied by (count, key_size), so it is always
+ *                          self-consistent by construction.
  *   UFSECP_ERR_BAD_PUBKEY  a row's pubkey is not a valid curve point.
  *   UFSECP_ERR_BAD_SIG     a row's signature is structurally invalid (e.g.
  *                          s >= n, R.x >= p). Such a row counts as invalid.
@@ -170,6 +180,11 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
 
 #ifdef __cplusplus
 } /* extern "C" */
+
+#if __cplusplus >= 202002L
+#  include <span>
+#  define UFSECP_LBTC_HAS_SPAN 1
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Optional thin C++ RAII convenience wrapper (header-only, zero overhead).   */
@@ -219,6 +234,45 @@ public:
     bool ok() const { return ctrl_ != nullptr; }
     ufsecp_lbtc_ctrl* get() const { return ctrl_; }
     ufsecp_lbtc_bound backend() const { return ufsecp_lbtc_ctrl_backend(ctrl_); }
+
+    // --- Batch verify --------------------------------------------------------
+    // Sizing contract: pass the RECORD COUNT and the KEY SIZE only. The buffer
+    // is implied (count * (RECORD + key_size)); there is no buffer-size argument
+    // and no stride/buffer error condition.
+    ufsecp_error_t verify_ecdsa(const uint8_t* rows, size_t count,
+                                size_t key_size = 0, uint8_t* results = nullptr,
+                                size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
+                                size_t* invalid_count = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                        invalid_idx, invalid_cap, invalid_count);
+    }
+    ufsecp_error_t verify_schnorr(const uint8_t* rows, size_t count,
+                                  size_t key_size = 0, uint8_t* results = nullptr,
+                                  size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
+                                  size_t* invalid_count = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                          invalid_idx, invalid_cap, invalid_count);
+    }
+
+#ifdef UFSECP_LBTC_HAS_SPAN
+    // Zero-copy, unkeyed: the COUNT is records.size() — never a byte buffer size,
+    // exactly the "pass record count + key size" contract (key_size == 0 here).
+    // `results`, if non-null, must hold records.size() bytes.
+    ufsecp_error_t verify(std::span<const EcdsaRecord> records,
+                          uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
+                          size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
+        return verify_ecdsa(reinterpret_cast<const uint8_t*>(records.data()),
+                            records.size(), 0, results, invalid_idx, invalid_cap,
+                            invalid_count);
+    }
+    ufsecp_error_t verify(std::span<const SchnorrRecord> records,
+                          uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
+                          size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
+        return verify_schnorr(reinterpret_cast<const uint8_t*>(records.data()),
+                              records.size(), 0, results, invalid_idx, invalid_cap,
+                              invalid_count);
+    }
+#endif // UFSECP_LBTC_HAS_SPAN
 
 private:
     ufsecp_lbtc_ctrl* ctrl_ = nullptr;
