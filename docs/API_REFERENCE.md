@@ -2083,7 +2083,7 @@ ufsecp_ctx_destroy(ctx);
 |----------|-----------|-------------|
 | `ufsecp_schnorr_sign` | `(ctx, msg32, privkey, aux_rand[32], sig64_out) -> error_t` | BIP-340 sign (CT path; rejects key `>= n` or `== 0`; returns `UFSECP_ERR_INTERNAL` on s==0 or R x-coord all-zeros, zeroes output; aux_rand=zeros for deterministic) |
 | `ufsecp_schnorr_sign_verified` | `(ctx, msg32, privkey, aux_rand, sig64_out) -> error_t` | Sign + verify (fault resistance; same CT and degenerate-output guarantees as `ufsecp_schnorr_sign`) |
-| `ufsecp_schnorr_sign_batch` | `(ctx, n, msgs32[], privkeys32[], aux_rands32[]?, sigs64_out[]) -> error_t` | CPU CT batch sign; rejects `n == 0`; clears all output slots before processing; per-slot failure zeroes that slot; `aux_rands32 == NULL` means all-zero aux for every entry |
+| `ufsecp_schnorr_sign_batch` | `(ctx, n, msgs32[], privkeys32[], aux_rands32[], sigs64_out[]) -> error_t` | CPU CT batch sign; rejects `n == 0`; clears all output slots before processing; per-slot failure zeroes that slot; `aux_rands32` is **required** — `NULL` is rejected with `UFSECP_ERR_NULL_ARG` (pass a zero-filled buffer to opt out of hedging) |
 | `ufsecp_schnorr_verify` | `(ctx, msg32, sig64, pubkey_x[32]) -> error_t` | Verify BIP-340 signature |
 
 <a id="c-abi-ecdh"></a>

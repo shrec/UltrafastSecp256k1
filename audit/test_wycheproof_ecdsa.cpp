@@ -180,10 +180,8 @@ static void test_invalid_rs_values() {
         n_bytes[31] -= 1;  // ...4140
         auto r_nm1 = Scalar::from_bytes(n_bytes);
         ECDSASignature edge{r_nm1, valid_sig.s};
-        // This may or may not verify depending on the math --
-        // the key thing is it doesn't crash
-        (void)ecdsa_verify(msg_hash.data(), pk, edge);
-        g_pass++;  // no crash = pass
+        // Tampered: r forced to n-1 with the original s -- must not verify.
+        CHECK(!ecdsa_verify(msg_hash.data(), pk, edge), "tampered r=n-1 rejected");
     }
 
     // s = 1 (minimal valid s)
@@ -191,9 +189,8 @@ static void test_invalid_rs_values() {
         auto s_one = Scalar::from_bytes(hex32(
             "0000000000000000000000000000000000000000000000000000000000000001"));
         ECDSASignature edge{valid_sig.r, s_one};
-        // Should not crash; verification result depends on math
-        (void)ecdsa_verify(msg_hash.data(), pk, edge);
-        g_pass++;  // no crash = pass
+        // Tampered: s forced to 1 with the original r -- must not verify.
+        CHECK(!ecdsa_verify(msg_hash.data(), pk, edge), "tampered s=1 rejected");
     }
 }
 
@@ -412,9 +409,8 @@ static void test_wycheproof_known_vectors() {
     {
         auto r_nm1 = Scalar::from_bytes(n_bytes);
         ECDSASignature crafted{r_nm1, sig.s};
-        // Should not crash, verification will almost certainly fail
-        (void)ecdsa_verify(msg.data(), G, crafted);
-        g_pass++;  // INFO: no crash = pass (crash-freedom probe for near-order r)
+        // Tampered: r forced to n-1 -- must not verify.
+        CHECK(!ecdsa_verify(msg.data(), G, crafted), "near-order r=n-1 rejected");
     }
 
     // -- Signature with s = n/2 (half-order boundary) --
@@ -423,8 +419,8 @@ static void test_wycheproof_known_vectors() {
         auto s_half = Scalar::from_bytes(hex32(
             "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0"));
         ECDSASignature crafted{sig.r, s_half};
-        (void)ecdsa_verify(msg.data(), G, crafted);
-        g_pass++;  // no crash = pass
+        // Tampered: s forced to n/2 (half-order boundary) -- must not verify.
+        CHECK(!ecdsa_verify(msg.data(), G, crafted), "half-order s tampered rejected");
     }
 
     // -- Signature with s = n/2 + 1 (just above half-order -- high-S) --
@@ -432,8 +428,8 @@ static void test_wycheproof_known_vectors() {
         auto s_half_p1 = Scalar::from_bytes(hex32(
             "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A1"));
         ECDSASignature crafted{sig.r, s_half_p1};
-        (void)ecdsa_verify(msg.data(), G, crafted);
-        g_pass++;  // INFO: no crash = pass (crash-freedom probe for half-order+1 s)
+        // Tampered: s forced to n/2+1 (high-S) -- must not verify.
+        CHECK(!ecdsa_verify(msg.data(), G, crafted), "high-S s tampered rejected");
     }
 }
 

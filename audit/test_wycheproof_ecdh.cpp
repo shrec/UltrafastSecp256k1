@@ -146,8 +146,10 @@ static void test_ecdh_off_curve() {
     auto sk = Scalar::from_bytes(hex32(
         "0000000000000000000000000000000000000000000000000000000000000001"));
     auto secret = ecdh_compute(sk, off_curve);
-    (void)secret;
-    g_pass++;  // no crash = pass
+    // Off-curve ECDH is undefined-but-deterministic: it must not crash and must
+    // not leak the key via nondeterminism. Require a reproducible result.
+    CHECK(secret == ecdh_compute(sk, off_curve),
+          "off-curve ECDH deterministic (no key leak)");
 #else
     // In Debug: SECP_ASSERT_ON_CURVE in scalar_mul aborts on off-curve input;
     // skip this path -- debug asserts are the intended guard here.

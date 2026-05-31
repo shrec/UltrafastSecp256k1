@@ -302,8 +302,10 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_sign_batch(
  *  @param count       Number of (message, key) pairs.
  *  @param msgs32      Input: count * 32 bytes (message hashes, contiguous).
  *  @param privkeys32  Input: count * 32 bytes (private keys, contiguous).
- *  @param aux_rands32 Input: count * 32 bytes (aux randomness); pass NULL to
- *                     use all-zero aux for every entry.
+ *  @param aux_rands32 Input: count * 32 bytes (aux randomness). REQUIRED — must
+ *                     NOT be NULL. A NULL pointer means "no hedging" and is
+ *                     rejected with UFSECP_ERR_NULL_ARG (SEC-006). To opt out of
+ *                     hedging explicitly, pass a buffer of count*32 zero bytes.
  *  @param sigs64_out  Output: count * 64 bytes (BIP-340 Schnorr signatures). */
 UFSECP_API ufsecp_error_t ufsecp_schnorr_sign_batch(
     ufsecp_ctx* ctx,

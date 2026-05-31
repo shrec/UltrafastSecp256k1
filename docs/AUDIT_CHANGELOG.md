@@ -1,5 +1,26 @@
 # Audit Changelog
 
+## 2026-05-31 — TQ-001: Wycheproof ECDSA/ECDH "no crash = pass" false-greens replaced with assertions
+
+- **TQ-001 (10-pass review)** (`audit/test_wycheproof_ecdsa.cpp`, `audit/test_wycheproof_ecdh.cpp`):
+  6 edge-case probes discarded the verify/ECDH result via `(void)ecdsa_verify(...)` +
+  `g_pass++` ("no crash = pass"), so the audit suite would stay green even if `verify()`
+  started accepting a tampered signature. Replaced with real assertions:
+  - 5 tampered-signature ECDSA cases (r=n-1, s=1, near-order r, s=n/2, s=n/2+1) now
+    `CHECK(!ecdsa_verify(...))` — they MUST be rejected (consistent with the surrounding
+    r=n / s=n rejection checks).
+  - the off-curve ECDH case now `CHECK(secret == ecdh_compute(...))` — off-curve ECDH is
+    undefined-but-deterministic; this asserts no key-leaking nondeterminism.
+  Verified locally (standalone, NDEBUG): ECDSA 89/0, ECDH 36/0. dev_bug_scanner RETVAL
+  findings for both files now 0.
+- **RED-001 (10-pass review)** (`include/ufsecp/ufsecp.h`, `docs/API_REFERENCE.md`):
+  the `ufsecp_schnorr_sign_batch` doc claimed `aux_rands32 == NULL` is allowed, but the
+  implementation correctly rejects NULL (`UFSECP_ERR_NULL_ARG`, SEC-006). Doc corrected to
+  state `aux_rands32` is required. (Doc-only; runtime behavior unchanged.)
+- The other 4 P1 findings from the review were adversarially validated and found to be
+  false positives / intentional (RED-002 fail-closed ordering, COMPAT-001 identical flag
+  bit-test to upstream, CT-001 constant-outcome infinity guard, RED-003 zero-length output).
+
 ## 2026-05-31 — MED-3 closed: MuSig2 signer-index cross-check is now mandatory (fail-closed)
 
 - **SEC-007 / MED-3 / P1-SEC-01** (`src/cpu/src/musig2.cpp` `musig2_partial_sign`): the
