@@ -113,12 +113,17 @@ static void test_musig2_degenerate_session_e_zero() {
     Point Q = ct::generator_mul(sk);
     auto [Q_x, Q_odd] = Q.x_bytes_and_parity();
 
-    // Build a minimal key_agg_ctx manually (individual_pubkeys empty → skip signer check).
+    // Build a minimal 1-of-1 key_agg_ctx manually. Rule-13 is now MANDATORY in
+    // musig2_partial_sign (it fail-closes when individual_pubkeys cannot validate the
+    // signer_index), so populate the single signer's pubkey (= Q for 1-of-1) —
+    // otherwise even a valid session would fail-close. FMD-3 then exercises the e==0
+    // guard for the right reason rather than the empty-pubkeys guard.
     MuSig2KeyAggCtx kag{};
     kag.Q         = Q;
     kag.Q_x       = Q_x;
     kag.Q_negated = false;
-    kag.key_coefficients = { Scalar::one() };  // a_1 = 1 for 1-of-1
+    kag.key_coefficients = { Scalar::one() };       // a_1 = 1 for 1-of-1
+    kag.individual_pubkeys = { Q.to_compressed() };  // signer 0 = Q (Rule-13 validation)
 
     // Non-degenerate nonce for both tests.
     static const uint8_t kMsg[32] = {

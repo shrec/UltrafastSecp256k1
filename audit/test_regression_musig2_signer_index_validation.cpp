@@ -12,7 +12,7 @@
 //   MSI-1: correct key + correct index signs successfully
 //   MSI-2: correct key + wrong index returns zero scalar (fail-closed)
 //   MSI-3: aggregated partial sigs with correct indices verify correctly
-//   MSI-4: empty individual_pubkeys (ABI-deserialized ctx) skips check
+//   MSI-4: empty individual_pubkeys -> fail-closed (cannot validate -> refuse to sign)
 // ============================================================================
 
 #include <cstdio>
@@ -142,33 +142,19 @@ static void test_full_roundtrip_correct_indices() {
     CHECK(final_sig[0] != 0 || final_sig[32] != 0, "[MSI-3c] aggregated signature non-zero");
 }
 
-// ── MSI-4: empty individual_pubkeys (ABI ctx) skips check ────────────────
-// 2026-05-23: this test characterises a DOCUMENTED open behaviour
-// (MED-3 / P1-SEC-OPEN-01 — `RESIDUAL_RISK_REGISTER.md`). The C++
-// `musig2_partial_sign` deliberately skips the Rule-13 cross-check
-// when `individual_pubkeys` is empty so that the v1 ABI (which cannot
-// populate the field from the 165-byte keyagg blob) and any caller
-// building `MuSig2KeyAggCtx` manually can still sign. The realistic
-// attack vector is the ABI boundary, which `ufsecp_musig2_partial_sign_v2`
-// closes by validating against a caller-supplied pubkeys array.
-//
-// The historical CHECK-fail behaviour (expecting `is_zero()`) caused
-// this module to surface as a failure in the unified runner's JSON,
-// which the shim-gate's "Run shim security regression modules" python
-// check then treats as a real regression — failure path advisory=true
-// + rc!=77 is intentionally rejected by that gate. To keep the gate
-// strictly enforcing real regressions, MSI-4 now records the observed
-// behaviour as INFO (printed but not CHECK'd) and the module exits
-// PASS unless one of the mandatory subtests fails.
-/* INTENTIONALLY non-asserting: MSI-4 probes an open MED-3 behavior (RR-010).
-   The signer-index bypass via ABI-deserialized keyagg (empty individual_pubkeys)
-   is a documented known limitation, out-of-scope for Bitcoin Core PR.
-   This test CANNOT detect MED-3 regression — it always passes regardless.
-   When MED-3 is fixed (v5.0.0): replace printf with CHECK(psig_is_zero, ...). */
-static void test_abi_ctx_skips_check() {
-    // Simulate ABI-deserialized keyagg: individual_pubkeys is empty
+// ── MSI-4: empty individual_pubkeys → fail-closed (MED-3 / P1-SEC-01 closed) ──
+// MED-3 is now CLOSED at the C++ layer: musig2_partial_sign treats the Rule-13
+// signer-index cross-check as MANDATORY. When individual_pubkeys is empty (or
+// shorter than signer_index) it CANNOT validate the signer index, so it
+// fail-closes (returns Scalar::zero()) instead of signing blind. Production never
+// reaches this branch — the v1 ABI is hard-failed at entry and v2 populates
+// individual_pubkeys from its pubkeys[] parameter — so this asserts the
+// defense-in-depth guard for any C++ caller that supplies an unvalidatable
+// context. Previously advisory/INFO-only (RR-010) while MED-3 was open.
+static void test_empty_pubkeys_fail_closed() {
+    // Context with empty individual_pubkeys: signer_index cannot be validated.
     auto kagg = make_2party_keyagg();
-    kagg.individual_pubkeys.clear();  // simulate ABI-deserialized ctx
+    kagg.individual_pubkeys.clear();
 
     Scalar sk1{};
     Scalar::parse_bytes_strict_nonzero(kSk1, sk1);
@@ -185,15 +171,10 @@ static void test_abi_ctx_skips_check() {
     std::array<uint8_t,32> msg = {0x55};
     MuSig2Session sess = musig2_start_sign_session(aggnonce, kagg, msg);
 
-    auto psig_skip = musig2_partial_sign(sn1, sk1, kagg, sess, 1);
-    const bool psig_is_zero = psig_skip.is_zero();
-    std::printf("  [MSI-4] empty-pubkeys path: psig_is_zero=%d (DOCUMENTED open — "
-                "C++ layer skips Rule-13 when individual_pubkeys empty; v2 ABI is the "
-                "secure path. Tracked in RESIDUAL_RISK_REGISTER.md as MED-3 partial.)\n",
-                psig_is_zero ? 1 : 0);
-    // Advisory probe: asserts only that the code path runs without crashing.
-    // The psig_is_zero value is INFO-only — MED-3 is a documented open behavior.
-    // When MED-3 is closed at the C++ layer, replace with: CHECK(psig_is_zero, "[MSI-4] ...")
+    auto psig = musig2_partial_sign(sn1, sk1, kagg, sess, 1);
+    CHECK(psig.is_zero(),
+          "[MSI-4] empty individual_pubkeys must fail-close (Rule-13 unvalidatable) "
+          "— MED-3 / P1-SEC-01 closed");
 }
 
 // ── _run() ───────────────────────────────────────────────────────────────
@@ -204,7 +185,7 @@ int test_regression_musig2_signer_index_validation_run() {
     test_correct_key_correct_index();
     test_correct_key_wrong_index();
     test_full_roundtrip_correct_indices();
-    test_abi_ctx_skips_check();  // INFO-only probe of documented open behaviour
+    test_empty_pubkeys_fail_closed();  // MED-3 / P1-SEC-01: empty pubkeys must fail-close
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

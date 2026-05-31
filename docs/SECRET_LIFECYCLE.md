@@ -1,6 +1,21 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-05-28 | **Version**: 4.1.0
+**Last updated**: 2026-05-31 | **Version**: 4.1.0
+
+### 2026-05-31 — MuSig2 signer-index check made mandatory (fail-closed); no new secret residue
+
+`src/cpu/src/musig2.cpp` — `musig2_partial_sign` now treats the Rule-13 signer-index
+cross-check as mandatory: when `individual_pubkeys` cannot validate `signer_index` (empty
+or too short) it returns `Scalar::zero()` **before** loading any secret-derived intermediate
+(`k`, adjusted `d`), so the new fail-close path introduces no additional secret residue and
+performs no secret-dependent branch (it branches only on the public `signer_index` and the
+container size). The signing-path erasure is unchanged: `k`, `d`, and `sec_nonce.k1/k2` are
+still `secure_erase`d after a successful sign, and the degenerate `e == 0` path still erases
+the secnonce. The empty-pubkeys rejection mirrors the pre-existing out-of-range `signer_index`
+bounds-check, which likewise returns without consuming the caller's secnonce; the v2 ABI wrapper
+(`ufsecp_musig2_partial_sign_v2`) additionally guards the secnonce buffer with `ScopeSecureErase`
+on every exit path. Closes MED-3 — see `RESIDUAL_RISK_REGISTER.md` RR-010 and the
+`AUDIT_CHANGELOG.md` 2026-05-31 entry.
 
 ### 2026-05-28 — defense-in-depth: erase nonce-derived r in ecdsa_sign_hedged
 

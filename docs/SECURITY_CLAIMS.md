@@ -122,6 +122,20 @@ advisory=false, `differential` section) source-scans for the required
 `secure_erase` / `is_zero_ct` calls AND round-trips the schnorr raw-key
 overloads to confirm no functional regression. 16/16 checks pass.
 
+### 2026-05-31 — MED-3: C++-layer defense-in-depth Rule-13 check now fail-closed (final closure)
+
+- **MED-3 status:** the last piece. The 2026-05-24 closure (below) hard-failed the v1 ABI and
+  routed all callers through v2, but explicitly left the C++ `musig2_partial_sign` Rule-13 block
+  gated on a non-empty `individual_pubkeys` (skipped when empty). `musig2_partial_sign`
+  (`src/cpu/src/musig2.cpp`) now treats the cross-check as **mandatory**: it fail-closes
+  (returns `Scalar::zero()`) when `individual_pubkeys` cannot validate `signer_index`, so a C++
+  caller that supplies an unvalidatable context (or manually clears the field) can no longer sign
+  blind. `signer_index` and the container size are public, so the guard adds no secret-dependent
+  branch.
+- The v2 ABI is unaffected (it populates `individual_pubkeys` before signing) and production never
+  reached the gap. Regression: `audit/test_regression_musig2_signer_index_validation.cpp` MSI-4
+  now asserts the fail-close (`advisory=false`); `RESIDUAL_RISK_REGISTER.md` RR-010 → CLOSED.
+
 ### 2026-05-24 — v9 RT-001 / TASK-001: MuSig2 v1 partial_sign DISABLED (full closure)
 
 - **MED-3 / P1-SEC-002 status:** CLOSED. Prior revisions left

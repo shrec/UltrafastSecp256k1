@@ -1329,11 +1329,12 @@ static const AuditModule ALL_MODULES[] = {
     // SEC-005/SEC-009: MuSig2 infinity nonce rejection — C++ API, no shim required.
     // advisory=false: uses C++ API + fastsecp256k1 only, no GPU/shim dependency.
     { "regression_musig2_infinity_nonce",      "SEC-005/SEC-009: musig2_start_sign_session rejects infinity R1/R2 (BIP-327 §GetSessionValues step 2); musig2_nonce_agg empty-vector guard", "protocol_security", test_regression_musig2_infinity_nonce_run, false },
-    // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required)
-    // advisory=true: Rule 13 cannot be fully tested at C++ API level when individual_pubkeys
-    // MSI-1/2/3 use CHECK() and are mandatory. MSI-4 is INFO-only (g_pass++, documents
-    // an open MED-3 behavior) — it never sets g_fail, so the module always passes clean.
-    { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13) — MSI-4 (empty individual_pubkeys path) is documented open in RESIDUAL_RISK_REGISTER.md (MED-3 partial); v2 ABI is the secure path", "protocol_security", test_regression_musig2_signer_index_validation_run, true }, // advisory=true: MSI-4 sub-test is INFO-only and cannot detect MED-3 regression — see RR-010
+    // SEC-007: MuSig2 signer_index cross-check — uses C++ API directly (no shim required).
+    // advisory=false: all four sub-tests use CHECK() and are mandatory. MSI-4 asserts that
+    // an empty individual_pubkeys context fail-closes (MED-3 / P1-SEC-01 closed — Rule-13 is
+    // now mandatory in musig2_partial_sign; production never hits it because v1 ABI hard-fails
+    // and v2 populates the pubkeys array).
+    { "regression_musig2_signer_index",        "SEC-007: musig2_partial_sign validates secret_key<->signer_index (Rule 13); MSI-4 asserts that empty individual_pubkeys fail-closes (MED-3 / P1-SEC-01 closed — Rule-13 now mandatory)", "protocol_security", test_regression_musig2_signer_index_validation_run, false },
     // SEC-010: adaptor binding BIP-340 domain separation (wire format: ecdsa_adaptor_bind_v2)
 #if SECP256K1_HAS_ADAPTOR
     { "regression_adaptor_binding_domain",     "SEC-010: ecdsa_adaptor_binding uses BIP-340 tagged hash (v2) — sign/verify/adapt/extract round-trips, needs_negation integrity, domain separation confirmed", "protocol_security", test_regression_adaptor_binding_domain_run, false },

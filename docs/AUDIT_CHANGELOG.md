@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-05-31 — MED-3 closed: MuSig2 signer-index cross-check is now mandatory (fail-closed)
+
+- **SEC-007 / MED-3 / P1-SEC-01** (`src/cpu/src/musig2.cpp` `musig2_partial_sign`): the
+  Rule-13 signer-index cross-check (`ct::generator_mul_blinded(sk) == individual_pubkeys[signer_index]`)
+  is now **mandatory**. Previously it was skipped when `individual_pubkeys` was empty, letting a
+  C++ caller that supplied an unvalidatable context (or a manually-cleared field) sign as any
+  `signer_index`. The function now fail-closes (`Scalar::zero()`) when the per-signer pubkeys are
+  absent or shorter than `signer_index`, instead of signing blind. `signer_index` and the
+  container size are public, so the new guard does not branch on secret data.
+- Production was never reachable through this gap (the v1 ABI hard-fails at entry; the v2 ABI
+  `ufsecp_musig2_partial_sign_v2` validates `privkey ↔ pubkeys[signer_index]` and populates
+  `individual_pubkeys` before signing); this closes the C++ defense-in-depth footgun completely
+  without an ABI break, retiring the prior v5.0.0 ABI-extension plan.
+- **Test** `audit/test_regression_musig2_signer_index_validation.cpp`: MSI-4
+  (`test_empty_pubkeys_fail_closed`, formerly the non-asserting `test_abi_ctx_skips_check`) now
+  `CHECK`s that an empty-`individual_pubkeys` context returns a zero partial sig. Module
+  `regression_musig2_signer_index` flipped `advisory=true → false`.
+- **Blast radius:** `test_regression_frost_musig2_degenerate.cpp` (FMD-4) and
+  `test_ct_sidechannel.cpp` (MuSig2 dudect 9a) both built contexts with empty `individual_pubkeys`;
+  FMD now populates the signer pubkey, and the CT sub-test keeps measuring the fail-closed path (its
+  end-to-end measurement of the key-dependent validation setup is a fixed-vs-random dudect artifact,
+  not a secret branch — every constituent CT primitive passes at |t|<2). `RESIDUAL_RISK_REGISTER.md`
+  RR-010 → CLOSED; `EXPLOIT_TEST_CATALOG.md` updated.
+
 ## 2026-05-30 — ECDSA pubkey-parse decompression cache + module-gated shim sources
 
 - **PARSE-CACHE** (`compat/libsecp256k1_shim/tests/test_shim_security_edge_cases.cpp`,

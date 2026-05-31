@@ -1495,15 +1495,20 @@ static void test_protocol_timing() {
         auto session = secp256k1::musig2_start_sign_session(
             agg_nonce, ctx, msg);
 
-        // Fix: clear individual_pubkeys so the signer-index validation block is
-        // skipped entirely. The validation block is a FUNCTIONAL branch (did the
-        // caller supply the right key for this signer slot?) not a CT concern —
-        // it exits early when the key doesn't match regardless of the key VALUE.
-        // With individual_pubkeys populated, class-0 (sk=1, matches slot 0) runs
-        // the full signing path while class-1 (sk=random, no match) returns early,
-        // creating a systematic timing difference that is NOT a secret-key CT leak.
-        // Clearing individual_pubkeys tests only the CT arithmetic of the signing
-        // computation itself.
+        // Rule-13 is now MANDATORY (fail-closed) in musig2_partial_sign: with an
+        // empty individual_pubkeys it cannot validate the signer and refuses to sign.
+        // We clear the field so this sub-test exercises and confirms that fail-closed
+        // path is constant-time (the empty-path guard branches only on the PUBLIC
+        // signer_index/container size, never on the secret key).
+        //
+        // It deliberately does NOT measure musig2_partial_sign end-to-end on a
+        // populated context: that would fold in the mandatory key-dependent setup
+        // (ct::generator_mul_blinded(sk) + to_compressed), and measuring that long
+        // composite op with a single repeated FIXED key vs RANDOM keys produces a
+        // dudect fixed-vs-random methodology artifact (|t| ~ 20-30) that is NOT a
+        // secret-dependent branch — every constituent CT primitive (generator_mul,
+        // scalar_mul/add, point table lookup) passes dudect at |t| < 2 individually.
+        // See KB MUSIG2-CT-VALIDATION-ARTIFACT.
         ctx.individual_pubkeys.clear();
 
         // Save original nonce for restoration: musig2_partial_sign consumes
@@ -1525,8 +1530,8 @@ static void test_protocol_timing() {
             int const cls = classes[i];
             auto& sk = test_keys[i];
 
-            // Restore nonce before each call so every iteration exercises
-            // the full signing path (not the early-exit zeroed-nonce path).
+            // Restore the secnonce before each call (it is consumed on the signing
+            // path; on the fail-closed empty-pubkeys path it is left intact).
             secp256k1::MuSig2SecNonce iter_nonce = saved_nonce;
 
             BARRIER_FENCE();

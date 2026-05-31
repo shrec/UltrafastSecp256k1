@@ -402,19 +402,22 @@ Scalar musig2_partial_sign(
         return Scalar::zero();  // caller checks for zero and returns UFSECP_ERR_BAD_INPUT
     }
 
-    // Rule 13: when individual pubkeys are available (C++ API path via musig2_key_agg,
-    // which always populates the field), validate that secret_key actually corresponds
-    // to the claimed signer_index. CT byte comparison — no early exit to avoid leaking
-    // which bytes differ.
+    // Rule 13 (MANDATORY, fail-closed): validate that secret_key actually corresponds
+    // to the claimed signer_index BEFORE signing. The C++ API path (musig2_key_agg)
+    // always populates individual_pubkeys; the ABI path populates it in
+    // ufsecp_musig2_partial_sign_v2 from the caller's pubkeys[] (the v1 ABI, which has
+    // no pubkeys parameter, is hard-failed at entry — see src/impl/ufsecp_musig2.cpp).
     //
-    // P1-SEC-01 / MED-3 (2026-05-23): the empty-`individual_pubkeys` C++ bypass is a
-    // niche footgun (a caller would have to manually clear the field after
-    // musig2_key_agg populated it). Real-world attack surface is the ABI boundary,
-    // which v2 now enforces via the `pubkeys` parameter — see
-    // `ufsecp_musig2_partial_sign_v2` in src/impl/ufsecp_musig2.cpp. The v1 ABI is
-    // hard-failed at entry (cannot validate without pubkeys), forcing callers to v2.
-    if (!key_agg_ctx.individual_pubkeys.empty() &&
-        signer_index < key_agg_ctx.individual_pubkeys.size()) {
+    // P1-SEC-01 / MED-3 (closed): this check was previously SKIPPED when
+    // individual_pubkeys was empty, which let a C++ caller that manually cleared the
+    // field sign as any signer_index. We now fail closed: if the per-signer pubkeys
+    // are absent or too short we cannot validate the signer index, so we refuse to
+    // sign rather than signing blind. signer_index and the container size are public
+    // (not secret-derived), so branching on them is not a timing concern.
+    if (signer_index >= key_agg_ctx.individual_pubkeys.size()) {
+        return Scalar::zero();  // cannot validate signer_index → refuse to sign
+    }
+    {
         Point const derived = ct::generator_mul_blinded(secret_key);
         if (SECP256K1_UNLIKELY(derived.is_infinity())) {
             return Scalar::zero();
@@ -422,7 +425,9 @@ Scalar musig2_partial_sign(
         // CT invariant: to_compressed() calls SafeGCD field inverse (Bernstein-Yang,
         // fixed 59 divstep iterations) on the Jacobian Z from ct::generator_mul.
         // The Z value is secret-dependent, but SafeGCD runs a fixed number of steps
-        // regardless of input, so this path is constant-time.
+        // regardless of input, so this path is constant-time. The byte comparison is
+        // a branchless XOR-accumulate — no early exit to avoid leaking which bytes
+        // differ; for a correct (matching) signer it always reaches diff == 0.
         auto const derived_c = derived.to_compressed();
         const auto& expected = key_agg_ctx.individual_pubkeys[signer_index];
         std::uint64_t diff = 0;
