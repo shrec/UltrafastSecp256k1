@@ -48,7 +48,7 @@ Each row is `[ signature record ][ optional opaque correlation key ]`:
 | Kind    | Record (verified)                         | Bytes |
 |---------|-------------------------------------------|-------|
 | ECDSA   | `32 msg ‖ 33 pubkey ‖ 64 sig`             | 129   |
-| Schnorr | `32 xonly ‖ 32 msg ‖ 64 sig`              | 128   |
+| Schnorr | `32 msg ‖ 32 xonly ‖ 64 sig`              | 128   |
 
 > Note the deliberate field-order difference: the message is the **first** field
 > for ECDSA and the **second** field for Schnorr. This matches the engine's
@@ -72,6 +72,26 @@ invalid row can be mapped back to its block/tx **without a second side table**.
   // rows = the contiguous [record | key] buffer; n = records; ks = key bytes/row
   ctrl.verify_ecdsa(rows, n, ks, results);   // no buffer size; same on the C ABI
   ```
+
+  **Typed-span form (C++20) — nothing about size is restated at the call site.**
+  A node that already has its rows as a packed struct (e.g. libbitcoin's
+  `secp256k1::ecdsa::triple`, a `#pragma pack(1)` struct of
+  `{ hash_digest, ec_compressed, ec_signature, token }`) passes the span directly.
+  The element type *is* the layout, so both values are recovered from it —
+  `count = batch.size()`, `key_size = sizeof(Row) - RECORD` (the trailing `token`):
+
+  ```cpp
+  std::span<const ecdsa::triple> batch = ...;     // 129-byte record + 3-byte token
+  std::vector<uint8_t> results(batch.size());
+  size_t fails = 0;
+  ctrl.verify_ecdsa(batch, results.data(), nullptr, 0, &fails);   // no count, no key_size
+  ```
+
+  This is the form evoskuil's integration uses: the `key_size` is redundant because
+  it is `sizeof(triple) - 129`, derived from the type — so it is *never written at
+  the call site*. The overload `reinterpret_cast`s the span to the byte pointer and
+  forwards the derived `count` + `key_size` to the C ABI below. `results` is one
+  byte per row (`std::vector<uint8_t>`, `1`=valid / `0`=invalid).
 
   **Integration notes for the consumer:**
   - The two values fully determine the layout — the buffer is `count*(RECORD+key_size)`

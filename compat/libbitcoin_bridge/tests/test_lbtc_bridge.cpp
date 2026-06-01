@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <span>
 #include <vector>
 
 static int g_fail = 0;
@@ -164,6 +165,35 @@ int main() {
         ninv = 0;
         wrap.verify_ecdsa(rows.data(), N, KS, res.data(), nullptr, 0, &ninv);
         CHECK(ninv == 1 && res[3] == 0, "wrapper: corruption detected, row 3 marked");
+    }
+
+    /* --- typed-span overload: pass a packed struct span; count + key_size are both
+     *     recovered from the element type, NOTHING about size is restated at the call
+     *     site. Mirrors libbitcoin's `secp256k1::ecdsa::triple` (#pragma pack(1):
+     *     { hash_digest, ec_compressed, ec_signature, token } == 129 + 3). --- */
+    {
+#pragma pack(push, 1)
+        struct Triple {                  // == libbitcoin ecdsa::triple layout
+            uint8_t record[UFSECP_LBTC_ECDSA_RECORD]; // 129: hash|point|sig
+            uint8_t identifier[3];                    // 3-byte opaque token
+        };
+#pragma pack(pop)
+        static_assert(sizeof(Triple) == UFSECP_LBTC_ECDSA_RECORD + 3,
+                      "Triple must be tightly packed (132 bytes)");
+        const size_t N = 16;
+        auto raw = build_ecdsa(sctx, N, 3);   /* [record|3-byte key] rows == Triple */
+        const Triple* batch = reinterpret_cast<const Triple*>(raw.data());
+        ufsecp::lbtc::Controller wrap;
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t ninv = 0;
+        /* key_size (3) is derived from sizeof(Triple)-RECORD; count from span.size() */
+        auto rc = wrap.verify_ecdsa(std::span<const Triple>(batch, N),
+                                    res.data(), nullptr, 0, &ninv);
+        CHECK(rc == UFSECP_OK && ninv == 0, "span<Triple>: count+key_size from type, all valid");
+        raw[5 * sizeof(Triple) + 65] ^= 0x08; /* flip a sig byte in row 5 */
+        ninv = 0;
+        wrap.verify_ecdsa(std::span<const Triple>(batch, N), res.data(), nullptr, 0, &ninv);
+        CHECK(ninv == 1 && res[5] == 0, "span<Triple>: 3-byte stride correct, row 5 marked");
     }
 
     /* --- empty batch --- */

@@ -181,6 +181,11 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
 #ifdef __cplusplus
 } /* extern "C" */
 
+#if __cplusplus >= 202002L
+#  include <span>
+#  include <type_traits>
+#endif
+
 /* ------------------------------------------------------------------------- */
 /* Optional thin C++ RAII convenience wrapper (header-only, zero overhead).   */
 /* ------------------------------------------------------------------------- */
@@ -251,6 +256,61 @@ public:
         return ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
                                           invalid_idx, invalid_cap, invalid_count);
     }
+
+#if __cplusplus >= 202002L
+    // --- Typed-span overloads (C++20) ---------------------------------------
+    // Pass the packed record span directly; NOTHING about its size is restated at
+    // the call site. The element type IS the layout, so:
+    //     count    = batch.size()
+    //     key_size = sizeof(Row) - RECORD            (the trailing correlation id)
+    // are both recovered from the type — no count, no key_size, no buffer size to
+    // pass or mismatch. This is the form a node uses with its own packed struct,
+    // e.g. libbitcoin's `secp256k1::ecdsa::triple` (a #pragma pack(1) struct of
+    // { hash_digest, ec_compressed, ec_signature, token } == 129 + sizeof(token)):
+    //
+    //     std::span<const ecdsa::triple> batch = ...;
+    //     std::vector<uint8_t> results(batch.size());
+    //     size_t fails = 0;
+    //     ctrl.verify_ecdsa(batch, results.data(), nullptr, 0, &fails);
+    //
+    // CONTRACT — `Row` MUST be a tightly-packed (#pragma pack(1)) standard-layout
+    // struct whose FIRST RECORD bytes are the on-wire record in order (hash, key,
+    // sig) with NO leading or internal padding; any trailing bytes (including zero)
+    // are the opaque correlation key. key_size = sizeof(Row) - RECORD, so any
+    // padding folded into sizeof(Row) before the record, or between the record
+    // fields, would silently misread — hence the standard-layout assert and the
+    // packing requirement. evoskuil's `secp256k1::ecdsa::triple` satisfies this:
+    // it is #pragma pack(1) over byte-array members (hash_digest, ec_compressed,
+    // ec_signature, data_array<3>), so the record is the first 129 bytes exactly.
+    template <class Row>
+    ufsecp_error_t verify_ecdsa(std::span<const Row> batch,
+                                uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
+                                size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
+        static_assert(sizeof(Row) >= UFSECP_LBTC_ECDSA_RECORD,
+                      "Row must contain the 129-byte ECDSA record (hash|point|sig) first");
+        static_assert(std::is_standard_layout_v<Row>,
+                      "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
+                      "struct so the first 129 bytes are the contiguous on-wire record");
+        return ufsecp_lbtc_verify_ecdsa(
+            ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results,
+            invalid_idx, invalid_cap, invalid_count);
+    }
+    template <class Row>
+    ufsecp_error_t verify_schnorr(std::span<const Row> batch,
+                                  uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
+                                  size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
+        static_assert(sizeof(Row) >= UFSECP_LBTC_SCHNORR_RECORD,
+                      "Row must contain the 128-byte Schnorr record (hash|xonly|sig) first");
+        static_assert(std::is_standard_layout_v<Row>,
+                      "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
+                      "struct so the first 128 bytes are the contiguous on-wire record");
+        return ufsecp_lbtc_verify_schnorr(
+            ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results,
+            invalid_idx, invalid_cap, invalid_count);
+    }
+#endif /* C++20 std::span */
 
 private:
     ufsecp_lbtc_ctrl* ctrl_ = nullptr;

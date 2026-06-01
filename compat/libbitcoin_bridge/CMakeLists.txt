@@ -53,6 +53,9 @@ endif()
 if(UFSECP_LBTC_BUILD_TESTS)
     enable_testing()
     add_executable(test_lbtc_bridge tests/test_lbtc_bridge.cpp)
+    # C++20 so the test can exercise the typed-span overloads (std::span) the way a
+    # libbitcoin consumer does; the bridge header guards them behind __cplusplus>=202002L.
+    target_compile_features(test_lbtc_bridge PRIVATE cxx_std_20)
     target_link_libraries(test_lbtc_bridge PRIVATE ufsecp_lbtc_bridge)
     add_test(NAME lbtc_bridge COMMAND test_lbtc_bridge)
 
