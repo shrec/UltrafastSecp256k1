@@ -197,6 +197,17 @@ int test_mutation_artifact_scan_run() {
     std::printf("\n============================================================\n");
     std::printf("Results: %d passed, %d failed\n", g_pass, g_fail);
     std::printf("============================================================\n");
+
+    // TEST-QUALITY-001: this is a SOURCE-integrity gate. If it scanned nothing
+    // (every file unreadable — e.g. UFSECP_SOURCE_ROOT points at a build-time
+    // path that no longer exists in a relocated/release binary), it must NOT
+    // report PASS — that is a silent false-green. Returning 77 (advisory-skip)
+    // signals "could not verify" rather than "verified clean".
+    if (g_pass == 0 && g_fail == 0) {
+        std::printf("  [SKIP] no source files were readable under UFSECP_SOURCE_ROOT — "
+                    "cannot certify source integrity (advisory-skip, not PASS)\n");
+        return 77; // ADVISORY_SKIP_CODE — gate could not run, do not pass silently
+    }
     return g_fail > 0 ? 1 : 0;
 }
 
