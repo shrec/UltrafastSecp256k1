@@ -48,6 +48,18 @@ static int g_pass = 0;
 static int g_fail = 0;
 static int g_illegal_called = 0;
 
+// NDEBUG-safe assert. This test is built Release (-DNDEBUG), under which the
+// standard assert() expands to ((void)0) — its argument is NOT evaluated. Several
+// asserts below wrap SIDE-EFFECTING setup calls (secp256k1_ec_pubkey_create,
+// _serialize, keypair_create, schnorrsig_sign*, make_xonly_pubkey). Under NDEBUG
+// those setup calls silently vanished, leaving pub/unc/keypair uninitialized, so
+// the later precomp / batch-verify checks ran on stack garbage and "failed"
+// (SHIM-004-PRECOMP, PERF-003, batch-varlen) — a TEST bug, not a library bug.
+// Redefine assert to ALWAYS evaluate its expression and record a failure.
+#undef assert
+#define assert(expr) do { if (!(expr)) { ++g_fail; \
+    std::printf("  [FAIL] setup assert failed: %s (line %d)\n", #expr, __LINE__); } } while (0)
+
 static void counting_illegal_cb(const char* /*msg*/, void* /*data*/) {
     ++g_illegal_called;
 }

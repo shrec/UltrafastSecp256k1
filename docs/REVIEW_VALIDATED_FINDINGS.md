@@ -57,11 +57,26 @@ All dismissed with documented reasons (GitHub code-scanning, 2026-05-31):
 | TEST-003 | `valgrind_ct_check.sh` verdict ignores `UNINIT_ERRORS`/`VG_EXIT` (CT false-green) | **OPEN (real, not yet fixed)** | Separate finding from the same review; tracked in `workingdocs/REVIEW_2026-05-31_coder_report.md` §3 (P1-2). Not addressed in the SHIM-001 commit. | — |
 
 > Note: a separate observation surfaced while verifying SHIM-001 — the shim-linked
-> `test_shim_security_edge_cases_standalone` has **pre-existing** failures unrelated to this
-> fix: `secp256k1_schnorrsig_verify_batch` returns 0 for a valid `sign32` signature (PERF-003,
-> line 465; batch-varlen, line 276) and the 4 `*_precomp` calls return 0 with a valid ctx
-> (SHIM-004-PRECOMP, lines 400-412). These reproduce with the untouched `sign32` path, so they
-> are not caused by the varlen change. Filed for the owner; out of scope for SHIM-001.
+> `test_shim_security_edge_cases_standalone` had failures: `secp256k1_schnorrsig_verify_batch`
+> returns 0 for a valid `sign32` signature (PERF-003, line 465; batch-varlen, line 276) and the
+> 4 `*_precomp` calls return 0 with a valid ctx (SHIM-004-PRECOMP, lines 400-412).
+>
+> **ROOT-CAUSED + FIXED 2026-06-01 — these were a TEST bug, NOT shim bugs.** The test built the
+> setup pubkeys/keypairs via `assert(secp256k1_ec_pubkey_create(...))`, `assert(keypair_create(...))`,
+> `assert(schnorrsig_sign32(...))`, etc. The test is compiled **Release (`-DNDEBUG`)**, under which
+> `assert()` expands to `((void)0)` — **its argument is never evaluated**, so every side-effecting
+> setup call silently vanished and `pub`/`unc`/`keypair` were left as **uninitialized stack garbage**.
+> The precomp / batch-verify checks then ran on garbage and "failed". Proven by an isolated repro
+> (create→precomp returns **1**, with the exact `out/ci-shim/libfastsecp256k1.a`, all ctx flags) and
+> by a DIAG dump showing `pub.data` = a stack pointer, not G. Fix: an NDEBUG-safe `assert` redefine
+> in the test that always evaluates its expression. Result: **pass=155 fail=0**. The shim
+> `*_precomp` and `schnorrsig_verify_batch` paths were correct all along. KB: `SHIM-TEST-ASSERT-NDEBUG`.
+>
+> (Local-only note: `ci/check_advisory_skip_returns.sh` (Rule 16) still flags this module because it
+> runs the *standalone* — which is built only with the shim, so it returns 0/1, never the 77 that the
+> gate expects of an advisory module. That is a pre-existing Rule-16-vs-shim-standalone classification
+> quirk, not a test or shim defect; on GitHub the fast-gates job has no build dir so Rule 16 skips. The
+> module must stay `advisory=true` because the no-shim runner builds (audit-report.yml) need the 77 skip.)
 
 ## 2026-06-01 — 10-Pass Multi-Agent Review (commit 25c9c6c9)
 
