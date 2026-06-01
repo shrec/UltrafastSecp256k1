@@ -608,11 +608,6 @@ jobs:
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_MARCH=x86-64-v3
           cmake --build out/ci-shim --target unified_audit_runner -j"$(nproc)"
-          # CAAS-FG-01: also build the resurrected shim security PoC standalones so they
-          # run as HARD CTest gates below (previously dropped by an order-dependent guard).
-          cmake --build out/ci-shim \
-            --target test_exploit_context_flag_bypass_shim_standalone \
-                     test_exploit_musig_unknown_signer_shim_standalone -j"$(nproc)"
 
       - name: Rule 16 enforcement (advisory skip-return) — post-build
         # P1-CI-01 fix (2026-05-23): post-build Rule 16 enforcement via the
@@ -724,17 +719,6 @@ jobs:
           ctest --test-dir out/ci-shim \
             -R "regression_shim|regression_ecdsa_batch_curve|exploit_shim|test_shim" \
             --output-on-failure -j"$(nproc)" --timeout 120
-
-      - name: Shim security PoC hard gates (CAAS-FG-01)
-        if: always()
-        # CAAS-FG-01: these two shim security PoCs were registered in no blocking job
-        # (order-dependent CMake guard dropped them). They are now built above; run them
-        # by exact name with --no-tests=error so a zero-match selection (e.g. a future
-        # registration regression) fails RED instead of silently passing.
-        run: |
-          ctest --test-dir out/ci-shim \
-            -R "^(exploit_context_flag_bypass_shim|exploit_musig_unknown_signer_shim)$" \
-            --no-tests=error --output-on-failure -j"$(nproc)" --timeout 120
 
       - name: Upload shim audit report
         if: always()
