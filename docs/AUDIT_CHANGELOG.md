@@ -1,5 +1,25 @@
 # Audit Changelog
 
+## 2026-06-01 — B1: `Point::negate_inplace()` must clear `is_generator_` (correctness fix)
+
+- **B1 (10-pass review, REAL → fixed)** (`src/cpu/src/point.cpp`): `negate_inplace()`
+  negated Y across all platform paths (4x64 / 5x52 / fallback) but never cleared
+  `is_generator_`, while the non-inplace `negate()` did. A negated generator therefore
+  kept `is_gen() == true` even though it is now `-G`. Because `Point::scalar_mul()`
+  dispatches the fixed-base fast path on `is_generator_`
+  (`if (is_generator_) return scalar_mul_generator(scalar);`), `(-G).scalar_mul(k)`
+  returned `k*G` instead of `k*(-G) == -(k*G)` — a wrong elliptic-curve result reachable
+  from the public `Point` API.
+- **Fix:** added `is_generator_ = false;` at the end of `negate_inplace()` (mirrors `negate()`).
+  Single line; no behaviour change for non-generator points.
+- **Verification:** with the fix reverted, the new regression's NEG-2b/NEG-4/NEG-5 fail
+  (`(-G).scalar_mul(k)` equals `G.scalar_mul(k)`, proving the wrong fixed-base path);
+  with the fix, all 6 pass.
+- **Test** `audit/test_regression_negate_inplace_generator_flag.cpp` (NEG-1..5, section
+  `math_invariants`, `advisory=false`): asserts `is_gen()` is cleared after `negate()` and
+  `negate_inplace()`, double-negate round-trips, and `(-G).scalar_mul(k) == -(G.scalar_mul(k))`.
+  Wired into `unified_audit_runner` + a standalone CTest target.
+
 ## 2026-06-01 — SHIM-001: restore variable-length Schnorr `sign_custom` (match upstream libsecp256k1)
 
 - **SHIM-001 (10-pass review, REAL → fixed)** (`compat/libsecp256k1_shim/src/shim_schnorr.cpp`,

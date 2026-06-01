@@ -367,12 +367,11 @@ static void test_high_s_normalization() {
     bool const produces_low_s = (sig.s.to_bytes() != s_high.to_bytes());
     CHECK(produces_low_s, "ecdsa_sign normalizes to low-S");
 
-    // Verify high-S is also accepted (our verify is lenient per spec)
+    // Verify high-S is also accepted: ecdsa_verify has no is_low_s() check (it
+    // must accept high-S to match consensus/single-verify — low-S is a relay
+    // policy, not a validity rule). TQ-001: assert the documented behaviour.
     bool const high_s_accepted = ecdsa_verify(msg.data(), pk, high_s_sig);
-    // Note: whether high-S is accepted depends on implementation policy
-    // Our implementation should accept both (no strict low-S enforcement in verify)
-    (void)high_s_accepted;
-    g_pass++;  // no crash = pass
+    CHECK(high_s_accepted, "high-S signature accepted (verify is lenient, no low-S enforcement)");
 }
 
 // ============================================================================

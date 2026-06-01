@@ -496,8 +496,9 @@ static void test_invalid_special_values() {
         auto s_val = Scalar::from_bytes(hex32(
             "0000000000000000000000000000000000000000000000000000000000000003"));
         ECDSASignature sig{ r_np1, s_val };
-        // n+1 mod n = 1; (r=1, s=3) might or might not verify — just check no crash
-        (void)ecdsa_verify(hash.data(), pk, sig);
+        // n+1 mod n = 1; (r=1, s=3) is not a legitimate signature for this key/hash,
+        // so it must be REJECTED (TQ-001: was a no-crash probe — assert rejection).
+        CHECK(!ecdsa_verify(hash.data(), pk, sig), "r=n+1 (→1), s=3 forged pair rejected");
     }
 }
 

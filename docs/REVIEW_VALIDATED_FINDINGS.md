@@ -63,6 +63,21 @@ All dismissed with documented reasons (GitHub code-scanning, 2026-05-31):
 > (SHIM-004-PRECOMP, lines 400-412). These reproduce with the untouched `sign32` path, so they
 > are not caused by the varlen change. Filed for the owner; out of scope for SHIM-001.
 
+## 2026-06-01 — 10-Pass Multi-Agent Review (commit 25c9c6c9)
+
+Headline P0-candidate **B1 confirmed REAL and fixed**; 2 P1 test-coverage gaps fixed;
+CT-001 re-confirmed false-positive; TQ-002 mostly false-positive (1 hardened-anyway).
+
+| ID | Claim | Verdict | Why | KB id |
+|----|-------|---------|-----|-------|
+| B1 | `Point::negate_inplace()` omits `is_generator_ = false` → `is_gen()` true for `-G` | **REAL → fixed** | `negate()` cleared it, `negate_inplace()` didn't. `scalar_mul()` dispatches the fixed-base path on `is_generator_` (`if (is_generator_) return scalar_mul_generator(scalar)`), so `(-G).scalar_mul(k)` returned `k*G` not `k*(-G)`. **Proved by reverting the fix:** NEG-2b/NEG-4/NEG-5 fail (`(-G)*k == G*k`); with the fix all 6 pass. Added `is_generator_ = false;` + regression `test_regression_negate_inplace_generator_flag` (NEG-1..5, math_invariants, blocking) — passes in the runner. | `B1-NEGATE-INPLACE-GEN-FLAG` |
+| TQ-001a | `test_wycheproof_ecdsa.cpp:374` `(void)high_s_accepted; g_pass++` | **REAL → fixed** | `ecdsa_verify` has no `is_low_s()` check ("must accept high-S to match single verify"), so the doc-intended outcome is deterministic → `CHECK(high_s_accepted, …)`. | — |
+| TQ-001b / B2 | `(void)ecdsa_verify` on a forged `r=n+1 (→1)` pair in `test_wycheproof_ecdsa_bitcoin.cpp:500` and `test_exploit_ecdsa_r_overflow.cpp:319` | **REAL → fixed** | `(r=1, s)` is not a legitimate signature for the fixed key/hash (verifies with prob ~2^-256) → `CHECK(!ecdsa_verify(…))`. Both now assert rejection. | — |
+| TQ-001 (ecdh) | `test_wycheproof_ecdh.cpp:156, 284` `(void)…; g_pass++` | **FALSE POSITIVE / intentional** | Line 156 is the **Debug `#else`** branch — the Release `#if` already asserts `"off-curve ECDH deterministic"` (and CI builds Release). Line 284 is an intentional **crash-freedom probe** over arbitrary x-coords whose on-curve outcome is genuinely indeterminate; asserting either way would be wrong. | — |
+| CT-001 | `if (!R.is_infinity())` in FAST-path `ecdsa_sign`/`ecdsa_sign_hedged` (ecdsa.cpp:657,722) branches on secret nonce | **FALSE POSITIVE** (re-flag) | `R = k·G` with `k ∈ [1,n-1]` (guarded by `is_zero_ct()` first) is **never** infinity on the prime-order group → the branch outcome is constant regardless of the secret, leaking nothing. Also a documented **non-production FAST path** (production = `ct::ecdsa_sign`, no such branch). Same finding as the prior review. | `CT-INFINITY-GUARD-BENIGN` |
+| TQ-002 | `(void)rc_sign/rc_rec/rc_kat/rc_create` discarded | **MOSTLY FALSE POSITIVE** | `ellswift_xdh_overflow.cpp:149` `rc_create` is **already used** in the `CHECK(is_rejected(rc_create) || …)` above — the `(void)` is redundant. `recoverable_sign_ct.cpp:173/177/209` are **not** false-greens (a sign/recover failure is caught by the downstream verify/KAT `CHECK`), but were hardened anyway with direct `check(rc_* == UFSECP_OK, …)` for clearer attribution. | — |
+| BENCH-001 | `BENCHMARKS.md` "stale version v3.14.0" | **FALSE POSITIVE** (re-flag) | `3.14` is a throughput value (`field_add … 3.14 M/s`), not a version — same as the prior review's BENCH-001. | — |
+
 > **Update 2026-06-01 (SHIM-001 test now actually executes):** `test_regression_schnorr_varlen_ct_fixes`
 > used **wrong libsecp context-flag constants** (`CTX_SIGN=0x0101`, `CTX_VERIFY=0x0102`); `0x0102`
 > sets the COMPRESSION type bit, so `secp256k1_context_create(SIGN|VERIFY=0x0103)` fired the

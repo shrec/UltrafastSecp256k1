@@ -1974,6 +1974,11 @@ void Point::negate_inplace() {
 #else
     y_ = FieldElement::zero() - y_;
 #endif
+    // B1 fix: -G is NOT the generator. The non-inplace negate() already clears
+    // this; negate_inplace() omitted it, so a negated generator kept is_gen()==true
+    // and Point::scalar_mul() (point.cpp: `if (is_generator_) return
+    // scalar_mul_generator(...)`) would wrongly compute k*G instead of k*(-G).
+    is_generator_ = false;
 }
 
 // Explicit mixed-add with affine input: this += (ax, ay)
