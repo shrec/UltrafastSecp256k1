@@ -183,7 +183,6 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
 
 #if __cplusplus >= 202002L
 #  include <span>
-#  define UFSECP_LBTC_HAS_SPAN 1
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -197,14 +196,15 @@ namespace lbtc {
 // byte layout, so a node's DB / mmap layout and the engine agree on the exact
 // bytes. Verified fields are FIRST, in on-wire order; any correlation id is the
 // caller's own trailing bytes on a wrapping struct (pass key_size on the call).
-// If the caller appends a correlation key to each row (the usual node case), the
-// on-wire row is [ EcdsaRecord(129) | key_size bytes ] and you verify it ZERO-COPY
-// with verify_ecdsa(rows_ptr, count, key_size) — the raw byte pointer over that
-// interleaved buffer, plus count + key_size (no buffer-size argument). A
-// std::span<const EcdsaRecord> can NOT represent keyed rows: its element stride is
-// fixed at sizeof(EcdsaRecord)==129, so it would skip the key bytes. The
-// span<const Record> overloads below are therefore sugar for the key_size == 0
-// case ONLY. results[i] maps back to record i by index either way.
+// Append your correlation key to each row as a packed wrapping struct, e.g.
+//   #pragma pack(push,1)
+//   struct Row { EcdsaRecord rec; uint8_t txid[4]; };   // 129 + 4
+//   #pragma pack(pop)
+// and pass std::span<const Row> to Controller::verify_ecdsa: the COUNT is
+// rows.size() and the KEY SIZE is sizeof(Row) - sizeof(EcdsaRecord), both derived
+// from the array — you never pass a size by hand. Internally it forwards a raw
+// pointer + count + key_size to the C ABI, zero-copy, with no buffer-size argument.
+// results[i] maps back to record i by index.
 //
 // FIELD ORDER — IMPORTANT: the message / sighash is FIRST for BOTH kinds. Schnorr
 // is UNIFORM with ECDSA (hash, then key, then sig); it is NOT x-only-key-first at
@@ -242,45 +242,57 @@ public:
     ufsecp_lbtc_bound backend() const { return ufsecp_lbtc_ctrl_backend(ctrl_); }
 
     // --- Batch verify --------------------------------------------------------
-    // Sizing contract: pass the RECORD COUNT and the KEY SIZE only. The buffer
-    // is implied (count * (RECORD + key_size)); there is no buffer-size argument
-    // and no stride/buffer error condition.
-    ufsecp_error_t verify_ecdsa(const uint8_t* rows, size_t count,
-                                size_t key_size = 0, uint8_t* results = nullptr,
+    // Low-level form: raw byte pointer + record COUNT + KEY SIZE. The buffer is
+    // implied (count * (RECORD + key_size)); no buffer-size argument, no stride
+    // error condition. Prefer the std::span<const Row> overloads below — they
+    // derive count and key_size from your packed row type, so nothing is sized by
+    // hand. `key_size` here is required (not defaulted): pass 0 only for keyless
+    // rows, so a keyed buffer is never silently read as key_size == 0.
+    ufsecp_error_t verify_ecdsa(const uint8_t* rows, size_t count, size_t key_size,
+                                uint8_t* results = nullptr,
                                 size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
                                 size_t* invalid_count = nullptr) const {
         return ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
                                         invalid_idx, invalid_cap, invalid_count);
     }
-    ufsecp_error_t verify_schnorr(const uint8_t* rows, size_t count,
-                                  size_t key_size = 0, uint8_t* results = nullptr,
+    ufsecp_error_t verify_schnorr(const uint8_t* rows, size_t count, size_t key_size,
+                                  uint8_t* results = nullptr,
                                   size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
                                   size_t* invalid_count = nullptr) const {
         return ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
                                           invalid_idx, invalid_cap, invalid_count);
     }
 
-#ifdef UFSECP_LBTC_HAS_SPAN
-    // Sugar for the NO-correlation-key case ONLY (key_size == 0): the records are
-    // pure contiguous EcdsaRecords, so the COUNT is records.size() (never a byte
-    // buffer size). For keyed rows ([record | key]), use verify_ecdsa(rows_ptr,
-    // count, key_size) instead — a span<const EcdsaRecord> cannot stride over the
-    // key bytes. `results`, if non-null, must hold records.size() bytes.
-    ufsecp_error_t verify(std::span<const EcdsaRecord> records,
-                          uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
-                          size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
-        return verify_ecdsa(reinterpret_cast<const uint8_t*>(records.data()),
-                            records.size(), 0, results, invalid_idx, invalid_cap,
-                            invalid_count);
+#if __cplusplus >= 202002L
+    // Ergonomic, zero-copy: pass a span of YOUR packed row struct. The COUNT is
+    // rows.size() and the KEY SIZE is sizeof(Row) - sizeof(<record>) — both derived
+    // from the array, so you never pass a size by hand. Define the row as the
+    // verified record followed by your correlation key, tightly packed, e.g.:
+    //   #pragma pack(push,1)
+    //   struct Row { EcdsaRecord rec; uint8_t txid[4]; };   // 129 + 4
+    //   #pragma pack(pop)
+    // (Row == EcdsaRecord, i.e. no key, also works → key_size 0.)
+    template <class Row>
+    ufsecp_error_t verify_ecdsa(std::span<const Row> rows, uint8_t* results = nullptr,
+                                size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
+                                size_t* invalid_count = nullptr) const {
+        static_assert(sizeof(Row) >= sizeof(EcdsaRecord),
+                      "Row must begin with an EcdsaRecord (optionally followed by a key)");
+        return verify_ecdsa(reinterpret_cast<const uint8_t*>(rows.data()), rows.size(),
+                            sizeof(Row) - sizeof(EcdsaRecord), results, invalid_idx,
+                            invalid_cap, invalid_count);
     }
-    ufsecp_error_t verify(std::span<const SchnorrRecord> records,
-                          uint8_t* results = nullptr, size_t* invalid_idx = nullptr,
-                          size_t invalid_cap = 0, size_t* invalid_count = nullptr) const {
-        return verify_schnorr(reinterpret_cast<const uint8_t*>(records.data()),
-                              records.size(), 0, results, invalid_idx, invalid_cap,
-                              invalid_count);
+    template <class Row>
+    ufsecp_error_t verify_schnorr(std::span<const Row> rows, uint8_t* results = nullptr,
+                                  size_t* invalid_idx = nullptr, size_t invalid_cap = 0,
+                                  size_t* invalid_count = nullptr) const {
+        static_assert(sizeof(Row) >= sizeof(SchnorrRecord),
+                      "Row must begin with a SchnorrRecord (optionally followed by a key)");
+        return verify_schnorr(reinterpret_cast<const uint8_t*>(rows.data()), rows.size(),
+                              sizeof(Row) - sizeof(SchnorrRecord), results, invalid_idx,
+                              invalid_cap, invalid_count);
     }
-#endif // UFSECP_LBTC_HAS_SPAN
+#endif
 
 private:
     ufsecp_lbtc_ctrl* ctrl_ = nullptr;

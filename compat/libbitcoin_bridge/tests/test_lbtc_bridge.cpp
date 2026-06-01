@@ -149,31 +149,36 @@ int main() {
         CHECK(ninv == 1 && inv[0] == 7, "schnorr: invalid index == 7 after corruption");
     }
 
-    /* --- C++ wrapper: sizing contract = record count + key size, no buffer
-     *     size. The span overload takes the COUNT from span.size() (never a byte
-     *     buffer size), with key_size implied 0. --- */
+    /* --- C++ wrapper: zero-copy via a packed KEYED-row struct. The wrapper
+     *     derives COUNT (span.size()) and KEY SIZE (sizeof(Row)-sizeof(record))
+     *     from the array — the caller never passes a size by hand. --- */
     {
-        const size_t N = 16;
-        auto rows = build_ecdsa(sctx, N, 0); /* tightly packed EcdsaRecords */
-        ufsecp::lbtc::Controller wrap;       /* RAII, AUTO backend */
+        const size_t N = 16, KS = 4;
+        auto rows = build_ecdsa(sctx, N, KS); /* rows of [EcdsaRecord | 4-byte key] */
+        ufsecp::lbtc::Controller wrap;        /* RAII, AUTO backend */
         std::vector<uint8_t> res(N, 0xAA);
+        const size_t stride = UFSECP_LBTC_ECDSA_RECORD + KS;
         size_t ninv = 0;
-#ifdef UFSECP_LBTC_HAS_SPAN
-        const auto* recs = reinterpret_cast<const ufsecp::lbtc::EcdsaRecord*>(rows.data());
-        auto rc = wrap.verify(std::span<const ufsecp::lbtc::EcdsaRecord>(recs, N),
-                              res.data(), nullptr, 0, &ninv);
+#if __cplusplus >= 202002L
+#pragma pack(push, 1)
+        struct KeyedRow { ufsecp::lbtc::EcdsaRecord rec; uint8_t key[KS]; };
+#pragma pack(pop)
+        static_assert(sizeof(KeyedRow) == UFSECP_LBTC_ECDSA_RECORD + KS, "packed keyed row");
+        auto rc = wrap.verify_ecdsa(
+            std::span<const KeyedRow>(reinterpret_cast<const KeyedRow*>(rows.data()), N),
+            res.data(), nullptr, 0, &ninv);
 #else
-        auto rc = wrap.verify_ecdsa(rows.data(), N, 0, res.data(), nullptr, 0, &ninv);
+        auto rc = wrap.verify_ecdsa(rows.data(), N, KS, res.data(), nullptr, 0, &ninv);
 #endif
-        CHECK(rc == UFSECP_OK && ninv == 0, "wrapper: count from span.size(), all valid");
-        rows[3 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x04; /* flip a sig byte */
+        CHECK(rc == UFSECP_OK && ninv == 0, "wrapper: keyed span derives count + key_size");
+        rows[3 * stride + 65] ^= 0x04; /* flip a sig byte in row 3 */
         ninv = 0;
-#ifdef UFSECP_LBTC_HAS_SPAN
-        wrap.verify(std::span<const ufsecp::lbtc::EcdsaRecord>(
-                        reinterpret_cast<const ufsecp::lbtc::EcdsaRecord*>(rows.data()), N),
-                    res.data(), nullptr, 0, &ninv);
+#if __cplusplus >= 202002L
+        wrap.verify_ecdsa(
+            std::span<const KeyedRow>(reinterpret_cast<const KeyedRow*>(rows.data()), N),
+            res.data(), nullptr, 0, &ninv);
 #else
-        wrap.verify_ecdsa(rows.data(), N, 0, res.data(), nullptr, 0, &ninv);
+        wrap.verify_ecdsa(rows.data(), N, KS, res.data(), nullptr, 0, &ninv);
 #endif
         CHECK(ninv == 1 && res[3] == 0, "wrapper: corruption detected, row 3 marked");
     }

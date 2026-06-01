@@ -67,12 +67,22 @@ invalid row can be mapped back to its block/tx **without a second side table**.
   `count * (RECORD + key_size)`. There is deliberately **no buffer-size argument**,
   so there is no buffer/stride mismatch and **no corresponding error condition**.
   **Keyed rows (the usual node case)** — each on-wire row is
-  `[ record | key_size bytes ]` — are verified **zero-copy** with
-  `verify_ecdsa(rows_ptr, count, key_size)`: a raw byte pointer over the
-  interleaved buffer plus count + key_size. A `std::span<const EcdsaRecord>`
-  **cannot** carry keyed rows (its element stride is fixed at `sizeof(EcdsaRecord)`,
-  so it skips the key bytes); the `Controller::verify(std::span<const Record>)`
-  overload is therefore sugar for the `key_size == 0` case only.
+  `[ record | key_size bytes ]`. In C++ you append your correlation key to the
+  record as a packed struct and hand the controller a `std::span` of it; the
+  wrapper **derives both sizes from the array** — the count from `span.size()` and
+  the key size from `sizeof(Row) - sizeof(record)` — so you never pass a size by
+  hand:
+
+  ```cpp
+  #pragma pack(push,1)
+  struct Row { ufsecp::lbtc::EcdsaRecord rec; uint8_t txid[4]; };  // 129 + 4
+  #pragma pack(pop)
+  ctrl.verify_ecdsa(std::span<const Row>(rows, n), results);       // zero-copy
+  ```
+
+  (A `std::span<const EcdsaRecord>` is just the `key_size == 0` special case of
+  the same template.) The low-level `verify_ecdsa(rows_ptr, count, key_size)` and
+  the C ABI take the same two values explicitly.
 - The caller builds **one unified table**; the controller internally splits each
   row into the signature payload (→ verify) and the opaque tail (→ carried).
 
