@@ -13,8 +13,16 @@
 #   - Repository: shrec/UltrafastSecp256k1
 #
 # What this changes:
-#   BEFORE: required checks = [build, ci, test]
-#   AFTER:  required checks = [build, ci, test, security-audit, codeql, ct-verif, bench-gate, audit-verdict]
+#   Required checks now use the EXACT current job display names (CAAS-CI-001 fix:
+#   the old list pinned phantom "CI" + "linux (gcc-13, …)" contexts that match no
+#   job, and contained ZERO gate.yml CAAS jobs, so the security pipeline was not
+#   required at the merge boundary). The list now includes the gate.yml Block 1/2/3
+#   CAAS jobs and "Gate / Final Verdict" aggregator.
+#
+#   The contexts below are validated by ci/check_required_checks_match_jobs.py
+#   (run in fast gates): every context MUST resolve to a real job that triggers on
+#   pull_request, so this list can never silently drift from the workflows again.
+#   Do NOT hand-edit a context to a name not produced by a PR-triggered job.
 # ===========================================================================
 
 set -euo pipefail
@@ -40,22 +48,29 @@ gh api "repos/${REPO}/branches/${BRANCH}/protection/required_status_checks" \
 {
   "strict": true,
   "contexts": [
-    "CI",
-    "linux (gcc-13, Release)",
-    "linux (gcc-13, Debug)",
+    "linux (gcc-14, Release)",
+    "linux (gcc-14, Debug)",
     "linux (clang-17, Release)",
     "linux (clang-17, Debug)",
     "windows (Release)",
     "macos (Release)",
     "Sanitizers (ASan+UBSan)",
     "Sanitizers (TSan)",
+    "Differential Smoke Test",
+    "Protocol Vectors (MuSig2 BIP-327 / FROST-KAT)",
     "Build with -Werror",
-    "ASan + UBSan",
     "Valgrind Memcheck",
-    "ct-verif LLVM analysis",
-    "Benchmark Regression Check",
-    "CodeQL",
-    "Audit Verdict"
+    "Differential vs bitcoin-core/libsecp256k1",
+    "Analyze (C/C++)",
+    "Static Analysis (Cppcheck)",
+    "preflight",
+    "Doc / Fast Gates",
+    "Block 1 / Fast CAAS Gates",
+    "Block 2 / Build + Unit Tests",
+    "Block 3 / CAAS Security Gates",
+    "Block 3 / Security Gate (aggregator)",
+    "Block 3 / Shim Security Gate",
+    "Gate / Final Verdict"
   ]
 }
 EOF

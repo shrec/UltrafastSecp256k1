@@ -5,7 +5,7 @@
 > This file remains the ABI-gating and wrapper-version reference.
 
 > **Canonical header**: `include/ufsecp/ufsecp_version.h`  
-> **Current ABI version**: 1
+> **Current ABI version**: 4  (`UFSECP_ABI_VERSION` == `PROJECT_VERSION_MAJOR`, from `VERSION.txt`)
 
 ---
 
@@ -36,7 +36,7 @@ It does NOT increment for:
 
 ```c
 unsigned int ufsecp_version(void);         // Packed: (major<<16)|(minor<<8)|patch
-unsigned int ufsecp_abi_version(void);     // ABI integer (currently 1)
+unsigned int ufsecp_abi_version(void);     // ABI integer (currently 4 == PROJECT_VERSION_MAJOR)
 const char*  ufsecp_version_string(void);  // Human-readable, e.g. "3.14.0"
 ```
 
@@ -59,7 +59,7 @@ On context creation:
 ### Mismatch Error Format
 
 ```
-UfsecpError: ABI version mismatch. Wrapper expects ABI 1, library reports ABI 2.
+UfsecpError: ABI version mismatch. Wrapper expects ABI 4, library reports ABI 5.
 Please update the wrapper to match the installed native library.
 ```
 
@@ -71,7 +71,7 @@ Please update the wrapper to match the installed native library.
 
 ```python
 class Ufsecp:
-    EXPECTED_ABI = 1
+    EXPECTED_ABI = 4
     
     def __init__(self):
         self._ctx = _lib.ufsecp_ctx_create()
@@ -85,7 +85,7 @@ class Ufsecp:
 
 ```javascript
 class UfsecpContext {
-    static EXPECTED_ABI = 1;
+    static EXPECTED_ABI = 4;
     
     constructor() {
         const abi = lib.ufsecp_abi_version();
@@ -101,7 +101,7 @@ class UfsecpContext {
 
 ```csharp
 public class Ufsecp : IDisposable {
-    private const int ExpectedAbi = 1;
+    private const int ExpectedAbi = 4;
     
     public Ufsecp() {
         var abi = NativeMethods.ufsecp_abi_version();
@@ -116,7 +116,7 @@ public class Ufsecp : IDisposable {
 
 ```java
 public class Ufsecp implements AutoCloseable {
-    private static final int EXPECTED_ABI = 1;
+    private static final int EXPECTED_ABI = 4;
     
     public Ufsecp() {
         int abi = nativeAbiVersion();
@@ -131,7 +131,7 @@ public class Ufsecp implements AutoCloseable {
 
 ```swift
 class UfsecpContext {
-    static let expectedABI: UInt32 = 1
+    static let expectedABI: UInt32 = 4
     
     init() throws {
         let abi = ufsecp_abi_version()
@@ -147,7 +147,7 @@ class UfsecpContext {
 ### 3.6 Go
 
 ```go
-const expectedABI = 1
+const expectedABI = 4
 
 func NewContext() (*Context, error) {
     abi := C.ufsecp_abi_version()
@@ -162,7 +162,7 @@ func NewContext() (*Context, error) {
 ### 3.7 Rust
 
 ```rust
-const EXPECTED_ABI: u32 = 1;
+const EXPECTED_ABI: u32 = 4;
 
 impl Context {
     pub fn new() -> Result<Self> {
@@ -182,7 +182,7 @@ impl Context {
 
 ```dart
 class UfsecpContext {
-    static const int _expectedAbi = 1;
+    static const int _expectedAbi = 4;
     
     UfsecpContext() {
         final abi = _bindings.ufsecp_abi_version();

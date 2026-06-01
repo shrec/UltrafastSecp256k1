@@ -88,9 +88,11 @@ jobs:
           python3 ci/validate_assurance.py
 
       - name: Build audit shared library + unified_audit_runner
-        # BUILD_TESTING=ON is required so unified_audit_runner target exists.
-        # This also enables the standalone advisory test binaries the Rule 16
-        # check (next step) enumerates.
+        # BUILD_TESTING=ON is required so the unified_audit_runner target exists.
+        # NOTE (CAAS-CI-002): BUILD_TESTING=ON only *registers* the per-module
+        # *_standalone targets — `--target unified_audit_runner` does NOT build
+        # them (they are not dependencies). Rule 16 is therefore enforced below
+        # from the unified_audit_runner JSON report, not those standalone binaries.
         run: |
           cmake -S . -B out/release -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
@@ -103,13 +105,22 @@ jobs:
           cmake --build out/release --target unified_audit_runner -j"$(nproc 2>/dev/null || echo 4)"
 
       - name: Rule 16 enforcement (advisory skip-return) — release-grade
-        # P1-CI-01 fix (2026-05-23): post-build Rule 16 enforcement via the
-        # shared ci/rule16_enforce.sh wrapper. The release build uses
-        # BUILD_TESTING=ON; when standalone targets are present the gate
-        # enforces hard. Soft-skip when standalone targets are absent.
+        # CAAS-CI-002 fix: the standalone-binary path soft-skips here (those
+        # targets are not built). We generate the unified_audit_runner JSON
+        # report and rule16_enforce.sh falls back to enforcing Rule 16 from it.
+        # RULE16_STRICT=1 turns a no-enforcement (no binaries AND no report) into
+        # a hard error so a release can never ship with Rule 16 silently un-run.
         env:
           UFSECP_BUILD_DIR: ${{ github.workspace }}/out/release
-        run: bash ci/rule16_enforce.sh
+          RULE16_STRICT: "1"
+        run: |
+          # Produce the JSON report (ignore the runner's own exit code — the
+          # Rule 16 gate is the arbiter of advisory false-PASS / real failure).
+          set +e
+          ./out/release/audit/unified_audit_runner --json-only --report-dir out/release
+          set -e
+          export RULE16_AUDIT_REPORT="${{ github.workspace }}/out/release/audit_report.json"
+          bash ci/rule16_enforce.sh
 
       - name: Release CAAS evidence gates
         env:

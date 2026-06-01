@@ -48,6 +48,9 @@ MANDATORY_GATES=(
     "ci/check_section_ids.py"            # section IDs in ALL_MODULES must be declared in SECTIONS[]
     "ci/test_audit_scripts.py"           # P3-PR-011: audit framework self-test is mandatory
     "ci/check_version_sync.py"
+    "ci/check_abi_version_sync.py"       # REL-ABI: binding EXPECTED_ABI must equal library ABI (== MAJOR)
+    "ci/check_randomize_claim_consistency.py"  # REVIEWER-FRICTION-001: no doc may call context_randomize a no-op
+    "ci/check_required_checks_match_jobs.py"   # CAAS-CI-001: branch-protection contexts must resolve to PR-triggered jobs
     "ci/build_canonical_data.py"
     "ci/sync_docs_from_canonical.py"
     "ci/sync_module_count.py"
@@ -149,6 +152,9 @@ run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py
 #  - Workflow trigger claims: docs must not call a workflow_dispatch-only workflow CI-enforced (CLAIM-07)
 #  - Secret-erase coverage: every seckey-parsing shim fn must secure_erase (CT-04/RT-05)
 run "ABI count + names (REL-04)"               ci/check_abi_count.py
+run "ABI version sync (REL-ABI-MISMATCH)"      ci/check_abi_version_sync.py
+run "Randomize claim consistency (RF-001)"     ci/check_randomize_claim_consistency.py
+run "Required-checks match jobs (CAAS-CI-001)"  ci/check_required_checks_match_jobs.py
 run "Workflow trigger claims (CLAIM-07)"       ci/check_workflow_trigger_claims.py
 run "Secret-erase coverage (CT-04/RT-05)"      ci/check_secret_erase_coverage.py
 

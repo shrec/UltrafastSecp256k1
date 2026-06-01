@@ -64,7 +64,7 @@ module Ufsecp
 
   NET_MAINNET = 0
   NET_TESTNET = 1
-  EXPECTED_ABI = 1
+  EXPECTED_ABI = 4
 
   class Error < StandardError
     attr_reader :code, :operation

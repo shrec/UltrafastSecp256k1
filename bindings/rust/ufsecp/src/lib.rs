@@ -13,7 +13,7 @@ use std::os::raw::{c_char, c_int};
 
 pub use ufsecp_sys;
 
-const EXPECTED_ABI: u32 = 1;
+const EXPECTED_ABI: u32 = 4;
 
 // ── Error ──────────────────────────────────────────────────────────────
 

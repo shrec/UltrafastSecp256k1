@@ -69,6 +69,10 @@ AUDIT_SCRIPTS = [
     "sync_version_refs.py",
     "validate_assurance.py",
     "verify_slsa_provenance.py",
+    "check_abi_version_sync.py",
+    "check_randomize_claim_consistency.py",
+    "check_required_checks_match_jobs.py",
+    "check_advisory_json_rule16.py",
     "test_audit_scripts.py",
 ]
 
@@ -809,6 +813,50 @@ def check_secret_path_changes_fail_closed() -> None:
         fail(tag, str(exc))
 
 
+def check_rule16_json_smoke() -> None:
+    """Smoke-test (CAAS-CI-002): check_advisory_json_rule16.py must pass a clean
+    report and FAIL a GPU advisory module that returned 0 instead of 77 (silent
+    false-PASS). This is the real Rule-16 enforcement that replaced the inert
+    standalone-binary path at the CI choke points."""
+    tag = "SMOKE:rule16_json"
+    path = SCRIPT_DIR / "check_advisory_json_rule16.py"
+    if not path.exists():
+        skip(tag, "check_advisory_json_rule16.py not found")
+        return
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            clean = root / "clean.json"
+            clean.write_text(json.dumps({"sections": [{"modules": [
+                {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": False, "return_code": 77},
+                {"id": "test_ecdsa_sign", "advisory": False, "passed": True, "return_code": 0},
+            ]}]}), encoding="utf-8")
+            bad = root / "bad.json"
+            bad.write_text(json.dumps({"sections": [{"modules": [
+                {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": True, "return_code": 0},
+            ]}]}), encoding="utf-8")
+
+            def run(arg: Path) -> int:
+                return subprocess.run(
+                    [sys.executable, str(path), str(arg)],
+                    capture_output=True, text=True, timeout=15, cwd=str(LIB_ROOT),
+                ).returncode
+
+            rc_clean = run(clean)
+            rc_bad = run(bad)
+        if rc_clean != 0:
+            fail(tag, f"clean report should pass (exit 0), got {rc_clean}")
+            return
+        if rc_bad != 1:
+            fail(tag, f"GPU advisory false-PASS (0 not 77) should fail (exit 1), got {rc_bad}")
+            return
+        ok(tag, "clean report passes; GPU advisory false-PASS is caught (Rule 16 enforced)")
+    except subprocess.TimeoutExpired:
+        fail(tag, "timed out")
+    except Exception as exc:
+        fail(tag, str(exc))
+
+
 def main() -> int:
     quick = "--quick" in sys.argv
 
@@ -861,6 +909,7 @@ def main() -> int:
         check_validate_assurance_smoke()
         check_export_assurance_smoke()
         check_secret_path_changes_fail_closed()
+        check_rule16_json_smoke()
 
     # Summary
     print(f"\n{BOLD}{'='*60}{RESET}")

@@ -15,7 +15,7 @@ import java.lang.ref.Cleaner;
 
 public final class Ufsecp implements AutoCloseable {
 
-    private static final int EXPECTED_ABI = 1;
+    private static final int EXPECTED_ABI = 4;
     private static final Cleaner CLEANER = Cleaner.create();
 
     private static final class State implements Runnable {

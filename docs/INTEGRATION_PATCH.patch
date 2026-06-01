@@ -152,10 +152,13 @@ index c82f361..1275cc5 100644
 +#   secp256k1_context*, secp256k1_pubkey, secp256k1_ecdsa_signature, and all
 +#   function signatures are identical to bitcoin-core/secp256k1.
 +#
-+# Limitation:
-+#   secp256k1_context_randomize() is accepted but is a no-op. UltrafastSecp256k1
-+#   uses thread-local precomputed tables for thread safety instead of per-context
-+#   blinding. See src/ultrafast_secp256k1/compat/libsecp256k1_shim/README.md.
++# secp256k1_context_randomize():
++#   Supported (NOT a no-op). The 32-byte seed is stored and r*G is pre-computed
++#   once; per-context nonce blinding (generator_mul_blinded — DPA side-channel
++#   defense, matching upstream's blinding intent) is then applied on every
++#   signing call via an RAII ContextBlindingScope. Thread safety comes from
++#   read-only shared precomputed tables plus per-context blinding state.
++#   See src/ultrafast_secp256k1/compat/libsecp256k1_shim/README.md.
 +# =============================================================================
 +
 +set(SECP256K1_BACKEND "bundled" CACHE STRING

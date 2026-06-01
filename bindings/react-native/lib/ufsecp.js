@@ -13,7 +13,7 @@
 import { NativeModules, Platform } from 'react-native';
 
 const { Ufsecp: NativeUfsecp } = NativeModules;
-const EXPECTED_ABI = 1;
+const EXPECTED_ABI = 4;
 
 if (!NativeUfsecp) {
   throw new Error(

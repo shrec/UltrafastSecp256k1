@@ -27,7 +27,7 @@ use InvalidArgumentException;
 
 class Ufsecp
 {
-    public const EXPECTED_ABI = 1;
+    public const EXPECTED_ABI = 4;
     public const NET_MAINNET = 0;
     public const NET_TESTNET = 1;
 

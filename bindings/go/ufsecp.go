@@ -31,7 +31,7 @@ import (
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const (
-	ExpectedABI        = 1
+	ExpectedABI        = 4
 	PrivkeyLen         = 32
 	PubkeyCompressedLen = 33
 	PubkeyUncompressedLen = 65
