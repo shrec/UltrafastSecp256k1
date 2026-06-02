@@ -57,8 +57,17 @@ struct ufsecp_lbtc_ctrl {
 namespace {
 
 /* Per-call chunk size. Well below kMaxGpuBatchN (64 M) and any CPU limit, large
- * enough to amortize device transfer for IBD-scale batches. Tunable. */
+ * enough to amortize device transfer for IBD-scale batches. Tunable.
+ *
+ * The default is fixed at 262144. UFSECP_LBTC_CHUNK_OVERRIDE is a TEST-ONLY
+ * compile seam (e.g. -DUFSECP_LBTC_CHUNK_OVERRIDE=8) that lets the multi-chunk
+ * boundary be exercised deterministically without a 262k-row corpus. Production
+ * builds never define it. */
+#ifndef UFSECP_LBTC_CHUNK_OVERRIDE
 constexpr std::size_t kChunk = std::size_t{1} << 18; /* 262144 */
+#else
+constexpr std::size_t kChunk = UFSECP_LBTC_CHUNK_OVERRIDE;
+#endif
 
 enum class Kind { Ecdsa, Schnorr };
 
@@ -79,17 +88,51 @@ inline ufsecp_error_t cpu_verify_run(ufsecp_ctx* ctx, Kind k,
                             : ufsecp_schnorr_batch_verify(ctx, recs, cnt);
 }
 
-/* Writes the per-row pass/fail byte array. results[i] == 1 valid / 0 invalid.
- * The caller derives any failure list it needs from this array (failures are
- * rare during honest IBD), so the bridge keeps a single, minimal output. */
-struct Sink {
-    uint8_t* results;
+/* Output channel for one verified row. The chunk paths (cpu_chunk / gpu_chunk)
+ * compute the per-row valid/invalid verdict and ONLY call sink.mark(...) /
+ * sink.mark_all_valid(...). Two concrete sinks plug into the SAME chunk bodies,
+ * so the verify cores are reused verbatim — only where the verdict is written
+ * differs (consensus-parity by construction):
+ *
+ *   ResultSink  — writes results[i] = 1/0      (the original results API)
+ *   CollectSink — collapses the verdict INTO the row's trailing key cell:
+ *                   valid   -> memset(key cell, 0, key_size)   (key zeroed)
+ *                   invalid -> leave the key bytes untouched   (id survives)
+ *                 The caller then scans for non-zero key cells = rejected ids.
+ */
+struct ResultSink {
+    uint8_t* results;                 /* may be NULL (no-op) */
 
     inline void mark(std::size_t global, bool valid) {
         if (results) results[global] = valid ? 1u : 0u;
     }
     inline void mark_all_valid(std::size_t base, std::size_t cnt) {
         if (results) std::memset(results + base, 1, cnt);
+    }
+};
+
+/* In-place sink. Owns the MUTABLE rows buffer + geometry so it can locate the
+ * key cell of any global row index. The key cell of global row i lives at
+ * rows + i*stride + rec, length key_size. VALID -> zero it; INVALID -> leave.
+ *
+ * No aliasing hazard with the const `rows` view read by cpu_chunk/gpu_chunk:
+ * every write happens through mark(...) only AFTER that chunk's reads complete,
+ * and it touches only the key tail [rec, rec+key_size) — never any record byte
+ * the verify core reads. key_size > 0 is guaranteed by the entry point. */
+struct CollectSink {
+    uint8_t*    rows;       /* mutable caller buffer (separate from the const view) */
+    std::size_t stride;     /* rec + key_size */
+    std::size_t rec;        /* record_size(k) — offset of the key cell */
+    std::size_t key_size;   /* > 0 */
+
+    inline void mark(std::size_t global, bool valid) {
+        if (valid)
+            std::memset(rows + global * stride + rec, 0, key_size);
+        /* invalid: leave the key bytes untouched (id survives = rejected) */
+    }
+    inline void mark_all_valid(std::size_t base, std::size_t cnt) {
+        for (std::size_t i = 0; i < cnt; ++i)
+            std::memset(rows + (base + i) * stride + rec, 0, key_size);
     }
 };
 
@@ -109,7 +152,10 @@ inline void to_engine_record(Kind k, const uint8_t* row, uint8_t* out) {
     }
 }
 
-/* CPU path for one chunk [base, base+cnt). Never aborts: malformed → invalid. */
+/* CPU path for one chunk [base, base+cnt). Never aborts: malformed → invalid.
+ * Templated on the sink so ResultSink and CollectSink share the identical body
+ * (zero virtual-dispatch cost). */
+template <class Sink>
 void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
                std::size_t base, std::size_t cnt, std::size_t stride,
                Sink& sink) {
@@ -147,7 +193,13 @@ void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
 
 #ifdef UFSECP_LBTC_WITH_GPU
 /* GPU path for one chunk. Returns false on device-level failure (caller then
- * falls back to CPU for this chunk). Per-row validity comes from out_results. */
+ * falls back to CPU for this chunk). Per-row validity comes from out_results.
+ *
+ * This is the GENERIC host-collapse path: the GPU computes the verdict, the host
+ * writes it through the sink. With CollectSink the host zeros valid key cells.
+ * It is correct and parity-safe for both sinks, and is the mandatory fallback
+ * for the dedicated on-device collect kernel. Templated on the sink type. */
+template <class Sink>
 bool gpu_chunk(ufsecp_gpu_ctx* gpu, Kind k, const uint8_t* rows,
                std::size_t base, std::size_t cnt, std::size_t stride,
                Sink& sink) {
@@ -184,23 +236,20 @@ bool gpu_chunk(ufsecp_gpu_ctx* gpu, Kind k, const uint8_t* rows,
 }
 #endif /* UFSECP_LBTC_WITH_GPU */
 
-void verify_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
-                 const uint8_t* rows, std::size_t n, std::size_t key_size,
-                 uint8_t* results) {
-    /* No-op on a degenerate call: a NULL ctrl/rows or empty batch leaves results
-     * exactly as the caller initialized it. Callers zero-initialize results, so a
-     * degenerate call reads as "all invalid" (fail-closed), never falsely valid. */
-    if (!ctrl || n == 0 || !rows) return;
-
-    const std::size_t stride = record_size(k) + key_size;
-    Sink sink{results};
-
-    /* The chunk paths allocate scratch / marshalling buffers (the GPU per-field
-     * arrays and the Schnorr CPU reorder). A mid-batch allocation failure is
-     * unrecoverable — never let an exception escape this extern "C" boundary.
-     * On such a failure the loop is abandoned: rows already processed keep their
-     * 0/1 verdict and rows not yet reached stay at the caller's zero-init, i.e.
-     * fail-closed (treated as invalid), never falsely accepted. */
+/* The shared chunk loop, generic over the output sink. `rows` is the const view
+ * the verify cores read; a CollectSink carries its own mutable pointer to the
+ * same buffer for the in-place write.
+ *
+ * The chunk paths allocate scratch / marshalling buffers (the GPU per-field
+ * arrays and the Schnorr CPU reorder). A mid-batch allocation failure is
+ * unrecoverable — never let an exception escape the extern "C" boundary. On such
+ * a failure the loop is abandoned: rows already processed keep their verdict and
+ * rows not yet reached keep the caller's initial state, i.e. fail-closed (results
+ * stay zero-init = invalid; collect key cells stay non-zero = rejected), never
+ * falsely accepted. */
+template <class Sink>
+void verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
+                 std::size_t n, std::size_t stride, Sink& sink) {
     try {
         for (std::size_t base = 0; base < n; base += kChunk) {
             const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
@@ -213,8 +262,36 @@ void verify_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
             cpu_chunk(ctrl->cpu, k, rows, base, cnt, stride, sink);
         }
     } catch (...) {
-        return; /* fail-closed: unprocessed rows remain at caller zero-init */
+        return; /* fail-closed: unprocessed rows remain at caller initial state */
     }
+}
+
+/* results[] variant — original behavior, unchanged for existing callers. */
+void verify_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+                         const uint8_t* rows, std::size_t n,
+                         std::size_t key_size, uint8_t* results) {
+    /* No-op on a degenerate call: a NULL ctrl/rows or empty batch leaves results
+     * exactly as the caller initialized it. Callers zero-initialize results, so a
+     * degenerate call reads as "all invalid" (fail-closed), never falsely valid. */
+    if (!ctrl || n == 0 || !rows) return;
+    const std::size_t stride = record_size(k) + key_size;
+    ResultSink sink{results};
+    verify_core(ctrl, k, rows, n, stride, sink);
+}
+
+/* In-place "collect" variant — verdict collapsed into each row's key cell.
+ * key_size == 0 is a no-op (no cell to write the verdict into → nothing can be
+ * reported → fail-closed: every id survives = all rejected, never falsely
+ * accepted). rows MUST be writable (the C++ span overload enforces non-const). */
+void verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+                         uint8_t* rows, std::size_t n, std::size_t key_size) {
+    if (!ctrl || n == 0 || !rows || key_size == 0) return;
+    const std::size_t rec    = record_size(k);
+    const std::size_t stride = rec + key_size;
+    CollectSink sink{rows, stride, rec, key_size};
+    /* rows passed twice: as the const read view to verify_core, and (inside the
+     * sink) as the mutable write target. No aliasing — see CollectSink. */
+    verify_core(ctrl, k, static_cast<const uint8_t*>(rows), n, stride, sink);
 }
 
 } // namespace
@@ -301,13 +378,25 @@ const char* ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl) {
 void ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
                               const uint8_t* rows, size_t n,
                               size_t key_size, uint8_t* results) {
-    verify_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results);
+    verify_results_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results);
 }
 
 void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
                                 const uint8_t* rows, size_t n,
                                 size_t key_size, uint8_t* results) {
-    verify_impl(ctrl, Kind::Schnorr, rows, n, key_size, results);
+    verify_results_impl(ctrl, Kind::Schnorr, rows, n, key_size, results);
+}
+
+void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
+                                      uint8_t* rows, size_t n,
+                                      size_t key_size) {
+    verify_collect_impl(ctrl, Kind::Ecdsa, rows, n, key_size);
+}
+
+void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
+                                        uint8_t* rows, size_t n,
+                                        size_t key_size) {
+    verify_collect_impl(ctrl, Kind::Schnorr, rows, n, key_size);
 }
 
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,

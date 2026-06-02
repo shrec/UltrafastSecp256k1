@@ -10,7 +10,9 @@ fallback**. Pure C / C++ — **no FFI, no language bindings**.
 > implements it. The CPU consensus-reference path passes the correctness test
 > ([`tests/test_lbtc_bridge.cpp`](tests/test_lbtc_bridge.cpp): all-valid,
 > single-corruption identification, opaque-key stride, ECDSA + Schnorr, empty
-> batch). GPU dispatch (`-DUFSECP_LBTC_WITH_GPU=ON`) compiles against the engine
+> batch) plus the in-place collect contract
+> ([`tests/test_lbtc_collect.cpp`](tests/test_lbtc_collect.cpp), incl. a
+> multi-chunk variant). GPU dispatch (`-DUFSECP_LBTC_WITH_GPU=ON`) compiles against the engine
 > GPU ABI; runtime GPU verification + the differential consensus gate + the
 > libbitcoin branch are the next steps. The contract is a proposal — corrections
 > expected after libbitcoin review.
@@ -151,12 +153,56 @@ already exist and are tested:
 
 | Capability        | GPU path                              | CPU fallback                          |
 |-------------------|---------------------------------------|---------------------------------------|
-| ECDSA batch       | `ufsecp_gpu_ecdsa_verify_batch`       | `ufsecp_ecdsa_batch_identify_invalid` |
-| Schnorr batch     | `ufsecp_gpu_schnorr_verify_batch`     | `ufsecp_schnorr_batch_identify_invalid` |
+| ECDSA batch       | `ufsecp_gpu_ecdsa_verify_batch`       | `ufsecp_ecdsa_batch_verify` (whole chunk; `n==1` per row to locate invalids) |
+| Schnorr batch     | `ufsecp_gpu_schnorr_verify_batch`     | `ufsecp_schnorr_batch_verify` (reorder to engine record, then as above) |
 | BIP-352 scan      | `ufsecp_gpu_bip352_scan_batch`        | engine CPU SP scan                    |
 
 The GPU verify kernels already write **per-entry** results (one signature per
-thread), so per-row pass/fail falls out for free.
+thread), so per-row pass/fail falls out for free. The CPU fallback verifies the
+whole chunk in one `*_batch_verify` call; if that reports the chunk has an
+invalid row, it re-runs each row as a single-entry verify to locate the exact
+failures (honest IBD failures are rare, so the per-row pass is seldom taken).
+
+## Collect (in-place) verify — `*_collect`
+
+A second output shape, requested by evoskuil for the rejected-id-list use case.
+Same verification, but **no `results[]` array**: the per-row verdict is collapsed
+**into that row's own key cell** —
+
+- **valid**   → the key cell is zeroed,
+- **invalid** → the key cell is left exactly as supplied (the id survives).
+
+The caller then walks the buffer once and **collects every row whose key cell is
+still non-zero** — that set *is* the rejected list. No second side table, no
+`results[]`.
+
+```c
+// rows is IN/OUT and MUST be writable; key_size MUST be > 0 (it is the result
+// channel). n may be arbitrarily large — it is walked in internal chunks, so
+// there is no size limit and no size error. Returns void.
+void ufsecp_lbtc_verify_ecdsa_collect (ufsecp_lbtc_ctrl* ctrl,
+                                       uint8_t* rows, size_t n, size_t key_size);
+void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
+                                       uint8_t* rows, size_t n, size_t key_size);
+```
+
+```cpp
+// C++20 typed-span overload — note the span is over MUTABLE Row (the type system
+// enforces that rows are writable, since collect writes the key cell in place):
+std::span<ecdsa::triple> batch = ...;          // MUTABLE
+ctrl.collect_ecdsa(batch);                      // key_size = sizeof(Row) - RECORD
+for (auto& row : batch)
+    if (key_cell_nonzero(row)) rejected.push_back(row.identifier);
+```
+
+This is the inverse of the results-based variant, which **never** touches the key
+cell. They are mutually exclusive views of the same verification — pick one per
+call site. `key_size == 0` is a no-op (no cell to write the verdict into →
+fail-closed: every id survives = all rejected). The CPU and GPU paths reuse the
+identical verify cores, so the collect rejected-set is consensus-identical to the
+`results[]` channel (`tests/test_lbtc_consensus_diff.cpp` proves GPU==CPU==libsecp
+on the rejected-set; `tests/test_lbtc_collect.cpp` proves the in-place contract,
+including a `-DUFSECP_LBTC_CHUNK_OVERRIDE=8` multi-chunk variant).
 
 ## libbitcoin integration shape
 
@@ -201,6 +247,8 @@ compat/libbitcoin_bridge/
   include/ufsecp_libbitcoin.h   ← entry-point contract (public header)
   src/ufsecp_libbitcoin.cpp     ← controller (CPU fallback + GPU dispatch)
   tests/test_lbtc_bridge.cpp    ← correctness test (CPU path verified)
+  tests/test_lbtc_collect.cpp   ← in-place collect contract (+ smallchunk variant)
+  tests/test_lbtc_consensus_diff.cpp ← GPU==CPU==libsecp differential (results + collect)
   example/lbtc_batch_demo.cpp   ← skeleton harness for libbitcoin
   CMakeLists.txt                ← standalone dev/test build
   README.md

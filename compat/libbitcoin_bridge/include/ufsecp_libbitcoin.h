@@ -150,6 +150,53 @@ void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
                                 uint8_t* results);
 
 /* ------------------------------------------------------------------------- */
+/* 1b. In-place "collect" verify — verdict collapsed into the row's key cell.  */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Same verification as ufsecp_lbtc_verify_ecdsa/_schnorr, but with NO results
+ * array. The per-row verdict is written IN PLACE into each row's trailing
+ * key_size-byte cell:
+ *
+ *     VALID   row  ->  memset(key cell, 0, key_size)   (key zeroed)
+ *     INVALID row  ->  key cell left exactly as the caller supplied it
+ *
+ * The caller's correlation id therefore SURVIVES only on rejected rows. A single
+ * post-pass that "collects every row whose key cell is non-zero" yields the
+ * rejected-id set directly — no second side table, no results[]. (This is the
+ * inverse of the results-based variant, which NEVER touches the key cell. They
+ * are mutually exclusive views of the same verification; pick one per call.)
+ *
+ *   ctrl      bound controller (ufsecp_lbtc_ctrl_create).
+ *   rows      IN/OUT, MUTABLE, n rows of (RECORD + key_size) bytes, tightly
+ *             packed. The first RECORD bytes are the signature record (read
+ *             only); the trailing key_size bytes are the caller's id AND the
+ *             result channel (zeroed on valid, untouched on invalid). MUST point
+ *             to writable memory — a caller that mmap'd the source read-only must
+ *             remap MAP_PRIVATE / PROT_WRITE first.
+ *   n         record COUNT. May be arbitrarily large: n is walked internally in
+ *             device-sized chunks, so there is no maximum and no size error.
+ *   key_size  trailing bytes per row, and the result channel. MUST be > 0:
+ *             with key_size == 0 there is no cell to write the verdict into, so
+ *             the call is a NO-OP (nothing can be reported — fail-closed).
+ *
+ * Returns void (same error model as the results variant): the only recoverable
+ * failure — no usable backend — is surfaced at ctrl_create time. A degenerate
+ * call (NULL ctrl/rows, n == 0, or key_size == 0) writes nothing; the key cells
+ * stay as supplied, i.e. every id survives = "all rejected" = fail-closed, never
+ * falsely accepted. An unrecoverable mid-batch condition (scratch OOM) abandons
+ * the loop: processed rows keep their zeroed/left verdict; rows not yet reached
+ * keep their non-zero id = rejected. Fail-closed end to end.
+ */
+void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
+                                      uint8_t* rows, size_t n,
+                                      size_t key_size);
+
+void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
+                                        uint8_t* rows, size_t n,
+                                        size_t key_size);
+
+/* ------------------------------------------------------------------------- */
 /* 2. BIP-352 Silent Payments scan batch.                                     */
 /* ------------------------------------------------------------------------- */
 
@@ -249,6 +296,18 @@ public:
         ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
     }
 
+    // --- Collect (in-place) verify ------------------------------------------
+    // No results buffer: the verdict is written into each row's trailing key
+    // cell (key_size MUST be > 0) — zeroed on valid, left intact on invalid. The
+    // caller then collects every row whose key cell is still non-zero = the
+    // rejected-id set. `rows` MUST be writable. key_size == 0 is a no-op.
+    void collect_ecdsa(uint8_t* rows, size_t count, size_t key_size) const {
+        ufsecp_lbtc_verify_ecdsa_collect(ctrl_, rows, count, key_size);
+    }
+    void collect_schnorr(uint8_t* rows, size_t count, size_t key_size) const {
+        ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size);
+    }
+
 #if __cplusplus >= 202002L
     // --- Typed-span overloads (C++20) ---------------------------------------
     // Pass the packed record span directly; NOTHING about its size is restated at
@@ -292,6 +351,49 @@ public:
         ufsecp_lbtc_verify_schnorr(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
             sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results);
+    }
+
+    // --- Typed-span COLLECT overloads (C++20) -------------------------------
+    // The in-place collect path writes each row's key cell, so the span is over
+    // NON-const Row (mutable) — the type system enforces caller writability at
+    // the C++ boundary (this is exactly why the span must not be const). count =
+    // batch.size(); key_size = sizeof(Row) - RECORD, which MUST be > 0 (the row
+    // must carry a non-empty key cell to hold the verdict — enforced by a
+    // static_assert). After the call, scan `batch` for any Row whose key cell is
+    // non-zero: those are the rejected rows (their correlation id survived).
+    //
+    //     std::span<ecdsa::triple> batch = ...;   // MUTABLE
+    //     ctrl.collect_ecdsa(batch);
+    //     for (auto& row : batch) if (key_nonzero(row)) reject(row);
+    template <class Row>
+    void collect_ecdsa(std::span<Row> batch) const {
+        static_assert(sizeof(Row) > UFSECP_LBTC_ECDSA_RECORD,
+                      "collect requires a non-empty key cell: sizeof(Row) must "
+                      "exceed the 129-byte ECDSA record");
+        static_assert(std::is_standard_layout_v<Row>,
+                      "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
+                      "struct so the first 129 bytes are the contiguous on-wire record");
+        static_assert(!std::is_const_v<Row>,
+                      "collect writes the key cell in place — the span must be over "
+                      "non-const Row (mutable rows)");
+        ufsecp_lbtc_verify_ecdsa_collect(
+            ctrl_, reinterpret_cast<uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD);
+    }
+    template <class Row>
+    void collect_schnorr(std::span<Row> batch) const {
+        static_assert(sizeof(Row) > UFSECP_LBTC_SCHNORR_RECORD,
+                      "collect requires a non-empty key cell: sizeof(Row) must "
+                      "exceed the 128-byte Schnorr record");
+        static_assert(std::is_standard_layout_v<Row>,
+                      "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
+                      "struct so the first 128 bytes are the contiguous on-wire record");
+        static_assert(!std::is_const_v<Row>,
+                      "collect writes the key cell in place — the span must be over "
+                      "non-const Row (mutable rows)");
+        ufsecp_lbtc_verify_schnorr_collect(
+            ctrl_, reinterpret_cast<uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD);
     }
 #endif /* C++20 std::span */
 

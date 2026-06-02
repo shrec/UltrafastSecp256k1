@@ -54,13 +54,16 @@ void make_msg(uint8_t msg[32], uint32_t seed) {
 }
 
 /* Build a corpus that mixes valid signatures with every consensus-relevant
- * rejection class. Returns the packed rows (no opaque key). */
+ * rejection class. With ks > 0 each row carries a distinct non-zero correlation
+ * id (= i+1, little-endian) in its trailing key cell — required for the collect
+ * differential, where a surviving non-zero cell IS the rejected marker. */
 enum Kind { ECDSA, SCHNORR };
-std::vector<uint8_t> build_corpus(ufsecp_ctx* ctx, Kind k, size_t n) {
+std::vector<uint8_t> build_corpus(ufsecp_ctx* ctx, Kind k, size_t n, size_t ks=0) {
     const size_t rec = (k==ECDSA) ? UFSECP_LBTC_ECDSA_RECORD : UFSECP_LBTC_SCHNORR_RECORD;
-    std::vector<uint8_t> rows(n*rec, 0);
+    const size_t stride = rec + ks;
+    std::vector<uint8_t> rows(n*stride, 0);
     for (size_t i=0;i<n;++i) {
-        uint8_t* r = rows.data()+i*rec;
+        uint8_t* r = rows.data()+i*stride;
         uint8_t sk[32], msg[32], pub[33], aux[32]={0};
         make_sk(sk,(uint32_t)(i+1)); make_msg(msg,(uint32_t)(i+1));
         if (ufsecp_pubkey_create(ctx, sk, pub) != UFSECP_OK) ++g_fail;
@@ -82,6 +85,9 @@ std::vector<uint8_t> build_corpus(ufsecp_ctx* ctx, Kind k, size_t n) {
             case 5: std::memset(r+sig_off+32, 0xff, 32); break; /* s = 0xff..ff (>=n) */
             case 6: r[32] ^= 0x01; break;                   /* flip pubkey byte: ECDSA prefix / Schnorr x-only (both @32) */
         }
+        /* distinct non-zero id in the key cell (only used by the collect leg) */
+        const uint64_t id = (uint64_t)i + 1u;
+        for (size_t b=0;b<ks;++b) r[rec+b] = (uint8_t)(id >> (8*b));
     }
     return rows;
 }
@@ -172,6 +178,71 @@ bool diff_kind(ufsecp_lbtc_ctrl* gpu, ufsecp_lbtc_ctrl* cpu, const void* ls_opaq
     return (g_ninv==c_ninv);
 }
 
+/* Collect-mode consensus differential: same mixed corpus, but each row carries a
+ * non-zero id and the verdict is collapsed IN PLACE into the key cell. The
+ * rejected set is {i : key cell non-zero} after the call; it must match across
+ * GPU, CPU and (when linked) libsecp256k1 — proving the in-place collect channel
+ * is consensus-identical to the results channel. */
+bool diff_kind_collect(ufsecp_lbtc_ctrl* gpu, ufsecp_lbtc_ctrl* cpu, const void* ls_opaque,
+                       Kind k, size_t n) {
+    const size_t KS = 4;
+    const size_t rec = (k==ECDSA) ? UFSECP_LBTC_ECDSA_RECORD : UFSECP_LBTC_SCHNORR_RECORD;
+    const size_t stride = rec + KS;
+    ufsecp_ctx* sctx=nullptr;
+    if (ufsecp_ctx_create(&sctx)!=UFSECP_OK) return false;
+    auto base = build_corpus(sctx, k, n, KS);
+    ufsecp_ctx_destroy(sctx);
+
+    /* two mutable copies — collect writes the key cells in place */
+    std::vector<uint8_t> g_rows = base, c_rows = base;
+    if (k==ECDSA) {
+        ufsecp_lbtc_verify_ecdsa_collect(gpu, g_rows.data(), n, KS);
+        ufsecp_lbtc_verify_ecdsa_collect(cpu, c_rows.data(), n, KS);
+    } else {
+        ufsecp_lbtc_verify_schnorr_collect(gpu, g_rows.data(), n, KS);
+        ufsecp_lbtc_verify_schnorr_collect(cpu, c_rows.data(), n, KS);
+    }
+    auto key_nonzero = [&](const std::vector<uint8_t>& v, size_t i) {
+        const uint8_t* cell = v.data() + i*stride + rec;
+        for (size_t b=0;b<KS;++b) if (cell[b]) return true; return false;
+    };
+    const char* name = (k==ECDSA)?"ECDSA":"Schnorr";
+
+    bool have_ls = false;
+#ifdef UFSECP_LBTC_HAVE_LIBSECP
+    have_ls = (ls_opaque != nullptr);
+#else
+    (void)ls_opaque;
+#endif
+    size_t mismatch=0, first=(size_t)-1, g_rej=0, c_rej=0, ls_rej=0;
+    for (size_t i=0;i<n;++i) {
+        const bool gz = key_nonzero(g_rows, i);   /* GPU rejected row i  */
+        const bool cz = key_nonzero(c_rows, i);   /* CPU rejected row i  */
+        bool lz = cz;
+#ifdef UFSECP_LBTC_HAVE_LIBSECP
+        if (have_ls) {
+            /* records are untouched by collect — verify from the GPU copy */
+            lz = libsecp_verify_row((const secp256k1_context*)ls_opaque, k,
+                                    g_rows.data()+i*stride) == 0;
+        }
+#endif
+        if (gz) ++g_rej; if (cz) ++c_rej; if (lz) ++ls_rej;
+        if (gz != cz || gz != lz) { if (first==(size_t)-1) first=i; ++mismatch; }
+    }
+    if (mismatch) {
+        std::printf("  COLLECT DIVERGENCE [%s]: %zu/%zu rows differ (first @%zu)\n",
+                    name, mismatch, n, first);
+        return false;
+    }
+    if (have_ls)
+        std::printf("  %s collect: GPU==CPU==libsecp rejected-set on %zu rows (%zu rejected); %zu==%zu==%zu\n",
+                    name, n, c_rej, g_rej, c_rej, ls_rej);
+    else
+        std::printf("  %s collect: GPU==CPU rejected-set on %zu rows (%zu rejected); %zu==%zu  [libsecp leg not linked]\n",
+                    name, n, c_rej, g_rej, c_rej);
+    return (g_rej==c_rej) && (!have_ls || ls_rej==c_rej);
+}
+
 } // namespace
 
 int test_lbtc_consensus_diff_run() {
@@ -200,6 +271,9 @@ int test_lbtc_consensus_diff_run() {
     const size_t N = 20000;
     CHECK(diff_kind(gpu, cpu, ls, ECDSA,   N), "ECDSA  GPU==CPU==libsecp consensus (mixed corpus)");
     CHECK(diff_kind(gpu, cpu, ls, SCHNORR, N), "Schnorr GPU==CPU==libsecp consensus (mixed corpus)");
+    /* in-place collect channel must be consensus-identical to the results channel */
+    CHECK(diff_kind_collect(gpu, cpu, ls, ECDSA,   N), "ECDSA  collect GPU==CPU==libsecp rejected-set");
+    CHECK(diff_kind_collect(gpu, cpu, ls, SCHNORR, N), "Schnorr collect GPU==CPU==libsecp rejected-set");
 
 #ifdef UFSECP_LBTC_HAVE_LIBSECP
     secp256k1_context_destroy(lsctx);

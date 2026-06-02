@@ -33,22 +33,27 @@ if(UFSECP_LBTC_WITH_GPU)
     target_compile_definitions(ufsecp_lbtc_bridge PUBLIC UFSECP_LBTC_WITH_GPU)
 endif()
 
-# Link the engine.
-if(TARGET fastsecp256k1)
-    target_link_libraries(ufsecp_lbtc_bridge PUBLIC fastsecp256k1)        # mode A
-elseif(TARGET secp256k1_fast)
-    target_link_libraries(ufsecp_lbtc_bridge PUBLIC secp256k1_fast)       # mode A
-else()
-    find_library(UFSECP_LIBRARY NAMES ufsecp                              # mode B
-        HINTS ${UFSECP_LIB_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../out)
-    if(UFSECP_LIBRARY)
-        target_link_libraries(ufsecp_lbtc_bridge PUBLIC ${UFSECP_LIBRARY})
+# Link the engine onto an arbitrary target (used by the bridge lib and by the
+# smallchunk test, which recompiles the bridge source with a tiny kChunk).
+function(ufsecp_lbtc_link_engine tgt access)
+    if(TARGET fastsecp256k1)
+        target_link_libraries(${tgt} ${access} fastsecp256k1)             # mode A
+    elseif(TARGET secp256k1_fast)
+        target_link_libraries(${tgt} ${access} secp256k1_fast)            # mode A
     else()
-        message(WARNING
-            "ufsecp_lbtc_bridge: no engine target/library found. "
-            "Set -DUFSECP_LIBRARY=/path/to/libufsecp.so or build under the engine.")
+        find_library(UFSECP_LIBRARY NAMES ufsecp                          # mode B
+            HINTS ${UFSECP_LIB_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../out)
+        if(UFSECP_LIBRARY)
+            target_link_libraries(${tgt} ${access} ${UFSECP_LIBRARY})
+        else()
+            message(WARNING
+                "ufsecp_lbtc_bridge: no engine target/library found. "
+                "Set -DUFSECP_LIBRARY=/path/to/libufsecp.so or build under the engine.")
+        endif()
     endif()
-endif()
+endfunction()
+
+ufsecp_lbtc_link_engine(ufsecp_lbtc_bridge PUBLIC)
 
 if(UFSECP_LBTC_BUILD_TESTS)
     enable_testing()
@@ -79,6 +84,28 @@ if(UFSECP_LBTC_BUILD_TESTS)
     endif()
     add_test(NAME lbtc_consensus_diff COMMAND test_lbtc_consensus_diff)
     set_tests_properties(lbtc_consensus_diff PROPERTIES SKIP_RETURN_CODE 77)
+
+    # In-place "collect" verify: verdict collapsed into each row's key cell.
+    add_executable(test_lbtc_collect tests/test_lbtc_collect.cpp)
+    target_compile_features(test_lbtc_collect PRIVATE cxx_std_20) # std::span collect overload
+    target_link_libraries(test_lbtc_collect PRIVATE ufsecp_lbtc_bridge)
+    add_test(NAME lbtc_collect COMMAND test_lbtc_collect)
+
+    # Same source, but the bridge is RECOMPILED with a tiny kChunk so the corpus
+    # straddles chunk boundaries — exercises CollectSink's (base+i)*stride global
+    # indexing across chunks deterministically (no 262k-row corpus needed).
+    add_executable(test_lbtc_collect_smallchunk
+        tests/test_lbtc_collect.cpp src/ufsecp_libbitcoin.cpp)
+    target_compile_features(test_lbtc_collect_smallchunk PRIVATE cxx_std_20)
+    target_compile_definitions(test_lbtc_collect_smallchunk
+        PRIVATE UFSECP_LBTC_CHUNK_OVERRIDE=8)
+    if(UFSECP_LBTC_WITH_GPU)
+        target_compile_definitions(test_lbtc_collect_smallchunk PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    target_include_directories(test_lbtc_collect_smallchunk
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${UFSECP_INCLUDE_DIR})
+    ufsecp_lbtc_link_engine(test_lbtc_collect_smallchunk PRIVATE)
+    add_test(NAME lbtc_collect_smallchunk COMMAND test_lbtc_collect_smallchunk)
 endif()
 
 if(UFSECP_LBTC_BUILD_EXAMPLE)
