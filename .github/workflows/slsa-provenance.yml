@@ -81,7 +81,7 @@ jobs:
       # GitHub-native build provenance attestation — detected by Scorecard Signed-Releases
       # (satisfies SLSA L2 provenance; Scorecard checks GitHub Attestations API).
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@c074443f1a9dfb9ae0aef112b4b33a6e7cf40acb # v2.1.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: ufsecp-linux-x64.tar.gz
 
@@ -107,7 +107,7 @@ jobs:
       contents: read
     steps:
       - name: Install Cosign
-        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9 # v3
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v3.8.0
 
       - name: Download artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
