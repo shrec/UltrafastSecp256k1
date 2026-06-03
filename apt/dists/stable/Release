@@ -5,14 +5,14 @@ Codename: stable
 Architectures: amd64 arm64
 Components: main
 Description: UltrafastSecp256k1 APT Repository
-Date: Wed, 03 Jun 2026 17:54:07 +0000
+Date: Wed, 03 Jun 2026 19:14:36 +0000
 MD5Sum:
- f51bb0987d444fb7c1d62d0bac3ecfee 557 main/binary-amd64/Packages
- 3e5e9f43740e40f9181aac925c3b93f8 417 main/binary-amd64/Packages.gz
- e492ea5d1d8c1fd15b92ac79395c1239 557 main/binary-arm64/Packages
- e8f0209ae405369c80fe342d49f0241a 414 main/binary-arm64/Packages.gz
+ 94921137240d9bbd59bbba0f44adb2d2 557 main/binary-amd64/Packages
+ 46f83c2cbfe018e5c981bdc2926ffc6f 417 main/binary-amd64/Packages.gz
+ e810e9660654bedf403d3487d678938d 557 main/binary-arm64/Packages
+ 659adb9582a6b73c9f4bfd090097397d 418 main/binary-arm64/Packages.gz
 SHA256:
- 66ab31b26729ce0ed72e94b33dfacfaa5fe451dd57743b347758579f4889c10b 557 main/binary-amd64/Packages
- 2e8d58c093533e1c9c2346985fc50a91706ca5d2154eb505efc738eeff3eae6f 417 main/binary-amd64/Packages.gz
- 9d058dac7517a5b8d6217694c6f319750201e5a563298cf7717e73173a7cde82 557 main/binary-arm64/Packages
- 1881fd59255da04bee82ce839765a3bd87876bb96d6e93818888ce03cfb55636 414 main/binary-arm64/Packages.gz
+ fe1003d42db02f06e42f2c654d9aea7ff842fc040b42bbf920a8ccb13da6d001 557 main/binary-amd64/Packages
+ 077650a0fa13d9bb876dc4ea2686f8c264a236e1cf7d6e5a318d2f649a1db937 417 main/binary-amd64/Packages.gz
+ 83e7a3938b9644891dc509adaa170bf6379108cbe2fc46b249b342e560005a01 557 main/binary-arm64/Packages
+ 29d2241a7493ca2f0d8e8548839d2382115af640e1deb3a808174a4ae9883e97 418 main/binary-arm64/Packages.gz
