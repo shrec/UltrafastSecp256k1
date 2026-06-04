@@ -245,21 +245,23 @@ build installs (`secp256k1-fast` on the standard root build).
 
 | Binding | Minimum ABI | Notes |
 |---------|-------------|-------|
-| Python (ctypes) | 1 | Targets ABI v1 (153 stable C functions) |
-| Rust (FFI) | 1 | Targets ABI v1 (153 stable C functions) |
-| Go (CGo) | 1 | Targets ABI v1 (153 stable C functions) |
-| C# (P/Invoke) | 1 | Targets ABI v1 (153 stable C functions) |
-| Java (JNI) | 1 | Targets ABI v1 (153 stable C functions) |
-| Swift | 1 | Targets ABI v1 (153 stable C functions) |
-| Dart (FFI) | 1 | Targets ABI v1 (153 stable C functions) |
-| React Native | 1 | Targets ABI v1 (153 stable C functions) |
-| Node.js (NAPI) | 1 | Targets ABI v1 (153 stable C functions) |
-| Node.js (WASM) | 1 | Targets ABI v1 (153 stable C functions) |
-| Ruby (FFI) | 1 | Targets ABI v1 (153 stable C functions) |
-| Kotlin (JNI) | 1 | Targets ABI v1 (153 stable C functions) |
+| Python (ctypes) | 4 | Targets ABI v4 (153 stable C functions) |
+| Rust (FFI) | 4 | Targets ABI v4 (153 stable C functions) |
+| Go (CGo) | 4 | Targets ABI v4 (153 stable C functions) |
+| C# (P/Invoke) | 4 | Targets ABI v4 (153 stable C functions) |
+| Java (JNI) | 4 | Targets ABI v4 (153 stable C functions) |
+| Swift | 4 | Targets ABI v4 (153 stable C functions) |
+| Dart (FFI) | 4 | Targets ABI v4 (153 stable C functions) |
+| React Native | 4 | Targets ABI v4 (153 stable C functions) |
+| Node.js (NAPI) | 4 | Targets ABI v4 (153 stable C functions) |
+| Node.js (WASM) | 4 | Targets ABI v4 (153 stable C functions) |
+| Ruby (FFI) | 4 | Targets ABI v4 (153 stable C functions) |
+| Kotlin (JNI) | 4 | Targets ABI v4 (153 stable C functions) |
 
-All bindings target `UFSECP_ABI_VERSION >= 1`. When ABI version bumps, binding
-maintainers update their minimum version requirement and adjust any changed signatures.
+All bindings target `UFSECP_ABI_VERSION == 4` (the current MAJOR); every binding's
+`EXPECTED_ABI` constant is gated to 4 by `ci/check_abi_version_sync.py` (the fix for
+REL-ABI-VERSION-MISMATCH-001, where bindings hardcoded ABI 1 against an ABI 4 library).
+When the ABI MAJOR bumps, binding maintainers update `EXPECTED_ABI` and adjust any changed signatures.
 
 ---
 

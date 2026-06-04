@@ -3,7 +3,9 @@
 **Commit:** `f6b92035` (dev branch, 2026-05-22; doc corrections 2026-05-26)
 **Date:** 2026-05-22
 **Last updated:** 2026-05-26 — doc corrections from v8 multi-pass review: VERSION.txt reference (4.0.0→4.1.0), ConnectBlock wording (removed "wins ALL scenarios", explicit LTO/no-LTO), wiring count (254→334), GPU ABI op count (13→16 in BENCHMARKS.md)
-**Overall PR Readiness:** **~90%** (code, documentation, and DOI badge done; the one remaining item is the benchmark canonical-ratio desync — see BENCH-01 / PRR-02 — pending the next measured bench refresh)
+**Overall PR Readiness:** **~95%** (code, documentation, and DOI badge done). Current canonical CT signing ratios are **1.33× ECDSA / 1.26× Schnorr** (GCC 14.2.0, `docs/canonical_numbers.json` → `ct_signing_gcc`), synced across README / BACKEND_EVIDENCE.
+
+> **Note:** the dated "fixes applied this session" entries below are a historical changelog. CT ratios quoted in them (e.g. 1.27×/1.13×, 1.24×/1.09×) were canonical **as of that session** and are **superseded** by the 1.33×/1.26× values above.
 
 ---
 

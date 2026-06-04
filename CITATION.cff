@@ -10,7 +10,7 @@ repository-code: "https://github.com/shrec/UltrafastSecp256k1"
 url: "https://shrec.github.io/UltrafastSecp256k1/docs/"
 license: MIT
 version: "4.1.0"
-date-released: "2026-05-23"
+date-released: "2026-06-02"
 doi: "10.5281/zenodo.19685027"
 identifiers:
   - type: doi

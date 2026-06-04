@@ -1,7 +1,7 @@
 libufsecp (4.1.0-1) unstable; urgency=medium
 
   * Release 4.1.0: CT signing optimization, ConnectBlock benchmark evidence,
-    CAAS audit expansion (417 modules, 273 exploit PoCs), shim security hardening.
+    CAAS audit expansion (419 modules, 270 exploit PoCs), shim security hardening.
   * No ABI break from 4.0.0. SOVERSION remains 4.
 
  -- shrec <payysoon@gmail.com>  Wed, 28 May 2026 00:00:00 +0000

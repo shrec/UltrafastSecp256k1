@@ -12,7 +12,10 @@ G-8 requires proof that multiple independent analysis approaches
 
 The `ct-independence.yml` workflow implements this: it runs two tools
 with different methodologies in parallel, collects their verdicts as
-JSON, and asserts that no tool reports leakage.
+JSON, and (via `ci/ct_independence_check.py --min-tools 2`) requires that
+**≥2 distinct tools verdict PASS**. If only one tool PASSes (e.g. dudect is
+not yet wired and SKIPs), the result is **INCONCLUSIVE**, never PASS — a
+single tool cannot establish independence.
 
 ## 2. Tools and methodologies
 
@@ -31,6 +34,12 @@ The two methodologies are **orthogonal**:
 
 Neither tool can catch everything; requiring both to agree removes the
 largest blind spots of each.
+
+> **Current status:** the dudect job builds with `DUDECT_CT_CHECK=ON` but the
+> `ct_dudect` binary target is not yet wired, so dudect currently **SKIPs**. The
+> live aggregate result is therefore **INCONCLUSIVE** (valgrind PASS only) and is
+> reported as a warning — never a false PASS. The gate becomes PASS only once a
+> second tool is wired and also verdicts PASS.
 
 ## 3. Verdict format
 
@@ -76,11 +85,11 @@ PASS: 2 independent CT tool(s) found no timing leakage
 
 ## 5. Trigger policy
 
-The workflow runs on:
-- Push to `main` or `dev` touching CT source paths (`src/cpu/src/ct_*.cpp`,
-  `src/cpu/src/ecdsa.cpp`, `src/cpu/src/schnorr.cpp`, `include/**`, `audit/**`)
-- Pull requests to `main` touching the same paths
-- Weekly schedule (Sunday 06:00 UTC) to catch toolchain drift
+The workflow is **manual (`workflow_dispatch`) only** — it does NOT run on
+push, on pull request, or on a schedule. Replay it on demand from the Actions
+tab (or via the GitHub CLI) to refresh the CT-independence evidence. The PR/push
+CT gates are the individual per-tool workflows; this aggregator is replayed
+manually because dudect is a manual/optional second methodology.
 
 ## 6. Relationship to other CT workflows
 

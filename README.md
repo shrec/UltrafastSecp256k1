@@ -96,6 +96,9 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 > **ConnectBlock (primary block-validation workload):** within ±1.5% of libsecp256k1 depending on build configuration.
 > - With Release+LTO (GCC 14.2.0, **required for any positive result — without LTO the result is negative**): **+0.9–1.5%** across ConnectBlock aggregate profiles (AllEcdsa, AllSchnorr, Mixed)
 > - VerifyScriptP2WPKH individual validation: **parity (Ultra ≤0.4% slower, within noise margin)**
+> - **Methodology caveat:** the ConnectBlock micro-benchmark reuses a small pubkey set (5 keys),
+>   so the ECDSA-verify component of this margin is partly cache-amplified relative to a real
+>   block of mostly-unique pubkeys; see [`docs/BITCOIN_CORE_BENCH_RESULTS.json`](docs/BITCOIN_CORE_BENCH_RESULTS.json) for the recorded caveat.
 > - Without LTO: **−0.5–1.0%** on all profiles. The earlier ~1.1% deficit was reduced after two
 >   targeted fixes (PERF-002 redundant y²=x³+7 curve-check removal in commit `40697447`, and the
 >   DER parser fast-path replacing the previous Scalar-construct round-trip); residual ~0.5–1.0%
@@ -927,8 +930,8 @@ The `ct::` namespace provides constant-time operations for secret-key material -
 | Generator Mul (k×G) | 9,200 ns | 15,347 ns | 1.67× |
 | Scalar Inverse | — | 2,503 ns | CT-only |
 | Point Add (complete) | — | 400 ns | CT-only |
-| ECDSA sign (end-to-end) | 22,316 ns | 22,501 ns | **0.83%** |
-| Schnorr sign (end-to-end) | 17,976 ns | 17,953 ns | **≈0.00%** |
+| ECDSA sign (end-to-end) | 22,063 ns | 21,945 ns | **0.99× (CT faster)** |
+| Schnorr sign (end-to-end) | 17,980 ns | 17,804 ns | **0.99× (CT faster)** |
 
 *GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json)*
 

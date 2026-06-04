@@ -27,6 +27,9 @@ DOCS = [
     "docs/AUDIT_COVERAGE.md",
     "docs/WHY_ULTRAFASTSECP256K1.md",
     "docs/BITCOIN_CORE_BACKEND_EVIDENCE.md",
+    # P7-DOC-001: per-workflow assurance doc — CT_INDEPENDENCE.md §5 previously
+    # claimed push/PR/weekly triggers while ct-independence.yml is dispatch-only.
+    "docs/CT_INDEPENDENCE.md",
 ]
 POSITIVE_CLAIM = re.compile(
     r"push/PR|push/pr|on push\b|CI-enforced|CI enforced|every commit|on every commit",

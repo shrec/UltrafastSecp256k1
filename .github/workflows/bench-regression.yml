@@ -107,7 +107,7 @@ jobs:
     - name: Run benchmark suite
       run: |
         echo "::warning::Benchmark running on shared GitHub runner (no CPU pinning, no turbo control)."
-        echo "::warning::Variance ±15-30%. Alert threshold 150% (1.5×) — only regressions >50% are reliably detected."
+        echo "::warning::Variance ±15-30%. Alert threshold 200% (2×) — only regressions >100% are reliably detected."
         echo "::warning::For controlled regression detection use local bench_unified protocol (CLAUDE.md §Performance)."
         mkdir -p /tmp/benchmark_results
         ./out/bench-gate/src/cpu/bench_unified --quick 2>&1 | tee /tmp/benchmark_results/raw_output.txt
@@ -226,7 +226,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Event:** \`${{ github.event_name }}\`  **Threshold:** alert-threshold '200%' = any op running >2x baseline (>100% slower) fails. Quick-mode variance is ±15-30%, so 1.5× would trip on noise." >> $GITHUB_STEP_SUMMARY
         if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "**Baseline:** stored to \`dev/bench-gate\` on gh-pages (auto-push: true)" >> $GITHUB_STEP_SUMMARY
+          echo "**Baseline:** NOT auto-pushed (auto-push: false, CI-006 floating-baseline policy); refresh manually via workflow_dispatch on a known-good commit" >> $GITHUB_STEP_SUMMARY
         else
           echo "**Baseline:** read-only comparison (PR — baseline not updated)" >> $GITHUB_STEP_SUMMARY
         fi

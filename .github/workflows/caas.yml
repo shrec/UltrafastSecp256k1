@@ -17,8 +17,10 @@
 #   - caas-report         : JSON summary of all pipeline stages
 #   - audit-bundle        : EXTERNAL_AUDIT_BUNDLE.json + sha256 manifest
 #
-# On PR:  each stage becomes a required status check named "CAAS / <stage>"
-# On push to dev: uploads bundle artifact; bundle drift = workflow failure
+# This workflow is MANUAL (workflow_dispatch) only — it does NOT run on PR or push.
+# The PR-required CAAS status checks are produced by gate.yml (job caas-security)
+# and ci.yml (job caas-full); this workflow is a manual deep replay that uploads
+# the bundle artifact (bundle drift = workflow failure).
 # ===========================================================================
 
 name: CAAS

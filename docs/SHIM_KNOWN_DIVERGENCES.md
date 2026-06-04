@@ -200,6 +200,25 @@ are stricter but never less safe. Callers using well-formed inputs are unaffecte
 
 ---
 
+### secp256k1_ec_pubkey_serialize — strict flags validation (stricter than upstream)
+
+- **Upstream behavior:** ARG_CHECKs only that the low byte of `flags` equals
+  `SECP256K1_FLAGS_TYPE_COMPRESSION` (0x02), then reads bit 8 (`SECP256K1_FLAGS_BIT_COMPRESSION`)
+  to choose compression. Flags with extra high bits set (e.g. `0x302`) are therefore ACCEPTED
+  and treated as compressed.
+- **Shim behavior:** requires `flags` to equal **exactly** `SECP256K1_EC_COMPRESSED` (0x102) or
+  `SECP256K1_EC_UNCOMPRESSED` (0x02); any other value (including upstream-accepted high-bit
+  variants like `0x302`, and garbage like `0xDEAD`) fires the illegal callback and returns 0.
+- **Reason:** Fail-closed on malformed flag values. Bitcoin Core and every known caller pass
+  exactly `SECP256K1_EC_COMPRESSED`/`_UNCOMPRESSED`, so the stricter check never rejects a
+  legitimate call; it only rejects undefined-bit garbage that upstream silently accepts.
+- **Impact:** None for conformant callers. A caller passing `0x02 | <extra high bits>` is
+  rejected by the shim where upstream serializes — a stricter, safer behavior. (PASS3-SHIM-002)
+- **Test:** `compat/libsecp256k1_shim/tests/test_shim_security_edge_cases.cpp` (garbage-flags
+  rejection). The upstream-accepts-`0x302` edge is documentation-only (no Core caller exercises it).
+
+---
+
 ## Performance improvements — LOCKED: DO NOT REVERT (shim is faster; correctness identical to upstream)
 
 <!-- OWNER-LOCKED: all entries below are intentional performance optimizations.
@@ -275,6 +294,20 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
 ---
 
 ## Capability gaps and structural divergences
+
+### secp256k1_ec_pubkey_serialize — too-small output buffer fails quietly
+
+- **Upstream behavior:** ARG_CHECKs `*outputlen >= 33` (compressed) / `>= 65` (uncompressed)
+  FIRST, firing the illegal callback (abort by default) and setting `*outputlen = 0` on failure.
+- **Shim behavior:** silently returns 0 on a too-small buffer **without** firing the illegal
+  callback, and leaves `*outputlen` unchanged.
+- **Reason:** The shim treats a too-small buffer as an ordinary failure (return 0), which is
+  fail-closed — no bytes are written and the caller's `if (!serialize(...))` handles it. The
+  illegal-callback abort is reserved for true API-misuse.
+- **Impact:** A caller that ignores the return value and relies on the illegal callback firing,
+  or reads `*outputlen` after a failed call, observes different behavior than upstream. Bitcoin
+  Core always passes a correctly-sized buffer, so this never triggers in practice. (PASS3-SHIM-003)
+- **Test:** documentation-only divergence; no Core caller exercises the too-small-buffer path.
 
 These divergences reflect architectural constraints or unimplemented features.
 They are not security issues; callers are affected only if they use the specific
