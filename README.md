@@ -1796,13 +1796,13 @@ If you find **UltrafastSecp256k1** useful, consider supporting its development!
 > See the [Seeking Sponsors](#seeking-sponsors----bug-bounty--development) section above for details.
 
 [![Sponsor](https://img.shields.io/badge/Sponsor_This_Project-GitHub_Sponsors-ea4aaa.svg?style=for-the-badge&logo=github)](https://github.com/sponsors/shrec)
-[![Donate with Bitcoin Lightning](https://img.shields.io/badge/Lightning_Sats-shrec@stacker.news-F7931A?style=for-the-badge&logo=bitcoin)](https://stacker.news/shrec)
+![Donate with Bitcoin Silent Payment](https://img.shields.io/badge/Bitcoin-Silent_Payment-F7931A?style=for-the-badge&logo=bitcoin)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?style=for-the-badge&logo=paypal)](https://paypal.me/IChkheidze)
 
 | Method | Link |
 |--------|------|
 | **GitHub Sponsors** (preferred) | [github.com/sponsors/shrec](https://github.com/sponsors/shrec) |
-| **Bitcoin Lightning** | `shrec@stacker.news` via any Lightning wallet |
+| **Bitcoin (Silent Payment)** | `sp1qqgwy7u6hsaa0jmy0y6wu7nugv6my4yd8ns4lufceaf85u9nh52t06qsr534m9su54pegw7m7f295d0mv0temeqjmj7mu2877fvl80rnhf50nyvpv` (BIP-352 — paste into any Silent-Payment-capable wallet) |
 | **PayPal** | [paypal.me/IChkheidze](https://paypal.me/IChkheidze) |
 | **Corporate / Foundation grants** | [payysoon@gmail.com](mailto:payysoon@gmail.com) |
 

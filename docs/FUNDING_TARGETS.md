@@ -12,7 +12,7 @@ This document is a working playbook. It lists where the project can plausibly se
 |--------|-----|--------|
 | GitHub Sponsors (`shrec`) | https://github.com/sponsors/shrec | Active |
 | PayPal | https://paypal.me/IChkheidze | Active |
-| Stacker News | https://stacker.news/shrec | Active |
+| Bitcoin (Silent Payment, BIP-352) | `sp1qqgwy7u6hsaa0jmy0y6wu7nugv6my4yd8ns4lufceaf85u9nh52t06qsr534m9su54pegw7m7f295d0mv0temeqjmj7mu2877fvl80rnhf50nyvpv` | Active |
 
 A single one-line "Sponsor this project" CTA is in `README.md`. The project is also listed in `.github/FUNDING.yml`, which renders a sidebar Sponsor button on every GitHub page.
 
