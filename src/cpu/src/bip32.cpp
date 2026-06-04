@@ -539,8 +539,23 @@ std::pair<ExtendedKey, bool> bip32_derive_path(const ExtendedKey& master,
 
         uint32_t const child_index = hardened ? (index | 0x80000000u) : index;
         auto [child, ok] = current.derive_child(child_index);
-        if (!ok) return {ExtendedKey{}, false};
+        if (!ok) {
+            // P2-CT-001: scrub the working intermediate's private material on failure.
+            if (current.is_private) {
+                detail::secure_erase(current.key.data(), current.key.size());
+                detail::secure_erase(current.chain_code.data(), current.chain_code.size());
+            }
+            return {ExtendedKey{}, false};
+        }
         current = child;
+        // P2-CT-001: scrub the redundant `child` copy of the intermediate private key
+        // (and chain code) so no intermediate secret lingers on the stack across
+        // iterations. `current` is a LOCAL copy of the caller's master (never the
+        // caller's object); the FINAL returned key is `current`, never scrubbed here.
+        if (child.is_private) {
+            detail::secure_erase(child.key.data(), child.key.size());
+            detail::secure_erase(child.chain_code.data(), child.chain_code.size());
+        }
     }
 
     return {current, true};

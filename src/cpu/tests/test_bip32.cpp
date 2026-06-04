@@ -153,6 +153,27 @@ static void test_bip32_path() {
     auto [_2, ok_bad2] = bip32_derive_path(master, "x/0");
     (void)_2;
     CHECK(!ok_bad2, "Path not starting with 'm' fails");
+
+    // P2-CT-001: bip32_derive_path now secure_erases the intermediate `child`
+    // private key / chain-code copies between iterations. Verify the in-loop scrub
+    // does NOT corrupt the final result: derive_path must equal the same chain of
+    // manual derive_child() calls byte-for-byte, and be deterministic across calls.
+    {
+        auto [pk, ok_p] = bip32_derive_path(master, "m/0/1/2");
+        CHECK(ok_p, "P2-CT-001: derive_path(m/0/1/2) succeeds");
+        auto [c0, oc0] = master.derive_child(0);
+        auto [c1, oc1] = c0.derive_child(1);
+        auto [c2, oc2] = c1.derive_child(2);
+        CHECK(oc0 && oc1 && oc2, "P2-CT-001: manual derive_child chain succeeds");
+        CHECK(pk.key == c2.key,
+              "P2-CT-001: derive_path key == manual chained derive_child (scrub preserves result)");
+        CHECK(pk.chain_code == c2.chain_code,
+              "P2-CT-001: derive_path chain_code == manual chain");
+        CHECK(pk.depth == c2.depth, "P2-CT-001: derive_path depth matches manual chain");
+        auto [pk2, ok_p2] = bip32_derive_path(master, "m/0/1/2");
+        CHECK(ok_p2 && pk2.key == pk.key,
+              "P2-CT-001: derive_path is deterministic across calls (no scrub-induced corruption)");
+    }
 }
 
 // -- Serialization ------------------------------------------------------------
