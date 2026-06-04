@@ -194,9 +194,13 @@ static void test_nfp3_schnorr_sign_custom_nonce_fires_cb() {
 
     uint8_t seckey[32] = {}; seckey[31] = 3;
     secp256k1_keypair keypair;
+    // P7-TEST-003: a setup failure here is a HARD failure, not a silent pass.
+    // seckey=3 is a valid key, so keypair_create MUST succeed; if it ever fails,
+    // the NFP-3 property (custom noncefp fires the callback) is never verified and
+    // the test must FAIL rather than count a vacuous pass.
     if (!secp256k1_keypair_create(ctx, &keypair, seckey)) {
-        printf("  [NFP-3] keypair_create failed — skip\n");
-        ++g_pass;
+        printf("  [NFP-3] FAIL: keypair_create failed for a valid key (setup)\n");
+        ++g_fail;
         secp256k1_context_destroy(ctx);
         return;
     }

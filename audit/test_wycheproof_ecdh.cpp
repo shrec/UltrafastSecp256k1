@@ -3,15 +3,20 @@
 // ============================================================================
 // Track I3-2: ECDH invalid input rejection coverage from Project Wycheproof.
 //
-// Categories covered:
+// Categories covered IN THIS FILE:
 //   1. Valid ECDH shared secret (baseline sanity)
 //   2. Invalid public key -- point at infinity (must reject)
 //   3. Invalid public key -- off-curve point (must reject)
-//   4. Invalid public key -- wrong curve point (must reject)
-//   5. Twist attack -- point on twist of secp256k1 (must reject)
 //   6. Small-order inputs (secp256k1 is prime order -- no subgroups)
 //   7. Zero private key (must reject)
 //   8. Commutativity: ECDH(a, b*G) == ECDH(b, a*G)
+//   + Compressed-pubkey deserialization format rules (prefix 0x02/0x03, x < p).
+//
+// Wrong-curve and twist-attack rejection (categories 4 & 5) for the ECDH compute
+// paths are covered by audit/test_regression_ecdh_off_curve.cpp (SEC-005), which
+// exercises ecdh_compute / ecdh_compute_xonly / ecdh_compute_raw rejecting
+// off-curve pubkeys (y^2 != x^3 + 7) and the point at infinity. They are not
+// re-implemented here.
 //
 // Vectors derived from Wycheproof ecdh_secp256k1_test.json concepts.
 // secp256k1: y^2 = x^3 + 7 (mod p), p = 2^256 - 2^32 - 977
@@ -207,6 +212,16 @@ static void test_ecdh_commutativity_stress() {
     }
 }
 
+// Minimal compressed-pubkey FORMAT validator mirroring the library's parse rule:
+// a 33-byte compressed pubkey requires prefix 0x02/0x03 and x < p. (On-curve
+// y^2=x^3+7 membership for the ECDH compute paths is covered by
+// test_regression_ecdh_off_curve.cpp; here we assert the deserialization format.)
+static bool valid_compressed_pubkey_format(const uint8_t in[33]) {
+    if (in[0] != 0x02 && in[0] != 0x03) return false;  // compressed-prefix rule
+    FieldElement x;
+    return FieldElement::parse_bytes_strict(in + 1, x); // x must be < p
+}
+
 // ============================================================================
 // 6. Public key point validation via deserialization
 // ============================================================================
@@ -221,23 +236,25 @@ static void test_ecdh_point_validation() {
         "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798");
     std::memcpy(valid_compressed + 1, gx_bytes.data(), 32);
 
-    // Parse valid compressed -> should produce a point on curve
-    // (Using musig2.cpp's decompress_point pattern)
+    // P7-TEST-002: real assertions (these were previously vacuous g_pass++ probes).
+    // The valid 02||Gx compressed pubkey must validate.
+    CHECK(valid_compressed_pubkey_format(valid_compressed),
+          "valid 02||Gx compressed pubkey accepted (prefix + x<p)");
 
-    // Invalid prefix byte (0x04 for uncompressed, but only 33 bytes)
+    // Invalid prefix 0x04 in 33-byte form (uncompressed needs 65 bytes) -> reject
     {
         uint8_t bad[33] = {0x04};
         std::memcpy(bad + 1, gx_bytes.data(), 32);
-        // Parsing with 0x04 prefix in 33-byte form should fail
-        // (Uncompressed requires 65 bytes)
-        g_pass++;  // document: 0x04 prefix with 33 bytes = invalid format
+        CHECK(!valid_compressed_pubkey_format(bad),
+              "0x04 prefix rejected for a 33-byte compressed pubkey");
     }
 
-    // Invalid prefix byte (0x00)
+    // Invalid prefix 0x00 -> reject
     {
         uint8_t bad[33] = {0x00};
         std::memcpy(bad + 1, gx_bytes.data(), 32);
-        g_pass++;  // 0x00 prefix = invalid
+        CHECK(!valid_compressed_pubkey_format(bad),
+              "0x00 prefix rejected for a compressed pubkey");
     }
 
     // x >= p (invalid field element)
