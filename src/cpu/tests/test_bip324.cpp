@@ -233,6 +233,30 @@ static void test_ellswift() {
     // XDH with swapped roles produces different secret
     auto secret_swapped = ellswift_xdh(enc_b.data(), enc_a.data(), sk, true);
     CHECK(secret_init != secret_swapped, "ElligatorSwift XDH: swapped encodings → different secret");
+
+    // Many deterministic create→decode round-trips. ellswift_create(sk, aux) is
+    // deterministic in (sk, aux), so this reproducibly drives BOTH branches of
+    // ellswift_try_u — including the x3 case (reached only when a candidate u's
+    // x1/x2 case rejects). A single fixed-key create uses a random u, so the x3
+    // path was previously hit only by chance; this loop guarantees it is
+    // exercised every run, covering the lazy-sqrt deferral in ellswift_try_u.
+    int roundtrips_ok = 0;
+    for (int i = 1; i <= 64; ++i) {
+        std::array<std::uint8_t, 32> skb{};
+        std::array<std::uint8_t, 32> aux{};
+        for (int j = 0; j < 32; ++j) {
+            skb[j] = static_cast<std::uint8_t>((i * 7 + j * 13 + 1) & 0xFF);
+            aux[j] = static_cast<std::uint8_t>((i * 3 + j * 5 + 1) & 0xFF);
+        }
+        skb[0] |= 0x80;  // clearly non-zero
+        Scalar k = Scalar::from_bytes(skb);
+        auto e  = ellswift_create(k, aux.data());
+        auto dx = ellswift_decode(e.data());
+        auto KP = Point::generator().scalar_mul(k);
+        if (dx == KP.x()) ++roundtrips_ok;
+    }
+    CHECK(roundtrips_ok == 64,
+          "ElligatorSwift create→decode round-trips for 64 keys (both try_u branches)");
 }
 
 // ============================================================================
