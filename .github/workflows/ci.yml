@@ -786,11 +786,15 @@ jobs:
             | tail -5
 
       - name: Upload to Codecov
+        # Coverage generation above remains the CI gate. Keep Codecov CLI
+        # validation enabled, but do not fail the build on Codecov-side key or
+        # service availability problems during upload.
+        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           files: coverage.lcov
           flags: cpu
-          fail_ci_if_error: true
+          fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
