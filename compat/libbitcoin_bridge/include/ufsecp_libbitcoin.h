@@ -41,6 +41,11 @@
  *     code (the only recoverable failure, no usable backend, is reported at
  *     controller creation). The caller maps a failing row back to its block/tx
  *     via the opaque correlation tag carried in that row.
+ *   - Two storage formats are supported:
+ *       * row API:     [record][opaque key] repeated, for a single packed table.
+ *       * column API:  msg_hashes[], pubkeys[], sigs[] plus optional key column,
+ *                      for callers that already maintain vertical mmap columns and
+ *                      want to avoid bridge-side row de-interleave.
  *
  * Consensus note:
  *   For block validation the GPU path is used as a consensus-bearing
@@ -66,7 +71,7 @@ extern "C" {
 
 /* Uniform field order across both kinds — hash/msg first, then pubkey, then
  * signature (matches the libbitcoin ecdsa::triple / schnorr::triple structs,
- * so a packed struct array forwards into these calls with zero copy). */
+ * so a packed struct array forwards into the row API directly). */
 /* ECDSA row:   32-byte msghash      | 33-byte compressed pubkey | 64-byte sig. */
 #define UFSECP_LBTC_ECDSA_RECORD   129u
 /* Schnorr row: 32-byte msg/sighash  | 32-byte x-only pubkey     | 64-byte sig. */
@@ -149,6 +154,34 @@ void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
                                 size_t key_size,
                                 uint8_t* results);
 
+/*
+ * Columnar/vertical form of the same verification API. These calls are intended
+ * for large batch producers that already store independent columns:
+ *
+ *     ECDSA:   msg_hashes32[n][32], pubkeys33[n][33], sigs64[n][64]
+ *     Schnorr: msg_hashes32[n][32], pubkeys_x32[n][32], sigs64[n][64]
+ *
+ * The per-row verdict is byte-identical to the packed-row API. On GPU builds the
+ * bridge forwards these columns directly to the existing GPU C ABI, avoiding the
+ * row->column de-interleave scratch used by the packed-row path. On CPU fallback
+ * rows are verified one by one from the columns without rebuilding a packed
+ * table. Degenerate calls are no-ops; callers should zero-initialize results for
+ * fail-closed behavior.
+ */
+void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
+                                      const uint8_t* msg_hashes32,
+                                      const uint8_t* pubkeys33,
+                                      const uint8_t* sigs64,
+                                      size_t n,
+                                      uint8_t* results);
+
+void ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* msg_hashes32,
+                                        const uint8_t* pubkeys_x32,
+                                        const uint8_t* sigs64,
+                                        size_t n,
+                                        uint8_t* results);
+
 /* ------------------------------------------------------------------------- */
 /* 1b. In-place "collect" verify — verdict collapsed into the row's key cell.  */
 /* ------------------------------------------------------------------------- */
@@ -195,6 +228,28 @@ void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
 void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
                                         uint8_t* rows, size_t n,
                                         size_t key_size);
+
+/*
+ * Columnar/vertical collect form. The verified bytes live in msg/pub/sig columns;
+ * key_cells is a separate n * key_size correlation-key column. VALID rows have
+ * their whole key cell zeroed; INVALID rows keep their key cell intact. With
+ * key_size == 0 the call is a no-op/fail-closed, matching the packed collect API.
+ */
+void ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                              const uint8_t* msg_hashes32,
+                                              const uint8_t* pubkeys33,
+                                              const uint8_t* sigs64,
+                                              size_t n,
+                                              uint8_t* key_cells,
+                                              size_t key_size);
+
+void ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                const uint8_t* msg_hashes32,
+                                                const uint8_t* pubkeys_x32,
+                                                const uint8_t* sigs64,
+                                                size_t n,
+                                                uint8_t* key_cells,
+                                                size_t key_size);
 
 /* ------------------------------------------------------------------------- */
 /* 2. BIP-352 Silent Payments scan batch.                                     */
@@ -285,8 +340,8 @@ static_assert(sizeof(SchnorrRecord) == UFSECP_LBTC_SCHNORR_RECORD,
 //
 // So multisig verifies through the ECDSA path and threshold through the Schnorr
 // path, both with key_size == 6 (the m|n + group + block-fk tail). The structs
-// below are the canonical on-wire rows so a node's packed table forwards
-// zero-copy through verify_multisig / verify_threshold (and the collect twins).
+// below are the canonical on-wire rows so a node's packed table forwards through
+// verify_multisig / verify_threshold (and the collect twins) without a side table.
 //
 // COLLECT note: collect zeroes the ENTIRE key tail on a VALID row and leaves it
 // intact on INVALID. A rejected row therefore retains m|n, group AND block-fk
@@ -344,6 +399,21 @@ public:
         ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
     }
 
+    // Columnar / vertical verify. Use when the node already stores independent
+    // msg/pub/sig columns and wants to avoid bridge-side row de-interleave.
+    void verify_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+                              const uint8_t* sigs64, size_t count,
+                              uint8_t* results) const {
+        ufsecp_lbtc_verify_ecdsa_columns(
+            ctrl_, msg_hashes32, pubkeys33, sigs64, count, results);
+    }
+    void verify_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+                                const uint8_t* sigs64, size_t count,
+                                uint8_t* results) const {
+        ufsecp_lbtc_verify_schnorr_columns(
+            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, results);
+    }
+
     // Multisig (ECDSA m-of-n) and threshold (Schnorr / tapscript m-of-n) tables.
     // Intent-revealing aliases for verify_ecdsa / verify_schnorr — identical
     // verification, named for the libbitcoin table they consume. The m|n+group
@@ -356,6 +426,16 @@ public:
     void verify_threshold(const uint8_t* rows, size_t count, size_t key_size,
                           uint8_t* results) const {
         ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
+    }
+    void verify_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+                                 const uint8_t* sigs64, size_t count,
+                                 uint8_t* results) const {
+        verify_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count, results);
+    }
+    void verify_threshold_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+                                  const uint8_t* sigs64, size_t count,
+                                  uint8_t* results) const {
+        verify_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count, results);
     }
 
     // --- Collect (in-place) verify ------------------------------------------
@@ -370,6 +450,21 @@ public:
         ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size);
     }
 
+    // Columnar / vertical collect. key_cells is n * key_size bytes and is the
+    // only mutable column; msg/pub/sig columns remain read-only.
+    void collect_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+                               const uint8_t* sigs64, size_t count,
+                               uint8_t* key_cells, size_t key_size) const {
+        ufsecp_lbtc_verify_ecdsa_columns_collect(
+            ctrl_, msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size);
+    }
+    void collect_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+                                 const uint8_t* sigs64, size_t count,
+                                 uint8_t* key_cells, size_t key_size) const {
+        ufsecp_lbtc_verify_schnorr_columns_collect(
+            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, key_cells, key_size);
+    }
+
     // Collect twins for the multisig / threshold tables (see verify_multisig).
     // key_size MUST be > 0 (the whole tail is the verdict cell: zeroed on valid,
     // intact on invalid). For the canonical rows that is 6 (m|n + group + block-fk).
@@ -378,6 +473,16 @@ public:
     }
     void collect_threshold(uint8_t* rows, size_t count, size_t key_size) const {
         ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size);
+    }
+    void collect_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+                                  const uint8_t* sigs64, size_t count,
+                                  uint8_t* key_cells, size_t key_size) const {
+        collect_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size);
+    }
+    void collect_threshold_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+                                   const uint8_t* sigs64, size_t count,
+                                   uint8_t* key_cells, size_t key_size) const {
+        collect_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count, key_cells, key_size);
     }
 
 #if __cplusplus >= 202002L

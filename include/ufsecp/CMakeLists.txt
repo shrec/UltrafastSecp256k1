@@ -245,9 +245,28 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
     # Registered as a CTest so local CI (which has a GPU) gates on it. A 77 exit
     # (no GPU) is treated as "skipped", not a failure.
     include(CTest)
+    enable_testing()
     add_test(NAME lbtc_consensus_diff COMMAND test_lbtc_consensus_diff)
     set_tests_properties(lbtc_consensus_diff PROPERTIES SKIP_RETURN_CODE 77 LABELS "gpu;local-ci;consensus")
-    message(STATUS "  libbitcoin consensus diff: ON (test_lbtc_consensus_diff, central source)")
+
+    add_executable(test_lbtc_multisig_threshold
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_multisig_threshold.cpp"
+        ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})
+    target_compile_features(test_lbtc_multisig_threshold PRIVATE cxx_std_20)
+    target_compile_definitions(test_lbtc_multisig_threshold PRIVATE UFSECP_BUILDING UFSECP_STATIC_LIB)
+    target_include_directories(test_lbtc_multisig_threshold PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CPU_INCLUDE_DIR} ${SHARED_INCLUDE_DIR}
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/include")
+    target_link_libraries(test_lbtc_multisig_threshold PRIVATE fastsecp256k1)
+    if(TARGET secp256k1_gpu_host)
+        target_link_libraries(test_lbtc_multisig_threshold PRIVATE secp256k1_gpu_host)
+        target_include_directories(test_lbtc_multisig_threshold PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
+        target_compile_definitions(test_lbtc_multisig_threshold PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    add_test(NAME lbtc_multisig_threshold COMMAND test_lbtc_multisig_threshold)
+    set_tests_properties(lbtc_multisig_threshold PROPERTIES LABELS "libbitcoin;batch;compat")
+    message(STATUS "  libbitcoin tests: ON (consensus diff + multisig/threshold, central source)")
 endif()
 
 # -- Install (standalone only -- skip when used as sub-project) --------------

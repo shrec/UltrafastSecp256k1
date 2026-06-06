@@ -70,6 +70,14 @@ bool tail_is_tag(const uint8_t* tail, size_t ks, size_t i) {
     return std::memcmp(tail, want, ks) == 0;
 }
 
+struct Columns {
+    std::vector<uint8_t> msg;
+    std::vector<uint8_t> pub;
+    std::vector<uint8_t> sig;
+    std::vector<uint8_t> key;
+    size_t key_size = 0;
+};
+
 /* Build a packed table: n rows of [record | ks-byte tail], valid signatures,
  * with a distinct non-zero tag in each tail. ks = 3 (single) or 6 (multi). */
 std::vector<uint8_t> build(ufsecp_ctx* ctx, Kind k, size_t n, size_t ks) {
@@ -98,6 +106,24 @@ void corrupt(std::vector<uint8_t>& rows, Kind k, size_t i, size_t ks) {
     rows[i * stride + sig_off] ^= 0x01;  /* flip a signature byte -> invalid */
 }
 
+Columns split_columns(const std::vector<uint8_t>& rows, Kind k, size_t n, size_t ks) {
+    const size_t rec = rec_size(k), stride = rec + ks, pub_size = (k == ECDSA) ? 33 : 32;
+    Columns c;
+    c.msg.resize(n * 32);
+    c.pub.resize(n * pub_size);
+    c.sig.resize(n * 64);
+    c.key.resize(n * ks);
+    c.key_size = ks;
+    for (size_t i = 0; i < n; ++i) {
+        const uint8_t* r = rows.data() + i * stride;
+        std::memcpy(c.msg.data() + i * 32, r, 32);
+        std::memcpy(c.pub.data() + i * pub_size, r + 32, pub_size);
+        std::memcpy(c.sig.data() + i * 64, r + 32 + pub_size, 64);
+        if (ks) std::memcpy(c.key.data() + i * ks, r + rec, ks);
+    }
+    return c;
+}
+
 void verify_tbl(ufsecp_lbtc_ctrl* c, Kind k, const uint8_t* rows, size_t n,
                 size_t ks, uint8_t* res) {
     /* multisig table -> ECDSA path; threshold table -> Schnorr path. */
@@ -108,6 +134,25 @@ void collect_tbl(ufsecp_lbtc_ctrl* c, Kind k, uint8_t* rows, size_t n, size_t ks
     if (k == ECDSA) ufsecp_lbtc_verify_ecdsa_collect(c, rows, n, ks);
     else            ufsecp_lbtc_verify_schnorr_collect(c, rows, n, ks);
 }
+void verify_columns_tbl(ufsecp_lbtc_ctrl* c, Kind k, const Columns& cols,
+                        size_t n, uint8_t* res) {
+    if (k == ECDSA)
+        ufsecp_lbtc_verify_ecdsa_columns(
+            c, cols.msg.data(), cols.pub.data(), cols.sig.data(), n, res);
+    else
+        ufsecp_lbtc_verify_schnorr_columns(
+            c, cols.msg.data(), cols.pub.data(), cols.sig.data(), n, res);
+}
+void collect_columns_tbl(ufsecp_lbtc_ctrl* c, Kind k, Columns& cols, size_t n) {
+    if (k == ECDSA)
+        ufsecp_lbtc_verify_ecdsa_columns_collect(
+            c, cols.msg.data(), cols.pub.data(), cols.sig.data(), n,
+            cols.key.data(), cols.key_size);
+    else
+        ufsecp_lbtc_verify_schnorr_columns_collect(
+            c, cols.msg.data(), cols.pub.data(), cols.sig.data(), n,
+            cols.key.data(), cols.key_size);
+}
 
 /* The "multi" tables use a 6-byte tail (m|n + group + block-fk). */
 constexpr size_t KS_MULTI = 6;
@@ -117,7 +162,10 @@ void test_table(ufsecp_lbtc_ctrl* ctrl, ufsecp_ctx* sctx, Kind k) {
     const size_t N = 24, rec = rec_size(k), stride = rec + KS_MULTI;
     const size_t inv[] = {0, 5, 11, 23};
     auto is_invalid = [&](size_t i) {
-        for (size_t x : inv) if (x == i) return true; return false;
+        for (size_t x : inv) {
+            if (x == i) return true;
+        }
+        return false;
     };
     char buf[112];
 
@@ -157,6 +205,33 @@ void test_table(ufsecp_lbtc_ctrl* ctrl, ufsecp_ctx* sctx, Kind k) {
     bool indep = std::memcmp(rs.data(), rm.data(), N) == 0;
     std::snprintf(buf, sizeof buf, "%s: 3-byte vs 6-byte tail -> identical verdicts", name);
     CHECK(indep, buf);
+
+    /* (D) columnar/vertical API: same verdicts as packed rows, without requiring
+     * the bridge to de-interleave [record|tail] rows into msg/pub/sig columns. */
+    auto vrows = build(sctx, k, N, KS_MULTI);
+    for (size_t i : inv) corrupt(vrows, k, i, KS_MULTI);
+    auto cols = split_columns(vrows, k, N, KS_MULTI);
+    std::vector<uint8_t> rr(N, 0), vr(N, 0);
+    verify_tbl(ctrl, k, vrows.data(), N, KS_MULTI, rr.data());
+    verify_columns_tbl(ctrl, k, cols, N, vr.data());
+    bool vmatch = std::memcmp(rr.data(), vr.data(), N) == 0;
+    std::snprintf(buf, sizeof buf, "%s: columnar verify matches packed-row verify", name);
+    CHECK(vmatch, buf);
+
+    /* (E) columnar collect: valid -> whole key column cell zeroed; invalid ->
+     * m|n+group+block-fk cell intact. */
+    auto cvrows = build(sctx, k, N, KS_MULTI);
+    for (size_t i : inv) corrupt(cvrows, k, i, KS_MULTI);
+    auto ccols = split_columns(cvrows, k, N, KS_MULTI);
+    collect_columns_tbl(ctrl, k, ccols, N);
+    bool ccol_ok = true;
+    for (size_t i = 0; i < N; ++i) {
+        const uint8_t* tail = ccols.key.data() + i * KS_MULTI;
+        if (is_invalid(i)) { if (!tail_is_tag(tail, KS_MULTI, i)) ccol_ok = false; }
+        else               { if (!tail_is_zero(tail, KS_MULTI))   ccol_ok = false; }
+    }
+    std::snprintf(buf, sizeof buf, "%s: columnar collect zeroes valid key cells only", name);
+    CHECK(ccol_ok, buf);
 }
 
 } // namespace

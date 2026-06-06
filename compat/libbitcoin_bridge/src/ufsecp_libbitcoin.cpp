@@ -7,6 +7,8 @@
  *
  *   CPU:  ufsecp_ecdsa_batch_verify / ufsecp_schnorr_batch_verify
  *           (packed records — exactly the row layout this bridge documents)
+ *         ufsecp_ecdsa_verify / ufsecp_schnorr_verify
+ *           (columnar fallback: one signature per row, no row re-pack)
  *   GPU:  ufsecp_gpu_ecdsa_verify_batch / ufsecp_gpu_schnorr_verify_batch
  *           (per-item results — one signature per thread)
  *   SP :  ufsecp_gpu_bip352_scan_batch
@@ -76,6 +78,10 @@ inline std::size_t record_size(Kind k) {
     return k == Kind::Ecdsa ? UFSECP_LBTC_ECDSA_RECORD : UFSECP_LBTC_SCHNORR_RECORD;
 }
 
+inline std::size_t pubkey_size(Kind k) {
+    return k == Kind::Ecdsa ? 33u : 32u;
+}
+
 inline ufsecp_error_t cpu_verify_one(ufsecp_ctx* ctx, Kind k, const uint8_t* rec) {
     /* For n == 1 the packed verify reads exactly record_size() bytes, so the
      * row's opaque key tail (if any) is never touched. */
@@ -137,6 +143,23 @@ struct CollectSink {
     }
 };
 
+/* In-place sink for the vertical/columnar API. The key column is separate from
+ * the verified msg/pub/sig columns, so valid rows zero only
+ * key_cells[i*key_size .. i*key_size+key_size). */
+struct KeyColumnSink {
+    uint8_t*    key_cells;  /* mutable n * key_size correlation-key column */
+    std::size_t key_size;   /* > 0 */
+
+    inline void mark(std::size_t global, bool valid) {
+        if (valid)
+            std::memset(key_cells + global * key_size, 0, key_size);
+    }
+    inline void mark_all_valid(std::size_t base, std::size_t cnt) {
+        for (std::size_t i = 0; i < cnt; ++i)
+            std::memset(key_cells + (base + i) * key_size, 0, key_size);
+    }
+};
+
 /* Translate one libbitcoin row into the engine's packed record layout.
  *   ECDSA   row == engine record:        32 msg | 33 pubkey | 64 sig.
  *   Schnorr row (uniform with ECDSA):    32 msg | 32 xonly  | 64 sig,
@@ -190,6 +213,32 @@ void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
     }
     for (std::size_t i = 0; i < cnt; ++i)
         sink.mark(base + i, cpu_verify_one(ctx, k, eng.data() + i * rec) == UFSECP_OK);
+}
+
+inline ufsecp_error_t cpu_verify_columns_one(ufsecp_ctx* ctx, Kind k,
+                                             const uint8_t* msg,
+                                             const uint8_t* pub,
+                                             const uint8_t* sig) {
+    return k == Kind::Ecdsa ? ufsecp_ecdsa_verify(ctx, msg, sig, pub)
+                            : ufsecp_schnorr_verify(ctx, msg, sig, pub);
+}
+
+/* CPU fallback for vertical/columnar inputs. This deliberately avoids rebuilding
+ * packed records; each row is verified directly from its three public columns. */
+template <class Sink>
+void cpu_columns_chunk(ufsecp_ctx* ctx, Kind k,
+                       const uint8_t* msgs32, const uint8_t* pubs,
+                       const uint8_t* sigs64, std::size_t base,
+                       std::size_t cnt, Sink& sink) {
+    const std::size_t pub = pubkey_size(k);
+    for (std::size_t i = 0; i < cnt; ++i) {
+        const std::size_t idx = base + i;
+        sink.mark(idx,
+                  cpu_verify_columns_one(ctx, k,
+                                         msgs32 + idx * 32,
+                                         pubs + idx * pub,
+                                         sigs64 + idx * 64) == UFSECP_OK);
+    }
 }
 
 #ifdef UFSECP_LBTC_WITH_GPU
@@ -281,6 +330,55 @@ bool gpu_chunk_collect(ufsecp_gpu_ctx* gpu, Kind k, const uint8_t* rows,
         sink.mark(base + i, keys[i] == 0u); /* keys[i]==0 ⇔ valid (see above) */
     return true;
 }
+
+bool gpu_columns_results(ufsecp_gpu_ctx* gpu, Kind k,
+                         const uint8_t* msgs32, const uint8_t* pubs,
+                         const uint8_t* sigs64, std::size_t base,
+                         std::size_t cnt, uint8_t* results) {
+    const std::size_t pub = pubkey_size(k);
+    std::vector<uint8_t> scratch;
+    uint8_t* out = results ? results + base : nullptr;
+    if (!out) {
+        scratch.resize(cnt);
+        out = scratch.data();
+    }
+
+    const ufsecp_error_t rc =
+        k == Kind::Ecdsa
+            ? ufsecp_gpu_ecdsa_verify_batch(gpu, msgs32 + base * 32,
+                                            pubs + base * pub,
+                                            sigs64 + base * 64, cnt, out)
+            : ufsecp_gpu_schnorr_verify_batch(gpu, msgs32 + base * 32,
+                                              pubs + base * pub,
+                                              sigs64 + base * 64, cnt, out);
+    return rc == UFSECP_OK;
+}
+
+bool gpu_columns_collect(ufsecp_gpu_ctx* gpu, Kind k,
+                         const uint8_t* msgs32, const uint8_t* pubs,
+                         const uint8_t* sigs64, std::size_t base,
+                         std::size_t cnt, KeyColumnSink& sink) {
+    const std::size_t pub = pubkey_size(k);
+    /* Use a 1-byte temporary verdict column even when the caller's key column is
+     * also 1 byte. That keeps the caller-owned key cells untouched until the
+     * backend reports success, so a device failure can safely fall back to CPU. */
+    std::vector<uint8_t> markers(cnt, 1u);
+    const ufsecp_error_t rc =
+        k == Kind::Ecdsa
+            ? ufsecp_gpu_ecdsa_verify_collect(gpu, msgs32 + base * 32,
+                                              pubs + base * pub,
+                                              sigs64 + base * 64, cnt,
+                                              markers.data())
+            : ufsecp_gpu_schnorr_verify_collect(gpu, msgs32 + base * 32,
+                                                pubs + base * pub,
+                                                sigs64 + base * 64, cnt,
+                                                markers.data());
+    if (rc != UFSECP_OK) return false;
+
+    for (std::size_t i = 0; i < cnt; ++i)
+        sink.mark(base + i, markers[i] == 0u);
+    return true;
+}
 #endif /* UFSECP_LBTC_WITH_GPU */
 
 /* The shared chunk loop, generic over the output sink. `rows` is the const view
@@ -350,6 +448,53 @@ void verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
     /* rows passed twice: as the const read view to verify_core, and (inside the
      * sink) as the mutable write target. No aliasing — see CollectSink. */
     verify_core(ctrl, k, static_cast<const uint8_t*>(rows), n, stride, sink);
+}
+
+/* Vertical/columnar results[] variant. This is the copy-avoidance path for a
+ * caller that stores its batch as independent msg/pub/sig columns already. */
+void verify_columns_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+                                 const uint8_t* msgs32, const uint8_t* pubs,
+                                 const uint8_t* sigs64, std::size_t n,
+                                 uint8_t* results) {
+    if (!ctrl || n == 0 || !msgs32 || !pubs || !sigs64) return;
+    ResultSink sink{results};
+    try {
+        for (std::size_t base = 0; base < n; base += kChunk) {
+            const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
+#ifdef UFSECP_LBTC_WITH_GPU
+            if (ctrl->gpu &&
+                gpu_columns_results(ctrl->gpu, k, msgs32, pubs, sigs64, base, cnt, results))
+                continue;
+#endif
+            cpu_columns_chunk(ctrl->cpu, k, msgs32, pubs, sigs64, base, cnt, sink);
+        }
+    } catch (...) {
+        return; /* fail-closed: caller-initialized result bytes remain untouched */
+    }
+}
+
+/* Vertical/columnar collect variant. key_cells is an independent n*key_size
+ * correlation-key column. VALID rows are zeroed; INVALID rows are left intact. */
+void verify_columns_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+                                 const uint8_t* msgs32, const uint8_t* pubs,
+                                 const uint8_t* sigs64, std::size_t n,
+                                 uint8_t* key_cells, std::size_t key_size) {
+    if (!ctrl || n == 0 || !msgs32 || !pubs || !sigs64 || !key_cells || key_size == 0)
+        return;
+    KeyColumnSink sink{key_cells, key_size};
+    try {
+        for (std::size_t base = 0; base < n; base += kChunk) {
+            const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
+#ifdef UFSECP_LBTC_WITH_GPU
+            if (ctrl->gpu &&
+                gpu_columns_collect(ctrl->gpu, k, msgs32, pubs, sigs64, base, cnt, sink))
+                continue;
+#endif
+            cpu_columns_chunk(ctrl->cpu, k, msgs32, pubs, sigs64, base, cnt, sink);
+        }
+    } catch (...) {
+        return; /* fail-closed: unprocessed key cells stay non-zero/rejected */
+    }
 }
 
 } // namespace
@@ -455,6 +600,48 @@ void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
                                         uint8_t* rows, size_t n,
                                         size_t key_size) {
     verify_collect_impl(ctrl, Kind::Schnorr, rows, n, key_size);
+}
+
+void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
+                                      const uint8_t* msg_hashes32,
+                                      const uint8_t* pubkeys33,
+                                      const uint8_t* sigs64,
+                                      size_t n,
+                                      uint8_t* results) {
+    verify_columns_results_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
+                                n, results);
+}
+
+void ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* msg_hashes32,
+                                        const uint8_t* pubkeys_x32,
+                                        const uint8_t* sigs64,
+                                        size_t n,
+                                        uint8_t* results) {
+    verify_columns_results_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
+                                sigs64, n, results);
+}
+
+void ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                              const uint8_t* msg_hashes32,
+                                              const uint8_t* pubkeys33,
+                                              const uint8_t* sigs64,
+                                              size_t n,
+                                              uint8_t* key_cells,
+                                              size_t key_size) {
+    verify_columns_collect_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
+                                n, key_cells, key_size);
+}
+
+void ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                const uint8_t* msg_hashes32,
+                                                const uint8_t* pubkeys_x32,
+                                                const uint8_t* sigs64,
+                                                size_t n,
+                                                uint8_t* key_cells,
+                                                size_t key_size) {
+    verify_columns_collect_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
+                                sigs64, n, key_cells, key_size);
 }
 
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,

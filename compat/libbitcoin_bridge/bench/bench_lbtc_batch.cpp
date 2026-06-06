@@ -62,16 +62,27 @@ int main(int argc, char** argv) {
         if (ufsecp_schnorr_sign(sctx, msg, sk, aux, sr + 64) != UFSECP_OK) { std::printf("schnorr sign fail\n"); return 1; }
     }
 
-    /* Tile pool -> full batch tables (rows, key_size = 0). */
+    /* Tile pool -> full batch tables. Build both supported bridge layouts:
+     * packed rows (horizontal) and independent msg/pub/sig columns (vertical). */
     std::printf("building batch tables (%zu rows each)...\n\n", BATCH);
     std::vector<uint8_t> e_rows(BATCH * UFSECP_LBTC_ECDSA_RECORD);
     std::vector<uint8_t> s_rows(BATCH * UFSECP_LBTC_SCHNORR_RECORD);
+    std::vector<uint8_t> e_msg(BATCH * 32), e_pub(BATCH * 33), e_sig(BATCH * 64);
+    std::vector<uint8_t> s_msg(BATCH * 32), s_pub(BATCH * 32), s_sig(BATCH * 64);
     for (size_t i = 0; i < BATCH; ++i) {
         size_t p = i % POOL;
+        const uint8_t* er = e_pool.data() + p * UFSECP_LBTC_ECDSA_RECORD;
+        const uint8_t* sr = s_pool.data() + p * UFSECP_LBTC_SCHNORR_RECORD;
         std::memcpy(e_rows.data() + i * UFSECP_LBTC_ECDSA_RECORD,
-                    e_pool.data() + p * UFSECP_LBTC_ECDSA_RECORD, UFSECP_LBTC_ECDSA_RECORD);
+                    er, UFSECP_LBTC_ECDSA_RECORD);
         std::memcpy(s_rows.data() + i * UFSECP_LBTC_SCHNORR_RECORD,
-                    s_pool.data() + p * UFSECP_LBTC_SCHNORR_RECORD, UFSECP_LBTC_SCHNORR_RECORD);
+                    sr, UFSECP_LBTC_SCHNORR_RECORD);
+        std::memcpy(e_msg.data() + i * 32, er, 32);
+        std::memcpy(e_pub.data() + i * 33, er + 32, 33);
+        std::memcpy(e_sig.data() + i * 64, er + 65, 64);
+        std::memcpy(s_msg.data() + i * 32, sr, 32);
+        std::memcpy(s_pub.data() + i * 32, sr + 32, 32);
+        std::memcpy(s_sig.data() + i * 64, sr + 64, 64);
     }
     ufsecp_ctx_destroy(sctx);
 
@@ -113,6 +124,26 @@ int main(int argc, char** argv) {
             ok = ok && sok;
             std::printf("   schnorr correctness: %s\n", sok ? "PASS" : "FAIL");
         }
+        {
+            ufsecp_lbtc_verify_ecdsa_columns(
+                ctrl, e_msg.data(), e_pub.data(), e_sig.data(), BATCH, results.data());
+            bool cok = (count_invalid() == 0);
+            auto saved = e_sig[0]; e_sig[0] ^= 0x01;
+            ufsecp_lbtc_verify_ecdsa_columns(
+                ctrl, e_msg.data(), e_pub.data(), e_sig.data(), BATCH, results.data());
+            cok = cok && (count_invalid() >= 1) && (results[0] == 0);
+            e_sig[0] = saved;
+            ufsecp_lbtc_verify_schnorr_columns(
+                ctrl, s_msg.data(), s_pub.data(), s_sig.data(), BATCH, results.data());
+            bool scok = (count_invalid() == 0);
+            saved = s_sig[0]; s_sig[0] ^= 0x01;
+            ufsecp_lbtc_verify_schnorr_columns(
+                ctrl, s_msg.data(), s_pub.data(), s_sig.data(), BATCH, results.data());
+            scok = scok && (count_invalid() >= 1) && (results[0] == 0);
+            s_sig[0] = saved;
+            ok = ok && cok && scok;
+            std::printf("   column correctness: %s\n", (cok && scok) ? "PASS" : "FAIL");
+        }
         std::printf("   correctness: %s\n", ok ? "PASS (all-valid + corruption detected)" : "FAIL");
         if (!ok) { ufsecp_lbtc_ctrl_destroy(ctrl); continue; }
 
@@ -129,8 +160,27 @@ int main(int argc, char** argv) {
             std::printf("   %-8s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
                         kind, mps, best, BATCH, ITERS);
         };
-        bench("ECDSA", ufsecp_lbtc_verify_ecdsa, e_rows);
-        bench("Schnorr", ufsecp_lbtc_verify_schnorr, s_rows);
+        auto bench_columns = [&](const char* kind, auto verify,
+                                 const std::vector<uint8_t>& msg,
+                                 const std::vector<uint8_t>& pub,
+                                 const std::vector<uint8_t>& sig) {
+            verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data()); // warmup
+            double best = 1e30;
+            for (int it = 0; it < ITERS; ++it) {
+                auto t0 = clock_t_::now();
+                verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data());
+                double dt = secs_since(t0);
+                if (dt < best) best = dt;
+            }
+            std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
+                        kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
+        };
+        bench("ECDSA-row", ufsecp_lbtc_verify_ecdsa, e_rows);
+        bench("Schnorr-row", ufsecp_lbtc_verify_schnorr, s_rows);
+        bench_columns("ECDSA-columns", ufsecp_lbtc_verify_ecdsa_columns,
+                      e_msg, e_pub, e_sig);
+        bench_columns("Schnorr-columns", ufsecp_lbtc_verify_schnorr_columns,
+                      s_msg, s_pub, s_sig);
 
         /* In-place "collect" path (key_size=4 mutable rows). On the GPU this uses
          * the dedicated on-device collect kernel by default; build with
@@ -143,6 +193,7 @@ int main(int argc, char** argv) {
             const size_t es = UFSECP_LBTC_ECDSA_RECORD + KS;
             const size_t ss = UFSECP_LBTC_SCHNORR_RECORD + KS;
             std::vector<uint8_t> ec(BATCH * es), sc(BATCH * ss);
+            std::vector<uint8_t> e_key(BATCH * KS), s_key(BATCH * KS);
             for (size_t i = 0; i < BATCH; ++i) {
                 std::memcpy(ec.data() + i * es,
                             e_rows.data() + i * UFSECP_LBTC_ECDSA_RECORD,
@@ -154,6 +205,8 @@ int main(int argc, char** argv) {
                 for (size_t b = 0; b < KS; ++b) {
                     ec[i * es + UFSECP_LBTC_ECDSA_RECORD + b]   = (uint8_t)(id >> (8 * b));
                     sc[i * ss + UFSECP_LBTC_SCHNORR_RECORD + b] = (uint8_t)(id >> (8 * b));
+                    e_key[i * KS + b] = (uint8_t)(id >> (8 * b));
+                    s_key[i * KS + b] = (uint8_t)(id >> (8 * b));
                 }
             }
             auto bench_collect = [&](const char* kind, auto collect, std::vector<uint8_t>& rows) {
@@ -168,6 +221,22 @@ int main(int argc, char** argv) {
                 std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
                             kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
             };
+            auto bench_collect_columns = [&](const char* kind, auto collect,
+                                             const std::vector<uint8_t>& msg,
+                                             const std::vector<uint8_t>& pub,
+                                             const std::vector<uint8_t>& sig,
+                                             std::vector<uint8_t>& key) {
+                collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS);
+                double best = 1e30;
+                for (int it = 0; it < ITERS; ++it) {
+                    auto t0 = clock_t_::now();
+                    collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS);
+                    double dt = secs_since(t0);
+                    if (dt < best) best = dt;
+                }
+                std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
+                            kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
+            };
 #ifdef UFSECP_LBTC_DISABLE_DEDICATED
             std::printf("   [collect arm: host-collapse control (UFSECP_LBTC_DISABLE_DEDICATED)]\n");
 #else
@@ -175,6 +244,12 @@ int main(int argc, char** argv) {
 #endif
             bench_collect("ECDSA-collect",   ufsecp_lbtc_verify_ecdsa_collect,   ec);
             bench_collect("Schnorr-collect", ufsecp_lbtc_verify_schnorr_collect, sc);
+            bench_collect_columns("ECDSA-col-collect",
+                                  ufsecp_lbtc_verify_ecdsa_columns_collect,
+                                  e_msg, e_pub, e_sig, e_key);
+            bench_collect_columns("Schnorr-col-collect",
+                                  ufsecp_lbtc_verify_schnorr_columns_collect,
+                                  s_msg, s_pub, s_sig, s_key);
         }
         std::printf("\n");
         ufsecp_lbtc_ctrl_destroy(ctrl);
