@@ -235,9 +235,12 @@ fast::Point ExtendedKey::public_key() const {
         // reduce mod n, masking a corrupted key as a valid (wrong) scalar.
         Scalar sk{};
         if (!Scalar::parse_bytes_strict_nonzero(key, sk)) {
+            detail::secure_erase(&sk, sizeof(sk));
             return Point::infinity();
         }
-        return ct::generator_mul(sk);
+        auto pub = ct::generator_mul(sk);
+        detail::secure_erase(&sk, sizeof(sk));
+        return pub;
     }
     // Public key: decompress from pub_prefix + key (x-coordinate)
     // y^2 = x^3 + 7, then pick y matching parity
@@ -485,10 +488,17 @@ std::pair<ExtendedKey, bool> bip32_master_key(const uint8_t* seed, std::size_t s
     // BIP-32: IL must be < curve order n AND non-zero; parse_bytes_strict_nonzero
     // combines both checks in one call (SEC-010: was two separate calls, second
     // used variable-time is_zero() which could leak via timing on marginal hardware).
-    if (!Scalar::parse_bytes_strict_nonzero(IL, master_key)) return {ExtendedKey{}, false};
+    if (!Scalar::parse_bytes_strict_nonzero(IL, master_key)) {
+        detail::secure_erase(I.data(), I.size());
+        detail::secure_erase(IL.data(), IL.size());
+        detail::secure_erase(IR.data(), IR.size());
+        detail::secure_erase(&master_key, sizeof(master_key));
+        return {ExtendedKey{}, false};
+    }
 
     ExtendedKey ext{};
-    ext.key = master_key.to_bytes();
+    auto master_bytes = master_key.to_bytes();
+    ext.key = master_bytes;
     ext.chain_code = IR;
     ext.depth = 0;
     ext.child_number = 0;
@@ -497,6 +507,9 @@ std::pair<ExtendedKey, bool> bip32_master_key(const uint8_t* seed, std::size_t s
 
     detail::secure_erase(I.data(), I.size());
     detail::secure_erase(IL.data(), IL.size());
+    detail::secure_erase(IR.data(), IR.size());
+    detail::secure_erase(master_bytes.data(), master_bytes.size());
+    detail::secure_erase(&master_key, sizeof(master_key));
 
     return {ext, true};
 }

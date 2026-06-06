@@ -282,6 +282,9 @@ static void test_taproot_tweak_hash() {
     auto merkle = hex32("1111111111111111111111111111111111111111111111111111111111111111");
     auto tweak2 = taproot_tweak_hash(internal_key_x, merkle.data(), 32);
     check(tweak1 != tweak2, "TapTweak: different with merkle root");
+
+    auto invalid = taproot_tweak_hash(internal_key_x, nullptr, 32);
+    check(secp256k1::ct::ct_is_zero(invalid), "TapTweak: null merkle root is rejected");
 }
 
 static void test_taproot_output_key() {

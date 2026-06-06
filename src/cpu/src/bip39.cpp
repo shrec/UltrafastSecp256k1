@@ -101,6 +101,7 @@ void pbkdf2_hmac_sha512(const uint8_t* password, size_t password_len,
 
         const size_t to_copy = std::min<size_t>(64, output_len - offset);
         std::memcpy(output + offset, result.data(), to_copy);
+        detail::secure_erase(salt_block.data(), salt_block.size());
         detail::secure_erase(result.data(), result.size());
         detail::secure_erase(u.data(), u.size());
         offset += to_copy;

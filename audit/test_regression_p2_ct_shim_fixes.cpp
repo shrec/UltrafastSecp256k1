@@ -12,7 +12,9 @@
 // ============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
+#ifndef STANDALONE_TEST
 #define STANDALONE_TEST
+#endif
 #endif
 
 #include "secp256k1/musig2.hpp"
@@ -237,6 +239,71 @@ static void test_musig_ec_tweak_zero() {
     CHECK(rc == 1, "MTZ-003: ec_tweak_add with tweak=0 returns 1");
 }
 
+static void test_shim_fail_closed_outputs() {
+    std::printf("  [SHIM-FC] failed signing/pubkey mutations clear outputs\n");
+
+    uint8_t msg[32] = {0x44};
+    uint8_t zero_sk[32] = {};
+
+    secp256k1_ecdsa_signature esig;
+    std::memset(&esig, 0xA5, sizeof(esig));
+    CHECK(secp256k1_ecdsa_sign(sctx(), &esig, msg, zero_sk, nullptr, nullptr) == 0,
+          "SHIM-FC: ecdsa_sign rejects zero seckey");
+    bool ecdsa_sig_zero = true;
+    for (unsigned char b : esig.data) ecdsa_sig_zero = ecdsa_sig_zero && (b == 0);
+    CHECK(ecdsa_sig_zero, "SHIM-FC: ecdsa_sign failure clears signature");
+
+    secp256k1_keypair bad_kp;
+    std::memset(&bad_kp, 0, sizeof(bad_kp));
+    unsigned char sig64[64];
+    std::memset(sig64, 0xA5, sizeof(sig64));
+    CHECK(secp256k1_schnorrsig_sign32(sctx(), sig64, msg, &bad_kp, nullptr) == 0,
+          "SHIM-FC: schnorrsig_sign32 rejects zero keypair");
+    bool schnorr_sig_zero = true;
+    for (unsigned char b : sig64) schnorr_sig_zero = schnorr_sig_zero && (b == 0);
+    CHECK(schnorr_sig_zero, "SHIM-FC: schnorrsig_sign32 failure clears signature");
+
+    secp256k1_pubkey bad_pk;
+    std::memset(&bad_pk, 0, sizeof(bad_pk));
+    unsigned char serialized[65];
+    std::memset(serialized, 0xA5, sizeof(serialized));
+    size_t serialized_len = sizeof(serialized);
+    CHECK(secp256k1_ec_pubkey_serialize(sctx(), serialized, &serialized_len,
+          &bad_pk, SECP256K1_EC_UNCOMPRESSED) == 0,
+          "SHIM-FC: pubkey_serialize rejects zero opaque pubkey");
+    CHECK(serialized_len == 0, "SHIM-FC: pubkey_serialize failure reports zero length");
+
+    CHECK(secp256k1_ec_pubkey_create(sctx(), &bad_pk, kSk1) == 1,
+          "SHIM-FC: create pubkey for mutation test");
+    bad_pk.data[32] ^= 0xFF;
+    CHECK(secp256k1_ec_pubkey_negate(sctx(), &bad_pk) == 0,
+          "SHIM-FC: pubkey_negate rejects off-curve input");
+    bool pubkey_zero = true;
+    for (unsigned char b : bad_pk.data) pubkey_zero = pubkey_zero && (b == 0);
+    CHECK(pubkey_zero, "SHIM-FC: pubkey_negate failure clears in-place pubkey");
+
+    secp256k1_xonly_pubkey bad_xonly;
+    std::memset(&bad_xonly, 0, sizeof(bad_xonly));
+    unsigned char xout[32];
+    std::memset(xout, 0xA5, sizeof(xout));
+    CHECK(secp256k1_xonly_pubkey_serialize(sctx(), xout, &bad_xonly) == 0,
+          "SHIM-FC: xonly_pubkey_serialize rejects zero opaque xonly");
+    bool xout_zero = true;
+    for (unsigned char b : xout) xout_zero = xout_zero && (b == 0);
+    CHECK(xout_zero, "SHIM-FC: xonly serialize failure clears output");
+
+    secp256k1_keypair kp;
+    CHECK(secp256k1_keypair_create(sctx(), &kp, kSk1) == 1,
+          "SHIM-FC: create keypair for failed tweak");
+    uint8_t bad_tweak[32];
+    std::memset(bad_tweak, 0xFF, sizeof(bad_tweak));
+    CHECK(secp256k1_keypair_xonly_tweak_add(sctx(), &kp, bad_tweak) == 0,
+          "SHIM-FC: keypair_xonly_tweak_add rejects tweak >= n");
+    bool keypair_zero = true;
+    for (unsigned char b : kp.data) keypair_zero = keypair_zero && (b == 0);
+    CHECK(keypair_zero, "SHIM-FC: failed keypair tweak clears keypair");
+}
+
 #else  // No shim
 
 static void test_keypair_xonly_tweak_is_zero_ct() {
@@ -254,6 +321,9 @@ static void test_pubkey_negate_valid() {
 static void test_musig_ec_tweak_zero() {
     std::printf("  [MTZ-003] skipped (no shim)\n"); ++g_pass;
 }
+static void test_shim_fail_closed_outputs() {
+    std::printf("  [SHIM-FC] skipped (no shim)\n"); ++g_pass;
+}
 
 #endif
 
@@ -267,6 +337,7 @@ int test_regression_p2_ct_shim_fixes_run() {
     test_pubkey_negate_off_curve();
     test_pubkey_negate_valid();
     test_musig_ec_tweak_zero();
+    test_shim_fail_closed_outputs();
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail > 0) ? 1 : 0;
 }

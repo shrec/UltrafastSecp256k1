@@ -39,6 +39,28 @@ are stricter but never less safe. Callers using well-formed inputs are unaffecte
 
 ---
 
+### Opaque pubkey/keypair failure paths clear outputs and reject hostile raw structs
+
+- **Upstream behavior:** libsecp256k1 treats `secp256k1_pubkey`,
+  `secp256k1_xonly_pubkey`, and `secp256k1_keypair` as opaque structs populated by
+  parser/create APIs. Callers that write arbitrary bytes into these structs are
+  outside the API contract; many failure paths leave the caller-provided output or
+  in-place target unchanged.
+- **Shim behavior:** serialization and mutation paths validate strict field range
+  and curve membership before trusting opaque bytes. Failed signing calls zero the
+  output signature, failed pubkey/xonly serialization returns 0 without serializing
+  invalid bytes, and failed in-place pubkey/keypair mutation clears the target
+  struct.
+- **Reason:** The shim is used across FFI boundaries where hostile callers can
+  construct raw opaque structs. Fail-closed zeroization prevents stale keys or
+  signatures from being reused after an error and avoids silently reducing
+  out-of-range coordinates.
+- **Impact:** Well-formed callers are unaffected. Callers that bypass parse/create
+  APIs now receive 0 and a zeroed output/target instead of stale or reduced data.
+- **Test:** `audit/test_regression_p2_ct_shim_fixes.cpp` (`SHIM-FC`).
+
+---
+
 ### secp256k1_ecdh — private key >= curve order rejected
 
 - **Upstream behavior:** `secp256k1_ecdh` with a private key value `>= n` (curve order)

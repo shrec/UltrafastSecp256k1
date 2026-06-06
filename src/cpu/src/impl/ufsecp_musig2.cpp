@@ -674,6 +674,7 @@ ufsecp_error_t ufsecp_frost_sign(
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
+    std::memset(partial_sig_out, 0, 36);
     // BUG-2 FIX: consume (zero) nonce on EVERY exit — FROST nonce reuse is catastrophic.
     // Must be placed after the null-check above (nonce confirmed non-null) and before
     // any early returns so that all error paths trigger the destructor.
@@ -788,6 +789,9 @@ ufsecp_error_t ufsecp_frost_sign(
     secp256k1::detail::secure_erase(&h, sizeof(h));
     secp256k1::detail::secure_erase(&b, sizeof(b));
     secp256k1::detail::secure_erase(nonce, UFSECP_FROST_NONCE_LEN);
+    if (SECP256K1_UNLIKELY(psig.id != kp.id || psig.z_i.is_zero_ct())) {
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "FROST signer returned invalid partial signature");
+    }
     write_le32(partial_sig_out, psig.id);
     scalar_to_bytes(psig.z_i, partial_sig_out + 4);
     return UFSECP_OK;
@@ -886,6 +890,7 @@ ufsecp_error_t ufsecp_frost_aggregate(
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
+    std::memset(sig64_out, 0, 64);
     if (n == 0) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "partial_sigs must be non-empty");
     }
@@ -916,7 +921,7 @@ ufsecp_error_t ufsecp_frost_aggregate(
             }
         }
         Scalar z;
-        if (SECP256K1_UNLIKELY(!scalar_parse_strict(ps + 4, z))) {
+        if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(ps + 4, z))) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid partial sig scalar");
         }
         psigs[i].z_i = z;
@@ -961,6 +966,11 @@ ufsecp_error_t ufsecp_frost_aggregate(
     std::array<uint8_t, 32> msg_arr;
     std::memcpy(msg_arr.data(), msg32, 32);
     auto sig = secp256k1::frost_aggregate(psigs, ncs, gp, msg_arr);
+    uint8_t r_acc = 0;
+    for (auto b : sig.r) r_acc |= b;
+    if (SECP256K1_UNLIKELY(r_acc == 0 || sig.s.is_zero_ct())) {
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "FROST aggregate produced invalid signature");
+    }
     auto bytes = sig.to_bytes();
     std::memcpy(sig64_out, bytes.data(), 64);
     return UFSECP_OK;
@@ -970,4 +980,3 @@ ufsecp_error_t ufsecp_frost_aggregate(
 /* ===========================================================================
  * Adaptor signatures
  * =========================================================================== */
-

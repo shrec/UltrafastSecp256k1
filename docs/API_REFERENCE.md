@@ -1965,11 +1965,15 @@ The stable C ABI is defined in `include/ufsecp/ufsecp.h`. All functions follow t
 - **Dual-layer CT**: signing/nonce/key-tweak always use the CT layer; verify/point-arith use the fast layer. No opt-in flag.
 - **Caller owns all buffers** -- library never allocates on behalf of caller (except `ctx_create`/`ctx_clone`)
 
-#### Security Properties (updated 2026-05-01)
+#### Security Properties (updated 2026-06-06)
 
 - **Strict private key parsing**: All functions accepting a private key use `Scalar::parse_bytes_strict_nonzero()`, which rejects keys `>= n` **and** `== 0`. `Scalar::from_bytes()` (silent mod-n reduction) is never used on secret inputs.
 - **CT pubkey derivation**: `ufsecp_pubkey_create` and all functions that derive a public key from a private key use `ct::generator_mul()`, not the variable-time `Point::generator().scalar_mul()`. No secret value touches the fast scalar-mul path.
 - **Degenerate output detection**: All signing functions (`ufsecp_ecdsa_sign`, `ufsecp_schnorr_sign`, their `_verified` and `_batch` variants) check for `r == 0`, `s == 0`, and all-zero Schnorr R x-coordinate after signing. On degenerate output the output buffer is zeroed and `UFSECP_ERR_INTERNAL` is returned — the zero signature is never serialized as success.
+- **Fail-closed output buffers**: Message-signing, FROST, Taproot, BIP39 seed, and BIP144 hash wrappers clear output buffers before processing. On any non-OK return, callers must treat the output as zeroed/invalid and must not reuse a previous value from the same buffer.
+- **BIP39 C ABI validation**: `ufsecp_bip39_to_seed` validates the mnemonic word list and checksum before PBKDF2. Invalid mnemonics return `UFSECP_ERR_BAD_INPUT` and leave `seed64_out` all zero.
+- **BIP144 strict parser**: `ufsecp_bip144_txid` enforces minimal CompactSize encodings and consumes all witness stacks before the 4-byte locktime. Extra bytes between witness data and locktime return `UFSECP_ERR_BAD_INPUT`.
+- **Taproot tweak parsing**: Taproot tweak scalars are parsed strictly; `t >= n` is rejected, while `t == 0` remains valid per BIP-341. A final infinity output key or zero tweaked private key returns a non-OK error.
 - **Batch fail-closed**: Batch sign functions clear all output slots before processing. A per-slot failure zeroes that slot's output bytes; partial success is not possible.
 - **Batch count == 0 rejected**: `ufsecp_ecdsa_sign_batch` and `ufsecp_schnorr_sign_batch` return `UFSECP_ERR_BAD_INPUT` when `count == 0`.
 
@@ -2139,6 +2143,10 @@ Opaque key type: `ufsecp_bip32_key` (82 bytes, contains 78-byte serialised key +
 | `ufsecp_taproot_output_key` | `(ctx, internal_x[32], merkle_root, output_x_out[32], parity_out*) -> error_t` | Derive Taproot output key |
 | `ufsecp_taproot_tweak_seckey` | `(ctx, privkey[32], merkle_root, tweaked32_out[32]) -> error_t` | Tweak privkey for key-path spend |
 | `ufsecp_taproot_verify` | `(ctx, output_x, parity, internal_x, merkle_root, len) -> error_t` | Verify Taproot commitment |
+
+Taproot tweak helpers reject `merkle_root == NULL` when a positive root length is
+specified, reject roots longer than 32 bytes, strict-parse tweak scalars, and
+clear output buffers before returning input or internal errors.
 
 <a id="c-abi-bip39"></a>
 ### BIP-39 Mnemonics
@@ -2537,4 +2545,3 @@ void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cac
 UltrafastSecp256k1 v4.1.1
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).
-

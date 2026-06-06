@@ -313,6 +313,11 @@ MuSig2AggNonce musig2_nonce_agg(const std::vector<MuSig2PubNonce>& pub_nonces) {
     for (const auto& nonce : pub_nonces) {
         auto r1 = decompress_point(nonce.R1);
         auto r2 = decompress_point(nonce.R2);
+        if (r1.is_infinity() || r2.is_infinity()) {
+            agg.R1 = Point::infinity();
+            agg.R2 = Point::infinity();
+            return agg;
+        }
         agg.R1 = agg.R1.add(r1);
         agg.R2 = agg.R2.add(r2);
     }
@@ -328,6 +333,11 @@ MuSig2AggNonce musig2_nonce_agg_points(
     agg.R1 = Point::infinity();
     agg.R2 = Point::infinity();
     for (const auto& [r1, r2] : pts) {
+        if (r1.is_infinity() || r2.is_infinity()) {
+            agg.R1 = Point::infinity();
+            agg.R2 = Point::infinity();
+            return agg;
+        }
         agg.R1 = agg.R1.add(r1);
         agg.R2 = agg.R2.add(r2);
     }

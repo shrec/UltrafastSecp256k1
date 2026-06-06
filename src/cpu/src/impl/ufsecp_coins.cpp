@@ -137,16 +137,23 @@ ufsecp_error_t ufsecp_btc_message_sign(ufsecp_ctx* ctx,
                                        char* base64_out, size_t* base64_len) {
     if (SECP256K1_UNLIKELY(!ctx || !msg || !privkey || !base64_out || !base64_len)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    if (*base64_len > 0) base64_out[0] = '\0';
     Scalar sk;
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
+        *base64_len = 0;
         return ctx_set_err(ctx, UFSECP_ERR_BAD_KEY, "privkey is zero or >= n");
     }
     ScopeSecureErase<Scalar> sk_erase{&sk, sizeof(sk)}; // erases sk on all exit paths
     try {
     auto rsig = secp256k1::coins::bitcoin_sign_message(msg, msg_len, sk);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    if (SECP256K1_UNLIKELY(!rsig.sig.is_valid() || rsig.recid < 0 || rsig.recid > 3)) {
+        *base64_len = 0;
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "bitcoin message signer returned invalid signature");
+    }
     auto b64 = secp256k1::coins::bitcoin_sig_to_base64(rsig);
     if (*base64_len < b64.size() + 1) {
+        *base64_len = 0;
         return ctx_set_err(ctx, UFSECP_ERR_BUF_TOO_SMALL, "base64 buffer too small");
     }
     std::memcpy(base64_out, b64.c_str(), b64.size() + 1);
@@ -727,6 +734,9 @@ ufsecp_error_t ufsecp_eth_sign(ufsecp_ctx* ctx,
         return UFSECP_ERR_NULL_ARG;
     }
     ctx_clear_err(ctx);
+    std::memset(r_out, 0, 32);
+    std::memset(s_out, 0, 32);
+    *v_out = 0;
 
     Scalar sk;
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
@@ -737,11 +747,19 @@ ufsecp_error_t ufsecp_eth_sign(ufsecp_ctx* ctx,
     std::memcpy(hash.data(), msg32, 32);
 
     auto esig = secp256k1::coins::eth_sign_hash(hash, sk, chain_id);
+    secp256k1::detail::secure_erase(&sk, sizeof(sk));
+    uint8_t r_acc = 0, s_acc = 0;
+    for (int i = 0; i < 32; ++i) {
+        r_acc |= esig.r[static_cast<size_t>(i)];
+        s_acc |= esig.s[static_cast<size_t>(i)];
+    }
+    if (SECP256K1_UNLIKELY(r_acc == 0 || s_acc == 0 || esig.v == 0)) {
+        return ctx_set_err(ctx, UFSECP_ERR_INTERNAL, "ethereum signer returned invalid signature");
+    }
     std::memcpy(r_out, esig.r.data(), 32);
     std::memcpy(s_out, esig.s.data(), 32);
     *v_out = esig.v;
 
-    secp256k1::detail::secure_erase(&sk, sizeof(sk));
     return UFSECP_OK;
 }
 
@@ -927,4 +945,3 @@ ufsecp_error_t ufsecp_schnorr_verify_msg(
 /* ===========================================================================
  * BIP-322 — Generic Message Signing
  * =========================================================================== */
-

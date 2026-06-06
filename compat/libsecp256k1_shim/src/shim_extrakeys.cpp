@@ -22,6 +22,25 @@ using namespace secp256k1::fast;
 
 // point_to_pubkey_data from shim_pubkey_helpers.hpp
 using secp256k1_shim_internal::point_to_pubkey_data;
+using secp256k1_shim_internal::pubkey_data_to_point;
+
+// Helper: reconstruct a Point from an xonly_pubkey using cached X||Y -- no sqrt.
+// SHIM-CURVE-CHECK-XONLY: validate y^2=x^3+7 before use. A hostile caller could
+// write arbitrary bytes into secp256k1_xonly_pubkey.data[32..63], bypassing
+// secp256k1_xonly_pubkey_from_pubkey / secp256k1_xonly_pubkey_parse.
+// Off-curve input -> Point::infinity(); callers return 0 and clear outputs.
+static Point xonly_to_point(const secp256k1_xonly_pubkey *xp)
+{
+    std::array<uint8_t, 32> xb{}, yb{};
+    std::memcpy(xb.data(), xp->data,      32);
+    std::memcpy(yb.data(), xp->data + 32, 32);
+    FieldElement x, y;
+    if (!FieldElement::parse_bytes_strict(xb, x)) return Point::infinity();
+    if (!FieldElement::parse_bytes_strict(yb, y)) return Point::infinity();
+    auto b7 = FieldElement::from_uint64(7);
+    if (y * y != x * x * x + b7) return Point::infinity();
+    return Point::from_affine(x, y);
+}
 
 extern "C" {
 
@@ -64,6 +83,11 @@ int secp256k1_xonly_pubkey_serialize(
             "secp256k1_xonly_pubkey_serialize: NULL argument");
         return 0;
     }
+    auto P = xonly_to_point(pubkey);
+    if (P.is_infinity()) {
+        std::memset(output32, 0, 32);
+        return 0;
+    }
     std::memcpy(output32, pubkey->data, 32);
     return 1;
 }
@@ -104,8 +128,8 @@ int secp256k1_xonly_pubkey_from_pubkey(
 
     // SHIM-A10: validate curve membership before trusting the stored bytes.
     // pubkey_data_to_point checks y²=x³+7; returns infinity if off-curve.
-    auto pt = secp256k1_shim_internal::pubkey_data_to_point(pubkey->data);
-    if (pt.is_infinity()) return 0;
+    auto pt = pubkey_data_to_point(pubkey->data);
+    if (pt.is_infinity()) { std::memset(xonly_pubkey->data, 0, sizeof(xonly_pubkey->data)); return 0; }
 
     // pubkey layout: data[0..31] = X, data[32..63] = Y (both big-endian)
     int y_is_odd = (pubkey->data[63] & 1) ? 1 : 0;
@@ -149,12 +173,14 @@ int secp256k1_keypair_create(
 
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&k, sizeof(k));   // secret-residue sweep
         return 0;
     }
 
     auto P = secp256k1::ct::generator_mul(k);   // CT: Rule 12 — sk is a private key
     if (P.is_infinity()) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&k, sizeof(k));   // secret-residue sweep
         return 0;
     }
@@ -194,6 +220,13 @@ int secp256k1_keypair_sec(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_keypair_sec: keypair is NULL");
         return 0;
     }
+    Scalar sk_check;
+    if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk_check)) {
+        std::memset(seckey, 0, 32);
+        secp256k1::detail::secure_erase(&sk_check, sizeof(sk_check));
+        return 0;
+    }
+    secp256k1::detail::secure_erase(&sk_check, sizeof(sk_check));
     std::memcpy(seckey, keypair->data, 32);
     return 1;
 }
@@ -211,6 +244,8 @@ int secp256k1_keypair_pub(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_keypair_pub: keypair is NULL");
         return 0;
     }
+    auto P = pubkey_data_to_point(keypair->data + 32);
+    if (P.is_infinity()) { std::memset(pubkey->data, 0, sizeof(pubkey->data)); return 0; }
     std::memcpy(pubkey->data, keypair->data + 32, 64);
     return 1;
 }
@@ -228,6 +263,12 @@ int secp256k1_keypair_xonly_pub(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_keypair_xonly_pub: keypair is NULL");
         return 0;
     }
+    auto P = pubkey_data_to_point(keypair->data + 32);
+    if (P.is_infinity()) {
+        std::memset(pubkey->data, 0, sizeof(pubkey->data));
+        if (pk_parity) *pk_parity = 0;
+        return 0;
+    }
 
     // keypair layout: data[0..31]=sk, data[32..63]=X, data[64..95]=Y (big-endian)
     int y_is_odd = (keypair->data[95] & 1) ? 1 : 0;
@@ -240,7 +281,12 @@ int secp256k1_keypair_xonly_pub(
     } else {
         std::array<uint8_t, 32> yb{};
         std::memcpy(yb.data(), keypair->data + 64, 32);
-        auto y = FieldElement::from_bytes(yb);
+        FieldElement y;
+        if (!FieldElement::parse_bytes_strict(yb, y)) {
+            std::memset(pubkey->data, 0, sizeof(pubkey->data));
+            if (pk_parity) *pk_parity = 0;
+            return 0;
+        }
         y = y.negate();
         auto yn = y.to_bytes();
         std::memcpy(pubkey->data + 32, yn.data(), 32);
@@ -251,24 +297,6 @@ int secp256k1_keypair_xonly_pub(
 }
 
 // -- Taproot tweak operations -----------------------------------------------
-
-// Helper: reconstruct a Point from an xonly_pubkey using cached X||Y — no sqrt.
-// SHIM-CURVE-CHECK-XONLY: validate y²=x³+7 before use. A hostile caller could
-// write arbitrary bytes into secp256k1_xonly_pubkey.data[32..63], bypassing
-// secp256k1_xonly_pubkey_from_pubkey / secp256k1_xonly_pubkey_parse.
-// Off-curve input → Point::infinity(); callers (tweak_add, tweak_add_check)
-// check is_infinity() and return 0.
-static Point xonly_to_point(const secp256k1_xonly_pubkey *xp)
-{
-    std::array<uint8_t, 32> xb{}, yb{};
-    std::memcpy(xb.data(), xp->data,      32);
-    std::memcpy(yb.data(), xp->data + 32, 32);
-    auto x = FieldElement::from_bytes(xb);
-    auto y = FieldElement::from_bytes(yb);
-    auto b7 = FieldElement::from_uint64(7);
-    if (y * y != x * x * x + b7) return Point::infinity();
-    return Point::from_affine(x, y);
-}
 
 int secp256k1_xonly_pubkey_tweak_add(
     const secp256k1_context *ctx,
@@ -358,6 +386,7 @@ int secp256k1_keypair_xonly_tweak_add(
     // function.
     Scalar sk;
     if (!Scalar::parse_bytes_strict_nonzero(keypair->data, sk)) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&sk, sizeof(sk));   // CT-04
         return 0;
     }
@@ -370,6 +399,7 @@ int secp256k1_keypair_xonly_tweak_add(
     // tweak in [0, n-1]; libsecp allows 0 (keypair unchanged)
     Scalar t;
     if (!Scalar::parse_bytes_strict(tweak32, t)) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&sk, sizeof(sk));   // CT-04
         return 0;
     }
@@ -378,6 +408,7 @@ int secp256k1_keypair_xonly_tweak_add(
     // CT-002: is_zero_ct() reads all limbs unconditionally before comparing.
     // is_zero() (fast::) has a data-dependent early-exit; new_sk is a secret.
     if (new_sk.is_zero_ct()) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&sk, sizeof(sk));         // CT-04
         secp256k1::detail::secure_erase(&new_sk, sizeof(new_sk));
         return 0;
@@ -385,6 +416,7 @@ int secp256k1_keypair_xonly_tweak_add(
 
     auto P = secp256k1::ct::generator_mul(new_sk);   // CT: Rule 12 — new_sk is secret
     if (P.is_infinity()) {
+        std::memset(keypair->data, 0, sizeof(keypair->data));
         secp256k1::detail::secure_erase(&sk, sizeof(sk));         // CT-04
         secp256k1::detail::secure_erase(&new_sk, sizeof(new_sk));
         return 0;

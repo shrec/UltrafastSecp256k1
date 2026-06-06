@@ -141,6 +141,7 @@ int secp256k1_ecdsa_sign_recoverable(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_sign_recoverable: NULL argument");
         return 0;
     }
+    std::memset(sig->data, 0, sizeof(sig->data));
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
     if (noncefp != nullptr &&
         noncefp != secp256k1_nonce_function_rfc6979 &&

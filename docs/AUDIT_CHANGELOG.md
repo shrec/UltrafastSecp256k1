@@ -1,5 +1,33 @@
 # Audit Changelog
 
+## 2026-06-06 — CPU ABI fail-closed signing, strict Taproot/BIP144 parsing, and shim opaque-key hardening
+
+- **Fail-closed C ABI outputs:** `ufsecp_btc_message_sign`, `ufsecp_eth_sign`,
+  `ufsecp_frost_sign`, `ufsecp_frost_aggregate`, `ufsecp_taproot_output_key`,
+  `ufsecp_taproot_tweak_seckey`, `ufsecp_bip39_to_seed`, and BIP144 txid/wtxid
+  wrappers now clear their output buffers before processing and return non-OK on
+  degenerate signer output (`r == 0`, `s == 0`, all-zero Schnorr/FROST output).
+  This prevents stale signatures, addresses, seeds, or Taproot keys from remaining
+  visible after a failure.
+- **Strict parsing and residue cleanup:** Taproot tweak scalars now use strict
+  scalar parsing (`t >= n` rejected, `t == 0` allowed per BIP-341). The BIP144
+  txid parser enforces minimal CompactSize encodings and consumes every witness
+  stack before locktime. BIP32 master/public derivation and BIP39 PBKDF2 erase
+  transient secret/salt material on success and failure.
+- **Shim hardening:** libsecp256k1 shim signing calls zero output signatures on
+  failure, opaque pubkey/xonly serialization validates curve membership, and failed
+  in-place pubkey/keypair mutations clear their target structs. These are
+  intentional security improvements for hostile FFI callers that bypass parser
+  constructors.
+- **Tests:** extended `audit/test_adversarial_protocol.cpp` for BTC/ETH/BIP39/FROST
+  output clearing and BIP144 strict witness parsing; extended
+  `audit/test_regression_p2_ct_shim_fixes.cpp` for shim fail-closed output behavior.
+- **Audit wiring:** added a shim-linked
+  `regression_p2_ct_shim_fixes` CTest target so the fail-closed shim assertions run
+  against `secp256k1_shim` instead of only passing through unified-runner stubs.
+- **Source graph coverage:** `tools/source_graph_kit/source_graph.toml` now indexes
+  audit CMake files so audit/CTest wiring can be included in graph-first reviews.
+
 ## 2026-06-02 — libbitcoin bridge: in-place "collect" verify + dedicated CUDA collect kernel
 
 - **What (additive):** new in-place collect verify for the libbitcoin bridge —

@@ -37,7 +37,7 @@ extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.ipp", "*.inl", 
 label = "audit"
 path = "../audit"
 optional = true
-extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.py", "*.sh"]
+extensions = ["*.cpp", "*.cc", "*.c", "*.hpp", "*.hh", "*.h", "*.py", "*.sh", "*.cmake", "*.txt", "CMakeLists.txt"]
 
 [[source_dirs]]
 label = "formal_verification"
@@ -99,6 +99,13 @@ label = "scripts"
 path = "../scripts"
 optional = true
 extensions = ["*.py", "*.sh", "*.bash", "*.ps1", "*.cmake", "*.json", "*.toml", "*.md"]
+language = "python"
+
+[[source_dirs]]
+label = "ci"
+path = "../ci"
+optional = true
+extensions = ["*.py", "*.sh", "*.bash", "*.ps1", "*.cmake", "*.json", "*.toml", "*.md", "*.yml", "*.yaml"]
 language = "python"
 
 [[source_dirs]]
@@ -175,6 +182,18 @@ source_dir = "scripts"
 match = "suffix"
 pattern = ".sh"
 category = "tooling"
+
+[[category_rules]]
+source_dir = "ci"
+match = "suffix"
+pattern = ".py"
+category = "ci"
+
+[[category_rules]]
+source_dir = "ci"
+match = "suffix"
+pattern = ".sh"
+category = "ci"
 
 [[category_rules]]
 source_dir = "tools"
@@ -283,3 +302,9 @@ source_dir = "audit"
 match = "suffix"
 pattern = ".py"
 category = "tooling"
+
+[[category_rules]]
+source_dir = "audit"
+match = "prefix"
+pattern = "CMake"
+category = "build_config"

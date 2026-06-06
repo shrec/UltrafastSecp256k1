@@ -176,6 +176,7 @@ int secp256k1_schnorrsig_sign32(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign32: NULL argument");
         return 0;
     }
+    std::memset(sig64, 0, 64);
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
 
     Scalar sk;
@@ -243,6 +244,7 @@ int secp256k1_schnorrsig_sign_custom(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_schnorrsig_sign_custom: NULL argument");
         return 0;
     }
+    std::memset(sig64, 0, 64);
 
     // Unpack extraparams (upstream libsecp256k1 v0.4+ API).
     secp256k1_nonce_function_hardened noncefp = nullptr;

@@ -27,7 +27,9 @@ std::array<uint8_t, 32> taproot_tweak_hash(
     std::size_t merkle_root_len) {
 
     // merkle_root is either absent (0) or exactly 32 bytes
-    if (merkle_root_len > 32) return {};
+    if ((merkle_root_len > 0 && merkle_root == nullptr) || merkle_root_len > 32) {
+        return {};
+    }
 
     // Concatenate: internal_key_x [|| merkle_root]
     std::size_t const total = 32 + merkle_root_len;
@@ -134,14 +136,18 @@ std::pair<std::array<uint8_t, 32>, int> taproot_output_key(
     const uint8_t* merkle_root,
     std::size_t merkle_root_len) {
 
+    if ((merkle_root_len > 0 && merkle_root == nullptr) || merkle_root_len > 32) {
+        return {{}, 0};
+    }
+
     // P = lift_x(internal_key_x) -- with even y
     auto [P, valid] = lift_x_even(internal_key_x);
     if (!valid) return {{}, 0};
 
     // t = H_TapTweak(internal_key_x || merkle_root)
     auto t_bytes = taproot_tweak_hash(internal_key_x, merkle_root, merkle_root_len);
-    auto t = Scalar::from_bytes(t_bytes);
-    if (t.is_zero()) return {{}, 0};
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(t_bytes, t)) return {{}, 0};
 
     // Q = P + t*G  (comb-based: 3-5x faster than wNAF generator mul)
     auto tG = ct::generator_mul(t);
@@ -166,6 +172,9 @@ Scalar taproot_tweak_privkey(
     std::size_t merkle_root_len) {
 
     if (private_key.is_zero_ct()) return Scalar::zero();
+    if ((merkle_root_len > 0 && merkle_root == nullptr) || merkle_root_len > 32) {
+        return Scalar::zero();
+    }
 
     // P = d * G (CT)
     auto P = ct::generator_mul(private_key);
@@ -179,7 +188,11 @@ Scalar taproot_tweak_privkey(
     // t = H_TapTweak(P.x || merkle_root)
     auto px = P.x().to_bytes();
     auto t_bytes = taproot_tweak_hash(px, merkle_root, merkle_root_len);
-    auto t = Scalar::from_bytes(t_bytes);
+    Scalar t;
+    if (!Scalar::parse_bytes_strict(t_bytes, t)) {
+        detail::secure_erase(&d, sizeof(d));
+        return Scalar::zero();
+    }
 
     // Tweaked private key = d + t (CT: d is a secret scalar after conditional negate)
     auto tweaked = ct::scalar_add(d, t);

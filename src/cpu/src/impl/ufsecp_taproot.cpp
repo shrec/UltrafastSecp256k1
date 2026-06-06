@@ -12,8 +12,10 @@ ufsecp_error_t ufsecp_taproot_output_key(ufsecp_ctx* ctx,
                                          int* parity_out) {
     if (SECP256K1_UNLIKELY(!ctx || !internal_x || !output_x_out || !parity_out)) {
         return UFSECP_ERR_NULL_ARG;
-}
+    }
     ctx_clear_err(ctx);
+    std::memset(output_x_out, 0, 32);
+    *parity_out = 0;
 
     // Reject all-zero x-only key (not a valid curve point)
     {
@@ -51,6 +53,7 @@ ufsecp_error_t ufsecp_taproot_tweak_seckey(ufsecp_ctx* ctx,
                                            uint8_t tweaked32_out[32]) {
     if (SECP256K1_UNLIKELY(!ctx || !privkey || !tweaked32_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    std::memset(tweaked32_out, 0, 32);
 
     Scalar sk;
     if (SECP256K1_UNLIKELY(!scalar_parse_strict_nonzero(privkey, sk))) {
@@ -60,10 +63,10 @@ ufsecp_error_t ufsecp_taproot_tweak_seckey(ufsecp_ctx* ctx,
 
     auto tweaked = secp256k1::taproot_tweak_privkey(sk, merkle_root, mr_len);
     secp256k1::detail::secure_erase(&sk, sizeof(sk));
-    if (tweaked.is_zero()) {
+    if (tweaked.is_zero_ct()) {
         secp256k1::detail::secure_erase(&tweaked, sizeof(tweaked));
         return ctx_set_err(ctx, UFSECP_ERR_ARITH, "taproot tweak resulted in zero");
-}
+    }
 
     scalar_to_bytes(tweaked, tweaked32_out);
     secp256k1::detail::secure_erase(&tweaked, sizeof(tweaked));
@@ -143,7 +146,7 @@ ufsecp_error_t ufsecp_bip143_p2wpkh_script_code(
  * BIP-144: Witness Transaction Serialization
  * =========================================================================== */
 
-// Helper: read Bitcoin CompactSize from buffer; returns 0 on overflow
+// Helper: read minimally-encoded Bitcoin CompactSize from buffer; returns 0 on failure.
 static size_t read_compact_size(const uint8_t* buf, size_t len,
                                 size_t& offset, uint64_t& val) {
     if (offset >= len) return 0;
@@ -152,18 +155,21 @@ static size_t read_compact_size(const uint8_t* buf, size_t len,
     if (first == 0xFD) {
         if (offset + 2 > len) return 0;
         val = uint64_t(buf[offset]) | (uint64_t(buf[offset+1]) << 8);
+        if (val < 0xFD) return 0;
         offset += 2; return 3;
     }
     if (first == 0xFE) {
         if (offset + 4 > len) return 0;
         val = uint64_t(buf[offset]) | (uint64_t(buf[offset+1]) << 8) |
               (uint64_t(buf[offset+2]) << 16) | (uint64_t(buf[offset+3]) << 24);
+        if (val <= 0xFFFFULL) return 0;
         offset += 4; return 5;
     }
     // 0xFF
     if (offset + 8 > len) return 0;
     val = 0;
     for (int i = 0; i < 8; ++i) val |= uint64_t(buf[offset+i]) << (8*i);
+    if (val <= 0xFFFFFFFFULL) return 0;
     offset += 8; return 9;
 }
 
@@ -171,8 +177,20 @@ static size_t read_compact_size(const uint8_t* buf, size_t len,
 static bool skip_compact_bytes(const uint8_t* buf, size_t len, size_t& offset) {
     uint64_t sz = 0;
     if (!read_compact_size(buf, len, offset, sz)) return false;
-    if (offset + sz > len) return false;
+    if (sz > len - offset) return false;
     offset += static_cast<size_t>(sz);
+    return true;
+}
+
+static bool skip_witness_stacks(const uint8_t* buf, size_t len,
+                                size_t& offset, uint64_t n_inputs) {
+    for (uint64_t i = 0; i < n_inputs; ++i) {
+        uint64_t n_stack = 0;
+        if (!read_compact_size(buf, len, offset, n_stack)) return false;
+        for (uint64_t j = 0; j < n_stack; ++j) {
+            if (!skip_compact_bytes(buf, len, offset)) return false;
+        }
+    }
     return true;
 }
 
@@ -181,6 +199,7 @@ ufsecp_error_t ufsecp_bip144_txid(
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t txid_out[32]) {
     if (SECP256K1_UNLIKELY(!ctx || !raw_tx || !txid_out)) return UFSECP_ERR_NULL_ARG;
+    std::memset(txid_out, 0, 32);
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // Detect witness flag: version(4) + marker(0x00) + flag(0x01)
@@ -232,9 +251,9 @@ ufsecp_error_t ufsecp_bip144_txid(
     // Hash inputs+outputs section (cs_start..io_end)
     h1.update(raw_tx + io_start, io_end - io_start);
 
-    // locktime = last 4 bytes
-    if (raw_tx_len < 4) return UFSECP_ERR_BAD_INPUT;
-    h1.update(raw_tx + raw_tx_len - 4, 4);
+    if (!skip_witness_stacks(raw_tx, raw_tx_len, off, n_in)) return UFSECP_ERR_BAD_INPUT;
+    if (off + 4 != raw_tx_len) return UFSECP_ERR_BAD_INPUT;
+    h1.update(raw_tx + off, 4);
 
     auto first = h1.finalize();
     secp256k1::SHA256 h2;
@@ -249,6 +268,7 @@ ufsecp_error_t ufsecp_bip144_wtxid(
     const uint8_t* raw_tx, size_t raw_tx_len,
     uint8_t wtxid_out[32]) {
     if (SECP256K1_UNLIKELY(!ctx || !raw_tx || !wtxid_out)) return UFSECP_ERR_NULL_ARG;
+    std::memset(wtxid_out, 0, 32);
     if (raw_tx_len < 10) return UFSECP_ERR_BAD_INPUT;
 
     // wtxid = double-SHA256 of the full witness-serialized tx
@@ -636,9 +656,17 @@ ufsecp_error_t ufsecp_bip39_to_seed(ufsecp_ctx* ctx,
                                     uint8_t seed64_out[64]) {
     if (SECP256K1_UNLIKELY(!ctx || !mnemonic || !seed64_out)) return UFSECP_ERR_NULL_ARG;
     ctx_clear_err(ctx);
+    std::memset(seed64_out, 0, 64);
     try {
-    const std::string pass = passphrase ? passphrase : "";
-    auto [seed, ok] = secp256k1::bip39_mnemonic_to_seed(std::string(mnemonic), pass);
+    std::string mn(mnemonic);
+    if (SECP256K1_UNLIKELY(!secp256k1::bip39_validate(mn))) {
+        secp256k1::detail::secure_erase(mn.data(), mn.size());
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid mnemonic");
+    }
+    std::string pass = passphrase ? passphrase : "";
+    auto [seed, ok] = secp256k1::bip39_mnemonic_to_seed(mn, pass);
+    secp256k1::detail::secure_erase(mn.data(), mn.size());
+    secp256k1::detail::secure_erase(pass.data(), pass.size());
     if (SECP256K1_UNLIKELY(!ok)) {
         return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "invalid mnemonic");
     }
@@ -885,4 +913,3 @@ ufsecp_error_t ufsecp_multi_scalar_mul(ufsecp_ctx* ctx,
 /* ===========================================================================
  * MuSig2 (BIP-327)
  * =========================================================================== */
-

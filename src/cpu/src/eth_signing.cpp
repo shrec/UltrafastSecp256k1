@@ -71,7 +71,10 @@ EthSignature eth_sign_hash(const std::array<std::uint8_t, 32>& hash,
     // CT path: branchless parity, ct::scalar_inverse (SafeGCD), ct::generator_mul(k)
     auto rsig = secp256k1::ct::ecdsa_sign_recoverable(hash, private_key);
 
-    EthSignature result;
+    EthSignature result{};
+    if (!rsig.sig.is_valid() || rsig.recid < 0 || rsig.recid > 3) {
+        return result;
+    }
     auto r_bytes = rsig.sig.r.to_bytes();
     auto s_bytes = rsig.sig.s.to_bytes();
     std::memcpy(result.r.data(), r_bytes.data(), 32);

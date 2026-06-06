@@ -34,17 +34,16 @@ inline void point_to_pubkey_data(const Point& pt, unsigned char data[64]) noexce
 }
 
 // Reconstruct a Point from a 64-byte opaque pubkey buffer (X || Y).
-// Trust contract (matches libsecp256k1): secp256k1_pubkey is populated only
-// by secp256k1_ec_pubkey_parse / secp256k1_ec_pubkey_create, both of which
-// validate y²=x³+7. We do NOT re-check curve membership here — the parse
-// already did it. A caller writing arbitrary bytes into the struct violates
-// the API contract; behaviour is undefined (same as libsecp256k1).
-// PERF-003: uses reinterpret_cast to avoid 64-byte stack copy overhead.
+// Fail closed for hostile callers that write raw bytes into the opaque struct:
+// reject x/y >= p and off-curve coordinates instead of silently reducing them.
 [[nodiscard]] inline Point pubkey_data_to_point(const unsigned char data[64]) noexcept {
     const auto& xb = *reinterpret_cast<const std::array<uint8_t, 32>*>(data);
     const auto& yb = *reinterpret_cast<const std::array<uint8_t, 32>*>(data + 32);
-    auto x = FieldElement::from_bytes(xb);
-    auto y = FieldElement::from_bytes(yb);
+    FieldElement x, y;
+    if (!FieldElement::parse_bytes_strict(xb, x)) return Point::infinity();
+    if (!FieldElement::parse_bytes_strict(yb, y)) return Point::infinity();
+    auto b7 = FieldElement::from_uint64(7);
+    if (y * y != x * x * x + b7) return Point::infinity();
     return Point::from_affine(x, y);
 }
 

@@ -4050,7 +4050,8 @@ target_sources(unified_audit_runner PRIVATE
     test_regression_shim_seckey_erase.cpp
     # P1-SEC-002: schnorr_sign e_hash erasure (no special dependency)
     test_regression_schnorr_sign_e_hash_erased.cpp
-    # P2: CT-001/002/003 + SHIM-002/003/004 fixes (includes secp256k1.h — needs shim include path)
+    # P2: CT-001/002/003 + SHIM-002/003/004 fixes. Unified keeps shim
+    # subtests stubbed; the dedicated standalone target below links the shim.
     test_regression_p2_ct_shim_fixes.cpp
     # P1-SEC-001: FROST frost_sign absent signer ID (real impl when FROST built)
     $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_absent_signer_id.cpp>
@@ -4131,6 +4132,22 @@ else()
     target_sources(unified_audit_runner PRIVATE shim_run_stubs_unified.cpp
         # fe52_var_paths does not need the shim — include in non-shim build.
         test_regression_fe52_var_paths.cpp)
+endif()
+
+# -- P2: CT + shim fail-closed regression target (shim-linked standalone) -----
+if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
+    add_executable(test_regression_p2_ct_shim_fixes_standalone
+        test_regression_p2_ct_shim_fixes.cpp)
+    audit_target_defaults(test_regression_p2_ct_shim_fixes_standalone)
+    target_link_libraries(test_regression_p2_ct_shim_fixes_standalone PRIVATE secp256k1_shim)
+    target_include_directories(test_regression_p2_ct_shim_fixes_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+    target_compile_definitions(test_regression_p2_ct_shim_fixes_standalone PRIVATE
+        STANDALONE_TEST SECP256K1_BUILD_COMPAT_SHIM)
+    add_test(NAME regression_p2_ct_shim_fixes
+        COMMAND test_regression_p2_ct_shim_fixes_standalone)
+    set_tests_properties(regression_p2_ct_shim_fixes PROPERTIES
+        TIMEOUT 60 LABELS "audit;regression;shim;ct;failclosed;p2")
 endif()
 
 # -- v8: shim security regression guards — standalone CTest target (shim-dependent) --

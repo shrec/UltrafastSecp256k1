@@ -1682,8 +1682,12 @@ static void test_frost_aggregate_rejects_malformed_signer_sets() {
     uint8_t duplicate_partials[72];
     std::memcpy(duplicate_partials, psig1, 36);
     std::memcpy(duplicate_partials + 36, psig1, 36);
+    std::memset(sig64, 0xA5, sizeof(sig64));
     CHECK(ufsecp_frost_aggregate(ctx, duplicate_partials, 2, nonce_commits_good, 2, group_pub, msg32, sig64) != UFSECP_OK,
           "aggregate rejects duplicate partial signer IDs");
+    bool frost_sig_zero = true;
+    for (uint8_t b : sig64) frost_sig_zero = frost_sig_zero && (b == 0);
+    CHECK(frost_sig_zero, "aggregate failure clears signature output");
 
     uint8_t mismatched_partials[72];
     std::memcpy(mismatched_partials, psig1, 36);
@@ -3043,6 +3047,13 @@ static void test_hostile_btc_message() {
     char base64[128]; size_t base64_len = sizeof(base64);
     CHECK(ufsecp_btc_message_sign(nullptr, buf, 5, buf, base64, &base64_len) != UFSECP_OK,
           "btc_message_sign null ctx");
+    uint8_t zero_priv[32] = {};
+    std::memset(base64, 'Z', sizeof(base64));
+    base64_len = sizeof(base64);
+    CHECK_ERR(ufsecp_btc_message_sign(ctx, buf, 5, zero_priv, base64, &base64_len),
+              "btc_message_sign invalid key rejected");
+    CHECK(base64_len == 0 && base64[0] == '\0',
+          "btc_message_sign invalid key clears output buffer state");
     // btc_message_verify: null ctx
     CHECK(ufsecp_btc_message_verify(nullptr, buf, 5, buf, "dGVzdA==") != UFSECP_OK,
           "btc_message_verify null ctx");
@@ -3205,6 +3216,14 @@ static void test_hostile_bip39() {
     // to_seed: null ctx
     CHECK(ufsecp_bip39_to_seed(nullptr, "test", nullptr, seed) != UFSECP_OK,
           "bip39_to_seed null ctx");
+    std::memset(seed, 0xA5, sizeof(seed));
+    CHECK_ERR(ufsecp_bip39_to_seed(ctx,
+              "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon",
+              "", seed),
+              "bip39_to_seed invalid checksum rejected");
+    bool seed_cleared = true;
+    for (uint8_t b : seed) seed_cleared = seed_cleared && (b == 0);
+    CHECK(seed_cleared, "bip39_to_seed invalid mnemonic clears seed output");
     // to_entropy: null ctx
     CHECK(ufsecp_bip39_to_entropy(nullptr, "test", entropy, &ent_len) != UFSECP_OK,
           "bip39_to_entropy null ctx");
@@ -3346,6 +3365,16 @@ static void test_hostile_ethereum() {
     // eth_sign: null ctx
     uint8_t r[32] = {}, s[32] = {}; uint64_t v = 0;
     CHECK(ufsecp_eth_sign(nullptr, buf, buf, r, s, &v, 1) != UFSECP_OK, "eth_sign null ctx");
+    uint8_t zero_priv[32] = {};
+    std::memset(r, 0xA5, sizeof(r));
+    std::memset(s, 0x5A, sizeof(s));
+    v = 0xA5A5A5A5ULL;
+    CHECK_ERR(ufsecp_eth_sign(ctx, buf, zero_priv, r, s, &v, 1),
+              "eth_sign invalid key rejected");
+    bool eth_cleared = (v == 0);
+    for (uint8_t b : r) eth_cleared = eth_cleared && (b == 0);
+    for (uint8_t b : s) eth_cleared = eth_cleared && (b == 0);
+    CHECK(eth_cleared, "eth_sign invalid key clears r/s/v outputs");
     // eth_ecrecover: null ctx
     uint8_t addr20[20];
     CHECK(ufsecp_eth_ecrecover(nullptr, buf, r, s, 27, addr20) != UFSECP_OK,
@@ -4070,6 +4099,45 @@ static void test_h10_bip144() {
               "H.10g: bip144_wtxid zero len rejected");
     CHECK_ERR(ufsecp_bip144_wtxid(ctx, fake_tx, sizeof(fake_tx), nullptr),
               "H.10h: bip144_wtxid NULL output rejected");
+
+    static const uint8_t valid_witness_tx[] = {
+        0x01,0x00,0x00,0x00, 0x00,0x01, 0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00, 0xff,0xff,0xff,0xff,
+        0x01, 0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00, 0x01, 0x01, 0x02, 0x00,0x00,0x00,0x00
+    };
+    CHECK_OK(ufsecp_bip144_txid(ctx, valid_witness_tx, sizeof(valid_witness_tx), txid),
+             "H.10h1: bip144_txid accepts valid witness tail");
+
+    static const uint8_t nonminimal_vin_tx[] = {
+        0x01,0x00,0x00,0x00, 0x00,0x01, 0xfd,0x01,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00, 0xff,0xff,0xff,0xff,
+        0x01, 0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00, 0x01, 0x01, 0x02, 0x00,0x00,0x00,0x00
+    };
+    CHECK_ERR(ufsecp_bip144_txid(ctx, nonminimal_vin_tx, sizeof(nonminimal_vin_tx), txid),
+              "H.10h2: bip144_txid rejects non-minimal CompactSize");
+
+    static const uint8_t extra_witness_tail_tx[] = {
+        0x01,0x00,0x00,0x00, 0x00,0x01, 0x01,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00, 0x00, 0xff,0xff,0xff,0xff,
+        0x01, 0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00, 0x01, 0x01, 0x02, 0x99, 0x00,0x00,0x00,0x00
+    };
+    CHECK_ERR(ufsecp_bip144_txid(ctx, extra_witness_tail_tx, sizeof(extra_witness_tail_tx), txid),
+              "H.10h3: bip144_txid rejects bytes between witness and locktime");
 
     // --- witness_commitment NULL guards (no ctx) ---
     static const uint8_t root32[32]  = {1};
