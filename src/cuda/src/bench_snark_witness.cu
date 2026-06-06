@@ -111,9 +111,17 @@ int main(int argc, char** argv) {
         std::printf("  CPU: secp256k1::zk::ecdsa_snark_witness  (single-thread)\n");
         std::printf("  GPU: ecdsa_snark_witness_batch_kernel     (CUDA)\n");
         std::printf("============================================================\n");
-        std::printf("  GPU: %s (%d SMs, %d MHz)\n",
-                    prop.name, prop.multiProcessorCount,
-                    (int)(prop.clockRate / 1000));
+        #if CUDART_VERSION >= 12000
+            int clock_khz;
+            cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, 0);
+            int clock_mhz = clock_khz / 1000;
+        #else
+            int clock_mhz = (int)(prop.clockRate / 1000);
+        #endif
+
+            std::printf("  GPU: %s (%d SMs, %d MHz)\n",
+                prop.name, prop.multiProcessorCount, clock_mhz);
+
         std::printf("  N = %d, %d passes (median)\n\n", bench_n, passes);
     }
 
