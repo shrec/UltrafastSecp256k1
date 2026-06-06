@@ -52,7 +52,7 @@ jobs:
         config: [Release, Debug]
         linkage: [static, ltcg]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ github.event.inputs.tag }}
 
@@ -178,7 +178,7 @@ jobs:
     if: ${{ always() && !cancelled() }}
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           ref: ${{ github.event.inputs.tag }}
 
