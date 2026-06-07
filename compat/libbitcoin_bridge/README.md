@@ -240,8 +240,28 @@ else if (ok == 0) verify_commitment(...);    // locate the failure(s) per-row
 else /* -1 */     verify_commitment(...);     // no GPU -> CPU per-row
 ```
 
-Remaining follow-up: a **per-item GPU kernel** (one thread per check) for per-row
-GPU verdicts at a higher ceiling (~Schnorr-class, ~5 M/s).
+**Single-buffer (AoS) — one mmap'd table, one pointer, zero repack.** The 4 columns
+collapse to **3** by storing the tweaked key COMPRESSED (the `0x02/0x03` prefix folds
+in the parity — no separate parity column), laid out as one packed record:
+
+```
+CommitmentRow (97B):  internal_x[32] | tweak[32] | tweaked[33, compressed]
+   buffer = n × (record + optional tail)   ← your mmap'd table, verbatim
+```
+```c
+// CPU: each record read IN PLACE at rows + i*stride (zero copy), threaded.
+ufsecp_lbtc_verify_commitment_rows(ctrl, rows, n, /*stride=*/sizeof(Row), results);
+// GPU RLC over the same buffer (Q_i read straight from the compressed field):
+int ok = ufsecp_lbtc_commitment_batch_ok_rows(ctrl, rows, n, stride);  // 1/0/-1
+```
+The CPU path is genuinely copy-free (strided in-place reads); the GPU path's H2D
+marshal is the same one every GPU dispatch pays (independent of AoS vs SoA). `stride`
+may exceed 97 to carry a correlation tail the bridge ignores. The columns (SoA)
+variants stay available for one-stream-per-field callers.
+
+Remaining follow-up: a **per-item GPU kernel** (one thread per check) reading the
+strided 97-byte records on-device (no host de-interleave) for per-row GPU verdicts
+at a higher ceiling (~Schnorr-class, ~5 M/s).
 
 ## Collect (in-place) verify — `*_collect`
 

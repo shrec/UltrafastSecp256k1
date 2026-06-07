@@ -786,6 +786,119 @@ int ufsecp_lbtc_commitment_batch_ok(ufsecp_lbtc_ctrl* ctrl,
 #endif
 }
 
+/* ---------------------------------------------------------------------------
+ * Single-buffer (AoS) commitment batch — one horizontal mmap'd table, one ptr.
+ *
+ * Each row is a tightly-packed 97-byte record (+ optional caller tail counted in
+ * `stride`):
+ *     [ internal_x(32) ][ tweak(32) ][ tweaked(33) ]
+ * where `tweaked` is the COMPRESSED output key (0x02/0x03 prefix folds in the
+ * y-parity — no separate parity column). The verified record is the first 97
+ * bytes; stride may be larger (a block-fk / correlation tail the bridge ignores).
+ *
+ * CPU path: each row is read in place from the mmap at base + i*stride (strided,
+ * ZERO copy) and verified independently — Q = lift_x(internal,even)+tweak*G,
+ * accept iff its compressed form equals the stored `tweaked` (33 bytes; this
+ * single compare captures both x AND parity). Rows fan across a thread pool.
+ * ------------------------------------------------------------------------- */
+static inline bool lbtc_commit_one_comp(ufsecp_ctx* ctx, const uint8_t Gc[33],
+                                        const uint8_t* internal_x32,
+                                        const uint8_t* tweak32,
+                                        const uint8_t* tweaked_comp33) {
+    uint8_t pts[66], scl[64], Q[33];
+    pts[0] = 0x02; std::memcpy(pts + 1, internal_x32, 32);  /* lift(internal, even-y) */
+    std::memcpy(pts + 33, Gc, 33);
+    std::memset(scl, 0, 64); scl[31] = 1;
+    std::memcpy(scl + 32, tweak32, 32);
+    if (ufsecp_multi_scalar_mul(ctx, scl, pts, 2, Q) != UFSECP_OK) return false;
+    return std::memcmp(Q, tweaked_comp33, 33) == 0;  /* x + parity in one compare */
+}
+
+void ufsecp_lbtc_verify_commitment_rows(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t stride, uint8_t* results) {
+    if (!results || n == 0) return;
+    std::memset(results, 0, n);  /* fail-closed default */
+    if (!ctrl || !rows || stride < UFSECP_LBTC_COMMITMENT_RECORD) return;
+
+    uint8_t Gc[33]; { uint8_t one[32] = {0}; one[31] = 1;
+        ufsecp_ctx* g = nullptr;
+        if (ufsecp_ctx_create(&g) != UFSECP_OK || !g) return;
+        const ufsecp_error_t ge = ufsecp_pubkey_create(g, one, Gc);
+        ufsecp_ctx_destroy(g);
+        if (ge != UFSECP_OK) return;
+    }
+
+    unsigned T = std::thread::hardware_concurrency(); if (!T) T = 4;
+    if (n < 512) T = 1;
+    std::vector<std::thread> ths; ths.reserve(T);
+    const size_t per = (n + T - 1) / T;
+    for (unsigned t = 0; t < T; ++t) {
+        ths.emplace_back([&, t]() {
+            ufsecp_ctx* c = nullptr;
+            if (ufsecp_ctx_create(&c) != UFSECP_OK || !c) return;  /* results stay 0 */
+            const size_t lo = (size_t)t * per, hi = std::min(n, lo + per);
+            for (size_t i = lo; i < hi; ++i) {
+                const uint8_t* r = rows + i * stride;          /* in-place strided read */
+                results[i] = lbtc_commit_one_comp(c, Gc, r, r + 32, r + 64) ? 1u : 0u;
+            }
+            ufsecp_ctx_destroy(c);
+        });
+    }
+    for (auto& th : ths) th.join();
+}
+
+/* GPU RLC fast-check over the single AoS buffer (see ufsecp_lbtc_commitment_batch_ok).
+ * Q_i is read straight from the row's compressed `tweaked` field — no repack. */
+int ufsecp_lbtc_commitment_batch_ok_rows(ufsecp_lbtc_ctrl* ctrl,
+                                         const uint8_t* rows, size_t n, size_t stride) {
+    if (!ctrl || n == 0 || !rows || stride < UFSECP_LBTC_COMMITMENT_RECORD) return -1;
+#ifdef UFSECP_LBTC_WITH_GPU
+    if (!ctrl->gpu) return -1;
+    using secp256k1::fast::Scalar;
+    try {
+        /* Fiat-Shamir digest e = SHA256 over the 97-byte records (excludes any tail). */
+        std::vector<uint8_t> tr(n * UFSECP_LBTC_COMMITMENT_RECORD);
+        for (size_t i = 0; i < n; ++i)
+            std::memcpy(tr.data() + i * UFSECP_LBTC_COMMITMENT_RECORD,
+                        rows + i * stride, UFSECP_LBTC_COMMITMENT_RECORD);
+        uint8_t e[32];
+        if (ufsecp_sha256(tr.data(), tr.size(), e) != UFSECP_OK) return -1;
+
+        uint8_t Gc[33]; { uint8_t one[32]={0}; one[31]=1; ufsecp_ctx* g=nullptr;
+            if (ufsecp_ctx_create(&g)!=UFSECP_OK || !g) return -1;
+            const ufsecp_error_t ge = ufsecp_pubkey_create(g, one, Gc);
+            ufsecp_ctx_destroy(g);
+            if (ge != UFSECP_OK) return -1; }
+
+        std::vector<uint8_t> lp((n+1)*33), ls((n+1)*32), qp(n*33);
+        Scalar g_coeff = Scalar::zero();
+        for (size_t i = 0; i < n; ++i) {
+            const uint8_t* r = rows + i * stride;
+            uint8_t seed[36]; std::memcpy(seed, e, 32);
+            seed[32]=(uint8_t)i; seed[33]=(uint8_t)(i>>8);
+            seed[34]=(uint8_t)(i>>16); seed[35]=(uint8_t)(i>>24);
+            uint8_t rb[32]; if (ufsecp_sha256(seed, 36, rb) != UFSECP_OK) return -1;
+            const Scalar rs = Scalar::from_bytes(rb);
+            const auto ra = rs.to_bytes();
+            std::memcpy(ls.data() + i*32, ra.data(), 32);
+            lp[i*33] = 0x02; std::memcpy(lp.data()+i*33+1, r, 32);   /* P_i = even-y(internal) */
+            std::memcpy(qp.data()+i*33, r + 64, 33);                 /* Q_i = stored compressed */
+            g_coeff = g_coeff + rs * Scalar::from_bytes(r + 32);     /* + r_i * tweak_i */
+        }
+        std::memcpy(lp.data() + n*33, Gc, 33);
+        { const auto ga = g_coeff.to_bytes(); std::memcpy(ls.data() + n*32, ga.data(), 32); }
+
+        uint8_t lhs[33], rhs[33];
+        if (ufsecp_gpu_msm(ctrl->gpu, ls.data(), lp.data(), n+1, lhs) != UFSECP_OK) return -1;
+        if (ufsecp_gpu_msm(ctrl->gpu, ls.data(), qp.data(), n,   rhs) != UFSECP_OK) return -1;
+        return std::memcmp(lhs, rhs, 33) == 0 ? 1 : 0;
+    } catch (...) { return -1; }
+#else
+    (void)rows; (void)n; (void)stride; return -1;
+#endif
+}
+
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    const uint8_t scan_privkey32[32],
                                    const uint8_t spend_pubkey33[33],

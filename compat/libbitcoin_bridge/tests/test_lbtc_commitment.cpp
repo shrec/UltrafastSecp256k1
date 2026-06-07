@@ -115,6 +115,43 @@ int main() {
         }
     }
 
+    /* (6) single-buffer (AoS) rows path: internal_x|tweak|tweaked_comp (97B) +tail */
+    {
+        const size_t REC = UFSECP_LBTC_COMMITMENT_RECORD;   /* 97 */
+        const size_t TAIL = 3, STRIDE = REC + TAIL;          /* exercise a correlation tail */
+        std::vector<uint8_t> rows(N*STRIDE, 0);
+        for (size_t i = 0; i < N; ++i) {
+            uint8_t* r = rows.data() + i*STRIDE;
+            std::memcpy(r,      ix.data()+i*32, 32);
+            std::memcpy(r + 32, tw.data()+i*32, 32);
+            r[64] = par[i] ? 0x03 : 0x02;                    /* compressed prefix = parity */
+            std::memcpy(r + 65, tx.data()+i*32, 32);
+            r[97]=0xAA; r[98]=0xBB; r[99]=0xCC;              /* junk tail — must be ignored */
+        }
+        std::vector<uint8_t> res(N, 0);
+        ufsecp_lbtc_verify_commitment_rows(ctrl, rows.data(), N, STRIDE, res.data());
+        bool all1 = true; for (auto v : res) if (v != 1) all1 = false;
+        CHECK(all1, "AoS rows: all-valid -> every result 1 (correlation tail ignored)");
+
+        uint8_t s = rows[10*STRIDE+64]; rows[10*STRIDE+64] ^= 0x01;   /* flip parity prefix */
+        std::fill(res.begin(), res.end(), 0);
+        ufsecp_lbtc_verify_commitment_rows(ctrl, rows.data(), N, STRIDE, res.data());
+        bool sel = (res[10]==0); for (size_t i=0;i<N;++i) if (i!=10 && res[i]!=1) sel=false;
+        rows[10*STRIDE+64] = s;
+        CHECK(sel, "AoS rows: corrupted parity prefix rejects only that row");
+
+        int ok = ufsecp_lbtc_commitment_batch_ok_rows(ctrl, rows.data(), N, STRIDE);
+        if (ok < 0) {
+            std::printf("  skip: batch_ok_rows — no GPU build/device\n");
+        } else {
+            CHECK(ok == 1, "AoS rows GPU RLC: all-valid -> 1");
+            uint8_t s2 = rows[20*STRIDE+70]; rows[20*STRIDE+70] ^= 0x01;
+            int bad = ufsecp_lbtc_commitment_batch_ok_rows(ctrl, rows.data(), N, STRIDE);
+            rows[20*STRIDE+70] = s2;
+            CHECK(bad == 0, "AoS rows GPU RLC: corrupted row -> 0");
+        }
+    }
+
     ufsecp_lbtc_ctrl_destroy(ctrl);
     ufsecp_ctx_destroy(uctx);
     secp256k1_context_destroy(sctx);

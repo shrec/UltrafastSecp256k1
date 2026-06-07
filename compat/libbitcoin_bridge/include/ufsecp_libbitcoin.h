@@ -76,6 +76,12 @@ extern "C" {
 #define UFSECP_LBTC_ECDSA_RECORD   129u
 /* Schnorr row: 32-byte msg/sighash  | 32-byte x-only pubkey     | 64-byte sig. */
 #define UFSECP_LBTC_SCHNORR_RECORD 128u
+/* BIP-341 commitment AoS record (single-buffer / mmap-direct):
+ *   32-byte x-only internal key | 32-byte tweak | 33-byte COMPRESSED tweaked key
+ * The compressed prefix (0x02/0x03) folds in the y-parity, so there is no separate
+ * parity column. The verified record is 97 bytes; the row stride may be larger to
+ * carry a caller correlation tail (block-fk etc.) the bridge ignores. */
+#define UFSECP_LBTC_COMMITMENT_RECORD 97u
 
 /* ------------------------------------------------------------------------- */
 /* Controller lifecycle.                                                      */
@@ -322,6 +328,32 @@ int ufsecp_lbtc_commitment_batch_ok(ufsecp_lbtc_ctrl* ctrl,
                                     const uint8_t* parity,
                                     size_t n);
 
+/*
+ * Single-buffer (array-of-structs) commitment batch — one horizontal mmap'd table,
+ * one pointer, no repack. Each row is a tightly-packed UFSECP_LBTC_COMMITMENT_RECORD
+ * (97-byte) record, optionally followed by a caller tail (counted in `stride`):
+ *     [ internal_x(32) ][ tweak(32) ][ tweaked(33, compressed: prefix = parity) ]
+ *
+ *   rows     n rows of `stride` bytes, tightly packed (your mmap'd table verbatim).
+ *   n        row count.   stride  >= 97 (record + optional correlation tail).
+ *   results  OUT n bytes, 1 valid / 0 invalid.
+ *
+ * CPU path reads each record IN PLACE at rows + i*stride (zero copy) and verifies
+ * it independently across a thread pool. Degenerate call (NULL/n==0/stride<97) ->
+ * fail-closed (results zeroed). Same exact per-row semantics as the columns
+ * verify_commitment; the tweaked key being compressed makes x+parity a single
+ * compare.
+ */
+void ufsecp_lbtc_verify_commitment_rows(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t stride, uint8_t* results);
+
+/* GPU RLC aggregate fast-check over the single AoS buffer (1 all-valid / 0 some-
+ * invalid / -1 no GPU). Q_i is read straight from each row's compressed `tweaked`
+ * field (no repack). Same Fiat-Shamir contract as ufsecp_lbtc_commitment_batch_ok. */
+int ufsecp_lbtc_commitment_batch_ok_rows(ufsecp_lbtc_ctrl* ctrl,
+                                         const uint8_t* rows, size_t n, size_t stride);
+
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    const uint8_t scan_privkey32[32],
                                    const uint8_t spend_pubkey33[33],
@@ -421,6 +453,20 @@ static_assert(sizeof(MultisigRow) == UFSECP_LBTC_ECDSA_RECORD + 6,
               "MultisigRow must be exactly 135 bytes (129 record + 6 tag), packed");
 static_assert(sizeof(ThresholdRow) == UFSECP_LBTC_SCHNORR_RECORD + 6,
               "ThresholdRow must be exactly 134 bytes (128 record + 6 tag), packed");
+
+// Single-buffer (AoS) BIP-341 commitment record — the canonical on-wire row for
+// ufsecp_lbtc_verify_commitment_rows. The tweaked key is COMPRESSED so its
+// 0x02/0x03 prefix carries the y-parity (no separate parity column). Append your
+// own correlation bytes after it; the row stride = sizeof(CommitmentRow) + tail.
+#pragma pack(push, 1)
+struct CommitmentRow {          // 97 bytes
+    uint8_t internal_x[32];     // x-only internal key (even-y implicit per BIP-341)
+    uint8_t tweak[32];          // BIP-341 tweak (in [1, n))
+    uint8_t tweaked[33];        // compressed output key: 0x02/0x03 prefix = y-parity
+};
+#pragma pack(pop)
+static_assert(sizeof(CommitmentRow) == UFSECP_LBTC_COMMITMENT_RECORD,
+              "CommitmentRow must be exactly 97 bytes (32+32+33), tightly packed");
 
 class Controller {
 public:
@@ -545,6 +591,38 @@ public:
         return ufsecp_lbtc_commitment_batch_ok(ctrl_, internal_x32, tweak32,
                                                tweaked_x32, parity, n);
     }
+
+    // Single-buffer (AoS) commitment batch — one mmap'd table, one pointer.
+    // Each row: internal_x[32] | tweak[32] | tweaked[33, compressed]. stride >= 97.
+    void verify_commitment_rows(const uint8_t* rows, size_t n, size_t stride,
+                                uint8_t* results) const {
+        ufsecp_lbtc_verify_commitment_rows(ctrl_, rows, n, stride, results);
+    }
+    int commitment_batch_ok_rows(const uint8_t* rows, size_t n, size_t stride) const {
+        return ufsecp_lbtc_commitment_batch_ok_rows(ctrl_, rows, n, stride);
+    }
+#if __cplusplus >= 202002L
+    // Typed-span over the canonical CommitmentRow (stride = sizeof(Row) recovers
+    // any trailing correlation tail). Zero-copy from your packed table.
+    template <class Row>
+    void verify_commitment(std::span<const Row> batch, uint8_t* results) const {
+        static_assert(sizeof(Row) >= UFSECP_LBTC_COMMITMENT_RECORD,
+                      "Row must contain the 97-byte commitment record first");
+        static_assert(std::is_standard_layout_v<Row>,
+                      "Row must be standard-layout, tightly packed (#pragma pack(1))");
+        ufsecp_lbtc_verify_commitment_rows(
+            ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row), results);
+    }
+    template <class Row>
+    int commitment_batch_ok(std::span<const Row> batch) const {
+        static_assert(sizeof(Row) >= UFSECP_LBTC_COMMITMENT_RECORD,
+                      "Row must contain the 97-byte commitment record first");
+        return ufsecp_lbtc_commitment_batch_ok_rows(
+            ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
+            sizeof(Row));
+    }
+#endif
     void collect_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                                   const uint8_t* sigs64, size_t count,
                                   uint8_t* key_cells, size_t key_size) const {
