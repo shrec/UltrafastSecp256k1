@@ -1,5 +1,25 @@
 # Audit Changelog
 
+## 2026-06-08 — CAAS: systemic tagged-hash tag-conformance gate
+
+- **New gate — `ci/check_tag_conformance.py`** (wired into `run_fast_gates` as
+  "Tagged-hash tag conformance (all tags)"). Closes the CAAS blind spot behind two
+  bugs shipped this cycle (MuSig2 `MuSig/nonceblinding` instead of `MuSig/noncecoef`;
+  GPU range-prove `BP/y|z|x|ip` instead of `Bulletproof/...`). Both were
+  self-consistent (roundtrip / self tests passed) yet diverged from the canonical
+  spec, so they were invisible to the existing self-consistency suite and only caught
+  by external differential testing.
+- **What it enforces:** every production tagged-hash tag literal across all backends
+  (CPU + CUDA + OpenCL + Metal) must be in a canonical registry (32 tags: BIP-340/341/
+  327/322/352/324 + engine ZK/FROST/coin-SP). A misspelled or unknown tag — exactly
+  what `MuSig/nonceblinding` was — fails the gate at commit time, before any external
+  test runs. Known-wrong variants (`MuSig/nonceblinding`, `BP/*`, casing/typo classes)
+  are named explicitly with their correct value. Adding a new tag requires registering
+  it here, forcing a deliberate review against the authoritative spec.
+- **Verified:** passes on the current tree (27 production tags found, all canonical);
+  unit-confirmed to catch both historical bugs (banned) and hypothetical typos
+  (unknown). Complements the earlier focused `ci/check_zk_tag_conformance.py`.
+
 ## 2026-06-08 — MuSig2 infinity aggregate-nonce BIP-327 conformance (R=G)
 
 - **Conformance fix — infinity aggregate nonce.** `musig2_start_sign_session` previously
