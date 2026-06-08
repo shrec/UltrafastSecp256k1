@@ -56,14 +56,11 @@ jobs:
       # shim subdirectory is added (see compat/libsecp256k1_shim/CMakeLists.txt).
       - name: Configure (shim conformance tests)
         run: |
-          cmake -S . -B out/conformance -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+          # Named build profile (CMakePresets.json) is the single source of truth for the
+          # config; compiler + march are environment-specific overrides layered on top.
+          # binaryDir is out/conformance (from the preset).
+          cmake --preset conformance \
             -DCMAKE_CXX_COMPILER=g++-14 \
-            -DSECP256K1_BUILD_SHIM=OFF \
-            -DSECP256K1_SHIM_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_TESTS=OFF \
-            -DSECP256K1_BUILD_CUDA=OFF \
-            -DSECP256K1_BUILD_OPENCL=OFF \
             -DSECP256K1_MARCH=x86-64-v3
 
       - name: Build conformance targets
@@ -120,21 +117,18 @@ jobs:
       # engine in test_cross_libsecp256k1.
       - name: Configure (cross-library differential)
         run: |
-          cmake -S . -B out/xdiff -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+          # Named build profile (CMakePresets.json); compiler + march are env overrides.
+          # binaryDir is out/cross-libsecp (from the preset).
+          cmake --preset cross-libsecp \
             -DCMAKE_CXX_COMPILER=g++-14 \
-            -DSECP256K1_BUILD_TESTS=ON \
-            -DSECP256K1_BUILD_CROSS_TESTS=ON \
-            -DSECP256K1_BUILD_CUDA=OFF \
-            -DSECP256K1_BUILD_OPENCL=OFF \
             -DSECP256K1_MARCH=x86-64-v3
 
       - name: Build the in-process cross-library test
-        run: cmake --build out/xdiff -j"$(nproc)" --target test_cross_libsecp256k1
+        run: cmake --build out/cross-libsecp -j"$(nproc)" --target test_cross_libsecp256k1
 
       - name: Run engine == libsecp256k1 differential (hard gate)
         run: |
-          ctest --test-dir out/xdiff --output-on-failure \
+          ctest --test-dir out/cross-libsecp --output-on-failure \
             --no-tests=error -R '^cross_libsecp256k1$'
 
       - name: Summary

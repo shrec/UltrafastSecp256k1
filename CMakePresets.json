@@ -1,426 +1,490 @@
 {
-    "version": 6,
-    "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 21,
-        "patch": 0
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/out/${presetName}",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     },
-    "configurePresets": [
-        {
-            "name": "base",
-            "hidden": true,
-            "binaryDir": "${sourceDir}/out/${presetName}",
-            "generator": "Ninja",
-            "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-            }
-        },
-        {
-            "name": "base-linux",
-            "hidden": true,
-            "inherits": "base",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
-            }
-        },
-        {
-            "name": "base-windows",
-            "hidden": true,
-            "inherits": "base",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            },
-            "generator": "Ninja"
-        },
-        {
-            "name": "cpu-release",
-            "displayName": "CPU Release (Safe)",
-            "description": "CPU-only optimized build with safe defaults (stack protector, FORTIFY_SOURCE active)",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON",
-                "SECP256K1_SPEED_FIRST": "OFF",
-                "SECP256K1_ENABLE_OPENMP": "ON"
-            }
-        },
-        {
-            "name": "cpu-release-speed",
-            "displayName": "CPU Release (Speed-First, UNSAFE)",
-            "description": "CPU-only maximum throughput: -Ofast, no stack protector, no FORTIFY_SOURCE. Use only in controlled environments.",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON",
-                "SECP256K1_SPEED_FIRST": "ON",
-                "SECP256K1_ENABLE_OPENMP": "ON"
-            }
-        },
-        {
-            "name": "cpu-debug",
-            "displayName": "CPU Debug",
-            "description": "CPU-only debug build",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON"
-            }
-        },
-        {
-            "name": "arm64-cross",
-            "displayName": "ARM64 Cross (Linux → AArch64)",
-            "description": "Cross-compile CPU-only release for AArch64/ARM64 using aarch64-linux-gnu-gcc",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-aarch64-linux-gnu.cmake",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_OPENCL": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON"
-            }
-        },
-        {
-            "name": "riscv64-cross",
-            "displayName": "RISC-V 64 Cross (Linux → rv64gc)",
-            "description": "Cross-compile CPU-only release for RISC-V 64-bit (rv64gc_zba_zbb) using riscv64-linux-gnu-gcc",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-riscv64-linux-gnu.cmake",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_OPENCL": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON"
-            }
-        },
-        {
-            "name": "cuda-release",
-            "displayName": "CUDA Release (Linux)",
-            "description": "CPU + CUDA GPU optimized build for Linux",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "ON",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
-                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
-                "SECP256K1_ENABLE_OPENMP": "ON"
-            }
-        },
-        {
-            "name": "cuda-debug",
-            "displayName": "CUDA Debug (Linux)",
-            "description": "CPU + CUDA GPU debug build for Linux",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "ON",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "CMAKE_CUDA_ARCHITECTURES": "native",
-                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON"
-            }
-        },
-        {
-            "name": "cuda-release-5060ti",
-            "displayName": "CUDA Release RTX 5060 Ti",
-            "description": "Optimized for RTX 5060 Ti (SM 8.9)",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "ON",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON",
-                "CMAKE_CUDA_ARCHITECTURES": "89",
-                "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
-                "SECP256K1_ENABLE_OPENMP": "ON"
-            }
-        },
-        {
-            "name": "base-coin",
-            "hidden": true,
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_OPENCL": "OFF",
-                "SECP256K1_BUILD_TESTS": "OFF",
-                "SECP256K1_BUILD_BENCH": "OFF",
-                "SECP256K1_BUILD_EXAMPLES": "OFF",
-                "SECP256K1_BUILD_MUSIG2": "ON",
-                "SECP256K1_BUILD_FROST": "OFF",
-                "SECP256K1_BUILD_ZK": "OFF",
-                "SECP256K1_BUILD_ECIES": "OFF",
-                "SECP256K1_BUILD_BIP352": "OFF",
-                "SECP256K1_BUILD_LTC_SP": "OFF",
-                "SECP256K1_BUILD_ADAPTOR": "OFF",
-                "SECP256K1_BUILD_WALLET": "OFF",
-                "SECP256K1_BUILD_PIPPENGER": "ON",
-                "SECP256K1_BUILD_ETHEREUM": "OFF",
-                "SECP256K1_BUILD_BCH": "OFF"
-            }
-        },
-        {
-            "name": "bitcoin-core",
-            "displayName": "Bitcoin Core Backend",
-            "description": "Minimal footprint for Bitcoin Core fork integration. Strips FROST/ZK/ECIES/BIP352/Adaptor/Wallet/Pippenger — eliminates verify I-cache regression vs bundled libsecp256k1 without LTO.",
-            "inherits": "base-coin",
-            "cacheVariables": {
-                "SECP256K1_BUILD_SHIM": "ON",
-                "SECP256K1_BUILD_BIP324": "ON",
-                "SECP256K1_USE_LTO": "OFF"
-            }
-        },
-        {
-            "name": "litecoin",
-            "displayName": "Litecoin Core Backend",
-            "description": "Minimal footprint for Litecoin Core fork. Taproot enabled (activated May 2023). No BIP-324 (LTC P2P is v1 only).",
-            "inherits": "base-coin",
-            "cacheVariables": {
-                "SECP256K1_BUILD_SHIM": "ON",
-                "SECP256K1_BUILD_BIP324": "OFF",
-                "SECP256K1_USE_LTO": "OFF"
-            }
-        },
-        {
-            "name": "dogecoin",
-            "displayName": "Dogecoin Core Backend",
-            "description": "Minimal footprint for Dogecoin Core. ECDSA + Schnorr only (DOGE doesn't use Taproot or MuSig2). No BIP-324.",
-            "inherits": "base-coin",
-            "cacheVariables": {
-                "SECP256K1_BUILD_SHIM": "ON",
-                "SECP256K1_BUILD_BIP324": "OFF",
-                "SECP256K1_BUILD_MUSIG2": "OFF",
-                "SECP256K1_USE_LTO": "OFF"
-            }
-        },
-        {
-            "name": "bch-wallet",
-            "displayName": "BCH Wallet (RPA + HD)",
-            "description": "BCH with RPA scanning, HD wallet (BIP-32/39), ECIES. No FROST/ZK. Pippenger ON for batch ops.",
-            "inherits": "base-coin",
-            "cacheVariables": {
-                "SECP256K1_BUILD_BCH": "ON",
-                "SECP256K1_BUILD_WALLET": "ON",
-                "SECP256K1_BUILD_ECIES": "ON",
-                "SECP256K1_BUILD_PIPPENGER": "ON",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON"
-            }
-        },
-        {
-            "name": "wallet",
-            "displayName": "Wallet Build (BIP-352 + adaptor + HD)",
-            "description": "Full wallet: BIP-32/39, BIP-352 Silent Payments, adaptor sigs, ECIES, MuSig2. No ZK/FROST.",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_MUSIG2": "ON",
-                "SECP256K1_BUILD_FROST": "OFF",
-                "SECP256K1_BUILD_ZK": "OFF",
-                "SECP256K1_BUILD_ECIES": "ON",
-                "SECP256K1_BUILD_BIP352": "ON",
-                "SECP256K1_BUILD_ADAPTOR": "ON",
-                "SECP256K1_BUILD_WALLET": "ON",
-                "SECP256K1_BUILD_PIPPENGER": "ON",
-                "SECP256K1_BUILD_BIP324": "OFF",
-                "SECP256K1_BUILD_ETHEREUM": "OFF",
-                "SECP256K1_BUILD_BCH": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_BUILD_BENCH": "ON"
-            }
-        },
-        {
-            "name": "audit",
-            "displayName": "Full Audit Build (all modules ON)",
-            "description": "All optional modules enabled for CAAS audit — matches ci_local.sh --full profile.",
-            "inherits": "cpu-release",
-            "cacheVariables": {
-                "SECP256K1_BUILD_MUSIG2": "ON",
-                "SECP256K1_BUILD_FROST": "ON",
-                "SECP256K1_BUILD_ZK": "ON",
-                "SECP256K1_BUILD_ECIES": "ON",
-                "SECP256K1_BUILD_BIP352": "ON",
-                "SECP256K1_BUILD_ADAPTOR": "ON",
-                "SECP256K1_BUILD_WALLET": "ON",
-                "SECP256K1_BUILD_PIPPENGER": "ON",
-                "SECP256K1_BUILD_BIP324": "ON",
-                "SECP256K1_BUILD_ETHEREUM": "ON",
-                "SECP256K1_BUILD_BCH": "OFF"
-            }
-        },
-        {
-            "name": "cpu-asan",
-            "displayName": "CPU ASan+UBSan",
-            "description": "CPU debug with AddressSanitizer + UndefinedBehaviorSanitizer",
-            "inherits": "base-linux",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_USE_ASM": "OFF",
-                "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
-            }
-        },
-        {
-            "name": "cpu-tsan",
-            "displayName": "CPU TSan",
-            "description": "CPU debug with ThreadSanitizer (for multi-threaded tests)",
-            "inherits": "base-linux",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "SECP256K1_BUILD_CPU": "ON",
-                "SECP256K1_BUILD_CUDA": "OFF",
-                "SECP256K1_BUILD_TESTS": "ON",
-                "SECP256K1_USE_ASM": "OFF",
-                "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
-                "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
-            }
+    {
+      "name": "base-linux",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "base-windows",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "generator": "Ninja"
+    },
+    {
+      "name": "cpu-release",
+      "displayName": "CPU Release (Safe)",
+      "description": "CPU-only optimized build with safe defaults (stack protector, FORTIFY_SOURCE active)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON",
+        "SECP256K1_SPEED_FIRST": "OFF",
+        "SECP256K1_ENABLE_OPENMP": "ON"
+      }
+    },
+    {
+      "name": "cpu-release-speed",
+      "displayName": "CPU Release (Speed-First, UNSAFE)",
+      "description": "CPU-only maximum throughput: -Ofast, no stack protector, no FORTIFY_SOURCE. Use only in controlled environments.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON",
+        "SECP256K1_SPEED_FIRST": "ON",
+        "SECP256K1_ENABLE_OPENMP": "ON"
+      }
+    },
+    {
+      "name": "cpu-debug",
+      "displayName": "CPU Debug",
+      "description": "CPU-only debug build",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "arm64-cross",
+      "displayName": "ARM64 Cross (Linux \u2192 AArch64)",
+      "description": "Cross-compile CPU-only release for AArch64/ARM64 using aarch64-linux-gnu-gcc",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-aarch64-linux-gnu.cmake",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON"
+      }
+    },
+    {
+      "name": "riscv64-cross",
+      "displayName": "RISC-V 64 Cross (Linux \u2192 rv64gc)",
+      "description": "Cross-compile CPU-only release for RISC-V 64-bit (rv64gc_zba_zbb) using riscv64-linux-gnu-gcc",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-riscv64-linux-gnu.cmake",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON"
+      }
+    },
+    {
+      "name": "cuda-release",
+      "displayName": "CUDA Release (Linux)",
+      "description": "CPU + CUDA GPU optimized build for Linux",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "ON",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
+        "SECP256K1_ENABLE_OPENMP": "ON"
+      }
+    },
+    {
+      "name": "cuda-debug",
+      "displayName": "CUDA Debug (Linux)",
+      "description": "CPU + CUDA GPU debug build for Linux",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "ON",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON"
+      }
+    },
+    {
+      "name": "cuda-release-5060ti",
+      "displayName": "CUDA Release RTX 5060 Ti",
+      "description": "Optimized for RTX 5060 Ti (SM 8.9)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "ON",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "89",
+        "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
+        "SECP256K1_ENABLE_OPENMP": "ON"
+      }
+    },
+    {
+      "name": "base-coin",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_TESTS": "OFF",
+        "SECP256K1_BUILD_BENCH": "OFF",
+        "SECP256K1_BUILD_EXAMPLES": "OFF",
+        "SECP256K1_BUILD_MUSIG2": "ON",
+        "SECP256K1_BUILD_FROST": "OFF",
+        "SECP256K1_BUILD_ZK": "OFF",
+        "SECP256K1_BUILD_ECIES": "OFF",
+        "SECP256K1_BUILD_BIP352": "OFF",
+        "SECP256K1_BUILD_LTC_SP": "OFF",
+        "SECP256K1_BUILD_ADAPTOR": "OFF",
+        "SECP256K1_BUILD_WALLET": "OFF",
+        "SECP256K1_BUILD_PIPPENGER": "ON",
+        "SECP256K1_BUILD_ETHEREUM": "OFF",
+        "SECP256K1_BUILD_BCH": "OFF"
+      }
+    },
+    {
+      "name": "bitcoin-core",
+      "displayName": "Bitcoin Core Backend",
+      "description": "Minimal footprint for Bitcoin Core fork integration. Strips FROST/ZK/ECIES/BIP352/Adaptor/Wallet/Pippenger \u2014 eliminates verify I-cache regression vs bundled libsecp256k1 without LTO.",
+      "inherits": "base-coin",
+      "cacheVariables": {
+        "SECP256K1_BUILD_SHIM": "ON",
+        "SECP256K1_BUILD_BIP324": "ON",
+        "SECP256K1_USE_LTO": "OFF"
+      }
+    },
+    {
+      "name": "litecoin",
+      "displayName": "Litecoin Core Backend",
+      "description": "Minimal footprint for Litecoin Core fork. Taproot enabled (activated May 2023). No BIP-324 (LTC P2P is v1 only).",
+      "inherits": "base-coin",
+      "cacheVariables": {
+        "SECP256K1_BUILD_SHIM": "ON",
+        "SECP256K1_BUILD_BIP324": "OFF",
+        "SECP256K1_USE_LTO": "OFF"
+      }
+    },
+    {
+      "name": "dogecoin",
+      "displayName": "Dogecoin Core Backend",
+      "description": "Minimal footprint for Dogecoin Core. ECDSA + Schnorr only (DOGE doesn't use Taproot or MuSig2). No BIP-324.",
+      "inherits": "base-coin",
+      "cacheVariables": {
+        "SECP256K1_BUILD_SHIM": "ON",
+        "SECP256K1_BUILD_BIP324": "OFF",
+        "SECP256K1_BUILD_MUSIG2": "OFF",
+        "SECP256K1_USE_LTO": "OFF"
+      }
+    },
+    {
+      "name": "bch-wallet",
+      "displayName": "BCH Wallet (RPA + HD)",
+      "description": "BCH with RPA scanning, HD wallet (BIP-32/39), ECIES. No FROST/ZK. Pippenger ON for batch ops.",
+      "inherits": "base-coin",
+      "cacheVariables": {
+        "SECP256K1_BUILD_BCH": "ON",
+        "SECP256K1_BUILD_WALLET": "ON",
+        "SECP256K1_BUILD_ECIES": "ON",
+        "SECP256K1_BUILD_PIPPENGER": "ON",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON"
+      }
+    },
+    {
+      "name": "wallet",
+      "displayName": "Wallet Build (BIP-352 + adaptor + HD)",
+      "description": "Full wallet: BIP-32/39, BIP-352 Silent Payments, adaptor sigs, ECIES, MuSig2. No ZK/FROST.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_MUSIG2": "ON",
+        "SECP256K1_BUILD_FROST": "OFF",
+        "SECP256K1_BUILD_ZK": "OFF",
+        "SECP256K1_BUILD_ECIES": "ON",
+        "SECP256K1_BUILD_BIP352": "ON",
+        "SECP256K1_BUILD_ADAPTOR": "ON",
+        "SECP256K1_BUILD_WALLET": "ON",
+        "SECP256K1_BUILD_PIPPENGER": "ON",
+        "SECP256K1_BUILD_BIP324": "OFF",
+        "SECP256K1_BUILD_ETHEREUM": "OFF",
+        "SECP256K1_BUILD_BCH": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_BENCH": "ON"
+      }
+    },
+    {
+      "name": "audit",
+      "displayName": "Full Audit Build (all modules ON)",
+      "description": "All optional modules enabled for CAAS audit \u2014 matches ci_local.sh --full profile.",
+      "inherits": "cpu-release",
+      "cacheVariables": {
+        "SECP256K1_BUILD_MUSIG2": "ON",
+        "SECP256K1_BUILD_FROST": "ON",
+        "SECP256K1_BUILD_ZK": "ON",
+        "SECP256K1_BUILD_ECIES": "ON",
+        "SECP256K1_BUILD_BIP352": "ON",
+        "SECP256K1_BUILD_ADAPTOR": "ON",
+        "SECP256K1_BUILD_WALLET": "ON",
+        "SECP256K1_BUILD_PIPPENGER": "ON",
+        "SECP256K1_BUILD_BIP324": "ON",
+        "SECP256K1_BUILD_ETHEREUM": "ON",
+        "SECP256K1_BUILD_BCH": "OFF"
+      }
+    },
+    {
+      "name": "cpu-asan",
+      "displayName": "CPU ASan+UBSan",
+      "description": "CPU debug with AddressSanitizer + UndefinedBehaviorSanitizer",
+      "inherits": "base-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_USE_ASM": "OFF",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "cpu-tsan",
+      "displayName": "CPU TSan",
+      "description": "CPU debug with ThreadSanitizer (for multi-threaded tests)",
+      "inherits": "base-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_USE_ASM": "OFF",
+        "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "conformance",
+      "displayName": "CAAS Conformance Vectors (shim BIP-340/341/327)",
+      "description": "libsecp256k1-shim conformance tests (official BIP-340/341/327 vectors + bip-0327 reference.py oracle). Mirrors .github/workflows/conformance-vectors.yml job 'conformance'. Add -DCMAKE_CXX_COMPILER / -DSECP256K1_MARCH per environment.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_SHIM": "OFF",
+        "SECP256K1_SHIM_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_TESTS": "OFF",
+        "SECP256K1_BUILD_MUSIG2": "ON"
+      }
+    },
+    {
+      "name": "cross-libsecp",
+      "displayName": "CAAS Differential vs libsecp256k1 (in-process)",
+      "description": "Builds test_cross_libsecp256k1 (FetchContents bitcoin-core/secp256k1 v0.6.0; engine==libsecp byte-match). Mirrors conformance-vectors.yml job 'differential-libsecp'.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_TESTS": "ON",
+        "SECP256K1_BUILD_CROSS_TESTS": "ON"
+      }
+    },
+    {
+      "name": "bch-gpu",
+      "displayName": "BCH Wallet + GPU (CUDA RPA scanning)",
+      "description": "bch-wallet plus CUDA GPU for batch RPA / silent-payment scanning.",
+      "inherits": "bch-wallet",
+      "cacheVariables": {
+        "SECP256K1_BUILD_CUDA": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON"
+      }
+    },
+    {
+      "name": "embedded",
+      "displayName": "Embedded (minimal CPU, size-optimized)",
+      "description": "Minimal CPU-only: core ECDSA/Schnorr, no GPU, no optional modules, MinSizeRel.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel",
+        "SECP256K1_BUILD_CPU": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF",
+        "SECP256K1_BUILD_OPENCL": "OFF",
+        "SECP256K1_BUILD_TESTS": "OFF",
+        "SECP256K1_BUILD_BENCH": "OFF",
+        "SECP256K1_BUILD_MUSIG2": "OFF",
+        "SECP256K1_BUILD_FROST": "OFF",
+        "SECP256K1_BUILD_ZK": "OFF",
+        "SECP256K1_BUILD_ECIES": "OFF",
+        "SECP256K1_BUILD_BIP352": "OFF",
+        "SECP256K1_BUILD_ADAPTOR": "OFF",
+        "SECP256K1_BUILD_WALLET": "OFF",
+        "SECP256K1_BUILD_BCH": "OFF",
+        "SECP256K1_BUILD_ETHEREUM": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "cpu-release",
+      "configurePreset": "cpu-release"
+    },
+    {
+      "name": "cpu-release-speed",
+      "configurePreset": "cpu-release-speed"
+    },
+    {
+      "name": "cpu-debug",
+      "configurePreset": "cpu-debug"
+    },
+    {
+      "name": "cuda-release",
+      "configurePreset": "cuda-release"
+    },
+    {
+      "name": "cuda-debug",
+      "configurePreset": "cuda-debug"
+    },
+    {
+      "name": "cuda-release-5060ti",
+      "configurePreset": "cuda-release-5060ti"
+    },
+    {
+      "name": "cpu-asan",
+      "configurePreset": "cpu-asan"
+    },
+    {
+      "name": "cpu-tsan",
+      "configurePreset": "cpu-tsan"
+    },
+    {
+      "name": "bitcoin-core",
+      "configurePreset": "bitcoin-core"
+    },
+    {
+      "name": "litecoin",
+      "configurePreset": "litecoin"
+    },
+    {
+      "name": "dogecoin",
+      "configurePreset": "dogecoin"
+    },
+    {
+      "name": "bch-wallet",
+      "configurePreset": "bch-wallet"
+    },
+    {
+      "name": "wallet",
+      "configurePreset": "wallet"
+    },
+    {
+      "name": "audit",
+      "configurePreset": "audit"
+    },
+    {
+      "name": "cuda-audit",
+      "configurePreset": "cuda-release"
+    },
+    {
+      "name": "cuda-audit-5060ti",
+      "configurePreset": "cuda-release-5060ti"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "cpu-release",
+      "configurePreset": "cpu-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "cpu-debug",
+      "configurePreset": "cpu-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "cpu-asan",
+      "configurePreset": "cpu-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "cpu-tsan",
+      "configurePreset": "cpu-tsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "cuda-audit",
+      "configurePreset": "cuda-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
         }
-    ],
-    "buildPresets": [
-        {
-            "name": "cpu-release",
-            "configurePreset": "cpu-release"
-        },
-        {
-            "name": "cpu-release-speed",
-            "configurePreset": "cpu-release-speed"
-        },
-        {
-            "name": "cpu-debug",
-            "configurePreset": "cpu-debug"
-        },
-        {
-            "name": "cuda-release",
-            "configurePreset": "cuda-release"
-        },
-        {
-            "name": "cuda-debug",
-            "configurePreset": "cuda-debug"
-        },
-        {
-            "name": "cuda-release-5060ti",
-            "configurePreset": "cuda-release-5060ti"
-        },
-        {
-            "name": "cpu-asan",
-            "configurePreset": "cpu-asan"
-        },
-        {
-            "name": "cpu-tsan",
-            "configurePreset": "cpu-tsan"
-        },
-        {
-            "name": "bitcoin-core",
-            "configurePreset": "bitcoin-core"
-        },
-        {
-            "name": "litecoin",
-            "configurePreset": "litecoin"
-        },
-        {
-            "name": "dogecoin",
-            "configurePreset": "dogecoin"
-        },
-        {
-            "name": "bch-wallet",
-            "configurePreset": "bch-wallet"
-        },
-        {
-            "name": "wallet",
-            "configurePreset": "wallet"
-        },
-        {
-            "name": "audit",
-            "configurePreset": "audit"
-        },
-        {
-            "name": "cuda-audit",
-            "configurePreset": "cuda-release"
-        },
-        {
-            "name": "cuda-audit-5060ti",
-            "configurePreset": "cuda-release-5060ti"
+      }
+    },
+    {
+      "name": "cuda-audit-5060ti",
+      "configurePreset": "cuda-release-5060ti",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
         }
-    ],
-    "testPresets": [
-        {
-            "name": "cpu-release",
-            "configurePreset": "cpu-release",
-            "output": {
-                "outputOnFailure": true
-            }
-        },
-        {
-            "name": "cpu-debug",
-            "configurePreset": "cpu-debug",
-            "output": {
-                "outputOnFailure": true
-            }
-        },
-        {
-            "name": "cpu-asan",
-            "configurePreset": "cpu-asan",
-            "output": {
-                "outputOnFailure": true
-            }
-        },
-        {
-            "name": "cpu-tsan",
-            "configurePreset": "cpu-tsan",
-            "output": {
-                "outputOnFailure": true
-            }
-        },
-        {
-            "name": "cuda-audit",
-            "configurePreset": "cuda-release",
-            "output": {
-                "outputOnFailure": true
-            },
-            "filter": {
-                "include": {
-                    "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
-                }
-            }
-        },
-        {
-            "name": "cuda-audit-5060ti",
-            "configurePreset": "cuda-release-5060ti",
-            "output": {
-                "outputOnFailure": true
-            },
-            "filter": {
-                "include": {
-                    "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
-                }
-            }
-        }
-    ]
+      }
+    }
+  ]
 }

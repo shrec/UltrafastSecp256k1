@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-08 — Build profiles: CAAS gates wired to named CMake presets (+ bch-gpu, embedded)
+
+- The CAAS gate build configs were ad-hoc inline cmake flags in the workflow. Codified
+  them as named presets in `CMakePresets.json` (single source of truth, locally
+  reproducible): `conformance` (shim BIP-340/341/327 vectors:
+  `BUILD_SHIM=OFF + SHIM_BUILD_TESTS=ON`) and `cross-libsecp` (in-process libsecp256k1
+  differential: `BUILD_CROSS_TESTS=ON`). `conformance-vectors.yml` now configures via
+  `cmake --preset` with compiler/march layered as environment overrides.
+- Filled the two remaining planned profiles: `bch-gpu` (bch-wallet + CUDA RPA scanning)
+  and `embedded` (minimal CPU-only, MinSizeRel, all optional modules off). The
+  `bitcoin-core`, `litecoin`, `dogecoin`, `bch-wallet`, `wallet`, `audit`, and
+  cuda/asan/tsan/cross-compile presets already existed.
+- Verified: `cmake --preset conformance` registers the shim vector tests and
+  `cmake --preset cross-libsecp` registers `cross_libsecp256k1`; both build + pass.
+
 ## 2026-06-08 — CAAS: evidence-ledger honesty — credit the real libsecp256k1 differential
 
 - **`test_exploit_differential_libsecp` is a self-consistency harness, not a libsecp
