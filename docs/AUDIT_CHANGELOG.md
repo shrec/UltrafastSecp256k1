@@ -5,8 +5,9 @@
 - **Trust anchor activated.** `test_cross_libsecp256k1` links BOTH this engine and
   bitcoin-core/secp256k1 v0.6.0 in one process (via `SECP256K1_BUILD_CROSS_TESTS`
   FetchContent) and asserts byte-identical outputs for the same inputs across
-  `ec_pubkey_create`, `ecdsa_sign`+`verify`, `schnorrsig_sign`+`verify`, and
-  `xonly_pubkey`. It is the gold-standard correctness check — if both libraries agree
+  `ec_pubkey_create`, `ecdsa_sign`+`verify`, `schnorrsig_sign`+`verify`, `xonly_pubkey`,
+  and ECDH (SHA256-of-compressed shared secret). It is the gold-standard correctness
+  check — if both libraries agree
   on every input they implement the same math — but it was OFF by default
   (`SECP256K1_BUILD_CROSS_TESTS=OFF`) and ran in no CI workflow.
 - **Fix:** added a `differential-libsecp` job to

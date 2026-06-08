@@ -142,4 +142,4 @@ jobs:
         run: |
           echo "## Differential vs libsecp256k1 (in-process)" >> "$GITHUB_STEP_SUMMARY"
           echo "Engine vs bitcoin-core/secp256k1 v0.6.0 — byte-identical outputs for" >> "$GITHUB_STEP_SUMMARY"
-          echo "ec_pubkey_create / ecdsa_sign+verify / schnorrsig_sign+verify / xonly." >> "$GITHUB_STEP_SUMMARY"
+          echo "ec_pubkey_create / ecdsa_sign+verify / schnorrsig_sign+verify / xonly / ECDH." >> "$GITHUB_STEP_SUMMARY"

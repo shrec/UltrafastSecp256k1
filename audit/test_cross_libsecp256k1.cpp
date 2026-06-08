@@ -35,6 +35,7 @@
 #include <secp256k1_schnorrsig.h>
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_recovery.h>
+#include <secp256k1_ecdh.h>
 
 // Intentionally uses the legacy variable-time secp256k1::ecdsa_sign /
 // schnorr_sign entry points (audit harness / cross-platform vectors).
@@ -701,6 +702,38 @@ static void test_extended_edge_cases(const secp256k1_context* ctx) {
 
 // -- Main --------------------------------------------------------------------
 
+// -- Test 11: ECDH shared secret ---------------------------------------------
+// libsecp256k1's default ECDH hash (hashfp=NULL) is SHA256 of the 33-byte
+// compressed shared point. Reproduce that with the engine's point math + SHA256
+// and require byte-identical shared secrets.
+static void test_ecdh_cross(const secp256k1_context* ctx) {
+    const int N = 200 * g_multiplier;
+    std::printf("[11] Cross-Library ECDH shared secret (%d rounds)\n", N);
+
+    for (int i = 0; i < N; ++i) {
+        auto sk_a = random_seckey(ctx);
+        auto sk_b = random_seckey(ctx);
+
+        // --- Reference libsecp256k1: ECDH(sk_a, B=sk_b*G), default SHA256(compressed) ---
+        secp256k1_pubkey ref_B;
+        CHECK(secp256k1_ec_pubkey_create(ctx, &ref_B, sk_b.data()) == 1, "ref: pubkey_create(B)");
+        uint8_t ref_secret[32];
+        CHECK(secp256k1_ecdh(ctx, ref_secret, &ref_B, sk_a.data(), nullptr, nullptr) == 1,
+              "ref: ecdh");
+
+        // --- UltrafastSecp256k1: SHA256(compress(sk_a * (sk_b * G))) ---
+        auto ua = scalar_from_bytes32(sk_a.data());
+        auto ub = scalar_from_bytes32(sk_b.data());
+        uf::Point B = uf::Point::generator().scalar_mul(ub);
+        uf::Point S = B.scalar_mul(ua);
+        auto comp = uf_compress_pubkey(S);
+        auto digest = secp256k1::SHA256::hash(comp.data(), 33);
+
+        CHECK(std::memcmp(ref_secret, digest.data(), 32) == 0, "ecdh shared secret match");
+    }
+    std::printf("    %d checks OK\n\n", g_pass);
+}
+
 int main(int argc, char* argv[]) {
     if (argc > 1) {
         g_multiplier = std::atoi(argv[1]);
@@ -732,6 +765,7 @@ int main(int argc, char* argv[]) {
     test_schnorr_batch_cross(ctx);        // [8] Schnorr batch verify
     test_ecdsa_batch_cross(ctx);          // [9] ECDSA batch verify
     test_extended_edge_cases(ctx);        // [10] overflow/doubling/mutation
+    test_ecdh_cross(ctx);                 // [11] ECDH shared secret
 
     secp256k1_context_destroy(ctx);
 
