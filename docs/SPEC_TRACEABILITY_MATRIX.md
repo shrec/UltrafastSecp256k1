@@ -204,7 +204,7 @@ When the library implements a new spec clause:
 | secp256k1_recovery.h | Recoverable ECDSA sign / recover | `compat/libsecp256k1_shim/src/shim_recovery.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
 | secp256k1_ellswift.h | ElligatorSwift encode/decode (BIP-324) | `compat/libsecp256k1_shim/src/shim_ellswift.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
 | secp256k1_musig.h | MuSig2 BIP-327: all 14 functions | `compat/libsecp256k1_shim/src/shim_musig.cpp` | `compat/libsecp256k1_shim/tests/shim_test.cpp` | OK |
-| Parity | Full differential parity vs libsecp256k1 reference | `compat/libsecp256k1_shim/` | `audit/test_exploit_differential_libsecp.cpp` | OK |
+| Parity | In-process differential parity vs libsecp256k1 v0.6.0 (pubkey/ecdsa/schnorr/xonly/ecdh/musig-keyagg) | `compat/libsecp256k1_shim/` | `audit/test_cross_libsecp256k1.cpp` (CI gate: conformance-vectors.yml) | OK |
 
 ## x-only / xonly Pubkeys — BIP-340 / BIP-341
 

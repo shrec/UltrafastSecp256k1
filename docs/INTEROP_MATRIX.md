@@ -49,7 +49,7 @@ Three flavours are tracked:
 
 | Reference | Surface | Local test | Status |
 |-----------|---------|------------|--------|
-| `libsecp256k1` | ECDSA sign/verify (random keys + msgs) | `audit/test_exploit_differential_libsecp.cpp`, `audit/differential_test.cpp` | OK |
+| `libsecp256k1` | ECDSA/Schnorr/ECDH/pubkey/xonly/MuSig2-keyagg (random, in-process vs v0.6.0) | `audit/test_cross_libsecp256k1.cpp` (CI gate: conformance-vectors.yml), `audit/differential_test.cpp` | OK |
 | `libsecp256k1` | Schnorr sign/verify (BIP-340) | `audit/differential_test.cpp` | OK |
 | `libsecp256k1` | ECDH | `audit/differential_test.cpp` | OK |
 | `libsecp256k1` | EC pubkey parse / serialize | `audit/differential_test.cpp` | OK |

@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-08 — CAAS: evidence-ledger honesty — credit the real libsecp256k1 differential
+
+- **`test_exploit_differential_libsecp` is a self-consistency harness, not a libsecp
+  differential** (it includes only `ufsecp/ufsecp.h`; no external library), yet three
+  traceability matrices credited it as "full differential parity vs libsecp256k1". A
+  self-consistency test credited as external-reference parity is exactly the over-claim
+  that lets a reviewer skip the real check — the kind of evidence-ledger drift that
+  erodes a bastion's credibility. Repointed `INTEROP_MATRIX.md`, `TEST_MATRIX.md`, and
+  `SPEC_TRACEABILITY_MATRIX.md` to the genuine in-process engine-vs-libsecp256k1 v0.6.0
+  differential (`audit/test_cross_libsecp256k1.cpp` — the `conformance-vectors.yml` CI
+  gate), and corrected the test's own header/printf to state it is self-consistency, not
+  a libsecp differential. (`EXPLOIT_TEST_CATALOG.md` already described it accurately.)
+- Found by the CAAS bastion review (naming/intent drift). Note: the review's proposed
+  ECDSA-recovery byte-match differential was reassessed — the engine's default RFC6979
+  nonce differs from libsecp's (libsecp mixes an "ECDSA" algo16 tag), so a recovery
+  differential must cross-recover (sign→recover→pubkey), not byte-compare; tracked.
+
 ## 2026-06-08 — CAAS: close two silent-pass gaps (test-assertion scope, G-12 corrupt DB)
 
 - **`check_test_assertions.py` scanned only `audit/` + `tests/`.** The shim/bridge

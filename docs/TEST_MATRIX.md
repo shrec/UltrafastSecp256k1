@@ -751,7 +751,7 @@ Each test compiles as a separate binary and verifies that attacks fail, edge cas
 | Self-Test / API | `test_exploit_binding_adversarial_api` | Adversarial API misuse: ctx lifecycle, double destroy, bad ctx |
 | Self-Test / API | `test_exploit_buffer_type_confusion` | Type confusion: passing wrong-type buffers to API functions |
 | Self-Test / API | `test_exploit_cross_scheme_pubkey` | Cross-scheme pubkey reuse: same key in ECDH/Schnorr/ECIES isolation |
-| Self-Test / API | `test_exploit_differential_libsecp` | Differential testing vs libsecp256k1: sign/verify/ECDH mismatch |
+| Self-Test / API | `test_exploit_differential_libsecp` | Self-consistency invariants (RFC6979 sign determinism, sign↔verify roundtrip) — NOT an external-library differential; the real in-process libsecp256k1 differential is `test_cross_libsecp256k1` |
 | Adaptor / ZK | `test_exploit_quantum_exposure` | Quantum exposure: pubkey creation under adversarial key guessing |
 | Boundary sentinels | `test_exploit_boundary_sentinels` | Zero, max, order-boundary sentinel values across all API entry points |
 | Hash | `test_exploit_hash_algo_sig_isolation` | Hash-algorithm signature isolation: SHA-256 vs alt-hash no cross-verify |
