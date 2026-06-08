@@ -346,8 +346,12 @@ static void test_musig2_hostile_args() {
         CHECK_OK(ufsecp_musig2_nonce_agg(ctx, pubnonces_all, 2, aggnonce),
              "nonce_agg valid pair");
         uint8_t zero_aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN] = {};
-        CHECK(ufsecp_musig2_start_sign_session(ctx, zero_aggnonce, keyagg, msg32, session) != UFSECP_OK,
-            "start_session zero aggregate nonce rejected");
+        // BIP-327 §GetSessionValues: a 33-zero aggnonce half is the point at infinity
+        // (valid cpoint_ext encoding). Both halves infinity → effective nonce R = R1+b·R2
+        // is infinity → R = G. start_sign_session ACCEPTS this (matches reference.py and
+        // libsecp256k1: `if is_infinity(fin_nonce): fin_nonce = G`). It is NOT rejected.
+        CHECK_OK(ufsecp_musig2_start_sign_session(ctx, zero_aggnonce, keyagg, msg32, session),
+            "start_session zero aggregate nonce accepted (BIP-327 R=G)");
         CHECK_OK(ufsecp_musig2_start_sign_session(ctx, aggnonce, keyagg, msg32, session),
              "start_session valid transcript");
         uint8_t zero_session[UFSECP_MUSIG2_SESSION_LEN] = {};
