@@ -334,14 +334,27 @@ shim / SHA256d reference. **Note on HASH256:** CPU SHA-NI is fast — measure th
 path against your parallel CPU before routing merkle hashing to the GPU (the win is
 scale-dependent, like any hashing offload).
 
-### Aggregate Schnorr — measured, not shipped as an endpoint
+### Aggregate Schnorr batch verify — `schnorr_aggregate_verify` (shipped)
 
-A random-linear-combination aggregate Schnorr verify (one MSM over 2N points) was
-measured at **7.36 M sigs/s** vs the per-sig batch verify at **5.24 M sigs/s** (valid
-sigs, RTX 5060 Ti, incl. H2D) — ~1.4× for the all-valid case, but it yields only one
-aggregate accept/reject (a failure needs a per-sig fallback to locate). Given the
-modest margin and the per-row locality the per-sig path already provides, it is left
-as a measured candidate rather than a shipped endpoint for now.
+`ufsecp_lbtc_schnorr_aggregate_verify(ctrl, msgs32, pubkeys_x32, sigs64, n)` collapses
+a BIP-340 batch to two device MSMs: `Σaᵢ·sᵢ·G == Σaᵢ·Rᵢ + Σ(aᵢeᵢ)·Pᵢ`, where
+`eᵢ = tagged_hash("BIP0340/challenge", rᵢ‖Pᵢ‖mᵢ)` and the weights `aᵢ` are
+**Fiat-Shamir-derived** from a SHA-256 over the whole batch (`e=H(msgs‖pubkeys‖sigs)`,
+`aᵢ=H(e‖i) mod n`) — a crafted batch cannot grind a false cancellation
+(Bellare-Garay-Rabin small-exponents test; same construction as the commitment RLC).
+Returns `1` all-valid / `0` some-invalid / `-1` no-GPU. Measured **7.36 M sigs/s** vs
+the per-sig batch's **5.24 M sigs/s** (valid sigs, RTX 5060 Ti, incl. H2D) — ~1.4× for
+the all-valid IBD case. It yields a single aggregate verdict, so a `0` falls back to the
+per-row `verify_schnorr` to locate the bad signature.
+
+```c
+int ok = ufsecp_lbtc_schnorr_aggregate_verify(ctrl, msgs, xonly, sigs, n);
+if (ok == 1)      accept_all();          // GPU fast-path: whole batch valid
+else /* 0 or -1 */ verify_schnorr(...);  // locate the failure(s) per-row (or no-GPU)
+```
+
+`tests/test_lbtc_commitment.cpp` section 13 proves all-valid → 1 (every sig also
+confirmed by the libsecp shim), and that a corrupted `s`, `R.x`, or message each → 0.
 
 ## Measured GPU throughput (per-item kernels, RTX 5060 Ti)
 

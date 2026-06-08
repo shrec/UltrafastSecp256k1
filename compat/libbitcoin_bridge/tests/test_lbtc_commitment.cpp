@@ -16,6 +16,7 @@
 #include "ufsecp_gpu.h"
 #include "secp256k1.h"
 #include "secp256k1_extrakeys.h"
+#include "secp256k1_schnorrsig.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -304,6 +305,58 @@ int main() {
                 ufsecp_sha256(h1, 32, h2) != UFSECP_OK) { ok = false; break; }
             if (std::memcmp(out.data()+i*32, h2, 32) != 0) ok = false; }
         CHECK(ok, "hash256 (merkle 64B) == SHA256d reference");
+    }
+
+    /* (13) Aggregate (RLC) Schnorr batch verify. All-valid -> 1; any corruption -> 0.
+     * Fiat-Shamir weights mean a corrupted batch cannot false-accept. Every generated
+     * sig is also confirmed valid by the shim, so a "1" verdict is sound ground truth. */
+    {
+        const size_t M = 1000;
+        std::vector<uint8_t> sm(M*32), sx(M*32), ss(M*64);
+        int gen_ok = 1;
+        for (size_t i = 0; i < M; ++i) {
+            uint8_t sk[32]={0}; sk[23]=(uint8_t)(i>>16); sk[24]=(uint8_t)(i>>8); sk[31]=(uint8_t)(i|1u);
+            uint8_t comp[33];
+            if (ufsecp_pubkey_create(uctx, sk, comp) != UFSECP_OK) { gen_ok = 0; break; }
+            std::memcpy(sx.data()+i*32, comp+1, 32);
+            for (int b = 0; b < 32; ++b) sm[i*32+b] = (uint8_t)((i*2654435761u+b*7u)>>(b%24));
+            uint8_t aux[32]; for (int b = 0; b < 32; ++b) aux[b] = (uint8_t)(i*131u+b);
+            if (ufsecp_schnorr_sign(uctx, sm.data()+i*32, sk, aux, ss.data()+i*64) != UFSECP_OK) { gen_ok = 0; break; }
+        }
+        CHECK(gen_ok == 1, "aggregate setup: generated valid Schnorr signatures");
+
+        int agg = ufsecp_lbtc_schnorr_aggregate_verify(ctrl, sm.data(), sx.data(), ss.data(), M);
+        if (agg < 0) {
+            std::printf("  skip: schnorr_aggregate_verify — no GPU (returned -1)\n");
+        } else {
+            CHECK(agg == 1, "aggregate: all-valid batch returns 1");
+
+            bool all_shim = true;                                /* sigs are genuinely valid per shim */
+            for (size_t i = 0; i < M; ++i) {
+                secp256k1_xonly_pubkey xp;
+                if (!secp256k1_xonly_pubkey_parse(sctx, &xp, sx.data()+i*32)) { all_shim = false; continue; }
+                if (!secp256k1_schnorrsig_verify(sctx, ss.data()+i*64, sm.data()+i*32, 32, &xp)) all_shim = false;
+            }
+            CHECK(all_shim, "aggregate: every generated sig passes shim schnorrsig_verify (1 is sound)");
+
+            uint8_t sv = ss[5*64+40]; ss[5*64+40] ^= 0x01;       /* corrupt s of one sig */
+            CHECK(ufsecp_lbtc_schnorr_aggregate_verify(ctrl, sm.data(), sx.data(), ss.data(), M) == 0,
+                  "aggregate: corrupted s rejects (returns 0)");
+            ss[5*64+40] = sv;
+
+            uint8_t rv = ss[800*64+3]; ss[800*64+3] ^= 0x80;     /* corrupt R.x of a different sig */
+            CHECK(ufsecp_lbtc_schnorr_aggregate_verify(ctrl, sm.data(), sx.data(), ss.data(), M) == 0,
+                  "aggregate: corrupted R.x rejects (returns 0)");
+            ss[800*64+3] = rv;
+
+            uint8_t mv = sm[100*32+9]; sm[100*32+9] ^= 0x01;     /* corrupt a message */
+            CHECK(ufsecp_lbtc_schnorr_aggregate_verify(ctrl, sm.data(), sx.data(), ss.data(), M) == 0,
+                  "aggregate: corrupted message rejects (returns 0)");
+            sm[100*32+9] = mv;
+
+            CHECK(ufsecp_lbtc_schnorr_aggregate_verify(ctrl, sm.data(), sx.data(), ss.data(), M) == 1,
+                  "aggregate: restored batch is valid again (1)");
+        }
     }
 
     ufsecp_lbtc_ctrl_destroy(ctrl);

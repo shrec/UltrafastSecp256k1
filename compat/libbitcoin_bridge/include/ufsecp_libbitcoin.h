@@ -417,6 +417,27 @@ void ufsecp_lbtc_tagged_hash_var(ufsecp_lbtc_ctrl* ctrl, const char* tag,
 void ufsecp_lbtc_hash256(ufsecp_lbtc_ctrl* ctrl, const uint8_t* inputs,
                          size_t input_len, size_t n, uint8_t* out32);
 
+/*
+ * Aggregate (random-linear-combination) BIP-340 Schnorr batch verification.
+ *   returns  1 = all n signatures valid,
+ *            0 = at least one invalid,
+ *           -1 = GPU unavailable / device error (caller falls back to per-row
+ *                ufsecp_lbtc_verify_schnorr to locate the failure).
+ *
+ * Checks Σaᵢ·sᵢ·G == Σaᵢ·Rᵢ + Σ(aᵢ·eᵢ)·Pᵢ via two device MSMs, where Rᵢ=lift_x(rᵢ),
+ * Pᵢ=lift_x(pubkey_xᵢ), eᵢ=tagged_hash("BIP0340/challenge", rᵢ‖Pᵢ‖mᵢ). The weights
+ * aᵢ are FIAT-SHAMIR-derived from a SHA-256 over the whole batch (e=H(msgs‖pubkeys‖
+ * sigs), aᵢ=H(e‖i) mod n) — a crafted batch cannot force a false cancellation
+ * (Bellare-Garay-Rabin small-exponents test; same construction as the commitment
+ * RLC). Columns input: msgs32 = n*32, pubkeys_x32 = n*32 (x-only), sigs64 = n*64.
+ * PUBLIC data -> variable-time. GPU-only (rides ufsecp_gpu_msm); -1 without a GPU.
+ */
+int ufsecp_lbtc_schnorr_aggregate_verify(ufsecp_lbtc_ctrl* ctrl,
+                                         const uint8_t* msgs32,
+                                         const uint8_t* pubkeys_x32,
+                                         const uint8_t* sigs64,
+                                         size_t n);
+
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    const uint8_t scan_privkey32[32],
                                    const uint8_t spend_pubkey33[33],
@@ -695,6 +716,11 @@ public:
     void hash256(const uint8_t* inputs, size_t input_len, size_t n,
                  uint8_t* out32) const {
         ufsecp_lbtc_hash256(ctrl_, inputs, input_len, n, out32);
+    }
+    // Aggregate BIP-340 Schnorr batch verify (RLC). 1 all-valid / 0 some-bad / -1 no-GPU.
+    int schnorr_aggregate_verify(const uint8_t* msgs32, const uint8_t* pubkeys_x32,
+                                 const uint8_t* sigs64, size_t n) const {
+        return ufsecp_lbtc_schnorr_aggregate_verify(ctrl_, msgs32, pubkeys_x32, sigs64, n);
     }
 #if __cplusplus >= 202002L
     // Typed-span over the canonical CommitmentRow (stride = sizeof(Row) recovers

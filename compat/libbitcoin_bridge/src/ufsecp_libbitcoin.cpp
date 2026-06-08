@@ -1173,6 +1173,83 @@ void ufsecp_lbtc_hash256(ufsecp_lbtc_ctrl* ctrl, const uint8_t* inputs,
     for (auto& th : ths) th.join();
 }
 
+/* ---------------------------------------------------------------------------
+ * Aggregate (random-linear-combination) BIP-340 Schnorr batch verification.
+ *
+ * For each i a valid signature satisfies  sᵢ·G = Rᵢ + eᵢ·Pᵢ  (BIP-340), with
+ * Rᵢ=lift_x(rᵢ), Pᵢ=lift_x(pubkey_xᵢ), eᵢ=tagged_hash("BIP0340/challenge",rᵢ‖Pᵢ‖mᵢ).
+ * Summing with random weights aᵢ:  (Σaᵢsᵢ)·G == Σaᵢ·Rᵢ + Σ(aᵢeᵢ)·Pᵢ  iff every
+ * signature is valid. Evaluated as two device MSMs (LHS = (Σaᵢsᵢ)·G over the single
+ * generator; RHS = the 2n-point combination). The weights aᵢ are FIAT-SHAMIR-derived
+ * from a SHA-256 over the whole batch, so a crafted block cannot grind a false
+ * cancellation (Bellare-Garay-Rabin; identical construction to the commitment RLC).
+ * Returns 1 all-valid / 0 some-invalid / -1 no-GPU-or-device-error. PUBLIC data.
+ * ------------------------------------------------------------------------- */
+int ufsecp_lbtc_schnorr_aggregate_verify(ufsecp_lbtc_ctrl* ctrl,
+                                         const uint8_t* msgs32,
+                                         const uint8_t* pubkeys_x32,
+                                         const uint8_t* sigs64,
+                                         size_t n) {
+    if (!ctrl || n == 0 || !msgs32 || !pubkeys_x32 || !sigs64) return -1;
+#ifdef UFSECP_LBTC_WITH_GPU
+    if (!ctrl->gpu) return -1;
+    using secp256k1::fast::Scalar;
+    try {
+        /* Fiat-Shamir batch digest e = SHA256(msgs || pubkeys || sigs). */
+        std::vector<uint8_t> tr; tr.reserve(n*32 + n*32 + n*64);
+        tr.insert(tr.end(), msgs32,      msgs32      + n*32);
+        tr.insert(tr.end(), pubkeys_x32, pubkeys_x32 + n*32);
+        tr.insert(tr.end(), sigs64,      sigs64      + n*64);
+        uint8_t e[32];
+        if (ufsecp_sha256(tr.data(), tr.size(), e) != UFSECP_OK) return -1;
+
+        /* Generator (compressed), once. */
+        uint8_t Gc[33]; { uint8_t one[32]={0}; one[31]=1; ufsecp_ctx* g=nullptr;
+            if (ufsecp_ctx_create(&g)!=UFSECP_OK || !g) return -1;
+            const ufsecp_error_t ge = ufsecp_pubkey_create(g, one, Gc);
+            ufsecp_ctx_destroy(g);
+            if (ge != UFSECP_OK) return -1; }
+
+        /* RHS = Σ aᵢ·Rᵢ + Σ (aᵢeᵢ)·Pᵢ  → 2n points; LHS scalar = Σ aᵢ·sᵢ. */
+        std::vector<uint8_t> rp(2*n*33), rs(2*n*32);
+        Scalar lhs_s = Scalar::zero();
+        for (size_t i = 0; i < n; ++i) {
+            const uint8_t* r = sigs64 + i*64;          /* R.x */
+            const uint8_t* s = sigs64 + i*64 + 32;     /* s   */
+            const uint8_t* P = pubkeys_x32 + i*32;     /* P.x (x-only) */
+            const uint8_t* m = msgs32 + i*32;
+
+            uint8_t cb[96]; std::memcpy(cb, r, 32); std::memcpy(cb+32, P, 32); std::memcpy(cb+64, m, 32);
+            uint8_t eh[32];
+            if (ufsecp_tagged_hash("BIP0340/challenge", cb, 96, eh) != UFSECP_OK) return -1;
+            const Scalar ei = Scalar::from_bytes(eh);
+
+            uint8_t seed[36]; std::memcpy(seed, e, 32);
+            seed[32]=(uint8_t)i; seed[33]=(uint8_t)(i>>8);
+            seed[34]=(uint8_t)(i>>16); seed[35]=(uint8_t)(i>>24);
+            uint8_t ab[32];
+            if (ufsecp_sha256(seed, 36, ab) != UFSECP_OK) return -1;
+            const Scalar ai = Scalar::from_bytes(ab);
+            const Scalar si = Scalar::from_bytes(s);
+            lhs_s = lhs_s + ai * si;
+
+            rp[i*33] = 0x02; std::memcpy(rp.data()+i*33+1, r, 32);          /* Rᵢ = lift_x(r) even-y */
+            { const auto a = ai.to_bytes(); std::memcpy(rs.data()+i*32, a.data(), 32); }
+            rp[(n+i)*33] = 0x02; std::memcpy(rp.data()+(n+i)*33+1, P, 32);  /* Pᵢ = lift_x(P.x) even-y */
+            { const auto ae = (ai * ei).to_bytes(); std::memcpy(rs.data()+(n+i)*32, ae.data(), 32); }
+        }
+
+        uint8_t rhs[33], lhs[33];
+        if (ufsecp_gpu_msm(ctrl->gpu, rs.data(), rp.data(), 2*n, rhs) != UFSECP_OK) return -1;
+        { const auto ls = lhs_s.to_bytes();
+          if (ufsecp_gpu_msm(ctrl->gpu, ls.data(), Gc, 1, lhs) != UFSECP_OK) return -1; }
+        return std::memcmp(lhs, rhs, 33) == 0 ? 1 : 0;
+    } catch (...) { return -1; }
+#else
+    (void)msgs32; (void)pubkeys_x32; (void)sigs64; return -1;
+#endif
+}
+
 ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    const uint8_t scan_privkey32[32],
                                    const uint8_t spend_pubkey33[33],
