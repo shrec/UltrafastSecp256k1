@@ -758,21 +758,31 @@ __device__ inline void scalar_mul_mod_n(const Scalar* a, const Scalar* b, Scalar
     r->limbs[3] = sub_cc(prod[3], qn[3], borrow);
     uint64_t r4 = prod[4] - qn[4] - borrow;
 
-    // At most 2 conditional subtracts to bring into [0, ORDER)
-    if (r4 > 0 || scalar_ge(r, ORDER)) {
-        borrow = 0;
-        r->limbs[0] = sub_cc(r->limbs[0], ORDER[0], borrow);
-        r->limbs[1] = sub_cc(r->limbs[1], ORDER[1], borrow);
-        r->limbs[2] = sub_cc(r->limbs[2], ORDER[2], borrow);
-        r->limbs[3] = sub_cc(r->limbs[3], ORDER[3], borrow);
-        r4 -= borrow;
-    }
-    if (r4 > 0 || scalar_ge(r, ORDER)) {
-        borrow = 0;
-        r->limbs[0] = sub_cc(r->limbs[0], ORDER[0], borrow);
-        r->limbs[1] = sub_cc(r->limbs[1], ORDER[1], borrow);
-        r->limbs[2] = sub_cc(r->limbs[2], ORDER[2], borrow);
-        r->limbs[3] = sub_cc(r->limbs[3], ORDER[3], borrow);
+    // At most 2 conditional subtracts to bring into [0, ORDER) — CONSTANT-TIME.
+    // The previous version used `if (r4 > 0 || scalar_ge(r, ORDER)) { subtract }` which
+    // is a DATA-DEPENDENT branch (scalar_ge is also branchy). Because this reduction runs
+    // on secret-derived values (every scalar_mul/scalar_sqr, and scalar_inverse calls it
+    // 512x), that branch produced measurable key-dependent warp divergence in GPU ECDSA
+    // signing (RTX 5060 Ti ncu: 100% uniform fixed-keys vs 84.48% random-keys; ~1.85%
+    // timing). Now branchless: always compute (r - ORDER) and cmov-select via a
+    // value-barriered mask, so the executed instruction stream is identical regardless of
+    // the (secret) value. need = (r4 != 0) | (no borrow out of r-ORDER) == (r >= ORDER).
+    #pragma unroll
+    for (int ct_pass = 0; ct_pass < 2; ++ct_pass) {
+        uint64_t cb = 0;
+        const uint64_t c0 = sub_cc(r->limbs[0], ORDER[0], cb);
+        const uint64_t c1 = sub_cc(r->limbs[1], ORDER[1], cb);
+        const uint64_t c2 = sub_cc(r->limbs[2], ORDER[2], cb);
+        const uint64_t c3 = sub_cc(r->limbs[3], ORDER[3], cb);
+        const uint64_t cand_r4 = r4 - cb;
+        uint64_t need = static_cast<uint64_t>((r4 != 0ULL) | (cb == 0ULL));
+        asm volatile("" : "+l"(need));          // value barrier: block branch re-introduction
+        const uint64_t mask = (uint64_t)0 - need;  // all-ones if subtract, else 0
+        r->limbs[0] = (c0 & mask) | (r->limbs[0] & ~mask);
+        r->limbs[1] = (c1 & mask) | (r->limbs[1] & ~mask);
+        r->limbs[2] = (c2 & mask) | (r->limbs[2] & ~mask);
+        r->limbs[3] = (c3 & mask) | (r->limbs[3] & ~mask);
+        r4 = (cand_r4 & mask) | (r4 & ~mask);
     }
 }
 
