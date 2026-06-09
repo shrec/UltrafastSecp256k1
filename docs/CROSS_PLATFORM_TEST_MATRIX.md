@@ -34,7 +34,7 @@
 | 20 | gpu_audit              | GPU                 | ~300   | CUDA GPU unified audit (all modules)                             |
 | 21 | gpu_ct_smoke           | GPU                 | ~9     | CUDA CT smoke: ZK knowledge + DLEQ prove/verify                 |
 | 22 | opencl_selftest        | GPU                 | ~50    | OpenCL GPU kernel selftest                                       |
-| 23 | opencl_audit           | GPU                 | ~300   | OpenCL GPU unified audit ( 420 modules, 8 sections)               |
+| 23 | opencl_audit           | GPU                 | ~300   | OpenCL GPU unified audit ( 419 modules, 8 sections)               |
 | 24 | ct_sidechannel         | Constant-Time       | ~300   | Full CT: dudect Welch t-test, 600s timeout                      |
 | 25 | ct_sidechannel_smoke   | Constant-Time       | ~100   | CT smoke: basic correctness, 120s CI-safe                       |
 | 26 | differential           | Differential Test   | ~200   | Differential testing: fast vs CT layer output equivalence        |
@@ -178,7 +178,7 @@ Individual check counts:
   fiat_crypto_linkage ....... ~50  checks
   audit_fuzz ................ ~500 checks
   diag_scalar_mul ........... ~50  checks
-  unified_audit ............. 420 modules (150 non-exploit + 270 exploit PoCs)
+  unified_audit ............. 419 modules (149 non-exploit + 270 exploit PoCs)
   -----------------------------------------
   TOTAL (estimated):         ~6400+ individual assertions
 ```

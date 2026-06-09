@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-09 — Test consolidation: remove duplicate regression_ct_ops_v2 (each test owns its zone)
+
+- A multi-agent redundancy review found `test_regression_ct_ops_2026_05_21.cpp`
+  (`regression_ct_ops_v2`) to be a byte-identical duplicate of
+  `test_regression_ct_ops.cpp` (`regression_ct_ops`): both ran the same six
+  2026-05-21 source-scan + functional sub-tests (FROST lagrange ct::scalar_mul,
+  batch_weight non-zero, adaptor fully-zero sentinel, BIP-32 strict-nonzero,
+  MuSig2 blinded nonce, ecdsa_sign_verified direct ct:: call). v1 already contained
+  SEC-002-EXTRACT; v2's only unique sub-test was a 10-random-key
+  `ecdsa_sign_verified` loop, now merged into v1.
+- Removed `regression_ct_ops_v2` from ALL_MODULES, the unified runner sources, the
+  standalone CTest target, and the MSan exclusion list; deleted the duplicate file.
+  Net audit module count −1. Coverage preserved (union of unique sub-tests merged).
+- Part of a broader "each test/stage covers only its own zone, no cross-stage
+  duplication" cleanup driven by the sanitizer-redundancy analysis (MSan failures
+  were 100% timeouts, not bugs; MSan's uninitialized-memory class overlaps Valgrind).
+
 ## 2026-06-09 — GPU Bulletproof poly-check vs CPU prover differential (closes GPU ZK blind-spot)
 
 - Until now the GPU range-proof verifier `ufsecp_gpu_bulletproof_verify_batch` was only

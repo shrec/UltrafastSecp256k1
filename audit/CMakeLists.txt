@@ -4050,8 +4050,6 @@ add_executable(unified_audit_runner
     # SEC-001: CT scalar_inverse zero-branch removal (2026-05-21)
     # Removes data-dependent if(is_zero) branch in non-int128 Fermat fallback.
     test_regression_ct_scalar_inverse_zero.cpp
-    # SEC-002/007/008/010, CT-004/005: CT ops regressions (2026-05-21)
-    test_regression_ct_ops_2026_05_21.cpp
     # SEC-006: Bip324Session privkey_ lifetime documentation (2026-05-21)
     test_regression_bip324_privkey_lifetime.cpp
 )
@@ -5270,17 +5268,9 @@ add_test(NAME regression_ct_ops
 set_tests_properties(regression_ct_ops PROPERTIES TIMEOUT 60
     LABELS "audit;regression;ct;security;sec-002;sec-007;sec-008;ct-004;ct-005")
 target_sources(unified_audit_runner PRIVATE test_regression_ct_ops.cpp)
-
-# 2026-05-22 CT ops v2: source-scan guards (orphan file resolved — was test_regression_ct_ops_2026_05_21.cpp)
-add_executable(test_regression_ct_ops_v2_standalone
-    test_regression_ct_ops_2026_05_21.cpp)
-audit_target_defaults(test_regression_ct_ops_v2_standalone)
-target_compile_definitions(test_regression_ct_ops_v2_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME regression_ct_ops_v2
-    COMMAND test_regression_ct_ops_v2_standalone)
-set_tests_properties(regression_ct_ops_v2 PROPERTIES TIMEOUT 60
-    LABELS "audit;regression;ct;security;sec-002;sec-007;sec-008;ct-004;ct-005;source-scan")
-target_sources(unified_audit_runner PRIVATE test_regression_ct_ops_2026_05_21.cpp)
+# 2026-06-09: test_regression_ct_ops_2026_05_21.cpp (regression_ct_ops_v2) removed —
+# byte-identical duplicate of test_regression_ct_ops.cpp; its unique 10-key loop was
+# merged into the canonical file above.
 
 # SEC-NEW-001/002, P3-SHIM-STACK, P3-BATCH-MEM (2026-05-23)
 # advisory=false: source-scan + C++ adaptor round-trip, no shim/GPU dependency.
