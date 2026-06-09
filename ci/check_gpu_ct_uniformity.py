@@ -41,10 +41,14 @@ ADVISORY_SKIP_CODE = 77
 
 # Kernel regex (ncu -k) -> friendly op name. These are the secret-scalar CT kernels in
 # src/cuda/src/gpu_ct_leakage_probe.cu.
+# Full kernel names (the "_kernel" suffix is required so that the ct_ecdsa_sign regex does
+# NOT also match probe_ct_ecdsa_sign_recoverable_kernel — they share a prefix).
 KERNELS = [
-    ("probe_ct_generator_mul", "ct_generator_mul"),
-    ("probe_ct_ecdsa_sign",    "ct_ecdsa_sign"),
-    ("probe_ct_schnorr_sign",  "ct_schnorr_sign"),
+    ("probe_ct_generator_mul_kernel",          "ct_generator_mul"),
+    ("probe_ct_ecdsa_sign_kernel",             "ct_ecdsa_sign"),
+    ("probe_ct_schnorr_sign_kernel",           "ct_schnorr_sign"),
+    ("probe_ct_scalar_mul_varbase_kernel",     "ct_scalar_mul_varbase (ECDH / BIP-352 scan)"),
+    ("probe_ct_ecdsa_sign_recoverable_kernel", "ct_ecdsa_sign_recoverable"),
 ]
 
 METRIC = "smsp__sass_average_branch_targets_threads_uniform.pct"

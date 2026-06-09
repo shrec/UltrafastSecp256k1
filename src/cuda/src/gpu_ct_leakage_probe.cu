@@ -170,6 +170,49 @@ __global__ void probe_ct_schnorr_sign_kernel(const Scalar* keys, uint64_t* cycle
     status[idx] = (ok && ((sig.r[0] | sig.s.limbs[0]) != 0)) ? 1 : 0;
 }
 
+__global__ void probe_ct_scalar_mul_varbase_kernel(const Scalar* keys, uint64_t* cycles,
+                                                   uint8_t* status, int reps, int count) {
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    // Variable-base scalar mul = the ECDH / BIP-352-scan primitive: secret_scalar * public_base.
+    // The base is a FIXED public point (B = 2*G), identical across all threads, so its
+    // derivation contributes only key-independent branches (they cancel in the fixed-vs-random
+    // uniformity delta). Only the secret scalar `key` varies — exactly what we measure.
+    Scalar two{}; two.limbs[0] = 2;
+    JacobianPoint base{};
+    ct::ct_generator_mul(&two, &base);
+
+    Scalar key = keys[idx];
+    JacobianPoint out{};
+    const uint64_t start = clock64();
+    for (int i = 0; i < reps; ++i) {
+        ct::ct_scalar_mul_varbase(&base, &key, &out);
+    }
+    const uint64_t end = clock64();
+
+    cycles[idx] = end - start;
+    status[idx] = (!out.infinity && ((out.x.limbs[0] | out.y.limbs[0] | out.z.limbs[0]) != 0)) ? 1 : 0;
+}
+
+__global__ void probe_ct_ecdsa_sign_recoverable_kernel(const Scalar* keys, uint64_t* cycles,
+                                                       uint8_t* status, int reps, int count) {
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    Scalar key = keys[idx];
+    RecoverableSignatureGPU rsig{};
+    bool ok = true;
+    const uint64_t start = clock64();
+    for (int i = 0; i < reps; ++i) {
+        ok = ok && ct::ct_ecdsa_sign_recoverable(TEST_MSG, &key, &rsig);
+    }
+    const uint64_t end = clock64();
+
+    cycles[idx] = end - start;
+    status[idx] = (ok && ((rsig.sig.r.limbs[0] | rsig.sig.s.limbs[0]) != 0)) ? 1 : 0;
+}
+
 template <typename Kernel>
 static ProbeResult run_probe(const char* name, Kernel kernel, int samples, int repetitions,
                              const std::vector<Scalar>& host_keys, const std::vector<uint8_t>& host_classes) {
@@ -317,6 +360,8 @@ int main(int argc, char** argv) {
     results.push_back(run_probe("ct_generator_mul", probe_ct_generator_mul_kernel, samples, repetitions, host_keys, host_classes));
     results.push_back(run_probe("ct_ecdsa_sign", probe_ct_ecdsa_sign_kernel, samples, repetitions, host_keys, host_classes));
     results.push_back(run_probe("ct_schnorr_sign", probe_ct_schnorr_sign_kernel, samples, repetitions, host_keys, host_classes));
+    results.push_back(run_probe("ct_scalar_mul_varbase", probe_ct_scalar_mul_varbase_kernel, samples, repetitions, host_keys, host_classes));
+    results.push_back(run_probe("ct_ecdsa_sign_recoverable", probe_ct_ecdsa_sign_recoverable_kernel, samples, repetitions, host_keys, host_classes));
 
     const std::string report_path = report_dir + "/gpu_ct_leakage_report.json";
     FILE* report = std::fopen(report_path.c_str(), "w");
