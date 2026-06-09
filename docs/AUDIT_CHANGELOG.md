@@ -1,5 +1,23 @@
 # Audit Changelog
 
+## 2026-06-09 — Test consolidation: remove redundant exploit_hkdf_security (subsumed by exploit_hkdf_kat)
+
+- A parallel delete-safety verification (4-agent workflow reading the files end-to-end)
+  confirmed `test_exploit_hkdf_security.cpp` is fully redundant with
+  `test_exploit_hkdf_kat.cpp`: every one of its 8 property sub-tests (determinism,
+  IKM/salt/info sensitivity, non-trivial PRK, HMAC key/message sensitivity, 64-byte
+  expand) is a mathematical consequence of the exact RFC 5869 (TC1/TC2/TC3) and RFC 4231
+  (TV1/TV2) known-answer vectors the KAT file already verifies — exact-value KAT is
+  strictly stronger than the property checks. No grafting required.
+- Removed: ALL_MODULES entry + fwd decl, standalone CTest target, unified-runner source,
+  the shared CTest-name list entry; deleted the file. Catalog/matrix rows updated.
+  Module count -1 (exploit PoC 270->269, total 419->418). check_exploit_wiring +
+  check_doc_module_counts pass.
+- First of the verified module consolidations from the redundancy analysis (each test
+  owns its zone). Remaining verified-redundant modules (chacha20_poly1305, sha_kat,
+  3 of 5 batch-verify) each need a small unique sub-test grafted into their canonical
+  first — tracked for a focused follow-up.
+
 ## 2026-06-09 — Test consolidation: remove duplicate regression_ct_ops_v2 (each test owns its zone)
 
 - A multi-agent redundancy review found `test_regression_ct_ops_2026_05_21.cpp`
@@ -1278,7 +1296,7 @@ No code issues found. Findings recorded in knowledge_base (CT-AUDIT-FROST/ADAPTO
 - **audit/test_exploit_frost_absent_signer_id.cpp (NEW — P1-SEC-001):** 3 sub-tests (FSI-1..3): absent signer → zero z_i; present signer → non-zero z_i; below-threshold → zero z_i. Wired to `unified_audit_runner` as `exploit_poc`, `advisory=false`.
 - **audit/test_regression_schnorr_sign_e_hash_erased.cpp (NEW — P1-SEC-002):** 4 sub-tests (SHE-1..4): sign+verify round-trip; 50 round-trips with varied messages; deterministic output; different messages → different sigs. Wired as `ct_analysis`, `advisory=false`.
 - **audit/test_exploit_musig2_infinity_pubnonce.cpp (NEW — P1-SEC-003):** 6 sub-tests (MIP-1..6): valid pubnonce accepted; zero input (prefix 0x00) rejected; uncompressed prefix (0x04) rejected; off-curve x handled; NULL args rejected; invalid second-point prefix rejected. Wired as `exploit_poc`, `advisory=true` (requires shim).
-- **ci/sync_module_count.py:** Module count propagated — 382 total (270 exploit-PoC, 115 non-exploit).
+- **ci/sync_module_count.py:** Module count propagated — 382 total (269 exploit-PoC, 115 non-exploit).
 
 ## 2026-05-21 — Fix: doc sync, stale paths, canonical benchmark JSON machine-generation (REL-001..011, BENCH-003/006, CI-001)
 
@@ -1755,7 +1773,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 270 exploit PoC)
+### Module count: 357 total (101 non-exploit + 269 exploit PoC)
 
 ---
 
@@ -1901,7 +1919,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 270 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 269 exploit PoC = 350 total.
 
 ---
 
@@ -2776,7 +2794,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 270 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 269 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -5176,7 +5194,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 270 exploit PoC files, 59 new checks.**
+**Running total after this wave: 269 exploit PoC files, 59 new checks.**
 
 ---
 

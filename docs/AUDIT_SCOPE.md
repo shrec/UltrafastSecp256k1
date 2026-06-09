@@ -177,7 +177,7 @@ cmake -S . -B build_audit -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # Build
 cmake --build build_audit -j
 
-# === FULL AUDIT ( 419 modules, 9 failure classes, ~10 min) ===
+# === FULL AUDIT ( 418 modules, 9 failure classes, ~10 min) ===
 ./build_audit/audit/unified_audit_runner
 
 # Run all CTest targets
@@ -189,7 +189,7 @@ ctest --test-dir build_audit -R test_field_audit -V
 # dudect constant-time smoke test
 ctest --test-dir build_audit -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (270 probes)
+# Exploit PoC security probes (269 probes)
 ctest --test-dir build_audit -R exploit -V
 
 # Machine-readable assurance artifact

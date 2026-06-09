@@ -772,11 +772,6 @@ add_test(NAME exploit_pedersen_homomorphism COMMAND test_exploit_pedersen_homomo
 set_tests_properties(exploit_pedersen_homomorphism PROPERTIES TIMEOUT 60 LABELS "audit;exploit;pedersen")
 endif() # SECP256K1_BUILD_ZK
 
-add_executable(test_exploit_hkdf_security_standalone test_exploit_hkdf_security.cpp)
-audit_target_defaults(test_exploit_hkdf_security_standalone)
-target_compile_definitions(test_exploit_hkdf_security_standalone PRIVATE STANDALONE_TEST)
-add_test(NAME exploit_hkdf_security COMMAND test_exploit_hkdf_security_standalone)
-set_tests_properties(exploit_hkdf_security PROPERTIES TIMEOUT 60 LABELS "audit;exploit;hkdf")
 
 add_executable(test_exploit_batch_schnorr_standalone test_exploit_batch_schnorr.cpp)
 audit_target_defaults(test_exploit_batch_schnorr_standalone)
@@ -3758,7 +3753,6 @@ add_executable(unified_audit_runner
     test_exploit_gpu_host_api_shape.cpp
     test_exploit_hedged_nonce_bias.cpp
     test_exploit_hkdf_kat.cpp
-    test_exploit_hkdf_security.cpp
     test_exploit_invalid_curve_twist.cpp
     test_exploit_keccak256_kat.cpp
     test_exploit_multiscalar.cpp
@@ -4465,7 +4459,7 @@ set_tests_properties(
     exploit_chacha20_nonce_reuse
     exploit_ellswift
     exploit_address_generation exploit_bip324_session exploit_multiscalar
-    exploit_hkdf_security exploit_batch_schnorr
+    exploit_batch_schnorr
     exploit_segwit_encoding exploit_private_key exploit_bip143_sighash
     exploit_ecdh_variants exploit_glv_endomorphism
     exploit_sha_kat exploit_bip144_serialization

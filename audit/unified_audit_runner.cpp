@@ -378,7 +378,6 @@ int test_exploit_gpu_cpu_divergence_run();
 int test_exploit_gpu_host_api_shape_run();
 int test_exploit_hedged_nonce_bias_run();
 int test_exploit_hkdf_kat_run();
-int test_exploit_hkdf_security_run();
 int test_infinity_edge_cases_run();
 int test_exploit_invalid_curve_twist_run();
 int test_exploit_keccak256_kat_run();
@@ -1009,7 +1008,6 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_gpu_host_api_shape",     "GPU Host API Hostile Caller",                 "exploit_poc", test_exploit_gpu_host_api_shape_run, false },
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
     { "exploit_hkdf_kat",               "HKDF-SHA256 KAT (RFC 5869)",                 "exploit_poc", test_exploit_hkdf_kat_run, false },
-    { "exploit_hkdf_security",          "HKDF-SHA256 Security (RFC 5869)",             "exploit_poc", test_exploit_hkdf_security_run, false },
     { "infinity_edge_cases",            "Point-at-Infinity Edge Cases (INF-1..28)",    "exploit_poc", test_infinity_edge_cases_run, false },
     { "exploit_invalid_curve_twist",    "Invalid Curve / Twist Point Injection",       "exploit_poc", test_exploit_invalid_curve_twist_run, false },
     { "exploit_keccak256_kat",          "Keccak-256 KAT Vectors",                      "exploit_poc", test_exploit_keccak256_kat_run, false },
