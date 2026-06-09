@@ -408,14 +408,21 @@ __device__ __forceinline__ void reduce_512_to_256_32(
         : "l"(ek_lo), "l"(ek_hi)
     );
 
-    if (c) {
+    // CONSTANT-TIME rare-carry fold: was `if (c) { add 0x1000003D1 }` — a data-dependent
+    // branch on a secret-derived carry. Now always execute the add with a masked addend
+    // (0 when c==0 → no-op), so warp execution is uniform. See scalar_mul_mod_n in
+    // secp256k1.cuh for the measured rationale (GPU signing CT).
+    {
+        uint64_t cmask = (uint64_t)0 - (uint64_t)(c != 0ULL);
+        asm volatile("" : "+l"(cmask));   // value barrier
+        const uint64_t cfold = (uint64_t)0x1000003D1ULL & cmask;
         asm volatile(
             "add.cc.u64 %0, %0, %4;\n\t"
             "addc.cc.u64 %1, %1, 0;\n\t"
             "addc.cc.u64 %2, %2, 0;\n\t"
             "addc.u64 %3, %3, 0;\n\t"
             : "+l"(r0), "+l"(r1), "+l"(r2), "+l"(r3)
-            : "l"((uint64_t)0x1000003D1ULL)
+            : "l"(cfold)
         );
     }
 
@@ -432,10 +439,16 @@ __device__ __forceinline__ void reduce_512_to_256_32(
           "l"(MODULUS[0]), "l"(MODULUS[1]), "l"(MODULUS[2]), "l"(MODULUS[3])
     );
 
-    if (borrow == 0) {
-        r->limbs[0] = s0; r->limbs[1] = s1; r->limbs[2] = s2; r->limbs[3] = s3;
-    } else {
-        r->limbs[0] = r0; r->limbs[1] = r1; r->limbs[2] = r2; r->limbs[3] = r3;
+    // CONSTANT-TIME final reduction: was `if (borrow == 0) r = s; else r = r;` — a
+    // data-dependent branch (borrow == 0 ⟺ r >= P). Now branchless cmov: select the
+    // subtracted limbs s iff r >= P, else keep r, via a value-barriered mask.
+    {
+        uint64_t mask = (uint64_t)0 - (uint64_t)(borrow == 0ULL);
+        asm volatile("" : "+l"(mask));   // value barrier
+        r->limbs[0] = (s0 & mask) | (r0 & ~mask);
+        r->limbs[1] = (s1 & mask) | (r1 & ~mask);
+        r->limbs[2] = (s2 & mask) | (r2 & ~mask);
+        r->limbs[3] = (s3 & mask) | (r3 & ~mask);
     }
 }
 

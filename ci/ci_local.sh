@@ -381,6 +381,19 @@ test_gpu_zk_prove_verify_differential"
             echo -e "${YELLOW}SKIP${NC} (binary not built)"
           fi
         done
+        # White-box GPU constant-time gate: build the leakage probe + run the Nsight
+        # (ncu) branch-uniformity fixed-vs-random comparison. This is the white-box
+        # detector that catches key-dependent warp divergence which the interleaved
+        # dudect t-test MASKS (it caught the 2026-06 GPU ECDSA reduction leak that the
+        # black-box probe reported as |t|=0 PASS). Advisory-skips if ncu is unavailable.
+        if cmake --build "$_gpu_dir" -j"$(nproc)" --target gpu_ct_leakage_probe \
+             >>"${TMPDIR:-/tmp}/ci_local_gpubuild_$$.log" 2>&1; then
+          run_check "GPU CT uniformity (white-box ncu)" \
+            python3 ci/check_gpu_ct_uniformity.py --build-dir "$_gpu_dir"
+        else
+          printf "  %-52s" "GPU CT uniformity (white-box ncu)..."
+          echo -e "${YELLOW}SKIP${NC} (probe build failed)"
+        fi
       else
         echo -e "${RED}FAIL${NC}"
         tail -20 "${TMPDIR:-/tmp}/ci_local_gpubuild_$$.log" | sed 's/^/    /'
