@@ -332,16 +332,19 @@ inline Scalar256 scalar_mul_mod_n(thread const Scalar256 &a, thread const Scalar
     for (int i = 8; i < 14; i++) w[i] = 0;
 
     // Round 1: accumulate prod[8..15] * c into w
+    // CT-P2-01: BRANCHLESS (mirrors the OpenCL fix). No `if (h==0) continue;` and no
+    // data-dependent `&& carry` loop bound — both branch on the secret-derived product
+    // (key-dependent warp divergence). Multiplying by a zero limb is a no-op and
+    // propagating carry over a fixed span (adding carry==0 is a no-op) is identical.
     for (int i = 0; i < 8; i++) {
         uint h = prod[8 + i];
-        if (h == 0) continue;
         ulong carry = 0;
         for (int j = 0; j < 5; j++) {
             ulong p = ulong(h) * ulong(C[j]) + ulong(w[i + j]) + carry;
             w[i + j] = uint(p);
             carry = p >> 32;
         }
-        for (int k = i + 5; k < 14 && carry; k++) {
+        for (int k = i + 5; k < 14; k++) {
             ulong s = ulong(w[k]) + carry;
             w[k] = uint(s);
             carry = s >> 32;
@@ -354,16 +357,15 @@ inline Scalar256 scalar_mul_mod_n(thread const Scalar256 &a, thread const Scalar
     for (int i = 8; i < 14; i++) w[i] = 0;
 
     for (int i = 0; i < 6; i++) {
-        if (hi[i] == 0) continue;
-        ulong carry = 0;
+        ulong carry = 0;   // CT-P2-01: no `if (hi[i]==0) continue;` (secret-derived)
         for (int j = 0; j < 5; j++) {
             int pos = i + j;
-            if (pos >= 14) break;
+            if (pos >= 14) break;   // public loop-index bound — constant-time
             ulong p = ulong(hi[i]) * ulong(C[j]) + ulong(w[pos]) + carry;
             w[pos] = uint(p);
             carry = p >> 32;
         }
-        for (int k = i + 5; k < 14 && carry; k++) {
+        for (int k = i + 5; k < 14; k++) {
             ulong s = ulong(w[k]) + carry;
             w[k] = uint(s);
             carry = s >> 32;
@@ -375,16 +377,15 @@ inline Scalar256 scalar_mul_mod_n(thread const Scalar256 &a, thread const Scalar
     for (int i = 8; i < 14; i++) w[i] = 0;
 
     for (int i = 0; i < 6; i++) {
-        if (hi[i] == 0) continue;
-        ulong carry = 0;
+        ulong carry = 0;   // CT-P2-01: no `if (hi[i]==0) continue;` (secret-derived)
         for (int j = 0; j < 5; j++) {
             int pos = i + j;
-            if (pos >= 14) break;
+            if (pos >= 14) break;   // public loop-index bound — constant-time
             ulong p = ulong(hi[i]) * ulong(C[j]) + ulong(w[pos]) + carry;
             w[pos] = uint(p);
             carry = p >> 32;
         }
-        for (int k = i + 5; k < 14 && carry; k++) {
+        for (int k = i + 5; k < 14; k++) {
             ulong s = ulong(w[k]) + carry;
             w[k] = uint(s);
             carry = s >> 32;

@@ -79,6 +79,25 @@ def main() -> int:
     check("allowlist is file-scoped (still flags ct_sign.cuh)",
           len(_scan_src("ct/ct_sign.cuh", leak)) == 1)
 
+    # 7c. CT-P2-02 reduction-leak shapes (GPU scalar_mul_mod_n) MUST be flagged.
+    def _scan_red(src: str) -> int:
+        with tempfile.NamedTemporaryFile("w", suffix=".cl", delete=False) as f:
+            f.write(src); tmp = Path(f.name)
+        try:
+            return len(g.scan_reduction_file(tmp))
+        finally:
+            tmp.unlink()
+    check("flags reduction skip-if-zero (prod[i]==0)",
+          _scan_red("    for (int i=0;i<4;i++){ if (prod[4+i] == 0) continue; }\n") == 1)
+    check("flags reduction res[4]!=0 skip",
+          _scan_red("    if (res[4] != 0) { fold(); }\n") == 1)
+    check("flags data-dependent && carry loop bound",
+          _scan_red("    for (int k = i+3; k < 7 && carry; k++) {}\n") == 1)
+    check("does NOT flag the fixed fixed-span loop",
+          _scan_red("    for (int k = i+3; k < 7; k++) {}\n") == 0)
+    check("does NOT flag a trailing-comment annotation of the removed pattern",
+          _scan_red("    ulong carry = 0;   // no `if (prod[i]==0) continue;`\n") == 0)
+
     # 8. The live tree MUST currently pass the gate.
     check("live tree passes the gate", g.main() == 0)
 

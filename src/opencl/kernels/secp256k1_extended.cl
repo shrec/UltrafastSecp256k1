@@ -333,10 +333,15 @@ inline void scalar_mul_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
     }
 
     // Step 2: Reduce high 256 bits. acc = prod[0..3] + prod[4..7] * NC
-    // prod[4..7] * NC has at most 256+129 = 385 bits
+    // prod[4..7] * NC has at most 256+129 = 385 bits.
+    // CT-P2-01: BRANCHLESS. The previous version had `if (prod[4+i]==0) continue;`
+    // and a data-dependent `&& carry` loop bound — both branch on the secret-derived
+    // product, producing key-dependent warp divergence (the same leak class fixed in
+    // CUDA scalar_mul_mod_n). Multiplying by a zero limb is a no-op, and propagating
+    // carry over a FIXED span (adding carry==0 is a no-op) is identical to the
+    // early-exit — so removing the branches preserves the result exactly.
     ulong acc[7] = {prod[0], prod[1], prod[2], prod[3], 0, 0, 0};
     for (int i = 0; i < 4; i++) {
-        if (prod[4+i] == 0) continue;
         ulong carry = 0;
         for (int j = 0; j < 3; j++) {
             ulong2 full = mul64_full(prod[4+i], NC[j]);
@@ -346,19 +351,19 @@ inline void scalar_mul_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
             acc[i+j] = s;
             carry = full.y + c1 + c2;
         }
-        // Propagate remaining carry
-        for (int k = i+3; k < 7 && carry; k++) {
+        // Propagate remaining carry over a fixed span (k upper bound is constant;
+        // start i+3 is a public loop index). add_with_carry(.,0,.) is a no-op.
+        for (int k = i+3; k < 7; k++) {
             acc[k] = add_with_carry(acc[k], carry, 0, &carry);
         }
     }
 
-    // Step 3: Reduce again. res = acc[0..3] + acc[4..6] * NC
+    // Step 3: Reduce again. res = acc[0..3] + acc[4..6] * NC (branchless).
     ulong res[5] = {acc[0], acc[1], acc[2], acc[3], 0};
     for (int i = 0; i < 3; i++) {
-        if (acc[4+i] == 0) continue;
         ulong carry = 0;
         for (int j = 0; j < 3; j++) {
-            if (i+j >= 5) break;
+            if (i+j >= 5) break;   // public loop-index bound — constant-time
             ulong2 full = mul64_full(acc[4+i], NC[j]);
             ulong c1, c2;
             ulong s = add_with_carry(full.x, res[i+j], 0, &c1);
@@ -366,15 +371,15 @@ inline void scalar_mul_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
             res[i+j] = s;
             carry = full.y + c1 + c2;
         }
-        for (int k = i+3; k < 5 && carry; k++) {
+        for (int k = i+3; k < 5; k++) {
             res[k] = add_with_carry(res[k], carry, 0, &carry);
         }
     }
 
-    // Step 4: Handle res[4] overflow
+    // Step 4: Handle res[4] overflow (branchless — res[4]==0 → multiply by 0 no-op).
     r->limbs[0] = res[0]; r->limbs[1] = res[1];
     r->limbs[2] = res[2]; r->limbs[3] = res[3];
-    if (res[4] != 0) {
+    {
         ulong carry = 0;
         for (int j = 0; j < 3; j++) {
             ulong2 full = mul64_full(res[4], NC[j]);

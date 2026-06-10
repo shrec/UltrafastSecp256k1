@@ -1,5 +1,26 @@
 # Audit Changelog
 
+## 2026-06-10 — CT-P2-01/CT-P2-02: branchless GPU OpenCL+Metal scalar_mul_mod_n + CT gate
+
+- **CT-P2-01 (P2)**: the OpenCL (`src/opencl/kernels/secp256k1_extended.cl`) and Metal
+  (`src/metal/shaders/secp256k1_extended.h`) `scalar_mul_mod_n` reduction (Solinas/NC
+  folding) contained secret-dependent control flow — `if (prod[i]==0) continue;`
+  skip-if-zero and data-dependent `&& carry` loop bounds — reachable from
+  `ct_ecdsa_sign`/`ct_schnorr_sign` (~256×/sig via the CT inverse). Same leak class the
+  CUDA backend already fixed (Barrett). Made branchless: multiply-by-zero is a no-op and
+  carry propagates over a fixed span (adding carry==0 is a no-op), so the result is
+  bit-identical. **Verified on RTX 5060 Ti: a direct OpenCL parity harness ran the
+  branchless `scalar_mul_mod_n` over 5081 inputs (random + edge cases incl. ≥ n) — all
+  5081 matched the CPU `(a*b) mod n` reference.** Metal uses the identical algebraic
+  transform (Apple-only; not runnable on the NVIDIA host) and is covered by the static
+  gate below.
+- **CT-P2-02 (P2)**: `ci/check_ct_branches.py` only scanned CUDA `.cuh` and its FORBIDDEN
+  regex missed `[...] == 0` skips (the loop index in the subscript tripped BENIGN). Added
+  a dedicated reduction-leak scan (skip-if-zero on a reduction limb + data-dependent
+  carry/borrow loop bound) over `secp256k1_extended.cl`, `secp256k1_extended.h`, and
+  `secp256k1.cuh`. Self-test (`ci/test_check_ct_branches.py`) extended with 5 reduction-leak
+  assertions; gate passes on the fixed sources and flags reintroduction.
+
 ## 2026-06-10 — RT1-001 + PASS3-SHIM-CREATE-ZERO: secret-path + shim parity fixes
 
 - **RT1-001 (P2)**: removed dead `ellswift_xdh_fast` (src/cpu/src/ellswift.cpp +

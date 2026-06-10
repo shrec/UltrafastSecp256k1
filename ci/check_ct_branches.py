@@ -46,6 +46,28 @@ CT_FILES = [
     "src/cuda/include/ct/ct_ops.cuh",
 ]
 
+# CT-P2-02: dedicated scan for the GPU scalar_mul_mod_n REDUCTION leak class
+# (CT-P2-01). The Solinas/NC folding had `if (prod[i]==0) continue;` skip-if-zero and
+# data-dependent `&& carry` loop bounds — both branch on the secret-derived product
+# and produced key-dependent warp divergence. The general FORBIDDEN scan below MISSES
+# these: `[...] == 0` carries no borrow/carry token, and the loop index inside the
+# subscript trips BENIGN. So we scan the reduction sources for the exact two shapes.
+# These files mix CT and VT (verify) code, so we do NOT apply the broad borrow/carry
+# scan to them (it would flag legitimate public-data verify branches); we only forbid
+# the two reduction-leak shapes.
+REDUCTION_FILES = [
+    "src/opencl/kernels/secp256k1_extended.cl",
+    "src/metal/shaders/secp256k1_extended.h",
+    "src/cuda/include/secp256k1.cuh",
+]
+# (a) skip-if-zero on a reduction limb/accumulator: if/while (<name>[..] == 0 | != 0)
+# (b) data-dependent carry/borrow loop bound: for (...; ... && (carry|borrow); ...)
+REDUCTION_FORBIDDEN = re.compile(
+    r"\b(?:if|while)\s*\(\s*\(?\s*(?:prod|acc|res|hi|qn|qmu)\s*\[[^\]]*\]\s*(?:==|!=)\s*0\b"
+    r"|\bfor\s*\([^;]*;[^;]*&&\s*(?:carry|borrow)\b"
+)
+
+
 # A branch condition is FORBIDDEN when it tests a secret-derived reduction signal:
 # borrow/carry out of a subtract/add, a >= modulus comparison, or a raw limb comparison.
 FORBIDDEN = re.compile(
@@ -118,6 +140,23 @@ def scan_file(path: Path, rel: str) -> list[tuple[int, str]]:
     return hits
 
 
+def scan_reduction_file(path: Path) -> list[tuple[int, str]]:
+    """Scan a GPU reduction source for the CT-P2-01 leak shapes only (skip-if-zero on a
+    reduction limb, data-dependent carry/borrow loop bound). Independent of BENIGN."""
+    hits: list[tuple[int, str]] = []
+    if not path.exists():
+        return hits
+    for n, raw in enumerate(path.read_text(errors="replace").splitlines(), 1):
+        if COMMENT.match(raw):
+            continue
+        # Strip a trailing line comment so a `// ... if (hi[i]==0) ...` annotation
+        # (which legitimately describes the removed pattern) does not self-trigger.
+        code = raw.split("//", 1)[0]
+        if REDUCTION_FORBIDDEN.search(code):
+            hits.append((n, code.strip()[:120]))
+    return hits
+
+
 def main() -> int:
     list_only = "--list" in sys.argv
     total = 0
@@ -129,6 +168,16 @@ def main() -> int:
             print(f"  {'OK ' if not hits else 'HIT'} {rel}  ({len(hits)} branch flag(s))")
         if hits:
             flagged[rel] = hits
+            total += len(hits)
+
+    # CT-P2-02: reduction-leak shape scan (OpenCL/Metal/CUDA scalar_mul_mod_n).
+    for rel in REDUCTION_FILES:
+        p = ROOT / rel
+        hits = scan_reduction_file(p)
+        if list_only:
+            print(f"  {'OK ' if not hits else 'HIT'} {rel}  ({len(hits)} reduction-leak flag(s))")
+        if hits:
+            flagged.setdefault(rel, []).extend(hits)
             total += len(hits)
 
     if list_only:
