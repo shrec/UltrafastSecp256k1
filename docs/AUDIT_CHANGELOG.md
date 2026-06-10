@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-10 — RT1-001 + PASS3-SHIM-CREATE-ZERO: secret-path + shim parity fixes
+
+- **RT1-001 (P2)**: removed dead `ellswift_xdh_fast` (src/cpu/src/ellswift.cpp +
+  src/cpu/include/secp256k1/ellswift.hpp). It did a variable-time variable-base
+  `scalar_mul` on a SECRET key against an attacker-controlled decoded point — a
+  side-channel foot-gun mislabelled "CT not required" — with zero callers, and it
+  duplicated the constant-time `ellswift_xdh`. All public XDH entry points already
+  route through `ct::ecmult_const_xonly`. Regression: `test_regression_ellswift_ct_path`
+  ECP-9 asserts the surviving CT XDH path is non-zero, symmetric, and deterministic.
+- **PASS3-SHIM-CREATE-ZERO (P3)**: `secp256k1_ec_pubkey_create` now `memset`s
+  `pubkey->data` to zero on both failure paths (invalid seckey, infinity), matching
+  upstream `memczero(pubkey, !ret)` and the shim's own keypair_create /
+  ec_pubkey_negate convention. Regression: `test_shim_security_edge_cases`
+  PASS3-SHIM-CREATE-ZERO case (0/n/0xff..ff seckeys → return 0 AND all-zero output).
+
 ## 2026-06-10 — Doc reconciliation + CLAIM-GPU-ABI-COUNT gate (10-pass review)
 
 - **CLAIM-GPU-ABI-COUNT**: docs stated the GPU stable batch-op count four ways

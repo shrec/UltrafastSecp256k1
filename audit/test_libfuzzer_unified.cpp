@@ -42,7 +42,7 @@ static int s_fail = 0;
         ++s_fail;                           \
         std::printf("  FAIL: %s\n", msg);  \
     } else {                                \
-        ++s_pass;  // no crash (fuzz survival probe — no semantic oracle by design)                           \
+        ++s_pass;                           \
     }                                       \
 } while(0)
 

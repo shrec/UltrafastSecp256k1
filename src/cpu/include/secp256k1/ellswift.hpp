@@ -58,13 +58,12 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey);
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
                                                     const std::uint8_t* auxrnd32);
 
-// Fast XDH variant: uses non-CT variable-base scalar_mul for the ECDH step.
-// Suitable for BIP-324 ephemeral session keys where CT is not required.
-std::array<std::uint8_t, 32> ellswift_xdh_fast(
-    const std::uint8_t ell_a64[64],
-    const std::uint8_t ell_b64[64],
-    const Scalar& our_privkey,
-    bool initiating) noexcept;
+// RT1-001 (removed): ellswift_xdh_fast did a variable-time variable-base
+// scalar_mul on a SECRET key against an attacker-controlled decoded point — a
+// side-channel foot-gun mislabelled "CT not required". It had zero callers and
+// duplicated the constant-time `ellswift_xdh` below. Use `ellswift_xdh` (or the
+// shim `secp256k1_ellswift_xdh` / `bip324::xdh`), which route through
+// `ct::ecmult_const_xonly` and produce a byte-identical shared secret.
 
 // Encode an existing x-coordinate as a 64-byte ElligatorSwift encoding.
 // rnd32: 32 bytes of randomness that determine which of the many valid

@@ -677,45 +677,13 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
     return result;
 }
 
-std::array<std::uint8_t, 32> ellswift_xdh_fast(
-    const std::uint8_t ell_a64[64],
-    const std::uint8_t ell_b64[64],
-    const Scalar& our_privkey,
-    bool initiating) noexcept {
-
-    const std::uint8_t* their_ell = initiating ? ell_b64 : ell_a64;
-    // Use xswiftec_fwd_point to get (x, even_y) in one decode — avoids extra sqrt.
-    std::array<uint8_t, 32> ub{}, tb{};
-    std::memcpy(ub.data(), their_ell,      32);
-    std::memcpy(tb.data(), their_ell + 32, 32);
-    auto [their_x, their_y] = xswiftec_fwd_point(fe_from_bytes_mod_p(ub.data()),
-                                                   fe_from_bytes_mod_p(tb.data()));
-
-    auto their_point = Point::from_affine(their_x, their_y);
-    if (their_point.is_infinity()) return std::array<std::uint8_t, 32>{};
-
-    // Non-CT variable-base scalar mul (~17.6 µs vs ~40 µs CT path).
-    // Suitable for ephemeral BIP-324 session keys.
-    auto ecdh_point = their_point.scalar_mul(our_privkey);
-    if (ecdh_point.is_infinity()) return std::array<std::uint8_t, 32>{};
-    auto ecdh_x = ecdh_point.x().to_bytes();
-
-    // Precomputed midstate (static = computed once per process).
-    static const auto kTagHash = SHA256::hash("bip324_ellswift_xonly_ecdh", 26);
-    static const SHA256 kTagMid = [](){
-        SHA256 h; h.update(kTagHash.data(), 32); h.update(kTagHash.data(), 32); return h;
-    }();
-
-    SHA256 hasher = kTagMid;
-    hasher.update(ell_a64, 64);
-    hasher.update(ell_b64, 64);
-    hasher.update(ecdh_x.data(), 32);
-    auto shared_secret = hasher.finalize();
-
-    detail::secure_erase(ecdh_x.data(), 32);
-    detail::secure_erase(&ecdh_point, sizeof(ecdh_point));
-
-    return shared_secret;
-}
+// RT1-001 (removed 2026-06-10): ellswift_xdh_fast did a variable-time
+// variable-base scalar_mul on a SECRET key against an attacker-controlled decoded
+// point — a side-channel foot-gun. It had zero callers and duplicated the
+// constant-time ellswift_xdh() above. All public entry points (shim
+// secp256k1_ellswift_xdh, ABI ufsecp_ellswift_xdh) route through the CT path
+// (ct::ecmult_const_xonly), which yields a byte-identical shared secret. Removed
+// rather than retained-and-CT-fixed to avoid a redundant near-duplicate of
+// ellswift_xdh().
 
 } // namespace secp256k1

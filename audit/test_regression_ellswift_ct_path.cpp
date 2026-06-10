@@ -248,6 +248,36 @@ static void test_ellswift_create_lazy_sqrt_roundtrip() {
     secp256k1_context_destroy(ctx);
 }
 
+// ── ECP-9: CT XDH is the only XDH path after RT1-001 removal ────────────────
+// ellswift_xdh_fast (a variable-time variable-base scalar_mul on the SECRET key
+// against an attacker-controlled decoded point) was removed; every public XDH
+// entry point now routes through the constant-time secp256k1_ellswift_xdh. Assert
+// the surviving CT path yields a non-zero, symmetric, deterministic shared secret.
+static void test_ellswift_xdh_ct_only_after_removal() {
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    unsigned char ska[32] = {}, skb[32] = {};
+    ska[31] = 0x2a; skb[31] = 0x55;
+    static const unsigned char aux[32] = {0};
+    unsigned char enc_a[64], enc_b[64];
+    check(secp256k1_ellswift_create(ctx, enc_a, ska, aux) == 1, "[ECP-9a] create A");
+    check(secp256k1_ellswift_create(ctx, enc_b, skb, aux) == 1, "[ECP-9b] create B");
+
+    unsigned char s_ab[32], s_ba[32], s_ab2[32];
+    int r_ab = secp256k1_ellswift_xdh(ctx, s_ab, enc_a, enc_b, ska, 0,
+                                      secp256k1_ellswift_xdh_hash_function_bip324, nullptr);
+    int r_ba = secp256k1_ellswift_xdh(ctx, s_ba, enc_a, enc_b, skb, 1,
+                                      secp256k1_ellswift_xdh_hash_function_bip324, nullptr);
+    int r_ab2 = secp256k1_ellswift_xdh(ctx, s_ab2, enc_a, enc_b, ska, 0,
+                                       secp256k1_ellswift_xdh_hash_function_bip324, nullptr);
+    check(r_ab == 1 && r_ba == 1 && r_ab2 == 1, "[ECP-9c] CT XDH succeeds");
+    check(memcmp(s_ab, s_ba, 32) == 0, "[ECP-9d] CT XDH shared secret symmetric");
+    check(memcmp(s_ab, s_ab2, 32) == 0, "[ECP-9e] CT XDH deterministic");
+    unsigned char zero[32] = {};
+    check(memcmp(s_ab, zero, 32) != 0, "[ECP-9f] CT XDH shared secret non-zero");
+
+    secp256k1_context_destroy(ctx);
+}
+
 // ── _run() ─────────────────────────────────────────────────────────────────
 int test_regression_ellswift_ct_path_run() {
     g_pass = 0; g_fail = 0;
@@ -261,6 +291,7 @@ int test_regression_ellswift_ct_path_run() {
     test_ellswift_zero_key();
     test_ellswift_xdh_general_path();
     test_ellswift_encode_decode_roundtrip();
+    test_ellswift_xdh_ct_only_after_removal();
 
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;

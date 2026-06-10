@@ -246,11 +246,19 @@ int secp256k1_ec_pubkey_create(
     Scalar k;
     if (!Scalar::parse_bytes_strict_nonzero(seckey, k)) {
         secp256k1::detail::secure_erase(&k, sizeof(k));   // secret-residue sweep
+        // PASS3-SHIM-CREATE-ZERO: zero the output on failure to match upstream
+        // secp256k1_ec_pubkey_create's memczero(pubkey, !ret) and the shim's own
+        // convention (keypair_create, ec_pubkey_negate). Was the only seckey-consuming
+        // creation API that left the caller's output buffer untouched on failure.
+        std::memset(pubkey->data, 0, sizeof(pubkey->data));
         return 0;
     }
     auto P = secp256k1::ct::generator_mul(k);   // CT: Rule 12 — sk is a private key
     secp256k1::detail::secure_erase(&k, sizeof(k));   // erase parsed private key after last use
-    if (P.is_infinity()) return 0;
+    if (P.is_infinity()) {
+        std::memset(pubkey->data, 0, sizeof(pubkey->data));  // PASS3-SHIM-CREATE-ZERO
+        return 0;
+    }
     point_to_pubkey_data(P, pubkey->data);
     return 1;
 }

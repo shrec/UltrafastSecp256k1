@@ -563,6 +563,51 @@ static void test_pubkey_parse_decompression_cache() {
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// PASS3-SHIM-CREATE-ZERO: secp256k1_ec_pubkey_create must zero the output on
+// failure, matching upstream secp256k1's memczero(pubkey, !ret) and the shim's own
+// keypair_create / ec_pubkey_negate convention. ec_pubkey_create was the only
+// seckey-consuming creation API that left the caller's buffer untouched on failure.
+// ---------------------------------------------------------------------------
+static void test_pass_compat_pubkey_create_zeroizes_output() {
+    printf("  [PASS3-SHIM-CREATE-ZERO] ec_pubkey_create zeroes output on failure\n");
+    secp256k1_context* ctx = make_ctx_with_counting_cb();
+
+    // Invalid seckeys rejected by parse_bytes_strict_nonzero: 0, n, 0xff..ff (>= n).
+    uint8_t sk_zero[32] = {};
+    uint8_t sk_n[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,
+        0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41};
+    uint8_t sk_max[32];
+    std::memset(sk_max, 0xFF, sizeof(sk_max));
+
+    const uint8_t* bad_keys[3] = { sk_zero, sk_n, sk_max };
+    for (int i = 0; i < 3; ++i) {
+        secp256k1_pubkey pk;
+        std::memset(pk.data, 0xAA, sizeof(pk.data));  // pre-fill with garbage
+        int rc = secp256k1_ec_pubkey_create(ctx, &pk, bad_keys[i]);
+        CHECK_EQ(rc, 0, "invalid seckey must fail");
+        int all_zero = 1;
+        for (size_t j = 0; j < sizeof(pk.data); ++j) {
+            if (pk.data[j] != 0) { all_zero = 0; break; }
+        }
+        CHECK_TRUE(all_zero, "output buffer zeroed after failed pubkey_create");
+    }
+
+    // Positive control: a valid seckey (sk = 1) succeeds and yields a non-zero key.
+    {
+        uint8_t sk_ok[32] = {}; sk_ok[31] = 1;
+        secp256k1_pubkey pk;
+        std::memset(pk.data, 0, sizeof(pk.data));
+        int rc = secp256k1_ec_pubkey_create(ctx, &pk, sk_ok);
+        CHECK_EQ(rc, 1, "valid seckey must succeed");
+    }
+
+    secp256k1_context_destroy(ctx);
+}
+
 int test_shim_security_edge_cases_run() {
     g_pass = 0;
     g_fail = 0;
@@ -580,6 +625,7 @@ int test_shim_security_edge_cases_run() {
     test_shim008_ellswift_xdh_null_hashfp_fires_callback();
     test_perf003_small_batch_schnorr_verify_correctness();
     test_pubkey_parse_decompression_cache();
+    test_pass_compat_pubkey_create_zeroizes_output();
 
     printf("\n  pass=%d  fail=%d\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
