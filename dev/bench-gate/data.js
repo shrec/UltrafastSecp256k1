@@ -122025,7 +122025,7 @@ window.BENCHMARK_DATA = {
           },
           {
             "name": "ECDSA adaptor verify",
-            "value": 66045,
+            "value": 172961.3,
             "unit": "ns"
           },
           {
