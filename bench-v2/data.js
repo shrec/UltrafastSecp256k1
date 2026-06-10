@@ -7198,7 +7198,7 @@ window.BENCHMARK_DATA = {
           },
           {
             "name": "ECDSA adaptor sign",
-            "value": 77981.7,
+            "value": 156906.0,
             "unit": "ns"
           },
           {
