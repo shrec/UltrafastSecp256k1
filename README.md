@@ -55,7 +55,7 @@ It is not a trust request. It is a verification package.
 
 > **No external third-party security audit has been performed.** All audit evidence is self-generated and independently reproducible via CAAS. See [SECURITY.md](SECURITY.md) §Audit Status.
 
-> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 418-module unified runner with 269 exploit PoC tests.
+> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 420-module unified runner with 269 exploit PoC tests.
 
 **Reproduce from patch (primary — stable):**
 ```bash
@@ -253,7 +253,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 149 non-exploit audit modules and 269 exploit PoCs ( 420 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
+- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 151 non-exploit audit modules and 269 exploit PoCs ( 420 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -407,7 +407,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **≈600K explicitly itemized** field/scalar/point/CT (see [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md)), plus full-suite KAT/differential/fuzz checks (not individually counted) |
-| Audit modules (`unified_audit_runner`) | **149 non-exploit modules + 269 exploit PoCs across 10 sections, 0 mandatory failures** (see [docs/AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) for advisory cluster status) |
+| Audit modules (`unified_audit_runner`) | **151 non-exploit modules + 269 exploit PoCs across 10 sections, 0 mandatory failures** (see [docs/AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) for advisory cluster status) |
 | Exploit PoC test files | **269 exploit-PoC modules (257 source files), 20+ coverage areas, 0 mandatory failures** |
 | CI/CD workflows | **50+ GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 theoretical combinations** (actual CI matrix is a subset — see `.github/workflows/` for exact matrix) |
@@ -1716,7 +1716,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 149 non-exploit modules + 269 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 151 non-exploit modules + 269 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |

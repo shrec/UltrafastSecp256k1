@@ -178,7 +178,7 @@ Individual check counts:
   fiat_crypto_linkage ....... ~50  checks
   audit_fuzz ................ ~500 checks
   diag_scalar_mul ........... ~50  checks
-  unified_audit ............. 418 modules (149 non-exploit + 269 exploit PoCs)
+  unified_audit ............. 420 modules (151 non-exploit + 269 exploit PoCs)
   -----------------------------------------
   TOTAL (estimated):         ~6400+ individual assertions
 ```

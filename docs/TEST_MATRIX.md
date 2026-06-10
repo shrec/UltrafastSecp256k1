@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 418 modules (149 non-exploit + 269 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 420 modules (151 non-exploit + 269 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -883,6 +883,8 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_batch_gterm_vt` | `audit/test_regression_batch_gterm_vt.cpp` | PERF-008: schnorr_batch_verify g_coeff*G uses VT path (not CT); GTM-1..3: 128-sig large-batch correct, corrupted-s false, mismatched-pubkey false |
 | `regression_adaptor_ct_nonce` | `audit/test_regression_adaptor_ct_nonce.cpp` | P2-CT-RT-004: adaptor_nonce/ecdsa_adaptor_binding fixed 2-iter CT select; ACN-1..5: Schnorr/ECDSA adaptor round-trips, adapt+extract, determinism, nonce uniqueness |
 | `regression_adaptor_blinded_nonce` | `audit/test_regression_adaptor_blinded_nonce.cpp` | SEC-NEW-001/002 + P3-SHIM-STACK + P3-BATCH-MEM: schnorr_adaptor_sign ct::generator_mul_blinded(k) DPA defence, shim_schnorr_bch is_zero_ct on nonce, stack msg buffer 256→1024, batch vector shrink_to_fit |
+| `regression_secret_scalar_residue_erase` | `audit/test_regression_secret_scalar_residue_erase.cpp` | FROST-SIGN-RESIDUE: frost_sign secure_erase of secret-derived rho_ei/lambda_s_e (binding nonce ei + share s_i); schnorr_keypair_create erases d_prime private-key copy — source-scan (3 sites) + keypair sign/verify round-trip |
+| `regression_precompute_gcontext_race` | `audit/test_regression_precompute_gcontext_race.cpp` | PRECOMPUTE-GCONTEXT-UAF: g_context shared_ptr snapshot under g_mutex prevents use-after-free vs concurrent configure_fixed_base reset — source-scan + concurrent reconfigure/compute-vs-reference smoke |
 | `regression_nonce_candidate_erase` | `audit/test_regression_nonce_candidate_erase.cpp` | P2-CT-001/002/003/007: cand1+cand2 secure_erase after ct::scalar_select in rfc6979_nonce, rfc6979_nonce_hedged, musig2_nonce_gen (k1+k2), derive_scalar_from_hash; NCER-1..5: 200 ECDSA roundtrips, determinism, uniqueness, 50 hedged roundtrips, source scan |
 | `regression_shim_null_callback` | `audit/test_regression_shim_null_callback.cpp` | SHIM-A01/A02/A03/A07/A08: secp256k1 shim fires illegal_callback on NULL args matching libsecp256k1 ARG_CHECK; SNC-1..5: normalize(NULL sigin), pubkey_sort(NULL ctx), tagged_sha256(NULL msg+len=0 OK), pubkey_negate(NULL pubkey), tagged_sha256(NULL msg+len>0) |
 | `exploit_frost_absent_signer_id` | `audit/test_exploit_frost_absent_signer_id.cpp` | P1-SEC-001: frost_sign returns zero partial sig when caller ID absent from nonce_commitments signing set (FSI-1..3) |
