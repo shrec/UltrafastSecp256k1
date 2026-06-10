@@ -5278,6 +5278,18 @@ set_tests_properties(regression_adaptor_blinded_nonce PROPERTIES TIMEOUT 30
     LABELS "audit;regression;ct;security;sec-new-001;sec-new-002;source-scan")
 target_sources(unified_audit_runner PRIVATE test_regression_adaptor_blinded_nonce.cpp)
 
+# FROST-SIGN-RESIDUE (2026-06-10)
+# advisory=false: source-scan + schnorr keypair sign/verify round-trip, no shim/GPU dependency.
+add_executable(test_regression_secret_scalar_residue_erase_standalone
+    test_regression_secret_scalar_residue_erase.cpp)
+audit_target_defaults(test_regression_secret_scalar_residue_erase_standalone)
+target_compile_definitions(test_regression_secret_scalar_residue_erase_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_secret_scalar_residue_erase
+    COMMAND test_regression_secret_scalar_residue_erase_standalone)
+set_tests_properties(regression_secret_scalar_residue_erase PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;ct;security;frost-sign-residue;source-scan")
+target_sources(unified_audit_runner PRIVATE test_regression_secret_scalar_residue_erase.cpp)
+
 # DEDUP-2026-05-24: pure code-shape refactors, behavioural-freeze invariants
 # advisory=false: roundtrips only on C++ API (no shim, no GPU).
 add_executable(test_regression_dedup_refactors_2026_05_24_standalone

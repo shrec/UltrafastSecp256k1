@@ -230,6 +230,7 @@ int test_regression_adaptor_blinded_nonce_run();    // SEC-NEW-001/002, P3-SHIM-
 int test_regression_musig_noncegen_extra_input_run(); // SHIM-NONCEGEN-001: secp256k1_musig_nonce_gen ignores extra_input32 — behavioral freeze (2026-05-23)
 int test_regression_dedup_refactors_2026_05_24_run(); // DEDUP-2026-05-24: bip39 decode helper + sp_scan_batch_impl + to_data_cast + ellswift retry-loop invariants (2026-05-24)
 int test_regression_adaptor_ct_secret_extract_run(); // SEC-001/CT-001: adaptor extract uses ct::scalar_mul + erases s_inv (2026-05-23)
+int test_regression_secret_scalar_residue_erase_run(); // FROST-SIGN-RESIDUE: frost_sign rho_ei/lambda_s_e + schnorr_keypair_create d_prime secure_erase (2026-06-10)
 int test_regression_ecdh_xy64_erase_run();           // SEC-002: shim_ecdh xy64 erased after hashfp call (2026-05-23)
 int test_regression_ecdh_off_curve_run();            // SEC-005: ecdh_compute* reject off-curve and infinity pubkeys (2026-05-27)
 int test_regression_musig_xonly_zero_tweak_run();    // SHIM-001: xonly_tweak_add accepts zero tweak (2026-05-23)
@@ -1406,6 +1407,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-23 SEC-NEW-001/002, P3-SHIM-STACK, P3-BATCH-MEM ===
     // advisory=false: source-scan + C++ adaptor round-trip; no shim/GPU dependency.
     { "regression_adaptor_blinded_nonce", "SEC-NEW-001: adaptor.cpp generator_mul_blinded(k) DPA defence; SEC-NEW-002: BCH shim is_zero_ct on nonce k; P3-SHIM-STACK: kStackMsgMax 256->1024; P3-BATCH-MEM: batch vector shrink_to_fit -- source-scan + adaptor sign+adapt+verify round-trip", "ct_analysis", test_regression_adaptor_blinded_nonce_run, false },
+    // === 2026-06-10 FROST-SIGN-RESIDUE ===
+    // advisory=false: source-scan + schnorr keypair sign/verify round-trip; no shim/GPU dependency.
+    { "regression_secret_scalar_residue_erase", "FROST-SIGN-RESIDUE: frost_sign erases secret-derived rho_ei (my_binding*ei) and lambda_s_e (lambda_i*s_i*e) carrying binding nonce ei + share s_i; schnorr_keypair_create (ct_sign.cpp + schnorr.cpp) erases d_prime private-key copy -- source-scan + keypair sign+verify round-trip", "ct_analysis", test_regression_secret_scalar_residue_erase_run, false },
     // === 2026-05-24 DEDUP refactors (SonarCloud-driven, no security/ABI change) ===
     // advisory=false: deterministic roundtrips + tag-separation + cast-invariance.
     { "regression_dedup_refactors_2026_05_24", "DEDUP-2026-05-24: bip39 decode_bip39_words helper, sp_scanner+ltc_sp shared sp_scan_batch_impl, types.hpp to_data_cast<T> template, ellswift retry-loop helper -- invariant roundtrips proving no behavioural drift", "differential", test_regression_dedup_refactors_2026_05_24_run, false },

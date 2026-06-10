@@ -572,16 +572,23 @@ frost_sign(const FrostKeyPackage& key_pkg,
     Scalar ei = ct::scalar_cneg(nonce.binding_nonce, negate_R_mask);
     Scalar s_i = ct::scalar_cneg(key_pkg.signing_share, negate_key_mask);
 
-    // CT: d, ei, s_i are secret nonces/shares — use branchless CT arithmetic
-    Scalar const rho_ei      = ct::scalar_mul(my_binding, ei);
-    Scalar const lambda_s_e  = ct::scalar_mul(ct::scalar_mul(lambda_i, s_i), e);
+    // CT: d, ei, s_i are secret nonces/shares — use branchless CT arithmetic.
+    // rho_ei and lambda_s_e are SECRET-DERIVED products (they carry the secret
+    // binding nonce ei and signing share s_i) — non-const so they can be erased.
+    Scalar rho_ei            = ct::scalar_mul(my_binding, ei);
+    Scalar lambda_s_e        = ct::scalar_mul(ct::scalar_mul(lambda_i, s_i), e);
     Scalar const z_i         = ct::scalar_add(ct::scalar_add(d, rho_ei), lambda_s_e);
 
-    // Erase secret nonces and signing share from stack, then consume the
-    // caller's nonce to enforce single-use (H-01 nonce-reuse prevention).
+    // Erase secret nonces, signing share, AND the secret-derived intermediate
+    // products (rho_ei, lambda_s_e) from the stack, then consume the caller's
+    // nonce to enforce single-use (H-01 nonce-reuse prevention). Leaving rho_ei
+    // or lambda_s_e behind would persist ei/s_i-derived material as stack residue
+    // (same class as T08-SCALAR-ERASE for ecdsa_sign/musig2_partial_sig_agg).
     secure_erase(&d,   sizeof(d));
     secure_erase(&ei,  sizeof(ei));
     secure_erase(&s_i, sizeof(s_i));
+    secure_erase(&rho_ei,     sizeof(rho_ei));
+    secure_erase(&lambda_s_e, sizeof(lambda_s_e));
     secure_erase(&nonce.hiding_nonce,  sizeof(nonce.hiding_nonce));
     secure_erase(&nonce.binding_nonce, sizeof(nonce.binding_nonce));
 

@@ -315,7 +315,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
 cmake --build out/release -j
 
-# === ONE-COMMAND FULL AUDIT ( 418 modules, 9 failure classes, ~10 min) ===
+# === ONE-COMMAND FULL AUDIT ( 419 modules, 9 failure classes, ~10 min) ===
 ./build/audit/unified_audit_runner
 
 # === Individual verification paths ===

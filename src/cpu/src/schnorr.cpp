@@ -395,6 +395,9 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
 
     kp.d = ct::scalar_cneg(d_prime, ct::bool_to_mask(p_y_odd));
     kp.px = px;
+    // d_prime is a private-key copy — scrub it from the stack (kp.d, the public
+    // x-only signing key, is the intended output and is returned by value).
+    detail::secure_erase(&d_prime, sizeof(d_prime));
     return kp;
 }
 

@@ -1,5 +1,28 @@
 # Audit Changelog
 
+## 2026-06-10 — FROST-SIGN-RESIDUE: secret-derived scalar stack residue (P3, hardening)
+
+- **Finding (low severity, secret-erasure hygiene — not a timing leak):** three
+  secret-bearing functions left secret-derived `Scalar` locals on the stack
+  without `secure_erase`, the same class as `T08-SCALAR-ERASE`
+  (`ecdsa_sign`/`musig2_partial_sig_agg`).
+  - `frost_sign` (`src/cpu/src/frost.cpp`): `rho_ei = my_binding·ei` and
+    `lambda_s_e = lambda_i·s_i·e` carry the **secret** FROST binding nonce `ei`
+    and signing share `s_i`. `d`/`ei`/`s_i` were erased; these two products were not.
+  - `schnorr_keypair_create` (`src/cpu/src/ct_sign.cpp` and `src/cpu/src/schnorr.cpp`):
+    the local `d_prime` is a private-key copy that was never scrubbed (only the
+    public output `kp.d`/`kp.px` was kept). Previously noted out-of-scope in `RT05-CT04`.
+- **Impact:** requires a separate stack-memory-disclosure primitive to exploit;
+  no timing/CT impact (all arithmetic is already branchless `ct::`). Defense-in-depth.
+- **Fix:** added `secure_erase(&rho_ei)` + `secure_erase(&lambda_s_e)` in `frost_sign`
+  (made both non-const) and `secure_erase(&d_prime)` in both `schnorr_keypair_create`
+  variants. New regression `regression_secret_scalar_residue_erase`
+  (`audit/test_regression_secret_scalar_residue_erase.cpp`): source-scan of all three
+  sites + a schnorr `keypair_create`+`sign`+`verify` round-trip confirming the
+  `d_prime` erase does not corrupt the returned keypair.
+- **Provenance:** found by the 2026-06-10 multi-class vulnerability sweep
+  (memory-safety / fail-open / input-validation / CT) following the GHSA-c7q2 class audit.
+
 ## 2026-06-10 — CA-001 (clang): large-batch ECDSA verify accepted off-curve pubkey
 
 - **Vulnerability (clang-only, caught by v4.2.0 release CI):** `secp256k1_ecdsa_verify_batch`
