@@ -1,6 +1,6 @@
 # Supported Guarantees -- `ufsecp` C ABI
 
-> **Version**: 4.1.1 (ABI 1)
+> **Version**: 4.2.0 (ABI 1)
 > **Date**: 2026-03-23
 
 This document defines what the `ufsecp_*` C ABI promises and where the

@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-06 | **Version**: 4.1.1
+**Last updated**: 2026-06-06 | **Version**: 4.2.0
 
 ### 2026-06-06 - GPU C ABI fail-closed output contract
 

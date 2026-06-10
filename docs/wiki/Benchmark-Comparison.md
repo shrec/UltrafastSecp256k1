@@ -493,6 +493,6 @@ Platforms we'd especially like to see: **AMD Zen 4/5**, **Apple M-series (ARM64)
 ---
 
 *Last updated: 2025-07-14*
-*UltrafastSecp256k1 v4.1.1*
+*UltrafastSecp256k1 v4.2.0*
 *Benchmark harness: bench_unified.cpp (11-pass median, IQR outlier removal)*
 *Platforms measured: x86-64 (i7-11700, Clang 21), RISC-V (U74, Clang 21)*

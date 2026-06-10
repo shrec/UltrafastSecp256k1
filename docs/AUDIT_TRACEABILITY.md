@@ -1,6 +1,6 @@
 # Audit Traceability Matrix
 
-**UltrafastSecp256k1 v4.1.1** -- Evidence-Based Correctness & Security Mapping
+**UltrafastSecp256k1 v4.2.0** -- Evidence-Based Correctness & Security Mapping
 
 > Every security claim in this system is traceable to executable evidence.
 >

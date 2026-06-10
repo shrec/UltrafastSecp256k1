@@ -5,6 +5,81 @@ All notable changes to UltrafastSecp256k1 are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-06-10
+
+> **Security + conformance + libbitcoin/GPU batch release.** Headlined by the
+> coordinated fix for **GHSA-c7q2-gv3g-rgxm** (ECDSA adaptor pre-signature
+> soundness), this cycle lands a batch of MuSig2 BIP-327 conformance fixes, GPU
+> constant-time hardening across CUDA/OpenCL/Metal, official BIP-340/749/749 test
+> vectors in CI, and several new libbitcoin-bridge batch-verify endpoints with
+> per-item GPU kernels. Minor bump per SemVer — all new APIs are additive — with
+> **one breaking change**: the ECDSA adaptor signature serialization grew from
+> **130 → 162 bytes** (it now carries the DLEQ proof). `UFSECP_ECDSA_ADAPTOR_SIG_LEN`
+> changed; **recompile any consumer of the adaptor API**. The C-ABI function table
+> is otherwise unchanged, so `UFSECP_ABI_VERSION` stays **4**.
+
+### Security
+
+- **GHSA-c7q2-gv3g-rgxm — ECDSA adaptor pre-signature soundness (medium, PoC-confirmed).**
+  The pre-signature did not cryptographically bind `r` (= x-coord of `k·T`) to the
+  adaptor point `T`, so a malicious signer could substitute an arbitrary `r'` and
+  pass verification with a pre-signature that does **not** adapt to a valid ECDSA
+  signature — breaking the core "verify ⇒ adaptable" guarantee. Fixed by binding the
+  pre-signature with a **Chaum-Pedersen DLEQ proof** that `R_hat = k·G` and `R = k·T`
+  share the same `k`; verify now checks the DLEQ, `r == R.x`, and the ECDSA relation.
+  **Reported by Damir** (responsible disclosure, with PoC) — credited at the
+  reporter's request. ⚠️ See the 130→162-byte format note above. As a result,
+  `ecdsa_adaptor_verify` is intentionally slower (it now performs real DLEQ
+  verification that the old, unsound path skipped).
+- **MuSig2 BIP-327 conformance fixes** (cross-implementation interop): corrected the
+  binding-factor domain tag (P1), the `gacc`/`tacc` accumulation for tweaked signing
+  (P1), and acceptance of the infinity aggregate nonce (`R = G`, BIP-327 §).
+- **libsecp256k1 shim:** zeroes the `pubkey_create` output on failure (fail-closed),
+  and the dead variable-time secret-key ellswift XDH path was removed (constant-time
+  XDH is the only remaining path).
+- **GPU constant-time hardening:** branchless scalar `mod n` reduction, field
+  reduction, and 64-bit secret arithmetic on CUDA / OpenCL / Metal — eliminates the
+  key-dependent warp divergence in GPU ECDSA. Added a white-box Nsight Compute (ncu)
+  CT-uniformity gate (the black-box dudect probe masked the divergence).
+- **ZK GPU range-proof** Fiat-Shamir domain tags corrected (`Bulletproof/*`).
+- **CPU & GPU ABI fail-closed hardening** across the C-ABI and shim surfaces.
+
+### Conformance / spec vectors
+
+- Official **BIP-340** (Schnorr), **BIP-341** (Taproot key-path tweak), and
+  **BIP-327** (MuSig2 key aggregation) test vectors are now run in CI, plus a
+  systemic tagged-hash tag-conformance gate across all backends.
+- The in-process libsecp256k1 differential was extended with ECDH and MuSig2 key
+  aggregation, and the in-process engine itself is now gated against libsecp256k1.
+
+### Features — libbitcoin bridge & GPU batch
+
+- **Aggregate (RLC) Schnorr batch-verify** endpoint.
+- New batch endpoints: x-only pubkey validation (`lift_x` on-curve check),
+  BIP-341 TapLeaf variable-length tagged hash, `HASH256`, and pubkey-validate.
+- Three per-item GPU kernels shipped through the engine ABI + bridge
+  (backend-agnostic across CUDA / OpenCL / Metal).
+- BIP-341 **Taproot commitment batch** (CPU per-row + GPU RLC/Fiat-Shamir
+  fast-check), a single-buffer (AoS) mmap-direct columnar commitment batch, and a
+  first-class 4-table batch model (multisig + threshold).
+
+### Performance
+
+- `ellswift_create`: the `x3` field sqrt in `ellswift_try_u` is now deferred so it
+  is computed only when the `x1`/`x2` branch fails (behavior-preserving).
+
+### CI / audit / tooling
+
+- **New local `-Werror` production-build gate** in `ci_local.sh --full` (gate `[7.5]`,
+  `ci/check_werror_build.sh`) mirroring the GitHub "Build with -Werror" Security
+  Audit job — closes the gap that let an orphaned static function reach CI.
+- Bug-bounty program **marked NOT currently funded** (valid reports receive public
+  credit + a CVE; reward tiers are aspirational pending sponsorship).
+- Sanitizer zone-isolation (MSan vs Valgrind authority), GPU white-box ncu CT gate
+  wired into `ci_local --gpu`, multiple CAAS false-green gate closures, and audit
+  module consolidation.
+- Dependency bumps (Dependabot): `codecov-action`, `codeql-action`.
+
 ## [4.1.1] - 2026-06-05
 
 > **Minor bugfix / hardening release.** Constant-time and fail-closed fixes in the

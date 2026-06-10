@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 4.1.x  | [OK] Active |
+| 4.2.x  | [OK] Active |
 | 4.0.x  | [!] Critical fixes only (upgrade to 4.1.x recommended) |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
@@ -79,7 +79,7 @@ For auditors and security researchers, the following documents are available:
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v4.1.1 baseline; test suite significantly restructured since -- see below) |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v4.2.0 baseline; test suite significantly restructured since -- see below) |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture for auditors |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
@@ -314,4 +314,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v4.1.1 -- Security Policy*
+*UltrafastSecp256k1 v4.2.0 -- Security Policy*

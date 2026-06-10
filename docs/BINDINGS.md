@@ -1,6 +1,6 @@
 # Bindings Parity Matrix
 
-**UltrafastSecp256k1 v4.1.1** -- Cross-Language Coverage & Verification Status
+**UltrafastSecp256k1 v4.2.0** -- Cross-Language Coverage & Verification Status
 
 ---
 
@@ -197,4 +197,4 @@ ABI version bumps only on binary-incompatible changes.
 
 ---
 
-*UltrafastSecp256k1 v4.1.1 -- Bindings Parity Matrix*
+*UltrafastSecp256k1 v4.2.0 -- Bindings Parity Matrix*

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v4.1.1)'
+        description: 'Tag to release (e.g. v4.2.0)'
         required: true
 
 permissions:

@@ -1,5 +1,5 @@
 {
-  "version": "4.1.1",
+  "version": "4.2.0",
   "title": "UltrafastSecp256k1: GPU-accelerated, audit-grade secp256k1 ECC library",
   "description": "<p>High-performance, audit-grade secp256k1 ECC library for Bitcoin and related cryptographic protocols. Constant-time signing matches or modestly exceeds libsecp256k1 on the same compiler (CT-vs-CT, see docs/BENCHMARKS.md). GPU-accelerated kernels for batch verify, BIP-324, BIP-352, and ECDSA/Schnorr signing (CUDA, Metal, OpenCL, ROCm) are provided as out-of-scope optional backends; benchmark methodology and live numbers live in docs/BENCHMARKS.md.</p><p>Engineered for an audit-grade trust model: every release ships with a Continuous-Audit-as-Code (CAAS) evidence bundle, 270 exploit proof-of-concept regression tests across 10 audit sections (count grows with CI runs; see CHANGELOG for current totals), formal invariant specifications, multi-CI reproducible-build attestations across GitHub Actions, GitLab CI, and Woodpecker (Codeberg), and a documented INTEROP matrix cross-checked against published reference implementations (Wycheproof, libsecp256k1, OpenSSL libcrypto).</p><p>License: MIT. Repository: https://github.com/shrec/UltrafastSecp256k1.</p>",
   "upload_type": "software",

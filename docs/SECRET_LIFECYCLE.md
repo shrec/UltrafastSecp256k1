@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-08 | **Version**: 4.1.1
+**Last updated**: 2026-06-08 | **Version**: 4.2.0
 
 ### 2026-06-08 - MuSig2 infinity aggregate-nonce conformance — secret handling unchanged
 

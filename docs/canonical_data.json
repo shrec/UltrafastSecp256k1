@@ -1,6 +1,6 @@
 {
-  "version": "4.1.1",
-  "last_updated": "2026-06-09",
+  "version": "4.2.0",
+  "last_updated": "2026-06-10",
   "exploit_poc_count": 269,
   "non_exploit_modules": 149,
   "total_modules": 418,

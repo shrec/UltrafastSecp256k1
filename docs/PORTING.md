@@ -221,4 +221,4 @@ The selftest includes deterministic KAT vectors for:
 
 ---
 
-*UltrafastSecp256k1 v4.1.1 -- Porting Guide*
+*UltrafastSecp256k1 v4.2.0 -- Porting Guide*
