@@ -7,6 +7,12 @@ name: mutation-weekly
 # remains the owner-grade pre-release run.
 
 on:
+  schedule:
+    # CAAS H-4 / TQ7-01: actually run weekly (Mondays 06:00 UTC) so the "weekly"
+    # name is honest — previously this had no cron and ran on manual dispatch only.
+    # Non-blocking by design (the harness exits 0); a regression opens/updates an
+    # issue. The blocking authority remains the owner-grade pre-release run.
+    - cron: '0 6 * * 1'
   workflow_dispatch:
     inputs:
       threshold:

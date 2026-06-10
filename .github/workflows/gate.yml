@@ -418,13 +418,14 @@ jobs:
 
       - name: Evidence chain integrity check (SW-01 fix)
         # SW-01 fix: validate the evidence chain on every PR.
-        # exit 77 = ADVISORY_SKIP_CODE: CAAS_HMAC_KEY not set on this runner
-        # (public key only) — treat as advisory skip, not hard failure.
-        # CI-008 note: caas_report job uses degraded-mode-continue when key absent,
-        # which writes records with the public in-repo key. This step's advisory-skip
-        # means those degraded-mode records are not validated here. The inconsistency
-        # is documented; full fix requires ensuring caas_report also uses advisory-skip
-        # when the key is absent (v2 scope).
+        # CAAS6-02 fix (2026-06-10): `validate` mode now ALWAYS runs the structural
+        # /ordering/hash-link checks with the public in-repo key (those do not depend
+        # on the secret) and returns 0/1 by validity — it no longer advisory-skips
+        # (exit 77) when CAAS_HMAC_KEY is absent. Only `record` mode advisory-skips.
+        # So the chain is genuinely validated on every protected-branch push; the
+        # forgery-resistance claim is downgraded (hmac_key_is_default=true) when the
+        # secret is missing. The exit-77 branch below is retained only as harmless
+        # defense-in-depth.
         if: always()
         shell: bash
         run: |

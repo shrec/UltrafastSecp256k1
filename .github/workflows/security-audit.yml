@@ -430,7 +430,7 @@ jobs:
         run: |
           ctest --test-dir build --output-on-failure -j"$(nproc)" \
             -E "^(ct_sidechannel|selftest|unified_audit|differential|exploit_selftest_api|exploit_ctx_lifecycle_hostile|py_)" \
-            --timeout 900 \
+            --timeout 900 --no-tests=error \
             --overwrite MemoryCheckCommand=/usr/bin/valgrind \
             --overwrite "MemoryCheckCommandOptions=--leak-check=full --error-exitcode=1 --show-leak-kinds=definite,indirect,possible --errors-for-leak-kinds=definite,indirect,possible --suppressions=${{ github.workspace }}/ci/valgrind.supp" \
             -T MemCheck || true
@@ -439,6 +439,19 @@ jobs:
           # fail on real memory errors detected in the Valgrind logs below.
           # Exclude py_* tests: they require extra Python deps (e.g. coincurve)
           # and are already covered in non-valgrind Linux jobs.
+          # CAAS6-01: fail closed if memcheck produced NO logs at all. The `|| true`
+          # above tolerates valgrind timeout exits, but it would also mask the case
+          # where memcheck never ran (early crash, empty test selection, runner
+          # error) — making "did not run" indistinguishable from "ran clean" on a
+          # branch-protection-required gate. The grep verdicts below are silent
+          # (2>/dev/null) when no log exists, so without this guard that path is
+          # a false green. Enforced by ci/check_sanitizer_result_assertions.py.
+          shopt -s nullglob
+          memcheck_logs=(build/Testing/Temporary/MemoryChecker.*.log)
+          if [ "${#memcheck_logs[@]}" -eq 0 ]; then
+            echo "::error::No Valgrind MemoryChecker logs produced — memcheck did not run; failing closed"
+            exit 1
+          fi
           # Check for real errors in memcheck output
           if grep -q 'ERROR SUMMARY: [1-9]' build/Testing/Temporary/MemoryChecker.*.log 2>/dev/null; then
             echo "::error::Valgrind found memory errors"

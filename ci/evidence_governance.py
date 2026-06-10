@@ -54,8 +54,18 @@ if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") != "true":
 _ADVISORY_SKIP_CODE = 77
 
 
-def _enforce_ci_hmac_key() -> None:
-    """Advisory-skip when CI runs without a real HMAC key.
+def _enforce_ci_hmac_key(mode: str = "record") -> None:
+    """Advisory-skip ONLY the `record` mode when CI runs without a real HMAC key.
+
+    CAAS6-02 fix: previously this ran unconditionally before argparse, so it
+    advisory-skipped (exit 77) EVERY mode — including `validate` — whenever
+    CAAS_HMAC_KEY was absent in CI. That meant the evidence chain was never
+    structurally validated on protected-branch pushes (a silent gap). But the
+    structural/ordering/hash-link checks in validate_chain() do NOT depend on the
+    secret (the public in-repo key reproduces every link); only forgery-resistance
+    does. So `validate` must always run and merely downgrade the forgery claim
+    (`hmac_key_is_default=true`, emitted by run()). Exit 77 is reserved for
+    `record` mode, where a missing secret means new records cannot be authenticated.
 
     F-06 fix: moved from module-level sys.exit(1) to an explicit function so
     that importing evidence_governance as a library doesn't kill the caller.
@@ -77,10 +87,16 @@ def _enforce_ci_hmac_key() -> None:
             "::warning::CAAS_HMAC_KEY secret is not set — evidence chain HMAC "
             "uses the public in-repo key (tamper detection only, not auth). "
             "Provision CAAS_HMAC_KEY as a repository secret to enable full "
-            "cryptographic evidence chain integrity. Gate is advisory-skipped.",
+            "cryptographic evidence chain integrity.",
             file=sys.stderr,
         )
-        sys.exit(_ADVISORY_SKIP_CODE)
+        if mode == "record":
+            # Only `record` cannot proceed safely without the secret: a record
+            # signed with the public key offers no forgery resistance. `validate`
+            # and `show` run with the public key (structural integrity only).
+            print("::warning::record mode advisory-skipped (no signing key).",
+                  file=sys.stderr)
+            sys.exit(_ADVISORY_SKIP_CODE)
 
 
 def _git_sha() -> str:
@@ -331,7 +347,6 @@ def run(mode: str, json_mode: bool, out_file: str | None,
 
 
 def main() -> int:
-    _enforce_ci_hmac_key()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=["validate", "record", "show"],
@@ -346,6 +361,7 @@ def main() -> int:
     parser.add_argument("--commit", default="",
                         help="Audited commit SHA (overrides git HEAD; use ${{ github.sha }} in CI)")
     args = parser.parse_args()
+    _enforce_ci_hmac_key(args.mode)
 
     return run(args.mode, args.json, args.out_file,
                args.who, args.what, args.verdict, args.binary, args.reason, args.commit)

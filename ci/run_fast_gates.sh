@@ -51,6 +51,8 @@ MANDATORY_GATES=(
     "ci/check_abi_version_sync.py"       # REL-ABI: binding EXPECTED_ABI must equal library ABI (== MAJOR)
     "ci/check_randomize_claim_consistency.py"  # REVIEWER-FRICTION-001: no doc may call context_randomize a no-op
     "ci/check_required_checks_match_jobs.py"   # CAAS-CI-001: branch-protection contexts must resolve to PR-triggered jobs
+    "ci/check_sanitizer_result_assertions.py"  # CAAS6-01: required memcheck jobs must fail closed on "no logs produced"
+    "ci/test_check_sanitizer_result_assertions.py"  # self-test: the sanitizer-assertion gate must flag a fail-open block
     "ci/check_doc_module_counts.py"            # CLAIMS-AUDIT-001: reviewer-doc module/workflow counts must match canonical
     "ci/build_canonical_data.py"
     "ci/sync_docs_from_canonical.py"
@@ -164,6 +166,8 @@ run "ABI count + names (REL-04)"               ci/check_abi_count.py
 run "ABI version sync (REL-ABI-MISMATCH)"      ci/check_abi_version_sync.py
 run "Randomize claim consistency (RF-001)"     ci/check_randomize_claim_consistency.py
 run "Required-checks match jobs (CAAS-CI-001)"  ci/check_required_checks_match_jobs.py
+run "Sanitizer result assertions (CAAS6-01)"    ci/check_sanitizer_result_assertions.py
+run "Sanitizer-assertion gate self-test"        ci/test_check_sanitizer_result_assertions.py
 run "Reviewer-doc module counts (CLAIMS-001)"   ci/check_doc_module_counts.py
 run "Workflow trigger claims (CLAIM-07)"       ci/check_workflow_trigger_claims.py
 run "Secret-erase coverage (CT-04/RT-05)"      ci/check_secret_erase_coverage.py

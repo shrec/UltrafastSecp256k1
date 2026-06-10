@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-10 — CAAS6-01: Valgrind Memcheck required gate made fail-closed
+
+- `.github/workflows/security-audit.yml` `Valgrind Memcheck` job (a branch-protection
+  -required context, and the blocking authority MSan delegates to) decided its verdict
+  ONLY by grepping `MemoryChecker.*.log`. The `-T MemCheck || true` tolerated valgrind
+  timeout exits (intended) but also masked "memcheck produced no logs at all"; the grep
+  verdicts are silenced with `2>/dev/null`, so a non-running memcheck exited 0 — a
+  false green on a required gate.
+- Fix: added `--no-tests=error` to the ctest line and a `shopt -s nullglob` log-presence
+  guard that `exit 1`s when zero MemoryChecker logs exist.
+- New gate `ci/check_sanitizer_result_assertions.py` (+ `test_check_sanitizer_result_assertions.py`
+  self-test) wired into `run_fast_gates.sh` (MANDATORY_GATES): every `-T MemCheck`
+  block whose verdict is grep-based must contain a log-presence fail-closed guard.
+  Prevents reintroduction of the CAAS6-01 pattern. Source: 2026-06-09 10-pass review.
+
 ## 2026-06-09 — Test consolidation: remove redundant exploit_hkdf_security (subsumed by exploit_hkdf_kat)
 
 - A parallel delete-safety verification (4-agent workflow reading the files end-to-end)

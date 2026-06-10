@@ -9,8 +9,13 @@
 // Reason: mutation testing requires Python 3, a build dir, and takes time.
 //         It is a quality gate, not a correctness gate.
 //
-// When Python or the build dir is unavailable, the module passes silently
-// (skip-if-not-available semantics).  CI jobs that DO have Python run it fully.
+// When Python or the build dir is unavailable, the module SKIPs (ADVISORY_SKIP_CODE,
+// not a silent pass).  TQ7-01: per-PR CI jobs deliberately SKIP this too — CI==true
+// short-circuits at _run() below, because a >20 min rebuild+test loop per PR is
+// impractical. (The previous comment "CI jobs that DO have Python run it fully" was
+// false.) Kill-rate is instead exercised by (a) the scheduled, non-blocking
+// .github/workflows/mutation-weekly.yml (opens/updates an issue on regression) and
+// (b) local runs (FORCE_MUTATION=1, or CI="").
 //
 // Build deps: none — uses popen() to invoke the Python script.
 // ============================================================================
