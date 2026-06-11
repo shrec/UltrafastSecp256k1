@@ -66,6 +66,21 @@ inline bool ctx_can_verify(const secp256k1_context* ctx) noexcept {
            ((f & ~SECP256K1_FLAGS_TYPE_MASK) == 0);
 }
 
+// libsecp256k1's opaque ECDSA signature buffers contain internal scalar limb
+// bytes, not public compact bytes. On the little-endian hosts supported by this
+// shim, that storage is the byte-reverse of the public 32-byte big-endian scalar.
+// Some compatibility callers (notably libbitcoin-system) copy the opaque data
+// directly, so keep this layout while preserving big-endian compact/DER APIs.
+inline void scalar_be_to_internal(unsigned char dst[32],
+                                  const unsigned char src[32]) noexcept {
+    for (int i = 0; i < 32; ++i) dst[i] = src[31 - i];
+}
+
+inline void scalar_internal_to_be(unsigned char dst[32],
+                                  const unsigned char src[32]) noexcept {
+    for (int i = 0; i < 32; ++i) dst[i] = src[31 - i];
+}
+
 // ---------------------------------------------------------------------------
 // Per-context blinding RAII guard (SHIM-001 fix)
 //

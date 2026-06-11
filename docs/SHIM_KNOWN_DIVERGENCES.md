@@ -28,6 +28,23 @@ For the complete compatibility test matrix see `compat/libsecp256k1_shim/tests/`
 
 ---
 
+## Compatibility parity notes — do not list as divergences
+
+### ECDSA opaque signature storage
+
+`secp256k1_ecdsa_signature` and `secp256k1_ecdsa_recoverable_signature` are opaque public
+types, but compatibility callers can and do copy their raw `data` fields. The shim therefore
+matches upstream libsecp256k1's little-endian internal scalar storage for ECDSA `r` and `s`
+on supported little-endian hosts. Public compact parse/serialize and DER parse/serialize
+remain canonical big-endian.
+
+This is required for libbitcoin-system compatibility: its `ec_signature` fixtures encode the
+raw opaque libsecp layout, while DER fixtures encode the canonical big-endian integers.
+Storing opaque ECDSA signatures as public big-endian compact bytes is a compatibility bug,
+not an intentional divergence.
+
+---
+
 ## Security improvements — LOCKED: DO NOT REVERT (shim is stricter than upstream)
 
 <!-- OWNER-LOCKED: all entries below are intentional security hardening.

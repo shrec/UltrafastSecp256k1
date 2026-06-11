@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-11 — libbitcoin ECDSA opaque-signature parity fixed
+
+- **Confirmed compatibility regression fixed:** the libsecp256k1 shim stored
+  `secp256k1_ecdsa_signature.data` and recoverable `r/s` bytes as public big-endian compact
+  scalars. Upstream libsecp256k1's opaque ECDSA signature buffers expose internal
+  little-endian scalar limb bytes on little-endian hosts, and libbitcoin-system copies that
+  opaque field directly. Result: libbitcoin's `secp256k1__sign__positive__expected` saw each
+  32-byte limb byte-reversed, and `encode_signature(signature3)` DER-encoded the reversed raw
+  bytes.
+- **Fix:** ECDSA and recoverable shim internals now store opaque signature scalar bytes in
+  libsecp-compatible little-endian internal order, while public compact parse/serialize and
+  DER parse/serialize remain canonical big-endian. `secp256k1_ecdsa_recoverable_signature_convert`
+  stays a direct copy because both opaque layouts now match.
+- **Regression:** `compat/libsecp256k1_shim/tests/shim_test.cpp` now asserts sign,
+  compact-parse, and DER-parse opaque storage layout, and pins libbitcoin scenario 3's
+  raw opaque signature -> compact/DER conversion.
+
 ## 2026-06-11 — External-anchor KAT: defeat common-mode self-anchoring (NIST + BIP-341 official)
 
 - **Common-mode defence:** the valid/invalid coverage audit found 25 ops gated only against
