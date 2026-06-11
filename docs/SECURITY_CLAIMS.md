@@ -2,6 +2,18 @@
 
 **UltrafastSecp256k1 v4.2.1** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-06-11 - MuSig2 partial-sign secret-erasure hardening
+
+`musig2_partial_sign` now scrubs every secret-derived stack local: `neg_k` (-k),
+`neg_d` (-d), and `ead` (ea*d). Hardening only -- no timing behavior change
+(branchless `ct::`); exploitation needs a separate stack-disclosure primitive.
+Discovered by the improved `dev_bug_scanner.py` secret-derived-unerased check
+(scans frost/musig + `Scalar const`). Regression test
+`regression_secret_scalar_residue_erase`.
+
+**Claim:** MuSig2 partial signing leaves no secret-derived scalar residue
+(`neg_k`/`neg_d`/`ead`, plus `k`/`d`/`sec_nonce`) on the stack after return.
+
 ### 2026-06-10 - FROST/keypair secret-erasure hardening (FROST-SIGN-RESIDUE)
 
 `frost_sign` and both `schnorr_keypair_create` variants now scrub every secret-derived

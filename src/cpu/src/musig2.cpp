@@ -492,8 +492,9 @@ Scalar musig2_partial_sign(
     // but keep branchless for consistency and to avoid pipeline leaks).
     {
         std::uint64_t const mask = ct::bool_to_mask(session.R_negated);
-        Scalar const neg_k = k.negate();
+        Scalar neg_k = k.negate();
         k = ct::scalar_select(neg_k, k, mask);
+        secure_erase(&neg_k, sizeof(neg_k));  // -k is secret-nonce material (residue)
     }
 
     // Adjust secret key -- fully constant-time path:
@@ -505,8 +506,9 @@ Scalar musig2_partial_sign(
     // CT negate d if aggregate key Q was negated for even-Y (the g factor).
     {
         std::uint64_t const mask = ct::bool_to_mask(key_agg_ctx.Q_negated);
-        Scalar const neg_d = d.negate();
+        Scalar neg_d = d.negate();
         d = ct::scalar_select(neg_d, d, mask);
+        secure_erase(&neg_d, sizeof(neg_d));  // -d is secret-key material (residue)
     }
 
     // BIP-327: fold the accumulated tweak sign gacc into the signing key (d = g*gacc*d').
@@ -518,13 +520,15 @@ Scalar musig2_partial_sign(
     // ct::scalar_mul/add: branchless modular arithmetic -- no secret-dependent
     // branches in the final reduction, unlike fast::Scalar operator*/ operator+.
     Scalar const ea = ct::scalar_mul(session.e, key_agg_ctx.key_coefficients[signer_index]);
-    Scalar const ead = ct::scalar_mul(ea, d);
+    Scalar ead = ct::scalar_mul(ea, d);  // ea is public; ead = ea*d carries the secret key
     Scalar const result = ct::scalar_add(k, ead);
 
-    // Erase secret nonce and adjusted signing key from stack, then consume
-    // the caller's secret nonce to enforce single-use (M-03).
+    // Erase secret nonce, adjusted signing key, AND the secret-derived intermediate
+    // ead (= ea*d) from the stack, then consume the caller's secret nonce to enforce
+    // single-use (M-03). neg_k/neg_d are erased in their blocks above.
     secure_erase(&k, sizeof(k));
     secure_erase(&d, sizeof(d));
+    secure_erase(&ead, sizeof(ead));
     secure_erase(&sec_nonce.k1, sizeof(sec_nonce.k1));
     secure_erase(&sec_nonce.k2, sizeof(sec_nonce.k2));
 

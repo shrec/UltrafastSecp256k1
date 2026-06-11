@@ -109,6 +109,24 @@ static void test_keypair_create_dprime_erase_source_scan() {
     }
 }
 
+// ── MUSIG2 residue: musig2_partial_sign erases neg_k / neg_d / ead ────────────
+// Found by the improved dev_bug_scanner secret-derived-unerased check (same class
+// as the frost residue): neg_k = -k, neg_d = -d, and ead = ea*d all carry secret
+// nonce/key material and must be scrubbed, not just k/d.
+static void test_musig2_partial_sign_residue_erase_source_scan() {
+    printf("[2b] MUSIG2-RESIDUE: musig2.cpp — neg_k / neg_d / ead erased\n");
+    std::string src = read_source_file("src/cpu/src/musig2.cpp");
+    if (src.empty()) src = read_source_file("musig2.cpp");
+    CHECK(!src.empty(), "musig2.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
+    CHECK(src.find("secure_erase(&neg_k") != std::string::npos,
+          "musig2.cpp: secure_erase(&neg_k, ...) present (secret -k residue)");
+    CHECK(src.find("secure_erase(&neg_d") != std::string::npos,
+          "musig2.cpp: secure_erase(&neg_d, ...) present (secret -d residue)");
+    CHECK(src.find("secure_erase(&ead") != std::string::npos,
+          "musig2.cpp: secure_erase(&ead, ...) present (secret ea*d residue)");
+}
+
 // ── Functional: keypair_create + sign + verify still round-trips ─────────────
 // Confirms erasing d_prime did not corrupt kp.d (the returned x-only signing key).
 static void test_keypair_create_functional_roundtrip() {
@@ -146,6 +164,8 @@ int test_regression_secret_scalar_residue_erase_run() {
     test_frost_sign_residue_erase_source_scan();
     printf("\n");
     test_keypair_create_dprime_erase_source_scan();
+    printf("\n");
+    test_musig2_partial_sign_residue_erase_source_scan();
     printf("\n");
     test_keypair_create_functional_roundtrip();
     printf("\n");

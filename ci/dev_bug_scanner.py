@@ -1071,9 +1071,16 @@ def check_unreachable(path: str, lines: List[str]) -> List[Finding]:
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── SECRET_UNERASED: Scalar on stack in signing/key path without secure_erase ─
-_SCALAR_DECL   = re.compile(r'\bScalar\s+(\w+)\s*[=;({]')
+# Match `Scalar x`, `const Scalar x`, and `Scalar const x` — the old form missed
+# every `Scalar const NAME` (it captured "const" as the name), which is exactly how
+# frost_sign's secret-derived products rho_ei / lambda_s_e went unflagged.
+_SCALAR_DECL   = re.compile(r'\b(?:const\s+)?Scalar\s+(?:const\s+)?(\w+)\s*[=;({]')
 _SECURE_ERASE  = re.compile(r'secure_erase\s*\(\s*(?:const_cast<[^>]+>\s*\(\s*)?(?:&\s*)?(\w+)')
-_SECRET_PATH_KW = {'sign', 'nonce', 'key', 'adapt', 'bip32', 'derive', 'secret', 'blind'}
+# frost/musig handle signing shares + secret nonces but their filenames carry none
+# of the original keywords, so frost.cpp/musig2.cpp were never scanned (the exact
+# reason FROST-SIGN-RESIDUE's rho_ei/lambda_s_e went unflagged). Added below.
+_SECRET_PATH_KW = {'sign', 'nonce', 'key', 'adapt', 'bip32', 'derive', 'secret',
+                   'blind', 'frost', 'musig'}
 _TRIVIAL_SCALAR = {'zero', 'one', 'result', 'order', 'half_order', 'n', 'GROUP_ORDER'}
 
 def check_secret_unerased(path: str, lines: List[str]) -> List[Finding]:
@@ -1098,6 +1105,7 @@ def check_secret_unerased(path: str, lines: List[str]) -> List[Finding]:
     scalars: dict[str, int] = {}   # name -> line number
     erased: set[str] = set()
     returned: set[str] = set()
+    field_assigns: list = []       # (obj, value) for `obj.field = value;`
     for i, raw in enumerate(lines):
         line = _strip_comments(raw)
         for m in _SCALAR_DECL.finditer(line):
@@ -1118,27 +1126,64 @@ def check_secret_unerased(path: str, lines: List[str]) -> List[Finding]:
                     continue
                 if re.match(r'^(?:\w+::)*Scalar\s+\w+\s*\(', stripped):
                     continue
-            # Skip variables inside public-data functions (ecrecover, verify, ...)
+            # Skip variables inside public-data functions (ecrecover, verify, ...).
+            # \w* around the keyword so compound names like `ecdsa_adaptor_verify`,
+            # `schnorr_adaptor_verify`, `parse_compact` are matched too (the bare
+            # `\bverify\b` form missed every `*_verify` because `_` is a word char).
             is_public_func = False
             context_above = '\n'.join(lines[max(0, i - 30):i + 1])
             if re.search(
-                    r'\b(ecrecover|recover|verify|parse|deserialize|decode)\s*\(',
+                    r'\b\w*(?:ecrecover|recover|verify|parse|deserialize|decode)\w*\s*\(',
                     context_above):
                 is_public_func = True
             if is_public_func:
                 continue
+            # A scalar derived from the (public) message hash / digest is public
+            # output context, not a secret to scrub: `z = Scalar::from_bytes(msg_hash)`.
+            if re.search(r'\b(?:msg|message|digest)\b', line):
+                continue
             scalars[name] = i + 1
         for m2 in _SECURE_ERASE.finditer(line):
             erased.add(m2.group(1))
-        ret_m = re.search(r'\breturn\s+(\w+)\s*;', line)
-        if ret_m:
-            returned.add(ret_m.group(1))
+        # A value is an OUTPUT (not a secret to scrub) if it is returned directly,
+        # named inside a returned struct/aggregate literal, or assigned to a field
+        # of a struct that is later returned. Collect all three.
+        if re.search(r'\breturn\b', line):
+            for nm in re.findall(r'\b(\w+)\b', line.split('return', 1)[1]):
+                returned.add(nm)
+        fa = re.match(r'\s*(\w+)\.\w+\s*=\s*(\w+)\s*;', line)
+        if fa:
+            field_assigns.append((fa.group(1), fa.group(2)))
+    # Resolve: a Scalar assigned to a field of a returned struct is itself an output.
+    for obj, val in field_assigns:
+        if obj in returned:
+            returned.add(val)
+    _erased_secrets = {s for s in erased if s not in _TRIVIAL_SCALAR}
+    _SECRET_OPERAND = re.compile(
+        r'\b(sk|privkey|priv_key|private_key|signing_share|secret_key|'
+        r'hiding_nonce|binding_nonce|sec_nonce|seckey)\b')
     for name, lineno in scalars.items():
         if name in erased:
             continue
         if name in returned:
             continue
         if has_dtor_erase and name.endswith('_'):
+            continue
+        decl = lines[lineno - 1]
+        # Skip function definitions/declarations: `[static][inline][const] Scalar NAME(`
+        # with a parameter list (param types like ParticipantId aren't in the type
+        # allow-list the inline filter uses, so they leaked through as "variables").
+        if re.match(r'^\s*(?:static\s+|inline\s+|const\s+)*Scalar\s+\w+\s*\(', decl):
+            continue
+        # PRECISION (FROST-SIGN-RESIDUE class): only a SECRET-DERIVED scalar is a
+        # residue risk. Require the initializer to reference a known secret — a
+        # variable that is itself secure_erase'd, or a secret-named operand. This
+        # keeps `rho_ei = my_binding*ei` / `lambda_s_e = ...*s_i` (ei, s_i erased)
+        # while dropping public scalars (Lagrange coeff, challenge e, indices x_i).
+        rhs = decl.split('=', 1)[1] if '=' in decl else ''
+        refs_erased = any(re.search(r'\b' + re.escape(s) + r'\b', rhs)
+                          for s in _erased_secrets)
+        if not (refs_erased or _SECRET_OPERAND.search(rhs)):
             continue
         findings.append(Finding(
             file=path, line=lineno, severity="HIGH",

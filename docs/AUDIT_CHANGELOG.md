@@ -1,5 +1,31 @@
 # Audit Changelog
 
+## 2026-06-11 — dev_bug_scanner secret-residue check hardened → found 3 MuSig2 residues
+
+- **Improved `ci/dev_bug_scanner.py::check_secret_unerased`** (the static dev-bug
+  scanner already wired into CI via the preflight Unified Code Quality Gate) with the
+  patterns learned from `FROST-SIGN-RESIDUE`:
+  - `_SCALAR_DECL` now matches `Scalar const NAME` (the old regex captured `const` as
+    the name → every const-declared secret was invisible; that is literally how the
+    frost residue hid).
+  - `_SECRET_PATH_KW` now includes `frost`/`musig` (those files were never scanned —
+    their filenames carry none of the old keywords).
+  - Precision filter: only flag a SECRET-DERIVED scalar (initializer references a
+    secure_erase'd secret or a secret-named operand), not every unerased Scalar →
+    drops public scalars (Lagrange coeff, challenge, indices). Plus a robust
+    function-definition skip and a public-message (`msg`/`digest`) suppressor.
+- **The hardened check then discovered 3 real residues in `musig2_partial_sign`**
+  (`src/cpu/src/musig2.cpp`), same class as the frost residue: `neg_k = -k`,
+  `neg_d = -d`, `ead = ea*d` were computed from the secret nonce/key but not erased
+  (only `k`/`d`/`sec_nonce` were). Fixed: `secure_erase` added for all three (`neg_k`/
+  `neg_d` in their blocks, `ead` in the erase block; `ea = e*a_i` is public, left).
+- **Test:** extended `regression_secret_scalar_residue_erase`
+  (`audit/test_regression_secret_scalar_residue_erase.cpp`) with a musig2 source-scan
+  for the three new erasures. `check_secret_unerased` now reports 0 on the fixed tree;
+  full scanner exits 0 (advisory MEDIUM/LOW only).
+- **Meaning:** a one-time fix (FROST-SIGN-RESIDUE) became a permanent detector that
+  immediately surfaced the same bug elsewhere — the bastion pattern.
+
 ## 2026-06-11 — Soundness-coverage gate: negative-soundness probes for the GHSA-c7q2 class
 
 - **Why:** GHSA-c7q2-gv3g-rgxm (adaptor DLEQ binding was vacuous) slipped every review

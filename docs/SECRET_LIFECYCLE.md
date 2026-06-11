@@ -1,6 +1,18 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-10 | **Version**: 4.2.1
+**Last updated**: 2026-06-11 | **Version**: 4.2.1
+
+### 2026-06-11 - MuSig2 partial-sign secret-derived stack residue erasure
+
+`musig2_partial_sign` (`src/cpu/src/musig2.cpp`) now `secure_erase`s three
+secret-derived intermediates that previously lingered on the stack: `neg_k = -k`
+(secret nonce), `neg_d = -d` (secret signing key), and `ead = ea*d` (carries the
+secret key; `ea = e*a_i` itself is public). Previously only `k`, `d`, and the
+caller's `sec_nonce.k1/k2` were erased. Same class as `FROST-SIGN-RESIDUE`; no
+timing/CT change (all branchless `ct::`), purely stack-scrubbing hygiene. **Found
+by the improved `ci/dev_bug_scanner.py` secret-derived-unerased check** (which now
+scans `frost.cpp`/`musig2.cpp` and handles `Scalar const` decls — the exact gaps
+that hid the FROST residue). Regression: `regression_secret_scalar_residue_erase`.
 
 ### 2026-06-10 - FROST/keypair secret-derived stack residue erasure (FROST-SIGN-RESIDUE)
 
