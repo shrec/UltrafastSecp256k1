@@ -192,6 +192,7 @@ run "Build options doc sync"                    ci/gen_build_options.py --check
 run "Build options gate self-test"              ci/test_gen_build_options.py
 run "Workflow trigger claims (CLAIM-07)"       ci/check_workflow_trigger_claims.py
 run "Secret-erase coverage (CT-04/RT-05)"      ci/check_secret_erase_coverage.py
+run "Secret-erase self-test (proof-it-blocks)" ci/test_check_secret_erase_coverage.py
 
 # Profile manifest cross-check: ci/profiles.json -> CMakePresets.json -> ci/caas_runner.py.
 # Fast (<1s) — catches the class of bug where a chain-specific preset disables an

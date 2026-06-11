@@ -25,22 +25,29 @@ import re
 import sys
 from pathlib import Path
 
+# Scope covers BOTH the shim layer (parse_bytes_strict on seckey) AND the ufsecp ABI
+# impl layer (scalar_parse_strict_nonzero on privkey) — blind-zone #7: the impl layer is
+# where seckeys are actually parsed today and was previously unscanned, so a new impl
+# signing fn that forgot secure_erase would have shipped green.
 SHIM_DIRS = [
     Path("compat/libsecp256k1_shim/src"),
     Path("compat/libsecp256k1_bchn_shim/src"),
+    Path("src/cpu/src/impl"),
 ]
 
 # A parse of a SECRET-KEY source (not a public tweak), tolerating an optional
-# reinterpret_cast/static_cast wrapper and arbitrary whitespace/newlines.
+# reinterpret_cast/static_cast wrapper and arbitrary whitespace/newlines. Covers both the
+# shim (parse_bytes_strict) and the ufsecp ABI impl (scalar_parse_strict_nonzero) spellings.
 SECKEY_PARSE = re.compile(
-    r"parse_bytes_strict(?:_nonzero)?\s*\(\s*"
+    r"(?:scalar_parse_strict_nonzero|(?:Scalar::)?parse_bytes_strict(?:_nonzero)?)\s*\(\s*"
     r"(?:(?:reinterpret_cast|static_cast)\s*<[^>]*>\s*\(\s*)?"
-    r"(seckey32|seckey|keypair->data|kb|privkey_scalar|privkey|priv_scalar)\b"
+    r"(seckey32|seckey|keypair->data|kb|privkey_scalar|privkey32|privkey|priv_scalar|sk)\b"
 )
 
 # Functions that are KNOWN to parse a private key. If the pattern stops detecting
 # any of these, the regex has gone blind — fail loudly rather than silently pass.
 EXPECTED_CRITICAL = {
+    # shim layer
     "secp256k1_ec_pubkey_create",
     "secp256k1_ecdsa_sign",
     "secp256k1_ecdsa_sign_recoverable",
@@ -48,7 +55,14 @@ EXPECTED_CRITICAL = {
     "secp256k1_keypair_xonly_tweak_add",
     "secp256k1_ec_seckey_tweak_add",
     "secp256k1_ec_seckey_negate",
+    # ufsecp ABI impl layer (blind-zone #7 — previously unscanned)
+    "ufsecp_ecdsa_sign",
+    "pubkey_create_core",   # the privkey-parsing core that ufsecp_pubkey_create delegates to
+    "ufsecp_seckey_tweak_add",
 }
+
+# secure_erase may be spelled directly or wrapped in a scope-guard / secure type.
+ERASE_TOKENS = ("secure_erase", "ScopeSecureErase", "SecureScalar")
 
 
 def strip_comments(src: str) -> str:
@@ -81,6 +95,16 @@ def iter_functions(src: str):
             yield name, src[open_brace:j]
 
 
+def body_parses_seckey(body: str) -> bool:
+    """True if a function body strictly-parses a private key into a local scalar."""
+    return bool(SECKEY_PARSE.search(body))
+
+
+def body_is_violation(body: str) -> bool:
+    """True if a function parses a seckey but never erases it (the residue bug class)."""
+    return body_parses_seckey(body) and not any(tok in body for tok in ERASE_TOKENS)
+
+
 def main() -> int:
     files = []
     for d in SHIM_DIRS:
@@ -96,14 +120,14 @@ def main() -> int:
     for f in files:
         src = strip_comments(f.read_text())
         for name, body in iter_functions(src):
-            if not SECKEY_PARSE.search(body):
+            if not body_parses_seckey(body):
                 continue
             checked += 1
             detected.add(name)
-            if "secure_erase" not in body:
+            if body_is_violation(body):
                 print(f"::error::{f}: {name}() parses a private key "
-                      f"(parse_bytes_strict on a seckey source) but has NO "
-                      f"secure_erase — secret stack residue (CT-04/RT-05 class).")
+                      f"(strict seckey parse) but has NO secure_erase / ScopeSecureErase "
+                      f"— secret stack residue (CT-04/RT-05 / blind-zone #7 class).")
                 errors += 1
 
     print(f"check_secret_erase_coverage: checked {checked} seckey-parsing shim "

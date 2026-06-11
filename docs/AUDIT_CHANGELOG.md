@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-11 — Blind-zone lantern #7: secret-erase gate now covers the ufsecp ABI impl layer
+
+- **Scope blind spot closed:** `ci/check_secret_erase_coverage.py` was hard-pinned to 2 shim
+  dirs and never saw `src/cpu/src/impl/*.cpp` — the ufsecp ABI layer where private keys are
+  actually parsed today (via `scalar_parse_strict_nonzero(privkey, ...)`). A new impl signing
+  function that forgot `secure_erase` would have shipped green. Scope extended to the impl
+  layer + the parse pattern now matches both spellings (shim `parse_bytes_strict` and impl
+  `scalar_parse_strict_nonzero`). Now **45 seckey-parsing functions across 21 files, all
+  erase**; 10 critical paths pinned (added `ufsecp_ecdsa_sign`, `pubkey_create_core`,
+  `ufsecp_seckey_tweak_add`) so the regex cannot silently go blind.
+- **Threat class `secret-erasure` trusted → verified.** New self-test
+  `ci/test_check_secret_erase_coverage.py` proves the gate flags a seckey parse with no
+  `secure_erase` in BOTH the shim and ufsecp-impl spellings, and passes the erasing fns.
+  Wired into `run_fast_gates.sh`.
+
 ## 2026-06-11 — Blind-zone lantern #5: BIP-39 fail-closed CSPRNG + entropy-source-integrity gate
 
 - **Confirmed fail-open entropy source fixed:** `src/cpu/src/bip39.cpp` shipped a local
