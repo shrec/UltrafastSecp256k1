@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-06-11 — Blind-zone lantern #17: named coverage-floor for adversarial-research attack classes
+
+- **Silent-deletion hole closed:** `check_exploit_wiring` is presence-driven — a clean
+  two-sided delete (remove the `.cpp` AND its `ALL_MODULES` entry) passes green, and
+  `sync_module_count` is equality-not-floor. So an entire attack-class PoC (Dark Skippy
+  covert-nonce exfil, HNP/lattice nonce leak, BUFF exclusive ownership, ROS, MuSig2/FROST
+  forgery, ...) could silently vanish with everything still green.
+- **New gate `ci/check_required_exploit_modules.py`** + ledger
+  `docs/REQUIRED_EXPLOIT_MODULES.json` name-pin **14 adversarial-research attack classes**:
+  each MUST stay registered (module key + `_run` symbol) in `unified_audit_runner.cpp`.
+  Deleting a pinned class → red. New threat class `adversarial-research-coverage-floor` → verified.
+- **DON'T TRUST, VERIFY:** `ci/test_check_required_exploit_modules.py` proves a vanished
+  module key / `_run` symbol blocks. Both wired into `run_fast_gates.sh`.
+
 ## 2026-06-11 — Blind-zone lantern #9: secret-parse gate now catches the Scalar::from_bytes silent reduce
 
 - **CVE-class hole closed:** `ci/check_secret_parse_strictness.py` caught only
