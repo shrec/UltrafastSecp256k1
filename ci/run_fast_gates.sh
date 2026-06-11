@@ -165,6 +165,8 @@ run "Metamorphic-gate self-test (proof-it-blocks)" ci/test_check_metamorphic_cov
 run "Fuzz-harness wiring/liveness" ci/check_fuzz_harness_wiring.py
 run "Fuzz-wiring self-test (proof-it-blocks)" ci/test_check_fuzz_harness_wiring.py
 run "dudect binary-CT detector self-test" ci/test_dudect_ct_probe.py
+run "Backend value-differential coverage" ci/check_backend_value_differential.py
+run "Backend value-diff self-test (proof-it-blocks)" ci/test_check_backend_value_differential.py
 run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
 run "Doc drift (badges, removed files)"        ci/check_doc_drift.py
 run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py

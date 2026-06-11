@@ -1,5 +1,23 @@
 # Audit Changelog
 
+## 2026-06-11 — Cross-backend value-differential gate (CPU<->GPU runtime equality)
+
+- **New gate `ci/check_backend_value_differential.py`** + ledger
+  `docs/BACKEND_DIFFERENTIAL_OPS.json` — the runtime layer that `ci/check_backend_parity.py`
+  (a SOURCE gate) cannot reach: a GPU kernel that compiles cleanly but computes a DIFFERENT
+  value than the CPU on the same input (porting bug, carry/precision difference, endianness
+  flip). Flips threat class `backend-differential-runtime` `gap → verified`.
+- **Verified detector + coverage:** the byte-exact comparator `diff_outputs()`/`classify()`
+  flags any per-element (or length) divergence; the coverage check requires every 'covered'
+  GPU op to have its runtime CPU<->GPU value-differential probe wired into the audit runner.
+  3 covered (`exploit_gpu_cpu_divergence`, `exploit_backend_divergence`,
+  `gpu_zk_prove_verify_differential`), 2 roadmap (BIP-352 scan, GPU batch-sign).
+- **Advisory live run:** executing the differential needs a GPU; the live layer advisory-skips
+  on no-GPU runners and is carried by the covered audit modules on GPU hosts.
+- **DON'T TRUST, VERIFY:** `ci/test_check_backend_value_differential.py` proves the comparator
+  flags a one-byte and a length divergence (and passes identical vectors) and that coverage
+  blocks an unwired covered probe. Gate + self-test wired into `run_fast_gates.sh`.
+
 ## 2026-06-11 — dudect binary-CT probe (verified leak detector; advisory live measurement)
 
 - **New gate `ci/dudect_ct_probe.py`** — the binary-level constant-time layer that
