@@ -11,8 +11,8 @@
   falling back to one verification per row. This keeps libbitcoin multisig/tail
   rows on the batch path while preserving per-row invalid detection.
 - Added bridge regressions covering high-S ECDSA in all-valid batches, high-S
-  beside a single corrupted row, C++ typed-span rows, and 6-byte multisig
-  correlation tails.
+  beside a single corrupted row, C++ typed-span rows, column results/collect
+  APIs, and 6-byte multisig correlation tails.
 
 ## 2026-06-12 — libbitcoin bridge header include root normalized
 

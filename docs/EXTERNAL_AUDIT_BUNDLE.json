@@ -392,7 +392,7 @@
           {
             "findings": [
               {
-                "message": "3 changed files have matching docs",
+                "message": "5 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -402,11 +402,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 59.0 days (threshold: 14)",
+                "message": "Mutation report age: 59.1 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (59.0 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (59.1 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -630,11 +630,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "730465c76a0b8aae851207a6ad06ca455d7f2ac7",
-            "short": "730465c76a"
+            "sha": "b66568aeb80373e2e2a0c668659938b172a6a0ec",
+            "short": "b66568aeb8"
           }
         },
-        "generated_at": "2026-06-12T08:08:23.384944+00:00",
+        "generated_at": "2026-06-12T09:58:22.544219+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -651,12 +651,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-06-12T08:08:23.384896+00:00",
+          "collected_at": "2026-06-12T09:58:22.544131+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "730465c76a0b8aae851207a6ad06ca455d7f2ac7",
-            "short": "730465c76a"
+            "sha": "b66568aeb80373e2e2a0c668659938b172a6a0ec",
+            "short": "b66568aeb8"
           },
           "platform": {
             "machine": "x86_64",
@@ -677,7 +677,7 @@
           },
           "version": "4.2.1"
         },
-        "run_id": "audit_gate-730465c76a-20260612T080823",
+        "run_id": "audit_gate-b66568aeb8-20260612T095822",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -1066,7 +1066,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "3 changed files have matching docs"
+                "title": "5 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1077,12 +1077,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 59.0 days (threshold: 14)"
+                "title": "Mutation report age: 59.1 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (59.0 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (59.1 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1352,8 +1352,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "59e8bd9fad3d344bb181bec4daba73c105dffab23e677fdc7c010fcb81532ed7",
-      "stdout_sha256": "63007367852420bf4f6d1e4b1bc7c7d74d37eaaf4d7e6972416af2be3f8b2020"
+      "stderr_sha256": "77e38c7672717b7817f94339af4ac0dd4889954e5d7def57433c154b1b9db821",
+      "stdout_sha256": "2f88f1088f5689a66926be4f8ee631b9beae4bb49889d909e59929a0820b6745"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1655,13 +1655,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-06-12T08:08:24.764929+00:00"
+        "timestamp": "2026-06-12T09:58:23.980143+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "cdbac8669f131f5de8b7a5d8b9c4f465a52e645fba802e85cd9e67dfc6d868de"
+      "stdout_sha256": "c436ac098408a7f4f41ddde8a8aac79d1d39a69ae35d83176187a93b4bd2f090"
     },
     {
       "name": "supply_chain_gate",
@@ -1707,19 +1707,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-06-12T08:08:24.801011+00:00"
+        "timestamp": "2026-06-12T09:58:24.019014+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "9161024f84240c90ecc1fab75a924f4d9925981cdbd40310905a0a278fedafe3"
+      "stdout_sha256": "0365b9828c36b298cb4110ee145c672f115dfa9e4ecbdfa3e5539d44b308047c"
     }
   ],
-  "generated_at": "2026-06-12T08:08:24.815772+00:00",
+  "generated_at": "2026-06-12T09:58:24.037629+00:00",
   "git": {
     "branch": "dev",
-    "commit": "730465c76a0b8aae851207a6ad06ca455d7f2ac7",
+    "commit": "b66568aeb80373e2e2a0c668659938b172a6a0ec",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

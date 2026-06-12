@@ -176,10 +176,9 @@ void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
  * The per-row verdict is byte-identical to the packed-row API. On GPU builds the
  * bridge forwards these columns directly to the existing GPU C ABI, avoiding the
  * row->column de-interleave scratch used by the packed-row path. ECDSA high-S
- * signatures are normalized in scratch before GPU dispatch. On CPU fallback rows
- * are verified one by one from the columns without rebuilding a packed table.
- * Degenerate calls are no-ops; callers should zero-initialize results for
- * fail-closed behavior.
+ * signatures are normalized in scratch before CPU or GPU verification; the
+ * caller-owned signature column is not mutated. Degenerate calls are no-ops;
+ * callers should zero-initialize results for fail-closed behavior.
  */
 void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
                                       const uint8_t* msg_hashes32,

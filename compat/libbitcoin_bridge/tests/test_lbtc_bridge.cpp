@@ -104,6 +104,27 @@ std::vector<uint8_t> build_ecdsa(ufsecp_ctx* ctx, size_t n, size_t key_size) {
     return rows;
 }
 
+struct EcdsaColumns {
+    std::vector<uint8_t> msg;
+    std::vector<uint8_t> pub;
+    std::vector<uint8_t> sig;
+};
+
+EcdsaColumns build_ecdsa_columns(ufsecp_ctx* ctx, size_t n) {
+    auto rows = build_ecdsa(ctx, n, 0);
+    EcdsaColumns cols;
+    cols.msg.resize(n * 32);
+    cols.pub.resize(n * 33);
+    cols.sig.resize(n * 64);
+    for (size_t i = 0; i < n; ++i) {
+        const uint8_t* r = rows.data() + i * UFSECP_LBTC_ECDSA_RECORD;
+        std::memcpy(cols.msg.data() + i * 32, r, 32);
+        std::memcpy(cols.pub.data() + i * 33, r + 32, 33);
+        std::memcpy(cols.sig.data() + i * 64, r + 65, 64);
+    }
+    return cols;
+}
+
 /* Build a packed Schnorr table: n rows of (128 + key_size) bytes. */
 std::vector<uint8_t> build_schnorr(ufsecp_ctx* ctx, size_t n, size_t key_size) {
     const size_t stride = UFSECP_LBTC_SCHNORR_RECORD + key_size;
@@ -197,6 +218,51 @@ int main() {
         /* opaque tag at the failing row is the caller's to read back */
         const uint8_t* tag = rows.data() + 10 * stride + UFSECP_LBTC_ECDSA_RECORD;
         CHECK(tag[0] == 10, "ecdsa+key: opaque tag preserved (= row id)");
+    }
+
+    /* --- ECDSA columns, all valid with high-S --- */
+    {
+        const size_t N = 24;
+        auto cols = build_ecdsa_columns(sctx, N);
+        uint8_t* high_sig = cols.sig.data() + 8 * 64;
+        make_high_s(high_sig);
+        CHECK(ecdsa_s_is_high(high_sig), "ecdsa columns: fixture contains high-S signature");
+        std::vector<uint8_t> res(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa_columns(ctrl, cols.msg.data(), cols.pub.data(),
+                                         cols.sig.data(), N, res.data());
+        CHECK(invalids(res).count == 0, "ecdsa columns: whole batch verifies, including high-S");
+        CHECK(res[8] == 1, "ecdsa columns: high-S row remains valid");
+        CHECK(ecdsa_s_is_high(high_sig), "ecdsa columns: source high-S sig is not rewritten");
+
+        cols.sig[13 * 64 + 7] ^= 0x01;
+        ufsecp_lbtc_verify_ecdsa_columns(ctrl, cols.msg.data(), cols.pub.data(),
+                                         cols.sig.data(), N, res.data());
+        auto iv = invalids(res);
+        CHECK(iv.count == 1 && iv.first == 13, "ecdsa columns: invalid row == 13 after corruption");
+        CHECK(res[8] == 1, "ecdsa columns: high-S row remains valid beside corruption");
+    }
+
+    /* --- ECDSA columns collect, high-S valid row is zeroed --- */
+    {
+        const size_t N = 20, KS = 3;
+        auto cols = build_ecdsa_columns(sctx, N);
+        uint8_t* high_sig = cols.sig.data() + 4 * 64;
+        make_high_s(high_sig);
+        CHECK(ecdsa_s_is_high(high_sig), "ecdsa columns collect: fixture contains high-S signature");
+        cols.sig[12 * 64 + 9] ^= 0x02;
+        std::vector<uint8_t> keys(N * KS, 0);
+        for (size_t i = 0; i < N; ++i)
+            for (size_t k = 0; k < KS; ++k)
+                keys[i * KS + k] = (uint8_t)(0xA0u + i + k);
+        ufsecp_lbtc_verify_ecdsa_columns_collect(ctrl, cols.msg.data(), cols.pub.data(),
+                                                 cols.sig.data(), N, keys.data(), KS);
+        bool high_zero = true;
+        for (size_t k = 0; k < KS; ++k) high_zero &= keys[4 * KS + k] == 0;
+        bool invalid_kept = true;
+        for (size_t k = 0; k < KS; ++k) invalid_kept &= keys[12 * KS + k] != 0;
+        CHECK(high_zero, "ecdsa columns collect: high-S valid row key is zeroed");
+        CHECK(invalid_kept, "ecdsa columns collect: invalid row key survives");
+        CHECK(ecdsa_s_is_high(high_sig), "ecdsa columns collect: source high-S sig is not rewritten");
     }
 
     /* --- Schnorr, all valid + corrupt one --- */

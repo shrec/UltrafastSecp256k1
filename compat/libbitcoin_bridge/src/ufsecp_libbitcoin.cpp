@@ -309,8 +309,13 @@ inline ufsecp_error_t cpu_verify_columns_one(ufsecp_ctx* ctx, Kind k,
                                              const uint8_t* msg,
                                              const uint8_t* pub,
                                              const uint8_t* sig) {
-    return k == Kind::Ecdsa ? ufsecp_ecdsa_verify(ctx, msg, sig, pub)
-                            : ufsecp_schnorr_verify(ctx, msg, sig, pub);
+    if (k == Kind::Ecdsa) {
+        uint8_t sig_norm[64];
+        std::memcpy(sig_norm, sig, 64);
+        normalize_ecdsa_sig_low_s(sig_norm);
+        return ufsecp_ecdsa_verify(ctx, msg, sig_norm, pub);
+    }
+    return ufsecp_schnorr_verify(ctx, msg, sig, pub);
 }
 
 /* CPU fallback for vertical/columnar inputs. This deliberately avoids rebuilding
