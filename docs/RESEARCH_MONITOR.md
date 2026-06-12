@@ -51,6 +51,11 @@ Escalation behavior:
 - `needs_review` opens a GitHub issue when review escalation is enabled
 - `discarded` stays in the artifact only
 
+Issue creation checks for an existing same-day `Research Monitor` issue before
+creating a new one. If repository labels are missing or temporarily unavailable,
+the workflow retries issue creation without labels instead of losing the
+escalated signal.
+
 This keeps the workflow focused on items that may require new tests, new proof
 artifacts, taxonomy expansion, or explicit owner review. The monitor opens an
 issue rather than a pull request because research signals do not yet contain a

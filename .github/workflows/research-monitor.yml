@@ -119,13 +119,18 @@ jobs:
           BODY=$(cat out/research_monitor/research_report.md)
           # Avoid duplicate issues within the same day
           EXISTING=$(gh issue list --label "research-monitor" --state open \
-            --search "Research Monitor ${TODAY} secp256k1" --json number \
+            --search "Research Monitor secp256k1 ${TODAY}" --json number \
             --jq '.[0].number // empty')
           if [ -z "$EXISTING" ]; then
-            gh issue create \
+            if ! gh issue create \
               --title "$TITLE" \
               --body "$BODY" \
-              --label "research-monitor,security,triage"
+              --label "research-monitor,security,triage"; then
+              echo "Issue creation with labels failed; retrying without labels." >&2
+              gh issue create \
+                --title "$TITLE" \
+                --body "$BODY"
+            fi
           else
             echo "Issue #$EXISTING already open — skipping duplicate."
           fi

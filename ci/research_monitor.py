@@ -35,6 +35,7 @@ DEFAULT_OUTPUT_DIR = LIB_ROOT / 'out' / 'research_monitor'
 DEFAULT_MATRIX = LIB_ROOT / 'docs' / 'RESEARCH_SIGNAL_MATRIX.json'
 USER_AGENT = 'UltrafastSecp256k1ResearchMonitor/1.0 (+https://github.com/shrec/UltrafastSecp256k1)'
 EPRINT_RSS_URL = 'https://eprint.iacr.org/rss/rss.xml'
+RESEARCH_ISSUE_LABELS = 'research-monitor,security,triage'
 ARXIV_NS = {'atom': 'http://www.w3.org/2005/Atom'}
 RSS_DC_NS = {'dc': 'http://purl.org/dc/elements/1.1/'}
 QUERY_STOP_WORDS = {
@@ -962,9 +963,9 @@ def open_github_issue(report: dict, include_review: bool = False) -> None:
         return
     date_str = report['generated_at'][:10]
     if include_review:
-        title = f"[Research Monitor] {hc} high-confidence / {nr} needs-review signal(s) — {date_str}"
+        title = f"[Research Monitor] {hc} high-confidence / {nr} needs-review secp256k1 signal(s) - {date_str}"
     else:
-        title = f"[Research Monitor] {hc} high-confidence signal(s) — {date_str}"
+        title = f"[Research Monitor] {hc} high-confidence secp256k1 signal(s) - {date_str}"
 
     body_lines = [
         '> Auto-opened by `ci/research_monitor.py --open-issue`.',
@@ -977,13 +978,25 @@ def open_github_issue(report: dict, include_review: bool = False) -> None:
     body_lines.extend(['', render_markdown(report)])
     body = '\n'.join(body_lines)
 
+    search_cmd = [
+        'gh', 'issue', 'list',
+        '--label', 'research-monitor',
+        '--state', 'open',
+        '--search', f'Research Monitor secp256k1 {date_str}',
+        '--json', 'number',
+        '--jq', '.[0].number // empty',
+    ]
     cmd = [
         'gh', 'issue', 'create',
         '--title', title,
         '--body', body,
-        '--label', 'research-signal,security',
+        '--label', RESEARCH_ISSUE_LABELS,
     ]
     try:
+        existing = subprocess.run(search_cmd, capture_output=True, text=True, check=True).stdout.strip()
+        if existing:
+            print(f'GitHub issue #{existing} already open — skipping duplicate.')
+            return
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         url = result.stdout.strip()
         print(f'GitHub issue opened: {url}')
@@ -991,7 +1004,7 @@ def open_github_issue(report: dict, include_review: bool = False) -> None:
         print('warning: `gh` CLI not found — skipping issue creation', file=sys.stderr)
     except subprocess.CalledProcessError as exc:
         if 'Label' in (exc.stderr or ''):
-            cmd_no_label = [a for a in cmd if a not in ('--label', 'research-signal,security')]
+            cmd_no_label = [a for a in cmd if a not in ('--label', RESEARCH_ISSUE_LABELS)]
             try:
                 result = subprocess.run(cmd_no_label, capture_output=True, text=True, check=True)
                 print(f'GitHub issue opened (no labels): {result.stdout.strip()}')

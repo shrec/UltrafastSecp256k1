@@ -17,6 +17,8 @@ Usage:
 """
 
 import importlib.util
+import contextlib
+import io
 import json
 import os
 import py_compile
@@ -730,7 +732,52 @@ def check_research_monitor_resilience() -> None:
             fail(tag, "GitHub output is missing research_signal_count")
             return
 
-        ok(tag, "ePrint RSS, term boundaries, Crossref dates, source errors, and query-aware reports are covered")
+        calls = []
+
+        def fake_run_label_fallback(cmd, **kwargs):
+            calls.append(cmd)
+            if cmd[:3] == ["gh", "issue", "list"]:
+                return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+            if "--label" in cmd:
+                raise subprocess.CalledProcessError(1, cmd, stderr="Label does not exist")
+            return subprocess.CompletedProcess(
+                cmd,
+                0,
+                stdout="https://github.com/shrec/UltrafastSecp256k1/issues/1\n",
+                stderr="",
+            )
+
+        old_run = module.subprocess.run
+        try:
+            module.subprocess.run = fake_run_label_fallback
+            with contextlib.redirect_stdout(io.StringIO()):
+                module.open_github_issue(report, include_review=True)
+        finally:
+            module.subprocess.run = old_run
+        create_calls = [cmd for cmd in calls if cmd[:3] == ["gh", "issue", "create"]]
+        if len(create_calls) != 2 or "--label" not in create_calls[0] or "--label" in create_calls[1]:
+            fail(tag, f"issue label fallback did not retry without labels: {calls}")
+            return
+
+        duplicate_calls = []
+
+        def fake_run_duplicate(cmd, **kwargs):
+            duplicate_calls.append(cmd)
+            if cmd[:3] == ["gh", "issue", "list"]:
+                return subprocess.CompletedProcess(cmd, 0, stdout="7\n", stderr="")
+            raise AssertionError(f"duplicate path should not create issue: {cmd}")
+
+        try:
+            module.subprocess.run = fake_run_duplicate
+            with contextlib.redirect_stdout(io.StringIO()):
+                module.open_github_issue(report, include_review=True)
+        finally:
+            module.subprocess.run = old_run
+        if any(cmd[:3] == ["gh", "issue", "create"] for cmd in duplicate_calls):
+            fail(tag, f"duplicate issue path attempted create: {duplicate_calls}")
+            return
+
+        ok(tag, "ePrint RSS, term boundaries, report rendering, and issue escalation fallbacks are covered")
     except Exception as exc:
         fail(tag, str(exc))
 

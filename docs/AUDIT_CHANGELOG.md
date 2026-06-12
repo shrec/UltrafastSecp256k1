@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-06-12 — research monitor issue escalation hardening
+
+- Aligned the script-level `--open-issue` path with the workflow label set:
+  `research-monitor,security,triage`.
+- Added same-day duplicate issue suppression to the script-level GitHub issue
+  path and made both script and workflow issue creation retry without labels if
+  label metadata causes `gh issue create` to fail.
+- Extended Python audit self-tests to simulate label failure and duplicate issue
+  detection without invoking the real GitHub CLI.
+
 ## 2026-06-12 — research monitor notification completeness
 
 - Extended text and mail report rendering so `needs_review` findings include
