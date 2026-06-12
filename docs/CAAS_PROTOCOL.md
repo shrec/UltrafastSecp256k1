@@ -97,6 +97,11 @@ push / pull_request
 | Deep replay | `python3 ci/verify_external_audit_bundle.py --replay-commands --json` |
 | Artifact retention | 90 days |
 
+PR/push CAAS also produces `out/current_audit/EXTERNAL_AUDIT_BUNDLE.{json,sha256}`
+inside the protected workflow and verifies that current-run bundle without
+`--allow-commit-mismatch`. The committed `docs/EXTERNAL_AUDIT_BUNDLE.*` files
+are retained as a historical baseline and are hash-checked separately.
+
 ## Drift Policy
 
 | Drift class | Stage that catches it | Disposition |
@@ -105,7 +110,11 @@ push / pull_request
 | Test added but not wired | Stage 1 pre-step | Block PR |
 | GPU op added on one backend only | Stage 2 (P7) | Block PR |
 | ABI changed without doc | Stage 2 (P10) | Block PR |
-| Bundle SHA mismatch | Stage 5 | Block PR |
+| Current-run bundle SHA mismatch | Stage 5 | Block PR |
+| Current-run bundle commit != current `HEAD` | PR-push bundle verify / Stage 5 | Block PR; regenerate current-run bundle |
+| Committed bundle SHA mismatch | PR-push static bundle baseline verify | Block PR; committed baseline was tampered or corrupted |
+| Source graph DB stale or built for another commit | Source Graph Quality Gate | Block PR; rebuild `tools/source_graph_kit/source_graph.db` |
+| Source graph focus no longer routes CAAS terms to CAAS files | Source Graph Quality Gate | Block PR; fix graph config/ranking |
 | Autonomy score < 100 | Stage 3 | Block PR |
 
 ## Adding a New Gate

@@ -8240,9 +8240,15 @@ def _file_focus_penalty(file_name):
 def _is_core_file(file_name):
     if not file_name:
         return False
+    # Files indexed from source dirs such as ci/, docs/, and .github/ are stored
+    # relative to that source dir. Treat those bare tooling/doc paths as core
+    # so `--core` focus queries do not discard the exact CAAS target and fall
+    # back to incidental include/benchmark matches.
+    if "/" not in file_name and file_name.endswith((".py", ".md", ".json", ".yml", ".yaml", ".toml")):
+        return True
     return file_name.startswith((
         "src/", "include/", "ufsecp/", "compat/",
-        "audit/", "tests/", "docs/", "scripts/", "tools/", ".github/", "cmake/"
+        "audit/", "tests/", "docs/", "scripts/", "tools/", ".github/", "workflows/", "cmake/"
     ))
 
 

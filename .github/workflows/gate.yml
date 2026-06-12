@@ -285,7 +285,7 @@ jobs:
   caas-security:
     name: Block 3 / CAAS Security Gates
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     needs: [detect-impact, fast-gates]
     if: >-
       needs.detect-impact.outputs.run_caas == 'true' ||
@@ -398,23 +398,41 @@ jobs:
         if: steps.audit_gate.outcome == 'success'
         run: python3 ci/export_assurance.py -o assurance_report.json
 
-      - name: Bundle integrity verify (F-02 fix)
+      - name: Static bundle baseline verify (F-02 fix)
         # SW-01/F-02 fix: verify the existing evidence bundle on every push/PR
         # so a regression in verify_external_audit_bundle.py is caught immediately.
-        # Bundle regeneration (Stage 4) is still manual/nightly; this only checks
-        # that the committed bundle passes integrity verification.
+        # A committed bundle is a baseline artifact and cannot self-reference the
+        # commit that contains it. Verify hashes with an explicit commit-mismatch
+        # allowance here, then produce and verify a current-run bundle below.
         # Audit-fix: removed || true + continue-on-error so a bundle with
         # mismatched hashes actually blocks the gate (was silently passing).
-        id: bundle_verify
+        id: static_bundle_verify
         if: always()
         run: |
           if [ -f docs/EXTERNAL_AUDIT_BUNDLE.json ]; then
             python3 ci/verify_external_audit_bundle.py --json --allow-commit-mismatch \
-              > caas_bundle_verify.json
+              > caas_bundle_verify_static.json
           else
             echo "::error::docs/EXTERNAL_AUDIT_BUNDLE.json not present — bundle integrity cannot be verified"
             exit 1
           fi
+
+      - name: Produce and verify current-run audit bundle (strict HEAD binding)
+        # CAAS bastion hardening: protected CI must prove that an audit bundle
+        # can be produced for the exact commit under test. The strict verifier
+        # rejects commit mismatch here; --allow-commit-mismatch is only for
+        # offline third-party review of historical bundles.
+        id: bundle_verify
+        if: always()
+        run: |
+          mkdir -p out/current_audit
+          python3 ci/external_audit_bundle.py \
+            --output out/current_audit/EXTERNAL_AUDIT_BUNDLE.json \
+            --digest-output out/current_audit/EXTERNAL_AUDIT_BUNDLE.sha256
+          python3 ci/verify_external_audit_bundle.py \
+            --bundle out/current_audit/EXTERNAL_AUDIT_BUNDLE.json \
+            --digest out/current_audit/EXTERNAL_AUDIT_BUNDLE.sha256 \
+            --json > caas_bundle_verify.json
 
       - name: Evidence chain integrity check (SW-01 fix)
         # SW-01 fix: validate the evidence chain on every PR.
@@ -505,6 +523,9 @@ jobs:
             caas_audit_gate.json
             caas_autonomy.json
             caas_bundle_verify.json
+            caas_bundle_verify_static.json
+            out/current_audit/EXTERNAL_AUDIT_BUNDLE.json
+            out/current_audit/EXTERNAL_AUDIT_BUNDLE.sha256
             assurance_report.json
           # CI-003 fix: warn instead of error so a gate failure that prevents
           # assurance_report.json generation doesn't obscure the root-cause gate failure

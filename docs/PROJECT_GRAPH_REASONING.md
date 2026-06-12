@@ -1,8 +1,12 @@
 # Project Graph Reasoning
 
-UltrafastSecp256k1 ships with a SQLite-backed project graph at:
+UltrafastSecp256k1 ships with a canonical SQLite-backed source graph at:
 
-- `.project_graph.db`
+- `tools/source_graph_kit/source_graph.db`
+
+The older `.project_graph.db` / `ci/query_graph.py` flow remains a
+compatibility layer for legacy scripts, but CAAS graph-quality gating and
+agent-facing graph-first review use `tools/source_graph_kit/source_graph.py`.
 
 This is not only a code index. It is a cryptographic engineering knowledge base
 used by humans and AI agents to reason about:
@@ -16,6 +20,12 @@ used by humans and AI agents to reason about:
 - change-history-sensitive review targets
 
 ## Rebuild
+
+```bash
+python3 tools/source_graph_kit/source_graph.py build -i
+```
+
+Legacy compatibility rebuild, when explicitly needed:
 
 ```bash
 python3 ci/build_project_graph.py --rebuild
@@ -155,27 +165,26 @@ proof of correctness. It is useful for answering:
 ### Structural
 
 ```bash
-python3 ci/query_graph.py context src/cpu/src/ct_sign.cpp
-python3 ci/query_graph.py impact src/cpu/src/ecdh.cpp
-python3 ci/query_graph.py callgraph pippenger_msm
-python3 ci/query_graph.py coverage ecdsa_sign
+python3 tools/source_graph_kit/source_graph.py context src/cpu/src/ct_sign.cpp
+python3 tools/source_graph_kit/source_graph.py impact src/cpu/src/ecdh.cpp
+python3 tools/source_graph_kit/source_graph.py calls pippenger_msm
+python3 tools/source_graph_kit/source_graph.py coverage ecdsa_sign
 ```
 
 ### Semantic
 
 ```bash
-python3 ci/query_graph.py tags
-python3 ci/query_graph.py tag constant_time
-python3 ci/query_graph.py symbol ecdsa_sign
+python3 tools/source_graph_kit/source_graph.py tags
+python3 tools/source_graph_kit/source_graph.py tags constant_time
+python3 tools/source_graph_kit/source_graph.py symbols ecdsa_sign
 ```
 
 ### Optimization / Audit Triage
 
 ```bash
-python3 ci/query_graph.py optimize 20
-python3 ci/query_graph.py risk 20
-python3 ci/query_graph.py gpuwork 20
-python3 ci/query_graph.py fragile 20
+python3 tools/source_graph_kit/source_graph.py hotspots 20
+python3 tools/source_graph_kit/source_graph.py bottlenecks 20
+python3 tools/source_graph_kit/source_graph.py reviewqueue security
 ```
 
 ## Recommended Workflow
@@ -183,33 +192,41 @@ python3 ci/query_graph.py fragile 20
 ### Before editing a file
 
 ```bash
-python3 ci/query_graph.py context <file>
-python3 ci/query_graph.py impact <file>
+python3 tools/source_graph_kit/source_graph.py context <file>
+python3 tools/source_graph_kit/source_graph.py impact <file>
 ```
 
 ### Before touching secret-bearing code
 
 ```bash
-python3 ci/query_graph.py security <file>
-python3 ci/query_graph.py fragile 20
-python3 ci/query_graph.py tag constant_time
+python3 tools/source_graph_kit/source_graph.py focus <file> 40 --core
+python3 tools/source_graph_kit/source_graph.py symbols constant_time
+python3 tools/source_graph_kit/source_graph.py coverage <file>
 ```
 
 ### Before changing the C ABI
 
 ```bash
-python3 ci/query_graph.py routing <name>
-python3 ci/query_graph.py bindings
-python3 ci/query_graph.py tag ffi_surface
+python3 tools/source_graph_kit/source_graph.py symbols <name>
+python3 tools/source_graph_kit/source_graph.py impact <name>
+python3 tools/source_graph_kit/source_graph.py tags ffi_surface
 ```
 
 ### Before proposing an optimization
 
 ```bash
-python3 ci/query_graph.py optimize 20
-python3 ci/query_graph.py gpuwork 20
-python3 ci/query_graph.py risk 20
+python3 tools/source_graph_kit/source_graph.py hotspots 20
+python3 tools/source_graph_kit/source_graph.py bottlenecks 20
+python3 tools/source_graph_kit/source_graph.py focus gpu 40 --core
 ```
+
+## CAAS Quality Gate
+
+`ci/check_source_graph_quality.py` is the hard gate for graph freshness and
+coverage. It now binds `tools/source_graph_kit/source_graph.db` to current
+`HEAD`, checks required CAAS scripts/workflows/docs, verifies CT metadata, and
+runs low-cost focus-routing goldens so audit queries keep finding the intended
+CAAS surfaces.
 
 ## Machine-Readable Export
 

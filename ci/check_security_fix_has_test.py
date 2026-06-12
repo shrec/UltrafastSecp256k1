@@ -94,6 +94,13 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "ce2906b86c": (
+        ["compat/libsecp256k1_shim/tests/shim_test.cpp", "ci/run_libsecp_shim_api_test.sh"],
+        "CI security gate wiring commit: enabled the already-existing shim API/layout "
+        "parity test in protected workflows. The executable test body lives in "
+        "compat/libsecp256k1_shim/tests/shim_test.cpp and the runner is "
+        "ci/run_libsecp_shim_api_test.sh.",
+    ),
     "719a9de7db": (
         ["ci/test_check_test_assertions.py"],
         "CI-tooling commit: wired the new non-asserting-probe scanner "
@@ -673,7 +680,7 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
 # Frozen count guard (CAAS-006): prevents silent whitelist growth.
 # When adding a new entry above, increment this constant too.
 # Unauthorized bypass (adding an entry without incrementing) → import-time assertion failure.
-RETROACTIVELY_COVERED_FROZEN_COUNT: int = 60
+RETROACTIVELY_COVERED_FROZEN_COUNT: int = 61
 assert len(RETROACTIVELY_COVERED) == RETROACTIVELY_COVERED_FROZEN_COUNT, (
     f"RETROACTIVELY_COVERED has {len(RETROACTIVELY_COVERED)} entries but "
     f"RETROACTIVELY_COVERED_FROZEN_COUNT={RETROACTIVELY_COVERED_FROZEN_COUNT}. "

@@ -1,5 +1,23 @@
 # Audit Changelog
 
+## 2026-06-12 — CAAS bastion hardening: current bundle + canonical source graph
+
+- Promoted `tools/source_graph_kit/source_graph.db` to the canonical CAAS graph
+  quality target. `ci/check_source_graph_quality.py` now validates source graph
+  kit tables, current-HEAD binding, CAAS-critical scripts/workflows/docs,
+  project coverage floors, CT metadata, and low-cost focus-routing goldens.
+- Tightened PR/push bundle verification with a two-layer model: the committed
+  `docs/EXTERNAL_AUDIT_BUNDLE.json` remains a hash-checked historical baseline
+  with an explicit commit-mismatch allowance, while protected CI now produces
+  `out/current_audit/EXTERNAL_AUDIT_BUNDLE.json` for the exact commit under test
+  and verifies it without `--allow-commit-mismatch`.
+- Made `ci/test_caas_integrity.py --json` emit pure JSON and added audit
+  infrastructure self-tests/negative fixtures for CAAS JSON purity and stale
+  external-audit bundle commit rejection.
+- Added a frozen retroactive coverage record for the historical shim API layout
+  workflow-wiring commit so `ci/check_security_fix_has_test.py --commits 10`
+  no longer false-fails on a commit that enabled an existing shim parity test.
+
 ## 2026-06-12 — libbitcoin bridge ECDSA high-S batch parity
 
 - Fixed the libbitcoin bridge ECDSA row and column paths to accept

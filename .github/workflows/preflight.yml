@@ -194,6 +194,9 @@ jobs:
       - name: Rebuild project graph (ensures fresh paths for audit gate)
         run: python3 ci/build_project_graph.py --rebuild
 
+      - name: Rebuild source graph (ensures fresh CAAS graph-quality evidence)
+        run: python3 tools/source_graph_kit/source_graph.py build -i
+
       - name: CAAS Stage 2 — Audit Gate P0–P21 (hard-fail)
         run: |
           set +e

@@ -74,6 +74,8 @@ AUDIT_SCRIPTS = [
     "check_required_checks_match_jobs.py",
     "check_advisory_json_rule16.py",
     "check_doc_module_counts.py",
+    "check_source_graph_quality.py",
+    "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
 
@@ -858,6 +860,39 @@ def check_rule16_json_smoke() -> None:
         fail(tag, str(exc))
 
 
+def check_caas_integrity_json_purity() -> None:
+    """CAAS self-test --json must emit parseable JSON with no text prelude."""
+    tag = "SMOKE:caas_integrity_json"
+    path = SCRIPT_DIR / "test_caas_integrity.py"
+    if not path.exists():
+        skip(tag, "test_caas_integrity.py not found")
+        return
+    try:
+        result = subprocess.run(
+            [sys.executable, str(path), "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(LIB_ROOT),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        fail(tag, "timed out")
+        return
+    if result.returncode != 0:
+        fail(tag, f"test_caas_integrity.py --json exited {result.returncode}: {result.stderr[:200]}")
+        return
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        fail(tag, f"--json stdout is not pure JSON: {exc}; prefix={result.stdout[:120]!r}")
+        return
+    if payload.get("suite") != "test_caas_integrity" or payload.get("failed") != 0:
+        fail(tag, f"unexpected CAAS integrity JSON payload: {payload}")
+        return
+    ok(tag, "test_caas_integrity.py --json emits pure passing JSON")
+
+
 def main() -> int:
     quick = "--quick" in sys.argv
 
@@ -891,6 +926,7 @@ def main() -> int:
     print(f"\n{BOLD}[3/4] Structural Integrity{RESET}")
     check_category_coverage()
     check_preflight_step_count()
+    check_caas_integrity_json_purity()
 
     # Phase 4: Smoke tests
     print(f"\n{BOLD}[4/4] Smoke Tests{RESET}")
