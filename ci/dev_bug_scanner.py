@@ -47,6 +47,9 @@ Detects the kind of bugs a human reviewer catches during development:
   SCALAR_NOT_REDUCED     scalar_inverse without adjacent reduce/zero check
   PRINTF_SECRET          printf/log statement of secret-bearing identifier
   JNI_GETBYTES_NULL      JNI GetByteArrayElements return value used without null-check
+  SECRET_TABLE_INDEX     secret-derived byte/scalar used as lookup-table index
+  UNALIGNED_WORD_LOAD    byte buffer reinterpreted as u32/u64 pointer (alignment/endian UB)
+  OUTPUT_FAIL_OPEN       output buffer written before a later failure return without clearing
 
   Language-binding FFI checkers (added 2026-04):
   FFI_RETVAL_IGNORED     secp256k1_*/ufsecp_* call in language binding with silently
@@ -1749,10 +1752,20 @@ _CRYPTO_PATH_HINTS = (
     "adaptor", "ecdh", "bip32", "bip39", "bip340",
     "key", "scalar", "nonce", "rfc6979",
 )
+_C_CPP_EXTENSIONS = {'.c', '.cpp', '.cxx', '.cc', '.h', '.hpp', '.hxx', '.hh', '.cu', '.cuh', '.mm', '.cl', '.metal'}
+_TEST_BENCH_PATH_RE = re.compile(r'(?:^|/)(?:test|tests|bench|benches|fuzz|examples?)(?:/|_)|(?:^|/)test_', re.IGNORECASE)
 
 def _is_crypto_path(path: str) -> bool:
     p = path.lower()
     return any(h in p for h in _CRYPTO_PATH_HINTS)
+
+
+def _is_c_cpp_path(path: str) -> bool:
+    return any(path.endswith(ext) for ext in _C_CPP_EXTENSIONS)
+
+
+def _is_test_or_bench_path(path: str) -> bool:
+    return bool(_TEST_BENCH_PATH_RE.search(path))
 
 
 # ── NONCE_REUSE_VAR: same nonce variable used in two sign() calls ────────────
@@ -2124,6 +2137,295 @@ def check_scalar_not_reduced(path: str, lines: List[str]) -> List[Finding]:
                     snippet=raw.strip(),
                     fix_hint="Reduce the scalar mod n and reject is_zero before inversion.",
                 ))
+    return findings
+
+
+# ── SECRET_TABLE_INDEX: secret-derived value used as array/table index ───────
+# CVE anchor: cache-timing lookup tables (AES T-tables, ECDSA/wNAF table leaks).
+_SECRET_INDEX_NAME_RE = re.compile(
+    r'\b(?:sk|seckey|secret|priv(?:key)?|private_key|nonce|k_val|k_value|'
+    r'scalar|d_scalar|x_only_seckey|sec_nonce|hiding_nonce|binding_nonce)\w*\b',
+    re.IGNORECASE,
+)
+_INDEX_EXPR_RE = re.compile(r'\b([A-Za-z_]\w*)\s*\[\s*([^\]]+)\s*\]')
+_SECRET_DERIVED_ASSIGN_RE = re.compile(
+    r'^\s*(?:auto|size_t|std::size_t|unsigned|uint\d+_t|int|uint)\s+(\w+)\s*=\s*([^;]+);'
+    r'|^\s*(\w+)\s*=\s*([^;]+);'
+)
+_CT_LOOKUP_HINT_RE = re.compile(
+    r'\b(?:cmov|ct_select|constant_time|lookup_ct|select_ct|secp256k1_fe_storage_cmov)\b',
+    re.IGNORECASE,
+)
+
+
+def check_secret_table_index(path: str, lines: List[str]) -> List[Finding]:
+    """Secret-derived values must not index lookup/precompute tables directly.
+
+    Branch-free arithmetic is not enough if a secret byte chooses an array slot:
+    `table[sk[i] & 15]` leaks through cache state. CT lookup helpers are allowed.
+    """
+    if not _is_c_cpp_path(path) or not _is_crypto_path(path) or _is_test_or_bench_path(path):
+        return []
+    findings: List[Finding] = []
+    secret_index_vars: dict[str, int] = {}
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        if stripped in ('{', '}') or stripped.startswith('}'):
+            secret_index_vars.clear()
+            continue
+        if _CT_LOOKUP_HINT_RE.search(line):
+            continue
+
+        assign = _SECRET_DERIVED_ASSIGN_RE.match(line)
+        if assign:
+            lhs = assign.group(1) or assign.group(3)
+            rhs = assign.group(2) or assign.group(4) or ''
+            if lhs and _SECRET_INDEX_NAME_RE.search(rhs):
+                secret_index_vars[lhs] = i + 1
+
+        for m in _INDEX_EXPR_RE.finditer(line):
+            array_name = m.group(1)
+            index_expr = m.group(2)
+            # C++ structured binding: `auto [a, b] = pair;` is not an array
+            # lookup. The generic `name[expr]` regex would otherwise treat
+            # `auto [nonce, commit]` as a secret-indexed table.
+            if array_name in {'auto', 'const', 'volatile'}:
+                continue
+            # `sk[i]` is a read from the secret buffer, not a secret-indexed
+            # table lookup. Flag when a non-secret table is indexed BY a secret.
+            if _SECRET_INDEX_NAME_RE.fullmatch(array_name):
+                continue
+            direct_secret = _SECRET_INDEX_NAME_RE.search(index_expr)
+            tainted_var = next(
+                (name for name in secret_index_vars
+                 if re.search(r'\b' + re.escape(name) + r'\b', index_expr)),
+                None,
+            )
+            if not direct_secret and not tainted_var:
+                continue
+            findings.append(Finding(
+                file=path, line=i + 1, severity="HIGH",
+                category="SECRET_TABLE_INDEX",
+                message="Secret-derived value indexes a lookup table directly — cache/timing leak risk",
+                snippet=raw.strip(),
+                fix_hint="Use a constant-time table scan/cmov selector instead of `table[secret_index]`.",
+            ))
+            break
+    return findings
+
+
+# ── UNALIGNED_WORD_LOAD: byte buffer reinterpreted as u32/u64 pointer ────────
+# CVE anchor: cross-platform parser failures and UB from unaligned/endian loads.
+_WORD_PTR_CAST_RE = re.compile(
+    r'reinterpret_cast\s*<\s*(?:const\s+)?(?:std::)?u?int(?:32|64)_t\s*\*[^>]*>\s*\(\s*([^)]+)\)'
+)
+_WORD_CSTYLE_DEREF_RE = re.compile(
+    r'\*\s*\(\s*(?:const\s+)?(?:std::)?u?int(?:32|64)_t\s*\*+\s*\)\s*([A-Za-z_]\w*)'
+)
+_BYTE_BUFFER_NAME_RE = re.compile(
+    r'\b(?:buf|data|input|bytes|raw|msg|hash|sig|pubkey|seckey|secret|key|p)\b',
+    re.IGNORECASE,
+)
+
+
+def check_unaligned_word_load(path: str, lines: List[str]) -> List[Finding]:
+    """Flag direct u32/u64 pointer casts from byte buffers.
+
+    These are undefined on strict-alignment targets and silently bake host
+    endianness into consensus/ABI parsing. memcpy/load_be/load_le helpers are
+    the portable idiom.
+    """
+    if not _is_c_cpp_path(path) or _is_test_or_bench_path(path):
+        return []
+    findings: List[Finding] = []
+    for i, raw in enumerate(lines):
+        line = _strip_comments(raw)
+        if 'memcpy' in line or 'load_' in line.lower() or 'read_' in line.lower():
+            continue
+        cast_m = _WORD_PTR_CAST_RE.search(line) or _WORD_CSTYLE_DEREF_RE.search(line)
+        if not cast_m:
+            continue
+        expr = cast_m.group(1)
+        if not _BYTE_BUFFER_NAME_RE.search(expr):
+            continue
+        findings.append(Finding(
+            file=path, line=i + 1, severity="HIGH",
+            category="UNALIGNED_WORD_LOAD",
+            message="Byte buffer is reinterpreted as a 32/64-bit word pointer — unaligned access and host-endian UB",
+            snippet=raw.strip(),
+            fix_hint="Load through memcpy plus explicit byte order, or use the project's load_be/load_le helper.",
+        ))
+    return findings
+
+
+# ── OUTPUT_FAIL_OPEN: output buffer written before later failure return ──────
+# Guardrail anchor: signing/batch/parse ABI paths must fail closed and not leave
+# partial signatures, keys, or shared secrets visible on error.
+_ABI_FUNC_START_RE = re.compile(
+    r'^\s*(?:(?:extern\s+"C"\s+)?(?:UFSECP_API\s+)?)'
+    r'(ufsecp_error_t|int|bool)\s+((?:ufsecp|secp256k1)_\w+)\s*\('
+)
+_OUTPUT_PARAM_RE = re.compile(
+    r'(?:\*+\s*|&\s*)([A-Za-z_]\w*)\b'
+)
+_OUTPUT_NAME_RE = re.compile(
+    r'\b(?:out|output|sig|signature|result|shared|pubkey|seckey|secret|tweak|ctx)\w*\b',
+    re.IGNORECASE,
+)
+_OUTPUT_META_NAME_RE = re.compile(r'(?:len|length|size|count|capacity|cap|n)$', re.IGNORECASE)
+_FAIL_RETURN_BY_KIND = {
+    'ufsecp': re.compile(r'\breturn\s+UFSECP_ERR\w*\b'),
+    'secp': re.compile(r'\breturn\s+(?:0|false)\s*;'),
+}
+
+_SUCCESS_RETURN_BY_KIND = {
+    'ufsecp': re.compile(r'^\s*return\s+UFSECP_OK\s*;'),
+    'secp': re.compile(r'^\s*return\s+(?:1|true)\s*;'),
+}
+
+
+def _line_clears_output_var(line: str, var: str) -> bool:
+    var_re = re.escape(var)
+    target = rf'(?:&\s*)?{var_re}\b(?:\s*->\s*\w+|\s*\[[^\]]*\])?'
+    if re.search(r'(?:std::)?memset\s*\(\s*' + target + r'\s*,\s*0\b', line):
+        return True
+    if re.search(r'secure_erase\s*\(\s*' + target + r'\b', line):
+        return True
+    if re.search(r'\*\s*' + var_re + r'\s*=\s*(?:nullptr|NULL|0)\s*;', line):
+        return True
+    return False
+
+
+def _extract_function_block(lines: List[str], start: int) -> tuple[str, str, int, int] | None:
+    """Return (ret_type, fn_name, body_start, body_end_exclusive) for a simple ABI function."""
+    sig_parts: list[str] = []
+    m0 = None
+    brace_seen = False
+    body_start = -1
+    depth = 0
+    for j in range(start, min(len(lines), start + 32)):
+        clean = _strip_comments(lines[j])
+        sig_parts.append(clean)
+        if m0 is None:
+            m0 = _ABI_FUNC_START_RE.match(clean)
+        if '{' in clean:
+            brace_seen = True
+            body_start = j
+            depth = clean.count('{') - clean.count('}')
+            if depth <= 0:
+                return None
+            break
+        if ';' in clean:
+            return None
+    if not m0 or not brace_seen:
+        return None
+    for j in range(body_start + 1, len(lines)):
+        clean = _strip_comments(lines[j])
+        depth += clean.count('{') - clean.count('}')
+        if depth <= 0:
+            return (m0.group(1), m0.group(2), body_start, j + 1)
+    return None
+
+
+def _extract_output_params(signature: str) -> set[str]:
+    """Extract non-const pointer/ref params that look like caller-owned outputs."""
+    open_paren = signature.find('(')
+    close_paren = signature.rfind(')')
+    if open_paren < 0 or close_paren <= open_paren:
+        return set()
+    arg_text = signature[open_paren + 1:close_paren]
+    outputs: set[str] = set()
+    for arg in arg_text.split(','):
+        arg = arg.strip()
+        if not arg or ('*' not in arg and '&' not in arg):
+            continue
+        name_m = re.search(r'([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?$', arg)
+        if not name_m:
+            continue
+        name = name_m.group(1)
+        before_name = arg[:name_m.start()]
+        if re.search(r'\bconst\b', before_name):
+            continue
+        if _OUTPUT_META_NAME_RE.search(name):
+            continue
+        if _OUTPUT_NAME_RE.search(name):
+            outputs.add(name)
+    return outputs
+
+
+def check_output_fail_open(path: str, lines: List[str]) -> List[Finding]:
+    """Detect public ABI/compat functions that can return failure after writing
+    output buffers without clearing those outputs on the failure path."""
+    if not _is_c_cpp_path(path) or _is_test_or_bench_path(path):
+        return []
+    findings: List[Finding] = []
+    i = 0
+    while i < len(lines):
+        block = _extract_function_block(lines, i)
+        if block is None:
+            i += 1
+            continue
+        ret_type, fn_name, body_start, body_end = block
+        signature = ' '.join(_strip_comments(x) for x in lines[i:body_start + 1])
+        output_vars = _extract_output_params(signature)
+        if not output_vars:
+            i = body_end
+            continue
+        # This class matters most on functions that serialize/parse/produce
+        # secret or consensus outputs. Avoid over-flagging context getters.
+        if not re.search(r'(sign|batch|parse|recover|ecdh|derive|create|tweak)', fn_name, re.IGNORECASE):
+            i = body_end
+            continue
+
+        prefix = 'ufsecp' if fn_name.startswith('ufsecp_') else 'secp'
+        fail_re = _FAIL_RETURN_BY_KIND[prefix]
+        success_re = _SUCCESS_RETURN_BY_KIND[prefix]
+        written: dict[str, tuple[int, int]] = {}
+        depth = 1
+        for j in range(body_start + 1, body_end - 1):
+            line = _strip_comments(lines[j])
+            if success_re.search(line):
+                written = {
+                    var: state for var, state in written.items()
+                    if state[1] < depth
+                }
+            for var in output_vars:
+                var_re = re.escape(var)
+                if _line_clears_output_var(line, var):
+                    written.pop(var, None)
+                    continue
+                write = (
+                    re.search(r'\bmem(?:cpy|move|set)\s*\(\s*' + var_re + r'\b', line)
+                    or re.search(r'\b' + var_re + r'\s*(?:->|\[)', line)
+                    or re.search(r'\*\s*' + var_re + r'\s*=', line)
+                )
+                if write:
+                    written.setdefault(var, (j + 1, depth))
+
+            if not fail_re.search(line) or not written:
+                depth += line.count('{') - line.count('}')
+                continue
+            failure_ctx = '\n'.join(_strip_comments(x) for x in lines[max(body_start, j - 6):j + 1])
+            uncleared = [
+                var for var in written
+                if not any(_line_clears_output_var(ctx_line, var) for ctx_line in failure_ctx.splitlines())
+            ]
+            if not uncleared:
+                depth += line.count('{') - line.count('}')
+                continue
+            first_var = uncleared[0]
+            findings.append(Finding(
+                file=path, line=j + 1, severity="HIGH",
+                category="OUTPUT_FAIL_OPEN",
+                message=f"`{fn_name}` can return failure after writing `{first_var}` without clearing it",
+                snippet=lines[j].strip(),
+                fix_hint=f"Clear output buffers on every failure path after partial writes, e.g. `memset({first_var}, 0, size)` before returning failure.",
+            ))
+            break
+        i = body_end
     return findings
 
 
@@ -2726,6 +3028,9 @@ CHECKERS = [
     check_timing_branch_on_key,
     check_mac_truncation,
     check_scalar_not_reduced,
+    check_secret_table_index,
+    check_unaligned_word_load,
+    check_output_fail_open,
     check_printf_secret,
     check_jni_getbytes_null,
     # Cross-language FFI binding checker

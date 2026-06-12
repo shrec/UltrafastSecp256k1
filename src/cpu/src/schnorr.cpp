@@ -10,6 +10,7 @@
 #include "secp256k1/ct/scalar.hpp" // ct::scalar_cneg, ct::bool_to_mask
 #include "secp256k1/ct/sign.hpp"   // ct::schnorr_sign for schnorr_sign_verified
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <string_view>
 #if defined(_MSC_VER)
@@ -34,6 +35,14 @@ using FE52 = fast::FieldElement52;
 #if defined(SECP256K1_FAST_52BIT)
 static const FE52 kSeven52 = FE52::from_fe(FieldElement::from_uint64(7));
 #endif
+
+static bool bytes_all_zero(const std::array<uint8_t, 32>& bytes) noexcept {
+    uint8_t acc = 0;
+    for (uint8_t byte : bytes) {
+        acc |= byte;
+    }
+    return acc == 0;
+}
 
 // -- lift_x: shared BIP-340 x-only -> affine Point ----------------------------
 // Input must be strict x in [0, p), represented as 4x64 LE limbs.
@@ -474,8 +483,7 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
 
     // Reject degenerate output: r==all-zeros is astronomically rare (~2^-128)
     // but must never be serialised as a valid signature (Rule 14).
-    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
-    if (SECP256K1_UNLIKELY((rw[0] | rw[1] | rw[2] | rw[3]) == 0 || sig.s.is_zero_ct()))
+    if (SECP256K1_UNLIKELY(bytes_all_zero(sig.r) || sig.s.is_zero_ct()))
         return SchnorrSignature{};
 
     return sig;
@@ -490,9 +498,7 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
     // ct::schnorr_sign_verified path and avoid generator_mul_blinded interactions.
     const auto sig = ct::schnorr_sign(kp, msg, aux_rand);
 
-    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
-    const bool r_zero = ((rw[0] | rw[1] | rw[2] | rw[3]) == 0);
-    if (sig.s.is_zero_ct() || r_zero) {
+    if (sig.s.is_zero_ct() || bytes_all_zero(sig.r)) {
         return SchnorrSignature{};
     }
 

@@ -176,11 +176,8 @@ __device__ inline bool knowledge_verify_device(
 
     // Build hash input: rx[32] || P_comp[33] || G_COMPRESSED[33] || msg[32]
     uint8_t buf[32 + 33 + 33 + 32];
-    // rx (32 bytes at offset 0) -- aligned, use uint64
     #pragma unroll
-    for (int i = 0; i < 4; ++i)
-        reinterpret_cast<uint64_t*>(buf)[i] =
-            reinterpret_cast<const uint64_t*>(proof->rx)[i];
+    for (int i = 0; i < 32; ++i) buf[i] = proof->rx[i];
     for (int i = 0; i < 33; ++i) buf[32 + i] = p_comp[i];
     for (int i = 0; i < 33; ++i) buf[65 + i] = G_COMPRESSED[i];
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];

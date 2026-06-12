@@ -1,5 +1,30 @@
 # Audit Changelog
 
+## 2026-06-12 — dev bug scanner crypto-pattern expansion
+
+- Extended `ci/dev_bug_scanner.py` with three high-signal crypto development
+  bug classes:
+  - `SECRET_TABLE_INDEX`: flags secret-derived values used as direct lookup-table
+    indices in crypto paths, the cache-timing table lookup class.
+  - `UNALIGNED_WORD_LOAD`: flags byte buffers reinterpreted as `uint32_t*` /
+    `uint64_t*`, which is both alignment-UB and host-endian parser risk.
+  - `OUTPUT_FAIL_OPEN`: flags public `secp256k1_*` / `ufsecp_*` functions that
+    can return a failure code after partially writing output buffers without
+    clearing them.
+- Added synthetic scanner quality coverage in `ci/test_audit_scripts.py` so the
+  new detectors catch true positives while preserving obvious safe patterns
+  such as reading `seckey[i]`, clearing output before a failure return, and
+  clearing after a successful cache/write branch before a later failure branch.
+- Closed two fail-open output findings exposed by the new scanner:
+  `secp256k1_ec_pubkey_parse` now zeroes `pubkey->data` before parsing so every
+  failed parse leaves a cleared output, and BCHN `secp256k1_schnorr_sign` now
+  pre-clears `sig64` plus re-clears on exception. Added shim regressions for
+  both failure-clearing paths.
+- Closed seven unaligned word-load findings exposed by the new scanner:
+  Schnorr zero-output checks now use byte accumulation rather than casting
+  signature byte arrays to `uint64_t*`, and CUDA ZK hash-input assembly now uses
+  byte-wise copy/XOR instead of word-pointer casts on stack buffers.
+
 ## 2026-06-12 — CAAS bastion hardening: current bundle + canonical source graph
 
 - Promoted `tools/source_graph_kit/source_graph.db` to the canonical CAAS graph

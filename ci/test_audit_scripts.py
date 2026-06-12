@@ -478,7 +478,7 @@ def check_export_assurance_smoke() -> None:
 
 
 def check_category_coverage() -> None:
-    """Verify dev_bug_scanner has all 5 crypto-specific categories."""
+    """Verify dev_bug_scanner has all required crypto-specific categories."""
     tag = "CATEGORIES"
     path = SCRIPT_DIR / "dev_bug_scanner.py"
     text = path.read_text(encoding="utf-8")
@@ -488,12 +488,104 @@ def check_category_coverage() -> None:
         "TAGGED_HASH_BYPASS",
         "RANDOM_IN_SIGNING",
         "BINDING_NO_VALIDATION",
+        "SECRET_TABLE_INDEX",
+        "UNALIGNED_WORD_LOAD",
+        "OUTPUT_FAIL_OPEN",
     ]
     missing = [c for c in required if c not in text]
     if missing:
         fail(tag, f"dev_bug_scanner missing categories: {missing}")
     else:
-        ok(tag, "all 5 crypto-specific categories present")
+        ok(tag, f"all {len(required)} crypto-specific categories present")
+
+
+def check_dev_bug_scanner_deep_patterns() -> None:
+    """Unit-smoke: high-signal crypto bug patterns on synthetic fixtures."""
+    tag = "QUALITY:dev_bug_scanner_deep"
+    path = SCRIPT_DIR / "dev_bug_scanner.py"
+    try:
+        spec = importlib.util.spec_from_file_location("dev_bug_scanner_selftest", str(path))
+        if spec is None or spec.loader is None:
+            fail(tag, "could not load dev_bug_scanner.py module spec")
+            return
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            src = root / "src" / "cpu" / "src" / "ecdsa.cpp"
+            src.parent.mkdir(parents=True, exist_ok=True)
+            src.write_text(
+                """
+#include <cstdint>
+#include <cstring>
+
+int vulnerable_sign_lookup(const uint8_t* seckey, const unsigned char* input, unsigned char* output32) {
+    int table[16] = {};
+    auto idx = seckey[0] & 15;
+    output32[0] = static_cast<unsigned char>(*reinterpret_cast<const uint64_t*>(input));
+    if (idx == 7) return 0;
+    return table[idx];
+}
+
+int secp256k1_ecdsa_sign(const void*, void*, const unsigned char*, const unsigned char*, void*, void*) {
+    return 1;
+}
+
+int secp256k1_recover_secret(const void*, unsigned char* output32, int bad) {
+    output32[0] = 1;
+    if (bad) return 0;
+    return 1;
+}
+
+int safe_secret_read(const uint8_t* seckey, size_t i) {
+    return seckey[i];
+}
+
+int secp256k1_safe_recover(const void*, unsigned char* output32, int bad) {
+    output32[0] = 1;
+    if (bad) {
+        memset(output32, 0, 32);
+        return 0;
+    }
+    return 1;
+}
+
+int secp256k1_cache_then_clear(const void*, unsigned char* output32, int hit, int bad) {
+    if (hit) {
+        memset(output32, 7, 32);
+        return 1;
+    }
+    memset(output32, 0, 32);
+    if (bad) return 0;
+    return 1;
+}
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            findings = module.scan_file(src, root)
+            categories = {f.category for f in findings}
+            for expected in ("SECRET_TABLE_INDEX", "UNALIGNED_WORD_LOAD", "OUTPUT_FAIL_OPEN"):
+                if expected not in categories:
+                    fail(tag, f"expected {expected} true positive missing: {findings}")
+                    return
+            if any(f.category == "SECRET_TABLE_INDEX" and "safe_secret_read" in f.snippet for f in findings):
+                fail(tag, f"secret buffer read was incorrectly flagged: {findings}")
+                return
+            if any(f.category == "OUTPUT_FAIL_OPEN" and "secp256k1_safe_recover" in f.message for f in findings):
+                fail(tag, f"cleared failure path was incorrectly flagged: {findings}")
+                return
+            if any(f.category == "OUTPUT_FAIL_OPEN" and "secp256k1_cache_then_clear" in f.message for f in findings):
+                fail(tag, f"clear after successful write branch was incorrectly flagged: {findings}")
+                return
+
+        ok(tag, "secret-index, unaligned-load, and output-fail-open detectors catch synthetic bugs")
+    except Exception as exc:
+        fail(tag, str(exc))
 
 
 def check_preflight_step_count() -> None:
@@ -939,6 +1031,7 @@ def main() -> int:
         check_api_contracts_smoke()
         check_determinism_gate_smoke()
         check_code_quality_runner_smoke()
+        check_dev_bug_scanner_deep_patterns()
         check_hot_path_alloc_scanner_quality()
         check_preflight_smoke()
         check_preflight_ctest_registry_smoke()

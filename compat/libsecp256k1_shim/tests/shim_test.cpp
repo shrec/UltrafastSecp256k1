@@ -206,8 +206,12 @@ static secp256k1_pubkey test_pubkey(secp256k1_context* ctx) {
     // Invalid parse
     unsigned char bad[33] = {};
     bad[0] = 0x05;
+    unsigned char zero64[64] = {};
+    memset(pubkey3.data, 0xA5, 64);
     CHECK(secp256k1_ec_pubkey_parse(ctx, &pubkey3, bad, 33) == 0,
           "pubkey_parse bad prefix fails");
+    CHECK(memcmp(pubkey3.data, zero64, 64) == 0,
+          "pubkey_parse failure zeroes pubkey output");
 
     return pubkey;
 }

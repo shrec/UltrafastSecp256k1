@@ -79,6 +79,7 @@ int secp256k1_schnorr_sign(
 {
     if (!ctx) return 0;  // fail-closed: NULL context is invalid
     if (!sig64 || !msg32 || !seckey) return 0;
+    std::memset(sig64, 0, 64);
 
     try {
         std::array<uint8_t, 32> kb{}, msg{};
@@ -139,7 +140,10 @@ int secp256k1_schnorr_sign(
         secp256k1::detail::secure_erase(&k, sizeof(k));
 
         return 1;
-    } catch (const std::exception&) { return 0; }
+    } catch (const std::exception&) {
+        std::memset(sig64, 0, 64);
+        return 0;
+    }
       catch (...) { std::terminate(); }
 }
 

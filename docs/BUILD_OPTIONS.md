@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**73 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**74 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -17,6 +17,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `SECP256K1_BCHN_SHIM_BUILD_TESTS` | `OFF` | Build BCHN libsecp256k1 compatibility shim tests |
 | `SECP256K1_BUILD_BCH` | `OFF` | Build BCH-specific modules: RPA (Reusable Payment Addresses), CashAddr, EC grinding pipeline |
 | `SECP256K1_BUILD_BENCH` | `ON` | Build benchmarks |
 | `SECP256K1_BUILD_CABI` | `ON` | Build the stable ufsecp_* C ABI library |

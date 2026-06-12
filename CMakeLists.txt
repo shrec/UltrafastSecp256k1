@@ -503,6 +503,11 @@ if((SECP256K1_BUILD_SHIM OR SECP256K1_SHIM_BUILD_TESTS) AND SECP256K1_BUILD_CPU)
     add_subdirectory(compat/libsecp256k1_shim)
 endif()
 
+option(SECP256K1_BCHN_SHIM_BUILD_TESTS "Build BCHN libsecp256k1 compatibility shim tests" OFF)
+if(SECP256K1_BCHN_SHIM_BUILD_TESTS AND SECP256K1_BUILD_CPU)
+    add_subdirectory(compat/libsecp256k1_bchn_shim)
+endif()
+
 # NOTE: bench_compare removed -- use src/src/cpu/bench/bench_unified instead
 #       (bench_unified has full apple-to-apple in a single binary, no FetchContent)
 

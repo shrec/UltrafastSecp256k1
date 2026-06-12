@@ -16,11 +16,20 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/config.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include <array>
 #include <cstring>
 #include <memory>
 
 namespace {
 using secp256k1::detail::secure_erase;
+
+bool bytes_all_zero(const std::array<uint8_t, 32>& bytes) noexcept {
+    uint8_t acc = 0;
+    for (uint8_t byte : bytes) {
+        acc |= byte;
+    }
+    return acc == 0;
+}
 } // anonymous namespace
 
 namespace secp256k1::ct {
@@ -471,9 +480,7 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
     auto sig = ct::schnorr_sign(kp, msg, aux_rand);
 
     // Rule 14: check both s==0 AND R.x all-zeros before returning success.
-    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
-    const bool r_zero = ((rw[0] | rw[1] | rw[2] | rw[3]) == 0);
-    if (sig.s.is_zero_ct() || r_zero) return SchnorrSignature{};
+    if (sig.s.is_zero_ct() || bytes_all_zero(sig.r)) return SchnorrSignature{};
 
     // Fast (non-CT) verify: timing variation is over the public sig/key only —
     // d and k are both erased inside schnorr_sign before this call.
