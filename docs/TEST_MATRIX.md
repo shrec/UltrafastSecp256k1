@@ -114,6 +114,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
+| `compat/libsecp256k1_bchn_shim/tests/test_bchn_schnorr_fail_clear.cpp` | CPU | `bchn_schnorr_fail_clear`: BCHN Schnorr compatibility shim regression proving invalid signing failures clear `sig64` |
 | `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp` | CPU | `lbtc_bridge`: libbitcoin batch script-sig verify (ECDSA/Schnorr) + opaque-key correlation, CPU reference path |
 | `compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp` | GPU (local-only) | `lbtc_consensus_diff`: GPU-vs-CPU consensus differential — every script-sig verdict must match bit-for-bit (ECDSA/Schnorr, mixed corpus). `SKIP_RETURN_CODE 77` (no GPU); runs in `gpu-selfhosted.yml` only |
 | `compat/libbitcoin_bridge/tests/test_lbtc_collect.cpp` | CPU | `lbtc_collect`: in-place collect verify (verdict written into each row's key cell); + `lbtc_collect_smallchunk` recompiles the bridge with a tiny kChunk to straddle chunk boundaries |
