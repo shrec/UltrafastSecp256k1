@@ -59,7 +59,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "ufsecp_error.h" /* ufsecp_error_t, UFSECP_OK, UFSECP_ERR_* */
+#include "ufsecp/ufsecp_error.h" /* ufsecp_error_t, UFSECP_OK, UFSECP_ERR_* */
 
 #ifdef __cplusplus
 extern "C" {

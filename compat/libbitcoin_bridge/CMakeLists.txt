@@ -28,7 +28,12 @@ target_include_directories(ufsecp_lbtc_bridge PUBLIC
 if(NOT UFSECP_INCLUDE_DIR)
     set(UFSECP_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../include/ufsecp)
 endif()
-target_include_directories(ufsecp_lbtc_bridge PUBLIC ${UFSECP_INCLUDE_DIR})
+# Also expose the parent of the ufsecp/ dir so ufsecp-prefixed includes resolve
+# from a single include/ root in packaged consumers.
+get_filename_component(UFSECP_INCLUDE_PARENT ${UFSECP_INCLUDE_DIR} DIRECTORY)
+target_include_directories(ufsecp_lbtc_bridge PUBLIC
+    ${UFSECP_INCLUDE_DIR}
+    ${UFSECP_INCLUDE_PARENT})
 
 if(UFSECP_LBTC_WITH_GPU)
     target_compile_definitions(ufsecp_lbtc_bridge PUBLIC UFSECP_LBTC_WITH_GPU)
@@ -126,7 +131,10 @@ if(UFSECP_LBTC_BUILD_TESTS)
         target_compile_definitions(test_lbtc_collect_smallchunk PRIVATE UFSECP_LBTC_WITH_GPU)
     endif()
     target_include_directories(test_lbtc_collect_smallchunk
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${UFSECP_INCLUDE_DIR})
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${UFSECP_INCLUDE_DIR}
+            ${UFSECP_INCLUDE_PARENT})
     ufsecp_lbtc_link_engine(test_lbtc_collect_smallchunk PRIVATE)
     add_test(NAME lbtc_collect_smallchunk COMMAND test_lbtc_collect_smallchunk)
 endif()

@@ -1,5 +1,14 @@
 # Audit Changelog
 
+## 2026-06-12 — libbitcoin bridge header include root normalized
+
+- Fixed `compat/libbitcoin_bridge/include/ufsecp_libbitcoin.h` to include
+  `ufsecp/ufsecp_error.h`, so packaged consumers can use one `include/` root
+  with `ufsecp/` beneath it.
+- Added the parent of `UFSECP_INCLUDE_DIR` to all libbitcoin bridge targets
+  that compile bridge headers or sources directly, including the smallchunk
+  regression target that recompiles `src/ufsecp_libbitcoin.cpp`.
+
 ## 2026-06-11 — CAAS gate covers libsecp shim opaque ECDSA layout
 
 - Added a hard CAAS/preflight and PR-push shim gate that builds the standalone
