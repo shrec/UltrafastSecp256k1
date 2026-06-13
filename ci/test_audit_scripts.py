@@ -83,6 +83,7 @@ AUDIT_SCRIPTS = [
     "check_gpu_hardware_evidence.py",
     "check_bench_target_context.py",
     "check_research_signal_matrix.py",
+    "check_evidence_refresh_coverage.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -2306,6 +2307,106 @@ def check_research_signal_matrix_fixtures() -> None:
         ok(tag, "missing/invalid attack_class + missing evidence/unresolved gate/missing action fail; real matrix passes; render routes attack_class+surface+gate+patch-plan")
 
 
+def check_evidence_refresh_coverage_fixtures() -> None:
+    """B19: the evidence-refresh coverage gate must FAIL a blocking freshness
+    artifact whose `auto` producer does not actually commit its path, a malformed
+    refresh mode, a `residual` whose id does not resolve, and a tracked artifact
+    with no disposition at all; the real manifest passes and reports the
+    incident_drill_log as auto-refreshed. It also proves the RR-BAS-02 promotion
+    is safe: audit_sla_check.py BLOCKS a simulated stale drill log under blocking
+    severity, while the live advisory (warning) severity only warns — never a
+    false pass."""
+    tag = "B19:evidence_refresh_coverage"
+    try:
+        mod = _load_ci_module("check_evidence_refresh_coverage.py", "erc_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    ev = mod.evaluate
+    tracked = {"assurance_report", "incident_drill_log", "ct_evidence"}
+    committed = {"assurance_report.json", "docs/INCIDENT_DRILL_LOG.json"}
+    rids = {"RR-BAS-01"}
+    wfs = {".github/workflows/caas-evidence-refresh.yml"}
+
+    def auto(name, path, sev="blocking"):
+        return {"name": name, "severity": sev, "refresh": {
+            "mode": "auto", "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+            "committed_paths": [path]}}
+
+    def residual(name, rid="RR-BAS-01", sev="blocking", reason="manual chore"):
+        return {"name": name, "severity": sev,
+                "refresh": {"mode": "residual", "residual_id": rid, "reason": reason}}
+
+    healthy = [auto("assurance_report", "assurance_report.json"),
+               auto("incident_drill_log", "docs/INCIDENT_DRILL_LOG.json", sev="warning"),
+               residual("ct_evidence")]
+
+    failures = []
+
+    r = ev(healthy, tracked, committed, rids, wfs)
+    if not r["overall_pass"]:
+        failures.append(f"healthy manifest did not pass: {r}")
+    if not r["incident_drill_autorefresh"]:
+        failures.append("healthy manifest: incident_drill_autorefresh not detected")
+
+    # (1) missing refresh producer for a blocking artifact -> fail
+    bad = [auto("assurance_report", "NOT_COMMITTED_BY_LANE.json")] + healthy[1:]
+    r = ev(bad, tracked, committed, rids, wfs)
+    if r["overall_pass"] or "assurance_report" not in r["missing_producer"]:
+        failures.append("auto producer not committed by workflow did not fail")
+
+    # (2) malformed refresh status -> fail
+    bad = [dict(healthy[0], refresh={"mode": "sometimes"})] + healthy[1:]
+    r = ev(bad, tracked, committed, rids, wfs)
+    if r["overall_pass"] or "assurance_report" not in r["malformed"]:
+        failures.append("malformed refresh mode did not fail")
+
+    # (3) residual with an unresolved id -> fail
+    bad = healthy[:2] + [residual("ct_evidence", rid="RR-DOES-NOT-EXIST")]
+    r = ev(bad, tracked, committed, rids, wfs)
+    if r["overall_pass"] or "ct_evidence" not in r["unresolved_residual"]:
+        failures.append("unresolved residual id did not fail")
+
+    # (4) tracked artifact missing a disposition -> fail
+    r = ev(healthy[:2], tracked, committed, rids, wfs)
+    if r["overall_pass"] or "ct_evidence" not in r["uncovered_tracked"]:
+        failures.append("tracked artifact without a disposition did not fail")
+
+    # (5) the committed manifest passes for real
+    rep, _ = mod.load_and_evaluate()
+    if not rep.get("overall_pass"):
+        failures.append(f"the committed freshness_artifacts manifest did not pass: {rep}")
+    if not rep.get("incident_drill_autorefresh"):
+        failures.append("real manifest: incident_drill_log not reported as auto-refreshed")
+
+    # (6) RR-BAS-02 promotion safety: a stale drill log BLOCKS under blocking
+    #     severity, but only WARNS under the live advisory severity (no false pass).
+    try:
+        sla = _load_ci_module("audit_sla_check.py", "sla_drill_selftest")
+        sla._file_age_days = lambda p: 99.0  # simulate a long-stale drill log
+        blk = {"slos": {"incident_drill_freshness_days":
+                        {"threshold": 14, "pre_alert_buffer_days": 4, "severity": "blocking"}}}
+        f_blk, _ = sla.check_incident_drill_freshness(blk)
+        if not any(x.get("severity") == "blocking" and x.get("status") == "stale" for x in f_blk):
+            failures.append("stale drill log under blocking severity did not block")
+        warn = {"slos": {"incident_drill_freshness_days":
+                         {"threshold": 14, "pre_alert_buffer_days": 4, "severity": "warning"}}}
+        f_warn, _ = sla.check_incident_drill_freshness(warn)
+        if any(x.get("severity") == "blocking" for x in f_warn):
+            failures.append("advisory (warning) drill severity incorrectly blocked")
+        if not any(x.get("severity") == "warning" and x.get("status") == "stale" for x in f_warn):
+            failures.append("advisory drill: stale log did not even warn (false pass)")
+    except Exception as exc:
+        failures.append(f"incident-drill block self-test failed: {exc}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing producer / malformed mode / unresolved residual / uncovered tracked all fail; "
+                "real manifest passes; stale drill blocks under blocking severity, only warns under advisory")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -2329,6 +2430,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_gpu_hardware_evidence.py": "check_gpu_hardware_evidence_fixtures",
         "check_bench_target_context.py": "check_bench_target_context_fixtures",
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
+        "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2391,6 +2493,7 @@ def main() -> int:
     check_gpu_hardware_evidence_fixtures()
     check_bench_target_context_fixtures()
     check_research_signal_matrix_fixtures()
+    check_evidence_refresh_coverage_fixtures()
     check_caas_gate_negative_fixture_coverage()
 
     # Phase 4: Smoke tests

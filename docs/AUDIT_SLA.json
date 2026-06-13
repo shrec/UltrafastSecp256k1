@@ -98,6 +98,98 @@
       "measurement": "git blame age of the line introducing the TODO/FIXME marker"
     }
   },
+  "freshness_artifacts": {
+    "description": "Bastion B19 (RR-BAS-01 / RR-BAS-02): explicit refresh-disposition ledger binding every freshness artifact tracked by ci/audit_sla_check.py to either an AUTOMATIC producer (a regeneration+commit step in a scheduled workflow) or a DOCUMENTED RESIDUAL (an authored spec, a stable golden, a build-only artifact, or an owner-chosen manual chore). Enforced by ci/check_evidence_refresh_coverage.py (audit_gate.py --evidence-refresh-coverage, G-19): a blocking freshness artifact with neither a verifiable auto-producer nor a residual that resolves to docs/RESIDUAL_RISK_REGISTER.md fails the gate. `auto` entries are cross-checked against the named workflow's actual commit list so the manifest cannot claim coverage the workflow does not provide. Authored/golden artifacts are intentionally NOT nightly-regenerated (that would fake freshness on a human-authored or baseline artifact); their honest_refresh_mechanism documents what keeps them current instead.",
+    "auto_refresh_workflow": ".github/workflows/caas-evidence-refresh.yml",
+    "coverage_gate": "ci/check_evidence_refresh_coverage.py",
+    "artifacts": [
+      {
+        "name": "assurance_report",
+        "path": "out/reports/assurance_report.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Regenerate suite-root assurance_report.json (ci/export_assurance.py)",
+          "committed_paths": ["assurance_report.json"]
+        }
+      },
+      {
+        "name": "incident_drill_log",
+        "path": "docs/INCIDENT_DRILL_LOG.json",
+        "slos": ["incident_drill_freshness_days"],
+        "severity": "warning",
+        "refresh": {
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh security autonomy KPI snapshot — ci/security_autonomy_check.py runs ci/incident_drills.py (weight 10), which rewrites docs/INCIDENT_DRILL_LOG.json",
+          "committed_paths": ["docs/INCIDENT_DRILL_LOG.json"],
+          "promotion": "RR-BAS-02: incident_drill_freshness_days.severity is `warning` until the nightly auto-commit loop is observed green for one full window; promote to `blocking` per the RR-BAS-02 close condition (the ci/check_evidence_refresh_coverage.py self-test already proves audit_sla_check.py blocks a simulated stale log under blocking severity)."
+        }
+      },
+      {
+        "name": "ct_evidence",
+        "path": "audit/ci-evidence",
+        "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "CT / adversarial / fuzz output snapshots captured by building and running the four standalone audit binaries (test_adversarial_protocol, test_ecies_regression, test_fuzz_parsers, test_fuzz_address_bip32_ffi). The owner explicitly chose a manual chore + B3 pre-alert over an auto-committing scheduled lane (a CI-cost / human-review decision); auto-committing captured fuzz output unattended is declined by the owner.",
+          "honest_refresh_mechanism": "Manual owner chore on a <14-day cadence; ci/audit_sla_check.py B3 pre-alert warns ~4 days before the block with a per-artifact days_until_block."
+        }
+      },
+      {
+        "name": "api_contracts",
+        "path": "docs/API_SECURITY_CONTRACTS.json",
+        "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Authored API-security-contract specification (api/criticality/ct_class/preconditions/postconditions/failure_modes/evidence_tests/evidence_docs), validated by ci/check_api_contracts.py. Regenerating it nightly would fake freshness on a human-authored spec.",
+          "honest_refresh_mechanism": "ci/check_api_contracts.py fail-closed changed-file policy: sensitive API/security source cannot change without a docs/API_SECURITY_CONTRACTS.json update, so the contract is re-attested whenever the surface it describes changes."
+        }
+      },
+      {
+        "name": "assurance_claims",
+        "path": "docs/ASSURANCE_CLAIMS.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Authored assurance-claims ledger (schema_version/updated_at/source/claims), validated by ci/validate_assurance.py. Not a derived report — auto-regeneration would fake freshness.",
+          "honest_refresh_mechanism": "Re-attested by the owner when claims change; the validate_assurance.py companion check binds each claim to its evidence on every push."
+        }
+      },
+      {
+        "name": "determinism_golden",
+        "path": "docs/DETERMINISM_GOLDEN.json",
+        "slos": ["max_stale_evidence_days", "determinism_golden_staleness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Golden reference fixture. By definition it is intentionally stable — regenerating it nightly would defeat its purpose as a fixed baseline.",
+          "honest_refresh_mechanism": "Re-verified (compared, not regenerated) by the determinism gate on every push; the staleness SLO is a re-verification prompt, not a regeneration trigger."
+        }
+      },
+      {
+        "name": "risk_coverage_report",
+        "path": "out/reports/risk_surface_report.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Build-only artifact under the gitignored out/ tree; produced by the risk-surface gate during a build, never committed to the repo.",
+          "honest_refresh_mechanism": "Regenerated on every CI build that runs the risk-surface gate; in a clean/standalone checkout its absence is downgraded to a warning by audit_sla_check.py (scope=build)."
+        }
+      }
+    ]
+  },
   "release_policy": {
     "description": "Release readiness requires zero active blocking SLO violations",
     "rule": "any blocking SLO violation -> release_ready = false"

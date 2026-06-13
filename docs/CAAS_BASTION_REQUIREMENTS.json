@@ -249,6 +249,20 @@
       "status": "gated",
       "residual_risk": "Every in-scope signal class carries an enum attack_class and routes to an expected evidence surface + gate; covered classes need existing evidence + a resolvable gate, candidates need a missing_evidence_action, out_of_scope need a rationale. Closes residual RR-BAS-04.",
       "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-19",
+      "claim": "Evidence-refresh coverage: every freshness artifact tracked by audit_sla_check.py is either auto-refreshed by a scheduled lane (verified against its commit list) or a documented residual (freshness is never trusted by hand)",
+      "artifact_paths": [
+        "docs/AUDIT_SLA.json",
+        "ci/check_evidence_refresh_coverage.py",
+        ".github/workflows/caas-evidence-refresh.yml"
+      ],
+      "gate": "audit_gate.py --evidence-refresh-coverage",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "The AUDIT_SLA.json freshness_artifacts ledger binds each tracked artifact to an `auto` producer (cross-checked against the named workflow's commit list) or a `residual` resolving to RESIDUAL_RISK_REGISTER.md; a blocking artifact with neither fails closed. Hardens (does not close) RR-BAS-01 and RR-BAS-02 - both are now ready_for_owner_promotion: ct-evidence/api-contracts remain owner-chosen documented residuals, and the incident-drill warning->blocking flip is proven safe by a self-test.",
+      "last_verified": "2026-06-13"
     }
   ]
 }

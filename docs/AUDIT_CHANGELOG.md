@@ -1,5 +1,40 @@
 # Audit Changelog
 
+## 2026-06-13 — evidence-refresh coverage gate (Bastion B19, RR-BAS-01 / RR-BAS-02 ready for owner promotion)
+
+- Added `freshness_artifacts` disposition ledger to `docs/AUDIT_SLA.json`: every
+  freshness artifact tracked by `ci/audit_sla_check.py` (assurance_report,
+  incident_drill_log, ct_evidence, api_contracts, assurance_claims,
+  determinism_golden, risk_coverage_report) now carries an explicit refresh mode —
+  `auto` (a regeneration+commit step in `caas-evidence-refresh.yml`) or `residual`
+  (an authored spec / golden baseline / build-only artifact / owner-chosen manual
+  chore, with a `reason` + `honest_refresh_mechanism`). 2 auto, 5 residual.
+- Added `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`,
+  G-19): cross-checks the manifest against (a) the authoritative tracked set imported
+  from `audit_sla_check.CRITICAL_EVIDENCE` (no tracked artifact may be missing a
+  disposition; no phantom entries), (b) the named workflow's *actual* commit list
+  (an `auto` entry whose committed path the lane does not stage fails), and (c)
+  `docs/RESIDUAL_RISK_REGISTER.md` (a `residual` whose id does not resolve fails). A
+  blocking artifact with neither a verifiable producer nor a resolvable residual
+  fails closed; warning artifacts are advisory.
+- Extended `.github/workflows/caas-evidence-refresh.yml`: documented the coverage
+  contract (which SLA-critical artifacts are auto vs residual) and added a fail-fast
+  "Verify evidence-refresh coverage (G-19)" step that runs the gate before the build.
+- Honesty cross-check: the auto-vs-residual dispositions were adversarially verified
+  by a 2-panel read-only workflow (fake-refresh lens + automatable-residual lens);
+  both panels judged all 7 dispositions honest — no authored/golden/build artifact is
+  fake-refreshed, and no residual hides a cheap automation.
+- Added `ci/test_audit_scripts.py::check_evidence_refresh_coverage_fixtures`
+  (missing producer / malformed mode / unresolved residual / uncovered tracked all
+  fail; real manifest passes) and the RR-BAS-02 promotion self-test (a simulated
+  stale drill log BLOCKS under blocking severity and only WARNS under the live
+  advisory severity — proving the flip is safe). Coverage critic now 18 gates;
+  self-test 182 pass.
+- `docs/RESIDUAL_RISK_REGISTER.md`: RR-BAS-01 and RR-BAS-02 → **ready_for_owner_promotion**
+  with exact acceptance/promotion/close criteria; added `docs/CAAS_BASTION_REQUIREMENTS.json`
+  G-19 row (P21 enforces the gate); `docs/AUDIT_MANIFEST.md` G-19 row;
+  `docs/CAAS_HARDENING_TODO.md` H-1 cross-reference.
+
 ## 2026-06-13 — research-monitor attack-class taxonomy + evidence routing (Bastion B18, closes RR-BAS-04)
 
 - Extended `docs/RESEARCH_SIGNAL_MATRIX.json` with an `attack_class_enum` (16 values:

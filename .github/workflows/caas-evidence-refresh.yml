@@ -5,6 +5,19 @@ name: CAAS Evidence Refresh
 # the audit_sla_check.py 30-day max_stale_evidence_days SLO never silently
 # trips (CAAS Hardening TODO H-1).
 #
+# Evidence-refresh coverage contract (Bastion B19, docs/AUDIT_SLA.json
+# `freshness_artifacts`, gated by ci/check_evidence_refresh_coverage.py / G-19):
+#   AUTO (regenerated + committed by this lane):
+#     - assurance_report   (out/reports/assurance_report.json via export_assurance.py)
+#     - incident_drill_log (docs/INCIDENT_DRILL_LOG.json — security_autonomy_check.py
+#                           runs incident_drills.py, which rewrites the log)
+#   RESIDUAL (intentionally NOT regenerated here — authored / golden / build-only /
+#     owner-chosen manual; see docs/RESIDUAL_RISK_REGISTER.md RR-BAS-01):
+#     - ct_evidence (audit/ci-evidence), api_contracts (API_SECURITY_CONTRACTS.json),
+#       assurance_claims (ASSURANCE_CLAIMS.json), determinism_golden, risk_coverage_report
+#   The "Verify evidence-refresh coverage" step below fails the lane if a blocking
+#   freshness artifact ever loses both its auto-producer and its documented residual.
+#
 # Safe: only commits when something actually changed, and only on dev.
 
 on:
@@ -73,6 +86,14 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
+
+      - name: Verify evidence-refresh coverage (G-19)
+        # Bastion B19: fail the lane fast (before the build) if any freshness
+        # artifact tracked by audit_sla_check.py has lost both its auto-producer
+        # and its documented residual, or if an `auto` disposition claims a commit
+        # path this workflow does not actually stage. Cheap: static JSON + workflow
+        # parsing, no build required.
+        run: python3 ci/check_evidence_refresh_coverage.py
 
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-14

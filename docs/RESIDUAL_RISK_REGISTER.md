@@ -30,8 +30,8 @@ Current verified state:
 | RR-010 | MuSig2 signer-index bypass (MED-3) | **CLOSED 2026-05-31** | MuSig2/ABI | Fully fail-closed across all three layers: (1) the C++ `musig2_partial_sign` now treats the Rule-13 signer-index cross-check as **mandatory** — when `individual_pubkeys` cannot validate the signer (empty or too short) it returns `Scalar::zero()` instead of signing blind (`src/cpu/src/musig2.cpp`); (2) the v1 ABI `ufsecp_musig2_partial_sign` is hard-failed at entry with `UFSECP_ERR_DEPRECATED_API` (it has no pubkeys parameter and cannot validate); (3) the v2 ABI `ufsecp_musig2_partial_sign_v2` validates `privkey ↔ pubkeys[signer_index]` at the boundary and populates `individual_pubkeys` before delegating to the signing core. Regression-guarded by `audit/test_regression_musig2_signer_index_validation.cpp` MSI-4 (now `advisory=false`, asserts the empty-pubkeys context fail-closes) and `test_regression_frost_musig2_degenerate.cpp` FMD-4 (populated context still signs). The earlier v5.0.0 ABI-extension plan is no longer needed: the C++ defense-in-depth + v2 boundary check close the gap without an ABI break. |
 | RR-NEW-01 | `ct::scalar_inverse` non-CT on platforms without `__int128` (SEC-001-INCOMPLETE) | Accepted, non-blocking for Bitcoin Core PR | CT/portability | On platforms without `__int128` support (WASM target, MSVC 32-bit), `ct::scalar_inverse` falls back to a `fast::` multiplication chain which is variable-time. Not applicable to Bitcoin Core PR targets (x86-64 and ARM64 have `__int128`). Build system requires `__int128` for CT builds; static assert enforced in the CT path. See SEC-001-INCOMPLETE. |
 | RR-NEW-02 | P1 shim regression tests advisory-gated by build configuration | Open, by design. Non-blocking for Bitcoin Core PR | Shim/audit | `regression_shim_security_v8` and `exploit_musig2_infinity_pubnonce` require `SECP256K1_BUILD_COMPAT_SHIM=ON`; without it they return ADVISORY_SKIP_CODE (77). Standalone CTest targets always run. Bitcoin Core PR is out of shim scope. Planned: shim-linked CI matrix job in future milestone. |
-| RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | Owner-deferred, non-blocking | Infra/audit | `audit/ci-evidence` and `docs/API_SECURITY_CONTRACTS.json` sit on the 14-day critical-freshness SLO, but the nightly `caas-evidence-refresh.yml` does not regenerate them — refresh is a manual owner chore, surfaced early by the Bastion B3 pre-alert. Not a vulnerability. See RR-BAS-01 below. |
-| RR-BAS-02 | Incident-drill freshness SLO promotion to blocking | Owner-deferred, non-blocking | Audit/infra | `incident_drill_freshness_days` (`docs/AUDIT_SLA.json`) is intentionally advisory (warning) until the nightly drill-log auto-commit loop is observed for a full window (cf. H-1). See RR-BAS-02 below. |
+| RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | **Ready for owner promotion (B19)** | Infra/audit | Bastion B19 added the `freshness_artifacts` disposition ledger (`docs/AUDIT_SLA.json`) + coverage gate `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`, G-19): every tracked freshness artifact is now explicitly `auto` (producer cross-checked against the lane commit list) or `residual` (resolves here). `audit/ci-evidence` + `docs/API_SECURITY_CONTRACTS.json` (+ assurance_claims / determinism_golden / risk_coverage_report) remain documented residuals — authored/golden/build/owner-chosen-manual, not honestly nightly-regenerable. Promotion = owner approves a heavy snapshot lane. Not a vulnerability. See RR-BAS-01 below. |
+| RR-BAS-02 | Incident-drill freshness SLO promotion to blocking | **Ready for owner promotion (B19)** | Audit/infra | `incident_drill_freshness_days` (`docs/AUDIT_SLA.json`) is advisory (warning). B19 proved the precondition: the coverage gate confirms the drill log is genuinely auto-refreshed by the nightly lane, and the `B19:evidence_refresh_coverage` self-test proves `ci/audit_sla_check.py` BLOCKS a simulated stale log under blocking severity (and only warns under advisory). Promotion = owner flips the severity to `blocking` after one observation window. See RR-BAS-02 below. |
 | RR-BAS-03 | Benchmark `target_context` labels | **CLOSED 2026-06-13** | Bench/audit | Closed by Bastion B17: canonical `bench_unified_*.json` (target_context=microbench) and `BITCOIN_CORE_BENCH_RESULTS.json` (target_context=bitcoin_core) now carry explicit `target_context` + `claim_scope` metadata, validated against `docs/BENCH_TARGET_CONTEXT_SCHEMA.json` by `ci/check_bench_target_context.py` (folded into `check_bench_doc_consistency.py`, co-gated by `perf_security_cogate.py`). See RR-BAS-03 below. |
 | RR-BAS-04 | Research-monitor attack-class taxonomy | **CLOSED 2026-06-13** | Audit/tooling | Closed by Bastion B18: all 45 signal classes carry `attack_class` (16-value enum) + evidence routing (affected_primitive/surface, expected_gate, missing_evidence_action); validated by `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`, G-18) and rendered by `ci/research_monitor.py`. See RR-BAS-04 below. — was: `docs/RESEARCH_SIGNAL_MATRIX.json` signal classes carry a coverage `status` but no `attack_class` field; Bastion B6 added actionable affected-surface/patch-plan rendering without the taxonomy. See RR-BAS-04 below. |
 
@@ -84,7 +84,7 @@ regressions guard the `libsecp256k1_shim` compatibility layer which is out of sc
 ## RR-BAS-01 — CAAS evidence auto-refresh (ci-evidence + API contracts)
 
 **Type:** Process / automation gap — not a vulnerability
-**Status:** Owner-deferred, non-blocking
+**Status:** **Ready for owner promotion** (Bastion B19 — coverage gated; auto-vs-residual disposition formalized)
 **Severity:** Informational (operational cadence)
 **Scope:** Critical-evidence freshness automation
 
@@ -98,28 +98,58 @@ refreshed by a manual owner chore (build + run the four standalone audit binarie
 `test_fuzz_address_bip32_ffi` — and commit dated snapshots). Without automation
 they will periodically cross the SLO and drop the autonomy score until refreshed.
 
+**What B19 added (hardening):** Every freshness artifact tracked by
+`ci/audit_sla_check.py` now carries an explicit refresh disposition in the
+`freshness_artifacts` ledger (`docs/AUDIT_SLA.json`), enforced by
+`ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`,
+G-19). The disposition is honest, not aspirational:
+
+| Artifact | Disposition | Why |
+|----------|-------------|-----|
+| `assurance_report` | **auto** | derived report regenerated + committed by the lane (`export_assurance.py`) |
+| `incident_drill_log` | **auto** | rewritten by the lane's autonomy step (`incident_drills.py`) |
+| `ct_evidence` (`audit/ci-evidence`) | **residual** | CT/fuzz output snapshots; owner explicitly chose a manual chore over auto-committing fuzz output |
+| `api_contracts` | **residual** | authored security-contract spec; auto-regen would fake freshness; kept current by the fail-closed changed-file policy |
+| `assurance_claims` | **residual** | authored claims ledger validated by `validate_assurance.py` |
+| `determinism_golden` | **residual** | golden baseline — must stay stable; re-verified, not regenerated |
+| `risk_coverage_report` | **residual** | build-only artifact under gitignored `out/` |
+
+The gate fails closed if a **blocking** freshness artifact ever loses *both* its
+auto-producer and its documented residual, or if an `auto` disposition claims a
+commit path the workflow does not actually stage. So the manual residual can no
+longer silently disappear, and a future blocking freshness SLO cannot be added
+without a producer-or-residual. The `auto`/`residual` honesty was
+adversarially cross-checked (no authored/golden artifact is fake-refreshed).
+
 **Current behavior / mitigation:** The Bastion B3 pre-alert
-(`ci/audit_sla_check.py`) now warns ~4 days before the block with a per-artifact
+(`ci/audit_sla_check.py`) warns ~4 days before the block with a per-artifact
 `days_until_block`, so the chore is signalled rather than silent. The owner
 explicitly chose the manual chore + pre-alert model over an auto-committing
-scheduled workflow (a CI-cost / infra decision).
+scheduled workflow (a CI-cost / infra decision); B19 respects that choice and
+makes the residual explicit + gated rather than overriding it.
 
 **Acceptance criteria (for closure):** `audit/ci-evidence` and
-`docs/API_SECURITY_CONTRACTS.json` never cross their 14-day SLO unattended over a
-full observation window.
-**Promotion trigger:** Owner approves a scheduled refresh lane (a dedicated
-`ci-evidence-refresh.yml`, or a snapshot step wired into the existing heavy
-`security-audit.yml` lane) that regenerates and commits the evidence on a
-< 14-day cadence.
-**Close condition:** The scheduled lane has refreshed the evidence on cadence for
-one full window with no unattended SLO breach; update this entry to CLOSED.
+`docs/API_SECURITY_CONTRACTS.json` either (a) are moved to `auto` behind a
+scheduled lane that regenerates + commits them on a < 14-day cadence, or
+(b) remain documented residuals with the owner accepting the manual-chore model
+permanently — and in both cases the G-19 coverage gate stays green.
+**Promotion trigger (owner decision):** Owner approves a scheduled refresh lane
+(a dedicated `ci-evidence-refresh.yml`, or a snapshot step wired into the heavy
+`security-audit.yml` lane) that builds + runs the four audit binaries and commits
+dated snapshots on a < 14-day cadence. Flipping the disposition is a one-line
+manifest edit (`residual` → `auto` with `committed_paths: ["audit/ci-evidence", ...]`)
+that the G-19 gate will then verify against the lane.
+**Close condition:** Either the scheduled lane has refreshed the evidence on
+cadence for one full window with no unattended SLO breach (path a), or the owner
+records permanent acceptance of the manual model (path b); update this entry to
+CLOSED.
 
 ---
 
 ## RR-BAS-02 — Incident-drill freshness SLO promotion to blocking
 
 **Type:** Intentional severity choice — not a vulnerability
-**Status:** Owner-deferred, non-blocking (advisory by design)
+**Status:** **Ready for owner promotion** (Bastion B19 — precondition proven + block self-tested)
 **Severity:** Informational (cadence)
 **Scope:** Incident-drill cadence enforcement
 
@@ -136,14 +166,26 @@ that governed the H-1 30-day observation period.
 which rewrites the log), so it is refreshed daily in CI. The advisory SLO + B3
 pre-alert surface a stalled-drill condition without blocking.
 
+**What B19 added (promotion readiness):** Two of the three close-condition
+elements are now proven, so only the observation window + the owner's one-line
+severity flip remain:
+- The G-19 coverage gate (`ci/check_evidence_refresh_coverage.py`) confirms
+  `incident_drill_log` is genuinely `auto`-refreshed by the lane
+  (`incident_drill_autorefresh: true`) — the precondition for promotion.
+- The `B19:evidence_refresh_coverage` self-test
+  (`ci/test_audit_scripts.py`) already **proves** `ci/audit_sla_check.py` blocks a
+  simulated stale drill log under blocking severity *and* only warns under the
+  live advisory severity (no false pass). The "confirm the block works" half of
+  the close condition is therefore satisfied ahead of the flip.
+
 **Acceptance criteria (for closure):** The nightly auto-commit loop keeps
 `docs/INCIDENT_DRILL_LOG.json` within the freshness threshold for a full
 observation window with zero false blocks.
 **Promotion trigger:** The drill-log auto-commit loop is observed green for one
 full window (≈ the H-1 30-day model).
 **Close condition:** Flip `incident_drill_freshness_days.severity` from `warning`
-to `blocking` in `docs/AUDIT_SLA.json`, confirm `ci/audit_sla_check.py` blocks on
-a simulated stale log, and update this entry to CLOSED.
+to `blocking` in `docs/AUDIT_SLA.json` (the block behaviour is already self-tested),
+and update this entry to CLOSED.
 
 ---
 

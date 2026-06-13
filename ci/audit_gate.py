@@ -1802,6 +1802,44 @@ def check_research_signal_matrix(conn):
     return 'G-18: Research Signal Matrix', findings
 
 
+def check_evidence_refresh_coverage(conn):
+    """G-19: evidence-refresh coverage (RR-BAS-01 / RR-BAS-02).
+
+    Loads docs/AUDIT_SLA.json `freshness_artifacts` via
+    ci/check_evidence_refresh_coverage.py: every freshness artifact tracked by
+    ci/audit_sla_check.py must have a refresh disposition — an `auto` producer
+    cross-checked against the named workflow's actual commit list, or a
+    `residual` that resolves to docs/RESIDUAL_RISK_REGISTER.md. A blocking
+    artifact with neither fails. Cheap: JSON + workflow text parsing only."""
+    findings = []
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        from check_evidence_refresh_coverage import load_and_evaluate
+    except Exception as exc:
+        findings.append(('FAIL', f'cannot import check_evidence_refresh_coverage: {exc}'))
+        return 'G-19: Evidence Refresh Coverage', findings
+
+    report, _code = load_and_evaluate()
+    if report.get('error'):
+        findings.append(('FAIL', f'evidence-refresh coverage: {report["error"]}'))
+        return 'G-19: Evidence Refresh Coverage', findings
+
+    if report['overall_pass']:
+        findings.append(('PASS', f'{report["tracked_total"]} freshness artifacts all covered '
+                                 f'({report["auto_count"]} auto, {report["residual_count"]} residual); '
+                                 f'incident_drill_log auto-refresh={report["incident_drill_autorefresh"]}'))
+    else:
+        for key, label in (('uncovered_tracked', 'tracked artifact without a disposition'),
+                           ('phantom_entries', 'manifest entry not actually tracked'),
+                           ('malformed', 'malformed refresh disposition'),
+                           ('missing_producer', 'blocking artifact with no verifiable auto-producer'),
+                           ('unresolved_residual', 'blocking artifact with unresolved residual id')):
+            if report.get(key):
+                findings.append(('FAIL', f'{label}: {report[key]}'))
+    return 'G-19: Evidence Refresh Coverage', findings
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1838,6 +1876,7 @@ CHECK_MAP = {
     '--fuzz-campaign-status': check_fuzz_campaign_status,
     '--gpu-hardware-evidence': check_gpu_hardware_evidence,
     '--research-signal-matrix': check_research_signal_matrix,
+    '--evidence-refresh-coverage': check_evidence_refresh_coverage,
 }
 
 ALL_CHECKS = [
@@ -1872,6 +1911,7 @@ ALL_CHECKS = [
     check_fuzz_campaign_status,
     check_gpu_hardware_evidence,
     check_research_signal_matrix,
+    check_evidence_refresh_coverage,
 ]
 
 
