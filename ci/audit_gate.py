@@ -1665,6 +1665,53 @@ def check_ct_evidence_status(conn):
 
 
 # ---------------------------------------------------------------------------
+# G-15 — Fuzz Campaign Evidence Freshness + Crash->Regression (Bastion B15)
+# ---------------------------------------------------------------------------
+def check_fuzz_campaign_status(conn):
+    """G-15: fuzz campaign evidence freshness + crash->regression.
+
+    Loads docs/FUZZ_CAMPAIGN_STATUS.json via ci/check_fuzz_campaign_status.py. This
+    is an evidence-status gate (cheap, no campaigns run): a blocking fuzz surface
+    fails if its corpus/harness path is missing, last_verified is stale, or a crash
+    artifact exists without a matching regression (crash_unconverted). owner_gated
+    heavy/host-only surfaces are explicit and never counted as current."""
+    findings = []
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        from check_fuzz_campaign_status import load_and_evaluate, MANIFEST_PATH
+    except Exception as exc:
+        findings.append(('FAIL', f'cannot import check_fuzz_campaign_status: {exc}'))
+        return 'G-15: Fuzz Campaign Evidence', findings
+
+    report, _code = load_and_evaluate(MANIFEST_PATH)
+    if report.get('error'):
+        findings.append(('FAIL', f'fuzz campaign manifest: {report["error"]}'))
+        return 'G-15: Fuzz Campaign Evidence', findings
+
+    if report['overall_pass']:
+        findings.append(('PASS', f'{report["rows_total"]} fuzz surfaces '
+                                 f'({report["blocking_total"]} blocking, {report["warning_total"]} warning, '
+                                 f'{report["owner_gated_total"]} owner-gated); no missing/stale/unconverted-crash'))
+    else:
+        findings.append(('FAIL', f'fuzz campaign blocking failures: {report["blocking_failures"]}'))
+
+    for r in report['rows']:
+        rid, sev, st = r['id'], r['severity'], r['computed_status']
+        if r['blocking_failure']:
+            findings.append(('FAIL', f'{rid} [{sev}]: {r["detail"]}'))
+        elif st in ('missing', 'stale', 'crash_unconverted'):
+            findings.append(('WARN', f'{rid} [{sev}]: {r["detail"]}'))
+        elif r['pre_alert']:
+            findings.append(('WARN', f'{rid}: {r["detail"]}'))
+        elif st == 'owner_gated':
+            extra = ' (STALE)' if r.get('owner_gated_stale') else ''
+            findings.append(('INFO', f'{rid}: owner-gated, not current evidence{extra} '
+                                     f'(last_verified {r["last_verified"]})'))
+    return 'G-15: Fuzz Campaign Evidence', findings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 CHECK_MAP = {
@@ -1697,6 +1744,7 @@ CHECK_MAP = {
     '--source-graph-quality': check_source_graph_quality,
     '--integration-evidence': check_integration_evidence,
     '--ct-evidence-status': check_ct_evidence_status,
+    '--fuzz-campaign-status': check_fuzz_campaign_status,
 }
 
 ALL_CHECKS = [
@@ -1728,6 +1776,7 @@ ALL_CHECKS = [
     check_source_graph_quality,
     check_integration_evidence,
     check_ct_evidence_status,
+    check_fuzz_campaign_status,
 ]
 
 

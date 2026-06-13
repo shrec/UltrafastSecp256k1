@@ -71,6 +71,13 @@
       "severity": "per-surface (blocking | warning | owner_gated)",
       "measurement": "per-surface (now - last_verified) vs freshness_days; evidence_paths existence; required_tools PASS verdicts when --verdict-dir present"
     },
+    "fuzz_campaign_freshness": {
+      "description": "Fuzz campaign evidence freshness + crash->regression conversion, evaluated per fuzz surface (Bastion B15). The per-surface corpus_path, crash_path, regression_path, freshness_days, severity, and last_verified live in docs/FUZZ_CAMPAIGN_STATUS.json and are enforced by ci/check_fuzz_campaign_status.py (audit_gate.py --fuzz-campaign-status, G-15). Evidence-status gate only (cheap; long campaigns run in cflite/cryptofuzz/klee, not on push): a blocking surface fails on missing corpus, stale/malformed last_verified, or a crash artifact without a matching regression (crash_unconverted); an unconverted crash blocks regardless of severity; owner_gated heavy/host-only surfaces are explicit and never current.",
+      "threshold": "per-surface (see docs/FUZZ_CAMPAIGN_STATUS.json)",
+      "default_pre_alert_buffer_days": 14,
+      "severity": "per-surface (blocking | warning | owner_gated)",
+      "measurement": "per-surface (now - last_verified) vs freshness_days; corpus_path existence; crash_path artifacts vs regression_path presence"
+    },
     "review_queue_max_open_days": {
       "description": "Maximum age in days that an item may sit in the source-graph review queue without being addressed or explicitly deferred",
       "threshold": 90,

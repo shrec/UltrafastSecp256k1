@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Machine-readable fuzz campaign evidence + crash->regression manifest (Bastion B15). Backs docs/FUZZ_INFRASTRUCTURE.md and is gated by ci/check_fuzz_campaign_status.py (also audit_gate.py --fuzz-campaign-status, principle G-15). Each row binds a fuzz surface/harness to its committed corpus/harness evidence, a crash-artifact directory, the regression evidence that converts crashes into permanent tests, a replay command, a freshness SLO, and a severity. CAAS uses this to know whether fuzz evidence is current and whether any crash artifact remains unconverted into a regression. This is an EVIDENCE-STATUS gate: it does NOT run long fuzz campaigns on push.",
+  "crash_artifact_globs": ["crash-*", "leak-*", "timeout-*", "oom-*", "slow-unit-*", "poc-*", "*.crash"],
+  "default_pre_alert_buffer_days": 14,
+  "severity_legend": {
+    "blocking": "Core parser / signing / ABI fuzz surface; missing corpus/harness, stale last_verified, or an unconverted crash artifact fails the gate.",
+    "warning": "Stateful / heavier fuzz surface; staleness/missing is advisory + pre-alerted (still fails on an unconverted crash).",
+    "owner_gated": "Heavy differential / host-only (--gpu) fuzz surface; reported explicitly and never counted as current evidence on push."
+  },
+  "rows": [
+    {
+      "id": "FUZZ-ABI-INVALID-INPUT",
+      "target": "ABI hostile-caller / structured invalid-input grammar",
+      "corpus_path": "audit/corpus/ffi",
+      "crash_path": "audit/corpus/ffi/crashes",
+      "regression_path": "audit/test_adversarial_protocol.cpp",
+      "replay_command": "python3 ci/invalid_input_grammar.py --json",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "Invalid-input rejection verifier + adversarial-protocol hostile-caller regression. FFI corpus exercised by the audit fuzz suite on every push; ci-evidence snapshot refreshed 2026-06-13."
+    },
+    {
+      "id": "FUZZ-DER-PARSER",
+      "target": "DER / signature parser fuzz (fuzz_der_parse, test_fuzz_parsers)",
+      "corpus_path": "audit/fuzz_der_parse.cpp",
+      "crash_path": "audit/corpus/der/crashes",
+      "regression_path": "audit/test_exploit_der_parsing_differential.cpp",
+      "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "DER parse differential regression. fuzz_parsers ci-evidence snapshot (580019 cases) refreshed 2026-06-13."
+    },
+    {
+      "id": "FUZZ-ECDSA-VERIFY",
+      "target": "ECDSA verify/sign fuzz (fuzz_ecdsa_verify, src/cpu/fuzz/fuzz_ecdsa)",
+      "corpus_path": "audit/fuzz_ecdsa_verify.cpp",
+      "crash_path": "audit/corpus/ecdsa/crashes",
+      "regression_path": "audit/test_exploit_ecdsa_der_confusion.cpp",
+      "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "ECDSA DER-confusion regression; libfuzzer + cflite exercise the verify/sign surface in CI."
+    },
+    {
+      "id": "FUZZ-SCHNORR-VERIFY",
+      "target": "Schnorr verify/sign fuzz (fuzz_schnorr_verify, src/cpu/fuzz/fuzz_schnorr)",
+      "corpus_path": "audit/fuzz_schnorr_verify.cpp",
+      "crash_path": "audit/corpus/schnorr/crashes",
+      "regression_path": "audit/test_regression_schnorr_varlen_ct_fixes.cpp",
+      "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "Schnorr variable-length CT-fix regression; libfuzzer + cflite exercise the verify/sign surface in CI."
+    },
+    {
+      "id": "FUZZ-MUSIG2-FROST-STATEFUL",
+      "target": "MuSig2 / FROST stateful protocol fuzz (test_fuzz_musig2_frost)",
+      "corpus_path": "audit/test_fuzz_musig2_frost.cpp",
+      "crash_path": "audit/corpus/musig2/crashes",
+      "regression_path": "audit/test_regression_musig2_nonce_strict.cpp",
+      "replay_command": "ctest --test-dir build-audit -R '^fuzz_musig2_frost$'",
+      "freshness_days": 120,
+      "severity": "warning",
+      "last_verified": "2026-06-04",
+      "status": "pass",
+      "notes": "Stateful MuSig2/FROST session fuzz; heavier, advisory severity. Nonce-strict regression."
+    },
+    {
+      "id": "FUZZ-LIBBITCOIN-BRIDGE-DIFF",
+      "target": "libbitcoin bridge batch verify fuzz / consensus differential",
+      "corpus_path": "compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp",
+      "crash_path": "compat/libbitcoin_bridge/tests/crashes",
+      "regression_path": "compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp",
+      "replay_command": "cmake --build out -t test_lbtc_consensus_diff && ctest -R '^lbtc_consensus_diff$'",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-06-02",
+      "status": "owner_gated",
+      "notes": "Heavy libbitcoin consensus-differential fuzz; owner-gated manual / imported artifact, not run on push."
+    },
+    {
+      "id": "FUZZ-GPU-PUBLIC-DATA",
+      "target": "GPU public-data fuzz / CT-uniformity boundary",
+      "corpus_path": "ci/check_gpu_ct_uniformity.py",
+      "crash_path": "src/gpu/crashes",
+      "regression_path": "docs/CT_VERIFICATION.md",
+      "replay_command": "python3 ci/check_gpu_ct_uniformity.py --gpu",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-06-09",
+      "status": "owner_gated",
+      "notes": "No dedicated GPU public-data libFuzzer harness; GPU verify operates on public data (variable-time correct). Secret-bearing GPU paths are validated host-only via --gpu white-box CT-uniformity. Owner-gated; never current evidence on push."
+    }
+  ]
+}

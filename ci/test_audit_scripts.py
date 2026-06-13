@@ -79,6 +79,7 @@ AUDIT_SCRIPTS = [
     "check_source_graph_quality.py",
     "check_integration_evidence.py",
     "check_ct_evidence_status.py",
+    "check_fuzz_campaign_status.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -1964,6 +1965,89 @@ def check_ct_evidence_status_fixtures() -> None:
         ok(tag, "missing/stale/malformed blocking fail; PASS+SKIP inconclusive+block; FAIL blocks; owner_gated explicit; real manifest passes")
 
 
+def check_fuzz_campaign_status_fixtures() -> None:
+    """B15: the fuzz-campaign gate must FAIL a blocking row with missing corpus /
+    stale or malformed last_verified, and a crash artifact without a matching
+    regression (crash_unconverted) for ANY non-owner severity; warning staleness is
+    advisory; owner_gated is explicit and never current; a valid manifest passes."""
+    from datetime import date
+    tag = "B15:fuzz_campaign_status"
+    try:
+        module = _load_ci_module("check_fuzz_campaign_status.py", "fuzz_campaign_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    today = date(2026, 6, 13)
+    present = "ci/check_fuzz_campaign_status.py"  # a committed file that exists
+
+    def row(**kw):
+        base = {"id": "R", "target": "t", "corpus_path": present, "crash_path": "",
+                "regression_path": present, "replay_command": "x", "freshness_days": 90,
+                "severity": "blocking", "last_verified": "2026-06-13", "status": "pass", "notes": ""}
+        base.update(kw)
+        return base
+
+    def ev(rows):
+        return module.evaluate({"default_pre_alert_buffer_days": 14, "rows": rows}, today=today)
+
+    failures = []
+
+    if not ev([row()])["overall_pass"]:
+        failures.append("valid blocking row did not pass")
+
+    r = ev([row(corpus_path="docs/__nope_xyz__.md")])
+    if r["overall_pass"] or "R" not in r["missing_rows"]:
+        failures.append("missing corpus did not fail")
+
+    r = ev([row(last_verified="2026-01-01")])
+    if r["overall_pass"] or "R" not in r["stale_rows"]:
+        failures.append("stale blocking row did not fail")
+
+    if ev([row(last_verified="not-a-date")])["overall_pass"]:
+        failures.append("malformed date did not fail")
+
+    # crash artifact without regression -> crash_unconverted + blocking fail
+    with tempfile.TemporaryDirectory() as d:
+        cd = Path(d) / "crashes"
+        cd.mkdir()
+        (cd / "crash-deadbeef").write_text("poc")
+        r = ev([row(crash_path=str(cd), regression_path="docs/__no_regression_xyz__.md")])
+        if r["overall_pass"] or "R" not in r["crash_unconverted_rows"]:
+            failures.append("unconverted crash did not fail")
+        # crash WITH a present regression -> converted -> pass
+        if not ev([row(crash_path=str(cd), regression_path=present)])["overall_pass"]:
+            failures.append("converted crash (regression present) did not pass")
+        # a warning row with an unconverted crash STILL blocks (correctness gap)
+        if ev([row(severity="warning", crash_path=str(cd),
+                   regression_path="docs/__no_xyz__.md")])["overall_pass"]:
+            failures.append("warning row with unconverted crash did not block")
+
+    # warning staleness -> advisory + listed
+    r = ev([row(severity="warning", last_verified="2026-01-01")])
+    if not r["overall_pass"] or "R" not in r["stale_rows"]:
+        failures.append("warning staleness should be advisory and listed")
+
+    # owner_gated -> explicit, never current, never blocks (on missing/stale)
+    r = ev([row(severity="owner_gated", last_verified="2026-01-01",
+                corpus_path="docs/__nope_xyz__.md")])
+    if not r["overall_pass"]:
+        failures.append("owner_gated row blocked the gate")
+    if "R" not in r["owner_gated_rows"]:
+        failures.append("owner_gated row not listed explicitly")
+    if r["rows"][0]["computed_status"] == "pass":
+        failures.append("owner_gated row was silently counted as current (pass)")
+
+    rep, _ = module.load_and_evaluate(module.MANIFEST_PATH, today=today)
+    if not rep.get("overall_pass"):
+        failures.append("the committed FUZZ_CAMPAIGN_STATUS.json did not pass")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing/stale/malformed blocking fail; unconverted-crash blocks (incl. warning); owner_gated explicit; real manifest passes")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -1983,6 +2067,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "research_monitor.py": "check_research_monitor_resilience",
         "check_integration_evidence.py": "check_integration_evidence_fixtures",
         "check_ct_evidence_status.py": "check_ct_evidence_status_fixtures",
+        "check_fuzz_campaign_status.py": "check_fuzz_campaign_status_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2041,6 +2126,7 @@ def main() -> int:
     check_research_monitor_actionable_body()
     check_integration_evidence_fixtures()
     check_ct_evidence_status_fixtures()
+    check_fuzz_campaign_status_fixtures()
     check_caas_gate_negative_fixture_coverage()
 
     # Phase 4: Smoke tests

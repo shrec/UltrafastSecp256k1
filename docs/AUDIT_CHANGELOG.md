@@ -1,5 +1,32 @@
 # Audit Changelog
 
+## 2026-06-13 — fuzz campaign evidence freshness + crash→regression lane (Bastion B15)
+
+- Added `docs/FUZZ_CAMPAIGN_STATUS.json`: a machine-readable manifest binding each
+  fuzz surface (ABI/invalid-input grammar, DER parser, ECDSA verify, Schnorr verify,
+  MuSig2/FROST stateful, libbitcoin bridge differential, GPU public-data) to its
+  corpus/harness, crash directory, crash→regression evidence, replay command,
+  freshness_days, and severity. 4 blocking / 1 warning / 2 owner_gated.
+- Added `ci/check_fuzz_campaign_status.py` (G-15 gate): an evidence-status gate
+  (cheap; runs no campaigns). A blocking surface fails on missing corpus,
+  stale/malformed last_verified, or a **crash artifact without a matching
+  regression** (`crash_unconverted`) — and an unconverted crash blocks regardless
+  of severity (a correctness gap). owner_gated heavy/host-only surfaces are
+  explicit and never counted as current. Emits overall_pass, missing_rows,
+  stale_rows, crash_unconverted_rows, owner_gated_rows, pre_alerts,
+  min_days_until_block.
+- Wired into `ci/audit_gate.py` as `--fuzz-campaign-status` (G-15, CHECK_MAP +
+  ALL_CHECKS): cheap on every push, visible in the audit-gate JSON.
+- Added `ci/test_audit_scripts.py::check_fuzz_campaign_status_fixtures` (missing
+  corpus / stale / malformed → fail; crash-without-regression → crash_unconverted
+  block, incl. warning severity; crash-with-regression → pass; owner_gated explicit
+  + never current; valid + real manifest pass) and registered it in the coverage
+  critic (now 14 high-value gates). Self-test 166 pass.
+- Created `docs/FUZZ_INFRASTRUCTURE.md` (harnesses, corpus, crash→regression
+  discipline, the freshness gate). Docs: `docs/AUDIT_SLA.json`
+  `fuzz_campaign_freshness` SLO; `docs/CAAS_BASTION_REQUIREMENTS.json` G-15 row
+  (P21 enforces the gate); `docs/AUDIT_MANIFEST.md` G-15 row.
+
 ## 2026-06-13 — CT evidence artifact binding + freshness lane (Bastion B14)
 
 - Added `docs/CT_EVIDENCE_STATUS.json`: a machine-readable manifest binding each

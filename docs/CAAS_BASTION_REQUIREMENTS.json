@@ -193,6 +193,20 @@
       "status": "gated",
       "residual_risk": "Tool verdicts (ct-verif / valgrind-ct / dudect) are CI-produced and evaluated via --verdict-dir, not on every push; the committed-evidence + freshness dimension gates on push. GPU CT-uniformity is owner_gated (host-only --gpu). CT-SCALAR-INVERSE is a documented portability residual (RR-NEW-01).",
       "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-15",
+      "claim": "Fuzz campaign evidence freshness + crash->regression conversion (fuzz surfaces machine-tracked and gated)",
+      "artifact_paths": [
+        "docs/FUZZ_CAMPAIGN_STATUS.json",
+        "docs/FUZZ_INFRASTRUCTURE.md",
+        "ci/check_fuzz_campaign_status.py"
+      ],
+      "gate": "audit_gate.py --fuzz-campaign-status",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Evidence-status gate only: long fuzz campaigns run in cflite/cryptofuzz/klee + the audit fuzz suite, not on push. Heavy libbitcoin differential and GPU public-data fuzz surfaces are owner_gated (explicit, never current). An unconverted crash artifact blocks regardless of severity.",
+      "last_verified": "2026-06-13"
     }
   ]
 }
