@@ -8,6 +8,17 @@ reproduce it. Correctness evidence is kept separate from performance findings
 (the latter live in `docs/BITCOIN_CORE_BENCH_RESULTS.json` and
 `docs/bench_unified_*.json`).
 
+> **Freshness-gated (Bastion B13).** This human table is backed by the
+> machine-readable manifest [`docs/INTEGRATION_EVIDENCE_STATUS.json`](INTEGRATION_EVIDENCE_STATUS.json)
+> and gated by [`ci/check_integration_evidence.py`](../ci/check_integration_evidence.py)
+> (also `audit_gate.py --integration-evidence`, principle **G-13**). The gate
+> reports each surface as **pass / stale / missing / owner_gated** with a
+> `days_until_block` runway: a `blocking` surface with missing or stale evidence
+> fails the gate; `warning` surfaces are advisory with a pre-alert; and heavy
+> full-chain libbitcoin / Bitcoin Core validation is `owner_gated` — surfaced
+> explicitly and **never** silently counted as current evidence. Run:
+> `python3 ci/check_integration_evidence.py --json`.
+
 > **Rule:** every number here traces to a committed artifact or a runnable
 > command. Pass counts that require a build (libbitcoin bridge) name the target
 > to run rather than asserting an unverified figure.

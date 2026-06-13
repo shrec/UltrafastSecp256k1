@@ -165,6 +165,20 @@
       "status": "gated",
       "residual_risk": "",
       "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-13",
+      "claim": "External integration evidence freshness (libbitcoin / Bitcoin Core / libsecp shim) machine-tracked and gated",
+      "artifact_paths": [
+        "docs/INTEGRATION_EVIDENCE_STATUS.json",
+        "docs/INTEGRATION_EVIDENCE_TABLE.md",
+        "ci/check_integration_evidence.py"
+      ],
+      "gate": "audit_gate.py --integration-evidence",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Heavy full-chain libbitcoin / Bitcoin Core surfaces are owner_gated within the manifest (explicit, never counted as current evidence); they are re-verified by an owner-imported artifact, not on every push.",
+      "last_verified": "2026-06-13"
     }
   ]
 }

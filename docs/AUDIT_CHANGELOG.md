@@ -1,5 +1,33 @@
 # Audit Changelog
 
+## 2026-06-13 — external integration evidence freshness lane (Bastion B13)
+
+- Added `docs/INTEGRATION_EVIDENCE_STATUS.json`: a machine-readable manifest that
+  binds each external-integration surface (libsecp shim parity, cross-libsecp
+  differential, DER+block-704789, same-X/opposite-Y ECDSA cache, Schnorr verify,
+  batch verify, libbitcoin collect/commitment/multisig, libbitcoin no-libsecp
+  build, Bitcoin Core full suite) to its evidence_path, reproduce_command,
+  freshness_days, severity, last_verified, and status.
+- Added `ci/check_integration_evidence.py` (G-13 gate): recomputes each surface's
+  live status (a row cannot be green just because the JSON says so). A `blocking`
+  row fails on missing evidence_path or stale/malformed last_verified; `warning`
+  rows are advisory with a pre-alert; `owner_gated` heavy full-chain rows are
+  surfaced explicitly and **never** counted as current evidence. Emits
+  `overall_pass`, `stale_rows`, `missing_rows`, `owner_gated_rows`,
+  `pre_alerts`, and `min_days_until_block`.
+- Wired into `ci/audit_gate.py` as `--integration-evidence` (G-13, in `CHECK_MAP`
+  and `ALL_CHECKS`): visible in every audit-gate run; blocks only on a blocking
+  surface failure. Initial manifest: 1 blocking / 4 warning / 4 owner_gated, all
+  current — gate PASSES.
+- Added `ci/test_audit_scripts.py::check_integration_evidence_fixtures` (missing /
+  stale / malformed-date blocking → fail; warning advisory; owner_gated explicit
+  and never pass; valid + real manifest pass) and registered it in the coverage
+  critic (now 12 high-value gates). Self-test 155 pass.
+- Docs: `docs/INTEGRATION_EVIDENCE_TABLE.md` now states it is backed by the
+  manifest + gate; `docs/AUDIT_SLA.json` adds an `integration_evidence_freshness`
+  SLO entry; `docs/CAAS_BASTION_REQUIREMENTS.json` adds the G-13 requirement row
+  (so P21 enforces the gate's existence).
+
 ## 2026-06-13 — formalize Bastion owner-deferred residuals (Bastion #10)
 
 - Registered the four owner-deferred, non-blocking Bastion residuals in

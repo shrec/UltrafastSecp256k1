@@ -57,6 +57,13 @@
       "severity": "warning",
       "measurement": "now - git_commit_date(docs/INCIDENT_DRILL_LOG.json)"
     },
+    "integration_evidence_freshness": {
+      "description": "External integration evidence (libbitcoin / Bitcoin Core / libsecp shim) freshness, evaluated per-surface (Bastion B13). The per-surface freshness_days, severity (blocking | warning | owner_gated), and last_verified live in docs/INTEGRATION_EVIDENCE_STATUS.json and are enforced by ci/check_integration_evidence.py (audit_gate.py --integration-evidence, G-13). A blocking surface that is missing or stale fails; warning surfaces are advisory with a pre-alert; owner_gated full-chain validation is surfaced explicitly and never counted as current evidence.",
+      "threshold": "per-surface (see docs/INTEGRATION_EVIDENCE_STATUS.json)",
+      "default_pre_alert_buffer_days": 7,
+      "severity": "per-surface (blocking | warning | owner_gated)",
+      "measurement": "per-surface (now - last_verified) vs freshness_days; evidence_path existence for blocking rows"
+    },
     "review_queue_max_open_days": {
       "description": "Maximum age in days that an item may sit in the source-graph review queue without being addressed or explicitly deferred",
       "threshold": 90,

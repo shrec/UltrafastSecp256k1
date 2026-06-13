@@ -77,6 +77,7 @@ AUDIT_SCRIPTS = [
     "check_advisory_json_rule16.py",
     "check_doc_module_counts.py",
     "check_source_graph_quality.py",
+    "check_integration_evidence.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -1801,6 +1802,79 @@ def check_research_monitor_actionable_body() -> None:
         ok(tag, "high-conf findings render affected-surface + evidence + patch-plan; empty report is clean")
 
 
+def check_integration_evidence_fixtures() -> None:
+    """B13: the integration-evidence gate must FAIL a `blocking` row with missing
+    evidence / stale last_verified / malformed date, treat `warning` staleness as
+    advisory, never silently count an `owner_gated` row as current evidence, and
+    PASS a valid manifest (and the real committed one). Time-independent via an
+    injected `today`."""
+    from datetime import date
+    tag = "B13:integration_evidence"
+    try:
+        module = _load_ci_module("check_integration_evidence.py", "integration_evidence_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    today = date(2026, 6, 13)
+
+    def row(**kw):
+        base = {"id": "R", "surface": "s",
+                "evidence_path": "ci/check_integration_evidence.py",
+                "reproduce_command": "x", "freshness_days": 30, "severity": "blocking",
+                "last_verified": "2026-06-13", "status": "pass", "notes": ""}
+        base.update(kw)
+        return base
+
+    def ev(rows):
+        return module.evaluate({"default_pre_alert_buffer_days": 7, "rows": rows}, today=today)
+
+    failures = []
+
+    # valid blocking row -> pass
+    if not ev([row()])["overall_pass"]:
+        failures.append("valid blocking row did not pass")
+
+    # missing evidence (blocking) -> FAIL + listed
+    r = ev([row(evidence_path="docs/__nope_xyz__.md")])
+    if r["overall_pass"] or "R" not in r["missing_rows"]:
+        failures.append("missing blocking evidence did not fail")
+
+    # stale (blocking, far-past date) -> FAIL + listed
+    r = ev([row(last_verified="2026-01-01")])
+    if r["overall_pass"] or "R" not in r["stale_rows"]:
+        failures.append("stale blocking row did not fail")
+
+    # malformed date (blocking) -> FAIL
+    if ev([row(last_verified="not-a-date")])["overall_pass"]:
+        failures.append("malformed date on blocking row did not fail")
+
+    # warning staleness -> advisory (overall pass) but listed in stale_rows
+    r = ev([row(severity="warning", last_verified="2026-01-01")])
+    if not r["overall_pass"] or "R" not in r["stale_rows"]:
+        failures.append("warning staleness should be advisory and listed")
+
+    # owner_gated -> never blocks, listed explicitly, NOT counted as pass
+    r = ev([row(severity="owner_gated", last_verified="2026-01-01",
+                evidence_path="docs/__nope_xyz__.md")])
+    if not r["overall_pass"]:
+        failures.append("owner_gated row blocked the gate")
+    if "R" not in r["owner_gated_rows"]:
+        failures.append("owner_gated row not listed explicitly")
+    if r["rows"][0]["computed_status"] == "pass":
+        failures.append("owner_gated row was silently counted as current (pass)")
+
+    # the real committed manifest must pass
+    rep, _ = module.load_and_evaluate(module.MANIFEST_PATH, today=today)
+    if not rep.get("overall_pass"):
+        failures.append("the committed INTEGRATION_EVIDENCE_STATUS.json did not pass")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "blocking missing/stale/malformed fail; warning advisory; owner_gated explicit (never pass); real manifest passes")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -1818,6 +1892,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_bench_doc_consistency.py": "check_bench_artifact_sanity_fixtures",
         "incident_drills.py": "check_incident_drills_real_injection",
         "research_monitor.py": "check_research_monitor_resilience",
+        "check_integration_evidence.py": "check_integration_evidence_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -1874,6 +1949,7 @@ def main() -> int:
     check_bench_artifact_sanity_fixtures()
     check_incident_drills_real_injection()
     check_research_monitor_actionable_body()
+    check_integration_evidence_fixtures()
     check_caas_gate_negative_fixture_coverage()
 
     # Phase 4: Smoke tests
