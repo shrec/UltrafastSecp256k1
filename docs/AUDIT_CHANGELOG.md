@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-13 — integration evidence table (Bastion B7)
+
+- Added `docs/INTEGRATION_EVIDENCE_TABLE.md`: a single replayable index of the
+  external-integration correctness evidence that was scattered across the
+  shim-parity gate, the audit regression suite, the Bitcoin Core result JSON, and
+  the libbitcoin bridge tests. Each row names the committed evidence file and the
+  command to reproduce it: libsecp shim parity (17/17), cross-libsecp differential,
+  DER parse+normalize+verify (block 704,789), the same-X/opposite-Y ECDSA cache
+  identity regression (fix 684141e7), Schnorr verify, batch verify, libbitcoin
+  consensus differential / collect / commitment / multisig, no-libsecp build mode,
+  and the Bitcoin Core full suite (749/749 GCC 14.2.0).
+- Documented the internal opaque ECDSA/pubkey layout as an internal representation
+  (not a portable signature expectation), cross-linked to
+  `docs/SHIM_KNOWN_DIVERGENCES.md`. Kept performance evidence explicitly separate
+  from correctness (B8 co-gating). Noted a scheduled libbitcoin-bridge conformance
+  lane as an owner-gated future enhancement.
+
 ## 2026-06-13 — constant-time independence dashboard summary (Bastion B11)
 
 - Added a **Constant-Time Independence** section to `docs/AUDIT_DASHBOARD.md`
