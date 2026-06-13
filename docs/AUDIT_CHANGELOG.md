@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-06-13 — constant-time independence dashboard summary (Bastion B11)
+
+- Added a **Constant-Time Independence** section to `docs/AUDIT_DASHBOARD.md`
+  (via `ci/render_audit_dashboard.py`): it reads `ct-independence.yml` to report
+  the number of independent CT tools configured, the ≥N-distinct-PASS rule, and
+  the fail-closed guarantee (a single PASS + SKIP is INCONCLUSIVE, never PASS),
+  plus the gate and where live verdicts live (CI artifacts).
+- Confirmed the artifact-based, fail-closed CT independence behavior is already
+  implemented in `ci/ct_independence_check.py` and is negative-fixture-proven by
+  `check_ct_independence_negative_fixtures` (Bastion B5).
+
 ## 2026-06-13 — GPU parity exceptions documented + precise gate (Bastion B10)
 
 - Marked the 15 intentional default-`Unsupported` stubs in

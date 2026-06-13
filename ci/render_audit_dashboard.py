@@ -311,6 +311,31 @@ def _format_evidence_bundle(
     return '\n'.join(lines)
 
 
+def _format_ct_independence(workflow_path: Path) -> str:
+    """Bastion B11: summarise the constant-time independence posture — how many
+    independent CT tools are configured, the ≥N-tools fail-closed rule, the gate,
+    and where the live verdicts live."""
+    import re
+    lines: list[str] = []
+    if not workflow_path.exists():
+        return '_`.github/workflows/ct-independence.yml` not present._'
+    text = workflow_path.read_text(encoding='utf-8', errors='replace')
+    tools = sorted(set(re.findall(r'ct-verdict-([a-z0-9_-]+)\.json', text)))
+    m = re.search(r'--min-tools\s+(\d+)', text)
+    min_tools = m.group(1) if m else '2'
+
+    lines.append(f'**Independent CT tools configured:** {len(tools)}'
+                 + (f' — {", ".join(tools)}' if tools else ''))
+    lines.append(f'**Independence rule:** ≥ {min_tools} distinct PASS required. A single PASS with '
+                 f'the other tool(s) SKIP is reported **INCONCLUSIVE (exit 2), never PASS** — '
+                 f'fail-closed (negative-fixture proven in `ci/test_audit_scripts.py`).')
+    lines.append('**Gate:** `ci/ct_independence_check.py` consumes per-tool verdict JSON artifacts; '
+                 'the deterministic CT authority is ct-verif / valgrind-ct (blocking).')
+    lines.append('**Live verdicts:** `ct-verdict-*.json` are produced by `ct-independence.yml` and '
+                 'retained as CI artifacts (30-day retention); they are not committed to the tree.')
+    return '\n'.join(lines)
+
+
 def _format_open_risks(reg_path: Path) -> str:
     try:
         text = reg_path.read_text()
@@ -426,6 +451,9 @@ def render(profile: str = "default") -> str:
     bundle_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.json'
     digest_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.sha256'
     out.append(_format_evidence_bundle(bundle_path, digest_path))
+
+    out.append(_section('Constant-Time Independence'))
+    out.append(_format_ct_independence(REPO_ROOT / '.github' / 'workflows' / 'ct-independence.yml'))
 
     out.append(_section('Residual Risk Register (snapshot)'))
     out.append(_format_residual(REPO_ROOT / 'docs' / 'RESIDUAL_RISK_REGISTER.md'))
