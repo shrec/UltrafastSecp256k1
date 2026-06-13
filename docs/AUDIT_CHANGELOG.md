@@ -1,5 +1,24 @@
 # Audit Changelog
 
+## 2026-06-13 — formalize Bastion owner-deferred residuals (Bastion #10)
+
+- Registered the four owner-deferred, non-blocking Bastion residuals in
+  `docs/RESIDUAL_RISK_REGISTER.md` (RR-BAS-01..04), each with an explicit
+  acceptance criterion, promotion trigger, and close condition — so they are
+  tracked as narrow residuals with a defined path to closure, not silent gaps or
+  vulnerabilities:
+  - **RR-BAS-01** — CAAS evidence auto-refresh for `audit/ci-evidence` +
+    `docs/API_SECURITY_CONTRACTS.json` (manual chore + B3 pre-alert; owner chose
+    manual over an auto-committing scheduled lane).
+  - **RR-BAS-02** — promote `incident_drill_freshness_days` from advisory to
+    blocking after the nightly drill-log auto-commit loop is observed (cf. H-1).
+  - **RR-BAS-03** — explicit `target_context` labels on `bench_unified_*.json`
+    (a benchmark output-format change tied to a real measured run).
+  - **RR-BAS-04** — `attack_class` taxonomy on `RESEARCH_SIGNAL_MATRIX.json`
+    signals (B6 already renders the actionable affected-surface/patch-plan).
+- Closes the last open item of the workplan's "Definition of Bastion Complete"
+  criterion #10 (residual risks explicit, narrow, linked to acceptance criteria).
+
 ## 2026-06-13 — research monitor: signal → actionable work (Bastion B6)
 
 - `ci/research_monitor.py` `render_markdown` now renders each high-confidence

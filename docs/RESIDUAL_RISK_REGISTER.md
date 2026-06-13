@@ -30,6 +30,10 @@ Current verified state:
 | RR-010 | MuSig2 signer-index bypass (MED-3) | **CLOSED 2026-05-31** | MuSig2/ABI | Fully fail-closed across all three layers: (1) the C++ `musig2_partial_sign` now treats the Rule-13 signer-index cross-check as **mandatory** — when `individual_pubkeys` cannot validate the signer (empty or too short) it returns `Scalar::zero()` instead of signing blind (`src/cpu/src/musig2.cpp`); (2) the v1 ABI `ufsecp_musig2_partial_sign` is hard-failed at entry with `UFSECP_ERR_DEPRECATED_API` (it has no pubkeys parameter and cannot validate); (3) the v2 ABI `ufsecp_musig2_partial_sign_v2` validates `privkey ↔ pubkeys[signer_index]` at the boundary and populates `individual_pubkeys` before delegating to the signing core. Regression-guarded by `audit/test_regression_musig2_signer_index_validation.cpp` MSI-4 (now `advisory=false`, asserts the empty-pubkeys context fail-closes) and `test_regression_frost_musig2_degenerate.cpp` FMD-4 (populated context still signs). The earlier v5.0.0 ABI-extension plan is no longer needed: the C++ defense-in-depth + v2 boundary check close the gap without an ABI break. |
 | RR-NEW-01 | `ct::scalar_inverse` non-CT on platforms without `__int128` (SEC-001-INCOMPLETE) | Accepted, non-blocking for Bitcoin Core PR | CT/portability | On platforms without `__int128` support (WASM target, MSVC 32-bit), `ct::scalar_inverse` falls back to a `fast::` multiplication chain which is variable-time. Not applicable to Bitcoin Core PR targets (x86-64 and ARM64 have `__int128`). Build system requires `__int128` for CT builds; static assert enforced in the CT path. See SEC-001-INCOMPLETE. |
 | RR-NEW-02 | P1 shim regression tests advisory-gated by build configuration | Open, by design. Non-blocking for Bitcoin Core PR | Shim/audit | `regression_shim_security_v8` and `exploit_musig2_infinity_pubnonce` require `SECP256K1_BUILD_COMPAT_SHIM=ON`; without it they return ADVISORY_SKIP_CODE (77). Standalone CTest targets always run. Bitcoin Core PR is out of shim scope. Planned: shim-linked CI matrix job in future milestone. |
+| RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | Owner-deferred, non-blocking | Infra/audit | `audit/ci-evidence` and `docs/API_SECURITY_CONTRACTS.json` sit on the 14-day critical-freshness SLO, but the nightly `caas-evidence-refresh.yml` does not regenerate them — refresh is a manual owner chore, surfaced early by the Bastion B3 pre-alert. Not a vulnerability. See RR-BAS-01 below. |
+| RR-BAS-02 | Incident-drill freshness SLO promotion to blocking | Owner-deferred, non-blocking | Audit/infra | `incident_drill_freshness_days` (`docs/AUDIT_SLA.json`) is intentionally advisory (warning) until the nightly drill-log auto-commit loop is observed for a full window (cf. H-1). See RR-BAS-02 below. |
+| RR-BAS-03 | Benchmark `target_context` labels | Owner-deferred, non-blocking | Bench/audit | Canonical `bench_unified_*.json` artifacts do not yet carry an explicit `target_context` label (microbench / batch_verify / bitcoin_core / libbitcoin / gpu_public_data); context is currently implicit via section strings. See RR-BAS-03 below. |
+| RR-BAS-04 | Research-monitor attack-class taxonomy | Owner-deferred, non-blocking | Audit/tooling | `docs/RESEARCH_SIGNAL_MATRIX.json` signal classes carry a coverage `status` but no `attack_class` field; Bastion B6 added actionable affected-surface/patch-plan rendering without the taxonomy. See RR-BAS-04 below. |
 
 ---
 
@@ -74,6 +78,136 @@ for shim P1 regressions. Alternatively, run the standalone CTest targets directl
 regressions guard the `libsecp256k1_shim` compatibility layer which is out of scope for the Core PR.
 
 **Planned resolution:** Add a shim-linked CI matrix job in a future milestone.
+
+---
+
+## RR-BAS-01 — CAAS evidence auto-refresh (ci-evidence + API contracts)
+
+**Type:** Process / automation gap — not a vulnerability
+**Status:** Owner-deferred, non-blocking
+**Severity:** Informational (operational cadence)
+**Scope:** Critical-evidence freshness automation
+
+**Description:**
+`audit/ci-evidence/*` (CT / adversarial / fuzz snapshots) and
+`docs/API_SECURITY_CONTRACTS.json` are tracked on the 14-day
+`critical_evidence_freshness_days` SLO (`docs/AUDIT_SLA.json`), but the nightly
+`caas-evidence-refresh.yml` workflow does **not** regenerate them. They are
+refreshed by a manual owner chore (build + run the four standalone audit binaries
+— `test_adversarial_protocol`, `test_ecies_regression`, `test_fuzz_parsers`,
+`test_fuzz_address_bip32_ffi` — and commit dated snapshots). Without automation
+they will periodically cross the SLO and drop the autonomy score until refreshed.
+
+**Current behavior / mitigation:** The Bastion B3 pre-alert
+(`ci/audit_sla_check.py`) now warns ~4 days before the block with a per-artifact
+`days_until_block`, so the chore is signalled rather than silent. The owner
+explicitly chose the manual chore + pre-alert model over an auto-committing
+scheduled workflow (a CI-cost / infra decision).
+
+**Acceptance criteria (for closure):** `audit/ci-evidence` and
+`docs/API_SECURITY_CONTRACTS.json` never cross their 14-day SLO unattended over a
+full observation window.
+**Promotion trigger:** Owner approves a scheduled refresh lane (a dedicated
+`ci-evidence-refresh.yml`, or a snapshot step wired into the existing heavy
+`security-audit.yml` lane) that regenerates and commits the evidence on a
+< 14-day cadence.
+**Close condition:** The scheduled lane has refreshed the evidence on cadence for
+one full window with no unattended SLO breach; update this entry to CLOSED.
+
+---
+
+## RR-BAS-02 — Incident-drill freshness SLO promotion to blocking
+
+**Type:** Intentional severity choice — not a vulnerability
+**Status:** Owner-deferred, non-blocking (advisory by design)
+**Severity:** Informational (cadence)
+**Scope:** Incident-drill cadence enforcement
+
+**Description:**
+Bastion B9 added a machine-readable drill log (`docs/INCIDENT_DRILL_LOG.json`,
+written on every `ci/incident_drills.py` run) and a new
+`incident_drill_freshness_days` SLO (`docs/AUDIT_SLA.json`). The SLO is set to
+`severity: warning` (advisory) rather than `blocking`, to avoid a self-inflicted
+recurring release block before the auto-refresh loop is proven — the same caution
+that governed the H-1 30-day observation period.
+
+**Current behavior / mitigation:** The drill log is added to the nightly
+`caas-evidence-refresh.yml` commit list (the autonomy step runs `incident_drills.py`,
+which rewrites the log), so it is refreshed daily in CI. The advisory SLO + B3
+pre-alert surface a stalled-drill condition without blocking.
+
+**Acceptance criteria (for closure):** The nightly auto-commit loop keeps
+`docs/INCIDENT_DRILL_LOG.json` within the freshness threshold for a full
+observation window with zero false blocks.
+**Promotion trigger:** The drill-log auto-commit loop is observed green for one
+full window (≈ the H-1 30-day model).
+**Close condition:** Flip `incident_drill_freshness_days.severity` from `warning`
+to `blocking` in `docs/AUDIT_SLA.json`, confirm `ci/audit_sla_check.py` blocks on
+a simulated stale log, and update this entry to CLOSED.
+
+---
+
+## RR-BAS-03 — Benchmark `target_context` labels
+
+**Type:** Evidence-metadata gap — not a vulnerability
+**Status:** Owner-deferred, non-blocking
+**Severity:** Informational (benchmark provenance)
+**Scope:** Performance-claim disambiguation
+
+**Description:**
+Bastion B8 co-gated benchmark-artifact integrity (`ci/check_bench_doc_consistency.py`
+now rejects zero/non-finite/impossible timings via `check_bench_artifact_sanity`,
+and `ci/perf_security_cogate.py` blocks on bench inconsistency). However, the
+canonical `bench_unified_*.json` artifacts do not carry an explicit
+`target_context` label (`microbench` / `batch_verify` / `bitcoin_core` /
+`libbitcoin` / `gpu_public_data`). Target context is currently inferred implicitly
+from section strings, so a reviewer could in principle conflate a GPU public-data
+benchmark with a CPU microbenchmark.
+
+**Current behavior / mitigation:** Per-section strings ("CT SIGNING",
+"BITCOIN CORE", "BATCH VERIFICATION", …) convey context implicitly; B8 sanity +
+co-gating prevent corrupt artifacts. No incorrect claim is known to result.
+
+**Acceptance criteria (for closure):** Every canonical `bench_unified_*.json`
+result carries a `target_context` field from the enumerated set, and
+`check_bench_doc_consistency.py` fails closed when it is missing.
+**Promotion trigger:** The next canonical benchmark regeneration (this is a
+`bench_unified` output-format change owned by the benchmark harness, not a
+gate-only edit, so it must accompany a real measured run).
+**Close condition:** `bench_unified --json` emits `target_context` per result, the
+consistency gate enforces it (with a negative fixture), and this entry is CLOSED.
+
+---
+
+## RR-BAS-04 — Research-monitor attack-class taxonomy
+
+**Type:** Classification-enrichment gap — not a vulnerability
+**Status:** Owner-deferred, non-blocking
+**Severity:** Informational (triage ergonomics)
+**Scope:** Research-signal classification
+
+**Description:**
+Bastion B6 made high-confidence research findings actionable — each renders an
+Affected surface, existing evidence paths, and a Patch plan with a
+first-verification command — without changing the signal-matrix schema. The
+remaining enhancement is a first-class `attack_class` field on each
+`docs/RESEARCH_SIGNAL_MATRIX.json` signal (e.g. timing-leak, nonce-bias,
+key-recovery, protocol-confusion, curve-properties, side-channel,
+formal-verification, optimization, out-of-scope) to sharpen triage, plus optional
+cross-source fingerprint dedup.
+
+**Current behavior / mitigation:** Signals carry a coverage `status`
+(gap / candidate / covered / out_of_scope / unmapped) which B6 surfaces as the
+Affected surface; triage is already actionable without the attack-class axis.
+
+**Acceptance criteria (for closure):** Every signal class in
+`RESEARCH_SIGNAL_MATRIX.json` carries an `attack_class` from the enumerated set,
+`ci/research_monitor.py` renders it in the finding body, and a self-test asserts
+its presence.
+**Promotion trigger:** A research-monitor taxonomy revision (touches all signal
+rows), scheduled independently of the Bastion final mile.
+**Close condition:** The 48 signal classes are classified, the renderer emits the
+attack class, the self-test enforces it, and this entry is CLOSED.
 
 ---
 
