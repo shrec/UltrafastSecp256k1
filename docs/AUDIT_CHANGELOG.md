@@ -1,5 +1,39 @@
 # Audit Changelog
 
+## 2026-06-13 — research-monitor attack-class taxonomy + evidence routing (Bastion B18, closes RR-BAS-04)
+
+- Extended `docs/RESEARCH_SIGNAL_MATRIX.json` with an `attack_class_enum` (16 values:
+  nonce_bias_or_reuse, signature_malleability, parser_boundary, invalid_curve_or_pubkey,
+  scalar_domain, batch_verification, side_channel_ct, gpu_backend_parity,
+  protocol_state_machine, threshold_multisig, supply_chain, fuzz_crash,
+  integration_consensus, benchmark_claim, hardware_fault_or_em, out_of_scope) and added
+  `attack_class`, `affected_primitive`, `affected_surface`, `expected_evidence`,
+  `expected_gate`, `missing_evidence_action`, `severity_hint`, `owner_route` to **all 45
+  signal classes** — so research intake routes to the evidence surface + gate that
+  should catch each signal, not just a covered/candidate label.
+- Mappings adversarially verified by a 5-agent read-only workflow (45 classes, 5×9);
+  3 corrections applied: `ladderleak_subbit_nonce` (timing leak → `side_channel_ct`;
+  fixed a `der_parser` copy-paste in `affected_primitive`; gate → `--ct-evidence-status`),
+  `safegcd_formal_verification` (CT-inversion proof → `side_channel_ct`, gate →
+  `--ct-evidence-status`), `m_ary_precompute_optimization` (reason states "not a security
+  gap … worth benchmarking" → `benchmark_claim`, gate → `ci/check_bench_target_context.py`).
+- Added `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`,
+  G-18): every in-scope class must carry an enum `attack_class`; covered/original_analysis
+  classes must have existing `expected_evidence` and a resolvable `expected_gate` (an
+  audit_gate CHECK_MAP flag or a `ci/*.py` script); candidates need a
+  `missing_evidence_action`; out_of_scope need a rationale.
+- Upgraded `ci/research_monitor.py` to render `attack_class`, `affected_primitive`,
+  `affected_surface`, and `expected_gate` in each high-confidence finding and to put
+  `missing_evidence_action` as the **first patch-plan step**, then "route to gate"
+  (issue-only intake — no branch/PR — unchanged).
+- Added `ci/test_audit_scripts.py::check_research_signal_matrix_fixtures` (validator
+  failure paths: missing/invalid attack_class, missing evidence, unresolved gate, missing
+  action; plus render routing-token assertions) and registered it in the coverage critic
+  (now 17 high-value gates). Self-test 178 pass.
+- Closed **RR-BAS-04** in `docs/RESIDUAL_RISK_REGISTER.md` (acceptance criteria met);
+  added `docs/CAAS_BASTION_REQUIREMENTS.json` G-18 row (P21 enforces the gate);
+  `docs/AUDIT_MANIFEST.md` G-18 row; `docs/RESEARCH_MONITOR.md` taxonomy note.
+
 ## 2026-06-13 — benchmark target-context taxonomy + claim-scope gate (Bastion B17, closes RR-BAS-03)
 
 - Added `docs/BENCH_TARGET_CONTEXT_SCHEMA.json`: the `target_context` enum

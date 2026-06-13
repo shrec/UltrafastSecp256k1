@@ -224,6 +224,12 @@ class SignalClass:
     keywords: tuple[str, ...]
     repo_evidence: tuple[str, ...]
     reason: str
+    # Bastion B18: attack-class taxonomy + evidence routing.
+    attack_class: str = ''
+    affected_primitive: str = ''
+    affected_surface: str = ''
+    expected_gate: str = ''
+    missing_evidence_action: str = ''
 
 
 @dataclass
@@ -419,6 +425,11 @@ def load_signal_matrix(path: Path) -> list[SignalClass]:
                 keywords=tuple(keyword.lower() for keyword in entry.get('keywords', [])),
                 repo_evidence=tuple(entry.get('repo_evidence', [])),
                 reason=entry['reason'],
+                attack_class=entry.get('attack_class', ''),
+                affected_primitive=entry.get('affected_primitive', ''),
+                affected_surface=entry.get('affected_surface', ''),
+                expected_gate=entry.get('expected_gate', ''),
+                missing_evidence_action=entry.get('missing_evidence_action', ''),
             )
         )
     return classes
@@ -704,6 +715,11 @@ def classify_item(item: SourceItem, classes: Iterable[SignalClass]) -> dict:
                 'action': s.action,
                 'repo_evidence': list(s.repo_evidence),
                 'reason': s.reason,
+                'attack_class': s.attack_class,
+                'affected_primitive': s.affected_primitive,
+                'affected_surface': s.affected_surface,
+                'expected_gate': s.expected_gate,
+                'missing_evidence_action': s.missing_evidence_action,
             }
             for s in matched
         ],
@@ -817,17 +833,28 @@ def render_markdown(report: dict) -> str:
         lines.append('_No high-confidence findings in this window._')
     for item in high_conf:
         matches = item.get('matches') or []
-        # Bastion B6: turn a signal into actionable work — derive the affected
-        # surface and existing evidence paths from the repo matches.
-        surfaces = sorted({m['status'] for m in matches})
+        # Bastion B6 + B18: turn a signal into routed audit work — derive the
+        # attack class, affected primitive/surface, expected gate, and the
+        # missing-evidence action from the matched signal classes.
+        coverage = sorted({m['status'] for m in matches})
         evidence_paths = sorted({e for m in matches for e in m.get('repo_evidence', [])})
-        is_gap = any(m['status'] in ('gap', 'candidate') for m in matches) or not matches
+        attack_classes = sorted({m.get('attack_class') for m in matches if m.get('attack_class')})
+        primitives = sorted({m.get('affected_primitive') for m in matches if m.get('affected_primitive')})
+        surfaces = sorted({m.get('affected_surface') for m in matches if m.get('affected_surface')})
+        gates = sorted({m.get('expected_gate') for m in matches if m.get('expected_gate')})
+        actions = [m.get('missing_evidence_action') for m in matches if m.get('missing_evidence_action')]
+        is_gap = any(m['status'] in ('gap', 'candidate', 'unmapped') for m in matches) or not matches
 
         lines.append(f"### {item['title']}")
         lines.append(f"- **Source:** {item['source']}  **Score:** {item['score']}  **Status:** {item['status']}")
+        lines.append(f"- **Attack class:** "
+                     + (', '.join(attack_classes) if attack_classes else 'unmapped — taxonomy expansion candidate'))
+        lines.append(f"- **Affected primitive:** " + (', '.join(primitives) if primitives else 'unmapped'))
+        lines.append(f"- **Affected surface:** " + (', '.join(surfaces) if surfaces else 'unmapped'))
+        lines.append(f"- **Expected gate:** "
+                     + (', '.join(f"`{g}`" for g in gates) if gates else 'route to a CAAS gate'))
+        lines.append(f"- **Coverage status:** " + (', '.join(coverage) if coverage else 'unmapped'))
         lines.append(f"- **Recommended action:** {item['action']}")
-        lines.append(f"- **Affected surface:** "
-                     + (', '.join(surfaces) if surfaces else 'unmapped — triage to a signal class'))
         if evidence_paths:
             lines.append("- **Existing evidence:** "
                          + ', '.join(f"`{p}`" for p in evidence_paths[:6])
@@ -839,15 +866,21 @@ def render_markdown(report: dict) -> str:
             lines.append('- **Repo matches:**')
             for match in matches:
                 evidence = ', '.join(match.get('repo_evidence', [])) or 'none'
-                lines.append(f"  - `{match['id']}` [{match['status']}] → {evidence}")
+                ac = match.get('attack_class') or '?'
+                lines.append(f"  - `{match['id']}` [{match['status']}] ({ac}) → {evidence}")
         lines.append(f"- **Summary:** {item['summary']}")
-        # Bastion B6: explicit patch-plan with a first reproduction command, so an
-        # issue is opened with a concrete next step rather than a bare citation.
+        # Bastion B18: patch plan — the matched signal's missing_evidence_action is
+        # the FIRST step, then verification + the routed gate.
         lines.append('- **Patch plan:**')
+        if actions:
+            lines.append(f"  - {actions[0]}")
         lines.append(f"  - First verification: `python3 ci/research_monitor.py "
                      f"--lookback-days {report['lookback_days']} --max-results 10`")
         lines.append(f"  - Inspect the source: `{item['url']}`")
-        if is_gap:
+        if gates:
+            lines.append(f"  - Route to gate: re-run `{gates[0]}` after adding/refreshing "
+                         "evidence for the affected surface.")
+        elif is_gap:
             lines.append("  - Missing test/doc: add a regression test or threat-model row "
                          "for the affected surface, then re-run the relevant `audit_gate.py` sub-check.")
         else:

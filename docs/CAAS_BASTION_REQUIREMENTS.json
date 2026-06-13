@@ -235,6 +235,20 @@
       "status": "gated",
       "residual_risk": "Folded into ci/check_bench_doc_consistency.py (--json) and co-gated by ci/perf_security_cogate.py, so a benchmark perf claim is invalid when its target_context is missing/invalid/mis-scoped or when CT/determinism gates are red. Closes residual RR-BAS-03.",
       "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-18",
+      "claim": "Research signal-matrix attack-class taxonomy + evidence routing (research intake becomes routed audit work, not just covered/candidate labels)",
+      "artifact_paths": [
+        "docs/RESEARCH_SIGNAL_MATRIX.json",
+        "ci/check_research_signal_matrix.py",
+        "ci/research_monitor.py"
+      ],
+      "gate": "audit_gate.py --research-signal-matrix",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Every in-scope signal class carries an enum attack_class and routes to an expected evidence surface + gate; covered classes need existing evidence + a resolvable gate, candidates need a missing_evidence_action, out_of_scope need a rationale. Closes residual RR-BAS-04.",
+      "last_verified": "2026-06-13"
     }
   ]
 }

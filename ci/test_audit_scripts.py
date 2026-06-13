@@ -82,6 +82,7 @@ AUDIT_SCRIPTS = [
     "check_fuzz_campaign_status.py",
     "check_gpu_hardware_evidence.py",
     "check_bench_target_context.py",
+    "check_research_signal_matrix.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -2215,6 +2216,96 @@ def check_bench_target_context_fixtures() -> None:
         ok(tag, "missing/invalid context + scope/gpu-native/integration mismatches fail; owner_gated explicit; real artifacts pass")
 
 
+def check_research_signal_matrix_fixtures() -> None:
+    """B18: the research signal-matrix gate must FAIL a missing/invalid attack_class,
+    a covered class with a missing expected_evidence path or an unresolved
+    expected_gate, a candidate without a missing_evidence_action, and an out_of_scope
+    class without rationale; the real matrix passes; and the rendered research report
+    includes attack_class + affected_surface + expected_gate + a patch-plan."""
+    tag = "B18:research_signal_matrix"
+    try:
+        mod = _load_ci_module("check_research_signal_matrix.py", "rsm_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    enum = ["nonce_bias_or_reuse", "side_channel_ct", "out_of_scope", "batch_verification", "parser_boundary"]
+    flags = {"--exploit-traceability"}
+    present = "ci/check_research_signal_matrix.py"
+
+    def cls(**kw):
+        base = {"id": "R", "status": "covered", "attack_class": "nonce_bias_or_reuse",
+                "expected_evidence": [present], "expected_gate": "audit_gate.py --exploit-traceability",
+                "missing_evidence_action": "", "reason": "r", "rationale": ""}
+        base.update(kw)
+        return base
+
+    def ev(classes):
+        return mod.evaluate(classes, enum, flags)
+
+    failures = []
+
+    if not ev([cls()])["overall_pass"]:
+        failures.append("valid covered class did not pass")
+    r = ev([cls(attack_class=None)])
+    if r["overall_pass"] or "R" not in r["missing_attack_class"]:
+        failures.append("missing attack_class did not fail")
+    r = ev([cls(attack_class="bogus_class")])
+    if r["overall_pass"] or "R" not in r["invalid_attack_class"]:
+        failures.append("invalid attack_class did not fail")
+    r = ev([cls(expected_evidence=["docs/__nope_xyz__.md"])])
+    if r["overall_pass"] or "R" not in r["missing_evidence"]:
+        failures.append("covered with missing expected_evidence did not fail")
+    r = ev([cls(expected_gate="audit_gate.py --not-a-real-flag")])
+    if r["overall_pass"] or "R" not in r["unresolved_gate"]:
+        failures.append("covered with unresolved expected_gate did not fail")
+    r = ev([cls(status="candidate", missing_evidence_action="", expected_evidence=[])])
+    if r["overall_pass"] or "R" not in r["missing_action"]:
+        failures.append("candidate without missing_evidence_action did not fail")
+    if not ev([cls(status="candidate", missing_evidence_action="add a PoC", expected_evidence=[])])["overall_pass"]:
+        failures.append("candidate with action did not pass")
+    if ev([cls(status="out_of_scope", reason="", rationale="", expected_evidence=[])])["overall_pass"]:
+        failures.append("out_of_scope without rationale did not fail")
+    if not ev([cls(status="out_of_scope", rationale="deferred to operating-env auditors",
+                   expected_evidence=["docs/__nope_xyz__.md"])])["overall_pass"]:
+        failures.append("out_of_scope (evidence-exempt) with rationale did not pass")
+
+    rep, _ = mod.load_and_evaluate()
+    if not rep.get("overall_pass"):
+        failures.append("the committed RESEARCH_SIGNAL_MATRIX.json did not pass")
+
+    # rendered report must surface attack_class + affected_surface + expected_gate + patch-plan
+    try:
+        rm = _load_ci_module("research_monitor.py", "rm_render_selftest")
+        report = {
+            "generated_at": "x", "query": "q", "lookback_days": 14,
+            "counts": {"high_confidence": 1, "needs_review": 0, "discarded": 0, "total_fetched": 1},
+            "sources": [], "source_errors": [],
+            "items": [{"bucket": "high_confidence", "title": "nonce-bias result", "source": "eprint",
+                       "score": 12, "status": "candidate", "action": "review", "published": "2026-06-13",
+                       "url": "https://eprint.iacr.org/2026/1", "reason": "matched", "summary": "...",
+                       "matches": [{"id": "ladderleak_subbit_nonce", "status": "covered",
+                                    "repo_evidence": ["audit/test_exploit_ladderleak_subbit_nonce.cpp"],
+                                    "attack_class": "nonce_bias_or_reuse",
+                                    "affected_primitive": "rfc6979_nonce",
+                                    "affected_surface": "signing nonce derivation",
+                                    "expected_gate": "audit_gate.py --exploit-traceability",
+                                    "missing_evidence_action": "monitor: re-run PoC"}]}],
+        }
+        md = rm.render_markdown(report)
+        for token in ("Attack class", "Affected surface", "Expected gate", "Patch plan",
+                      "nonce_bias_or_reuse", "monitor: re-run PoC"):
+            if token not in md:
+                failures.append(f"rendered report missing '{token}'")
+    except Exception as exc:
+        failures.append(f"render check failed: {exc}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing/invalid attack_class + missing evidence/unresolved gate/missing action fail; real matrix passes; render routes attack_class+surface+gate+patch-plan")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -2237,6 +2328,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_fuzz_campaign_status.py": "check_fuzz_campaign_status_fixtures",
         "check_gpu_hardware_evidence.py": "check_gpu_hardware_evidence_fixtures",
         "check_bench_target_context.py": "check_bench_target_context_fixtures",
+        "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2298,6 +2390,7 @@ def main() -> int:
     check_fuzz_campaign_status_fixtures()
     check_gpu_hardware_evidence_fixtures()
     check_bench_target_context_fixtures()
+    check_research_signal_matrix_fixtures()
     check_caas_gate_negative_fixture_coverage()
 
     # Phase 4: Smoke tests

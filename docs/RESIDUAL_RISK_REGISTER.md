@@ -33,7 +33,7 @@ Current verified state:
 | RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | Owner-deferred, non-blocking | Infra/audit | `audit/ci-evidence` and `docs/API_SECURITY_CONTRACTS.json` sit on the 14-day critical-freshness SLO, but the nightly `caas-evidence-refresh.yml` does not regenerate them — refresh is a manual owner chore, surfaced early by the Bastion B3 pre-alert. Not a vulnerability. See RR-BAS-01 below. |
 | RR-BAS-02 | Incident-drill freshness SLO promotion to blocking | Owner-deferred, non-blocking | Audit/infra | `incident_drill_freshness_days` (`docs/AUDIT_SLA.json`) is intentionally advisory (warning) until the nightly drill-log auto-commit loop is observed for a full window (cf. H-1). See RR-BAS-02 below. |
 | RR-BAS-03 | Benchmark `target_context` labels | **CLOSED 2026-06-13** | Bench/audit | Closed by Bastion B17: canonical `bench_unified_*.json` (target_context=microbench) and `BITCOIN_CORE_BENCH_RESULTS.json` (target_context=bitcoin_core) now carry explicit `target_context` + `claim_scope` metadata, validated against `docs/BENCH_TARGET_CONTEXT_SCHEMA.json` by `ci/check_bench_target_context.py` (folded into `check_bench_doc_consistency.py`, co-gated by `perf_security_cogate.py`). See RR-BAS-03 below. |
-| RR-BAS-04 | Research-monitor attack-class taxonomy | Owner-deferred, non-blocking | Audit/tooling | `docs/RESEARCH_SIGNAL_MATRIX.json` signal classes carry a coverage `status` but no `attack_class` field; Bastion B6 added actionable affected-surface/patch-plan rendering without the taxonomy. See RR-BAS-04 below. |
+| RR-BAS-04 | Research-monitor attack-class taxonomy | **CLOSED 2026-06-13** | Audit/tooling | Closed by Bastion B18: all 45 signal classes carry `attack_class` (16-value enum) + evidence routing (affected_primitive/surface, expected_gate, missing_evidence_action); validated by `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`, G-18) and rendered by `ci/research_monitor.py`. See RR-BAS-04 below. — was: `docs/RESEARCH_SIGNAL_MATRIX.json` signal classes carry a coverage `status` but no `attack_class` field; Bastion B6 added actionable affected-surface/patch-plan rendering without the taxonomy. See RR-BAS-04 below. |
 
 ---
 
@@ -188,35 +188,41 @@ than duplicated per result.)*
 
 ---
 
-## RR-BAS-04 — Research-monitor attack-class taxonomy
+## RR-BAS-04 — Research-monitor attack-class taxonomy — **CLOSED 2026-06-13 (Bastion B18)**
 
 **Type:** Classification-enrichment gap — not a vulnerability
-**Status:** Owner-deferred, non-blocking
+**Status:** **CLOSED 2026-06-13** (Bastion B18)
 **Severity:** Informational (triage ergonomics)
 **Scope:** Research-signal classification
 
 **Description:**
-Bastion B6 made high-confidence research findings actionable — each renders an
-Affected surface, existing evidence paths, and a Patch plan with a
-first-verification command — without changing the signal-matrix schema. The
-remaining enhancement is a first-class `attack_class` field on each
-`docs/RESEARCH_SIGNAL_MATRIX.json` signal (e.g. timing-leak, nonce-bias,
-key-recovery, protocol-confusion, curve-properties, side-channel,
-formal-verification, optimization, out-of-scope) to sharpen triage, plus optional
-cross-source fingerprint dedup.
+Bastion B6 made high-confidence research findings actionable but the signal matrix
+carried only a coverage `status` — not a stable attack-class taxonomy nor an
+explicit route to the evidence surface/gate that should catch each signal.
 
-**Current behavior / mitigation:** Signals carry a coverage `status`
-(gap / candidate / covered / out_of_scope / unmapped) which B6 surfaces as the
-Affected surface; triage is already actionable without the attack-class axis.
+**Resolution (B18):**
+- Extended `docs/RESEARCH_SIGNAL_MATRIX.json` with an `attack_class_enum` (16 values:
+  nonce_bias_or_reuse, signature_malleability, parser_boundary, invalid_curve_or_pubkey,
+  scalar_domain, batch_verification, side_channel_ct, gpu_backend_parity,
+  protocol_state_machine, threshold_multisig, supply_chain, fuzz_crash,
+  integration_consensus, benchmark_claim, hardware_fault_or_em, out_of_scope) and
+  added per-class `attack_class`, `affected_primitive`, `affected_surface`,
+  `expected_evidence`, `expected_gate`, `missing_evidence_action`, `severity_hint`,
+  `owner_route` to **all 45 classes** (mappings adversarially verified by a
+  5-agent read-only workflow).
+- Added `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`,
+  G-18): every in-scope class must have a valid `attack_class`; covered classes must
+  have existing `expected_evidence` and a resolvable `expected_gate` (an audit_gate
+  CHECK_MAP flag or a ci/*.py script); candidates need a `missing_evidence_action`;
+  out_of_scope need a rationale.
+- Upgraded `ci/research_monitor.py` to render `attack_class`, `affected_primitive`,
+  `affected_surface`, and `expected_gate`, and to put `missing_evidence_action` as
+  the **first patch-plan step** (issue-only, no branch/PR — unchanged).
 
-**Acceptance criteria (for closure):** Every signal class in
-`RESEARCH_SIGNAL_MATRIX.json` carries an `attack_class` from the enumerated set,
-`ci/research_monitor.py` renders it in the finding body, and a self-test asserts
-its presence.
-**Promotion trigger:** A research-monitor taxonomy revision (touches all signal
-rows), scheduled independently of the Bastion final mile.
-**Close condition:** The 48 signal classes are classified, the renderer emits the
-attack class, the self-test enforces it, and this entry is CLOSED.
+**Acceptance criteria — MET:** all 45 signal classes carry an enum `attack_class`,
+the renderer emits it in the finding body, and `B18:research_signal_matrix` asserts
+both the validator's failure paths and the rendered routing. *(The matrix holds 45
+classes, not the 48 estimated when the residual was filed.)*
 
 ---
 

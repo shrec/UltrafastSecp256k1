@@ -1,6 +1,24 @@
 {
   "version": 1,
   "description": "External secp256k1 research signal classes mapped to current repository evidence and expected handling.",
+  "attack_class_enum": [
+    "nonce_bias_or_reuse",
+    "signature_malleability",
+    "parser_boundary",
+    "invalid_curve_or_pubkey",
+    "scalar_domain",
+    "batch_verification",
+    "side_channel_ct",
+    "gpu_backend_parity",
+    "protocol_state_machine",
+    "threshold_multisig",
+    "supply_chain",
+    "fuzz_crash",
+    "integration_consensus",
+    "benchmark_claim",
+    "hardware_fault_or_em",
+    "out_of_scope"
+  ],
   "classes": [
     {
       "id": "glv_zvp_leakage",
@@ -19,7 +37,18 @@
         "audit/test_exploit_ecdh_zvp_glv_static.cpp",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
-      "reason": "Recent GLV/ZVP papers land in an already tracked exploit class with deterministic repo coverage. New papers still matter, but they usually expand an existing threat line instead of introducing an unmapped class."
+      "reason": "Recent GLV/ZVP papers land in an already tracked exploit class with deterministic repo coverage. New papers still matter, but they usually expand an existing threat line instead of introducing an unmapped class.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_ecdh_zvp_glv_static.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "minerva_nonce_timing",
@@ -38,7 +67,19 @@
         "audit/test_exploit_minerva_noisy_hnp.cpp",
         "audit/test_exploit_rfc6979_minerva_amplified.cpp"
       ],
-      "reason": "Nonce timing leakage and noisy-HNP follow-up work already map to direct regression probes in the audit tree."
+      "reason": "Nonce timing leakage and noisy-HNP follow-up work already map to direct regression probes in the audit tree.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_minerva_cve_2024_23342.cpp",
+        "audit/test_exploit_minerva_noisy_hnp.cpp",
+        "audit/test_exploit_rfc6979_minerva_amplified.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "hertzbleed_dvfs",
@@ -55,7 +96,18 @@
         "audit/test_exploit_hertzbleed_dvfs_timing.cpp",
         "audit/test_exploit_hertzbleed_scalar_blind.cpp"
       ],
-      "reason": "DVFS-style timing leakage covered by two complementary tests: timing uniformity regression (hertzbleed_dvfs_timing) and scalar Hamming-weight blinding verification (hertzbleed_scalar_blind)."
+      "reason": "DVFS-style timing leakage covered by two complementary tests: timing uniformity regression (hertzbleed_dvfs_timing) and scalar Hamming-weight blinding verification (hertzbleed_scalar_blind).",
+      "attack_class": "hardware_fault_or_em",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "hardware side-channel (outside software scope)",
+      "expected_evidence": [
+        "audit/test_exploit_hertzbleed_dvfs_timing.cpp",
+        "audit/test_exploit_hertzbleed_scalar_blind.cpp"
+      ],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P2",
+      "owner_route": "owner/hardware",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ladderleak_subbit_nonce",
@@ -71,7 +123,17 @@
       "repo_evidence": [
         "audit/test_exploit_ladderleak_subbit_nonce.cpp"
       ],
-      "reason": "Sub-bit nonce leakage already has a deterministic audit probe in the repository."
+      "reason": "LadderLeak is a timing side-channel on a non-constant-time Montgomery ladder that leaks sub-bit nonce information; this repo signs with RFC 6979 deterministic nonces and a constant-time fixed-window scalar multiplication (no Montgomery ladder), and a deterministic CT/nonce audit probe is present.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar",
+      "affected_surface": "constant-time scalar multiplication",
+      "expected_evidence": [
+        "audit/test_exploit_ladderleak_subbit_nonce.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P2",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "frost_rfc9591",
@@ -89,7 +151,18 @@
         "audit/test_frost_kat.cpp",
         "audit/test_exploit_frost_adaptive_corruption.cpp"
       ],
-      "reason": "RFC 9591 invariants and adversarial threshold-signing cases already exist as deterministic repo checks."
+      "reason": "RFC 9591 invariants and adversarial threshold-signing cases already exist as deterministic repo checks.",
+      "attack_class": "threshold_multisig",
+      "affected_primitive": "frost",
+      "affected_surface": "musig2/frost session",
+      "expected_evidence": [
+        "audit/test_frost_kat.cpp",
+        "audit/test_exploit_frost_adaptive_corruption.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "batch_verification_integrity",
@@ -107,7 +180,19 @@
         "audit/test_exploit_batch_verify_correctness.cpp",
         "audit/test_exploit_batch_verify_poison.cpp"
       ],
-      "reason": "Standard Schnorr and ECDSA batch verification already have correctness and poisoning regression coverage."
+      "reason": "Standard Schnorr and ECDSA batch verification already have correctness and poisoning regression coverage.",
+      "attack_class": "batch_verification",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "batch verify",
+      "expected_evidence": [
+        "src/cpu/src/batch_verify.cpp",
+        "audit/test_exploit_batch_verify_correctness.cpp",
+        "audit/test_exploit_batch_verify_poison.cpp"
+      ],
+      "expected_gate": "audit_gate.py --integration-evidence",
+      "severity_hint": "P2",
+      "owner_route": "audit/integration",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "buffer_type_confusion_signing",
@@ -127,7 +212,18 @@
         "audit/test_exploit_buffer_type_confusion.cpp",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
-      "reason": "The malicious-object and type-confusion signing class is already tracked by a dedicated exploit-style regression probe."
+      "reason": "The malicious-object and type-confusion signing class is already tracked by a dedicated exploit-style regression probe.",
+      "attack_class": "parser_boundary",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "input parser boundary",
+      "expected_evidence": [
+        "audit/test_exploit_buffer_type_confusion.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "expected_gate": "audit_gate.py --invalid-inputs",
+      "severity_hint": "P1",
+      "owner_route": "audit/parsers",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ecdsa_signature_scalar_validation",
@@ -149,7 +245,19 @@
         "audit/test_exploit_ecdsa_malleability.cpp",
         "audit/test_exploit_ecdsa_r_overflow.cpp"
       ],
-      "reason": "Non-canonical or out-of-range ECDSA `(r,s)` acceptance is already covered by explicit strict-parse and verification regression probes."
+      "reason": "Non-canonical or out-of-range ECDSA `(r,s)` acceptance is already covered by explicit strict-parse and verification regression probes.",
+      "attack_class": "scalar_domain",
+      "affected_primitive": "scalar",
+      "affected_surface": "scalar domain validation",
+      "expected_evidence": [
+        "audit/test_exploit_der_parsing_differential.cpp",
+        "audit/test_exploit_ecdsa_malleability.cpp",
+        "audit/test_exploit_ecdsa_r_overflow.cpp"
+      ],
+      "expected_gate": "audit_gate.py --invalid-inputs",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "modified_ecdsa_batch_verification",
@@ -166,7 +274,19 @@
         "src/cpu/src/batch_verify.cpp",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
-      "reason": "Research on modified ECDSA batch verification is interesting, but it targets non-standard signature variants rather than the standard compatibility surface this repository currently ships."
+      "reason": "Research on modified ECDSA batch verification is interesting, but it targets non-standard signature variants rather than the standard compatibility surface this repository currently ships.",
+      "attack_class": "out_of_scope",
+      "affected_primitive": "ecdsa",
+      "affected_surface": "out of scope",
+      "expected_evidence": [
+        "src/cpu/src/batch_verify.cpp",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P3",
+      "owner_route": "owner",
+      "missing_evidence_action": "n/a: out of scope — see rationale",
+      "rationale": "Research on modified ECDSA batch verification is interesting, but it targets non-standard signature variants rather than the standard compatibility surface this repository currently ships."
     },
     {
       "id": "safegcd_formal_verification",
@@ -192,7 +312,23 @@
         "audit/formal/lean/SafeGCD/Equivalence.lean",
         ".github/workflows/formal-verification.yml"
       ],
-      "reason": "Dual-prover formal verification: (1) Z3 SMT \u2014 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT\u2261branching equivalence); (2) Lean 4 \u2014 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT\u2261branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push."
+      "reason": "Dual-prover formal verification: (1) Z3 SMT — 7 theorems, 17 proofs (GCD preservation, det invariant, zeta bound, g-convergence, CT mask correctness, 590-step sufficiency, CT≡branching equivalence); (2) Lean 4 — 19 theorems via native_decide (g_sum_even, absorbing state, zeta bounds, 9 computational 590-step witnesses incl. G.x/G.y, 5 CT mask proofs, full CT≡branching equivalence at 8-bit exhaustive). Runtime PoC SGD-1..11 also present. CI gate runs both provers on every push.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar_inverse",
+      "affected_surface": "constant-time inversion",
+      "expected_evidence": [
+        "src/cpu/src/ct_field.cpp",
+        "audit/test_exploit_safegcd_divsteps.cpp",
+        "audit/formal/safegcd_z3_proof.py",
+        "audit/formal/lean/SafeGCD/Divstep.lean",
+        "audit/formal/lean/SafeGCD/CTMasks.lean",
+        "audit/formal/lean/SafeGCD/Equivalence.lean",
+        ".github/workflows/formal-verification.yml"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "m_ary_precompute_optimization",
@@ -211,7 +347,19 @@
         "src/cpu/src/pippenger.cpp",
         "docs/BENCHMARKS.md"
       ],
-      "reason": "This class is not a security gap by itself, but fresh M-ary/precompute results may be worth benchmarking against the current precompute and multiscalar pipeline."
+      "reason": "This class is not a security gap by itself, but fresh M-ary/precompute results may be worth benchmarking against the current precompute and multiscalar pipeline.",
+      "attack_class": "benchmark_claim",
+      "affected_primitive": "scalar",
+      "affected_surface": "precompute / multiscalar performance",
+      "expected_evidence": [
+        "src/cpu/src/precompute.cpp",
+        "src/cpu/src/pippenger.cpp",
+        "docs/BENCHMARKS.md"
+      ],
+      "expected_gate": "ci/check_bench_target_context.py",
+      "severity_hint": "P2",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "evaluate: benchmark M-ary/precompute against the current precompute+multiscalar pipeline and route the result to ci/check_bench_target_context.py before upgrading status to covered"
     },
     {
       "id": "hardware_wallet_side_channel_architecture",
@@ -229,7 +377,19 @@
         "docs/THREAT_MODEL.md",
         "docs/SELF_AUDIT_FAILURE_MATRIX.md"
       ],
-      "reason": "Hardware-wallet architecture work is worth watching, but it does not directly map to a missing software-library assurance surface unless the hardware roadmap changes."
+      "reason": "Hardware-wallet architecture work is worth watching, but it does not directly map to a missing software-library assurance surface unless the hardware roadmap changes.",
+      "attack_class": "out_of_scope",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "out of scope",
+      "expected_evidence": [
+        "docs/THREAT_MODEL.md",
+        "docs/SELF_AUDIT_FAILURE_MATRIX.md"
+      ],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P3",
+      "owner_route": "owner",
+      "missing_evidence_action": "n/a: out of scope — see rationale",
+      "rationale": "Hardware-wallet architecture work is worth watching, but it does not directly map to a missing software-library assurance surface unless the hardware roadmap changes."
     },
     {
       "id": "affine_nonce_relation_key_recovery",
@@ -247,7 +407,18 @@
         "audit/test_exploit_ecdsa_affine_nonce_relation.cpp",
         "src/cpu/src/ecdsa.cpp"
       ],
-      "reason": "ePrint 2025/705 shows algebraic key recovery when two nonces have an affine relation. RFC 6979 deterministic nonces are immune. PoC validates both the attack and the library's immunity."
+      "reason": "ePrint 2025/705 shows algebraic key recovery when two nonces have an affine relation. RFC 6979 deterministic nonces are immune. PoC validates both the attack and the library's immunity.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_affine_nonce_relation.cpp",
+        "src/cpu/src/ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "half_half_nonce_construction",
@@ -265,7 +436,18 @@
         "audit/test_exploit_ecdsa_half_half_nonce.cpp",
         "src/cpu/src/ecdsa.cpp"
       ],
-      "reason": "ePrint 2023/841 documents real-world Bitcoin key recovery when nonces are composed from hash and key halves. RFC 6979 is immune by design. PoC validates the attack vector and immunity."
+      "reason": "ePrint 2023/841 documents real-world Bitcoin key recovery when nonces are composed from hash and key halves. RFC 6979 is immune by design. PoC validates the attack vector and immunity.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_half_half_nonce.cpp",
+        "src/cpu/src/ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "modular_reduction_nonce_bias",
@@ -285,7 +467,18 @@
         "audit/test_exploit_ecdsa_nonce_modular_bias.cpp",
         "src/cpu/src/ecdsa.cpp"
       ],
-      "reason": "CVE-2024-31497 (PuTTY) and CVE-2024-1544 (wolfSSL) show key recovery from nonce bias caused by oversized random mod n. RFC 6979 HMAC-DRBG is immune. PoC validates the bias mechanism and immunity."
+      "reason": "CVE-2024-31497 (PuTTY) and CVE-2024-1544 (wolfSSL) show key recovery from nonce bias caused by oversized random mod n. RFC 6979 HMAC-DRBG is immune. PoC validates the bias mechanism and immunity.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_nonce_modular_bias.cpp",
+        "src/cpu/src/ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "differential_fault_rfc6979",
@@ -303,7 +496,18 @@
         "audit/test_exploit_ecdsa_differential_fault.cpp",
         "src/cpu/src/ecdsa.cpp"
       ],
-      "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency."
+      "reason": "ePrint 2017/975 shows key recovery when faults are injected during deterministic nonce generation. PoC validates the attack mechanism and confirms the library's deterministic nonce path consistency.",
+      "attack_class": "hardware_fault_or_em",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "hardware side-channel (outside software scope)",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_differential_fault.cpp",
+        "src/cpu/src/ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P1",
+      "owner_route": "owner/hardware",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "eucleak_non_ct_inversion",
@@ -324,7 +528,19 @@
         "src/cpu/src/ct_scalar.cpp",
         "src/cpu/src/scalar.cpp"
       ],
-      "reason": "ePrint 2024/1380 documents a 14-year Infineon vulnerability where non-CT Extended Euclidean Algorithm for modular inversion leaked key material via EM side-channel. PoC verifies SafeGCD and Fermat paths produce correct and consistent results across pathological inputs."
+      "reason": "ePrint 2024/1380 documents a 14-year Infineon vulnerability where non-CT Extended Euclidean Algorithm for modular inversion leaked key material via EM side-channel. PoC verifies SafeGCD and Fermat paths produce correct and consistent results across pathological inputs.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar_inverse",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_eucleak_inversion_timing.cpp",
+        "src/cpu/src/ct_scalar.cpp",
+        "src/cpu/src/scalar.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "cross_key_nonce_reuse",
@@ -342,7 +558,18 @@
         "audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp",
         "src/cpu/src/ecdsa.cpp"
       ],
-      "reason": "ePrint 2025/654 shows cascading key compromise when multiple keys share the same nonce via weak PRNG. One compromised key reveals all others. RFC 6979 derives nonces from (key, msg) making cross-key sharing impossible. PoC validates the attack and RFC 6979 immunity."
+      "reason": "ePrint 2025/654 shows cascading key compromise when multiple keys share the same nonce via weak PRNG. One compromised key reveals all others. RFC 6979 derives nonces from (key, msg) making cross-key sharing impossible. PoC validates the attack and RFC 6979 immunity.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_cross_key_nonce_reuse.cpp",
+        "src/cpu/src/ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "fiat_shamir_hash_order",
@@ -362,7 +589,19 @@
         "src/cpu/include/secp256k1/tagged_hash.hpp",
         "src/cpu/src/schnorr.cpp"
       ],
-      "reason": "ePrint 2025/1846 proves that hash input ordering in Fiat-Shamir schemes affects multi-user security. BIP-340 uses R||P||msg (correct: commitment before message). PoC verifies all 4 wrong orderings produce different challenges and fail verification."
+      "reason": "ePrint 2025/1846 proves that hash input ordering in Fiat-Shamir schemes affects multi-user security. BIP-340 uses R||P||msg (correct: commitment before message). PoC verifies all 4 wrong orderings produce different challenges and fail verification.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "schnorr",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_schnorr_hash_order.cpp",
+        "src/cpu/include/secp256k1/tagged_hash.hpp",
+        "src/cpu/src/schnorr.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P1",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "zvp_dcp_glv_multiscalar",
@@ -382,7 +621,18 @@
         "audit/test_exploit_zvp_glv_dcp_multiscalar.cpp",
         "audit/test_exploit_ecdh_zvp_glv_static.cpp"
       ],
-      "reason": "ePrint 2025/076 extends classical ZVP to the Dependent Coordinates Problem on GLV multiscalar multiplication, recovering ~63% of key bits. PoC validates r-value distribution, \u03b2-endomorphism probing resilience, and static-key stability."
+      "reason": "ePrint 2025/076 extends classical ZVP to the Dependent Coordinates Problem on GLV multiscalar multiplication, recovering ~63% of key bits. PoC validates r-value distribution, β-endomorphism probing resilience, and static-key stability.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_zvp_glv_dcp_multiscalar.cpp",
+        "audit/test_exploit_ecdh_zvp_glv_static.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "lattice_sieve_hnp_subbit",
@@ -402,7 +652,18 @@
         "audit/test_exploit_lattice_sieve_hnp.cpp",
         "audit/test_exploit_ladderleak_subbit_nonce.cpp"
       ],
-      "reason": "ePrint 2024/296 demonstrates lattice sieving with interval reduction that breaks ECDSA with <1 bit nonce leakage. PoC validates bit distribution uniformity, low-s normalisation, and chi-squared test on MSB buckets."
+      "reason": "ePrint 2024/296 demonstrates lattice sieving with interval reduction that breaks ECDSA with <1 bit nonce leakage. PoC validates bit distribution uniformity, low-s normalisation, and chi-squared test on MSB buckets.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_lattice_sieve_hnp.cpp",
+        "audit/test_exploit_ladderleak_subbit_nonce.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "deterministic_sig_dfa_rfc6979",
@@ -420,7 +681,18 @@
         "audit/test_exploit_deterministic_sig_dfa.cpp",
         "audit/test_exploit_ecdsa_differential_fault.cpp"
       ],
-      "reason": "ePrint 2017/975 shows deterministic nonces (RFC 6979) are vulnerable to DFA: two faulted signatures with same message yield differential that reveals the key. PoC validates triple determinism, high Hamming distance under 1-bit fault, and Schnorr determinism."
+      "reason": "ePrint 2017/975 shows deterministic nonces (RFC 6979) are vulnerable to DFA: two faulted signatures with same message yield differential that reveals the key. PoC validates triple determinism, high Hamming distance under 1-bit fault, and Schnorr determinism.",
+      "attack_class": "hardware_fault_or_em",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "hardware side-channel (outside software scope)",
+      "expected_evidence": [
+        "audit/test_exploit_deterministic_sig_dfa.cpp",
+        "audit/test_exploit_ecdsa_differential_fault.cpp"
+      ],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P1",
+      "owner_route": "owner/hardware",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "type_confusion_kreuse_cve",
@@ -439,7 +711,18 @@
         "audit/test_exploit_sign_type_confusion_kreuse.cpp",
         "audit/test_exploit_ecdsa_nonce_reuse.cpp"
       ],
-      "reason": "CVE-2024-49364: tiny-secp256k1 type confusion allows k-reuse \u2192 key extraction. CVE-2024-49365: verify() false positive. CVE-2022-41340: missing r,s range validation. PoC validates k-uniqueness across 1024 signatures, boundary r/s rejection, and false-positive resistance."
+      "reason": "CVE-2024-49364: tiny-secp256k1 type confusion allows k-reuse → key extraction. CVE-2024-49365: verify() false positive. CVE-2022-41340: missing r,s range validation. PoC validates k-uniqueness across 1024 signatures, boundary r/s rejection, and false-positive resistance.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_sign_type_confusion_kreuse.cpp",
+        "audit/test_exploit_ecdsa_nonce_reuse.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ros_concurrent_schnorr_forgery",
@@ -457,7 +740,17 @@
       "repo_evidence": [
         "audit/test_exploit_ros_concurrent_schnorr.cpp"
       ],
-      "reason": "ePrint 2020/945 breaks blind Schnorr in concurrent sessions via polynomial-time ROS solver. PoC validates 256-session nonce independence, algebraic forgery rejection, batch corruption detection, and uniform error codes."
+      "reason": "ePrint 2020/945 breaks blind Schnorr in concurrent sessions via polynomial-time ROS solver. PoC validates 256-session nonce independence, algebraic forgery rejection, batch corruption detection, and uniform error codes.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "schnorr",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_ros_concurrent_schnorr.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P1",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "frost_weak_binding_adaptive",
@@ -477,7 +770,18 @@
         "audit/test_exploit_frost_weak_binding.cpp",
         "audit/test_exploit_frost_adaptive_corruption.cpp"
       ],
-      "reason": "ePrint 2026/075 shows FROST2 has TS-SUF-2 not TS-SUF-4 security (weak binding). ePrint 2025/1001 attacks adaptive security of threshold Schnorr. PoC validates session nonce uniqueness, key tweak resilience, taproot binding, and batch verify with mixed keys."
+      "reason": "ePrint 2026/075 shows FROST2 has TS-SUF-2 not TS-SUF-4 security (weak binding). ePrint 2025/1001 attacks adaptive security of threshold Schnorr. PoC validates session nonce uniqueness, key tweak resilience, taproot binding, and batch verify with mixed keys.",
+      "attack_class": "threshold_multisig",
+      "affected_primitive": "frost",
+      "affected_surface": "musig2/frost session",
+      "expected_evidence": [
+        "audit/test_exploit_frost_weak_binding.cpp",
+        "audit/test_exploit_frost_adaptive_corruption.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "blind_spa_cmov_leak",
@@ -497,7 +801,17 @@
       "repo_evidence": [
         "audit/test_exploit_blind_spa_cmov_leak.cpp"
       ],
-      "reason": "ePrint 2024/589 + 2025/935: Blind-Folded SPA exploits cmov/cswap power leakage even without template profiling. PoC validates ECDSA/ECDH/Schnorr determinism, HW-extreme keys timing within 3x ratio, and multi-sign consistency."
+      "reason": "ePrint 2024/589 + 2025/935: Blind-Folded SPA exploits cmov/cswap power leakage even without template profiling. PoC validates ECDSA/ECDH/Schnorr determinism, HW-extreme keys timing within 3x ratio, and multi-sign consistency.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_blind_spa_cmov_leak.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P1",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ectester_point_validation",
@@ -517,7 +831,17 @@
       "repo_evidence": [
         "audit/test_exploit_ectester_point_validation.cpp"
       ],
-      "reason": "ePrint 2025/1293: ECTester systematic point validation testing found widespread ECC library failures \u2014 infinity acceptance, off-curve acceptance, twist-point acceptance. PoC validates all rejection paths + negate/tweak/combine edge cases."
+      "reason": "ePrint 2025/1293: ECTester systematic point validation testing found widespread ECC library failures — infinity acceptance, off-curve acceptance, twist-point acceptance. PoC validates all rejection paths + negate/tweak/combine edge cases.",
+      "attack_class": "invalid_curve_or_pubkey",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "pubkey/point validation",
+      "expected_evidence": [
+        "audit/test_exploit_ectester_point_validation.cpp"
+      ],
+      "expected_gate": "audit_gate.py --invalid-inputs",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ros_dimensional_erosion",
@@ -536,7 +860,17 @@
       "repo_evidence": [
         "audit/test_exploit_ros_dimensional_erosion.cpp"
       ],
-      "reason": "ePrint 2025/306 + 2025/1353: Dimensional eROS attack + Benhamouda-Zottarel blind sig forgery exploit concurrent session nonce correlation. PoC validates 256-session r-value uniqueness, batch verify, and Hamming distance entropy for nonce bias detection."
+      "reason": "ePrint 2025/306 + 2025/1353: Dimensional eROS attack + Benhamouda-Zottarel blind sig forgery exploit concurrent session nonce correlation. PoC validates 256-session r-value uniqueness, batch verify, and Hamming distance entropy for nonce bias detection.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_ros_dimensional_erosion.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ecdsa_batch_verify_randomization",
@@ -554,7 +888,17 @@
       "repo_evidence": [
         "audit/test_exploit_ecdsa_batch_verify_rand.cpp"
       ],
-      "reason": "ePrint 2026/663: Modified ECDSA batch verification with weak randomization allows forgery injection. PoC validates corruption detection, invalid-position pinpointing, wrong pk/msg rejection, and batch scaling from empty to 1024 entries."
+      "reason": "ePrint 2026/663: Modified ECDSA batch verification with weak randomization allows forgery injection. PoC validates corruption detection, invalid-position pinpointing, wrong pk/msg rejection, and batch scaling from empty to 1024 entries.",
+      "attack_class": "batch_verification",
+      "affected_primitive": "ecdsa",
+      "affected_surface": "batch verify",
+      "expected_evidence": [
+        "audit/test_exploit_ecdsa_batch_verify_rand.cpp"
+      ],
+      "expected_gate": "audit_gate.py --integration-evidence",
+      "severity_hint": "P2",
+      "owner_route": "audit/integration",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "schnorr_3d_glv_verify_optimization",
@@ -574,7 +918,16 @@
       ],
       "references": [],
       "repo_evidence": [],
-      "reason": "ePrint 2025/1151 (Such\u00e1nek, S\u00fds, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED \u2014 NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 \u03bb\u00b2 \u2261 -\u03bb-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free \u2014 the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
+      "reason": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation.",
+      "attack_class": "out_of_scope",
+      "affected_primitive": "schnorr",
+      "affected_surface": "out of scope",
+      "expected_evidence": [],
+      "expected_gate": "audit_gate.py --residual-risk-register",
+      "severity_hint": "P3",
+      "owner_route": "owner",
+      "missing_evidence_action": "n/a: out of scope — see rationale",
+      "rationale": "ePrint 2025/1151 (Suchánek, Sýs, Chmielewski): 3D GLV decomposition for Schnorr verification. EVALUATED — NOT APPLICABLE to UltrafastSecp256k1 for the following reasons: (1) secp256k1 λ² ≡ -λ-1 (mod n) causes the 3D lattice to degenerate to 2D (the (1,1,1) vector collapses one dimension). LLL reduction confirms: reduced basis has 128-bit vectors, not 85-bit. (2) Joint 3D lattice over two independent scalars (s, -e) gives ~170-bit scalars (WORSE than 4D 128-bit by Minkowski bound). (3) Our implementation already uses w=15 precomputed generator tables (8192 entries), making the generator scalar nearly free — the bottleneck is the P-side 2D GLV at 128 doublings, which 3D cannot reduce. (4) No public reference implementation exists. Full paper PDF inaccessible for algorithm reconstruction. Current schnorr_verify: 22-26 us/op baseline (10K ops). Re-evaluate if full paper becomes available or if the authors publish a secp256k1 implementation."
     },
     {
       "id": "dark_skippy_exfil",
@@ -592,7 +945,17 @@
       "repo_evidence": [
         "audit/test_exploit_dark_skippy_exfil.cpp"
       ],
-      "reason": "ePrint 2024/1225 Dark Skippy hardware-wallet nonce exfiltration: ufsecp uses RFC 6979 deterministic nonce with no external nonce-callback injection surface. Verified: determinism, r-value uniformity, Schnorr aux_rand independence, 128-sig HW uniformity."
+      "reason": "ePrint 2024/1225 Dark Skippy hardware-wallet nonce exfiltration: ufsecp uses RFC 6979 deterministic nonce with no external nonce-callback injection surface. Verified: determinism, r-value uniformity, Schnorr aux_rand independence, 128-sig HW uniformity.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_dark_skippy_exfil.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "fiat_shamir_frozen_heart",
@@ -610,7 +973,17 @@
       "repo_evidence": [
         "audit/test_exploit_fiat_shamir_frozen_heart.cpp"
       ],
-      "reason": "ePrint 2022/411 Frozen Heart: ZK Fiat-Shamir transcript must bind all public parameters. Verified: knowledge-proof pubkey/msg binding, DLEQ generator/point binding, Bulletproof commitment binding. All statement-swap and corruption tests return error. Distinct from fiat_shamir_hash_order (ePrint 2025/1846) which covers hash function ORDER confusion rather than statement OMISSION."
+      "reason": "ePrint 2022/411 Frozen Heart: ZK Fiat-Shamir transcript must bind all public parameters. Verified: knowledge-proof pubkey/msg binding, DLEQ generator/point binding, Bulletproof commitment binding. All statement-swap and corruption tests return error. Distinct from fiat_shamir_hash_order (ePrint 2025/1846) which covers hash function ORDER confusion rather than statement OMISSION.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_fiat_shamir_frozen_heart.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P1",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "cross_protocol_key_reuse",
@@ -629,7 +1002,17 @@
       "repo_evidence": [
         "audit/test_exploit_cross_protocol_kreuse.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): Using the same secret key sk across ECDSA, MuSig2, and FROST protocols with related nonces (k=k1+k2, same nonce d=k, or nonce collision) enables full private key recovery. Related background: Micali-Reyzin (2001), Degabriele-Thompson (2022), Bellare-Pointcheval (2002). Mitigations: per-protocol derived keys (domain-separated sk derivation) or strict nonce separation between protocols. CPK-1..5 confirm both attack paths and defenses."
+      "reason": "Original Security Analysis (2026-04-28): Using the same secret key sk across ECDSA, MuSig2, and FROST protocols with related nonces (k=k1+k2, same nonce d=k, or nonce collision) enables full private key recovery. Related background: Micali-Reyzin (2001), Degabriele-Thompson (2022), Bellare-Pointcheval (2002). Mitigations: per-protocol derived keys (domain-separated sk derivation) or strict nonce separation between protocols. CPK-1..5 confirm both attack paths and defenses.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "musig2",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_cross_protocol_kreuse.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P1",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "bip340_tagged_hash_length_extension",
@@ -647,7 +1030,17 @@
       "repo_evidence": [
         "audit/test_exploit_tagged_hash_ext.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): SHA-256 admits Merkle-Damg\u00e5rd length extension: given H(prefix), any attacker can compute H(prefix||pad||extra). BIP-340 tagged_hash uses SHA256(SHA256(tag)||SHA256(tag)||msg) which blocks extension via double-hash structure (extension of outer SHA-256 doesn't produce valid tagged_hash of extended message). Additionally, BIP-340 enforces 32-byte message length, making length extension forgery impossible in standard Schnorr. Related background: NIST FIPS 180-4, BIP-340, Kelsey-Schneier (2005). TAGEXT-1..5 confirm domain separation, extension mechanics, and the 32-byte restriction as defense."
+      "reason": "Original Security Analysis (2026-04-28): SHA-256 admits Merkle-Damgård length extension: given H(prefix), any attacker can compute H(prefix||pad||extra). BIP-340 tagged_hash uses SHA256(SHA256(tag)||SHA256(tag)||msg) which blocks extension via double-hash structure (extension of outer SHA-256 doesn't produce valid tagged_hash of extended message). Additionally, BIP-340 enforces 32-byte message length, making length extension forgery impossible in standard Schnorr. Related background: NIST FIPS 180-4, BIP-340, Kelsey-Schneier (2005). TAGEXT-1..5 confirm domain separation, extension mechanics, and the 32-byte restriction as defense.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "schnorr",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_tagged_hash_ext.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "wnaf_w18_cache_amplification",
@@ -665,7 +1058,17 @@
       "repo_evidence": [
         "audit/test_exploit_wnaf_cache_ampl.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): UltrafastSecp256k1 uses w=18 for fixed-base scalar multiplication (2^18=262,144 entries, ~16 MB table) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB). This 8\u00d7 larger cache footprint provides 8\u00d7 more Flush+Reload probe points per signing operation. Digit leakage \u2192 partial nonce recovery \u2192 HNP \u2192 full key recovery. Related background: Percival (2005), Yarom-Falkner (2014), ePrint 2022/823 (Hertzbleed). Blinding (k+r) randomizes access patterns; statistically independent nonces produce statistically independent cache traces. WCACHE-1..5 characterize the amplification."
+      "reason": "Original Security Analysis (2026-04-28): UltrafastSecp256k1 uses w=18 for fixed-base scalar multiplication (2^18=262,144 entries, ~16 MB table) vs. libsecp256k1 w=15 (32,768 entries, ~2 MB). This 8× larger cache footprint provides 8× more Flush+Reload probe points per signing operation. Digit leakage → partial nonce recovery → HNP → full key recovery. Related background: Percival (2005), Yarom-Falkner (2014), ePrint 2022/823 (Hertzbleed). Blinding (k+r) randomizes access patterns; statistically independent nonces produce statistically independent cache traces. WCACHE-1..5 characterize the amplification.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_wnaf_cache_ampl.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P2",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "musig2_keyagg_fingerprint_collision",
@@ -683,7 +1086,17 @@
       "repo_evidence": [
         "audit/test_exploit_musig2_fingerprint_collision.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): MuSig2 key aggregation Q=sum(a_i*P_i) produces a 32-byte x-only public key. Two distinct signer sets producing the same aggregate Q would allow one set's signatures to verify under the other's key. Birthday bound for collision: ~2^128 queries. X-only representation (dropping parity bit) reduces this to ~2^127. Including signer count in L=H(n||X_1||...||X_n) prevents subset-collision attacks. Related background: BIP-327, Wagner (2002), Bellare-Neven (2006). FPC-1..6 confirm collision resistance at small scale and characterize x-only parity reduction."
+      "reason": "Original Security Analysis (2026-04-28): MuSig2 key aggregation Q=sum(a_i*P_i) produces a 32-byte x-only public key. Two distinct signer sets producing the same aggregate Q would allow one set's signatures to verify under the other's key. Birthday bound for collision: ~2^128 queries. X-only representation (dropping parity bit) reduces this to ~2^127. Including signer count in L=H(n||X_1||...||X_n) prevents subset-collision attacks. Related background: BIP-327, Wagner (2002), Bellare-Neven (2006). FPC-1..6 confirm collision resistance at small scale and characterize x-only parity reduction.",
+      "attack_class": "threshold_multisig",
+      "affected_primitive": "musig2",
+      "affected_surface": "musig2/frost session",
+      "expected_evidence": [
+        "audit/test_exploit_musig2_fingerprint_collision.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "blinding_recovery_hnp",
@@ -701,7 +1114,17 @@
       "repo_evidence": [
         "audit/test_exploit_blinding_recovery_hnp.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): secp256k1_context_randomize activates additive scalar blinding k'=k+r. If r is not refreshed between signatures, an attacker with known nonces (k_i) can recover r via HNP: r=kb_i-k_i. Once r is known, all blinded nonces are exposed. Batch signing with shared r amplifies: 1 nonce leak exposes entire batch. Related background: Boneh-Venkatesan (1996), Howgrave-Graham/Smart (2001), ePrint 2024/296 (lattice sieve HNP). Defenses: fresh r per signing operation (auto-refresh), multiplicative blinding (k'=k*r has different HNP structure). BLIND-1..7 confirm attack paths and defenses."
+      "reason": "Original Security Analysis (2026-04-28): secp256k1_context_randomize activates additive scalar blinding k'=k+r. If r is not refreshed between signatures, an attacker with known nonces (k_i) can recover r via HNP: r=kb_i-k_i. Once r is known, all blinded nonces are exposed. Batch signing with shared r amplifies: 1 nonce leak exposes entire batch. Related background: Boneh-Venkatesan (1996), Howgrave-Graham/Smart (2001), ePrint 2024/296 (lattice sieve HNP). Defenses: fresh r per signing operation (auto-refresh), multiplicative blinding (k'=k*r has different HNP structure). BLIND-1..7 confirm attack paths and defenses.",
+      "attack_class": "side_channel_ct",
+      "affected_primitive": "scalar",
+      "affected_surface": "constant-time secret path",
+      "expected_evidence": [
+        "audit/test_exploit_blinding_recovery_hnp.cpp"
+      ],
+      "expected_gate": "audit_gate.py --ct-evidence-status",
+      "severity_hint": "P3",
+      "owner_route": "audit/CT",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "shim_noncefp_bypass",
@@ -719,7 +1142,18 @@
         "audit/test_exploit_shim_noncefp_bypass.cpp",
         "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): shim_ecdsa.cpp:210 has (void)noncefp \u2014 custom nonce callback silently ignored. Callers expecting nonce control receive RFC 6979 with no error. ndata IS respected via ct::ecdsa_sign_hedged. NONCEFP-1..5 confirm bypass and hedging escape hatch. Impact: any protocol requiring specific noncefp (hardware tokens, protocol-defined nonces) silently broken. Fix: document divergence."
+      "reason": "Original Security Analysis (2026-04-28): shim_ecdsa.cpp:210 has (void)noncefp — custom nonce callback silently ignored. Callers expecting nonce control receive RFC 6979 with no error. ndata IS respected via ct::ecdsa_sign_hedged. NONCEFP-1..5 confirm bypass and hedging escape hatch. Impact: any protocol requiring specific noncefp (hardware tokens, protocol-defined nonces) silently broken. Fix: document divergence.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_shim_noncefp_bypass.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P1",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "encoding_memory_corruption",
@@ -738,7 +1172,18 @@
         "audit/test_exploit_encoding_memory_corruption.cpp",
         "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): adversarial DER/field/pubkey parser inputs must be cleanly rejected. CVE class: OOB read via malformed blob. Tests: DER 100-byte oversized, 1-byte undersized, scalar=0, x-only pubkey=0, field element >= p. All parsers use strict bounds checks. ENCORR-1..6 confirm safe rejection."
+      "reason": "Original Security Analysis (2026-04-28): adversarial DER/field/pubkey parser inputs must be cleanly rejected. CVE class: OOB read via malformed blob. Tests: DER 100-byte oversized, 1-byte undersized, scalar=0, x-only pubkey=0, field element >= p. All parsers use strict bounds checks. ENCORR-1..6 confirm safe rejection.",
+      "attack_class": "parser_boundary",
+      "affected_primitive": "der_parser",
+      "affected_surface": "input parser boundary",
+      "expected_evidence": [
+        "audit/test_exploit_encoding_memory_corruption.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --invalid-inputs",
+      "severity_hint": "P1",
+      "owner_route": "audit/parsers",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "batch_verify_malleability",
@@ -755,7 +1200,17 @@
       "repo_evidence": [
         "audit/test_exploit_batch_verify_malleability.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): Schnorr+ECDSA batch verifier semantic correctness audit. Tests: BVM-1 order independence, BVM-2 poison (one bad sig fails batch), BVM-3 empty batch vacuous truth, BVM-4 single-entry agreement, BVM-5 duplicates pass, BVM-6 ECDSA batch. Related: Maxwell-Poelstra-Seurin-Wuille (2019), eprint 2019/741. All BVM-1..6 pass."
+      "reason": "Original Security Analysis (2026-04-28): Schnorr+ECDSA batch verifier semantic correctness audit. Tests: BVM-1 order independence, BVM-2 poison (one bad sig fails batch), BVM-3 empty batch vacuous truth, BVM-4 single-entry agreement, BVM-5 duplicates pass, BVM-6 ECDSA batch. Related: Maxwell-Poelstra-Seurin-Wuille (2019), eprint 2019/741. All BVM-1..6 pass.",
+      "attack_class": "batch_verification",
+      "affected_primitive": "schnorr",
+      "affected_surface": "batch verify",
+      "expected_evidence": [
+        "audit/test_exploit_batch_verify_malleability.cpp"
+      ],
+      "expected_gate": "audit_gate.py --integration-evidence",
+      "severity_hint": "P2",
+      "owner_route": "audit/integration",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "thread_local_blinding_race",
@@ -773,7 +1228,18 @@
         "audit/test_exploit_thread_local_blinding.cpp",
         "compat/libsecp256k1_shim/src/shim_context.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): shim_context.cpp calls ct::set_blinding() (thread-local). Concurrent context_randomize on shared ctx may race on ctx->blind[32] struct fields. Critical invariant: blinding is side-channel countermeasure only \u2014 same (key,msg) with different seeds must produce identical compact sigs. TLB-1..4 confirm correct behavior under concurrent access."
+      "reason": "Original Security Analysis (2026-04-28): shim_context.cpp calls ct::set_blinding() (thread-local). Concurrent context_randomize on shared ctx may race on ctx->blind[32] struct fields. Critical invariant: blinding is side-channel countermeasure only — same (key,msg) with different seeds must produce identical compact sigs. TLB-1..4 confirm correct behavior under concurrent access.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "secp256k1_core",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_thread_local_blinding.cpp",
+        "compat/libsecp256k1_shim/src/shim_context.cpp"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P2",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "hedged_sign_return_silence",
@@ -792,7 +1258,18 @@
         "audit/test_exploit_hedged_return_value.cpp",
         "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
       ],
-      "reason": "Original Security Analysis (2026-04-28): CLAUDE.md rule 4 \u2014 zero sigs from internals are ABI errors. shim_ecdsa.cpp hedged sign path must return error AND zero output on failure (not UFSECP_OK with zero sig). HEDGED-1..4 confirm fail-closed invariant: error leaves sig buffer zeroed, hedged is deterministic with same aux, hedged differs from deterministic."
+      "reason": "Original Security Analysis (2026-04-28): CLAUDE.md rule 4 — zero sigs from internals are ABI errors. shim_ecdsa.cpp hedged sign path must return error AND zero output on failure (not UFSECP_OK with zero sig). HEDGED-1..4 confirm fail-closed invariant: error leaves sig buffer zeroed, hedged is deterministic with same aux, hedged differs from deterministic.",
+      "attack_class": "nonce_bias_or_reuse",
+      "affected_primitive": "rfc6979_nonce",
+      "affected_surface": "signing nonce derivation",
+      "expected_evidence": [
+        "audit/test_exploit_hedged_return_value.cpp",
+        "compat/libsecp256k1_shim/src/shim_ecdsa.cpp"
+      ],
+      "expected_gate": "audit_gate.py --exploit-traceability",
+      "severity_hint": "P3",
+      "owner_route": "audit/crypto-nonce",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "gpu_kernel_memory_safety",
@@ -812,7 +1289,18 @@
         "audit/test_exploit_gpu_memory_safety.cpp",
         "include/ufsecp/ufsecp_gpu.h"
       ],
-      "reason": "Original Security Analysis (2026-04-28): GPU kernel OOB writes corrupt device memory silently \u2014 no segfault, no ASAN. API-level guards are the only defense before kernel launch. Tests: GPU-1 null ctx_out, GPU-2 invalid backend, GPU-3 null output buffer, GPU-4 zero count, GPU-5 null pubkeys input. Advisory: skips when no GPU available."
+      "reason": "Original Security Analysis (2026-04-28): GPU kernel OOB writes corrupt device memory silently — no segfault, no ASAN. API-level guards are the only defense before kernel launch. Tests: GPU-1 null ctx_out, GPU-2 invalid backend, GPU-3 null output buffer, GPU-4 zero count, GPU-5 null pubkeys input. Advisory: skips when no GPU available.",
+      "attack_class": "gpu_backend_parity",
+      "affected_primitive": "gpu",
+      "affected_surface": "gpu backend kernel",
+      "expected_evidence": [
+        "audit/test_exploit_gpu_memory_safety.cpp",
+        "include/ufsecp/ufsecp_gpu.h"
+      ],
+      "expected_gate": "audit_gate.py --gpu-hardware-evidence",
+      "severity_hint": "P2",
+      "owner_route": "GPU/backend",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "ecdsa_rs_zero_check",
@@ -832,7 +1320,18 @@
         "audit/test_exploit_rs_zero_check.cpp",
         "include/ufsecp/ufsecp.h"
       ],
-      "reason": "Original Security Analysis (2026-04-28): CVE-2022-39272-class \u2014 verifier skipping r != 0 allows (r=0,s=0) to verify against any public key. Tests: RZERO-1 r=0,s=0 rejected; RZERO-2 r=0,s=valid rejected; RZERO-3 r=valid,s=0 rejected; RZERO-4 Schnorr R.x=0 rejected (lift_x fails); RZERO-5 r=p (out-of-range) rejected. All rejections confirmed."
+      "reason": "Original Security Analysis (2026-04-28): CVE-2022-39272-class — verifier skipping r != 0 allows (r=0,s=0) to verify against any public key. Tests: RZERO-1 r=0,s=0 rejected; RZERO-2 r=0,s=valid rejected; RZERO-3 r=valid,s=0 rejected; RZERO-4 Schnorr R.x=0 rejected (lift_x fails); RZERO-5 r=p (out-of-range) rejected. All rejections confirmed.",
+      "attack_class": "scalar_domain",
+      "affected_primitive": "schnorr",
+      "affected_surface": "scalar domain validation",
+      "expected_evidence": [
+        "audit/test_exploit_rs_zero_check.cpp",
+        "include/ufsecp/ufsecp.h"
+      ],
+      "expected_gate": "audit_gate.py --invalid-inputs",
+      "severity_hint": "P3",
+      "owner_route": "audit/crypto",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     },
     {
       "id": "bip352_address_collision",
@@ -851,7 +1350,18 @@
         "audit/test_exploit_bip352_address_collision.cpp",
         "include/ufsecp/ufsecp.h"
       ],
-      "reason": "Original Security Analysis (2026-04-28): BIP-352 Silent Payment address collision resistance. Domain separation via SHA256(shared_secret_x || \"Silent Payments\") must produce distinct addresses for distinct (scan_sk, spend_sk) pairs. SP-1..4: distinct scan keys, distinct spend keys, key order matters, 1000 random pairs with no collision. Birthday bound 2^128."
+      "reason": "Original Security Analysis (2026-04-28): BIP-352 Silent Payment address collision resistance. Domain separation via SHA256(shared_secret_x || \"Silent Payments\") must produce distinct addresses for distinct (scan_sk, spend_sk) pairs. SP-1..4: distinct scan keys, distinct spend keys, key order matters, 1000 random pairs with no collision. Birthday bound 2^128.",
+      "attack_class": "protocol_state_machine",
+      "affected_primitive": "bip352",
+      "affected_surface": "protocol session state",
+      "expected_evidence": [
+        "audit/test_exploit_bip352_address_collision.cpp",
+        "include/ufsecp/ufsecp.h"
+      ],
+      "expected_gate": "audit_gate.py --stateful-sequences",
+      "severity_hint": "P3",
+      "owner_route": "audit/protocol",
+      "missing_evidence_action": "monitor: re-run the linked evidence/PoC against any new variant; no new evidence required while covered"
     }
   ]
 }

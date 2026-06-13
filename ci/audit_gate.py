@@ -1764,6 +1764,45 @@ def check_gpu_hardware_evidence(conn):
 
 
 # ---------------------------------------------------------------------------
+# G-18 — Research Signal-Matrix Attack-Class Taxonomy (Bastion B18)
+# ---------------------------------------------------------------------------
+def check_research_signal_matrix(conn):
+    """G-18: research signal-matrix attack-class taxonomy + evidence routing.
+
+    Loads docs/RESEARCH_SIGNAL_MATRIX.json via ci/check_research_signal_matrix.py:
+    every in-scope signal class must carry a valid `attack_class` and route to its
+    expected evidence + gate; covered classes must have existing evidence and a
+    resolvable gate; candidates need a missing_evidence_action; out_of_scope need a
+    rationale. Cheap: JSON validation only."""
+    findings = []
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        from check_research_signal_matrix import load_and_evaluate
+    except Exception as exc:
+        findings.append(('FAIL', f'cannot import check_research_signal_matrix: {exc}'))
+        return 'G-18: Research Signal Matrix', findings
+
+    report, _code = load_and_evaluate()
+    if report.get('error'):
+        findings.append(('FAIL', f'research signal matrix: {report["error"]}'))
+        return 'G-18: Research Signal Matrix', findings
+
+    if report['overall_pass']:
+        findings.append(('PASS', f'{report["classes_total"]} signal classes fully routed '
+                                 f'(attack_class + expected_evidence + expected_gate)'))
+    else:
+        for key, label in (('missing_attack_class', 'missing attack_class'),
+                           ('invalid_attack_class', 'invalid attack_class'),
+                           ('missing_evidence', 'missing expected_evidence'),
+                           ('unresolved_gate', 'unresolved expected_gate'),
+                           ('missing_action', 'missing action/rationale')):
+            if report.get(key):
+                findings.append(('FAIL', f'{label}: {report[key]}'))
+    return 'G-18: Research Signal Matrix', findings
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 CHECK_MAP = {
@@ -1798,6 +1837,7 @@ CHECK_MAP = {
     '--ct-evidence-status': check_ct_evidence_status,
     '--fuzz-campaign-status': check_fuzz_campaign_status,
     '--gpu-hardware-evidence': check_gpu_hardware_evidence,
+    '--research-signal-matrix': check_research_signal_matrix,
 }
 
 ALL_CHECKS = [
@@ -1831,6 +1871,7 @@ ALL_CHECKS = [
     check_ct_evidence_status,
     check_fuzz_campaign_status,
     check_gpu_hardware_evidence,
+    check_research_signal_matrix,
 ]
 
 
