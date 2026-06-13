@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-06-13 — libsecp shim ECDSA same-X cache identity
+
+- Fixed `ShimEcdsaCache` identity for ECDSA verify prebuilt-key entries to
+  compare the full opaque pubkey bytes (`X||Y`), not only `X`. This prevents
+  same-X opposite-parity compressed keys (`02||X` vs `03||X`) from reusing the
+  wrong cached `EcdsaPublicKey` after cache promotion.
+- Extended `audit/test_regression_ecdsa_verify_cache_consistency.cpp` with
+  evoskuil/libbitcoin block 704,789 tuple coverage: DER parse, normalize, repeat
+  verify after cache hits, and an opposite-parity cache-poisoning regression.
+
 ## 2026-06-12 — research monitor issue escalation hardening
 
 - Aligned the script-level `--open-issue` path with the workflow label set:

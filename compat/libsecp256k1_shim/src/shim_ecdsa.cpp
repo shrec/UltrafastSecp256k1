@@ -86,7 +86,7 @@ struct ShimEcdsaCache {
     static constexpr std::size_t SLOTS = 32;
     struct Slot {
         std::uint64_t            fingerprint{0};
-        uint8_t                  pubkey_x[32]{};   // X bytes for identity check
+        uint8_t                  pubkey_data[64]{}; // Full X||Y identity check
         secp256k1::EcdsaPublicKey epk{};
         bool                     valid      = false;
         bool                     seen_once  = false;
@@ -107,7 +107,9 @@ struct ShimEcdsaCache {
     //
     // Fast fingerprint: first 8 bytes of X coordinate (2 instructions, ~0.3 ns)
     // instead of full 64-byte FNV-1a hash (~8-10 ns). Collision resistance via
-    // full 32-byte X comparison in the hot path (T-08 pattern preserved).
+    // full 64-byte X||Y comparison in the hot path (T-08 pattern preserved).
+    // Same-X opposite-Y pubkeys are distinct consensus keys; comparing only X
+    // lets 02||X and 03||X reuse the wrong cached EcdsaPublicKey.
     // SHIM-014: XOR with thread-local salt so slot mapping is not attacker-
     // predictable. Adds ~1 ns; eliminates the slot-hijack class entirely.
     static void fingerprint(const unsigned char data[64],
@@ -126,7 +128,7 @@ struct ShimEcdsaCache {
         Slot& s = slots[idx];
 
         bool const matches = (s.fingerprint == fp &&
-                              std::memcmp(s.pubkey_x, data, 32) == 0);
+                              std::memcmp(s.pubkey_data, data, 64) == 0);
         // Cache hit (3rd+ encounter).
         if (matches && s.valid)  return &s.epk;
 
@@ -138,9 +140,9 @@ struct ShimEcdsaCache {
             return s.valid ? &s.epk : nullptr;
         }
 
-        // First encounter: record fingerprint + X only (~40 bytes written).
+        // First encounter: record fingerprint + full pubkey (~72 bytes written).
         s.fingerprint = fp;
-        std::memcpy(s.pubkey_x, data, 32);
+        std::memcpy(s.pubkey_data, data, 64);
         s.seen_once = true;
         s.valid     = false;
         return nullptr;   // caller uses Point path — no L2 write pressure

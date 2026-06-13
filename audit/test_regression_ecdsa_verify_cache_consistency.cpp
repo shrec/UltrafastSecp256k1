@@ -37,6 +37,7 @@
 #include <cstdio>
 #include <cstring>
 #include <array>
+#include <cstddef>
 
 // This test depends on the libsecp256k1 shim ABI. When the shim is not built
 // it returns 77 (ADVISORY_SKIP_CODE) so the unified runner reports it as
@@ -71,6 +72,34 @@ constexpr unsigned char kMsg32[32] = {
     0,0,0,0,0,0,0,0,              0,0,0,0,0,0,0,0
 };
 
+constexpr unsigned char kBlock704789Pubkey[33] = {
+    0x03,0x9c,0xfc,0xfe,0x4a,0x5d,0x0e,0xfa,0xd2,0x73,0x82,
+    0xe5,0xd2,0xb4,0x78,0xeb,0x39,0x8a,0x8b,0x69,0x1a,0x66,
+    0xe0,0x1c,0x87,0x8b,0x60,0x0b,0x50,0x42,0xb3,0x31,0x66
+};
+
+constexpr unsigned char kBlock704789OppositePubkey[33] = {
+    0x02,0x9c,0xfc,0xfe,0x4a,0x5d,0x0e,0xfa,0xd2,0x73,0x82,
+    0xe5,0xd2,0xb4,0x78,0xeb,0x39,0x8a,0x8b,0x69,0x1a,0x66,
+    0xe0,0x1c,0x87,0x8b,0x60,0x0b,0x50,0x42,0xb3,0x31,0x66
+};
+
+constexpr unsigned char kBlock704789Msg32[32] = {
+    0x50,0x4d,0x68,0xbe,0xac,0x18,0x7d,0xd0,0xb2,0x59,0xdd,
+    0xd6,0xed,0x6d,0x5d,0x63,0x48,0x15,0x0b,0x9b,0x23,0xee,
+    0x6d,0xfd,0xb4,0x3e,0x87,0xf7,0x4d,0xd3,0xc5,0x47
+};
+
+constexpr unsigned char kBlock704789DerSig[70] = {
+    0x30,0x44,0x02,0x20,0x43,0xf1,0x41,0x44,0x0d,0x4c,0xd2,
+    0x8c,0xae,0x89,0x03,0xcb,0x59,0xce,0x70,0x67,0x63,0xff,
+    0xf7,0x0d,0x74,0x6d,0x13,0xe1,0x71,0x3d,0xd6,0x20,0xc7,
+    0xc7,0x34,0xb4,0x02,0x20,0x08,0xda,0xc3,0x36,0x56,0x10,
+    0xad,0x1a,0x3f,0x78,0xfd,0x98,0x9e,0xa6,0x0d,0x81,0xc6,
+    0xb2,0xe4,0xc8,0xec,0xae,0x3f,0x68,0xb4,0x32,0x6f,0xc3,
+    0xdb,0xe1,0xf4,0x01
+};
+
 // Helper: stuff 64 raw bytes into the opaque secp256k1_pubkey.data. This is
 // EXPLICITLY a hostile-caller pattern (bypasses ec_pubkey_parse), used here
 // to expose the SHIM-013 inconsistency before the fix.
@@ -78,6 +107,66 @@ void pubkey_from_raw_bytes(secp256k1_pubkey* pk, const unsigned char x[32],
                            const unsigned char y[32]) noexcept {
     std::memcpy(pk->data,      x, 32);
     std::memcpy(pk->data + 32, y, 32);
+}
+
+void test_block_704789_cache_hit_tuple(secp256k1_context* ctx) {
+    secp256k1_pubkey pk{};
+    CHECK(secp256k1_ec_pubkey_parse(ctx, &pk, kBlock704789Pubkey,
+                                    sizeof(kBlock704789Pubkey)) == 1,
+          "CVC-4a: block 704789 compressed pubkey parses");
+
+    secp256k1_ecdsa_signature parsed{};
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &parsed, kBlock704789DerSig,
+                                              sizeof(kBlock704789DerSig)) == 1,
+          "CVC-4b: block 704789 DER signature parses");
+
+    secp256k1_ecdsa_signature normalized{};
+    (void)secp256k1_ecdsa_signature_normalize(ctx, &normalized, &parsed);
+
+    int results[4]{};
+    for (std::size_t i = 0; i < 4; ++i) {
+        results[i] = secp256k1_ecdsa_verify(ctx, &normalized,
+                                            kBlock704789Msg32, &pk);
+    }
+
+    CHECK(results[0] == 1, "CVC-4c: block 704789 tuple verifies on first encounter");
+    CHECK(results[0] == results[1] && results[1] == results[2] &&
+          results[2] == results[3],
+          "CVC-4d: block 704789 tuple verifies consistently after ECDSA cache hits");
+    CHECK(results[3] == 1, "CVC-4e: block 704789 tuple verifies after cache promotion");
+}
+
+void test_block_704789_opposite_parity_cache_poison(secp256k1_context* ctx) {
+    secp256k1_pubkey target_pk{};
+    secp256k1_pubkey opposite_pk{};
+    CHECK(secp256k1_ec_pubkey_parse(ctx, &target_pk, kBlock704789Pubkey,
+                                    sizeof(kBlock704789Pubkey)) == 1,
+          "CVC-5a: target same-X odd-Y pubkey parses");
+    CHECK(secp256k1_ec_pubkey_parse(ctx, &opposite_pk, kBlock704789OppositePubkey,
+                                    sizeof(kBlock704789OppositePubkey)) == 1,
+          "CVC-5b: opposite same-X even-Y pubkey parses");
+
+    secp256k1_ecdsa_signature parsed{};
+    CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &parsed, kBlock704789DerSig,
+                                              sizeof(kBlock704789DerSig)) == 1,
+          "CVC-5c: block 704789 DER signature parses for poison test");
+
+    secp256k1_ecdsa_signature normalized{};
+    (void)secp256k1_ecdsa_signature_normalize(ctx, &normalized, &parsed);
+
+    // Promote the opposite-Y key into ShimEcdsaCache. A cache keyed only by X
+    // will then reuse the wrong EcdsaPublicKey for the target key.
+    int poison1 = secp256k1_ecdsa_verify(ctx, &normalized,
+                                         kBlock704789Msg32, &opposite_pk);
+    int poison2 = secp256k1_ecdsa_verify(ctx, &normalized,
+                                         kBlock704789Msg32, &opposite_pk);
+    int target = secp256k1_ecdsa_verify(ctx, &normalized,
+                                        kBlock704789Msg32, &target_pk);
+
+    CHECK(poison1 == 0 && poison2 == 0,
+          "CVC-5d: block 704789 signature does not verify under opposite-Y pubkey");
+    CHECK(target == 1,
+          "CVC-5e: same-X opposite-Y cache entry must not poison target pubkey verify");
 }
 
 int run_smoke() {
@@ -139,6 +228,15 @@ int run_smoke() {
         CHECK(r1 == r2 && r2 == r3, "CVC-3a: off-curve verify is cache-state-independent");
         CHECK(r1 == 0, "CVC-3b: off-curve point rejected (curve equation gate)");
     }
+
+    // -- CVC-4/5: libbitcoin block 704,789 release-only cache-hit regression --
+    // libbitcoin's isolated unit test exercises parse -> normalize -> verify once
+    // and therefore only sees the first-encounter direct Point path. Full node
+    // validation can verify the same X coordinate after ShimEcdsaCache promotes
+    // either parity to EcdsaPublicKey, so cover both repeated hits and same-X
+    // opposite-Y cache poisoning.
+    test_block_704789_opposite_parity_cache_poison(ctx);
+    test_block_704789_cache_hit_tuple(ctx);
 
     secp256k1_context_destroy(ctx);
     std::printf("[regression_ecdsa_verify_cache_consistency] %d/%d passed\n",
