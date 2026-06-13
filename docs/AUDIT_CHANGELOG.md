@@ -1,5 +1,26 @@
 # Audit Changelog
 
+## 2026-06-13 — gate negative-fixture suite + coverage critic (Bastion B5)
+
+- Added negative fixtures to `ci/test_audit_scripts.py` for every high-value CAAS
+  gate that previously had none, each proving the gate fails closed on bad input:
+  - `ct_independence_check.py`: one PASS + one SKIP is INCONCLUSIVE (exit 2), not
+    PASS; any FAIL / missing required tool is exit 1 (the P7-CAAS-001 false-green).
+  - `multi_ci_repro_check.py`: mismatched hashes / no common artifacts / empty
+    hash file all fail; only bit-identical artifacts pass.
+  - `security_autonomy_check.py`: a forced sub-gate failure drops
+    `autonomy_ready=false` (exit 1); all-advisory-skip returns exit 77 (not a
+    false 100); ready/100 only when all gates pass.
+  - `supply_chain_gate.py`: fails closed when build-input pinning, provenance,
+    SBOM, and hardening artifacts are absent; passes the real repo.
+  - `check_source_graph_quality.py`: an empty/stale graph DB fails (exit 1).
+- Added `check_caas_gate_negative_fixture_coverage` — a completeness critic that
+  asserts every high-value gate (9 total, incl. P21/audit_sla/bundle/research
+  monitor from B1/B3/B4) has a registered negative fixture; a green gate without
+  a fail-on-bad-input proof is now itself a test failure. `incident_drills`
+  coverage lands in B9.
+- Python self-test now 151 pass (was 142 pre-Bastion).
+
 ## 2026-06-13 — external audit bundle: strict current-run evidence (Bastion B4)
 
 - `ci/verify_external_audit_bundle.py` now fails **closed** on a malformed or

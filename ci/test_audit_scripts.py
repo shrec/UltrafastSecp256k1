@@ -1452,6 +1452,255 @@ def check_external_audit_bundle_negative_fixtures() -> None:
         ok(tag, "bundle verify fails closed on digest/evidence/commit/malformed; passes a valid current bundle")
 
 
+def _load_ci_module(filename: str, modname: str):
+    """Import a ci/*.py module in-process for white-box negative testing."""
+    path = SCRIPT_DIR / filename
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    spec = importlib.util.spec_from_file_location(modname, str(path))
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not build module spec for {filename}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_ct_independence_negative_fixtures() -> None:
+    """B5: ct_independence_check.py must NOT report a false-green. One PASS + one
+    SKIP is INCONCLUSIVE (exit 2), not PASS; any FAIL is exit 1; a missing
+    required tool is exit 1; two DISTINCT PASS is exit 0. This is the negative
+    proof of the P7-CAAS-001 false-green fix."""
+    tag = "B5:ct_independence"
+    script = SCRIPT_DIR / "ct_independence_check.py"
+    if not script.exists():
+        skip(tag, "ct_independence_check.py absent")
+        return
+
+    def run_with(files, *extra):
+        return subprocess.run(
+            [sys.executable, str(script), *files, *extra, "--json"],
+            capture_output=True, text=True, timeout=30, cwd=str(LIB_ROOT)).returncode
+
+    failures = []
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+
+        def w(name, tool, verdict):
+            p = d / name
+            p.write_text(json.dumps({"tool": tool, "methodology": tool, "verdict": verdict}))
+            return str(p)
+
+        a_pass = w("a.json", "valgrind-ct", "PASS")
+        b_pass = w("b.json", "dudect", "PASS")
+        b_skip = w("c.json", "dudect", "SKIP")
+        a_fail = w("f.json", "valgrind-ct", "FAIL")
+
+        if run_with([a_pass, b_pass], "--min-tools", "2") != 0:
+            failures.append("two distinct PASS was not exit 0 (PASS)")
+        if run_with([a_pass, b_skip], "--min-tools", "2") != 2:
+            failures.append("PASS+SKIP was not exit 2 (INCONCLUSIVE) — false-green risk")
+        if run_with([a_pass, a_fail], "--min-tools", "2") != 1:
+            failures.append("a FAIL verdict was not exit 1")
+        if run_with([a_pass, b_pass], "--min-tools", "2", "--require-tools", "binsec-rel") != 1:
+            failures.append("missing required tool was not exit 1")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "PASS+SKIP is INCONCLUSIVE not PASS; FAIL/missing-required block; 2 distinct PASS pass")
+
+
+def check_multi_ci_repro_negative_fixtures() -> None:
+    """B5: multi_ci_repro_check.py must FAIL on mismatched hashes, FAIL/error on
+    no-common-artifacts, and error on an empty hash file; PASS only on
+    bit-identical artifacts across providers."""
+    tag = "B5:multi_ci_repro"
+    script = SCRIPT_DIR / "multi_ci_repro_check.py"
+    if not script.exists():
+        skip(tag, "multi_ci_repro_check.py absent")
+        return
+
+    def run2(fa, fb):
+        return subprocess.run([sys.executable, str(script), fa, fb, "--json"],
+                              capture_output=True, text=True, timeout=30, cwd=str(LIB_ROOT)).returncode
+
+    failures = []
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+
+        def w(name, content):
+            p = d / name
+            p.write_text(content)
+            return str(p)
+
+        sha = "a" * 64
+        other = "b" * 64
+        match_a = w("ma.txt", f"{sha}  build/libufsecp.a\n")
+        match_b = w("mb.txt", f"{sha}  other/libufsecp.a\n")          # same basename+sha
+        diff_b = w("db.txt", f"{other}  build/libufsecp.a\n")         # same basename, diff sha
+        nocommon_b = w("nc.txt", f"{sha}  build/libsomethingelse.a\n")  # different basename
+        empty = w("empty.txt", "")
+
+        if run2(match_a, match_b) != 0:
+            failures.append("bit-identical artifacts were not PASS (exit 0)")
+        if run2(match_a, diff_b) == 0:
+            failures.append("hash mismatch did not FAIL")
+        if run2(match_a, nocommon_b) == 0:
+            failures.append("no common artifacts did not FAIL")
+        if run2(match_a, empty) == 0:
+            failures.append("empty hash file did not error/FAIL")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "fails on mismatch/no-common/empty; passes only bit-identical artifacts")
+
+
+def check_security_autonomy_forced_failure() -> None:
+    """B5: security_autonomy_check.py must drop autonomy_ready=false (and exit 1)
+    when any active sub-gate fails, return exit 77 when all gates advisory-skip,
+    and report ready/100 only when all gates pass. Tests the scoring logic with a
+    monkeypatched gate runner (no real sub-gates run; KPI write redirected)."""
+    tag = "B5:security_autonomy"
+    try:
+        module = _load_ci_module("security_autonomy_check.py", "autonomy_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    saved_lib, saved_runner = module.LIB_ROOT, module._run_gate
+    failures = []
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            module.LIB_ROOT = Path(d)  # redirect the KPI write away from the real file
+
+            def all_pass(g, timeout=300):
+                return {"gate": g["name"], "weight": g["weight"], "status": "ran",
+                        "passing": True, "score": g["weight"], "returncode": 0}
+
+            def one_fail(g, timeout=300):
+                p = g["name"] != "audit_sla"
+                return {"gate": g["name"], "weight": g["weight"], "status": "ran",
+                        "passing": p, "score": g["weight"] if p else 0, "returncode": 0 if p else 1}
+
+            def all_skip(g, timeout=300):
+                return {"gate": g["name"], "weight": g["weight"], "status": "advisory_skip",
+                        "passing": False, "score": 0, "advisory_skip": True,
+                        "did_run": False, "returncode": 77}
+
+            def rep(fn, outname):
+                module._run_gate = fn
+                outp = Path(d) / outname
+                with contextlib.redirect_stdout(io.StringIO()):
+                    rc = module.run(False, str(outp), 1)
+                return rc, json.loads(outp.read_text())
+
+            rc, r = rep(all_pass, "pass.json")
+            if not (rc == 0 and r["autonomy_ready"] and r["autonomy_score"] == 100):
+                failures.append("all-pass was not ready/score-100/exit-0")
+
+            rc, r = rep(one_fail, "fail.json")
+            if not (rc == 1 and not r["autonomy_ready"] and r["autonomy_score"] < 100 and not r["overall_pass"]):
+                failures.append("forced sub-gate failure still reported ready")
+
+            rc, r = rep(all_skip, "skip.json")
+            if not (rc == 77 and r["advisory_skip_all"] and not r["autonomy_ready"]):
+                failures.append("all-advisory-skip was not exit-77/advisory_skip_all")
+    finally:
+        module.LIB_ROOT, module._run_gate = saved_lib, saved_runner
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "ready only on all-pass; one failure blocks; all-skip => exit 77 (not false 100)")
+
+
+def check_supply_chain_negative_fixtures() -> None:
+    """B5: supply_chain_gate.py must FAIL when build inputs are unpinned and
+    provenance/SBOM/hash artifacts are absent (empty tree), and PASS on the real
+    repo. Proves the 5-sub-gate trust chain is fail-closed, not presence-cosmetic."""
+    tag = "B5:supply_chain"
+    try:
+        module = _load_ci_module("supply_chain_gate.py", "supply_chain_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    saved_lib, saved_sd = module.LIB_ROOT, module.SCRIPT_DIR
+    failures = []
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc_good = module.run(False, None)
+        if rc_good != 0:
+            failures.append("real-repo supply-chain gate did not PASS")
+
+        with tempfile.TemporaryDirectory() as d:
+            module.LIB_ROOT = Path(d)
+            module.SCRIPT_DIR = Path(d)  # no CMakeLists, no scripts, no provenance
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc_bad = module.run(False, None)
+        if rc_bad == 0:
+            failures.append("empty-tree (no pinning/provenance/hash) did not FAIL")
+    finally:
+        module.LIB_ROOT, module.SCRIPT_DIR = saved_lib, saved_sd
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "fails closed when pinning/provenance/SBOM/hardening absent; passes real repo")
+
+
+def check_source_graph_quality_negative_fixtures() -> None:
+    """B5: check_source_graph_quality.py must FAIL (exit 1) on an empty/stale
+    graph DB (missing tables, below row floor, no build revision). Proves the
+    graph-quality gate cannot false-green on a broken database."""
+    tag = "B5:source_graph_quality"
+    script = SCRIPT_DIR / "check_source_graph_quality.py"
+    if not script.exists():
+        skip(tag, "check_source_graph_quality.py absent")
+        return
+    failures = []
+    with tempfile.TemporaryDirectory() as d:
+        empty = Path(d) / "empty.db"
+        import sqlite3
+        sqlite3.connect(str(empty)).close()
+        rc = subprocess.run([sys.executable, str(script), "--db", str(empty)],
+                            capture_output=True, text=True, timeout=60, cwd=str(LIB_ROOT)).returncode
+        if rc == 0:
+            failures.append("empty graph DB did not FAIL (exit 0) — false-green risk")
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "empty/broken graph DB fails closed (exit 1)")
+
+
+def check_caas_gate_negative_fixture_coverage() -> None:
+    """B5 completeness critic: every high-value CAAS gate must have a registered
+    negative fixture in this file. A green gate without a proof that it fails on
+    bad input is a trust assumption, not evidence."""
+    tag = "B5:fixture_coverage"
+    required = {
+        "audit_gate.py (P21)": "check_p21_semantic_requirement_map",
+        "audit_sla_check.py": "check_audit_sla_pre_alert_and_block",
+        "verify_external_audit_bundle.py": "check_external_audit_bundle_negative_fixtures",
+        "ct_independence_check.py": "check_ct_independence_negative_fixtures",
+        "multi_ci_repro_check.py": "check_multi_ci_repro_negative_fixtures",
+        "security_autonomy_check.py": "check_security_autonomy_forced_failure",
+        "supply_chain_gate.py": "check_supply_chain_negative_fixtures",
+        "check_source_graph_quality.py": "check_source_graph_quality_negative_fixtures",
+        "research_monitor.py": "check_research_monitor_resilience",
+        # incident_drills.py negative coverage is added by Bastion B9
+        # (real fault-injection drills), tracked there.
+    }
+    g = globals()
+    missing = [f"{gate} -> {fn}" for gate, fn in required.items()
+               if fn not in g or not callable(g[fn])]
+    if missing:
+        fail(tag, "high-value gates missing a negative fixture: " + "; ".join(missing))
+    else:
+        ok(tag, f"all {len(required)} high-value CAAS gates have a registered negative fixture")
+
+
 def main() -> int:
     quick = "--quick" in sys.argv
 
@@ -1490,6 +1739,12 @@ def main() -> int:
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
     check_external_audit_bundle_negative_fixtures()
+    check_ct_independence_negative_fixtures()
+    check_multi_ci_repro_negative_fixtures()
+    check_security_autonomy_forced_failure()
+    check_supply_chain_negative_fixtures()
+    check_source_graph_quality_negative_fixtures()
+    check_caas_gate_negative_fixture_coverage()
 
     # Phase 4: Smoke tests
     print(f"\n{BOLD}[4/4] Smoke Tests{RESET}")
