@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "5f8e2d7c6d41cce072ec668d9e47594b1ed5d112054a53a5f6b5a11202c36435",
-      "size": 24657
+      "sha256": "3a9e56fd1c07984bcd5c2f656fed87f0057a81810ce18cc2425722428c2e70fd",
+      "size": 25341
     },
     {
       "exists": true,
@@ -15,8 +15,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_SLA.json",
-      "sha256": "f0c7171206d2b2297c9834837e4459ead8cbc368053ba9a2d9a0b5d65a2390f2",
-      "size": 4920
+      "sha256": "4415ee992c4a67adf9a0a36447c580078e5ed09cc2e056637a01f1f49374ca86",
+      "size": 6092
     },
     {
       "exists": true,
@@ -39,8 +39,8 @@
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "76613fca2fc352a46945e8831ff57c865f3251c324ad833ab2aadb60df7ef8cf",
-      "size": 48223
+      "sha256": "095b3b08bdf9154b6cb11650965a25d823e2d4bdbc787d3dd93a1975f436556a",
+      "size": 49162
     },
     {
       "exists": true,
@@ -126,7 +126,7 @@
           {
             "findings": [
               {
-                "message": "No changed secret-bearing paths detected",
+                "message": "No uncommitted changes to evaluate",
                 "severity": "PASS"
               }
             ],
@@ -200,7 +200,7 @@
           {
             "findings": [
               {
-                "message": "10 files modified/deleted since graph build (2026-06-13T10:58:08)",
+                "message": "12 files modified/deleted since graph build (2026-06-13T10:58:08)",
                 "severity": "WARN"
               },
               {
@@ -372,7 +372,7 @@
           {
             "findings": [
               {
-                "message": "4 changed files have matching docs",
+                "message": "No uncommitted changes",
                 "severity": "PASS"
               }
             ],
@@ -462,7 +462,7 @@
           {
             "findings": [
               {
-                "message": "P21 semantic map: 13 requirements (7 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual",
+                "message": "P21 semantic map: 14 requirements (8 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual",
                 "severity": "PASS"
               },
               {
@@ -515,6 +515,10 @@
               },
               {
                 "message": "G-13: gated by --integration-evidence (registered)",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-14: gated by --ct-evidence-status (registered)",
                 "severity": "PASS"
               }
             ],
@@ -588,7 +592,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1618 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1620 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -620,19 +624,33 @@
             ],
             "name": "G-13: Integration Evidence Freshness",
             "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "7 CT surfaces (5 blocking, 1 warning, 1 owner-gated); committed evidence current (verdicts_evaluated=False)",
+                "severity": "PASS"
+              },
+              {
+                "message": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "G-14: CT Evidence Freshness",
+            "status": "PASS"
           }
         ],
         "commit": {
           "reason": null,
           "status": "available",
           "value": {
-            "dirty": true,
+            "dirty": false,
             "ref": "dev",
-            "sha": "a7f04eff6d9bc4a650452edcff2992f8628614cd",
-            "short": "a7f04eff6d"
+            "sha": "b02d65a9bf6579ec9d6ed2f949e428a20b1bc33b",
+            "short": "b02d65a9bf"
           }
         },
-        "generated_at": "2026-06-13T12:23:19.420766+00:00",
+        "generated_at": "2026-06-13T13:11:03.143886+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -649,12 +667,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-06-13T12:23:19.420703+00:00",
+          "collected_at": "2026-06-13T13:11:03.143814+00:00",
           "git": {
-            "dirty": true,
+            "dirty": false,
             "ref": "dev",
-            "sha": "a7f04eff6d9bc4a650452edcff2992f8628614cd",
-            "short": "a7f04eff6d"
+            "sha": "b02d65a9bf6579ec9d6ed2f949e428a20b1bc33b",
+            "short": "b02d65a9bf"
           },
           "platform": {
             "machine": "x86_64",
@@ -675,7 +693,7 @@
           },
           "version": "4.2.1"
         },
-        "run_id": "audit_gate-a7f04eff6d-20260613T122319",
+        "run_id": "audit_gate-b02d65a9bf-20260613T131103",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -748,7 +766,7 @@
               {
                 "check_id": "p0__secret-path_change_gate",
                 "severity": "pass",
-                "title": "No changed secret-bearing paths detected"
+                "title": "No uncommitted changes to evaluate"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
@@ -830,7 +848,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "10 files modified/deleted since graph build (2026-06-13T10:58:08)"
+                "title": "12 files modified/deleted since graph build (2026-06-13T10:58:08)"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1039,7 +1057,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "4 changed files have matching docs"
+                "title": "No uncommitted changes"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1141,7 +1159,7 @@
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "P21 semantic map: 13 requirements (7 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual"
+                "title": "P21 semantic map: 14 requirements (8 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
@@ -1207,6 +1225,11 @@
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
                 "title": "G-13: gated by --integration-evidence (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-14: gated by --ct-evidence-status (registered)"
               }
             ],
             "name": "P21: External-Audit Replacement Gate",
@@ -1294,7 +1317,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1618 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1620 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1330,15 +1353,31 @@
             ],
             "name": "G-13: Integration Evidence Freshness",
             "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-14__ct_evidence_freshness",
+                "severity": "pass",
+                "title": "7 CT surfaces (5 blocking, 1 warning, 1 owner-gated); committed evidence current (verdicts_evaluated=False)"
+              },
+              {
+                "check_id": "g-14__ct_evidence_freshness",
+                "severity": "info",
+                "title": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)"
+              }
+            ],
+            "name": "G-14: CT Evidence Freshness",
+            "verdict": "PASS"
           }
         ],
         "summary": {
-          "advisory": 51,
+          "advisory": 52,
           "blocking": 0,
-          "info": 46,
-          "sections": 27,
+          "info": 47,
+          "sections": 28,
           "skipped_sections": 0,
-          "total_findings": 98,
+          "total_findings": 101,
           "warnings": 5
         },
         "verdict": "PASS with advisory"
@@ -1346,8 +1385,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "a05fb5373816e9e4891662bed1a12671cd06de1fe21364f73c5bc51facbb1e0a",
-      "stdout_sha256": "fcc5fa594d6cba7422ba30afcb9b767f1b03151c62038ea338ea5c977e0e6e0e"
+      "stderr_sha256": "cb87891dbf87eafd61f3857a3e99805f8d294b40d0117e8eb20f6ca9aab94a41",
+      "stdout_sha256": "cf153f44c7fa769b6b7ecf873dd1b60ecf913fab44cd2742e8ec0ec1bce119bb"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1649,13 +1688,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-06-13T12:23:21.443241+00:00"
+        "timestamp": "2026-06-13T13:11:05.033223+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "ae7b34061a8fd66bda2ae5d222728eec3ce76648f070e8df6dc60cea5a84b03f"
+      "stdout_sha256": "2fd35436aacac66dd168de35f844d5ce5d0a2ec91d83285bf932d801bf796c36"
     },
     {
       "name": "supply_chain_gate",
@@ -1701,19 +1740,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-06-13T12:23:21.486859+00:00"
+        "timestamp": "2026-06-13T13:11:05.077518+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "4cc56f24b29983f1136309faeb17b170ad133e17e2d094fea6be1c99006df473"
+      "stdout_sha256": "6dc3690ae219adeaa11e996f23aee682a1282f03cb011827fca716812eadf2bb"
     }
   ],
-  "generated_at": "2026-06-13T12:23:21.504817+00:00",
+  "generated_at": "2026-06-13T13:11:05.090600+00:00",
   "git": {
     "branch": "dev",
-    "commit": "a7f04eff6d9bc4a650452edcff2992f8628614cd",
+    "commit": "b02d65a9bf6579ec9d6ed2f949e428a20b1bc33b",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
