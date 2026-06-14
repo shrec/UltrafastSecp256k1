@@ -58,7 +58,7 @@ int main() {
      * Map failures back to block ids by scanning it (exactly how libbitcoin's
      * verify_signatures collects failed-token identifiers). --- */
     std::vector<uint8_t> results(N);
-    ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, KEY, results.data());
+    ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, KEY, results.data(), nullptr, 0, nullptr);
 
     size_t ninvalid = 0;
     for (size_t i = 0; i < N; ++i) if (!results[i]) ++ninvalid;

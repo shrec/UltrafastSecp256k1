@@ -72,10 +72,14 @@ copy the opaque object across the boundary unchanged.
 
 | Function | Input form | Single/Batch | high-S |
 |----------|-----------|--------------|--------|
-| `ufsecp_lbtc_verify_ecdsa` / `_collect` | opaque (rows) | batch | **normalizes** (CPU + on-device GPU) |
+| `ufsecp_lbtc_verify_ecdsa` / `_opaque` / `_collect` | opaque (rows) | batch | **normalizes** (CPU + on-device GPU) |
+| `ufsecp_lbtc_verify_ecdsa_compact` | compact (rows) | batch | **normalizes** |
 | `ufsecp_lbtc_verify_ecdsa_columns` / `_collect` | opaque (columns) | batch | **normalizes** |
 | `ufsecp_lbtc_verify_ecdsa_columns_compact` / `_collect` | compact (columns) | batch | **normalizes** |
 | `ufsecp_lbtc_verify_schnorr[...]` | BIP-340 | batch | n/a |
+
+(The ECDSA row verifiers take `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap,
+invalid_count)` and return `ufsecp_error_t`; `_opaque`/`_compact` name the signature form.)
 
 The bridge's GPU result is required to match the CPU/libsecp256k1 reference bit-for-bit
 (enforced by `test_lbtc_consensus_diff`). The CPU fallback is always available.

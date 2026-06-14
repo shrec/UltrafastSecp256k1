@@ -112,20 +112,20 @@ int main(int argc, char** argv) {
         /* correctness gate before timing — failures come from results[] (the
          * bridge returns void; the caller counts invalids itself). */
         auto count_invalid = [&]() { size_t c = 0; for (auto v : results) if (!v) ++c; return c; };
-        ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
         bool ok = (count_invalid() == 0);
         {
             auto saved = e_rows[65]; e_rows[65] ^= 0x01;  // corrupt row 0 sig
-            ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             ok = ok && (count_invalid() >= 1) && (results[0] == 0);
             e_rows[65] = saved;
         }
         /* schnorr correctness gate (mirrors ecdsa; sig byte at record offset 64) */
         {
-            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             bool sok = (count_invalid() == 0);
             auto saved = s_rows[64]; s_rows[64] ^= 0x01;  // corrupt row 0 sig
-            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             sok = sok && (count_invalid() >= 1) && (results[0] == 0);
             s_rows[64] = saved;
             ok = ok && sok;
@@ -155,11 +155,11 @@ int main(int argc, char** argv) {
         if (!ok) { ufsecp_lbtc_ctrl_destroy(ctrl); continue; }
 
         auto bench = [&](const char* kind, auto verify, const std::vector<uint8_t>& rows) {
-            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data()); // warmup
+            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr); // warmup
             double best = 1e30;
             for (int it = 0; it < ITERS; ++it) {
                 auto t0 = clock_t_::now();
-                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data());
+                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr);
                 double dt = secs_since(t0);
                 if (dt < best) best = dt;
             }

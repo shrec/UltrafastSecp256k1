@@ -161,22 +161,53 @@ const char*       ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl);
  *             caller maps a failing row back to its block/tx via the opaque
  *             tag at rows[i] (or its own table) — no second side table needed.
  *
- * Returns void. There is deliberately no error code: every signature outcome is
- * a normal per-row result (results[i]), the buffer can never mismatch (implied
- * by count+key_size), and an unrecoverable condition (no backend) is surfaced at
- * ufsecp_lbtc_ctrl_create time, not here. A NULL ctrl/rows or n == 0 is a no-op
- * (results is left as the caller initialized it — zero-initialize for a
- * fail-closed "all invalid" on a degenerate call).
+ *   results       OUT, optional. n bytes; results[i] = 1 valid / 0 invalid.
+ *   invalid_idx   OUT, optional. Receives the indices of failing rows, up to
+ *                 invalid_cap entries (ignored if NULL).
+ *   invalid_cap   capacity of invalid_idx in entries.
+ *   invalid_count OUT, optional. Set to the TOTAL number of failing rows — which
+ *                 may exceed invalid_cap, so the caller can detect truncation.
+ *                 All rows valid iff *invalid_count == 0.
+ *
+ * Returns UFSECP_OK for any well-formed batch: a signature outcome is a normal
+ * per-row result, never an aborting return (so a node may treat any non-OK return
+ * as an unrecoverable fault and fail fast). A NULL ctrl returns UFSECP_ERR_NULL_ARG;
+ * n == 0 is a vacuously-valid no-op (*invalid_count = 0). Pass `results` and/or
+ * `invalid_idx`/`invalid_count` — any combination, or none.
+ *
+ * ECDSA signature form:
+ *   ufsecp_lbtc_verify_ecdsa          — OPAQUE (== ufsecp_lbtc_verify_ecdsa_opaque):
+ *                                       the libsecp-compatible ec_signature bytes,
+ *                                       zero-copy; the engine low-S normalizes.
+ *   ufsecp_lbtc_verify_ecdsa_opaque   — same, named explicitly.
+ *   ufsecp_lbtc_verify_ecdsa_compact  — public big-endian compact r||s in the row's
+ *                                       signature field (also low-S normalized).
+ *   Pick whichever matches how you store signatures. Schnorr has a single BIP-340
+ *   form, so `ufsecp_lbtc_verify_schnorr` takes no opaque/compact variant.
  */
-void ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
-                              const uint8_t* rows, size_t n,
-                              size_t key_size,
-                              uint8_t* results);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
 
-void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
-                                const uint8_t* rows, size_t n,
-                                size_t key_size,
-                                uint8_t* results);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
 
 /*
  * Columnar/vertical form of the same verification API. These calls are intended
@@ -649,11 +680,13 @@ public:
     // mode — controller-init is the only recoverable error, checked via ok().)
     void verify_ecdsa(const uint8_t* rows, size_t count, size_t key_size,
                       uint8_t* results) const {
-        ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                       nullptr, 0, nullptr);
     }
     void verify_schnorr(const uint8_t* rows, size_t count, size_t key_size,
                         uint8_t* results) const {
-        ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                         nullptr, 0, nullptr);
     }
 
     // Columnar / vertical verify. Use when the node already stores independent
@@ -678,11 +711,13 @@ public:
     // canonical MultisigRow / ThresholdRow: m|n + group + block-fk).
     void verify_multisig(const uint8_t* rows, size_t count, size_t key_size,
                          uint8_t* results) const {
-        ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                       nullptr, 0, nullptr);
     }
     void verify_threshold(const uint8_t* rows, size_t count, size_t key_size,
                           uint8_t* results) const {
-        ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                         nullptr, 0, nullptr);
     }
     void verify_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                                  const uint8_t* sigs64, size_t count,
@@ -873,9 +908,9 @@ public:
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 129 bytes are the contiguous on-wire record");
-        ufsecp_lbtc_verify_ecdsa(
+        (void)ufsecp_lbtc_verify_ecdsa(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results);
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results, nullptr, 0, nullptr);
     }
     template <class Row>
     void verify_schnorr(std::span<const Row> batch, uint8_t* results) const {
@@ -884,9 +919,9 @@ public:
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 128 bytes are the contiguous on-wire record");
-        ufsecp_lbtc_verify_schnorr(
+        (void)ufsecp_lbtc_verify_schnorr(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results);
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results, nullptr, 0, nullptr);
     }
 
     // --- Typed-span COLLECT overloads (C++20) -------------------------------

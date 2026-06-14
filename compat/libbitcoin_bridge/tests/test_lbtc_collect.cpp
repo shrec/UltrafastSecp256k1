@@ -111,8 +111,8 @@ void run_collect(ufsecp_lbtc_ctrl* ctrl, Kind k, uint8_t* rows, size_t n, size_t
 }
 void run_results(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows, size_t n,
                  size_t ks, uint8_t* res) {
-    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(ctrl, rows, n, ks, res);
-    else            ufsecp_lbtc_verify_schnorr(ctrl, rows, n, ks, res);
+    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(ctrl, rows, n, ks, res, nullptr, 0, nullptr);
+    else            ufsecp_lbtc_verify_schnorr(ctrl, rows, n, ks, res, nullptr, 0, nullptr);
 }
 
 /* Full collect contract for one kind, with invalids straddling chunk boundaries

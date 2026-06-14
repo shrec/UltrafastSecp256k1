@@ -283,17 +283,29 @@ void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
                EcdsaSigFormat format, Sink& sink) {
     const std::size_t rec = record_size(k);
 
-    /* ECDSA: libbitcoin rows are read in place, including any caller key tail.
-     * The engine's opaque-row C ABI parses each row directly into the batch
-     * verifier and low-S normalizes internally. This preserves batch speed while
-     * avoiding the previous extra cnt*129 compact-byte scratch table. */
-    if (k == Kind::Ecdsa) {
-        (void)format;
+    /* ECDSA OPAQUE rows: libbitcoin's native ec_signature layout. The engine's
+     * opaque-row C ABI parses each row in place into the batch verifier and low-S
+     * normalizes internally — fast, zero scratch. */
+    if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque) {
         std::vector<uint8_t> verdicts(cnt, 0);
         const auto rc = ufsecp_ecdsa_verify_opaque_rows(
             ctx, rows + base * stride, stride, cnt, verdicts.data());
         for (std::size_t i = 0; i < cnt; ++i) {
             sink.mark(base + i, rc == UFSECP_OK && verdicts[i] != 0);
+        }
+        return;
+    }
+
+    /* ECDSA COMPACT rows (public big-endian r||s in the row's sig field): the
+     * opaque-row fast path would mis-read them, so verify per row — extract
+     * msg(32)|pubkey(33)|sig(64), low-S normalize the compact sig, and verify. */
+    if (k == Kind::Ecdsa) {
+        for (std::size_t i = 0; i < cnt; ++i) {
+            const uint8_t* r = rows + (base + i) * stride;
+            uint8_t sig_norm[64];
+            copy_ecdsa_signature_normalized(r + 65, sig_norm, EcdsaSigFormat::Compact);
+            sink.mark(base + i,
+                      ufsecp_ecdsa_verify(ctx, r, sig_norm, r + 32) == UFSECP_OK);
         }
         return;
     }
@@ -672,6 +684,48 @@ void verify_columns_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
     }
 }
 
+/* Shared implementation of the public packed-row verify entry points (the shape
+ * libbitcoin's ecdsa::batch_verify / schnorr::batch_verify call). Verifies n rows
+ * of (record + key_size) bytes and reports per row:
+ *   results        OUT, optional: results[i] = 1 valid / 0 invalid.
+ *   invalid_idx    OUT, optional: indices of failing rows, up to invalid_cap.
+ *   invalid_count  OUT, optional: TOTAL failing rows (all valid iff *invalid_count==0;
+ *                  may exceed invalid_cap, so the caller can detect truncation).
+ * Returns UFSECP_OK for any well-formed batch (per-row failures are NOT errors — an
+ * invalid signature is a verdict, reported via the outputs, never an aborting return,
+ * matching libbitcoin's `if (status != UFSECP_OK) std::abort()` fail-fast contract).
+ * Fail-closed: a NULL/degenerate call or an unprocessed row reads as invalid. */
+ufsecp_error_t verify_rows_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+                                const uint8_t* rows, std::size_t n, std::size_t key_size,
+                                uint8_t* results, std::size_t* invalid_idx,
+                                std::size_t invalid_cap, std::size_t* invalid_count,
+                                EcdsaSigFormat format) {
+    if (invalid_count) *invalid_count = 0;
+    if (!ctrl) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;                 /* empty batch: vacuously valid */
+    if (!rows) return UFSECP_ERR_NULL_ARG;
+
+    /* Verify into the caller's results[] when provided, else a local scratch.
+     * Zero-init = invalid, so any row the verify core does not reach (mid-batch
+     * scratch OOM) stays invalid — fail-closed. */
+    std::vector<uint8_t> local;
+    uint8_t* res = results;
+    if (!res) { local.assign(n, 0u); res = local.data(); }
+    else std::memset(res, 0, n);
+
+    verify_results_impl(ctrl, k, rows, n, key_size, format, res);
+
+    std::size_t failed = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (res[i] == 0u) {
+            if (invalid_idx && failed < invalid_cap) invalid_idx[failed] = i;
+            ++failed;
+        }
+    }
+    if (invalid_count) *invalid_count = failed;
+    return UFSECP_OK;
+}
+
 } // namespace
 
 /* ------------------------------------------------------------------------- */
@@ -753,18 +807,40 @@ const char* ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl) {
     return ctrl ? ctrl->device_name : "";
 }
 
-void ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
-                              const uint8_t* rows, size_t n,
-                              size_t key_size, uint8_t* results) {
-    verify_results_impl(ctrl, Kind::Ecdsa, rows, n, key_size,
-                        EcdsaSigFormat::Opaque, results);
+/* ECDSA packed-row verify. `ufsecp_lbtc_verify_ecdsa` defaults to the OPAQUE
+ * signature form (libbitcoin's ec_signature, zero-copy); `_opaque` / `_compact`
+ * name the form explicitly so an integrator picks whichever it stores. All share
+ * the same 8-argument shape and verdict/parity semantics. */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+    return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Opaque);
 }
 
-void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
-                                const uint8_t* rows, size_t n,
-                                size_t key_size, uint8_t* results) {
-    verify_results_impl(ctrl, Kind::Schnorr, rows, n, key_size,
-                        EcdsaSigFormat::Compact, results);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+    return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Compact);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+    return ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows, n, key_size, results,
+                                           invalid_idx, invalid_cap, invalid_count);
+}
+
+/* Schnorr signatures have a single BIP-340 form (no opaque/compact distinction). */
+ufsecp_error_t ufsecp_lbtc_verify_schnorr(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+    return verify_rows_impl(ctrl, Kind::Schnorr, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Compact);
 }
 
 void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,

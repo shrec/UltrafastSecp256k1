@@ -215,7 +215,7 @@ int main() {
         make_lbtc_high_s(high_sig);
         CHECK(lbtc_ecdsa_s_is_high(high_sig), "ecdsa: fixture contains high-S signature");
         std::vector<uint8_t> res(N, 0xAA);
-        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(), nullptr, 0, nullptr);
         CHECK(invalids(res).count == 0, "ecdsa: whole batch verifies, including high-S");
         bool all1 = true; for (auto v : res) if (v != 1) all1 = false;
         CHECK(all1, "ecdsa: every result == 1");
@@ -273,13 +273,55 @@ int main() {
               "pack: compact-column verdict == opaque-column verdict (parity)");
     }
 
+    /* --- ECDSA row form: explicit _opaque / _compact + invalid_idx/_count --- */
+    {
+        const size_t N = 40;
+        /* opaque rows (libbitcoin ec_signature layout), one high-S */
+        auto rows_op = build_ecdsa(sctx, N, 3);
+        const size_t stride = UFSECP_LBTC_ECDSA_RECORD + 3;
+        make_lbtc_high_s(rows_op.data() + 9 * stride + 65);
+
+        /* compact rows: same records, but the sig field is big-endian compact */
+        auto rows_cp = rows_op;
+        for (size_t i = 0; i < N; ++i) {
+            uint8_t comp[64];
+            lbtc_opaque_to_compact(rows_cp.data() + i * stride + 65, comp);
+            std::memcpy(rows_cp.data() + i * stride + 65, comp, 64);
+        }
+
+        std::vector<uint8_t> r_op(N, 0xAA), r_cp(N, 0xAA);
+        size_t inv_op = 1, inv_cp = 1;
+        auto e1 = ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows_op.data(), N, 3,
+                                                  r_op.data(), nullptr, 0, &inv_op);
+        auto e2 = ufsecp_lbtc_verify_ecdsa_compact(ctrl, rows_cp.data(), N, 3,
+                                                   r_cp.data(), nullptr, 0, &inv_cp);
+        CHECK(e1 == UFSECP_OK && e2 == UFSECP_OK, "rowform: both return UFSECP_OK");
+        CHECK(inv_op == 0, "rowform: _opaque all valid (incl high-S), invalid_count==0");
+        CHECK(inv_cp == 0, "rowform: _compact all valid (incl high-S), invalid_count==0");
+        CHECK(r_op == r_cp, "rowform: _opaque verdict == _compact verdict (parity)");
+
+        /* unsuffixed default == _opaque */
+        std::vector<uint8_t> r_def(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa(ctrl, rows_op.data(), N, 3, r_def.data(),
+                                 nullptr, 0, nullptr);
+        CHECK(r_def == r_op, "rowform: ufsecp_lbtc_verify_ecdsa == _opaque");
+
+        /* corrupt one opaque row -> invalid_idx + invalid_count report it */
+        rows_op[17 * stride + 65] ^= 0x01;
+        size_t idx[4] = {99, 99, 99, 99}, inv = 0;
+        ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows_op.data(), N, 3, nullptr,
+                                        idx, 4, &inv);
+        CHECK(inv == 1, "rowform: one corruption -> invalid_count == 1");
+        CHECK(idx[0] == 17, "rowform: invalid_idx[0] == corrupted row 17");
+    }
+
     /* --- ECDSA, corrupt one --- */
     {
         const size_t N = 50;
         auto rows = build_ecdsa(sctx, N, 0);
         rows[25 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x01; /* flip a sig byte */
         std::vector<uint8_t> res(N, 0xAA);
-        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(), nullptr, 0, nullptr);
         auto iv = invalids(res);
         CHECK(iv.count == 1, "ecdsa: exactly 1 invalid after corruption");
         CHECK(iv.count == 1 && iv.first == 25, "ecdsa: invalid row == 25");
@@ -296,7 +338,7 @@ int main() {
         CHECK(lbtc_ecdsa_s_is_high(high_sig), "ecdsa+key: fixture contains high-S signature");
         rows[10 * stride + 65] ^= 0x02;
         std::vector<uint8_t> res(N, 0xAA);
-        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, KS, res.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, KS, res.data(), nullptr, 0, nullptr);
         auto iv = invalids(res);
         CHECK(iv.count == 1 && iv.first == 10, "ecdsa+key: invalid row == 10 (stride ok)");
         CHECK(res[9] == 1, "ecdsa+key: high-S row remains valid beside corruption");
@@ -356,11 +398,11 @@ int main() {
         const size_t N = 32;
         auto rows = build_schnorr(sctx, N, 0);
         std::vector<uint8_t> res(N, 0xAA);
-        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, res.data());
+        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, res.data(), nullptr, 0, nullptr);
         CHECK(invalids(res).count == 0, "schnorr: whole batch verifies");
 
         rows[7 * UFSECP_LBTC_SCHNORR_RECORD + 64] ^= 0x01;
-        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, res.data());
+        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, res.data(), nullptr, 0, nullptr);
         auto iv = invalids(res);
         CHECK(iv.count == 1 && iv.first == 7, "schnorr: invalid row == 7 after corruption");
     }
@@ -414,7 +456,7 @@ int main() {
     /* --- empty batch (no-op; results untouched) --- */
     {
         std::vector<uint8_t> res(1, 0xAA);
-        ufsecp_lbtc_verify_ecdsa(ctrl, nullptr, 0, 0, res.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, nullptr, 0, 0, res.data(), nullptr, 0, nullptr);
         CHECK(res[0] == 0xAA, "empty batch is a no-op (results untouched)");
     }
 

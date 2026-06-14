@@ -15,17 +15,19 @@ what to do, how, and what is required. See also [SIGNATURE_FORMS.md](SIGNATURE_F
 > — is fixed; see §6.)
 >
 > **(2) "Produce 64-byte compact low-S via `secp256k1_ecdsa_signature_serialize_compact` and
-> pass that to the batch interface, with no shim and no copies."** ❌ **Incorrect — it would
-> re-break verification.** The batch *row* interface (`ufsecp_lbtc_verify_ecdsa`) consumes the
-> **opaque** `secp256k1_ecdsa_signature` (`ec_signature`) bytes, **not** public compact. Passing
-> `serialize_compact` output there makes the bridge byte-reverse already-big-endian bytes →
-> verification fails. **Pass `ec_signature` unchanged** (truly zero-copy); the bridge low-S
-> normalizes internally. `serialize_compact` is the right conversion **only** for the separate
-> `*_columns_compact` API (§4.3), which you do not need.
+> pass that to the batch interface."** ⚠️ **Only with the matching entry point.** The default
+> batch row verifier `ufsecp_lbtc_verify_ecdsa` (== `_opaque`) consumes the **opaque**
+> `ec_signature` bytes; feeding `serialize_compact` output to *it* byte-reverses and fails. If
+> you want to pass big-endian compact, call **`ufsecp_lbtc_verify_ecdsa_compact`** (same 8-arg
+> shape) — the name tells you the form. **Recommended:** pass `ec_signature` **unchanged** to
+> `ufsecp_lbtc_verify_ecdsa` (truly zero-copy; the bridge low-S normalizes internally) and skip
+> `serialize_compact` entirely. The `_opaque` / `_compact` pair lets you choose; there is no
+> efficiency reason to round-trip through compact.
 
-**Net:** the integration needs exactly **one** change — update the batch call sites to the
-current API signature (§4.2). Everything else (your row layout, the opaque zero-copy form, the
-single-verify path) is already correct.
+**Net:** the integration needs **no code change** on your side. `ufsecp_lbtc_verify_ecdsa` /
+`_schnorr` keep the exact 8-argument `ufsecp_error_t(... , results, invalid_idx, invalid_cap,
+invalid_count)` shape your `batch_verify` already calls — the engine API now matches your
+structure. Pick `_opaque` (default) or `_compact` for ECDSA per how you store signatures.
 
 ---
 
@@ -88,53 +90,62 @@ Schnorr row : digest(32) | x-only(32) | signature(64, BIP-340)   | token(key_siz
   **and** GPU. Pass `ec_signature` exactly as `parse_der_lax`/`normalize` produced it.
 - The trailing `token` (`key_size` bytes) is your opaque per-row id; the engine never interprets it.
 
-### 4.2 The current API signature — UPDATE YOUR CALL SITES
+### 4.2 The API signature — matches your `batch_verify`, no change required
 
 ```c
-/* current shipped shape (since 2026-06-01, the shape evoskuil endorsed) */
-void ufsecp_lbtc_verify_ecdsa  (ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows,
-                                size_t n, size_t key_size, uint8_t* results);
-void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows,
-                                size_t n, size_t key_size, uint8_t* results);
+/* The engine API matches libbitcoin's existing call exactly. Returns UFSECP_OK for
+ * any well-formed batch (per-row failures are verdicts, not errors); a non-OK return
+ * is an unrecoverable fault. results / invalid_idx / invalid_count are all optional. */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa(           /* == _ecdsa_opaque (default form) */
+    ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+    uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque (...same args...);  /* opaque ec_signature */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(...same args...);  /* big-endian compact r||s */
+ufsecp_error_t ufsecp_lbtc_verify_schnorr(...same args...);        /* BIP-340 (single form) */
 ```
 ```cpp
-// C++ wrapper (unchanged — matches libbitcoin's usage):
+// Your existing call compiles + runs unchanged:
 static thread_local ufsecp::lbtc::Controller control{ UFSECP_LBTC_AUTO };
-if (!control.ok()) std::abort();                       // controller-init is the only recoverable error
-ufsecp_lbtc_verify_ecdsa(control.get(),
+if (!control.ok()) std::abort();
+const auto status = ufsecp_lbtc_verify_ecdsa(control.get(),
     reinterpret_cast<const uint8_t*>(rows.data()), count,
-    sizeof(triple::token), results.data());            // results[i] = 1 valid / 0 invalid
+    sizeof(triple::token), results.data(), nullptr, 0, nullptr);   // or &invalid_count
+if (status != UFSECP_OK) std::abort();                             // unrecoverable fault only
 ```
-> **Migration:** the `batch-verify-triple` / `ultrafast-batch-verify` branches call an older
-> **8-argument, `ufsecp_error_t`-returning** form
-> (`..., results, nullptr, 0, &invalid_count)` + `std::abort()` on non-OK). That predates the
-> 2026-06-01 API and **will not compile** against current ufsecp. Drop to the **5-argument `void`**
-> form above: per-row verdicts already arrive in `results[]`, and the typed `std::span<const triple>`
-> makes a malformed stride impossible, so there is no recoverable error to check.
+- `results` (optional): `results[i]` = 1 valid / 0 invalid.
+- `invalid_idx` + `invalid_cap` (optional): indices of failing rows, up to `invalid_cap`.
+- `invalid_count` (optional): total failing rows (all valid iff `*invalid_count == 0`; may exceed
+  `invalid_cap`, so you can detect truncation — handy to skip the per-row scan when zero).
+
+> The engine was aligned to this exact 8-argument shape so your `ecdsa::batch_verify` /
+> `schnorr::batch_verify` need no edits. Choose `_opaque` (default) or `_compact` for ECDSA.
 
 Variants (same shape): `ufsecp_lbtc_verify_ecdsa_collect` / `_columns` / `_columns_collect` (and the
 Schnorr equivalents). `*_collect` writes the verdict into each row's key cell instead of `results[]`.
 
-### 4.3 If you ever want compact instead of opaque (not needed for your row layout)
+### 4.3 If you prefer compact rows or columns
 
-`ufsecp_lbtc_verify_ecdsa_columns_compact(ctrl, msg32, pub33, sigs64_compact, n, results)` takes
-**public big-endian compact** sigs (column layout). Only *here* is
-`secp256k1_ecdsa_signature_serialize_compact` the correct conversion. It is a separate columnar API,
-not your packed-row form, and offers no advantage over the opaque zero-copy path.
+- **Packed rows, compact:** `ufsecp_lbtc_verify_ecdsa_compact(ctrl, rows, n, key_size, results,
+  invalid_idx, invalid_cap, invalid_count)` — same row layout, but the 64-byte signature field holds
+  **public big-endian compact r||s**. Use `secp256k1_ecdsa_signature_serialize_compact` to fill it.
+- **Columns, compact:** `ufsecp_lbtc_verify_ecdsa_columns_compact(ctrl, msg32, pub33, sigs64_compact,
+  n, results)` (separate msg/pub/sig arrays).
+Both are correctness-equivalent to the opaque path; opaque is the zero-copy default.
 
 ---
 
 ## 5. What libbitcoin must do — checklist
 
-1. **Bump `deps/UltrafastSecp256k1`** to current `dev` (has the opaque-layout fix, the bridge high-S
-   normalization, `_columns_compact`, `ecdsa_sig_pack`, and these docs).
-2. **Update the batch call sites** (`ecdsa::batch_verify`, `schnorr::batch_verify`) to the 5-arg
-   `void` signature (§4.2).
-3. **Keep passing the opaque `ec_signature`** in rows, zero-copy — **do not** `serialize_compact`
-   for the batch (§4.1).
+1. **Bump `deps/UltrafastSecp256k1`** to current `dev` (opaque-layout fix, bridge high-S
+   normalization, the 8-arg `_opaque`/`_compact` row verifiers, `_columns_compact`, `ecdsa_sig_pack`,
+   and these docs).
+2. **Batch call sites:** **no change** — `ufsecp_lbtc_verify_ecdsa` / `_schnorr` already match your
+   8-argument `ufsecp_error_t` call (§4.2). Optionally switch to `_opaque`/`_compact` for explicitness.
+3. **Keep passing the opaque `ec_signature`** in rows, zero-copy (the default `ufsecp_lbtc_verify_ecdsa`
+   == `_opaque`); the bridge normalizes high-S. Use `_compact` only if you store compact sigs.
 4. **Single verify / sign / parse:** unchanged (layer 1 drop-in).
 
-That is the entire integration. No additional shim, no extra copies.
+That is the entire integration. No code change, no additional shim, no extra copies.
 
 ---
 
@@ -151,16 +162,13 @@ Both were engine bugs, now fixed — not libbitcoin wiring:
 
 ---
 
-## 7. Open items on the engine side ("what's missing")
+## 7. Engine API status
 
-The recommended path (opaque rows + 5-arg `void`) needs **nothing new**. These are optional and only
-relevant if libbitcoin prefers not to touch its branch:
+The API now fully matches libbitcoin's structure — nothing is missing for the integration:
 
-- **(Optional) 8-arg `ufsecp_error_t` source-compat overload** of `ufsecp_lbtc_verify_{ecdsa,schnorr}`,
-  forwarding to the `void` core, so the pre-2026-06-01 branches build unchanged. evoskuil endorsed the
-  `void` shape, so this is a courtesy, not a requirement.
-- **(Optional) row-form compact batch verify.** Compact batch is currently **columns-only**
-  (`*_columns_compact`); there is no packed-*row* compact verify. Not needed for libbitcoin (it uses
-  opaque rows), but would round out the matrix if a future integrator wants packed-row compact.
-
-Neither is required to close the libbitcoin integration.
+- **8-arg `ufsecp_error_t` row verifiers** (`ufsecp_lbtc_verify_ecdsa` / `_schnorr`, with
+  `results` + `invalid_idx`/`invalid_cap`/`invalid_count`) — matches your `batch_verify` call. ✅
+- **Explicit `_opaque` / `_compact` ECDSA row verifiers** — pick the form by name. ✅
+- **Packed-row compact verify** (`_compact`) and **columns compact** (`_columns_compact`). ✅
+- Verified CPU + CUDA, with the GPU↔CPU consensus differential (`test_lbtc_consensus_diff`) green,
+  including high-S rows and the `invalid_idx`/`invalid_count` reporting.

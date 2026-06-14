@@ -121,11 +121,11 @@ bool diff_kind(ufsecp_lbtc_ctrl* gpu, ufsecp_lbtc_ctrl* cpu, const void* ls_opaq
 
     std::vector<uint8_t> g_res(n), c_res(n);  /* zero-init: bridge writes 1=valid/0=invalid */
     if (k==ECDSA) {
-        ufsecp_lbtc_verify_ecdsa(gpu, rows.data(), n, 0, g_res.data());
-        ufsecp_lbtc_verify_ecdsa(cpu, rows.data(), n, 0, c_res.data());
+        ufsecp_lbtc_verify_ecdsa(gpu, rows.data(), n, 0, g_res.data(), nullptr, 0, nullptr);
+        ufsecp_lbtc_verify_ecdsa(cpu, rows.data(), n, 0, c_res.data(), nullptr, 0, nullptr);
     } else {
-        ufsecp_lbtc_verify_schnorr(gpu, rows.data(), n, 0, g_res.data());
-        ufsecp_lbtc_verify_schnorr(cpu, rows.data(), n, 0, c_res.data());
+        ufsecp_lbtc_verify_schnorr(gpu, rows.data(), n, 0, g_res.data(), nullptr, 0, nullptr);
+        ufsecp_lbtc_verify_schnorr(cpu, rows.data(), n, 0, c_res.data(), nullptr, 0, nullptr);
     }
     /* Invalid counts are derived from the per-row results — the bridge's only
      * output (it returns void; failures are mapped by the caller from results[]). */

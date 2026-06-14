@@ -206,8 +206,8 @@ Columns split_columns(const std::vector<uint8_t>& rows, Kind k, size_t n, size_t
 void verify_tbl(ufsecp_lbtc_ctrl* c, Kind k, const uint8_t* rows, size_t n,
                 size_t ks, uint8_t* res) {
     /* multisig table -> ECDSA path; threshold table -> Schnorr path. */
-    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(c, rows, n, ks, res);
-    else            ufsecp_lbtc_verify_schnorr(c, rows, n, ks, res);
+    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(c, rows, n, ks, res, nullptr, 0, nullptr);
+    else            ufsecp_lbtc_verify_schnorr(c, rows, n, ks, res, nullptr, 0, nullptr);
 }
 void collect_tbl(ufsecp_lbtc_ctrl* c, Kind k, uint8_t* rows, size_t n, size_t ks) {
     if (k == ECDSA) ufsecp_lbtc_verify_ecdsa_collect(c, rows, n, ks);
