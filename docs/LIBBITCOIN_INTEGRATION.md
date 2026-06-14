@@ -15,14 +15,16 @@ what to do, how, and what is required. See also [SIGNATURE_FORMS.md](SIGNATURE_F
 > — is fixed; see §6.)
 >
 > **(2) "Produce 64-byte compact low-S via `secp256k1_ecdsa_signature_serialize_compact` and
-> pass that to the batch interface."** ⚠️ **Only with the matching entry point.** The default
-> batch row verifier `ufsecp_lbtc_verify_ecdsa` (== `_opaque`) consumes the **opaque**
-> `ec_signature` bytes; feeding `serialize_compact` output to *it* byte-reverses and fails. If
-> you want to pass big-endian compact, call **`ufsecp_lbtc_verify_ecdsa_compact`** (same 8-arg
-> shape) — the name tells you the form. **Recommended:** pass `ec_signature` **unchanged** to
-> `ufsecp_lbtc_verify_ecdsa` (truly zero-copy; the bridge low-S normalizes internally) and skip
-> `serialize_compact` entirely. The `_opaque` / `_compact` pair lets you choose; there is no
-> efficiency reason to round-trip through compact.
+> pass that to the batch interface."** ⚠️ **You do not need to, and it costs more, not less.**
+> The default batch row verifier `ufsecp_lbtc_verify_ecdsa` (== `_opaque`) consumes the **opaque**
+> `ec_signature` bytes directly: the opaque LE form *is* the engine's native scalar-limb layout, so
+> each `r`/`s` is read with a direct little-endian limb load — **no byte-reversal and no
+> per-signature copy** (`serialize_compact` would *add* a bswap + a copy). Feeding compact bytes to
+> the opaque verifier mismatches the form (it reads them as LE limbs) and fails; if you genuinely
+> store big-endian compact, call **`ufsecp_lbtc_verify_ecdsa_compact`** (same 8-arg shape). **Best:**
+> pass `ec_signature` **unchanged** to `ufsecp_lbtc_verify_ecdsa` — that is the true no-copy path,
+> and the engine's in-register low-S normalize (a conditional negate, consensus-required — see §4.1)
+> is free.
 
 **Net:** the integration needs **no code change** on your side. `ufsecp_lbtc_verify_ecdsa` /
 `_schnorr` keep the exact 8-argument `ufsecp_error_t(... , results, invalid_idx, invalid_cap,
@@ -86,9 +88,21 @@ packed `triple` span *is* the bridge row buffer:
 ECDSA row   : digest(32) | pubkey(33) | ec_signature(64, opaque) | token(key_size)
 Schnorr row : digest(32) | x-only(32) | signature(64, BIP-340)   | token(key_size)
 ```
-- **No `serialize_compact`. No `normalize`.** The bridge low-S normalizes high-S internally on CPU
-  **and** GPU. Pass `ec_signature` exactly as `parse_der_lax`/`normalize` produced it.
-- The trailing `token` (`key_size` bytes) is your opaque per-row id; the engine never interprets it.
+- **No `serialize_compact`. No `normalize`. No per-signature copy.** The opaque `ec_signature`
+  (libsecp's internal little-endian scalar limbs) **is the engine's native scalar layout**: the
+  ECDSA opaque verifier parses each `s`/`r` with a direct little-endian limb load
+  (`opaque_scalar_parse_strict_nonzero` → `Scalar::from_limbs`) — **not** a byte-reversal. This is
+  the unavoidable bytes→scalar parse every secp256k1 backend does; the opaque (LE) form is if
+  anything *cheaper* than the public big-endian compact form, which is the one that needs a bswap.
+- The high-S → low-S normalization is an **in-register conditional scalar negate** (`s ← n−s` iff
+  `s > n/2`), fused into that parse — not a copy of the signature. It is **consensus-required**, not
+  a "shim hack": Bitcoin consensus accepts high-S (historical blocks), and libbitcoin's own single
+  `verify_signature` already calls `secp256k1_ecdsa_signature_normalize` for exactly this reason;
+  the batch path normalizes so it agrees with that single path. Doing it in-register here is the
+  copy-free choice — normalizing on the libbitcoin side would mean mutating your `const` zero-copy
+  rows (a copy).
+- Pass `ec_signature` exactly as `parse_der_lax` produced it. The trailing `token` (`key_size`
+  bytes) is your opaque per-row id; the engine never interprets it.
 
 ### 4.2 The API signature — matches your `batch_verify`, no change required
 
