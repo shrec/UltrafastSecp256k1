@@ -355,11 +355,21 @@ elseif(MSVC)
     # /Ob3 (most-aggressive inlining) is a consistent ~8-15% win on the Windows
     # MSVC-vs-Clang sweep (field_mul 20->17ns, field_sqr 15->13ns = Clang parity,
     # scalar_mul 100->92us, field add 6.3->2.2ns) with no measurable regression,
-    # so it is ON by default. WPO (/GL+/LTCG+/OPT) also nets positive; turning it
-    # off regressed field_inv/point_add. /arch:AVX2 was neutral-to-negative for the
+    # so it is ON by default. /arch:AVX2 was neutral-to-negative for the
     # non-vectorizable bigint kernels, hence ARCH stays SSE2 above.
+    #
+    # SECP256K1_MSVC_WPO (/GL whole-program + /LTCG) is OFF by default and is a
+    # CONSUMER opt-in, NOT a forced library policy. Reason: /GL emits whole-program
+    # IL into every object, so a *static* lib compiled with /GL forces EVERY
+    # downstream consumer's linker into /LTCG for its whole program — even consumers
+    # who do not want it. Some consumers (e.g. libbitcoin) measure LTCG as a net
+    # runtime REGRESSION for their workload, so the library must not impose it.
+    # Our own standalone microbenchmarks see a small WPO gain; build with
+    # -DSECP256K1_MSVC_WPO=ON to opt in for a self-contained release/benchmark
+    # build. When OFF, no /GL is emitted, so the produced .lib never dictates the
+    # consumer's link-time optimization. See docs/BUILD_OPTIONS.md.
     option(SECP256K1_MSVC_OB3 "MSVC: /Ob3 most-aggressive inlining" ON)
-    option(SECP256K1_MSVC_WPO "MSVC: /GL whole-program + /LTCG + /OPT:REF,ICF" ON)
+    option(SECP256K1_MSVC_WPO "MSVC: /GL whole-program + /LTCG + /OPT:REF,ICF (opt-in; a /GL static lib forces consumer /LTCG)" OFF)
     add_compile_options(
         $<$<COMPILE_LANGUAGE:C,CXX>:/W4>
         $<$<COMPILE_LANGUAGE:C,CXX>:/permissive->

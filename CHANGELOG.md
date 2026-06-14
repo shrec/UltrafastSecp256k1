@@ -26,17 +26,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Windows/MSVC (`cl`) build tuning (for builds that must use cl).** MSVC Release
-  builds now add `/Ob3` (most-aggressive inlining), `/Oi /Gy /Gw`, and pair `/GL`
-  with `/LTCG /OPT:REF,ICF`. On the Windows MSVC-vs-Clang benchmark sweep this is a
-  consistent **~8–15%** speedup across the field/scalar/point kernels (field squaring
-  reaches Clang parity, field add overtakes it) with **no** correctness or portability
-  cost — `run_selftest ci` stays 31/31. New CMake cache options: `SECP256K1_MSVC_OB3`
-  (default `ON`), `SECP256K1_MSVC_WPO` (default `ON`), `SECP256K1_MSVC_ARCH`
+  builds now add `/Ob3` (most-aggressive inlining) and `/Oi /Gy /Gw`. On the Windows
+  MSVC-vs-Clang benchmark sweep this is a consistent **~8–15%** speedup across the
+  field/scalar/point kernels (field squaring reaches Clang parity, field add overtakes
+  it) with **no** correctness or portability cost — `run_selftest ci` stays 31/31. New
+  CMake cache options: `SECP256K1_MSVC_OB3` (default `ON`), `SECP256K1_MSVC_ARCH`
   (`SSE2|AVX|AVX2|AVX512`, default `SSE2`). `/arch:AVX2`/`AVX512` are selectable but
   **default off** — their auto-vectorization regresses the non-vectorizable 64-bit
-  big-integer kernels. The residual ~1.4–5× gap on compound paths (scalar_mul,
-  batch_verify, frost) is structural (MSVC has no native `__int128`/`MULX` inline
-  field multiply) and is left as future work. Full data:
+  big-integer kernels.
+- **`SECP256K1_MSVC_WPO` (`/GL` whole-program + `/LTCG` + `/OPT:REF,ICF`) is now
+  OFF by default (was ON) — a consumer opt-in, not a forced library policy.** `/GL`
+  emits whole-program IL into every object, so a **static** lib compiled with `/GL`
+  forces *every* downstream consumer's linker into `/LTCG` for its whole program —
+  even consumers who do not want it. Some consumers (e.g. libbitcoin) measure LTCG as
+  a net runtime **regression** for their workload, so the library must not impose it.
+  Build with `-DSECP256K1_MSVC_WPO=ON` to opt in for a self-contained release/benchmark
+  build; when OFF, no `/GL` is emitted and the produced `.lib` never dictates the
+  consumer's link-time optimization. The residual ~1.4–5× MSVC-vs-Clang gap on
+  compound paths (scalar_mul, batch_verify, frost) is structural (MSVC has no native
+  `__int128`/`MULX` inline field multiply) and is left as future work. Full data:
   `benchmarks/comparison/windows_msvc_vs_clang_20260614.md`.
 
 ## [4.2.1] - 2026-06-10
