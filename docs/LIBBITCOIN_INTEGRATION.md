@@ -146,6 +146,47 @@ Schnorr equivalents). `*_collect` writes the verdict into each row's key cell in
   n, results)` (separate msg/pub/sig arrays).
 Both are correctness-equivalent to the opaque path; opaque is the zero-copy default.
 
+### 4.4 Endianness — opaque is a single-library private format; the BE caveat is cross-library only
+
+The opaque 64-byte ECDSA form is each library's **private in-memory scalar layout**, not a portable
+wire format. The decisive consequence: **no endianness conditionality is needed when one library both
+produces and consumes the opaque bytes** — which is *always* the case for single verify, and for the
+batch bridge whenever libbitcoin's secp backend is this project's shim.
+
+- **Single verify (stock libsecp *or* ufsecp), end to end — no conditionality, ever.** The same
+  library parses (`parse_der`/`parse_compact` → opaque) and verifies (opaque → scalar) with symmetric
+  code, so the bytes round-trip on any host. Stock libsecp uses a host-native struct dump (`memcpy`
+  both directions); the ufsecp shim uses an unconditional byte-reverse both directions
+  (`scalar_be_to_internal` / `scalar_internal_to_be`, mirrored by the engine's `opaque_read_le64` /
+  `opaque_write_le64`). Neither has a `#if` on host endianness, and neither needs one. You use the
+  private format all the way through — exactly as expected.
+- **Batch bridge with the ufsecp shim as the secp backend — also no conditionality, even on BE.** The
+  shim stores opaque as **pure little-endian on every host** (host-independent byte-reverse) and the
+  bridge's opaque parser (`opaque_read_le64`) reads pure little-endian on every host. So
+  shim-opaque → bridge is byte-consistent on **any** host, including big-endian.
+
+The single case that *does* need care is a **cross-library boundary on a big-endian host**: feeding
+opaque bytes produced by **stock libsecp** — whose opaque is host-native (on BE the limb array order
+stays little but each 64-bit limb is big-endian, so it is neither a clean LE nor a clean BE integer) —
+into the **ufsecp bridge**, which reads a fixed pure-LE order. Those layouts differ only on BE, and
+only when the producer is a *different*, host-native library. This arises solely in a mixed deployment
+that keeps stock libsecp as the signature producer while using the ufsecp bridge purely as a batch
+accelerator. There, on BE, route the batch through the canonical **compact** form
+(`ufsecp_lbtc_verify_ecdsa_compact`, defined big-endian `r‖s`):
+
+```c
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    /* opaque zero-copy — correct for every producer on little-endian */
+#else
+    /* big-endian + stock-libsecp-produced opaque → use compact */
+#endif
+```
+
+If your secp backend is the ufsecp shim (the §3 drop-in), or you are on any little-endian host (every
+mainstream node), the opaque zero-copy path is correct as-is and the `#if` is unnecessary. The
+conditional exists only to be exhaustively correct for big-endian, mixed-backend deployments — a class
+that is essentially nonexistent in Bitcoin.
+
 ---
 
 ## 5. What libbitcoin must do — checklist
@@ -156,7 +197,10 @@ Both are correctness-equivalent to the opaque path; opaque is the zero-copy defa
 2. **Batch call sites:** **no change** — `ufsecp_lbtc_verify_ecdsa` / `_schnorr` already match your
    8-argument `ufsecp_error_t` call (§4.2). Optionally switch to `_opaque`/`_compact` for explicitness.
 3. **Keep passing the opaque `ec_signature`** in rows, zero-copy (the default `ufsecp_lbtc_verify_ecdsa`
-   == `_opaque`); the bridge normalizes high-S. Use `_compact` only if you store compact sigs.
+   == `_opaque`); the bridge normalizes high-S. Use `_compact` only if you store compact sigs — or in
+   the narrow case of a **big-endian** host that feeds *stock-libsecp-produced* opaque to the bridge
+   (see §4.4; with the shim backend, or on little-endian — every mainstream node — opaque is correct
+   as-is, no conditionality).
 4. **Single verify / sign / parse:** unchanged (layer 1 drop-in).
 
 That is the entire integration. No code change, no additional shim, no extra copies.

@@ -17,7 +17,7 @@ costs it the least conversion.
 
 | You have / want | Recommended entry point |
 |-----------------|-------------------------|
-| DER from a Bitcoin script (BIP-66 / lax) | `secp256k1_ecdsa_signature_parse_der_lax` → (optional `secp256k1_ecdsa_signature_normalize`) → `secp256k1_ecdsa_verify` (shim). Or parse to compact and use the `ufsecp_*` C ABI. |
+| DER from a Bitcoin script (BIP-66 / lax) | `secp256k1_ecdsa_signature_parse_der_lax` → (optional `secp256k1_ecdsa_signature_normalize`) → `secp256k1_ecdsa_verify` (shim). For the `ufsecp_*` C ABI, pass the parsed **opaque** object straight to `ufsecp_ecdsa_verify_opaque` — **no conversion**; `ufsecp_ecdsa_verify` takes compact only if you already serialized. |
 | libbitcoin `ec_signature` (opaque object) | Pass it **unchanged** to `ufsecp_lbtc_verify_ecdsa` / `_columns` (batch, zero-copy, normalizes internally) or `ufsecp_ecdsa_verify_opaque` (single). |
 | Standard compact `r‖s` (big-endian) | `ufsecp_ecdsa_verify` (single, strict low-S) or `ufsecp_lbtc_verify_ecdsa_columns_compact` (batch). |
 | Maximum GPU batch throughput | Bridge **opaque rows** `ufsecp_lbtc_verify_ecdsa` — the GPU kernel parses + low-S normalizes on-device (no host staging). |
@@ -45,6 +45,26 @@ so on little-endian hosts the opaque object **is** the byte-reverse of compact. 
 library's shim mirrors that exactly. Therefore libbitcoin's `ec_signature` bytes are
 **identical** whether the backend is stock libsecp256k1 or UltrafastSecp256k1 — you can
 copy the opaque object across the boundary unchanged.
+
+**Endianness caveat (little-endian only).** The opaque form is a *host-native* scalar-limb
+dump, portable only on little-endian hosts. The engine/shim opaque parser reads it as **pure
+little-endian** (`opaque[0]` = LSB, the four 64-bit limbs least-significant-limb-first), which is
+**byte-identical to stock libsecp256k1's opaque only on little-endian hosts** (x86-64, AArch64,
+RISC-V, ppc64le — every mainstream node). On a **big-endian** host stock libsecp's opaque is
+*limb order little, each 64-bit limb big-endian* — neither a clean LE nor a clean BE integer — so
+it diverges from the engine's fixed pure-LE parse and **must not be parsed cross-host**. (Stock
+libsecp documents its opaque `data[64]` as implementation-defined and non-portable across platforms
+*or* versions.) Use the **compact** form (defined big-endian `r‖s`) for any portable, cross-library,
+or cross-host serialization; opaque/zero-copy is a little-endian-only optimization. See
+`docs/LIBBITCOIN_INTEGRATION.md` §4.4 for the compile-time `#if __BYTE_ORDER__` rule.
+
+This caveat applies only to **byte copies of the opaque object across a library or host boundary**.
+*Within* a single library — parse then verify — endianness is **never** a concern: the same code
+produces and consumes the layout symmetrically (stock libsecp `memcpy`s both ways; the shim
+byte-reverses both ways), with no host conditionality. So both stock libsecp and this library use the
+private opaque format end-to-end on any host with no `#if`; the BE conditional is needed only when one
+library's host-native opaque bytes are handed to a *different* consumer (the ufsecp batch bridge) on a
+big-endian host.
 
 ---
 
