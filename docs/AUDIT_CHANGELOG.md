@@ -10,6 +10,11 @@
 - Added a Python audit self-test that rejects reintroducing the stale
   `CAAS_BOT_TOKEN` fail-fast check and verifies both checkout and commit/push
   use the same token fallback expression.
+- Hardened evidence-chain validation for CAAS secret provisioning: legacy
+  local records signed with the historical public fallback key remain valid and
+  are reported explicitly, while new CI records can be signed with
+  `CAAS_HMAC_KEY`. This prevents enabling the secret from falsely marking the
+  existing chain as tampered.
 
 ## 2026-06-13 — libbitcoin ECDSA batch bridge opaque-signature regression fix
 

@@ -281,6 +281,76 @@ def test_hmac_key_env_override():
         check(False, "CAAS-KEY-2: HMAC key env-var behavioral test", str(e))
 
 
+def test_evidence_governance_mixed_key_validation():
+    """CAAS-KEY-3: secret-key CI records must coexist with legacy local records."""
+    gov_path = SCRIPT_DIR / "evidence_governance.py"
+    if not gov_path.exists():
+        return
+
+    old_key = os.environ.get("CAAS_HMAC_KEY")
+    os.environ["CAAS_HMAC_KEY"] = "ci-secret-for-mixed-key-selftest"
+    try:
+        mod = load_module(gov_path)
+    finally:
+        if old_key is None:
+            os.environ.pop("CAAS_HMAC_KEY", None)
+        else:
+            os.environ["CAAS_HMAC_KEY"] = old_key
+
+    if mod is None:
+        check(False, "CAAS-KEY-3: evidence_governance loads with secret key")
+        return
+
+    legacy = {
+        "who": "legacy-local",
+        "what": "old record",
+        "when": "2026-05-11T00:00:00+00:00",
+        "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+        "binary_hash": "n/a",
+        "verdict": "pass",
+        "reason": "signed before CAAS_HMAC_KEY was provisioned",
+        "signed_by_ci": False,
+    }
+    legacy["signature"] = mod._compute_hmac_with_key(legacy, mod._HMAC_KEY_DEFAULT_BYTES)
+
+    ci_record = {
+        "who": "ci",
+        "what": "new record",
+        "when": "2026-06-14T00:00:00+00:00",
+        "commit": "bc01bf6f857ef9692afed2dfbfd9976bc0c68990",
+        "binary_hash": "n/a",
+        "verdict": "pass",
+        "reason": "signed with CAAS_HMAC_KEY",
+        "signed_by_ci": True,
+    }
+    ci_record["signature"] = mod._compute_hmac(ci_record)
+
+    old_chain_file = mod.EVIDENCE_CHAIN_FILE
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            chain_file = Path(tmpdir) / "EVIDENCE_CHAIN.json"
+            chain_file.write_text(json.dumps({
+                "version": 1,
+                "records_count": 2,
+                "records": [legacy, ci_record],
+            }), encoding="utf-8")
+            mod.EVIDENCE_CHAIN_FILE = chain_file
+            result = mod.validate_chain()
+    finally:
+        mod.EVIDENCE_CHAIN_FILE = old_chain_file
+
+    check(
+        result.get("chain_valid") is True,
+        "CAAS-KEY-3: secret-key validation accepts legacy default-signed local records",
+        f"mixed-key chain failed validation: {result}",
+    )
+    check(
+        result.get("legacy_default_signed_records") == [0],
+        "CAAS-KEY-4: legacy default-signed records are reported explicitly",
+        f"unexpected legacy-default record list: {result}",
+    )
+
+
 # ============================================================================
 # CAAS-003: ci_gate_detect hard-profile classification precedence
 # ============================================================================
@@ -403,6 +473,7 @@ def main():
     test_supply_chain_gate_no_stunt_double()
     test_evidence_governance_hmac_reason()
     test_hmac_key_env_override()
+    test_evidence_governance_mixed_key_validation()
     test_ci_gate_detect_hard_profile_precedence()
     test_external_bundle_commit_mismatch_blocks()
 
