@@ -168,6 +168,78 @@ if(SECP256K1_BUILD_LIBBITCOIN)
     message(STATUS "secp256k1-fast: ✅ libbitcoin profile — shim + batch script-sig bridge + BIP-352 (minimal surface)")
 endif()
 
+# -- Bitcoin Knots single-flag entry point --------------------------------------
+# Minimal libsecp256k1 drop-in for Bitcoin Knots (Bitcoin Core 29 base, libsecp256k1
+# 0.6.0). Knots enables exactly: ECDSA core + recovery + schnorrsig + extrakeys +
+# ellswift (ecdh/musig present-but-unused). This profile compiles ONLY that subset
+# and strips every other crypto module + all GPU/bench/test/binding surface.
+#
+# MODULE build (not a separate library): SECP256K1_BUILD_AS_OBJECT makes the engine
+# an OBJECT library, so its objects splice directly into Knots' own bitcoind link —
+# a continuation of the node's source, NOT a static/shared boundary. With
+# -ffunction-sections + Knots' --gc-sections, any module Knots never calls is
+# dropped from bitcoind at the final link. Keep -O3 (Release): the ~1 MB ecmult
+# precompute is the size floor, not code — -Os/-Oz would slow the hot path.
+# Mirrors SECP256K1_BUILD_LIBBITCOIN above.
+option(SECP256K1_BUILD_KNOTS
+       "[Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off" OFF)
+if(SECP256K1_BUILD_KNOTS)
+    # libsecp256k1-compatible contract: CT signing + strict libsecp ABI (same as the
+    # libbitcoin profile). We deliberately do NOT set SECP256K1_CORE_BACKEND_MODE: that
+    # mode bakes a static w=8 ecmult table into the binary (~0.85 MB of .rodata) for
+    # deterministic / shared-RAM startup, which INFLATES the file (2.27 MB vs 1.26 MB).
+    # Knots wants the small binary, so use the runtime-built table instead (measured:
+    # CT+strict module-stripped = 1.26 MB, stock-libsecp parity, sigs byte-identical).
+    # Opt into the static table explicitly with -DSECP256K1_CORE_BACKEND_MODE=ON if
+    # cold-start / shared-RAM matters more than file size for your deployment.
+    set(SECP256K1_BUILD_SHIM   ON)
+    set(SECP256K1_REQUIRE_CT   ON)
+    set(UFSECP_BITCOIN_STRICT  ON)
+    # Module/subtree splice into the consumer's link (same as the libbitcoin profile):
+    # the engine becomes an OBJECT library whose objects link directly into bitcoind.
+    # This is the DEFAULT Knots path. It is mutually exclusive with the standalone
+    # whole-archive .so (SECP256K1_SHIM_BUILD_SHARED) — an OBJECT library cannot be
+    # WHOLE_ARCHIVE'd into a shared lib — so only force AS_OBJECT for the module path;
+    # if a consumer explicitly asks for the .so, leave AS_OBJECT off so it whole-
+    # archives a static engine instead.
+    if(NOT SECP256K1_SHIM_BUILD_SHARED)
+        set(SECP256K1_BUILD_AS_OBJECT ON)
+    endif()
+    # Strip every crypto module Knots does not call. KEEP: core ecdsa/recovery/
+    # schnorr/extrakeys (always compiled), PIPPENGER (ecmult_gen comb — sign/verify
+    # core; gc-sections drops its unused batch/MSM code from bitcoind), and BIP-324
+    # ellswift (required by Knots v2 P2P).
+    set(SECP256K1_BUILD_MUSIG2   OFF)
+    set(SECP256K1_BUILD_FROST    OFF)
+    set(SECP256K1_BUILD_ZK       OFF)
+    set(SECP256K1_BUILD_ECIES    OFF)
+    set(SECP256K1_BUILD_BIP352   OFF)
+    set(SECP256K1_BUILD_LTC_SP   OFF)   # MUST be OFF when BIP352 OFF (FATAL_ERROR else)
+    set(SECP256K1_BUILD_ADAPTOR  OFF)
+    set(SECP256K1_BUILD_WALLET   OFF)
+    set(SECP256K1_BUILD_ETHEREUM OFF)
+    set(SECP256K1_BUILD_BCH      OFF)
+    set(SECP256K1_BUILD_BIP324   ON)    # ellswift — required by Knots
+    # Strip harness / bindings.
+    set(SECP256K1_BUILD_TESTS    OFF)
+    set(SECP256K1_BUILD_BENCH    OFF)
+    set(SECP256K1_BUILD_EXAMPLES OFF)
+    set(SECP256K1_BUILD_JAVA     OFF)
+    # Per-TU section splitting so the consumer's --gc-sections drops any module
+    # with no live caller. NOTE: we deliberately do NOT add -fvisibility=hidden
+    # here — the shim's secp256k1_* C ABI macro does not (yet) expand to
+    # visibility("default"), so hiding everything would strip the ABI from a
+    # standalone .so (export table collapses, symbols become undefined). The export
+    # table is a .so-only cost (irrelevant to the bundled-tree object/static path);
+    # shrinking it is a follow-up that needs the ABI macro to mark exports.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(
+            $<$<COMPILE_LANGUAGE:C,CXX>:-ffunction-sections>
+            $<$<COMPILE_LANGUAGE:C,CXX>:-fdata-sections>)
+    endif()
+    message(STATUS "secp256k1-fast: ✅ SECP256K1_BUILD_KNOTS — minimal bundled-tree libsecp256k1 backend (ecdsa+recovery+schnorr+extrakeys+ellswift)")
+endif()
+
 # x86-64 -march override: use "x86-64-v3" in CI with ccache to avoid SIGILL
 # when cached objects from a different runner CPU are reused.  Empty = native.
 set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect)")

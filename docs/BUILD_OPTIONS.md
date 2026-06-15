@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**77 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**78 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -26,6 +26,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_ETHEREUM` | `ON` | Build Ethereum module (Keccak, EIP-55/155/191, ecrecover) |
 | `SECP256K1_BUILD_EXAMPLES` | `ON` | Build example programs |
 | `SECP256K1_BUILD_JAVA` | `ON` | Build Java JNI bindings |
+| `SECP256K1_BUILD_KNOTS` | `OFF` | [Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off |
 | `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Minimal node profile: shim + GPU/CPU batch script-sig bridge + BIP-352; extras off |
 | `SECP256K1_BUILD_METAL` | `OFF` | Build Apple Metal GPU support |
 | `SECP256K1_BUILD_OPENCL` | `OFF` | Build OpenCL support |

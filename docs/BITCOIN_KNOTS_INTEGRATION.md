@@ -99,6 +99,36 @@ secp256k1 API surface.
 
 ---
 
+## Minimal profile — `-DSECP256K1_BUILD_KNOTS=ON` (smallest binary)
+
+A single flag compiles **only** the modules Knots needs (ecdsa core + recovery + schnorrsig +
+extrakeys + ellswift) and strips everything else (MuSig2, FROST, ZK, ECIES, BIP-352, Adaptor, HD
+wallet, Ethereum, GPU, tests, benchmarks, bindings). Measured: the drop-in `.so` shrinks from
+**1.83 MB → ~1.27 MB** (stock libsecp256k1 0.6.0 is 1.26 MB) with **identical verify/sign speed**.
+
+```bash
+# Module/subtree build (default): engine compiles AS AN OBJECT LIBRARY whose objects
+# link straight into bitcoind — not a separate .so. Pair with style-2 ALIAS:
+cmake -S UltrafastSecp256k1 -B build-knots -DSECP256K1_BUILD_KNOTS=ON
+#   add_subdirectory(UltrafastSecp256k1) ; add_library(secp256k1 ALIAS secp256k1_shim)
+# Knots' own --gc-sections then drops any unreferenced module from the final binary.
+
+# Or the installable drop-in .so (style 1, +pkg-config) — minimal modules, no static-table bloat:
+cmake -S UltrafastSecp256k1 -B build-knots-so -DSECP256K1_BUILD_KNOTS=ON \
+      -DSECP256K1_SHIM_BUILD_SHARED=ON -DCMAKE_INSTALL_PREFIX=$HOME/.local/ufsecp
+cmake --build build-knots-so --target ultrafast_secp256k1_shared && cmake --install build-knots-so
+```
+
+`SECP256K1_BUILD_KNOTS` sets CT-mandatory signing + strict BIP-340 (like `USE_ULTRAFAST`) but does
+**not** enable `SECP256K1_CORE_BACKEND_MODE` — that mode bakes a static `w=8` ecmult table into the
+binary (~0.85 MB of `.rodata`) for deterministic/shared-RAM startup, which would *inflate* the file
+to ~2.3 MB. The runtime-built table keeps the binary at stock-libsecp parity. Opt into the static
+table explicitly with `-DSECP256K1_CORE_BACKEND_MODE=ON` only if cold-start/shared-RAM matters more
+than file size. (Note: `SECP256K1_BUILD_KNOTS` keeps `-O3`; the ecmult precompute is the size floor,
+not code — `-Os/-Oz` would slow the hot path for no real size win.)
+
+---
+
 ## Notes
 
 - **Version:** the `libsecp256k1.pc` reports `0.6.0` to match the Knots/Core subtree; Knots'
