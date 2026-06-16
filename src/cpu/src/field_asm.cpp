@@ -104,7 +104,9 @@ bool has_adx_support() {
 namespace detail {
 // Cross-compiler sub-borrow helper
 inline uint8_t subborrow64(uint8_t borrow_in, uint64_t a, uint64_t b, uint64_t& result) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
+    // MSVC cl (x86). clang-cl takes the __int128 branch below so it builds on ARM64
+    // (_subborrow_u64 is an x86-only intrinsic, absent on aarch64-pc-windows-msvc).
     return _subborrow_u64(borrow_in, a, b, reinterpret_cast<unsigned long long*>(&result));
 #elif defined(__SIZEOF_INT128__)
     __uint128_t const diff = static_cast<__uint128_t>(a) - b - borrow_in;

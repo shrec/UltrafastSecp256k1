@@ -47,6 +47,28 @@ static void check_mul(std::uint64_t a, std::uint64_t b) {
     CHECK(secp256k1::detail::mulhi64(a, b) == hi128, "detail::mulhi64 == high 64 of __int128 multiply");
 }
 
+// Subtract-with-borrow: field_asm.cpp subborrow64 + arith64.hpp sub64 route clang-cl/
+// ARM64 onto the __int128 path (off the x86-only _subborrow_u64). Pin __int128 == portable.
+static void check_subborrow(std::uint64_t a, std::uint64_t b, std::uint8_t bin) {
+    unsigned __int128 const d = (unsigned __int128)a - b - bin;
+    std::uint64_t const res128 = (std::uint64_t)d;
+    std::uint8_t const bout128 = (std::uint8_t)((d >> 127) & 1);
+    std::uint64_t const t = a - bin;       std::uint8_t b1 = (a < bin);
+    std::uint64_t const resp = t - b;      std::uint8_t b2 = (t < b);
+    CHECK(resp == res128 && (std::uint8_t)(b1 | b2) == bout128, "subborrow portable == __int128");
+}
+
+// Add-with-carry: field_asm.cpp adcx64 (#else) + arith64.hpp add64 route clang-cl/ARM64
+// onto the __int128 path (off the x86-only _addcarry_u64). Pin __int128 == portable.
+static void check_addcarry(std::uint64_t a, std::uint64_t b, std::uint8_t cin) {
+    unsigned __int128 const s = (unsigned __int128)a + b + cin;
+    std::uint64_t const res128 = (std::uint64_t)s;
+    std::uint8_t const cout128 = (std::uint8_t)(s >> 64);
+    std::uint64_t const sum = a + b;       std::uint8_t c1 = (sum < a);
+    std::uint64_t const resp = sum + cin;  std::uint8_t c2 = (resp < sum);
+    CHECK(resp == res128 && (std::uint8_t)(c1 | c2) == cout128, "addcarry portable == __int128");
+}
+
 int test_regression_mul128_portability_run() {
     g_pass = 0; g_fail = 0;
     printf("\n  [mul128-portability] 64x64->128 multiply path equivalence (Windows-ARM64 clang-cl port)\n");
@@ -60,9 +82,18 @@ int test_regression_mul128_portability_run() {
         for (std::uint64_t b : edges)
             check_mul(a, b);
 
+    for (std::uint64_t a : edges)
+        for (std::uint64_t b : edges)
+            for (std::uint8_t c = 0; c <= 1; ++c) { check_subborrow(a, b, c); check_addcarry(a, b, c); }
+
     std::uint64_t s = 0xDEADBEEF12345678ULL;
     auto rnd = [&]() { s = s * 6364136223846793005ULL + 1442695040888963407ULL; return s; };
-    for (int i = 0; i < 20000; ++i) check_mul(rnd(), rnd());
+    for (int i = 0; i < 20000; ++i) {
+        std::uint64_t a = rnd(), b = rnd();
+        check_mul(a, b);
+        check_subborrow(a, b, (std::uint8_t)(rnd() & 1));
+        check_addcarry(a, b, (std::uint8_t)(rnd() & 1));
+    }
 
     printf("  [mul128-portability] %d passed, %d failed\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
