@@ -2,13 +2,13 @@ Package: ultrafastsecp256k1
 Version: 4.3.0
 Architecture: amd64
 Maintainer: shrec <shrec@users.noreply.github.com>
-Installed-Size: 9292
+Installed-Size: 9293
 Depends: libc6 (>= 2.17)
 Filename: pool/main/ultrafastsecp256k1_4.3.0_amd64.deb
 Size: 6332638
-MD5sum: b723c23b6b6ef477b6eba764c6fdd708
-SHA1: 1d670a245187638e0f88010c4c85531833153a83
-SHA256: 7ef72c7d9c5b7b6900f98459b25a84b44d1db2dd77c7ae68f6fa9ab41033a86b
+MD5sum: 5cc5b51e7abb510d59d904ea9d568160
+SHA1: e5546aa3a4fdd046d8ee9b296ef1887b72764275
+SHA256: 2cffa8e20fa6971444c94d484732e43e60a1823147319a23762314de71bd144b
 Section: libs
 Priority: optional
 Homepage: https://github.com/shrec/UltrafastSecp256k1
