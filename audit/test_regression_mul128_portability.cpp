@@ -1,10 +1,11 @@
 // ============================================================================
 // test_regression_mul128_portability.cpp
 // Regression: the Windows-ARM64 (clang-cl) port routes the 64x64->128 multiply
-// off the x86-only MSVC <intrin.h> `_umul128` intrinsic and onto the portable
-// `unsigned __int128` path. Two sites carry this multiply:
-//   - precompute.cpp `_umul128`        (now: clang-cl + all non-`cl` -> __int128)
-//   - detail/arith64.hpp `mulhi64`     (already: clang-cl -> __int128)
+// off the x86-only MSVC intrinsics and onto the portable `unsigned __int128` path.
+// Three sites carry this multiply (all -> __int128 on clang-cl/ARM64):
+//   - precompute.cpp `_umul128`        (clang-cl/ARM64 -> portable __int128)
+//   - detail/arith64.hpp `mulhi64`     (clang-cl -> __int128)
+//   - field_asm.hpp `mulx64`           (clang-cl/ARM64 -> __uint128_t, off _mulx_u64)
 // If the __int128 path ever disagreed with the x86 path, ARM64 results would
 // silently diverge from x86 with no runtime test on ARM64 (the cross-built exe
 // cannot execute on the x64 CI host). This test pins, on every host, that the

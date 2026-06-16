@@ -103,8 +103,9 @@ namespace detail {
 // 64x64 -> 128-bit multiplication using MULX
 // MULX: multiplicand in RDX, result in two registers (no flag updates!)
 inline void mulx64(uint64_t a, uint64_t b, uint64_t& lo, uint64_t& hi) {
-    #if defined(_MSC_VER)
-        // MSVC intrinsic
+    #if defined(_MSC_VER) && !defined(__clang__)
+        // MSVC cl intrinsic (x64). clang-cl takes the __clang__ branch below, which
+        // falls back to __uint128_t on non-BMI2 targets like Windows ARM64.
         lo = _mulx_u64(a, b, &hi);
     #elif defined(__GNUC__) || defined(__clang__)
         #if defined(__BMI2__)

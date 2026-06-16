@@ -127,11 +127,14 @@
   #endif
 #endif // SECP256K1_PROFILE_DECOMP
 
-// GCC/Clang intrinsics wrappers. clang-cl defines _MSC_VER but provides __int128 +
-// __builtin_*; the MSVC <intrin.h> _umul128/_BitScanReverse64 in the #else are x86-only,
-// so route clang-cl through these portable wrappers too (lets it build for Windows ARM64).
-// Only real MSVC `cl` (_MSC_VER && !__clang__) uses <intrin.h>.
-#if !defined(_MSC_VER) || defined(__clang__)
+// 64x64->128 multiply (_umul128) + _BitScanReverse64 sourcing.
+//   - GCC / non-MSVC Clang: portable __int128 wrappers (this #ifndef branch).
+//   - MSVC cl + clang-cl: from <intrin.h>. clang-cl exposes _BitScanReverse64 as a
+//     CROSS-ARCH builtin, so we must NOT redefine it (that is a "definition of builtin"
+//     error). <intrin.h>'s _umul128 is x64-only, so clang-cl targeting ARM64 (where it
+//     is absent) gets a portable __int128 _umul128 — that one addition lets the engine
+//     build for aarch64-pc-windows-msvc. clang-cl/x64 + cl/x64 use <intrin.h>'s _umul128.
+#ifndef _MSC_VER
 
 #if defined(SECP256K1_NO_INT128) || defined(SECP256K1_PLATFORM_ESP32)
 // Portable 64x64->128 multiplication for 32-bit platforms
@@ -177,8 +180,18 @@ static inline unsigned char _BitScanReverse64(unsigned long* index, uint64_t mas
     return 1;
 }
 #else
-// MSVC
+// MSVC cl + clang-cl: MSVC intrinsics from <intrin.h>. _BitScanReverse64 comes from
+// here (clang-cl exposes it cross-arch as a builtin). _umul128 is x64-only in
+// <intrin.h>; clang-cl on ARM64 needs a portable __int128 substitute.
 #include <intrin.h>
+#if defined(__clang__) && !defined(_M_X64)
+// NOLINTNEXTLINE(bugprone-reserved-identifier,cert-dcl37-c,cert-dcl51-cpp)
+[[maybe_unused]] static inline uint64_t _umul128(uint64_t a, uint64_t b, uint64_t* hi) {
+    unsigned __int128 const r = (unsigned __int128)a * b;
+    *hi = static_cast<uint64_t>(r >> 64);
+    return static_cast<uint64_t>(r);
+}
+#endif
 #endif
 
 #include "platform_compat.h"
