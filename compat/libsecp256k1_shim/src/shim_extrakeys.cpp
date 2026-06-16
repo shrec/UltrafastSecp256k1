@@ -23,6 +23,8 @@ using namespace secp256k1::fast;
 // point_to_pubkey_data from shim_pubkey_helpers.hpp
 using secp256k1_shim_internal::point_to_pubkey_data;
 using secp256k1_shim_internal::pubkey_data_to_point;
+// x-only / keypair derivation is fail-closed on an off-curve opaque pubkey.
+using secp256k1_shim_internal::pubkey_data_to_point_checked;
 
 // Helper: reconstruct a Point from an xonly_pubkey using cached X||Y -- no sqrt.
 // SHIM-CURVE-CHECK-XONLY: validate y^2=x^3+7 before use. A hostile caller could
@@ -128,7 +130,7 @@ int secp256k1_xonly_pubkey_from_pubkey(
 
     // SHIM-A10: validate curve membership before trusting the stored bytes.
     // pubkey_data_to_point checks y²=x³+7; returns infinity if off-curve.
-    auto pt = pubkey_data_to_point(pubkey->data);
+    auto pt = pubkey_data_to_point_checked(pubkey->data);
     if (pt.is_infinity()) { std::memset(xonly_pubkey->data, 0, sizeof(xonly_pubkey->data)); return 0; }
 
     // pubkey layout: data[0..31] = X, data[32..63] = Y (both big-endian)
@@ -244,7 +246,7 @@ int secp256k1_keypair_pub(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_keypair_pub: keypair is NULL");
         return 0;
     }
-    auto P = pubkey_data_to_point(keypair->data + 32);
+    auto P = pubkey_data_to_point_checked(keypair->data + 32);
     if (P.is_infinity()) { std::memset(pubkey->data, 0, sizeof(pubkey->data)); return 0; }
     std::memcpy(pubkey->data, keypair->data + 32, 64);
     return 1;
@@ -263,7 +265,7 @@ int secp256k1_keypair_xonly_pub(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_keypair_xonly_pub: keypair is NULL");
         return 0;
     }
-    auto P = pubkey_data_to_point(keypair->data + 32);
+    auto P = pubkey_data_to_point_checked(keypair->data + 32);
     if (P.is_infinity()) {
         std::memset(pubkey->data, 0, sizeof(pubkey->data));
         if (pk_parity) *pk_parity = 0;

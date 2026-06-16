@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-16 — Shim pubkey manipulation paths fail-closed on off-curve (PERF-002 split)
+
+- **`regression_p2_ct_shim_fixes` was failing on clang/MSVC** (passed on gcc) after the
+  PERF-002 curve-check removal (`daf4aa45`) took the `y²=x³+7` check out of the SHARED
+  `pubkey_data_to_point`, which also serves the pubkey MANIPULATION paths — so
+  `pubkey_negate` / `pubkey_serialize` / `tweak_add` / `tweak_mul` / `combine` /
+  x-only+keypair derivation silently processed an off-curve / all-zero opaque pubkey
+  instead of rejecting it (a clang/compiler-dependent CA-001-class divergence).
+- **Fix (Option A — split the loader):** added `pubkey_data_to_point_checked`
+  (re-enforces `y²=x³+7`, returns infinity for off-curve/(0,0)). Routed ONLY the
+  manipulation/derivation paths to it (fail-closed restored); the HOT verify paths
+  (ecdsa/schnorr verify + batch) keep the unchecked `pubkey_data_to_point` so
+  PERF-002's verify speedup is preserved (curve membership is validated once at parse).
+- Validated gcc + clang-18: `regression_p2_ct_shim_fixes` 43/0 (now also covers
+  tweak_add/tweak_mul off-curve), `regression_ecdsa_batch_curve_check` 16009/0 (verify
+  path unchanged). kb SHIM-OFFCURVE-SPLIT-20260616.
+
 ## 2026-06-16 — Windows-ARM64 (clang-cl) portability + de-masquerade install
 
 - **New regression module `regression_mul128_portability`** (math_invariants,

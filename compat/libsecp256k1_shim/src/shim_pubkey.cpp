@@ -23,6 +23,9 @@ using namespace secp256k1::fast;
 // point_to_pubkey_data and pubkey_data_to_point from shim_pubkey_helpers.hpp
 using secp256k1_shim_internal::point_to_pubkey_data;
 using secp256k1_shim_internal::pubkey_data_to_point;
+// Manipulation / serialization paths use the curve-checked loader (fail-closed on
+// an off-curve / malformed opaque pubkey); the hot verify paths use the unchecked one.
+using secp256k1_shim_internal::pubkey_data_to_point_checked;
 
 // -- Thread-local pubkey-parse (decompression) cache --------------------------
 // PERF: parsing a COMPRESSED pubkey computes y = sqrt(x^3 + 7) — a full field
@@ -181,7 +184,7 @@ int secp256k1_ec_pubkey_serialize(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_serialize: invalid flags");
         return 0;
     }
-    auto P = pubkey_data_to_point(pubkey->data);
+    auto P = pubkey_data_to_point_checked(pubkey->data);
     if (P.is_infinity()) {
         *outputlen = 0;
         return 0;
@@ -272,7 +275,7 @@ int secp256k1_ec_pubkey_negate(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_negate: pubkey is NULL");
         return 0;
     }
-    auto P = pubkey_data_to_point(pubkey->data);
+    auto P = pubkey_data_to_point_checked(pubkey->data);
     if (P.is_infinity()) {
         std::memset(pubkey->data, 0, sizeof(pubkey->data));
         return 0;
@@ -295,7 +298,7 @@ int secp256k1_ec_pubkey_tweak_add(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_tweak_add: tweak32 is NULL");
         return 0;
     }
-    auto P = pubkey_data_to_point(pubkey->data);
+    auto P = pubkey_data_to_point_checked(pubkey->data);
     if (P.is_infinity()) { std::memset(pubkey->data, 0, sizeof(pubkey->data)); return 0; }
     // tweak in [0, n-1]; 0 is valid (result == pubkey)
     Scalar t;
@@ -320,7 +323,7 @@ int secp256k1_ec_pubkey_tweak_mul(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_tweak_mul: tweak32 is NULL");
         return 0;
     }
-    auto P = pubkey_data_to_point(pubkey->data);
+    auto P = pubkey_data_to_point_checked(pubkey->data);
     Scalar t;
     if (P.is_infinity()) { std::memset(pubkey->data, 0, sizeof(pubkey->data)); return 0; }
     if (!Scalar::parse_bytes_strict_nonzero(tweak32, t)) { std::memset(pubkey->data, 0, sizeof(pubkey->data)); return 0; }
@@ -350,10 +353,10 @@ int secp256k1_ec_pubkey_combine(
             return 0;
         }
     }
-    auto acc = pubkey_data_to_point(ins[0]->data);
+    auto acc = pubkey_data_to_point_checked(ins[0]->data);
     if (acc.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
     for (size_t i = 1; i < n; ++i) {
-        auto P = pubkey_data_to_point(ins[i]->data);
+        auto P = pubkey_data_to_point_checked(ins[i]->data);
         if (P.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
         acc = acc.add(P);
     }

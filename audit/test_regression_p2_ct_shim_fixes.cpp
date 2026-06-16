@@ -282,6 +282,26 @@ static void test_shim_fail_closed_outputs() {
     for (unsigned char b : bad_pk.data) pubkey_zero = pubkey_zero && (b == 0);
     CHECK(pubkey_zero, "SHIM-FC: pubkey_negate failure clears in-place pubkey");
 
+    // The pubkey MANIPULATION paths share one curve-checked loader
+    // (pubkey_data_to_point_checked) so they are uniformly FAIL-CLOSED on an
+    // off-curve opaque pubkey — not only negate/serialize. The hot verify paths use
+    // the unchecked loader (PERF-002). Guard tweak_add/tweak_mul here too.
+    {
+        secp256k1_pubkey oc;
+        CHECK(secp256k1_ec_pubkey_create(sctx(), &oc, kSk1) == 1,
+              "SHIM-FC: create pubkey for off-curve tweak test");
+        oc.data[40] ^= 0xFF;  // corrupt a y byte -> off-curve
+        uint8_t small_tweak[32];
+        std::memset(small_tweak, 0, sizeof(small_tweak));
+        small_tweak[31] = 2;
+        secp256k1_pubkey t1 = oc;
+        CHECK(secp256k1_ec_pubkey_tweak_add(sctx(), &t1, small_tweak) == 0,
+              "SHIM-FC: pubkey_tweak_add rejects off-curve input");
+        secp256k1_pubkey t2 = oc;
+        CHECK(secp256k1_ec_pubkey_tweak_mul(sctx(), &t2, small_tweak) == 0,
+              "SHIM-FC: pubkey_tweak_mul rejects off-curve input");
+    }
+
     secp256k1_xonly_pubkey bad_xonly;
     std::memset(&bad_xonly, 0, sizeof(bad_xonly));
     unsigned char xout[32];
