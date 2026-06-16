@@ -1171,11 +1171,14 @@ static bool build_glv52_table_zr(
         }
     }
 
-    // Normalize all entries to magnitude 1.
-    for (int i = 0; i < table_size; ++i) {
-        tbl[i].x.normalize_weak();
-        tbl[i].y.normalize_weak();
-    }
+    // Entries 0..table_size-2 were just rescaled by mul_assign(zs2)/(zs3); a 5x52
+    // field multiply already yields weak-normal (magnitude-1) output, so they need
+    // no separate normalize. This matches libsecp256k1's secp256k1_ge_table_set_globalz,
+    // which relies on the rescale multiply and explicitly normalizes only the
+    // un-rescaled last entry. tbl[table_size-1] comes straight from the add loop
+    // (it is not rescaled), so it is the only entry that still needs normalizing.
+    tbl[table_size - 1].x.normalize_weak();
+    tbl[table_size - 1].y.normalize_weak();
 
     return true;
 }

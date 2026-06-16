@@ -13,6 +13,8 @@
 name: Audit Report
 
 on:
+  schedule:
+    - cron: '0 6 * * 1'   # Weekly: Monday 06:00 UTC (keeps Code Scanning fresh)
   workflow_dispatch:
     inputs:
       section:
@@ -20,6 +22,9 @@ on:
         required: false
         default: ''
         type: string
+  push:
+    tags:
+      - 'v*'                # Release tags (audit snapshot per release)
 
 permissions:
   contents: read
@@ -94,6 +99,10 @@ jobs:
           # H-5 fix: capture build_project_graph.py exit code — a stale/broken
           # graph must fail the step, not silently let gates run against bad data.
           # (Windows MSVC job already captured this; Linux parity fix.)
+          # risk_surface_coverage.py (a security_autonomy gate) reads the gitignored
+          # tools/source_graph_kit/source_graph.db — absent on a clean checkout. Build it
+          # first (like caas.yml) so security_autonomy_check passes in this job too.
+          python3 tools/source_graph_kit/source_graph.py build -i; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_test_quality_scanner.py --json \
@@ -234,6 +243,10 @@ jobs:
           set +e
           GATE_RC=0
           # H-5 fix: capture build_project_graph.py exit code (parity with Windows MSVC).
+          # risk_surface_coverage.py (a security_autonomy gate) reads the gitignored
+          # tools/source_graph_kit/source_graph.db — absent on a clean checkout. Build it
+          # first (like caas.yml) so security_autonomy_check passes in this job too.
+          python3 tools/source_graph_kit/source_graph.py build -i; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/build_project_graph.py --rebuild; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/check_exploit_wiring.py; rc=$?; [ $rc -ne 0 ] && GATE_RC=$rc
           python3 ci/audit_test_quality_scanner.py --json \
@@ -318,6 +331,8 @@ jobs:
     timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
+    permissions:
+      security-events: write   # required for upload-sarif (audit-runner-msvc); was missing
     steps:
       - uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
@@ -368,6 +383,8 @@ jobs:
           $GATE_RC = 0
           # F-02 fix: capture build_project_graph.py exit code — a stale/broken
           # graph must fail the step, not silently let gates run against bad data.
+          # source_graph.db (gitignored) is read by security_autonomy's risk_surface gate.
+          python3 tools/source_graph_kit/source_graph.py build -i; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
           python3 ci/build_project_graph.py --rebuild; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
           python3 ci/check_exploit_wiring.py; if ($LASTEXITCODE -ne 0) { $GATE_RC = $LASTEXITCODE }
           python3 ci/audit_test_quality_scanner.py --json -o out/audit-output/caas_scanner.json

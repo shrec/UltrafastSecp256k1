@@ -3,6 +3,13 @@
 > Version: 1.0 — 2026-04-28
 > Closes CAAS gap **G-8**.
 
+> **Freshness-gated (Bastion B14).** Per-surface CT evidence binding and freshness
+> live in [`docs/CT_EVIDENCE_STATUS.json`](CT_EVIDENCE_STATUS.json), gated by
+> `ci/check_ct_evidence_status.py` (G-14). The two-tool independence verdicts
+> described here feed that gate's tool dimension: a single PASS + SKIP stays
+> **inconclusive, never a pass**, and a blocking CT surface fails if its
+> `required_tools` do not all PASS when verdicts are evaluated.
+
 ## 1. Purpose
 
 Individual CT tool workflows (`valgrind-ct.yml`, `ct-verif.yml`,

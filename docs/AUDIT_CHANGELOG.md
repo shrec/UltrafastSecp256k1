@@ -1,5 +1,1189 @@
 # Audit Changelog
 
+## 2026-06-15 — Verify-path waste removal + Knots minimal build profile
+
+- **Curve-check trust contract restored (PERF-002 regression fix).** `d0b1435e`
+  ("Harden …") had re-added the per-call `y^2=x^3+7` curve check to the verify-path
+  `pubkey_data_to_point` that PERF-002 (`c67edc1c`) deliberately removed. Removed
+  again — curve membership is validated once at `ec_pubkey_parse`/`_create`
+  (libsecp trust contract). Validated cross-compiler: off-curve single + batch
+  verify produce identical verdicts under gcc and clang (no CA-001-class
+  divergence — off-curve now stays an off-curve point, never the infinity operand
+  the check used to create); `test_regression_ecdsa_batch_curve_check` BCK-1..6
+  still 6/6 on both compilers.
+- **Opaque signature parse: removed a double byte-reverse.** `ecdsa_sig_from_data`
+  parsed opaque (little-endian) `r`/`s` by reversing LE->BE then calling
+  `parse_bytes_strict` (which reverses BE->LE again). Added
+  `Scalar::parse_bytes_strict_le` (direct LE-limb load, same `>= n` reject) and use
+  it. New test **LE-1** in `test_regression_ecdsa_batch_curve_check` pins
+  `parse_bytes_strict_le` equivalence to the byte-reverse path over 8k patterns.
+- **GLV table build: 16 -> minimal `normalize_weak`** (rescaled entries are already
+  weak-normal from the multiply -- matches libsecp `ge_table_set_globalz`).
+- All three are byte-identical to baseline + libsecp (200k differential,
+  `7926f98cfe0b2677`); measured ~120-170 ns faster cold ECDSA verify (confirmed,
+  non-overlapping ranges).
+- **`SECP256K1_BUILD_KNOTS`** minimal build profile added: Knots-only modules,
+  module/static build, 1.83 MB -> 1.27 MB drop-in (stock-libsecp parity), no speed
+  change.
+
+## 2026-06-14 — Windows ARM64 clang-cl portability
+
+- Pinned the Windows CI job to `windows-2022` because the job explicitly uses
+  CMake's `Visual Studio 17 2022` generator. This avoids the moving
+  `windows-latest` alias landing on an image where CMake cannot discover a VS
+  2022 instance.
+- Generalized Windows clang-cl compiler-rt linking so the build selects the
+  target architecture's runtime archive (`clang_rt.builtins-x86_64.lib` or
+  `clang_rt.builtins-aarch64.lib`) instead of hardcoding x86_64.
+- Added a `windows-arm64-clang-cl` preset for the MSVC ABI + clang-cl Windows
+  ARM64 target. AArch64 uses the NEON architectural baseline; the x86
+  MULX/ADCX/ADOX benchmark claims remain scoped to Windows x86_64 until ARM64
+  benchmark evidence is recorded.
+- Tightened the MSVC `/arch` knob so x86-only values cannot be accidentally
+  applied to Windows ARM64 builds.
+
+## 2026-06-14 — CAAS evidence refresh token fallback fix
+
+- Fixed the scheduled `CAAS Evidence Refresh` lane so a missing
+  `CAAS_BOT_TOKEN` no longer fails the workflow before checkout, evidence
+  regeneration, and diagnostic artifact upload. The lane now falls back to
+  `github.token` consistently for checkout and push; branch-protection rejection
+  remains a hard failure at the final push step.
+- Added a Python audit self-test that rejects reintroducing the stale
+  `CAAS_BOT_TOKEN` fail-fast check and verifies both checkout and commit/push
+  use the same token fallback expression.
+- Hardened evidence-chain validation for CAAS secret provisioning: legacy
+  local records signed with the historical public fallback key remain valid and
+  are reported explicitly, while new CI records can be signed with
+  `CAAS_HMAC_KEY`. This prevents enabling the secret from falsely marking the
+  existing chain as tampered.
+- Added an explicit protected-branch push preflight to the evidence refresh
+  lane. If refreshed evidence changed but `CAAS_BOT_TOKEN` is absent, the lane
+  now fails with a direct bypass-token diagnostic after uploading artifacts,
+  instead of falling through to a generic remote `GH013` rejection.
+
+## 2026-06-13 — libbitcoin ECDSA batch bridge opaque-signature regression fix
+
+- Added an MSVC x64 fast path for `u128_compat`: the no-`__int128` FE52
+  accumulator now uses `_umul128` and `_addcarry_u64` instead of the generic
+  32-bit schoolbook fallback. This targets Windows/MSVC field arithmetic
+  overhead without changing GCC/Clang native-`__int128` behavior.
+- Strengthened `test_u128_compat_parity` so no-`__int128` targets no longer skip:
+  Windows/MSVC now compares the intrinsic-backed struct against an independent
+  32-bit reference over deterministic multiplication, addition, shift, compose,
+  and mask vectors.
+- Fixed the libbitcoin batch bridge ECDSA ABI boundary: `libbitcoin::ec_signature`
+  is a copied `secp256k1_ecdsa_signature` object in libsecp-compatible opaque
+  scalar storage, not public compact `r||s`. The bridge now treats that opaque
+  64-byte field as the libbitcoin row contract instead of requiring callers to
+  translate it first.
+- Preserved consensus behavior for high-S ECDSA signatures by applying low-S
+  normalization during opaque signature parse before calling the engine's low-S
+  batch verifier; caller-owned rows/columns are not mutated.
+- Added regression coverage for the exact libbitcoin unit-test shapes:
+  `ecdsa::batch` 3-row all-valid, `ecdsa::batch` one-invalid row 2, and
+  `multisig::batch` 3-row all-valid with the 6-byte `pair|group|id` tail.
+- Updated libbitcoin bridge tests so ECDSA fixtures store the same opaque
+  libsecp-compatible signature layout that libbitcoin passes at runtime, instead
+  of engine-native compact signatures.
+- Follow-up performance correction: the CPU bridge no longer builds a `cnt*129`
+  intermediate compact row table for libbitcoin opaque ECDSA rows. It now parses
+  the existing `hash|point|ec_signature` rows through the engine's opaque-row
+  C ABI, which feeds the same ECDSA batch verifier internally, preserving the
+  libbitcoin data contract without bridge-side row repacking.
+- Added reusable C ABI opaque ECDSA support for consumers that intentionally keep
+  copied libsecp-compatible `secp256k1_ecdsa_signature` scalar storage as their
+  public signature payload: compact↔opaque conversion, opaque low-S normalize,
+  single verify, column batch verify, and strided-row verify. Compact verify
+  remains strict compact `r||s`; opaque verify mirrors libsecp's
+  `normalize(...)+verify(...)` path.
+- GPU row-path correction: added generic `ufsecp_gpu_ecdsa_verify_opaque_rows`
+  (`ufsecp_gpu_ecdsa_verify_lbtc_rows` remains a compatibility alias) and native
+  CUDA/OpenCL/Metal kernels so opaque-signature ECDSA rows are uploaded as-is
+  (`hash|compressed-pubkey|opaque-signature|tail`). The device parses the opaque
+  scalar limbs and low-S normalizes before verify, avoiding bridge-side
+  msg/pub/sig column staging for the packed-row API.
+- Corrected the libbitcoin batch benchmark to generate copied libsecp opaque
+  ECDSA signatures for ECDSA row/column timing, so benchmark numbers measure the
+  actual libbitcoin integration format. Also fixed `gpu_audit_runner` CUDA audit
+  linkage against OpenMP when the CPU differential library is built with OpenMP.
+- Fixed standalone libbitcoin bridge CMake include coverage for public C++ engine
+  headers used by non-ECDSA helper paths, while keeping ECDSA verification on the
+  public opaque C ABI.
+- Tightened the `ufsecp_gpu_ecdsa_verify_lbtc_rows` compatibility alias with
+  explicit fail-closed argument validation before forwarding to the generic
+  opaque-row GPU ABI, and cleaned the CPU opaque-row parse loop so scanner
+  evidence stays aligned with the implementation. Extended `test_gpu_abi_gate`
+  with alias-specific NULL row/output regressions so the compatibility wrapper
+  remains covered independently of the generic opaque-row entry point.
+- Added the new opaque ECDSA CPU/GPU ABI functions to
+  `FEATURE_ASSURANCE_LEDGER.md`, including libbitcoin opaque-row parity and
+  GPU alias negative-test evidence, so fast assurance validation remains
+  complete after the public ABI expansion.
+- Synchronized stable C ABI counts in `docs/ABI_VERSIONING.md` and the native
+  NuGet nuspec after adding the six opaque ECDSA CPU ABI entry points
+  (`153 -> 159` CPU C ABI functions).
+- Aligned the misuse-resistance gate's ABI inventory with the hostile-caller
+  manifest generator: both now treat `UFSECP_API` declarations in the public C
+  headers as the source of truth. The source graph remains evidence fallback,
+  but graph-only helper symbols are no longer promoted into the blocking public
+  ABI surface.
+- Hardened the secret-path change gate for force-push CI events: an unreachable
+  push `before` SHA is fetched explicitly and, if still unavailable, the gate
+  falls back to the base ref diff instead of failing on a missing Git object or
+  silently treating the change set as empty.
+
+## 2026-06-13 — package / release provenance binding gate (Bastion B20)
+
+- Added `docs/PACKAGE_PROVENANCE_STATUS.json`: a per-surface binding ledger. A
+  package/binary is only "audited" when bound to the audited commit, the committed
+  CAAS bundle sha256, the audit_gate verdict, and its own artifact hash. 5 surfaces:
+  NuGet native (`nuget-native.yml`) and Node N-API + React Native (`bindings.yml`)
+  as `template`; Linux packages + C ABI binaries (`packaging.yml`, tag-published to
+  GitHub Releases + APT), wasm (`release.yml`) and the signed release tarball + SLSA
+  + cosign (`slsa-provenance.yml`) as `owner_gated`. (2 template, 3 owner_gated.)
+- Added `ci/check_package_provenance_binding.py` (`audit_gate.py --package-provenance-binding`,
+  G-20): every surface must declare the full binding contract (artifact /
+  producer_workflow / source_commit / source_branch / artifact_sha256 /
+  caas_bundle_sha256 / audit_gate_verdict / workflow_run_id / status / severity);
+  `template` surfaces hold recognized sentinels with null hash+run_id (no fake
+  current values); `bound` surfaces must MATCH HEAD + the committed bundle digest +
+  a real artifact hash + verdict==pass + a run id; `owner_gated` release artifacts
+  are never current in the dev tree (a real hash or run id fails). Reuses the
+  existing SLSA / supply-chain infra (`generate_slsa_provenance.py`,
+  `verify_slsa_provenance.py`, `slsa-provenance.yml`, `supply_chain_gate.py`) rather
+  than duplicating it. PASS: 5 surfaces (2 template, 3 owner_gated).
+- Provenance binding is NOT release authorization: the gate never publishes, tags,
+  merges, or authorizes a release (see docs/PACKAGE_PROVENANCE.md).
+- Surfaces adversarially verified by a 2-panel read-only workflow (fake-current
+  lens + release-mislabel lens): both panels caught the `packaging.yml` surface
+  initially mislabeled `template` — its tag-triggered `publish` job ships .deb/.rpm
+  to the GitHub Release + a public APT repo, so it was corrected to `owner_gated`.
+- Added `ci/test_audit_scripts.py::check_package_provenance_binding_fixtures`
+  (missing binding field / wrong commit / wrong CAAS bundle hash / missing artifact
+  hash / release-marked-current / unknown producer workflow all fail; real dev
+  manifest passes). Coverage critic now 19 gates; self-test 186 pass.
+- Docs: added `docs/PACKAGE_PROVENANCE.md`; `docs/CAAS_BASTION_REQUIREMENTS.json`
+  G-20 row (P21 resolves it); `docs/AUDIT_MANIFEST.md` G-20 row.
+
+## 2026-06-13 — evidence-refresh coverage gate (Bastion B19, RR-BAS-01 / RR-BAS-02 ready for owner promotion)
+
+- Added `freshness_artifacts` disposition ledger to `docs/AUDIT_SLA.json`: every
+  freshness artifact tracked by `ci/audit_sla_check.py` (assurance_report,
+  incident_drill_log, ct_evidence, api_contracts, assurance_claims,
+  determinism_golden, risk_coverage_report) now carries an explicit refresh mode —
+  `auto` (a regeneration+commit step in `caas-evidence-refresh.yml`) or `residual`
+  (an authored spec / golden baseline / build-only artifact / owner-chosen manual
+  chore, with a `reason` + `honest_refresh_mechanism`). 2 auto, 5 residual.
+- Added `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`,
+  G-19): cross-checks the manifest against (a) the authoritative tracked set imported
+  from `audit_sla_check.CRITICAL_EVIDENCE` (no tracked artifact may be missing a
+  disposition; no phantom entries), (b) the named workflow's *actual* commit list
+  (an `auto` entry whose committed path the lane does not stage fails), and (c)
+  `docs/RESIDUAL_RISK_REGISTER.md` (a `residual` whose id does not resolve fails). A
+  blocking artifact with neither a verifiable producer nor a resolvable residual
+  fails closed; warning artifacts are advisory.
+- Extended `.github/workflows/caas-evidence-refresh.yml`: documented the coverage
+  contract (which SLA-critical artifacts are auto vs residual) and added a fail-fast
+  "Verify evidence-refresh coverage (G-19)" step that runs the gate before the build.
+- Honesty cross-check: the auto-vs-residual dispositions were adversarially verified
+  by a 2-panel read-only workflow (fake-refresh lens + automatable-residual lens);
+  both panels judged all 7 dispositions honest — no authored/golden/build artifact is
+  fake-refreshed, and no residual hides a cheap automation.
+- Added `ci/test_audit_scripts.py::check_evidence_refresh_coverage_fixtures`
+  (missing producer / malformed mode / unresolved residual / uncovered tracked all
+  fail; real manifest passes) and the RR-BAS-02 promotion self-test (a simulated
+  stale drill log BLOCKS under blocking severity and only WARNS under the live
+  advisory severity — proving the flip is safe). Coverage critic now 18 gates;
+  self-test 182 pass.
+- `docs/RESIDUAL_RISK_REGISTER.md`: RR-BAS-01 and RR-BAS-02 → **ready_for_owner_promotion**
+  with exact acceptance/promotion/close criteria; added `docs/CAAS_BASTION_REQUIREMENTS.json`
+  G-19 row (P21 enforces the gate); `docs/AUDIT_MANIFEST.md` G-19 row;
+  `docs/CAAS_HARDENING_TODO.md` H-1 cross-reference.
+
+## 2026-06-13 — research-monitor attack-class taxonomy + evidence routing (Bastion B18, closes RR-BAS-04)
+
+- Extended `docs/RESEARCH_SIGNAL_MATRIX.json` with an `attack_class_enum` (16 values:
+  nonce_bias_or_reuse, signature_malleability, parser_boundary, invalid_curve_or_pubkey,
+  scalar_domain, batch_verification, side_channel_ct, gpu_backend_parity,
+  protocol_state_machine, threshold_multisig, supply_chain, fuzz_crash,
+  integration_consensus, benchmark_claim, hardware_fault_or_em, out_of_scope) and added
+  `attack_class`, `affected_primitive`, `affected_surface`, `expected_evidence`,
+  `expected_gate`, `missing_evidence_action`, `severity_hint`, `owner_route` to **all 45
+  signal classes** — so research intake routes to the evidence surface + gate that
+  should catch each signal, not just a covered/candidate label.
+- Mappings adversarially verified by a 5-agent read-only workflow (45 classes, 5×9);
+  3 corrections applied: `ladderleak_subbit_nonce` (timing leak → `side_channel_ct`;
+  fixed a `der_parser` copy-paste in `affected_primitive`; gate → `--ct-evidence-status`),
+  `safegcd_formal_verification` (CT-inversion proof → `side_channel_ct`, gate →
+  `--ct-evidence-status`), `m_ary_precompute_optimization` (reason states "not a security
+  gap … worth benchmarking" → `benchmark_claim`, gate → `ci/check_bench_target_context.py`).
+- Added `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`,
+  G-18): every in-scope class must carry an enum `attack_class`; covered/original_analysis
+  classes must have existing `expected_evidence` and a resolvable `expected_gate` (an
+  audit_gate CHECK_MAP flag or a `ci/*.py` script); candidates need a
+  `missing_evidence_action`; out_of_scope need a rationale.
+- Upgraded `ci/research_monitor.py` to render `attack_class`, `affected_primitive`,
+  `affected_surface`, and `expected_gate` in each high-confidence finding and to put
+  `missing_evidence_action` as the **first patch-plan step**, then "route to gate"
+  (issue-only intake — no branch/PR — unchanged).
+- Added `ci/test_audit_scripts.py::check_research_signal_matrix_fixtures` (validator
+  failure paths: missing/invalid attack_class, missing evidence, unresolved gate, missing
+  action; plus render routing-token assertions) and registered it in the coverage critic
+  (now 17 high-value gates). Self-test 178 pass.
+- Closed **RR-BAS-04** in `docs/RESIDUAL_RISK_REGISTER.md` (acceptance criteria met);
+  added `docs/CAAS_BASTION_REQUIREMENTS.json` G-18 row (P21 enforces the gate);
+  `docs/AUDIT_MANIFEST.md` G-18 row; `docs/RESEARCH_MONITOR.md` taxonomy note.
+
+## 2026-06-13 — benchmark target-context taxonomy + claim-scope gate (Bastion B17, closes RR-BAS-03)
+
+- Added `docs/BENCH_TARGET_CONTEXT_SCHEMA.json`: the `target_context` enum
+  (microbench / batch_verify / bitcoin_core / libbitcoin / gpu_public_data /
+  gpu_hardware / wasm / package_integration / unknown_owner_gated) + required
+  fields (target_context, operation, claim_scope, evidence_path, reproduce/source
+  command, commit, security_gate_dependency).
+- Added `target_context` + `claim_scope` + `security_gate_dependency` **metadata**
+  (no numbers invented/changed) to the canonical artifacts: `docs/bench_unified_*.json`
+  → `microbench`; `docs/BITCOIN_CORE_BENCH_RESULTS.json` → `bitcoin_core` (with an
+  `integration_evidence` reference to the 749/749 results + integration table).
+- Added `ci/check_bench_target_context.py` and folded it into
+  `ci/check_bench_doc_consistency.py` (now `--json`-capable): a canonical benchmark
+  artifact fails if `target_context` is missing/invalid, if a timed artifact lacks
+  `claim_scope` or `security_gate_dependency`, if `gpu_public_data` is presented as
+  native GPU-hardware performance, or if a `bitcoin_core`/`libbitcoin` claim lacks
+  an integration-evidence reference. `ci/perf_security_cogate.py` co-gates it (via
+  `check_bench_doc_consistency`), so a perf claim is invalid when context is
+  mis-scoped or CT/determinism is red. Corrupt-timing checks (B8) remain blocking.
+- Added `ci/test_audit_scripts.py::check_bench_target_context_fixtures` (missing /
+  invalid context → fail; timed-without-scope → fail; gpu-as-native-hardware → fail;
+  bitcoin_core/libbitcoin without integration evidence → fail; owner_gated context
+  explicit + visible; real artifacts pass) and registered it in the coverage critic
+  (now 16 high-value gates). Self-test 174 pass.
+- Closed **RR-BAS-03** in `docs/RESIDUAL_RISK_REGISTER.md` (acceptance criteria met);
+  added `docs/CAAS_BASTION_REQUIREMENTS.json` G-17 row (P21 enforces the gate);
+  `docs/AUDIT_MANIFEST.md` G-17 row; `docs/BENCHMARKS.md` taxonomy note.
+
+## 2026-06-13 — GPU / hardware evidence status lane (Bastion B16)
+
+- Added `docs/GPU_HARDWARE_EVIDENCE_STATUS.json`: a machine-readable manifest that
+  makes the GPU/hardware claim surface explicit and honest. Each row declares a
+  `backend` (cuda/opencl/metal/rocm/cpu_fallback), a `claim_type` (correctness /
+  performance / fallback_correctness / hardware_ct / out_of_scope),
+  `hardware_required`, evidence_path, freshness_days, severity, and (for residuals)
+  a `residual_risk_id`. 4 warning (host-side fallback_correctness for
+  CUDA/OpenCL/Metal + GPU context thread-safety), 1 owner_gated (ROCm real-device),
+  2 documented_residual (schnorr_snark fallback RR-005, hardware power/EM RR-006).
+- Added `ci/check_gpu_hardware_evidence.py` (G-16 gate): a blocking row fails on
+  missing/stale evidence; `owner_gated` real-device rows (no GitHub GPU runners)
+  are explicit and never counted as current; `documented_residual` rows must
+  resolve to a RESIDUAL_RISK_REGISTER.md id (unresolved fails); a
+  `fallback_correctness` row must name an existing `fallback_path` and is tracked
+  separately from native performance — a `performance` claim naming a fallback_path
+  is a mislabel and fails. Emits overall_pass, missing_rows, stale_rows,
+  owner_gated_rows, documented_residual_rows, unresolved_residual_rows,
+  min_days_until_block.
+- Wired into `ci/audit_gate.py` as `--gpu-hardware-evidence` (G-16, CHECK_MAP +
+  ALL_CHECKS): cheap on every push (no GPU hardware required).
+- Added `ci/test_audit_scripts.py::check_gpu_hardware_evidence_fixtures` (missing /
+  stale / malformed → fail; unresolved residual → fail; fallback-mislabeled-as-
+  performance → fail; fallback_correctness-without-path → fail; owner_gated explicit;
+  valid + real manifest pass) and registered it in the coverage critic (now 15
+  high-value gates). Self-test 170 pass.
+- Docs: `docs/BACKEND_ASSURANCE_MATRIX.md` evidence-status-gated note; `docs/AUDIT_SLA.json`
+  `gpu_hardware_evidence_freshness` SLO; `docs/CAAS_BASTION_REQUIREMENTS.json` G-16
+  row (P21 enforces the gate); `docs/AUDIT_MANIFEST.md` G-16 row.
+
+## 2026-06-13 — fuzz campaign evidence freshness + crash→regression lane (Bastion B15)
+
+- Added `docs/FUZZ_CAMPAIGN_STATUS.json`: a machine-readable manifest binding each
+  fuzz surface (ABI/invalid-input grammar, DER parser, ECDSA verify, Schnorr verify,
+  MuSig2/FROST stateful, libbitcoin bridge differential, GPU public-data) to its
+  corpus/harness, crash directory, crash→regression evidence, replay command,
+  freshness_days, and severity. 4 blocking / 1 warning / 2 owner_gated.
+- Added `ci/check_fuzz_campaign_status.py` (G-15 gate): an evidence-status gate
+  (cheap; runs no campaigns). A blocking surface fails on missing corpus,
+  stale/malformed last_verified, or a **crash artifact without a matching
+  regression** (`crash_unconverted`) — and an unconverted crash blocks regardless
+  of severity (a correctness gap). owner_gated heavy/host-only surfaces are
+  explicit and never counted as current. Emits overall_pass, missing_rows,
+  stale_rows, crash_unconverted_rows, owner_gated_rows, pre_alerts,
+  min_days_until_block.
+- Wired into `ci/audit_gate.py` as `--fuzz-campaign-status` (G-15, CHECK_MAP +
+  ALL_CHECKS): cheap on every push, visible in the audit-gate JSON.
+- Added `ci/test_audit_scripts.py::check_fuzz_campaign_status_fixtures` (missing
+  corpus / stale / malformed → fail; crash-without-regression → crash_unconverted
+  block, incl. warning severity; crash-with-regression → pass; owner_gated explicit
+  + never current; valid + real manifest pass) and registered it in the coverage
+  critic (now 14 high-value gates). Self-test 166 pass.
+- Created `docs/FUZZ_INFRASTRUCTURE.md` (harnesses, corpus, crash→regression
+  discipline, the freshness gate). Docs: `docs/AUDIT_SLA.json`
+  `fuzz_campaign_freshness` SLO; `docs/CAAS_BASTION_REQUIREMENTS.json` G-15 row
+  (P21 enforces the gate); `docs/AUDIT_MANIFEST.md` G-15 row.
+
+## 2026-06-13 — CT evidence artifact binding + freshness lane (Bastion B14)
+
+- Added `docs/CT_EVIDENCE_STATUS.json`: a machine-readable manifest binding each
+  CT-sensitive surface (ECDSA / Schnorr / recoverable signing, keypair/secret-key,
+  scalar inverse, RFC 6979 nonce, GPU public-data boundary) to committed evidence
+  (CT primitive headers + audit regression tests), required/optional verdict tools,
+  arch/compiler, freshness_days, severity, and last_verified.
+- Added `ci/check_ct_evidence_status.py` (G-14 gate). Two dimensions: the
+  committed-evidence + freshness dimension is checked on EVERY push (cheap) — a
+  blocking CT surface fails on a missing evidence path or stale/malformed
+  last_verified; the tool-verdict dimension (ct-verif / valgrind-ct / dudect) is
+  evaluated only when a `--verdict-dir` is supplied (CI workflows), where a
+  required-tool FAIL or a single PASS + SKIP is **inconclusive, never a pass**, and
+  a blocking row fails if its required_tools do not all PASS. owner_gated rows
+  (host-only `--gpu` CT-uniformity) are explicit and never counted as current.
+  Emits overall_pass, missing_rows, stale_rows, inconclusive_rows, owner_gated_rows,
+  pre_alerts, min_days_until_block, verdicts_evaluated.
+- Wired into `ci/audit_gate.py` as `--ct-evidence-status` (G-14, in CHECK_MAP +
+  ALL_CHECKS): runs cheaply on every push (committed-evidence path), visible in the
+  audit-gate JSON. Initial manifest: 5 blocking / 1 warning / 1 owner_gated — PASS.
+- Added `ci/test_audit_scripts.py::check_ct_evidence_status_fixtures` (missing /
+  stale / malformed-date blocking → fail; PASS+SKIP → inconclusive + block; FAIL
+  blocks; owner_gated explicit + never pass; valid + real manifest pass) and
+  registered it in the coverage critic (now 13 high-value gates). Self-test 162 pass.
+- Docs: `docs/CT_VERIFICATION.md` + `docs/CT_INDEPENDENCE.md` freshness-gated notes;
+  `docs/AUDIT_SLA.json` `ct_evidence_status_freshness` SLO; `docs/CAAS_BASTION_REQUIREMENTS.json`
+  G-14 requirement row (P21 enforces the gate); `render_audit_dashboard.py` CT
+  evidence surface summary.
+
+## 2026-06-13 — external integration evidence freshness lane (Bastion B13)
+
+- Added `docs/INTEGRATION_EVIDENCE_STATUS.json`: a machine-readable manifest that
+  binds each external-integration surface (libsecp shim parity, cross-libsecp
+  differential, DER+block-704789, same-X/opposite-Y ECDSA cache, Schnorr verify,
+  batch verify, libbitcoin collect/commitment/multisig, libbitcoin no-libsecp
+  build, Bitcoin Core full suite) to its evidence_path, reproduce_command,
+  freshness_days, severity, last_verified, and status.
+- Added `ci/check_integration_evidence.py` (G-13 gate): recomputes each surface's
+  live status (a row cannot be green just because the JSON says so). A `blocking`
+  row fails on missing evidence_path or stale/malformed last_verified; `warning`
+  rows are advisory with a pre-alert; `owner_gated` heavy full-chain rows are
+  surfaced explicitly and **never** counted as current evidence. Emits
+  `overall_pass`, `stale_rows`, `missing_rows`, `owner_gated_rows`,
+  `pre_alerts`, and `min_days_until_block`.
+- Wired into `ci/audit_gate.py` as `--integration-evidence` (G-13, in `CHECK_MAP`
+  and `ALL_CHECKS`): visible in every audit-gate run; blocks only on a blocking
+  surface failure. Initial manifest: 1 blocking / 4 warning / 4 owner_gated, all
+  current — gate PASSES.
+- Added `ci/test_audit_scripts.py::check_integration_evidence_fixtures` (missing /
+  stale / malformed-date blocking → fail; warning advisory; owner_gated explicit
+  and never pass; valid + real manifest pass) and registered it in the coverage
+  critic (now 12 high-value gates). Self-test 155 pass.
+- Docs: `docs/INTEGRATION_EVIDENCE_TABLE.md` now states it is backed by the
+  manifest + gate; `docs/AUDIT_SLA.json` adds an `integration_evidence_freshness`
+  SLO entry; `docs/CAAS_BASTION_REQUIREMENTS.json` adds the G-13 requirement row
+  (so P21 enforces the gate's existence).
+
+## 2026-06-13 — formalize Bastion owner-deferred residuals (Bastion #10)
+
+- Registered the four owner-deferred, non-blocking Bastion residuals in
+  `docs/RESIDUAL_RISK_REGISTER.md` (RR-BAS-01..04), each with an explicit
+  acceptance criterion, promotion trigger, and close condition — so they are
+  tracked as narrow residuals with a defined path to closure, not silent gaps or
+  vulnerabilities:
+  - **RR-BAS-01** — CAAS evidence auto-refresh for `audit/ci-evidence` +
+    `docs/API_SECURITY_CONTRACTS.json` (manual chore + B3 pre-alert; owner chose
+    manual over an auto-committing scheduled lane).
+  - **RR-BAS-02** — promote `incident_drill_freshness_days` from advisory to
+    blocking after the nightly drill-log auto-commit loop is observed (cf. H-1).
+  - **RR-BAS-03** — explicit `target_context` labels on `bench_unified_*.json`
+    (a benchmark output-format change tied to a real measured run).
+  - **RR-BAS-04** — `attack_class` taxonomy on `RESEARCH_SIGNAL_MATRIX.json`
+    signals (B6 already renders the actionable affected-surface/patch-plan).
+- Closes the last open item of the workplan's "Definition of Bastion Complete"
+  criterion #10 (residual risks explicit, narrow, linked to acceptance criteria).
+
+## 2026-06-13 — research monitor: signal → actionable work (Bastion B6)
+
+- `ci/research_monitor.py` `render_markdown` now renders each high-confidence
+  finding as actionable work, not a bare citation: an **Affected surface** (from
+  the repo signal-class matches), the **Existing evidence** paths, and an explicit
+  **Patch plan** with a first-verification command and a missing-test/doc step for
+  `gap`/`candidate` findings. Derived from existing item data — no signal-matrix
+  schema change required.
+- Added `ci/test_audit_scripts.py::check_research_monitor_actionable_body` proving
+  the enriched body and clean empty-report rendering; also hardened the in-process
+  module loader (`sys.modules` registration) so dataclass-bearing modules load.
+  Self-test 154 pass.
+- Updated `docs/RESEARCH_MONITOR.md`.
+
+## 2026-06-13 — integration evidence table (Bastion B7)
+
+- Added `docs/INTEGRATION_EVIDENCE_TABLE.md`: a single replayable index of the
+  external-integration correctness evidence that was scattered across the
+  shim-parity gate, the audit regression suite, the Bitcoin Core result JSON, and
+  the libbitcoin bridge tests. Each row names the committed evidence file and the
+  command to reproduce it: libsecp shim parity (17/17), cross-libsecp differential,
+  DER parse+normalize+verify (block 704,789), the same-X/opposite-Y ECDSA cache
+  identity regression (fix 684141e7), Schnorr verify, batch verify, libbitcoin
+  consensus differential / collect / commitment / multisig, no-libsecp build mode,
+  and the Bitcoin Core full suite (749/749 GCC 14.2.0).
+- Documented the internal opaque ECDSA/pubkey layout as an internal representation
+  (not a portable signature expectation), cross-linked to
+  `docs/SHIM_KNOWN_DIVERGENCES.md`. Kept performance evidence explicitly separate
+  from correctness (B8 co-gating). Noted a scheduled libbitcoin-bridge conformance
+  lane as an owner-gated future enhancement.
+
+## 2026-06-13 — constant-time independence dashboard summary (Bastion B11)
+
+- Added a **Constant-Time Independence** section to `docs/AUDIT_DASHBOARD.md`
+  (via `ci/render_audit_dashboard.py`): it reads `ct-independence.yml` to report
+  the number of independent CT tools configured, the ≥N-distinct-PASS rule, and
+  the fail-closed guarantee (a single PASS + SKIP is INCONCLUSIVE, never PASS),
+  plus the gate and where live verdicts live (CI artifacts).
+- Confirmed the artifact-based, fail-closed CT independence behavior is already
+  implemented in `ci/ct_independence_check.py` and is negative-fixture-proven by
+  `check_ct_independence_negative_fixtures` (Bastion B5).
+
+## 2026-06-13 — GPU parity exceptions documented + precise gate (Bastion B10)
+
+- Marked the 15 intentional default-`Unsupported` stubs in
+  `src/gpu/include/gpu_backend.hpp` (libbitcoin-bridge specializations:
+  `*_verify_collect`, `xonly_validate`, `commitment_verify`, `tagged_hash`,
+  `pubkey_validate`, `hash256`, etc.) with inline `PARITY-EXCEPTION` markers —
+  CUDA-native ops with deterministic host/CPU fallback on OpenCL/Metal (public
+  data; a perf residual, not a correctness parity gap).
+- Tightened `audit_gate.py` `check_gpu_parity`: it previously matched any line
+  containing the token `Unsupported` (doc comments, enum declarations) across
+  overlapping scan dirs and generated build trees — ~128 noise hits. It now scans
+  source extensions only, prunes build/generated dirs, de-duplicates files, and
+  matches an actual `return ...Unsupported`. Result: the GPU-parity check now
+  PASSES (0 undocumented sites) and the WARN, when it fires, is meaningful.
+- Documented the default-stub parity exceptions in
+  `docs/BACKEND_ASSURANCE_MATRIX.md`.
+
+## 2026-06-13 — incident drills as real fault injection (Bastion B9)
+
+- `ci/incident_drills.py`: the CI-poisoning and dependency-compromise drills are
+  now **real injection → detection** drills, not presence checks:
+  - `ci_poisoning`: builds a tampered cross-provider hash pair and RUNS
+    `multi_ci_repro_check.py`, requiring it to DETECT the mismatch (non-zero exit).
+  - `dependency_compromise`: synthesizes a `CMakeLists.txt` with no
+    `cmake_minimum_required` and requires `supply_chain_gate.check_build_input_pinning`
+    to DETECT the unpinned manifest.
+  Each drill result carries `injected_fault`, `detection_gate`, and `detected`.
+- Added a machine-readable drill log `docs/INCIDENT_DRILL_LOG.json` (timestamp,
+  commit, per-drill injection provenance) written on every run; added it to the
+  nightly `caas-evidence-refresh.yml` commit list so cadence stays fresh.
+- `ci/audit_sla_check.py` + `docs/AUDIT_SLA.json`: new
+  `incident_drill_freshness_days` SLO with `days_until_block`/pre-alert. Advisory
+  (warning) for now to avoid a self-inflicted recurring block; promote to blocking
+  after the nightly auto-commit loop is observed (cf. H-1).
+- Added `ci/test_audit_scripts.py::check_incident_drills_real_injection` proving
+  both drills detect their injected faults; added to the coverage critic (now 11
+  high-value gates). Self-test 153 pass.
+- Fixed the stale `incident_drills.py --record-all` reference in
+  `docs/CAAS_PROTOCOL.md` (the flag never existed).
+
+## 2026-06-13 — performance claims evidence-gated (Bastion B8)
+
+- `ci/perf_security_cogate.py` now co-gates **benchmark-artifact integrity**: a
+  5th gate runs `check_bench_doc_consistency.py` and blocks the perf co-gate on
+  failure. A performance claim can no longer merge while its benchmark evidence is
+  corrupt or inconsistent (previously the bench check ran independently).
+- `ci/check_bench_doc_consistency.py` hardened to **reject corrupt benchmark
+  artifacts** (`check_bench_artifact_sanity`): zero / negative / non-finite /
+  non-numeric (e.g. concatenated `'123ns456'`) and sub-physical (impossible
+  throughput) `ns` timings, plus a non-list `results` array, now fail the gate.
+  `_find_result`/`_coerce_ns` no longer crash on a bad `ns` (no float() exception
+  or divide-by-zero). Malformed/non-object bench JSON is now a violation, not a
+  silent skip.
+- Added `ci/test_audit_scripts.py::check_bench_artifact_sanity_fixtures` proving
+  the parser rejects every corrupt-timing class and accepts a clean artifact;
+  added it to the negative-fixture coverage critic (now 10 high-value gates).
+  Self-test 152 pass.
+- Residual (tracked, not silently dropped): explicit `target_context` metadata
+  labels on bench JSONs (microbench / batch_verify / bitcoin_core / libbitcoin /
+  gpu_public_data) are not yet enforced — the canonical bench JSONs are owner-
+  regenerated from real `bench_unified` runs, so the label schema is a future
+  bench-format change rather than a gate-only edit.
+
+## 2026-06-13 — gate negative-fixture suite + coverage critic (Bastion B5)
+
+- Added negative fixtures to `ci/test_audit_scripts.py` for every high-value CAAS
+  gate that previously had none, each proving the gate fails closed on bad input:
+  - `ct_independence_check.py`: one PASS + one SKIP is INCONCLUSIVE (exit 2), not
+    PASS; any FAIL / missing required tool is exit 1 (the P7-CAAS-001 false-green).
+  - `multi_ci_repro_check.py`: mismatched hashes / no common artifacts / empty
+    hash file all fail; only bit-identical artifacts pass.
+  - `security_autonomy_check.py`: a forced sub-gate failure drops
+    `autonomy_ready=false` (exit 1); all-advisory-skip returns exit 77 (not a
+    false 100); ready/100 only when all gates pass.
+  - `supply_chain_gate.py`: fails closed when build-input pinning, provenance,
+    SBOM, and hardening artifacts are absent; passes the real repo.
+  - `check_source_graph_quality.py`: an empty/stale graph DB fails (exit 1).
+- Added `check_caas_gate_negative_fixture_coverage` — a completeness critic that
+  asserts every high-value gate (9 total, incl. P21/audit_sla/bundle/research
+  monitor from B1/B3/B4) has a registered negative fixture; a green gate without
+  a fail-on-bad-input proof is now itself a test failure. `incident_drills`
+  coverage lands in B9.
+- Python self-test now 151 pass (was 142 pre-Bastion).
+
+## 2026-06-13 — external audit bundle: strict current-run evidence (Bastion B4)
+
+- `ci/verify_external_audit_bundle.py` now fails **closed** on a malformed or
+  non-object bundle (previously `json.loads` could raise an uncaught exception —
+  "did not run" was indistinguishable from "passed" on a required gate). A
+  malformed bundle now yields a `bundle_parse`/`bundle_schema` FAIL, not a crash.
+- `ci/render_audit_dashboard.py` adds a **Commit vs HEAD** status to the Evidence
+  Bundle section: the committed bundle is labelled `CURRENT` when it matches HEAD,
+  or `HISTORICAL BASELINE` (with both short commits) when it has drifted, so
+  reviewers can tell at a glance whether the on-disk bundle reflects the tested
+  commit. The strict current-run bundle is regenerated in CI.
+- Added `ci/test_audit_scripts.py::check_external_audit_bundle_negative_fixtures`
+  (always-on phase): proves `verify()` fails closed on tampered digest, missing
+  evidence, evidence hash mismatch, stale commit (and passes with
+  `--allow-commit-mismatch`), and malformed/non-object bundles, and passes a
+  well-formed current-commit bundle. Self-test now 145 pass.
+
+## 2026-06-13 — evidence freshness pre-alert + days-until-block (Bastion B3)
+
+- `ci/audit_sla_check.py` now reports `days_until_block` for every tracked
+  critical artifact and emits a non-blocking **PRE-ALERT** warning while an
+  artifact is within `pre_alert_buffer_days` of its blocking threshold. The
+  report gained `evidence_status[]`, `min_days_until_block`, and `pre_alerts` so
+  the freshness SLA can no longer silently jump from green to blocked (the
+  failure class that dropped autonomy 100→90 on 2026-06-13).
+- `docs/AUDIT_SLA.json` (v2): added `pre_alert_buffer_days` to the three
+  freshness SLOs — 30-day SLOs warn at 25d, the 14-day critical SLO warns at 10d.
+- Added `ci/test_audit_scripts.py::check_audit_sla_pre_alert_and_block`
+  (always-on Structural phase): simulates stale / pre-alert / fresh ages and
+  proves the gate blocks at the deadline, pre-alerts inside the buffer window,
+  and reports `days_until_block`. Self-test now 144 pass.
+- Documented the **Evidence Freshness & Refresh Contract** in
+  `docs/CAAS_PROTOCOL.md`: which workflow/process refreshes which critical
+  artifact, and that `audit/ci-evidence` + `API_SECURITY_CONTRACTS.json` (both
+  14-day SLO) are not yet covered by a scheduled refresh — the pre-alert is the
+  early-warning signal until that automation lands.
+
+## 2026-06-13 — source-graph CAAS focus-routing goldens (Bastion B2)
+
+- Added three focus-routing goldens to `ci/check_source_graph_quality.py` so a
+  stale or misbuilt source graph cannot silently misroute the CAAS gate symbols:
+  `external_audit_replacement -> audit_gate.py` (the symbol backing P21),
+  `audit_sla -> audit_sla_check.py`, and `research_monitor -> research_monitor.py`.
+- Documented that bare `P21` is a principle label, not a graph symbol, so it
+  correctly resolves no node; routing is asserted via the function symbol.
+- Confirmed the dual-graph design is intentional: `tools/source_graph_kit/
+  source_graph.db` is the canonical semantic graph (gated for freshness/commit by
+  this script); `.project_graph.db` remains the ABI/coverage metadata graph used
+  by the other `audit_gate.py` checks.
+
+## 2026-06-13 — P21 semantic requirement map (Bastion B1)
+
+- Added `docs/CAAS_BASTION_REQUIREMENTS.json`: a machine-readable map binding each
+  known review gap (P21-CORE doc set, G-1..G-10, G-9b) to its `artifact_paths`,
+  enforcing `gate`, `gate_kind`, `status`, `residual_risk`, and `last_verified`.
+- Upgraded `check_external_audit_replacement` (P21) in `ci/audit_gate.py` from a
+  presence-only file list to a **semantic check**: every artifact must exist;
+  every `gated` row must name an `audit_gate.py` flag registered in `CHECK_MAP` or
+  an existing `ci/*.py` gate script; every `documented_residual` must carry a
+  non-empty residual (and `RESIDUAL_RISK_REGISTER.md` must exist); `last_verified`
+  must be within the embedded SLA (warn 180d, fail 540d). A closed gap can no
+  longer point only to prose.
+- Honest reconciliation surfaced by the map: of the 12 rows, 6 are `gated`
+  (G-1 `--threat-model`, G-5 `--spec-traceability`, G-7 `multi_ci_repro_check.py`,
+  G-8 `--ct-tool-agreement`, G-9b `--exploit-traceability`, G-10 `--disclosure-sla`),
+  5 are `presence_only` published stance/spec documents, and 1 (G-3 hardware
+  side-channel) is a `documented_residual`.
+- Added `ci/test_audit_scripts.py::check_p21_semantic_requirement_map` (runs in the
+  always-on Structural Integrity phase) proving the gate fails closed on missing
+  artifact, unregistered gate, stale date, empty residual, and missing map, and
+  passes on the committed map. Self-test now 143 pass.
+- Updated `docs/AUDIT_MANIFEST.md` P21 section + changelog row.
+
+## 2026-06-13 — CAAS status-doc reconciliation (Bastion B0)
+
+- Reconciled `docs/CAAS_COMPLETENESS_GAP_ANALYSIS.md` (was dated 2026-04-27)
+  against the live gates. All six structural gaps it listed as missing/partial
+  are confirmed **closed and CI-gated** with file + live-verdict evidence:
+  - P21 registered + gated (`audit_gate.py --external-audit-replacement`, PASS).
+  - G-9b exploit-traceability gated (`--exploit-traceability`, PASS).
+  - G-7 multi-CI (`multi-ci-repro.yml` + `ci/multi_ci_repro_check.py`).
+  - G-8 two-tool CT (`ct-independence.yml` + `ci/ct_independence_check.py`,
+    `--ct-tool-agreement` PASS).
+  - H-9 audit dashboard (`docs/AUDIT_DASHBOARD.md`, nightly-refreshed).
+  - C ABI thread safety (`docs/THREAD_SAFETY.md`).
+- Added an explicit **Bastion Final Mile** section enumerating the residual
+  hardening (B1 semantic P21, B3 pre-alert freshness, B4 strict bundle, B5
+  negative fixtures, B8 perf co-gate, B9 real drills) so future work is not
+  built from stale "missing" prose. Wording rule recorded: green gates are not
+  the same as a finished Bastion.
+- Updated `docs/CAAS_GAP_CLOSURE_ROADMAP.md` header (v1.2) and checked its
+  structural done-criteria.
+
+## 2026-06-13 — CAAS determinism golden freshness refresh
+
+- Regenerated `docs/DETERMINISM_GOLDEN.json` from
+  `ci/check_determinism_gate.py --json --repeat 5` after the SLA gate crossed
+  the 30-day determinism golden freshness threshold.
+- Added a `generated_at` timestamp to determinism gate JSON output so refreshed
+  golden evidence carries an explicit generation time in addition to the git
+  commit freshness used by `ci/audit_sla_check.py`.
+
+## 2026-06-13 — libsecp shim ECDSA same-X cache identity
+
+- Fixed `ShimEcdsaCache` identity for ECDSA verify prebuilt-key entries to
+  compare the full opaque pubkey bytes (`X||Y`), not only `X`. This prevents
+  same-X opposite-parity compressed keys (`02||X` vs `03||X`) from reusing the
+  wrong cached `EcdsaPublicKey` after cache promotion.
+- Extended `audit/test_regression_ecdsa_verify_cache_consistency.cpp` with
+  evoskuil/libbitcoin block 704,789 tuple coverage: DER parse, normalize, repeat
+  verify after cache hits, and an opposite-parity cache-poisoning regression.
+
+## 2026-06-12 — research monitor issue escalation hardening
+
+- Aligned the script-level `--open-issue` path with the workflow label set:
+  `research-monitor,security,triage`.
+- Added same-day duplicate issue suppression to the script-level GitHub issue
+  path and made both script and workflow issue creation retry without labels if
+  label metadata causes `gh issue create` to fail.
+- Extended Python audit self-tests to simulate label failure and duplicate issue
+  detection without invoking the real GitHub CLI.
+
+## 2026-06-12 — research monitor notification completeness
+
+- Extended text and mail report rendering so `needs_review` findings include
+  title, source, score, action, URL, reason, and summary instead of appearing
+  only as aggregate counts.
+- Aligned SMTP notification gating with GitHub issue escalation: high-confidence
+  findings always notify, and needs-review findings notify when review
+  escalation is enabled and SMTP secrets are configured.
+- Added Python audit self-test coverage proving rendered reports include
+  needs-review finding details and that `research_signal_count` includes both
+  high-confidence and needs-review items.
+
+## 2026-06-12 — research monitor ePrint early-warning escalation
+
+- Added IACR Cryptology ePrint RSS as a first-class `ci/research_monitor.py`
+  source, with local RSS parsing and query-aware filtering for expanded
+  secp256k1 attack/bug research searches.
+- Added `research_signal_count` GitHub workflow output and an
+  `open_review_issue` workflow input so scheduled early-warning runs can open a
+  GitHub issue for needs-review research signals, not only high-confidence
+  signals.
+- Replaced substring matching in relevance scoring, query filtering, hard-focus
+  detection, and signal-matrix matching with term/phrase-boundary matching so
+  short crypto keywords cannot match unrelated biological or general prose.
+- Updated research monitor self-tests to cover synthetic ePrint RSS parsing,
+  source filtering, biological false-positive suppression, and GitHub output
+  escalation counters.
+
+## 2026-06-12 — research monitor source resilience
+
+- Hardened `ci/research_monitor.py` against malformed Crossref `date-parts` so
+  a single partial or invalid publication date cannot fail the whole Crossref
+  source pass.
+- Added per-query source status/error labels to research reports, mail bodies,
+  console summaries, and JSON records so expanded searches identify the exact
+  source/query pair that produced results or failed.
+- Compacted source exception text before report emission and added Python audit
+  self-test coverage for Crossref date normalization, bounded source errors, and
+  query-aware report rendering.
+
+## 2026-06-12 — dev bug scanner crypto-pattern expansion
+
+- Extended `ci/dev_bug_scanner.py` with three high-signal crypto development
+  bug classes:
+  - `SECRET_TABLE_INDEX`: flags secret-derived values used as direct lookup-table
+    indices in crypto paths, the cache-timing table lookup class.
+  - `UNALIGNED_WORD_LOAD`: flags byte buffers reinterpreted as `uint32_t*` /
+    `uint64_t*`, which is both alignment-UB and host-endian parser risk.
+  - `OUTPUT_FAIL_OPEN`: flags public `secp256k1_*` / `ufsecp_*` functions that
+    can return a failure code after partially writing output buffers without
+    clearing them.
+- Added synthetic scanner quality coverage in `ci/test_audit_scripts.py` so the
+  new detectors catch true positives while preserving obvious safe patterns
+  such as reading `seckey[i]`, clearing output before a failure return, and
+  clearing after a successful cache/write branch before a later failure branch.
+- Closed two fail-open output findings exposed by the new scanner:
+  `secp256k1_ec_pubkey_parse` now zeroes `pubkey->data` before parsing so every
+  failed parse leaves a cleared output, and BCHN `secp256k1_schnorr_sign` now
+  pre-clears `sig64` plus re-clears on exception. Added shim regressions for
+  both failure-clearing paths.
+- Closed seven unaligned word-load findings exposed by the new scanner:
+  Schnorr zero-output checks now use byte accumulation rather than casting
+  signature byte arrays to `uint64_t*`, and CUDA ZK hash-input assembly now uses
+  byte-wise copy/XOR instead of word-pointer casts on stack buffers.
+
+## 2026-06-12 — CAAS bastion hardening: current bundle + canonical source graph
+
+- Promoted `tools/source_graph_kit/source_graph.db` to the canonical CAAS graph
+  quality target. `ci/check_source_graph_quality.py` now validates source graph
+  kit tables, current-HEAD binding, CAAS-critical scripts/workflows/docs,
+  project coverage floors, CT metadata, and low-cost focus-routing goldens.
+- Tightened PR/push bundle verification with a two-layer model: the committed
+  `docs/EXTERNAL_AUDIT_BUNDLE.json` remains a hash-checked historical baseline
+  with an explicit commit-mismatch allowance, while protected CI now produces
+  `out/current_audit/EXTERNAL_AUDIT_BUNDLE.json` for the exact commit under test
+  and verifies it without `--allow-commit-mismatch`.
+- Made `ci/test_caas_integrity.py --json` emit pure JSON and added audit
+  infrastructure self-tests/negative fixtures for CAAS JSON purity and stale
+  external-audit bundle commit rejection.
+- Added a frozen retroactive coverage record for the historical shim API layout
+  workflow-wiring commit so `ci/check_security_fix_has_test.py --commits 10`
+  no longer false-fails on a commit that enabled an existing shim parity test.
+
+## 2026-06-12 — libbitcoin bridge ECDSA high-S batch parity
+
+- Fixed the libbitcoin bridge ECDSA row and column paths to accept
+  consensus-valid high-S signatures by normalizing `s` into low-S scratch before
+  calling the engine's low-S batch/GPU verifiers. Caller-owned rows, columns, and
+  opaque correlation tails are not mutated.
+- Restored contiguous CPU batch verification for ECDSA rows with `key_size > 0`
+  by marshalling `[record|opaque-tail]` rows into engine records instead of
+  falling back to one verification per row. This keeps libbitcoin multisig/tail
+  rows on the batch path while preserving per-row invalid detection.
+- Added bridge regressions covering high-S ECDSA in all-valid batches, high-S
+  beside a single corrupted row, C++ typed-span rows, column results/collect
+  APIs, and 6-byte multisig correlation tails.
+
+## 2026-06-12 — libbitcoin bridge header include root normalized
+
+- Fixed `compat/libbitcoin_bridge/include/ufsecp_libbitcoin.h` to include
+  `ufsecp/ufsecp_error.h`, so packaged consumers can use one `include/` root
+  with `ufsecp/` beneath it.
+- Added the parent of `UFSECP_INCLUDE_DIR` to all libbitcoin bridge targets
+  that compile bridge headers or sources directly, including the smallchunk
+  regression target that recompiles `src/ufsecp_libbitcoin.cpp`.
+
+## 2026-06-11 — CAAS gate covers libsecp shim opaque ECDSA layout
+
+- Added a hard CAAS/preflight and PR-push shim gate that builds the standalone
+  libsecp256k1 shim API test and runs `secp256k1_shim_test`.
+- Tightened `ci/check_libsecp_shim_parity.py` so `parse_compact` must convert
+  public compact big-endian ECDSA scalars into the libsecp-compatible opaque
+  scalar layout after strict parsing. This prevents regressions where DER and
+  verification still pass but libbitcoin-system raw signature fixtures fail.
+
+## 2026-06-11 — libbitcoin ECDSA opaque-signature parity fixed
+
+- **Confirmed compatibility regression fixed:** the libsecp256k1 shim stored
+  `secp256k1_ecdsa_signature.data` and recoverable `r/s` bytes as public big-endian compact
+  scalars. Upstream libsecp256k1's opaque ECDSA signature buffers expose internal
+  little-endian scalar limb bytes on little-endian hosts, and libbitcoin-system copies that
+  opaque field directly. Result: libbitcoin's `secp256k1__sign__positive__expected` saw each
+  32-byte limb byte-reversed, and `encode_signature(signature3)` DER-encoded the reversed raw
+  bytes.
+- **Fix:** ECDSA and recoverable shim internals now store opaque signature scalar bytes in
+  libsecp-compatible little-endian internal order, while public compact parse/serialize and
+  DER parse/serialize remain canonical big-endian. `secp256k1_ecdsa_recoverable_signature_convert`
+  stays a direct copy because both opaque layouts now match.
+- **Regression:** `compat/libsecp256k1_shim/tests/shim_test.cpp` now asserts sign,
+  compact-parse, and DER-parse opaque storage layout, and pins libbitcoin scenario 3's
+  raw opaque signature -> compact/DER conversion.
+
+## 2026-06-11 — External-anchor KAT: defeat common-mode self-anchoring (NIST + BIP-341 official)
+
+- **Common-mode defence:** the valid/invalid coverage audit found 25 ops gated only against
+  values the SAME engine re-derives — a shared-primitive error passes BOTH the valid and the
+  invalid gate. New module `external_anchor_kat` (standard_vectors) pins ops to authorities
+  that did NOT come from this engine:
+  - **`ufsecp_sha512` vs NIST FIPS 180-4** (`""`/`"abc"`) — the SHA-512 ABI was KAT-checked
+    only against the internal C++ impl, never the ABI surface. SHA-512 underlies BIP-32
+    HMAC-SHA512, so an external anchor here catches a shared-primitive error in HD derivation.
+  - **`ufsecp_taproot_output_key` vs the OFFICIAL BIP-341 wallet-test-vectors**
+    (scriptPubKey[0], keypath-only): internal key `d6889cb0…` → tweaked `53a1f6e4…`. The
+    native taproot path was self-roundtrip only; this pins `H_TapTweak(P)` to the **Bitcoin
+    spec reference**, directly addressing the consensus-relevant common-mode. 4/4 — both match.
+- Module 427 → 428. This is the external-reference-anchoring lever for the previously
+  self-anchored consensus surface; remaining roadmap: BIP-143/341/342/144 sighash known-answer
+  digests (need a fixed Bitcoin Core reference tx per op).
+
+## 2026-06-11 — VALID/INVALID coverage: live ABI reject branches now exercised (wrong-accept trap)
+
+- **Methodology:** a 21-agent valid/invalid gate-coverage audit enumerated 69 engine
+  operations and checked each for BOTH a valid-acceptance gate AND an invalid-rejection
+  gate (the thesis: a consensus operation is bug-proof only with both). Result: **0 ops
+  missing a valid gate; 8 missing the invalid gate; 25 self-anchored (common-mode)**.
+  Matrix: `workingdocs/VALID_INVALID_COVERAGE_2026-06-11.md`.
+- **The "live reject branch, no invalid-gate" trap closed:** 3 ABI operations had a
+  rejection branch in `src/cpu/src/impl` that the WIRED/blocking suite never fed an invalid
+  input — so a regression dropping the strict check (a wrong-ACCEPT) would have passed every
+  gate. New module `regression_abi_invalid_reject` (memory_safety) exercises them:
+  - `ufsecp_seckey_negate`: privkey `0` / `== n` / `0xff..ff` → `BAD_KEY` (buffer left intact).
+  - `ufsecp_shamir_trick`: scalar `a == n` → `BAD_INPUT`; invalid point → `BAD_PUBKEY`.
+  - `ufsecp_multi_scalar_mul`: scalar `== n` → `BAD_INPUT`; off-curve point → `BAD_PUBKEY`;
+    `n == 0` → `BAD_INPUT`.
+  Each with a valid control so the reject path is not vacuous. 15/15. Module 426 → 427;
+  name-pinned in `REQUIRED_EXPLOIT_MODULES.json`.
+- **Recorded common-mode finding (roadmap):** `exploit_differential_libsecp` self-labels
+  "(not a libsecp differential)" and the real cross-libsecp `edge_cases` slot is an
+  ADVISORY_SKIP stub — so 25 ops (incl. all consensus sighashes BIP-143/341/342/144) are
+  anchored only to our own re-derivation, with NO Bitcoin Core known-answer digest. The next
+  structural lever is wiring a real byte-exact libsecp/Core differential at the ABI.
+
+## 2026-06-11 — Blind-zone lantern #15: batch-sign DoS ceiling tested + resource-exhaustion class
+
+- **Untested DoS ceiling now tested + gated:** the batch sign ABI
+  (`ufsecp_ecdsa_sign_batch` / `ufsecp_schnorr_sign_batch`) enforces a hard count ceiling
+  `kMaxBatchN = 1<<20` BEFORE any `count*size` allocation, so a hostile `count` cannot drive an
+  unbounded malloc/DoS. The cap existed but was untested/ungated — one refactor from silent
+  regression. New audit module `regression_batch_dos_cap` asserts `count>kMaxBatchN` and
+  `count==0` → `BAD_INPUT` (no allocation), and a small valid batch still succeeds. Module 425 → 426.
+- New threat class `resource-exhaustion` → verified. The DoS test is name-pinned in
+  `docs/REQUIRED_EXPLOIT_MODULES.json` so it cannot silently vanish (the floor gate's self-test
+  proves a vanished pin blocks). Roadmap: internal C++ core + GPU C++ layer batch entry points
+  have no caller-facing ceiling.
+
+## 2026-06-11 — Blind-zone lantern #17: named coverage-floor for adversarial-research attack classes
+
+- **Silent-deletion hole closed:** `check_exploit_wiring` is presence-driven — a clean
+  two-sided delete (remove the `.cpp` AND its `ALL_MODULES` entry) passes green, and
+  `sync_module_count` is equality-not-floor. So an entire attack-class PoC (Dark Skippy
+  covert-nonce exfil, HNP/lattice nonce leak, BUFF exclusive ownership, ROS, MuSig2/FROST
+  forgery, ...) could silently vanish with everything still green.
+- **New gate `ci/check_required_exploit_modules.py`** + ledger
+  `docs/REQUIRED_EXPLOIT_MODULES.json` name-pin **14 adversarial-research attack classes**:
+  each MUST stay registered (module key + `_run` symbol) in `unified_audit_runner.cpp`.
+  Deleting a pinned class → red. New threat class `adversarial-research-coverage-floor` → verified.
+- **DON'T TRUST, VERIFY:** `ci/test_check_required_exploit_modules.py` proves a vanished
+  module key / `_run` symbol blocks. Both wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Blind-zone lantern #9: secret-parse gate now catches the Scalar::from_bytes silent reduce
+
+- **CVE-class hole closed:** `ci/check_secret_parse_strictness.py` caught only
+  `scalar_parse_strict` (non-_nonzero) on a secret — it was blind to `Scalar::from_bytes`,
+  the silent mod-n reduce that Rule 11 names FIRST (`seckey==n -> 0`, leaking the nonce).
+  The gate now also flags `(Scalar::)from_bytes(<secret>)` applied to a secret-bearing
+  parameter. The impl layer is clean (0 violations) — this closes the future-regression hole.
+- **Threat class `secret-parse-strictness` trusted → verified.** New self-test
+  `ci/test_check_secret_parse_strictness.py` proves the gate flags BOTH banned forms on a
+  secret (scalar_parse_strict + Scalar::from_bytes) and passes the strict-nonzero parse and
+  a from_bytes on public data. Wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Blind-zone lantern #8: canonical-encoding / malleability coverage gate + class
+
+- **New threat class made explicit:** the matrix is closed-world, so canonical-encoding
+  malleability (a decoder accepting a second valid encoding of the same value — txid/tx
+  malleability; BIP-66/146/340 consensus) was structurally invisible. New gate
+  `ci/check_canonical_encoding_coverage.py` + ledger `docs/CANONICAL_ENCODING_LEDGER.json`
+  enumerate every consensus-relevant decoder and require a non-canonical-rejection probe.
+- **6 covered** (institutionalizing existing coverage): ECDSA DER strict
+  (`exploit_ecdsa_der_confusion`), DER differential (`exploit_der_parse_diff`), compact r,s
+  bounds (`exploit_rs_zero_check`), Schnorr BIP-340 strict (`bip340_strict`), point
+  serialization (`exploit_point_serialization`), fe_set_b32 overflow (`exploit_fe_set_b32_limit_uninit`).
+  **3 roadmap**: MuSig2 pubnonce, BIP-32 xkey, ZK proof encoding.
+- New threat class `canonical-encoding-malleability` → verified.
+- **DON'T TRUST, VERIFY:** `ci/test_check_canonical_encoding_coverage.py` proves the gate
+  blocks an unwired covered probe. Both wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Blind-zone lantern #7: secret-erase gate now covers the ufsecp ABI impl layer
+
+- **Scope blind spot closed:** `ci/check_secret_erase_coverage.py` was hard-pinned to 2 shim
+  dirs and never saw `src/cpu/src/impl/*.cpp` — the ufsecp ABI layer where private keys are
+  actually parsed today (via `scalar_parse_strict_nonzero(privkey, ...)`). A new impl signing
+  function that forgot `secure_erase` would have shipped green. Scope extended to the impl
+  layer + the parse pattern now matches both spellings (shim `parse_bytes_strict` and impl
+  `scalar_parse_strict_nonzero`). Now **45 seckey-parsing functions across 21 files, all
+  erase**; 10 critical paths pinned (added `ufsecp_ecdsa_sign`, `pubkey_create_core`,
+  `ufsecp_seckey_tweak_add`) so the regex cannot silently go blind.
+- **Threat class `secret-erasure` trusted → verified.** New self-test
+  `ci/test_check_secret_erase_coverage.py` proves the gate flags a seckey parse with no
+  `secure_erase` in BOTH the shim and ufsecp-impl spellings, and passes the erasing fns.
+  Wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Blind-zone lantern #5: BIP-39 fail-closed CSPRNG + entropy-source-integrity gate
+
+- **Confirmed fail-open entropy source fixed:** `src/cpu/src/bip39.cpp` shipped a local
+  `static bool csprng_fill` (returned `false` on `/dev/urandom` open failure / short read) —
+  a duplicate that both violated single-source and could let a caller proceed past an RNG
+  failure. It now uses the canonical **fail-closed** `detail::csprng_fill` (`std::abort` on
+  RNG failure), so a BIP-39 mnemonic is never generated from degraded entropy.
+- **New gate `ci/check_entropy_source_integrity.py`** (in run_fast_gates): `csprng_fill` may
+  be DEFINED only in `detail/csprng.hpp` and must be fail-closed (return void + abort/terminate
+  on failure — not a bool a caller can ignore). New threat class `entropy-source-integrity`
+  → verified. Weak RNG (`random_device`/`mt19937`/`rand`) in the secret core is reported with a
+  triaged allowlist (batch-verify public weights, shim aux_rand hedging).
+- **DON'T TRUST, VERIFY:** `ci/test_check_entropy_source_integrity.py` proves a second local
+  `csprng_fill` and a fail-open (bool, no abort) canonical both block. New module
+  `regression_bip39_csprng_failclosed` source-scans the fix + functionally generates/validates
+  a CSPRNG mnemonic (Guardrail #7). Module count 424 → 425.
+
+## 2026-06-11 — Blind-zone lantern #4: shim MuSig2 keyagg-cache UAF fixed + handle-lifetime gate
+
+- **Confirmed UAF fixed:** `compat/libsecp256k1_shim/src/shim_musig.cpp` `ka_get`/`ka_get_by_token`
+  returned a RAW `it->second.get()` from the mutex-guarded `g_ka` map (`unique_ptr<KAEntry>`),
+  so a caller dereferenced it AFTER the lock was released while a concurrent `ka_remove` /
+  `partial_sig_agg` could free the secret-adjacent `KAEntry` — the same unlock-then-use class
+  as PRECOMPUTE-GCONTEXT-UAF. Fix: `g_ka` now holds `shared_ptr<KAEntry>` and the accessors
+  return a shared_ptr SNAPSHOT (`return it->second`), so a caller keeps the entry alive for the
+  whole op. 7 call sites updated to `auto` (shared_ptr); shim compiles clean.
+- **New standing gate `ci/check_locked_map_handle_escape.py`** (the lantern, in run_fast_gates):
+  a function holding `std::lock_guard`/`scoped_lock`/`unique_lock` must not `return it->second.get()`
+  (a raw owning-pointer handle escaping the critical section). Scans the shim + core; would have
+  caught both confirmed UAFs. New threat class `memory-safety-handle-lifetime` → verified.
+- **DON'T TRUST, VERIFY:** `ci/test_check_locked_map_handle_escape.py` proves the gate flags the
+  bug shape and passes the shared_ptr-snapshot fix. New audit module `regression_musig_keyagg_lifetime`
+  (`audit/test_regression_musig_keyagg_lifetime.cpp`, memory_safety, advisory=false) source-scans the
+  fix in place. Module count 423 → 424.
+
+## 2026-06-11 — Blind-zone lantern #1: SNARK-witness attestation soundness + self-deriving soundness scope
+
+- **Root-cause fix (the bastion's deepest blind spot):** `ci/check_soundness_coverage.py`
+  no longer scans a hardcoded 4-file list. It now SELF-DERIVES over all `src/cpu/src/*.cpp`
+  and additionally detects **struct-returning attestation producers** (`*Witness <name>(`),
+  with an explicit `STANDARD_VERIFIERS` allowlist for differential-covered public verifiers.
+  This immediately surfaced **5 previously-invisible soundness surfaces** the 4-file scope
+  hid: `ecdsa_snark_witness`, `schnorr_snark_witness` (struct-returning, no "verify" in
+  name → the bool-regex never saw them), `taproot_verify_commitment` (taproot.cpp was
+  unscanned), `pedersen_verify`, `pedersen_verify_sum` (pedersen.cpp was unscanned).
+- **Blind-zone #1 (P1) lit:** `audit/test_soundness_snark_witness_attestation.cpp`
+  (`soundness_snark_witness_attestation`, protocol_security, advisory=false). The SNARK
+  foreign-field witnesses (eprint 2025/695) reimplement the verify equation and their
+  `.valid` flag is consumed by a SNARK circuit as ground truth — the GHSA-c7q2 shape on
+  attestations. The probe asserts `witness.valid == canonical ufsecp verify` across honest
+  + forged inputs (tampered/malleable s, tampered r, non-canonical r≥p where schnorr_verify
+  strict-rejects but the witness silent-reduces mod p, s==0, wrong msg). **Result: 9/9 —
+  the witnesses are SOUND** (valid IFF verify); the suspected divergence does not manifest,
+  and a standing probe now guards against any future regression. Module count 422 → 423.
+- New ledger entries in `docs/SOUNDNESS_INVARIANTS.json`: snark-witness attestations
+  (covered → the new probe); taproot-commitment-binding + pedersen-commitment-binding +
+  pedersen-sum-balance (roadmap — now visible, probes pending).
+- **DON'T TRUST, VERIFY:** `ci/test_check_soundness_coverage.py` gains a SCOPE-EXHAUSTIVENESS
+  case proving a verifier OR a struct-returning attestation injected into a BRAND-NEW file
+  is discovered (and a standard verifier / `_device` variant is not) — so a future entry
+  point cannot ship outside the soundness ledger.
+- Tracker for the full 24-finding blind-zone audit: `workingdocs/BLINDZONE_LANTERNS_2026-06-11.md`.
+
+## 2026-06-11 — Fault-injection countermeasure gate — threat-gate matrix reaches 0 gaps
+
+- **New gate `ci/check_fault_countermeasure_coverage.py`** + ledger
+  `docs/FAULT_COUNTERMEASURE_LEDGER.json` — closes the LAST declared gap in the threat-gate
+  matrix (`fault-injection` `gap → verified`; matrix now **9 verified / 12 trusted / 0 gap**).
+- **What it enforces:** a single induced fault (skipped branch, flipped bit, glitched
+  compare) can turn an invalid signature into an emitted success (Boneh-DeMillo-Lipton / DFA).
+  The countermeasure is sign-then-verify (FIPS 186-4). The gate verifies, per critical signing
+  path, that (1) the countermeasure function still EXISTS and the file re-verifies — catching a
+  *deleted* or *hollowed-out* `*_sign_verified` (still named, but no longer calls verify) — and
+  (2) the fault-injection probe is wired into the runner. 4 covered (`ecdsa_sign_verified`,
+  `schnorr_sign_verified`, 2 DFA probes), 1 roadmap (MuSig2/FROST partial-sign).
+- **DON'T TRUST, VERIFY:** `ci/test_check_fault_countermeasure_coverage.py` proves the gate
+  blocks a hollowed-out countermeasure (symbol present, no verify call), a deleted
+  countermeasure, and an unwired probe — and that the sign-then-verify model catches a
+  fault-corrupted signature. Gate + self-test wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Cross-backend value-differential gate (CPU<->GPU runtime equality)
+
+- **New gate `ci/check_backend_value_differential.py`** + ledger
+  `docs/BACKEND_DIFFERENTIAL_OPS.json` — the runtime layer that `ci/check_backend_parity.py`
+  (a SOURCE gate) cannot reach: a GPU kernel that compiles cleanly but computes a DIFFERENT
+  value than the CPU on the same input (porting bug, carry/precision difference, endianness
+  flip). Flips threat class `backend-differential-runtime` `gap → verified`.
+- **Verified detector + coverage:** the byte-exact comparator `diff_outputs()`/`classify()`
+  flags any per-element (or length) divergence; the coverage check requires every 'covered'
+  GPU op to have its runtime CPU<->GPU value-differential probe wired into the audit runner.
+  3 covered (`exploit_gpu_cpu_divergence`, `exploit_backend_divergence`,
+  `gpu_zk_prove_verify_differential`), 2 roadmap (BIP-352 scan, GPU batch-sign).
+- **Advisory live run:** executing the differential needs a GPU; the live layer advisory-skips
+  on no-GPU runners and is carried by the covered audit modules on GPU hosts.
+- **DON'T TRUST, VERIFY:** `ci/test_check_backend_value_differential.py` proves the comparator
+  flags a one-byte and a length divergence (and passes identical vectors) and that coverage
+  blocks an unwired covered probe. Gate + self-test wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — dudect binary-CT probe (verified leak detector; advisory live measurement)
+
+- **New gate `ci/dudect_ct_probe.py`** — the binary-level constant-time layer that
+  `ci/check_ct_branches.py` (a SOURCE lint) cannot reach: it catches a timing leak the
+  COMPILER introduces (cmov lowered to a branch, data-dependent table lookup, specialised
+  div). Welch t-test (dudect, ePrint 2016/1123) over cycle samples for two input classes,
+  with upper-tail cropping; |t|>=10 = leak, 5..10 = borderline (advisory), <5 = clean.
+  Flips threat class `ct-binary-timing` `gap → verified`.
+- **Two honestly-separated layers:** the DETECTOR (Welch t-test + classifier) is VERIFIED;
+  the LIVE measurement against a real CT-timing binary is ADVISORY (CI DVFS/SMT noise →
+  returns 77 without a samples file). The audit suite's `exploit_eucleak_inversion_timing`
+  already measures `ct::scalar_inverse` cycles the same way.
+- **DON'T TRUST, VERIFY:** `ci/test_dudect_ct_probe.py` proves the detector blocks — it
+  flags a synthetic +12-cycle leak (|t|≈94) and passes uniform timing (|t|≈0.6) on
+  deterministic LCG data; the live `--samples` path was validated end-to-end
+  (uniform→exit 0, leaky→exit 1). Self-test wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Fuzz-harness liveness gate + smoke gate (the fuzzing layer is real, not dead)
+
+- **Discovery:** the repo already has coverage-guided libFuzzer fuzzing — 11 harnesses
+  (5 ClusterFuzzLite `src/cpu/fuzz/fuzz_*.cpp` with seed corpora + 6 audit-CTest
+  `audit/fuzz_*.cpp`), a `.clusterfuzzlite/build.sh` OSS-Fuzz build, and
+  `ci/fuzz_campaign_manager.py`. The `memory-safety-fuzzing` threat-matrix entry was
+  stale (claimed "not coverage-guided libFuzzer"); corrected `gap → verified`.
+- **New fast gate `ci/check_fuzz_harness_wiring.py`** (analogue of check_exploit_wiring):
+  every libFuzzer harness on disk MUST be wired into its build (ClusterFuzzLite `build.sh`
+  for src/cpu/fuzz, the `_FUZZ_HARNESSES` list in `audit/CMakeLists.txt` for audit), and
+  every build reference MUST resolve to a harness on disk. Catches the silently-dead
+  harness (added but never built → never runs → never finds a bug) and the dangling
+  reference (deleted harness breaks the next campaign). All 11 harnesses wired.
+- **New smoke gate `ci/check_fuzz_smoke.sh`** (heavier, advisory/--full): builds ONE
+  harness with `clang -fsanitize=fuzzer,address` against the current tree and runs it
+  against the seed corpus — proves the fuzzing layer is ALIVE (compiles vs current API,
+  no crash on seeds). Validated locally: `fuzz_scalar` built + ran 8000 iterations clean.
+- **DON'T TRUST, VERIFY:** `ci/test_check_fuzz_harness_wiring.py` proves the wiring gate
+  blocks a dead harness + a dangling reference (and passes a fully-wired set). Both wiring
+  gate + self-test wired into `run_fast_gates.sh`.
+
+## 2026-06-11 — Metamorphic-relation coverage gate (positive complement to soundness)
+
+- **New gate `ci/check_metamorphic_coverage.py`** backed by
+  `docs/METAMORPHIC_RELATIONS.json`. The POSITIVE complement to the negative-soundness
+  gate: soundness forges a violating input and asserts rejection; metamorphic asserts an
+  algebraic identity that must hold for ALL valid inputs across a protocol transform.
+  Flips threat class `protocol-metamorphic-positive` in the threat-gate matrix `gap → verified`.
+- **New probe `metamorphic_adaptor`** (`audit/test_metamorphic_adaptor.cpp`,
+  `test_metamorphic_adaptor_run`, section `protocol_security`, advisory=false): the
+  ECDSA-adaptor adapt/extract relation family — MR1 adapt-validity, MR2 extract inverts
+  adapt (recovers ±t), MR3 r-invariant under adapt, MR4 pre-sig≠sig validity-boundary
+  crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors.
+  10/10 relations hold. The positive twin of `soundness_adaptor_dleq_forgery` (GHSA-c7q2):
+  a structural break in adapt/extract escapes a single honest roundtrip but breaks the
+  relation. Module count 421 → 422 (153 non-exploit + 269 exploit PoCs).
+- **Ledger also institutionalizes existing coverage:** `pedersen-additive-homomorphism`
+  marked `covered` → existing `exploit_pedersen_homomorphism` module; MuSig2 aggregate≡single
+  and FROST threshold-reconstruction equivalence declared `roadmap`.
+- **DON'T TRUST, VERIFY:** `ci/test_check_metamorphic_coverage.py` proves the gate blocks
+  unwired/undeclared probes (clean ledger passes). Both gate + self-test wired into
+  `run_fast_gates.sh`.
+
+## 2026-06-11 — Threat-gate coverage matrix (META gate) + DON'T-TRUST-VERIFY self-tests
+
+- **The apex gate:** `ci/check_threat_gate_coverage.py` backed by
+  `docs/THREAT_GATE_MATRIX.json` answers "what gate are we missing?" structurally.
+  Every threat class maps to a gate + (when verified) a self-test that PROVES the gate
+  blocks (inject a violation → the gate goes red). Status: `verified` (gate + proof),
+  `trusted` (gate exists, never proven to block), `gap` (no gate). Enforcement: a
+  `verified` claim with a missing gate/self-test file BLOCKS; a `trusted` claim whose
+  gate file is absent BLOCKS; `trusted`/`gap` sets are reported loudly.
+- **DON'T TRUST, VERIFY made structural.** The matrix immediately surfaced the real
+  state: of 38 `ci/check_*` gates only 6 had a proof-it-blocks self-test — i.e. 32 gates
+  we *trusted* but had never *verified*. The matrix tracks this backlog (12 trusted
+  threat-classes) so it is closed incrementally; new `verified` entries REQUIRE a
+  self-test.
+- **Led by example:** added self-tests for the two gates built this session —
+  `ci/test_check_soundness_coverage.py` (proves the soundness gate blocks unwired/
+  undeclared probes) and `ci/test_check_threat_gate_coverage.py` (proves the meta-gate
+  blocks false `verified`/`trusted` claims). Both wired into `run_fast_gates.sh`.
+- **Declared gaps (being built):** binary-level CT (dudect/ctgrind), runtime
+  cross-backend value-differential, protocol metamorphic positive-invariants,
+  coverage-guided fuzzing, fault-injection countermeasure coverage.
+
+## 2026-06-11 — dev_bug_scanner secret-residue check hardened → found 3 MuSig2 residues
+
+- **Improved `ci/dev_bug_scanner.py::check_secret_unerased`** (the static dev-bug
+  scanner already wired into CI via the preflight Unified Code Quality Gate) with the
+  patterns learned from `FROST-SIGN-RESIDUE`:
+  - `_SCALAR_DECL` now matches `Scalar const NAME` (the old regex captured `const` as
+    the name → every const-declared secret was invisible; that is literally how the
+    frost residue hid).
+  - `_SECRET_PATH_KW` now includes `frost`/`musig` (those files were never scanned —
+    their filenames carry none of the old keywords).
+  - Precision filter: only flag a SECRET-DERIVED scalar (initializer references a
+    secure_erase'd secret or a secret-named operand), not every unerased Scalar →
+    drops public scalars (Lagrange coeff, challenge, indices). Plus a robust
+    function-definition skip and a public-message (`msg`/`digest`) suppressor.
+- **The hardened check then discovered 3 real residues in `musig2_partial_sign`**
+  (`src/cpu/src/musig2.cpp`), same class as the frost residue: `neg_k = -k`,
+  `neg_d = -d`, `ead = ea*d` were computed from the secret nonce/key but not erased
+  (only `k`/`d`/`sec_nonce` were). Fixed: `secure_erase` added for all three (`neg_k`/
+  `neg_d` in their blocks, `ead` in the erase block; `ea = e*a_i` is public, left).
+- **Test:** extended `regression_secret_scalar_residue_erase`
+  (`audit/test_regression_secret_scalar_residue_erase.cpp`) with a musig2 source-scan
+  for the three new erasures. `check_secret_unerased` now reports 0 on the fixed tree;
+  full scanner exits 0 (advisory MEDIUM/LOW only).
+- **Meaning:** a one-time fix (FROST-SIGN-RESIDUE) became a permanent detector that
+  immediately surfaced the same bug elsewhere — the bastion pattern.
+
+## 2026-06-11 — Soundness-coverage gate: negative-soundness probes for the GHSA-c7q2 class
+
+- **Why:** GHSA-c7q2-gv3g-rgxm (adaptor DLEQ binding was vacuous) slipped every review
+  and every CAAS gate because the whole stack asserts *correct* inputs are ACCEPTED
+  (honest sign→verify roundtrips). The hole was a *verifying-but-unsound* input — only a
+  test built on the INVERTED invariant (forge a violating input, assert rejection) can
+  catch that class.
+- **New gate `ci/check_soundness_coverage.py`** (wired into `run_fast_gates.sh`) backed by
+  the ledger `docs/SOUNDNESS_INVARIANTS.json`. Every custom-protocol verify/proof function
+  (adaptor, DLEQ, ZK PoK, MuSig2, FROST, range) declares its security invariant and, when
+  covered, a wired negative-soundness probe. The gate **blocks** if (1) a `covered` probe
+  is unwired, or (2) a verify function exists in the engine source with **no** ledger entry
+  (a new soundness surface must be classified) — the `check_security_fix_has_test` analogue
+  for soundness. Standard signature verifies are out of scope (they have a libsecp
+  differential oracle).
+- **Seed probe `soundness_adaptor_dleq_forgery`** (`audit/test_soundness_adaptor_dleq_forgery.cpp`,
+  section `protocol_security`): forges an ECDSA-adaptor pre-signature with
+  `log_G(R_hat) != log_T(R)` that still satisfies `r==R.x` AND the ECDSA relation
+  `s_hat*R_hat == z*G + r*P` (so only the Chaum-Pedersen DLEQ can reject it), plus an
+  R-shifted-by-T forge and a tampered-`dleq_s` forge. All must be REJECTED. build-audit: 4/4.
+  This is the durable regression that would have caught GHSA-c7q2.
+- **Roadmap (declared holes, forge-probes pending):** `dleq_verify`, `knowledge_verify`,
+  `schnorr_adaptor_verify`, `musig2_partial_verify`, `frost_verify_partial`, `range_verify`
+  (see kb `BP-FS-IP-CHAIN` for the range-proof Fiat-Shamir angle). Closed incrementally;
+  each flips `roadmap`→`covered` and becomes blocking-protected.
+
+## 2026-06-10 — Narrow-scope thread-safety sweep: g_context UAF (P2) + comb-teeth race (P4) + tag-gate coverage
+
+- **PRECOMPUTE-GCONTEXT-UAF (P2, use-after-free / data race):** `scalar_mul_generator`
+  and `batch_scalar_mul_generator` (`src/cpu/src/precompute.cpp`) took `g_mutex`, bound a
+  raw reference `PrecomputeContext const& ctx = *g_context`, then **released the lock** and
+  used `ctx` for the whole scalar-mul loop. A concurrent `configure_fixed_base()` does
+  `g_context.reset()` under the lock — freeing the table the reader still referenced
+  (use-after-free). Hit only by runtime reconfiguration (autotune, `SECP256K1_MAX_WINDOWS`,
+  cache-path change) concurrent with signing/verifying; the configure-once-at-startup
+  pattern never triggers it.
+  - **Fix:** `g_context` is now a `std::shared_ptr`; the two unlock-then-read fast paths take
+    a local `shared_ptr` snapshot under the lock before unlocking, keeping the table alive
+    for the whole call. `build_context()` still returns `unique_ptr` (converts on assign).
+    The lock-held helpers (`save/load_precompute_cache_locked`, `ensure_built_locked`,
+    `scalar_mul_generator_glv_predecomposed`) read `*g_context` directly — safe, they never
+    unlock. `docs/THREAD_SAFETY.md` updated.
+- **g_comb_init_teeth (P4, benign data race → hardened):** `init_comb_gen` wrote a plain
+  `unsigned g_comb_init_teeth` outside the `std::call_once` guard (`ecmult_gen_comb.cpp`).
+  Made `std::atomic<unsigned>` so two threads racing different teeth is a defined value race,
+  not UB. The table is still built exactly once; in practice teeth is the constant 15.
+- **Tag-conformance coverage gap (LOW):** `ci/check_tag_conformance.py` did not scan the
+  adaptor tags (`adaptor_nonce_v1`, `ufsecp/ecdsa_adaptor_dleq_v1`,
+  `ufsecp/ecdsa_adaptor_dleq_nonce_v1`) — declared as `constexpr char domain[] = "..."` and
+  passed by variable to `SHA256::hash`, so the call-site patterns never saw the literal. A
+  future typo would have gone unguarded. Added a `DECL_PATTERN` (filtered through
+  `DOMAIN_PREFIX`) and registered the three tags as canonical. The tags themselves were
+  already correct and distinct (no live divergence).
+- **Not fixed — assessed as a NON-bug:** the "missing `<string.h>` include for
+  `explicit_bzero`" in `secure_erase.hpp` is an include-what-you-use nit only; `<cstring>`
+  already pulls the declaration in transitively, so the code compiles and the erase works.
+  Touching that header would force disproportionate secret-path doc-pairing for zero
+  functional change, so it was deliberately left.
+- **Test:** new `regression_precompute_gcontext_race`
+  (`audit/test_regression_precompute_gcontext_race.cpp`, section `memory_safety`): source-scan
+  of the `shared_ptr` declaration + the two reader snapshots, plus a concurrent
+  reconfigure-vs-compute smoke (4 reader threads vs `Point::generator().scalar_mul` reference
+  while a thread hammers `configure_fixed_base()`), which exercises the race under TSan/ASan
+  CI legs. Restores the default fixed-base config on exit. build-audit: 5/5.
+- **Provenance:** 2026-06-10 narrow-scope vuln sweep (5 classes: secure_erase effectiveness,
+  EC add/double exceptional cases, nonce determinism/reuse, tagged-hash domain separation,
+  thread-safety). EC, nonce, and domain-separation classes were clean; secure_erase is
+  correctly barrier-protected.
+
+## 2026-06-10 — FROST-SIGN-RESIDUE: secret-derived scalar stack residue (P3, hardening)
+
+- **Finding (low severity, secret-erasure hygiene — not a timing leak):** three
+  secret-bearing functions left secret-derived `Scalar` locals on the stack
+  without `secure_erase`, the same class as `T08-SCALAR-ERASE`
+  (`ecdsa_sign`/`musig2_partial_sig_agg`).
+  - `frost_sign` (`src/cpu/src/frost.cpp`): `rho_ei = my_binding·ei` and
+    `lambda_s_e = lambda_i·s_i·e` carry the **secret** FROST binding nonce `ei`
+    and signing share `s_i`. `d`/`ei`/`s_i` were erased; these two products were not.
+  - `schnorr_keypair_create` (`src/cpu/src/ct_sign.cpp` and `src/cpu/src/schnorr.cpp`):
+    the local `d_prime` is a private-key copy that was never scrubbed (only the
+    public output `kp.d`/`kp.px` was kept). Previously noted out-of-scope in `RT05-CT04`.
+- **Impact:** requires a separate stack-memory-disclosure primitive to exploit;
+  no timing/CT impact (all arithmetic is already branchless `ct::`). Defense-in-depth.
+- **Fix:** added `secure_erase(&rho_ei)` + `secure_erase(&lambda_s_e)` in `frost_sign`
+  (made both non-const) and `secure_erase(&d_prime)` in both `schnorr_keypair_create`
+  variants. New regression `regression_secret_scalar_residue_erase`
+  (`audit/test_regression_secret_scalar_residue_erase.cpp`): source-scan of all three
+  sites + a schnorr `keypair_create`+`sign`+`verify` round-trip confirming the
+  `d_prime` erase does not corrupt the returned keypair.
+- **Provenance:** found by the 2026-06-10 multi-class vulnerability sweep
+  (memory-safety / fail-open / input-validation / CT) following the GHSA-c7q2 class audit.
+
 ## 2026-06-10 — CA-001 (clang): large-batch ECDSA verify accepted off-curve pubkey
 
 - **Vulnerability (clang-only, caught by v4.2.0 release CI):** `secp256k1_ecdsa_verify_batch`

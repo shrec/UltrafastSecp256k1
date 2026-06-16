@@ -2,6 +2,59 @@
 
 **UltrafastSecp256k1 v4.2.1** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-06-13 - Opaque ECDSA verify compatibility for libsecp-style consumers
+
+The public CPU C ABI now supports copied libsecp-compatible
+`secp256k1_ecdsa_signature` scalar storage as an explicit ECDSA input format.
+Compact `ufsecp_ecdsa_verify` remains strict compact `r||s`; the new opaque
+verify APIs parse the opaque scalar limbs, reject zero/out-of-range scalars,
+low-S normalize internally, and then verify. Batch/row variants return per-row
+verdict bytes, so malformed public rows fail closed without aborting unrelated
+rows.
+
+The GPU C ABI adds `ufsecp_gpu_ecdsa_verify_opaque_rows` with
+`ufsecp_gpu_ecdsa_verify_lbtc_rows` as a compatibility alias. CUDA, OpenCL, and
+Metal parse the same strided public rows on device and apply low-S normalization
+before ECDSA verify. These are PUBLIC-DATA verification paths: they do not carry
+private keys, nonces, or secret scalars.
+
+**Claim:** libbitcoin-style consumers can keep their existing opaque
+`ec_signature` storage and still receive libsecp-compatible
+normalize-then-verify behavior without bridge-side compact row repacking. Caller
+owned signatures and rows are not mutated.
+
+Validation: `audit/test_ffi_round_trip.cpp`,
+`audit/test_c_abi_negative.cpp`, `audit/test_gpu_abi_gate.cpp`, and
+`compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`.
+
+### 2026-06-11 - MuSig2 partial-sign secret-erasure hardening
+
+`musig2_partial_sign` now scrubs every secret-derived stack local: `neg_k` (-k),
+`neg_d` (-d), and `ead` (ea*d). Hardening only -- no timing behavior change
+(branchless `ct::`); exploitation needs a separate stack-disclosure primitive.
+Discovered by the improved `dev_bug_scanner.py` secret-derived-unerased check
+(scans frost/musig + `Scalar const`). Regression test
+`regression_secret_scalar_residue_erase`.
+
+**Claim:** MuSig2 partial signing leaves no secret-derived scalar residue
+(`neg_k`/`neg_d`/`ead`, plus `k`/`d`/`sec_nonce`) on the stack after return.
+
+### 2026-06-10 - FROST/keypair secret-erasure hardening (FROST-SIGN-RESIDUE)
+
+`frost_sign` and both `schnorr_keypair_create` variants now scrub every secret-derived
+stack local: `rho_ei` (`my_binding·ei`) and `lambda_s_e` (`lambda_i·s_i·e`) in `frost_sign`
+— which carry the secret binding nonce `ei` and signing share `s_i` — and the `d_prime`
+private-key copy in `schnorr_keypair_create` (`src/cpu/src/ct_sign.cpp`,
+`src/cpu/src/schnorr.cpp`). This is a secret-erasure (stack-scrubbing) hardening of the same
+class as `T08-SCALAR-ERASE`; there is no timing/CT behavior change (all arithmetic is
+branchless `ct::`), and exploitation would require a separate stack-disclosure primitive.
+Regression test `regression_secret_scalar_residue_erase` (source-scan of all three sites +
+Schnorr `keypair_create`+`sign`+`verify` round-trip).
+
+**Claim:** FROST partial signing (`frost_sign`) and Schnorr keypair creation
+(`schnorr_keypair_create`) leave no secret-derived scalar residue on the stack after return;
+the secret binding nonce, signing share, and private-key copies are all `secure_erase`d.
+
 ### 2026-06-08 - MuSig2 infinity aggregate-nonce BIP-327 conformance (R=G)
 
 `musig2_start_sign_session` now handles an infinity aggregate nonce per BIP-327

@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -23,6 +25,17 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT = SCRIPT_DIR.parent
+
+DRILL_LOG = LIB_ROOT / "docs" / "INCIDENT_DRILL_LOG.json"
+
+
+def _git_head() -> str:
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(LIB_ROOT),
+                           capture_output=True, text=True, timeout=15, check=False)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except Exception:
+        return ""
 
 
 def drill_key_compromise() -> dict:
@@ -79,6 +92,9 @@ def drill_key_compromise() -> dict:
         "drill": "key_compromise",
         "passing": len(issues) == 0,
         "live_test": live,
+        "injected_fault": "known-weak / out-of-range private keys (zero, n, n+1, all-ones)",
+        "detection_gate": "ufsecp pubkey() ABI boundary (strict scalar parse)",
+        "detected": live and len(issues) == 0,
         "elapsed_seconds": round(elapsed, 2),
         "weak_keys_tested": len(weak_keys),
         "results": results,
@@ -87,107 +103,97 @@ def drill_key_compromise() -> dict:
 
 
 def drill_ci_poisoning() -> dict:
-    """Simulate CI build output tampering.
-
-    Creates a fake artifact with wrong hash and verifies the artifact
-    hash policy would catch the discrepancy.
+    """REAL injection drill: build a cross-provider reproducible-build hash pair
+    where provider B's artifact has been tampered, then RUN multi_ci_repro_check.py
+    and require it to DETECT the mismatch (non-zero exit). This proves CI poisoning
+    is actually caught by the hash-comparison gate — not merely that a gate file
+    exists.
     """
     start = time.monotonic()
     issues: list[str] = []
+    detected = False
+    legit_hash = tampered_hash = ""
 
-    # Create a temporary "artifact" and compute its hash
-    with tempfile.NamedTemporaryFile(suffix=".so", delete=False) as f:
-        f.write(b"legitimate build output content for drill")
-        legit_path = f.name
+    gate = SCRIPT_DIR / "multi_ci_repro_check.py"
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        legit = b"legitimate build output content for drill"
+        tampered = legit + b"\x00TAMPERED"
+        legit_hash = hashlib.sha256(legit).hexdigest()
+        tampered_hash = hashlib.sha256(tampered).hexdigest()
+        # sha256sum-format hash files for two "providers"
+        (d / "provider_a.sha256").write_text(f"{legit_hash}  build/libufsecp.a\n")
+        (d / "provider_b.sha256").write_text(f"{tampered_hash}  build/libufsecp.a\n")
 
-    legit_hash = hashlib.sha256(Path(legit_path).read_bytes()).hexdigest()
-
-    # "Tamper" with it
-    with open(legit_path, "ab") as f:
-        f.write(b"\x00TAMPERED")
-
-    tampered_hash = hashlib.sha256(Path(legit_path).read_bytes()).hexdigest()
-
-    # Verify hashes differ (sanity)
-    hashes_differ = legit_hash != tampered_hash
-    if not hashes_differ:
-        issues.append("tampered artifact has same hash — SHA-256 collision (impossible)")
-
-    # Clean up
-    os.unlink(legit_path)
-
-    # Check that supply_chain_gate.py exists
-    supply_gate = SCRIPT_DIR / "supply_chain_gate.py"
-    gate_exists = supply_gate.exists()
-    if not gate_exists:
-        issues.append("supply_chain_gate.py not found — cannot verify tamper detection")
+        if not gate.exists():
+            issues.append("multi_ci_repro_check.py not found — cannot verify tamper detection")
+        elif legit_hash == tampered_hash:
+            issues.append("tampered artifact has same hash — SHA-256 collision (impossible)")
+        else:
+            rc = subprocess.run(
+                [sys.executable, str(gate), str(d / "provider_a.sha256"),
+                 str(d / "provider_b.sha256"), "--json"],
+                capture_output=True, text=True, timeout=30, cwd=str(LIB_ROOT)).returncode
+            detected = rc != 0  # the gate MUST fail (detect the mismatch)
+            if not detected:
+                issues.append("multi_ci_repro_check did NOT detect the tampered artifact (false-negative)")
 
     elapsed = time.monotonic() - start
-
     return {
         "drill": "ci_poisoning",
-        "passing": hashes_differ and gate_exists and len(issues) == 0,
+        "passing": detected and len(issues) == 0,
+        "injected_fault": "tampered build artifact (provider-B hash mismatch)",
+        "detection_gate": "multi_ci_repro_check.py",
+        "detected": detected,
         "elapsed_seconds": round(elapsed, 2),
         "legit_hash": legit_hash,
         "tampered_hash": tampered_hash,
-        "hashes_differ": hashes_differ,
-        "supply_chain_gate_exists": gate_exists,
         "issues": issues,
     }
 
 
 def drill_dependency_compromise() -> dict:
-    """Simulate dependency compromise detection.
-
-    Verifies that:
-    1. CMakeLists.txt pins dependency versions
-    2. SBOM generation capability exists
-    3. Build hardening script exists
+    """REAL injection drill: synthesize a build tree whose CMakeLists.txt has NO
+    cmake_minimum_required (an unpinned/compromised toolchain manifest), point the
+    supply-chain build-input-pinning check at it, and require it to DETECT the
+    missing pin. This proves a compromised dependency manifest is actually caught
+    — not merely that SBOM/provenance scripts exist on disk.
     """
     start = time.monotonic()
     issues: list[str] = []
+    detected = False
 
-    # Check CMakeLists.txt for version pinning
-    cmakelists = LIB_ROOT / "CMakeLists.txt"
-    if cmakelists.exists():
-        content = cmakelists.read_text(encoding="utf-8", errors="replace")
-        has_version_pin = "VERSION" in content or "version" in content
-        if not has_version_pin:
-            issues.append("CMakeLists.txt does not appear to pin dependency versions")
-    else:
-        issues.append("CMakeLists.txt not found")
+    try:
+        if str(SCRIPT_DIR) not in sys.path:
+            sys.path.insert(0, str(SCRIPT_DIR))
+        scg = importlib.import_module("supply_chain_gate")
+    except Exception as exc:
+        issues.append(f"cannot import supply_chain_gate: {exc}")
+        scg = None
 
-    # scripts/ is gitignored; ci/ is the committed fallback location.
-    def _find(name: str) -> bool:
-        for base in (LIB_ROOT / "scripts", SCRIPT_DIR):
-            if (base / name).exists():
-                return True
-        return False
-
-    # Check SBOM generator
-    if not _find("generate_sbom.sh"):
-        issues.append("generate_sbom.sh not found")
-
-    # Check build hardening
-    if not _find("verify_build_hardening.py"):
-        issues.append("verify_build_hardening.py not found")
-
-    # Check provenance verifier
-    if not _find("verify_slsa_provenance.py"):
-        issues.append("verify_slsa_provenance.py not found")
+    if scg is not None:
+        saved_root = scg.LIB_ROOT
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                d = Path(d)
+                # Compromised manifest: a CMakeLists.txt with no cmake_minimum_required.
+                (d / "CMakeLists.txt").write_text("project(compromised)\nadd_library(x x.c)\n")
+                scg.LIB_ROOT = d
+                res = scg.check_build_input_pinning()
+                detected = not res.get("passing", True)  # MUST fail on the unpinned manifest
+                if not detected:
+                    issues.append("supply_chain build-input-pinning did NOT detect the unpinned manifest")
+        finally:
+            scg.LIB_ROOT = saved_root
 
     elapsed = time.monotonic() - start
-
     return {
         "drill": "dependency_compromise",
-        "passing": len(issues) == 0,
+        "passing": detected and len(issues) == 0,
+        "injected_fault": "CMakeLists.txt with no cmake_minimum_required (unpinned toolchain)",
+        "detection_gate": "supply_chain_gate.check_build_input_pinning",
+        "detected": detected,
         "elapsed_seconds": round(elapsed, 2),
-        "checks": {
-            "version_pinning": cmakelists.exists(),
-            "sbom_generator": _find("generate_sbom.sh"),
-            "build_hardening": _find("verify_build_hardening.py"),
-            "provenance_verifier": _find("verify_slsa_provenance.py"),
-        },
         "issues": issues,
     }
 
@@ -206,16 +212,37 @@ def run(json_mode: bool, out_file: str | None) -> int:
 
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "commit": _git_head(),
         "overall_pass": overall_pass,
         "drills_total": drills_total,
         "drills_passed": drills_passed,
         "drill_response_time_seconds": round(total_elapsed, 2),
+        # Per-drill provenance for cadence/forensics: what fault was injected,
+        # which gate detected it, and the result.
+        "injections": [
+            {
+                "drill": r["drill"],
+                "injected_fault": r.get("injected_fault"),
+                "detection_gate": r.get("detection_gate"),
+                "detected": r.get("detected"),
+                "passing": r["passing"],
+            }
+            for r in results
+        ],
         "drills": results,
     }
 
     rendered = json.dumps(report, indent=2)
     if out_file:
         Path(out_file).write_text(rendered, encoding="utf-8")
+
+    # Always persist a machine-readable drill log so audit_sla_check.py can track
+    # drill cadence/freshness (Bastion B9). Mirrors the SECURITY_AUTONOMY_KPI.json
+    # pattern; refreshed + committed by the nightly evidence workflow.
+    try:
+        DRILL_LOG.write_text(rendered, encoding="utf-8")
+    except OSError as exc:
+        print(f"::warning::failed to write incident drill log {DRILL_LOG}: {exc}", file=sys.stderr)
 
     if json_mode:
         print(rendered)

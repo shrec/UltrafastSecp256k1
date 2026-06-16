@@ -76,6 +76,14 @@ CANONICAL_TAGS = {
     "ZK/dleq/H": "engine ZK (DLEQ over H)",
     # Engine FROST binding (engine-internal)
     "FROST_binding": "engine FROST",
+    # Engine adaptor signatures (ECDSA/Schnorr adaptor — engine-internal Fiat-Shamir
+    # domain tags; secret-nonce derivation + the GHSA-c7q2 DLEQ challenge/nonce, all
+    # distinct). Declared as `constexpr char domain[] = "..."` and passed by variable
+    # to SHA256::hash, so they are surfaced by DECL_PATTERN below, not the call-site
+    # PATTERNS.
+    "adaptor_nonce_v1": "engine adaptor (Schnorr/ECDSA adaptor nonce)",
+    "ufsecp/ecdsa_adaptor_dleq_v1": "engine adaptor (ECDSA adaptor DLEQ challenge, GHSA-c7q2)",
+    "ufsecp/ecdsa_adaptor_dleq_nonce_v1": "engine adaptor (ECDSA adaptor DLEQ nonce, GHSA-c7q2)",
     # Coin-specific silent-payment variants (engine LTC/BCH silent payments)
     "LTCSP/SharedSecret": "engine LTC silent payments",
     "BCH/SharedSecret": "engine BCH silent payments",
@@ -103,7 +111,12 @@ PATTERNS = [
     re.compile(r'SHA256::hash\s*\(\s*reinterpret_cast<[^>]+>\s*\(\s*"([^"]+)"'),
 ]
 BYTEARRAY = re.compile(r"\{\s*('(?:[^']|\\.)'(?:\s*,\s*'(?:[^']|\\.)'){2,})\s*\}")
-DOMAIN_PREFIX = re.compile(r"^(BIP0|MuSig|KeyAgg|Tap|Bulletproof|BP/|ZK/|FROST|bip324|LTCSP|BCH/)")
+# `constexpr char domain[] = "tag"` / `static const char tag[] = "tag"` declarations
+# whose array is later passed by variable to SHA256::hash (the adaptor tags do this,
+# so the call-site PATTERNS above never see the literal). Filtered through
+# DOMAIN_PREFIX so unrelated char-array string literals are not flagged.
+DECL_PATTERN = re.compile(r'\bchar\s+\w+\s*\[\s*\]\s*=\s*"([^"]+)"')
+DOMAIN_PREFIX = re.compile(r"^(BIP0|MuSig|KeyAgg|Tap|Bulletproof|BP/|ZK/|FROST|bip324|LTCSP|BCH/|adaptor|ufsecp/ecdsa_adaptor)")
 
 
 def decode_bytearray(seg: str) -> str:
@@ -146,6 +159,10 @@ def main() -> int:
                         cands += pat.findall(line)
                     for m in BYTEARRAY.finditer(line):
                         s = decode_bytearray(m.group(1))
+                        if DOMAIN_PREFIX.match(s):
+                            cands.append(s)
+                    for m in DECL_PATTERN.finditer(line):
+                        s = m.group(1)
                         if DOMAIN_PREFIX.match(s):
                             cands.append(s)
                     for tag in cands:

@@ -6,6 +6,7 @@
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/bip32.hpp"  // hmac_sha512
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/csprng.hpp"  // ENTROPY-SOURCE: single-source fail-closed CSPRNG
 #include "secp256k1/unicode_nfkd.hpp"
 
 #include <algorithm>
@@ -22,20 +23,13 @@
 namespace secp256k1 {
 
 // ---------------------------------------------------------------------------
-// CSPRNG – fill buffer with cryptographically secure random bytes
+// CSPRNG — ENTROPY-SOURCE-INTEGRITY (blind-zone #5): the previous local fail-OPEN
+// csprng_fill (returned false on /dev/urandom failure / short read) duplicated and
+// weakened the canonical detail::csprng_fill, which is fail-CLOSED (std::abort on RNG
+// failure) and the single source of randomness the library mandates. Key material must
+// never be derived from a degraded entropy source — we now use the canonical helper.
+// Enforced by ci/check_entropy_source_integrity.py (single-source + fail-closed).
 // ---------------------------------------------------------------------------
-static bool csprng_fill(uint8_t* buf, size_t len) {
-#if defined(_WIN32)
-    return BCryptGenRandom(nullptr, buf, static_cast<ULONG>(len),
-                           BCRYPT_USE_SYSTEM_PREFERRED_RNG) == 0;
-#else
-    FILE* f = std::fopen("/dev/urandom", "rb");
-    if (!f) return false;
-    const bool ok = (std::fread(buf, 1, len, f) == len);
-    (void)std::fclose(f);
-    return ok;
-#endif
-}
 
 // ---------------------------------------------------------------------------
 // Wordlist helpers
@@ -123,9 +117,9 @@ bip39_generate(size_t entropy_bytes, const uint8_t* entropy_in) {
     if (entropy_in) {
         std::memcpy(entropy, entropy_in, entropy_bytes);
     } else {
-        if (!csprng_fill(entropy, entropy_bytes)) {
-            return {"", false};
-        }
+        // Fail-CLOSED single-source CSPRNG: aborts on RNG failure rather than
+        // generating a mnemonic from degraded entropy (ENTROPY-SOURCE, blind-zone #5).
+        detail::csprng_fill(entropy, entropy_bytes);
     }
 
     // Compute SHA-256 checksum of entropy

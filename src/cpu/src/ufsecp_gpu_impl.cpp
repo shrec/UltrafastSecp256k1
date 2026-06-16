@@ -295,6 +295,44 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_batch(
     } UFSECP_GPU_CATCH
 }
 
+ufsecp_error_t ufsecp_gpu_ecdsa_verify_opaque_rows(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN || stride < 129u) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!rows || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    try {
+        return to_abi_error_clear_on_fail(
+            ctx->backend->ecdsa_verify_lbtc_rows(rows, stride, count, out_results),
+            out_results, count, 1);
+    } UFSECP_GPU_CATCH
+}
+
+ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_rows(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN || stride < 129u) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!rows || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    return ufsecp_gpu_ecdsa_verify_opaque_rows(
+        ctx, rows, stride, count, out_results);
+}
+
 ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* msg_hashes32,

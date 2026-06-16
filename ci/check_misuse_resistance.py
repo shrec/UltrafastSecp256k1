@@ -43,13 +43,19 @@ NEGATIVE_CATEGORIES = [
 
 
 def _extract_abi_functions_from_header(header: Path) -> list[str]:
-    """Extract ufsecp_* function names from a header file."""
+    """Extract exported ufsecp_* function names from a public ABI header."""
     if not header.exists():
         return []
     content = header.read_text(encoding="utf-8", errors="replace")
-    # Match function declarations: ufsecp_something(
-    pattern = re.compile(r'\b(ufsecp_\w+)\s*\(')
-    return sorted(set(pattern.findall(content)))
+    decl_re = re.compile(r"UFSECP_API\s+([^;{]+?\))\s*;", re.S)
+    fn_re = re.compile(r"\b(ufsecp_\w+)\s*\(")
+    functions = []
+    for match in decl_re.finditer(content):
+        signature = " ".join(match.group(1).replace("\n", " ").split())
+        fn_match = fn_re.search(signature)
+        if fn_match:
+            functions.append(fn_match.group(1))
+    return sorted(set(functions))
 
 
 def _extract_abi_functions_from_graph(conn: sqlite3.Connection) -> list[str]:
@@ -114,12 +120,12 @@ def run(json_mode: bool, out_file: str | None) -> int:
     for header in [ABI_HEADER, ABI_GPU_HEADER]:
         abi_fns.update(_extract_abi_functions_from_header(header))
 
-    # Also check graph
+    # Keep the source graph as evidence fallback only. The ABI boundary itself
+    # is the set of UFSECP_API declarations, matching generate_abi_negative_tests.py.
     conn = None
     if GRAPH_DB.exists():
         try:
             conn = sqlite3.connect(str(GRAPH_DB))
-            abi_fns.update(_extract_abi_functions_from_graph(conn))
         except Exception:
             pass
 

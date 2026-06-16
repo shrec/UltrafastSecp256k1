@@ -5,6 +5,10 @@
 // On 64-bit GCC/Clang with native __int128: `secp256k1::detail::u128_compat`
 // is a type alias for `unsigned __int128` (zero overhead).
 //
+// On MSVC x64 (no native unsigned __int128): it is a struct backed by
+// _umul128/_addcarry_u64 intrinsics, avoiding the slow 32x32 schoolbook fallback
+// in the FE52 hot path.
+//
 // On wasm32 (Emscripten/Clang) when SECP256K1_NO_INT128 is defined, OR on
 // 32-bit targets without __SIZEOF_INT128__: it is a struct with explicit
 // 64x64 -> 128 multiplication and carry-aware addition. This is needed
@@ -44,8 +48,15 @@ using u128_compat = unsigned __int128;
 #endif
 
 #else
-// Portable 32-bit-safe implementation. Used on wasm32 (Emscripten emulated
-// __int128 is buggy) and any other target without __int128.
+// Struct implementation. Uses MSVC x64 intrinsics where available, otherwise
+// falls back to a portable 32-bit-safe implementation. The fallback is used on
+// wasm32 (Emscripten emulated __int128 is buggy) and any other target without
+// __int128.
+
+#if defined(_MSC_VER) && !defined(__clang__) && defined(_M_X64)
+#include <intrin.h>
+#define SECP256K1_U128_COMPAT_MSVC_X64 1
+#endif
 
 namespace secp256k1 { namespace detail {
 
@@ -65,6 +76,16 @@ struct u128_compat {
     // Precondition: this->hi == 0. All call sites in field_52_impl.hpp
     // multiply a u128-widened u64 by another u64, so hi is always zero.
     u128_compat operator*(std::uint64_t y) const noexcept {
+#if defined(SECP256K1_U128_COMPAT_MSVC_X64)
+        unsigned __int64 hi_part = 0;
+        const unsigned __int64 lo_part = _umul128(
+            static_cast<unsigned __int64>(lo),
+            static_cast<unsigned __int64>(y),
+            &hi_part);
+        return u128_compat{
+            static_cast<std::uint64_t>(hi_part),
+            static_cast<std::uint64_t>(lo_part)};
+#else
         const std::uint64_t x = lo;
         const std::uint64_t x_lo = x & 0xFFFFFFFFULL;
         const std::uint64_t x_hi = x >> 32;
@@ -81,20 +102,57 @@ struct u128_compat {
         r.lo = (p00 & 0xFFFFFFFFULL) | (mid << 32);
         r.hi = p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32);
         return r;
+#endif
     }
 
     // Addition with carry.
     u128_compat& operator+=(const u128_compat& other) noexcept {
+#if defined(SECP256K1_U128_COMPAT_MSVC_X64)
+        unsigned __int64 out_lo = 0;
+        unsigned __int64 out_hi = 0;
+        const unsigned char carry = _addcarry_u64(
+            0,
+            static_cast<unsigned __int64>(lo),
+            static_cast<unsigned __int64>(other.lo),
+            &out_lo);
+        (void)_addcarry_u64(
+            carry,
+            static_cast<unsigned __int64>(hi),
+            static_cast<unsigned __int64>(other.hi),
+            &out_hi);
+        lo = static_cast<std::uint64_t>(out_lo);
+        hi = static_cast<std::uint64_t>(out_hi);
+        return *this;
+#else
         const std::uint64_t prev = lo;
         lo += other.lo;
         hi += other.hi + (lo < prev ? 1ULL : 0ULL);
         return *this;
+#endif
     }
     u128_compat& operator+=(std::uint64_t x) noexcept {
+#if defined(SECP256K1_U128_COMPAT_MSVC_X64)
+        unsigned __int64 out_lo = 0;
+        unsigned __int64 out_hi = 0;
+        const unsigned char carry = _addcarry_u64(
+            0,
+            static_cast<unsigned __int64>(lo),
+            static_cast<unsigned __int64>(x),
+            &out_lo);
+        (void)_addcarry_u64(
+            carry,
+            static_cast<unsigned __int64>(hi),
+            0,
+            &out_hi);
+        lo = static_cast<std::uint64_t>(out_lo);
+        hi = static_cast<std::uint64_t>(out_hi);
+        return *this;
+#else
         const std::uint64_t prev = lo;
         lo += x;
         if (lo < prev) hi += 1ULL;
         return *this;
+#endif
     }
     friend u128_compat operator+(u128_compat a, const u128_compat& b) noexcept { a += b; return a; }
     friend u128_compat operator+(u128_compat a, std::uint64_t b) noexcept { a += b; return a; }
@@ -137,6 +195,10 @@ struct u128_compat {
 };
 
 } } // namespace secp256k1::detail
+
+#if defined(SECP256K1_U128_COMPAT_MSVC_X64)
+#undef SECP256K1_U128_COMPAT_MSVC_X64
+#endif
 
 #endif // __SIZEOF_INT128__ && !SECP256K1_NO_INT128
 

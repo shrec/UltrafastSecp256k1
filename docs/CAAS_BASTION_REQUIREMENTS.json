@@ -1,0 +1,282 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Machine-readable CAAS Bastion requirement map. Each row binds a known review gap to its artifact(s), its enforcing gate, a status, an explicit residual risk, and the date the binding was last verified. Consumed by audit_gate.py --external-audit-replacement (P21) to verify that every closed gap maps to a live, callable gate (or is an explicitly documented residual) rather than only to prose.",
+  "doc_refs": [
+    "docs/CAAS_GAP_CLOSURE_ROADMAP.md",
+    "docs/CAAS_COMPLETENESS_GAP_ANALYSIS.md",
+    "docs/AUDIT_MANIFEST.md"
+  ],
+  "sla": {
+    "last_verified_warn_days": 180,
+    "last_verified_fail_days": 540,
+    "note": "last_verified ages on purpose: a Bastion requirement binding that has not been re-verified within the SLA window is surfaced (WARN) and eventually blocks (FAIL). Refresh by re-confirming each row's artifact+gate and bumping last_verified."
+  },
+  "status_legend": {
+    "gated": "Closed AND enforced by a dedicated executable gate (an audit_gate.py sub-check or a standalone ci/*.py gate script) that verifies behavior/content, not just presence.",
+    "presence_only": "Closed deliverable whose enforcement is presence of the published document; no behavioral gate applies because the deliverable is a stance/methodology/spec narrative. Presence is enforced here by P21.",
+    "documented_residual": "An explicitly accepted/deferred residual risk (e.g. out-of-scope), tracked in docs/RESIDUAL_RISK_REGISTER.md. residual_risk MUST be non-empty."
+  },
+  "requirements": [
+    {
+      "id": "P21-CORE",
+      "claim": "Reviewer-facing CAAS document set required to replace the verifiable parts of an external audit",
+      "artifact_paths": [
+        "docs/CAAS_PROTOCOL.md",
+        "docs/AUDIT_PHILOSOPHY.md",
+        "docs/RESIDUAL_RISK_REGISTER.md",
+        "docs/SECURITY_CLAIMS.md",
+        "docs/EXPLOIT_TEST_CATALOG.md",
+        "docs/EXTERNAL_AUDIT_BUNDLE.json",
+        "docs/EXTERNAL_AUDIT_BUNDLE.sha256",
+        "docs/CAAS_REVIEWER_QUICKSTART.md",
+        "docs/CAAS_FAQ.md",
+        "docs/CAAS_THREAT_MODEL.md",
+        "docs/NEGATIVE_RESULTS_LEDGER.md",
+        "docs/THREAD_SAFETY.md",
+        "docs/ABI_VERSIONING.md",
+        "docs/SECURITY_INCIDENT_TIMELINE.md",
+        "ci/verify_external_audit_bundle.py"
+      ],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "presence_only",
+      "residual_risk": "Reviewer/reference document set; presence-gated by P21. These are narrative deliverables with no behavioral sub-gate. The bundle artifacts (EXTERNAL_AUDIT_BUNDLE.*) are additionally verified by ci/verify_external_audit_bundle.py.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-1",
+      "claim": "STRIDE threat model per exported ABI surface",
+      "artifact_paths": ["docs/THREAT_MODEL.md"],
+      "gate": "audit_gate.py --threat-model",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-2",
+      "claim": "RNG entropy source enumeration + attestation methodology",
+      "artifact_paths": ["docs/RNG_ENTROPY_ATTESTATION.md"],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "presence_only",
+      "residual_risk": "Attestation methodology document; presence-gated. The OS RNG path is validated by the integrator per the doc; no behavioral audit_gate sub-check is wired for the methodology narrative itself.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-3",
+      "claim": "Hardware side-channel (power/EM/fault) deferral methodology",
+      "artifact_paths": ["docs/HARDWARE_SIDE_CHANNEL_METHODOLOGY.md"],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "documented_residual",
+      "residual_risk": "Power/EM/microarchitectural-injection and fault-injection side channels are explicitly out of scope (deferred to operating-environment auditors) and tracked as a permanent residual in docs/RESIDUAL_RISK_REGISTER.md (gated by audit_gate.py --residual-risk-register). The methodology to lift the deferral (dudect on silicon, DPA workstation, T-test thresholds) is documented in the artifact.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-4",
+      "claim": "Cross-implementation interop matrix (libsecp256k1 / OpenSSL / Botan / Bouncy Castle / Bitcoin Core)",
+      "artifact_paths": ["docs/INTEROP_MATRIX.md"],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "presence_only",
+      "residual_risk": "Published interop stance; presence-gated. Per-cell PASS rows reference reproducible test vectors in the document; no dedicated audit_gate sub-check aggregates them.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-5",
+      "claim": "Spec-clause to test-ID traceability (BIP-32/39/340/341/352, RFC 6979, FROST/MuSig2)",
+      "artifact_paths": ["docs/SPEC_TRACEABILITY_MATRIX.md"],
+      "gate": "audit_gate.py --spec-traceability",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-6",
+      "claim": "Compliance stance (FIPS/NIST/CC explicit non-claim + BIP conformance claims)",
+      "artifact_paths": ["docs/COMPLIANCE_STANCE.md"],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "presence_only",
+      "residual_risk": "Compliance stance document; presence-gated. Non-claims are descriptive; the 'DO claim' rows are backed by G-5 spec-traceability evidence. No behavioral sub-check.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-7",
+      "claim": "Multi-CI reproducible-build cross-provider attestation",
+      "artifact_paths": [
+        "docs/MULTI_CI_REPRODUCIBLE_BUILD.md",
+        ".github/workflows/multi-ci-repro.yml"
+      ],
+      "gate": "ci/multi_ci_repro_check.py",
+      "gate_kind": "script",
+      "status": "gated",
+      "residual_risk": "",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-8",
+      "claim": "Two-tool constant-time independence (per-symbol tool agreement)",
+      "artifact_paths": [
+        "docs/CT_TOOL_INDEPENDENCE.md",
+        ".github/workflows/ct-independence.yml"
+      ],
+      "gate": "audit_gate.py --ct-tool-agreement",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Behavioral gate is audit_gate.py --ct-tool-agreement. Artifact-based consumption of real per-tool verdict JSONs (fail-closed on a single PASS + SKIP) is ci/ct_independence_check.py; freshness wiring is Bastion B11.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-9",
+      "claim": "Citable protocol spec (algorithm suite + per-surface contracts)",
+      "artifact_paths": ["docs/PROTOCOL_SPEC.md"],
+      "gate": "presence:external-audit-replacement",
+      "gate_kind": "presence",
+      "status": "presence_only",
+      "residual_risk": "Publishable spec document; presence-gated. Per-clause conformance is gated by G-5 (--spec-traceability); this row enforces the citable master document exists.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-9b",
+      "claim": "Exploit <-> threat-model <-> spec traceability join (no in-scope high-severity clause without a PoC or residual)",
+      "artifact_paths": [
+        "docs/EXPLOIT_TRACEABILITY_JOIN.md",
+        "ci/exploit_traceability_join.py"
+      ],
+      "gate": "audit_gate.py --exploit-traceability",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-10",
+      "claim": "Security disclosure SLA + incident timeline + RFC 9116 security.txt",
+      "artifact_paths": [
+        "SECURITY.md",
+        "docs/SECURITY_INCIDENT_TIMELINE.md",
+        ".well-known/security.txt"
+      ],
+      "gate": "audit_gate.py --disclosure-sla",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-13",
+      "claim": "External integration evidence freshness (libbitcoin / Bitcoin Core / libsecp shim) machine-tracked and gated",
+      "artifact_paths": [
+        "docs/INTEGRATION_EVIDENCE_STATUS.json",
+        "docs/INTEGRATION_EVIDENCE_TABLE.md",
+        "ci/check_integration_evidence.py"
+      ],
+      "gate": "audit_gate.py --integration-evidence",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Heavy full-chain libbitcoin / Bitcoin Core surfaces are owner_gated within the manifest (explicit, never counted as current evidence); they are re-verified by an owner-imported artifact, not on every push.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-14",
+      "claim": "Constant-time evidence freshness + tool-verdict binding (CT-sensitive surfaces machine-tracked and gated)",
+      "artifact_paths": [
+        "docs/CT_EVIDENCE_STATUS.json",
+        "docs/CT_VERIFICATION.md",
+        "ci/check_ct_evidence_status.py"
+      ],
+      "gate": "audit_gate.py --ct-evidence-status",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Tool verdicts (ct-verif / valgrind-ct / dudect) are CI-produced and evaluated via --verdict-dir, not on every push; the committed-evidence + freshness dimension gates on push. GPU CT-uniformity is owner_gated (host-only --gpu). CT-SCALAR-INVERSE is a documented portability residual (RR-NEW-01).",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-15",
+      "claim": "Fuzz campaign evidence freshness + crash->regression conversion (fuzz surfaces machine-tracked and gated)",
+      "artifact_paths": [
+        "docs/FUZZ_CAMPAIGN_STATUS.json",
+        "docs/FUZZ_INFRASTRUCTURE.md",
+        "ci/check_fuzz_campaign_status.py"
+      ],
+      "gate": "audit_gate.py --fuzz-campaign-status",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Evidence-status gate only: long fuzz campaigns run in cflite/cryptofuzz/klee + the audit fuzz suite, not on push. Heavy libbitcoin differential and GPU public-data fuzz surfaces are owner_gated (explicit, never current). An unconverted crash artifact blocks regardless of severity.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-16",
+      "claim": "GPU / hardware evidence status made explicit and freshness-gated (real-device vs host-fallback vs owner-gated residual)",
+      "artifact_paths": [
+        "docs/GPU_HARDWARE_EVIDENCE_STATUS.json",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "ci/check_gpu_hardware_evidence.py"
+      ],
+      "gate": "audit_gate.py --gpu-hardware-evidence",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Real-device CUDA/OpenCL/Metal/ROCm evidence is owner_gated (no GitHub GPU runners; owner-run, never current on push). Fallback_correctness rows are tracked separately and are never native-performance evidence. ROCm real-device (RR-003), schnorr_snark fallback (RR-005), and hardware power/EM/fault (RR-006) are documented residuals resolving to RESIDUAL_RISK_REGISTER.md.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-17",
+      "claim": "Benchmark target-context taxonomy + claim scope (a microbenchmark cannot be mistaken for node throughput; a GPU/fallback benchmark cannot be a native-engine speed claim)",
+      "artifact_paths": [
+        "docs/BENCH_TARGET_CONTEXT_SCHEMA.json",
+        "ci/check_bench_target_context.py",
+        "docs/bench_unified_2026-05-30_gcc14_x86-64.json"
+      ],
+      "gate": "ci/check_bench_target_context.py",
+      "gate_kind": "script",
+      "status": "gated",
+      "residual_risk": "Folded into ci/check_bench_doc_consistency.py (--json) and co-gated by ci/perf_security_cogate.py, so a benchmark perf claim is invalid when its target_context is missing/invalid/mis-scoped or when CT/determinism gates are red. Closes residual RR-BAS-03.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-18",
+      "claim": "Research signal-matrix attack-class taxonomy + evidence routing (research intake becomes routed audit work, not just covered/candidate labels)",
+      "artifact_paths": [
+        "docs/RESEARCH_SIGNAL_MATRIX.json",
+        "ci/check_research_signal_matrix.py",
+        "ci/research_monitor.py"
+      ],
+      "gate": "audit_gate.py --research-signal-matrix",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Every in-scope signal class carries an enum attack_class and routes to an expected evidence surface + gate; covered classes need existing evidence + a resolvable gate, candidates need a missing_evidence_action, out_of_scope need a rationale. Closes residual RR-BAS-04.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-19",
+      "claim": "Evidence-refresh coverage: every freshness artifact tracked by audit_sla_check.py is either auto-refreshed by a scheduled lane (verified against its commit list) or a documented residual (freshness is never trusted by hand)",
+      "artifact_paths": [
+        "docs/AUDIT_SLA.json",
+        "ci/check_evidence_refresh_coverage.py",
+        ".github/workflows/caas-evidence-refresh.yml"
+      ],
+      "gate": "audit_gate.py --evidence-refresh-coverage",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "The AUDIT_SLA.json freshness_artifacts ledger binds each tracked artifact to an `auto` producer (cross-checked against the named workflow's commit list) or a `residual` resolving to RESIDUAL_RISK_REGISTER.md; a blocking artifact with neither fails closed. Hardens (does not close) RR-BAS-01 and RR-BAS-02 - both are now ready_for_owner_promotion: ct-evidence/api-contracts remain owner-chosen documented residuals, and the incident-drill warning->blocking flip is proven safe by a self-test.",
+      "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-20",
+      "claim": "Package / release provenance binding: a package or binary is trustworthy only when bound to the audited commit, the committed CAAS bundle sha256, the audit_gate verdict, and its own artifact hash (provenance binding, not release authorization)",
+      "artifact_paths": [
+        "docs/PACKAGE_PROVENANCE_STATUS.json",
+        "ci/check_package_provenance_binding.py",
+        "docs/PACKAGE_PROVENANCE.md"
+      ],
+      "gate": "audit_gate.py --package-provenance-binding",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "Every package surface declares the full binding contract; `template` surfaces hold sentinels with null hash+run_id (no fake current evidence), `bound` surfaces must match HEAD + the committed bundle digest + a real artifact hash + verdict==pass, and `owner_gated` release artifacts are never current in the dev tree. The gate never publishes, tags, merges, or authorizes a release - release authorization stays owner-only per CLAUDE.md. Reuses existing SLSA / supply-chain infra rather than duplicating it.",
+      "last_verified": "2026-06-13"
+    }
+  ]
+}

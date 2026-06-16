@@ -1185,6 +1185,70 @@ typedef struct {
     Scalar s;
 } ECDSASignature;
 
+inline int lift_x_impl(const uchar x_bytes[32], JacobianPoint* p);
+
+inline int lbtc_be32_lt_field_p(__global const uchar* x) {
+    const uchar P[32] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xfc, 0x2f
+    };
+    for (int i = 0; i < 32; ++i) {
+        if (x[i] < P[i]) return 1;
+        if (x[i] > P[i]) return 0;
+    }
+    return 0;
+}
+
+inline int lbtc_point_from_compressed(__global const uchar* pub, JacobianPoint* p) {
+    const uchar prefix = pub[0];
+    if (prefix != 0x02 && prefix != 0x03) return 0;
+    if (!lbtc_be32_lt_field_p(pub + 1)) return 0;
+
+    uchar x_bytes[32];
+    for (int i = 0; i < 32; ++i) x_bytes[i] = pub[1 + i];
+    if (!lift_x_impl(x_bytes, p)) return 0;
+
+    if (prefix == 0x03)
+        field_neg_impl(&p->y, &p->y);
+    return 1;
+}
+
+inline int lbtc_scalar_ge_order(const Scalar* s) {
+    const ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+    for (int i = 3; i >= 0; --i) {
+        if (s->limbs[i] > n[i]) return 1;
+        if (s->limbs[i] < n[i]) return 0;
+    }
+    return 1;
+}
+
+inline int lbtc_parse_opaque_scalar(__global const uchar* opaque, Scalar* out) {
+    for (int i = 0; i < 4; ++i) {
+        ulong limb = 0;
+        for (int j = 0; j < 8; ++j)
+            limb |= ((ulong)opaque[i * 8 + j]) << (j * 8);
+        out->limbs[i] = limb;
+    }
+    return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
+}
+
+inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
+                                       ECDSASignature* sig) {
+    if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
+    if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return 0;
+
+    Scalar neg_s;
+    scalar_negate_impl(&sig->s, &neg_s);
+    const ulong mask = scalar_is_high_mask_impl(&sig->s);
+    sig->s.limbs[0] = (sig->s.limbs[0] & ~mask) | (neg_s.limbs[0] & mask);
+    sig->s.limbs[1] = (sig->s.limbs[1] & ~mask) | (neg_s.limbs[1] & mask);
+    sig->s.limbs[2] = (sig->s.limbs[2] & ~mask) | (neg_s.limbs[2] & mask);
+    sig->s.limbs[3] = (sig->s.limbs[3] & ~mask) | (neg_s.limbs[3] & mask);
+    return 1;
+}
+
 inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASignature* sig) {
     if (scalar_is_zero(priv)) return 0;
 
@@ -1991,6 +2055,26 @@ __kernel void ecdsa_verify(
     JacobianPoint pub = pubkeys[gid];
     ECDSASignature sig = signatures[gid];
     results[gid] = ecdsa_verify_impl(msg, &pub, &sig);
+}
+
+__kernel void ecdsa_verify_lbtc_rows(
+    __global const uchar* rows,
+    const ulong stride,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    __global const uchar* row = rows + ((ulong)gid * stride);
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = row[i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    int ok = lbtc_point_from_compressed(row + 32, &pub) &&
+             lbtc_parse_opaque_signature(row + 65, &sig);
+    results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
 }
 
 __kernel void ecrecover_batch(

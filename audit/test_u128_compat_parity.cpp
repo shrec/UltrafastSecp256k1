@@ -38,22 +38,142 @@
 
 #include "secp256k1/u128_compat.hpp"
 
-// MSVC has neither __int128 nor the GCC/Clang extension we need for the
-// parity comparison. On those targets the test is a no-op stub that returns
-// SUCCESS — the portable struct is exercised in the engine's regular FE52
-// tests instead.
+// MSVC has neither __int128 nor the GCC/Clang extension used by the main
+// comparison. On those targets, compare the intrinsic-backed u128_compat struct
+// against a local 32-bit reference implementation so Windows CI exercises the
+// no-__int128 arithmetic instead of skipping it.
 #if !defined(__SIZEOF_INT128__)
 
-#if defined(_MSC_VER)
-#pragma message("test_u128_compat_parity: __int128 unavailable — stubbing test")
-#endif
+using u128_struct = ::secp256k1::detail::u128_compat;
 
-extern "C" {
-}  // keep file non-empty under MSVC
+namespace {
+
+struct ref128 {
+    std::uint64_t hi;
+    std::uint64_t lo;
+};
+
+int g_fail = 0;
+int g_pass = 0;
+
+std::uint64_t pcg64(std::uint64_t& s) noexcept {
+    s = s * 6364136223846793005ULL + 1442695040888963407ULL;
+    return s;
+}
+
+ref128 ref_mul64(std::uint64_t x, std::uint64_t y) noexcept {
+    const std::uint64_t x_lo = x & 0xFFFFFFFFULL;
+    const std::uint64_t x_hi = x >> 32;
+    const std::uint64_t y_lo = y & 0xFFFFFFFFULL;
+    const std::uint64_t y_hi = y >> 32;
+
+    const std::uint64_t p00 = x_lo * y_lo;
+    const std::uint64_t p01 = x_lo * y_hi;
+    const std::uint64_t p10 = x_hi * y_lo;
+    const std::uint64_t p11 = x_hi * y_hi;
+
+    const std::uint64_t mid = (p00 >> 32) + (p01 & 0xFFFFFFFFULL) +
+                              (p10 & 0xFFFFFFFFULL);
+    return ref128{
+        p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32),
+        (p00 & 0xFFFFFFFFULL) | (mid << 32)};
+}
+
+ref128 ref_add(ref128 a, ref128 b) noexcept {
+    const std::uint64_t lo = a.lo + b.lo;
+    return ref128{a.hi + b.hi + (lo < a.lo ? 1ULL : 0ULL), lo};
+}
+
+ref128 ref_add_u64(ref128 a, std::uint64_t x) noexcept {
+    const std::uint64_t lo = a.lo + x;
+    return ref128{a.hi + (lo < a.lo ? 1ULL : 0ULL), lo};
+}
+
+ref128 ref_shr(ref128 x, unsigned n) noexcept {
+    if (n == 0) return x;
+    if (n >= 128) return ref128{0, 0};
+    if (n >= 64) return ref128{0, x.hi >> (n - 64)};
+    return ref128{x.hi >> n, (x.lo >> n) | (x.hi << (64 - n))};
+}
+
+ref128 ref_shl(ref128 x, unsigned n) noexcept {
+    if (n == 0) return x;
+    if (n >= 128) return ref128{0, 0};
+    if (n >= 64) return ref128{x.lo << (n - 64), 0};
+    return ref128{(x.hi << n) | (x.lo >> (64 - n)), x.lo << n};
+}
+
+int check_pair(const char* label, ref128 expected, u128_struct got) {
+    if (expected.lo != got.lo || expected.hi != got.hi) {
+        std::fprintf(stderr,
+            "[FAIL] %s: expected={hi=%016llx lo=%016llx} got={hi=%016llx lo=%016llx}\n",
+            label,
+            static_cast<unsigned long long>(expected.hi),
+            static_cast<unsigned long long>(expected.lo),
+            static_cast<unsigned long long>(got.hi),
+            static_cast<unsigned long long>(got.lo));
+        if (++g_fail >= 20) return g_fail;
+    } else {
+        ++g_pass;
+    }
+    return 0;
+}
+
+} // namespace
 
 int test_u128_compat_parity_run() {
-    std::printf("[u128_compat_parity] skipped — target lacks __int128 (MSVC / 32-bit)\n");
-    return 0;
+    g_pass = 0;
+    g_fail = 0;
+    std::uint64_t seed = 0xCAFEBABE12345678ULL;
+
+    for (int iter = 0; iter < 10000; ++iter) {
+        const std::uint64_t a = pcg64(seed);
+        const std::uint64_t b = pcg64(seed);
+        const std::uint64_t c = pcg64(seed);
+
+        ref128 const rm = ref_mul64(a, b);
+        if (check_pair("mul64x64", rm, u128_struct(a) * b)) return g_fail;
+
+        ref128 const rc{a, b};
+        u128_struct const sc = (u128_struct(a) << 64) | b;
+        if (check_pair("compose", rc, sc)) return g_fail;
+
+        if (check_pair("add_u128", ref_add(rc, ref128{0, c}),
+                       sc + u128_struct(c))) return g_fail;
+
+        u128_struct se = sc;
+        se += c;
+        if (check_pair("add_u64", ref_add_u64(rc, c), se)) return g_fail;
+
+        u128_struct sp = sc;
+        sp += u128_struct(a) * b;
+        if (check_pair("add_prod", ref_add(rc, rm), sp)) return g_fail;
+
+        for (unsigned n : {0u, 1u, 12u, 32u, 52u, 63u, 64u, 100u, 127u}) {
+            if (check_pair("shift_right", ref_shr(rc, n), sc >> n)) return g_fail;
+        }
+
+        for (unsigned n : {0u, 1u, 12u, 32u, 52u, 63u, 64u, 100u, 127u}) {
+            if (check_pair("shift_left", ref_shl(rc, n), sc << n)) return g_fail;
+        }
+
+        constexpr std::uint64_t M52 = 0xFFFFFFFFFFFFFULL;
+        const std::uint64_t expected_mask = rc.lo & M52;
+        const std::uint64_t got_mask = static_cast<std::uint64_t>(sc) & M52;
+        if (expected_mask != got_mask) {
+            std::fprintf(stderr,
+                "[FAIL] mask_u64: iter=%d expected=%016llx got=%016llx\n",
+                iter,
+                static_cast<unsigned long long>(expected_mask),
+                static_cast<unsigned long long>(got_mask));
+            if (++g_fail >= 20) return g_fail;
+        } else {
+            ++g_pass;
+        }
+    }
+
+    std::printf("[u128_compat_parity:no-int128] pass=%d fail=%d\n", g_pass, g_fail);
+    return g_fail;
 }
 
 #ifndef UNIFIED_AUDIT_RUNNER

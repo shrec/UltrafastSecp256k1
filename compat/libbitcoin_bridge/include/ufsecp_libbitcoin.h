@@ -46,6 +46,17 @@
  *       * column API:  msg_hashes[], pubkeys[], sigs[] plus optional key column,
  *                      for callers that already maintain vertical mmap columns and
  *                      want to avoid bridge-side row de-interleave.
+ *   - ECDSA rows mirror libbitcoin's ec_signature storage, which is a copied
+ *     secp256k1_ecdsa_signature object (opaque libsecp-compatible scalar
+ *     layout), not public compact r||s. This is the accepted bridge contract:
+ *     libbitcoin can pass its existing rows unchanged. On the CPU batch path the
+ *     bridge passes those bytes to the engine's opaque-row C ABI; on the GPU row
+ *     path the backend receives the same strided rows and parses the opaque
+ *     scalars on device. No intermediate compact row table or msg/pub/sig staging
+ *     columns are built for the row API. Consensus-valid high-S signatures are
+ *     accepted and normalized during parse, preserving
+ *     libsecp256k1/fallback verification semantics without rewriting caller-owned
+ *     rows or columns.
  *
  * Consensus note:
  *   For block validation the GPU path is used as a consensus-bearing
@@ -59,7 +70,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "ufsecp_error.h" /* ufsecp_error_t, UFSECP_OK, UFSECP_ERR_* */
+#include "ufsecp/ufsecp_error.h" /* ufsecp_error_t, UFSECP_OK, UFSECP_ERR_* */
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,7 +83,7 @@ extern "C" {
 /* Uniform field order across both kinds — hash/msg first, then pubkey, then
  * signature (matches the libbitcoin ecdsa::triple / schnorr::triple structs,
  * so a packed struct array forwards into the row API directly). */
-/* ECDSA row:   32-byte msghash      | 33-byte compressed pubkey | 64-byte sig. */
+/* ECDSA row:   32-byte msghash      | 33-byte compressed pubkey | 64-byte opaque secp256k1_ecdsa_signature. */
 #define UFSECP_LBTC_ECDSA_RECORD   129u
 /* Schnorr row: 32-byte msg/sighash  | 32-byte x-only pubkey     | 64-byte sig. */
 #define UFSECP_LBTC_SCHNORR_RECORD 128u
@@ -139,26 +150,64 @@ const char*       ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl);
  *             struct carrying a trailing id this is sizeof(id) (e.g. 3).
  *   results   OUT, n bytes. results[i] == 1 if row i's signature is valid,
  *             0 if invalid (structurally malformed rows — off-curve pubkey,
- *             s >= n, R.x >= p — verify to 0, never abort the batch). The
+ *             s >= n, R.x >= p — verify to 0, never abort the batch). ECDSA
+ *             signature bytes are libsecp-compatible opaque scalar storage, as
+ *             used by libbitcoin::ec_signature when libsecp256k1 is the backing
+ *             ABI. The CPU batch path parses that existing layout directly into
+ *             engine batch entries; the GPU row path parses the same row layout
+ *             on device, avoiding bridge-side compact/signature-column staging.
+ *             High-S signatures with s < n are consensus-valid and verify to 1;
+ *             they are normalized internally without mutating the row. The
  *             caller maps a failing row back to its block/tx via the opaque
  *             tag at rows[i] (or its own table) — no second side table needed.
  *
- * Returns void. There is deliberately no error code: every signature outcome is
- * a normal per-row result (results[i]), the buffer can never mismatch (implied
- * by count+key_size), and an unrecoverable condition (no backend) is surfaced at
- * ufsecp_lbtc_ctrl_create time, not here. A NULL ctrl/rows or n == 0 is a no-op
- * (results is left as the caller initialized it — zero-initialize for a
- * fail-closed "all invalid" on a degenerate call).
+ *   results       OUT, optional. n bytes; results[i] = 1 valid / 0 invalid.
+ *   invalid_idx   OUT, optional. Receives the indices of failing rows, up to
+ *                 invalid_cap entries (ignored if NULL).
+ *   invalid_cap   capacity of invalid_idx in entries.
+ *   invalid_count OUT, optional. Set to the TOTAL number of failing rows — which
+ *                 may exceed invalid_cap, so the caller can detect truncation.
+ *                 All rows valid iff *invalid_count == 0.
+ *
+ * Returns UFSECP_OK for any well-formed batch: a signature outcome is a normal
+ * per-row result, never an aborting return (so a node may treat any non-OK return
+ * as an unrecoverable fault and fail fast). A NULL ctrl returns UFSECP_ERR_NULL_ARG;
+ * n == 0 is a vacuously-valid no-op (*invalid_count = 0). Pass `results` and/or
+ * `invalid_idx`/`invalid_count` — any combination, or none.
+ *
+ * ECDSA signature form:
+ *   ufsecp_lbtc_verify_ecdsa          — OPAQUE (== ufsecp_lbtc_verify_ecdsa_opaque):
+ *                                       the libsecp-compatible ec_signature bytes,
+ *                                       zero-copy; the engine low-S normalizes.
+ *   ufsecp_lbtc_verify_ecdsa_opaque   — same, named explicitly.
+ *   ufsecp_lbtc_verify_ecdsa_compact  — public big-endian compact r||s in the row's
+ *                                       signature field (also low-S normalized).
+ *   Pick whichever matches how you store signatures. Schnorr has a single BIP-340
+ *   form, so `ufsecp_lbtc_verify_schnorr` takes no opaque/compact variant.
  */
-void ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
-                              const uint8_t* rows, size_t n,
-                              size_t key_size,
-                              uint8_t* results);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
 
-void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
-                                const uint8_t* rows, size_t n,
-                                size_t key_size,
-                                uint8_t* results);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count);
 
 /*
  * Columnar/vertical form of the same verification API. These calls are intended
@@ -167,12 +216,13 @@ void ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
  *     ECDSA:   msg_hashes32[n][32], pubkeys33[n][33], sigs64[n][64]
  *     Schnorr: msg_hashes32[n][32], pubkeys_x32[n][32], sigs64[n][64]
  *
- * The per-row verdict is byte-identical to the packed-row API. On GPU builds the
- * bridge forwards these columns directly to the existing GPU C ABI, avoiding the
- * row->column de-interleave scratch used by the packed-row path. On CPU fallback
- * rows are verified one by one from the columns without rebuilding a packed
- * table. Degenerate calls are no-ops; callers should zero-initialize results for
- * fail-closed behavior.
+ * The per-row verdict is byte-identical to the packed-row API. ECDSA signature
+ * column entries use the same libsecp-compatible opaque layout as the packed-row
+ * API. CPU verification parses them directly into batch entries; GPU verification
+ * still stages compact signature columns for device upload. High-S signatures are
+ * normalized in the parsed/staged entry; the caller-owned signature column is not
+ * mutated. Degenerate calls are no-ops; callers should zero-initialize results
+ * for fail-closed behavior.
  */
 void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
                                       const uint8_t* msg_hashes32,
@@ -187,6 +237,58 @@ void ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* sigs64,
                                         size_t n,
                                         uint8_t* results);
+
+/* ------------------------------------------------------------------------- */
+/* 1a'. ECDSA signature packing — build a GPU-native sig table/column once.    */
+/* ------------------------------------------------------------------------- */
+/*
+ * IMPORTANT — for libbitcoin you do NOT need these. The ECDSA verify entry points
+ * (ufsecp_lbtc_verify_ecdsa / _columns) consume the OPAQUE secp256k1_ecdsa_signature
+ * bytes — i.e. your ec_signature, the output of ecdsa_signature_parse_der_lax /
+ * secp256k1_ecdsa_signature_parse_compact — DIRECTLY, and low-S normalize internally
+ * on both the CPU and the on-device GPU path. Pass your existing rows/columns
+ * unchanged.
+ *
+ * Use these helpers only if you want to PRE-BUILD the signature table once in the
+ * engine's native compact form (public big-endian r||s, low-S normalized) so the
+ * verify call does zero per-row reformatting, OR if you are a non-libbitcoin
+ * integrator that already stores public compact r||s instead of the opaque object.
+ *
+ * ufsecp_lbtc_ecdsa_sig_pack:
+ *   in              64 bytes. input_is_opaque != 0 -> `in` is an opaque
+ *                   secp256k1_ecdsa_signature (== ec_signature, internal little-endian
+ *                   scalar layout). input_is_opaque == 0 -> `in` is public big-endian
+ *                   compact r||s.
+ *   out64           64-byte normalized big-endian compact r||s (low-S). MAY alias `in`.
+ *   No validation of scalar range (verify rejects out-of-range/zero). Never fails.
+ *
+ * ufsecp_lbtc_ecdsa_sigs_pack: the same, applied to n signatures (stride 64). `out`
+ *   may alias `in` for an in-place pack.
+ *
+ * Verify a packed/compact column with ufsecp_lbtc_verify_ecdsa_columns_compact
+ * (results) or ..._compact_collect (in-place key-cell verdict): identical verdict
+ * and CPU/GPU parity to the opaque columns API — only the input sig format differs.
+ */
+void ufsecp_lbtc_ecdsa_sig_pack(const uint8_t* in, int input_is_opaque,
+                                uint8_t out64[64]);
+
+void ufsecp_lbtc_ecdsa_sigs_pack(const uint8_t* in, size_t n,
+                                 int input_is_opaque, uint8_t* out);
+
+void ufsecp_lbtc_verify_ecdsa_columns_compact(ufsecp_lbtc_ctrl* ctrl,
+                                              const uint8_t* msg_hashes32,
+                                              const uint8_t* pubkeys33,
+                                              const uint8_t* sigs64,
+                                              size_t n,
+                                              uint8_t* results);
+
+void ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                      const uint8_t* msg_hashes32,
+                                                      const uint8_t* pubkeys33,
+                                                      const uint8_t* sigs64,
+                                                      size_t n,
+                                                      uint8_t* key_cells,
+                                                      size_t key_size);
 
 /* ------------------------------------------------------------------------- */
 /* 1b. In-place "collect" verify — verdict collapsed into the row's key cell.  */
@@ -478,7 +580,7 @@ namespace lbtc {
 struct EcdsaRecord {     // == UFSECP_LBTC_ECDSA_RECORD (129) bytes
     uint8_t hash[32];    // message hash (sighash)
     uint8_t point[33];   // compressed public key
-    uint8_t sig[64];     // compact signature: r || s
+    uint8_t sig[64];     // opaque libsecp-compatible secp256k1_ecdsa_signature
 };
 struct SchnorrRecord {   // == UFSECP_LBTC_SCHNORR_RECORD (128) bytes
     uint8_t hash[32];    // message / sighash  (FIRST — uniform with ECDSA)
@@ -572,16 +674,19 @@ public:
     // buffer is fully determined by count * (RECORD + key_size) bytes, so it can
     // never mismatch and there is no size-related error condition. Returns void —
     // results[i] (1=valid/0=invalid) is the only output; the caller maps a failing
-    // row back to its block/tx via the opaque tag at rows[i]. (Per evoskuil: the
+    // row back to its block/tx via the opaque tag at rows[i]. ECDSA high-S rows
+    // are normalized in scratch, never in the caller buffer. (Per evoskuil: the
     // buffer size is redundant with count+key_size, and there is no calling failure
     // mode — controller-init is the only recoverable error, checked via ok().)
     void verify_ecdsa(const uint8_t* rows, size_t count, size_t key_size,
                       uint8_t* results) const {
-        ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                       nullptr, 0, nullptr);
     }
     void verify_schnorr(const uint8_t* rows, size_t count, size_t key_size,
                         uint8_t* results) const {
-        ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                         nullptr, 0, nullptr);
     }
 
     // Columnar / vertical verify. Use when the node already stores independent
@@ -606,11 +711,13 @@ public:
     // canonical MultisigRow / ThresholdRow: m|n + group + block-fk).
     void verify_multisig(const uint8_t* rows, size_t count, size_t key_size,
                          uint8_t* results) const {
-        ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                       nullptr, 0, nullptr);
     }
     void verify_threshold(const uint8_t* rows, size_t count, size_t key_size,
                           uint8_t* results) const {
-        ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results);
+        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                         nullptr, 0, nullptr);
     }
     void verify_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                                  const uint8_t* sigs64, size_t count,
@@ -801,9 +908,9 @@ public:
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 129 bytes are the contiguous on-wire record");
-        ufsecp_lbtc_verify_ecdsa(
+        (void)ufsecp_lbtc_verify_ecdsa(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results);
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results, nullptr, 0, nullptr);
     }
     template <class Row>
     void verify_schnorr(std::span<const Row> batch, uint8_t* results) const {
@@ -812,9 +919,9 @@ public:
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 128 bytes are the contiguous on-wire record");
-        ufsecp_lbtc_verify_schnorr(
+        (void)ufsecp_lbtc_verify_schnorr(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results);
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results, nullptr, 0, nullptr);
     }
 
     // --- Typed-span COLLECT overloads (C++20) -------------------------------

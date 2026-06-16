@@ -1,6 +1,35 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-08 | **Version**: 4.2.1
+**Last updated**: 2026-06-11 | **Version**: 4.2.1
+
+### 2026-06-11 - MuSig2 partial-sign secret-derived stack residue erasure
+
+`musig2_partial_sign` (`src/cpu/src/musig2.cpp`) now `secure_erase`s three
+secret-derived intermediates that previously lingered on the stack: `neg_k = -k`
+(secret nonce), `neg_d = -d` (secret signing key), and `ead = ea*d` (carries the
+secret key; `ea = e*a_i` itself is public). Previously only `k`, `d`, and the
+caller's `sec_nonce.k1/k2` were erased. Same class as `FROST-SIGN-RESIDUE`; no
+timing/CT change (all branchless `ct::`), purely stack-scrubbing hygiene. **Found
+by the improved `ci/dev_bug_scanner.py` secret-derived-unerased check** (which now
+scans `frost.cpp`/`musig2.cpp` and handles `Scalar const` decls — the exact gaps
+that hid the FROST residue). Regression: `regression_secret_scalar_residue_erase`.
+
+### 2026-06-10 - FROST/keypair secret-derived stack residue erasure (FROST-SIGN-RESIDUE)
+
+`frost_sign` (`src/cpu/src/frost.cpp`) now `secure_erase`s the secret-derived intermediate
+products `rho_ei = my_binding·ei` and `lambda_s_e = lambda_i·s_i·e` (both changed from
+`const` to non-const so they can be scrubbed). Both carry the **secret** FROST binding nonce
+`ei` and signing share `s_i`; previously only `d`, `ei`, `s_i`, and the caller's nonce halves
+were erased, leaving these two products as stack residue after return. `z_i` (the partial-sig
+output) is public and is correctly not erased. In addition, `schnorr_keypair_create`
+(`src/cpu/src/ct_sign.cpp` and `src/cpu/src/schnorr.cpp`) now `secure_erase`s the private-key
+copy `d_prime` after `kp.d`/`kp.px` are derived. No timing/CT behavior changes — all
+arithmetic is branchless `ct::`; this is secret-erasure hygiene of the same class as
+`T08-SCALAR-ERASE` (`ecdsa_sign`/`musig2_partial_sig_agg`). Exploitation would require a
+separate stack-memory-disclosure primitive. Regression test
+`regression_secret_scalar_residue_erase` source-scans all three sites and round-trips
+Schnorr `keypair_create`+`sign`+`verify` to confirm the `d_prime` erase does not corrupt the
+returned keypair.
 
 ### 2026-06-08 - MuSig2 infinity aggregate-nonce conformance — secret handling unchanged
 

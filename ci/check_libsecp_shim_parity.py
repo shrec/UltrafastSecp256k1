@@ -193,7 +193,7 @@ CHECKS = [
     {
         "file": "shim_ecdsa.cpp",
         "function": "secp256k1_ecdsa_signature_parse_compact",
-        "description": "parse_compact must validate r and s (range check) before storing into sig->data",
+        "description": "parse_compact must validate r and s before storing them in libsecp-compatible opaque layout",
         "checks": [
             {
                 "kind": "require",
@@ -205,23 +205,22 @@ CHECKS = [
                 "pattern": r"Scalar::parse_bytes_strict",
                 "message": "must use Scalar::parse_bytes_strict (or strict_nonzero) for both r and s (rejects overflow)",
             },
-            # A bare memcpy as the SOLE operation — with no parse anywhere in
-            # the body — would be detected by the absence of the "require" above.
-            # We add one more check: the function must NOT have a memcpy to
-            # sig->data as an EARLY return path with zero parse calls before it.
-            # Concretely: if parse_bytes_strict_nonzero is absent from the body
-            # AND memcpy to sig->data is present, that is a bare-copy bug.
-            # Since the "require" check already rejects the absence case, we
-            # add a structural check: parse must appear BEFORE the memcpy.
-            # Approximation: the string "parse_bytes_strict" must appear
-            # somewhere in the body text before "memcpy(sig->data".
+            # Store public compact big-endian r/s into libsecp's opaque scalar
+            # layout. libbitcoin-system copies secp256k1_ecdsa_signature.data
+            # directly, so strict parsing alone is not enough here: a direct
+            # big-endian memcpy would pass DER/verify paths but break libbitcoin
+            # raw-signature fixtures.
             {
                 "kind": "require",
-                "pattern": r"(?s)parse_bytes_strict.*memcpy\(sig->data",
+                "pattern": (
+                    r"(?s)parse_bytes_strict.*"
+                    r"scalar_be_to_internal\(sig->data,\s*input64\).*"
+                    r"scalar_be_to_internal\(sig->data\s*\+\s*32,\s*input64\s*\+\s*32\)"
+                ),
                 "message": (
-                    "Scalar::parse_bytes_strict (or strict_nonzero) must appear before "
-                    "the memcpy(sig->data, input64, 64) store — a bare memcpy "
-                    "without prior validation is a libsecp parity violation"
+                    "after strict parsing, compact BE r/s must be converted with "
+                    "scalar_be_to_internal into secp256k1_ecdsa_signature.data; "
+                    "direct BE storage breaks libbitcoin opaque-signature parity"
                 ),
             },
         ],

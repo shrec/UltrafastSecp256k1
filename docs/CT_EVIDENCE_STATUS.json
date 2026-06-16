@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Machine-readable constant-time (CT) evidence freshness + verdict-binding manifest (Bastion B14). Backs docs/CT_VERIFICATION.md / docs/CT_INDEPENDENCE.md and is gated by ci/check_ct_evidence_status.py (also audit_gate.py --ct-evidence-status, principle G-14). Each row binds a CT-sensitive surface to its committed evidence (CT primitive headers + audit regression tests), the verdict tools that establish the claim, a freshness SLO, and a severity. CAAS uses this to know which CT surfaces have current evidence, from which tools, and whether missing/stale/inconclusive evidence blocks or warns.",
+  "evaluation_model": {
+    "committed_evidence": "evidence_paths are committed (CT primitive source + audit regression tests) and are checked on every push (cheap): a blocking row fails if a path is missing or last_verified is stale/malformed.",
+    "tool_verdicts": "required_tools / optional_tools verdicts (ct-verif, valgrind-ct, dudect, ...) are produced by the heavy CT CI workflows and are NOT committed. The gate evaluates them only when a verdict directory is supplied (--verdict-dir, or the CT workflows). When evaluated: any required-tool FAIL or a single PASS + SKIP is INCONCLUSIVE (never silently PASS); a blocking row fails if its required_tools do not all PASS. When no verdicts are present (push CI), the tool dimension is reported as not_evaluated and only the committed-evidence + freshness dimension gates.",
+    "last_verified": "date the committed CT evidence for the surface was last touched/validated (git author date proxy). Tool verdicts carry their own commit/date inside the verdict JSON when evaluated."
+  },
+  "default_pre_alert_buffer_days": 14,
+  "severity_legend": {
+    "blocking": "Core secret-bearing CT path; missing/stale committed evidence fails the gate, and a FAIL/inconclusive required-tool verdict fails it when verdicts are evaluated.",
+    "warning": "CT path with a documented portability/residual caveat; staleness/missing is advisory + pre-alerted.",
+    "owner_gated": "CT surface whose verdicts are host-only (e.g. --gpu white-box) or otherwise owner-run; reported explicitly and never counted as current evidence on push."
+  },
+  "rows": [
+    {
+      "id": "CT-ECDSA-SIGN",
+      "surface": "ECDSA constant-time signing (ct_ecdsa_sign / ct::generator_mul / ct::scalar_inverse)",
+      "ct_claim": "Private key and nonce never branch or index memory data-dependently during ECDSA signing.",
+      "evidence_paths": [
+        "src/cpu/src/ct_sign.cpp",
+        "src/cpu/include/secp256k1/ct/sign.hpp",
+        "audit/test_regression_signing_ct_scalar_correctness.cpp",
+        "audit/test_exploit_ct_systematic.cpp"
+      ],
+      "required_tools": ["valgrind-ct", "ct-verif"],
+      "optional_tools": ["dudect", "cycle-ct", "ct-arm64"],
+      "arch_compiler": "x86-64 (gcc-14, clang-17); arm64 via ct-arm64",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-12",
+      "status": "pass",
+      "notes": "CT signing core. Deterministic CT authority is ct-verif + valgrind-ct (blocking CI workflows)."
+    },
+    {
+      "id": "CT-SCHNORR-SIGN",
+      "surface": "Schnorr (BIP-340) constant-time signing",
+      "ct_claim": "Schnorr signing nonce/secret arithmetic is constant-time; tagged-hash + nonce path branch-free on secrets.",
+      "evidence_paths": [
+        "src/cpu/src/schnorr.cpp",
+        "audit/test_regression_schnorr_ct_arithmetic.cpp"
+      ],
+      "required_tools": ["valgrind-ct", "ct-verif"],
+      "optional_tools": ["dudect"],
+      "arch_compiler": "x86-64 (gcc-14, clang-17)",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-12",
+      "status": "pass",
+      "notes": "Schnorr CT signing path."
+    },
+    {
+      "id": "CT-ECDSA-RECOVER-SIGN",
+      "surface": "recoverable ECDSA signing (recovery-id derivation must not branch on secrets)",
+      "ct_claim": "Recoverable signing derives the recovery id without secret-dependent branches.",
+      "evidence_paths": [
+        "src/cpu/src/recovery.cpp",
+        "audit/test_exploit_recoverable_sign_ct.cpp",
+        "audit/test_exploit_bug002_recovery_ct.cpp"
+      ],
+      "required_tools": ["valgrind-ct"],
+      "optional_tools": ["ct-verif", "dudect"],
+      "arch_compiler": "x86-64 (gcc-14, clang-17)",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-01",
+      "status": "pass",
+      "notes": "Recovery-id derivation CT (regressed by bug002)."
+    },
+    {
+      "id": "CT-KEYPAIR-SECKEY",
+      "surface": "keypair creation / secret-key -> pubkey paths (ct::generator_mul_blinded)",
+      "ct_claim": "Public-key derivation from a secret key is constant-time and rejects sk==0 / sk>=n in CT.",
+      "evidence_paths": [
+        "src/cpu/src/ct_sign.cpp",
+        "src/cpu/include/secp256k1/ct/sign.hpp",
+        "audit/test_regression_ct_secret_is_zero.cpp"
+      ],
+      "required_tools": ["valgrind-ct", "ct-verif"],
+      "optional_tools": ["dudect"],
+      "arch_compiler": "x86-64 (gcc-14, clang-17)",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-06-12",
+      "status": "pass",
+      "notes": "Secret-key -> pubkey CT derivation + zero-secret rejection."
+    },
+    {
+      "id": "CT-SCALAR-INVERSE",
+      "surface": "constant-time scalar inverse (ct::scalar_inverse)",
+      "ct_claim": "Scalar inversion is constant-time on platforms with __int128 (Bitcoin Core targets x86-64 / arm64).",
+      "evidence_paths": [
+        "src/cpu/include/secp256k1/ct/scalar.hpp",
+        "audit/test_regression_ct_scalar_inverse_zero.cpp"
+      ],
+      "required_tools": ["valgrind-ct"],
+      "optional_tools": ["ct-verif"],
+      "arch_compiler": "x86-64 / arm64 with __int128 (see residual RR-NEW-01)",
+      "freshness_days": 90,
+      "severity": "warning",
+      "last_verified": "2026-05-21",
+      "status": "pass",
+      "notes": "WARNING severity: documented residual RR-NEW-01 (RESIDUAL_RISK_REGISTER.md) — on platforms without __int128 (WASM, MSVC 32-bit) the fallback multiplication chain is variable-time; not a Bitcoin Core target."
+    },
+    {
+      "id": "CT-RFC6979-NONCE",
+      "surface": "nonce derivation / RFC 6979 deterministic path (fixed-iteration CT loop)",
+      "ct_claim": "RFC 6979 nonce derivation runs a fixed-iteration constant-time loop; no secret-dependent retry timing.",
+      "evidence_paths": [
+        "audit/test_regression_rfc6979_ct_loop.cpp",
+        "audit/test_exploit_ecdsa_rfc6979_kat.cpp"
+      ],
+      "required_tools": ["valgrind-ct", "ct-verif"],
+      "optional_tools": ["dudect"],
+      "arch_compiler": "x86-64 (gcc-14, clang-17)",
+      "freshness_days": 90,
+      "severity": "blocking",
+      "last_verified": "2026-05-21",
+      "status": "pass",
+      "notes": "Fixed 2-iteration CT nonce loop (hedged + deterministic)."
+    },
+    {
+      "id": "CT-GPU-PUBLIC-DATA-BOUNDARY",
+      "surface": "CT vs variable-time boundary on GPU (verify = public data; GPU CT-uniformity is host-only)",
+      "ct_claim": "GPU verify kernels operate on public data (variable-time is correct); secret-bearing GPU paths are warp-uniform / branchless, validated by host-only --gpu gates.",
+      "evidence_paths": [
+        "docs/CT_VERIFICATION.md",
+        "ci/check_ct_branches.py",
+        "ci/check_gpu_ct_uniformity.py"
+      ],
+      "required_tools": [],
+      "optional_tools": ["gpu-ct-uniformity", "check-ct-branches"],
+      "arch_compiler": "GPU (CUDA/OpenCL/Metal); white-box ncu requires a --gpu host",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-06-11",
+      "status": "owner_gated",
+      "notes": "Verify paths are public-data (variable-time correct by design). The white-box GPU CT-uniformity gate (check_gpu_ct_uniformity.py) is host-only (--gpu) and owner-run; the static branch lint (check_ct_branches.py) runs in CI. Never counted as current verdict evidence on push."
+    }
+  ]
+}

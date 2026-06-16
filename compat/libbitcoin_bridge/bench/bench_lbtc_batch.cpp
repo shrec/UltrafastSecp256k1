@@ -5,7 +5,9 @@
  * Measures verifications/second for a large homogeneous batch on whichever
  * backends are available (GPU if built + present, and the CPU reference). This
  * mirrors the IBD use case: a big array of (sig, key, sighash) triples verified
- * in one call. Correctness is asserted (all-valid batch + single-corruption
+ * in one call. ECDSA records use copied libsecp256k1_ecdsa_signature storage,
+ * not compact R||S, so the timed row path matches libbitcoin's ec_signature
+ * table shape. Correctness is asserted (all-valid batch + single-corruption
  * detection) before any timing, so reported numbers are for a verified-correct
  * path.
  *
@@ -56,7 +58,12 @@ int main(int argc, char** argv) {
         if (ufsecp_pubkey_create(sctx, sk, pub) != UFSECP_OK) { std::printf("keygen fail\n"); return 1; }
         uint8_t* er = e_pool.data() + i * UFSECP_LBTC_ECDSA_RECORD;
         std::memcpy(er, msg, 32); std::memcpy(er + 32, pub, 33);
-        if (ufsecp_ecdsa_sign(sctx, msg, sk, er + 65) != UFSECP_OK) { std::printf("ecdsa sign fail\n"); return 1; }
+        uint8_t compact_sig[64];
+        if (ufsecp_ecdsa_sign(sctx, msg, sk, compact_sig) != UFSECP_OK) { std::printf("ecdsa sign fail\n"); return 1; }
+        if (ufsecp_ecdsa_sig_compact_to_opaque(sctx, compact_sig, er + 65) != UFSECP_OK) {
+            std::printf("ecdsa opaque conversion fail\n");
+            return 1;
+        }
         uint8_t* sr = s_pool.data() + i * UFSECP_LBTC_SCHNORR_RECORD;
         std::memcpy(sr, msg, 32); std::memcpy(sr + 32, pub + 1, 32); /* msg | xonly */
         if (ufsecp_schnorr_sign(sctx, msg, sk, aux, sr + 64) != UFSECP_OK) { std::printf("schnorr sign fail\n"); return 1; }
@@ -105,20 +112,20 @@ int main(int argc, char** argv) {
         /* correctness gate before timing — failures come from results[] (the
          * bridge returns void; the caller counts invalids itself). */
         auto count_invalid = [&]() { size_t c = 0; for (auto v : results) if (!v) ++c; return c; };
-        ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data());
+        ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
         bool ok = (count_invalid() == 0);
         {
             auto saved = e_rows[65]; e_rows[65] ^= 0x01;  // corrupt row 0 sig
-            ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_ecdsa(ctrl, e_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             ok = ok && (count_invalid() >= 1) && (results[0] == 0);
             e_rows[65] = saved;
         }
         /* schnorr correctness gate (mirrors ecdsa; sig byte at record offset 64) */
         {
-            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             bool sok = (count_invalid() == 0);
             auto saved = s_rows[64]; s_rows[64] ^= 0x01;  // corrupt row 0 sig
-            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data());
+            ufsecp_lbtc_verify_schnorr(ctrl, s_rows.data(), BATCH, 0, results.data(), nullptr, 0, nullptr);
             sok = sok && (count_invalid() >= 1) && (results[0] == 0);
             s_rows[64] = saved;
             ok = ok && sok;
@@ -148,11 +155,11 @@ int main(int argc, char** argv) {
         if (!ok) { ufsecp_lbtc_ctrl_destroy(ctrl); continue; }
 
         auto bench = [&](const char* kind, auto verify, const std::vector<uint8_t>& rows) {
-            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data()); // warmup
+            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr); // warmup
             double best = 1e30;
             for (int it = 0; it < ITERS; ++it) {
                 auto t0 = clock_t_::now();
-                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data());
+                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr);
                 double dt = secs_since(t0);
                 if (dt < best) best = dt;
             }

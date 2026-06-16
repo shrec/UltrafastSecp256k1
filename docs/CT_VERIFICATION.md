@@ -1,5 +1,18 @@
 # Constant-Time Verification
 
+> **Freshness-gated (Bastion B14).** The CT claims in this document are bound to
+> machine-readable evidence in [`docs/CT_EVIDENCE_STATUS.json`](CT_EVIDENCE_STATUS.json)
+> and gated by [`ci/check_ct_evidence_status.py`](../ci/check_ct_evidence_status.py)
+> (also `audit_gate.py --ct-evidence-status`, principle **G-14**). Each CT surface
+> (ECDSA / Schnorr / recoverable signing, keypair/secret-key, scalar inverse,
+> RFC 6979 nonce, GPU public-data boundary) binds to committed evidence (CT
+> primitive headers + audit regression tests) plus the verdict tools that
+> establish the claim. On every push the committed-evidence + freshness dimension
+> is checked (cheap); the heavy tool verdicts (ct-verif / valgrind-ct / dudect)
+> are evaluated when supplied via `--verdict-dir` (CI workflows), where a
+> required-tool FAIL or a single PASS + SKIP is **inconclusive, never a pass**.
+> Run: `python3 ci/check_ct_evidence_status.py --json`.
+
 ### 2026-06-01 ct_sign.cpp — variable-length Schnorr CT sign overload (SHIM-001 restore)
 
 - **`src/cpu/src/ct_sign.cpp`**: added a variable-length overload
@@ -480,7 +493,7 @@ The OpenCL CT layer mirrors the CUDA CT implementation with OpenCL-native barrie
 - `value_barrier()` via inline OpenCL `asm volatile` or volatile loads
 - Branchless masks and conditional moves on all secret-dependent paths
 - CT scalar multiplication with fixed iteration count (GLV + signed-digit)
-- Audited via `opencl_audit_runner` ( 418 modules including CT sections)
+- Audited via `opencl_audit_runner` ( 428 modules including CT sections)
 
 ### Metal CT Layer
 
@@ -493,7 +506,7 @@ src/metal/shaders/
 The Metal CT layer uses Metal Shading Language (MSL) with:
 - `value_barrier()` via threadgroup memory fence pattern
 - Identical algorithms to CUDA/OpenCL CT layers
-- Audited via `metal_audit_runner` ( 418 modules including CT sections)
+- Audited via `metal_audit_runner` ( 428 modules including CT sections)
 
 ---
 
@@ -754,8 +767,8 @@ fixed iteration counts. All three GPU backends implement identical CT algorithms
 
 The GPU CT layers are tested via:
 - **CUDA**: `test_ct_smoke` (9 functional tests) + GPU audit runner (Section S6: CT Analysis)
-- **OpenCL**: `opencl_audit_runner` ( 418 modules including CT signing + CT ZK sections)
-- **Metal**: `metal_audit_runner` ( 418 modules including CT signing + CT ZK sections)
+- **OpenCL**: `opencl_audit_runner` ( 428 modules including CT signing + CT ZK sections)
+- **Metal**: `metal_audit_runner` ( 428 modules including CT signing + CT ZK sections)
 
 ### 5. Experimental Protocols
 

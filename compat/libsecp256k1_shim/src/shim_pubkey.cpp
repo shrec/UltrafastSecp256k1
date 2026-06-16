@@ -95,7 +95,6 @@ int secp256k1_ec_pubkey_parse(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ec_pubkey_parse: input is NULL");
         return 0;
     }
-
     // Decompression cache: on a repeated pubkey, return the stored 64-byte data
     // and skip the parse (compressed path's sqrt is the hot cost). Computes the
     // slot index / fingerprint once; reused by put() on a miss.
@@ -108,6 +107,8 @@ int secp256k1_ec_pubkey_parse(
             return 1;
         }
     }
+
+    std::memset(pubkey->data, 0, sizeof(pubkey->data));
 
     if (inputlen == 33) {
         // Compressed: 02/03 || X

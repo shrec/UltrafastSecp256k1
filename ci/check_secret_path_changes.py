@@ -51,6 +51,50 @@ SECRET_ABI_FILES = {
 }
 
 
+def _git_diff_names(ref: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "diff", "--name-only", f"{ref}..HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=str(LIB_ROOT),
+        check=False,
+    )
+
+
+def _fetch_ref(ref: str) -> subprocess.CompletedProcess[str]:
+    if ref.startswith("origin/"):
+        branch = ref.split("/", 1)[1]
+        fetch_ref = f"{branch}:refs/remotes/origin/{branch}"
+    else:
+        fetch_ref = ref
+    return subprocess.run(
+        ["git", "fetch", "--no-tags", "--depth=1", "origin", fetch_ref],
+        capture_output=True,
+        text=True,
+        cwd=str(LIB_ROOT),
+        check=False,
+    )
+
+
+def _changed_files_from_ref(ref: str) -> tuple[list[str] | None, str | None]:
+    result = _git_diff_names(ref)
+    if result.returncode != 0:
+        fetch = _fetch_ref(ref)
+        if fetch.returncode == 0:
+            result = _git_diff_names(ref)
+    if result.returncode != 0:
+        return None, (
+            f"'git diff {ref}..HEAD' failed (rc={result.returncode}): "
+            f"{result.stderr.strip()}"
+        )
+    changed = sorted(
+        line.strip()
+        for line in result.stdout.splitlines()
+        if line.strip()
+    )
+    return changed, None
+
+
 def get_changed_files(base: str | None = None, before_sha: str | None = None) -> list[str]:
     changed = set()
 
@@ -60,32 +104,37 @@ def get_changed_files(base: str | None = None, before_sha: str | None = None) ->
         # Prefer before_sha on push events: it points at the commit just before
         # the push, so diff is non-empty even when origin/dev already equals HEAD.
         # Fall back to base (branch ref) for PRs and local runs.
+        refs: list[tuple[str, str]] = []
         if before_sha and len(before_sha) == 40 and not all(c == "0" for c in before_sha):
-            ref = before_sha
-        else:
-            ref = base
-        cmd = ["git", "diff", "--name-only", f"{ref}..HEAD"]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=str(LIB_ROOT), check=False
+            refs.append(("before-sha", before_sha))
+        if base:
+            refs.append(("base", base))
+
+        errors = []
+        for label, ref in refs:
+            files, error = _changed_files_from_ref(ref)
+            if files is not None:
+                if errors:
+                    sys.stderr.write(
+                        "::warning::check_secret_path_changes: "
+                        f"falling back to {label} ref {ref}; "
+                        f"previous ref failed: {errors[-1]}\n"
+                    )
+                return files
+            errors.append(error or f"{label} ref {ref} failed")
+
+        # CAAS-06 fix: previously the returncode was ignored. A failed `git diff`
+        # (unresolvable ref, shallow clone, missing before-sha) produced empty
+        # stdout, so the gate saw "no files changed" and PASSED — fail-open, even
+        # if a secret-bearing file was modified. Fail closed only after every
+        # available ref fails; force-push before-sha expiry may safely fall back to
+        # the base ref, which is conservative and still non-empty for protected CI.
+        sys.stderr.write(
+            "::error::check_secret_path_changes: could not determine changed files.\n"
+            + "\n".join(f"  - {err}" for err in errors)
+            + "\nEnsure the base / before-sha ref is fetched or reachable.\n"
         )
-        if result.returncode != 0:
-            # CAAS-06 fix: previously the returncode was ignored. A failed `git diff`
-            # (unresolvable ref, shallow clone, missing before-sha) produced empty
-            # stdout, so the gate saw "no files changed" and PASSED — fail-open, even
-            # if a secret-bearing file was modified. Fail closed: when the change set
-            # cannot be determined, the secret-path gate must NOT silently pass.
-            sys.stderr.write(
-                f"::error::check_secret_path_changes: 'git diff {ref}..HEAD' failed "
-                f"(rc={result.returncode}): {result.stderr.strip()}\n"
-                "Cannot determine changed files — failing closed. Ensure the base / "
-                "before-sha ref is fetched (actions/checkout fetch-depth: 0).\n"
-            )
-            raise SystemExit(2)
-        for line in result.stdout.splitlines():
-            line = line.strip()
-            if line:
-                changed.add(line)
-        return sorted(changed)
+        raise SystemExit(2)
 
     # Local fallback: staged + unstaged changes relative to HEAD.
     for command in [

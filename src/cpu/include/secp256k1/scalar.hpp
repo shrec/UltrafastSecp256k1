@@ -34,6 +34,12 @@ public:
     static bool parse_bytes_strict_nonzero(const std::uint8_t* bytes32, Scalar& out) noexcept;
     static bool parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& bytes, Scalar& out) noexcept;
 
+    // Strict parse of a LITTLE-ENDIAN 32-byte scalar (the opaque internal limb
+    // form, e.g. secp256k1_ecdsa_signature.data). Same overflow contract as
+    // parse_bytes_strict (reject >= n) but loads the LE limbs directly — no
+    // byte-reversal round-trip. Use on the verify hot path for opaque r/s.
+    static bool parse_bytes_strict_le(const std::uint8_t* le32, Scalar& out) noexcept;
+
     // Developer-friendly: Create from hex string (64 hex chars)
     // Example: Scalar::from_hex("fffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140")
     static Scalar from_hex(const std::string& hex);

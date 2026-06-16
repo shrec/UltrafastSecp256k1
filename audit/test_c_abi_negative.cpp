@@ -415,6 +415,43 @@ static void run_neg4_ecdsa(ufsecp_ctx* ctx, const uint8_t* valid_sig64,
            CHECK(ufsecp_pubkey_create(ctx, VALID_KEY2, pubkey2) != UFSECP_OK, "NEG-4.14: skipped (pubkey2 derivation failed)");
     }
 
+    uint8_t opaque[64] = {};
+    CHECK_CODE(ufsecp_ecdsa_sig_compact_to_opaque(ctx, valid_sig64, opaque),
+               UFSECP_OK,
+               "NEG-4.14a: compact_to_opaque(valid) -> OK");
+    CHECK_CODE(ufsecp_ecdsa_sig_compact_to_opaque(ctx, nullptr, opaque),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14b: compact_to_opaque(null_sig) -> NULL_ARG");
+    CHECK_CODE(ufsecp_ecdsa_sig_opaque_to_compact(ctx, nullptr, sig_out),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14c: opaque_to_compact(null_sig) -> NULL_ARG");
+    CHECK_CODE(ufsecp_ecdsa_sig_opaque_to_compact(ctx, ZERO_SIG64, sig_out),
+               UFSECP_ERR_BAD_SIG,
+               "NEG-4.14d: opaque_to_compact(zero_sig) -> BAD_SIG");
+    CHECK_CODE(ufsecp_ecdsa_sig_normalize_opaque(ctx, ZERO_SIG64, opaque, nullptr),
+               UFSECP_ERR_BAD_SIG,
+               "NEG-4.14e: normalize_opaque(zero_sig) -> BAD_SIG");
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque(ctx, nullptr, opaque, pubkey33),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14f: verify_opaque(null_msg) -> NULL_ARG");
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque(ctx, MSG32, ZERO_SIG64, pubkey33),
+               UFSECP_ERR_BAD_SIG,
+               "NEG-4.14g: verify_opaque(zero_sig) -> BAD_SIG");
+    uint8_t verdict[1] = {};
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_batch(ctx, nullptr, pubkey33, opaque, 1, verdict),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14h: verify_opaque_batch(null_msgs) -> NULL_ARG");
+    uint8_t row[129] = {};
+    std::memcpy(row, MSG32, 32);
+    std::memcpy(row + 32, pubkey33, 33);
+    std::memcpy(row + 65, opaque, 64);
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows(ctx, row, 128, 1, verdict),
+               UFSECP_ERR_BAD_INPUT,
+               "NEG-4.14i: verify_opaque_rows(stride<129) -> BAD_INPUT");
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows(ctx, nullptr, 129, 1, verdict),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14j: verify_opaque_rows(null_rows) -> NULL_ARG");
+
     // sig_to_der: null ctx
     uint8_t der[72] = {};
     size_t der_len = sizeof(der);

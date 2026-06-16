@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Runtime cross-backend value-differential coverage ledger. ci/check_backend_parity.py is a SOURCE gate — it catches copy-paste divergence in the kernel text. It CANNOT see a value divergence: a GPU kernel that compiles fine but computes a DIFFERENT result than the CPU on the same input (a porting bug, a precision/carry difference, an endianness flip). The only thing that catches that is running the SAME input through CPU and GPU at runtime and asserting byte-identical outputs. This ledger lists each GPU-accelerated op that must have such a runtime CPU<->GPU value-differential probe, and (when covered) the audit module that performs it. Enforced by ci/check_backend_value_differential.py.",
+  "methodology": "Feed identical inputs to the CPU reference and each GPU backend; assert byte-exact equality of the serialized outputs (signatures, points, field/scalar limbs, scan results). Any per-element mismatch is a backend value-divergence. The byte comparator is the verified detector; the LIVE run is advisory (needs a GPU — skipped on no-GPU CI runners).",
+  "ops": [
+    {
+      "id": "gpu-cpu-algebraic-consistency",
+      "op": "point/field/scalar arithmetic + ECDSA/Schnorr verify (GPU kernels vs CPU)",
+      "claim": "Every GPU algebraic kernel returns byte-identical results to the CPU reference on the same input (group law, GLV, multiscalar, verify).",
+      "probe_module": "exploit_gpu_cpu_divergence",
+      "probe_run_symbol": "test_exploit_gpu_cpu_divergence_run",
+      "status": "covered",
+      "ref": ""
+    },
+    {
+      "id": "backend-recoverable-tamper-batch",
+      "op": "recoverable sign/verify, tamper detection, batch verify (cross-backend)",
+      "claim": "Recoverable-sig recid, tamper rejection and batch-verify verdicts agree across backends bit-for-bit.",
+      "probe_module": "exploit_backend_divergence",
+      "probe_run_symbol": "test_exploit_backend_divergence_run",
+      "status": "covered",
+      "ref": ""
+    },
+    {
+      "id": "gpu-zk-bulletproof-polycheck",
+      "op": "Bulletproof range-proof polynomial check (CPU prover -> GPU verify)",
+      "claim": "A valid CPU-produced range proof verifies on the GPU (verdict 1); a tampered scalar is rejected (verdict 0) — the GPU verdict matches the CPU verdict.",
+      "probe_module": "gpu_zk_prove_verify_differential",
+      "probe_run_symbol": "test_gpu_zk_prove_verify_differential_run",
+      "status": "covered",
+      "ref": ""
+    },
+    {
+      "id": "gpu-bip352-scan-value-differential",
+      "op": "BIP-352 silent-payment scan (GPU scan kernel vs CPU scanner)",
+      "claim": "GPU scan returns the same set of matched outputs and shared secrets as the CPU scanner on the same tweak/output set, byte-for-byte.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "gpu-batch-sign-value-differential",
+      "op": "GPU batch ECDSA/Schnorr signing (GPU kernel vs CPU CT signer)",
+      "claim": "For a fixed nonce-derivation input, GPU batch signing produces the same (r,s) / (R,s) as the CPU CT signer — exhaustive per-slot byte equality.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    }
+  ]
+}

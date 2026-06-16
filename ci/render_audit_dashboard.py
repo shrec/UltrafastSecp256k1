@@ -281,9 +281,73 @@ def _format_evidence_bundle(
             gen_at = bundle.get('generated_at', bundle.get('timestamp', ''))
             if gen_at:
                 lines.append(f'**Generated at:** {gen_at}')
+            # Bastion B4: state plainly whether the committed bundle reflects the
+            # current commit. The committed bundle is a historical baseline; the
+            # strict current-run evidence is regenerated in CI. Reviewers must be
+            # able to tell at a glance whether the on-disk bundle matches HEAD.
+            bundle_commit = str((bundle.get('git') or {}).get('commit', ''))
+            head = ''
+            try:
+                res = subprocess.run(['git', 'rev-parse', 'HEAD'],
+                                     cwd=str(REPO_ROOT), capture_output=True,
+                                     text=True, timeout=15, check=False)
+                if res.returncode == 0:
+                    head = res.stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                head = ''
+            if bundle_commit and head:
+                if bundle_commit == head:
+                    status = f'CURRENT (matches HEAD `{head[:12]}`)'
+                else:
+                    status = (f'HISTORICAL BASELINE — bundle commit `{bundle_commit[:12]}` '
+                              f'≠ HEAD `{head[:12]}`; regenerate for strict current-run evidence '
+                              f'(`ci/external_audit_bundle.py`)')
+                lines.append(f'**Commit vs HEAD:** {status}')
+            elif bundle_commit:
+                lines.append(f'**Bundle commit:** `{bundle_commit[:12]}` (HEAD unavailable)')
         else:
             lines.append('**Bundle JSON:** _(parse error)_')
 
+    return '\n'.join(lines)
+
+
+def _format_ct_independence(workflow_path: Path) -> str:
+    """Bastion B11: summarise the constant-time independence posture — how many
+    independent CT tools are configured, the ≥N-tools fail-closed rule, the gate,
+    and where the live verdicts live."""
+    import re
+    lines: list[str] = []
+    if not workflow_path.exists():
+        return '_`.github/workflows/ct-independence.yml` not present._'
+    text = workflow_path.read_text(encoding='utf-8', errors='replace')
+    tools = sorted(set(re.findall(r'ct-verdict-([a-z0-9_-]+)\.json', text)))
+    m = re.search(r'--min-tools\s+(\d+)', text)
+    min_tools = m.group(1) if m else '2'
+
+    lines.append(f'**Independent CT tools configured:** {len(tools)}'
+                 + (f' — {", ".join(tools)}' if tools else ''))
+    lines.append(f'**Independence rule:** ≥ {min_tools} distinct PASS required. A single PASS with '
+                 f'the other tool(s) SKIP is reported **INCONCLUSIVE (exit 2), never PASS** — '
+                 f'fail-closed (negative-fixture proven in `ci/test_audit_scripts.py`).')
+    lines.append('**Gate:** `ci/ct_independence_check.py` consumes per-tool verdict JSON artifacts; '
+                 'the deterministic CT authority is ct-verif / valgrind-ct (blocking).')
+    lines.append('**Live verdicts:** `ct-verdict-*.json` are produced by `ct-independence.yml` and '
+                 'retained as CI artifacts (30-day retention); they are not committed to the tree.')
+
+    # Bastion B14: CT evidence freshness manifest summary.
+    status_path = REPO_ROOT / 'docs' / 'CT_EVIDENCE_STATUS.json'
+    manifest = _load_json(status_path)
+    if manifest and isinstance(manifest.get('rows'), list):
+        rows = manifest['rows']
+        by_sev = {'blocking': 0, 'warning': 0, 'owner_gated': 0}
+        for r in rows:
+            by_sev[r.get('severity', '')] = by_sev.get(r.get('severity', ''), 0) + 1
+        owner = [r['id'] for r in rows if r.get('severity') == 'owner_gated']
+        lines.append(f'**CT evidence surfaces (G-14):** {len(rows)} tracked — '
+                     f"{by_sev.get('blocking', 0)} blocking, {by_sev.get('warning', 0)} warning, "
+                     f"{by_sev.get('owner_gated', 0)} owner-gated "
+                     f'(`docs/CT_EVIDENCE_STATUS.json`, gated by `ci/check_ct_evidence_status.py`).'
+                     + (f' Owner-gated (not current evidence): {", ".join(owner)}.' if owner else ''))
     return '\n'.join(lines)
 
 
@@ -402,6 +466,9 @@ def render(profile: str = "default") -> str:
     bundle_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.json'
     digest_path = REPO_ROOT / 'docs' / 'EXTERNAL_AUDIT_BUNDLE.sha256'
     out.append(_format_evidence_bundle(bundle_path, digest_path))
+
+    out.append(_section('Constant-Time Independence'))
+    out.append(_format_ct_independence(REPO_ROOT / '.github' / 'workflows' / 'ct-independence.yml'))
 
     out.append(_section('Residual Risk Register (snapshot)'))
     out.append(_format_residual(REPO_ROOT / 'docs' / 'RESIDUAL_RISK_REGISTER.md'))

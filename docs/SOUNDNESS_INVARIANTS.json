@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Soundness-coverage ledger. Every cryptographic verify/proof function declares its SECURITY INVARIANT (what 'verify==OK' must imply) and a NEGATIVE-SOUNDNESS probe: a test that forges an input VIOLATING the invariant and asserts the verifier REJECTS it. A function with a claim but no wired probe is a potential hole of the GHSA-c7q2 class (a verifying-but-unsound input that every positive roundtrip test misses). Enforced by ci/check_soundness_coverage.py.",
+  "methodology": "Invert the invariant: do not test that correct inputs are accepted (roundtrip) — test that INCORRECT inputs are blocked. If the system cannot block the wrong case, that is the hole.",
+  "invariants": [
+    {
+      "id": "adaptor-ecdsa-dleq-binding",
+      "protocol": "ECDSA adaptor signature",
+      "verify_function": "ecdsa_adaptor_verify",
+      "claim": "verify==OK => log_G(R_hat) == log_T(R): the pre-signature's two nonce points share the same secret k, so r=R.x is bound to the adaptor base T and the pre-signature is adaptable.",
+      "forge": "Construct R_hat=k1*G, R=k2*T with k1!=k2 that still satisfies r==R.x AND the ECDSA relation s_hat*R_hat==z*G+r*P (choose s_hat=(z+r*x)*k1^-1). Only the Chaum-Pedersen DLEQ can reject it.",
+      "probe_module": "soundness_adaptor_dleq_forgery",
+      "probe_run_symbol": "test_soundness_adaptor_dleq_forgery_run",
+      "status": "covered",
+      "ref": "GHSA-c7q2-gv3g-rgxm"
+    },
+    {
+      "id": "dleq-standalone-binding",
+      "protocol": "standalone Chaum-Pedersen DLEQ (zk::dleq_verify)",
+      "verify_function": "dleq_verify",
+      "claim": "verify==OK => log_G(P) == log_H(Q): the prover knows a single x with P=x*G and Q=x*H.",
+      "forge": "Construct P=x1*G, Q=x2*H with x1!=x2 and any (e,s); a sound verifier recomputes e'=H(G,H,P,Q,R1,R2) and rejects (e'!=e).",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "zk-knowledge-pok-soundness",
+      "protocol": "Schnorr proof-of-knowledge (zk::knowledge_verify)",
+      "verify_function": "knowledge_verify",
+      "claim": "verify==OK => the prover knows the discrete log x of the public point P=x*base.",
+      "forge": "A proof (rx, s) for a P whose discrete log the forger does not know must fail s*base - e*P reconstructing to rx with even Y.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "schnorr-adaptor-binding",
+      "protocol": "Schnorr adaptor signature",
+      "verify_function": "schnorr_adaptor_verify",
+      "claim": "verify==OK => adapt(pre, t) yields a valid BIP-340 signature for T=t*G, and extract(pre, full) recovers t.",
+      "forge": "Pre-signature whose R_hat/T relationship is inconsistent with the challenge e=H((R_hat+T).x||P.x||m) must fail s*G==R_hat+e*P.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "musig2-partial-binding",
+      "protocol": "MuSig2 partial signature",
+      "verify_function": "musig2_partial_verify",
+      "claim": "verify==OK => s_i*G == R_i + b*R2_i + e*a_i*g*gacc*P_i, binding the partial sig to (aggnonce, aggpk, msg) so the Wagner/ROS forgery cannot complete.",
+      "forge": "Partial sig with a nonce/binding-coefficient not derived from H('MuSig/noncecoef', R1||R2||Q_x||msg) must be rejected.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "frost-partial-binding",
+      "protocol": "FROST partial signature",
+      "verify_function": "frost_verify_partial",
+      "claim": "verify==OK => z_i*G == R_i + lambda_i*e*Y_i, binding z_i to the group commitment R, verification share Y_i, Lagrange coeff and message.",
+      "forge": "Partial sig with a binding factor rho_i not derived from the full commitment list, or an absent-signer share, must be rejected.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    },
+    {
+      "id": "range-proof-soundness",
+      "protocol": "Bulletproof range proof",
+      "verify_function": "range_verify",
+      "claim": "verify==OK => the Pedersen-committed value lies in [0, 2^n): a prover cannot prove a commitment to an out-of-range value.",
+      "forge": "A proof for a commitment to value >= 2^n (or negative) must be rejected; also fuzz the Fiat-Shamir transcript (see kb BP-FS-IP-CHAIN).",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "BP-FS-IP-CHAIN"
+    },
+    {
+      "id": "ecdsa-snark-witness-attestation",
+      "protocol": "ECDSA-in-SNARK foreign-field witness (eprint 2025/695)",
+      "verify_function": "ecdsa_snark_witness",
+      "claim": "witness.valid==1 IFF the canonical verifier accepts the same (msg,pubkey,r,s). A SNARK circuit consumes witness.valid as ground truth, so a verifying-but-unsound witness (valid==1 where ecdsa_verify rejects) lets a prover attest an invalid signature — the GHSA-c7q2 shape applied to attestations. The witness reimplements the verify equation (rx_mod_n==r) instead of calling the audited verifier.",
+      "forge": "Drive witness.valid against ufsecp_ecdsa_verify across adversarial inputs (tampered s/r, high-s malleable, wraparound r in [n,p), off-curve pubkey at the ABI). valid==1 must IMPLY verify==OK; any divergence is unsound.",
+      "probe_module": "soundness_snark_witness_attestation",
+      "probe_run_symbol": "test_soundness_snark_witness_attestation_run",
+      "status": "covered",
+      "ref": "eprint 2025/695; GHSA-c7q2-gv3g-rgxm class"
+    },
+    {
+      "id": "schnorr-snark-witness-attestation",
+      "protocol": "BIP-340 Schnorr-in-SNARK foreign-field witness",
+      "verify_function": "schnorr_snark_witness",
+      "claim": "witness.valid==1 IFF schnorr_verify accepts the same (msg,pubkey_x,sig). The witness parses sig_r via FieldElement::from_bytes (silent mod-p reduce) where canonical schnorr_verify rejects r>=p, so a non-canonical encoding must not be attested valid when the network rejects it.",
+      "forge": "Drive witness.valid against ufsecp_schnorrsig_verify across adversarial inputs (r>=p non-canonical, s>=n, s==0, tampered r, off-curve pub_x). valid==1 must IMPLY verify==OK.",
+      "probe_module": "soundness_snark_witness_attestation",
+      "probe_run_symbol": "test_soundness_snark_witness_attestation_run",
+      "status": "covered",
+      "ref": "BIP-340; GHSA-c7q2-gv3g-rgxm class"
+    },
+    {
+      "id": "taproot-commitment-binding",
+      "protocol": "BIP-341 Taproot output-key commitment",
+      "verify_function": "taproot_verify_commitment",
+      "claim": "verify==OK => Q == P + H_TapTweak(P || merkle_root)*G: the output key commits to exactly this internal key and script tree, so a different tree cannot reuse the output key.",
+      "forge": "A commitment opening to a different merkle_root / internal key for the same output key Q must be rejected; parity/x-only confusion on Q must not validate.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "BIP-341 (surfaced 2026-06-11 by self-deriving soundness scope)"
+    },
+    {
+      "id": "pedersen-commitment-binding",
+      "protocol": "Pedersen commitment open/verify",
+      "verify_function": "pedersen_verify",
+      "claim": "verify==OK => the commitment C opens to exactly (value, blinding): C == value*G + blinding*H. Binding must hold under the discrete-log assumption between G and H (no second opening).",
+      "forge": "A second opening (value', blinding') != (value, blinding) for the same C must be rejected; a forged H with known dlog to G would break binding (check H is the nothing-up-my-sleeve generator).",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "surfaced 2026-06-11 by self-deriving soundness scope"
+    },
+    {
+      "id": "pedersen-sum-balance",
+      "protocol": "Pedersen commitment sum/balance",
+      "verify_function": "pedersen_verify_sum",
+      "claim": "verify==OK => sum(inputs) == sum(outputs) in committed value: the homomorphic balance holds, so value cannot be created or destroyed across a transaction.",
+      "forge": "A set of commitments whose committed values do NOT balance (an inflation/burn) but whose blinding factors are chosen to make the points sum to zero must be rejected.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "surfaced 2026-06-11 by self-deriving soundness scope"
+    }
+  ]
+}

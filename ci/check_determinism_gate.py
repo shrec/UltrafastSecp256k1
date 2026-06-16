@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -77,6 +78,7 @@ def run(lib_path: Optional[str], repeat: int, json_mode: bool, out_file: Optiona
     except Exception as exc:
         issues.append(f"load_library_failed: {exc}")
         report = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "library": lib_path,
             "repeat": repeat,
             "overall_pass": False,
@@ -164,6 +166,7 @@ def run(lib_path: Optional[str], repeat: int, json_mode: bool, out_file: Optiona
                 issues.append(f"bip32_nondeterministic:{path}")
 
     report = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "library": resolved,
         "repeat": repeat,
         "overall_pass": len(issues) == 0,

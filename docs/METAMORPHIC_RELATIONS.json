@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Metamorphic-relation coverage ledger — the POSITIVE complement to docs/SOUNDNESS_INVARIANTS.json. A soundness probe forges a VIOLATING input and asserts rejection; a metamorphic probe asserts an ALGEBRAIC RELATION that must be preserved across a protocol transformation (e.g. adapt then extract recovers the witness; aggregating partial signatures equals a single-key signature; commitments are homomorphic). A roundtrip test proves one happy path; a metamorphic relation pins the STRUCTURE of the transform across the input family, catching structural breaks that a single honest roundtrip cannot. Enforced by ci/check_metamorphic_coverage.py.",
+  "methodology": "For each transform F (and its inverse/companion G), state an identity that must hold for ALL valid inputs — not 'one sign/verify works' but 'extract(pre, adapt(pre,t)) == +/-t for every t', 'verify(adapt(pre,t))', 'commit(a)+commit(b)==commit(a+b)'. A bug that breaks the correspondence escapes roundtrip tests but breaks the relation.",
+  "relations": [
+    {
+      "id": "adaptor-adapt-extract-correspondence",
+      "protocol": "ECDSA adaptor signature (C++ API)",
+      "transform": "adapt(pre, t) -> full sig ; extract(pre, full) -> witness",
+      "relation": "ecdsa_verify(m,P,adapt(pre,t)); extract(pre,adapt(pre,t)) == +/-t; adapt preserves r; pre-sig is not a valid plain sig; adapt is deterministic; distinct adaptors recover distinct witnesses (no crossover).",
+      "probe_module": "metamorphic_adaptor",
+      "probe_run_symbol": "test_metamorphic_adaptor_run",
+      "status": "covered",
+      "ref": "GHSA-c7q2-gv3g-rgxm (positive complement to soundness_adaptor_dleq_forgery)"
+    },
+    {
+      "id": "pedersen-additive-homomorphism",
+      "protocol": "Pedersen commitment",
+      "transform": "commit(v, r) = v*G + r*H",
+      "relation": "commit(v1,r1) + commit(v2,r2) == commit(v1+v2, r1+r2): the commitment map is a group homomorphism (the property confidential-transaction value balancing relies on).",
+      "probe_module": "exploit_pedersen_homomorphism",
+      "probe_run_symbol": "test_exploit_pedersen_homomorphism_run",
+      "status": "covered",
+      "ref": ""
+    },
+    {
+      "id": "musig2-aggregate-single-equivalence",
+      "protocol": "MuSig2 multi-signature",
+      "transform": "aggregate(partial_sign_i for i in signers) -> BIP-340 sig under aggregate pubkey Q",
+      "relation": "An n-of-n MuSig2 aggregate signature verifies under Q exactly as a single BIP-340 signature would under a key whose secret is the (key-aggregation-weighted) sum of the signer secrets: schnorr_verify(Q_x, m, aggregate(...)). Multi-party signing is observationally equivalent to single-key signing on the aggregate key.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "BIP-327"
+    },
+    {
+      "id": "frost-threshold-reconstruction-equivalence",
+      "protocol": "FROST threshold signature",
+      "transform": "any t-of-n quorum -> group signature under group pubkey Y",
+      "relation": "Any authorized t-of-n quorum reconstructs a signature that verifies under the SAME group key Y, independent of which t signers participated: the Lagrange-weighted aggregate is invariant to the participating subset. schnorr_verify(Y_x, m, sig) holds for every valid quorum.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "FROST (ePrint 2020/852)"
+    }
+  ]
+}

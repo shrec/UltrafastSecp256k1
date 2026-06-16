@@ -11,6 +11,7 @@
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/sha256.hpp"
 #include "secp256k1/debug_invariants.hpp"
+#include <atomic>
 #include <cstring>
 #include <fstream>
 #include <mutex>
@@ -312,15 +313,18 @@ static std::once_flag g_comb_once;
 static CombGenContext  g_comb_ctx;
 
 // Internal: initialise with a specific teeth value (used by init_comb_gen).
-// Must only be called from within call_once.
-static unsigned g_comb_init_teeth = 15;
+// Must only be called from within call_once. Atomic so the (rare) case of two
+// threads racing init_comb_gen() with different teeth is a well-defined value
+// race, not a data race (UB); the table itself is still built exactly once via
+// std::call_once. In practice teeth is the constant 15.
+static std::atomic<unsigned> g_comb_init_teeth{15};
 
 static void do_init_comb() {
-    g_comb_ctx.init(g_comb_init_teeth);
+    g_comb_ctx.init(g_comb_init_teeth.load(std::memory_order_relaxed));
 }
 
 void init_comb_gen(unsigned teeth) {
-    g_comb_init_teeth = teeth;
+    g_comb_init_teeth.store(teeth, std::memory_order_relaxed);
     std::call_once(g_comb_once, do_init_comb);
 }
 

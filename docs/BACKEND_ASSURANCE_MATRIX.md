@@ -4,6 +4,20 @@
 
 > Performance scales across backends. Assurance does not — it must be measured.
 
+> **Evidence-status gated (Bastion B16).** The GPU/hardware claim surface is made
+> explicit and freshness-gated by [`docs/GPU_HARDWARE_EVIDENCE_STATUS.json`](GPU_HARDWARE_EVIDENCE_STATUS.json)
+> and [`ci/check_gpu_hardware_evidence.py`](../ci/check_gpu_hardware_evidence.py)
+> (also `audit_gate.py --gpu-hardware-evidence`, principle **G-16**). Each row
+> declares a `claim_type` (correctness / performance / **fallback_correctness** /
+> hardware_ct / out_of_scope): committed host-side / CPU-fallback correctness
+> evidence (no GPU needed) is tracked separately from native-device performance,
+> real-device CUDA/OpenCL/Metal/ROCm evidence is **owner_gated** (no GitHub GPU
+> runners — owner-run, never current on push), and hardware power/EM/fault and
+> ROCm/HIP real-device are **documented_residual** rows that must resolve to a
+> `docs/RESIDUAL_RISK_REGISTER.md` id (RR-003 / RR-005 / RR-006). A
+> `fallback_correctness` row is never counted as native-performance evidence.
+> Run: `python3 ci/check_gpu_hardware_evidence.py --json`.
+
 ## TL;DR
 
 Not all backends have equal assurance. Each is evaluated independently against
@@ -40,6 +54,19 @@ A native OpenCL/Metal collect kernel is a documented follow-up, gated on those
 backends gaining local/CI hardware coverage (a consensus-bearing accept/reject
 device kernel must never ship unverified).
 
+### libbitcoin opaque ECDSA row verify (Added 2026-06-13)
+
+`ufsecp_gpu_ecdsa_verify_opaque_rows` is the native GPU row-format entry point
+for copied `secp256k1_ecdsa_signature` payloads, including libbitcoin's
+existing ECDSA batch rows:
+`32-byte sighash | 33-byte compressed pubkey | 64-byte opaque
+secp256k1_ecdsa_signature | optional tail`. CUDA, OpenCL, and Metal read the
+strided rows directly, parse the opaque scalar limbs on device, normalize high-S
+signatures before verification, and return per-row verdict bytes. This avoids
+bridge-side msg/pub/sig column staging for the packed-row API while preserving
+libsecp-compatible verification semantics. `ufsecp_gpu_ecdsa_verify_lbtc_rows`
+is retained as a compatibility alias.
+
 ### Non-GPU Product Profile Assurance (Added 2026-05-01)
 
 Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).
@@ -71,12 +98,13 @@ The table below distinguishes between the **public GPU ABI** (functions exposed 
 compiled into the device code but not directly callable through the stable C ABI).
 A kernel being present internally does not imply a public API exists for it.
 
-### Public GPU ABI operations (16 functions, backend-neutral)
+### Public GPU ABI operations (17 functions, backend-neutral)
 
 | Function | CPU (fast) | CPU (CT) | CUDA | OpenCL | Metal |
 |---|---|---|---|---|---|
 | `ufsecp_gpu_generator_mul_batch` (k·G) | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecdsa_verify_batch` | Y | - | Y | Y | Y |
+| `ufsecp_gpu_ecdsa_verify_opaque_rows` / `ufsecp_gpu_ecdsa_verify_lbtc_rows` alias | Y | - | Y | Y | Y |
 | `ufsecp_gpu_schnorr_verify_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecdh_batch` ¹ | Y | Y | Y | Y | Y |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | - | Y | Y | Y |
@@ -157,8 +185,9 @@ through `ufsecp_gpu.h`.
 > immediately by the parity audit workflow. The numbers below reflect the current
 > HEAD — they are not a manually maintained snapshot.
 
-All 16 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
-No partial stubs or CPU fallbacks remain for any of them. Last resolved: 2026-04-24.
+All 17 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
+No partial stubs or CPU fallbacks remain for any of them. Last resolved:
+2026-06-13 (`ufsecp_gpu_ecdsa_verify_opaque_rows`).
 
 `ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
 added 2026-04-24): native device kernels now exist on all three backends
@@ -174,6 +203,25 @@ layer. Not yet part of the hardware-validated matrix. Promotion requires archive
 benchmark JSON, audit output, driver metadata, and a real AMD device record
 per `docs/GPU_BACKEND_EVIDENCE.json`. CUDA source-sharing is not acceptable
 evidence for ROCm/HIP promotion.
+
+### Default-stub parity exceptions (libbitcoin-bridge specializations)
+
+Beyond the 16 public ABI ops, the `GpuBackend` interface exposes optional
+**libbitcoin-bridge specialization** virtual methods (`ecdsa_verify_collect`,
+`schnorr_verify_collect`, `xonly_validate`, `commitment_verify`, `tagged_hash`,
+`tagged_hash_var`, `pubkey_validate`, `hash256`, and the ZK/AEAD/BIP-352 batch
+variants). These are **CUDA-native** and intentionally default to
+`GpuError::Unsupported` on OpenCL/Metal, where the caller transparently falls
+back to the host/CPU path (e.g. `*_verify_batch` + a host collapse). All inputs
+on these paths are **public data**, and the fallback is deterministic, so this is
+a **performance residual, not a correctness parity gap**.
+
+Each such return in `src/gpu/include/gpu_backend.hpp` carries an inline
+`PARITY-EXCEPTION` marker, and the `audit_gate.py --gpu-parity` gate enforces that
+**every `return ...Unsupported` in GPU backend source is either implemented or
+carries a `TODO(parity)`/`PARITY-EXCEPTION` marker** — a backend may not silently
+return Unsupported without a documented exception. The gate scans source files
+only (build/generated trees are pruned) so the signal is precise.
 
 ---
 

@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: libsecp256k1
+Description: UltrafastSecp256k1 — drop-in libsecp256k1-ABI secp256k1 backend (shim over the UltrafastSecp256k1 engine). Use this as the `libsecp256k1` package to swap the backend in Bitcoin Core / Bitcoin Knots (WITH_SYSTEM_LIBSECP256K1=ON) without any source change.
+URL: https://github.com/shrec/UltrafastSecp256k1
+Version: @UFSECP_SHIM_PC_VERSION@
+Cflags: -I${includedir}
+Libs: -L${libdir} -lultrafast_secp256k1

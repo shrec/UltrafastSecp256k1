@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Fault-injection countermeasure coverage ledger. A single induced fault (a skipped branch, a flipped bit, a glitched verify) can turn an invalid signature into an emitted 'success' or leak a nonce (Boneh-DeMillo-Lipton / differential fault analysis). The standard countermeasure is sign-then-verify (FIPS 186-4): re-verify the signature you just produced before returning it, so a fault during signing is caught by the verify. This ledger lists every critical signing path, its fault countermeasure, and the fault-injection probe that exercises it. The gate enforces (1) the countermeasure function still exists AND re-verifies (not a hollow stub), and (2) the fault probe is wired into the audit runner. Enforced by ci/check_fault_countermeasure_coverage.py.",
+  "methodology": "For each signing path: confirm a sign-then-verify (or equivalent redundant-computation) countermeasure is present and actually re-verifies, and that a fault-injection test drives it. A countermeasure that was deleted or hollowed out (no verify call) is a silent regression that re-opens the fault-forgery surface.",
+  "paths": [
+    {
+      "id": "ecdsa-sign-fault",
+      "signing_path": "ECDSA sign (CPU)",
+      "countermeasure_symbol": "ecdsa_sign_verified",
+      "countermeasure_file": "src/cpu/src/ecdsa.cpp",
+      "verify_token": "verify",
+      "claim": "ecdsa_sign_verified re-verifies the produced signature before returning it; a fault during k^-1/scalar-mul yields a sig that fails the internal verify and is rejected.",
+      "probe_module": "exploit_ecdsa_fault_injection",
+      "probe_run_symbol": "test_exploit_ecdsa_fault_injection_run",
+      "status": "covered",
+      "ref": "FIPS 186-4; ePrint 2017/975"
+    },
+    {
+      "id": "schnorr-sign-fault",
+      "signing_path": "BIP-340 Schnorr sign (CPU)",
+      "countermeasure_symbol": "schnorr_sign_verified",
+      "countermeasure_file": "src/cpu/src/schnorr.cpp",
+      "verify_token": "verify",
+      "claim": "schnorr_sign_verified re-verifies the produced BIP-340 signature before returning it; a fault during s=k+e*d is caught by the internal verify.",
+      "probe_module": "fault_injection",
+      "probe_run_symbol": "test_fault_injection_run",
+      "status": "covered",
+      "ref": "FIPS 186-4"
+    },
+    {
+      "id": "rfc6979-differential-fault",
+      "signing_path": "Deterministic RFC 6979 ECDSA (differential fault analysis)",
+      "countermeasure_symbol": null,
+      "countermeasure_file": null,
+      "verify_token": null,
+      "claim": "Two deterministic signatures over the same (key, msg) that differ reveal a fault; the DFA probe asserts a single induced fault does not enable key recovery / forged success.",
+      "probe_module": "exploit_differential_fault",
+      "probe_run_symbol": "test_exploit_ecdsa_differential_fault_run",
+      "status": "covered",
+      "ref": "ePrint 2017/975"
+    },
+    {
+      "id": "deterministic-sig-dfa",
+      "signing_path": "Deterministic signature DFA surface",
+      "countermeasure_symbol": null,
+      "countermeasure_file": null,
+      "verify_token": null,
+      "claim": "A glitched deterministic signature is detected; the DFA probe asserts no forged-success path.",
+      "probe_module": "exploit_deterministic_sig_dfa",
+      "probe_run_symbol": "test_exploit_deterministic_sig_dfa_run",
+      "status": "covered",
+      "ref": "ePrint 2017/975"
+    },
+    {
+      "id": "musig2-frost-partial-sign-fault",
+      "signing_path": "MuSig2 / FROST partial signing",
+      "countermeasure_symbol": null,
+      "countermeasure_file": null,
+      "verify_token": null,
+      "claim": "A fault during partial signing must not yield a partial sig that passes musig2_partial_verify / frost_verify_partial for a different secret — a partial-verify-after-sign countermeasure.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": ""
+    }
+  ]
+}

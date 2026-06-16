@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -36,6 +37,7 @@ LIB_ROOT = SCRIPT_DIR.parent
 g_pass = 0
 g_fail = 0
 g_results: list[dict[str, Any]] = []
+g_json_mode = False
 
 def check(cond: bool, name: str, detail: str = "") -> bool:
     global g_pass, g_fail
@@ -43,8 +45,9 @@ def check(cond: bool, name: str, detail: str = "") -> bool:
     msg = f"  [{status}] {name}"
     if detail and not cond:
         msg += f"\n         {detail}"
-    print(msg)
-    sys.stdout.flush()
+    if not g_json_mode:
+        print(msg)
+        sys.stdout.flush()
     if cond:
         g_pass += 1
     else:
@@ -278,6 +281,76 @@ def test_hmac_key_env_override():
         check(False, "CAAS-KEY-2: HMAC key env-var behavioral test", str(e))
 
 
+def test_evidence_governance_mixed_key_validation():
+    """CAAS-KEY-3: secret-key CI records must coexist with legacy local records."""
+    gov_path = SCRIPT_DIR / "evidence_governance.py"
+    if not gov_path.exists():
+        return
+
+    old_key = os.environ.get("CAAS_HMAC_KEY")
+    os.environ["CAAS_HMAC_KEY"] = "ci-secret-for-mixed-key-selftest"
+    try:
+        mod = load_module(gov_path)
+    finally:
+        if old_key is None:
+            os.environ.pop("CAAS_HMAC_KEY", None)
+        else:
+            os.environ["CAAS_HMAC_KEY"] = old_key
+
+    if mod is None:
+        check(False, "CAAS-KEY-3: evidence_governance loads with secret key")
+        return
+
+    legacy = {
+        "who": "legacy-local",
+        "what": "old record",
+        "when": "2026-05-11T00:00:00+00:00",
+        "commit": "c6f9eb60e0525fa2b43c05874f416e296408f7d4",
+        "binary_hash": "n/a",
+        "verdict": "pass",
+        "reason": "signed before CAAS_HMAC_KEY was provisioned",
+        "signed_by_ci": False,
+    }
+    legacy["signature"] = mod._compute_hmac_with_key(legacy, mod._HMAC_KEY_DEFAULT_BYTES)
+
+    ci_record = {
+        "who": "ci",
+        "what": "new record",
+        "when": "2026-06-14T00:00:00+00:00",
+        "commit": "bc01bf6f857ef9692afed2dfbfd9976bc0c68990",
+        "binary_hash": "n/a",
+        "verdict": "pass",
+        "reason": "signed with CAAS_HMAC_KEY",
+        "signed_by_ci": True,
+    }
+    ci_record["signature"] = mod._compute_hmac(ci_record)
+
+    old_chain_file = mod.EVIDENCE_CHAIN_FILE
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            chain_file = Path(tmpdir) / "EVIDENCE_CHAIN.json"
+            chain_file.write_text(json.dumps({
+                "version": 1,
+                "records_count": 2,
+                "records": [legacy, ci_record],
+            }), encoding="utf-8")
+            mod.EVIDENCE_CHAIN_FILE = chain_file
+            result = mod.validate_chain()
+    finally:
+        mod.EVIDENCE_CHAIN_FILE = old_chain_file
+
+    check(
+        result.get("chain_valid") is True,
+        "CAAS-KEY-3: secret-key validation accepts legacy default-signed local records",
+        f"mixed-key chain failed validation: {result}",
+    )
+    check(
+        result.get("legacy_default_signed_records") == [0],
+        "CAAS-KEY-4: legacy default-signed records are reported explicitly",
+        f"unexpected legacy-default record list: {result}",
+    )
+
+
 # ============================================================================
 # CAAS-003: ci_gate_detect hard-profile classification precedence
 # ============================================================================
@@ -314,11 +387,82 @@ def test_ci_gate_detect_hard_profile_precedence():
 
 
 # ============================================================================
+# CAAS-004: committed external bundle must match current HEAD unless explicitly
+# overridden by the caller for offline third-party review.
+# ============================================================================
+
+def test_external_bundle_commit_mismatch_blocks():
+    """CAAS-BUNDLE-1..2: strict bundle verification catches stale commits."""
+    verifier = SCRIPT_DIR / "verify_external_audit_bundle.py"
+    if not verifier.exists():
+        check(False, "CAAS-BUNDLE-0: verify_external_audit_bundle.py exists",
+              f"not found: {verifier}")
+        return
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            bundle = root / "EXTERNAL_AUDIT_BUNDLE.json"
+            digest = root / "EXTERNAL_AUDIT_BUNDLE.sha256"
+            payload = {
+                "schema_version": "1.0.0",
+                "git": {"commit": "0" * 40, "dirty": False},
+                "evidence": [],
+                "gate_results": [],
+                "summary": {"overall_pass": True},
+            }
+            raw = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+            bundle.write_text(raw, encoding="utf-8")
+            digest.write_text(
+                f"{hashlib.sha256(raw.encode('utf-8')).hexdigest()}  {bundle.name}\n",
+                encoding="utf-8",
+            )
+
+            def run_verify(*extra: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [
+                        sys.executable,
+                        str(verifier),
+                        "--bundle",
+                        str(bundle),
+                        "--digest",
+                        str(digest),
+                        "--json",
+                        *extra,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=str(LIB_ROOT),
+                    check=False,
+                )
+
+            strict = run_verify()
+            allowed = run_verify("--allow-commit-mismatch")
+    except Exception as exc:
+        check(False, "CAAS-BUNDLE-1: bundle mismatch fixture runs", str(exc))
+        return
+
+    check(
+        strict.returncode == 1 and '"name": "commit_match"' in strict.stdout,
+        "CAAS-BUNDLE-1: stale bundle commit fails strict verification",
+        f"strict rc={strict.returncode}, stdout={strict.stdout[:200]!r}, stderr={strict.stderr[:120]!r}",
+    )
+    check(
+        allowed.returncode == 0,
+        "CAAS-BUNDLE-2: commit mismatch can only pass with explicit override",
+        f"allow rc={allowed.returncode}, stdout={allowed.stdout[:200]!r}, stderr={allowed.stderr[:120]!r}",
+    )
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
 def main():
+    global g_json_mode
     use_json = "--json" in sys.argv
+    g_json_mode = use_json
 
     if not use_json:
         print("[test_caas_integrity] CAAS Pipeline Integrity Self-Test")
@@ -329,7 +473,9 @@ def main():
     test_supply_chain_gate_no_stunt_double()
     test_evidence_governance_hmac_reason()
     test_hmac_key_env_override()
+    test_evidence_governance_mixed_key_validation()
     test_ci_gate_detect_hard_profile_precedence()
+    test_external_bundle_commit_mismatch_blocks()
 
     total = g_pass + g_fail
     if not use_json:

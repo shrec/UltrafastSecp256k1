@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-11",
+  "updated_at": "2026-06-12",
   "source": "docs/ASSURANCE_LEDGER.md",
   "claims": [
     {
@@ -199,7 +199,8 @@
       "owner_surface": [
         "Docs",
         "CI workflows"
-      ]
+      ],
+      "notes_2026_06_12": "Refreshed after libbitcoin bridge parity work: ECDSA batch verification now carries high-S and opaque-tail regressions in bridge tests, and CAAS external-audit bundle/KPI artifacts are regenerated with current evidence hashes."
     },
     {
       "claim_id": "A-008",

@@ -1,278 +1,283 @@
 {
- "_status": "fresh_run_hard_turbo_locked_2026-05-12",
- "_methodology": "cpupower frequency-set -g performance + intel_pstate/no_turbo=1, taskset -c 0, nice -20. 5 runs LTO, 3 runs no-LTO. bench_bitcoin -filter=<benchmark> -min-time=3000. Medians computed from all runs.",
- "generated_at": "2026-05-12T00:00:00Z",
- "backend_commit": "48e7c02fff02d823d2396f7eb05e425dfb3689e4",
- "machine_spec": {
-  "cpu": "Intel Core i5-14400F",
-  "os": "Linux (Ubuntu 24.04)",
-  "compiler": "GCC 14.2.0",
-  "core_pinned": 1,
-  "taskset": "taskset -c 0",
-  "governor": "performance (cpupower frequency-set -g performance)",
-  "turbo": "disabled (intel_pstate/no_turbo=1 + cpupower \u2014 hard lock, sudo available)",
-  "nice": -20,
-  "harness": "bench_bitcoin (Bitcoin Core native benchmark harness, -min-time=3000ms)"
- },
- "note": "All numbers from Bitcoin Core bench_bitcoin binary \u2014 real Bitcoin Core validation pipeline. NOT bench_unified. Hard turbo lock: cpupower + intel_pstate/no_turbo=1. LTO: 5 runs, median. no-LTO: 3 runs, median. err% from nanobench per-run internal measurement.",
- "results_lto": {
-  "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) \u2014 recommended production build. 5 runs, hard turbo lock.",
-  "ConnectBlockAllEcdsa_ms": {
-   "ultra": 254.3,
-   "libsecp": 257.4,
-   "ratio": 1.012,
-   "ultra_err_pct": 0.4,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra +1.2% \u2014 confirmed (5 runs, non-overlapping medians)"
+  "_status": "fresh_run_hard_turbo_locked_2026-05-12",
+  "_methodology": "cpupower frequency-set -g performance + intel_pstate/no_turbo=1, taskset -c 0, nice -20. 5 runs LTO, 3 runs no-LTO. bench_bitcoin -filter=<benchmark> -min-time=3000. Medians computed from all runs.",
+  "generated_at": "2026-05-12T00:00:00Z",
+  "backend_commit": "48e7c02fff02d823d2396f7eb05e425dfb3689e4",
+  "machine_spec": {
+    "cpu": "Intel Core i5-14400F",
+    "os": "Linux (Ubuntu 24.04)",
+    "compiler": "GCC 14.2.0",
+    "core_pinned": 1,
+    "taskset": "taskset -c 0",
+    "governor": "performance (cpupower frequency-set -g performance)",
+    "turbo": "disabled (intel_pstate/no_turbo=1 + cpupower — hard lock, sudo available)",
+    "nice": -20,
+    "harness": "bench_bitcoin (Bitcoin Core native benchmark harness, -min-time=3000ms)"
   },
-  "ConnectBlockAllSchnorr_ms": {
-   "ultra": 253.0,
-   "libsecp": 255.3,
-   "ratio": 1.009,
-   "ultra_err_pct": 0.5,
-   "libsecp_err_pct": 0.3,
-   "verdict": "Ultra +0.9% \u2014 confirmed (5 runs, non-overlapping medians)"
+  "note": "All numbers from Bitcoin Core bench_bitcoin binary — real Bitcoin Core validation pipeline. NOT bench_unified. Hard turbo lock: cpupower + intel_pstate/no_turbo=1. LTO: 5 runs, median. no-LTO: 3 runs, median. err% from nanobench per-run internal measurement.",
+  "results_lto": {
+    "note": "Release + LTO (-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON) — recommended production build. 5 runs, hard turbo lock.",
+    "ConnectBlockAllEcdsa_ms": {
+      "ultra": 254.3,
+      "libsecp": 257.4,
+      "ratio": 1.012,
+      "ultra_err_pct": 0.4,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra +1.2% — confirmed (5 runs, non-overlapping medians)"
+    },
+    "ConnectBlockAllSchnorr_ms": {
+      "ultra": 253.0,
+      "libsecp": 255.3,
+      "ratio": 1.009,
+      "ultra_err_pct": 0.5,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Ultra +0.9% — confirmed (5 runs, non-overlapping medians)"
+    },
+    "ConnectBlockMixed_ms": {
+      "ultra": 253.9,
+      "libsecp": 257.7,
+      "ratio": 1.015,
+      "ultra_err_pct": 0.5,
+      "libsecp_err_pct": 0.2,
+      "verdict": "Ultra +1.5% — confirmed (5 runs, non-overlapping medians)"
+    },
+    "SignSchnorrWithMerkleRoot_ns": {
+      "ultra": 83930,
+      "libsecp": 113410,
+      "ratio": 1.351,
+      "ultra_err_pct": 0.2,
+      "libsecp_err_pct": 0.2,
+      "verdict": "Ultra 1.35x faster — confirmed (wide margin)"
+    },
+    "SignSchnorrWithNullMerkleRoot_ns": {
+      "ultra": 83980,
+      "libsecp": 112960,
+      "ratio": 1.345,
+      "ultra_err_pct": 0.4,
+      "libsecp_err_pct": 0.2,
+      "verdict": "Ultra 1.35x faster — confirmed (wide margin)"
+    },
+    "SignTransactionECDSA_ns": {
+      "ultra": 149520,
+      "libsecp": 165140,
+      "ratio": 1.104,
+      "ultra_err_pct": 0.4,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 1.10x faster — confirmed"
+    },
+    "SignTransactionSchnorr_ns": {
+      "ultra": 125380,
+      "libsecp": 137500,
+      "ratio": 1.097,
+      "ultra_err_pct": 0.5,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 1.10x faster — confirmed"
+    },
+    "VerifyScriptP2WPKH_ns": {
+      "ultra": 45978,
+      "libsecp": 45777,
+      "ratio": 0.996,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Parity — Ultra 0.4% slower, ranges overlap, inconclusive"
+    },
+    "VerifyScriptP2TR_KeyPath_ns": {
+      "ultra": 45406,
+      "libsecp": 46333,
+      "ratio": 1.02,
+      "ultra_err_pct": 0.2,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Ultra +2.0% — confirmed (5 runs)"
+    },
+    "VerifyScriptP2TR_ScriptPath_ns": {
+      "ultra": 76451,
+      "libsecp": 83812,
+      "ratio": 1.096,
+      "ultra_err_pct": 0.2,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 1.10x faster — confirmed"
+    }
   },
-  "ConnectBlockMixed_ms": {
-   "ultra": 253.9,
-   "libsecp": 257.7,
-   "ratio": 1.015,
-   "ultra_err_pct": 0.5,
-   "libsecp_err_pct": 0.2,
-   "verdict": "Ultra +1.5% \u2014 confirmed (5 runs, non-overlapping medians)"
+  "results_nolto": {
+    "note": "Release without LTO (-O3, no -flto). 3 runs, hard turbo lock. HONEST: Ultra is ~0.5-1.0% SLOWER than libsecp without LTO. PERF-002 reduced the gap from ~1.1% (pre-fix) to ~0.5-1.0% (post-fix) but did not eliminate it. Use LTO for production Bitcoin Core builds.",
+    "build": "Release (no LTO), GCC 14.2.0. build-ultra-release-nolto vs build-libsecp-release-nolto.",
+    "ConnectBlockAllEcdsa_ms": {
+      "ultra": 251.8,
+      "libsecp": 250.5,
+      "ratio": 1.005,
+      "ultra_err_pct": 0.2,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 0.5% SLOWER — confirmed (3 runs, non-overlapping)"
+    },
+    "ConnectBlockAllSchnorr_ms": {
+      "ultra": 250.5,
+      "libsecp": 248.1,
+      "ratio": 1.01,
+      "ultra_err_pct": 0.3,
+      "libsecp_err_pct": 0.4,
+      "verdict": "Ultra 1.0% SLOWER — confirmed (3 runs, non-overlapping)"
+    },
+    "ConnectBlockMixed_ms": {
+      "ultra": 252.8,
+      "libsecp": 250.7,
+      "ratio": 1.008,
+      "ultra_err_pct": 0.4,
+      "libsecp_err_pct": 0.3,
+      "verdict": "Ultra 0.8% SLOWER — confirmed (3 runs, non-overlapping)"
+    }
   },
-  "SignSchnorrWithMerkleRoot_ns": {
-   "ultra": 83930,
-   "libsecp": 113410,
-   "ratio": 1.351,
-   "ultra_err_pct": 0.2,
-   "libsecp_err_pct": 0.2,
-   "verdict": "Ultra 1.35x faster \u2014 confirmed (wide margin)"
+  "test_suite": {
+    "test_bitcoin_passed": 749,
+    "test_bitcoin_failed": 0,
+    "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
   },
-  "SignSchnorrWithNullMerkleRoot_ns": {
-   "ultra": 83980,
-   "libsecp": 112960,
-   "ratio": 1.345,
-   "ultra_err_pct": 0.4,
-   "libsecp_err_pct": 0.2,
-   "verdict": "Ultra 1.35x faster \u2014 confirmed (wide margin)"
+  "nolto_gap_root_cause": {
+    "status": "code contributors identified and fixed; any residual footprint claim withdrawn pending a controlled minimal-profile measurement",
+    "real_contributors": "Two concrete, code-verified contributors to the ECDSA verify path were found and fixed: (1) a redundant y²=x³+7 on-curve check inside secp256k1_ecdsa_verify (removed in c67edc1c / 40697447 — the opaque pubkey struct is already curve-validated at parse, matching libsecp's trust model); (2) ECDSA DER signature parsing, replaced with a fast strict-DER scalar validator in shim_ecdsa.cpp.",
+    "withdrawn_claim": "A prior speculative root-cause attribution (to instruction-footprint / cache pressure) was withdrawn — it had no perf-counter evidence. The shipped secp256k1 footprint depends on the build profile (the bitcoin-core profile disables FROST/ZK/ECIES/BIP352/etc., and the linker dead-code-eliminates unused symbols), so a clean linked-footprint comparison under the minimal bitcoin-core profile is required before any size claim in either direction.",
+    "recommendation": "Use Release+LTO for production Bitcoin Core builds. ConnectBlock numbers must be quoted only from a frequency-locked run."
   },
-  "SignTransactionECDSA_ns": {
-   "ultra": 149520,
-   "libsecp": 165140,
-   "ratio": 1.104,
-   "ultra_err_pct": 0.4,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra 1.10x faster \u2014 confirmed"
+  "known_limitations": [
+    "VerifyScriptP2WPKH: parity only (Ultra 0.4% slower, ranges overlap, inconclusive). Not a regression vs libsecp.",
+    "Without LTO: ConnectBlock measured ~0.5-1.0% slower than libsecp256k1 in the 2026-05-12 frequency-locked run; cause attribution is under re-measurement (see nolto_gap_root_cause). Use Release+LTO for production.",
+    "SignTransactionECDSA libsecp had one outlier run (185µs vs ~162-165µs for others) — median is used which limits impact."
+  ],
+  "_frequency_sensitivity_note": "Ultra ConnectBlock numbers are only meaningful with a locked CPU frequency. At locked 2.5 GHz (cpupower -g performance + intel_pstate/no_turbo=1) the canonical results above apply. Without locking the governor (no_turbo alone), ConnectBlock timings drift run-to-run — those uncontrolled-frequency numbers are a measurement artifact of the unlocked governor, NOT a backend property. Always lock the governor before quoting ConnectBlock. (A prior speculative hardware-cause attribution for the drift has been removed as unsubstantiated.) Signing advantage (SignSchnorrWithMerkleRoot) is robust across conditions.",
+  "results_uncontrolled_frequency_2026_05_16": {
+    "note": "Measurement without cpupower (intel_pstate/no_turbo=1 only, variable 800-2500 MHz). Backend commit: 79363c79. Compiler: GCC 14.2.0 Release+LTO. This is NOT the canonical measurement — use results_lto for performance claims.",
+    "ConnectBlockAllEcdsa_ms": {
+      "ultra": 278.2,
+      "libsecp": 258.6,
+      "ratio": 0.929,
+      "verdict": "libsecp +7.5% — measurement artifact (no cpupower frequency lock)"
+    },
+    "ConnectBlockAllSchnorr_ms": {
+      "ultra": 262.6,
+      "libsecp": 255.7,
+      "ratio": 0.974,
+      "verdict": "libsecp +2.6% — measurement artifact (no cpupower frequency lock)"
+    },
+    "SignSchnorrWithMerkleRoot_ns": {
+      "ultra": 95481,
+      "libsecp": 113060,
+      "ratio": 1.184,
+      "verdict": "Ultra +18.4% — confirmed (robust across frequency conditions)"
+    },
+    "SignTransactionECDSA_ns": {
+      "ultra": 166116,
+      "libsecp": 163711,
+      "ratio": 0.986,
+      "verdict": "approximately equal (within measurement noise)"
+    }
   },
-  "SignTransactionSchnorr_ns": {
-   "ultra": 125380,
-   "libsecp": 137500,
-   "ratio": 1.097,
-   "ultra_err_pct": 0.5,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra 1.10x faster \u2014 confirmed"
+  "results_2026_05_30_parse_cache_samesession": {
+    "_note": "Single-session 4-way (ultra/libsecp x no-LTO/LTO), 3 interleaved rounds, taskset -c0 nice -20, governor=performance, intel_pstate/no_turbo=1, min-time=3000ms, non-overlapping medians. POST parse-cache fix (ShimPubkeyParseCache in shim_pubkey.cpp). ratio=libsecp/ultra (>1 = ultra faster); ultra_pct_faster=(libsecp-ultra)/libsecp.",
+    "_caveat": "ECDSA-verify gains (ConnectBlockAllEcdsa, P2WPKH) are partly amplified by the benchmark's pubkey REUSE (ConnectBlock=5 keys, VerifyScript=1 key) hitting the new decompression cache. Real blocks with many UNIQUE pubkeys cache-miss, so the ECDSA-verify margin shrinks toward parity (libsecp also does not cache pubkey parse). Schnorr/Taproot gains are structural (prebuilt GLV) and hold for unique keys.",
+    "_machine": "i5-14400F, GCC 14, 2026-05-30",
+    "no_LTO": {
+      "ConnectBlockAllEcdsa_ms": {
+        "ultra": 213.2,
+        "libsecp": 246.5,
+        "ratio": 1.156,
+        "ultra_pct_faster": 13.5
+      },
+      "ConnectBlockAllSchnorr_ms": {
+        "ultra": 205.1,
+        "libsecp": 244.3,
+        "ratio": 1.191,
+        "ultra_pct_faster": 16.0
+      },
+      "ConnectBlockMixed_ms": {
+        "ultra": 206.5,
+        "libsecp": 246.7,
+        "ratio": 1.195,
+        "ultra_pct_faster": 16.3
+      },
+      "VerifyScriptP2WPKH_ns": {
+        "ultra": 36746,
+        "libsecp": 44060,
+        "ratio": 1.199,
+        "ultra_pct_faster": 16.6
+      },
+      "VerifyScriptP2TR_KeyPath_ns": {
+        "ultra": 36310,
+        "libsecp": 44308,
+        "ratio": 1.22,
+        "ultra_pct_faster": 18.1
+      },
+      "VerifyScriptP2TR_ScriptPath_ns": {
+        "ultra": 61843,
+        "libsecp": 79938,
+        "ratio": 1.293,
+        "ultra_pct_faster": 22.6
+      },
+      "SignTransactionECDSA_ns": {
+        "ultra": 156954,
+        "libsecp": 168355,
+        "ratio": 1.073,
+        "ultra_pct_faster": 6.8
+      },
+      "SignTransactionSchnorr_ns": {
+        "ultra": 126279,
+        "libsecp": 132265,
+        "ratio": 1.047,
+        "ultra_pct_faster": 4.5
+      }
+    },
+    "LTO": {
+      "ConnectBlockAllEcdsa_ms": {
+        "ultra": 217.6,
+        "libsecp": 253.5,
+        "ratio": 1.165,
+        "ultra_pct_faster": 14.2
+      },
+      "ConnectBlockAllSchnorr_ms": {
+        "ultra": 209.6,
+        "libsecp": 251.6,
+        "ratio": 1.2,
+        "ultra_pct_faster": 16.7
+      },
+      "ConnectBlockMixed_ms": {
+        "ultra": 211.1,
+        "libsecp": 253.8,
+        "ratio": 1.202,
+        "ultra_pct_faster": 16.8
+      },
+      "VerifyScriptP2WPKH_ns": {
+        "ultra": 37756,
+        "libsecp": 45273,
+        "ratio": 1.199,
+        "ultra_pct_faster": 16.6
+      },
+      "VerifyScriptP2TR_KeyPath_ns": {
+        "ultra": 37273,
+        "libsecp": 45741,
+        "ratio": 1.227,
+        "ultra_pct_faster": 18.5
+      },
+      "VerifyScriptP2TR_ScriptPath_ns": {
+        "ultra": 59117,
+        "libsecp": 82550,
+        "ratio": 1.396,
+        "ultra_pct_faster": 28.4
+      },
+      "SignTransactionECDSA_ns": {
+        "ultra": 163050,
+        "libsecp": 171305,
+        "ratio": 1.051,
+        "ultra_pct_faster": 4.8
+      },
+      "SignTransactionSchnorr_ns": {
+        "ultra": 127331,
+        "libsecp": 135149,
+        "ratio": 1.061,
+        "ultra_pct_faster": 5.8
+      }
+    }
   },
-  "VerifyScriptP2WPKH_ns": {
-   "ultra": 45978,
-   "libsecp": 45777,
-   "ratio": 0.996,
-   "ultra_err_pct": 0.3,
-   "libsecp_err_pct": 0.3,
-   "verdict": "Parity \u2014 Ultra 0.4% slower, ranges overlap, inconclusive"
-  },
-  "VerifyScriptP2TR_KeyPath_ns": {
-   "ultra": 45406,
-   "libsecp": 46333,
-   "ratio": 1.02,
-   "ultra_err_pct": 0.2,
-   "libsecp_err_pct": 0.3,
-   "verdict": "Ultra +2.0% \u2014 confirmed (5 runs)"
-  },
-  "VerifyScriptP2TR_ScriptPath_ns": {
-   "ultra": 76451,
-   "libsecp": 83812,
-   "ratio": 1.096,
-   "ultra_err_pct": 0.2,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra 1.10x faster \u2014 confirmed"
-  }
- },
- "results_nolto": {
-  "note": "Release without LTO (-O3, no -flto). 3 runs, hard turbo lock. HONEST: Ultra is ~0.5-1.0% SLOWER than libsecp without LTO. PERF-002 reduced the gap from ~1.1% (pre-fix) to ~0.5-1.0% (post-fix) but did not eliminate it. Use LTO for production Bitcoin Core builds.",
-  "build": "Release (no LTO), GCC 14.2.0. build-ultra-release-nolto vs build-libsecp-release-nolto.",
-  "ConnectBlockAllEcdsa_ms": {
-   "ultra": 251.8,
-   "libsecp": 250.5,
-   "ratio": 1.005,
-   "ultra_err_pct": 0.2,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra 0.5% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
-  },
-  "ConnectBlockAllSchnorr_ms": {
-   "ultra": 250.5,
-   "libsecp": 248.1,
-   "ratio": 1.01,
-   "ultra_err_pct": 0.3,
-   "libsecp_err_pct": 0.4,
-   "verdict": "Ultra 1.0% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
-  },
-  "ConnectBlockMixed_ms": {
-   "ultra": 252.8,
-   "libsecp": 250.7,
-   "ratio": 1.008,
-   "ultra_err_pct": 0.4,
-   "libsecp_err_pct": 0.3,
-   "verdict": "Ultra 0.8% SLOWER \u2014 confirmed (3 runs, non-overlapping)"
-  }
- },
- "test_suite": {
-  "test_bitcoin_passed": 749,
-  "test_bitcoin_failed": 0,
-  "note": "749/749 Bitcoin Core unit tests pass with Ultra backend"
- },
- "nolto_gap_root_cause": {
-  "status": "code contributors identified and fixed; any residual footprint claim withdrawn pending a controlled minimal-profile measurement",
-  "real_contributors": "Two concrete, code-verified contributors to the ECDSA verify path were found and fixed: (1) a redundant y\u00b2=x\u00b3+7 on-curve check inside secp256k1_ecdsa_verify (removed in c67edc1c / 40697447 \u2014 the opaque pubkey struct is already curve-validated at parse, matching libsecp's trust model); (2) ECDSA DER signature parsing, replaced with a fast strict-DER scalar validator in shim_ecdsa.cpp.",
-  "withdrawn_claim": "A prior speculative root-cause attribution (to instruction-footprint / cache pressure) was withdrawn \u2014 it had no perf-counter evidence. The shipped secp256k1 footprint depends on the build profile (the bitcoin-core profile disables FROST/ZK/ECIES/BIP352/etc., and the linker dead-code-eliminates unused symbols), so a clean linked-footprint comparison under the minimal bitcoin-core profile is required before any size claim in either direction.",
-  "recommendation": "Use Release+LTO for production Bitcoin Core builds. ConnectBlock numbers must be quoted only from a frequency-locked run."
- },
- "known_limitations": [
-  "VerifyScriptP2WPKH: parity only (Ultra 0.4% slower, ranges overlap, inconclusive). Not a regression vs libsecp.",
-  "Without LTO: ConnectBlock measured ~0.5-1.0% slower than libsecp256k1 in the 2026-05-12 frequency-locked run; cause attribution is under re-measurement (see nolto_gap_root_cause). Use Release+LTO for production.",
-  "SignTransactionECDSA libsecp had one outlier run (185\u00b5s vs ~162-165\u00b5s for others) \u2014 median is used which limits impact."
- ],
- "_frequency_sensitivity_note": "Ultra ConnectBlock numbers are only meaningful with a locked CPU frequency. At locked 2.5 GHz (cpupower -g performance + intel_pstate/no_turbo=1) the canonical results above apply. Without locking the governor (no_turbo alone), ConnectBlock timings drift run-to-run \u2014 those uncontrolled-frequency numbers are a measurement artifact of the unlocked governor, NOT a backend property. Always lock the governor before quoting ConnectBlock. (A prior speculative hardware-cause attribution for the drift has been removed as unsubstantiated.) Signing advantage (SignSchnorrWithMerkleRoot) is robust across conditions.",
- "results_uncontrolled_frequency_2026_05_16": {
-  "note": "Measurement without cpupower (intel_pstate/no_turbo=1 only, variable 800-2500 MHz). Backend commit: 79363c79. Compiler: GCC 14.2.0 Release+LTO. This is NOT the canonical measurement \u2014 use results_lto for performance claims.",
-  "ConnectBlockAllEcdsa_ms": {
-   "ultra": 278.2,
-   "libsecp": 258.6,
-   "ratio": 0.929,
-   "verdict": "libsecp +7.5% \u2014 measurement artifact (no cpupower frequency lock)"
-  },
-  "ConnectBlockAllSchnorr_ms": {
-   "ultra": 262.6,
-   "libsecp": 255.7,
-   "ratio": 0.974,
-   "verdict": "libsecp +2.6% \u2014 measurement artifact (no cpupower frequency lock)"
-  },
-  "SignSchnorrWithMerkleRoot_ns": {
-   "ultra": 95481,
-   "libsecp": 113060,
-   "ratio": 1.184,
-   "verdict": "Ultra +18.4% \u2014 confirmed (robust across frequency conditions)"
-  },
-  "SignTransactionECDSA_ns": {
-   "ultra": 166116,
-   "libsecp": 163711,
-   "ratio": 0.986,
-   "verdict": "approximately equal (within measurement noise)"
-  }
- },
- "results_2026_05_30_parse_cache_samesession": {
-  "_note": "Single-session 4-way (ultra/libsecp x no-LTO/LTO), 3 interleaved rounds, taskset -c0 nice -20, governor=performance, intel_pstate/no_turbo=1, min-time=3000ms, non-overlapping medians. POST parse-cache fix (ShimPubkeyParseCache in shim_pubkey.cpp). ratio=libsecp/ultra (>1 = ultra faster); ultra_pct_faster=(libsecp-ultra)/libsecp.",
-  "_caveat": "ECDSA-verify gains (ConnectBlockAllEcdsa, P2WPKH) are partly amplified by the benchmark's pubkey REUSE (ConnectBlock=5 keys, VerifyScript=1 key) hitting the new decompression cache. Real blocks with many UNIQUE pubkeys cache-miss, so the ECDSA-verify margin shrinks toward parity (libsecp also does not cache pubkey parse). Schnorr/Taproot gains are structural (prebuilt GLV) and hold for unique keys.",
-  "_machine": "i5-14400F, GCC 14, 2026-05-30",
-  "no_LTO": {
-   "ConnectBlockAllEcdsa_ms": {
-    "ultra": 213.2,
-    "libsecp": 246.5,
-    "ratio": 1.156,
-    "ultra_pct_faster": 13.5
-   },
-   "ConnectBlockAllSchnorr_ms": {
-    "ultra": 205.1,
-    "libsecp": 244.3,
-    "ratio": 1.191,
-    "ultra_pct_faster": 16.0
-   },
-   "ConnectBlockMixed_ms": {
-    "ultra": 206.5,
-    "libsecp": 246.7,
-    "ratio": 1.195,
-    "ultra_pct_faster": 16.3
-   },
-   "VerifyScriptP2WPKH_ns": {
-    "ultra": 36746,
-    "libsecp": 44060,
-    "ratio": 1.199,
-    "ultra_pct_faster": 16.6
-   },
-   "VerifyScriptP2TR_KeyPath_ns": {
-    "ultra": 36310,
-    "libsecp": 44308,
-    "ratio": 1.22,
-    "ultra_pct_faster": 18.1
-   },
-   "VerifyScriptP2TR_ScriptPath_ns": {
-    "ultra": 61843,
-    "libsecp": 79938,
-    "ratio": 1.293,
-    "ultra_pct_faster": 22.6
-   },
-   "SignTransactionECDSA_ns": {
-    "ultra": 156954,
-    "libsecp": 168355,
-    "ratio": 1.073,
-    "ultra_pct_faster": 6.8
-   },
-   "SignTransactionSchnorr_ns": {
-    "ultra": 126279,
-    "libsecp": 132265,
-    "ratio": 1.047,
-    "ultra_pct_faster": 4.5
-   }
-  },
-  "LTO": {
-   "ConnectBlockAllEcdsa_ms": {
-    "ultra": 217.6,
-    "libsecp": 253.5,
-    "ratio": 1.165,
-    "ultra_pct_faster": 14.2
-   },
-   "ConnectBlockAllSchnorr_ms": {
-    "ultra": 209.6,
-    "libsecp": 251.6,
-    "ratio": 1.2,
-    "ultra_pct_faster": 16.7
-   },
-   "ConnectBlockMixed_ms": {
-    "ultra": 211.1,
-    "libsecp": 253.8,
-    "ratio": 1.202,
-    "ultra_pct_faster": 16.8
-   },
-   "VerifyScriptP2WPKH_ns": {
-    "ultra": 37756,
-    "libsecp": 45273,
-    "ratio": 1.199,
-    "ultra_pct_faster": 16.6
-   },
-   "VerifyScriptP2TR_KeyPath_ns": {
-    "ultra": 37273,
-    "libsecp": 45741,
-    "ratio": 1.227,
-    "ultra_pct_faster": 18.5
-   },
-   "VerifyScriptP2TR_ScriptPath_ns": {
-    "ultra": 59117,
-    "libsecp": 82550,
-    "ratio": 1.396,
-    "ultra_pct_faster": 28.4
-   },
-   "SignTransactionECDSA_ns": {
-    "ultra": 163050,
-    "libsecp": 171305,
-    "ratio": 1.051,
-    "ultra_pct_faster": 4.8
-   },
-   "SignTransactionSchnorr_ns": {
-    "ultra": 127331,
-    "libsecp": 135149,
-    "ratio": 1.061,
-    "ultra_pct_faster": 5.8
-   }
-  }
- }
+  "target_context": "bitcoin_core",
+  "operation": "Bitcoin Core integration benchmark (ConnectBlock / signature verify under the test suite)",
+  "claim_scope": "Bitcoin Core secondary-backend integration timing with methodology caveats (see _methodology); NOT a standalone microbenchmark or a native-GPU claim",
+  "integration_evidence": "docs/BITCOIN_CORE_TEST_RESULTS.json (749/749 GCC 14.2.0) + docs/INTEGRATION_EVIDENCE_TABLE.md",
+  "security_gate_dependency": "integration correctness (749/749) + CT/determinism gates green"
 }

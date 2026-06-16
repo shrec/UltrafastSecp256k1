@@ -205,6 +205,41 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_ecdsa_verify_batch(
     size_t count,
     uint8_t* out_results);
 
+/** Batch ECDSA verification from secp256k1-compatible opaque-signature rows.
+ *
+ *  PUBLIC-DATA operation. This is the row-format GPU entry point used by the
+ *  libbitcoin bridge and any caller that stores copied secp256k1_ecdsa_signature
+ *  values as a public row payload:
+ *
+ *      32-byte msg hash | 33-byte compressed pubkey |
+ *      64-byte opaque secp256k1_ecdsa_signature | optional tail
+ *
+ *  The 64 signature bytes are libsecp-compatible opaque scalar storage, not
+ *  compact big-endian r||s. The backend parses those scalar limbs directly and
+ *  applies the same low-S normalization semantics as libsecp256k1 verification.
+ *
+ *  @param ctx           GPU context.
+ *  @param rows          Input: count rows, each at least 129 bytes.
+ *  @param stride        Bytes between consecutive rows (>= 129).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item).
+ *  @return UFSECP_OK if batch processed (check out_results for per-item).
+ *          GPU-specific error codes on device failure. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_ecdsa_verify_opaque_rows(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results);
+
+/** Compatibility alias for ufsecp_gpu_ecdsa_verify_opaque_rows(). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_rows(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results);
+
 /** Batch BIP-340 Schnorr verification.
  *
  *  PUBLIC-DATA operation.

@@ -22,6 +22,18 @@ commits as `caas-bot` only when content changed. Eliminates the
 
 **Status:** Deployed. 30-day continuous observation period started 2026-04-21.
 
+**B19 follow-up (2026-06-13):** the *coverage* of this lane is now gated. Every
+freshness artifact tracked by `audit_sla_check.py` carries an explicit refresh
+disposition in the `freshness_artifacts` ledger (`docs/AUDIT_SLA.json`), enforced
+by `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`,
+G-19) and run as a fail-fast self-verify step inside this workflow. The lane's
+auto artifacts (assurance_report, incident_drill_log) are cross-checked against
+its actual commit list; the artifacts it intentionally does NOT regenerate
+(ct_evidence, api_contracts, assurance_claims, determinism_golden,
+risk_coverage_report — authored / golden / build-only / owner-chosen manual) are
+documented residuals under RR-BAS-01. So a freshness SLO can no longer depend on
+an artifact that is silently neither auto-refreshed nor documented.
+
 ---
 
 ### H-2 — HMAC evidence-chain key policy ✅ CLOSED 2026-04-21

@@ -144,6 +144,10 @@ static void test_null_buffer_ops() {
           "generator_mul_batch(NULL ctx)");
     CHECK(ufsecp_gpu_ecdsa_verify_batch(nullptr, dummy, dummy, dummy, 1, dummy) == UFSECP_ERR_NULL_ARG,
           "ecdsa_verify_batch(NULL ctx)");
+    CHECK(ufsecp_gpu_ecdsa_verify_opaque_rows(nullptr, dummy, 129, 1, dummy) == UFSECP_ERR_NULL_ARG,
+          "ecdsa_verify_opaque_rows(NULL ctx)");
+    CHECK(ufsecp_gpu_ecdsa_verify_lbtc_rows(nullptr, dummy, 129, 1, dummy) == UFSECP_ERR_NULL_ARG,
+          "ecdsa_verify_lbtc_rows(NULL ctx)");
     CHECK(ufsecp_gpu_schnorr_verify_batch(nullptr, dummy, dummy, dummy, 1, dummy) == UFSECP_ERR_NULL_ARG,
           "schnorr_verify_batch(NULL ctx)");
     /* collect verify (libbitcoin): NULL ctx → ERR_NULL_ARG (hostile-caller null rejection) */
@@ -248,6 +252,14 @@ static void test_gpu_ops_if_available() {
         err = ufsecp_gpu_generator_mul_batch(ctx, nullptr, 0, nullptr);
         CHECK(err == UFSECP_OK || err == UFSECP_ERR_GPU_UNSUPPORTED,
               "generator_mul_batch(count=0) is OK or UNSUPPORTED");
+        uint8_t row[129] = {};
+        uint8_t out[1] = {};
+        err = ufsecp_gpu_ecdsa_verify_opaque_rows(ctx, row, 129, 0, out);
+        CHECK(err == UFSECP_OK || err == UFSECP_ERR_GPU_UNSUPPORTED,
+              "ecdsa_verify_opaque_rows(count=0) zero-edge is OK or UNSUPPORTED");
+        err = ufsecp_gpu_ecdsa_verify_lbtc_rows(ctx, row, 129, 0, out);
+        CHECK(err == UFSECP_OK || err == UFSECP_ERR_GPU_UNSUPPORTED,
+              "ecdsa_verify_lbtc_rows(count=0) zero-edge is OK or UNSUPPORTED");
     }
 
     /* Test NULL buffer with non-zero count */
@@ -255,6 +267,45 @@ static void test_gpu_ops_if_available() {
         uint8_t out[33] = {};
         err = ufsecp_gpu_generator_mul_batch(ctx, nullptr, 1, out);
         CHECK(err != UFSECP_OK, "generator_mul_batch(NULL scalars) fails");
+    }
+
+    /* Opaque-row ECDSA hostile-caller checks: invalid stride and smoke. */
+    {
+        uint8_t row[129] = {};
+        uint8_t out[1] = {};
+        err = ufsecp_gpu_ecdsa_verify_opaque_rows(ctx, row, 128, 1, out);
+        CHECK(err == UFSECP_ERR_BAD_INPUT,
+              "ecdsa_verify_opaque_rows(stride<129) rejected as invalid");
+        err = ufsecp_gpu_ecdsa_verify_lbtc_rows(ctx, row, 128, 1, out);
+        CHECK(err == UFSECP_ERR_BAD_INPUT,
+              "ecdsa_verify_lbtc_rows(stride<129) rejected as invalid");
+        err = ufsecp_gpu_ecdsa_verify_lbtc_rows(ctx, nullptr, 129, 1, out);
+        CHECK(err == UFSECP_ERR_NULL_ARG,
+              "ecdsa_verify_lbtc_rows(NULL rows) rejected before forwarding");
+        err = ufsecp_gpu_ecdsa_verify_lbtc_rows(ctx, row, 129, 1, nullptr);
+        CHECK(err == UFSECP_ERR_NULL_ARG,
+              "ecdsa_verify_lbtc_rows(NULL out) rejected before forwarding");
+
+        ufsecp_ctx* sc = nullptr;
+        if (ufsecp_ctx_create(&sc) == UFSECP_OK) {
+            uint8_t sk[32] = {0}; sk[31] = 11;
+            uint8_t msg[32]; for (int i = 0; i < 32; ++i) msg[i] = (uint8_t)(i * 5 + 9);
+            uint8_t pub[33], sig[64];
+            if (ufsecp_pubkey_create(sc, sk, pub) == UFSECP_OK &&
+                ufsecp_ecdsa_sign(sc, msg, sk, sig) == UFSECP_OK &&
+                ufsecp_ecdsa_sig_compact_to_opaque(sc, sig, row + 65) == UFSECP_OK) {
+                std::memcpy(row, msg, 32);
+                std::memcpy(row + 32, pub, 33);
+                out[0] = 0;
+                err = ufsecp_gpu_ecdsa_verify_opaque_rows(ctx, row, 129, 1, out);
+                if (err == UFSECP_OK)
+                    CHECK(out[0] == 1, "ecdsa_verify_opaque_rows smoke: valid opaque row succeeds");
+                else
+                    std::printf("  (ecdsa_verify_opaque_rows smoke: backend err %d (%s) — skip)\n",
+                                err, ufsecp_gpu_error_str(err));
+            }
+            ufsecp_ctx_destroy(sc);
+        }
     }
 
     /* collect verify (libbitcoin) hostile-caller quartet: zero-edge, invalid

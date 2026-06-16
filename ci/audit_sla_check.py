@@ -3,9 +3,14 @@
 
 Checks measurable SLO thresholds:
   - Evidence staleness (max age of critical evidence artifacts)
-  - Unresolved HIGH findings window
+  - Critical-path evidence freshness (stricter threshold)
   - Determinism golden reference freshness
-  - Exploit-to-regression conversion time
+
+For every tracked artifact the checker also reports `days_until_block` and emits
+a non-blocking PRE-ALERT warning while the artifact is within `pre_alert_buffer_days`
+of its blocking threshold. This prevents the SLA from silently jumping straight
+from green to blocked (Bastion B3): operators get advance warning, and the
+`evidence_status` array gives every artifact's remaining runway.
 
 If any blocking SLO is violated, release_ready = false.
 """
@@ -44,12 +49,49 @@ SUITE_ROOT = LIB_ROOT.parent.parent  # workspace root
 # missing them should be a warning rather than a blocking violation.
 _STANDALONE = not (SUITE_ROOT / "libs").is_dir()
 
+# Pre-alert: warn this many days BEFORE an artifact would cross its blocking
+# freshness threshold, so the SLA never silently jumps from green to blocked.
+# Overridable per-SLO via AUDIT_SLA.json "pre_alert_buffer_days".
+DEFAULT_PRE_ALERT_BUFFER_DAYS = 5
+
 
 def _load_sla_defs() -> dict:
     """Load SLA definitions."""
     if not SLA_DEF_FILE.exists():
         return {}
     return json.loads(SLA_DEF_FILE.read_text(encoding="utf-8"))
+
+
+def _pre_alert_buffer(sla_defs: dict, slo: str) -> int:
+    """Per-SLO pre-alert buffer (days), falling back to the global default."""
+    try:
+        return int(sla_defs.get("slos", {}).get(slo, {}).get(
+            "pre_alert_buffer_days", DEFAULT_PRE_ALERT_BUFFER_DAYS))
+    except (TypeError, ValueError):
+        return DEFAULT_PRE_ALERT_BUFFER_DAYS
+
+
+def _classify(age: float | None, threshold: float, buffer: int) -> str:
+    """ok | pre_alert | stale | missing."""
+    if age is None:
+        return "missing"
+    if age > threshold:
+        return "stale"
+    if age > (threshold - buffer):
+        return "pre_alert"
+    return "ok"
+
+
+def _status_row(name: str, slo: str, age: float | None, threshold: float, buffer: int) -> dict:
+    """Per-artifact freshness status with days_until_block for ops visibility."""
+    return {
+        "evidence": name,
+        "slo": slo,
+        "state": _classify(age, threshold, buffer),
+        "age_days": None if age is None else round(age, 1),
+        "threshold_days": threshold,
+        "days_until_block": None if age is None else round(threshold - age, 1),
+    }
 
 
 def _file_age_days(path: Path) -> float | None:
@@ -96,27 +138,30 @@ def _dir_newest_age_days(dirpath: Path) -> float | None:
     return newest
 
 
-def check_evidence_staleness(sla_defs: dict) -> list[dict]:
-    """Check that no critical evidence is staler than the SLO threshold."""
-    threshold = sla_defs.get("slos", {}).get("max_stale_evidence_days", {}).get("threshold", 30)
-    severity = sla_defs.get("slos", {}).get("max_stale_evidence_days", {}).get("severity", "blocking")
+def check_evidence_staleness(sla_defs: dict) -> tuple[list[dict], list[dict]]:
+    """Check that no critical evidence is staler than the SLO threshold.
+
+    Returns (findings, statuses). Findings carry blocking 'stale' violations,
+    missing-artifact entries, and non-blocking 'pre_alert' warnings. Statuses
+    carry every artifact's days_until_block for the report's evidence_status."""
+    slo = "max_stale_evidence_days"
+    threshold = sla_defs.get("slos", {}).get(slo, {}).get("threshold", 30)
+    severity = sla_defs.get("slos", {}).get(slo, {}).get("severity", "blocking")
+    buffer = _pre_alert_buffer(sla_defs, slo)
     findings: list[dict] = []
+    statuses: list[dict] = []
 
     for ev in CRITICAL_EVIDENCE:
-        if ev["scope"] == "lib":
-            base = LIB_ROOT
-        elif ev["scope"] == "suite":
+        if ev["scope"] == "suite":
             base = SUITE_ROOT
         else:
-            base = LIB_ROOT  # fallback
+            base = LIB_ROOT  # lib + build fallback
 
         full_path = base / ev["path"]
         is_dir = ev.get("is_dir", False)
+        age = _dir_newest_age_days(full_path) if is_dir else _file_age_days(full_path)
 
-        if is_dir:
-            age = _dir_newest_age_days(full_path)
-        else:
-            age = _file_age_days(full_path)
+        statuses.append(_status_row(ev["name"], slo, age, threshold, buffer))
 
         if age is None:
             # In standalone mode OR outside CI (local dev), suite- and
@@ -132,7 +177,7 @@ def check_evidence_staleness(sla_defs: dict) -> list[dict]:
                 else severity
             )
             findings.append({
-                "slo": "max_stale_evidence_days",
+                "slo": slo,
                 "evidence": ev["name"],
                 "status": "missing",
                 "severity": effective_severity,
@@ -140,23 +185,39 @@ def check_evidence_staleness(sla_defs: dict) -> list[dict]:
             })
         elif age > threshold:
             findings.append({
-                "slo": "max_stale_evidence_days",
+                "slo": slo,
                 "evidence": ev["name"],
                 "status": "stale",
                 "age_days": round(age, 1),
                 "threshold_days": threshold,
+                "days_until_block": round(threshold - age, 1),
                 "severity": severity,
                 "detail": f"{ev['name']} is {round(age, 1)} days old (max {threshold})",
             })
+        elif age > (threshold - buffer):
+            findings.append({
+                "slo": slo,
+                "evidence": ev["name"],
+                "status": "pre_alert",
+                "age_days": round(age, 1),
+                "threshold_days": threshold,
+                "days_until_block": round(threshold - age, 1),
+                "severity": "warning",
+                "detail": (f"PRE-ALERT: {ev['name']} is {round(age, 1)} days old; "
+                           f"blocks at {threshold} ({round(threshold - age, 1)} days left) — refresh now"),
+            })
 
-    return findings
+    return findings, statuses
 
 
-def check_critical_freshness(sla_defs: dict) -> list[dict]:
+def check_critical_freshness(sla_defs: dict) -> tuple[list[dict], list[dict]]:
     """Check critical-path evidence freshness (stricter threshold)."""
-    threshold = sla_defs.get("slos", {}).get("critical_evidence_freshness_days", {}).get("threshold", 14)
-    severity = sla_defs.get("slos", {}).get("critical_evidence_freshness_days", {}).get("severity", "blocking")
+    slo = "critical_evidence_freshness_days"
+    threshold = sla_defs.get("slos", {}).get(slo, {}).get("threshold", 14)
+    severity = sla_defs.get("slos", {}).get(slo, {}).get("severity", "blocking")
+    buffer = _pre_alert_buffer(sla_defs, slo)
     findings: list[dict] = []
+    statuses: list[dict] = []
 
     critical_files = [
         ("ct_evidence_dir", LIB_ROOT / "audit" / "ci-evidence", True),
@@ -164,63 +225,136 @@ def check_critical_freshness(sla_defs: dict) -> list[dict]:
     ]
 
     for name, path, is_dir in critical_files:
-        if is_dir:
-            age = _dir_newest_age_days(path)
-        else:
-            age = _file_age_days(path)
+        age = _dir_newest_age_days(path) if is_dir else _file_age_days(path)
+        statuses.append(_status_row(name, slo, age, threshold, buffer))
 
-        if age is not None and age > threshold:
+        if age is None:
+            continue
+        if age > threshold:
             findings.append({
-                "slo": "critical_evidence_freshness_days",
+                "slo": slo,
                 "evidence": name,
                 "status": "stale",
                 "age_days": round(age, 1),
                 "threshold_days": threshold,
+                "days_until_block": round(threshold - age, 1),
                 "severity": severity,
                 "detail": f"Critical evidence {name} is {round(age, 1)} days old (max {threshold})",
             })
+        elif age > (threshold - buffer):
+            findings.append({
+                "slo": slo,
+                "evidence": name,
+                "status": "pre_alert",
+                "age_days": round(age, 1),
+                "threshold_days": threshold,
+                "days_until_block": round(threshold - age, 1),
+                "severity": "warning",
+                "detail": (f"PRE-ALERT: critical evidence {name} is {round(age, 1)} days old; "
+                           f"blocks at {threshold} ({round(threshold - age, 1)} days left) — refresh now"),
+            })
 
-    return findings
+    return findings, statuses
 
 
-def check_determinism_golden_freshness(sla_defs: dict) -> list[dict]:
+def check_determinism_golden_freshness(sla_defs: dict) -> tuple[list[dict], list[dict]]:
     """Check determinism golden reference freshness."""
-    threshold = sla_defs.get("slos", {}).get("determinism_golden_staleness_days", {}).get("threshold", 30)
-    severity = sla_defs.get("slos", {}).get("determinism_golden_staleness_days", {}).get("severity", "blocking")
+    slo = "determinism_golden_staleness_days"
+    threshold = sla_defs.get("slos", {}).get(slo, {}).get("threshold", 30)
+    severity = sla_defs.get("slos", {}).get(slo, {}).get("severity", "blocking")
+    buffer = _pre_alert_buffer(sla_defs, slo)
     golden = LIB_ROOT / "docs" / "DETERMINISM_GOLDEN.json"
     age = _file_age_days(golden)
+    statuses = [_status_row("determinism_golden", slo, age, threshold, buffer)]
 
     if age is None:
         return [{
-            "slo": "determinism_golden_staleness_days",
+            "slo": slo,
             "evidence": "determinism_golden",
             "status": "missing",
             "severity": severity,
             "detail": "DETERMINISM_GOLDEN.json not yet created — will be generated by determinism gate",
-        }]
+        }], statuses
     if age > threshold:
         return [{
-            "slo": "determinism_golden_staleness_days",
+            "slo": slo,
             "evidence": "determinism_golden",
             "status": "stale",
             "age_days": round(age, 1),
             "threshold_days": threshold,
+            "days_until_block": round(threshold - age, 1),
             "severity": severity,
             "detail": f"Determinism golden is {round(age, 1)} days old (max {threshold})",
-        }]
-    return []
+        }], statuses
+    if age > (threshold - buffer):
+        return [{
+            "slo": slo,
+            "evidence": "determinism_golden",
+            "status": "pre_alert",
+            "age_days": round(age, 1),
+            "threshold_days": threshold,
+            "days_until_block": round(threshold - age, 1),
+            "severity": "warning",
+            "detail": (f"PRE-ALERT: determinism golden is {round(age, 1)} days old; "
+                       f"blocks at {threshold} ({round(threshold - age, 1)} days left) — re-verify now"),
+        }], statuses
+    return [], statuses
+
+
+def check_incident_drill_freshness(sla_defs: dict) -> tuple[list[dict], list[dict]]:
+    """Check that incident drills are still running (Bastion B9).
+
+    Reads the git commit date of docs/INCIDENT_DRILL_LOG.json (written every
+    incident_drills.py run, refreshed nightly). If drills stop running the log
+    goes stale and this surfaces it. Advisory (warning) for now — see the SLO
+    note in AUDIT_SLA.json."""
+    slo = "incident_drill_freshness_days"
+    threshold = sla_defs.get("slos", {}).get(slo, {}).get("threshold", 14)
+    severity = sla_defs.get("slos", {}).get(slo, {}).get("severity", "warning")
+    buffer = _pre_alert_buffer(sla_defs, slo)
+    log = LIB_ROOT / "docs" / "INCIDENT_DRILL_LOG.json"
+    age = _file_age_days(log)
+    statuses = [_status_row("incident_drill_log", slo, age, threshold, buffer)]
+
+    if age is None:
+        return [], statuses  # not yet committed; absence is not a violation here
+    if age > threshold:
+        return [{
+            "slo": slo, "evidence": "incident_drill_log", "status": "stale",
+            "age_days": round(age, 1), "threshold_days": threshold,
+            "days_until_block": round(threshold - age, 1), "severity": severity,
+            "detail": f"Incident-drill log is {round(age, 1)} days old (max {threshold}) — drills may have stopped running",
+        }], statuses
+    if age > (threshold - buffer):
+        return [{
+            "slo": slo, "evidence": "incident_drill_log", "status": "pre_alert",
+            "age_days": round(age, 1), "threshold_days": threshold,
+            "days_until_block": round(threshold - age, 1), "severity": "warning",
+            "detail": f"PRE-ALERT: incident-drill log is {round(age, 1)} days old; stales at {threshold} — re-run drills",
+        }], statuses
+    return [], statuses
 
 
 def run(json_mode: bool, out_file: str | None) -> int:
     sla_defs = _load_sla_defs()
 
     all_findings: list[dict] = []
-    all_findings.extend(check_evidence_staleness(sla_defs))
-    all_findings.extend(check_critical_freshness(sla_defs))
-    all_findings.extend(check_determinism_golden_freshness(sla_defs))
+    evidence_status: list[dict] = []
+    for check in (check_evidence_staleness, check_critical_freshness,
+                  check_determinism_golden_freshness, check_incident_drill_freshness):
+        findings, statuses = check(sla_defs)
+        all_findings.extend(findings)
+        evidence_status.extend(statuses)
 
     blocking = [f for f in all_findings if f.get("severity") == "blocking"]
     warnings = [f for f in all_findings if f.get("severity") == "warning"]
+    pre_alerts = [f for f in all_findings if f.get("status") == "pre_alert"]
+
+    # Soonest blocking deadline across all tracked artifacts (None when nothing
+    # has a measurable age, e.g. clean checkout with no built evidence).
+    measurable = [s["days_until_block"] for s in evidence_status
+                  if s.get("days_until_block") is not None]
+    min_days_until_block = min(measurable) if measurable else None
 
     release_ready = len(blocking) == 0
 
@@ -230,7 +364,10 @@ def run(json_mode: bool, out_file: str | None) -> int:
         "release_ready": release_ready,
         "blocking_violations": len(blocking),
         "warning_violations": len(warnings),
+        "pre_alerts": len(pre_alerts),
+        "min_days_until_block": min_days_until_block,
         "total_findings": len(all_findings),
+        "evidence_status": evidence_status,
         "findings": all_findings,
     }
 
@@ -242,11 +379,18 @@ def run(json_mode: bool, out_file: str | None) -> int:
         print(rendered)
     else:
         for f in all_findings:
-            tag = "BLOCK" if f.get("severity") == "blocking" else "WARN"
+            sev = f.get("severity")
+            tag = "BLOCK" if sev == "blocking" else ("ALERT" if f.get("status") == "pre_alert" else "WARN")
             print(f"  [{tag}] {f['detail']}")
+        # Runway summary for every tracked artifact (days_until_block).
+        print()
+        for s in sorted(evidence_status, key=lambda r: (r["days_until_block"] is None, r["days_until_block"])):
+            dub = s["days_until_block"]
+            runway = "n/a (absent)" if dub is None else f"{dub}d to block"
+            print(f"  - {s['evidence']:<22} {s['state']:<9} {runway}")
         print()
         if release_ready:
-            print(f"PASS audit SLA check ({len(warnings)} warning(s))")
+            print(f"PASS audit SLA check ({len(warnings)} warning(s), {len(pre_alerts)} pre-alert(s))")
         else:
             print(f"FAIL {len(blocking)} blocking SLA violation(s)")
 

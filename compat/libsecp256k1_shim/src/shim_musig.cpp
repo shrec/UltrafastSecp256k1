@@ -153,37 +153,42 @@ static void write_token(secp256k1_musig_keyagg_cache* p, std::uint64_t tok) {
 }
 
 std::mutex g_mu;
-std::unordered_map<std::uint64_t, std::unique_ptr<KAEntry>> g_ka;
+// PRECOMPUTE-GCONTEXT-UAF class (shim variant): the map holds shared_ptr, and the
+// accessors return a shared_ptr SNAPSHOT (not a raw `it->second.get()`). A caller that
+// holds the snapshot keeps the KAEntry alive for the whole operation even if a concurrent
+// ka_remove / partial_sig_agg erases the map entry — eliminating the unlock-then-use-raw
+// use-after-free of the secret-adjacent KAEntry::ctx. Mirrors the g_context shared_ptr fix.
+std::unordered_map<std::uint64_t, std::shared_ptr<KAEntry>> g_ka;
 
 // Hard cap prevents DoS from abandoned sessions on error paths.
 static constexpr std::size_t kMaxKaEntries = 1024;
 
-static KAEntry* ka_get(const secp256k1_musig_keyagg_cache* p) {
+static std::shared_ptr<KAEntry> ka_get(const secp256k1_musig_keyagg_cache* p) {
     std::uint64_t tok = read_token(p);
     if (tok == 0) return nullptr;  // never initialized
     std::lock_guard<std::mutex> lk(g_mu);
     auto it = g_ka.find(tok);
-    return it != g_ka.end() ? it->second.get() : nullptr;
+    return it != g_ka.end() ? it->second : nullptr;  // shared_ptr snapshot, not a raw .get()
 }
 
 // Look up the keyagg entry directly by token (used by partial_sig_agg to recover the
 // BIP-327 tweak accumulators — the session blob has no room to carry tweak_s).
-static KAEntry* ka_get_by_token(std::uint64_t tok) {
+static std::shared_ptr<KAEntry> ka_get_by_token(std::uint64_t tok) {
     if (tok == 0) return nullptr;
     std::lock_guard<std::mutex> lk(g_mu);
     auto it = g_ka.find(tok);
-    return it != g_ka.end() ? it->second.get() : nullptr;
+    return it != g_ka.end() ? it->second : nullptr;  // shared_ptr snapshot, not a raw .get()
 }
 
-static KAEntry* ka_put(secp256k1_musig_keyagg_cache* p, std::unique_ptr<KAEntry> v) {
+static std::shared_ptr<KAEntry> ka_put(secp256k1_musig_keyagg_cache* p, std::unique_ptr<KAEntry> v) {
     std::lock_guard<std::mutex> lk(g_mu);
     if (g_ka.size() >= kMaxKaEntries) return nullptr;  // DoS cap
     // Assign a fresh monotonic token — eliminates address-reuse hazard.
     std::uint64_t tok = g_token_counter.fetch_add(1, std::memory_order_relaxed);
     write_token(p, tok);
     auto& slot = g_ka[tok];
-    slot = std::move(v);
-    return slot.get();
+    slot = std::move(v);  // unique_ptr -> shared_ptr
+    return slot;          // shared_ptr snapshot
 }
 
 // Called after the final protocol step — releases the session entry.
@@ -396,7 +401,7 @@ int secp256k1_musig_pubkey_get(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!agg_pk || !keyagg_cache) return 0;
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
     secp256k1_ec_pubkey_parse(secp256k1_context_static, agg_pk, e->agg_pk_comp.data(), 33);
     return 1;
@@ -410,7 +415,7 @@ int secp256k1_musig_pubkey_ec_tweak_add(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!keyagg_cache || !tweak32) return 0;
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
     // SHIM-003: parse_bytes_strict (not nonzero) — tweak=0 valid per libsecp
     // (result is Q unchanged). parse_bytes_strict_nonzero incorrectly rejected
@@ -452,7 +457,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!keyagg_cache || !tweak32) return 0;
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
     // SHIM-001: parse_bytes_strict (not nonzero) — tweak=0 valid per libsecp256k1.
     Scalar t;
@@ -634,7 +639,7 @@ int secp256k1_musig_nonce_process(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!session || !aggnonce || !msg32 || !keyagg_cache) return 0;
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
     secp256k1::MuSig2AggNonce an;
     // BIP-327 cpoint_ext: a 33-zero aggnonce half is the point at infinity and is VALID
@@ -669,7 +674,7 @@ int secp256k1_musig_partial_sign(
     if (!partial_sig || !secnonce || !keypair || !keyagg_cache || !session) return 0;
     // T-01: Apply DPA blinding for the duration of this signing call (matches ECDSA/Schnorr shim).
     secp256k1_shim_internal::ContextBlindingScope _blind(ctx);
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
 
     Scalar k1, k2;
@@ -723,7 +728,7 @@ int secp256k1_musig_partial_sig_verify(
 {
     SHIM_REQUIRE_CTX(ctx);
     if (!partial_sig || !pubnonce || !pubkey || !keyagg_cache || !session) return 0;
-    KAEntry* e = ka_get(keyagg_cache);
+    auto e = ka_get(keyagg_cache);  // shared_ptr snapshot — keeps KAEntry alive for this op
     if (!e) return 0;
 
     Scalar psig;
@@ -771,7 +776,7 @@ int secp256k1_musig_partial_sig_agg(
     // BIP-327 additive-tweak correction: tweak_s = e*g*tacc is not carried in the session
     // blob (no spare bytes), so recompute it from the still-live keyagg cache (released
     // only at the end of this function). tacc defaults to 0 for untweaked sessions.
-    if (KAEntry* ke = ka_get_by_token(sess_load_cache_token(session))) {
+    if (auto ke = ka_get_by_token(sess_load_cache_token(session))) {
         Scalar const gtacc = ke->ctx.Q_negated ? ke->ctx.tacc.negate() : ke->ctx.tacc;
         s.tweak_s = s.e * gtacc;
     }

@@ -168,6 +168,21 @@ using namespace fe52_constants;
 // With -mbmi2 -O3: compiles to MULX + ADD/ADC chains (verified).
 // With always_inline: zero function-call overhead.
 
+// CT/VT boundary note (read before assuming this is a "constant-time" primitive):
+// fe52_mul_inner / fe52_sqr_inner are the DEFAULT 5x52 field multiply / square.
+// The absence of a `_var` suffix does NOT make this a constant-time-HARDENED op.
+// A 5x52 field multiply is straight-line __int128 arithmetic with NO data-dependent
+// branches — it is inherently timing-invariant regardless of suffix. The `_var`
+// twins (fe52_mul_inner_var / fe52_sqr_inner_var) are BYTE-IDENTICAL arithmetic and
+// differ ONLY in codegen (FORCE_INLINE + optional monolithic ASM) suited to
+// variable-time CONTEXTS where inlining is affordable. Neither variant leaks via
+// timing. Consequently, calling the non-`_var` mul/square from a VERIFY path (e.g.
+// build_glv52_table_zr's GLV precompute) is CORRECT — it is NOT "CT on verify".
+// The real CT-vs-VT boundary is the SCALAR-MUL algorithm (fixed-window cmov for
+// secrets vs wNAF/GLV for public data); verify already uses variable-time wNAF.
+// Measured 2026-06-15: routing the verify table build to `_var` gives 0 speedup
+// under LTO (GCC already emits MULX/ADCX/ADOX from __int128) — kb GLV52-VAR-TABLE-001.
+//
 // Do NOT use SECP256K1_FE52_FORCE_INLINE (always_inline) here.
 // With always_inline the function is inlined into every caller and compiled
 // at the caller's optimization level, defeating the optimize("O2") attribute.
@@ -2313,7 +2328,10 @@ FieldElement52 FieldElement52::operator*(const FieldElement52& rhs) const noexce
     return r;
 }
 
-// Variable-time variants — VERIFY paths only.
+// Variable-time-CONTEXT variant — identical arithmetic to the default above,
+// FORCE_INLINE (+ optional ASM) for public/variable-time paths such as verify.
+// "VERIFY only" is a codegen choice, NOT a security distinction: the default is
+// equally branchless/timing-invariant. See the CT/VT boundary note at fe52_mul_inner.
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::mul_var(const FieldElement52& rhs) const noexcept {
     FieldElement52 r;
@@ -2334,7 +2352,10 @@ FieldElement52 FieldElement52::square() const noexcept {
     return r;
 }
 
-// Variable-time variants — VERIFY paths only.
+// Variable-time-CONTEXT variant — identical arithmetic to the default above,
+// FORCE_INLINE (+ optional ASM) for public/variable-time paths such as verify.
+// "VERIFY only" is a codegen choice, NOT a security distinction: the default is
+// equally branchless/timing-invariant. See the CT/VT boundary note at fe52_mul_inner.
 SECP256K1_FE52_FORCE_INLINE
 FieldElement52 FieldElement52::square_var() const noexcept {
     FieldElement52 r;

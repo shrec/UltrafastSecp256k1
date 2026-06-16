@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "a8a0479bdda3f3b5ded0ef34207920e5a31c8d64203e49446dd153b2e7f32ec3",
-      "size": 22062
+      "sha256": "f080c865c9d1b1649f1d733dbc5c9008e989c862caf4e6c7236970c87b02f9c4",
+      "size": 31320
     },
     {
       "exists": true,
@@ -15,8 +15,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_SLA.json",
-      "sha256": "e6b91311c50ca0cfdf2b862199f3f2f79243be9e4bc47de3ab7f02a675c828a7",
-      "size": 2987
+      "sha256": "91840435fc73456c5766b61244387020a0513d77181b043807ca419c2f41b98e",
+      "size": 14691
     },
     {
       "exists": true,
@@ -27,32 +27,32 @@
     {
       "exists": true,
       "path": "docs/FEATURE_ASSURANCE_LEDGER.md",
-      "sha256": "e7e109250da2b06995a5c577668117cd07dcfed15e473d92634e1de99d4bfd2b",
-      "size": 43129
+      "sha256": "8634b74f9b91f35375112c1ed07f70100a89faa5924cd4ba6383d805095673c0",
+      "size": 44708
     },
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "7c1f22f09af0d6e3658364434b686542aefe538d636a9f8098a233b1f4e0b964",
-      "size": 63424
+      "sha256": "87e48fa989cb7366a4678b5a7c5457ccbd5569faa2d988dc4b66914a7c4d78b3",
+      "size": 67150
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "281223695f7602a4778f9f1f8307e2817b2f8d4a6a20ee125b34632c943471a8",
-      "size": 48223
+      "sha256": "095b3b08bdf9154b6cb11650965a25d823e2d4bdbc787d3dd93a1975f436556a",
+      "size": 49162
     },
     {
       "exists": true,
       "path": "docs/FFI_HOSTILE_CALLER.md",
-      "sha256": "147e5ebb0aa41c40b92613e9d95c7c4c23b701e950df3a27419e40c4a87244c7",
-      "size": 24606
+      "sha256": "f25905a09053c00c2ea3dba7951c6d8b6a3376464a0b59373d05901e1add978f",
+      "size": 26895
     },
     {
       "exists": true,
       "path": "docs/BACKEND_ASSURANCE_MATRIX.md",
-      "sha256": "a8bbf270300778175b76806964e64c6a40fae1790c1e49ed519e58d7f59c52d6",
-      "size": 13789
+      "sha256": "d7dac013853c4951261cb29b395ebb6dcba28e0fa785a81e5763577c5ac2f005",
+      "size": 16921
     },
     {
       "exists": true,
@@ -84,7 +84,7 @@
           {
             "findings": [
               {
-                "message": "ABI negative-test manifest counts: exports=185, blocking=0, null=185, zero=178, invalid=180, smoke=185",
+                "message": "ABI negative-test manifest counts: exports=193, blocking=0, null=193, zero=187, invalid=188, smoke=193",
                 "severity": "INFO"
               },
               {
@@ -156,7 +156,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=420, critical=0, high=0, medium=0, low=0",
+                "message": "Audit test-quality findings: files=430, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
@@ -170,7 +170,7 @@
           {
             "findings": [
               {
-                "message": "All 759 security patterns preserved",
+                "message": "All 779 security patterns preserved",
                 "severity": "PASS"
               }
             ],
@@ -200,27 +200,27 @@
           {
             "findings": [
               {
-                "message": "45 files modified/deleted since graph build (2026-06-10T13:24:20)",
+                "message": "5 files modified/deleted since graph build (2026-06-13T20:27:32)",
                 "severity": "WARN"
               },
               {
-                "message": "MODIFIED: .zenodo.json",
+                "message": "MODIFIED: docs/ABI_NEGATIVE_TEST_MANIFEST.json",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: CHANGELOG.md",
+                "message": "MODIFIED: docs/ABI_NEGATIVE_TEST_MANIFEST.md",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: SECURITY.md",
+                "message": "MODIFIED: docs/AUDIT_CHANGELOG.md",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: VERSION.txt",
+                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: conanfile.py",
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
                 "severity": "INFO"
               }
             ],
@@ -230,28 +230,8 @@
           {
             "findings": [
               {
-                "message": "128 undocumented Unsupported returns",
-                "severity": "WARN"
-              },
-              {
-                "message": "  src/gpu/include/gpu_backend.hpp:36",
-                "severity": "INFO"
-              },
-              {
-                "message": "  src/gpu/include/gpu_backend.hpp:101",
-                "severity": "INFO"
-              },
-              {
-                "message": "  src/gpu/include/gpu_backend.hpp:110",
-                "severity": "INFO"
-              },
-              {
-                "message": "  src/gpu/include/gpu_backend.hpp:120",
-                "severity": "INFO"
-              },
-              {
-                "message": "  src/gpu/include/gpu_backend.hpp:137",
-                "severity": "INFO"
+                "message": "GPU parity OK (37 GPU ABI functions)",
+                "severity": "PASS"
               }
             ],
             "name": "P7: GPU Parity",
@@ -392,7 +372,7 @@
           {
             "findings": [
               {
-                "message": "54 changed files have matching docs",
+                "message": "6 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -402,11 +382,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 57.4 days (threshold: 14)",
+                "message": "Mutation report age: 60.6 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (57.4 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (60.6 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -482,67 +462,87 @@
           {
             "findings": [
               {
-                "message": "P21: all required CAAS docs present (15 files)",
+                "message": "P21 semantic map: 20 requirements (14 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual",
                 "severity": "PASS"
               },
               {
-                "message": "docs/CAAS_PROTOCOL.md present",
+                "message": "P21-CORE: presence-gated (15 artifact(s))",
                 "severity": "PASS"
               },
               {
-                "message": "docs/AUDIT_PHILOSOPHY.md present",
+                "message": "G-1: gated by --threat-model (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/RESIDUAL_RISK_REGISTER.md present",
+                "message": "G-2: presence-gated (1 artifact(s))",
                 "severity": "PASS"
               },
               {
-                "message": "docs/SECURITY_CLAIMS.md present",
+                "message": "G-3: documented residual (tracked in RESIDUAL_RISK_REGISTER.md)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/EXPLOIT_TEST_CATALOG.md present",
+                "message": "G-4: presence-gated (1 artifact(s))",
                 "severity": "PASS"
               },
               {
-                "message": "docs/EXTERNAL_AUDIT_BUNDLE.json present",
+                "message": "G-5: gated by --spec-traceability (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/EXTERNAL_AUDIT_BUNDLE.sha256 present",
+                "message": "G-6: presence-gated (1 artifact(s))",
                 "severity": "PASS"
               },
               {
-                "message": "docs/CAAS_REVIEWER_QUICKSTART.md present",
+                "message": "G-7: gated by script ci/multi_ci_repro_check.py",
                 "severity": "PASS"
               },
               {
-                "message": "docs/CAAS_FAQ.md present",
+                "message": "G-8: gated by --ct-tool-agreement (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/CAAS_THREAT_MODEL.md present",
+                "message": "G-9: presence-gated (1 artifact(s))",
                 "severity": "PASS"
               },
               {
-                "message": "docs/NEGATIVE_RESULTS_LEDGER.md present",
+                "message": "G-9b: gated by --exploit-traceability (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/THREAD_SAFETY.md present",
+                "message": "G-10: gated by --disclosure-sla (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/ABI_VERSIONING.md present",
+                "message": "G-13: gated by --integration-evidence (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "docs/SECURITY_INCIDENT_TIMELINE.md present",
+                "message": "G-14: gated by --ct-evidence-status (registered)",
                 "severity": "PASS"
               },
               {
-                "message": "ci/verify_external_audit_bundle.py present",
+                "message": "G-15: gated by --fuzz-campaign-status (registered)",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-16: gated by --gpu-hardware-evidence (registered)",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-17: gated by script ci/check_bench_target_context.py",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-18: gated by --research-signal-matrix (registered)",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-19: gated by --evidence-refresh-coverage (registered)",
+                "severity": "PASS"
+              },
+              {
+                "message": "G-20: gated by --package-provenance-binding (registered)",
                 "severity": "PASS"
               }
             ],
@@ -608,19 +608,129 @@
                 "severity": "PASS"
               },
               {
-                "message": "2 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/batch_verify.cpp', 'src/cpu/src/ellswift.cpp']",
-                "severity": "WARN"
+                "message": "Source graph DB is up-to-date relative to src/cpu/ sources",
+                "severity": "PASS"
               },
               {
                 "message": "Source graph tables: ai_handlers, ai_tasks, analysis_scores, audit_coverage, backend_map, call_edges, classes, config_files, config_keys, constants\u2026",
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1564 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1632 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
             "name": "G-12: Source Graph Quality",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "9 integration surfaces (1 blocking, 4 warning, 4 owner-gated); no blocking failures",
+                "severity": "PASS"
+              },
+              {
+                "message": "INT-BATCH-VERIFY: owner-gated, not current evidence (last_verified 2026-06-12)",
+                "severity": "INFO"
+              },
+              {
+                "message": "INT-LIBBITCOIN-BRIDGE: owner-gated, not current evidence (last_verified 2026-06-12)",
+                "severity": "INFO"
+              },
+              {
+                "message": "INT-LIBBITCOIN-NOLIBSECP: owner-gated, not current evidence (last_verified 2026-05-01)",
+                "severity": "INFO"
+              },
+              {
+                "message": "INT-BITCOIN-CORE-SUITE: owner-gated, not current evidence (last_verified 2026-05-11)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "G-13: Integration Evidence Freshness",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "7 CT surfaces (5 blocking, 1 warning, 1 owner-gated); committed evidence current (verdicts_evaluated=False)",
+                "severity": "PASS"
+              },
+              {
+                "message": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "G-14: CT Evidence Freshness",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "7 fuzz surfaces (4 blocking, 1 warning, 2 owner-gated); no missing/stale/unconverted-crash",
+                "severity": "PASS"
+              },
+              {
+                "message": "FUZZ-LIBBITCOIN-BRIDGE-DIFF: owner-gated, not current evidence (last_verified 2026-06-02)",
+                "severity": "INFO"
+              },
+              {
+                "message": "FUZZ-GPU-PUBLIC-DATA: owner-gated, not current evidence (last_verified 2026-06-09)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "G-15: Fuzz Campaign Evidence",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "7 GPU/hardware surfaces (0 blocking, 4 warning, 1 owner-gated, 2 documented-residual); fallback-correctness != native-performance",
+                "severity": "PASS"
+              },
+              {
+                "message": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md)",
+                "severity": "INFO"
+              },
+              {
+                "message": "GPU-ROCM-DEVICE: owner-gated, not current evidence (last_verified 2026-03-25)",
+                "severity": "INFO"
+              },
+              {
+                "message": "HW-POWER-EM-FAULT: documented residual RR-006 (RESIDUAL_RISK_REGISTER.md)",
+                "severity": "INFO"
+              }
+            ],
+            "name": "G-16: GPU/Hardware Evidence",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "45 signal classes fully routed (attack_class + expected_evidence + expected_gate)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-18: Research Signal Matrix",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "7 freshness artifacts all covered (2 auto, 5 residual); incident_drill_log auto-refresh=True",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-19: Evidence Refresh Coverage",
+            "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "5 package surfaces bound (2 template, 0 bound, 3 owner_gated)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-20: Package Provenance Binding",
             "status": "PASS"
           }
         ],
@@ -630,11 +740,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "907953f62f02a660ee264d264a28238fe5c24937",
-            "short": "907953f62f"
+            "sha": "8cc6044bab18e5f1ef6e3616840bf48a8ba6a535",
+            "short": "8cc6044bab"
           }
         },
-        "generated_at": "2026-06-10T16:20:55.669539+00:00",
+        "generated_at": "2026-06-13T20:47:28.817933+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -651,12 +761,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-06-10T16:20:55.669500+00:00",
+          "collected_at": "2026-06-13T20:47:28.817866+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "907953f62f02a660ee264d264a28238fe5c24937",
-            "short": "907953f62f"
+            "sha": "8cc6044bab18e5f1ef6e3616840bf48a8ba6a535",
+            "short": "8cc6044bab"
           },
           "platform": {
             "machine": "x86_64",
@@ -677,7 +787,7 @@
           },
           "version": "4.2.1"
         },
-        "run_id": "audit_gate-907953f62f-20260610T162055",
+        "run_id": "audit_gate-8cc6044bab-20260613T204728",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -702,7 +812,7 @@
               {
                 "check_id": "p0__abi_hostile-caller_manifest",
                 "severity": "info",
-                "title": "ABI negative-test manifest counts: exports=185, blocking=0, null=185, zero=178, invalid=180, smoke=185"
+                "title": "ABI negative-test manifest counts: exports=193, blocking=0, null=193, zero=187, invalid=188, smoke=193"
               },
               {
                 "check_id": "p0__abi_hostile-caller_manifest",
@@ -783,7 +893,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=420, critical=0, high=0, medium=0, low=0"
+                "title": "Audit test-quality findings: files=430, critical=0, high=0, medium=0, low=0"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -799,7 +909,7 @@
               {
                 "check_id": "p3__security_patterns",
                 "severity": "pass",
-                "title": "All 759 security patterns preserved"
+                "title": "All 779 security patterns preserved"
               }
             ],
             "name": "P3: Security Patterns",
@@ -832,32 +942,32 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "45 files modified/deleted since graph build (2026-06-10T13:24:20)"
+                "title": "5 files modified/deleted since graph build (2026-06-13T20:27:32)"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: .zenodo.json"
+                "title": "MODIFIED: docs/ABI_NEGATIVE_TEST_MANIFEST.json"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: CHANGELOG.md"
+                "title": "MODIFIED: docs/ABI_NEGATIVE_TEST_MANIFEST.md"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: SECURITY.md"
+                "title": "MODIFIED: docs/AUDIT_CHANGELOG.md"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: VERSION.txt"
+                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: conanfile.py"
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -867,37 +977,12 @@
             "findings": [
               {
                 "check_id": "p7__gpu_parity",
-                "severity": "advisory:medium",
-                "title": "128 undocumented Unsupported returns"
-              },
-              {
-                "check_id": "p7__gpu_parity",
-                "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:36"
-              },
-              {
-                "check_id": "p7__gpu_parity",
-                "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:101"
-              },
-              {
-                "check_id": "p7__gpu_parity",
-                "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:110"
-              },
-              {
-                "check_id": "p7__gpu_parity",
-                "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:120"
-              },
-              {
-                "check_id": "p7__gpu_parity",
-                "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:137"
+                "severity": "pass",
+                "title": "GPU parity OK (37 GPU ABI functions)"
               }
             ],
             "name": "P7: GPU Parity",
-            "verdict": "PASS with advisory"
+            "verdict": "PASS"
           },
           {
             "findings": [
@@ -1066,7 +1151,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "54 changed files have matching docs"
+                "title": "6 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1077,12 +1162,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 57.4 days (threshold: 14)"
+                "title": "Mutation report age: 60.6 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (57.4 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (60.6 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1168,82 +1253,107 @@
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "P21: all required CAAS docs present (15 files)"
+                "title": "P21 semantic map: 20 requirements (14 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/CAAS_PROTOCOL.md present"
+                "title": "P21-CORE: presence-gated (15 artifact(s))"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/AUDIT_PHILOSOPHY.md present"
+                "title": "G-1: gated by --threat-model (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/RESIDUAL_RISK_REGISTER.md present"
+                "title": "G-2: presence-gated (1 artifact(s))"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/SECURITY_CLAIMS.md present"
+                "title": "G-3: documented residual (tracked in RESIDUAL_RISK_REGISTER.md)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/EXPLOIT_TEST_CATALOG.md present"
+                "title": "G-4: presence-gated (1 artifact(s))"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/EXTERNAL_AUDIT_BUNDLE.json present"
+                "title": "G-5: gated by --spec-traceability (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/EXTERNAL_AUDIT_BUNDLE.sha256 present"
+                "title": "G-6: presence-gated (1 artifact(s))"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/CAAS_REVIEWER_QUICKSTART.md present"
+                "title": "G-7: gated by script ci/multi_ci_repro_check.py"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/CAAS_FAQ.md present"
+                "title": "G-8: gated by --ct-tool-agreement (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/CAAS_THREAT_MODEL.md present"
+                "title": "G-9: presence-gated (1 artifact(s))"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/NEGATIVE_RESULTS_LEDGER.md present"
+                "title": "G-9b: gated by --exploit-traceability (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/THREAD_SAFETY.md present"
+                "title": "G-10: gated by --disclosure-sla (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/ABI_VERSIONING.md present"
+                "title": "G-13: gated by --integration-evidence (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "docs/SECURITY_INCIDENT_TIMELINE.md present"
+                "title": "G-14: gated by --ct-evidence-status (registered)"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "ci/verify_external_audit_bundle.py present"
+                "title": "G-15: gated by --fuzz-campaign-status (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-16: gated by --gpu-hardware-evidence (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-17: gated by script ci/check_bench_target_context.py"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-18: gated by --research-signal-matrix (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-19: gated by --evidence-refresh-coverage (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-20: gated by --package-provenance-binding (registered)"
               }
             ],
             "name": "P21: External-Audit Replacement Gate",
@@ -1320,8 +1430,8 @@
               },
               {
                 "check_id": "g-12__source_graph_quality",
-                "severity": "advisory:medium",
-                "title": "2 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/batch_verify.cpp', 'src/cpu/src/ellswift.cpp']"
+                "severity": "pass",
+                "title": "Source graph DB is up-to-date relative to src/cpu/ sources"
               },
               {
                 "check_id": "g-12__source_graph_quality",
@@ -1331,29 +1441,156 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1564 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1632 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
-            "verdict": "PASS with advisory"
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-13__integration_evidence_freshness",
+                "severity": "pass",
+                "title": "9 integration surfaces (1 blocking, 4 warning, 4 owner-gated); no blocking failures"
+              },
+              {
+                "check_id": "g-13__integration_evidence_freshness",
+                "severity": "info",
+                "title": "INT-BATCH-VERIFY: owner-gated, not current evidence (last_verified 2026-06-12)"
+              },
+              {
+                "check_id": "g-13__integration_evidence_freshness",
+                "severity": "info",
+                "title": "INT-LIBBITCOIN-BRIDGE: owner-gated, not current evidence (last_verified 2026-06-12)"
+              },
+              {
+                "check_id": "g-13__integration_evidence_freshness",
+                "severity": "info",
+                "title": "INT-LIBBITCOIN-NOLIBSECP: owner-gated, not current evidence (last_verified 2026-05-01)"
+              },
+              {
+                "check_id": "g-13__integration_evidence_freshness",
+                "severity": "info",
+                "title": "INT-BITCOIN-CORE-SUITE: owner-gated, not current evidence (last_verified 2026-05-11)"
+              }
+            ],
+            "name": "G-13: Integration Evidence Freshness",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-14__ct_evidence_freshness",
+                "severity": "pass",
+                "title": "7 CT surfaces (5 blocking, 1 warning, 1 owner-gated); committed evidence current (verdicts_evaluated=False)"
+              },
+              {
+                "check_id": "g-14__ct_evidence_freshness",
+                "severity": "info",
+                "title": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)"
+              }
+            ],
+            "name": "G-14: CT Evidence Freshness",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-15__fuzz_campaign_evidence",
+                "severity": "pass",
+                "title": "7 fuzz surfaces (4 blocking, 1 warning, 2 owner-gated); no missing/stale/unconverted-crash"
+              },
+              {
+                "check_id": "g-15__fuzz_campaign_evidence",
+                "severity": "info",
+                "title": "FUZZ-LIBBITCOIN-BRIDGE-DIFF: owner-gated, not current evidence (last_verified 2026-06-02)"
+              },
+              {
+                "check_id": "g-15__fuzz_campaign_evidence",
+                "severity": "info",
+                "title": "FUZZ-GPU-PUBLIC-DATA: owner-gated, not current evidence (last_verified 2026-06-09)"
+              }
+            ],
+            "name": "G-15: Fuzz Campaign Evidence",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-16__gpu/hardware_evidence",
+                "severity": "pass",
+                "title": "7 GPU/hardware surfaces (0 blocking, 4 warning, 1 owner-gated, 2 documented-residual); fallback-correctness != native-performance"
+              },
+              {
+                "check_id": "g-16__gpu/hardware_evidence",
+                "severity": "info",
+                "title": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md)"
+              },
+              {
+                "check_id": "g-16__gpu/hardware_evidence",
+                "severity": "info",
+                "title": "GPU-ROCM-DEVICE: owner-gated, not current evidence (last_verified 2026-03-25)"
+              },
+              {
+                "check_id": "g-16__gpu/hardware_evidence",
+                "severity": "info",
+                "title": "HW-POWER-EM-FAULT: documented residual RR-006 (RESIDUAL_RISK_REGISTER.md)"
+              }
+            ],
+            "name": "G-16: GPU/Hardware Evidence",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-18__research_signal_matrix",
+                "severity": "pass",
+                "title": "45 signal classes fully routed (attack_class + expected_evidence + expected_gate)"
+              }
+            ],
+            "name": "G-18: Research Signal Matrix",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-19__evidence_refresh_coverage",
+                "severity": "pass",
+                "title": "7 freshness artifacts all covered (2 auto, 5 residual); incident_drill_log auto-refresh=True"
+              }
+            ],
+            "name": "G-19: Evidence Refresh Coverage",
+            "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-20__package_provenance_binding",
+                "severity": "pass",
+                "title": "5 package surfaces bound (2 template, 0 bound, 3 owner_gated)"
+              }
+            ],
+            "name": "G-20: Package Provenance Binding",
+            "verdict": "PASS"
           }
         ],
         "summary": {
-          "advisory": 54,
+          "advisory": 57,
           "blocking": 0,
-          "info": 47,
-          "sections": 26,
+          "info": 52,
+          "sections": 33,
           "skipped_sections": 0,
-          "total_findings": 100,
-          "warnings": 7
+          "total_findings": 117,
+          "warnings": 5
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "fee2b4125cd176843cb805225d658ff3c38f0ca05a8e021ccb3bfc3b4f5b1f91",
-      "stdout_sha256": "8b2de4d3d923aa5acda02b940e40298da708658010f822d305d0a78c480789da"
+      "stderr_sha256": "bb3ba366b23498384bd87c6d034dfedae463eb8631ecb921becb77fec502b004",
+      "stdout_sha256": "e4a999327ec30437cd40e4f8d7fc97b0e587b90fa40aa313db10fb4d6fa37e51"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1655,13 +1892,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-06-10T16:20:56.892498+00:00"
+        "timestamp": "2026-06-13T20:47:30.901682+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "ad46111e2104cfadcc73b6e40a866f8aadb357bca3a77903d39a53e45995ecf7"
+      "stdout_sha256": "be43a7a9b86b5bcc78452d0c639546532b5d1928cb703643fed64db6c80b43a5"
     },
     {
       "name": "supply_chain_gate",
@@ -1707,19 +1944,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-06-10T16:20:56.934220+00:00"
+        "timestamp": "2026-06-13T20:47:30.954754+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "65e5d9a43c1aaba5230247e2f7efc758c4b4677868df28c17ccb8af41dd8209d"
+      "stdout_sha256": "4839191bcbf5d62f8e6ceb6a8122ecf588c0e006cc9c0f49ed900de8c5eed986"
     }
   ],
-  "generated_at": "2026-06-10T16:20:56.951912+00:00",
+  "generated_at": "2026-06-13T20:47:30.973138+00:00",
   "git": {
     "branch": "dev",
-    "commit": "907953f62f02a660ee264d264a28238fe5c24937",
+    "commit": "8cc6044bab18e5f1ef6e3616840bf48a8ba6a535",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

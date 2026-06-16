@@ -89,6 +89,15 @@ public:
         const uint8_t* sigs64, size_t count,
         uint8_t* out_results) = 0;
 
+    /* Libbitcoin ECDSA row path:
+     *   row = 32 msg | 33 compressed pubkey | 64 opaque secp256k1_ecdsa_signature
+     *         | optional caller tail.
+     * PUBLIC-DATA. Backends read the strided rows directly so the bridge does not
+     * build msg/pub/sig staging columns or compact signature tables. */
+    virtual GpuError ecdsa_verify_lbtc_rows(
+        const uint8_t* rows, size_t stride, size_t count,
+        uint8_t* out_results) = 0;
+
     virtual GpuError schnorr_verify_batch(
         const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
         const uint8_t* sigs64, size_t count,
@@ -107,6 +116,9 @@ public:
     {
         (void)msg_hashes32; (void)pubkeys33; (void)sigs64;
         (void)count; (void)key_buffer;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -117,6 +129,9 @@ public:
     {
         (void)msg_hashes32; (void)pubkeys_x32; (void)sigs64;
         (void)count; (void)key_buffer;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -139,6 +154,9 @@ public:
         const uint8_t* keys32, size_t n, uint8_t* results)
     {
         (void)keys32; (void)n; (void)results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -152,6 +170,9 @@ public:
     {
         (void)internal_x32; (void)tweak32; (void)tweaked_x32; (void)parity;
         (void)n; (void)results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -163,6 +184,9 @@ public:
         size_t msg_len, size_t n, uint8_t* out32)
     {
         (void)tag_hash32; (void)msgs; (void)msg_len; (void)n; (void)out32;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -172,6 +196,9 @@ public:
         const uint8_t* pubkeys33, size_t n, uint8_t* results)
     {
         (void)pubkeys33; (void)n; (void)results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -182,6 +209,9 @@ public:
         size_t stride, size_t n, uint8_t* out32)
     {
         (void)tag_hash32; (void)msgs; (void)msg_lens; (void)stride; (void)n; (void)out32;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -191,6 +221,9 @@ public:
         const uint8_t* inputs, size_t input_len, size_t n, uint8_t* out32)
     {
         (void)inputs; (void)input_len; (void)n; (void)out32;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -262,6 +295,9 @@ public:
     {
         (void)proofs64; (void)pubkeys65; (void)messages32;
         (void)count; (void)out_results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -279,6 +315,9 @@ public:
     {
         (void)proofs64; (void)G_pts65; (void)H_pts65;
         (void)P_pts65; (void)Q_pts65; (void)count; (void)out_results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -295,6 +334,9 @@ public:
     {
         (void)proofs324; (void)commitments65; (void)H_generator65;
         (void)count; (void)out_results;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -322,6 +364,9 @@ public:
     {
         (void)msg_hashes32; (void)pubkeys33; (void)sigs64;
         (void)count; (void)out_flat;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -373,6 +418,9 @@ public:
     {
         (void)keys32; (void)nonces12; (void)plaintexts;
         (void)sizes; (void)max_payload; (void)count; (void)wire_out;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -392,6 +440,9 @@ public:
         (void)keys32; (void)nonces12; (void)wire_in;
         (void)sizes; (void)max_payload; (void)count;
         (void)plaintext_out; (void)out_valid;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 
@@ -428,6 +479,9 @@ public:
     {
         (void)scan_privkey32; (void)spend_pubkey33;
         (void)tweak_pubkeys33; (void)n_tweaks; (void)prefix64_out;
+        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
+        // fall back to host CPU (perf residual, not a correctness gap; see method
+        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
         return GpuError::Unsupported;
     }
 };

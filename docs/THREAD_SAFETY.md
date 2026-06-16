@@ -9,8 +9,17 @@
 The CPU backend is stateless. All functions are re-entrant and thread-safe
 provided each thread uses its own private keys and ephemeral scalars.
 
-The precomputed generator table is built once via `std::call_once` and is
-thereafter read-only — no lock is taken on any read path.
+The comb generator table (`ecmult_gen_comb`) is built once via `std::call_once`
+and is thereafter read-only — no lock is taken on any read path.
+
+The windowed fixed-base table (`g_context` in `precompute.cpp`) may be (re)built at
+runtime via `configure_fixed_base()` / autotune. It is a `std::shared_ptr`:
+`scalar_mul_generator` and `batch_scalar_mul_generator` take a local `shared_ptr`
+snapshot under `g_mutex` *before* releasing the lock to read the table, so a
+concurrent `configure_fixed_base()` (which does `g_context.reset()`) cannot free the
+table mid-read (PRECOMPUTE-GCONTEXT-UAF). Configuring the fixed base once before
+spawning worker threads remains the recommended pattern; the snapshot makes the
+reconfigure-during-use case safe (defined behavior) rather than a use-after-free.
 
 ---
 

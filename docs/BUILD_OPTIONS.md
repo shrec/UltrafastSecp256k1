@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**73 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**78 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -17,6 +17,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `SECP256K1_BCHN_SHIM_BUILD_TESTS` | `OFF` | Build BCHN libsecp256k1 compatibility shim tests |
 | `SECP256K1_BUILD_BCH` | `OFF` | Build BCH-specific modules: RPA (Reusable Payment Addresses), CashAddr, EC grinding pipeline |
 | `SECP256K1_BUILD_BENCH` | `ON` | Build benchmarks |
 | `SECP256K1_BUILD_CABI` | `ON` | Build the stable ufsecp_* C ABI library |
@@ -25,6 +26,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_ETHEREUM` | `ON` | Build Ethereum module (Keccak, EIP-55/155/191, ecrecover) |
 | `SECP256K1_BUILD_EXAMPLES` | `ON` | Build example programs |
 | `SECP256K1_BUILD_JAVA` | `ON` | Build Java JNI bindings |
+| `SECP256K1_BUILD_KNOTS` | `OFF` | [Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off |
 | `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Minimal node profile: shim + GPU/CPU batch script-sig bridge + BIP-352; extras off |
 | `SECP256K1_BUILD_METAL` | `OFF` | Build Apple Metal GPU support |
 | `SECP256K1_BUILD_OPENCL` | `OFF` | Build OpenCL support |
@@ -42,6 +44,8 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_GPU_BUILD_ZK` | `ON` | GPU ZK ops (knowledge / DLEQ / bulletproof / SNARK witness) |
 | `SECP256K1_INSTALL` | `ON` | Generate install target |
 | `SECP256K1_INSTALL_PKGCONFIG` | `ON` | Install pkg-config file |
+| `SECP256K1_MSVC_OB3` | `ON` | MSVC: /Ob3 most-aggressive inlining |
+| `SECP256K1_MSVC_WPO` | `OFF` | MSVC: /GL whole-program + /LTCG + /OPT:REF,ICF (opt-in; a /GL static lib forces consumer /LTCG) |
 | `SECP256K1_REQUIRE_CT` | `OFF` | Deprecate non-CT sign functions (compile warnings on fast:: signing) |
 | `SECP256K1_SPEED_FIRST` | `OFF` | Reserved: SECP256K1_FAST_NO_SECURITY_CHECKS compile definition (currently has no effect — CT guards are always on) |
 | `SECP256K1_USE_ULTRAFAST` | `OFF` | [Bitcoin Core] Use UltrafastSecp256k1 as the secp256k1 backend (enables shim + CT + strict ABI) |
@@ -105,6 +109,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 |------|---------|-------------|
 | `SECP256K1_SHIM_BUILD_SHARED` | `OFF` | Also build a self-contained shared ultrafast_secp256k1 (DLL/.so) exporting the libsecp256k1 ABI |
 | `SECP256K1_SHIM_BUILD_TESTS` | `OFF` | Build shim compatibility test |
+| `SECP256K1_SHIM_INSTALL` | `ON` | Install the shim shared lib + libsecp256k1 headers + libsecp256k1.pc (Core/Knots backend swap) |
 | `SECP256K1_SHIM_RFC6979_COMPAT` | `OFF` | Match upstream libsecp256k1 nonce bytes exactly (includes ECDSA algo16 tag). Disables fault-attack resistance of hedged nonce. |
 
 ## libbitcoin bridge (script-sig batch verify + scan)

@@ -5,6 +5,19 @@ name: CAAS Evidence Refresh
 # the audit_sla_check.py 30-day max_stale_evidence_days SLO never silently
 # trips (CAAS Hardening TODO H-1).
 #
+# Evidence-refresh coverage contract (Bastion B19, docs/AUDIT_SLA.json
+# `freshness_artifacts`, gated by ci/check_evidence_refresh_coverage.py / G-19):
+#   AUTO (regenerated + committed by this lane):
+#     - assurance_report   (out/reports/assurance_report.json via export_assurance.py)
+#     - incident_drill_log (docs/INCIDENT_DRILL_LOG.json — security_autonomy_check.py
+#                           runs incident_drills.py, which rewrites the log)
+#   RESIDUAL (intentionally NOT regenerated here — authored / golden / build-only /
+#     owner-chosen manual; see docs/RESIDUAL_RISK_REGISTER.md RR-BAS-01):
+#     - ct_evidence (audit/ci-evidence), api_contracts (API_SECURITY_CONTRACTS.json),
+#       assurance_claims (ASSURANCE_CLAIMS.json), determinism_golden, risk_coverage_report
+#   The "Verify evidence-refresh coverage" step below fails the lane if a blocking
+#   freshness artifact ever loses both its auto-producer and its documented residual.
+#
 # Safe: only commits when something actually changed, and only on dev.
 
 on:
@@ -49,16 +62,17 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Verify bot token is configured
-        # CAAS_BOT_TOKEN must be a PAT with bypass permissions for the dev branch
-        # protection rules. GITHUB_TOKEN cannot push through branch protection, so
-        # the refresh silently fails on push without the PAT. Fail fast here instead.
+      - name: Report evidence refresh token mode
+        # CAAS_BOT_TOKEN is preferred when the dev branch requires bypass
+        # permissions. If it is absent, continue with GITHUB_TOKEN so the lane can
+        # still regenerate diagnostics and upload artifacts; the final commit step
+        # remains fail-closed if refreshed evidence cannot be written to dev.
         run: |
           if [ -z "${{ secrets.CAAS_BOT_TOKEN }}" ]; then
-            echo "::error::CAAS_BOT_TOKEN secret is not configured."
-            echo "::error::The evidence refresh requires a PAT that can bypass branch protection on dev."
-            echo "::error::Configure CAAS_BOT_TOKEN as a repository secret with bypass permissions."
-            exit 1
+            echo "::warning::CAAS_BOT_TOKEN secret is not configured; falling back to GITHUB_TOKEN."
+            echo "::warning::If dev branch protection rejects the commit, the commit step will fail after diagnostic artifacts are uploaded."
+          else
+            echo "::notice::Using CAAS_BOT_TOKEN for evidence refresh checkout and push."
           fi
 
       - name: Checkout dev
@@ -67,12 +81,20 @@ jobs:
           ref: dev
           fetch-depth: 0
           persist-credentials: true
-          token: ${{ secrets.CAAS_BOT_TOKEN }}
+          token: ${{ secrets.CAAS_BOT_TOKEN || github.token }}
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.12'
+
+      - name: Verify evidence-refresh coverage (G-19)
+        # Bastion B19: fail the lane fast (before the build) if any freshness
+        # artifact tracked by audit_sla_check.py has lost both its auto-producer
+        # and its documented residual, or if an `auto` disposition claims a commit
+        # path this workflow does not actually stage. Cheap: static JSON + workflow
+        # parsing, no build required.
+        run: python3 ci/check_evidence_refresh_coverage.py
 
       - name: Install build dependencies
         run: sudo apt-get install -y --no-install-recommends ninja-build g++-14
@@ -221,9 +243,11 @@ jobs:
         env:
           # CAAS-009 fix: fall back to GITHUB_TOKEN when CAAS_BOT_TOKEN is not set.
           # Previously a missing/expired CAAS_BOT_TOKEN caused silent push failure,
-          # leaving the dashboard and evidence chain stale indefinitely.
-          # GITHUB_TOKEN has contents:write at job level — sufficient for dev branch.
-          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          # leaving the dashboard and evidence chain stale indefinitely. The final
+          # git push remains the authoritative hard-fail if branch protection
+          # rejects the fallback token.
+          GH_TOKEN: ${{ secrets.CAAS_BOT_TOKEN || github.token }}
+          HAS_CAAS_BOT_TOKEN: ${{ secrets.CAAS_BOT_TOKEN != '' }}
           FORCE_COMMIT: ${{ github.event.inputs.force_commit }}
           CAAS_HMAC_KEY: ${{ secrets.CAAS_HMAC_KEY }}
         run: |
@@ -284,6 +308,7 @@ jobs:
                      docs/SECURITY_AUTONOMY_KPI.json \
                      docs/AUDIT_DASHBOARD.md \
                      docs/EXPLOIT_TRACEABILITY_JOIN.md \
+                     docs/INCIDENT_DRILL_LOG.json \
                      docs/EVIDENCE_CHAIN.json; do
               if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
                 git add "$f"
@@ -295,6 +320,11 @@ jobs:
           if [ "$CHANGED" -eq 0 ] && [ "${FORCE_COMMIT}" != "true" ]; then
             echo "::notice::No evidence changed; nothing to commit"
             exit 0
+          fi
+
+          if [ "${HAS_CAAS_BOT_TOKEN}" != "true" ]; then
+            echo "::error::CAAS_BOT_TOKEN is required to commit refreshed evidence to protected dev. Regenerated artifacts were uploaded for diagnosis, but freshness is not updated until a bypass-capable token is provisioned."
+            exit 1
           fi
 
           git commit -m "[bot] CAAS evidence refresh ($(date -u +%Y-%m-%d))" \

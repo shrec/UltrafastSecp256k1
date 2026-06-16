@@ -86,7 +86,7 @@ struct ShimEcdsaCache {
     static constexpr std::size_t SLOTS = 32;
     struct Slot {
         std::uint64_t            fingerprint{0};
-        uint8_t                  pubkey_x[32]{};   // X bytes for identity check
+        uint8_t                  pubkey_data[64]{}; // Full X||Y identity check
         secp256k1::EcdsaPublicKey epk{};
         bool                     valid      = false;
         bool                     seen_once  = false;
@@ -107,7 +107,9 @@ struct ShimEcdsaCache {
     //
     // Fast fingerprint: first 8 bytes of X coordinate (2 instructions, ~0.3 ns)
     // instead of full 64-byte FNV-1a hash (~8-10 ns). Collision resistance via
-    // full 32-byte X comparison in the hot path (T-08 pattern preserved).
+    // full 64-byte X||Y comparison in the hot path (T-08 pattern preserved).
+    // Same-X opposite-Y pubkeys are distinct consensus keys; comparing only X
+    // lets 02||X and 03||X reuse the wrong cached EcdsaPublicKey.
     // SHIM-014: XOR with thread-local salt so slot mapping is not attacker-
     // predictable. Adds ~1 ns; eliminates the slot-hijack class entirely.
     static void fingerprint(const unsigned char data[64],
@@ -126,7 +128,7 @@ struct ShimEcdsaCache {
         Slot& s = slots[idx];
 
         bool const matches = (s.fingerprint == fp &&
-                              std::memcmp(s.pubkey_x, data, 32) == 0);
+                              std::memcmp(s.pubkey_data, data, 64) == 0);
         // Cache hit (3rd+ encounter).
         if (matches && s.valid)  return &s.epk;
 
@@ -138,9 +140,9 @@ struct ShimEcdsaCache {
             return s.valid ? &s.epk : nullptr;
         }
 
-        // First encounter: record fingerprint + X only (~40 bytes written).
+        // First encounter: record fingerprint + full pubkey (~72 bytes written).
         s.fingerprint = fp;
-        std::memcpy(s.pubkey_x, data, 32);
+        std::memcpy(s.pubkey_data, data, 64);
         s.seen_once = true;
         s.valid     = false;
         return nullptr;   // caller uses Point path — no L2 write pressure
@@ -154,25 +156,27 @@ static thread_local ShimEcdsaCache s_ecdsa_cache;
 using secp256k1_shim_internal::ctx_flags;
 using secp256k1_shim_internal::ctx_can_sign;
 using secp256k1_shim_internal::ctx_can_verify;
+using secp256k1_shim_internal::scalar_be_to_internal;
+using secp256k1_shim_internal::scalar_internal_to_be;
 
-// -- Internal: opaque sig stores r (32 BE) || s (32 BE) -------------------
+// -- Internal: opaque sig stores r (32 LE/internal) || s (32 LE/internal) ---
 static void ecdsa_sig_to_data(const secp256k1::ECDSASignature& sig, unsigned char data[64]) {
     auto rb = sig.r.to_bytes();
     auto sb = sig.s.to_bytes();
-    std::memcpy(data, rb.data(), 32);
-    std::memcpy(data + 32, sb.data(), 32);
+    scalar_be_to_internal(data, rb.data());
+    scalar_be_to_internal(data + 32, sb.data());
 }
 
 static secp256k1::ECDSASignature ecdsa_sig_from_data(const unsigned char data[64]) {
     // T-07: strict parse — rejects r,s >= n by zeroing (downstream verify then fails).
-    // PERF-OPT: when data was written by secp256k1_ecdsa_signature_parse_der or
-    // secp256k1_ecdsa_signature_parse_compact, the valid_scalar check already ran.
-    // For API correctness we still use parse_bytes_strict (not unchecked) because
-    // callers can write arbitrary bytes into secp256k1_ecdsa_signature.data directly.
-    // The strict parse is ~5-8 ns; removing it risks silent mod-n reduction (T-07).
+    // The opaque data IS the engine's native little-endian limb form, so parse it
+    // DIRECTLY via parse_bytes_strict_le — no LE->BE byte-reversal round-trip (the
+    // old scalar_internal_to_be + parse_bytes_strict reversed the bytes only for
+    // parse_bytes_strict to reverse them back). Same strict <n contract (T-07);
+    // arbitrary-byte callers still fail-close to zero.
     Scalar r_scalar, s_scalar;
-    if (!Scalar::parse_bytes_strict(data,      r_scalar)) r_scalar = Scalar::zero();
-    if (!Scalar::parse_bytes_strict(data + 32, s_scalar)) s_scalar = Scalar::zero();
+    if (!Scalar::parse_bytes_strict_le(data,      r_scalar)) r_scalar = Scalar::zero();
+    if (!Scalar::parse_bytes_strict_le(data + 32, s_scalar)) s_scalar = Scalar::zero();
     return { r_scalar, s_scalar };
 }
 
@@ -207,7 +211,8 @@ int secp256k1_ecdsa_signature_parse_compact(
         std::memset(sig->data, 0, sizeof(sig->data));
         return 0;
     }
-    std::memcpy(sig->data, input64, 64);
+    scalar_be_to_internal(sig->data, input64);
+    scalar_be_to_internal(sig->data + 32, input64 + 32);
     return 1;
 }
 
@@ -224,17 +229,16 @@ int secp256k1_ecdsa_signature_serialize_compact(
         secp256k1_shim_call_illegal_cb(ctx, "secp256k1_ecdsa_signature_serialize_compact: sig is NULL");
         return 0;
     }
-    std::memcpy(output64, sig->data, 64);
+    scalar_internal_to_be(output64, sig->data);
+    scalar_internal_to_be(output64 + 32, sig->data + 32);
     return 1;
 }
 
 // -- DER parse/serialize --------------------------------------------------
 // DER parse optimizations (vs prior version):
 //   1. Lambda instead of static function → compiler inlines, no call overhead
-//   2. Write directly into sig->data → eliminates r[32], s[32] stack buffers
-//      and the two final memcpy(sig->data, r, 32) calls
-//   3. __builtin_memset/memcpy → stronger optimization hints than std::mem*
-//   4. Only zero the leading prefix bytes (32 - len), not full 32 bytes
+//   2. __builtin_memset/memcpy → stronger optimization hints than std::mem*
+//   3. Only zero the leading prefix bytes (32 - len), not full 32 bytes
 
 int secp256k1_ecdsa_signature_parse_der(
     const secp256k1_context *ctx, secp256k1_ecdsa_signature *sig,
@@ -266,31 +270,30 @@ int secp256k1_ecdsa_signature_parse_der(
     if (seqlen > 70 || p + seqlen != end) return 0;
 
     // Parse one DER INTEGER into a 32-byte big-endian buffer.
-    // Writes directly to *out (must point into sig->data).
     // Returns false on any BIP-66 violation.
-    auto parse_int = [](const unsigned char*& p,
-                        const unsigned char* end,
+    auto parse_int = [](const unsigned char*& cursor,
+                        const unsigned char* limit,
                         unsigned char* out) -> bool {
-        if (p >= end || *p++ != 0x02) return false;
-        if (p >= end) return false;
-        unsigned char len = *p++;
-        if (len == 0 || p + len > end) return false;
-        if (*p & 0x80) return false;          // negative integer — invalid
-        if (*p == 0x00) {
+        if (cursor >= limit || *cursor++ != 0x02) return false;
+        if (cursor >= limit) return false;
+        unsigned char len = *cursor++;
+        if (len == 0 || cursor + len > limit) return false;
+        if (*cursor & 0x80) return false;          // negative integer — invalid
+        if (*cursor == 0x00) {
             // Leading 0x00 is only valid before a high-bit byte.
-            if (len < 2 || !(p[1] & 0x80)) return false;
-            ++p; --len;                        // skip required padding byte
+            if (len < 2 || !(cursor[1] & 0x80)) return false;
+            ++cursor; --len;                        // skip required padding byte
         }
         if (len > 32) return false;
         UFSECP_SHIM_MEMSET(out, 0, 32u - len);   // zero only the prefix
-        UFSECP_SHIM_MEMCPY(out + 32u - len, p, len);
-        p += len;
+        UFSECP_SHIM_MEMCPY(out + 32u - len, cursor, len);
+        cursor += len;
         return true;
     };
 
-    // Parse r and s directly into sig->data — no intermediate stack buffers.
-    if (!parse_int(p, end, sig->data))      { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }  // r → data[0..31]
-    if (!parse_int(p, end, sig->data + 32)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }  // s → data[32..63]
+    unsigned char r_be[32]{}, s_be[32]{};
+    if (!parse_int(p, end, r_be)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }
+    if (!parse_int(p, end, s_be)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }
 
     // RT-02 (strict-DER): the SEQUENCE body must be EXACTLY consumed by r and s.
     // The line-255 check only verifies the declared SEQUENCE length fills the
@@ -314,9 +317,9 @@ int secp256k1_ecdsa_signature_parse_der(
     static constexpr uint64_t N3 = 0xBFD25E8CD0364141ULL;  // bytes [24..31]
 
     // Load 32 bytes as 4 big-endian uint64_t (avoids Scalar ctor overhead).
-    auto load64be = [](const unsigned char* p) noexcept -> uint64_t {
+    auto load64be = [](const unsigned char* q) noexcept -> uint64_t {
         uint64_t v;
-        UFSECP_SHIM_MEMCPY(&v, p, 8);
+        UFSECP_SHIM_MEMCPY(&v, q, 8);
         return UFSECP_SHIM_BSWAP64(v);
     };
 
@@ -336,15 +339,20 @@ int secp256k1_ecdsa_signature_parse_der(
         uint64_t a3 = load64be(b + 24);  // least significant
 
         // Check < n: lexicographic comparison from most-significant limb.
-        if (a0 < N0) return true;   if (a0 > N0) return false;
-        if (a1 < N1) return true;   if (a1 > N1) return false;
-        if (a2 < N2) return true;   if (a2 > N2) return false;
+        if (a0 < N0) return true;
+        if (a0 > N0) return false;
+        if (a1 < N1) return true;
+        if (a1 > N1) return false;
+        if (a2 < N2) return true;
+        if (a2 > N2) return false;
         return a3 < N3;
     };
 
-    if (!in_range_scalar(sig->data))      { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }  // r
-    if (!in_range_scalar(sig->data + 32)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }  // s
+    if (!in_range_scalar(r_be)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }
+    if (!in_range_scalar(s_be)) { std::memset(sig->data, 0, sizeof(sig->data)); return 0; }
 
+    scalar_be_to_internal(sig->data, r_be);
+    scalar_be_to_internal(sig->data + 32, s_be);
     return 1;
 }
 
@@ -385,10 +393,13 @@ int secp256k1_ecdsa_signature_serialize_der(
     }
 
     // Max DER integer: 0x02 + len(1) + 0x00 pad(1) + 32 data = 35 bytes
+    unsigned char r_be[32]{}, s_be[32]{};
+    scalar_internal_to_be(r_be, sig->data);
+    scalar_internal_to_be(s_be, sig->data + 32);
     unsigned char r_der[35]{}, s_der[35]{};
     size_t r_len = 0, s_len = 0;
-    der_encode_int(r_der, &r_len, sig->data);
-    der_encode_int(s_der, &s_len, sig->data + 32);
+    der_encode_int(r_der, &r_len, r_be);
+    der_encode_int(s_der, &s_len, s_be);
 
     size_t total = 2 + r_len + s_len;
     if (*outputlen < total) { *outputlen = total; return 0; }

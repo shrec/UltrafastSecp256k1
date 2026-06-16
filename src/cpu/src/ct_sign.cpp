@@ -16,11 +16,20 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/config.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include <array>
 #include <cstring>
 #include <memory>
 
 namespace {
 using secp256k1::detail::secure_erase;
+
+bool bytes_all_zero(const std::array<uint8_t, 32>& bytes) noexcept {
+    uint8_t acc = 0;
+    for (uint8_t byte : bytes) {
+        acc |= byte;
+    }
+    return acc == 0;
+}
 } // anonymous namespace
 
 namespace secp256k1::ct {
@@ -297,6 +306,9 @@ SchnorrKeypair schnorr_keypair_create(const Scalar& private_key) {
     // secret key, so the ternary branch would leak via timing.
     kp.d = ct::scalar_cneg(d_prime, ct::bool_to_mask(p_y_odd));
     kp.px = px;
+    // d_prime is a private-key copy — scrub it from the stack (kp.d, the public
+    // x-only signing key, is the intended output and is returned by value).
+    secure_erase(&d_prime, sizeof(d_prime));
     return kp;
 }
 
@@ -468,9 +480,7 @@ SchnorrSignature schnorr_sign_verified(const SchnorrKeypair& kp,
     auto sig = ct::schnorr_sign(kp, msg, aux_rand);
 
     // Rule 14: check both s==0 AND R.x all-zeros before returning success.
-    const auto* rw = reinterpret_cast<const std::uint64_t*>(sig.r.data());
-    const bool r_zero = ((rw[0] | rw[1] | rw[2] | rw[3]) == 0);
-    if (sig.s.is_zero_ct() || r_zero) return SchnorrSignature{};
+    if (sig.s.is_zero_ct() || bytes_all_zero(sig.r)) return SchnorrSignature{};
 
     // Fast (non-CT) verify: timing variation is over the public sig/key only —
     // d and k are both erased inside schnorr_sign before this call.

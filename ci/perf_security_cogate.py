@@ -153,12 +153,43 @@ def check_gpu_parity_stubs() -> dict:
     }
 
 
+def check_bench_consistency() -> dict:
+    """Co-gate benchmark-artifact integrity (Bastion B8). A performance claim is
+    only valid if its benchmark evidence is internally consistent and free of
+    corrupt artifacts (zero/non-finite timings, stale/derived keys, ratio drift).
+    check_bench_doc_consistency.py has no --json flag, so run it plainly and gate
+    on its exit code."""
+    script = SCRIPT_DIR / "check_bench_doc_consistency.py"
+    if not script.exists():
+        return {"gate": "bench_consistency", "status": "missing", "passing": False,
+                "detail": "check_bench_doc_consistency.py not found"}
+    try:
+        result = subprocess.run([sys.executable, str(script)], capture_output=True,
+                                text=True, timeout=120, cwd=str(LIB_ROOT))
+    except subprocess.TimeoutExpired:
+        return {"gate": "bench_consistency", "status": "timeout", "passing": False,
+                "detail": "bench consistency check timed out"}
+    except Exception as exc:
+        return {"gate": "bench_consistency", "status": "error", "passing": False,
+                "detail": str(exc)}
+    # exit 77 = SKIP (canonical_numbers.json absent) — treat as non-blocking pass.
+    passing = result.returncode in (0, 77)
+    return {
+        "gate": "bench_consistency",
+        "status": "ran",
+        "passing": passing,
+        "returncode": result.returncode,
+        "detail": (result.stdout.strip().splitlines() or [""])[-1][:200],
+    }
+
+
 def run(json_mode: bool, out_file: str | None) -> int:
     results = [
         check_ct_evidence(),
         _run_gate("check_formal_invariants.py"),
         check_secret_lifecycle(),
         check_gpu_parity_stubs(),
+        check_bench_consistency(),
     ]
 
     all_passing = all(r["passing"] for r in results)

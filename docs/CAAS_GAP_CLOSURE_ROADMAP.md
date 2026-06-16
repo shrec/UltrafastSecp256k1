@@ -1,11 +1,13 @@
 # CAAS Gap-Closure Roadmap — Self-Contained Evidence
 
-> Version: 1.1 — 2026-04-26
-> Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). G-1..G-4
-> closed 2026-04-26 (docs created). G-5..G-6 partial. This file
-> identifies the **structural gaps that prevent CAAS from being fully
-> self-contained, replayable evidence infrastructure** and the work needed to
-> close each one.
+> Version: 1.2 — reconciled 2026-06-13
+> Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). **G-1..G-10 plus
+> G-9b are all closed**, and **P21 is registered and CI-gated**
+> (`audit_gate.py --external-audit-replacement`, live verdict PASS). The
+> structural gaps this file was written to close are closed; the remaining work
+> is the *Bastion Final Mile* (semantic requirement mapping, negative fixtures,
+> pre-alert freshness) tracked in `docs/CAAS_COMPLETENESS_GAP_ANALYSIS.md` and
+> `workingdocs/CLAUDE_BASTION_WORKPLAN.md`.
 >
 > Goal: when this file is fully checked, CAAS has enough executable evidence
 > that independent reviewers focus on methodology, replay, and novel hypotheses
@@ -374,9 +376,16 @@ After all 10 close, register P21 in AUDIT_MANIFEST.md and the
 
 ## Done criteria for self-contained CAAS evidence
 
-- [ ] G-1..G-10 plus G-9b all closed (per acceptance criteria above).
-- [ ] P21 registered and CI-enforced.
-- [ ] Existing scorecard score ≥ 9.5 (currently 9.0; OpenSSF dashboard).
-- [ ] An independent reviewer presented with the bundle, the threat model,
+- [x] G-1..G-10 plus G-9b all closed (per acceptance criteria above). *(2026-06-13)*
+- [x] P21 registered and CI-enforced. *(`audit_gate.py --external-audit-replacement`, PASS)*
+- [ ] Existing scorecard score ≥ 9.5 (currently 9.0; OpenSSF dashboard). *(owner-tracked, not a `dev` blocker)*
+- [x] An independent reviewer presented with the bundle, the threat model,
       the spec, the traceability matrix, and the methodology docs can replay
       the published claims and focus on methodology or novel hypotheses.
+      *(EXTERNAL_AUDIT_BUNDLE + `verify_external_audit_bundle.py --replay-commands`)*
+
+> **Bastion Final Mile (open):** the *structural* done-criteria above are met,
+> but the qualitative Bastion upgrade — semantic P21 requirement map (B1),
+> per-gate negative fixtures (B5), pre-alert evidence freshness (B3), strict
+> current-run bundle (B4), perf/security co-gating (B8), real incident-drill
+> injection (B9) — is tracked in `docs/CAAS_COMPLETENESS_GAP_ANALYSIS.md`.

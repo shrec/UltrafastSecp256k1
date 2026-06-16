@@ -67,23 +67,18 @@ __device__ inline void ct_zk_derive_nonce(
     uint8_t aux_hash[32];
     sha256_hash(aux, 32, aux_hash);
 
-    // masked = secret_bytes XOR aux_hash (4x uint64 XOR vs 32 byte XOR)
+    // masked = secret_bytes XOR aux_hash. Keep byte-wise to avoid alignment
+    // assumptions on stack buffers across CUDA targets.
     uint8_t sec_bytes[32];
     secp256k1::cuda::scalar_to_bytes(secret, sec_bytes);
     uint8_t masked[32];
     #pragma unroll
-    for (int i = 0; i < 4; ++i)
-        reinterpret_cast<uint64_t*>(masked)[i] =
-            reinterpret_cast<const uint64_t*>(sec_bytes)[i] ^
-            reinterpret_cast<const uint64_t*>(aux_hash)[i];
+    for (int i = 0; i < 32; ++i) masked[i] = sec_bytes[i] ^ aux_hash[i];
 
     // buf = masked[32] || pt_comp[33] || msg[32] || aux[32] = 129 bytes
     uint8_t buf[32 + 33 + 32 + 32];
-    // Copy masked (32 bytes) via uint64
     #pragma unroll
-    for (int i = 0; i < 4; ++i)
-        reinterpret_cast<uint64_t*>(buf)[i] =
-            reinterpret_cast<const uint64_t*>(masked)[i];
+    for (int i = 0; i < 32; ++i) buf[i] = masked[i];
     // pt_comp (33 bytes) -- not 8-byte aligned destination, byte copy
     for (int i = 0; i < 33; ++i) buf[32 + i] = pt_comp[i];
     // msg (32 bytes) at offset 65 -- not 8-byte aligned, byte copy
@@ -150,11 +145,8 @@ __device__ inline bool ct_knowledge_prove_device(
     // e = H("ZK/knowledge" || R.x || P_comp || B_comp || msg)
     // Reuse pre-compressed p_comp and b_comp (no extra field_inv)
     uint8_t buf[32 + 33 + 33 + 32]; // rx || P || B || msg
-    // rx (32 bytes at offset 0) -- aligned, use uint64
     #pragma unroll
-    for (int i = 0; i < 4; ++i)
-        reinterpret_cast<uint64_t*>(buf)[i] =
-            reinterpret_cast<const uint64_t*>(proof->rx)[i];
+    for (int i = 0; i < 32; ++i) buf[i] = proof->rx[i];
     for (int i = 0; i < 33; ++i) buf[32 + i] = p_comp[i];
     for (int i = 0; i < 33; ++i) buf[65 + i] = b_comp[i];
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];
@@ -211,11 +203,8 @@ __device__ inline bool ct_knowledge_prove_generator_device(
     // e = H("ZK/knowledge" || R.x || P_comp || G_comp || msg)
     // Uses precomputed G_COMPRESSED -- no field_inv for G
     uint8_t buf[32 + 33 + 33 + 32];
-    // rx (32 bytes at offset 0) -- aligned, use uint64
     #pragma unroll
-    for (int i = 0; i < 4; ++i)
-        reinterpret_cast<uint64_t*>(buf)[i] =
-            reinterpret_cast<const uint64_t*>(proof->rx)[i];
+    for (int i = 0; i < 32; ++i) buf[i] = proof->rx[i];
     for (int i = 0; i < 33; ++i) buf[32 + i] = p_comp[i];
     for (int i = 0; i < 33; ++i) buf[65 + i] = G_COMPRESSED[i];
     for (int i = 0; i < 32; ++i) buf[98 + i] = msg[i];

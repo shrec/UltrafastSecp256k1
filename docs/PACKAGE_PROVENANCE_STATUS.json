@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "description": "Bastion B20 — package / release provenance binding ledger. A package or release artifact is only trustworthy when it is bound to the EXACT audited commit, the committed CAAS evidence bundle, the audit_gate verdict, and its own artifact hash. This manifest declares, per package surface, the binding CONTRACT (which fields the producing workflow must populate) and the current binding state. Enforced by ci/check_package_provenance_binding.py (audit_gate.py --package-provenance-binding, G-20). THIS IS PROVENANCE BINDING, NOT RELEASE AUTHORIZATION: it never publishes, tags, or authorizes a release; it only refuses to call an artifact 'audited' unless the binding holds. See docs/PACKAGE_PROVENANCE.md.",
+  "binding_targets": {
+    "source_commit": "git HEAD of the audited dev tree at build time",
+    "caas_bundle_sha256": "sha256 of the committed docs/EXTERNAL_AUDIT_BUNDLE.json (recorded in docs/EXTERNAL_AUDIT_BUNDLE.sha256)",
+    "audit_gate_verdict": "the audit_gate.py overall verdict for the bound commit (must be 'pass' for a bound artifact)",
+    "artifact_sha256": "sha256 of the produced package/binary"
+  },
+  "status_values": {
+    "template": "Dev-branch binding CONTRACT. No artifact is built/published from dev, so the binding fields hold sentinels (source_commit='@HEAD', caas_bundle_sha256='@committed-bundle', audit_gate_verdict='@audit-gate', artifact_sha256=null, workflow_run_id=null). The producing workflow substitutes real values at build time; the gate then re-checks them as 'bound'.",
+    "bound": "A real built artifact whose binding fields are populated and must match: source_commit==HEAD, caas_bundle_sha256==committed bundle digest, artifact_sha256 present (64-hex), audit_gate_verdict=='pass', workflow_run_id present.",
+    "owner_gated": "Release artifact. NEVER current evidence in the dev tree: artifact_sha256 and workflow_run_id stay null and it carries '@release' sentinels. It only becomes 'bound' inside an owner-authorized release run. A dev manifest that marks a release artifact current fails the gate."
+  },
+  "recognized_sentinels": ["@HEAD", "@committed-bundle", "@audit-gate", "@release", "@release-bundle"],
+  "gate": "ci/check_package_provenance_binding.py",
+  "surfaces": [
+    {
+      "artifact": "ultrafast_secp256k1_vc143 / vc145 native static-lib NuGet package (.nupkg)",
+      "producer_workflow": ".github/workflows/nuget-native.yml",
+      "source_commit": "@HEAD",
+      "source_branch": "dev",
+      "artifact_sha256": null,
+      "caas_bundle_sha256": "@committed-bundle",
+      "audit_gate_verdict": "@audit-gate",
+      "workflow_run_id": null,
+      "status": "template",
+      "severity": "blocking",
+      "note": "Built on workflow_dispatch (no nuget.org publish — owner decision). The binding contract is mandatory: a packed .nupkg is only 'audited' once nuget-native.yml records the build commit, the committed CAAS bundle digest, the audit_gate verdict, and the .nupkg sha256."
+    },
+    {
+      "artifact": "Linux packages (.deb/.rpm) + C ABI native binaries published to GitHub Releases + APT repo (libufsecp .so/.a)",
+      "producer_workflow": ".github/workflows/packaging.yml",
+      "source_commit": "@release",
+      "source_branch": "refs/tags/v*",
+      "artifact_sha256": null,
+      "caas_bundle_sha256": "@release-bundle",
+      "audit_gate_verdict": "@release",
+      "workflow_run_id": null,
+      "status": "owner_gated",
+      "severity": "owner_gated",
+      "note": "packaging.yml is tag-triggered (push: tags 'v*') + workflow_dispatch(tag). Its `publish` job attaches .deb/.rpm to the GitHub Release (gh release create/upload) and deploys a public APT repo to GitHub Pages — a PUBLISHED release artifact, never current in the dev tree. (B20.V adversarial verification corrected an initial 'template' misclassification: the producer publishes on tag, so it is owner_gated.)"
+    },
+    {
+      "artifact": "Node N-API + React Native native addon packages (.node/.so/.dll)",
+      "producer_workflow": ".github/workflows/bindings.yml",
+      "source_commit": "@HEAD",
+      "source_branch": "dev",
+      "artifact_sha256": null,
+      "caas_bundle_sha256": "@committed-bundle",
+      "audit_gate_verdict": "@audit-gate",
+      "workflow_run_id": null,
+      "status": "template",
+      "severity": "warning",
+      "note": "Bindings workflow is workflow_dispatch-only and does not publish to npm. Advisory binding contract until a real packaged build is produced."
+    },
+    {
+      "artifact": "WebAssembly package (ufsecp wasm bundle)",
+      "producer_workflow": ".github/workflows/release.yml",
+      "source_commit": "@release",
+      "source_branch": "refs/tags/v*",
+      "artifact_sha256": null,
+      "caas_bundle_sha256": "@release-bundle",
+      "audit_gate_verdict": "@release",
+      "workflow_run_id": null,
+      "status": "owner_gated",
+      "severity": "owner_gated",
+      "note": "wasm is only packaged inside an owner-authorized release run; it is never current evidence in the dev tree."
+    },
+    {
+      "artifact": "Signed release tarball + SLSA L3 provenance + cosign bundle (ufsecp-linux-x64.tar.gz)",
+      "producer_workflow": ".github/workflows/slsa-provenance.yml",
+      "source_commit": "@release",
+      "source_branch": "refs/tags/v*",
+      "artifact_sha256": null,
+      "caas_bundle_sha256": "@release-bundle",
+      "audit_gate_verdict": "@release",
+      "workflow_run_id": null,
+      "status": "owner_gated",
+      "severity": "owner_gated",
+      "note": "Release artifacts are tag-triggered and owner-authorized. They are NEVER current evidence in the dev tree; binding to a real commit/bundle/hash happens only inside the release run (which the owner triggers — see Release Authorization in CLAUDE.md)."
+    }
+  ]
+}

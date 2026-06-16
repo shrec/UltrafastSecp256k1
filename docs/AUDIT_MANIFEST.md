@@ -381,17 +381,35 @@ Local enforcement: install with `python3 ci/install_caas_hooks.py` (pre-push hoo
 
 **Automated gate:** `audit_gate.py --external-audit-replacement` (included in `ALL_CHECKS`)
 
-Checks:
-- All 15 CAAS auditor-replacement documents present (CAAS_PROTOCOL.md, RESIDUAL_RISK_REGISTER.md,
-  SECURITY_CLAIMS.md, EXPLOIT_TEST_CATALOG.md, EXTERNAL_AUDIT_BUNDLE.{json,sha256},
-  CAAS_REVIEWER_QUICKSTART.md, CAAS_FAQ.md, CAAS_THREAT_MODEL.md,
-  NEGATIVE_RESULTS_LEDGER.md, THREAD_SAFETY.md, ABI_VERSIONING.md,
-  SECURITY_INCIDENT_TIMELINE.md, AUDIT_PHILOSOPHY.md,
-  `ci/verify_external_audit_bundle.py`)
-- Failure: any required document absent blocks the pipeline.
+**Semantic requirement map (Bastion B1, 2026-06-13).** The gate is no longer a
+presence-only file list. It loads `docs/CAAS_BASTION_REQUIREMENTS.json` — a
+machine-readable map binding each known review gap (P21-CORE, G-1..G-10, G-9b) to
+its `artifact_paths`, enforcing `gate`, `status`, `residual_risk`, and
+`last_verified`. A closed gap may no longer point only to prose: it must name a
+gate that actually exists.
 
-**Status:** All 15 required documents present as of 2026-04-28.
-See `docs/CAAS_GAP_CLOSURE_ROADMAP.md` and `docs/CAAS_HARDENING_TODO.md`.
+Checks (per requirement row):
+- **Artifacts present** — every path in `artifact_paths` must exist (includes the
+  15 CAAS auditor-replacement documents under the `P21-CORE` row).
+- **Gate callable** — a `gated` row must name either an `audit_gate.py` sub-check
+  registered in `CHECK_MAP`, or a standalone `ci/*.py` gate script that exists.
+  A named gate that is not registered blocks.
+- **Residual discipline** — a `documented_residual` row must carry a non-empty
+  `residual_risk` and `docs/RESIDUAL_RISK_REGISTER.md` must exist; a
+  `presence_only` row must explain (via `residual_risk`) why no behavioral gate
+  applies.
+- **Verification freshness** — `last_verified` must be a valid date within the
+  embedded SLA (warn ≥180d, fail ≥540d).
+- Failure: a missing/invalid map, a missing artifact, an unregistered gate, a
+  stale binding, or an empty documented residual blocks the pipeline.
+
+**Negative proof:** `ci/test_audit_scripts.py::check_p21_semantic_requirement_map`
+asserts the gate fails closed on missing artifact, unregistered gate, stale
+`last_verified`, empty residual, and missing map, and passes on the real map.
+
+**Status:** 12 requirement rows (6 gated, 5 presence, 1 documented-residual), all
+bound, as of 2026-06-13. See `docs/CAAS_BASTION_REQUIREMENTS.json`,
+`docs/CAAS_GAP_CLOSURE_ROADMAP.md`, and `docs/CAAS_HARDENING_TODO.md`.
 
 ---
 
@@ -558,3 +576,12 @@ To add a new audit principle:
 | 2026-04-14 | Added reproducible evidence bundle producer/validator (`external_audit_bundle.py`, `verify_external_audit_bundle.py`) and spec doc | P19 reproducibility principle added; evidence bundles can be independently hash-verified and replay-validated |
 | 2026-04-14 | Added CAAS infrastructure: `caas_runner.py`, `install_caas_hooks.py`, `.github/workflows/caas.yml`; added CAAS stages to `preflight.yml` | P20 added — all five audit stages now run automatically on every push and PR; pre-push hook available for local enforcement |
 | 2026-04-28 | Registered P21 External-Audit Replacement Completeness; created `docs/CAAS_HARDENING_TODO.md` (H-1..H-12 all closed); `check_external_audit_replacement` gate in ALL_CHECKS | P21 added — all 15 CAAS auditor-replacement documents verified present; CAAS hardening backlog formally documented and closed |
+| 2026-06-13 | Upgraded P21 from presence-only to a **semantic requirement map** (Bastion B1): `docs/CAAS_BASTION_REQUIREMENTS.json` binds each known review gap (P21-CORE, G-1..G-10, G-9b) to its artifact(s), enforcing gate, status, residual risk, and last_verified date. `check_external_audit_replacement` now verifies artifacts exist, every `gated` row names a gate registered in `CHECK_MAP` (or a standalone gate script that exists), every `documented_residual` carries a non-empty residual, and `last_verified` is within SLA. Negative fixture `P21:semantic_requirement_map` proves fail-closed on missing artifact / unregistered gate / stale date / empty residual / missing map | P21 became semantic — a closed gap may no longer point only to prose; it must name a live gate or declare an explicit residual |
+| 2026-06-13 | Added **G-13 External Integration Evidence Freshness** (Bastion B13): `check_integration_evidence` gate (`--integration-evidence`, in `ALL_CHECKS`) reads `docs/INTEGRATION_EVIDENCE_STATUS.json` and reports each libbitcoin / Bitcoin Core / libsecp-shim surface as pass/stale/missing/owner_gated with a `days_until_block` runway; blocking surfaces fail on missing/stale evidence, owner_gated full-chain surfaces are explicit and never counted as current. Negative fixture `B13:integration_evidence` | Integration evidence became freshness-gated and machine-tracked rather than a static replay index |
+| 2026-06-13 | Added **G-14 CT Evidence Freshness** (Bastion B14): `check_ct_evidence_status` gate (`--ct-evidence-status`, in `ALL_CHECKS`) reads `docs/CT_EVIDENCE_STATUS.json` and reports each CT-sensitive surface as pass/stale/missing/inconclusive/owner_gated. The committed-evidence + freshness dimension gates on every push (cheap); the tool-verdict dimension (ct-verif / valgrind-ct / dudect via `--verdict-dir`) keeps a single PASS + SKIP inconclusive, never a pass, and fails a blocking surface whose required_tools are not all PASS. Negative fixture `B14:ct_evidence_status` | CT claims became freshness-gated, tool-bound artifact evidence rather than table/doc confidence |
+| 2026-06-13 | Added **G-15 Fuzz Campaign Evidence** (Bastion B15): `check_fuzz_campaign_status` gate (`--fuzz-campaign-status`, in `ALL_CHECKS`) reads `docs/FUZZ_CAMPAIGN_STATUS.json` and reports each fuzz surface as pass/stale/missing/crash_unconverted/owner_gated. Evidence-status gate only (no campaigns run on push): a blocking surface fails on missing corpus, stale last_verified, or a crash artifact without a matching regression; an unconverted crash blocks regardless of severity; owner_gated heavy/host-only surfaces are explicit and never current. Negative fixture `B15:fuzz_campaign_status` | Fuzz evidence became freshness-gated with enforced crash->regression conversion |
+| 2026-06-13 | Added **G-16 GPU/Hardware Evidence** (Bastion B16): `check_gpu_hardware_evidence` gate (`--gpu-hardware-evidence`, in `ALL_CHECKS`) reads `docs/GPU_HARDWARE_EVIDENCE_STATUS.json` and reports each backend/surface as pass/stale/missing/owner_gated/documented_residual. Real-device CUDA/OpenCL/Metal/ROCm evidence is owner_gated (no GitHub GPU runners; never current on push); documented_residual rows must resolve to a RESIDUAL_RISK_REGISTER.md id; a fallback_correctness row must name a fallback_path and is never native-performance evidence (a performance claim naming a fallback_path fails). Negative fixture `B16:gpu_hardware_evidence` | GPU/hardware claims became explicit, honest, freshness-gated (real-device vs host-fallback vs owner-gated residual) |
+| 2026-06-13 | Added **G-17 Benchmark Target Context** (Bastion B17, closes RR-BAS-03): `ci/check_bench_target_context.py` (folded into `check_bench_doc_consistency.py --json`, co-gated by `perf_security_cogate.py`) validates each canonical benchmark artifact against `docs/BENCH_TARGET_CONTEXT_SCHEMA.json`: a missing/invalid `target_context`, a timed artifact without `claim_scope`/`security_gate_dependency`, a `gpu_public_data` benchmark presented as native GPU-hardware performance, or a `bitcoin_core`/`libbitcoin` claim lacking an integration-evidence reference all fail. Negative fixture `B17:bench_target_context` | Performance evidence must declare its target context; a microbenchmark can no longer be mistaken for node throughput, nor a GPU/fallback benchmark for native-engine speed |
+| 2026-06-13 | Added **G-18 Research Signal Taxonomy** (Bastion B18, closes RR-BAS-04): `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`, in `ALL_CHECKS`) validates `docs/RESEARCH_SIGNAL_MATRIX.json` — every in-scope signal class carries an enum `attack_class` (16-value `attack_class_enum`) and routes to an `expected_evidence` surface + a resolvable `expected_gate`; covered/original_analysis classes need existing evidence and a gate that resolves (audit_gate CHECK_MAP flag or `ci/*.py` script), candidates need a `missing_evidence_action`, out_of_scope need a rationale. `research_monitor.py` now renders attack_class/affected_primitive/affected_surface/expected_gate and puts `missing_evidence_action` first in the patch plan. Mappings adversarially verified (5-agent read-only workflow). Negative fixture `B18:research_signal_matrix` | Research intake became routed audit work: each signal names its attack class and the gate that should catch it, instead of a bare covered/candidate label |
+| 2026-06-13 | Added **G-19 Evidence Refresh Coverage** (Bastion B19, RR-BAS-01/02 ready for owner promotion): `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`, in `ALL_CHECKS`) validates the `freshness_artifacts` ledger in `docs/AUDIT_SLA.json` — every freshness artifact tracked by `audit_sla_check.py` must declare a refresh disposition: `auto` (its committed path is cross-checked against the named workflow's actual `git add` list) or `residual` (its id resolves to `docs/RESIDUAL_RISK_REGISTER.md`). A blocking artifact with neither a verifiable producer nor a resolvable residual fails; an `auto` entry whose path the lane does not stage fails; a tracked artifact missing a disposition (or a phantom entry) fails. The `caas-evidence-refresh.yml` lane runs the gate as a fail-fast self-verify step. Dispositions adversarially verified honest (2-panel read-only workflow). Negative fixture `B19:evidence_refresh_coverage` (incl. the RR-BAS-02 stale-drill block self-test) | Freshness evidence is no longer trusted by hand: every blocking freshness SLO is provably backed by an auto-producer or a documented residual, and the incident-drill promotion path is proven safe |
+| 2026-06-13 | Added **G-20 Package Provenance Binding** (Bastion B20): `ci/check_package_provenance_binding.py` (`audit_gate.py --package-provenance-binding`, in `ALL_CHECKS`) validates `docs/PACKAGE_PROVENANCE_STATUS.json` — every package surface must declare the full binding contract (artifact / producer_workflow / source_commit / source_branch / artifact_sha256 / caas_bundle_sha256 / audit_gate_verdict / workflow_run_id / status / severity). `template` surfaces hold recognized sentinels with null hash+run_id (no fake current evidence); `bound` surfaces must match HEAD + the committed `EXTERNAL_AUDIT_BUNDLE.sha256` digest + a real 64-hex artifact hash + verdict==pass + a run id; `owner_gated` release artifacts are never current in the dev tree (a real hash/run id = release-marked-current fail). Reuses the existing SLSA / supply-chain infra (`generate_slsa_provenance.py`, `verify_slsa_provenance.py`, `slsa-provenance.yml`, `supply_chain_gate.py`). Surfaces adversarially verified (2-panel read-only workflow corrected `packaging.yml` template→owner_gated once its tag-publish job was confirmed). Negative fixture `B20:package_provenance_binding`. Provenance binding only — NOT release authorization | A built package can no longer call itself "audited" unless it is cryptographically bound to the exact audited commit, the committed CAAS bundle, the audit_gate verdict, and its own hash; release artifacts can never masquerade as current dev evidence |

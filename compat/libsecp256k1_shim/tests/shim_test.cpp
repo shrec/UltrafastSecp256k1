@@ -53,6 +53,10 @@ static const unsigned char AUX32[32] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+static void reverse32(unsigned char out[32], const unsigned char in[32]) {
+    for (int i = 0; i < 32; ++i) out[i] = in[31 - i];
+}
+
 // ── Test sections ─────────────────────────────────────────────────────────────
 
 static void test_context(secp256k1_context* ctx) {
@@ -202,8 +206,12 @@ static secp256k1_pubkey test_pubkey(secp256k1_context* ctx) {
     // Invalid parse
     unsigned char bad[33] = {};
     bad[0] = 0x05;
+    unsigned char zero64[64] = {};
+    memset(pubkey3.data, 0xA5, 64);
     CHECK(secp256k1_ec_pubkey_parse(ctx, &pubkey3, bad, 33) == 0,
           "pubkey_parse bad prefix fails");
+    CHECK(memcmp(pubkey3.data, zero64, 64) == 0,
+          "pubkey_parse failure zeroes pubkey output");
 
     return pubkey;
 }
@@ -229,9 +237,22 @@ static void test_ecdsa(secp256k1_context* ctx, const secp256k1_pubkey* pubkey) {
     unsigned char compact[64];
     CHECK(secp256k1_ecdsa_signature_serialize_compact(ctx, compact, &sig) == 1,
           "signature_serialize_compact");
+
+    // libsecp256k1 stores opaque ECDSA scalar data in little-endian internal
+    // order on little-endian hosts. libbitcoin-system copies this opaque field
+    // directly, so the shim must preserve that layout while public compact
+    // serialization remains big-endian.
+    unsigned char expected_internal[64];
+    reverse32(expected_internal, compact);
+    reverse32(expected_internal + 32, compact + 32);
+    CHECK(memcmp(sig.data, expected_internal, 64) == 0,
+          "ecdsa opaque data uses libsecp little-endian scalar layout");
+
     secp256k1_ecdsa_signature sig2{};
     CHECK(secp256k1_ecdsa_signature_parse_compact(ctx, &sig2, compact) == 1,
           "signature_parse_compact");
+    CHECK(memcmp(sig2.data, expected_internal, 64) == 0,
+          "parse_compact saves libsecp little-endian scalar layout");
     CHECK(secp256k1_ecdsa_verify(ctx, &sig2, MSG32, pubkey) == 1,
           "verify after compact round-trip");
 
@@ -243,8 +264,59 @@ static void test_ecdsa(secp256k1_context* ctx, const secp256k1_pubkey* pubkey) {
     secp256k1_ecdsa_signature sig3{};
     CHECK(secp256k1_ecdsa_signature_parse_der(ctx, &sig3, der, derlen) == 1,
           "signature_parse_der");
+    CHECK(memcmp(sig3.data, expected_internal, 64) == 0,
+          "parse_der saves libsecp little-endian scalar layout");
     CHECK(secp256k1_ecdsa_verify(ctx, &sig3, MSG32, pubkey) == 1,
           "verify after DER round-trip");
+
+    static const unsigned char libbitcoin_internal_sig[64] = {
+        0x48, 0x32, 0xfe, 0xbe, 0xf8, 0xb3, 0x1c, 0x7c,
+        0x92, 0x2a, 0x15, 0xcb, 0x40, 0x63, 0xa4, 0x3a,
+        0xb6, 0x9b, 0x09, 0x9b, 0xba, 0x76, 0x5e, 0x24,
+        0xfa, 0xce, 0xf5, 0x0d, 0xfb, 0xb4, 0xd0, 0x57,
+        0x92, 0x8e, 0xd5, 0xc6, 0xb6, 0x88, 0x65, 0x62,
+        0xc2, 0xfe, 0x69, 0x72, 0xfd, 0x7c, 0x7f, 0x46,
+        0x2e, 0x55, 0x71, 0x29, 0x06, 0x75, 0x42, 0xcc,
+        0xe6, 0xb3, 0x7d, 0x72, 0xe5, 0xea, 0x50, 0x37
+    };
+    static const unsigned char libbitcoin_compact_be[64] = {
+        0x57, 0xd0, 0xb4, 0xfb, 0x0d, 0xf5, 0xce, 0xfa,
+        0x24, 0x5e, 0x76, 0xba, 0x9b, 0x09, 0x9b, 0xb6,
+        0x3a, 0xa4, 0x63, 0x40, 0xcb, 0x15, 0x2a, 0x92,
+        0x7c, 0x1c, 0xb3, 0xf8, 0xbe, 0xfe, 0x32, 0x48,
+        0x37, 0x50, 0xea, 0xe5, 0x72, 0x7d, 0xb3, 0xe6,
+        0xcc, 0x42, 0x75, 0x06, 0x29, 0x71, 0x55, 0x2e,
+        0x46, 0x7f, 0x7c, 0xfd, 0x72, 0x69, 0xfe, 0xc2,
+        0x62, 0x65, 0x88, 0xb6, 0xc6, 0xd5, 0x8e, 0x92
+    };
+    static const unsigned char libbitcoin_der[70] = {
+        0x30, 0x44, 0x02, 0x20,
+        0x57, 0xd0, 0xb4, 0xfb, 0x0d, 0xf5, 0xce, 0xfa,
+        0x24, 0x5e, 0x76, 0xba, 0x9b, 0x09, 0x9b, 0xb6,
+        0x3a, 0xa4, 0x63, 0x40, 0xcb, 0x15, 0x2a, 0x92,
+        0x7c, 0x1c, 0xb3, 0xf8, 0xbe, 0xfe, 0x32, 0x48,
+        0x02, 0x20,
+        0x37, 0x50, 0xea, 0xe5, 0x72, 0x7d, 0xb3, 0xe6,
+        0xcc, 0x42, 0x75, 0x06, 0x29, 0x71, 0x55, 0x2e,
+        0x46, 0x7f, 0x7c, 0xfd, 0x72, 0x69, 0xfe, 0xc2,
+        0x62, 0x65, 0x88, 0xb6, 0xc6, 0xd5, 0x8e, 0x92
+    };
+
+    secp256k1_ecdsa_signature lb_sig{};
+    memcpy(lb_sig.data, libbitcoin_internal_sig, 64);
+    unsigned char lb_compact[64]{};
+    CHECK(secp256k1_ecdsa_signature_serialize_compact(ctx, lb_compact, &lb_sig) == 1,
+          "libbitcoin opaque signature serializes to compact BE");
+    CHECK(memcmp(lb_compact, libbitcoin_compact_be, 64) == 0,
+          "libbitcoin opaque signature compact bytes match");
+
+    unsigned char lb_der[72]{};
+    size_t lb_derlen = sizeof(lb_der);
+    CHECK(secp256k1_ecdsa_signature_serialize_der(ctx, lb_der, &lb_derlen, &lb_sig) == 1,
+          "libbitcoin opaque signature serializes to DER");
+    CHECK(lb_derlen == sizeof(libbitcoin_der) &&
+          memcmp(lb_der, libbitcoin_der, sizeof(libbitcoin_der)) == 0,
+          "libbitcoin opaque signature DER bytes match");
 
     // Normalize (low-S)
     secp256k1_ecdsa_signature sig_norm = sig;

@@ -1,11 +1,14 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Audit infrastructure SLA/SLO definitions for UltrafastSecp256k1",
   "created": "2026-04-14",
+  "updated": "2026-06-13",
+  "pre_alert": "pre_alert_buffer_days (Bastion B3): audit_sla_check.py emits a non-blocking PRE-ALERT warning while an artifact is within this many days of its blocking threshold, and reports days_until_block per artifact so the SLA never silently jumps from green to blocked.",
   "slos": {
     "max_stale_evidence_days": {
       "description": "Maximum age in days for any critical evidence artifact before it is considered stale",
       "threshold": 30,
+      "pre_alert_buffer_days": 5,
       "severity": "blocking",
       "measurement": "max(now - evidence_timestamp) across all critical evidence files"
     },
@@ -24,6 +27,7 @@
     "critical_evidence_freshness_days": {
       "description": "Maximum age in days for critical-path evidence (CT, determinism, fuzz, ABI negative)",
       "threshold": 14,
+      "pre_alert_buffer_days": 4,
       "severity": "blocking",
       "measurement": "max(now - timestamp) for evidence tagged critical"
     },
@@ -42,8 +46,44 @@
     "determinism_golden_staleness_days": {
       "description": "Maximum age of determinism golden reference before re-verification required",
       "threshold": 30,
+      "pre_alert_buffer_days": 5,
       "severity": "blocking",
       "measurement": "now - last_verified_timestamp for DETERMINISM_GOLDEN.json"
+    },
+    "incident_drill_freshness_days": {
+      "description": "Maximum age of the incident-drill log (docs/INCIDENT_DRILL_LOG.json) before drills are considered stale. Advisory for now: drills must keep running, but until the nightly auto-commit loop is observed for a full window (cf. H-1) this is a warning, not a release block, to avoid a self-inflicted recurring block. Promote to blocking after the observation window.",
+      "threshold": 14,
+      "pre_alert_buffer_days": 4,
+      "severity": "warning",
+      "measurement": "now - git_commit_date(docs/INCIDENT_DRILL_LOG.json)"
+    },
+    "integration_evidence_freshness": {
+      "description": "External integration evidence (libbitcoin / Bitcoin Core / libsecp shim) freshness, evaluated per-surface (Bastion B13). The per-surface freshness_days, severity (blocking | warning | owner_gated), and last_verified live in docs/INTEGRATION_EVIDENCE_STATUS.json and are enforced by ci/check_integration_evidence.py (audit_gate.py --integration-evidence, G-13). A blocking surface that is missing or stale fails; warning surfaces are advisory with a pre-alert; owner_gated full-chain validation is surfaced explicitly and never counted as current evidence.",
+      "threshold": "per-surface (see docs/INTEGRATION_EVIDENCE_STATUS.json)",
+      "default_pre_alert_buffer_days": 7,
+      "severity": "per-surface (blocking | warning | owner_gated)",
+      "measurement": "per-surface (now - last_verified) vs freshness_days; evidence_path existence for blocking rows"
+    },
+    "ct_evidence_status_freshness": {
+      "description": "Constant-time evidence freshness + tool-verdict binding, evaluated per CT-sensitive surface (Bastion B14). The per-surface evidence_paths, required_tools, freshness_days, severity, and last_verified live in docs/CT_EVIDENCE_STATUS.json and are enforced by ci/check_ct_evidence_status.py (audit_gate.py --ct-evidence-status, G-14). On push the committed-evidence + freshness dimension gates (a blocking CT surface fails if a committed path is missing or last_verified is stale). Tool verdicts (ct-verif / valgrind-ct / dudect) are evaluated only when a --verdict-dir is supplied (CI workflows): a required-tool FAIL or PASS+SKIP is inconclusive (never pass) and fails a blocking row. Distinct from the audit/ci-evidence 'ct_evidence' critical-evidence snapshot SLO.",
+      "threshold": "per-surface (see docs/CT_EVIDENCE_STATUS.json)",
+      "default_pre_alert_buffer_days": 14,
+      "severity": "per-surface (blocking | warning | owner_gated)",
+      "measurement": "per-surface (now - last_verified) vs freshness_days; evidence_paths existence; required_tools PASS verdicts when --verdict-dir present"
+    },
+    "fuzz_campaign_freshness": {
+      "description": "Fuzz campaign evidence freshness + crash->regression conversion, evaluated per fuzz surface (Bastion B15). The per-surface corpus_path, crash_path, regression_path, freshness_days, severity, and last_verified live in docs/FUZZ_CAMPAIGN_STATUS.json and are enforced by ci/check_fuzz_campaign_status.py (audit_gate.py --fuzz-campaign-status, G-15). Evidence-status gate only (cheap; long campaigns run in cflite/cryptofuzz/klee, not on push): a blocking surface fails on missing corpus, stale/malformed last_verified, or a crash artifact without a matching regression (crash_unconverted); an unconverted crash blocks regardless of severity; owner_gated heavy/host-only surfaces are explicit and never current.",
+      "threshold": "per-surface (see docs/FUZZ_CAMPAIGN_STATUS.json)",
+      "default_pre_alert_buffer_days": 14,
+      "severity": "per-surface (blocking | warning | owner_gated)",
+      "measurement": "per-surface (now - last_verified) vs freshness_days; corpus_path existence; crash_path artifacts vs regression_path presence"
+    },
+    "gpu_hardware_evidence_freshness": {
+      "description": "GPU / hardware evidence status freshness, evaluated per backend/surface (Bastion B16). The per-row backend, claim_type, evidence_path, hardware_required, freshness_days, severity, and last_verified live in docs/GPU_HARDWARE_EVIDENCE_STATUS.json and are enforced by ci/check_gpu_hardware_evidence.py (audit_gate.py --gpu-hardware-evidence, G-16). Cheap on push (no GPU hardware required): a blocking row fails on missing/stale evidence; owner_gated real-device rows are explicit and never current; documented_residual rows must resolve to a RESIDUAL_RISK_REGISTER.md id; a fallback_correctness row must name an existing fallback_path and is never native-performance evidence (a performance claim naming a fallback_path fails).",
+      "threshold": "per-row (see docs/GPU_HARDWARE_EVIDENCE_STATUS.json)",
+      "default_pre_alert_buffer_days": 14,
+      "severity": "per-row (blocking | warning | owner_gated | documented_residual)",
+      "measurement": "per-row (now - last_verified) vs freshness_days; evidence_path existence; claim_type/fallback_path integrity; residual_risk_id resolution"
     },
     "review_queue_max_open_days": {
       "description": "Maximum age in days that an item may sit in the source-graph review queue without being addressed or explicitly deferred",
@@ -57,6 +97,98 @@
       "severity": "warning",
       "measurement": "git blame age of the line introducing the TODO/FIXME marker"
     }
+  },
+  "freshness_artifacts": {
+    "description": "Bastion B19 (RR-BAS-01 / RR-BAS-02): explicit refresh-disposition ledger binding every freshness artifact tracked by ci/audit_sla_check.py to either an AUTOMATIC producer (a regeneration+commit step in a scheduled workflow) or a DOCUMENTED RESIDUAL (an authored spec, a stable golden, a build-only artifact, or an owner-chosen manual chore). Enforced by ci/check_evidence_refresh_coverage.py (audit_gate.py --evidence-refresh-coverage, G-19): a blocking freshness artifact with neither a verifiable auto-producer nor a residual that resolves to docs/RESIDUAL_RISK_REGISTER.md fails the gate. `auto` entries are cross-checked against the named workflow's actual commit list so the manifest cannot claim coverage the workflow does not provide. Authored/golden artifacts are intentionally NOT nightly-regenerated (that would fake freshness on a human-authored or baseline artifact); their honest_refresh_mechanism documents what keeps them current instead.",
+    "auto_refresh_workflow": ".github/workflows/caas-evidence-refresh.yml",
+    "coverage_gate": "ci/check_evidence_refresh_coverage.py",
+    "artifacts": [
+      {
+        "name": "assurance_report",
+        "path": "out/reports/assurance_report.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Regenerate suite-root assurance_report.json (ci/export_assurance.py)",
+          "committed_paths": ["assurance_report.json"]
+        }
+      },
+      {
+        "name": "incident_drill_log",
+        "path": "docs/INCIDENT_DRILL_LOG.json",
+        "slos": ["incident_drill_freshness_days"],
+        "severity": "warning",
+        "refresh": {
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh security autonomy KPI snapshot — ci/security_autonomy_check.py runs ci/incident_drills.py (weight 10), which rewrites docs/INCIDENT_DRILL_LOG.json",
+          "committed_paths": ["docs/INCIDENT_DRILL_LOG.json"],
+          "promotion": "RR-BAS-02: incident_drill_freshness_days.severity is `warning` until the nightly auto-commit loop is observed green for one full window; promote to `blocking` per the RR-BAS-02 close condition (the ci/check_evidence_refresh_coverage.py self-test already proves audit_sla_check.py blocks a simulated stale log under blocking severity)."
+        }
+      },
+      {
+        "name": "ct_evidence",
+        "path": "audit/ci-evidence",
+        "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "CT / adversarial / fuzz output snapshots captured by building and running the four standalone audit binaries (test_adversarial_protocol, test_ecies_regression, test_fuzz_parsers, test_fuzz_address_bip32_ffi). The owner explicitly chose a manual chore + B3 pre-alert over an auto-committing scheduled lane (a CI-cost / human-review decision); auto-committing captured fuzz output unattended is declined by the owner.",
+          "honest_refresh_mechanism": "Manual owner chore on a <14-day cadence; ci/audit_sla_check.py B3 pre-alert warns ~4 days before the block with a per-artifact days_until_block."
+        }
+      },
+      {
+        "name": "api_contracts",
+        "path": "docs/API_SECURITY_CONTRACTS.json",
+        "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Authored API-security-contract specification (api/criticality/ct_class/preconditions/postconditions/failure_modes/evidence_tests/evidence_docs), validated by ci/check_api_contracts.py. Regenerating it nightly would fake freshness on a human-authored spec.",
+          "honest_refresh_mechanism": "ci/check_api_contracts.py fail-closed changed-file policy: sensitive API/security source cannot change without a docs/API_SECURITY_CONTRACTS.json update, so the contract is re-attested whenever the surface it describes changes."
+        }
+      },
+      {
+        "name": "assurance_claims",
+        "path": "docs/ASSURANCE_CLAIMS.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Authored assurance-claims ledger (schema_version/updated_at/source/claims), validated by ci/validate_assurance.py. Not a derived report — auto-regeneration would fake freshness.",
+          "honest_refresh_mechanism": "Re-attested by the owner when claims change; the validate_assurance.py companion check binds each claim to its evidence on every push."
+        }
+      },
+      {
+        "name": "determinism_golden",
+        "path": "docs/DETERMINISM_GOLDEN.json",
+        "slos": ["max_stale_evidence_days", "determinism_golden_staleness_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Golden reference fixture. By definition it is intentionally stable — regenerating it nightly would defeat its purpose as a fixed baseline.",
+          "honest_refresh_mechanism": "Re-verified (compared, not regenerated) by the determinism gate on every push; the staleness SLO is a re-verification prompt, not a regeneration trigger."
+        }
+      },
+      {
+        "name": "risk_coverage_report",
+        "path": "out/reports/risk_surface_report.json",
+        "slos": ["max_stale_evidence_days"],
+        "severity": "blocking",
+        "refresh": {
+          "mode": "residual",
+          "residual_id": "RR-BAS-01",
+          "reason": "Build-only artifact under the gitignored out/ tree; produced by the risk-surface gate during a build, never committed to the repo.",
+          "honest_refresh_mechanism": "Regenerated on every CI build that runs the risk-surface gate; in a clean/standalone checkout its absence is downgraded to a warning by audit_sla_check.py (scope=build)."
+        }
+      }
+    ]
   },
   "release_policy": {
     "description": "Release readiness requires zero active blocking SLO violations",

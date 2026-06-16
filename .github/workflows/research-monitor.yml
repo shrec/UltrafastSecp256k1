@@ -25,6 +25,11 @@ on:
         required: false
         default: true
         type: boolean
+      open_review_issue:
+        description: 'Also open a GitHub issue for needs-review research signals'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -58,9 +63,11 @@ jobs:
           LOOKBACK='2'
           MAX_RESULTS='12'
           FAIL_FLAG=''
+          OPEN_REVIEW='true'
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             LOOKBACK='${{ github.event.inputs.lookback_days || '14' }}'
             MAX_RESULTS='${{ github.event.inputs.max_results || '12' }}'
+            OPEN_REVIEW='${{ github.event.inputs.open_review_issue || 'true' }}'
             if [ "${{ github.event.inputs.fail_on_actionable || 'false' }}" = 'true' ]; then
               FAIL_FLAG='--fail-on-actionable'
             fi
@@ -71,6 +78,7 @@ jobs:
             --output-dir out/research_monitor \
             --github-output "$GITHUB_OUTPUT" \
             $FAIL_FLAG
+          echo "review_escalation_enabled=${OPEN_REVIEW}" >> "$GITHUB_OUTPUT"
 
       - name: Upload research report artifact
         if: always()
@@ -87,35 +95,62 @@ jobs:
           echo '## External Research Monitor' >> "$GITHUB_STEP_SUMMARY"
           cat out/research_monitor/research_report.md >> "$GITHUB_STEP_SUMMARY" || echo 'Report not generated.' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open GitHub issue for high-confidence findings only
-        # Issues are opened ONLY when high_confidence_count > 0.
-        # needs_review and discarded items go to the artifact only.
+      - name: Open GitHub issue for escalated research signals
+        # High-confidence always escalates. Needs-review escalates when the
+        # early-warning review queue is enabled.
         if: |
           always() &&
-          steps.monitor.outputs.high_confidence_count != '' &&
-          steps.monitor.outputs.high_confidence_count != '0' &&
+          steps.monitor.outputs.research_signal_count != '' &&
+          (
+            steps.monitor.outputs.high_confidence_count != '0' ||
+            (
+              steps.monitor.outputs.review_escalation_enabled == 'true' &&
+              steps.monitor.outputs.needs_review_count != '0'
+            )
+          ) &&
           (github.event_name == 'schedule' || github.event.inputs.open_issue != 'false')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           HC="${{ steps.monitor.outputs.high_confidence_count }}"
-          TITLE="[Research Monitor] ${HC} high-confidence secp256k1 signal(s) — $(date -u +%Y-%m-%d)"
+          NR="${{ steps.monitor.outputs.needs_review_count }}"
+          TODAY="$(date -u +%Y-%m-%d)"
+          TITLE="[Research Monitor] ${HC} high-confidence / ${NR} needs-review secp256k1 signal(s) - ${TODAY}"
           BODY=$(cat out/research_monitor/research_report.md)
           # Avoid duplicate issues within the same day
           EXISTING=$(gh issue list --label "research-monitor" --state open \
-            --search "${HC} high-confidence secp256k1" --json number \
+            --search "Research Monitor secp256k1 ${TODAY}" --json number \
             --jq '.[0].number // empty')
           if [ -z "$EXISTING" ]; then
-            gh issue create \
+            if ! gh issue create \
               --title "$TITLE" \
               --body "$BODY" \
-              --label "research-monitor,security,triage"
+              --label "research-monitor,security,triage"; then
+              echo "Issue creation with labels failed; retrying without labels." >&2
+              gh issue create \
+                --title "$TITLE" \
+                --body "$BODY"
+            fi
           else
             echo "Issue #$EXISTING already open — skipping duplicate."
           fi
 
       - name: Send actionable report by email
-        if: always() && steps.monitor.outputs.high_confidence_count != '' && steps.monitor.outputs.high_confidence_count != '0' && env.RESEARCH_SMTP_HOST != '' && env.RESEARCH_SMTP_USERNAME != '' && env.RESEARCH_SMTP_PASSWORD != '' && env.RESEARCH_REPORT_FROM != '' && env.RESEARCH_REPORT_TO != ''
+        if: |
+          always() &&
+          steps.monitor.outputs.research_signal_count != '' &&
+          (
+            steps.monitor.outputs.high_confidence_count != '0' ||
+            (
+              steps.monitor.outputs.review_escalation_enabled == 'true' &&
+              steps.monitor.outputs.needs_review_count != '0'
+            )
+          ) &&
+          env.RESEARCH_SMTP_HOST != '' &&
+          env.RESEARCH_SMTP_USERNAME != '' &&
+          env.RESEARCH_SMTP_PASSWORD != '' &&
+          env.RESEARCH_REPORT_FROM != '' &&
+          env.RESEARCH_REPORT_TO != ''
         env:
           RESEARCH_SMTP_HOST: ${{ secrets.RESEARCH_SMTP_HOST }}
           RESEARCH_SMTP_PORT: ${{ secrets.RESEARCH_SMTP_PORT }}

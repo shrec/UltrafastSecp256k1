@@ -52,6 +52,34 @@
       }
     },
     {
+      "name": "windows-clang-cl",
+      "displayName": "Windows clang-cl (Clang codegen, MSVC ABI)",
+      "description": "Build with clang-cl on Windows: Clang's inline MULX/ADCX field kernels in an MSVC-compatible toolchain (link.exe, MSVC CRT, VS-integrable). ~3.3-3.6x faster scalar_mul/batch_verify than MSVC cl, near clang++ parity. compiler-rt builtins auto-linked; ThinLTO disabled (broken on windows-msvc).",
+      "inherits": "cpu-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl",
+        "SECP256K1_USE_LTO": "OFF"
+      }
+    },
+    {
+      "name": "windows-arm64-clang-cl",
+      "displayName": "Windows ARM64 clang-cl (MSVC ABI)",
+      "description": "Build for Windows ARM64 with clang-cl and the MSVC ABI. AArch64 NEON is the architectural SIMD baseline; compiler-rt aarch64 builtins are auto-linked.",
+      "inherits": "windows-clang-cl",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "Windows",
+        "CMAKE_SYSTEM_PROCESSOR": "ARM64",
+        "CMAKE_C_COMPILER_TARGET": "aarch64-pc-windows-msvc",
+        "CMAKE_CXX_COMPILER_TARGET": "aarch64-pc-windows-msvc"
+      }
+    },
+    {
       "name": "cpu-release-speed",
       "displayName": "CPU Release (Speed-First, UNSAFE)",
       "description": "CPU-only maximum throughput: -Ofast, no stack protector, no FORTIFY_SOURCE. Use only in controlled environments.",
@@ -371,6 +399,10 @@
     {
       "name": "cpu-release",
       "configurePreset": "cpu-release"
+    },
+    {
+      "name": "windows-clang-cl",
+      "configurePreset": "windows-clang-cl"
     },
     {
       "name": "cpu-release-speed",

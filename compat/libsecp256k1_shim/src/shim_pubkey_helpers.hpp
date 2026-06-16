@@ -34,16 +34,21 @@ inline void point_to_pubkey_data(const Point& pt, unsigned char data[64]) noexce
 }
 
 // Reconstruct a Point from a 64-byte opaque pubkey buffer (X || Y).
-// Fail closed for hostile callers that write raw bytes into the opaque struct:
-// reject x/y >= p and off-curve coordinates instead of silently reducing them.
+// TRUST CONTRACT (matches libsecp256k1 + PERF-002 / commit c67edc1c): EC curve
+// membership (y²=x³+7) is validated exactly ONCE at ec_pubkey_parse /
+// ec_pubkey_create. The verify, batch, tweak and combine paths trust the opaque
+// secp256k1_pubkey struct — they do NOT re-run the per-call curve equation. The
+// y²=x³+7 re-check re-added by d0b1435e ("Harden …") regressed that decision
+// (see kb PERF-002-FIXED / SHIM-A10-TEST-TRUST-CONTRACT: "do not re-add"); it is
+// removed again here. We keep the cheap field-range guard (reject x/y >= p) so
+// from_affine only ever sees canonical limbs — that is range validation, not the
+// EC curve equation, and it is what keeps off-curve handling deterministic.
 [[nodiscard]] inline Point pubkey_data_to_point(const unsigned char data[64]) noexcept {
     const auto& xb = *reinterpret_cast<const std::array<uint8_t, 32>*>(data);
     const auto& yb = *reinterpret_cast<const std::array<uint8_t, 32>*>(data + 32);
     FieldElement x, y;
     if (!FieldElement::parse_bytes_strict(xb, x)) return Point::infinity();
     if (!FieldElement::parse_bytes_strict(yb, y)) return Point::infinity();
-    auto b7 = FieldElement::from_uint64(7);
-    if (y * y != x * x * x + b7) return Point::infinity();
     return Point::from_affine(x, y);
 }
 

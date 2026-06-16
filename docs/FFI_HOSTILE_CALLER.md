@@ -1,6 +1,30 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-06 | **Version**: 4.2.1
+**Last updated**: 2026-06-13 | **Version**: 4.2.1
+
+### 2026-06-13 - Opaque ECDSA ABI compatibility
+
+`include/ufsecp/ufsecp.h` now exposes opaque ECDSA helpers for consumers whose
+public signature type stores copied libsecp-compatible
+`secp256k1_ecdsa_signature` scalar storage: compact↔opaque conversion,
+opaque low-S normalization, single verify, column batch verify, and strided-row
+verify. These APIs reject NULL pointers, zero/invalid scalar limbs, malformed
+compressed public keys, oversized batch counts, and undersized row strides. The
+verify APIs return per-row verdict bytes for batch/row calls; malformed rows are
+reported as invalid verdicts rather than aborting the whole batch.
+
+`include/ufsecp/ufsecp_gpu.h` also exposes
+`ufsecp_gpu_ecdsa_verify_opaque_rows`; `ufsecp_gpu_ecdsa_verify_lbtc_rows` is a
+compatibility alias. Hostile-caller quartet coverage is in
+`audit/test_gpu_abi_gate.cpp`: NULL context/buffer rejection, `count=0`
+zero-edge, `stride < 129` invalid-content rejection, and valid opaque-row smoke
+when GPU hardware is present.
+
+Coverage: `audit/test_ffi_round_trip.cpp` checks compact↔opaque conversion,
+high-S normalization, single verify, column batch, and strided-row batch;
+`audit/test_c_abi_negative.cpp` checks NULL/zero/invalid argument contracts;
+`compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp` checks libbitcoin opaque
+rows and columns are accepted without rewriting caller-owned signatures.
 
 ### 2026-06-06 - GPU C ABI fail-closed output contract
 
@@ -271,7 +295,7 @@ shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
 
 ## Section J: GPU C ABI (v3.24+)
 
-`test_gpu_host_api_negative.cpp` and `test_gpu_abi_gate.cpp` cover all 20
+`test_gpu_host_api_negative.cpp` and `test_gpu_abi_gate.cpp` cover all 22
 `ufsecp_gpu_*` functions without requiring GPU hardware (GPU-only smoke paths run
 when a device is present). Both files are integrated into the unified audit runner
 (modules `gpu_api_negative` and `gpu_abi_gate`).
@@ -290,8 +314,19 @@ never secret material). Hostile-caller quartet in `test_gpu_abi_gate.cpp`:
 | `ufsecp_gpu_ecdsa_verify_collect`   | NULL ctx and NULL buffer → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | oversized count > cap → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid signature zeroes its 1-byte verdict (success, when GPU present) |
 | `ufsecp_gpu_schnorr_verify_collect` | NULL ctx → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | oversized count > cap → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid Schnorr signature zeroes its verdict (success smoke) |
 
-Backends without a native collect kernel (OpenCL/Metal) return `Unsupported`; the
-libbitcoin bridge then falls back to the host-collapse path (consensus-identical).
+**J.opaque-ecdsa — `ufsecp_gpu_ecdsa_verify_opaque_rows` /
+`ufsecp_gpu_ecdsa_verify_lbtc_rows`** (PUBLIC-DATA; direct strided rows carrying
+copied libsecp-compatible ECDSA opaque scalar storage). Hostile-caller quartet in
+`test_gpu_abi_gate.cpp`:
+
+| Function | null | zero | invalid | smoke |
+|----------|------|------|---------|-------|
+| `ufsecp_gpu_ecdsa_verify_opaque_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid opaque row returns result 1 (success, when GPU present) |
+| `ufsecp_gpu_ecdsa_verify_lbtc_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | alias of `ufsecp_gpu_ecdsa_verify_opaque_rows`; same valid-row smoke path |
+
+For the collect APIs, backends without a native collect kernel (OpenCL/Metal)
+return `Unsupported`; the libbitcoin bridge then falls back to the host-collapse
+path (consensus-identical).
 
 **J.lbtc-batch — `ufsecp_gpu_xonly_validate` / `ufsecp_gpu_commitment_verify` /
 `ufsecp_gpu_tagged_hash`** (libbitcoin bridge, PUBLIC-DATA; no secret material on

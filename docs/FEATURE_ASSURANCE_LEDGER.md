@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-06
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 182
+**Total API functions:** 200
 
 ## Legend
 
@@ -68,7 +68,7 @@
 
 ---
 
-## 4. ECDSA (8 functions)
+## 4. ECDSA (13 functions)
 
 | Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
 |----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
@@ -77,6 +77,12 @@
 | `ufsecp_ecdsa_verify` | Y | Y | Y (r=0,s=0,>=n) | Y | N/A (public) | Y (CUDA) | Y (Wycheproof) | N/A |
 | `ufsecp_ecdsa_sig_to_der` | Y | Y | Y | - | N/A | - | - | N/A |
 | `ufsecp_ecdsa_sig_from_der` | Y | Y | Y (malformed DER) | - | N/A | - | Y (Wycheproof) | N/A |
+| `ufsecp_ecdsa_sig_compact_to_opaque` | Y | - | Y (bad/null args) | Y (libsecp layout parity) | N/A (public signature encoding) | - | - | N/A |
+| `ufsecp_ecdsa_sig_opaque_to_compact` | Y | - | Y (bad/null args) | Y (libsecp layout parity) | N/A (public signature encoding) | - | - | N/A |
+| `ufsecp_ecdsa_sig_normalize_opaque` | Y | - | Y (high-S normalization) | Y (libsecp normalize semantics) | N/A (public signature encoding) | - | - | N/A |
+| `ufsecp_ecdsa_verify_opaque` | Y | - | Y (opaque parse + low-S normalize) | Y (libbitcoin/libsecp wrapper parity) | N/A (public verify) | - | Y (block 704789 tuple via verify path) | N/A |
+| `ufsecp_ecdsa_verify_opaque_batch` | Y | - | Y (invalid row result isolation) | Y (compact batch parity) | N/A (public verify) | - | - | N/A |
+| `ufsecp_ecdsa_verify_opaque_rows` | Y | - | Y (stride/null/invalid rows) | Y (libbitcoin row parity) | N/A (public verify) | - | - | N/A |
 | `ufsecp_ecdsa_sign_recoverable` | Y | Y | Y (edge recids) | Y | Y (CT sign) | Y (CUDA `recovery.cuh`) | - | Y |
 | `ufsecp_ecdsa_recover` | Y | Y | Y (recid=4, wrong) | Y | N/A (public) | Y (CUDA `recovery.cuh`) | - | N/A |
 
@@ -89,6 +95,9 @@
 - CT sidechannel: `audit/test_ct_sidechannel.cpp` (dudect timing on ECDSA sign)
 - Batch randomness: `audit/test_batch_randomness.cpp`
 - Cross-lib: `audit/test_cross_libsecp256k1.cpp`
+- Opaque/libbitcoin ABI: `audit/test_ffi_round_trip.cpp`,
+  `audit/test_c_abi_negative.cpp`, `audit/test_gpu_abi_gate.cpp`,
+  `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
 
 **CT:** Signing via `ct_sign.cpp` with `secure_erase` of nonce/key/intermediate. Verification uses fast path (public data).
 **GPU:** CUDA sign+verify (`src/cuda/include/ecdsa.cuh`), batch verify (`src/cuda/include/batch_verify.cuh`), recovery (`src/cuda/include/recovery.cuh`)
@@ -576,7 +585,7 @@ closure pass on 2026-04-06.
 
 ---
 
-## 30. GPU C ABI (`ufsecp_gpu_*`) -- 25 functions
+## 30. GPU C ABI (`ufsecp_gpu_*`) -- 37 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -602,6 +611,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 |----------|--------|------|-------|-----------------|-------|
 | `ufsecp_gpu_generator_mul_batch` | Y | Y | Y | Y (1*G == G) | Scalar→compressed pubkey |
 | `ufsecp_gpu_ecdsa_verify_batch` | Y | Y | Y | - | Batch ECDSA verify |
+| `ufsecp_gpu_ecdsa_verify_opaque_rows` | Y | Y | Y | Y (GPU==CPU opaque row) | Strided `hash|pubkey|opaque-sig|tail` rows; parses copied libsecp-compatible signature storage in-kernel |
+| `ufsecp_gpu_ecdsa_verify_lbtc_rows` | Y | Y | Y | Y (alias parity) | Libbitcoin compatibility alias for opaque ECDSA rows; fail-closed null/stride checks before forwarding |
 | `ufsecp_gpu_schnorr_verify_batch` | Y | Y | Y | - | BIP-340 batch verify |
 | `ufsecp_gpu_ecdsa_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
 | `ufsecp_gpu_schnorr_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
@@ -625,7 +636,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | Y | Y | Y | - | Schnorr SNARK witness batch (GPU kernel pending — stubs return Unsupported) |
 | `ufsecp_gpu_bip352_scan_batch` | Y | Y | Y | CUDA+OpenCL | BIP-352 Silent Payment GPU batch scan; scan_privkey SECRET-BEARING |
 
-**Test file:** `audit/test_gpu_abi_gate.cpp` (39 assertions)
+**Test file:** `audit/test_gpu_abi_gate.cpp` (opaque-row alias negative tests),
+`audit/test_gpu_ops_equivalence.cpp`, `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
 
 ---
 
@@ -678,8 +690,8 @@ Files with `secure_erase` for secret data cleanup:
 
 | Metric | Count |
 |--------|-------|
-| Total `UFSECP_API` functions | 179 (154 CPU + 25 GPU) |
-| Functions with ledger-row coverage | 179 (100%) |
+| Total `UFSECP_API` functions | 200 (163 CPU + 37 GPU) |
+| Functions with ledger-row coverage | 200 (100%) |
 | Functions tested in adversarial protocol | 89+, 186 individual checks |
 | Functions with fuzzing | ~40 (42%) |
 | Functions with external test vectors | ~35 (36%) |

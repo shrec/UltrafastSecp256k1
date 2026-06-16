@@ -56,6 +56,7 @@ extern "C" {
 #define UFSECP_PUBKEY_UNCOMPRESSED_LEN 65
 #define UFSECP_PUBKEY_XONLY_LEN     32
 #define UFSECP_SIG_COMPACT_LEN      64  /* R||S for ECDSA, r||s for Schnorr */
+#define UFSECP_ECDSA_OPAQUE_SIG_LEN 64  /* copied secp256k1_ecdsa_signature scalar storage */
 #define UFSECP_SIG_DER_MAX_LEN      72
 #define UFSECP_HASH_LEN             32
 #define UFSECP_HASH160_LEN          20
@@ -211,6 +212,60 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
                                               const uint8_t msg32[32],
                                               const uint8_t sig64[64],
                                               const uint8_t pubkey33[33]);
+
+/** Convert a compact ECDSA signature to secp256k1-compatible opaque scalar
+ *  storage. Does not normalize; use ufsecp_ecdsa_sig_normalize_opaque() for
+ *  libsecp-style low-S normalization of the opaque form. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_sig_compact_to_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t sig64[64],
+    uint8_t opaque64_out[64]);
+
+/** Convert secp256k1-compatible opaque scalar storage to compact R||S.
+ *  Does not normalize. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_sig_opaque_to_compact(
+    ufsecp_ctx* ctx,
+    const uint8_t opaque64[64],
+    uint8_t sig64_out[64]);
+
+/** Normalize a secp256k1-compatible opaque ECDSA signature to low-S opaque
+ *  storage. in/out may alias. changed_out is optional and receives 1 when the
+ *  signature was rewritten, 0 when it was already low-S. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_sig_normalize_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t opaque64[64],
+    uint8_t opaque64_out[64],
+    int* changed_out);
+
+/** Verify an ECDSA signature stored as copied secp256k1_ecdsa_signature opaque
+ *  scalar bytes. This matches libsecp256k1's runtime verify path: parse opaque
+ *  r/s, normalize high-S to low-S internally, then verify. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t msg32[32],
+    const uint8_t opaque64[64],
+    const uint8_t pubkey33[33]);
+
+/** Per-row ECDSA verify from independent columns using opaque signatures.
+ *  out_results[i] = 1 valid, 0 invalid. Malformed rows are per-row invalid,
+ *  not batch-aborting errors. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify_opaque_batch(
+    ufsecp_ctx* ctx,
+    const uint8_t* msg_hashes32,
+    const uint8_t* pubkeys33,
+    const uint8_t* opaque_sigs64,
+    size_t count,
+    uint8_t* out_results);
+
+/** Per-row ECDSA verify from strided rows:
+ *  32 msg | 33 compressed pubkey | 64 opaque signature | optional tail.
+ *  out_results[i] = 1 valid, 0 invalid. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows(
+    ufsecp_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results);
 
 /** Encode compact sig to DER.
  *  der_len: in = buffer size (>=72), out = actual DER length. */

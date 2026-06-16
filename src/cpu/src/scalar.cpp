@@ -204,6 +204,25 @@ bool Scalar::parse_bytes_strict_nonzero(const std::array<std::uint8_t, 32>& byte
     return parse_bytes_strict_nonzero(bytes.data(), out);
 }
 
+// Strict parse of a LITTLE-ENDIAN 32-byte scalar (the opaque internal limb form,
+// e.g. secp256k1_ecdsa_signature.data r/s). Equivalent to byte-reversing to
+// big-endian and calling parse_bytes_strict, but WITHOUT that round-trip: the
+// opaque bytes already are the engine's native little-endian limbs, so they load
+// directly. Same overflow contract: reject if >= ORDER. Host-independent LE read.
+bool Scalar::parse_bytes_strict_le(const std::uint8_t* le32, Scalar& out) noexcept {
+    limbs4 limbs{};
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t v = 0;
+        const std::uint8_t* p = le32 + i * 8;
+        for (int j = 0; j < 8; ++j)
+            v |= static_cast<std::uint64_t>(p[j]) << (j * 8);
+        limbs[static_cast<std::size_t>(i)] = v;  // limbs[0]=LSB .. limbs[3]=MSB
+    }
+    if (ge(limbs, ORDER)) return false;  // r/s must be < n
+    out.limbs_ = limbs;
+    return true;
+}
+
 std::array<std::uint8_t, 32> Scalar::to_bytes() const {
     std::array<std::uint8_t, 32> out{};
     write_bytes(out.data());

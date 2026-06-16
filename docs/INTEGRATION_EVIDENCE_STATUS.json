@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Machine-readable integration evidence freshness manifest (Bastion B13). Backs docs/INTEGRATION_EVIDENCE_TABLE.md and is gated by ci/check_integration_evidence.py (also audit_gate.py --integration-evidence). Each row binds an external-integration surface (libbitcoin / Bitcoin Core / libsecp shim) to its committed evidence, a reproduce command, a freshness SLO, and a severity. CAAS uses this to know whether each surface is current (pass), stale, missing, or owner_gated. Full-chain Bitcoin/libbitcoin validation is owner_gated: it must be an explicit manual / owner-imported artifact, never silently treated as current evidence.",
+  "default_pre_alert_buffer_days": 7,
+  "severity_legend": {
+    "blocking": "Cheap, every-push evidence that must always be current; missing evidence_path or stale last_verified fails the gate.",
+    "warning": "Committed test/gate that runs in standard CI; staleness/missing is advisory (non-blocking) and pre-alerted.",
+    "owner_gated": "Heavy / manual full-chain validation. Reported explicitly and never counted as current evidence; the owner must re-verify and import the result. Staleness is surfaced as informational, not a block."
+  },
+  "rows": [
+    {
+      "id": "INT-SHIM-PARITY",
+      "surface": "libsecp256k1 shim parity (strict-parse boundaries, no permissive from_bytes)",
+      "evidence_path": "ci/check_libsecp_shim_parity.py",
+      "reproduce_command": "python3 ci/check_libsecp_shim_parity.py --json",
+      "freshness_days": 30,
+      "severity": "blocking",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "17/17 shim parity checks pass; runs on every push. Verified 2026-06-13."
+    },
+    {
+      "id": "INT-CROSS-LIBSECP",
+      "surface": "cross-libsecp256k1 differential (bit-exact verdict vs bitcoin-core/libsecp256k1 v0.6.0)",
+      "evidence_path": "audit/test_cross_libsecp256k1.cpp",
+      "reproduce_command": "ctest --test-dir build -R '^cross_libsecp256k1$'",
+      "freshness_days": 45,
+      "severity": "warning",
+      "last_verified": "2026-06-08",
+      "status": "pass",
+      "notes": "Hard gate in the Security Audit workflow (cross-libsecp256k1 job) on every push."
+    },
+    {
+      "id": "INT-DER-BLOCK704789",
+      "surface": "DER parse + normalize + verify, incl. evoskuil/libbitcoin block 704,789 regression",
+      "evidence_path": "audit/test_regression_ecdsa_verify_cache_consistency.cpp",
+      "reproduce_command": "cmake --build build-audit -t test_regression_ecdsa_verify_cache_consistency_standalone && ctest -R ecdsa_verify_cache_consistency",
+      "freshness_days": 60,
+      "severity": "warning",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "Permanent regression evidence for block 704,789 DER parse/normalize/repeat-verify."
+    },
+    {
+      "id": "INT-ECDSA-CACHE-SAMEX",
+      "surface": "same-X / opposite-Y ECDSA cache identity (02||X vs 03||X must not share a cached key)",
+      "evidence_path": "audit/test_regression_ecdsa_verify_cache_consistency.cpp",
+      "reproduce_command": "ctest -R ecdsa_verify_cache_consistency",
+      "freshness_days": 60,
+      "severity": "warning",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "Regression for the ShimEcdsaCache full-pubkey (X||Y) identity fix (commit 684141e7)."
+    },
+    {
+      "id": "INT-SCHNORR-VERIFY",
+      "surface": "Schnorr verify (BIP-340) x-only key + variable-length message semantics vs shim",
+      "evidence_path": "ci/check_libsecp_shim_parity.py",
+      "reproduce_command": "python3 ci/check_libsecp_shim_parity.py",
+      "freshness_days": 60,
+      "severity": "warning",
+      "last_verified": "2026-06-13",
+      "status": "pass",
+      "notes": "Schnorr boundary covered by the shim parity gate; verified 2026-06-13."
+    },
+    {
+      "id": "INT-BATCH-VERIFY",
+      "surface": "batch ECDSA/Schnorr verify (CPU + optional GPU) vs shim reference",
+      "evidence_path": "compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp",
+      "reproduce_command": "cmake --build out -t test_lbtc_bridge && ctest -R lbtc_bridge",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-06-12",
+      "status": "owner_gated",
+      "notes": "Heavy libbitcoin-bridge batch-verify path; owner-gated manual validation, not run on every push."
+    },
+    {
+      "id": "INT-LIBBITCOIN-BRIDGE",
+      "surface": "libbitcoin bridge collect / commitment / multisig-threshold",
+      "evidence_path": "compat/libbitcoin_bridge/tests",
+      "reproduce_command": "cmake --build out -t run_lbtc_tests && ctest -R lbtc_",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-06-12",
+      "status": "owner_gated",
+      "notes": "In-place collect verify, BIP-341 commitment, threshold paths. Owner-gated heavy validation."
+    },
+    {
+      "id": "INT-LIBBITCOIN-NOLIBSECP",
+      "surface": "libbitcoin no-libsecp build mode (bridge builds + validates with libsecp256k1 absent)",
+      "evidence_path": "ci/check_core_build_mode.py",
+      "reproduce_command": "python3 ci/check_core_build_mode.py",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-05-01",
+      "status": "owner_gated",
+      "notes": "Core build-mode gate runs in CI as a proxy; the full libbitcoin no-libsecp build is owner-gated heavy validation."
+    },
+    {
+      "id": "INT-BITCOIN-CORE-SUITE",
+      "surface": "Bitcoin Core full test suite with UltrafastSecp256k1 as secondary backend (749/749 GCC 14.2.0)",
+      "evidence_path": "docs/BITCOIN_CORE_TEST_RESULTS.json",
+      "reproduce_command": "see the 'reproduction' field in docs/BITCOIN_CORE_TEST_RESULTS.json (git apply INTEGRATION_PATCH + ctest)",
+      "freshness_days": 180,
+      "severity": "owner_gated",
+      "last_verified": "2026-05-11",
+      "status": "owner_gated",
+      "notes": "Full 5-7h chain validation; owner-gated imported artifact. Earlier Clang 19.1.7 v28.0 run = 693/693 (history)."
+    }
+  ]
+}

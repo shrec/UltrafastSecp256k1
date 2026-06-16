@@ -10,9 +10,13 @@
     "passes": 11,
     "warmup": 500,
     "pool_size": 64,
-    "turbo": "enabled (NOT canonical \u2014 turbo-lock protocol not applied)",
+    "turbo": "enabled (NOT canonical — turbo-lock protocol not applied)",
     "run_mode": "full",
-    "_note": "Supplementary turbo-enabled run. Turbo was not locked (intel_pstate/no_turbo not set). Use docs/bench_unified_2026-05-23_gcc14_x86-64.json for canonical CT ratio claims. This artifact documents the cold-start schnorr_verify row (P1-BENCH-003)."
+    "_note": "Supplementary turbo-enabled run. Turbo was not locked (intel_pstate/no_turbo not set). Use docs/bench_unified_2026-05-23_gcc14_x86-64.json for canonical CT ratio claims. This artifact documents the cold-start schnorr_verify row (P1-BENCH-003).",
+    "target_context": "microbench",
+    "operation": "secp256k1 primitive/operation microbenchmarks (bench_unified)",
+    "claim_scope": "single-operation/primitive microbenchmark throughput; NOT node, integration, batch-verify, or native-GPU throughput",
+    "security_gate_dependency": "perf claim valid only when CT + determinism gates are green (perf_security_cogate)"
   },
   "results": [
     {
@@ -941,17 +945,17 @@
       "ns": 8.07
     },
     {
-      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent]",
+      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only — not production-equivalent]",
       "name": "ECDSA Sign",
       "ns": 13511.8
     },
     {
-      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent]",
+      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only — not production-equivalent]",
       "name": "Schnorr Sign",
       "ns": 10879.34
     },
     {
-      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent]",
+      "section": "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only — not production-equivalent]",
       "name": "Schnorr Keypair",
       "ns": 10490.57
     },
@@ -1122,7 +1126,7 @@
     },
     {
       "section": "FROST THRESHOLD (2-of-3)",
-      "name": "aggregate \u2192 Schnorr sig",
+      "name": "aggregate → Schnorr sig",
       "ns": 49359.36
     },
     {
@@ -1147,7 +1151,7 @@
     },
     {
       "section": "MUSIG2 MULTI-SIGNATURES (2-of-2)",
-      "name": "sig_agg \u2192 Schnorr sig",
+      "name": "sig_agg → Schnorr sig",
       "ns": 836.32
     },
     {

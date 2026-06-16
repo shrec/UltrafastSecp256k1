@@ -710,6 +710,9 @@ jobs:
       - name: Build project graph
         run: python3 ci/build_project_graph.py --rebuild
 
+      - name: Build source graph
+        run: python3 tools/source_graph_kit/source_graph.py build -i
+
       - name: Shim Parser Parity Gate (hard-fail)
         run: python3 ci/check_libsecp_shim_parity.py
 

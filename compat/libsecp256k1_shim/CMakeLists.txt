@@ -124,6 +124,39 @@ if(SECP256K1_SHIM_BUILD_SHARED)
     target_link_libraries(ultrafast_secp256k1_shared PRIVATE
         "$<LINK_LIBRARY:WHOLE_ARCHIVE,fastsecp256k1>")
     message(STATUS "  ultrafast_secp256k1 shared (libsecp256k1 ABI, our file name): ON")
+
+    # ---------------------------------------------------------------------
+    # Install as a drop-in `libsecp256k1` pkg-config package.
+    #
+    # Bitcoin Core / Bitcoin Knots can then swap the backend with NO source
+    # change — Knots' `WITH_SYSTEM_LIBSECP256K1=ON` does
+    # `pkg_check_modules(libsecp256k1 REQUIRED IMPORTED_TARGET libsecp256k1)` and
+    # aliases `secp256k1` to it, so installing this shim's `libsecp256k1.pc`
+    # (Libs: -lultrafast_secp256k1) and pointing PKG_CONFIG_PATH here is all that
+    # is needed. See docs/BITCOIN_KNOTS_INTEGRATION.md.
+    # ---------------------------------------------------------------------
+    option(SECP256K1_SHIM_INSTALL
+        "Install the shim shared lib + libsecp256k1 headers + libsecp256k1.pc (Core/Knots backend swap)"
+        ON)
+    if(SECP256K1_SHIM_INSTALL)
+        include(GNUInstallDirs)
+        # libsecp256k1 version the shim's ABI tracks (Knots/Core subtree is 0.6.x).
+        set(UFSECP_SHIM_PC_VERSION "0.6.0")
+        install(TARGETS ultrafast_secp256k1_shared
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+        install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+                FILES_MATCHING PATTERN "secp256k1*.h")
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/libsecp256k1.pc.in
+            ${CMAKE_CURRENT_BINARY_DIR}/libsecp256k1.pc @ONLY)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libsecp256k1.pc
+                DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+        message(STATUS "  shim install (libsecp256k1.pc + headers + .so): ON "
+                       "-> -DWITH_SYSTEM_LIBSECP256K1=ON in Core/Knots")
+    endif()
 endif()
 
 # -- Optional: RFC 6979 libsecp-compatible nonce mode -------------------------

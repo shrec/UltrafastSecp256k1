@@ -230,6 +230,16 @@ int test_regression_adaptor_blinded_nonce_run();    // SEC-NEW-001/002, P3-SHIM-
 int test_regression_musig_noncegen_extra_input_run(); // SHIM-NONCEGEN-001: secp256k1_musig_nonce_gen ignores extra_input32 — behavioral freeze (2026-05-23)
 int test_regression_dedup_refactors_2026_05_24_run(); // DEDUP-2026-05-24: bip39 decode helper + sp_scan_batch_impl + to_data_cast + ellswift retry-loop invariants (2026-05-24)
 int test_regression_adaptor_ct_secret_extract_run(); // SEC-001/CT-001: adaptor extract uses ct::scalar_mul + erases s_inv (2026-05-23)
+int test_regression_secret_scalar_residue_erase_run(); // FROST-SIGN-RESIDUE: frost_sign rho_ei/lambda_s_e + schnorr_keypair_create d_prime secure_erase (2026-06-10)
+int test_regression_precompute_gcontext_race_run(); // PRECOMPUTE-GCONTEXT-UAF: shared_ptr snapshot of g_context prevents use-after-free vs concurrent configure_fixed_base (2026-06-10)
+int test_soundness_adaptor_dleq_forgery_run(); // SOUNDNESS-PROBE: negative test — forged ECDSA-adaptor pre-sig with mismatched dlog MUST be rejected by the DLEQ binding (GHSA-c7q2 regression) (2026-06-11)
+int test_metamorphic_adaptor_run(); // METAMORPHIC-PROBE: positive complement — adapt/extract algebraic relations (adapt-validity, extract inverts adapt to +/-t, r-invariant, witness correspondence) must hold across the transform (2026-06-11)
+int test_soundness_snark_witness_attestation_run(); // SOUNDNESS-PROBE: ecdsa/schnorr_snark_witness.valid==1 MUST IMPLY canonical verify==OK across forged inputs (r>=p, tampered/malleable scalars) — GHSA-c7q2 shape on SNARK attestations (2026-06-11)
+int test_regression_musig_keyagg_lifetime_run(); // UAF-REGRESSION (blind-zone #4): shim g_ka holds shared_ptr<KAEntry> + ka_get returns a snapshot, not raw it->second.get() — unlock-then-use UAF class (2026-06-11)
+int test_regression_bip39_csprng_failclosed_run(); // ENTROPY-SOURCE (blind-zone #5): bip39.cpp uses canonical fail-closed detail::csprng_fill, not a local fail-open duplicate (2026-06-11)
+int test_regression_batch_dos_cap_run(); // RESOURCE-EXHAUSTION (blind-zone #15): batch sign ABI rejects count>kMaxBatchN (1<<20) before allocation — DoS ceiling (2026-06-11)
+int test_regression_abi_invalid_reject_run(); // VALID/INVALID coverage: live ABI reject branches (seckey_negate >=n, shamir/MSM scalar>=n + off-curve) that the blocking suite never exercised — wrong-accept trap (2026-06-11)
+int test_external_anchor_kat_run(); // EXTERNAL-ANCHOR KAT: ufsecp_sha512 vs NIST FIPS 180-4 + ufsecp_taproot_output_key vs official BIP-341 vectors — defeats common-mode self-anchoring (2026-06-11)
 int test_regression_ecdh_xy64_erase_run();           // SEC-002: shim_ecdh xy64 erased after hashfp call (2026-05-23)
 int test_regression_ecdh_off_curve_run();            // SEC-005: ecdh_compute* reject off-curve and infinity pubkeys (2026-05-27)
 int test_regression_musig_xonly_zero_tweak_run();    // SHIM-001: xonly_tweak_add accepts zero tweak (2026-05-23)
@@ -1406,6 +1416,38 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-23 SEC-NEW-001/002, P3-SHIM-STACK, P3-BATCH-MEM ===
     // advisory=false: source-scan + C++ adaptor round-trip; no shim/GPU dependency.
     { "regression_adaptor_blinded_nonce", "SEC-NEW-001: adaptor.cpp generator_mul_blinded(k) DPA defence; SEC-NEW-002: BCH shim is_zero_ct on nonce k; P3-SHIM-STACK: kStackMsgMax 256->1024; P3-BATCH-MEM: batch vector shrink_to_fit -- source-scan + adaptor sign+adapt+verify round-trip", "ct_analysis", test_regression_adaptor_blinded_nonce_run, false },
+    // === 2026-06-10 FROST-SIGN-RESIDUE ===
+    // advisory=false: source-scan + schnorr keypair sign/verify round-trip; no shim/GPU dependency.
+    { "regression_secret_scalar_residue_erase", "FROST-SIGN-RESIDUE: frost_sign erases secret-derived rho_ei (my_binding*ei) and lambda_s_e (lambda_i*s_i*e) carrying binding nonce ei + share s_i; schnorr_keypair_create (ct_sign.cpp + schnorr.cpp) erases d_prime private-key copy -- source-scan + keypair sign+verify round-trip", "ct_analysis", test_regression_secret_scalar_residue_erase_run, false },
+    // === 2026-06-10 PRECOMPUTE-GCONTEXT-UAF ===
+    // advisory=false: source-scan + concurrent reconfigure/compute smoke (no shim/GPU dependency).
+    { "regression_precompute_gcontext_race", "PRECOMPUTE-GCONTEXT-UAF: g_context is shared_ptr; scalar_mul_generator/batch_scalar_mul_generator snapshot it under g_mutex so a concurrent configure_fixed_base()->g_context.reset() cannot free the table mid-read (use-after-free) -- source-scan + concurrent reconfigure/compute-vs-reference smoke", "memory_safety", test_regression_precompute_gcontext_race_run, false },
+    // === 2026-06-11 SOUNDNESS-PROBE (negative-soundness gate seed) ===
+    // advisory=false: forges a verifying-but-unbound adaptor pre-sig; the DLEQ MUST reject it.
+    { "soundness_adaptor_dleq_forgery", "SOUNDNESS-PROBE (GHSA-c7q2): forge an ECDSA-adaptor pre-signature with log_G(R_hat) != log_T(R) that still satisfies r==R.x AND the ECDSA relation s_hat*R_hat==z*G+r*P; the Chaum-Pedersen DLEQ binding MUST reject it (else the adaptor is unbindable). The 'test the WRONG case' invariant inversion that a positive roundtrip cannot catch", "protocol_security", test_soundness_adaptor_dleq_forgery_run, false },
+    // === 2026-06-11 METAMORPHIC-PROBE (positive complement to the negative-soundness gate) ===
+    // advisory=false: ECDSA-adaptor C++ API only, no shim/GPU dependency.
+#if SECP256K1_HAS_ADAPTOR
+    { "metamorphic_adaptor", "METAMORPHIC-PROBE: positive algebraic relations that must hold across the adaptor adapt/extract transform — MR1 adapt-validity (ecdsa_verify(adapt(pre,t))==OK), MR2 extract inverts adapt (recovers +/-t), MR3 r-invariant under adapt, MR4 pre-sig != sig validity-boundary crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors. Complements soundness_adaptor_dleq_forgery: a structural break in adapt/extract escapes a single honest roundtrip but breaks the relation family", "protocol_security", test_metamorphic_adaptor_run, false },
+#endif // SECP256K1_HAS_ADAPTOR
+    // === 2026-06-11 SOUNDNESS-PROBE: SNARK-witness attestation (blind-zone #1, P1) ===
+    // advisory=false: ECDSA/Schnorr-in-SNARK foreign-field witness; C++ API only.
+#if SECP256K1_HAS_ZK
+    { "soundness_snark_witness_attestation", "SOUNDNESS-PROBE (eprint 2025/695, GHSA-c7q2 class): ecdsa_snark_witness/schnorr_snark_witness reimplement the verify equation and their .valid flag is consumed by a SNARK circuit as ground truth. Asserts witness.valid==1 IFF the canonical ufsecp verifier accepts the SAME (msg,pubkey,sig) across forged inputs — tampered/malleable s, tampered r, non-canonical r>=p (schnorr_verify strict-rejects, the witness silent-reduces mod p), s==0, wrong message. A verifying-but-unsound attestation lets a prover attest an invalid signature", "protocol_security", test_soundness_snark_witness_attestation_run, false },
+#endif // SECP256K1_HAS_ZK
+    // === 2026-06-11 UAF-REGRESSION: shim MuSig2 keyagg-cache lifetime (blind-zone #4) ===
+    // advisory=false: source-scan of shim_musig.cpp; no shim link required.
+    { "regression_musig_keyagg_lifetime", "UAF-REGRESSION (blind-zone #4): shim_musig.cpp ka_get/ka_get_by_token returned a RAW it->second.get() from the mutex-guarded g_ka map (unique_ptr<KAEntry>), so a caller dereferenced it after unlock while a concurrent ka_remove/partial_sig_agg could free the secret-adjacent KAEntry — same unlock-then-use UAF class as PRECOMPUTE-GCONTEXT-UAF. Source-scan asserts g_ka now holds shared_ptr<KAEntry> and the accessors return a shared_ptr snapshot, never a raw .get()", "memory_safety", test_regression_musig_keyagg_lifetime_run, false },
+#if SECP256K1_HAS_WALLET
+    // === 2026-06-11 ENTROPY-SOURCE-INTEGRITY: BIP-39 fail-closed CSPRNG (blind-zone #5) ===
+    { "regression_bip39_csprng_failclosed", "ENTROPY-SOURCE (blind-zone #5): bip39.cpp shipped a local fail-OPEN csprng_fill (returned false on /dev/urandom failure) duplicating + weakening the single canonical fail-CLOSED detail::csprng_fill (std::abort on RNG failure). Fixed to use the canonical helper; source-scan asserts no local csprng_fill + detail::csprng_fill usage; functional smoke generates+validates a CSPRNG mnemonic and a deterministic fixed-entropy one", "memory_safety", test_regression_bip39_csprng_failclosed_run, false },
+#endif // SECP256K1_HAS_WALLET
+    // === 2026-06-11 RESOURCE-EXHAUSTION: batch-sign DoS count ceiling (blind-zone #15) ===
+    { "regression_batch_dos_cap", "RESOURCE-EXHAUSTION (blind-zone #15): ufsecp_ecdsa_sign_batch / ufsecp_schnorr_sign_batch enforce a hard count ceiling kMaxBatchN=1<<20 BEFORE any count*size allocation, so a hostile count cannot drive an unbounded malloc/DoS. The cap existed but was untested/ungated. Asserts count>kMaxBatchN and count==0 -> BAD_INPUT (no alloc), and a small valid batch still succeeds", "memory_safety", test_regression_batch_dos_cap_run, false },
+    // === 2026-06-11 VALID/INVALID coverage: live ABI reject branches never exercised ===
+    { "regression_abi_invalid_reject", "VALID/INVALID COVERAGE: the 'live reject branch, no invalid-gate' wrong-accept trap. ufsecp_seckey_negate (>=n/0 -> BAD_KEY, buffer intact), ufsecp_shamir_trick + ufsecp_multi_scalar_mul (scalar>=n -> BAD_INPUT, invalid/off-curve point -> BAD_PUBKEY, n==0 -> BAD_INPUT) all have live rejection branches in src/cpu/src/impl that the blocking suite never fed an invalid input — a regression dropping the strict check (wrong-accept) would have passed every gate. Feeds each branch an invalid input + a valid control so the reject path is not vacuous", "memory_safety", test_regression_abi_invalid_reject_run, false },
+    // === 2026-06-11 EXTERNAL-ANCHOR KAT: defeat common-mode self-anchoring ===
+    { "external_anchor_kat", "EXTERNAL-ANCHOR KAT (common-mode defence): pins ops to authorities that did NOT come from this engine. ufsecp_sha512 vs NIST FIPS 180-4 (\"\"/\"abc\") — the SHA-512 ABI was KAT-checked only vs the internal C++ impl, never the ABI; SHA-512 underlies BIP-32 HMAC. ufsecp_taproot_output_key vs the OFFICIAL BIP-341 wallet-test-vectors (scriptPubKey[0] keypath-only) — the native taproot path was self-roundtrip only; this pins H_TapTweak(P) to the BIP-341 reference", "standard_vectors", test_external_anchor_kat_run, false },
     // === 2026-05-24 DEDUP refactors (SonarCloud-driven, no security/ABI change) ===
     // advisory=false: deterministic roundtrips + tag-separation + cast-invariance.
     { "regression_dedup_refactors_2026_05_24", "DEDUP-2026-05-24: bip39 decode_bip39_words helper, sp_scanner+ltc_sp shared sp_scan_batch_impl, types.hpp to_data_cast<T> template, ellswift retry-loop helper -- invariant roundtrips proving no behavioural drift", "differential", test_regression_dedup_refactors_2026_05_24_run, false },

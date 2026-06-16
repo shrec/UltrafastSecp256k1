@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "Canonical-encoding / serialization-malleability coverage ledger. A consensus-relevant decoder (signature, pubkey, point, key) must REJECT non-canonical encodings — a second valid encoding of the same value is transaction/txid malleability and, for signatures, a consensus split. The matrix is closed-world (check_threat_gate_coverage only iterates declared classes), so without this ledger an undeclared canonical-encoding regression is structurally invisible. Each consensus-relevant encoding declares its non-canonical-rejection probe (covered) or is roadmap. Enforced by ci/check_canonical_encoding_coverage.py.",
+  "methodology": "For each decoder, a probe must assert that non-canonical inputs (overlong/negative DER, r>=p / s>=n, r==0/s==0, off-curve or non-minimal point encodings, trailing bytes) are REJECTED, and that encode->decode->encode is a fixpoint. A new *_parse/*_serialize that lacks such a probe is a malleability hole.",
+  "encodings": [
+    {
+      "id": "ecdsa-der-strict",
+      "encoding": "ECDSA signature DER (BIP-66)",
+      "claim": "parse rejects non-minimal length, negative integers, leading zeros, trailing bytes — only strict-DER decodes.",
+      "probe_module": "exploit_ecdsa_der_confusion",
+      "probe_run_symbol": "test_exploit_ecdsa_der_confusion_run",
+      "status": "covered"
+    },
+    {
+      "id": "ecdsa-der-differential",
+      "encoding": "ECDSA DER parse vs libsecp256k1",
+      "claim": "DER parsing accepts/rejects byte-identically to upstream across an adversarial corpus.",
+      "probe_module": "exploit_der_parse_diff",
+      "probe_run_symbol": "test_exploit_der_parsing_differential_run",
+      "status": "covered"
+    },
+    {
+      "id": "ecdsa-compact-rs-bounds",
+      "encoding": "ECDSA compact (r||s) scalar bounds",
+      "claim": "r==0, s==0, r>=n, s>=n are rejected by the strict compact parse (no silent mod-n reduce).",
+      "probe_module": "exploit_rs_zero_check",
+      "probe_run_symbol": "test_exploit_rs_zero_check_run",
+      "status": "covered"
+    },
+    {
+      "id": "schnorr-bip340-strict",
+      "encoding": "BIP-340 Schnorr signature (r||s)",
+      "claim": "r>=p and s>=n are rejected (lift_x fails for r>=p; s>=n is non-canonical) — strict BIP-340 encoding only.",
+      "probe_module": "bip340_strict",
+      "probe_run_symbol": "test_bip340_strict_run",
+      "status": "covered"
+    },
+    {
+      "id": "point-serialization",
+      "encoding": "EC point compressed/uncompressed serialization",
+      "claim": "off-curve x, bad prefix, non-minimal and infinity encodings are rejected; encode->decode->encode is a fixpoint.",
+      "probe_module": "exploit_point_serialization",
+      "probe_run_symbol": "test_exploit_point_serialization_run",
+      "status": "covered"
+    },
+    {
+      "id": "fe-set-b32-canonical",
+      "encoding": "field element set_b32 (overflow flag)",
+      "claim": "a 32-byte input >= p sets the overflow flag and does not silently wrap (libsecp256k1 PR #1839 bug class).",
+      "probe_module": "exploit_fe_set_b32_limit_uninit",
+      "probe_run_symbol": "test_exploit_fe_set_b32_limit_uninit_run",
+      "status": "covered"
+    },
+    {
+      "id": "musig-pubnonce-encoding",
+      "encoding": "MuSig2 public nonce (66-byte R1||R2)",
+      "claim": "infinity / off-curve / bad-prefix pubnonce encodings are rejected; serialize->parse is a fixpoint.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap"
+    },
+    {
+      "id": "bip32-xkey-encoding",
+      "encoding": "BIP-32 extended key (xprv/xpub) base58check",
+      "claim": "bad version, depth/fingerprint/checksum and non-canonical base58 are rejected; serialize->parse is a fixpoint.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap"
+    },
+    {
+      "id": "zk-proof-encoding",
+      "encoding": "ZK proof serialization (DLEQ / range proof)",
+      "claim": "malformed/over-length/non-canonical proof encodings are rejected before verification.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap"
+    }
+  ]
+}

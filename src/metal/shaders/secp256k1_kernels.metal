@@ -313,6 +313,56 @@ kernel void ecdsa_sign_batch(
 // Kernel 10: Batch ECDSA Verify
 // =============================================================================
 
+inline bool lbtc_be32_lt_field_p(device const uchar* x) {
+    const uchar P[32] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xfc, 0x2f
+    };
+    for (int i = 0; i < 32; ++i) {
+        if (x[i] < P[i]) return true;
+        if (x[i] > P[i]) return false;
+    }
+    return false;
+}
+
+inline bool lbtc_point_from_compressed(device const uchar* pub,
+                                       thread JacobianPoint &p) {
+    const uchar prefix = pub[0];
+    if (prefix != 0x02 && prefix != 0x03) return false;
+    if (!lbtc_be32_lt_field_p(pub + 1)) return false;
+    if (!lift_x(pub + 1, p)) return false;
+    if (prefix == 0x03) p.y = field_negate(p.y);
+    return true;
+}
+
+inline bool lbtc_parse_opaque_scalar(device const uchar* opaque,
+                                     thread Scalar256 &out) {
+    for (int i = 0; i < 8; ++i) {
+        uint v = 0;
+        v |= uint(opaque[i * 4 + 0]);
+        v |= uint(opaque[i * 4 + 1]) << 8;
+        v |= uint(opaque[i * 4 + 2]) << 16;
+        v |= uint(opaque[i * 4 + 3]) << 24;
+        out.limbs[i] = v;
+    }
+    if (scalar256_is_zero(out)) return false;
+
+    Scalar256 order;
+    for (int i = 0; i < 8; ++i) order.limbs[i] = SECP256K1_N[i];
+    if (scalar256_ge(out, order)) return false;
+    return true;
+}
+
+inline bool lbtc_parse_opaque_signature(device const uchar* opaque,
+                                        thread ECDSASignature &sig) {
+    if (!lbtc_parse_opaque_scalar(opaque, sig.r)) return false;
+    if (!lbtc_parse_opaque_scalar(opaque + 32, sig.s)) return false;
+    if (!scalar_is_low_s(sig.s)) sig.s = scalar_negate(sig.s);
+    return true;
+}
+
 kernel void ecdsa_verify_batch(
     device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
     device const uchar *pubkeys        [[buffer(1)]],   // N × 64 (x ∥ y, uncompressed coords)
@@ -356,6 +406,26 @@ kernel void ecdsa_verify_batch(
     }
 
     results[tid] = ecdsa_verify(msg, pub, r_sig, s_sig) ? 1u : 0u;
+}
+
+kernel void ecdsa_verify_lbtc_rows(
+    device const uchar *rows           [[buffer(0)]],
+    constant ulong &stride             [[buffer(1)]],
+    device uint *results               [[buffer(2)]],
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    device const uchar* row = rows + (ulong(tid) * stride);
+    uchar msg_bytes[32];
+    for (int i = 0; i < 32; ++i) msg_bytes[i] = row[i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    const bool ok = lbtc_point_from_compressed(row + 32, pub) &&
+                    lbtc_parse_opaque_signature(row + 65, sig);
+    results[tid] = ok && ecdsa_verify(msg_bytes, pub, sig) ? 1u : 0u;
 }
 
 // =============================================================================
@@ -1755,4 +1825,3 @@ kernel void ct_smoke_kernel(device int* out [[buffer(0)]],
         }
     }
 }
-

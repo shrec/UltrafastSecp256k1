@@ -2,6 +2,20 @@
 
 Benchmark results for UltrafastSecp256k1 across all supported platforms.
 
+> **Target-context gated (Bastion B17).** Every canonical benchmark artifact
+> declares a `target_context` (microbench / batch_verify / bitcoin_core /
+> libbitcoin / gpu_public_data / gpu_hardware / wasm / package_integration /
+> unknown_owner_gated) and a `claim_scope`, defined in
+> [`docs/BENCH_TARGET_CONTEXT_SCHEMA.json`](BENCH_TARGET_CONTEXT_SCHEMA.json) and
+> enforced by `ci/check_bench_target_context.py` (folded into
+> `ci/check_bench_doc_consistency.py`, co-gated by `ci/perf_security_cogate.py`).
+> A **microbenchmark is not node throughput**: `bench_unified_*.json` numbers are
+> single-operation `microbench` timings, **not** Bitcoin Core / libbitcoin node
+> throughput (those live in `docs/BITCOIN_CORE_BENCH_RESULTS.json`,
+> `target_context=bitcoin_core`, and must reference integration evidence). A
+> `gpu_public_data` or CPU-fallback benchmark is **never** a native GPU-hardware
+> speed claim.
+
 **Label conventions used in this document:**
 
 | Label | Meaning |

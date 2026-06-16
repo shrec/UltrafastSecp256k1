@@ -67,6 +67,97 @@ struct UfsecpSchnorrPkCache {
 };
 static thread_local UfsecpSchnorrPkCache s_schnorr_pk_cache;
 
+using ScalarLimbs = Scalar::limbs_type;
+
+static constexpr ScalarLimbs kScalarOrderLimbs{
+    0xBFD25E8CD0364141ULL,
+    0xBAAEDCE6AF48A03BULL,
+    0xFFFFFFFFFFFFFFFEULL,
+    0xFFFFFFFFFFFFFFFFULL
+};
+
+static inline uint64_t opaque_read_le64(const uint8_t* p) noexcept {
+    uint64_t v = 0;
+    for (unsigned i = 0; i < 8; ++i)
+        v |= static_cast<uint64_t>(p[i]) << (i * 8);
+    return v;
+}
+
+static inline void opaque_write_le64(uint8_t* p, uint64_t v) noexcept {
+    for (unsigned i = 0; i < 8; ++i)
+        p[i] = static_cast<uint8_t>(v >> (i * 8));
+}
+
+static inline bool scalar_limbs_zero(const ScalarLimbs& a) noexcept {
+    return (a[0] | a[1] | a[2] | a[3]) == 0;
+}
+
+static inline bool scalar_limbs_ge(const ScalarLimbs& a,
+                                   const ScalarLimbs& b) noexcept {
+    for (int i = 3; i >= 0; --i) {
+        const auto idx = static_cast<std::size_t>(i);
+        if (a[idx] > b[idx]) return true;
+        if (a[idx] < b[idx]) return false;
+    }
+    return true;
+}
+
+static inline bool opaque_scalar_parse_strict_nonzero(const uint8_t* opaque,
+                                                      Scalar& out) noexcept {
+    const ScalarLimbs limbs{
+        opaque_read_le64(opaque),
+        opaque_read_le64(opaque + 8),
+        opaque_read_le64(opaque + 16),
+        opaque_read_le64(opaque + 24)
+    };
+    if (scalar_limbs_zero(limbs) || scalar_limbs_ge(limbs, kScalarOrderLimbs))
+        return false;
+    out = Scalar::from_limbs(limbs);
+    return true;
+}
+
+static inline void opaque_scalar_write(const Scalar& s,
+                                       uint8_t opaque[32]) noexcept {
+    const auto& limbs = s.limbs();
+    opaque_write_le64(opaque, limbs[0]);
+    opaque_write_le64(opaque + 8, limbs[1]);
+    opaque_write_le64(opaque + 16, limbs[2]);
+    opaque_write_le64(opaque + 24, limbs[3]);
+}
+
+static inline bool ecdsa_sig_parse_opaque(
+    const uint8_t opaque64[64],
+    secp256k1::ECDSASignature& out,
+    bool normalize) noexcept {
+    Scalar r;
+    Scalar s;
+    if (!opaque_scalar_parse_strict_nonzero(opaque64, r) ||
+        !opaque_scalar_parse_strict_nonzero(opaque64 + 32, s))
+        return false;
+    out = secp256k1::ECDSASignature{r, s};
+    if (normalize) out = out.normalize();
+    return true;
+}
+
+static inline void ecdsa_sig_write_opaque(
+    const secp256k1::ECDSASignature& sig,
+    uint8_t opaque64[64]) noexcept {
+    opaque_scalar_write(sig.r, opaque64);
+    opaque_scalar_write(sig.s, opaque64 + 32);
+}
+
+static inline bool ecdsa_entry_from_opaque(
+    const uint8_t msg32[32],
+    const uint8_t pubkey33[33],
+    const uint8_t opaque64[64],
+    secp256k1::ECDSABatchEntry& out) noexcept {
+    std::memcpy(out.msg_hash.data(), msg32, 32);
+    secp256k1::EcdsaPublicKey parsed{};
+    if (!secp256k1::ecdsa_pubkey_parse(parsed, pubkey33, 33)) return false;
+    out.public_key = parsed.point;
+    return ecdsa_sig_parse_opaque(opaque64, out.signature, true);
+}
+
 } // namespace
 
 ufsecp_error_t ufsecp_ecdsa_sign(ufsecp_ctx* ctx,
@@ -151,6 +242,183 @@ ufsecp_error_t ufsecp_ecdsa_verify(ufsecp_ctx* ctx,
     }
 
     return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_ecdsa_sig_compact_to_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t sig64[64],
+    uint8_t opaque64_out[64]) {
+    if (SECP256K1_UNLIKELY(!ctx || !sig64 || !opaque64_out)) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    std::array<uint8_t, 64> compact;
+    std::memcpy(compact.data(), sig64, 64);
+
+    secp256k1::ECDSASignature sig;
+    if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, sig))) {
+        std::memset(opaque64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "non-canonical compact sig");
+    }
+
+    ecdsa_sig_write_opaque(sig, opaque64_out);
+    return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_ecdsa_sig_opaque_to_compact(
+    ufsecp_ctx* ctx,
+    const uint8_t opaque64[64],
+    uint8_t sig64_out[64]) {
+    if (SECP256K1_UNLIKELY(!ctx || !opaque64 || !sig64_out)) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    secp256k1::ECDSASignature sig;
+    if (SECP256K1_UNLIKELY(!ecdsa_sig_parse_opaque(opaque64, sig, false))) {
+        std::memset(sig64_out, 0, 64);
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid opaque ECDSA sig");
+    }
+
+    const auto compact = sig.to_compact();
+    std::memcpy(sig64_out, compact.data(), 64);
+    return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_ecdsa_sig_normalize_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t opaque64[64],
+    uint8_t opaque64_out[64],
+    int* changed_out) {
+    if (SECP256K1_UNLIKELY(!ctx || !opaque64 || !opaque64_out)) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    secp256k1::ECDSASignature sig;
+    if (SECP256K1_UNLIKELY(!ecdsa_sig_parse_opaque(opaque64, sig, false))) {
+        std::memset(opaque64_out, 0, 64);
+        if (changed_out) *changed_out = 0;
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid opaque ECDSA sig");
+    }
+
+    const auto normalized = sig.normalize();
+    uint8_t tmp[64];
+    ecdsa_sig_write_opaque(normalized, tmp);
+    const int changed = std::memcmp(opaque64, tmp, 64) != 0 ? 1 : 0;
+    std::memcpy(opaque64_out, tmp, 64);
+    if (changed_out) *changed_out = changed;
+    return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_ecdsa_verify_opaque(
+    ufsecp_ctx* ctx,
+    const uint8_t msg32[32],
+    const uint8_t opaque64[64],
+    const uint8_t pubkey33[33]) {
+    if (SECP256K1_UNLIKELY(!ctx || !msg32 || !opaque64 || !pubkey33)) return UFSECP_ERR_NULL_ARG;
+    ctx_clear_err(ctx);
+
+    std::array<uint8_t, 32> msg;
+    std::memcpy(msg.data(), msg32, 32);
+
+    secp256k1::ECDSASignature sig;
+    if (SECP256K1_UNLIKELY(!ecdsa_sig_parse_opaque(opaque64, sig, true))) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid opaque ECDSA sig");
+    }
+
+    const secp256k1::EcdsaPublicKey* epk = s_ecdsa_pk_cache.get(pubkey33);
+    if (!epk) epk = s_ecdsa_pk_cache.put(pubkey33);
+    if (SECP256K1_UNLIKELY(!epk)) {
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid public key");
+    }
+
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_verify(msg, *epk, sig))) {
+        return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "ECDSA verify failed");
+    }
+
+    return UFSECP_OK;
+}
+
+ufsecp_error_t ufsecp_ecdsa_verify_opaque_batch(
+    ufsecp_ctx* ctx,
+    const uint8_t* msg_hashes32,
+    const uint8_t* pubkeys33,
+    const uint8_t* opaque_sigs64,
+    size_t count,
+    uint8_t* out_results) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!msg_hashes32 || !pubkeys33 || !opaque_sigs64 || !out_results))
+        return UFSECP_ERR_NULL_ARG;
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::memset(out_results, 0, count);
+
+    try {
+        std::vector<secp256k1::ECDSABatchEntry> batch(count);
+        bool parsed = true;
+        for (size_t i = 0; i < count; ++i) {
+            parsed = ecdsa_entry_from_opaque(msg_hashes32 + i * 32,
+                                             pubkeys33 + i * 33,
+                                             opaque_sigs64 + i * 64,
+                                             batch[i]);
+            if (!parsed) break;
+        }
+
+        if (parsed && secp256k1::ecdsa_batch_verify(batch.data(), count)) {
+            std::memset(out_results, 1, count);
+            return UFSECP_OK;
+        }
+
+        for (size_t i = 0; i < count; ++i) {
+            secp256k1::ECDSABatchEntry one{};
+            const bool ok = ecdsa_entry_from_opaque(msg_hashes32 + i * 32,
+                                                    pubkeys33 + i * 33,
+                                                    opaque_sigs64 + i * 64,
+                                                    one) &&
+                            secp256k1::ecdsa_batch_verify(&one, 1);
+            out_results[i] = ok ? 1u : 0u;
+        }
+        return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
+ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows(
+    ufsecp_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!rows || !out_results)) return UFSECP_ERR_NULL_ARG;
+    if (stride < 129u) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "opaque row stride < 129");
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::memset(out_results, 0, count);
+
+    try {
+        std::vector<secp256k1::ECDSABatchEntry> batch(count);
+        size_t parsed_count = 0;
+        for (; parsed_count < count; ++parsed_count) {
+            const size_t i = parsed_count;
+            const uint8_t* row = rows + i * stride;
+            if (!ecdsa_entry_from_opaque(row, row + 32, row + 65, batch[i])) {
+                break;
+            }
+        }
+
+        if (parsed_count == count && secp256k1::ecdsa_batch_verify(batch.data(), count)) {
+            std::memset(out_results, 1, count);
+            return UFSECP_OK;
+        }
+
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* row = rows + i * stride;
+            secp256k1::ECDSABatchEntry one{};
+            const bool ok =
+                ecdsa_entry_from_opaque(row, row + 32, row + 65, one) &&
+                secp256k1::ecdsa_batch_verify(&one, 1);
+            out_results[i] = ok ? 1u : 0u;
+        }
+        return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
 }
 
 ufsecp_error_t ufsecp_ecdsa_sig_to_der(ufsecp_ctx* ctx,
@@ -713,4 +981,3 @@ ufsecp_error_t ufsecp_ecdh_raw(ufsecp_ctx* ctx,
 /* ===========================================================================
  * Hashing (stateless -- no ctx required, but returns error_t for consistency)
  * =========================================================================== */
-

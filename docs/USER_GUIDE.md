@@ -260,6 +260,24 @@ ufsecp_error_t err = ufsecp_ecdsa_verify(ctx, msg32, sig64, pubkey33);
 if (err == UFSECP_OK) { /* signature valid */ }
 ```
 
+### Copied libsecp256k1 ECDSA Storage
+
+Consumers that already store copied `secp256k1_ecdsa_signature` bytes can use
+the opaque ECDSA helpers without translating their public row data to compact
+`R||S` first. The opaque ABI accepts the 64-byte scalar layout used by
+libsecp256k1 storage, normalizes high-S values internally for verification, and
+returns per-row success bytes for strided batch records:
+
+```c
+// row layout: msg32 || compressed_pubkey33 || opaque_signature64 || optional tail
+ufsecp_ecdsa_verify_opaque_rows(ctx, rows, row_count, row_stride, out_results);
+```
+
+Use `ufsecp_ecdsa_verify()` for standard compact signatures. Use
+`ufsecp_ecdsa_verify_opaque_rows()` or `ufsecp_ecdsa_verify_opaque_batch()` only
+when the caller's existing integration surface is copied libsecp256k1 signature
+storage, such as libbitcoin batch verification tables.
+
 ### DER Encoding
 
 ```c

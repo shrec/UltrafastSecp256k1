@@ -28,26 +28,32 @@ using namespace secp256k1::fast;
 using secp256k1_shim_internal::ctx_flags;
 using secp256k1_shim_internal::ctx_can_sign;
 using secp256k1_shim_internal::ctx_can_verify;
+using secp256k1_shim_internal::scalar_be_to_internal;
+using secp256k1_shim_internal::scalar_internal_to_be;
 
 // point_to_pubkey_data from shim_pubkey_helpers.hpp
 using secp256k1_shim_internal::point_to_pubkey_data;
 
-// Recoverable sig opaque layout: data[0] = recid, data[1..32] = r, data[33..64] = s
+// Recoverable sig opaque layout: data[0] = recid, then r and s in libsecp-style
+// little-endian internal scalar bytes. Public compact parse/serialize stays BE.
 
 static void rsig_to_data(const secp256k1::RecoverableSignature& rsig,
                          unsigned char data[65]) {
     data[0] = static_cast<unsigned char>(rsig.recid & 0x03);
     auto rb = rsig.sig.r.to_bytes();
     auto sb = rsig.sig.s.to_bytes();
-    std::memcpy(data + 1,  rb.data(), 32);
-    std::memcpy(data + 33, sb.data(), 32);
+    scalar_be_to_internal(data + 1, rb.data());
+    scalar_be_to_internal(data + 33, sb.data());
 }
 
 static secp256k1::RecoverableSignature rsig_from_data(const unsigned char data[65]) {
     // T-07: strict parse — values >= n are cleared to zero so downstream verify fails cleanly.
     Scalar r_scalar, s_scalar;
-    if (!Scalar::parse_bytes_strict(data + 1,  r_scalar)) r_scalar = Scalar::zero();
-    if (!Scalar::parse_bytes_strict(data + 33, s_scalar)) s_scalar = Scalar::zero();
+    unsigned char r_be[32]{}, s_be[32]{};
+    scalar_internal_to_be(r_be, data + 1);
+    scalar_internal_to_be(s_be, data + 33);
+    if (!Scalar::parse_bytes_strict(r_be, r_scalar)) r_scalar = Scalar::zero();
+    if (!Scalar::parse_bytes_strict(s_be, s_scalar)) s_scalar = Scalar::zero();
     return {
         { r_scalar, s_scalar },
         static_cast<int>(data[0] & 0x03)
@@ -84,7 +90,8 @@ int secp256k1_ecdsa_recoverable_signature_parse_compact(
         return 0;
     }
     sig->data[0] = static_cast<unsigned char>(recid);
-    std::memcpy(sig->data + 1, input64, 64);
+    scalar_be_to_internal(sig->data + 1, input64);
+    scalar_be_to_internal(sig->data + 33, input64 + 32);
     return 1;
 }
 
@@ -101,7 +108,8 @@ int secp256k1_ecdsa_recoverable_signature_serialize_compact(
         return 0;
     }
     *recid = static_cast<int>(sig->data[0] & 0x03);
-    std::memcpy(output64, sig->data + 1, 64);
+    scalar_internal_to_be(output64, sig->data + 1);
+    scalar_internal_to_be(output64 + 32, sig->data + 33);
     return 1;
 }
 
@@ -116,7 +124,7 @@ int secp256k1_ecdsa_recoverable_signature_convert(
             "secp256k1_ecdsa_recoverable_signature_convert: NULL argument");
         return 0;
     }
-    // Non-recoverable sig is r||s (64 bytes); strip the recid byte.
+    // Non-recoverable sig uses the same internal scalar layout; strip recid.
     std::memcpy(sig->data, sigin->data + 1, 64);
     return 1;
 }

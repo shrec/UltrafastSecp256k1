@@ -375,7 +375,10 @@ jobs:
 
   # -- Windows (MSVC + Clang-cl) ----------------------------------------------
   windows:
-    runs-on: windows-latest
+    # The job uses the Visual Studio 17 2022 CMake generator below, so pin the
+    # runner image to the Visual Studio 2022 image instead of the moving
+    # windows-latest alias.
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:

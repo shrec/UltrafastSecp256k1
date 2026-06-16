@@ -28,7 +28,18 @@ target_include_directories(ufsecp_lbtc_bridge PUBLIC
 if(NOT UFSECP_INCLUDE_DIR)
     set(UFSECP_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../include/ufsecp)
 endif()
-target_include_directories(ufsecp_lbtc_bridge PUBLIC ${UFSECP_INCLUDE_DIR})
+# Public C++ engine headers used by non-ECDSA bridge helpers such as Taproot
+# commitment batching. Override for installed layouts that ship these elsewhere.
+if(NOT UFSECP_CPU_INCLUDE_DIR)
+    set(UFSECP_CPU_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include)
+endif()
+# Also expose the parent of the ufsecp/ dir so ufsecp-prefixed includes resolve
+# from a single include/ root in packaged consumers.
+get_filename_component(UFSECP_INCLUDE_PARENT ${UFSECP_INCLUDE_DIR} DIRECTORY)
+target_include_directories(ufsecp_lbtc_bridge PUBLIC
+    ${UFSECP_INCLUDE_DIR}
+    ${UFSECP_INCLUDE_PARENT}
+    ${UFSECP_CPU_INCLUDE_DIR})
 
 if(UFSECP_LBTC_WITH_GPU)
     target_compile_definitions(ufsecp_lbtc_bridge PUBLIC UFSECP_LBTC_WITH_GPU)
@@ -37,10 +48,14 @@ endif()
 # Link the engine onto an arbitrary target (used by the bridge lib and by the
 # smallchunk test, which recompiles the bridge source with a tiny kChunk).
 function(ufsecp_lbtc_link_engine tgt access)
-    if(TARGET fastsecp256k1)
-        target_link_libraries(${tgt} ${access} fastsecp256k1)             # mode A
+    if(TARGET ufsecp_static)
+        target_link_libraries(${tgt} ${access} ufsecp_static)             # mode A
+    elseif(TARGET ufsecp_shared)
+        target_link_libraries(${tgt} ${access} ufsecp_shared)             # mode A
+    elseif(TARGET fastsecp256k1)
+        target_link_libraries(${tgt} ${access} fastsecp256k1)             # legacy mode A
     elseif(TARGET secp256k1_fast)
-        target_link_libraries(${tgt} ${access} secp256k1_fast)            # mode A
+        target_link_libraries(${tgt} ${access} secp256k1_fast)            # legacy mode A
     else()
         find_library(UFSECP_LIBRARY NAMES ufsecp                          # mode B
             HINTS ${UFSECP_LIB_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../out)
@@ -126,7 +141,11 @@ if(UFSECP_LBTC_BUILD_TESTS)
         target_compile_definitions(test_lbtc_collect_smallchunk PRIVATE UFSECP_LBTC_WITH_GPU)
     endif()
     target_include_directories(test_lbtc_collect_smallchunk
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${UFSECP_INCLUDE_DIR})
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${UFSECP_INCLUDE_DIR}
+            ${UFSECP_INCLUDE_PARENT}
+            ${UFSECP_CPU_INCLUDE_DIR})
     ufsecp_lbtc_link_engine(test_lbtc_collect_smallchunk PRIVATE)
     add_test(NAME lbtc_collect_smallchunk COMMAND test_lbtc_collect_smallchunk)
 endif()

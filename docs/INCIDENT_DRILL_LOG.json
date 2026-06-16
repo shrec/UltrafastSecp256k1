@@ -1,0 +1,82 @@
+{
+  "timestamp": "2026-06-15T14:51:48.270363+00:00",
+  "commit": "68ae9eb51f51f1f6b8b19f3e69407fa70ef95667",
+  "overall_pass": true,
+  "drills_total": 3,
+  "drills_passed": 3,
+  "drill_response_time_seconds": 0.34,
+  "injections": [
+    {
+      "drill": "key_compromise",
+      "injected_fault": "known-weak / out-of-range private keys (zero, n, n+1, all-ones)",
+      "detection_gate": "ufsecp pubkey() ABI boundary (strict scalar parse)",
+      "detected": true,
+      "passing": true
+    },
+    {
+      "drill": "ci_poisoning",
+      "injected_fault": "tampered build artifact (provider-B hash mismatch)",
+      "detection_gate": "multi_ci_repro_check.py",
+      "detected": true,
+      "passing": true
+    },
+    {
+      "drill": "dependency_compromise",
+      "injected_fault": "CMakeLists.txt with no cmake_minimum_required (unpinned toolchain)",
+      "detection_gate": "supply_chain_gate.check_build_input_pinning",
+      "detected": true,
+      "passing": true
+    }
+  ],
+  "drills": [
+    {
+      "drill": "key_compromise",
+      "passing": true,
+      "live_test": true,
+      "injected_fault": "known-weak / out-of-range private keys (zero, n, n+1, all-ones)",
+      "detection_gate": "ufsecp pubkey() ABI boundary (strict scalar parse)",
+      "detected": true,
+      "elapsed_seconds": 0.31,
+      "weak_keys_tested": 4,
+      "results": [
+        {
+          "key": "all_zeros",
+          "rejected": true
+        },
+        {
+          "key": "all_ones",
+          "rejected": true
+        },
+        {
+          "key": "group_order_n",
+          "rejected": true
+        },
+        {
+          "key": "above_order",
+          "rejected": true
+        }
+      ],
+      "issues": []
+    },
+    {
+      "drill": "ci_poisoning",
+      "passing": true,
+      "injected_fault": "tampered build artifact (provider-B hash mismatch)",
+      "detection_gate": "multi_ci_repro_check.py",
+      "detected": true,
+      "elapsed_seconds": 0.02,
+      "legit_hash": "9591c3413eb94501503e251559da8bd592c91afe2bb6349b24a6be745336e612",
+      "tampered_hash": "6d578ac8241868a9d71ab6459806d6c52c2160e0b8361a334bee37bea120022c",
+      "issues": []
+    },
+    {
+      "drill": "dependency_compromise",
+      "passing": true,
+      "injected_fault": "CMakeLists.txt with no cmake_minimum_required (unpinned toolchain)",
+      "detection_gate": "supply_chain_gate.check_build_input_pinning",
+      "detected": true,
+      "elapsed_seconds": 0.01,
+      "issues": []
+    }
+  ]
+}

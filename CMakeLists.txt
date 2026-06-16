@@ -168,6 +168,78 @@ if(SECP256K1_BUILD_LIBBITCOIN)
     message(STATUS "secp256k1-fast: ✅ libbitcoin profile — shim + batch script-sig bridge + BIP-352 (minimal surface)")
 endif()
 
+# -- Bitcoin Knots single-flag entry point --------------------------------------
+# Minimal libsecp256k1 drop-in for Bitcoin Knots (Bitcoin Core 29 base, libsecp256k1
+# 0.6.0). Knots enables exactly: ECDSA core + recovery + schnorrsig + extrakeys +
+# ellswift (ecdh/musig present-but-unused). This profile compiles ONLY that subset
+# and strips every other crypto module + all GPU/bench/test/binding surface.
+#
+# MODULE build (not a separate library): SECP256K1_BUILD_AS_OBJECT makes the engine
+# an OBJECT library, so its objects splice directly into Knots' own bitcoind link —
+# a continuation of the node's source, NOT a static/shared boundary. With
+# -ffunction-sections + Knots' --gc-sections, any module Knots never calls is
+# dropped from bitcoind at the final link. Keep -O3 (Release): the ~1 MB ecmult
+# precompute is the size floor, not code — -Os/-Oz would slow the hot path.
+# Mirrors SECP256K1_BUILD_LIBBITCOIN above.
+option(SECP256K1_BUILD_KNOTS
+       "[Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off" OFF)
+if(SECP256K1_BUILD_KNOTS)
+    # libsecp256k1-compatible contract: CT signing + strict libsecp ABI (same as the
+    # libbitcoin profile). We deliberately do NOT set SECP256K1_CORE_BACKEND_MODE: that
+    # mode bakes a static w=8 ecmult table into the binary (~0.85 MB of .rodata) for
+    # deterministic / shared-RAM startup, which INFLATES the file (2.27 MB vs 1.26 MB).
+    # Knots wants the small binary, so use the runtime-built table instead (measured:
+    # CT+strict module-stripped = 1.26 MB, stock-libsecp parity, sigs byte-identical).
+    # Opt into the static table explicitly with -DSECP256K1_CORE_BACKEND_MODE=ON if
+    # cold-start / shared-RAM matters more than file size for your deployment.
+    set(SECP256K1_BUILD_SHIM   ON)
+    set(SECP256K1_REQUIRE_CT   ON)
+    set(UFSECP_BITCOIN_STRICT  ON)
+    # Module/subtree splice into the consumer's link (same as the libbitcoin profile):
+    # the engine becomes an OBJECT library whose objects link directly into bitcoind.
+    # This is the DEFAULT Knots path. It is mutually exclusive with the standalone
+    # whole-archive .so (SECP256K1_SHIM_BUILD_SHARED) — an OBJECT library cannot be
+    # WHOLE_ARCHIVE'd into a shared lib — so only force AS_OBJECT for the module path;
+    # if a consumer explicitly asks for the .so, leave AS_OBJECT off so it whole-
+    # archives a static engine instead.
+    if(NOT SECP256K1_SHIM_BUILD_SHARED)
+        set(SECP256K1_BUILD_AS_OBJECT ON)
+    endif()
+    # Strip every crypto module Knots does not call. KEEP: core ecdsa/recovery/
+    # schnorr/extrakeys (always compiled), PIPPENGER (ecmult_gen comb — sign/verify
+    # core; gc-sections drops its unused batch/MSM code from bitcoind), and BIP-324
+    # ellswift (required by Knots v2 P2P).
+    set(SECP256K1_BUILD_MUSIG2   OFF)
+    set(SECP256K1_BUILD_FROST    OFF)
+    set(SECP256K1_BUILD_ZK       OFF)
+    set(SECP256K1_BUILD_ECIES    OFF)
+    set(SECP256K1_BUILD_BIP352   OFF)
+    set(SECP256K1_BUILD_LTC_SP   OFF)   # MUST be OFF when BIP352 OFF (FATAL_ERROR else)
+    set(SECP256K1_BUILD_ADAPTOR  OFF)
+    set(SECP256K1_BUILD_WALLET   OFF)
+    set(SECP256K1_BUILD_ETHEREUM OFF)
+    set(SECP256K1_BUILD_BCH      OFF)
+    set(SECP256K1_BUILD_BIP324   ON)    # ellswift — required by Knots
+    # Strip harness / bindings.
+    set(SECP256K1_BUILD_TESTS    OFF)
+    set(SECP256K1_BUILD_BENCH    OFF)
+    set(SECP256K1_BUILD_EXAMPLES OFF)
+    set(SECP256K1_BUILD_JAVA     OFF)
+    # Per-TU section splitting so the consumer's --gc-sections drops any module
+    # with no live caller. NOTE: we deliberately do NOT add -fvisibility=hidden
+    # here — the shim's secp256k1_* C ABI macro does not (yet) expand to
+    # visibility("default"), so hiding everything would strip the ABI from a
+    # standalone .so (export table collapses, symbols become undefined). The export
+    # table is a .so-only cost (irrelevant to the bundled-tree object/static path);
+    # shrinking it is a follow-up that needs the ABI macro to mark exports.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        add_compile_options(
+            $<$<COMPILE_LANGUAGE:C,CXX>:-ffunction-sections>
+            $<$<COMPILE_LANGUAGE:C,CXX>:-fdata-sections>)
+    endif()
+    message(STATUS "secp256k1-fast: ✅ SECP256K1_BUILD_KNOTS — minimal bundled-tree libsecp256k1 backend (ecdsa+recovery+schnorr+extrakeys+ellswift)")
+endif()
+
 # x86-64 -march override: use "x86-64-v3" in CI with ccache to avoid SIGILL
 # when cached objects from a different runner CPU are reused.  Empty = native.
 set(SECP256K1_MARCH "" CACHE STRING "x86-64 -march override (empty = auto-detect)")
@@ -333,14 +405,116 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-Wno-elaborated-enum-base>)
     endif()
 elseif(MSVC)
+    # ------------------------------------------------------------------
+    # MSVC optimization (Windows).
+    #
+    # On Windows x64, MSVC defaults to the SSE2 ABI baseline. Production
+    # libbitcoin targets can rely on Intel/AMD SSE4-class machines, but the
+    # benchmark sweep showed that forcing /arch:AVX2 or /arch:AVX512 regresses
+    # important bigint kernels on cl, so the portable default keeps SSE2 and
+    # lets tuned intrinsics/asm handle hot arithmetic. On Windows ARM64, NEON is
+    # architectural baseline and there is no x64 /arch switch to apply.
+    # Independently-toggleable MSVC perf knobs (defaults chosen empirically by
+    # the MSVC-vs-Clang Windows benchmark sweep — see docs/BENCHMARKS / commit).
+    set(SECP256K1_MSVC_ARCH "SSE2" CACHE STRING
+        "MSVC x64 /arch: ISA level (SSE2|AVX|AVX2|AVX512). ARM64 uses the NEON architectural baseline and ignores this unless misconfigured.")
+    set_property(CACHE SECP256K1_MSVC_ARCH PROPERTY STRINGS SSE2 AVX AVX2 AVX512)
+    if(NOT SECP256K1_PLATFORM STREQUAL "x86_64" AND NOT SECP256K1_MSVC_ARCH STREQUAL "SSE2")
+        message(FATAL_ERROR
+            "SECP256K1_MSVC_ARCH=${SECP256K1_MSVC_ARCH} is x86/x64-only; "
+            "${SECP256K1_PLATFORM} Windows builds use the platform baseline (ARM64 NEON).")
+    endif()
+    # /Ob3 (most-aggressive inlining) is a consistent ~8-15% win on the Windows
+    # MSVC-vs-Clang sweep (field_mul 20->17ns, field_sqr 15->13ns = Clang parity,
+    # scalar_mul 100->92us, field add 6.3->2.2ns) with no measurable regression,
+    # so it is ON by default. /arch:AVX2 was neutral-to-negative for the
+    # non-vectorizable bigint kernels, hence ARCH stays SSE2 above.
+    #
+    # SECP256K1_MSVC_WPO (/GL whole-program + /LTCG) is OFF by default and is a
+    # CONSUMER opt-in, NOT a forced library policy. Reason: /GL emits whole-program
+    # IL into every object, so a *static* lib compiled with /GL forces EVERY
+    # downstream consumer's linker into /LTCG for its whole program — even consumers
+    # who do not want it. Some consumers (e.g. libbitcoin) measure LTCG as a net
+    # runtime REGRESSION for their workload, so the library must not impose it.
+    # Our own standalone microbenchmarks see a small WPO gain; build with
+    # -DSECP256K1_MSVC_WPO=ON to opt in for a self-contained release/benchmark
+    # build. When OFF, no /GL is emitted, so the produced .lib never dictates the
+    # consumer's link-time optimization. See docs/BUILD_OPTIONS.md.
+    option(SECP256K1_MSVC_OB3 "MSVC: /Ob3 most-aggressive inlining" ON)
+    option(SECP256K1_MSVC_WPO "MSVC: /GL whole-program + /LTCG + /OPT:REF,ICF (opt-in; a /GL static lib forces consumer /LTCG)" OFF)
     add_compile_options(
         $<$<COMPILE_LANGUAGE:C,CXX>:/W4>
         $<$<COMPILE_LANGUAGE:C,CXX>:/permissive->
         $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/O2>
-        $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/GL>
+        $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/Oi>   # intrinsics
+        $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/Gy>   # COMDAT funcs -> /OPT:REF,ICF
+        $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/Gw>   # COMDAT globals
     )
+    if(SECP256K1_MSVC_WPO)
+        add_compile_options($<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/GL>)
+        add_link_options($<$<CONFIG:Release>:/LTCG> $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+    endif()
+    if(SECP256K1_MSVC_OB3)
+        add_compile_options($<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/Ob3>)
+    endif()
+    if(SECP256K1_PLATFORM STREQUAL "x86_64" AND NOT SECP256K1_MSVC_ARCH STREQUAL "SSE2")
+        add_compile_options(
+            $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C,CXX>>:/arch:${SECP256K1_MSVC_ARCH}>)
+    endif()
+    message(STATUS "secp256k1-fast: MSVC opt: /O2 /Oi /Gy /Gw arch=${SECP256K1_MSVC_ARCH} Ob3=${SECP256K1_MSVC_OB3} WPO=${SECP256K1_MSVC_WPO}")
     if(SECP256K1_WERROR)
         add_compile_options(/WX)
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
+# Clang on Windows (clang++ or clang-cl, MSVC ABI).
+#
+# RECOMMENDED FAST PATH ON WINDOWS x86_64: build with clang-cl. It is a drop-in,
+# MSVC-ABI-compatible Clang driver (link.exe / MSVC CRT / .pdb / Visual Studio
+# toolset) whose codegen runs the inline MULX/ADCX/ADOX field kernels that MSVC
+# cl cannot (no inline asm, no __int128). Measured ~3.3-3.6x faster scalar_mul /
+# batch_verify / FROST than cl, i.e. near clang++ parity, while staying in the
+# MSVC toolchain. See benchmarks/comparison/windows_msvc_vs_clang_20260614.md.
+#   cmake --preset windows-clang-cl     (or -DCMAKE_CXX_COMPILER=clang-cl)
+#
+# Windows ARM64 is supported by the same clang-cl path: AArch64 has mandatory
+# NEON, and compiler-rt must be selected as clang_rt.builtins-aarch64.lib.
+#
+# The native __int128 field code emits 128-bit runtime calls (__modti3 /
+# __umodti3 / __multi3) that the MSVC CRT does not provide, so auto-locate and
+# link the matching compiler-rt builtins archive — otherwise the link fails with
+# LNK2019 unresolved __umodti3. (Harmless no-op on the cl build.)
+# ---------------------------------------------------------------------------
+if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    execute_process(
+        COMMAND "${CMAKE_CXX_COMPILER}" -print-resource-dir
+        OUTPUT_VARIABLE _ufsecp_clang_res
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE _ufsecp_res_rc)
+    if(_ufsecp_res_rc EQUAL 0 AND _ufsecp_clang_res)
+        file(TO_CMAKE_PATH "${_ufsecp_clang_res}" _ufsecp_clang_res)
+        if(SECP256K1_PLATFORM STREQUAL "x86_64")
+            set(_ufsecp_clang_rt_arch "x86_64")
+        elseif(SECP256K1_PLATFORM STREQUAL "aarch64")
+            set(_ufsecp_clang_rt_arch "aarch64")
+        else()
+            set(_ufsecp_clang_rt_arch "")
+        endif()
+        if(_ufsecp_clang_rt_arch)
+            set(_ufsecp_builtins "${_ufsecp_clang_res}/lib/windows/clang_rt.builtins-${_ufsecp_clang_rt_arch}.lib")
+            if(EXISTS "${_ufsecp_builtins}")
+                add_link_options("${_ufsecp_builtins}")
+                message(STATUS "secp256k1-fast: Clang/Windows ${SECP256K1_PLATFORM} — linking compiler-rt builtins: ${_ufsecp_builtins}")
+            else()
+                message(WARNING "secp256k1-fast: Clang/Windows ${SECP256K1_PLATFORM} — clang_rt.builtins not found at "
+                                "${_ufsecp_builtins}; 128-bit runtime calls (__umodti3) may be unresolved.")
+            endif()
+        else()
+            message(WARNING "secp256k1-fast: Clang/Windows — no compiler-rt builtins mapping for platform "
+                            "${SECP256K1_PLATFORM}; 128-bit runtime calls (__umodti3) may be unresolved.")
+        endif()
     endif()
 endif()
 
@@ -501,6 +675,11 @@ if((SECP256K1_BUILD_SHIM OR SECP256K1_SHIM_BUILD_TESTS) AND SECP256K1_BUILD_CPU)
     # calling add_subdirectory (e.g. Bitcoin Core sets SECP256K1_SHIM_BUILD_TESTS OFF FORCE).
     set(SECP256K1_SHIM_BUILD_TESTS ON CACHE BOOL "Build shim compatibility tests")
     add_subdirectory(compat/libsecp256k1_shim)
+endif()
+
+option(SECP256K1_BCHN_SHIM_BUILD_TESTS "Build BCHN libsecp256k1 compatibility shim tests" OFF)
+if(SECP256K1_BCHN_SHIM_BUILD_TESTS AND SECP256K1_BUILD_CPU)
+    add_subdirectory(compat/libsecp256k1_bchn_shim)
 endif()
 
 # NOTE: bench_compare removed -- use src/src/cpu/bench/bench_unified instead

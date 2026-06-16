@@ -54,6 +54,84 @@ void make_msg(uint8_t msg[32], uint32_t seed) {
     for (int i = 0; i < 32; ++i) msg[i] = (uint8_t)(seed * 2654435761u >> (i % 24));
 }
 
+static constexpr uint8_t kScalarOrder[32] = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+    0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41
+};
+
+static constexpr uint8_t kScalarHalfOrder[32] = {
+    0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x5d, 0x57, 0x6e, 0x73, 0x57, 0xa4, 0x50, 0x1d,
+    0xdf, 0xe9, 0x2f, 0x46, 0x68, 0x1b, 0x20, 0xa0
+};
+
+int cmp32_be(const uint8_t* a, const uint8_t* b) {
+    for (size_t i = 0; i < 32; ++i) {
+        if (a[i] < b[i]) return -1;
+        if (a[i] > b[i]) return 1;
+    }
+    return 0;
+}
+
+void scalar_order_minus(uint8_t out[32], const uint8_t x[32]) {
+    uint16_t borrow = 0;
+    for (int i = 31; i >= 0; --i) {
+        const uint16_t lhs = kScalarOrder[(size_t)i];
+        const uint16_t rhs = (uint16_t)x[i] + borrow;
+        if (lhs < rhs) {
+            out[i] = (uint8_t)(lhs + 256u - rhs);
+            borrow = 1;
+        } else {
+            out[i] = (uint8_t)(lhs - rhs);
+            borrow = 0;
+        }
+    }
+}
+
+bool ecdsa_s_is_high(const uint8_t* sig64) {
+    return cmp32_be(sig64 + 32, kScalarOrder) < 0 &&
+           cmp32_be(sig64 + 32, kScalarHalfOrder) > 0;
+}
+
+void compact_to_lbtc_opaque(uint8_t* sig64) {
+    uint8_t tmp[64];
+    for (size_t i = 0; i < 32; ++i) {
+        tmp[i] = sig64[31 - i];
+        tmp[32 + i] = sig64[63 - i];
+    }
+    std::memcpy(sig64, tmp, 64);
+}
+
+void lbtc_opaque_to_compact(const uint8_t* sig64, uint8_t out[64]) {
+    for (size_t i = 0; i < 32; ++i) {
+        out[i] = sig64[31 - i];
+        out[32 + i] = sig64[63 - i];
+    }
+}
+
+bool lbtc_ecdsa_s_is_high(const uint8_t* sig64) {
+    uint8_t compact[64];
+    lbtc_opaque_to_compact(sig64, compact);
+    return ecdsa_s_is_high(compact);
+}
+
+void make_high_s(uint8_t* sig64) {
+    uint8_t high_s[32];
+    scalar_order_minus(high_s, sig64 + 32);
+    std::memcpy(sig64 + 32, high_s, 32);
+}
+
+void make_lbtc_high_s(uint8_t* sig64) {
+    uint8_t compact[64];
+    lbtc_opaque_to_compact(sig64, compact);
+    make_high_s(compact);
+    compact_to_lbtc_opaque(compact);
+    std::memcpy(sig64, compact, 64);
+}
+
 /* Seed a non-zero, distinct m|n+group+block-fk tag across `ks` tail bytes so a
  * surviving cell (rejected) is always distinguishable from a zeroed (valid) one,
  * even for row 0. Encodes (i+1) little-endian. */
@@ -92,6 +170,7 @@ std::vector<uint8_t> build(ufsecp_ctx* ctx, Kind k, size_t n, size_t ks) {
         if (k == ECDSA) {
             std::memcpy(r, msg, 32); std::memcpy(r + 32, pub, 33);
             if (ufsecp_ecdsa_sign(ctx, msg, sk, r + 65) != UFSECP_OK) ++g_fail;
+            compact_to_lbtc_opaque(r + 65);
         } else {
             std::memcpy(r, msg, 32); std::memcpy(r + 32, pub + 1, 32);
             if (ufsecp_schnorr_sign(ctx, msg, sk, aux, r + 64) != UFSECP_OK) ++g_fail;
@@ -127,8 +206,8 @@ Columns split_columns(const std::vector<uint8_t>& rows, Kind k, size_t n, size_t
 void verify_tbl(ufsecp_lbtc_ctrl* c, Kind k, const uint8_t* rows, size_t n,
                 size_t ks, uint8_t* res) {
     /* multisig table -> ECDSA path; threshold table -> Schnorr path. */
-    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(c, rows, n, ks, res);
-    else            ufsecp_lbtc_verify_schnorr(c, rows, n, ks, res);
+    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(c, rows, n, ks, res, nullptr, 0, nullptr);
+    else            ufsecp_lbtc_verify_schnorr(c, rows, n, ks, res, nullptr, 0, nullptr);
 }
 void collect_tbl(ufsecp_lbtc_ctrl* c, Kind k, uint8_t* rows, size_t n, size_t ks) {
     if (k == ECDSA) ufsecp_lbtc_verify_ecdsa_collect(c, rows, n, ks);
@@ -157,6 +236,56 @@ void collect_columns_tbl(ufsecp_lbtc_ctrl* c, Kind k, Columns& cols, size_t n) {
 /* The "multi" tables use a 6-byte tail (m|n + group + block-fk). */
 constexpr size_t KS_MULTI = 6;
 
+void write_le24_id(uint8_t* tail, size_t id) {
+    tail[0] = (uint8_t)(id & 0xffu);
+    tail[1] = (uint8_t)((id >> 8) & 0xffu);
+    tail[2] = (uint8_t)((id >> 16) & 0xffu);
+}
+
+void test_libbitcoin_unit_shapes(ufsecp_lbtc_ctrl* ctrl, ufsecp_ctx* sctx) {
+    /* Mirrors libbitcoin-system's ecdsa::batch tests:
+     * { hash, point, opaque ec_signature, id } with three rows and ids 0..2. */
+    {
+        const size_t N = 3, KS = 3, rec = UFSECP_LBTC_ECDSA_RECORD;
+        const size_t stride = rec + KS;
+        auto rows = build(sctx, ECDSA, N, KS);
+        for (size_t i = 0; i < N; ++i)
+            write_le24_id(rows.data() + i * stride + rec, i);
+
+        std::vector<uint8_t> res(N, 0xAA);
+        verify_tbl(ctrl, ECDSA, rows.data(), N, KS, res.data());
+        bool all_valid = true;
+        for (uint8_t v : res) if (v != 1) all_valid = false;
+        CHECK(all_valid, "libbitcoin ecdsa::batch shape: all-valid has no rejected rows");
+
+        corrupt(rows, ECDSA, 2, KS);
+        verify_tbl(ctrl, ECDSA, rows.data(), N, KS, res.data());
+        CHECK(res[0] == 1 && res[1] == 1 && res[2] == 0,
+              "libbitcoin ecdsa::batch shape: only row 2 is rejected");
+    }
+
+    /* Mirrors libbitcoin-system's multisig::batch all-valid shape:
+     * { hash, point, opaque ec_signature, pair, group, id }. */
+    {
+        const size_t N = 3, KS = KS_MULTI, rec = UFSECP_LBTC_ECDSA_RECORD;
+        const size_t stride = rec + KS;
+        auto rows = build(sctx, ECDSA, N, KS);
+        for (size_t i = 0; i < N; ++i) {
+            uint8_t* tail = rows.data() + i * stride + rec;
+            tail[0] = i == 0 ? 0x12u : (i == 1 ? 0x01u : 0x20u);
+            tail[1] = 5u;
+            tail[2] = 0u;
+            write_le24_id(tail + 3, 0u);
+        }
+
+        std::vector<uint8_t> res(N, 0xAA);
+        verify_tbl(ctrl, ECDSA, rows.data(), N, KS, res.data());
+        bool all_valid = true;
+        for (uint8_t v : res) if (v != 1) all_valid = false;
+        CHECK(all_valid, "libbitcoin multisig::batch shape: all-valid has no rejected rows");
+    }
+}
+
 void test_table(ufsecp_lbtc_ctrl* ctrl, ufsecp_ctx* sctx, Kind k) {
     const char* name = (k == ECDSA) ? "multisig(ecdsa)" : "threshold(schnorr)";
     const size_t N = 24, rec = rec_size(k), stride = rec + KS_MULTI;
@@ -168,6 +297,19 @@ void test_table(ufsecp_lbtc_ctrl* ctrl, ufsecp_ctx* sctx, Kind k) {
         return false;
     };
     char buf[112];
+
+    /* Consensus ECDSA permits high-S signatures; the multisig table must accept
+     * them even though the engine's internal batch verifier is low-S-only. */
+    if (k == ECDSA) {
+        auto high_rows = build(sctx, k, N, KS_MULTI);
+        uint8_t* high_sig = high_rows.data() + 7 * stride + 65;
+        make_lbtc_high_s(high_sig);
+        std::vector<uint8_t> high_res(N, 0xAA);
+        verify_tbl(ctrl, k, high_rows.data(), N, KS_MULTI, high_res.data());
+        bool high_ok = lbtc_ecdsa_s_is_high(high_sig);
+        for (uint8_t v : high_res) if (v != 1) high_ok = false;
+        CHECK(high_ok, "multisig(ecdsa): all-valid accepts high-S with 6-byte tail");
+    }
 
     /* (A) results[] with the 6-byte tail */
     auto rows = build(sctx, k, N, KS_MULTI);
@@ -254,6 +396,7 @@ int main() {
     CHECK(sizeof(ufsecp::lbtc::MultisigRow)  == 135, "MultisigRow is 135 bytes");
     CHECK(sizeof(ufsecp::lbtc::ThresholdRow) == 134, "ThresholdRow is 134 bytes");
 
+    test_libbitcoin_unit_shapes(ctrl, sctx);
     test_table(ctrl, sctx, ECDSA);    /* multisig table  -> ECDSA path  */
     test_table(ctrl, sctx, SCHNORR);  /* threshold table -> Schnorr path */
 

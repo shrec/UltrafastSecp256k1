@@ -5278,6 +5278,125 @@ set_tests_properties(regression_adaptor_blinded_nonce PROPERTIES TIMEOUT 30
     LABELS "audit;regression;ct;security;sec-new-001;sec-new-002;source-scan")
 target_sources(unified_audit_runner PRIVATE test_regression_adaptor_blinded_nonce.cpp)
 
+# FROST-SIGN-RESIDUE (2026-06-10)
+# advisory=false: source-scan + schnorr keypair sign/verify round-trip, no shim/GPU dependency.
+add_executable(test_regression_secret_scalar_residue_erase_standalone
+    test_regression_secret_scalar_residue_erase.cpp)
+audit_target_defaults(test_regression_secret_scalar_residue_erase_standalone)
+target_compile_definitions(test_regression_secret_scalar_residue_erase_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_secret_scalar_residue_erase
+    COMMAND test_regression_secret_scalar_residue_erase_standalone)
+set_tests_properties(regression_secret_scalar_residue_erase PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;ct;security;frost-sign-residue;source-scan")
+target_sources(unified_audit_runner PRIVATE test_regression_secret_scalar_residue_erase.cpp)
+
+# PRECOMPUTE-GCONTEXT-UAF (2026-06-10)
+# advisory=false: source-scan + concurrent reconfigure/compute smoke; no shim/GPU dependency.
+# Threads -> link pthreads (Threads::Threads) for the concurrency smoke.
+add_executable(test_regression_precompute_gcontext_race_standalone
+    test_regression_precompute_gcontext_race.cpp)
+audit_target_defaults(test_regression_precompute_gcontext_race_standalone)
+target_compile_definitions(test_regression_precompute_gcontext_race_standalone PRIVATE STANDALONE_TEST)
+find_package(Threads REQUIRED)
+target_link_libraries(test_regression_precompute_gcontext_race_standalone PRIVATE Threads::Threads)
+add_test(NAME regression_precompute_gcontext_race
+    COMMAND test_regression_precompute_gcontext_race_standalone)
+set_tests_properties(regression_precompute_gcontext_race PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;thread-safety;memory-safety;use-after-free;source-scan")
+target_sources(unified_audit_runner PRIVATE test_regression_precompute_gcontext_race.cpp)
+
+# SOUNDNESS-PROBE (GHSA-c7q2) — negative-soundness gate seed (2026-06-11)
+# advisory=false: forged adaptor pre-sig with mismatched dlog must be rejected by the DLEQ.
+add_executable(test_soundness_adaptor_dleq_forgery_standalone
+    test_soundness_adaptor_dleq_forgery.cpp)
+audit_target_defaults(test_soundness_adaptor_dleq_forgery_standalone)
+target_compile_definitions(test_soundness_adaptor_dleq_forgery_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME soundness_adaptor_dleq_forgery
+    COMMAND test_soundness_adaptor_dleq_forgery_standalone)
+set_tests_properties(soundness_adaptor_dleq_forgery PROPERTIES TIMEOUT 30
+    LABELS "audit;soundness;adaptor;dleq;protocol-security;negative-test;ghsa-c7q2")
+target_sources(unified_audit_runner PRIVATE test_soundness_adaptor_dleq_forgery.cpp)
+
+# METAMORPHIC-PROBE — positive complement to the negative-soundness gate (2026-06-11)
+# advisory=false: ECDSA-adaptor adapt/extract algebraic relations on the C++ API.
+add_executable(test_metamorphic_adaptor_standalone
+    test_metamorphic_adaptor.cpp)
+audit_target_defaults(test_metamorphic_adaptor_standalone)
+target_compile_definitions(test_metamorphic_adaptor_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME metamorphic_adaptor
+    COMMAND test_metamorphic_adaptor_standalone)
+set_tests_properties(metamorphic_adaptor PROPERTIES TIMEOUT 30
+    LABELS "audit;metamorphic;adaptor;protocol-security;positive-invariant")
+target_sources(unified_audit_runner PRIVATE test_metamorphic_adaptor.cpp)
+
+# SOUNDNESS-PROBE — SNARK-witness attestation (blind-zone #1, P1, 2026-06-11)
+# advisory=false: ecdsa/schnorr_snark_witness.valid==1 MUST IMPLY canonical verify==OK.
+add_executable(test_soundness_snark_witness_attestation_standalone
+    test_soundness_snark_witness_attestation.cpp)
+audit_target_defaults(test_soundness_snark_witness_attestation_standalone)
+target_compile_definitions(test_soundness_snark_witness_attestation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME soundness_snark_witness_attestation
+    COMMAND test_soundness_snark_witness_attestation_standalone)
+set_tests_properties(soundness_snark_witness_attestation PROPERTIES TIMEOUT 30
+    LABELS "audit;soundness;snark;witness;attestation;protocol-security;negative-test")
+target_sources(unified_audit_runner PRIVATE test_soundness_snark_witness_attestation.cpp)
+
+# UAF-REGRESSION — shim MuSig2 keyagg-cache lifetime (blind-zone #4, 2026-06-11)
+# advisory=false: source-scan of shim_musig.cpp; no shim link required.
+add_executable(test_regression_musig_keyagg_lifetime_standalone
+    test_regression_musig_keyagg_lifetime.cpp)
+audit_target_defaults(test_regression_musig_keyagg_lifetime_standalone)
+target_compile_definitions(test_regression_musig_keyagg_lifetime_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_musig_keyagg_lifetime
+    COMMAND test_regression_musig_keyagg_lifetime_standalone)
+set_tests_properties(regression_musig_keyagg_lifetime PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;memory-safety;use-after-free;shim;musig2")
+target_sources(unified_audit_runner PRIVATE test_regression_musig_keyagg_lifetime.cpp)
+
+# ENTROPY-SOURCE — BIP-39 fail-closed single-source CSPRNG (blind-zone #5, 2026-06-11)
+add_executable(test_regression_bip39_csprng_failclosed_standalone
+    test_regression_bip39_csprng_failclosed.cpp)
+audit_target_defaults(test_regression_bip39_csprng_failclosed_standalone)
+target_compile_definitions(test_regression_bip39_csprng_failclosed_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_bip39_csprng_failclosed
+    COMMAND test_regression_bip39_csprng_failclosed_standalone)
+set_tests_properties(regression_bip39_csprng_failclosed PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;entropy;csprng;bip39;fail-closed")
+target_sources(unified_audit_runner PRIVATE test_regression_bip39_csprng_failclosed.cpp)
+
+# RESOURCE-EXHAUSTION — batch-sign DoS count ceiling (blind-zone #15, 2026-06-11)
+add_executable(test_regression_batch_dos_cap_standalone
+    test_regression_batch_dos_cap.cpp)
+audit_target_defaults(test_regression_batch_dos_cap_standalone)
+target_compile_definitions(test_regression_batch_dos_cap_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_batch_dos_cap
+    COMMAND test_regression_batch_dos_cap_standalone)
+set_tests_properties(regression_batch_dos_cap PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;memory-safety;dos;resource-exhaustion;batch")
+target_sources(unified_audit_runner PRIVATE test_regression_batch_dos_cap.cpp)
+
+# VALID/INVALID coverage — live ABI reject branches never exercised (2026-06-11)
+add_executable(test_regression_abi_invalid_reject_standalone
+    test_regression_abi_invalid_reject.cpp)
+audit_target_defaults(test_regression_abi_invalid_reject_standalone)
+target_compile_definitions(test_regression_abi_invalid_reject_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_abi_invalid_reject
+    COMMAND test_regression_abi_invalid_reject_standalone)
+set_tests_properties(regression_abi_invalid_reject PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;memory-safety;valid-invalid;abi;reject")
+target_sources(unified_audit_runner PRIVATE test_regression_abi_invalid_reject.cpp)
+
+# EXTERNAL-ANCHOR KAT — NIST SHA-512 + official BIP-341 vectors (common-mode defence, 2026-06-11)
+add_executable(test_external_anchor_kat_standalone
+    test_external_anchor_kat.cpp)
+audit_target_defaults(test_external_anchor_kat_standalone)
+target_compile_definitions(test_external_anchor_kat_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME external_anchor_kat
+    COMMAND test_external_anchor_kat_standalone)
+set_tests_properties(external_anchor_kat PROPERTIES TIMEOUT 30
+    LABELS "audit;standard-vectors;external-anchor;nist;bip341;common-mode")
+target_sources(unified_audit_runner PRIVATE test_external_anchor_kat.cpp)
+
 # DEDUP-2026-05-24: pure code-shape refactors, behavioural-freeze invariants
 # advisory=false: roundtrips only on C++ API (no shim, no GPU).
 add_executable(test_regression_dedup_refactors_2026_05_24_standalone

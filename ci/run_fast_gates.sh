@@ -153,9 +153,31 @@ run "Backend parity"                           ci/check_backend_parity.py
 run "ZK Fiat-Shamir tag conformance"           ci/check_zk_tag_conformance.py
 run "Tagged-hash tag conformance (all tags)"   ci/check_tag_conformance.py
 run "Secret parse strictness (Rule 11)"        ci/check_secret_parse_strictness.py
+run "Secret-parse self-test (proof-it-blocks)" ci/test_check_secret_parse_strictness.py
 run "GPU/CPU CT-branch lint (GPU-CT-001)"      ci/check_ct_branches.py
 run "CT-branch lint self-test"                 ci/test_check_ct_branches.py
 run "Protocol invariants (FROST threshold)"    ci/check_protocol_invariants.py
+run "Soundness coverage (negative-test ledger)" ci/check_soundness_coverage.py
+run "Soundness-gate self-test (proof-it-blocks)" ci/test_check_soundness_coverage.py
+run "Threat-gate coverage (don't trust verify)" ci/check_threat_gate_coverage.py
+run "Threat-gate self-test (proof-it-blocks)"  ci/test_check_threat_gate_coverage.py
+run "Metamorphic coverage (positive-invariant ledger)" ci/check_metamorphic_coverage.py
+run "Metamorphic-gate self-test (proof-it-blocks)" ci/test_check_metamorphic_coverage.py
+run "Fuzz-harness wiring/liveness" ci/check_fuzz_harness_wiring.py
+run "Fuzz-wiring self-test (proof-it-blocks)" ci/test_check_fuzz_harness_wiring.py
+run "dudect binary-CT detector self-test" ci/test_dudect_ct_probe.py
+run "Backend value-differential coverage" ci/check_backend_value_differential.py
+run "Backend value-diff self-test (proof-it-blocks)" ci/test_check_backend_value_differential.py
+run "Fault-countermeasure coverage (sign-then-verify)" ci/check_fault_countermeasure_coverage.py
+run "Fault-countermeasure self-test (proof-it-blocks)" ci/test_check_fault_countermeasure_coverage.py
+run "Locked-map handle-escape (UAF class)" ci/check_locked_map_handle_escape.py
+run "Handle-escape self-test (proof-it-blocks)" ci/test_check_locked_map_handle_escape.py
+run "Entropy-source integrity (single-source CSPRNG)" ci/check_entropy_source_integrity.py
+run "Entropy-source self-test (proof-it-blocks)" ci/test_check_entropy_source_integrity.py
+run "Canonical-encoding malleability coverage" ci/check_canonical_encoding_coverage.py
+run "Canonical-encoding self-test (proof-it-blocks)" ci/test_check_canonical_encoding_coverage.py
+run "Required exploit-module floor (attack classes)" ci/check_required_exploit_modules.py
+run "Required-module floor self-test (proof-it-blocks)" ci/test_check_required_exploit_modules.py
 run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
 run "Doc drift (badges, removed files)"        ci/check_doc_drift.py
 run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py
@@ -175,6 +197,7 @@ run "Build options doc sync"                    ci/gen_build_options.py --check
 run "Build options gate self-test"              ci/test_gen_build_options.py
 run "Workflow trigger claims (CLAIM-07)"       ci/check_workflow_trigger_claims.py
 run "Secret-erase coverage (CT-04/RT-05)"      ci/check_secret_erase_coverage.py
+run "Secret-erase self-test (proof-it-blocks)" ci/test_check_secret_erase_coverage.py
 
 # Profile manifest cross-check: ci/profiles.json -> CMakePresets.json -> ci/caas_runner.py.
 # Fast (<1s) — catches the class of bug where a chain-specific preset disables an

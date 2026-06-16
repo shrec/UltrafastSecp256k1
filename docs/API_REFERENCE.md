@@ -2003,6 +2003,7 @@ The stable C ABI is defined in `include/ufsecp/ufsecp.h`. All functions follow t
 | `UFSECP_PUBKEY_UNCOMPRESSED_LEN` | 65 | Uncompressed public key |
 | `UFSECP_PUBKEY_XONLY_LEN` | 32 | x-only public key (BIP-340) |
 | `UFSECP_SIG_COMPACT_LEN` | 64 | Compact R\|\|S / r\|\|s |
+| `UFSECP_ECDSA_OPAQUE_SIG_LEN` | 64 | Copied secp256k1-compatible ECDSA opaque scalar storage |
 | `UFSECP_SIG_DER_MAX_LEN` | 72 | Maximum DER-encoded ECDSA sig |
 | `UFSECP_HASH_LEN` | 32 | SHA-256 / Keccak-256 digest |
 | `UFSECP_HASH160_LEN` | 20 | RIPEMD160(SHA256) digest |
@@ -2076,10 +2077,22 @@ ufsecp_ctx_destroy(ctx);
 | `ufsecp_ecdsa_sign_verified` | `(ctx, msg32[32], privkey[32], sig64_out[64]) -> error_t` | Sign + verify (fault resistance; same CT and degenerate-output guarantees as `ufsecp_ecdsa_sign`) |
 | `ufsecp_ecdsa_sign_batch` | `(ctx, n, msgs32[], privkeys32[], sigs64_out[]) -> error_t` | CPU CT batch sign; rejects `n == 0`; clears all output slots before processing; per-slot failure zeroes that slot; repeats stable 32/32/64-byte item layout per entry |
 | `ufsecp_ecdsa_verify` | `(ctx, msg32[32], sig64[64], pubkey33[33]) -> error_t` | Verify compact signature |
+| `ufsecp_ecdsa_sig_compact_to_opaque` | `(ctx, sig64[64], opaque64_out[64]) -> error_t` | Convert compact ECDSA `r\|\|s` to secp256k1-compatible opaque scalar storage; does not normalize |
+| `ufsecp_ecdsa_sig_opaque_to_compact` | `(ctx, opaque64[64], sig64_out[64]) -> error_t` | Convert opaque scalar storage to compact `r\|\|s`; does not normalize |
+| `ufsecp_ecdsa_sig_normalize_opaque` | `(ctx, opaque64[64], opaque64_out[64], changed_out*) -> error_t` | Low-S normalize opaque storage; input/output may alias; `changed_out` is optional |
+| `ufsecp_ecdsa_verify_opaque` | `(ctx, msg32[32], opaque64[64], pubkey33[33]) -> error_t` | Verify copied secp256k1-compatible opaque ECDSA storage; normalizes high-S internally before verify |
+| `ufsecp_ecdsa_verify_opaque_batch` | `(ctx, msgs32[], pubs33[], opaque_sigs64[], n, results_out[]) -> error_t` | Per-row opaque ECDSA verify from columns; malformed rows return result `0` without aborting the whole batch |
+| `ufsecp_ecdsa_verify_opaque_rows` | `(ctx, rows, stride, n, results_out[]) -> error_t` | Per-row opaque ECDSA verify from strided rows: `msg32 | pubkey33 | opaque64 | optional tail` |
 | `ufsecp_ecdsa_sig_to_der` | `(ctx, sig64[64], der_out, der_len*) -> error_t` | Compact to DER encoding |
 | `ufsecp_ecdsa_sig_from_der` | `(ctx, der, der_len, sig64_out[64]) -> error_t` | DER to compact encoding |
 | `ufsecp_ecdsa_sign_recoverable` | `(ctx, msg32, privkey, sig64_out, recid_out*) -> error_t` | Sign with recovery id (0-3) |
 | `ufsecp_ecdsa_recover` | `(ctx, msg32, sig64, recid, pubkey33_out[33]) -> error_t` | Recover pubkey from recoverable sig |
+
+Opaque ECDSA support is for integrations whose public signature value stores
+copied `secp256k1_ecdsa_signature` scalar bytes. `ufsecp_ecdsa_verify` remains a
+strict compact `r||s` verifier; the opaque verify APIs parse the scalar storage,
+apply low-S normalization, and then verify, matching libsecp256k1's
+`secp256k1_ecdsa_signature_normalize(...)` plus verify path.
 
 <a id="c-abi-schnorr"></a>
 ### Schnorr / BIP-340
@@ -2374,6 +2387,7 @@ Current GPU C ABI failure semantics:
 |----------|-----------|-------------|
 | `ufsecp_gpu_generator_mul_batch` | `(ctx, scalars32[], n, pubkeys33_out[]) -> error_t` | k*G for n scalars |
 | `ufsecp_gpu_ecdsa_verify_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | ECDSA batch verify |
+| `ufsecp_gpu_ecdsa_verify_opaque_rows` / `ufsecp_gpu_ecdsa_verify_lbtc_rows` | `(ctx, rows, stride, n, results_out[]) -> error_t` | Direct strided opaque ECDSA rows; CUDA/OpenCL/Metal parse and low-S normalize on device |
 | `ufsecp_gpu_schnorr_verify_batch` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, results_out[]) -> error_t` | Schnorr/BIP-340 batch verify |
 | `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Non-CUDA backends return Unsupported |
 | `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict (see ecdsa_verify_collect) |

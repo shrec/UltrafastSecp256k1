@@ -40,9 +40,10 @@ EVIDENCE_CHAIN_FILE = LIB_ROOT / "docs" / "EVIDENCE_CHAIN.json"
 # secret is not configured. Both "not in os.environ" and "== ''" are treated as
 # "no key configured" to prevent the bypass.
 _HMAC_KEY_DEFAULT = "ufsecp-evidence-chain-v1"
+_HMAC_KEY_DEFAULT_BYTES = _HMAC_KEY_DEFAULT.encode()
 _caas_hmac_env = os.environ.get("CAAS_HMAC_KEY", "").strip()
 _HMAC_KEY_IS_DEFAULT = not _caas_hmac_env
-_HMAC_KEY = _caas_hmac_env.encode() if _caas_hmac_env else _HMAC_KEY_DEFAULT.encode()
+_HMAC_KEY = _caas_hmac_env.encode() if _caas_hmac_env else _HMAC_KEY_DEFAULT_BYTES
 if _HMAC_KEY_IS_DEFAULT and os.environ.get("GITHUB_ACTIONS") != "true":
     print(
         "WARNING: Using public in-repo HMAC key. Tamper detection only — not "
@@ -123,7 +124,7 @@ def _file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _compute_hmac(record: dict) -> str:
+def _compute_hmac_with_key(record: dict, key: bytes) -> str:
     """Compute HMAC for tamper detection (covers all evidence fields including reason).
 
     run_id and signed_by_ci are intentionally excluded from the HMAC payload to
@@ -139,7 +140,12 @@ def _compute_hmac(record: dict) -> str:
         "verdict": record.get("verdict", ""),
         "reason": record.get("reason", ""),
     }, sort_keys=True)
-    return hmac.new(_HMAC_KEY, payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _compute_hmac(record: dict) -> str:
+    """Compute HMAC with the active runtime key."""
+    return _compute_hmac_with_key(record, _HMAC_KEY)
 
 
 def create_evidence_record(
@@ -235,6 +241,7 @@ def validate_chain() -> dict:
     issues: list[str] = []
     tampered: list[int] = []
     orphaned: list[int] = []
+    legacy_default_signed: list[int] = []
 
     for i, record in enumerate(chain):
         # Check required fields (run_id is metadata-only — not required for backward compat)
@@ -247,8 +254,18 @@ def validate_chain() -> dict:
         if "signature" in record:
             expected = _compute_hmac(record)
             if record["signature"] != expected:
-                tampered.append(i)
-                issues.append(f"record[{i}]: HMAC mismatch — possible tamper")
+                # Backward compatibility: committed records that were produced
+                # before CAAS_HMAC_KEY was provisioned are marked signed_by_ci=false
+                # and signed with the public fallback key. Once CI starts using the
+                # secret key, those legacy local records must remain verifiable
+                # instead of forcing a destructive chain rewrite.
+                legacy_expected = _compute_hmac_with_key(record, _HMAC_KEY_DEFAULT_BYTES)
+                if (not record.get("signed_by_ci", False)
+                        and record["signature"] == legacy_expected):
+                    legacy_default_signed.append(i)
+                else:
+                    tampered.append(i)
+                    issues.append(f"record[{i}]: HMAC mismatch — possible tamper")
 
         # Check commit is valid hex; records with no traceable commit are orphaned.
         # Orphaned records (commit == "unknown") are counted as issues — a forensic
@@ -273,6 +290,7 @@ def validate_chain() -> dict:
         "valid_records": len(chain) - len(tampered),
         "tampered_records": tampered,
         "orphaned_records": orphaned,
+        "legacy_default_signed_records": legacy_default_signed,
         "issues": issues,
         "chain_valid": len(issues) == 0,
     }
@@ -294,6 +312,7 @@ def run(mode: str, json_mode: bool, out_file: str | None,
             "evidence_chain_valid": result["chain_valid"],
             "orphaned_verdicts": len(result["orphaned_records"]),
             "tampered_count": len(result["tampered_records"]),
+            "legacy_default_signed_records": len(result["legacy_default_signed_records"]),
             "issues": result["issues"],
             "hmac_key_is_default": _HMAC_KEY_IS_DEFAULT,
         }

@@ -192,11 +192,38 @@ static void test_large_batch_invalid_last() {
 
 #endif  // SECP256K1_BUILD_SHIM
 
+// ── LE strict-parse equivalence (pins the shim byte-reverse removal) ──────────
+// The shim's ecdsa_sig_from_data now parses opaque (little-endian) r/s directly
+// via Scalar::parse_bytes_strict_le instead of byte-reversing to big-endian and
+// calling parse_bytes_strict. LE-1: the two MUST be byte-for-byte equivalent
+// (same accept/reject AND same scalar) so the opaque double-reverse removal never
+// changes a verdict. Engine-level — runs with or without the shim linked.
+static void test_le_parse_equivalence() {
+    auto check_one = [](const std::array<uint8_t,32>& le) {
+        std::array<uint8_t,32> be{};
+        for (int i = 0; i < 32; ++i) be[i] = le[31 - i];   // LE -> BE (old path)
+        Scalar a{}, b{};
+        bool ra = Scalar::parse_bytes_strict_le(le.data(), a);
+        bool rb = Scalar::parse_bytes_strict(be.data(), b);
+        CHECK(ra == rb, "LE-1: parse_bytes_strict_le accept/reject must match the byte-reverse path");
+        if (ra) CHECK(a == b, "LE-1: parse_bytes_strict_le scalar must match the byte-reverse path");
+    };
+    std::array<uint8_t,32> v{};
+    check_one(v);                   // zero
+    v.fill(0xff); check_one(v);     // >= n  -> reject on both paths
+    uint64_t x = 0x9E3779B97F4A7C15ULL;
+    for (int t = 0; t < 8000; ++t) {  // pseudo-random patterns, incl values straddling n
+        for (int i = 0; i < 32; ++i) { x = x * 6364136223846793005ULL + 1442695040888963407ULL; v[i] = static_cast<uint8_t>(x >> 56); }
+        check_one(v);
+    }
+}
+
 // ── entry point ───────────────────────────────────────────────────────────────
 
 int test_regression_ecdsa_batch_curve_check_run() {
     g_pass = 0; g_fail = 0;
     printf("\n  [ecdsa-batch-curve-check] CA-001: curve membership in small+large batch\n");
+    test_le_parse_equivalence();  // LE-1: opaque little-endian sig parse equivalence
 
 #ifdef SECP256K1_BUILD_SHIM
     test_small_batch_valid();

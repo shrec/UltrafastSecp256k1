@@ -615,7 +615,13 @@ constexpr Limbs4 kGroupOrder{{
 std::mutex g_mutex;
 #endif
 FixedBaseConfig g_config{};
-std::unique_ptr<PrecomputeContext> g_context;
+// shared_ptr (not unique_ptr): scalar_mul_generator / batch_scalar_mul_generator
+// take a local shared_ptr snapshot under g_mutex, then release the lock and read the
+// tables. A concurrent configure_fixed_base() does g_context.reset(); with shared_ptr
+// the live snapshot keeps the PrecomputeContext alive until the reader finishes,
+// preventing a use-after-free (PRECOMPUTE-GCONTEXT-UAF). build_context() still returns
+// a unique_ptr, which converts to shared_ptr on assignment.
+std::shared_ptr<PrecomputeContext> g_context;
 
 Scalar make_scalar(const std::array<std::uint8_t, 32>& bytes) {
     return Scalar::from_bytes(bytes);
@@ -3543,7 +3549,11 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& /*k1*/, const Scalar&
 Point scalar_mul_generator(const Scalar& scalar) {
     std::unique_lock<std::mutex> lock(g_mutex);
     ensure_built_locked();
-    PrecomputeContext const& ctx = *g_context;
+    // Snapshot the shared_ptr under the lock so a concurrent configure_fixed_base()
+    // (which does g_context.reset()) cannot free the table while we read it after
+    // unlock() — ctx_ptr keeps it alive for this whole call (PRECOMPUTE-GCONTEXT-UAF).
+    std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
+    PrecomputeContext const& ctx = *ctx_ptr;
     if (!validate_precompute_context(ctx)) {
         throw std::runtime_error("Invalid precompute context");
     }
@@ -3714,6 +3724,9 @@ Point scalar_mul_generator(const Scalar& scalar) {
 Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
     std::unique_lock<std::mutex> const lock(g_mutex);
     ensure_built_locked();
+    // Safe to read *g_context directly: this function holds g_mutex for its whole body
+    // (no unlock), so configure_fixed_base()->g_context.reset() cannot run concurrently.
+    // Only the unlock-then-read fast paths (scalar_mul_generator/batch) need the snapshot.
     PrecomputeContext const& ctx = *g_context;
 
     // Direct GLV combination using pre-split scalars.
@@ -3758,7 +3771,10 @@ void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size
     // Lock once: verify context is ready, then release.
     std::unique_lock<std::mutex> lock(g_mutex);
     ensure_built_locked();
-    PrecomputeContext const& ctx = *g_context;
+    // Snapshot under the lock — keeps the table alive past unlock() even if another
+    // thread calls configure_fixed_base()->g_context.reset() (PRECOMPUTE-GCONTEXT-UAF).
+    std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
+    PrecomputeContext const& ctx = *ctx_ptr;
     if (!validate_precompute_context(ctx)) throw std::runtime_error("Invalid precompute context");
     lock.unlock();
 

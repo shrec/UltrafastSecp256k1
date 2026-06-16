@@ -275,6 +275,64 @@ __global__ void batch_compressed_to_jac_kernel(
     ok[idx] = point_from_compressed(pubs33 + idx * 33, &out[idx]);
 }
 
+__device__ __forceinline__ uint64_t lbtc_load_le64(const uint8_t* p)
+{
+    uint64_t v = 0;
+    for (int i = 0; i < 8; ++i)
+        v |= static_cast<uint64_t>(p[i]) << (i * 8);
+    return v;
+}
+
+__device__ __forceinline__ bool lbtc_scalar_ge_order(const Scalar* s)
+{
+    for (int i = 3; i >= 0; --i) {
+        if (s->limbs[i] > ORDER[i]) return true;
+        if (s->limbs[i] < ORDER[i]) return false;
+    }
+    return true;
+}
+
+__device__ __forceinline__ bool lbtc_parse_opaque_scalar(
+    const uint8_t* opaque, Scalar* out)
+{
+    out->limbs[0] = lbtc_load_le64(opaque);
+    out->limbs[1] = lbtc_load_le64(opaque + 8);
+    out->limbs[2] = lbtc_load_le64(opaque + 16);
+    out->limbs[3] = lbtc_load_le64(opaque + 24);
+    return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
+}
+
+__device__ __forceinline__ bool lbtc_parse_opaque_signature(
+    const uint8_t* opaque, ECDSASignatureGPU* sig)
+{
+    if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return false;
+    if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return false;
+    if (scalar_is_high(&sig->s)) {
+        Scalar neg_s;
+        scalar_negate(&sig->s, &neg_s);
+        sig->s = neg_s;
+    }
+    return true;
+}
+
+__global__ void ecdsa_verify_lbtc_rows_kernel(
+    const uint8_t* __restrict__ rows,
+    size_t stride,
+    bool* __restrict__ results,
+    int count)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    const uint8_t* row = rows + static_cast<size_t>(idx) * stride;
+    JacobianPoint pub;
+    ECDSASignatureGPU sig;
+    const bool ok =
+        point_from_compressed(row + 32, &pub) &&
+        lbtc_parse_opaque_signature(row + 65, &sig);
+    results[idx] = ok && ecdsa_verify(row, &pub, &sig);
+}
+
 #if SECP256K1_GPU_HAS_MSM
 /** MSM block reduction: each block reduces BLOCK_SZ partials → 1 result
  *  via shared-memory tree.  Shared mem = blockDim.x * sizeof(JacobianPoint).
@@ -708,6 +766,67 @@ gmb_cleanup:
         cudaFree(d_msgs);
         clear_error();
         return GpuError::Ok;
+    }
+
+    GpuError ecdsa_verify_lbtc_rows(
+        const uint8_t* rows, size_t stride, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!rows || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride < 129u)
+            return set_error(GpuError::BadInput, "libbitcoin row stride < 129");
+
+        uint8_t* d_rows = nullptr;
+        bool*    d_res  = nullptr;
+        GpuError ret = GpuError::Ok;
+
+        const size_t row_bytes = count * stride;
+        if (cudaMalloc(&d_rows, row_bytes) != cudaSuccess) {
+            return set_error(GpuError::Memory, "lbtc rows buffer alloc");
+        }
+        if (cudaMalloc(&d_res, count * sizeof(bool)) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "lbtc result buffer alloc");
+            goto lbtc_cleanup;
+        }
+        if (cudaMemcpy(d_rows, rows, row_bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "lbtc rows upload");
+            goto lbtc_cleanup;
+        }
+
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(count) + threads - 1) / threads;
+            ecdsa_verify_lbtc_rows_kernel<<<blocks, threads>>>(
+                d_rows, stride, d_res, static_cast<int>(count));
+        }
+        if (cudaGetLastError() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel launch");
+            goto lbtc_cleanup;
+        }
+        if (cudaDeviceSynchronize() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel sync");
+            goto lbtc_cleanup;
+        }
+
+        {
+            uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+            if (cudaMemcpy(h_res, d_res, count * sizeof(bool),
+                           cudaMemcpyDeviceToHost) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "lbtc result download");
+                goto lbtc_cleanup;
+            }
+            for (size_t i = 0; i < count; ++i)
+                out_results[i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+
+lbtc_cleanup:
+        if (d_res) cudaFree(d_res);
+        if (d_rows) cudaFree(d_rows);
+        return ret;
     }
 
     GpuError schnorr_verify_batch(

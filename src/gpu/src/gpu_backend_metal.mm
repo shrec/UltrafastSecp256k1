@@ -493,6 +493,49 @@ public:
         return GpuError::Ok;
     }
 
+    GpuError ecdsa_verify_lbtc_rows(
+        const uint8_t* rows, size_t stride, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!rows || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride < 129u)
+            return set_error(GpuError::BadInput, "libbitcoin row stride < 129");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        const size_t row_bytes = count * stride;
+        auto buf_rows = runtime_->alloc_buffer_shared(row_bytes);
+        std::memcpy(buf_rows.contents(), rows, row_bytes);
+
+        auto buf_stride = runtime_->alloc_buffer_shared(sizeof(uint64_t));
+        const uint64_t stride64 = static_cast<uint64_t>(stride);
+        std::memcpy(buf_stride.contents(), &stride64, sizeof(stride64));
+
+        auto buf_res = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
+
+        uint32_t n32 = (uint32_t)count;
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("ecdsa_verify_lbtc_rows");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: ecdsa_verify_lbtc_rows kernel missing from loaded library");
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&buf_rows, &buf_stride, &buf_res, &buf_count});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError schnorr_verify_batch(
         const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
         const uint8_t* sigs64, size_t count,

@@ -67,6 +67,23 @@ static void hex_to_bytes(const char* hex, uint8_t* out, int len) {
     }
 }
 
+static void sub_be32(const uint8_t a[32], const uint8_t b[32], uint8_t out[32]) {
+    int borrow = 0;
+    for (int i = 31; i >= 0; --i) {
+        int diff = static_cast<int>(a[i]) - static_cast<int>(b[i]) - borrow;
+        if (diff < 0) { diff += 256; borrow = 1; }
+        else { borrow = 0; }
+        out[i] = static_cast<uint8_t>(diff);
+    }
+}
+
+static void make_high_s(uint8_t sig64[64]) {
+    uint8_t order_n[32];
+    hex_to_bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+                 order_n, 32);
+    sub_be32(order_n, sig64 + 32, sig64 + 32);
+}
+
 // Well-known private key: scalar = 1 (generator point)
 static const char* PRIVKEY1_HEX =
     "0000000000000000000000000000000000000000000000000000000000000001";
@@ -192,6 +209,78 @@ static void test_ecdsa_round_trip() {
     // Verify decoded sig
     CHECK_OK(ufsecp_ecdsa_verify(ctx, msg32, decoded64, pub33),
              "ecdsa_verify(decoded DER)");
+
+    // secp-compatible opaque signature support: conversion, normalization, and
+    // high-S verify semantics match the libsecp runtime normalize+verify path.
+    uint8_t opaque64[64] = {};
+    uint8_t compact_back[64] = {};
+    CHECK_OK(ufsecp_ecdsa_sig_compact_to_opaque(ctx, sig64, opaque64),
+             "ecdsa_sig_compact_to_opaque");
+    CHECK_OK(ufsecp_ecdsa_sig_opaque_to_compact(ctx, opaque64, compact_back),
+             "ecdsa_sig_opaque_to_compact");
+    CHECK(std::memcmp(sig64, compact_back, 64) == 0,
+          "opaque round-trip preserves compact sig");
+    CHECK_OK(ufsecp_ecdsa_verify_opaque(ctx, msg32, opaque64, pub33),
+             "ecdsa_verify_opaque accepts valid sig");
+
+    uint8_t normalized_opaque[64] = {};
+    int changed = -1;
+    CHECK_OK(ufsecp_ecdsa_sig_normalize_opaque(ctx, opaque64,
+                                               normalized_opaque, &changed),
+             "ecdsa_sig_normalize_opaque(low-S)");
+    CHECK(changed == 0 && std::memcmp(opaque64, normalized_opaque, 64) == 0,
+          "low-S opaque normalize is no-op");
+
+    uint8_t high_s_compact[64];
+    std::memcpy(high_s_compact, sig64, 64);
+    make_high_s(high_s_compact);
+    CHECK(ufsecp_ecdsa_verify(ctx, msg32, high_s_compact, pub33) != UFSECP_OK,
+          "compact high-S verify remains rejected");
+
+    uint8_t high_s_opaque[64] = {};
+    CHECK_OK(ufsecp_ecdsa_sig_compact_to_opaque(ctx, high_s_compact,
+                                                high_s_opaque),
+             "compact_to_opaque(high-S)");
+    CHECK_OK(ufsecp_ecdsa_verify_opaque(ctx, msg32, high_s_opaque, pub33),
+             "opaque high-S verify normalizes internally");
+    CHECK_OK(ufsecp_ecdsa_sig_normalize_opaque(ctx, high_s_opaque,
+                                               normalized_opaque, &changed),
+             "normalize_opaque(high-S)");
+    CHECK(changed == 1, "high-S opaque normalize reports changed");
+    CHECK_OK(ufsecp_ecdsa_sig_opaque_to_compact(ctx, normalized_opaque,
+                                                compact_back),
+             "opaque_to_compact(normalized high-S)");
+    CHECK(std::memcmp(sig64, compact_back, 64) == 0,
+          "normalized high-S opaque equals original low-S compact");
+
+    uint8_t msgs[2 * 32] = {};
+    uint8_t pubs[2 * 33] = {};
+    uint8_t sigs_opaque[2 * 64] = {};
+    std::memcpy(msgs, msg32, 32);
+    std::memcpy(msgs + 32, bad_msg, 32);
+    std::memcpy(pubs, pub33, 33);
+    std::memcpy(pubs + 33, pub33, 33);
+    std::memcpy(sigs_opaque, high_s_opaque, 64);
+    std::memcpy(sigs_opaque + 64, high_s_opaque, 64);
+    uint8_t verdicts[2] = {};
+    CHECK_OK(ufsecp_ecdsa_verify_opaque_batch(ctx, msgs, pubs, sigs_opaque,
+                                              2, verdicts),
+             "ecdsa_verify_opaque_batch");
+    CHECK(verdicts[0] == 1 && verdicts[1] == 0,
+          "opaque batch returns per-row verdicts");
+
+    uint8_t rows[2 * 132] = {};
+    std::memcpy(rows, msg32, 32);
+    std::memcpy(rows + 32, pub33, 33);
+    std::memcpy(rows + 65, high_s_opaque, 64);
+    rows[129] = 0xA1; rows[130] = 0xB2; rows[131] = 0xC3;
+    std::memcpy(rows + 132, bad_msg, 32);
+    std::memcpy(rows + 132 + 32, pub33, 33);
+    std::memcpy(rows + 132 + 65, high_s_opaque, 64);
+    CHECK_OK(ufsecp_ecdsa_verify_opaque_rows(ctx, rows, 132, 2, verdicts),
+             "ecdsa_verify_opaque_rows");
+    CHECK(verdicts[0] == 1 && verdicts[1] == 0,
+          "opaque rows preserve optional tail and return per-row verdicts");
 
     ufsecp_ctx_destroy(ctx);
 }

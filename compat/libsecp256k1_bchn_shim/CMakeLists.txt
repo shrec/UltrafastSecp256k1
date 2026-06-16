@@ -22,14 +22,28 @@ add_library(secp256k1_bchn_shim STATIC
     src/shim_schnorr_bch.cpp
 )
 
-# BCH shim public headers (secp256k1.h, secp256k1_recovery.h,
-# secp256k1_ecdh.h, secp256k1_schnorr.h)
+# BCH shim public headers. The BCH shim owns secp256k1_schnorr.h and reuses
+# the shared shim's secp256k1.h, recovery, and ECDH compatibility headers.
 target_include_directories(secp256k1_bchn_shim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libsecp256k1_shim/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
 )
 
-if(TARGET secp256k1_fast)
+if(TARGET fastsecp256k1)
+    target_link_libraries(secp256k1_bchn_shim PRIVATE fastsecp256k1)
+elseif(TARGET secp256k1_fast)
     target_link_libraries(secp256k1_bchn_shim PRIVATE secp256k1_fast)
 else()
-    message(WARNING "secp256k1_fast target not found -- add UltrafastSecp256k1 via add_subdirectory first")
+    message(WARNING "fastsecp256k1 target not found -- add UltrafastSecp256k1 via add_subdirectory first")
+endif()
+
+option(SECP256K1_BCHN_SHIM_BUILD_TESTS "Build BCHN shim compatibility tests" OFF)
+
+if(SECP256K1_BCHN_SHIM_BUILD_TESTS)
+    enable_testing()
+    add_executable(test_bchn_schnorr_fail_clear tests/test_bchn_schnorr_fail_clear.cpp)
+    target_link_libraries(test_bchn_schnorr_fail_clear PRIVATE secp256k1_bchn_shim)
+    add_test(NAME bchn_schnorr_fail_clear COMMAND test_bchn_schnorr_fail_clear)
+    set_tests_properties(bchn_schnorr_fail_clear PROPERTIES LABELS "shim;bchn")
 endif()

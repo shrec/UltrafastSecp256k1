@@ -58,6 +58,14 @@ _RE_STRICT_BAD = re.compile(r'\bscalar_parse_strict\s*\((?!.*_nonzero)')
 # More precise: the token "scalar_parse_strict" NOT followed by "_nonzero"
 _RE_BAD_CALL   = re.compile(r'\bscalar_parse_strict\b(?!_nonzero)')
 
+# blind-zone #9: Scalar::from_bytes / from_bytes on a SECRET argument silently REDUCES
+# the value mod n (Rule 11 names this the primary CVE: seckey==n -> 0, leaking the nonce).
+# Flag from_bytes applied directly to a secret-bearing parameter — must use
+# scalar_parse_strict_nonzero (rejects >= n AND == 0) instead.
+_RE_FROM_BYTES_SECRET = re.compile(
+    r'(?:Scalar::)?from_bytes\s*\(\s*(?:(?:reinterpret_cast|static_cast)\s*<[^>]*>\s*\(\s*)?'
+    r'(?:' + '|'.join(re.escape(n) for n in SECRET_PARAM_NAMES) + r')\b')
+
 # Matches a parameter declaration containing a known secret parameter name
 _RE_SECRET_PARAM = re.compile(
     r'\b(?:' + '|'.join(re.escape(n) for n in SECRET_PARAM_NAMES) + r')\b'
@@ -145,6 +153,29 @@ def _scan_file(path: Path) -> list[dict]:
             "message": (
                 f"scalar_parse_strict (non-_nonzero) used in '{enclosing_func}' "
                 "which handles a secret input — use scalar_parse_strict_nonzero (Rule 11)"
+            ),
+        })
+
+    # blind-zone #9: Scalar::from_bytes on a secret argument silently reduces mod n.
+    for lineno, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not _RE_FROM_BYTES_SECRET.search(stripped):
+            continue
+        enclosing_func = "<global>"
+        for (fn, _params, start, end) in func_ranges:
+            if start <= lineno <= end:
+                enclosing_func = fn
+                break
+        violations.append({
+            "bug": "from_bytes_secret",
+            "file": str(path.relative_to(LIB_ROOT)),
+            "line": lineno,
+            "function": enclosing_func,
+            "text": stripped[:120],
+            "message": (
+                f"Scalar::from_bytes on a secret input in '{enclosing_func}' silently "
+                "reduces mod n (seckey==n -> 0, leaking the nonce) — use "
+                "scalar_parse_strict_nonzero (Rule 11)"
             ),
         })
 

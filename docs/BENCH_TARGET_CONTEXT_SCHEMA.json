@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Benchmark target-context taxonomy + claim-scope schema (Bastion B17, closes RR-BAS-03). Every canonical benchmark artifact must declare its target_context so a microbenchmark cannot be mistaken for Bitcoin Core / libbitcoin node throughput, and a GPU public-data / CPU-fallback benchmark cannot be presented as a general native-engine speed claim. Enforced by ci/check_bench_target_context.py (folded into ci/check_bench_doc_consistency.py and co-gated by ci/perf_security_cogate.py).",
+  "target_context_enum": [
+    "microbench",
+    "batch_verify",
+    "bitcoin_core",
+    "libbitcoin",
+    "gpu_public_data",
+    "gpu_hardware",
+    "wasm",
+    "package_integration",
+    "unknown_owner_gated"
+  ],
+  "required_fields": [
+    "target_context",
+    "operation",
+    "claim_scope",
+    "evidence_path",
+    "reproduce_command_or_source_command",
+    "commit_or_source_commit",
+    "security_gate_dependency"
+  ],
+  "optional_fields": ["hardware", "runner", "compiler", "toolchain", "integration_evidence", "native_hardware_claim", "notes"],
+  "field_location": "For docs/bench_unified_*.json the context fields live under the top-level `metadata` object; for docs/BITCOIN_CORE_BENCH_RESULTS.json they live at the top level. The gate reads `target_context` from either location.",
+  "rules": {
+    "context_required": "target_context must be present and one of target_context_enum.",
+    "claim_scope_required": "a benchmark artifact carrying timings must declare claim_scope (a performance number without a declared scope is a scope_mismatch).",
+    "gpu_not_native": "target_context in (gpu_public_data) must NOT carry native_hardware_claim=true; a gpu_public_data / fallback benchmark is never native GPU-hardware performance evidence.",
+    "integration_evidence_required": "target_context in (bitcoin_core, libbitcoin) must reference integration evidence (an integration_evidence field naming docs/BITCOIN_CORE_TEST_RESULTS.json / docs/INTEGRATION_EVIDENCE_TABLE.md or equivalent).",
+    "owner_gated_explicit": "target_context = unknown_owner_gated must carry an explicit owner_gated note (notes mentioning 'owner_gated').",
+    "security_gate_dependency_required": "every artifact must name a security_gate_dependency (CT / determinism / integration gate that must be green for the perf claim to be valid).",
+    "corrupt_timing_blocking": "zero / negative / non-finite / impossible timings remain blocking (enforced by ci/check_bench_doc_consistency.py check_bench_artifact_sanity, Bastion B8)."
+  },
+  "artifacts": [
+    {"path": "docs/bench_unified_*.json", "expected_context": "microbench"},
+    {"path": "docs/BITCOIN_CORE_BENCH_RESULTS.json", "expected_context": "bitcoin_core"}
+  ]
+}

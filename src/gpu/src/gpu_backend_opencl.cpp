@@ -224,6 +224,7 @@ public:
 
     void shutdown() override {
         if (ext_ecdsa_verify_)   { clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr; }
+        if (ext_ecdsa_lbtc_)     { clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -399,6 +400,68 @@ public:
         clReleaseMemObject(d_sigs);
         clReleaseMemObject(d_res);
 
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError ecdsa_verify_lbtc_rows(
+        const uint8_t* rows, size_t stride, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!rows || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride < 129u)
+            return set_error(GpuError::BadInput, "libbitcoin row stride < 129");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+
+        const size_t row_bytes = count * stride;
+        cl_mem d_rows = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       row_bytes, const_cast<uint8_t*>(rows), &clerr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Memory, "lbtc row buffer alloc");
+
+        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                      sizeof(int) * count, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_rows);
+            return set_error(GpuError::Memory, "lbtc result buffer alloc");
+        }
+
+        cl_ulong cl_stride = static_cast<cl_ulong>(stride);
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(ext_ecdsa_lbtc_, 0, sizeof(cl_mem), &d_rows);
+        clSetKernelArg(ext_ecdsa_lbtc_, 1, sizeof(cl_ulong), &cl_stride);
+        clSetKernelArg(ext_ecdsa_lbtc_, 2, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_ecdsa_lbtc_, 3, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_, 1, nullptr,
+                                       &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_res);
+            clReleaseMemObject(d_rows);
+            return set_error(GpuError::Launch, "lbtc ecdsa row kernel launch failed");
+        }
+        clFinish(queue);
+
+        auto& scratch = g_opencl_batch_scratch;
+        scratch.ensure_ecdsa_verify(count);
+        auto* const h_res = scratch.results.data();
+        clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
+                            sizeof(int) * count, h_res, 0, nullptr, nullptr);
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
+
+        clReleaseMemObject(d_rows);
+        clReleaseMemObject(d_res);
         clear_error();
         return GpuError::Ok;
     }
@@ -1971,6 +2034,7 @@ private:
     /* Extended kernel handles (lazy-loaded for verify ops) */
     cl_program ext_program_         = nullptr;
     cl_kernel  ext_ecdsa_verify_    = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_      = nullptr;
     cl_kernel  ext_schnorr_verify_  = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_        = nullptr;
@@ -2032,7 +2096,9 @@ private:
 
     /* -- Lazy-load extended OpenCL program for verify kernels -------------- */
     GpuError ensure_extended_kernels() {
-        if (ext_ecdsa_verify_ && ext_schnorr_verify_ && ext_ecrecover_ && ext_ecdsa_snark_ && ext_schnorr_snark_) return GpuError::Ok;
+        if (ext_ecdsa_verify_ && ext_ecdsa_lbtc_ && ext_schnorr_verify_ &&
+            ext_ecrecover_ && ext_ecdsa_snark_ && ext_schnorr_snark_)
+            return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
         ext_init_attempted_ = true;
@@ -2099,8 +2165,16 @@ private:
             return set_error(GpuError::Launch, "ecdsa_verify kernel not found");
         }
 
+        ext_ecdsa_lbtc_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_rows", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_verify_); ext_ecdsa_verify_ = nullptr;
+            clReleaseProgram(ext_program_); ext_program_ = nullptr;
+            return set_error(GpuError::Launch, "ecdsa_verify_lbtc_rows kernel not found");
+        }
+
         ext_schnorr_verify_ = clCreateKernel(ext_program_, "schnorr_verify", &err);
         if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_lbtc_); ext_ecdsa_lbtc_ = nullptr;
             clReleaseKernel(ext_ecdsa_verify_); ext_ecdsa_verify_ = nullptr;
             clReleaseProgram(ext_program_); ext_program_ = nullptr;
             return set_error(GpuError::Launch, "schnorr_verify kernel not found");
@@ -2109,6 +2183,7 @@ private:
         ext_ecrecover_ = clCreateKernel(ext_program_, "ecrecover_batch", &err);
         if (err != CL_SUCCESS) {
             clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_); ext_ecdsa_lbtc_ = nullptr;
             clReleaseKernel(ext_ecdsa_verify_); ext_ecdsa_verify_ = nullptr;
             clReleaseProgram(ext_program_); ext_program_ = nullptr;
             return set_error(GpuError::Launch, "ecrecover_batch kernel not found");
@@ -2118,6 +2193,7 @@ private:
         if (err != CL_SUCCESS) {
             clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
             clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "ecdsa_snark_witness_batch kernel not found");
@@ -2128,6 +2204,7 @@ private:
             clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
             clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
             clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel not found");

@@ -44,6 +44,15 @@ void make_msg(uint8_t msg[32], uint32_t seed) {
     for (int i = 0; i < 32; ++i) msg[i] = (uint8_t)(seed * 2654435761u >> (i % 24));
 }
 
+void compact_to_lbtc_opaque(uint8_t* sig64) {
+    uint8_t tmp[64];
+    for (size_t i = 0; i < 32; ++i) {
+        tmp[i] = sig64[31 - i];
+        tmp[32 + i] = sig64[63 - i];
+    }
+    std::memcpy(sig64, tmp, 64);
+}
+
 /* id written into a row's key cell. MUST be non-zero and distinct per row so a
  * surviving cell is distinguishable from a zeroed (valid) cell — even for row 0.
  * Encodes (i + 1) little-endian across key_size bytes. */
@@ -80,6 +89,7 @@ std::vector<uint8_t> build(ufsecp_ctx* ctx, Kind k, size_t n, size_t ks) {
         if (k == ECDSA) {
             std::memcpy(r, msg, 32); std::memcpy(r + 32, pub, 33);
             if (ufsecp_ecdsa_sign(ctx, msg, sk, r + 65) != UFSECP_OK) ++g_fail;
+            compact_to_lbtc_opaque(r + 65);
         } else {
             std::memcpy(r, msg, 32); std::memcpy(r + 32, pub + 1, 32);
             if (ufsecp_schnorr_sign(ctx, msg, sk, aux, r + 64) != UFSECP_OK) ++g_fail;
@@ -101,8 +111,8 @@ void run_collect(ufsecp_lbtc_ctrl* ctrl, Kind k, uint8_t* rows, size_t n, size_t
 }
 void run_results(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows, size_t n,
                  size_t ks, uint8_t* res) {
-    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(ctrl, rows, n, ks, res);
-    else            ufsecp_lbtc_verify_schnorr(ctrl, rows, n, ks, res);
+    if (k == ECDSA) ufsecp_lbtc_verify_ecdsa(ctrl, rows, n, ks, res, nullptr, 0, nullptr);
+    else            ufsecp_lbtc_verify_schnorr(ctrl, rows, n, ks, res, nullptr, 0, nullptr);
 }
 
 /* Full collect contract for one kind, with invalids straddling chunk boundaries

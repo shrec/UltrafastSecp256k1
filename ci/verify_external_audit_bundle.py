@@ -234,7 +234,25 @@ def verify(
 
     raw_bundle = bundle_path.read_bytes()
     bundle_hash = _sha256_bytes(raw_bundle)
-    bundle = json.loads(raw_bundle.decode("utf-8"))
+    # Fail closed on a malformed or non-object bundle: a crashing verifier is
+    # indistinguishable from "did not run" on a branch-protection gate, and a
+    # tampered/truncated bundle must produce a FAIL verdict, not a stack trace.
+    try:
+        bundle = json.loads(raw_bundle.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        checks.append({"name": "bundle_parse", "passing": False,
+                       "detail": f"malformed bundle JSON: {exc}"})
+        report = {"timestamp": datetime.now(timezone.utc).isoformat(),
+                  "overall_pass": False, "checks": checks}
+        print(json.dumps(report, indent=2) if json_mode else f"FAIL malformed bundle JSON: {exc}")
+        return 1
+    if not isinstance(bundle, dict):
+        checks.append({"name": "bundle_schema", "passing": False,
+                       "detail": "bundle root is not a JSON object"})
+        report = {"timestamp": datetime.now(timezone.utc).isoformat(),
+                  "overall_pass": False, "checks": checks}
+        print(json.dumps(report, indent=2) if json_mode else "FAIL bundle root is not a JSON object")
+        return 1
 
     if not digest_path.exists():
         checks.append({"name": "bundle_digest_exists", "passing": False, "detail": f"missing: {digest_path}"})
