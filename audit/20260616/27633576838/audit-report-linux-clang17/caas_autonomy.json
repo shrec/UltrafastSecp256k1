@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-06-16T17:30:12.224752+00:00",
+  "autonomy_score": 100,
+  "autonomy_ready": true,
+  "advisory_skip_all": false,
+  "gates_total": 8,
+  "gates_passing": 8,
+  "gates_skipped": 0,
+  "overall_pass": true,
+  "gates": [
+    {
+      "gate": "formal_invariants",
+      "weight": 15,
+      "status": "ran",
+      "passing": true,
+      "score": 15,
+      "returncode": 0
+    },
+    {
+      "gate": "risk_surface_coverage",
+      "weight": 15,
+      "status": "ran",
+      "passing": true,
+      "score": 15,
+      "returncode": 0
+    },
+    {
+      "gate": "audit_sla",
+      "weight": 10,
+      "status": "ran",
+      "passing": true,
+      "score": 10,
+      "returncode": 0
+    },
+    {
+      "gate": "supply_chain",
+      "weight": 15,
+      "status": "ran",
+      "passing": true,
+      "score": 15,
+      "returncode": 0
+    },
+    {
+      "gate": "perf_security_cogate",
+      "weight": 10,
+      "status": "ran",
+      "passing": true,
+      "score": 10,
+      "returncode": 0
+    },
+    {
+      "gate": "misuse_resistance",
+      "weight": 10,
+      "status": "ran",
+      "passing": true,
+      "score": 10,
+      "returncode": 0
+    },
+    {
+      "gate": "evidence_governance",
+      "weight": 15,
+      "status": "ran",
+      "passing": true,
+      "score": 15,
+      "returncode": 0
+    },
+    {
+      "gate": "incident_drills",
+      "weight": 10,
+      "status": "ran",
+      "passing": true,
+      "score": 10,
+      "returncode": 0
+    }
+  ]
+}
