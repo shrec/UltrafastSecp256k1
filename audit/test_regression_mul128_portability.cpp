@@ -21,6 +21,12 @@ static int g_pass = 0, g_fail = 0;
 #include "audit_check.hpp"
 #include "secp256k1/detail/arith64.hpp"
 
+// These checks compare against `unsigned __int128` — which IS exactly the path the
+// Windows-ARM64 clang-cl port routes to. MSVC `cl` has no __int128 (error C4235) and
+// never takes that path, so the whole comparison is gated on __int128 availability;
+// on cl the module is a no-op. clang-cl, GCC and Clang all define __SIZEOF_INT128__.
+#if defined(__SIZEOF_INT128__)
+
 // Portable 32-bit schoolbook 64x64->128 — byte-for-byte the SECP256K1_NO_INT128
 // branch of precompute.cpp::_umul128. Kept here independently so the test does
 // not depend on which path the engine was compiled with.
@@ -69,10 +75,15 @@ static void check_addcarry(std::uint64_t a, std::uint64_t b, std::uint8_t cin) {
     CHECK(resp == res128 && (std::uint8_t)(c1 | c2) == cout128, "addcarry portable == __int128");
 }
 
+#endif // __SIZEOF_INT128__
+
 int test_regression_mul128_portability_run() {
     g_pass = 0; g_fail = 0;
     printf("\n  [mul128-portability] 64x64->128 multiply path equivalence (Windows-ARM64 clang-cl port)\n");
 
+#if !defined(__SIZEOF_INT128__)
+    printf("  [mul128-portability] SKIP — __int128 unavailable (e.g. MSVC cl); the __int128 paths under test are not used by this compiler\n");
+#else
     static const std::uint64_t edges[] = {
         0ULL, 1ULL, 2ULL, 0xFFFFFFFFULL, 0x100000000ULL,
         0xFFFFFFFFFFFFFFFFULL, 0x8000000000000000ULL, 0x9E3779B97F4A7C15ULL,
@@ -94,6 +105,7 @@ int test_regression_mul128_portability_run() {
         check_subborrow(a, b, (std::uint8_t)(rnd() & 1));
         check_addcarry(a, b, (std::uint8_t)(rnd() & 1));
     }
+#endif // __SIZEOF_INT128__
 
     printf("  [mul128-portability] %d passed, %d failed\n", g_pass, g_fail);
     return (g_fail == 0) ? 0 : 1;
