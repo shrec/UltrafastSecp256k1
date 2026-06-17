@@ -164,6 +164,46 @@ __kernel void bip352_pipeline_kernel(
     prefixes[gid] = point_prefix64_impl(&cand);
 }
 
+/* bip352_pipeline_kernel_compressed — GPU-side pubkey decompression variant */
+__kernel void bip352_pipeline_kernel_compressed(
+    __global const uchar* tweak_pubkeys33,
+    __constant const BIP352ScanKeyGlv* scan_key,
+    __global const uchar* spend_pubkey33,
+    __global ulong* prefixes,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    // Decompress tweak pubkey on GPU
+    JacobianPoint tweak_jac;
+    if (!lbtc_point_from_compressed(tweak_pubkeys33 + gid * 33, &tweak_jac)) {
+        prefixes[gid] = 0;
+        return;
+    }
+    AffinePoint tweak; tweak.x = tweak_jac.x; tweak.y = tweak_jac.y;
+
+    // Decompress spend pubkey on GPU
+    JacobianPoint spend_jac;
+    if (!lbtc_point_from_compressed(spend_pubkey33, &spend_jac)) {
+        prefixes[gid] = 0;
+        return;
+    }
+    AffinePoint spend; spend.x = spend_jac.x; spend.y = spend_jac.y;
+
+    JacobianPoint shared;
+    scalar_mul_glv_predecomp_impl(&shared, &tweak, scan_key);
+    if (point_is_infinity(&shared)) { prefixes[gid] = 0; return; }
+
+    uchar ser[37]; bip352_shared_secret_input_impl(&shared, ser);
+    uchar hash[32]; bip352_tagged_sha256_impl(ser, 37, hash);
+    Scalar hs; scalar_from_bytes_impl(hash, &hs);
+
+    JacobianPoint out; scalar_mul_generator_windowed_impl(&out, &hs);
+    JacobianPoint cand; point_add_mixed_impl(&cand, &out, &spend);
+    prefixes[gid] = point_prefix64_impl(&cand);
+}
+
 __kernel void bip352_pipeline_kernel_lut(
     __global const AffinePoint* tweak_points,
     __constant const BIP352ScanKeyGlv* scan_key,
