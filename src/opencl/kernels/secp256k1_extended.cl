@@ -2057,6 +2057,33 @@ __kernel void ecdsa_verify(
     results[gid] = ecdsa_verify_impl(msg, &pub, &sig);
 }
 
+/* ecdsa_verify_compressed — GPU-side pubkey decompression variant.
+ * Takes 33-byte SEC1 compressed pubkeys directly (no CPU decompress).
+ * Decompresses in registers via lbtc_point_from_compressed → verify.
+ * Eliminates CPU sqrt+parity, host JacobianPoint buffer, and 3.2x PCIe data. */
+__kernel void ecdsa_verify_compressed(
+    __global const uchar* msg_hashes,
+    __global const uchar* pubkeys33,
+    __global const ECDSASignature* signatures,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[gid * 32 + i];
+
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        results[gid] = 0;
+        return;
+    }
+
+    ECDSASignature sig = signatures[gid];
+    results[gid] = ecdsa_verify_impl(msg, &pub, &sig);
+}
+
 __kernel void ecdsa_verify_lbtc_rows(
     __global const uchar* rows,
     const ulong stride,
@@ -2336,6 +2363,34 @@ __kernel void ecdsa_snark_witness_batch(
     JacobianPoint pub = pubkeys[gid];
     ECDSASignature sig = sigs[gid];
 
+    EcdsaSnarkWitnessFlatOCL w;
+    ecdsa_snark_witness_impl(msg, &pub, &sig, &w);
+    out[gid] = w;
+}
+
+/* ecdsa_snark_witness_batch_compressed — GPU-side pubkey decompression variant */
+__kernel void ecdsa_snark_witness_batch_compressed(
+    __global const uchar*              msg_hashes,   // count × 32 bytes
+    __global const uchar*              pubkeys33,    // count × 33 bytes (SEC1 compressed)
+    __global const ECDSASignature*     sigs,
+    __global EcdsaSnarkWitnessFlatOCL* out,
+    const uint                         count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[gid * 32 + i];
+
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        // Zero-fill output on failure (fail-closed)
+        EcdsaSnarkWitnessFlatOCL zero = {0};
+        out[gid] = zero;
+        return;
+    }
+
+    ECDSASignature sig = sigs[gid];
     EcdsaSnarkWitnessFlatOCL w;
     ecdsa_snark_witness_impl(msg, &pub, &sig, &w);
     out[gid] = w;

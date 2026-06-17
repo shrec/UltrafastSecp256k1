@@ -57,6 +57,34 @@ kernel void scalar_mul_batch(
     results[tid] = jacobian_to_affine(jac);
 }
 
+// scalar_mul_batch_compressed — GPU-side pubkey decompression + scalar mul
+kernel void scalar_mul_batch_compressed(
+    device const uchar *pubkeys33      [[buffer(0)]],
+    device const Scalar256 *scalars    [[buffer(1)]],
+    device AffinePoint *results        [[buffer(2)]],
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub)) {
+        AffinePoint zero = {};
+        results[tid] = zero;
+        return;
+    }
+
+    // Convert Jacobian (z=1 after decompress) → AffinePoint
+    AffinePoint base;
+    base.x = pub.x;
+    base.y = pub.y;
+
+    Scalar256 k = scalars[tid];
+    JacobianPoint jac = scalar_mul_glv(base, k);
+    results[tid] = jacobian_to_affine(jac);
+}
+
 // =============================================================================
 // Kernel 3: Batch Generator Multiplication — G × k for N scalars
 // =============================================================================
@@ -395,6 +423,53 @@ kernel void ecdsa_verify_batch(
                               ((uint)pubkeys[base_pub + 32 + i*4+2] << 8) |
                               ((uint)pubkeys[base_pub + 32 + i*4+3]);
 
+        r_sig.limbs[7 - i] = ((uint)signatures[base_sig + i*4] << 24) |
+                              ((uint)signatures[base_sig + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + i*4+3]);
+        s_sig.limbs[7 - i] = ((uint)signatures[base_sig + 32 + i*4] << 24) |
+                              ((uint)signatures[base_sig + 32 + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + 32 + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + 32 + i*4+3]);
+    }
+
+    results[tid] = ecdsa_verify(msg, pub, r_sig, s_sig) ? 1u : 0u;
+}
+
+// ecdsa_verify_batch_compressed — GPU-side pubkey decompression variant.
+// Takes 33-byte SEC1 compressed pubkeys directly (no CPU decompress).
+// Decompresses via lbtc_point_from_compressed in registers → verify.
+kernel void ecdsa_verify_batch_compressed(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys33      [[buffer(1)]],   // N × 33 (SEC1 compressed)
+    device const uchar *signatures     [[buffer(2)]],   // N × 64 (r ∥ s)
+    device uint *results               [[buffer(3)]],   // N × 1
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Parse message
+    Scalar256 msg;
+    uint base_msg = tid * 32;
+    for (int i = 0; i < 8; i++) {
+        msg.limbs[7 - i] = ((uint)msg_hashes[base_msg + i*4] << 24) |
+                            ((uint)msg_hashes[base_msg + i*4+1] << 16) |
+                            ((uint)msg_hashes[base_msg + i*4+2] << 8) |
+                            ((uint)msg_hashes[base_msg + i*4+3]);
+    }
+
+    // Decompress pubkey (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub)) {
+        results[tid] = 0u;
+        return;
+    }
+
+    // Parse signature
+    Scalar256 r_sig, s_sig;
+    uint base_sig = tid * 64;
+    for (int i = 0; i < 8; i++) {
         r_sig.limbs[7 - i] = ((uint)signatures[base_sig + i*4] << 24) |
                               ((uint)signatures[base_sig + i*4+1] << 16) |
                               ((uint)signatures[base_sig + i*4+2] << 8) |
@@ -1562,6 +1637,99 @@ kernel void ecdsa_snark_witness_batch(
     write_u32_le(out_flat, rec_off + 752, valid ? 1 : 0);
     // bytes 756-759: _pad (already zero)
     // Total record size: 352 + 400 + 8 = 760 bytes ✓
+}
+
+// ecdsa_snark_witness_batch_compressed — GPU-side pubkey decompression variant
+kernel void ecdsa_snark_witness_batch_compressed(
+    device const uchar* msg_hashes  [[buffer(0)]],
+    device const uchar* pubkeys33   [[buffer(1)]],
+    device const uchar* sigs64      [[buffer(2)]],
+    device       uchar* out_flat    [[buffer(3)]],
+    constant uint&      count       [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    const uint rec_off = tid * 760u;
+    for (uint i = 0; i < 760u; i++) out_flat[rec_off + i] = 0;
+
+    // Load message
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[tid * 32 + i];
+
+    // Load sig r,s
+    uchar r_be[32], s_be[32];
+    for (int i = 0; i < 32; i++) {
+        r_be[i] = sigs64[tid * 64 + i];
+        s_be[i] = sigs64[tid * 64 + 32 + i];
+    }
+    Scalar256 sig_r = scalar_from_bytes(r_be);
+    Scalar256 sig_s = scalar_from_bytes(s_be);
+    if (scalar256_is_zero(sig_r) || scalar256_is_zero(sig_s)) return;
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub_jac;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub_jac)) return;
+
+    // Convert Jacobian → Affine for snark witness
+    AffinePoint pub_aff = jacobian_to_affine(pub_jac);
+
+    // Continue with witness computation (same as original kernel from here)
+    uchar pub_x_be[32], pub_y_be[32];
+    field_to_bytes(pub_aff.x, pub_x_be);
+    field_to_bytes(pub_aff.y, pub_y_be);
+
+    // -- witness scalars: z, s_inv, u1, u2 --
+    Scalar256 z     = scalar_from_bytes(msg);
+    Scalar256 s_inv = scalar_inverse(sig_s);
+    Scalar256 u1    = scalar_mul_mod_n(z,     s_inv);
+    Scalar256 u2    = scalar_mul_mod_n(sig_r, s_inv);
+
+    // -- R = u1·G + u2·Q --
+    AffinePoint G  = generator_affine();
+    JacobianPoint u1G = scalar_mul_glv(G,       u1);
+    JacobianPoint u2Q = scalar_mul_glv(pub_aff, u2);
+    JacobianPoint R   = jacobian_add(u1G, u2Q);
+    if (R.infinity != 0) return;
+
+    AffinePoint R_aff = jacobian_to_affine(R);
+    uchar rx[32], ry[32];
+    field_to_bytes(R_aff.x, rx);
+    field_to_bytes(R_aff.y, ry);
+
+    Scalar256 rx_scalar = scalar_from_bytes(rx);
+    bool valid = !scalar256_is_zero(rx_scalar);
+    if (!valid) return;
+
+    Scalar256 n_val;
+    for (int i = 0; i < 8; i++) n_val.limbs[i] = SECP256K1_N[i];
+    Scalar256 rx_mod_n = scalar_sub_mod_n(rx_scalar, n_val);
+
+    // Write witness record (same layout as original)
+    for (int i = 0; i < 32; i++) out_flat[rec_off + i]   = msg[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 32 + i]  = r_be[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 64 + i]  = s_be[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 96 + i]  = pub_x_be[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 128 + i] = ry[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 160 + i] = pub_y_be[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 192 + i] = rx[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 224 + i] = (i < 32) ? rx[i] : 0;
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 256 + i] = (i < 32) ? rx[i] : 0;
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 288 + i] = ry[i];
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 352 - 32 + i] = rx_mod_n[i];
+
+    ulong lmb[5];
+    scalar_to_ff_limbs(sig_r,  lmb); write_ff_limbs(out_flat, rec_off + 352, lmb);
+    scalar_to_ff_limbs(sig_s,  lmb); write_ff_limbs(out_flat, rec_off + 392, lmb);
+    be32_to_ff_limbs(pub_x_be, lmb); write_ff_limbs(out_flat, rec_off + 432, lmb);
+    be32_to_ff_limbs(pub_y_be, lmb); write_ff_limbs(out_flat, rec_off + 472, lmb);
+    scalar_to_ff_limbs(s_inv,  lmb); write_ff_limbs(out_flat, rec_off + 512, lmb);
+    scalar_to_ff_limbs(u1,     lmb); write_ff_limbs(out_flat, rec_off + 552, lmb);
+    scalar_to_ff_limbs(u2,     lmb); write_ff_limbs(out_flat, rec_off + 592, lmb);
+    be32_to_ff_limbs(rx,       lmb); write_ff_limbs(out_flat, rec_off + 632, lmb);
+    be32_to_ff_limbs(ry,       lmb); write_ff_limbs(out_flat, rec_off + 672, lmb);
+    be32_to_ff_limbs(rx_mod_n, lmb); write_ff_limbs(out_flat, rec_off + 712, lmb);
+    write_u32_le(out_flat, rec_off + 752, valid ? 1 : 0);
 }
 
 // =============================================================================

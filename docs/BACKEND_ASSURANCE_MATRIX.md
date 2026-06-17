@@ -198,6 +198,29 @@ The CPU fallback in `gpu_backend_fallback.cpp` is retained for reference and as 
 correctness baseline, but no backend dispatches through it any longer.
 CPU-side `ufsecp_zk_schnorr_snark_witness()` is fully functional.
 
+### GPU-side pubkey decompression (2026-06-17)
+
+All three GPU backends now perform SEC1 33-byte compressed pubkey decompression
+natively on the device, eliminating CPU-side sqrt+parity computation, host-side
+buffer allocation, and 3.2× PCIe data transfer overhead.
+
+| Operation | CUDA | OpenCL | Metal |
+|-----------|------|--------|-------|
+| ECDSA verify batch | ✅ `point_from_compressed` | ✅ `ecdsa_verify_compressed` | ✅ `ecdsa_verify_batch_compressed` |
+| SNARK witness batch | — | ✅ `ecdsa_snark_witness_batch_compressed` | ✅ `ecdsa_snark_witness_batch_compressed` |
+| ECDH | ✅ `point_from_compressed` | ✅ `batch_scalar_mul_compressed` | ✅ `scalar_mul_batch_compressed` |
+| MSM | ✅ `point_from_compressed` | ⚠️ (buffer-pool path, kernel exists) | ✅ `scalar_mul_batch_compressed` |
+| Schnorr verify | ✅ x-only (32B, no decompress) | ✅ x-only (32B) | ✅ x-only (32B) |
+| ecrecover | ✅ (no input pubkey) | ✅ (no input) | ✅ (no input) |
+
+Benchmark (RTX 5060 Ti, CUDA): GPU decompress overhead = +0.8 ns/op (+0.3%)
+vs pre-decompressed JacobianPoint verify. Full raw-entry kernel
+(decompress + sig parse + low-S normalize + verify) overhead = +1.8 ns (+0.7%).
+
+Kernels added:
+- OpenCL: `ecdsa_verify_compressed`, `ecdsa_snark_witness_batch_compressed`, `scalar_mul_compressed`
+- Metal: `ecdsa_verify_batch_compressed`, `ecdsa_snark_witness_batch_compressed`, `scalar_mul_batch_compressed`
+
 ROCm/HIP: early-development compatibility path via the shared CUDA/HIP portability
 layer. Not yet part of the hardware-validated matrix. Promotion requires archived
 benchmark JSON, audit output, driver metadata, and a real AMD device record

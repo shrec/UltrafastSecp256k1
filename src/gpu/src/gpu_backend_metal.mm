@@ -458,19 +458,12 @@ public:
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
 
-        /* Decompress SEC1 pubkeys → 64-byte uncompressed (x||y) */
-        auto& scratch = g_metal_batch_scratch;
-        uint8_t* const h_pubs = scratch.ensure_pubkeys64(count);
-        for (size_t i = 0; i < count; ++i) {
-            if (!sec1_33_to_be64(pubkeys33 + i * 33, h_pubs + i * 64))
-                return set_error(GpuError::BadKey, "invalid pubkey");
-        }
-
+        /* Pass 33-byte compressed pubkeys directly — GPU decompresses via lbtc_point_from_compressed */
         auto buf_msgs = runtime_->alloc_buffer_shared(count * 32);
         std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
 
-        auto buf_pubs = runtime_->alloc_buffer_shared(count * 64);
-        std::memcpy(buf_pubs.contents(), h_pubs, count * 64);
+        auto buf_pubs = runtime_->alloc_buffer_shared(count * 33);
+        std::memcpy(buf_pubs.contents(), pubkeys33, count * 33);
 
         auto buf_sigs = runtime_->alloc_buffer_shared(count * 64);
         std::memcpy(buf_sigs.contents(), sigs64, count * 64);
@@ -481,7 +474,7 @@ public:
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        auto pipe = runtime_->make_pipeline("ecdsa_verify_batch");
+        auto pipe = runtime_->make_pipeline("ecdsa_verify_batch_compressed");
         runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
                                 {&buf_msgs, &buf_pubs, &buf_sigs, &buf_res, &buf_count});
 
@@ -592,24 +585,18 @@ public:
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
 
-        /* Use scalar_mul_batch(peers, privkeys) → AffinePoint results,
-           then compress and SHA256 on host to match CUDA/OpenCL semantics. */
+        /* Use scalar_mul_batch_compressed(peer33, privkeys) → AffinePoint results.
+           GPU decompresses pubkeys + multiplies in one step.
+           Then compress and SHA256 on host to match CUDA/OpenCL semantics. */
         auto& scratch = g_metal_batch_scratch;
-        scratch.ensure_affine_points(count);
         scratch.ensure_scalars(count);
-        auto* const h_bases = scratch.affine_points.data();
-        for (size_t i = 0; i < count; ++i) {
-            if (!sec1_33_to_metal_affine(peer_pubkeys33 + i * 33, h_bases[i]))
-                return set_error(GpuError::BadKey, "invalid peer pubkey");
-        }
-
         auto* const h_scalars = scratch.scalars.data();
         MetalScalarEraseGuard h_scalars_guard{h_scalars, count};
         for (size_t i = 0; i < count; ++i)
             h_scalars[i] = be32_to_metal_scalar(privkeys32 + i * 32);
 
-        auto buf_bases   = runtime_->alloc_buffer_shared(count * sizeof(MetalAffinePoint));
-        std::memcpy(buf_bases.contents(), h_bases, count * sizeof(MetalAffinePoint));
+        auto buf_pubs33  = runtime_->alloc_buffer_shared(count * 33);
+        std::memcpy(buf_pubs33.contents(), peer_pubkeys33, count * 33);
 
         auto buf_scalars = runtime_->alloc_buffer_shared(count * sizeof(MetalScalar256));
         std::memcpy(buf_scalars.contents(), h_scalars, count * sizeof(MetalScalar256));
@@ -621,7 +608,7 @@ public:
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        auto pipe = runtime_->make_pipeline("scalar_mul_batch");
+        auto pipe = runtime_->make_pipeline("scalar_mul_batch_compressed");
         runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
                                 {&buf_bases, &buf_scalars, &buf_results, &buf_count});
 
@@ -825,17 +812,14 @@ public:
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
 
-        /* Decompress SEC1 points → MetalAffinePoint */
-        std::vector<MetalAffinePoint> h_bases(n);
-        for (size_t i = 0; i < n; ++i) {
-            if (!sec1_33_to_metal_affine(points33 + i * 33, h_bases[i]))
-                return set_error(GpuError::BadKey, "invalid MSM point");
-        }
-
+        /* Pass 33-byte compressed pubkeys directly — GPU decompresses via scalar_mul_batch_compressed */
         /* Scalars */
         std::vector<MetalScalar256> h_scalars(n);
         for (size_t i = 0; i < n; ++i)
             h_scalars[i] = be32_to_metal_scalar(scalars32 + i * 32);
+
+        auto buf_pubs33  = runtime_->alloc_buffer_shared(n * 33);
+        std::memcpy(buf_pubs33.contents(), points33, n * 33);
 
         /* Ensure persistent pool buffers (grow-only, avoids repeated alloc overhead) */
         msm_pool_.ensure(n, runtime_.get());
@@ -845,7 +829,7 @@ public:
         const size_t n_blocks = (n + 255) / 256;
 
         /* Upload input data to pool buffers */
-        std::memcpy(msm_pool_.buf_bases.contents(),   h_bases.data(),   n * sizeof(MetalAffinePoint));
+        std::memcpy(msm_pool_.buf_bases.contents(),   points33,          n * 33);
         std::memcpy(msm_pool_.buf_scalars.contents(), h_scalars.data(), n * sizeof(MetalScalar256));
 
         /* Small count buffer (4 bytes) — negligible to allocate */
@@ -853,8 +837,8 @@ public:
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        /* Pass 1: GPU scalar_mul_batch → buf_partials (n AffinePoints) */
-        auto pipe_sm = runtime_->make_pipeline("scalar_mul_batch");
+        /* Pass 1: GPU scalar_mul_batch_compressed → buf_partials (n AffinePoints) */
+        auto pipe_sm = runtime_->make_pipeline("scalar_mul_batch_compressed");
         runtime_->dispatch_sync(pipe_sm, (uint32_t)n, 64u,
                                 {&msm_pool_.buf_bases, &msm_pool_.buf_scalars,
                                  &msm_pool_.buf_partials, &buf_count});
@@ -1279,27 +1263,20 @@ public:
         return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
 #endif
 
-        /* Decompress pubkeys: 33-byte SEC1 → 64-byte uncompressed BE (x‖y) */
-        auto* h_pubs = g_metal_batch_scratch.ensure_pubkeys64(count);
-        for (size_t i = 0; i < count; ++i) {
-            if (!sec1_33_to_be64(pubkeys33 + i * 33, h_pubs + i * 64))
-                return set_error(GpuError::BadPubkey,
-                                 "invalid pubkey in snark_witness_batch");
-        }
-
+        /* Pass 33-byte compressed pubkeys directly — GPU decompresses via lbtc_point_from_compressed */
         auto buf_msgs  = runtime_->alloc_buffer_shared(count * 32);
-        auto buf_pubs  = runtime_->alloc_buffer_shared(count * 64);
+        auto buf_pubs  = runtime_->alloc_buffer_shared(count * 33);
         auto buf_sigs  = runtime_->alloc_buffer_shared(count * 64);
         auto buf_out   = runtime_->alloc_buffer_shared(count * 760);
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
 
         std::memcpy(buf_msgs.contents(),  msg_hashes32,   count * 32);
-        std::memcpy(buf_pubs.contents(),  h_pubs,         count * 64);
+        std::memcpy(buf_pubs.contents(),  pubkeys33,      count * 33);
         std::memcpy(buf_sigs.contents(),  sigs64,         count * 64);
         uint32_t n32 = (uint32_t)count;
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        auto pipe = runtime_->make_pipeline("ecdsa_snark_witness_batch");
+        auto pipe = runtime_->make_pipeline("ecdsa_snark_witness_batch_compressed");
         if (!pipe.valid())
             return set_error(GpuError::Launch,
                              "Metal: ecdsa_snark_witness_batch kernel missing from loaded library");

@@ -417,3 +417,47 @@ else()
     )
 endif()
 target_link_libraries(bench_zk PRIVATE secp256k1_cuda_lib)
+
+# ===== GPU Pubkey Decompress A/B Benchmark =====
+set(_BENCH_DECOMPRESS_AB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/gpu/cuda/decompress_ab_bench.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_DECOMPRESS_AB_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_decompress_ab ${_BENCH_DECOMPRESS_AB_SOURCES})
+    target_compile_options(bench_decompress_ab PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(bench_decompress_ab ${_BENCH_DECOMPRESS_AB_SOURCES})
+    target_compile_options(bench_decompress_ab PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_decompress_ab PRIVATE secp256k1_cuda_lib)
+set_target_properties(bench_decompress_ab PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)
+
+# ===== GPU Raw Entry ECDSA Verify Benchmark =====
+set(_BENCH_RAW_ENTRY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/gpu/cuda/raw_entry_ab_bench.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_RAW_ENTRY_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_raw_entry ${_BENCH_RAW_ENTRY_SOURCES})
+    target_compile_options(bench_raw_entry PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(bench_raw_entry ${_BENCH_RAW_ENTRY_SOURCES})
+    target_compile_options(bench_raw_entry PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_raw_entry PRIVATE secp256k1_cuda_lib)
+set_target_properties(bench_raw_entry PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)

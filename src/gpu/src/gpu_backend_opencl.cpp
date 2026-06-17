@@ -224,10 +224,12 @@ public:
 
     void shutdown() override {
         if (ext_ecdsa_verify_)   { clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr; }
+        if (ext_ecdsa_verify_compressed_) { clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr; }
         if (ext_ecdsa_lbtc_)     { clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
+        if (ext_ecdsa_snark_compressed_) { clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr; }
         if (ext_schnorr_snark_)  { clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_  = nullptr; }
         if (ext_program_)        { clReleaseProgram(ext_program_);       ext_program_        = nullptr; }
         ext_init_attempted_ = false;
@@ -320,31 +322,17 @@ public:
                                        32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
         if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
 
-        /* pubkeys: decompress 33-byte → full JacobianPoint host layout */
-        auto& scratch = g_opencl_batch_scratch;
-        scratch.ensure_ecdsa_verify(count);
-        auto* const h_pubs = scratch.jacobian_points.data();
-        for (size_t i = 0; i < count; ++i) {
-            secp256k1::opencl::AffinePoint aff;
-            if (!pubkey33_to_affine(pubkeys33 + i * 33, &aff)) {
-                clReleaseMemObject(d_msgs);
-                return set_error(GpuError::BadKey, "invalid pubkey");
-            }
-            std::memcpy(h_pubs[i].x.limbs, aff.x.limbs, 32);
-            std::memcpy(h_pubs[i].y.limbs, aff.y.limbs, 32);
-            std::memset(h_pubs[i].z.limbs, 0, 32);
-            h_pubs[i].z.limbs[0] = 1; /* Z = 1 (affine → Jacobian) */
-            h_pubs[i].infinity = 0;
-        }
+        /* pubkeys: pass 33-byte compressed directly (GPU decompresses via lbtc_point_from_compressed) */
         cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(secp256k1::opencl::JacobianPoint) * count,
-                                       h_pubs, &clerr);
+                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_msgs);
             return set_error(GpuError::Memory, "pub buffer alloc");
         }
 
         /* sigs: 64 bytes (r[32] | s[32]) → ECDSASig (r:Scalar, s:Scalar = 64 bytes LE limbs) */
+        auto& scratch = g_opencl_batch_scratch;
+        scratch.ensure_ecdsa_verify(count);
         auto* const h_sigs = scratch.ecdsa_sigs.data();
         for (size_t i = 0; i < count; ++i) {
             be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
@@ -369,21 +357,21 @@ public:
         }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
-        clSetKernelArg(ext_ecdsa_verify_, 0, sizeof(cl_mem), &d_msgs);
-        clSetKernelArg(ext_ecdsa_verify_, 1, sizeof(cl_mem), &d_pubs);
-        clSetKernelArg(ext_ecdsa_verify_, 2, sizeof(cl_mem), &d_sigs);
-        clSetKernelArg(ext_ecdsa_verify_, 3, sizeof(cl_mem), &d_res);
-        clSetKernelArg(ext_ecdsa_verify_, 4, sizeof(cl_uint), &cl_count);
+        clSetKernelArg(ext_ecdsa_verify_compressed_, 0, sizeof(cl_mem), &d_msgs);
+        clSetKernelArg(ext_ecdsa_verify_compressed_, 1, sizeof(cl_mem), &d_pubs);
+        clSetKernelArg(ext_ecdsa_verify_compressed_, 2, sizeof(cl_mem), &d_sigs);
+        clSetKernelArg(ext_ecdsa_verify_compressed_, 3, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_ecdsa_verify_compressed_, 4, sizeof(cl_uint), &cl_count);
 
         size_t global = count;
-        clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_verify_, 1, nullptr,
+        clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_verify_compressed_, 1, nullptr,
                                &global, nullptr, 0, nullptr, nullptr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_res);
             clReleaseMemObject(d_sigs);
             clReleaseMemObject(d_pubs);
             clReleaseMemObject(d_msgs);
-            return set_error(GpuError::Launch, "ecdsa_verify kernel launch failed");
+            return set_error(GpuError::Launch, "ecdsa_verify_compressed kernel launch failed");
         }
         clFinish(queue);
 
@@ -572,12 +560,8 @@ public:
 
         /* Validate all peer pubkeys BEFORE loading any private key material.
            This ensures no early-return path leaves h_scalars populated
-           without a corresponding secure_erase (Rule 10). */
-        std::vector<secp256k1::opencl::AffinePoint> h_peers(count);
-        for (size_t i = 0; i < count; ++i) {
-            if (!pubkey33_to_affine(peer_pubkeys33 + i * 33, &h_peers[i]))
-                return set_error(GpuError::BadKey, "invalid peer pubkey");
-        }
+           without a corresponding secure_erase (Rule 10).
+           GPU decompresses pubkeys via scalar_mul_compressed kernel. */
 
         /* Load private keys only after all pubkeys are confirmed valid. */
         std::vector<secp256k1::opencl::Scalar> h_scalars(count);
@@ -593,10 +577,10 @@ public:
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
-        /* GPU: batch scalar_mul(priv[i], peer[i]) → Jacobian */
+        /* GPU: batch scalar_mul_compressed(priv[i], peer33[i]) → Jacobian (decompress+multiply in one step) */
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
-        ctx_->batch_scalar_mul(h_scalars.data(), h_peers.data(),
-                               h_jac.data(), count);
+        ctx_->batch_scalar_mul_compressed(h_scalars.data(), peer_pubkeys33,
+                                          h_jac.data(), count);
         // h_scalars erased by _scalar_guard destructor
 
         /* GPU: Jacobian → Affine */
@@ -1092,31 +1076,17 @@ public:
                                        32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
         if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
 
-        /* pubkeys: decompress 33-byte → JacobianPoint {x,y,z=1} */
-        auto& scratch = g_opencl_batch_scratch;
-        scratch.ensure_ecdsa_verify(count);
-        auto* const h_pubs = scratch.jacobian_points.data();
-        for (size_t i = 0; i < count; ++i) {
-            secp256k1::opencl::AffinePoint aff;
-            if (!pubkey33_to_affine(pubkeys33 + i * 33, &aff)) {
-                clReleaseMemObject(d_msgs);
-                return set_error(GpuError::BadKey, "invalid pubkey");
-            }
-            std::memcpy(h_pubs[i].x.limbs, aff.x.limbs, 32);
-            std::memcpy(h_pubs[i].y.limbs, aff.y.limbs, 32);
-            std::memset(h_pubs[i].z.limbs, 0, 32);
-            h_pubs[i].z.limbs[0] = 1; /* Z = 1 */
-            h_pubs[i].infinity = 0;
-        }
+        /* pubkeys: pass 33-byte compressed directly (GPU decompresses) */
         cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(secp256k1::opencl::JacobianPoint) * count,
-                                       h_pubs, &clerr);
+                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_msgs);
             return set_error(GpuError::Memory, "pub buffer alloc");
         }
 
         /* sigs: BE r|s → ECDSASignature {r:Scalar, s:Scalar} */
+        auto& scratch = g_opencl_batch_scratch;
+        scratch.ensure_ecdsa_verify(count);
         auto* const h_sigs = scratch.ecdsa_sigs.data();
         for (size_t i = 0; i < count; ++i) {
             be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
@@ -1142,14 +1112,14 @@ public:
         }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
-        clSetKernelArg(ext_ecdsa_snark_, 0, sizeof(cl_mem),  &d_msgs);
-        clSetKernelArg(ext_ecdsa_snark_, 1, sizeof(cl_mem),  &d_pubs);
-        clSetKernelArg(ext_ecdsa_snark_, 2, sizeof(cl_mem),  &d_sigs);
-        clSetKernelArg(ext_ecdsa_snark_, 3, sizeof(cl_mem),  &d_out);
-        clSetKernelArg(ext_ecdsa_snark_, 4, sizeof(cl_uint), &cl_count);
+        clSetKernelArg(ext_ecdsa_snark_compressed_, 0, sizeof(cl_mem),  &d_msgs);
+        clSetKernelArg(ext_ecdsa_snark_compressed_, 1, sizeof(cl_mem),  &d_pubs);
+        clSetKernelArg(ext_ecdsa_snark_compressed_, 2, sizeof(cl_mem),  &d_sigs);
+        clSetKernelArg(ext_ecdsa_snark_compressed_, 3, sizeof(cl_mem),  &d_out);
+        clSetKernelArg(ext_ecdsa_snark_compressed_, 4, sizeof(cl_uint), &cl_count);
 
         size_t global = count;
-        clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_snark_, 1, nullptr,
+        clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_snark_compressed_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_out);
@@ -2032,13 +2002,15 @@ private:
     char     last_msg_[256] = {};
 
     /* Extended kernel handles (lazy-loaded for verify ops) */
-    cl_program ext_program_         = nullptr;
-    cl_kernel  ext_ecdsa_verify_    = nullptr;
-    cl_kernel  ext_ecdsa_lbtc_      = nullptr;
-    cl_kernel  ext_schnorr_verify_  = nullptr;
+    cl_program ext_program_                = nullptr;
+    cl_kernel  ext_ecdsa_verify_           = nullptr;
+    cl_kernel  ext_ecdsa_verify_compressed_ = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_             = nullptr;
+    cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
-    cl_kernel  ext_ecdsa_snark_        = nullptr;
-    cl_kernel  ext_schnorr_snark_      = nullptr;
+    cl_kernel  ext_ecdsa_snark_            = nullptr;
+    cl_kernel  ext_ecdsa_snark_compressed_ = nullptr;
+    cl_kernel  ext_schnorr_snark_          = nullptr;
     bool       ext_init_attempted_  = false;
 
     /* FROST kernel handles (lazy-loaded) */
@@ -2096,8 +2068,8 @@ private:
 
     /* -- Lazy-load extended OpenCL program for verify kernels -------------- */
     GpuError ensure_extended_kernels() {
-        if (ext_ecdsa_verify_ && ext_ecdsa_lbtc_ && ext_schnorr_verify_ &&
-            ext_ecrecover_ && ext_ecdsa_snark_ && ext_schnorr_snark_)
+        if (ext_ecdsa_verify_ && ext_ecdsa_verify_compressed_ && ext_ecdsa_lbtc_ && ext_schnorr_verify_ &&
+            ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ && ext_schnorr_snark_)
             return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
@@ -2165,6 +2137,13 @@ private:
             return set_error(GpuError::Launch, "ecdsa_verify kernel not found");
         }
 
+        ext_ecdsa_verify_compressed_ = clCreateKernel(ext_program_, "ecdsa_verify_compressed", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_verify_); ext_ecdsa_verify_ = nullptr;
+            clReleaseProgram(ext_program_); ext_program_ = nullptr;
+            return set_error(GpuError::Launch, "ecdsa_verify_compressed kernel not found");
+        }
+
         ext_ecdsa_lbtc_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_rows", &err);
         if (err != CL_SUCCESS) {
             clReleaseKernel(ext_ecdsa_verify_); ext_ecdsa_verify_ = nullptr;
@@ -2194,9 +2173,22 @@ private:
             clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
             clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
             clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "ecdsa_snark_witness_batch kernel not found");
+        }
+
+        ext_ecdsa_snark_compressed_ = clCreateKernel(ext_program_, "ecdsa_snark_witness_batch_compressed", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "ecdsa_snark_witness_batch_compressed kernel not found");
         }
 
         ext_schnorr_snark_ = clCreateKernel(ext_program_, "schnorr_snark_witness_batch", &err);

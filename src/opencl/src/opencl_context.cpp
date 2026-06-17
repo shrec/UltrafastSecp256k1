@@ -141,6 +141,7 @@ struct Context::Impl {
     cl_kernel kernel_point_double = nullptr;
     cl_kernel kernel_point_add = nullptr;
     cl_kernel kernel_scalar_mul = nullptr;
+    cl_kernel kernel_scalar_mul_compressed = nullptr;
     cl_kernel kernel_scalar_mul_generator = nullptr;
     cl_kernel kernel_batch_inversion = nullptr;
     cl_kernel kernel_batch_jacobian_to_affine = nullptr;
@@ -210,6 +211,7 @@ struct Context::Impl {
         if (kernel_point_double) clReleaseKernel(kernel_point_double);
         if (kernel_point_add) clReleaseKernel(kernel_point_add);
         if (kernel_scalar_mul) clReleaseKernel(kernel_scalar_mul);
+        if (kernel_scalar_mul_compressed) clReleaseKernel(kernel_scalar_mul_compressed);
         if (kernel_scalar_mul_generator) clReleaseKernel(kernel_scalar_mul_generator);
         if (kernel_batch_inversion) clReleaseKernel(kernel_batch_inversion);
         if (kernel_batch_jacobian_to_affine) clReleaseKernel(kernel_batch_jacobian_to_affine);
@@ -1520,6 +1522,39 @@ __kernel void msm_block_reduce_kernel(
     if (tid == 0) block_results[get_group_id(0)] = sdata[0];
 }
 
+/* scalar_mul_compressed — GPU-side pubkey decompression + scalar multiplication.
+ * Takes 33-byte SEC1 compressed pubkeys, decompresses in registers,
+ * then multiplies by scalar. Eliminates CPU sqrt+parity. */
+__kernel void scalar_mul_compressed(
+    __global const Scalar* scalars,
+    __global const uchar* pubkeys33,
+    __global JacobianPoint* results,
+    uint count)
+{
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    Scalar k = scalars[gid];
+
+    // Decompress pubkey on GPU (33 bytes → AffinePoint)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        point_set_infinity(&pub);
+        results[gid] = pub;
+        return;
+    }
+
+    // Convert Jacobian (decompressed, z=1) → AffinePoint
+    AffinePoint aff;
+    aff.x = pub.x;
+    aff.y = pub.y;
+
+    // Scalar multiply
+    JacobianPoint r;
+    scalar_mul_impl(&r, &k, &aff);
+    results[gid] = r;
+}
+
 )KERNEL",
 
 // ---- fourth segment (affine batch ops + jacobian_to_affine) ----
@@ -1845,6 +1880,7 @@ bool Context::Impl::create_kernels() {
     if (err != CL_SUCCESS) { last_error = "Failed to create scalar_mul_generator kernel"; return false; }
 
     kernel_scalar_mul = clCreateKernel(program, "scalar_mul", &err);
+    kernel_scalar_mul_compressed = clCreateKernel(program, "scalar_mul_compressed", &err);
     if (err != CL_SUCCESS) { last_error = "Failed to create scalar_mul kernel"; return false; }
 
     kernel_batch_jacobian_to_affine = clCreateKernel(program, "batch_jacobian_to_affine_kernel", &err);
@@ -2489,6 +2525,53 @@ void Context::batch_scalar_mul(const Scalar* scalars, const AffinePoint* points,
     clFinish(impl_->queue);
 }
 
+void Context::batch_scalar_mul_compressed(const Scalar* scalars, const uint8_t* pubkeys33,
+                                           JacobianPoint* results, std::size_t count) {
+    if (count == 0) return;
+    cl_int err;
+
+    // Temporary buffers (no persistent cache — lightweight path)
+    cl_mem d_scalars = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       count * sizeof(Scalar), const_cast<Scalar*>(scalars), &err);
+    cl_mem d_pubs33  = clCreateBuffer(impl_->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       count * 33, const_cast<uint8_t*>(pubkeys33), &err);
+    cl_mem d_results = clCreateBuffer(impl_->context, CL_MEM_WRITE_ONLY,
+                                       count * sizeof(JacobianPoint), nullptr, &err);
+    if (!d_scalars || !d_pubs33 || !d_results) {
+        if (d_scalars) clReleaseMemObject(d_scalars);
+        if (d_pubs33)  clReleaseMemObject(d_pubs33);
+        if (d_results) clReleaseMemObject(d_results);
+        return;
+    }
+
+    cl_uint cnt = static_cast<cl_uint>(count);
+    clSetKernelArg(impl_->kernel_scalar_mul_compressed, 0, sizeof(cl_mem), &d_scalars);
+    clSetKernelArg(impl_->kernel_scalar_mul_compressed, 1, sizeof(cl_mem), &d_pubs33);
+    clSetKernelArg(impl_->kernel_scalar_mul_compressed, 2, sizeof(cl_mem), &d_results);
+    clSetKernelArg(impl_->kernel_scalar_mul_compressed, 3, sizeof(cl_uint), &cnt);
+
+    std::size_t local_size, global_size;
+    compute_scalar_mul_work_sizes(count, impl_->config.local_work_size,
+                                  128, impl_->device_info.max_work_group_size,
+                                  local_size, global_size,
+                                  impl_->kernel_scalar_mul_compressed, impl_->device);
+
+    clEnqueueNDRangeKernel(impl_->queue, impl_->kernel_scalar_mul_compressed, 1, nullptr,
+                           &global_size, &local_size, 0, nullptr, nullptr);
+    clEnqueueReadBuffer(impl_->queue, d_results, CL_TRUE, 0,
+                        count * sizeof(JacobianPoint), results, 0, nullptr, nullptr);
+
+    // Rule 10: zero scalar buffer
+    cl_uchar zero = 0;
+    clEnqueueFillBuffer(impl_->queue, d_scalars, &zero, 1, 0,
+                        count * sizeof(Scalar), 0, nullptr, nullptr);
+    clFinish(impl_->queue);
+
+    clReleaseMemObject(d_scalars);
+    clReleaseMemObject(d_pubs33);
+    clReleaseMemObject(d_results);
+}
+
 void Context::batch_field_inv(const FieldElement* inputs, FieldElement* outputs, std::size_t count) {
     if (count == 0) return;
 
@@ -2603,6 +2686,7 @@ void* Context::native_kernel(const char* name) const {
     if (n == "point_double") return impl_->kernel_point_double;
     if (n == "point_add") return impl_->kernel_point_add;
     if (n == "scalar_mul") return impl_->kernel_scalar_mul;
+    if (n == "scalar_mul_compressed") return impl_->kernel_scalar_mul_compressed;
     if (n == "scalar_mul_generator") return impl_->kernel_scalar_mul_generator;
     if (n == "batch_jacobian_to_affine") return impl_->kernel_batch_jacobian_to_affine;
     if (n == "batch_jacobian_to_affine_kernel") return impl_->kernel_batch_jacobian_to_affine;
