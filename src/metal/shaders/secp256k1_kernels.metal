@@ -1449,6 +1449,69 @@ kernel void bip352_scan_pipeline(
     prefixes[tid] = prefix;
 }
 
+// BIP-352 scan pipeline — compressed pubkey variant (GPU-side decompress)
+kernel void bip352_scan_pipeline_compressed(
+    device const uchar* tweak_pubkeys33 [[buffer(0)]],
+    constant Scalar256&       scan_scalar     [[buffer(1)]],
+    device const uchar* spend_pubkey33  [[buffer(2)]],
+    device ulong*             prefixes        [[buffer(3)]],
+    constant uint&            count           [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Decompress tweak pubkey on GPU
+    JacobianPoint tweak_jac;
+    if (!lbtc_point_from_compressed(tweak_pubkeys33 + tid * 33, tweak_jac)) {
+        prefixes[tid] = 0; return;
+    }
+    AffinePoint tweak; tweak.x = tweak_jac.x; tweak.y = tweak_jac.y;
+
+    // Decompress spend pubkey on GPU
+    JacobianPoint spend_jac;
+    if (!lbtc_point_from_compressed(spend_pubkey33, spend_jac)) {
+        prefixes[tid] = 0; return;
+    }
+    AffinePoint spend; spend.x = spend_jac.x; spend.y = spend_jac.y;
+
+    // Phase 1: shared = scan_scalar × tweak
+    thread Scalar256 local_scan_scalar = scan_scalar;
+    JacobianPoint shared = scalar_mul_glv(tweak, local_scan_scalar);
+    if (shared.infinity != 0) { prefixes[tid] = 0; return; }
+
+    // Phase 2: serialize shared secret
+    AffinePoint shared_aff = jacobian_to_affine(shared);
+    uchar x_bytes[32], y_bytes[32];
+    field_to_bytes(shared_aff.x, x_bytes);
+    field_to_bytes(shared_aff.y, y_bytes);
+    uchar ser[37];
+    ser[0] = (y_bytes[31] & 1u) ? 0x03 : 0x02;
+    for (int i = 0; i < 32; i++) ser[1 + i] = x_bytes[i];
+    ser[33] = 0; ser[34] = 0; ser[35] = 0; ser[36] = 0;
+
+    // Phase 3: tagged SHA-256
+    SHA256Ctx sha_ctx;
+    for (int i = 0; i < 8; i++) sha_ctx.h[i] = BIP352_SHAREDSECRET_MIDSTATE[i];
+    sha_ctx.buf_len = 0;
+    sha_ctx.total_len_lo = 64;
+    sha_ctx.total_len_hi = 0;
+    sha256_update(sha_ctx, ser, 37);
+    uchar hash[32];
+    sha256_final(sha_ctx, hash);
+
+    // Phase 4-6: hash × G + spend → prefix
+    Scalar256 hs = scalar_from_bytes(hash);
+    JacobianPoint out_pt = scalar_mul_generator_windowed(hs);
+    JacobianPoint cand = jacobian_add_mixed(out_pt, spend);
+    if (cand.infinity != 0) { prefixes[tid] = 0; return; }
+    AffinePoint cand_aff = jacobian_to_affine(cand);
+    uchar cx[32];
+    field_to_bytes(cand_aff.x, cx);
+    ulong prefix = 0;
+    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | ulong(cx[i]);
+    prefixes[tid] = prefix;
+}
+
 // =============================================================================
 // ECDSA SNARK Witness Batch
 // =============================================================================

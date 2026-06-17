@@ -1352,40 +1352,24 @@ public:
         MetalScalar256 scan_scalar = be32_to_metal_scalar(scan_privkey32);
         MetalScalarEraseGuard scan_scalar_guard{&scan_scalar, 1};
 
-        /* Decompress spend pubkey → MetalAffinePoint */
-        MetalAffinePoint spend_pt;
-        if (!sec1_33_to_metal_affine(spend_pubkey33, spend_pt))
-            return set_error(GpuError::BadPubkey,
-                             "invalid spend_pubkey in bip352_scan_batch");
-
-        /* Decompress N tweak pubkeys → MetalAffinePoint[] */
-        auto& scratch = g_metal_batch_scratch;
-        scratch.ensure_affine_points(n_tweaks);
-        for (size_t i = 0; i < n_tweaks; ++i) {
-            if (!sec1_33_to_metal_affine(tweak_pubkeys33 + i * 33, scratch.affine_points[i]))
-                return set_error(GpuError::BadPubkey,
-                                 "invalid tweak_pubkey in bip352_scan_batch");
-        }
-
-        /* Build Metal buffers */
-        auto buf_tweaks = runtime_->alloc_buffer_shared(n_tweaks * sizeof(MetalAffinePoint));
+        /* Build Metal buffers — pass 33-byte pubkeys directly (GPU decompresses) */
+        auto buf_tweaks = runtime_->alloc_buffer_shared(n_tweaks * 33);
         auto buf_scan   = runtime_->alloc_buffer_shared(sizeof(MetalScalar256));
-        auto buf_spend  = runtime_->alloc_buffer_shared(sizeof(MetalAffinePoint));
+        auto buf_spend  = runtime_->alloc_buffer_shared(33);
         auto buf_prefix = runtime_->alloc_buffer_shared(n_tweaks * sizeof(uint64_t));
         auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
 
-        std::memcpy(buf_tweaks.contents(), scratch.affine_points.data(),
-                    n_tweaks * sizeof(MetalAffinePoint));
+        std::memcpy(buf_tweaks.contents(), tweak_pubkeys33, n_tweaks * 33);
         std::memcpy(buf_scan.contents(),  &scan_scalar, sizeof(scan_scalar));
         MetalBufferEraseGuard buf_scan_guard{&buf_scan};
-        std::memcpy(buf_spend.contents(), &spend_pt,    sizeof(spend_pt));
+        std::memcpy(buf_spend.contents(), spend_pubkey33, 33);
         uint32_t n32 = (uint32_t)n_tweaks;
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
-        auto pipe = runtime_->make_pipeline("bip352_scan_pipeline");
+        auto pipe = runtime_->make_pipeline("bip352_scan_pipeline_compressed");
         if (!pipe.valid())
             return set_error(GpuError::Launch,
-                             "Metal: bip352_scan_pipeline kernel missing from loaded library");
+                             "Metal: bip352_scan_pipeline_compressed kernel missing from loaded library");
         runtime_->dispatch_sync(pipe, n32, 64u,
                                 {&buf_tweaks, &buf_scan, &buf_spend, &buf_prefix, &buf_count});
 
