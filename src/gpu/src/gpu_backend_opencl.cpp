@@ -229,7 +229,8 @@ public:
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
-        if (ext_ecdsa_snark_compressed_) { clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr; }
+        if (ext_ecdsa_snark_compressed_)      { clReleaseKernel(ext_ecdsa_snark_compressed_);      ext_ecdsa_snark_compressed_      = nullptr; }
+        if (ext_ecdh_scalar_mul_compressed_) { clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr; }
         if (ext_schnorr_snark_)  { clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_  = nullptr; }
         if (ext_program_)        { clReleaseProgram(ext_program_);       ext_program_        = nullptr; }
         ext_init_attempted_ = false;
@@ -558,34 +559,68 @@ public:
         return set_error(GpuError::Unsupported, "GPU ECDH module disabled at build time");
 #endif
 
-        /* Validate all peer pubkeys BEFORE loading any private key material.
-           This ensures no early-return path leaves h_scalars populated
-           without a corresponding secure_erase (Rule 10). */
-        std::vector<secp256k1::opencl::AffinePoint> h_peers(count);
-        for (size_t i = 0; i < count; ++i) {
-            if (!pubkey33_to_affine(peer_pubkeys33 + i * 33, &h_peers[i]))
-                return set_error(GpuError::BadKey, "invalid peer pubkey");
-        }
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
 
-        /* Load private keys only after all pubkeys are confirmed valid. */
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+
+        /* Load private keys (Rule 10: zero after use) */
         std::vector<secp256k1::opencl::Scalar> h_scalars(count);
-        // RAII guard: erasure is guaranteed even if batch_scalar_mul throws (Guardrail #10)
         struct ScalarEraseGuard {
             std::vector<secp256k1::opencl::Scalar>& v;
             ~ScalarEraseGuard() {
-                secp256k1::detail::secure_erase(v.data(),
-                                                v.size() * sizeof(v[0]));
+                secp256k1::detail::secure_erase(v.data(), v.size() * sizeof(v[0]));
             }
         } _scalar_guard{h_scalars};
-
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
-        /* GPU: batch scalar_mul(priv[i], peer[i]) → Jacobian */
+        /* Upload scalars */
+        cl_mem d_scalars = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          count * sizeof(secp256k1::opencl::Scalar),
+                                          h_scalars.data(), &clerr);
+        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "scalar buffer alloc");
+
+        /* Pass 33-byte compressed pubkeys directly (GPU decompresses) */
+        cl_mem d_pubs33 = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                         33 * count, const_cast<uint8_t*>(peer_pubkeys33), &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_scalars);
+            return set_error(GpuError::Memory, "pubkey buffer alloc");
+        }
+
+        /* Results: JacobianPoint per item */
+        cl_mem d_jac = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
+                                      count * sizeof(secp256k1::opencl::JacobianPoint),
+                                      nullptr, &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_pubs33); clReleaseMemObject(d_scalars);
+            return set_error(GpuError::Memory, "result buffer alloc");
+        }
+
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 0, sizeof(cl_mem), &d_scalars);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 1, sizeof(cl_mem), &d_pubs33);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 2, sizeof(cl_mem), &d_jac);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 3, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        clerr = clEnqueueNDRangeKernel(queue, ext_ecdh_scalar_mul_compressed_, 1, nullptr,
+                                       &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_jac); clReleaseMemObject(d_pubs33);
+            clReleaseMemObject(d_scalars);
+            return set_error(GpuError::Launch, "ecdh_scalar_mul_compressed launch failed");
+        }
+        clFinish(queue);
+
+        /* Read Jacobian results → GPU Jacobian→Affine → CPU compress+SHA256 */
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
-        ctx_->batch_scalar_mul(h_scalars.data(), h_peers.data(),
-                               h_jac.data(), count);
-        // h_scalars erased by _scalar_guard destructor
+        clEnqueueReadBuffer(queue, d_jac, CL_TRUE, 0,
+                            count * sizeof(secp256k1::opencl::JacobianPoint),
+                            h_jac.data(), 0, nullptr, nullptr);
 
         /* GPU: Jacobian → Affine */
         std::vector<secp256k1::opencl::AffinePoint> h_aff(count);
@@ -598,6 +633,16 @@ public:
             auto digest = secp256k1::SHA256::hash(compressed, sizeof(compressed));
             std::memcpy(out_secrets32 + i * 32, digest.data(), 32);
         }
+
+        // Rule 10: zero scalar buffer
+        cl_uchar zero = 0;
+        clEnqueueFillBuffer(queue, d_scalars, &zero, 1, 0,
+                            count * sizeof(secp256k1::opencl::Scalar), 0, nullptr, nullptr);
+        clFinish(queue);
+
+        clReleaseMemObject(d_jac);
+        clReleaseMemObject(d_pubs33);
+        clReleaseMemObject(d_scalars);
 
         clear_error();
         return GpuError::Ok;
@@ -2013,8 +2058,9 @@ private:
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
-    cl_kernel  ext_ecdsa_snark_compressed_ = nullptr;
-    cl_kernel  ext_schnorr_snark_          = nullptr;
+    cl_kernel  ext_ecdsa_snark_compressed_      = nullptr;
+    cl_kernel  ext_ecdh_scalar_mul_compressed_ = nullptr;
+    cl_kernel  ext_schnorr_snark_               = nullptr;
     bool       ext_init_attempted_  = false;
 
     /* FROST kernel handles (lazy-loaded) */
@@ -2073,7 +2119,8 @@ private:
     /* -- Lazy-load extended OpenCL program for verify kernels -------------- */
     GpuError ensure_extended_kernels() {
         if (ext_ecdsa_verify_ && ext_ecdsa_verify_compressed_ && ext_ecdsa_lbtc_ && ext_schnorr_verify_ &&
-            ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ && ext_schnorr_snark_)
+            ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ &&
+            ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_)
             return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
@@ -2193,6 +2240,19 @@ private:
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "ecdsa_snark_witness_batch_compressed kernel not found");
+        }
+
+        ext_ecdh_scalar_mul_compressed_ = clCreateKernel(ext_program_, "ecdh_scalar_mul_compressed", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "ecdh_scalar_mul_compressed kernel not found");
         }
 
         ext_schnorr_snark_ = clCreateKernel(ext_program_, "schnorr_snark_witness_batch", &err);

@@ -2104,6 +2104,39 @@ __kernel void ecdsa_verify_lbtc_rows(
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
 }
 
+/* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.
+ * Takes 33-byte SEC1 compressed pubkeys + private scalars.
+ * Decompresses pubkeys in registers, then multiplies by scalar.
+ * Used by ECDH batch path to eliminate CPU sqrt+parity. */
+__kernel void ecdh_scalar_mul_compressed(
+    __global const Scalar* scalars,
+    __global const uchar* pubkeys33,
+    __global JacobianPoint* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    Scalar k = scalars[gid];
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint with z=1)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        point_set_infinity(&pub);
+        results[gid] = pub;
+        return;
+    }
+
+    // Convert Jacobian (z=1) → AffinePoint for scalar_mul_glv_impl
+    AffinePoint aff;
+    aff.x = pub.x;
+    aff.y = pub.y;
+
+    JacobianPoint r;
+    scalar_mul_glv_impl(&r, &k, &aff);
+    results[gid] = r;
+}
+
 __kernel void ecrecover_batch(
     __global const uchar* msg_hashes,
     __global const ECDSASignature* signatures,
