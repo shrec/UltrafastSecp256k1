@@ -1698,38 +1698,56 @@ kernel void ecdsa_snark_witness_batch_compressed(
     field_to_bytes(R_aff.y, ry);
 
     Scalar256 rx_scalar = scalar_from_bytes(rx);
-    bool valid = !scalar256_is_zero(rx_scalar);
+    bool valid = scalar256_eq(rx_scalar, sig_r);
     if (!valid) return;
 
-    Scalar256 n_val;
-    for (int i = 0; i < 8; i++) n_val.limbs[i] = SECP256K1_N[i];
-    Scalar256 rx_mod_n = scalar_sub_mod_n(rx_scalar, n_val);
+    // rx_mod_n via scalar_from_bytes (already reduced mod n)
+    uchar rx_mod_n[32];
+    scalar_to_bytes(rx_scalar, rx_mod_n);
 
-    // Write witness record (same layout as original)
-    for (int i = 0; i < 32; i++) out_flat[rec_off + i]   = msg[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 32 + i]  = r_be[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 64 + i]  = s_be[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 96 + i]  = pub_x_be[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 128 + i] = ry[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 160 + i] = pub_y_be[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 192 + i] = rx[i];
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 224 + i] = (i < 32) ? rx[i] : 0;
-    for (int i = 0; i < 32; i++) out_flat[rec_off + 256 + i] = (i < 32) ? rx[i] : 0;
+    // ---- serialize into flat 760-byte record ----
+    // bytes 0-31:   msg
+    for (int i = 0; i < 32; i++) out_flat[rec_off +   0 + i] = msg[i];
+    // bytes 32-63:  sig_r
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  32 + i] = r_be[i];
+    // bytes 64-95:  sig_s
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  64 + i] = s_be[i];
+    // bytes 96-127: pub_x
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  96 + i] = pub_x_be[i];
+    // bytes 128-159: pub_y
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 128 + i] = pub_y_be[i];
+    // bytes 160-191: s_inv
+    uchar s_inv_bytes[32]; scalar_to_bytes(s_inv, s_inv_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 160 + i] = s_inv_bytes[i];
+    // bytes 192-223: u1
+    uchar u1_bytes[32]; scalar_to_bytes(u1, u1_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 192 + i] = u1_bytes[i];
+    // bytes 224-255: u2
+    uchar u2_bytes[32]; scalar_to_bytes(u2, u2_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 224 + i] = u2_bytes[i];
+    // bytes 256-287: R.x
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 256 + i] = rx[i];
+    // bytes 288-319: R.y
     for (int i = 0; i < 32; i++) out_flat[rec_off + 288 + i] = ry[i];
+    // bytes 320-351: result_x_mod_n
     for (int i = 0; i < 32; i++) out_flat[rec_off + 352 - 32 + i] = rx_mod_n[i];
 
+    // 10 foreign-field limb arrays × 5 × 8 bytes = 400 bytes, offset 352..751
     ulong lmb[5];
-    scalar_to_ff_limbs(sig_r,  lmb); write_ff_limbs(out_flat, rec_off + 352, lmb);
-    scalar_to_ff_limbs(sig_s,  lmb); write_ff_limbs(out_flat, rec_off + 392, lmb);
-    be32_to_ff_limbs(pub_x_be, lmb); write_ff_limbs(out_flat, rec_off + 432, lmb);
-    be32_to_ff_limbs(pub_y_be, lmb); write_ff_limbs(out_flat, rec_off + 472, lmb);
-    scalar_to_ff_limbs(s_inv,  lmb); write_ff_limbs(out_flat, rec_off + 512, lmb);
-    scalar_to_ff_limbs(u1,     lmb); write_ff_limbs(out_flat, rec_off + 552, lmb);
-    scalar_to_ff_limbs(u2,     lmb); write_ff_limbs(out_flat, rec_off + 592, lmb);
-    be32_to_ff_limbs(rx,       lmb); write_ff_limbs(out_flat, rec_off + 632, lmb);
-    be32_to_ff_limbs(ry,       lmb); write_ff_limbs(out_flat, rec_off + 672, lmb);
-    be32_to_ff_limbs(rx_mod_n, lmb); write_ff_limbs(out_flat, rec_off + 712, lmb);
+    scalar_to_ff_limbs(sig_r,  lmb); write_ff_limbs(out_flat, rec_off + 352, lmb); // [0]
+    scalar_to_ff_limbs(sig_s,  lmb); write_ff_limbs(out_flat, rec_off + 392, lmb); // [1]
+    be32_to_ff_limbs(pub_x_be, lmb); write_ff_limbs(out_flat, rec_off + 432, lmb); // [2]
+    be32_to_ff_limbs(pub_y_be, lmb); write_ff_limbs(out_flat, rec_off + 472, lmb); // [3]
+    scalar_to_ff_limbs(s_inv,  lmb); write_ff_limbs(out_flat, rec_off + 512, lmb); // [4]
+    scalar_to_ff_limbs(u1,     lmb); write_ff_limbs(out_flat, rec_off + 552, lmb); // [5]
+    scalar_to_ff_limbs(u2,     lmb); write_ff_limbs(out_flat, rec_off + 592, lmb); // [6]
+    be32_to_ff_limbs(rx,       lmb); write_ff_limbs(out_flat, rec_off + 632, lmb); // [7]
+    be32_to_ff_limbs(ry,       lmb); write_ff_limbs(out_flat, rec_off + 672, lmb); // [8]
+    be32_to_ff_limbs(rx_mod_n, lmb); write_ff_limbs(out_flat, rec_off + 712, lmb); // [9]
+    // bytes 752-755: valid (int32 LE)
     write_u32_le(out_flat, rec_off + 752, valid ? 1 : 0);
+    // bytes 756-759: _pad (already zero)
+    // Total record size: 352 + 400 + 8 = 760 bytes ✓
 }
 
 // =============================================================================

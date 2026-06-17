@@ -221,14 +221,6 @@ public:
         std::size_t count
     );
 
-    // Batch scalar multiplication with compressed pubkeys (GPU-side decompress)
-    void batch_scalar_mul_compressed(
-        const Scalar* scalars,
-        const uint8_t* pubkeys33,
-        JacobianPoint* results,
-        std::size_t count
-    );
-
     // Batch field inversion: result[i] = a[i]^(-1)
     void batch_field_inv(
         const FieldElement* inputs,

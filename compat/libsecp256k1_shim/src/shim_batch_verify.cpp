@@ -182,6 +182,10 @@ int ecdsa_batch_core(
         return 1;
     }
 
+    // Marshalling scratch is a thread_local grow-only vector: it is cleared (not
+    // freed) between calls so capacity is retained for amortized performance on
+    // repeated large batches. shrink_to_fit() removed (PERF-004) — shrinking would
+    // force a reallocation on the next batch and defeat the amortization.
     static thread_local std::vector<secp256k1::ECDSABatchEntry> batch;
     batch.clear();
     batch.reserve(n);

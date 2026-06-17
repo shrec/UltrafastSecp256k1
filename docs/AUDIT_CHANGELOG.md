@@ -1,5 +1,25 @@
 # Audit Changelog
 
+## 2026-06-17 — Restore PERF-004 marker + thread-cap regression coverage (CI fix)
+
+- **`regression_adaptor_blinded_nonce` green again.** The 2026-06-17 bridge-free
+  rewrite of `compat/libsecp256k1_shim/src/shim_batch_verify.cpp` dropped the
+  `shrink_to_fit() removed (PERF-004 ...)` marker comment that the audit module's
+  P3-BATCH-MEM source-scan keys on, turning the check red across the CI matrix,
+  Sanitizers, the Security Audit workflow, and the Shim Security Gate (build was
+  fine; only the deterministic source-scan failed). The design never changed — the
+  marshalling scratch is still a `thread_local` grow-only vector that retains
+  capacity — so the fix restores the documenting marker truthfully.
+- **`regression_ecdsa_batch_verify_mt` extended** with a no-thread-cap guard:
+  asserts thread budgets above the old 64 cap {65,128,256,1024} are accepted and
+  match serial, and source-scans `batch_verify.cpp` to assert no `kMaxThreads`
+  cap / fixed `std::array<std::thread,64>` pool remains and a dynamic
+  `std::vector<std::thread>` pool is used.
+- **Paired ABI docs** (`SECURITY_CLAIMS.md`, `FFI_HOSTILE_CALLER.md`) updated for
+  the `ufsecp_ecdsa_batch_verify_mt` thread-budget contract (no arbitrary cap;
+  caller owns thread priority). Retroactive test-coverage entry added for commit
+  `1f341508` in `ci/check_security_fix_has_test.py`.
+
 ## 2026-06-17 — Remove arbitrary 64-thread cap from batch_verify_mt
 
 - **`ecdsa_batch_verify_mt` / `schnorr_batch_verify_mt`** (`src/cpu/src/batch_verify.cpp`)

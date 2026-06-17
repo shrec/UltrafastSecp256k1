@@ -560,8 +560,12 @@ public:
 
         /* Validate all peer pubkeys BEFORE loading any private key material.
            This ensures no early-return path leaves h_scalars populated
-           without a corresponding secure_erase (Rule 10).
-           GPU decompresses pubkeys via scalar_mul_compressed kernel. */
+           without a corresponding secure_erase (Rule 10). */
+        std::vector<secp256k1::opencl::AffinePoint> h_peers(count);
+        for (size_t i = 0; i < count; ++i) {
+            if (!pubkey33_to_affine(peer_pubkeys33 + i * 33, &h_peers[i]))
+                return set_error(GpuError::BadKey, "invalid peer pubkey");
+        }
 
         /* Load private keys only after all pubkeys are confirmed valid. */
         std::vector<secp256k1::opencl::Scalar> h_scalars(count);
@@ -577,10 +581,10 @@ public:
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
-        /* GPU: batch scalar_mul_compressed(priv[i], peer33[i]) → Jacobian (decompress+multiply in one step) */
+        /* GPU: batch scalar_mul(priv[i], peer[i]) → Jacobian */
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
-        ctx_->batch_scalar_mul_compressed(h_scalars.data(), peer_pubkeys33,
-                                          h_jac.data(), count);
+        ctx_->batch_scalar_mul(h_scalars.data(), h_peers.data(),
+                               h_jac.data(), count);
         // h_scalars erased by _scalar_guard destructor
 
         /* GPU: Jacobian → Affine */

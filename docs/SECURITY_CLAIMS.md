@@ -1170,17 +1170,24 @@ back to the host-collapse path. Hostile-caller quartet: see
 `secp256k1::ecdsa_batch_verify_mt` (engine) and its thin ABI wrapper
 `ufsecp_ecdsa_batch_verify_mt` add **CPU parallelism as a first-class engine
 feature**: a large ECDSA batch is split into fixed-size chunks pulled from an
-atomic work queue and verified across up to `max_threads` threads (0 = auto,
-1 = serial). Like all verification, inputs are **public data** (message hashes,
+atomic work queue and verified across up to `max_threads` threads (0 = auto =
+`hardware_concurrency()`, 1 = serial). The worker count is the caller's to own:
+an explicit `max_threads` is honoured and reduced only to what the hardware can
+run (and to the chunk count) — there is **no arbitrary upper cap** (the former
+hard-coded 64-thread limit and fixed `std::array<std::thread,64>` pool were
+removed 2026-06-17 in favour of a dynamic `std::vector<std::thread>`); workers
+inherit the calling process's thread priority. Like all verification, inputs are
+**public data** (message hashes,
 public keys, signatures — all on-chain), so **no private key, nonce, or secret
 material is processed** and the CT-vs-variable-time boundary does not apply
 (variable-time verify is correct per the verify-path rule). Threading therefore
 has **zero side-channel relevance**: each chunk runs the audited serial
 `ecdsa_batch_verify`, and the boolean accept/reject result is bit-identical to
 the single-threaded path for any thread count (proven by
-`regression_ecdsa_batch_verify_mt`: parity across thread counts {0,1,2,4,8,64},
-single-sig corruption detection, and corruption propagation across multi-chunk
-batches). Thread-safety rests on the GLV/generator precompute being a C++11
+`regression_ecdsa_batch_verify_mt`: parity across thread counts {0,1,2,4,8,64}
+and above the old cap {65,128,256,1024}, a source-scan asserting no `kMaxThreads`
+cap remains, single-sig corruption detection, and corruption propagation across
+multi-chunk batches). Thread-safety rests on the GLV/generator precompute being a C++11
 function-local magic static and `ecdsa_batch_verify`'s `thread_local` scratch —
 the same guarantees the existing parallel sign batch relies on. The serial
 `ufsecp_ecdsa_batch_verify` is unchanged; integrators choose. Hostile-caller
