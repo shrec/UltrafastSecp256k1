@@ -102,6 +102,14 @@ size_t ufsecp_ctx_size(void) {
     return sizeof(ufsecp_ctx);
 }
 
+ufsecp_error_t ufsecp_set_cache_dir(const char* dir) {
+    // Programmatic replacement for config.ini: point the engine at the caller's
+    // fixed-base cache directory. NULL/"" means "use the current directory".
+    // The library never creates or reads a config.ini.
+    secp256k1::fast::set_cache_directory(dir ? std::string(dir) : std::string());
+    return UFSECP_OK;
+}
+
 /* ===========================================================================
  * Context randomization / scalar blinding
  * =========================================================================== */

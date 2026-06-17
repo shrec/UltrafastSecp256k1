@@ -337,6 +337,52 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
 
 ## Capability gaps and structural divergences
 
+### secp256k1_context_create — no config.ini created or read (SHIM-CACHE-INI)
+
+- **Upstream behavior:** libsecp256k1 has no on-disk fixed-base configuration file at all;
+  the precomputed generator tables are compiled in.
+- **Shim behavior:** the shim's one-time fixed-base initialization (`shim_ensure_fixed_base`)
+  no longer creates or reads a `config.ini` (and never writes `autotune.log`). It resolves the
+  fixed-base cache in this order: (1) `SECP256K1_CACHE_PATH` env → exact `.bin` file;
+  (2) the engine default, which reads/writes `cache_w{bits}[ _glv].bin` from the directory set
+  via `secp256k1::fast::set_cache_directory()` / `ufsecp_set_cache_dir()` / `SECP256K1_CACHE_DIR`,
+  or the current working directory when unset.
+- **Reason:** integrators (e.g. libbitcoin) manage their own configuration and must not have an
+  INI file silently written into their working directory. The cache directory is now a
+  programmatic, opt-in setting; callers that still want a file attach it explicitly via
+  `configure_fixed_base_from_file(<their path>)`.
+- **Impact:** any caller that previously relied on a `config.ini` being auto-created/auto-read
+  in the CWD must instead call `ufsecp_set_cache_dir()` / set `SECP256K1_CACHE_DIR`, or pass an
+  explicit config file. Default correctness is unchanged (same `.bin` cache behavior, w=18).
+- **Test:** `cache_dir_api` (`src/cpu/tests/test_cache_dir_api.cpp`) — asserts no `config.ini`
+  is created and that a caller-supplied cache directory keeps generator multiples correct.
+
+### secp256k1_*_verify_batch[_mt|_results] — additive batch extension (SHIM-BATCH-EXT)
+
+- **Upstream behavior:** libsecp256k1 has no batch-verification API.
+- **Shim behavior:** `secp256k1_batch.h` adds a non-upstream batch extension. Verifies n
+  signatures via one multi-scalar multiplication (Pippenger) plus the engine's first-class
+  multi-threaded batch verify (`ecdsa/schnorr_batch_verify_mt`):
+  - `secp256k1_ecdsa_verify_batch` / `secp256k1_schnorrsig_verify_batch` — auto-threaded,
+    all-or-nothing (return 1 iff every signature valid; `n==0` => 1 vacuously).
+  - `..._verify_batch_mt(..., max_threads)` — explicit thread control. `0` = auto
+    (`hardware_concurrency`, capped 64); `1` = serial (use when calling from your own thread
+    pool to avoid oversubscription); `N` = cap at N.
+  - `..._verify_batch_results(..., max_threads, results)` — writes a per-row verdict into
+    `results[i]` (`1`=valid, `0`=invalid/malformed) and returns 1 iff every row is valid.
+- **Result contract:** the boolean ("all valid") result is identical to single
+  `secp256k1_ecdsa_verify` / `secp256k1_schnorrsig_verify` for any thread count — threads are a
+  pure throughput change. High-S ECDSA signatures are accepted (matches single verify, SHIM-008).
+  Schnorr `msglen != 32` is served via per-signature verify (MSM needs fixed 32-byte slots),
+  matching upstream BIP-340 arbitrary-length semantics.
+- **No-failure contract:** these never throw across the C ABI. If internal thread creation
+  throws, they fall back to the serial verifier; the result is deterministic and identical to
+  the serial path. `_results` returns 0 on a NULL `results` pointer; NULL ctx fires the illegal
+  callback as elsewhere.
+- **CT:** variable-time over PUBLIC data only (pubkey/msg/sig); no secret material, no
+  secret-dependent branches added by threading.
+- **Test:** `shim_batch_mt` (`compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp`).
+
 ### secp256k1_ec_pubkey_serialize — too-small output buffer fails quietly
 
 - **Upstream behavior:** ARG_CHECKs `*outputlen >= 33` (compressed) / `>= 65` (uncompressed)

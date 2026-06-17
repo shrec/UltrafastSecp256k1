@@ -1421,6 +1421,40 @@ static void run_neg22_abi_version(void) {
 }
 
 // ---------------------------------------------------------------------------
+// NEG-23: cache directory API (config.ini replacement) — hostile inputs
+// ---------------------------------------------------------------------------
+// ufsecp_set_cache_dir(const char* dir) is the programmatic replacement for the
+// removed config.ini. Contract: it never creates/reads an INI file and NEVER
+// fails — NULL or an empty string means "use the current working directory",
+// and an arbitrary path string is simply stored (existence is not validated
+// here). These cases pin that no hostile string can crash, abort, or flip the
+// return code.
+static void run_neg23_cache_dir(void) {
+    // NEG-23.1: success_smoke — a valid directory string is accepted (== UFSECP_OK).
+    CHECK_OK(ufsecp_set_cache_dir("."),
+             "NEG-23.1: set_cache_dir(valid dir) succeeds");
+
+    // NEG-23.2: null_rejection analogue — NULL is accepted (NULL => CWD), not a crash.
+    // The contract intentionally treats a null pointer as "current directory".
+    CHECK_OK(ufsecp_set_cache_dir(nullptr),
+             "NEG-23.2: set_cache_dir(null) accepted as CWD (no crash)");
+
+    // NEG-23.3: zero_edge — an empty / zero-length string is accepted (=> CWD).
+    CHECK_OK(ufsecp_set_cache_dir(""),
+             "NEG-23.3: set_cache_dir(empty zero-length string) accepted");
+
+    // NEG-23.4: invalid_content — a bad/non-existent hostile path string must not
+    // crash or abort; the path is stored and the call still returns OK (the cache
+    // machinery fails closed later if it cannot use the directory).
+    CHECK_OK(ufsecp_set_cache_dir("/this/path/is/invalid/and/does/not/exist/\x01\x02"),
+             "NEG-23.4: set_cache_dir(invalid hostile path) does not crash");
+
+    // NEG-23.5: success_smoke — restore CWD default for any later cache use.
+    CHECK_OK(ufsecp_set_cache_dir(""),
+             "NEG-23.5: set_cache_dir restore default (valid) succeeds");
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -1460,6 +1494,7 @@ int test_c_abi_negative_run() {
     run_neg20_zk_snark(f.ctx, f.pubkey33, f.xonly32);
     run_neg21_gpu();
     run_neg22_abi_version();
+    run_neg23_cache_dir();
 
     printf("[test_c_abi_negative] %d/%d checks passed\n",
            g_pass, g_pass + g_fail);

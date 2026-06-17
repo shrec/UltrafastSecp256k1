@@ -90,6 +90,16 @@ void configure_fixed_base(const FixedBaseConfig& config);
 void ensure_fixed_base_ready();
 bool fixed_base_ready();
 
+// Set the directory the engine uses to read/write its fixed-base precompute
+// cache files (cache_w{bits}[ _glv].bin). Pass an empty string to use the
+// current working directory.
+//
+// This is the programmatic replacement for the legacy config.ini: callers point
+// the engine at their own cache location and no INI file is ever created or
+// read. Other fixed-base settings keep their current values. Takes effect on
+// the next fixed-base (re)build. Thread-safe on desktop builds.
+void set_cache_directory(const std::string& dir);
+
 // ----------------------------------------------------------------------------
 // Library-level helpers to reduce per-app boilerplate
 // ----------------------------------------------------------------------------
@@ -120,8 +130,11 @@ bool write_default_fixed_base_config(const std::string& path);
 // Returns true if the file exists after this call (created or pre-existing).
 bool ensure_fixed_base_config_file(const std::string& path);
 
-// Auto: prefer env (SECP256K1_CONFIG), otherwise use "config.ini" in CWD.
-// Creates a default file if missing, then loads and applies it.
+// Apply the engine's default fixed-base configuration WITHOUT any config file.
+// Reads/writes the cache (cache_w{bits}[ _glv].bin) from the directory set via
+// set_cache_directory()/SECP256K1_CACHE_DIR, or the current working directory
+// when unset. No config.ini is created or read. Callers that want explicit
+// settings attach them via configure_fixed_base_from_file(<their path>).
 bool configure_fixed_base_auto();
 
 // ----------------------------------------------------------------------------

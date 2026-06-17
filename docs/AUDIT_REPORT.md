@@ -17,7 +17,7 @@
 
 <!-- BEGIN CURRENT RELEASE VERSION -->
 <!-- This line is maintained by ci/sync_audit_report_version.py -->
-**Current Release Version:** 4.1.1  
+**Current Release Version:** 4.3.0  
 <!-- END CURRENT RELEASE VERSION -->
 **Historical Audit Baseline Version:** 4.0.0  
 **Audit Date:** 2026-02-11  

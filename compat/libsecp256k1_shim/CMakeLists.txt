@@ -221,4 +221,11 @@ if(SECP256K1_SHIM_BUILD_TESTS AND NOT SECP256K1_BUILD_SHIM)
     target_link_libraries(test_bip327_sign_verify_vectors PRIVATE secp256k1_shim)
     add_test(NAME bip327_sign_verify_vectors COMMAND test_bip327_sign_verify_vectors)
     set_tests_properties(bip327_sign_verify_vectors PROPERTIES LABELS "shim")
+
+    # Multi-threaded + per-row batch verify (bridge-free integration standard):
+    # MT==single across thread counts, per-row results pinpoint invalid rows.
+    add_executable(test_shim_batch_mt tests/test_shim_batch_mt.cpp)
+    target_link_libraries(test_shim_batch_mt PRIVATE secp256k1_shim)
+    add_test(NAME shim_batch_mt COMMAND test_shim_batch_mt)
+    set_tests_properties(shim_batch_mt PROPERTIES LABELS "shim")
 endif()

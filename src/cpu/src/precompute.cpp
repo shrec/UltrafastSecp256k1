@@ -2722,45 +2722,15 @@ bool ensure_fixed_base_config_file(const std::string& path) {
 }
 
 bool configure_fixed_base_auto() {
-    const std::string path = "config.ini";
-    ensure_fixed_base_config_file(path);
-    // Load current settings
-    FixedBaseConfig cfg{};
-    load_fixed_base_config_file(path, cfg);
-    // If autotune requested, perform it, then disable autotune and persist
-    if (cfg.autotune) {
-        std::string report;
-        if (auto_tune_fixed_base(cfg, &report, cfg.autotune_iters, cfg.autotune_min_w, cfg.autotune_max_w)) {
-            // Append timestamp and final choice to log if configured
-            if (!cfg.autotune_log_path.empty()) {
-                try {
-                    std::ofstream log(cfg.autotune_log_path, std::ios::app);
-                    if (log.is_open()) {
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t const tt = std::chrono::system_clock::to_time_t(now);
-                        std::tm tm_buf{};
-#if defined(_WIN32)
-                        localtime_s(&tm_buf, &tt);
-#else
-                        localtime_r(&tt, &tm_buf);
-#endif
-                        log << "==== AUTOTUNE RUN " << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << " ====" << '\n';
-                        log << report;
-                        log << "Selected: window_bits=" << cfg.window_bits
-                            << " glv=" << (cfg.enable_glv?"true":"false")
-                            << " jsf=" << (cfg.use_jsf?"true":"false") << '\n';
-                        log << "---------------------------------------------\n";
-                    }
-                } catch (...) {
-                    // Intentionally ignore logging I/O errors -- non-critical.
-                    (void)0;
-                }
-            }
-            cfg.autotune = false; // disable after first run
-            write_fixed_base_config(path, cfg);
-        }
-    }
-    configure_fixed_base(cfg);
+    // No config.ini, no auto-tune file, no autotune.log: the engine simply
+    // applies its built-in default fixed-base configuration and lets the cache
+    // machinery read/write cache_w{bits}[ _glv].bin from the configured cache
+    // directory (set_cache_directory()/SECP256K1_CACHE_DIR), or the current
+    // working directory when unset. Callers that want explicit settings attach
+    // them via configure_fixed_base_from_file(<their path>).
+    FixedBaseConfig cfg{};                 // struct defaults: w=18, GLV off, use_cache=true
+    cfg.cache_dir = g_config.cache_dir;    // preserve a caller-set cache directory
+    configure_fixed_base(cfg);             // also honours SECP256K1_CACHE_DIR/PATH env
     return true;
 }
 
@@ -3277,6 +3247,11 @@ void ensure_fixed_base_ready() {
 bool fixed_base_ready() {
     return static_cast<bool>(g_context);
 }
+
+void set_cache_directory(const std::string& dir) {
+    g_config.cache_dir = dir;
+    g_context.reset();
+}
 #else
 // Desktop version with full features
 void configure_fixed_base(const FixedBaseConfig& config) {
@@ -3320,6 +3295,12 @@ void ensure_fixed_base_ready() {
 bool fixed_base_ready() {
     std::lock_guard<std::mutex> const lock(g_mutex);
     return static_cast<bool>(g_context);
+}
+
+void set_cache_directory(const std::string& dir) {
+    std::lock_guard<std::mutex> const lock(g_mutex);
+    g_config.cache_dir = dir;
+    g_context.reset();
 }
 #endif // !SECP256K1_ESP32_BUILD
 

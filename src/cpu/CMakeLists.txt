@@ -1378,6 +1378,16 @@ if(BUILD_TESTING)
     target_compile_definitions(test_perf_schnorr_correctness_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME perf_schnorr_correctness COMMAND test_perf_schnorr_correctness_standalone)
 
+    # -- Cache directory API + no-config.ini regression --
+    # Verifies configure_fixed_base_auto() never creates a config.ini and that
+    # set_cache_directory() routes the fixed-base cache to a caller-supplied dir.
+    add_executable(test_cache_dir_api_standalone
+        tests/test_cache_dir_api.cpp
+    )
+    target_link_libraries(test_cache_dir_api_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_cache_dir_api_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME cache_dir_api COMMAND test_cache_dir_api_standalone)
+
     # -- BIP-141/143/144 SegWit tests --
     target_sources(run_selftest PRIVATE tests/test_bip141_143_144.cpp)
     add_executable(test_bip141_143_144_standalone tests/test_bip141_143_144.cpp)

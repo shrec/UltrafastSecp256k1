@@ -1,5 +1,85 @@
 # Audit Changelog
 
+## 2026-06-17 — Bridge-free integration standard: smart shim batch verify (MT + per-row)
+
+- **New engine API `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)`** — the
+  Schnorr twin of `ecdsa_batch_verify_mt`. Same chunked atomic-work-queue design (4096-row
+  chunks, cap 64 threads, `0`=auto, `1`=serial), same fail-closed boolean identical to the
+  serial `schnorr_batch_verify` for any thread count. BIP-340 verification is variable-time
+  over **public** data only, so threading is a pure throughput change with **zero** CT impact.
+- **Shim batch path is now "smart"** (`compat/libsecp256k1_shim/src/shim_batch_verify.cpp`).
+  The large-batch ECDSA path routes to `ecdsa_batch_verify_mt` and Schnorr to
+  `schnorr_batch_verify_mt`. Four **additive** symbols expose thread control and per-row
+  results so a single standard surface (no bespoke bridge) covers batch throughput:
+  - `secp256k1_ecdsa_verify_batch_mt(ctx, sigs, msgs32, pubkeys, n, max_threads)`
+  - `secp256k1_schnorrsig_verify_batch_mt(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads)`
+  - `secp256k1_ecdsa_verify_batch_results(ctx, ..., n, max_threads, results)`
+  - `secp256k1_schnorrsig_verify_batch_results(ctx, ..., n, max_threads, results)`
+  `max_threads`: `0`=auto (capped 64), `1`=serial (use when calling from your own pool to
+  avoid oversubscription), `N`=cap. The existing `secp256k1_ecdsa_verify_batch` /
+  `secp256k1_schnorrsig_verify_batch` are retained as thin auto-threaded wrappers (back-compat).
+- **No-failure contract:** the shim batch functions never throw across the C ABI. If internal
+  thread creation throws, they fall back to the serial verifier; the result is deterministic
+  and identical to the serial path. NULL ctx fires the illegal callback (unchanged); the
+  `_results` variants return 0 on a NULL `results` pointer.
+- **Bug fix (latent):** the pre-existing `secp256k1_ecdsa_verify_batch` parsed the opaque
+  `secp256k1_ecdsa_signature.data` as **big-endian** compact `r||s`, but the shim stores it in
+  the engine's **native little-endian** limb form (see `shim_ecdsa.cpp` `ecdsa_sig_from_data`).
+  All ECDSA batch parse sites now use `Scalar::parse_bytes_strict_le`, matching single
+  `secp256k1_ecdsa_verify`. (No prior ECDSA-batch test existed; Schnorr batch was unaffected.)
+- **New regression test `shim_batch_mt`** (`compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp`):
+  MT == single across thread counts `{0,1,2,8,64}` for ECDSA and Schnorr (n > one chunk so
+  threads actually spawn), per-row `results` pinpoint injected-invalid rows, `n==0` vacuous,
+  small-`n` parity, and `max_threads==1` (caller-pool) parity.
+- **Integration standard:** see new `docs/INTEGRATION_MODELS.md` (Model 0 drop-in, Model 1
+  batch throughput via this shim path, Model 2 advanced GPU/zero-copy via `libbitcoin_bridge`)
+  and `docs/LIBBITCOIN_INTEGRATION.md` (maps `ecdsa::batch_verify` / `schnorr::batch_verify`
+  onto the shim `_results` API, no bridge).
+- **CT note:** batch verify is variable-time over PUBLIC data only; threading adds no
+  secret-dependent branches (same class as `ecdsa_batch_verify_mt`).
+
+## 2026-06-17 — Programmatic cache directory API; config.ini removed from default path
+
+- **New C ABI `ufsecp_set_cache_dir(const char* dir)`** plus the engine primitive
+  `secp256k1::fast::set_cache_directory(const std::string&)`. Callers point the engine at
+  their own fixed-base cache directory (`cache_w{bits}[ _glv].bin`); `NULL`/`""` means the
+  current working directory. This is the programmatic replacement for the legacy `config.ini`.
+- **`configure_fixed_base_auto()` no longer creates or reads `config.ini`** (nor `autotune.log`).
+  It now applies the built-in default fixed-base configuration and lets the cache machinery
+  read/write the `.bin` cache from the configured directory (`set_cache_directory()` /
+  `SECP256K1_CACHE_DIR`) or the CWD. The libsecp256k1 shim's `shim_ensure_fixed_base()` drops
+  the implicit `config.ini` resolution step; `SECP256K1_CACHE_PATH` remains an explicit hatch,
+  and `configure_fixed_base_from_file(<path>)` stays available for callers that *want* a file.
+- **Why:** integrators (e.g. libbitcoin) have their own config systems and must not have a
+  `config.ini` silently written into their working directory. No INI file is created or read by
+  default; the engine self-manages its `.bin` cache in the chosen directory.
+- **New regression test `cache_dir_api`** (`src/cpu/tests/test_cache_dir_api.cpp`, standalone
+  CTest): asserts `configure_fixed_base_auto()` creates no `config.ini`, and that
+  `set_cache_directory()` keeps generator multiples correct (`scalar_mul_generator` == generic
+  `scalar_mul`) with a caller-supplied cache directory.
+
+## 2026-06-17 — First-class engine parallelism for ECDSA batch verify (ecdsa_batch_verify_mt)
+
+- **New engine API `secp256k1::ecdsa_batch_verify_mt(entries, n, max_threads)`** plus the
+  thin C ABI `ufsecp_ecdsa_batch_verify_mt(ctx, entries, n, max_threads)`. CPU parallelism
+  for batch verification now lives **inside the engine**, not in any caller or bridge: a
+  large ECDSA batch is split into fixed-size chunks pulled from an atomic work queue and
+  verified across up to `max_threads` CPU threads (`0` = `hardware_concurrency()`, capped 64;
+  `1` = serial). The serial `ecdsa_batch_verify` is unchanged — integrators choose.
+- **Why:** a single `ufsecp_lbtc_verify_ecdsa` call with ~429M signatures ran the whole batch
+  on one core (serial `for` loop, one `dual_scalar_mul` per sig) — hours of wall-clock that
+  looked like a hang. Verification is variable-time over **public** data (pubkey/sig/msg), so
+  threading is a pure throughput win with **zero** CT impact; the boolean result is identical
+  to the serial path for any thread count. Per-thread scratch stays O(chunk), never O(n).
+- **Thread-safety:** the GLV/generator precompute (`get_dual_mul_gen_tables`) is a C++11
+  function-local magic static (standard-guaranteed thread-safe init); `ecdsa_batch_verify`'s
+  inversion arena is `thread_local`; point arithmetic uses no shared mutable state — the same
+  guarantees the existing parallel sign batch (`batch_parallel`) already relies on.
+- **New differential module `regression_ecdsa_batch_verify_mt`** (advisory=false): asserts
+  MT == serial on a valid batch for thread counts {0,1,2,4,8,64}, single-sig corruption
+  detected at every count, and corruption in a **later** chunk (>4096 rows) propagates across
+  the dynamic work queue. Edge cases: `n==0` → false (serial contract), `n==1`/small-n parity.
+
 ## 2026-06-16 — Shim pubkey manipulation paths fail-closed on off-curve (PERF-002 split)
 
 - **`regression_p2_ct_shim_fixes` was failing on clang/MSVC** (passed on gcc) after the

@@ -28,6 +28,7 @@
 | `ufsecp_last_error` | Y | - | - | N/A | N/A | - | N/A | N/A |
 | `ufsecp_last_error_msg` | Y | - | - | N/A | N/A | - | N/A | N/A |
 | `ufsecp_ctx_size` | Y | - | - | N/A | N/A | - | N/A | N/A |
+| `ufsecp_set_cache_dir` | Y | - | Y (null dir) | N/A | N/A | - | N/A | N/A |
 | `ufsecp_ctx_clone` | Y | - | Y (null) | N/A | N/A | - | N/A | N/A |
 | `ufsecp_ctx_destroy` | Y | Y | Y (null-safe) | N/A | N/A | - | N/A | N/A |
 | `ufsecp_last_error` | Y | - | - | N/A | N/A | - | N/A | N/A |
@@ -82,6 +83,7 @@
 | `ufsecp_ecdsa_sig_normalize_opaque` | Y | - | Y (high-S normalization) | Y (libsecp normalize semantics) | N/A (public signature encoding) | - | - | N/A |
 | `ufsecp_ecdsa_verify_opaque` | Y | - | Y (opaque parse + low-S normalize) | Y (libbitcoin/libsecp wrapper parity) | N/A (public verify) | - | Y (block 704789 tuple via verify path) | N/A |
 | `ufsecp_ecdsa_verify_opaque_batch` | Y | - | Y (invalid row result isolation) | Y (compact batch parity) | N/A (public verify) | - | - | N/A |
+| `ufsecp_ecdsa_batch_verify_mt` | Y (regression_ecdsa_batch_verify_mt) | - | Y (single-sig corruption at every thread count) | Y (MT==serial parity {0,1,2,4,8,64} + multi-chunk propagation) | N/A (public verify — threading no side-channel) | - | - | N/A |
 | `ufsecp_ecdsa_verify_opaque_rows` | Y | - | Y (stride/null/invalid rows) | Y (libbitcoin row parity) | N/A (public verify) | - | - | N/A |
 | `ufsecp_ecdsa_sign_recoverable` | Y | Y | Y (edge recids) | Y | Y (CT sign) | Y (CUDA `recovery.cuh`) | - | Y |
 | `ufsecp_ecdsa_recover` | Y | Y | Y (recid=4, wrong) | Y | N/A (public) | Y (CUDA `recovery.cuh`) | - | N/A |

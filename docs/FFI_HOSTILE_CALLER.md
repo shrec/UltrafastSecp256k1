@@ -288,6 +288,7 @@ shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
 | I.3 | `ufsecp_ecdsa_sign_recoverable`, `ufsecp_ecdsa_recover` | NULL guards (all 4 args), recid in [0,3], recovery round-trip, invalid recid rejection |
 | I.4 | `ufsecp_ecdsa_sign_verified`, `ufsecp_schnorr_sign_verified` | NULL guards, zero privkey, output verified via ecdsa_verify / schnorr_verify |
 | I.5 | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_batch_identify_invalid` | Valid entry passes, tampered sig fails, identify_invalid returns correct index, count=0 vacuously OK |
+| I.5a | `ufsecp_ecdsa_batch_verify_mt` | NULL ctx/entries rejected; valid batch passes (smoke) and result is identical to serial for every thread count; tampered/invalid sig fails; count=0 (n=0) vacuously OK; max_threads=0 auto, 1 serial — public-data variable-time verify, threading has no side-channel relevance |
 | I.6 | `ufsecp_context_randomize` | NULL ctx rejected; zero-seed (all-zero 32 bytes) accepted — clears/resets blinding; valid random seed succeeds (smoke); signing after randomize produces valid signature |
 | I.7 | `ufsecp_ecdsa_sign` with non-NULL `noncefp` | NULL noncefp treated as RFC 6979 default; custom noncefp returning valid scalar succeeds; custom noncefp returning zero scalar triggers retry; output valid after custom nonce |
 

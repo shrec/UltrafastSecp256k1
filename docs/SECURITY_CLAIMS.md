@@ -1165,6 +1165,27 @@ bit-identical to `ufsecp_gpu_*_verify_batch` (proven GPU==CPU==libsecp by
 back to the host-collapse path. Hostile-caller quartet: see
 [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section J.
 
+### CPU multi-threaded batch verify (`ecdsa_batch_verify_mt`, 2026-06-17 — PUBLIC-DATA)
+
+`secp256k1::ecdsa_batch_verify_mt` (engine) and its thin ABI wrapper
+`ufsecp_ecdsa_batch_verify_mt` add **CPU parallelism as a first-class engine
+feature**: a large ECDSA batch is split into fixed-size chunks pulled from an
+atomic work queue and verified across up to `max_threads` threads (0 = auto,
+1 = serial). Like all verification, inputs are **public data** (message hashes,
+public keys, signatures — all on-chain), so **no private key, nonce, or secret
+material is processed** and the CT-vs-variable-time boundary does not apply
+(variable-time verify is correct per the verify-path rule). Threading therefore
+has **zero side-channel relevance**: each chunk runs the audited serial
+`ecdsa_batch_verify`, and the boolean accept/reject result is bit-identical to
+the single-threaded path for any thread count (proven by
+`regression_ecdsa_batch_verify_mt`: parity across thread counts {0,1,2,4,8,64},
+single-sig corruption detection, and corruption propagation across multi-chunk
+batches). Thread-safety rests on the GLV/generator precompute being a C++11
+function-local magic static and `ecdsa_batch_verify`'s `thread_local` scratch —
+the same guarantees the existing parallel sign batch relies on. The serial
+`ufsecp_ecdsa_batch_verify` is unchanged; integrators choose. Hostile-caller
+quartet: see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5.
+
 ### GPU per-item batch ABI (libbitcoin bridge, 2026-06-08 — PUBLIC-DATA)
 
 `ufsecp_gpu_xonly_validate`, `ufsecp_gpu_commitment_verify` and
