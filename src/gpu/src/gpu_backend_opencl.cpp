@@ -2371,7 +2371,7 @@ private:
         auto fe_y = y2.sqrt();
 
         /* Validate: sqrt must satisfy y² == x³+7 (not all field elements have a square root) */
-        if ((fe_y * fe_y) != y2) return false;
+        if (!((fe_y * fe_y) == y2)) return false;
 
         /* Choose correct parity */
         auto yb = fe_y.to_bytes();
@@ -2399,7 +2399,7 @@ private:
         auto x3  = x2  * fe_x;
         auto y2  = fe_y * fe_y;
         auto rhs = x3  + secp256k1::fast::FieldElement::from_uint64(7);
-        if (y2 != rhs) return false;
+        if (!(y2 == rhs)) return false;
         const auto& xl = fe_x.limbs();
         const auto& yl = fe_y.limbs();
         std::memcpy(out->x.limbs, xl.data(), 32);
