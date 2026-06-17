@@ -2186,7 +2186,7 @@ Entropy sizes: 16 (12 words), 20 (15), 24 (18), 28 (21), 32 (24 words). Pass `en
 |----------|-----------|-------------|
 | `ufsecp_schnorr_batch_verify` | `(ctx, entries, n) -> error_t` | Verify N Schnorr sigs. Entry: 32 xonly + 32 msg + 64 sig = 128 bytes |
 | `ufsecp_ecdsa_batch_verify` | `(ctx, entries, n) -> error_t` | Verify N ECDSA sigs (single-threaded). Entry: 32 msg + 33 pubkey + 64 sig = 129 bytes |
-| `ufsecp_ecdsa_batch_verify_mt` | `(ctx, entries, n, max_threads) -> error_t` | Same as `ufsecp_ecdsa_batch_verify` but verifies across CPU threads (engine-owned parallelism). `max_threads`: 0 = auto (`hardware_concurrency`, capped 64), 1 = serial. Result identical to serial for any thread count (verify is variable-time over public data) |
+| `ufsecp_ecdsa_batch_verify_mt` | `(ctx, entries, n, max_threads) -> error_t` | Same as `ufsecp_ecdsa_batch_verify` but verifies across CPU threads (engine-owned parallelism). `max_threads`: 0 = auto (`hardware_concurrency`, no arbitrary upper cap), 1 = serial. Result identical to serial for any thread count (verify is variable-time over public data) |
 | `ufsecp_schnorr_batch_identify_invalid` | `(ctx, entries, n, invalid_out, invalid_count*) -> error_t` | Find indices of invalid Schnorr sigs |
 | `ufsecp_ecdsa_batch_identify_invalid` | `(ctx, entries, n, invalid_out, invalid_count*) -> error_t` | Find indices of invalid ECDSA sigs |
 

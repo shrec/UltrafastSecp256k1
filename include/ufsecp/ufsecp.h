@@ -795,14 +795,23 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_verify(
 
 /** ECDSA batch verify (multi-threaded): same contract as
  *  ufsecp_ecdsa_batch_verify, but fans the batch across up to `max_threads`
- *  CPU threads using dynamic chunking (bounded per-thread memory — does NOT
- *  materialise the whole batch at once). Verification is variable-time over
- *  public data, so threading is purely a throughput win; the boolean result is
- *  identical to the single-threaded path for any thread count.
- *    max_threads == 0  -> auto: std::thread::hardware_concurrency(), capped 64.
+ *  CPU threads using dynamic 4096-row chunking. Per-thread verify scratch is
+ *  bounded (O(chunk), never an O(n) inversion arena); verification is
+ *  variable-time over public data, so threading is purely a throughput win and
+ *  the boolean result is identical to the single-threaded path for any thread
+ *  count.
+ *    max_threads == 0  -> auto: std::thread::hardware_concurrency(). An explicit
+ *                         request is honoured, reduced only to what the hardware
+ *                         can run (no arbitrary upper cap); the caller owns
+ *                         thread priority via its process thread priority.
  *    max_threads == 1  -> identical to ufsecp_ecdsa_batch_verify (serial).
  *  Each entry: [32-byte msg | 33-byte pubkey | 64-byte sig] = 129 bytes.
  *  Returns UFSECP_OK if ALL valid.
+ *  MEMORY: this entry point parses the n wire rows into an O(n) internal
+ *  ECDSABatchEntry array before verifying — the input is held in memory in full.
+ *  For very large batches (hundreds of millions to billions of rows) feed the
+ *  batch in segments (e.g. a few million rows per call, max_threads == 0 so the
+ *  engine uses all cores on each segment) rather than one monolithic call.
  *  NOTE: integrators that already parallelise across their own thread pool
  *  should keep calling the single-threaded ufsecp_ecdsa_batch_verify per chunk
  *  to avoid nested thread pools / oversubscription. */

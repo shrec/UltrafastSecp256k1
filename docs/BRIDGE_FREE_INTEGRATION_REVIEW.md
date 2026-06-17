@@ -61,9 +61,9 @@ int secp256k1_schnorrsig_verify_batch_results(ctx, sigs64, msgs, msglen, pubkeys
 
 | value | meaning | when to use |
 |-------|---------|-------------|
-| `0` | auto: `hardware_concurrency()`, capped at 64 | one big batch, library owns the CPU |
+| `0` | auto: `hardware_concurrency()` (no arbitrary upper cap) | one big batch, library owns the CPU |
 | `1` | serial (no worker threads spawned) | **you already run your own pool** — avoids oversubscription |
-| `N` | cap at `N` worker threads | bounded CPU budget |
+| `N` | up to `N` worker threads (reduced only to what the hardware can run) | bounded CPU budget |
 
 The engine splits a batch into 4096-row chunks pulled from an atomic work queue; per-thread scratch stays `O(chunk)`, never `O(n)` — this also removes the large-intermediate-allocation problem from the original 8-hour run.
 
@@ -105,7 +105,7 @@ Guidance, decision table, and the Schnorr twin are in [`LIBBITCOIN_INTEGRATION.m
 ## 6. Changes in this commit
 
 **Engine** (`src/cpu/`)
-- New `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)` — the Schnorr twin of `ecdsa_batch_verify_mt` (same chunked atomic-queue design, cap 64, `0`=auto / `1`=serial).
+- New `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)` — the Schnorr twin of `ecdsa_batch_verify_mt` (same chunked atomic-queue design, no arbitrary thread cap, `0`=auto / `1`=serial).
 
 **Shim** (`compat/libsecp256k1_shim/`)
 - `shim_batch_verify.cpp` rewritten around shared cores: large-batch ECDSA → `ecdsa_batch_verify_mt`, Schnorr → `schnorr_batch_verify_mt`.

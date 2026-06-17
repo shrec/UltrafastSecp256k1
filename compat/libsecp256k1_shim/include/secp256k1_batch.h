@@ -73,9 +73,11 @@ SECP256K1_API int secp256k1_ecdsa_verify_batch(
  * These variants expose the engine's first-class multi-threading and per-row
  * results so an integrator can use ONE standard surface (no bespoke bridge):
  *
- *   max_threads: 0 = auto (hardware_concurrency, capped 64); 1 = serial
+ *   max_threads: 0 = auto (hardware_concurrency); 1 = serial
  *                (use 1 when calling from your OWN thread pool to avoid
- *                 oversubscription); N = cap at N threads.
+ *                 oversubscription); N = up to N threads (an explicit request is
+ *                 honoured, reduced only to what the hardware can run -- no
+ *                 arbitrary upper cap).
  *
  * The boolean ("all valid") result is identical to the single-threaded path for
  * any thread count; verification is variable-time over PUBLIC data only, so

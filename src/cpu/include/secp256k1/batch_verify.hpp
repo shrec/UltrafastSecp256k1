@@ -60,9 +60,10 @@ bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries);
 // Schnorr twin of ecdsa_batch_verify_mt. Boolean result is identical to
 // schnorr_batch_verify for any thread count; BIP-340 verification is
 // variable-time over public data (pubkey/msg/sig), so threads are a pure
-// throughput win. max_threads == 0 => auto (hardware_concurrency, capped 64);
-// max_threads == 1 => serial. Chunked so per-thread scratch stays O(chunk),
-// never O(n). Any invalid entry in any chunk makes the whole call return false.
+// throughput win. max_threads == 0 => auto (hardware_concurrency); an explicit
+// request is honoured, reduced only to what the hardware can run (no arbitrary
+// cap); max_threads == 1 => serial. Chunked so per-thread scratch stays
+// O(chunk), never O(n). Any invalid entry in any chunk makes the call false.
 bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
                              std::size_t max_threads = 0);
 bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,
@@ -87,9 +88,10 @@ bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries);
 // Multi-threaded ECDSA batch verify — first-class engine parallelism.
 // Boolean result is identical to ecdsa_batch_verify for any thread count;
 // verification is variable-time over public data, so threads are a pure
-// throughput win. max_threads == 0 => auto (hardware_concurrency, capped 64);
-// max_threads == 1 => serial. Chunked so per-thread scratch stays O(chunk),
-// never O(n). See batch_verify.cpp for the full contract.
+// throughput win. max_threads == 0 => auto (hardware_concurrency); an explicit
+// request is honoured, reduced only to what the hardware can run (no arbitrary
+// cap); max_threads == 1 => serial. Chunked so per-thread scratch stays
+// O(chunk), never O(n). See batch_verify.cpp for the full contract.
 bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
                            std::size_t max_threads = 0);
 bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,

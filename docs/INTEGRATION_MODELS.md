@@ -67,9 +67,9 @@ int secp256k1_schnorrsig_verify_batch_results(ctx, sigs64, msgs, msglen, pubkeys
 
 | value | meaning | when to use |
 |-------|---------|-------------|
-| `0`   | auto: `hardware_concurrency()`, capped at 64 | one big batch, no caller pool |
+| `0`   | auto: `hardware_concurrency()` (no arbitrary upper cap) | one big batch, no caller pool |
 | `1`   | serial (no worker threads spawned) | **you already run your own thread pool** — pass `1` to avoid oversubscription |
-| `N`   | cap at `N` worker threads | you want to bound CPU usage |
+| `N`   | up to `N` worker threads (reduced only to what the hardware can run) | you want to bound CPU usage |
 
 The boolean ("all valid") result is **identical for any thread count** — threading is a pure
 throughput change. Verification is variable-time over **public** data only (pubkey/msg/sig);

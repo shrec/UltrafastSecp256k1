@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-06-17 — Remove arbitrary 64-thread cap from batch_verify_mt
+
+- **`ecdsa_batch_verify_mt` / `schnorr_batch_verify_mt`** (`src/cpu/src/batch_verify.cpp`)
+  no longer clamp the worker count to a hard-coded `kMaxThreads = 64`. The fixed
+  `std::array<std::thread, 64>` pool is replaced by a `std::vector<std::thread>` sized to
+  the actual `n_threads`. The thread budget is the caller's to own: an explicit
+  `max_threads` is honoured and only reduced to what the hardware can run
+  (`hardware_concurrency`) and to the number of 4096-row chunks. `0`=auto, `1`=serial
+  semantics are unchanged. The caller controls thread priority via the calling process's
+  thread priority (inherited by the spawned workers). Pure throughput change — verification
+  is variable-time over public data, so the fail-closed boolean result is unchanged for any
+  thread count. Docs (`API_REFERENCE`, `INTEGRATION_MODELS`, `BRIDGE_FREE_INTEGRATION_REVIEW`,
+  `SHIM_KNOWN_DIVERGENCES`, shim headers, ABI header) updated to drop the "capped 64" wording.
+
 ## 2026-06-17 — Bridge-free integration standard: smart shim batch verify (MT + per-row)
 
 - **New engine API `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)`** — the

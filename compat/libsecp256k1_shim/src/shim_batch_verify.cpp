@@ -13,9 +13,9 @@
 //   ECDSA batch:   ~1.5-2x faster (per-sig modular inverse); MT scales further
 //
 // Threading model (the single standard surface -- no bespoke bridge needed):
-//   max_threads = 0 -> auto (hardware_concurrency, capped 64)
+//   max_threads = 0 -> auto (hardware_concurrency)
 //   max_threads = 1 -> serial (use this when calling from your OWN pool)
-//   max_threads = N -> cap at N
+//   max_threads = N -> up to N (reduced only to what the hardware can run)
 // The boolean ("all valid") result is identical for any thread count;
 // verification is variable-time over PUBLIC data only -> zero CT impact.
 //

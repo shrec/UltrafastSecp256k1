@@ -366,8 +366,9 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
   - `secp256k1_ecdsa_verify_batch` / `secp256k1_schnorrsig_verify_batch` — auto-threaded,
     all-or-nothing (return 1 iff every signature valid; `n==0` => 1 vacuously).
   - `..._verify_batch_mt(..., max_threads)` — explicit thread control. `0` = auto
-    (`hardware_concurrency`, capped 64); `1` = serial (use when calling from your own thread
-    pool to avoid oversubscription); `N` = cap at N.
+    (`hardware_concurrency`); `1` = serial (use when calling from your own thread
+    pool to avoid oversubscription); `N` = up to N (an explicit request is honoured,
+    reduced only to what the hardware can run — no arbitrary upper cap).
   - `..._verify_batch_results(..., max_threads, results)` — writes a per-row verdict into
     `results[i]` (`1`=valid, `0`=invalid/malformed) and returns 1 iff every row is valid.
 - **Result contract:** the boolean ("all valid") result is identical to single
