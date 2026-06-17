@@ -180,6 +180,23 @@ NEGATIVE_TERMS: dict[str, int] = {
     'transaction graph':           -8,
     'fraud detection':             -7,
     'anomaly detection':           -5,
+    # Post-quantum schemes — NOT secp256k1/ECC. A "side-channel" paper on ML-KEM /
+    # Kyber / Dilithium scores ~33 on the generic side-channel term weights, but it
+    # is out of scope; a strong penalty keeps it out of the needs-review queue.
+    # NOTE: 'lattice-based' (a PQ construction) != the positive 'lattice attack'
+    # (lattice cryptanalysis of ECDSA nonces) — different phrases, both word-bounded.
+    'ml-kem':                 -30,
+    'mlkem':                  -30,
+    'ml-dsa':                 -30,
+    'mldsa':                  -30,
+    'kyber':                  -25,
+    'dilithium':              -25,
+    'sphincs':                -20,
+    'lattice-based':          -10,
+    'module-lwe':             -15,
+    'module-lattice':         -15,
+    'learning with errors':   -15,
+    'post-quantum':           -8,
 }
 
 # Hard focus terms: an UNMAPPED item with one of these in the title is
