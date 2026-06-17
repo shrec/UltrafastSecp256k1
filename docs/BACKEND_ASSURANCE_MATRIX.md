@@ -207,9 +207,9 @@ buffer allocation, and 3.2× PCIe data transfer overhead.
 | Operation | CUDA | OpenCL | Metal |
 |-----------|------|--------|-------|
 | ECDSA verify batch | ✅ `point_from_compressed` | ✅ `ecdsa_verify_compressed` | ✅ `ecdsa_verify_batch_compressed` |
-| SNARK witness batch | — | ✅ `ecdsa_snark_witness_batch_compressed` | ✅ `ecdsa_snark_witness_batch_compressed` |
-| ECDH | ✅ `point_from_compressed` | ✅ `batch_scalar_mul_compressed` | ✅ `scalar_mul_batch_compressed` |
-| MSM | ✅ `point_from_compressed` | ⚠️ (buffer-pool path, kernel exists) | ✅ `scalar_mul_batch_compressed` |
+| SNARK witness batch | ✅ `batch_compressed_to_jac_kernel` + snark kernel | ✅ `ecdsa_snark_witness_batch_compressed` | ✅ `ecdsa_snark_witness_batch_compressed` |
+| ECDH | ✅ `point_from_compressed` | ✅ `ecdh_scalar_mul_compressed` | ✅ `scalar_mul_batch_compressed` |
+| MSM | ✅ `point_from_compressed` | ✅ `ecdh_scalar_mul_compressed` | ✅ `scalar_mul_batch_compressed` |
 | Schnorr verify | ✅ x-only (32B, no decompress) | ✅ x-only (32B) | ✅ x-only (32B) |
 | ecrecover | ✅ (no input pubkey) | ✅ (no input) | ✅ (no input) |
 

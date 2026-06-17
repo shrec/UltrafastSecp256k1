@@ -964,22 +964,18 @@ public:
         return set_error(GpuError::Unsupported, "GPU MSM module disabled at build time");
 #endif
 
-        auto* cl_ctx       = static_cast<cl_context>(ctx_->native_context());
-        auto* queue        = static_cast<cl_command_queue>(ctx_->native_queue());
-        auto* k_scalar_mul = static_cast<cl_kernel>(ctx_->native_kernel("scalar_mul"));
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+
+        auto* cl_ctx  = static_cast<cl_context>(ctx_->native_context());
+        auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
         auto* k_blk_reduce = static_cast<cl_kernel>(ctx_->native_kernel("msm_block_reduce_kernel"));
+        cl_int clerr;
 
-        if (!k_scalar_mul)
-            return set_error(GpuError::Launch, "scalar_mul kernel unavailable");
-
-        /* Convert inputs */
-        std::vector<secp256k1::opencl::Scalar>      h_scalars(n);
-        std::vector<secp256k1::opencl::AffinePoint> h_points(n);
-        for (size_t i = 0; i < n; ++i) {
+        /* Convert scalars (no CPU pubkey decompress — GPU does it) */
+        std::vector<secp256k1::opencl::Scalar> h_scalars(n);
+        for (size_t i = 0; i < n; ++i)
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
-            if (!pubkey33_to_affine(points33 + i * 33, &h_points[i]))
-                return set_error(GpuError::BadKey, "invalid MSM point");
-        }
 
         /* Ensure persistent pool buffers (grow-only) */
         msm_pool_.ensure(n, cl_ctx);
@@ -988,22 +984,26 @@ public:
 
         const size_t n_blocks = (n + 255) / 256;
 
-        /* Upload scalars + points to GPU */
+        /* Upload scalars + 33-byte compressed pubkeys to GPU */
         clEnqueueWriteBuffer(queue, msm_pool_.buf_scalars, CL_FALSE, 0,
                              n * sizeof(secp256k1::opencl::Scalar), h_scalars.data(), 0, nullptr, nullptr);
         clEnqueueWriteBuffer(queue, msm_pool_.buf_points,  CL_FALSE, 0,
-                             n * sizeof(secp256k1::opencl::AffinePoint), h_points.data(), 0, nullptr, nullptr);
+                             n * 33, const_cast<uint8_t*>(points33), 0, nullptr, nullptr);
         clFlush(queue);
 
-        /* Dispatch scalar_mul: n threads */
+        /* Dispatch ecdh_scalar_mul_compressed: decompress + scalar_mul → Jacobian partials */
         cl_uint cnt = static_cast<cl_uint>(n);
-        clSetKernelArg(k_scalar_mul, 0, sizeof(cl_mem), &msm_pool_.buf_scalars);
-        clSetKernelArg(k_scalar_mul, 1, sizeof(cl_mem), &msm_pool_.buf_points);
-        clSetKernelArg(k_scalar_mul, 2, sizeof(cl_mem), &msm_pool_.buf_partials);
-        clSetKernelArg(k_scalar_mul, 3, sizeof(cl_uint), &cnt);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 0, sizeof(cl_mem), &msm_pool_.buf_scalars);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 1, sizeof(cl_mem), &msm_pool_.buf_points);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 2, sizeof(cl_mem), &msm_pool_.buf_partials);
+        clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 3, sizeof(cl_uint), &cnt);
         size_t local_sm  = 128;
         size_t global_sm = ((n + local_sm - 1) / local_sm) * local_sm;
-        clEnqueueNDRangeKernel(queue, k_scalar_mul, 1, nullptr, &global_sm, &local_sm, 0, nullptr, nullptr);
+        clerr = clEnqueueNDRangeKernel(queue, ext_ecdh_scalar_mul_compressed_, 1, nullptr,
+                                       &global_sm, &local_sm, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            return set_error(GpuError::Launch, "ecdh_scalar_mul_compressed (MSM) launch failed");
+        }
 
         /* GPU block reduce (or fallback: copy all partials to CPU) */
         std::vector<secp256k1::opencl::JacobianPoint> h_blocks;
