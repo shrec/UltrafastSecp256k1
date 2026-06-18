@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-06-18 — Static CUDA runtime linkage by default
+
+- **CUDA runtime packaging tightened:** CUDA-enabled engine, GPU-host, C ABI,
+  libbitcoin bridge bench/test, and CUDA benchmark/test targets now default to
+  `CMAKE_CUDA_RUNTIME_LIBRARY=Static`. This removes the runtime
+  `libcudart.so` / `cudart64*.dll` dependency from engine artifacts while
+  preserving the normal NVIDIA driver dependency.
+- **Integrator override remains standard CMake:** downstream packaging can pass
+  `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` when it intentionally wants dynamic
+  cudart linkage.
+- **Docs updated:** `docs/BUILDING.md` and `docs/INTEGRATION_MODELS.md` now
+  document the CUDA runtime linkage contract.
+
 ## 2026-06-18 — Memory-vs-compute backend staging reduction
 
 - **CUDA/OpenCL ECDSA verify batch staging reduced:** `ufsecp_gpu_ecdsa_verify_batch`

@@ -17,6 +17,11 @@ option(SECP256K1_CUDA_LIMBS_32 "Use 8x32-bit limbs for field arithmetic" OFF)
 
 if(_GPU_LANG STREQUAL "CUDA")
     set(CMAKE_CUDA_STANDARD 17)
+    if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY OR CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "")
+        set(CMAKE_CUDA_RUNTIME_LIBRARY Static CACHE STRING
+            "CUDA runtime linkage (Static by default so engine binaries do not depend on libcudart.so/cudart64*.dll)"
+            FORCE)
+    endif()
     # Set CUDA architecture if not already set by parent (fallback to 89 = Ada Lovelace)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "" OR CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
         set(CMAKE_CUDA_ARCHITECTURES 89)
@@ -461,3 +466,11 @@ endif()
 target_link_libraries(bench_raw_entry PRIVATE secp256k1_cuda_lib)
 set_target_properties(bench_raw_entry PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON)
+
+if(_GPU_LANG STREQUAL "CUDA")
+    get_property(_secp256k1_cuda_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(_secp256k1_cuda_target IN LISTS _secp256k1_cuda_targets)
+        set_property(TARGET ${_secp256k1_cuda_target}
+            PROPERTY CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endforeach()
+endif()

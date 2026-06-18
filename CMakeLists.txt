@@ -540,6 +540,12 @@ if(SECP256K1_BUILD_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
+        if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY OR CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "")
+            set(CMAKE_CUDA_RUNTIME_LIBRARY Static CACHE STRING
+                "CUDA runtime linkage (Static by default so engine binaries do not depend on libcudart.so/cudart64*.dll)"
+                FORCE)
+        endif()
+        set_property(CACHE CMAKE_CUDA_RUNTIME_LIBRARY PROPERTY STRINGS Static Shared None)
         enable_language(CUDA)
         add_subdirectory(src/cuda)
     else()

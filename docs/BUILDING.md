@@ -102,6 +102,13 @@ cmake -S . -B out/release -G Ninja \
 cmake --build out/release -j
 ```
 
+CUDA builds link the CUDA runtime statically by default
+(`CMAKE_CUDA_RUNTIME_LIBRARY=Static`), so engine binaries do not require a
+separate `libcudart.so` / `cudart64*.dll` at runtime. The NVIDIA driver library
+itself remains a system dependency. Override with
+`-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` only when a downstream packaging policy
+requires a dynamic CUDA runtime.
+
 ### Install: Native Engine vs Optional C ABI
 
 The default top-level install is the native engine package. It installs

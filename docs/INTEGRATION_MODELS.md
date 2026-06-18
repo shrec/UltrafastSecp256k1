@@ -18,6 +18,10 @@ Install/link policy follows the same split:
 - The default top-level install emits `libfastsecp256k1` and
   `secp256k1-fast.pc` (`-lfastsecp256k1`). Install `libufsecp` only with
   `-DSECP256K1_BUILD_CABI=ON -DSECP256K1_INSTALL_CABI=ON`.
+- CUDA builds default to static CUDA runtime linkage
+  (`CMAKE_CUDA_RUNTIME_LIBRARY=Static`), so the engine package does not add a
+  runtime `libcudart.so` / `cudart64*.dll` dependency. The NVIDIA driver remains
+  a host dependency.
 
 ```mermaid
 flowchart TD
