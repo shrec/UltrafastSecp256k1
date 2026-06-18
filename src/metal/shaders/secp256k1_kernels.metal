@@ -37,6 +37,12 @@
 
 using namespace metal;
 
+// ── Forward declarations (used by compressed-pubkey kernels before definitions)
+
+inline bool lbtc_be32_lt_field_p(device const uchar* x);
+inline bool lbtc_point_from_compressed(device const uchar* pub,
+                                       thread JacobianPoint &p);
+
 // =============================================================================
 // Kernel 1: Batch Scalar Multiplication — P × k for N points
 // =============================================================================
@@ -480,7 +486,7 @@ kernel void ecdsa_verify_batch_compressed(
                               ((uint)signatures[base_sig + 32 + i*4+3]);
     }
 
-    results[tid] = ecdsa_verify(msg, pub, r_sig, s_sig) ? 1u : 0u;
+    results[tid] = ecdsa_verify(msg, AffinePoint{pub.x, pub.y}, r_sig, s_sig) ? 1u : 0u;
 }
 
 kernel void ecdsa_verify_lbtc_rows(
