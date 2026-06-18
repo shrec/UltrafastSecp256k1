@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-06-18 — Bech32 address encoder allocation reduction
+
+- **P2WPKH address encoding fast path tightened:** `bech32_encode` now uses a
+  stack-backed 5-bit conversion buffer for normal Bitcoin witness payloads and
+  computes the checksum as a streaming polymod instead of materializing
+  `hrp_expand || data || zeros` in heap vectors.
+- **Generic behavior preserved:** oversized witness payloads still fall back to
+  heap-backed storage, and decode/validation semantics remain unchanged.
+- **Measurement:** on the local GCC 14 `cpu-release` run, `address_p2wpkh`
+  improved from the captured baseline `522.1 ns` to stable reruns around
+  `470-471 ns`; `address_p2pkh` was left on the previous Base58Check path after
+  the stack-buffer experiment measured slower.
+
 ## 2026-06-18 — Static CUDA runtime linkage by default
 
 - **CUDA runtime packaging tightened:** CUDA-enabled engine, GPU-host, C ABI,
