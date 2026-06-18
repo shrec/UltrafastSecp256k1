@@ -122,6 +122,12 @@ optional = true
 extensions = ["*.cmake", "CMakeLists.txt", "*.txt"]
 
 [[source_dirs]]
+label = "src_build_config"
+path = "../src"
+optional = true
+extensions = ["CMakeLists.txt"]
+
+[[source_dirs]]
 label = "cpu_ltc"
 path = "../src/cpu/src/ltc"
 optional = true

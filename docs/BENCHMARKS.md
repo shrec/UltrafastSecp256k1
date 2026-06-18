@@ -57,6 +57,8 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo CONFIRMED disabled · core
 > kernel. Benchmarks should separately report kernel-only time and end-to-end
 > wall time, because this optimization mainly removes host conversion/allocation
 > work and may not appear in kernel-only numbers.
+> Diagnostic RTX 5060 Ti results for this staging change are recorded in
+> `benchmarks/gpu/cuda/rtx-50xx/ecdsa_staging_rtx5060ti_20260618.md`.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 **Per-column canonical artifact attribution:**

@@ -80,7 +80,7 @@ namespace cuda {
 extern __global__ void ecdsa_verify_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
     const JacobianPoint* __restrict__ public_keys,
-    const ECDSASignatureGPU* __restrict__ sigs,
+    const uint8_t* __restrict__ sigs64,
     bool*          __restrict__ results,
     int count);
 

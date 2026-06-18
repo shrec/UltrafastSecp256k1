@@ -1,5 +1,5 @@
 // GPU Raw Entry ECDSA Verify — Zero-CPU-Prep Benchmark
-// Path A: CPU prep (decompress pubkey + parse sig) → GPU verify
+// Path A: pre-expanded pubkey + compact signature → GPU verify
 // Path B: Raw bytes → GPU does ALL prep + verify in registers
 //
 // This is the ultimate "no CPU work" approach:
@@ -23,7 +23,7 @@ namespace secp256k1 { namespace cuda {
 
 __global__ void ecdsa_verify_batch_kernel(
     const uint8_t* msg_hashes, const JacobianPoint* public_keys,
-    const ECDSASignatureGPU* sigs, bool* results, int count);
+    const uint8_t* sigs64, bool* results, int count);
 
 __global__ void ecdsa_sign_batch_kernel(
     const uint8_t* msg_hashes, const Scalar* private_keys,
@@ -197,20 +197,25 @@ int main(int argc, char** argv) {
     batch_jacobian_to_compressed_kernel<<<blocks,128>>>(d_pubs, d_pk33, batch);
     CUDA_CHECK(cudaGetLastError()); CUDA_CHECK(cudaDeviceSynchronize());
 
-    // Convert ECDSASignatureGPU → opaque 64-byte LE format on GPU
-    // (For Path B we need opaque format. We'll do this on CPU for simplicity.)
+    // Convert ECDSASignatureGPU -> compact 64-byte BE format for the current
+    // verify kernel, and opaque 64-byte LE format for the raw-entry path.
+    std::vector<uint8_t> h_compact(batch * 64);
     std::vector<uint8_t> h_opaque(batch * 64);
     for (int i = 0; i < batch; i++) {
-        // Write r,s in little-endian (opaque format)
         for (int j = 0; j < 4; j++) {
             uint64_t rv = h_sigs[i].r.limbs[j];
             uint64_t sv = h_sigs[i].s.limbs[j];
             for (int k = 0; k < 8; k++) {
+                h_compact[i*64 + 31 - j*8 - k] = (uint8_t)(rv >> (k*8));
+                h_compact[i*64 + 63 - j*8 - k] = (uint8_t)(sv >> (k*8));
                 h_opaque[i*64 + j*8 + k] = (uint8_t)(rv >> (k*8));
                 h_opaque[i*64 + 32 + j*8 + k] = (uint8_t)(sv >> (k*8));
             }
         }
     }
+    uint8_t *d_compact;
+    CUDA_CHECK(cudaMalloc(&d_compact, batch*64));
+    CUDA_CHECK(cudaMemcpy(d_compact, h_compact.data(), batch*64, cudaMemcpyHostToDevice));
     uint8_t *d_opaque;
     CUDA_CHECK(cudaMalloc(&d_opaque, batch*64));
     CUDA_CHECK(cudaMemcpy(d_opaque, h_opaque.data(), batch*64, cudaMemcpyHostToDevice));
@@ -218,17 +223,17 @@ int main(int argc, char** argv) {
     bool *d_res;
     CUDA_CHECK(cudaMalloc(&d_res, batch*sizeof(bool)));
 
-    // ============ PATH A: GPU verify (Jacobian + parsed sig) ============
+    // ============ PATH A: GPU verify (Jacobian + compact sig) ============
     std::printf("============================================\n");
-    std::printf("  PATH A: GPU verify (CPU-prepped entries)\n");
-    std::printf("  (Current: CPU decompresses pubkey + parses sig)\n");
+    std::printf("  PATH A: GPU verify (pre-expanded pubkey + compact sig)\n");
+    std::printf("  (Current verify kernel: GPU parses compact r||s)\n");
     std::printf("============================================\n");
 
     std::vector<double> ga;
     for (int pass = 0; pass < warmup + measure; pass++) {
         cudaEvent_t s, e; cudaEventCreate(&s); cudaEventCreate(&e);
         cudaEventRecord(s);
-        ecdsa_verify_batch_kernel<<<blocks,128>>>(d_msgs,d_pubs,d_sigs,d_res,batch);
+        ecdsa_verify_batch_kernel<<<blocks,128>>>(d_msgs,d_pubs,d_compact,d_res,batch);
         cudaEventRecord(e); cudaEventSynchronize(e);
         float ms; cudaEventElapsedTime(&ms, s, e);
         cudaEventDestroy(s); cudaEventDestroy(e);
@@ -274,7 +279,7 @@ int main(int argc, char** argv) {
     std::printf("\n============================================\n");
     std::printf("  COMPARISON  (RTX 5060 Ti, batch=%d)\n", batch);
     std::printf("============================================\n");
-    std::printf("  Path A (CPU prep + GPU verify):  %8.1f ns/op\n", a_ns);
+    std::printf("  Path A (pre-expanded + compact): %8.1f ns/op\n", a_ns);
     std::printf("  Path B (GPU raw entry):          %8.1f ns/op\n", b_ns);
     std::printf("  GPU prep overhead:               %8.1f ns  (%+.1f%%)\n", ovh, pct);
     std::printf("\n");
@@ -294,7 +299,8 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaMemset(d_sk, 0, batch*sizeof(Scalar)));
     CUDA_CHECK(cudaFree(d_sk)); CUDA_CHECK(cudaFree(d_sigs));
     CUDA_CHECK(cudaFree(d_ok)); CUDA_CHECK(cudaFree(d_pubs));
-    CUDA_CHECK(cudaFree(d_pk33)); CUDA_CHECK(cudaFree(d_opaque));
+    CUDA_CHECK(cudaFree(d_pk33)); CUDA_CHECK(cudaFree(d_compact));
+    CUDA_CHECK(cudaFree(d_opaque));
     CUDA_CHECK(cudaFree(d_res));
     return 0;
 }

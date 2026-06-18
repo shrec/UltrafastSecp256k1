@@ -815,7 +815,7 @@ namespace secp256k1 { namespace cuda {
 extern __global__ void ecdsa_sign_batch_kernel(
     const uint8_t*, const Scalar*, ECDSASignatureGPU*, bool*, int);
 extern __global__ void ecdsa_verify_batch_kernel(
-    const uint8_t*, const JacobianPoint*, const ECDSASignatureGPU*, bool*, int);
+    const uint8_t*, const JacobianPoint*, const uint8_t*, bool*, int);
 extern __global__ void schnorr_sign_batch_kernel(
     const Scalar*, const uint8_t*, const uint8_t*, SchnorrSignatureGPU*, bool*, int);
 extern __global__ void schnorr_verify_batch_kernel(
