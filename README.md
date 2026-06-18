@@ -143,14 +143,31 @@ cmake --build out/release -j
 
 **Package install**
 
-See [docs/BUILDING.md](docs/BUILDING.md) for full install instructions.
-Build from source (all platforms):
+For native C++ integrations, Bitcoin-family node integrations, and the
+libsecp256k1-compatible shim, install/link the engine package:
+
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1 && cd UltrafastSecp256k1
-cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j$(nproc)
+cmake -S . -B out/install-fast -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/install-fast --target install
 ```
 
-→ [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)
+This installs `libfastsecp256k1` plus `secp256k1-fast.pc`, which links
+`-lfastsecp256k1`. The optional `libufsecp` package is only for C callers,
+language bindings, or explicit C ABI / bridge consumers. Install both packages
+from one configure only when you intentionally need that C ABI surface:
+
+```bash
+cmake -S . -B out/install-both -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
+cmake --build out/install-both --target install
+```
+
+Native code should link `secp256k1::fast` or the `secp256k1_shim` facade. Use
+`libufsecp` only when the integration deliberately calls the `ufsecp_*` C ABI.
+
+→ [Full build guide](docs/BUILDING.md) · [Build integration guide](docs/BUILD_INTEGRATION_GUIDE.md) · [Integration models](docs/INTEGRATION_MODELS.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)
 
 ---
 

@@ -13,7 +13,9 @@
 - **Docs clarified:** native C++ / shim integrations link `secp256k1::fast` (or
   the `secp256k1_shim` facade). `libufsecp` is an optional C ABI package for C
   callers, bindings, and explicit bridge consumers, not a second mandatory engine
-  library.
+  library. The front-door README and integration-model docs now carry the same
+  package-selection guidance and the exact top-level install commands for
+  engine-only vs engine-plus-C-ABI installs.
 
 ## 2026-06-17 — Restore PERF-004 marker + thread-cap regression coverage (CI fix)
 

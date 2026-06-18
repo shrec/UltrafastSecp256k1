@@ -10,6 +10,15 @@ is API/ABI compatible with upstream `libsecp256k1`. "Smartness" (engine-managed 
 and per-row results) lives *inside* the shim's batch extension, so integrators get throughput
 without managing threads, memory layouts, or device selection themselves.
 
+Install/link policy follows the same split:
+
+- Native engine / shim integrations link `secp256k1::fast` or `secp256k1_shim`.
+- `libufsecp` is an optional C ABI / bridge package, not a second mandatory
+  engine library.
+- The default top-level install emits `libfastsecp256k1` and
+  `secp256k1-fast.pc` (`-lfastsecp256k1`). Install `libufsecp` only with
+  `-DSECP256K1_BUILD_CABI=ON -DSECP256K1_INSTALL_CABI=ON`.
+
 ```mermaid
 flowchart TD
   caller["Integrator (libbitcoin / Core / ...)"]
@@ -105,6 +114,18 @@ available. This tier is **opt-in and not required** — most integrators should 
 - **Status:** kept as-is. GPU dispatch *inside* the standard shim AUTO path is a future additive
   step; until then GPU lives here. Even the bridge's CPU ECDSA path can later adopt
   `ecdsa_batch_verify_mt` as a separate optimization.
+
+Install this tier explicitly:
+
+```bash
+cmake -S . -B out/install-both -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
+cmake --build out/install-both --target install
+```
+
+That produces both packages: `secp256k1-fast.pc` for the native engine and
+`ufsecp.pc` for the optional C ABI / bridge surface.
 
 ---
 
