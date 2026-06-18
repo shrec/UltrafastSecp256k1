@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-18 — libbitcoin integration manual aligned to libbitcoin table standard
+
+- **libbitcoin-owned layout clarified:** `docs/LIBBITCOIN_INTEGRATION.md` now
+  treats libbitcoin's existing packed `std::span<Batch>` row/table format as the
+  canonical integration contract. The engine adapts to that layout instead of
+  requiring libbitcoin to reshape batches.
+- **Opaque ECDSA semantics documented:** the default `ufsecp_lbtc_verify_ecdsa`
+  path is explicitly documented as the opaque libbitcoin/libsecp-compatible
+  `ec_signature` format with scratch low-S normalization; public compact `r||s`
+  is available only through explicit compact variants.
+- **Build handoff made concrete:** the manual now documents the
+  `SECP256K1_BUILD_LIBBITCOIN` profile, optional CUDA/static-cudart behavior,
+  Windows MSVC/clang-cl notes, the direct `batch_verify(std::span<Batch>)`
+  mapping, and the local validation commands to hand to libbitcoin maintainers.
+
 ## 2026-06-18 — Gate shim security timeout hardening
 
 - **Shim security gate remains mandatory:** `Gate / PR-Push` still requires the

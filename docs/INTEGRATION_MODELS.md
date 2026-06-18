@@ -107,17 +107,21 @@ impact** (same class as the engine's `ecdsa_batch_verify_mt`).
 
 ---
 
-## Model 2 — Advanced integrator (optional; GPU / zero-copy)
+## Model 2 — Integrator-owned table format (GPU / zero-copy)
 
-For integrators that need GPU acceleration or zero-copy packed-row / columnar layouts, the
-bespoke `compat/libbitcoin_bridge` (`ufsecp_lbtc_*`) and the `ufsecp_gpu_*` C ABI remain
-available. This tier is **opt-in and not required** — most integrators should use Model 1.
+For integrators that already own a stable batch-table format, the engine follows that
+format instead of forcing a reshape. This is the libbitcoin path: libbitcoin's packed
+`std::span<Batch>` row layout remains the contract, and `compat/libbitcoin_bridge`
+(`ufsecp_lbtc_*`) accepts the row or column data directly.
 
 - **Covers:** GPU dispatch (CUDA/OpenCL/Metal) with CPU fallback, packed-row/columnar/collect
   verdict buffers, libbitcoin-specific Taproot/BIP-352 helpers.
-- **Status:** kept as-is. GPU dispatch *inside* the standard shim AUTO path is a future additive
-  step; until then GPU lives here. Even the bridge's CPU ECDSA path can later adopt
-  `ecdsa_batch_verify_mt` as a separate optimization.
+- **libbitcoin status:** first-class when libbitcoin wants to preserve its existing
+  packed-row / mmap table standard. The default ECDSA row API consumes libbitcoin's
+  opaque `ec_signature` storage and normalizes high-S in scratch, matching the
+  libsecp256k1 fallback semantics without rewriting caller-owned rows.
+- **Other integrators:** use this tier only when they intentionally need a custom
+  table format, GPU dispatch, or zero-copy columnar storage. Otherwise use Model 1.
 
 Install this tier explicitly:
 
