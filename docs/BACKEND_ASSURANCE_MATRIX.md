@@ -67,6 +67,15 @@ bridge-side msg/pub/sig column staging for the packed-row API while preserving
 libsecp-compatible verification semantics. `ufsecp_gpu_ecdsa_verify_lbtc_rows`
 is retained as a compatibility alias.
 
+### ECDSA compact signature staging (Updated 2026-06-18)
+
+`ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA
+and OpenCL now upload those 64-byte rows directly and parse them inside the
+verify kernel, matching the existing Metal path. This keeps CPU-side memory
+traffic in the caller/public format and moves the cheap byte-to-scalar transform
+to backend registers. The public ABI and consensus-bearing result convention are
+unchanged.
+
 ### Non-GPU Product Profile Assurance (Added 2026-05-01)
 
 Full taxonomy: [docs/PRODUCT_PROFILES.md](PRODUCT_PROFILES.md).

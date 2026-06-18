@@ -1,5 +1,32 @@
 # Audit Changelog
 
+## 2026-06-18 — Memory-vs-compute backend staging reduction
+
+- **CUDA/OpenCL ECDSA verify batch staging reduced:** `ufsecp_gpu_ecdsa_verify_batch`
+  now uploads compact `r||s` signatures to CUDA/OpenCL and parses them into
+  backend scalar registers inside the verify kernel. Metal already used this
+  shape. This removes the host-side `N x ECDSASignature` conversion/staging loop
+  from CUDA/OpenCL without changing the public ABI or verification semantics.
+- **libbitcoin bridge chunk scratch is grow-only:** hot result/column staging in
+  `compat/libbitcoin_bridge/src/ufsecp_libbitcoin.cpp` now reuses thread-local
+  byte buffers instead of allocating fresh vectors per chunk. This preserves the
+  existing row/column API while reducing allocator churn in validation-sized
+  batches.
+- **Regression gate:** `ci/check_backend_parity.py` now carries C9, a source-level
+  guard that fails if CUDA/OpenCL ECDSA verify reintroduces host-side compact
+  signature conversion/staging instead of device-local parse.
+- **Batch curve-check regression test corrected:** `regression_ecdsa_batch_curve_check`
+  now uses `secp256k1_ecdsa_signature_parse_compact` to convert public compact
+  `r||s` into the shim's opaque `secp256k1_ecdsa_signature` layout before calling
+  the batch API. This keeps the test aligned with libsecp-style public usage and
+  avoids writing big-endian compact bytes directly into the private opaque buffer.
+- **CPU batch-add status:** the existing `batch_add_affine_x_with_parity` path
+  already follows the register-local `Y` pattern: it computes `Y` only long enough
+  to derive the compressed-pubkey parity bit and stores `x + parity`, not full
+  `Y`. Further precompute-table `Y` elision requires benchmark evidence because
+  recovering `Y` from `x` costs a field square root and may lose against the
+  memory write it replaces.
+
 ## 2026-06-18 — Separate native engine install from optional libufsecp C ABI install
 
 - **Pkg-config corrected:** `secp256k1-fast.pc` now links `-lfastsecp256k1`

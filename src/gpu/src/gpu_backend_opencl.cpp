@@ -86,6 +86,10 @@ struct OpenCLBatchScratch {
         if (ecdsa_sigs.size() < count) ecdsa_sigs.resize(count);
         if (results.size() < count) results.resize(count);
     }
+
+    void ensure_results(std::size_t count) {
+        if (results.size() < count) results.resize(count);
+    }
 };
 
 static thread_local OpenCLBatchScratch g_opencl_batch_scratch;
@@ -332,16 +336,12 @@ public:
             return set_error(GpuError::Memory, "pub buffer alloc");
         }
 
-        /* sigs: 64 bytes (r[32] | s[32]) → ECDSASig (r:Scalar, s:Scalar = 64 bytes LE limbs) */
+        /* sigs: compact 64-byte r||s. The kernel parses into Scalar registers,
+         * matching Metal and avoiding a host-side N x ECDSASig staging copy. */
         auto& scratch = g_opencl_batch_scratch;
-        scratch.ensure_ecdsa_verify(count);
-        auto* const h_sigs = scratch.ecdsa_sigs.data();
-        for (size_t i = 0; i < count; ++i) {
-            be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
-            be32_to_le_limbs(sigs64 + i * 64 + 32, h_sigs[i].s);
-        }
+        scratch.ensure_results(count);
         cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(OpenCLECDSASig) * count, h_sigs, &clerr);
+                                       64 * count, const_cast<uint8_t*>(sigs64), &clerr);
         if (clerr != CL_SUCCESS) {
             clReleaseMemObject(d_pubs);
             clReleaseMemObject(d_msgs);
@@ -443,7 +443,7 @@ public:
         clFinish(queue);
 
         auto& scratch = g_opencl_batch_scratch;
-        scratch.ensure_ecdsa_verify(count);
+        scratch.ensure_results(count);
         auto* const h_res = scratch.results.data();
         clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
                             sizeof(int) * count, h_res, 0, nullptr, nullptr);

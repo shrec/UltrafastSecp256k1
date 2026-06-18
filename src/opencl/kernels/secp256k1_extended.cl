@@ -1234,6 +1234,24 @@ inline int lbtc_parse_opaque_scalar(__global const uchar* opaque, Scalar* out) {
     return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
 }
 
+inline int lbtc_parse_compact_scalar(__global const uchar* be, Scalar* out) {
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int base = (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j)
+            v = (v << 8) | (ulong)be[base + j];
+        out->limbs[limb] = v;
+    }
+    return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
+}
+
+inline int lbtc_parse_compact_signature(__global const uchar* sig64,
+                                        ECDSASignature* sig) {
+    if (!lbtc_parse_compact_scalar(sig64, &sig->r)) return 0;
+    if (!lbtc_parse_compact_scalar(sig64 + 32, &sig->s)) return 0;
+    return 1;
+}
+
 inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
                                        ECDSASignature* sig) {
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
@@ -2064,7 +2082,7 @@ __kernel void ecdsa_verify(
 __kernel void ecdsa_verify_compressed(
     __global const uchar* msg_hashes,
     __global const uchar* pubkeys33,
-    __global const ECDSASignature* signatures,
+    __global const uchar* signatures,
     __global int* results,
     const uint count
 ) {
@@ -2080,8 +2098,9 @@ __kernel void ecdsa_verify_compressed(
         return;
     }
 
-    ECDSASignature sig = signatures[gid];
-    results[gid] = ecdsa_verify_impl(msg, &pub, &sig);
+    ECDSASignature sig;
+    int ok = lbtc_parse_compact_signature(signatures + gid * 64, &sig);
+    results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
 }
 
 __kernel void ecdsa_verify_lbtc_rows(

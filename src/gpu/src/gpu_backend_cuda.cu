@@ -769,30 +769,24 @@ gmb_cleanup:
         if (!msg_hashes32 || !pubkeys33 || !sigs64 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Prepare signatures on host */
-        std::vector<ECDSASignatureGPU> h_sigs(count);
-        for (size_t i = 0; i < count; ++i) {
-            bytes_to_ecdsa_sig(sigs64 + i * 64, &h_sigs[i]);
-        }
-
         /* Allocate device memory */
         uint8_t*            d_msgs    = nullptr;
         uint8_t*            d_pubs33  = nullptr;
         JacobianPoint*      d_pubs    = nullptr;
         bool*               d_pub_ok  = nullptr;
-        ECDSASignatureGPU*  d_sigs    = nullptr;
+        uint8_t*            d_sigs64  = nullptr;
         bool*               d_res     = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
         CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
         CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
         CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
-        CUDA_TRY(cudaMalloc(&d_sigs, count * sizeof(ECDSASignatureGPU)));
+        CUDA_TRY(cudaMalloc(&d_sigs64, count * 64));
         CUDA_TRY(cudaMalloc(&d_res, count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, pubkeys33, count * 33, cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_sigs, h_sigs.data(), count * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_sigs64, sigs64, count * 64, cudaMemcpyHostToDevice));
 
         /* Decompress pubkeys on GPU */
         int threads = 128;
@@ -803,7 +797,7 @@ gmb_cleanup:
 
         /* Launch verify */
         ecdsa_verify_batch_kernel<<<blocks, threads>>>(
-            d_msgs, d_pubs, d_sigs, d_res, static_cast<int>(count));
+            d_msgs, d_pubs, d_sigs64, d_res, static_cast<int>(count));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
@@ -814,7 +808,7 @@ gmb_cleanup:
             out_results[i] = h_res[i] ? 1 : 0;
 
         cudaFree(d_res);
-        cudaFree(d_sigs);
+        cudaFree(d_sigs64);
         cudaFree(d_pub_ok);
         cudaFree(d_pubs);
         cudaFree(d_pubs33);

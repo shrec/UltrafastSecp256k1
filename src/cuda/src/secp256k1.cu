@@ -154,14 +154,17 @@ __global__ __launch_bounds__(128, 2)
 void ecdsa_verify_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
     const JacobianPoint* __restrict__ public_keys,
-    const ECDSASignatureGPU* __restrict__ sigs,
+    const uint8_t* __restrict__ sigs64,
     bool*          __restrict__ results,
     int count)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) {
         const uint8_t* msg = msg_hashes + static_cast<size_t>(idx) * 32;
-        results[idx] = ecdsa_verify(msg, &public_keys[idx], &sigs[idx]);
+        const uint8_t* sig64 = sigs64 + static_cast<size_t>(idx) * 64;
+        ECDSASignatureGPU sig;
+        const bool ok = ecdsa_sig_parse_compact_strict(sig64, &sig);
+        results[idx] = ok && ecdsa_verify(msg, &public_keys[idx], &sig);
     }
 }
 
