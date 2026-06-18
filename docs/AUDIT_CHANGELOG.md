@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-06-18 — Gate shim security timeout hardening
+
+- **Shim security gate remains mandatory:** `Gate / PR-Push` still requires the
+  shim-linked security regression job on non-doc-only core/compat/CAAS/bindings
+  changes.
+- **Cold-runner cancellation window widened:** the shim gate timeout was raised
+  from 25 to 45 minutes after GitHub hosted runners repeatedly spent the whole
+  prior budget during dependency setup, cancelling the job before shim build and
+  regression tests could run.
+- **Security semantics unchanged:** no skip path or advisory downgrade was added;
+  the change only prevents infrastructure slowness from masking the required
+  shim test result as a cancelled security phase.
+
 ## 2026-06-18 — Bech32 address encoder allocation reduction
 
 - **P2WPKH address encoding fast path tightened:** `bech32_encode` now uses a
@@ -12,6 +25,13 @@
   improved from the captured baseline `522.1 ns` to stable reruns around
   `470-471 ns`; `address_p2pkh` was left on the previous Base58Check path after
   the stack-buffer experiment measured slower.
+- **Regression coverage:** `test_bech32` now checks the BIP173 P2WPKH vector
+  exactly and roundtrips an oversized Bech32m paycode-style payload, covering
+  both the stack-backed fast path and heap fallback.
+- **CAAS pairing recorded:** `check_security_fix_has_test.py` now records the
+  retroactive coverage for the earlier Bech32 optimization commit so the
+  protected fast gate can verify the test file exists instead of leaving the
+  commit as an uncovered `src/cpu/src/address.cpp` change.
 
 ## 2026-06-18 — Static CUDA runtime linkage by default
 

@@ -598,7 +598,11 @@ jobs:
     # Without this job those modules return ADVISORY_SKIP_CODE (77) and a live
     # regression would produce all_pass:true in the CAAS pipeline.
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # Cold GitHub runners can spend most of the old 25-minute budget in apt
+    # setup before shim build/tests start. Keep the mandatory shim coverage, but
+    # give it the same cold-cache window as Block 2 so infra slowness does not
+    # cancel the security phase before tests run.
+    timeout-minutes: 45
     needs: [detect-impact, fast-gates]
     if: >-
       needs.detect-impact.outputs.run_core == 'true' ||

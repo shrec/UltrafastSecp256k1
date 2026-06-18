@@ -690,12 +690,21 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "deterministic render + live --check), added in the immediately-following commit. "
         "Same class as the gate-wiring entries 02602cf420 / 8f5915c5b6 / 7d094c7c09.",
     ),
+    "9b30f7b0f8": (
+        ["src/cpu/tests/test_v4_features.cpp"],
+        "Address encoder allocation optimization in src/cpu/src/address.cpp: "
+        "bech32_encode now uses stack-backed 5-bit conversion for normal witness "
+        "programs and heap fallback for oversized payloads. No secret-bearing "
+        "or consensus parser semantics changed. Retroactive coverage in "
+        "test_v4_features.cpp checks the exact BIP173 P2WPKH vector and an "
+        "oversized Bech32m paycode-style roundtrip, covering both paths.",
+    ),
 }
 
 # Frozen count guard (CAAS-006): prevents silent whitelist growth.
 # When adding a new entry above, increment this constant too.
 # Unauthorized bypass (adding an entry without incrementing) → import-time assertion failure.
-RETROACTIVELY_COVERED_FROZEN_COUNT: int = 62
+RETROACTIVELY_COVERED_FROZEN_COUNT: int = 63
 assert len(RETROACTIVELY_COVERED) == RETROACTIVELY_COVERED_FROZEN_COUNT, (
     f"RETROACTIVELY_COVERED has {len(RETROACTIVELY_COVERED)} entries but "
     f"RETROACTIVELY_COVERED_FROZEN_COUNT={RETROACTIVELY_COVERED_FROZEN_COUNT}. "
