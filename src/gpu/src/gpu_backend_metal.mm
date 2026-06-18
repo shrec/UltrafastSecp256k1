@@ -610,7 +610,7 @@ public:
 
         auto pipe = runtime_->make_pipeline("scalar_mul_batch_compressed");
         runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
-                                {&buf_bases, &buf_scalars, &buf_results, &buf_count});
+                                {&buf_pubs33, &buf_scalars, &buf_results, &buf_count});
 
         const auto* aff = static_cast<const MetalAffinePoint*>(buf_results.contents());
         for (size_t i = 0; i < count; ++i) {
