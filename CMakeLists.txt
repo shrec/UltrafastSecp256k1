@@ -610,12 +610,19 @@ if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR SECP256K1_BUILD_METAL)
     add_subdirectory(src/gpu)
 endif()
 
-# -- Stable C ABI layer (ufsecp_*) -----------------------------------------
+# -- Optional stable C ABI layer (ufsecp_*) --------------------------------
 # Built before audit/ so that ufsecp_static is available for fuzz tests.
-option(SECP256K1_BUILD_CABI "Build the stable ufsecp_* C ABI library" ON)
+# Native C++ / libsecp256k1-shim integrations should link secp256k1::fast (or
+# secp256k1_shim). libufsecp is the optional C ABI / binding / bridge package.
+option(SECP256K1_BUILD_CABI
+       "Build optional libufsecp C ABI package (ufsecp_* FFI/bridge surface; native engine consumers link secp256k1::fast)"
+       ON)
+option(SECP256K1_INSTALL_CABI
+       "Install optional libufsecp C ABI package during the top-level install"
+       OFF)
 if(SECP256K1_BUILD_CABI AND SECP256K1_BUILD_CPU)
     add_subdirectory(include/ufsecp)
-    message(STATUS "  C ABI (ufsecp):   ON")
+    message(STATUS "  C ABI (ufsecp):   ON (optional; native integrations link secp256k1::fast)")
 endif()
 
 if(SECP256K1_BUILD_JAVA AND SECP256K1_BUILD_CABI AND SECP256K1_BUILD_CPU)
@@ -742,6 +749,67 @@ if(SECP256K1_INSTALL)
             FILES "${CMAKE_CURRENT_BINARY_DIR}/secp256k1-fast.pc"
             DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
         )
+    endif()
+
+    if(SECP256K1_INSTALL_CABI)
+        if(NOT SECP256K1_BUILD_CABI)
+            message(FATAL_ERROR
+                "SECP256K1_INSTALL_CABI=ON requires SECP256K1_BUILD_CABI=ON")
+        endif()
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/ufsecp/ufsecp.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/ufsecp/ufsecp256k1.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/ufsecp/ufsecp_error.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/include/ufsecp/ufsecp_version.h"
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ufsecp
+        )
+
+        if(TARGET secp256k1_gpu_host)
+            install(FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/include/ufsecp/ufsecp_gpu.h"
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ufsecp
+            )
+        endif()
+
+        if(SECP256K1_BUILD_LIBBITCOIN)
+            install(FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/compat/libbitcoin_bridge/include/ufsecp_libbitcoin.h"
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ufsecp
+            )
+        endif()
+
+        if(TARGET ufsecp_shared)
+            install(TARGETS ufsecp_shared
+                EXPORT ufsecpTargets
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+        endif()
+        if(TARGET ufsecp_static)
+            install(TARGETS ufsecp_static
+                EXPORT ufsecpTargets
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            )
+        endif()
+        install(EXPORT ufsecpTargets
+            FILE ufsecpTargets.cmake
+            NAMESPACE ufsecp::
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ufsecp
+        )
+
+        configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/ufsecp/ufsecp.pc.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/ufsecp.pc"
+            @ONLY
+        )
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ufsecp.pc"
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+        )
+
+        message(STATUS
+            "  C ABI install:    ON (libufsecp; optional FFI/bridge package)")
     endif()
 endif()
 

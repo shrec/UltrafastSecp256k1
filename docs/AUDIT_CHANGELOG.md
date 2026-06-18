@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-06-18 — Separate native engine install from optional libufsecp C ABI install
+
+- **Pkg-config corrected:** `secp256k1-fast.pc` now links `-lfastsecp256k1`
+  instead of `-lufsecp`. The native engine package no longer points consumers at
+  the optional C ABI library by accident.
+- **Top-level C ABI install is explicit:** new `SECP256K1_INSTALL_CABI` defaults
+  to `OFF`. A normal install emits the native `fastsecp256k1` engine package;
+  consumers that really need the stable `ufsecp_*` C ABI / bridge package can set
+  `-DSECP256K1_BUILD_CABI=ON -DSECP256K1_INSTALL_CABI=ON` and install both from
+  the same configure.
+- **Docs clarified:** native C++ / shim integrations link `secp256k1::fast` (or
+  the `secp256k1_shim` facade). `libufsecp` is an optional C ABI package for C
+  callers, bindings, and explicit bridge consumers, not a second mandatory engine
+  library.
+
 ## 2026-06-17 — Restore PERF-004 marker + thread-cap regression coverage (CI fix)
 
 - **`regression_adaptor_blinded_nonce` green again.** The 2026-06-17 bridge-free

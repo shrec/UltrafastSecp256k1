@@ -1958,7 +1958,14 @@ See [bindings/wasm/README.md](../bindings/wasm/README.md) for detailed build and
 
 ## C ABI (ufsecp)
 
-The stable C ABI is defined in `include/ufsecp/ufsecp.h`. All functions follow these rules:
+The stable C ABI is defined in `include/ufsecp/ufsecp.h`. This is the optional
+`libufsecp` package for C callers, bindings, and explicit bridge consumers.
+Native C++ integrations and the libsecp256k1-compatible shim should link the
+engine target (`secp256k1::fast` / `fastsecp256k1`) directly. Top-level install
+emits `ufsecp.pc` only with `-DSECP256K1_INSTALL_CABI=ON`; the default
+`secp256k1-fast.pc` links the native engine library.
+
+All functions follow these rules:
 
 - **Opaque context**: `ufsecp_ctx*` -- one per thread, or externally synchronised
 - **Every function returns `ufsecp_error_t`** (0 = OK)
