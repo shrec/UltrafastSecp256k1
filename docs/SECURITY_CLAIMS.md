@@ -2,6 +2,24 @@
 
 **UltrafastSecp256k1 v4.3.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-06-18 - Bech32 address encoder allocation reduction
+
+`bech32_encode` now avoids heap-backed intermediate vectors for normal Bitcoin
+witness address payloads by converting 8-bit witness data into a stack-backed
+5-bit buffer and computing the checksum as a streaming polymod. This is a
+public-data address formatting optimization only. It does not touch signing,
+verification, secret-key parsing, nonce generation, CT arithmetic, or ABI output
+clearing.
+
+**Claim:** P2WPKH/P2WSH/P2TR Bech32/Bech32m address outputs remain byte-identical
+while normal witness address encoding performs less transient allocation work.
+Secret lifecycle and constant-time signing guarantees are unchanged because the
+encoder operates only on public HRP/version/witness-program bytes.
+
+Validation: `run_selftest smoke`, `ci/check_source_graph_quality.py`, and local
+`bench_hotpaths` runs showing `address_p2wpkh` improvement from the captured
+baseline `522.11 ns` to `471.46 ns` / `470.74 ns`.
+
 ### 2026-06-13 - Opaque ECDSA verify compatibility for libsecp-style consumers
 
 The public CPU C ABI now supports copied libsecp-compatible

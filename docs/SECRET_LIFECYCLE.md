@@ -2,6 +2,20 @@
 
 **Last updated**: 2026-06-17 | **Version**: 4.3.0
 
+### 2026-06-18 - Bech32 address encoder allocation reduction: public-data only
+
+The `bech32_encode` allocation-reduction change in `src/cpu/src/address.cpp`
+uses a stack-backed 5-bit conversion buffer and streams the Bech32 checksum for
+Bitcoin witness address encoding. This path receives only PUBLIC address data:
+the network HRP, witness version, and witness program/hash. It does not process
+private keys, nonces, signing scalars, seed material, or caller-owned secret
+buffers.
+
+No secret lifecycle or zeroization contract changed. `secure_erase` sites were
+not added, removed, or reordered; signing, BIP-32/BIP-39, MuSig2, FROST, ECIES,
+and wallet secret cleanup paths remain unchanged. The stack buffer contains only
+public 5-bit address groups and requires no secret scrubbing.
+
 ### 2026-06-17 - Batch verify MT + cache-dir API: no new secret surface
 
 The bridge-free batch-verify work (`schnorr_batch_verify_mt`, the smart shim
