@@ -11,7 +11,7 @@
 // ============================================================================
 
 #include "ecdsa.cuh"   // for SHA256Ctx, sha256_*, scalar_from_bytes, etc.
-#include "ct/ct_scalar.cuh"  // scalar_cmov for branchless key/nonce negation (MEDIUM-4)
+#include "ct/ct_point.cuh"  // CT generator multiply + scalar arithmetic
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -170,7 +170,7 @@ __device__ inline bool schnorr_sign(
 
     // P = d' * G  (CT: branchless, private key bits not leaked via timing)
     JacobianPoint P;
-    scalar_mul_generator_ct_glv(private_key, &P);
+    ct::ct_generator_mul(private_key, &P);
     if (P.infinity) return false;
 
     // Convert to affine
@@ -219,7 +219,7 @@ __device__ inline bool schnorr_sign(
 
     // R = k' * G  (CT: branchless, nonce bits not leaked via timing)
     JacobianPoint R;
-    scalar_mul_generator_ct_glv(&k_prime, &R);
+    ct::ct_generator_mul(&k_prime, &R);
 
     // Convert R to affine
     FieldElement rz_inv, rz_inv2, rz_inv3, rx, ry;
@@ -256,29 +256,9 @@ __device__ inline bool schnorr_sign(
 
     // s = k + e * d mod n
     Scalar ed;
-    scalar_mul_mod_n(&e, &d, &ed);
+    ct::scalar_mul(&e, &d, &ed);
 
-    // s = k + ed mod n (addition with reduction)
-    uint64_t carry = 0;
-    for (int i = 0; i < 4; i++) {
-        const uint64_t sum = k.limbs[i] + ed.limbs[i];
-        const uint64_t carry0 = (sum < k.limbs[i]) ? 1ULL : 0ULL;
-        sig->s.limbs[i] = sum + carry;
-        carry = carry0 | ((sig->s.limbs[i] < sum) ? 1ULL : 0ULL);
-    }
-    // Reduce mod n
-    uint64_t borrow = 0;
-    uint64_t tmp[4];
-    for (int i = 0; i < 4; i++) {
-        const uint64_t diff = sig->s.limbs[i] - ORDER[i];
-        const uint64_t borrow0 = (sig->s.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
-        tmp[i] = diff - borrow;
-        borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
-    }
-    uint64_t mask = -(uint64_t)(borrow == 0 || carry);
-    for (int i = 0; i < 4; i++) {
-        sig->s.limbs[i] = (tmp[i] & mask) | (sig->s.limbs[i] & ~mask);
-    }
+    ct::scalar_add(&k, &ed, &sig->s);
 
     return true;
 }
@@ -364,7 +344,7 @@ __device__ inline bool schnorr_keypair_create(
     if (scalar_is_zero(private_key)) return false;
 
     JacobianPoint P;
-    scalar_mul_generator_ct_glv(private_key, &P);  // CT+GLV: private_key is secret
+    ct::ct_generator_mul(private_key, &P);
     if (P.infinity) return false;
 
     FieldElement ax, ay;
@@ -391,7 +371,7 @@ __device__ inline bool schnorr_pubkey(const Scalar* private_key, uint8_t pubkey_
     if (scalar_is_zero(private_key)) return false;
 
     JacobianPoint P;
-    scalar_mul_generator_ct_glv(private_key, &P);  // CT+GLV: private_key is secret
+    ct::ct_generator_mul(private_key, &P);
     if (P.infinity) return false;
 
     FieldElement ax, ay;
@@ -431,7 +411,7 @@ __device__ inline bool schnorr_sign_with_keypair(
     if (scalar_is_zero(&k_prime)) return false;
 
     JacobianPoint R;
-    scalar_mul_generator_ct_glv(&k_prime, &R);  // CT+GLV: nonce bits not leaked, ~35% faster
+    ct::ct_generator_mul(&k_prime, &R);
 
     FieldElement rz_inv, rz_inv2, rz_inv3, rx, ry;
     field_inv(&R.z, &rz_inv);
@@ -464,26 +444,9 @@ __device__ inline bool schnorr_sign_with_keypair(
 
     // s = k + e * d mod n
     Scalar ed;
-    scalar_mul_mod_n(&e, &kp->d, &ed);
+    ct::scalar_mul(&e, &kp->d, &ed);
 
-    uint64_t carry = 0;
-    for (int i = 0; i < 4; i++) {
-        const uint64_t sum = k.limbs[i] + ed.limbs[i];
-        const uint64_t carry0 = (sum < k.limbs[i]) ? 1ULL : 0ULL;
-        sig->s.limbs[i] = sum + carry;
-        carry = carry0 | ((sig->s.limbs[i] < sum) ? 1ULL : 0ULL);
-    }
-    uint64_t borrow = 0;
-    uint64_t tmp[4];
-    for (int i = 0; i < 4; i++) {
-        const uint64_t diff = sig->s.limbs[i] - ORDER[i];
-        const uint64_t borrow0 = (sig->s.limbs[i] < ORDER[i]) ? 1ULL : 0ULL;
-        tmp[i] = diff - borrow;
-        borrow = borrow0 | ((diff < borrow) ? 1ULL : 0ULL);
-    }
-    uint64_t mask = -(uint64_t)(borrow == 0 || carry);
-    for (int i = 0; i < 4; i++)
-        sig->s.limbs[i] = (tmp[i] & mask) | (sig->s.limbs[i] & ~mask);
+    ct::scalar_add(&k, &ed, &sig->s);
 
     return true;
 }

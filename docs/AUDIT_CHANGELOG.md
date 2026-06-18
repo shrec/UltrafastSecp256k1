@@ -13,6 +13,18 @@
 - **Docs updated:** `docs/BUILDING.md` and `docs/INTEGRATION_MODELS.md` now
   document the CUDA runtime linkage contract.
 
+## 2026-06-18 — CUDA signing scalar-add correctness
+
+- **CUDA ECDSA/Schnorr fast signing paths now reuse CT scalar arithmetic:** the
+  duplicate local modular-add/reduce blocks in `ecdsa_sign`,
+  `schnorr_sign`, and `schnorr_sign_with_keypair` were replaced with the same
+  `ct::scalar_mul` / `ct::scalar_add` primitives used by the CT signing layer.
+  This restores CUDA sign+verify self-consistency and CT-vs-fast signature
+  parity while reducing duplicate scalar arithmetic in secret-bearing signing
+  code.
+- **Regression surface:** `cuda_selftest` covers ECDSA/Schnorr sign+verify and
+  `gpu_ct_smoke` covers CT signing plus CT-vs-fast ECDSA parity.
+
 ## 2026-06-18 — Memory-vs-compute backend staging reduction
 
 - **CUDA/OpenCL ECDSA verify batch staging reduced:** `ufsecp_gpu_ecdsa_verify_batch`
