@@ -127,7 +127,7 @@ parameter; it is derived from the existing `std::span`.
 template <typename Batch>
 data_chunk batch_verify(const std::span<Batch>& batch, bool) NOEXCEPT
 {
-    static thread_local ufsecp::lbtc::Controller context{ UFSECP_LBTC_AUTO };
+    static thread_local ufsecp::lbtc::Controller context;
     if (!context.ok()) std::abort();
 
     const auto count = batch.size();
@@ -156,7 +156,7 @@ The C++20 typed-span overloads can remove the explicit `count` and `extra_size`
 calculation at the call site:
 
 ```cpp
-static thread_local ufsecp::lbtc::Controller context{ UFSECP_LBTC_AUTO };
+static thread_local ufsecp::lbtc::Controller context;
 data_chunk results(batch.size());
 context.verify_ecdsa(std::span<const ecdsa::batch>{ batch }, results.data());
 ```
@@ -189,10 +189,12 @@ API. Use `*_columns_compact` only for public compact `r||s`.
 
 ## Backend Selection
 
-Create one controller per worker thread or serialize access externally:
+Create one controller per worker thread or serialize access externally. The
+C++ wrapper defaults to `UFSECP_LBTC_AUTO`, so the normal libbitcoin call site
+does not need to spell the enum:
 
 ```cpp
-static thread_local ufsecp::lbtc::Controller context{ UFSECP_LBTC_AUTO };
+static thread_local ufsecp::lbtc::Controller context;
 if (!context.ok()) std::abort();
 ```
 

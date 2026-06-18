@@ -14,6 +14,10 @@
   `SECP256K1_BUILD_LIBBITCOIN` profile, optional CUDA/static-cudart behavior,
   Windows MSVC/clang-cl notes, the direct `batch_verify(std::span<Batch>)`
   mapping, and the local validation commands to hand to libbitcoin maintainers.
+- **AUTO backend default made explicit:** the libbitcoin examples now use the
+  C++ wrapper's default `ufsecp::lbtc::Controller` constructor, which already
+  binds `UFSECP_LBTC_AUTO`, keeping libbitcoin call sites shorter while leaving
+  the raw C ABI explicit.
 
 ## 2026-06-18 — Gate shim security timeout hardening
 
