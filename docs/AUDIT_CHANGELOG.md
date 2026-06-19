@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-06-19 — Release-tag Windows MSVC workflows pinned to VS2022 image
+
+- **Tag workflow false-red removed:** `.github/workflows/ci-advisory.yml` and
+  `.github/workflows/audit-report.yml` now pin Windows/MSVC jobs to
+  `windows-2022`, matching the already-passing main CI Windows job.
+- **Root cause:** release-tag jobs used the moving `windows-latest` alias with
+  the `Visual Studio 17 2022` CMake generator; the tag runner could not find a
+  Visual Studio instance during configure.
+- **Release evidence preserved:** the change affects workflow environment
+  selection only; product code and audit gate semantics are unchanged.
+
 ## 2026-06-19 — Scheduled CAAS freshness gate aligned with B19 ledger
 
 - **Legacy freshness false-red removed:** `.github/workflows/caas-freshness-check.yml`
