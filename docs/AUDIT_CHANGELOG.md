@@ -1,5 +1,17 @@
 # Audit Changelog
 
+## 2026-06-19 — Scheduled CAAS freshness gate aligned with B19 ledger
+
+- **Legacy freshness false-red removed:** `.github/workflows/caas-freshness-check.yml`
+  no longer hard-codes a six-file 30-day timestamp list that treats
+  owner-deferred/manual evidence as stale.
+- **Authoritative gates reused:** the scheduled T10 mitigation now runs
+  `ci/audit_sla_check.py` and `ci/check_evidence_refresh_coverage.py`, matching
+  the B3/B19 model used by push gates and the residual-risk ledger.
+- **Release behavior clarified:** authored specs, stable goldens, build-only
+  artifacts, and owner-chosen manual chores are judged through their documented
+  refresh disposition instead of fake auto-refresh timestamps.
+
 ## 2026-06-19 — CAAS dashboard centralized evidence browser
 
 - **Central evidence cockpit:** `ci/caas_dashboard.py` now aggregates the
