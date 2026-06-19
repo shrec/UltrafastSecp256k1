@@ -47,6 +47,7 @@
 #include "secp256k1/bip144.hpp"
 #include "secp256k1/segwit.hpp"
 #include "secp256k1/init.hpp"
+#include "secp256k1/precompute.hpp"   // set_cache_directory (ufsecp_set_cache_dir)
 #include "secp256k1/bip39.hpp"
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/musig2.hpp"

@@ -98,6 +98,10 @@ function(ufsecp_configure tgt)
         VERSION   ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
     )
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(${tgt} PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endif()
 
     # Link GPU host ops layer if available
     if(TARGET secp256k1_gpu_host)
@@ -204,6 +208,10 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
         target_include_directories(bench_lbtc_batch PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
         target_compile_definitions(bench_lbtc_batch PRIVATE UFSECP_LBTC_WITH_GPU)
     endif()
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(bench_lbtc_batch PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endif()
     message(STATUS "  libbitcoin batch bench: ON (bench_lbtc_batch, central source)")
 endif()
 
@@ -229,6 +237,10 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
         target_link_libraries(test_lbtc_consensus_diff PRIVATE secp256k1_gpu_host)
         target_include_directories(test_lbtc_consensus_diff PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
         target_compile_definitions(test_lbtc_consensus_diff PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(test_lbtc_consensus_diff PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
     endif()
     # Direct libsecp256k1 leg: link the drop-in shim so the gate proves
     # GPU==CPU==libsecp256k1 directly, not just transitively. Gate on the build
@@ -263,6 +275,10 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
         target_link_libraries(test_lbtc_multisig_threshold PRIVATE secp256k1_gpu_host)
         target_include_directories(test_lbtc_multisig_threshold PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
         target_compile_definitions(test_lbtc_multisig_threshold PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(test_lbtc_multisig_threshold PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
     endif()
     add_test(NAME lbtc_multisig_threshold COMMAND test_lbtc_multisig_threshold)
     set_tests_properties(lbtc_multisig_threshold PROPERTIES LABELS "libbitcoin;batch;compat")

@@ -88,13 +88,13 @@ static void shim_ensure_fixed_base() {
         }
         return;
 #else
-        // Resolution order (first success wins):
-        //   1. SECP256K1_CONFIG env var  -> config file path
-        //   2. SECP256K1_CACHE_PATH env var -> direct .bin path
-        //   3. CWD config.ini
-        //   4. configure_fixed_base_auto() -> auto-detect best available window
-        if (secp256k1::fast::configure_fixed_base_from_env()) return;
-
+        // No implicit config.ini (neither created nor read). Resolution order:
+        //   1. SECP256K1_CACHE_PATH env var -> exact .bin cache file
+        //   2. engine default -> reads/writes cache_w{bits}[ _glv].bin from the
+        //      directory set via secp256k1::fast::set_cache_directory() /
+        //      SECP256K1_CACHE_DIR, or the current working directory when unset.
+        // Callers that want a config file attach it themselves with
+        // configure_fixed_base_from_file(<their path>).
         if (const char* cp = std::getenv("SECP256K1_CACHE_PATH")) {
             secp256k1::fast::FixedBaseConfig cfg;
             cfg.cache_path = cp;
@@ -105,12 +105,6 @@ static void shim_ensure_fixed_base() {
             return;
         }
 
-        if (secp256k1::fast::configure_fixed_base_from_file("config.ini")) {
-            return;
-        }
-
-        // Auto-detect: uses whatever precomputed tables exist on this machine,
-        // falling back to w=8 (always available, no external file required).
         secp256k1::fast::configure_fixed_base_auto();
 #endif
     });

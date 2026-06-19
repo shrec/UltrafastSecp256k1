@@ -6,6 +6,7 @@ Catches:
   C2 — non-CT scalar_mul called with secret nonce k before signature computation
   C3 — early `break` inside overflow-check loop (variable-time comparison on rx_bytes)
   C8 — hardcoded `prefix = 0x02` in ECDH (ignores Y parity)
+  C9 — ECDSA verify compact signatures pre-staged as backend scalar arrays on host
 
 Each family defines files that must implement equivalent security properties.
 The gate reads each file via the source graph and applies pattern-level checks.
@@ -52,6 +53,20 @@ FAMILY_ECDH_FILES = [
     "src/metal/shaders/secp256k1_extended.h",
 ]
 
+# Family 3: ECDSA verify compact-signature staging.
+# Public `ufsecp_gpu_ecdsa_verify_batch` takes compact r||s rows. Backends should
+# keep that public 64-byte row shape through upload and parse into scalar registers
+# in the verify kernel; host-side N x backend-signature staging adds memory traffic
+# and hides layout regressions.
+FAMILY_ECDSA_VERIFY_STAGING_FILES = [
+    "src/gpu/src/gpu_backend_cuda.cu",
+    "src/cuda/src/secp256k1.cu",
+    "src/gpu/src/gpu_backend_opencl.cpp",
+    "src/opencl/kernels/secp256k1_extended.cl",
+    "src/gpu/src/gpu_backend_metal.mm",
+    "src/metal/shaders/secp256k1_kernels.metal",
+]
+
 # ---------------------------------------------------------------------------
 # Pattern checkers
 # ---------------------------------------------------------------------------
@@ -85,6 +100,19 @@ _RE_C3_BREAK      = re.compile(r'\bbreak\b')
 _RE_C8_BAD = re.compile(r'prefix\s*=\s*0x02\b')
 # We require 0x03 to be present somewhere in the same file (proof Y parity used)
 _RE_C8_GOOD = re.compile(r'0x03\b')
+
+_RE_C9_BAD_CUDA_HOST_SIG_VECTOR = re.compile(
+    r'std::vector\s*<\s*ECDSASignatureGPU\s*>\s*h_sigs'
+)
+_RE_C9_BAD_CUDA_HOST_SIG_UPLOAD = re.compile(
+    r'cudaMemcpy\s*\(\s*d_sigs\s*,\s*h_sigs\.data\(\)'
+)
+_RE_C9_BAD_OPENCL_HOST_SIG_CONVERT = re.compile(
+    r'be32_to_le_limbs\s*\(\s*sigs64\s*\+\s*i\s*\*\s*64'
+)
+_RE_C9_BAD_OPENCL_HOST_SIG_UPLOAD = re.compile(
+    r'sizeof\s*\(\s*OpenCLECDSASig\s*\)\s*\*\s*count\s*,\s*h_sigs'
+)
 
 
 def _fetch_file_content(conn: sqlite3.Connection, rel_path: str) -> str | None:
@@ -176,6 +204,100 @@ def _check_c8(content: str, rel_path: str) -> list[dict]:
     return violations
 
 
+def _function_block(content: str, marker: str) -> str:
+    """Return the braced function body containing marker, or full content on miss."""
+    start = content.find(marker)
+    if start < 0:
+        return content
+    brace = content.find("{", start)
+    if brace < 0:
+        return content[start:]
+
+    depth = 0
+    for pos in range(brace, len(content)):
+        ch = content[pos]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return content[start:pos + 1]
+    return content[start:]
+
+
+def _check_c9(content: str, rel_path: str) -> list[dict]:
+    """Check ECDSA verify compact signature staging stays device-local."""
+    violations = []
+
+    scan_content = content
+    if rel_path in {
+        "src/gpu/src/gpu_backend_cuda.cu",
+        "src/gpu/src/gpu_backend_opencl.cpp",
+        "src/gpu/src/gpu_backend_metal.mm",
+    }:
+        scan_content = _function_block(content, "GpuError ecdsa_verify_batch(")
+    elif rel_path == "src/cuda/src/secp256k1.cu":
+        scan_content = _function_block(content, "void ecdsa_verify_batch_kernel(")
+    elif rel_path == "src/opencl/kernels/secp256k1_extended.cl":
+        scan_content = _function_block(content, "__kernel void ecdsa_verify_compressed(")
+    elif rel_path == "src/metal/shaders/secp256k1_kernels.metal":
+        scan_content = _function_block(content, "kernel void ecdsa_verify_batch_compressed(")
+
+    bad_patterns = [
+        (_RE_C9_BAD_CUDA_HOST_SIG_VECTOR,
+         "host-side CUDA ECDSASignatureGPU vector staging returned"),
+        (_RE_C9_BAD_CUDA_HOST_SIG_UPLOAD,
+         "host-side CUDA ECDSASignatureGPU upload returned"),
+        (_RE_C9_BAD_OPENCL_HOST_SIG_CONVERT,
+         "host-side OpenCL compact signature byte-swap loop returned"),
+        (_RE_C9_BAD_OPENCL_HOST_SIG_UPLOAD,
+         "host-side OpenCL OpenCLECDSASig upload returned"),
+    ]
+    lines = scan_content.splitlines()
+    for regex, message in bad_patterns:
+        for lineno, line in enumerate(lines, 1):
+            if regex.search(line):
+                violations.append({
+                    "bug": "C9",
+                    "file": rel_path,
+                    "line": lineno,
+                    "text": line.strip()[:120],
+                    "message": message,
+                })
+
+    if rel_path == "src/cuda/src/secp256k1.cu":
+        if "ecdsa_sig_parse_compact_strict(sig64, &sig)" not in scan_content:
+            violations.append({
+                "bug": "C9",
+                "file": rel_path,
+                "line": 0,
+                "text": "ecdsa_verify_batch_kernel",
+                "message": "CUDA ECDSA verify kernel must parse compact sigs on device",
+            })
+
+    if rel_path == "src/opencl/kernels/secp256k1_extended.cl":
+        if "lbtc_parse_compact_signature(signatures + gid * 64, &sig)" not in scan_content:
+            violations.append({
+                "bug": "C9",
+                "file": rel_path,
+                "line": 0,
+                "text": "ecdsa_verify_compressed",
+                "message": "OpenCL ECDSA verify kernel must parse compact sigs on device",
+            })
+
+    if rel_path == "src/metal/shaders/secp256k1_kernels.metal":
+        if "device const uchar *signatures" not in scan_content or "base_sig = tid * 64" not in scan_content:
+            violations.append({
+                "bug": "C9",
+                "file": rel_path,
+                "line": 0,
+                "text": "ecdsa_verify_batch_compressed",
+                "message": "Metal ECDSA verify kernel must keep compact sig input shape",
+            })
+
+    return violations
+
+
 def run(json_mode: bool, out_file: str | None) -> int:
     conn = None
     if GRAPH_DB.exists():
@@ -207,11 +329,24 @@ def run(json_mode: bool, out_file: str | None) -> int:
         files_checked += 1
         violations.extend(_check_c8(content, rel_path))
 
+    # ── Family 3: ECDSA verify compact signature staging — C9 ────────────────
+    for rel_path in FAMILY_ECDSA_VERIFY_STAGING_FILES:
+        content = _fetch_file_content(conn, rel_path)
+        if content is None:
+            files_absent += 1
+            continue
+        files_checked += 1
+        violations.extend(_check_c9(content, rel_path))
+
     if conn:
         conn.close()
 
     # ── Advisory skip if no files could be read ─────────────────────────────
-    total_files = len(FAMILY_SIGN_FILES) + len(FAMILY_ECDH_FILES)
+    total_files = (
+        len(FAMILY_SIGN_FILES)
+        + len(FAMILY_ECDH_FILES)
+        + len(FAMILY_ECDSA_VERIFY_STAGING_FILES)
+    )
     if files_checked == 0:
         msg = "ADVISORY-SKIP: no target files found — backend parity check skipped"
         if json_mode:

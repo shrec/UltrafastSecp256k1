@@ -110,9 +110,10 @@ static int run_batch(secp256k1_context* ctx,
     std::vector<secp256k1_pubkey> pubkeys(n);
 
     for (size_t i = 0; i < n; ++i) {
-        // Fill secp256k1_ecdsa_signature (compact 64 bytes in data[])
-        std::memcpy(sigs[i].data,    slots[i].sig.data(),       32);  // r
-        std::memcpy(sigs[i].data+32, slots[i].sig.data() + 32,  32);  // s
+        // Parse public compact r||s into the shim's opaque signature layout.
+        if (!secp256k1_ecdsa_signature_parse_compact(ctx, &sigs[i], slots[i].sig.data())) {
+            return 0;
+        }
         // Fill secp256k1_pubkey (x||y in data[])
         std::memcpy(pubkeys[i].data,    slots[i].pubkey_xy.data(),      32);
         std::memcpy(pubkeys[i].data+32, slots[i].pubkey_xy.data() + 32, 32);

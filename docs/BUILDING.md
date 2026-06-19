@@ -102,6 +102,38 @@ cmake -S . -B out/release -G Ninja \
 cmake --build out/release -j
 ```
 
+CUDA builds link the CUDA runtime statically by default
+(`CMAKE_CUDA_RUNTIME_LIBRARY=Static`), so engine binaries do not require a
+separate `libcudart.so` / `cudart64*.dll` at runtime. The NVIDIA driver library
+itself remains a system dependency. Override with
+`-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` only when a downstream packaging policy
+requires a dynamic CUDA runtime.
+
+### Install: Native Engine vs Optional C ABI
+
+The default top-level install is the native engine package. It installs
+`libfastsecp256k1`, C++ headers, `secp256k1-fast-config.cmake`, and
+`secp256k1-fast.pc`; that pkg-config file links `-lfastsecp256k1`.
+
+```bash
+cmake -S . -B out/install-fast -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/install-fast --target install
+```
+
+`libufsecp` is optional. Install it only for C callers, bindings, or explicit
+C ABI / bridge consumers:
+
+```bash
+cmake -S . -B out/install-both -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
+cmake --build out/install-both --target install
+```
+
+Native C++ and libsecp256k1-shim integrations should link `secp256k1::fast`
+or the `secp256k1_shim` facade, not `libufsecp`, unless they intentionally use
+the C ABI surface.
+
 ### Coin-Specific Profiles (Minimal Footprint)
 
 Named presets strip unused optional modules to reduce `.text` size and compilation
@@ -218,6 +250,7 @@ or CI-oriented build trees.
 | `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
 | `SECP256K1_BUILD_ETHEREUM` | ON | Ethereum/EVM signing layer (Keccak-256, EIP-155, ecrecover). OFF for Bitcoin-only builds |
 | `SECP256K1_INSTALL` | ON | Generate install target |
+| `SECP256K1_INSTALL_CABI` | OFF | Install optional `libufsecp` C ABI package from the top-level install |
 
 ### RISC-V Specific
 
@@ -525,7 +558,7 @@ Output: `build-xcframework/output/UltrafastSecp256k1.xcframework`
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.3.0")
+    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.4.0")
 ]
 ```
 

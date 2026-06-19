@@ -665,6 +665,21 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "abbreviated BP/<chal> tag across all backends. Same class as the gate.yml "
         "SECURITY_CI_FILES entries (7d094c7c09 / f0ea17663a).",
     ),
+    "1f34150867": (
+        ["audit/test_regression_ecdsa_batch_verify_mt.cpp",
+         "compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp"],
+        "Remove the arbitrary 64-thread cap from ecdsa/schnorr_batch_verify_mt "
+        "(src/cpu/src/batch_verify.cpp): replaced the fixed std::array<std::thread,64> "
+        "pool with a dynamic std::vector<std::thread> sized to n_threads; the worker "
+        "count is reduced only to hardware_concurrency and the chunk count, no arbitrary "
+        "cap. The shim change (compat/libsecp256k1_shim/src/shim_batch_verify.cpp) was a "
+        "doc-comment-only threading-model update. Pure throughput change — verify is "
+        "variable-time over public data, boolean result unchanged for any thread count. "
+        "Covered by test_regression_ecdsa_batch_verify_mt (extended in the follow-up "
+        "commit with the >64-thread parity check {65,128,256,1024} and a source-scan "
+        "asserting no kMaxThreads cap remains + dynamic std::vector pool) and "
+        "test_shim_batch_mt (shim ECDSA/Schnorr batch-mt parity across thread counts).",
+    ),
     "0d2edda60b": (
         ["ci/test_gen_build_options.py"],
         "docs(build): wired the new ci/gen_build_options.py BUILD_OPTIONS.md drift gate "
@@ -675,12 +690,21 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "deterministic render + live --check), added in the immediately-following commit. "
         "Same class as the gate-wiring entries 02602cf420 / 8f5915c5b6 / 7d094c7c09.",
     ),
+    "9b30f7b0f8": (
+        ["src/cpu/tests/test_v4_features.cpp"],
+        "Address encoder allocation optimization in src/cpu/src/address.cpp: "
+        "bech32_encode now uses stack-backed 5-bit conversion for normal witness "
+        "programs and heap fallback for oversized payloads. No secret-bearing "
+        "or consensus parser semantics changed. Retroactive coverage in "
+        "test_v4_features.cpp checks the exact BIP173 P2WPKH vector and an "
+        "oversized Bech32m paycode-style roundtrip, covering both paths.",
+    ),
 }
 
 # Frozen count guard (CAAS-006): prevents silent whitelist growth.
 # When adding a new entry above, increment this constant too.
 # Unauthorized bypass (adding an entry without incrementing) → import-time assertion failure.
-RETROACTIVELY_COVERED_FROZEN_COUNT: int = 61
+RETROACTIVELY_COVERED_FROZEN_COUNT: int = 63
 assert len(RETROACTIVELY_COVERED) == RETROACTIVELY_COVERED_FROZEN_COUNT, (
     f"RETROACTIVELY_COVERED has {len(RETROACTIVELY_COVERED)} entries but "
     f"RETROACTIVELY_COVERED_FROZEN_COUNT={RETROACTIVELY_COVERED_FROZEN_COUNT}. "

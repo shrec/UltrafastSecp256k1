@@ -15,6 +15,41 @@ the available build modes, and how to choose the right one.
 
 ---
 
+## Which Library Should I Link?
+
+For native C++ integrations, Bitcoin-family node integrations, and the
+libsecp256k1-compatible shim, link the engine target:
+
+```cmake
+add_subdirectory(path/to/UltrafastSecp256k1 uf_build)
+target_link_libraries(myapp PRIVATE secp256k1::fast)
+```
+
+With the compatibility shim enabled, the shim code is compiled into
+`fastsecp256k1`; `secp256k1_shim` is only the compatibility target that exposes
+the `secp256k1_*` headers/symbol contract to the parent project.
+
+`libufsecp` is the optional stable C ABI package for C callers, language
+bindings, and explicit bridge consumers. It is not required just to use the
+engine. The top-level install now keeps that distinction explicit:
+
+```bash
+# Native engine package only (default): installs libfastsecp256k1 + secp256k1-fast.pc.
+cmake -S . -B out/install-fast -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/install-fast --target install
+
+# Install both packages in one configure when you really need the C ABI package.
+cmake -S . -B out/install-both -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
+cmake --build out/install-both --target install
+```
+
+`secp256k1-fast.pc` links `-lfastsecp256k1`. `ufsecp.pc` is emitted only when
+`SECP256K1_INSTALL_CABI=ON` and links `-lufsecp`.
+
+---
+
 ## Measured Performance (bitcoin-core-dev, GCC 14.2.0, i5-14400F, 2026-05-21)
 
 All numbers are relative to bundled libsecp256k1.

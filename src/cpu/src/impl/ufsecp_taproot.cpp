@@ -766,6 +766,47 @@ ufsecp_error_t ufsecp_ecdsa_batch_verify(ufsecp_ctx* ctx,
     } UFSECP_CATCH_RETURN(ctx)
 }
 
+// ---------------------------------------------------------------------------
+// ufsecp_ecdsa_batch_verify_mt: thin ABI surface for the engine's first-class
+// multi-threaded batch verify. CPU parallelism lives in the ENGINE
+// (secp256k1::ecdsa_batch_verify_mt), not here — the bridge only marshals the
+// 129-byte rows into ECDSABatchEntry (identical to the serial bridge above) and
+// forwards the thread budget. `max_threads`: 0 => auto, 1 => serial.
+// ---------------------------------------------------------------------------
+ufsecp_error_t ufsecp_ecdsa_batch_verify_mt(ufsecp_ctx* ctx,
+                                            const uint8_t* entries, size_t n,
+                                            size_t max_threads) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;  /* empty batch is vacuously valid */
+    if (SECP256K1_UNLIKELY(!entries)) return UFSECP_ERR_NULL_ARG;
+    if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::size_t total_bytes = 0;
+    if (!checked_mul_size(n, std::size_t{129}, total_bytes))
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
+    try {
+    /* Each entry: 32-byte msg | 33-byte pubkey | 64-byte sig = 129 bytes */
+    std::vector<secp256k1::ECDSABatchEntry> batch(n);
+    for (size_t i = 0; i < n; ++i) {
+        const uint8_t* e = entries + i * 129;
+        std::memcpy(batch[i].msg_hash.data(), e, 32);
+        batch[i].public_key = point_from_compressed(e + 32);
+        if (batch[i].public_key.is_infinity()) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid pubkey in batch");
+        }
+        std::array<uint8_t, 64> compact;
+        std::memcpy(compact.data(), e + 65, 64);
+        if (SECP256K1_UNLIKELY(!secp256k1::ECDSASignature::parse_compact_strict(compact, batch[i].signature))) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid ECDSA sig in batch");
+        }
+    }
+    if (SECP256K1_UNLIKELY(!secp256k1::ecdsa_batch_verify_mt(batch.data(), n, max_threads))) {
+        return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "batch verify failed");
+    }
+    return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
 ufsecp_error_t ufsecp_schnorr_batch_identify_invalid(
     ufsecp_ctx* ctx, const uint8_t* entries, size_t n,
     size_t* invalid_out, size_t* invalid_count) {

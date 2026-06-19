@@ -12,6 +12,7 @@
 #include "secp256k1/precompute.hpp"
 #include "secp256k1/multiscalar.hpp"
 #include <algorithm>
+#include <array>
 #include <cstring>
 
 namespace secp256k1 {
@@ -296,6 +297,41 @@ static std::uint32_t bech32_polymod(const std::vector<std::uint8_t>& values) {
     return chk;
 }
 
+static std::uint32_t bech32_polymod_step(std::uint32_t chk, std::uint8_t v) {
+    static constexpr std::uint32_t GEN[5] = {
+        0x3b6a57b2u, 0x26508e6du, 0x1ea119fau, 0x3d4233ddu, 0x2a1462b3u
+    };
+    std::uint32_t const top = chk >> 25;
+    chk = ((chk & 0x1ffffffu) << 5) ^ v;
+    for (int i = 0; i < 5; ++i) {
+        if ((top >> i) & 1u) chk ^= GEN[i];
+    }
+    return chk;
+}
+
+static std::uint32_t bech32_checksum_polymod(const std::string& hrp,
+                                             const std::uint8_t* data,
+                                             std::size_t data_len,
+                                             std::uint32_t encoding_const) {
+    std::uint32_t chk = 1;
+    for (char const c : hrp) {
+        chk = bech32_polymod_step(chk, static_cast<std::uint8_t>(
+            static_cast<unsigned char>(c) >> 5));
+    }
+    chk = bech32_polymod_step(chk, 0);
+    for (char const c : hrp) {
+        chk = bech32_polymod_step(chk, static_cast<std::uint8_t>(
+            static_cast<unsigned char>(c) & 31u));
+    }
+    for (std::size_t i = 0; i < data_len; ++i) {
+        chk = bech32_polymod_step(chk, data[i]);
+    }
+    for (int i = 0; i < 6; ++i) {
+        chk = bech32_polymod_step(chk, 0);
+    }
+    return chk ^ encoding_const;
+}
+
 static std::vector<std::uint8_t> bech32_hrp_expand(const std::string& hrp) {
     std::vector<std::uint8_t> ret;
     ret.reserve(hrp.size() * 2 + 1);
@@ -331,6 +367,36 @@ static bool convert_bits(std::vector<std::uint8_t>& out,
     return true;
 }
 
+static bool convert_bits_fixed(std::uint8_t* out, std::size_t& out_len,
+                               std::size_t out_capacity,
+                               const std::uint8_t* data, std::size_t len,
+                               int frombits, int tobits, bool pad) {
+    int acc = 0;
+    int bits = 0;
+    int const maxv = (1 << tobits) - 1;
+    out_len = 0;
+    for (std::size_t i = 0; i < len; ++i) {
+        int const value = data[i];
+        if (value >> frombits) return false;
+        acc = (acc << frombits) | value;
+        bits += frombits;
+        while (bits >= tobits) {
+            bits -= tobits;
+            if (out_len >= out_capacity) return false;
+            out[out_len++] = static_cast<std::uint8_t>((acc >> bits) & maxv);
+        }
+    }
+    if (pad) {
+        if (bits > 0) {
+            if (out_len >= out_capacity) return false;
+            out[out_len++] = static_cast<std::uint8_t>((acc << (tobits - bits)) & maxv);
+        }
+    } else if (bits >= frombits || ((acc << (tobits - bits)) & maxv)) {
+        return false;
+    }
+    return true;
+}
+
 std::string bech32_encode(const std::string& hrp,
                           std::uint8_t witness_version,
                           const std::uint8_t* witness_program,
@@ -339,23 +405,35 @@ std::string bech32_encode(const std::string& hrp,
     std::uint32_t const encoding_const = (witness_version == 0) ? 1u : 0x2bc830a3u;
 
     // Convert 8-bit data to 5-bit groups
-    std::vector<std::uint8_t> data5;
-    data5.reserve(1 + ((prog_len * 8 + 4) / 5));
-    data5.push_back(witness_version);
-    convert_bits(data5, witness_program, prog_len, 8, 5, true);
+    constexpr std::size_t STACK_DATA5_LIMIT = 128;
+    std::size_t const data5_capacity = 1 + ((prog_len * 8 + 4) / 5);
+    std::array<std::uint8_t, STACK_DATA5_LIMIT> stack_data5;
+    std::vector<std::uint8_t> data5_heap;
+    std::uint8_t* data5 = nullptr;
+    if (data5_capacity <= STACK_DATA5_LIMIT) {
+        data5 = stack_data5.data();
+    } else {
+        data5_heap.resize(data5_capacity);
+        data5 = data5_heap.data();
+    }
+    data5[0] = witness_version;
+    std::size_t converted_len = 0;
+    if (!convert_bits_fixed(data5 + 1, converted_len, data5_capacity - 1,
+                            witness_program, prog_len, 8, 5, true)) {
+        return {};
+    }
+    std::size_t const data5_len = converted_len + 1;
 
     // Compute checksum
-    auto hrp_exp = bech32_hrp_expand(hrp);
-    std::vector<std::uint8_t> values(hrp_exp);
-    values.reserve(hrp_exp.size() + data5.size() + 6);
-    values.insert(values.end(), data5.begin(), data5.end());
-    values.resize(values.size() + 6, 0);
-    std::uint32_t const polymod = bech32_polymod(values) ^ encoding_const;
+    std::uint32_t const polymod = bech32_checksum_polymod(
+        hrp, data5, data5_len, encoding_const);
 
     // Build result
-    std::string result = hrp + "1";
-    result.reserve(hrp.size() + 1 + data5.size() + 6);
-    for (auto v : data5) result.push_back(BECH32_CHARSET[v]);
+    std::string result;
+    result.reserve(hrp.size() + 1 + data5_len + 6);
+    result.append(hrp);
+    result.push_back('1');
+    for (std::size_t i = 0; i < data5_len; ++i) result.push_back(BECH32_CHARSET[data5[i]]);
     for (int i = 0; i < 6; ++i) {
         result.push_back(BECH32_CHARSET[(polymod >> (5 * (5 - i))) & 31]);
     }

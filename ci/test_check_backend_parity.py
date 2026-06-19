@@ -4,8 +4,9 @@ test_check_backend_parity.py — unit test for ci/check_backend_parity.py.
 
 Guards the fail-closed property: the backend-parity gate must (a) actually read all
 declared backend files (no stale paths silently skipped — the bug that made it read
-only 3 of 7 files and still PASS), and (b) FAIL when a declared file cannot be read,
-rather than passing on absent inputs ("silent-skip-on-absent" theater).
+only 3 of 7 files and still PASS), (b) FAIL when a declared file cannot be read
+rather than passing on absent inputs ("silent-skip-on-absent" theater), and
+(c) reject host-side ECDSA compact-signature staging regressions.
 
 Self-contained. Exit 0 = pass, 1 = fail.
 """
@@ -40,7 +41,11 @@ def main() -> int:
     chk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(chk)
 
-    total = len(chk.FAMILY_SIGN_FILES) + len(chk.FAMILY_ECDH_FILES)
+    total = (
+        len(chk.FAMILY_SIGN_FILES)
+        + len(chk.FAMILY_ECDH_FILES)
+        + len(chk.FAMILY_ECDSA_VERIFY_STAGING_FILES)
+    )
 
     # 1. On the real tree: every declared file resolves and is read; no silent skips.
     rep = run_report(chk)
@@ -57,6 +62,21 @@ def main() -> int:
     check(rep2["files_absent"] >= 1, "bogus declared path counted as absent")
     check(rep2["overall_pass"] is False,
           "gate FAILS when a declared file is absent (fail-closed, not silent-skip)")
+
+    # 3. Inject the old OpenCL host-side staging pattern -> C9 must fail.
+    original_fetch = chk._fetch_file_content
+    def fake_fetch(conn, rel_path):
+        if rel_path == "src/gpu/src/gpu_backend_opencl.cpp":
+            return "be32_to_le_limbs(sigs64 + i * 64, h_sigs[i].r);"
+        return original_fetch(conn, rel_path)
+
+    chk.FAMILY_SIGN_FILES.pop()
+    chk._fetch_file_content = fake_fetch
+    rep3 = run_report(chk)
+    check(any(v["bug"] == "C9" for v in rep3["violations"]),
+          "C9 catches host-side compact signature staging regression")
+    check(rep3["overall_pass"] is False,
+          "gate FAILS on C9 staging regression")
 
     print("\n" + ("ALL PASS" if not failures else f"FAILURES: {len(failures)}"))
     return 1 if failures else 0

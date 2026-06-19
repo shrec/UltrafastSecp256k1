@@ -159,7 +159,7 @@ libfastsecp256k1.3.14.0.dylib       -> current version
 ### Stable ABI Surface
 
 All functions declared with `UFSECP_API` in `include/ufsecp/ufsecp.h` are part of
-the stable ABI. There are **159** such functions (the authoritative list is every
+the stable ABI. There are **161** such functions (the authoritative list is every
 `UFSECP_API`-marked declaration in the header; counts and example names below are
 verified against it by `ci/check_abi_count.py`). Functions carry the `ufsecp_`
 prefix in the header (e.g. `ufsecp_ctx_create`); the short names are used here.
@@ -223,7 +223,7 @@ includedir=${prefix}/include
 
 Name: secp256k1-fast
 Description: High-performance secp256k1 elliptic curve cryptography library
-Version: 4.3.0
+Version: 4.4.0
 Cflags: -I${includedir}
 Libs: -L${libdir} -lufsecp
 Libs.private: -lpthread
@@ -245,18 +245,18 @@ build installs (`secp256k1-fast` on the standard root build).
 
 | Binding | Minimum ABI | Notes |
 |---------|-------------|-------|
-| Python (ctypes) | 4 | Targets ABI v4 (159 stable C functions) |
-| Rust (FFI) | 4 | Targets ABI v4 (159 stable C functions) |
-| Go (CGo) | 4 | Targets ABI v4 (159 stable C functions) |
-| C# (P/Invoke) | 4 | Targets ABI v4 (159 stable C functions) |
-| Java (JNI) | 4 | Targets ABI v4 (159 stable C functions) |
-| Swift | 4 | Targets ABI v4 (159 stable C functions) |
-| Dart (FFI) | 4 | Targets ABI v4 (159 stable C functions) |
-| React Native | 4 | Targets ABI v4 (159 stable C functions) |
-| Node.js (NAPI) | 4 | Targets ABI v4 (159 stable C functions) |
-| Node.js (WASM) | 4 | Targets ABI v4 (159 stable C functions) |
-| Ruby (FFI) | 4 | Targets ABI v4 (159 stable C functions) |
-| Kotlin (JNI) | 4 | Targets ABI v4 (159 stable C functions) |
+| Python (ctypes) | 4 | Targets ABI v4 (161 stable C functions) |
+| Rust (FFI) | 4 | Targets ABI v4 (161 stable C functions) |
+| Go (CGo) | 4 | Targets ABI v4 (161 stable C functions) |
+| C# (P/Invoke) | 4 | Targets ABI v4 (161 stable C functions) |
+| Java (JNI) | 4 | Targets ABI v4 (161 stable C functions) |
+| Swift | 4 | Targets ABI v4 (161 stable C functions) |
+| Dart (FFI) | 4 | Targets ABI v4 (161 stable C functions) |
+| React Native | 4 | Targets ABI v4 (161 stable C functions) |
+| Node.js (NAPI) | 4 | Targets ABI v4 (161 stable C functions) |
+| Node.js (WASM) | 4 | Targets ABI v4 (161 stable C functions) |
+| Ruby (FFI) | 4 | Targets ABI v4 (161 stable C functions) |
+| Kotlin (JNI) | 4 | Targets ABI v4 (161 stable C functions) |
 
 All bindings target `UFSECP_ABI_VERSION == 4` (the current MAJOR); every binding's
 `EXPECTED_ABI` constant is gated to 4 by `ci/check_abi_version_sync.py` (the fix for

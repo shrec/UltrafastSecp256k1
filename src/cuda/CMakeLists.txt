@@ -17,6 +17,11 @@ option(SECP256K1_CUDA_LIMBS_32 "Use 8x32-bit limbs for field arithmetic" OFF)
 
 if(_GPU_LANG STREQUAL "CUDA")
     set(CMAKE_CUDA_STANDARD 17)
+    if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY OR CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "")
+        set(CMAKE_CUDA_RUNTIME_LIBRARY Static CACHE STRING
+            "CUDA runtime linkage (Static by default so engine binaries do not depend on libcudart.so/cudart64*.dll)"
+            FORCE)
+    endif()
     # Set CUDA architecture if not already set by parent (fallback to 89 = Ada Lovelace)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "" OR CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
         set(CMAKE_CUDA_ARCHITECTURES 89)
@@ -417,3 +422,55 @@ else()
     )
 endif()
 target_link_libraries(bench_zk PRIVATE secp256k1_cuda_lib)
+
+# ===== GPU Pubkey Decompress A/B Benchmark =====
+set(_BENCH_DECOMPRESS_AB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/gpu/cuda/decompress_ab_bench.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_DECOMPRESS_AB_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_decompress_ab ${_BENCH_DECOMPRESS_AB_SOURCES})
+    target_compile_options(bench_decompress_ab PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(bench_decompress_ab ${_BENCH_DECOMPRESS_AB_SOURCES})
+    target_compile_options(bench_decompress_ab PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_decompress_ab PRIVATE secp256k1_cuda_lib)
+set_target_properties(bench_decompress_ab PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)
+
+# ===== GPU Raw Entry ECDSA Verify Benchmark =====
+set(_BENCH_RAW_ENTRY_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/gpu/cuda/raw_entry_ab_bench.cu)
+if(_GPU_LANG STREQUAL "HIP")
+    set_source_files_properties(${_BENCH_RAW_ENTRY_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_executable(bench_raw_entry ${_BENCH_RAW_ENTRY_SOURCES})
+    target_compile_options(bench_raw_entry PRIVATE
+        $<$<COMPILE_LANGUAGE:HIP>:-O3>
+        $<$<COMPILE_LANGUAGE:HIP>:-ffast-math>
+    )
+else()
+    add_executable(bench_raw_entry ${_BENCH_RAW_ENTRY_SOURCES})
+    target_compile_options(bench_raw_entry PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+        $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xptxas=-O3>
+    )
+endif()
+target_link_libraries(bench_raw_entry PRIVATE secp256k1_cuda_lib)
+set_target_properties(bench_raw_entry PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON)
+
+if(_GPU_LANG STREQUAL "CUDA")
+    get_property(_secp256k1_cuda_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(_secp256k1_cuda_target IN LISTS _secp256k1_cuda_targets)
+        set_property(TARGET ${_secp256k1_cuda_target}
+            PROPERTY CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endforeach()
+endif()

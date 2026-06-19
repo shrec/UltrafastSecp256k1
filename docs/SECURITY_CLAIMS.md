@@ -1,6 +1,24 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v4.3.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v4.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+
+### 2026-06-18 - Bech32 address encoder allocation reduction
+
+`bech32_encode` now avoids heap-backed intermediate vectors for normal Bitcoin
+witness address payloads by converting 8-bit witness data into a stack-backed
+5-bit buffer and computing the checksum as a streaming polymod. This is a
+public-data address formatting optimization only. It does not touch signing,
+verification, secret-key parsing, nonce generation, CT arithmetic, or ABI output
+clearing.
+
+**Claim:** P2WPKH/P2WSH/P2TR Bech32/Bech32m address outputs remain byte-identical
+while normal witness address encoding performs less transient allocation work.
+Secret lifecycle and constant-time signing guarantees are unchanged because the
+encoder operates only on public HRP/version/witness-program bytes.
+
+Validation: `run_selftest smoke`, `ci/check_source_graph_quality.py`, and local
+`bench_hotpaths` runs showing `address_p2wpkh` improvement from the captured
+baseline `522.11 ns` to `471.46 ns` / `470.74 ns`.
 
 ### 2026-06-13 - Opaque ECDSA verify compatibility for libsecp-style consumers
 
@@ -1165,6 +1183,34 @@ bit-identical to `ufsecp_gpu_*_verify_batch` (proven GPU==CPU==libsecp by
 back to the host-collapse path. Hostile-caller quartet: see
 [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section J.
 
+### CPU multi-threaded batch verify (`ecdsa_batch_verify_mt`, 2026-06-17 — PUBLIC-DATA)
+
+`secp256k1::ecdsa_batch_verify_mt` (engine) and its thin ABI wrapper
+`ufsecp_ecdsa_batch_verify_mt` add **CPU parallelism as a first-class engine
+feature**: a large ECDSA batch is split into fixed-size chunks pulled from an
+atomic work queue and verified across up to `max_threads` threads (0 = auto =
+`hardware_concurrency()`, 1 = serial). The worker count is the caller's to own:
+an explicit `max_threads` is honoured and reduced only to what the hardware can
+run (and to the chunk count) — there is **no arbitrary upper cap** (the former
+hard-coded 64-thread limit and fixed `std::array<std::thread,64>` pool were
+removed 2026-06-17 in favour of a dynamic `std::vector<std::thread>`); workers
+inherit the calling process's thread priority. Like all verification, inputs are
+**public data** (message hashes,
+public keys, signatures — all on-chain), so **no private key, nonce, or secret
+material is processed** and the CT-vs-variable-time boundary does not apply
+(variable-time verify is correct per the verify-path rule). Threading therefore
+has **zero side-channel relevance**: each chunk runs the audited serial
+`ecdsa_batch_verify`, and the boolean accept/reject result is bit-identical to
+the single-threaded path for any thread count (proven by
+`regression_ecdsa_batch_verify_mt`: parity across thread counts {0,1,2,4,8,64}
+and above the old cap {65,128,256,1024}, a source-scan asserting no `kMaxThreads`
+cap remains, single-sig corruption detection, and corruption propagation across
+multi-chunk batches). Thread-safety rests on the GLV/generator precompute being a C++11
+function-local magic static and `ecdsa_batch_verify`'s `thread_local` scratch —
+the same guarantees the existing parallel sign batch relies on. The serial
+`ufsecp_ecdsa_batch_verify` is unchanged; integrators choose. Hostile-caller
+quartet: see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5.
+
 ### GPU per-item batch ABI (libbitcoin bridge, 2026-06-08 — PUBLIC-DATA)
 
 `ufsecp_gpu_xonly_validate`, `ufsecp_gpu_commitment_verify` and
@@ -1361,4 +1407,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 <!-- 2026-05-28: shim_ecdsa.cpp + shim_recovery.cpp + shim_ellswift.cpp + bip32.cpp — secret-key stack-residue hardening (CT-01/SHIM-01/02/CT-02). Claim: parsed private-key scalars and BIP-324 handshake key material do not persist on the stack after the call returns. (CT-01) shim ECDSA sign / sign_recoverable secure_erase the parsed key scalar (`k` / `privkey_scalar`) on every return path; (SHIM-01/02) ellswift_create and ellswift_xdh erase `sk`+`kb` on all returns (success, parse-fail, and the three xdh error branches), completing SHIM-006; (CT-02) BIP-32 hardened derive_child erases the HMAC-derived `il_scalar` on all 7 return paths. Also RT-02: secp256k1_ecdsa_signature_parse_der now requires exact SEQUENCE consumption (`p == end`), rejecting trailing bytes inside the SEQUENCE — matching upstream + the native C ABI parser. Output bytes written before erase; no behavioral change. Regression guard: audit/test_regression_shim_seckey_erase.cpp. -->
 
-*UltrafastSecp256k1 v4.3.0 -- Security Claims*
+*UltrafastSecp256k1 v4.4.0 -- Security Claims*

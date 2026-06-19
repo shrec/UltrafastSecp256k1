@@ -37,6 +37,12 @@
 
 using namespace metal;
 
+// ── Forward declarations (used by compressed-pubkey kernels before definitions)
+
+inline bool lbtc_be32_lt_field_p(device const uchar* x);
+inline bool lbtc_point_from_compressed(device const uchar* pub,
+                                       thread JacobianPoint &p);
+
 // =============================================================================
 // Kernel 1: Batch Scalar Multiplication — P × k for N points
 // =============================================================================
@@ -53,6 +59,34 @@ kernel void scalar_mul_batch(
     AffinePoint base = bases[tid];
     Scalar256 k = scalars[tid];
 
+    JacobianPoint jac = scalar_mul_glv(base, k);
+    results[tid] = jacobian_to_affine(jac);
+}
+
+// scalar_mul_batch_compressed — GPU-side pubkey decompression + scalar mul
+kernel void scalar_mul_batch_compressed(
+    device const uchar *pubkeys33      [[buffer(0)]],
+    device const Scalar256 *scalars    [[buffer(1)]],
+    device AffinePoint *results        [[buffer(2)]],
+    constant uint &count               [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub)) {
+        AffinePoint zero = {};
+        results[tid] = zero;
+        return;
+    }
+
+    // Convert Jacobian (z=1 after decompress) → AffinePoint
+    AffinePoint base;
+    base.x = pub.x;
+    base.y = pub.y;
+
+    Scalar256 k = scalars[tid];
     JacobianPoint jac = scalar_mul_glv(base, k);
     results[tid] = jacobian_to_affine(jac);
 }
@@ -406,6 +440,53 @@ kernel void ecdsa_verify_batch(
     }
 
     results[tid] = ecdsa_verify(msg, pub, r_sig, s_sig) ? 1u : 0u;
+}
+
+// ecdsa_verify_batch_compressed — GPU-side pubkey decompression variant.
+// Takes 33-byte SEC1 compressed pubkeys directly (no CPU decompress).
+// Decompresses via lbtc_point_from_compressed in registers → verify.
+kernel void ecdsa_verify_batch_compressed(
+    device const uchar *msg_hashes     [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys33      [[buffer(1)]],   // N × 33 (SEC1 compressed)
+    device const uchar *signatures     [[buffer(2)]],   // N × 64 (r ∥ s)
+    device uint *results               [[buffer(3)]],   // N × 1
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Parse message
+    Scalar256 msg;
+    uint base_msg = tid * 32;
+    for (int i = 0; i < 8; i++) {
+        msg.limbs[7 - i] = ((uint)msg_hashes[base_msg + i*4] << 24) |
+                            ((uint)msg_hashes[base_msg + i*4+1] << 16) |
+                            ((uint)msg_hashes[base_msg + i*4+2] << 8) |
+                            ((uint)msg_hashes[base_msg + i*4+3]);
+    }
+
+    // Decompress pubkey (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub)) {
+        results[tid] = 0u;
+        return;
+    }
+
+    // Parse signature
+    Scalar256 r_sig, s_sig;
+    uint base_sig = tid * 64;
+    for (int i = 0; i < 8; i++) {
+        r_sig.limbs[7 - i] = ((uint)signatures[base_sig + i*4] << 24) |
+                              ((uint)signatures[base_sig + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + i*4+3]);
+        s_sig.limbs[7 - i] = ((uint)signatures[base_sig + 32 + i*4] << 24) |
+                              ((uint)signatures[base_sig + 32 + i*4+1] << 16) |
+                              ((uint)signatures[base_sig + 32 + i*4+2] << 8) |
+                              ((uint)signatures[base_sig + 32 + i*4+3]);
+    }
+
+    results[tid] = ecdsa_verify(msg, AffinePoint{pub.x, pub.y}, r_sig, s_sig) ? 1u : 0u;
 }
 
 kernel void ecdsa_verify_lbtc_rows(
@@ -1374,6 +1455,69 @@ kernel void bip352_scan_pipeline(
     prefixes[tid] = prefix;
 }
 
+// BIP-352 scan pipeline — compressed pubkey variant (GPU-side decompress)
+kernel void bip352_scan_pipeline_compressed(
+    device const uchar* tweak_pubkeys33 [[buffer(0)]],
+    constant Scalar256&       scan_scalar     [[buffer(1)]],
+    device const uchar* spend_pubkey33  [[buffer(2)]],
+    device ulong*             prefixes        [[buffer(3)]],
+    constant uint&            count           [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    // Decompress tweak pubkey on GPU
+    JacobianPoint tweak_jac;
+    if (!lbtc_point_from_compressed(tweak_pubkeys33 + tid * 33, tweak_jac)) {
+        prefixes[tid] = 0; return;
+    }
+    AffinePoint tweak; tweak.x = tweak_jac.x; tweak.y = tweak_jac.y;
+
+    // Decompress spend pubkey on GPU
+    JacobianPoint spend_jac;
+    if (!lbtc_point_from_compressed(spend_pubkey33, spend_jac)) {
+        prefixes[tid] = 0; return;
+    }
+    AffinePoint spend; spend.x = spend_jac.x; spend.y = spend_jac.y;
+
+    // Phase 1: shared = scan_scalar × tweak
+    thread Scalar256 local_scan_scalar = scan_scalar;
+    JacobianPoint shared = scalar_mul_glv(tweak, local_scan_scalar);
+    if (shared.infinity != 0) { prefixes[tid] = 0; return; }
+
+    // Phase 2: serialize shared secret
+    AffinePoint shared_aff = jacobian_to_affine(shared);
+    uchar x_bytes[32], y_bytes[32];
+    field_to_bytes(shared_aff.x, x_bytes);
+    field_to_bytes(shared_aff.y, y_bytes);
+    uchar ser[37];
+    ser[0] = (y_bytes[31] & 1u) ? 0x03 : 0x02;
+    for (int i = 0; i < 32; i++) ser[1 + i] = x_bytes[i];
+    ser[33] = 0; ser[34] = 0; ser[35] = 0; ser[36] = 0;
+
+    // Phase 3: tagged SHA-256
+    SHA256Ctx sha_ctx;
+    for (int i = 0; i < 8; i++) sha_ctx.h[i] = BIP352_SHAREDSECRET_MIDSTATE[i];
+    sha_ctx.buf_len = 0;
+    sha_ctx.total_len_lo = 64;
+    sha_ctx.total_len_hi = 0;
+    sha256_update(sha_ctx, ser, 37);
+    uchar hash[32];
+    sha256_final(sha_ctx, hash);
+
+    // Phase 4-6: hash × G + spend → prefix
+    Scalar256 hs = scalar_from_bytes(hash);
+    JacobianPoint out_pt = scalar_mul_generator_windowed(hs);
+    JacobianPoint cand = jacobian_add_mixed(out_pt, spend);
+    if (cand.infinity != 0) { prefixes[tid] = 0; return; }
+    AffinePoint cand_aff = jacobian_to_affine(cand);
+    uchar cx[32];
+    field_to_bytes(cand_aff.x, cx);
+    ulong prefix = 0;
+    for (int i = 0; i < 8; i++) prefix = (prefix << 8) | ulong(cx[i]);
+    prefixes[tid] = prefix;
+}
+
 // =============================================================================
 // ECDSA SNARK Witness Batch
 // =============================================================================
@@ -1547,6 +1691,117 @@ kernel void ecdsa_snark_witness_batch(
 
     // 10 foreign-field limb arrays × 5 × 8 bytes = 400 bytes, offset 352..751
     // Each array is exactly 40 bytes (5 × ulong) with step = 40.
+    ulong lmb[5];
+    scalar_to_ff_limbs(sig_r,  lmb); write_ff_limbs(out_flat, rec_off + 352, lmb); // [0]
+    scalar_to_ff_limbs(sig_s,  lmb); write_ff_limbs(out_flat, rec_off + 392, lmb); // [1]
+    be32_to_ff_limbs(pub_x_be, lmb); write_ff_limbs(out_flat, rec_off + 432, lmb); // [2]
+    be32_to_ff_limbs(pub_y_be, lmb); write_ff_limbs(out_flat, rec_off + 472, lmb); // [3]
+    scalar_to_ff_limbs(s_inv,  lmb); write_ff_limbs(out_flat, rec_off + 512, lmb); // [4]
+    scalar_to_ff_limbs(u1,     lmb); write_ff_limbs(out_flat, rec_off + 552, lmb); // [5]
+    scalar_to_ff_limbs(u2,     lmb); write_ff_limbs(out_flat, rec_off + 592, lmb); // [6]
+    be32_to_ff_limbs(rx,       lmb); write_ff_limbs(out_flat, rec_off + 632, lmb); // [7]
+    be32_to_ff_limbs(ry,       lmb); write_ff_limbs(out_flat, rec_off + 672, lmb); // [8]
+    be32_to_ff_limbs(rx_mod_n, lmb); write_ff_limbs(out_flat, rec_off + 712, lmb); // [9]
+    // bytes 752-755: valid (int32 LE)
+    write_u32_le(out_flat, rec_off + 752, valid ? 1 : 0);
+    // bytes 756-759: _pad (already zero)
+    // Total record size: 352 + 400 + 8 = 760 bytes ✓
+}
+
+// ecdsa_snark_witness_batch_compressed — GPU-side pubkey decompression variant
+kernel void ecdsa_snark_witness_batch_compressed(
+    device const uchar* msg_hashes  [[buffer(0)]],
+    device const uchar* pubkeys33   [[buffer(1)]],
+    device const uchar* sigs64      [[buffer(2)]],
+    device       uchar* out_flat    [[buffer(3)]],
+    constant uint&      count       [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    const uint rec_off = tid * 760u;
+    for (uint i = 0; i < 760u; i++) out_flat[rec_off + i] = 0;
+
+    // Load message
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[tid * 32 + i];
+
+    // Load sig r,s
+    uchar r_be[32], s_be[32];
+    for (int i = 0; i < 32; i++) {
+        r_be[i] = sigs64[tid * 64 + i];
+        s_be[i] = sigs64[tid * 64 + 32 + i];
+    }
+    Scalar256 sig_r = scalar_from_bytes(r_be);
+    Scalar256 sig_s = scalar_from_bytes(s_be);
+    if (scalar256_is_zero(sig_r) || scalar256_is_zero(sig_s)) return;
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint)
+    JacobianPoint pub_jac;
+    if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub_jac)) return;
+
+    // Convert Jacobian → Affine for snark witness
+    AffinePoint pub_aff = jacobian_to_affine(pub_jac);
+
+    // Continue with witness computation (same as original kernel from here)
+    uchar pub_x_be[32], pub_y_be[32];
+    field_to_bytes(pub_aff.x, pub_x_be);
+    field_to_bytes(pub_aff.y, pub_y_be);
+
+    // -- witness scalars: z, s_inv, u1, u2 --
+    Scalar256 z     = scalar_from_bytes(msg);
+    Scalar256 s_inv = scalar_inverse(sig_s);
+    Scalar256 u1    = scalar_mul_mod_n(z,     s_inv);
+    Scalar256 u2    = scalar_mul_mod_n(sig_r, s_inv);
+
+    // -- R = u1·G + u2·Q --
+    AffinePoint G  = generator_affine();
+    JacobianPoint u1G = scalar_mul_glv(G,       u1);
+    JacobianPoint u2Q = scalar_mul_glv(pub_aff, u2);
+    JacobianPoint R   = jacobian_add(u1G, u2Q);
+    if (R.infinity != 0) return;
+
+    AffinePoint R_aff = jacobian_to_affine(R);
+    uchar rx[32], ry[32];
+    field_to_bytes(R_aff.x, rx);
+    field_to_bytes(R_aff.y, ry);
+
+    Scalar256 rx_scalar = scalar_from_bytes(rx);
+    bool valid = scalar256_eq(rx_scalar, sig_r);
+    if (!valid) return;
+
+    // rx_mod_n via scalar_from_bytes (already reduced mod n)
+    uchar rx_mod_n[32];
+    scalar_to_bytes(rx_scalar, rx_mod_n);
+
+    // ---- serialize into flat 760-byte record ----
+    // bytes 0-31:   msg
+    for (int i = 0; i < 32; i++) out_flat[rec_off +   0 + i] = msg[i];
+    // bytes 32-63:  sig_r
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  32 + i] = r_be[i];
+    // bytes 64-95:  sig_s
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  64 + i] = s_be[i];
+    // bytes 96-127: pub_x
+    for (int i = 0; i < 32; i++) out_flat[rec_off +  96 + i] = pub_x_be[i];
+    // bytes 128-159: pub_y
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 128 + i] = pub_y_be[i];
+    // bytes 160-191: s_inv
+    uchar s_inv_bytes[32]; scalar_to_bytes(s_inv, s_inv_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 160 + i] = s_inv_bytes[i];
+    // bytes 192-223: u1
+    uchar u1_bytes[32]; scalar_to_bytes(u1, u1_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 192 + i] = u1_bytes[i];
+    // bytes 224-255: u2
+    uchar u2_bytes[32]; scalar_to_bytes(u2, u2_bytes);
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 224 + i] = u2_bytes[i];
+    // bytes 256-287: R.x
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 256 + i] = rx[i];
+    // bytes 288-319: R.y
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 288 + i] = ry[i];
+    // bytes 320-351: result_x_mod_n
+    for (int i = 0; i < 32; i++) out_flat[rec_off + 352 - 32 + i] = rx_mod_n[i];
+
+    // 10 foreign-field limb arrays × 5 × 8 bytes = 400 bytes, offset 352..751
     ulong lmb[5];
     scalar_to_ff_limbs(sig_r,  lmb); write_ff_limbs(out_flat, rec_off + 352, lmb); // [0]
     scalar_to_ff_limbs(sig_s,  lmb); write_ff_limbs(out_flat, rec_off + 392, lmb); // [1]

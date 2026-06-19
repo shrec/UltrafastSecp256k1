@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**78 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**79 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -20,7 +20,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BCHN_SHIM_BUILD_TESTS` | `OFF` | Build BCHN libsecp256k1 compatibility shim tests |
 | `SECP256K1_BUILD_BCH` | `OFF` | Build BCH-specific modules: RPA (Reusable Payment Addresses), CashAddr, EC grinding pipeline |
 | `SECP256K1_BUILD_BENCH` | `ON` | Build benchmarks |
-| `SECP256K1_BUILD_CABI` | `ON` | Build the stable ufsecp_* C ABI library |
+| `SECP256K1_BUILD_CABI` | `ON` | Build optional libufsecp C ABI package (ufsecp_* FFI/bridge surface; native engine consumers link secp256k1::fast) |
 | `SECP256K1_BUILD_CPU` | `ON` | Build CPU implementation |
 | `SECP256K1_BUILD_CUDA` | `OFF` | Build CUDA GPU support |
 | `SECP256K1_BUILD_ETHEREUM` | `ON` | Build Ethereum module (Keccak, EIP-55/155/191, ecrecover) |
@@ -43,6 +43,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_GPU_BUILD_MSM` | `ON` | GPU multi-scalar multiplication op |
 | `SECP256K1_GPU_BUILD_ZK` | `ON` | GPU ZK ops (knowledge / DLEQ / bulletproof / SNARK witness) |
 | `SECP256K1_INSTALL` | `ON` | Generate install target |
+| `SECP256K1_INSTALL_CABI` | `OFF` | Install optional libufsecp C ABI package during the top-level install |
 | `SECP256K1_INSTALL_PKGCONFIG` | `ON` | Install pkg-config file |
 | `SECP256K1_MSVC_OB3` | `ON` | MSVC: /Ob3 most-aggressive inlining |
 | `SECP256K1_MSVC_WPO` | `OFF` | MSVC: /GL whole-program + /LTCG + /OPT:REF,ICF (opt-in; a /GL static lib forces consumer /LTCG) |

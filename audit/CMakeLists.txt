@@ -4070,6 +4070,8 @@ target_sources(unified_audit_runner PRIVATE
     # P2: CT-001/002/003 + SHIM-002/003/004 fixes. Unified keeps shim
     # subtests stubbed; the dedicated standalone target below links the shim.
     test_regression_p2_ct_shim_fixes.cpp
+    # MT-BATCH: ecdsa_batch_verify_mt parity with serial (first-class engine parallelism)
+    test_regression_ecdsa_batch_verify_mt.cpp
     # P1-SEC-001: FROST frost_sign absent signer ID (real impl when FROST built)
     $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_exploit_frost_absent_signer_id.cpp>
     # 2026-05-25 T-08: r/s erase in ecdsa_sign + s erase in musig2_partial_sig_agg
@@ -4166,6 +4168,18 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
     set_tests_properties(regression_p2_ct_shim_fixes PROPERTIES
         TIMEOUT 60 LABELS "audit;regression;shim;ct;failclosed;p2")
 endif()
+
+# -- MT-BATCH: ecdsa_batch_verify_mt parity (pure C++ engine, no shim) --------
+add_executable(test_regression_ecdsa_batch_verify_mt_standalone
+    test_regression_ecdsa_batch_verify_mt.cpp)
+audit_target_defaults(test_regression_ecdsa_batch_verify_mt_standalone)
+target_link_libraries(test_regression_ecdsa_batch_verify_mt_standalone PRIVATE
+    fastsecp256k1 Threads::Threads)
+target_compile_definitions(test_regression_ecdsa_batch_verify_mt_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_ecdsa_batch_verify_mt
+    COMMAND test_regression_ecdsa_batch_verify_mt_standalone)
+set_tests_properties(regression_ecdsa_batch_verify_mt PROPERTIES
+    TIMEOUT 120 LABELS "audit;regression;batch;ecdsa;parallel;differential")
 
 # -- v8: shim security regression guards — standalone CTest target (shim-dependent) --
 if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)

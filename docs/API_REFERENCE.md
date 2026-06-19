@@ -1958,7 +1958,14 @@ See [bindings/wasm/README.md](../bindings/wasm/README.md) for detailed build and
 
 ## C ABI (ufsecp)
 
-The stable C ABI is defined in `include/ufsecp/ufsecp.h`. All functions follow these rules:
+The stable C ABI is defined in `include/ufsecp/ufsecp.h`. This is the optional
+`libufsecp` package for C callers, bindings, and explicit bridge consumers.
+Native C++ integrations and the libsecp256k1-compatible shim should link the
+engine target (`secp256k1::fast` / `fastsecp256k1`) directly. Top-level install
+emits `ufsecp.pc` only with `-DSECP256K1_INSTALL_CABI=ON`; the default
+`secp256k1-fast.pc` links the native engine library.
+
+All functions follow these rules:
 
 - **Opaque context**: `ufsecp_ctx*` -- one per thread, or externally synchronised
 - **Every function returns `ufsecp_error_t`** (0 = OK)
@@ -2029,6 +2036,10 @@ const char* msg = ufsecp_last_error_msg(ctx);
 // FFI layout assertion
 size_t sz = ufsecp_ctx_size();
 
+// Point the engine at your own fixed-base cache directory (replaces config.ini).
+// NULL or "" => current working directory. Call before the first ctx_create.
+ufsecp_set_cache_dir("/var/lib/myapp/ufsecp_cache");
+
 // Destroy (NULL-safe)
 ufsecp_ctx_destroy(ctx);
 ```
@@ -2041,6 +2052,7 @@ ufsecp_ctx_destroy(ctx);
 | `ufsecp_last_error` | `(const ctx*) -> error_t` | Last error code |
 | `ufsecp_last_error_msg` | `(const ctx*) -> const char*` | Last error message |
 | `ufsecp_ctx_size` | `(void) -> size_t` | Compiled ctx struct size |
+| `ufsecp_set_cache_dir` | `(const char* dir\|NULL) -> error_t` | Set fixed-base cache directory (replaces config.ini); NULL/"" = CWD. Process-global |
 | `ufsecp_context_randomize` | `(ctx, seed32[32]\|NULL) -> error_t` | Install scalar blinding (thread-local); NULL clears |
 
 <a id="c-abi-private-key-operations"></a>
@@ -2180,9 +2192,21 @@ Entropy sizes: 16 (12 words), 20 (15), 24 (18), 28 (21), 32 (24 words). Pass `en
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_schnorr_batch_verify` | `(ctx, entries, n) -> error_t` | Verify N Schnorr sigs. Entry: 32 xonly + 32 msg + 64 sig = 128 bytes |
-| `ufsecp_ecdsa_batch_verify` | `(ctx, entries, n) -> error_t` | Verify N ECDSA sigs. Entry: 32 msg + 33 pubkey + 64 sig = 129 bytes |
+| `ufsecp_ecdsa_batch_verify` | `(ctx, entries, n) -> error_t` | Verify N ECDSA sigs (single-threaded). Entry: 32 msg + 33 pubkey + 64 sig = 129 bytes |
+| `ufsecp_ecdsa_batch_verify_mt` | `(ctx, entries, n, max_threads) -> error_t` | Same as `ufsecp_ecdsa_batch_verify` but verifies across CPU threads (engine-owned parallelism). `max_threads`: 0 = auto (`hardware_concurrency`, no arbitrary upper cap), 1 = serial. Result identical to serial for any thread count (verify is variable-time over public data) |
 | `ufsecp_schnorr_batch_identify_invalid` | `(ctx, entries, n, invalid_out, invalid_count*) -> error_t` | Find indices of invalid Schnorr sigs |
 | `ufsecp_ecdsa_batch_identify_invalid` | `(ctx, entries, n, invalid_out, invalid_count*) -> error_t` | Find indices of invalid ECDSA sigs |
+
+The C++ engine also provides `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)`,
+the multi-threaded twin of `ecdsa_batch_verify_mt` (same chunked design, `0`=auto/`1`=serial,
+result identical to serial for any thread count).
+
+> **Standard integration surface (CPU):** for drop-in `libsecp256k1` compatibility, prefer the
+> shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
+> (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),
+> which wraps the engine MT path with caller `max_threads` control and optional per-row results.
+> See [`INTEGRATION_MODELS.md`](INTEGRATION_MODELS.md). The `ufsecp_*` batch entries above are the
+> native (non-shim) ABI; the `libbitcoin_bridge` below is the advanced GPU/zero-copy tier.
 
 <a id="c-abi-libbitcoin-bridge"></a>
 ### Libbitcoin Bridge
@@ -2597,6 +2621,6 @@ void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cac
 
 ## Version
 
-UltrafastSecp256k1 v4.3.0
+UltrafastSecp256k1 v4.4.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).

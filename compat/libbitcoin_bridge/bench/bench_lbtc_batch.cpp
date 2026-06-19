@@ -11,10 +11,11 @@
  * detection) before any timing, so reported numbers are for a verified-correct
  * path.
  *
- * Usage: bench_lbtc_batch [batch_size] [iters] [pool]
+ * Usage: bench_lbtc_batch [batch_size] [iters] [pool] [--json path]
  *   batch_size  rows verified per call      (default 1000000)
  *   iters       timed iterations per backend (default 5)
  *   pool        distinct signatures generated, tiled to batch_size (default 50000)
+ *   --json path write a machine-readable benchmark artifact
  *
  * NOTE: numbers are only meaningful as measured on THIS machine. Do not copy
  * them anywhere as estimates for other hardware.
@@ -27,6 +28,9 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <string>
 #include <vector>
 
 using clock_t_ = std::chrono::steady_clock;
@@ -35,10 +39,90 @@ static double secs_since(clock_t_::time_point t0) {
     return std::chrono::duration<double>(clock_t_::now() - t0).count();
 }
 
+struct BenchResult {
+    std::string requested;
+    std::string bound;
+    std::string device;
+    std::string kind;
+    size_t batch = 0;
+    int iters = 0;
+    size_t pool = 0;
+    double best_seconds = 0.0;
+    double m_sig_per_sec = 0.0;
+};
+
+static std::string json_escape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (char ch : s) {
+        switch (ch) {
+        case '\\': out += "\\\\"; break;
+        case '"':  out += "\\\""; break;
+        case '\n': out += "\\n"; break;
+        case '\r': out += "\\r"; break;
+        case '\t': out += "\\t"; break;
+        default:   out += ch; break;
+        }
+    }
+    return out;
+}
+
+static bool write_json_artifact(const std::string& path,
+                                const std::vector<BenchResult>& results,
+                                size_t batch, int iters, size_t pool) {
+    std::ofstream out(path);
+    if (!out) return false;
+    out << std::setprecision(12);
+    out << "{\n";
+    out << "  \"schema\": \"ufsecp-lbtc-benchmark-v1\",\n";
+    out << "  \"target_context\": \"libbitcoin\",\n";
+    out << "  \"claim_scope\": \"local libbitcoin batch-verify bridge throughput\",\n";
+    out << "  \"security_gate_dependency\": \"python3 ci/audit_gate.py --libbitcoin-perf-matrix\",\n";
+    out << "  \"batch_size\": " << batch << ",\n";
+    out << "  \"iters\": " << iters << ",\n";
+    out << "  \"pool\": " << pool << ",\n";
+    out << "  \"results\": [\n";
+    for (size_t i = 0; i < results.size(); ++i) {
+        const auto& r = results[i];
+        out << "    {\n";
+        out << "      \"requested_backend\": \"" << json_escape(r.requested) << "\",\n";
+        out << "      \"bound_backend\": \"" << json_escape(r.bound) << "\",\n";
+        out << "      \"device\": \"" << json_escape(r.device) << "\",\n";
+        out << "      \"kind\": \"" << json_escape(r.kind) << "\",\n";
+        out << "      \"batch_size\": " << r.batch << ",\n";
+        out << "      \"iters\": " << r.iters << ",\n";
+        out << "      \"pool\": " << r.pool << ",\n";
+        out << "      \"best_seconds\": " << r.best_seconds << ",\n";
+        out << "      \"m_sig_per_sec\": " << r.m_sig_per_sec << "\n";
+        out << "    }" << (i + 1 == results.size() ? "\n" : ",\n");
+    }
+    out << "  ]\n";
+    out << "}\n";
+    return out.good();
+}
+
 int main(int argc, char** argv) {
-    const size_t BATCH = argc > 1 ? std::strtoull(argv[1], nullptr, 10) : 1000000ull;
-    const int    ITERS = argc > 2 ? std::atoi(argv[2]) : 5;
-    const size_t POOL  = argc > 3 ? std::strtoull(argv[3], nullptr, 10) : 50000ull;
+    std::vector<const char*> positional;
+    std::string json_path;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--json") == 0) {
+            if (++i >= argc) {
+                std::fprintf(stderr, "--json requires a path\n");
+                return 2;
+            }
+            json_path = argv[i];
+        } else {
+            positional.push_back(argv[i]);
+        }
+    }
+
+    const size_t BATCH = positional.size() > 0 ? std::strtoull(positional[0], nullptr, 10) : 1000000ull;
+    const int    ITERS = positional.size() > 1 ? std::atoi(positional[1]) : 5;
+    const size_t POOL  = positional.size() > 2 ? std::strtoull(positional[2], nullptr, 10) : 50000ull;
+    if (BATCH == 0 || ITERS <= 0 || POOL == 0) {
+        std::fprintf(stderr, "batch_size, iters, and pool must be positive\n");
+        return 2;
+    }
 
     std::printf("== libbitcoin batch sig-verify benchmark ==\n");
     std::printf("batch=%zu  iters=%d  pool=%zu\n\n", BATCH, ITERS, POOL);
@@ -95,6 +179,7 @@ int main(int argc, char** argv) {
 
     std::vector<uint8_t> results(BATCH);
     const char* be_name[] = {"CPU", "CUDA", "OpenCL", "Metal"};
+    std::vector<BenchResult> bench_results;
 
     struct Run { ufsecp_lbtc_backend req; const char* label; };
     Run runs[] = { {UFSECP_LBTC_GPU, "GPU"}, {UFSECP_LBTC_CPU, "CPU"} };
@@ -106,8 +191,9 @@ int main(int argc, char** argv) {
             continue;
         }
         const char* bound = be_name[ufsecp_lbtc_ctrl_backend(ctrl)];
+        const char* device = ufsecp_lbtc_ctrl_device_name(ctrl);
         std::printf("[%s] bound=%s device=%s\n", r.label, bound,
-                    ufsecp_lbtc_ctrl_device_name(ctrl));
+                    device);
 
         /* correctness gate before timing — failures come from results[] (the
          * bridge returns void; the caller counts invalids itself). */
@@ -154,6 +240,12 @@ int main(int argc, char** argv) {
         std::printf("   correctness: %s\n", ok ? "PASS (all-valid + corruption detected)" : "FAIL");
         if (!ok) { ufsecp_lbtc_ctrl_destroy(ctrl); continue; }
 
+        auto record_result = [&](const char* kind, double best) {
+            bench_results.push_back(BenchResult{
+                r.label, bound, device, kind, BATCH, ITERS, POOL, best,
+                (double)BATCH / best / 1e6
+            });
+        };
         auto bench = [&](const char* kind, auto verify, const std::vector<uint8_t>& rows) {
             verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr); // warmup
             double best = 1e30;
@@ -166,6 +258,7 @@ int main(int argc, char** argv) {
             double mps = (double)BATCH / best / 1e6;
             std::printf("   %-8s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
                         kind, mps, best, BATCH, ITERS);
+            record_result(kind, best);
         };
         auto bench_columns = [&](const char* kind, auto verify,
                                  const std::vector<uint8_t>& msg,
@@ -179,8 +272,10 @@ int main(int argc, char** argv) {
                 double dt = secs_since(t0);
                 if (dt < best) best = dt;
             }
+            const double mps = (double)BATCH / best / 1e6;
             std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
-                        kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
+                        kind, mps, best, BATCH, ITERS);
+            record_result(kind, best);
         };
         bench("ECDSA-row", ufsecp_lbtc_verify_ecdsa, e_rows);
         bench("Schnorr-row", ufsecp_lbtc_verify_schnorr, s_rows);
@@ -227,6 +322,7 @@ int main(int argc, char** argv) {
                 }
                 std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
                             kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
+                record_result(kind, best);
             };
             auto bench_collect_columns = [&](const char* kind, auto collect,
                                              const std::vector<uint8_t>& msg,
@@ -241,8 +337,10 @@ int main(int argc, char** argv) {
                     double dt = secs_since(t0);
                     if (dt < best) best = dt;
                 }
+                const double mps = (double)BATCH / best / 1e6;
                 std::printf("   %-14s %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
-                            kind, (double)BATCH / best / 1e6, best, BATCH, ITERS);
+                            kind, mps, best, BATCH, ITERS);
+                record_result(kind, best);
             };
 #ifdef UFSECP_LBTC_DISABLE_DEDICATED
             std::printf("   [collect arm: host-collapse control (UFSECP_LBTC_DISABLE_DEDICATED)]\n");
@@ -260,6 +358,13 @@ int main(int argc, char** argv) {
         }
         std::printf("\n");
         ufsecp_lbtc_ctrl_destroy(ctrl);
+    }
+    if (!json_path.empty()) {
+        if (!write_json_artifact(json_path, bench_results, BATCH, ITERS, POOL)) {
+            std::fprintf(stderr, "failed to write JSON benchmark artifact: %s\n", json_path.c_str());
+            return 1;
+        }
+        std::printf("wrote JSON artifact: %s\n", json_path.c_str());
     }
     return 0;
 }

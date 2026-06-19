@@ -118,6 +118,23 @@ UFSECP_API const char* ufsecp_last_error_msg(const ufsecp_ctx* ctx);
 /** Size of the compiled ufsecp_ctx struct (for FFI layout assertions). */
 UFSECP_API size_t ufsecp_ctx_size(void);
 
+/** Set the directory the engine uses for its fixed-base precompute cache files
+ *  (cache_w{bits}[ _glv].bin). The engine reads an existing cache from this
+ *  directory and writes a freshly built one there. Pass NULL or "" to use the
+ *  current working directory.
+ *
+ *  This is the programmatic replacement for the legacy config.ini: point the
+ *  engine at your own cache location instead of relying on an INI file. The
+ *  library never creates or reads a config.ini.
+ *
+ *  Call before the first ufsecp_ctx_create()/signing call to influence the
+ *  initial cache build; a later call forces a rebuild on next use. The setting
+ *  is process-global (not bound to a single ctx).
+ *
+ *  @param dir  cache directory path, or NULL/"" for the current directory.
+ *  @return UFSECP_OK on success. */
+UFSECP_API ufsecp_error_t ufsecp_set_cache_dir(const char* dir);
+
 /** Randomize scalar blinding for constant-time signing operations.
  *
  *  Installs a fresh random blinding scalar r derived from seed32 into the
@@ -775,6 +792,32 @@ UFSECP_API ufsecp_error_t ufsecp_schnorr_batch_verify(
 UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_verify(
     ufsecp_ctx* ctx,
     const uint8_t* entries, size_t n);
+
+/** ECDSA batch verify (multi-threaded): same contract as
+ *  ufsecp_ecdsa_batch_verify, but fans the batch across up to `max_threads`
+ *  CPU threads using dynamic 4096-row chunking. Per-thread verify scratch is
+ *  bounded (O(chunk), never an O(n) inversion arena); verification is
+ *  variable-time over public data, so threading is purely a throughput win and
+ *  the boolean result is identical to the single-threaded path for any thread
+ *  count.
+ *    max_threads == 0  -> auto: std::thread::hardware_concurrency(). An explicit
+ *                         request is honoured, reduced only to what the hardware
+ *                         can run (no arbitrary upper cap); the caller owns
+ *                         thread priority via its process thread priority.
+ *    max_threads == 1  -> identical to ufsecp_ecdsa_batch_verify (serial).
+ *  Each entry: [32-byte msg | 33-byte pubkey | 64-byte sig] = 129 bytes.
+ *  Returns UFSECP_OK if ALL valid.
+ *  MEMORY: this entry point parses the n wire rows into an O(n) internal
+ *  ECDSABatchEntry array before verifying — the input is held in memory in full.
+ *  For very large batches (hundreds of millions to billions of rows) feed the
+ *  batch in segments (e.g. a few million rows per call, max_threads == 0 so the
+ *  engine uses all cores on each segment) rather than one monolithic call.
+ *  NOTE: integrators that already parallelise across their own thread pool
+ *  should keep calling the single-threaded ufsecp_ecdsa_batch_verify per chunk
+ *  to avoid nested thread pools / oversubscription. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_verify_mt(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n, size_t max_threads);
 
 /** Schnorr batch identify invalid: returns indices of invalid sigs.
  *  invalid_out: caller-owned array of size_t.

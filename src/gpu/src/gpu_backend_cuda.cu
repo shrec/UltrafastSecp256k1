@@ -80,7 +80,7 @@ namespace cuda {
 extern __global__ void ecdsa_verify_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
     const JacobianPoint* __restrict__ public_keys,
-    const ECDSASignatureGPU* __restrict__ sigs,
+    const uint8_t* __restrict__ sigs64,
     bool*          __restrict__ results,
     int count);
 
@@ -223,6 +223,61 @@ static __global__ void bip352_scan_batch_kernel(
     for (int i = 0; i < 8; ++i) pref = (pref << 8) | xb[i];
     prefixes[idx] = pref;
 }
+
+/** BIP-352 scan kernel — compressed pubkey variant.
+ *  Takes 33-byte SEC1 pubkeys directly. Decompresses on GPU (no CPU sqrt).
+ *  Eliminates GPU→CPU→GPU round-trip of intermediate JacobianPoints. */
+__global__ void bip352_scan_batch_kernel_compressed(
+    const uint8_t* __restrict__ tweaks33,
+    const secp256k1::cuda::Scalar* __restrict__ scan_k,
+    const uint8_t* __restrict__ spend33,
+    uint64_t* __restrict__ prefixes,
+    int n)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+
+    // Decompress tweak pubkey on GPU
+    JacobianPoint tweak;
+    if (!point_from_compressed(tweaks33 + idx * 33, &tweak)) {
+        prefixes[idx] = 0; return;
+    }
+
+    // Decompress spend pubkey on GPU
+    JacobianPoint spend_jac;
+    if (!point_from_compressed(spend33, &spend_jac)) {
+        prefixes[idx] = 0; return;
+    }
+    AffinePoint spend_aff; spend_aff.x = spend_jac.x; spend_aff.y = spend_jac.y;
+
+    // shared = scan_k × tweak (CT scalar mul)
+    JacobianPoint shared;
+    ct::ct_scalar_mul_varbase(&tweak, scan_k, &shared);
+    if (shared.infinity) { prefixes[idx] = 0; return; }
+
+    // Serialize shared secret → tagged hash → generator mul → add spend
+    uint8_t ser37[37];
+    point_to_compressed(&shared, ser37);
+    ser37[33] = ser37[34] = ser37[35] = ser37[36] = 0;
+    uint8_t hash[32];
+    bip352_tagged_hash_37(ser37, hash);
+    Scalar hs;
+    scalar_from_bytes(hash, &hs);
+    JacobianPoint gen_out;
+    scalar_mul_generator_const(&hs, &gen_out);
+    JacobianPoint cand;
+    jacobian_add_mixed(&gen_out, &spend_aff, &cand);
+    if (cand.infinity) { prefixes[idx] = 0; return; }
+    FieldElement ax, ay;
+    jacobian_to_affine(&cand, &ax, &ay);
+    (void)ay;
+    uint8_t xb[32];
+    field_to_bytes(&ax, xb);
+    uint64_t pref = 0;
+    for (int i = 0; i < 8; ++i) pref = (pref << 8) | xb[i];
+    prefixes[idx] = pref;
+}
 #endif  // SECP256K1_GPU_HAS_BIP352
 
 } // anonymous namespace
@@ -235,12 +290,65 @@ namespace {
 
 struct CudaBatchScratch {
     std::vector<uint8_t> result_bytes;
+    uint8_t* lbtc_rows = nullptr;
+    bool* lbtc_results = nullptr;
+    std::size_t lbtc_rows_bytes = 0;
+    std::size_t lbtc_results_count = 0;
+
+    ~CudaBatchScratch() {
+        free_lbtc_device();
+    }
 
     uint8_t* ensure_results(std::size_t count) {
         if (result_bytes.size() < count) {
             result_bytes.resize(count);
         }
         return result_bytes.data();
+    }
+
+    void free_lbtc_device() {
+        if (lbtc_results) {
+            cudaFree(lbtc_results);
+            lbtc_results = nullptr;
+            lbtc_results_count = 0;
+        }
+        if (lbtc_rows) {
+            cudaFree(lbtc_rows);
+            lbtc_rows = nullptr;
+            lbtc_rows_bytes = 0;
+        }
+    }
+
+    cudaError_t ensure_lbtc_rows(std::size_t bytes) {
+        if (bytes <= lbtc_rows_bytes) {
+            return cudaSuccess;
+        }
+        if (lbtc_rows) {
+            cudaFree(lbtc_rows);
+            lbtc_rows = nullptr;
+            lbtc_rows_bytes = 0;
+        }
+        const cudaError_t err = cudaMalloc(&lbtc_rows, bytes);
+        if (err == cudaSuccess) {
+            lbtc_rows_bytes = bytes;
+        }
+        return err;
+    }
+
+    cudaError_t ensure_lbtc_results(std::size_t count) {
+        if (count <= lbtc_results_count) {
+            return cudaSuccess;
+        }
+        if (lbtc_results) {
+            cudaFree(lbtc_results);
+            lbtc_results = nullptr;
+            lbtc_results_count = 0;
+        }
+        const cudaError_t err = cudaMalloc(&lbtc_results, count * sizeof(bool));
+        if (err == cudaSuccess) {
+            lbtc_results_count = count;
+        }
+        return err;
     }
 };
 
@@ -630,6 +738,7 @@ public:
 
     void shutdown() override {
         msm_pool_.free_all();
+        g_cuda_batch_scratch.free_lbtc_device();
         ready_ = false;
     }
 
@@ -714,30 +823,24 @@ gmb_cleanup:
         if (!msg_hashes32 || !pubkeys33 || !sigs64 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Prepare signatures on host */
-        std::vector<ECDSASignatureGPU> h_sigs(count);
-        for (size_t i = 0; i < count; ++i) {
-            bytes_to_ecdsa_sig(sigs64 + i * 64, &h_sigs[i]);
-        }
-
         /* Allocate device memory */
         uint8_t*            d_msgs    = nullptr;
         uint8_t*            d_pubs33  = nullptr;
         JacobianPoint*      d_pubs    = nullptr;
         bool*               d_pub_ok  = nullptr;
-        ECDSASignatureGPU*  d_sigs    = nullptr;
+        uint8_t*            d_sigs64  = nullptr;
         bool*               d_res     = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
         CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
         CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
         CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
-        CUDA_TRY(cudaMalloc(&d_sigs, count * sizeof(ECDSASignatureGPU)));
+        CUDA_TRY(cudaMalloc(&d_sigs64, count * 64));
         CUDA_TRY(cudaMalloc(&d_res, count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, pubkeys33, count * 33, cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_sigs, h_sigs.data(), count * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_sigs64, sigs64, count * 64, cudaMemcpyHostToDevice));
 
         /* Decompress pubkeys on GPU */
         int threads = 128;
@@ -748,7 +851,7 @@ gmb_cleanup:
 
         /* Launch verify */
         ecdsa_verify_batch_kernel<<<blocks, threads>>>(
-            d_msgs, d_pubs, d_sigs, d_res, static_cast<int>(count));
+            d_msgs, d_pubs, d_sigs64, d_res, static_cast<int>(count));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
@@ -759,7 +862,7 @@ gmb_cleanup:
             out_results[i] = h_res[i] ? 1 : 0;
 
         cudaFree(d_res);
-        cudaFree(d_sigs);
+        cudaFree(d_sigs64);
         cudaFree(d_pub_ok);
         cudaFree(d_pubs);
         cudaFree(d_pubs33);
@@ -779,22 +882,23 @@ gmb_cleanup:
         if (stride < 129u)
             return set_error(GpuError::BadInput, "libbitcoin row stride < 129");
 
-        uint8_t* d_rows = nullptr;
-        bool*    d_res  = nullptr;
         GpuError ret = GpuError::Ok;
 
         const size_t row_bytes = count * stride;
-        if (cudaMalloc(&d_rows, row_bytes) != cudaSuccess) {
+        if (stride != 0 && row_bytes / stride != count) {
+            return set_error(GpuError::BadInput, "libbitcoin row byte size overflow");
+        }
+        if (g_cuda_batch_scratch.ensure_lbtc_rows(row_bytes) != cudaSuccess) {
             return set_error(GpuError::Memory, "lbtc rows buffer alloc");
         }
-        if (cudaMalloc(&d_res, count * sizeof(bool)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "lbtc result buffer alloc");
-            goto lbtc_cleanup;
+        if (g_cuda_batch_scratch.ensure_lbtc_results(count) != cudaSuccess) {
+            return set_error(GpuError::Memory, "lbtc result buffer alloc");
         }
-        if (cudaMemcpy(d_rows, rows, row_bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc rows upload");
-            goto lbtc_cleanup;
-        }
+        uint8_t* const d_rows = g_cuda_batch_scratch.lbtc_rows;
+        bool* const d_res = g_cuda_batch_scratch.lbtc_results;
+
+        if (cudaMemcpy(d_rows, rows, row_bytes, cudaMemcpyHostToDevice) != cudaSuccess)
+            return set_error(GpuError::Launch, "lbtc rows upload");
 
         {
             int threads = 128;
@@ -803,29 +907,22 @@ gmb_cleanup:
                 d_rows, stride, d_res, static_cast<int>(count));
         }
         if (cudaGetLastError() != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel launch");
-            goto lbtc_cleanup;
+            return set_error(GpuError::Launch, "lbtc ecdsa row kernel launch");
         }
         if (cudaDeviceSynchronize() != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel sync");
-            goto lbtc_cleanup;
+            return set_error(GpuError::Launch, "lbtc ecdsa row kernel sync");
         }
 
         {
             uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
             if (cudaMemcpy(h_res, d_res, count * sizeof(bool),
                            cudaMemcpyDeviceToHost) != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "lbtc result download");
-                goto lbtc_cleanup;
+                return set_error(GpuError::Launch, "lbtc result download");
             }
             for (size_t i = 0; i < count; ++i)
                 out_results[i] = h_res[i] ? 1 : 0;
         }
         clear_error();
-
-lbtc_cleanup:
-        if (d_res) cudaFree(d_res);
-        if (d_rows) cudaFree(d_rows);
         return ret;
     }
 
@@ -2018,111 +2115,44 @@ dec_cleanup:
             h_scan_k.limbs[limb] = v;
         }
 
-        /* -- 2. Decompress tweak pubkeys on CPU, then upload as JacobianPoint -- */
-        std::vector<cuda::JacobianPoint> h_tweaks(n_tweaks);
-        {
-            uint8_t* d_pubs33_tmp = nullptr;
-            cuda::JacobianPoint* d_pubs_tmp = nullptr;
-            bool* d_ok_tmp = nullptr;
-            CUDA_TRY(cudaMalloc(&d_pubs33_tmp, n_tweaks * 33));
-            CudaKeyGuard d_pubs33_tmp_guard(d_pubs33_tmp, n_tweaks * 33);
-            CUDA_TRY(cudaMalloc(&d_pubs_tmp,   n_tweaks * sizeof(cuda::JacobianPoint)));
-            CudaKeyGuard d_pubs_tmp_guard(d_pubs_tmp, n_tweaks * sizeof(cuda::JacobianPoint));
-            CUDA_TRY(cudaMalloc(&d_ok_tmp,     n_tweaks * sizeof(bool)));
-            CudaKeyGuard d_ok_tmp_guard(d_ok_tmp, n_tweaks * sizeof(bool));
-            CUDA_TRY(cudaMemcpy(d_pubs33_tmp, tweak_pubkeys33, n_tweaks * 33, cudaMemcpyHostToDevice));
+        /* -- 2. Upload 33-byte pubkeys directly (GPU decompresses in scan kernel) -- */
 
-            int threads = 128;
-            int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
-            batch_compressed_to_jac_kernel<<<blocks, threads>>>(
-                d_pubs33_tmp, d_pubs_tmp, d_ok_tmp, static_cast<int>(n_tweaks));
-            CUDA_TRY(cudaGetLastError());
-            CUDA_TRY(cudaDeviceSynchronize());
-            std::vector<uint8_t> h_ok_tmp(n_tweaks);
-            CUDA_TRY(cudaMemcpy(h_ok_tmp.data(), d_ok_tmp,
-                                n_tweaks * sizeof(bool),
-                                cudaMemcpyDeviceToHost));
-            for (size_t i = 0; i < n_tweaks; ++i) {
-                if (!h_ok_tmp[i]) {
-                    return set_error(GpuError::BadKey, "invalid tweak pubkey");
-                }
-            }
-            CUDA_TRY(cudaMemcpy(h_tweaks.data(), d_pubs_tmp,
-                                n_tweaks * sizeof(cuda::JacobianPoint),
-                                cudaMemcpyDeviceToHost));
-        }
-
-        /* -- 3. Decompress spend pubkey on GPU -> AffinePoint -- */
-        cuda::AffinePoint h_spend_aff{};
-        {
-            uint8_t* d_spend33 = nullptr;
-            cuda::JacobianPoint* d_spend_jac = nullptr;
-            bool* d_ok2 = nullptr;
-            CUDA_TRY(cudaMalloc(&d_spend33,   33));
-            CudaKeyGuard d_spend33_guard(d_spend33, 33);
-            CUDA_TRY(cudaMalloc(&d_spend_jac, sizeof(cuda::JacobianPoint)));
-            CudaKeyGuard d_spend_jac_guard(d_spend_jac, sizeof(cuda::JacobianPoint));
-            CUDA_TRY(cudaMalloc(&d_ok2,       sizeof(bool)));
-            CudaKeyGuard d_ok2_guard(d_ok2, sizeof(bool));
-            CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkey33, 33, cudaMemcpyHostToDevice));
-            batch_compressed_to_jac_kernel<<<1, 1>>>(d_spend33, d_spend_jac, d_ok2, 1);
-            CUDA_TRY(cudaGetLastError());
-            CUDA_TRY(cudaDeviceSynchronize());
-            cuda::JacobianPoint h_jac{};
-            bool h_spend_ok = false;
-            CUDA_TRY(cudaMemcpy(&h_spend_ok, d_ok2, sizeof(bool), cudaMemcpyDeviceToHost));
-            if (!h_spend_ok) {
-                return set_error(GpuError::BadKey, "invalid spend pubkey");
-            }
-            CUDA_TRY(cudaMemcpy(&h_jac, d_spend_jac, sizeof(cuda::JacobianPoint), cudaMemcpyDeviceToHost));
-            h_spend_aff.x = h_jac.x;
-            h_spend_aff.y = h_jac.y;
-        }
-
-        /* -- 4. Allocate device buffers and upload -- */
-        cuda::JacobianPoint* d_tweaks   = nullptr;
-        cuda::AffinePoint*   d_spend    = nullptr;
-        uint64_t*            d_prefixes = nullptr;
-
-        CUDA_TRY(cudaMalloc(&d_tweaks,   n_tweaks * sizeof(cuda::JacobianPoint)));
-        CudaKeyGuard d_tweaks_guard(d_tweaks, n_tweaks * sizeof(cuda::JacobianPoint));
-        // HIGH-3: scan private key must not remain in device memory after the operation completes.
-        // CudaKeyGuard RAII wrapper calls cudaMemset(d_scan_k, 0, ...) + cudaFree on all exit paths.
         cuda::Scalar* d_scan_k = nullptr;
         CUDA_TRY(cudaMalloc(&d_scan_k, sizeof(cuda::Scalar)));
         CudaKeyGuard d_scan_k_guard(d_scan_k, sizeof(cuda::Scalar));
+        CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
 
-        CUDA_TRY(cudaMalloc(&d_spend,    sizeof(cuda::AffinePoint)));
-        CudaKeyGuard d_spend_guard(d_spend, sizeof(cuda::AffinePoint));
+        uint8_t* d_tweaks33 = nullptr;
+        CUDA_TRY(cudaMalloc(&d_tweaks33, n_tweaks * 33));
+        CudaKeyGuard d_tweaks33_guard(d_tweaks33, n_tweaks * 33);
+        CUDA_TRY(cudaMemcpy(d_tweaks33, tweak_pubkeys33, n_tweaks * 33, cudaMemcpyHostToDevice));
+
+        uint8_t* d_spend33 = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend33, 33));
+        CudaKeyGuard d_spend33_guard(d_spend33, 33);
+        CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkey33, 33, cudaMemcpyHostToDevice));
+
+        uint64_t* d_prefixes = nullptr;
         CUDA_TRY(cudaMalloc(&d_prefixes, n_tweaks * sizeof(uint64_t)));
         CudaKeyGuard d_prefixes_guard(d_prefixes, n_tweaks * sizeof(uint64_t));
 
-        CUDA_TRY(cudaMemcpy(d_tweaks, h_tweaks.data(),
-                            n_tweaks * sizeof(cuda::JacobianPoint), cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
-        CUDA_TRY(cudaMemcpy(d_spend,  &h_spend_aff, sizeof(cuda::AffinePoint), cudaMemcpyHostToDevice));
-
-        /* -- 5. Launch BIP-352 scan kernel -- */
+        /* -- 3. Launch compressed BIP-352 scan kernel (decompress+scan fused) -- */
         int threads = 128;
         int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
-        bip352_scan_batch_kernel<<<blocks, threads>>>(
-            d_tweaks, d_scan_k, d_spend, d_prefixes, static_cast<int>(n_tweaks));
+        bip352_scan_batch_kernel_compressed<<<blocks, threads>>>(
+            d_tweaks33, d_scan_k, d_spend33, d_prefixes, static_cast<int>(n_tweaks));
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 
-        /* -- 6. Download prefixes -- */
+        /* -- 4. Download prefixes -- */
         CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
                             n_tweaks * sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-        /* -- 7. Erase secret material explicitly before RAII guard cleanup.
-         *       Belt-and-suspenders: explicit calls + RAII guards (CudaKeyGuard,
-         *       ScanKeyGuard) both zero the key on all exit paths.               */
         // HIGH-3: zero device copy of scan private key before freeing device memory.
         cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
         // HIGH-3: zero host copy of scan private key (also done by ScanKeyGuard dtor).
         secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
 
-        // d_scan_k freed + zeroed by CudaKeyGuard dtor; h_scan_k zeroed by ScanKeyGuard dtor.
         clear_error();
         return GpuError::Ok;
 #else

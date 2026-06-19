@@ -12,7 +12,7 @@
 // ============================================================================
 
 #include "secp256k1.cuh"
-#include "ct/ct_scalar.cuh"  // for ct::scalar_normalize_low_s (branchless low-S)
+#include "ct/ct_point.cuh"  // CT generator multiply + scalar arithmetic
 
 #if !SECP256K1_CUDA_LIMBS_32
 
@@ -299,7 +299,7 @@ __device__ inline bool ecdsa_sign(
 
     // R = k * G  (CT: branchless, no warp divergence, nonce bits not leaked)
     JacobianPoint R;
-    scalar_mul_generator_ct_glv(&k, &R);
+    ct::ct_generator_mul(&k, &R);
     if (R.infinity) return false;
 
     // Convert R to affine x-coordinate
@@ -317,39 +317,15 @@ __device__ inline bool ecdsa_sign(
 
     // s = k^{-1} * (z + r * d) mod n
     Scalar k_inv;
-    scalar_inverse(&k, &k_inv);
+    ct::scalar_inverse(&k, &k_inv);
 
-    Scalar rd;  // r * d
-    scalar_mul_mod_n(&sig->r, private_key, &rd);
+    Scalar rd;
+    ct::scalar_mul(&sig->r, private_key, &rd);
 
-    Scalar z_plus_rd;  // z + r*d
-    // Addition mod n: compute sum, reduce if >= n
-    {
-        uint64_t carry = 0;
-        for (int i = 0; i < 4; i++) {
-            z_plus_rd.limbs[i] = add_cc(z.limbs[i], rd.limbs[i], carry);
-        }
-        // Reduce mod n
-        uint64_t borrow = 0;
-        uint64_t tmp[4];
-        for (int i = 0; i < 4; i++) {
-            tmp[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
-        }
-        uint64_t mask = -(uint64_t)(borrow == 0);
-        for (int i = 0; i < 4; i++) {
-            z_plus_rd.limbs[i] = (tmp[i] & mask) | (z_plus_rd.limbs[i] & ~mask);
-        }
-        // Handle carry from addition: if carry, the sum was >= 2^256, definitely > n
-        if (carry) {
-            // z_plus_rd -= n (use tmp result from above but with carry absorbed)
-            borrow = 0;
-            for (int i = 0; i < 4; i++) {
-                z_plus_rd.limbs[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
-            }
-        }
-    }
+    Scalar z_plus_rd;
+    ct::scalar_add(&z, &rd, &z_plus_rd);
 
-    scalar_mul_mod_n(&k_inv, &z_plus_rd, &sig->s);
+    ct::scalar_mul(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return false;
 
     // Normalize to low-S (BIP-62) — CT: branchless cmov, no early-exit timing leak.
@@ -629,7 +605,7 @@ __device__ inline bool ecdsa_sign_verified(
 
     // Compute public key for verification (CT: private_key is secret)
     JacobianPoint pubkey;
-    scalar_mul_generator_ct_glv(private_key, &pubkey);
+    ct::ct_generator_mul(private_key, &pubkey);
 
     return ecdsa_verify(msg_hash, &pubkey, sig);
 }
@@ -702,7 +678,7 @@ __device__ inline bool ecdsa_sign_hedged(
     if (scalar_is_zero(&k)) return false;
 
     JacobianPoint R;
-    scalar_mul_generator_ct_glv(&k, &R);  // CT+GLV: nonce bits not leaked, ~35% faster
+    ct::ct_generator_mul(&k, &R);
     if (R.infinity) return false;
 
     FieldElement z_inv, z_inv2, x_affine;
@@ -716,28 +692,15 @@ __device__ inline bool ecdsa_sign_hedged(
     if (scalar_is_zero(&sig->r)) return false;
 
     Scalar k_inv;
-    scalar_inverse(&k, &k_inv);
+    ct::scalar_inverse(&k, &k_inv);
 
     Scalar rd;
-    scalar_mul_mod_n(&sig->r, private_key, &rd);
+    ct::scalar_mul(&sig->r, private_key, &rd);
 
     Scalar z_plus_rd;
-    {
-        uint64_t carry = 0;
-        for (int i = 0; i < 4; i++) {
-            z_plus_rd.limbs[i] = add_cc(z.limbs[i], rd.limbs[i], carry);
-        }
-        uint64_t borrow = 0;
-        uint64_t tmp[4];
-        for (int i = 0; i < 4; i++) {
-            tmp[i] = sub_cc(z_plus_rd.limbs[i], ORDER[i], borrow);
-        }
-        uint64_t mask = -(uint64_t)(borrow == 0 || carry);
-        for (int i = 0; i < 4; i++)
-            z_plus_rd.limbs[i] = (tmp[i] & mask) | (z_plus_rd.limbs[i] & ~mask);
-    }
+    ct::scalar_add(&z, &rd, &z_plus_rd);
 
-    scalar_mul_mod_n(&k_inv, &z_plus_rd, &sig->s);
+    ct::scalar_mul(&k_inv, &z_plus_rd, &sig->s);
     if (scalar_is_zero(&sig->s)) return false;
 
     // CT branchless low-S (replaces early-exit scalar_is_low_s which leaked 1 bit of s).
@@ -755,7 +718,7 @@ __device__ inline bool ecdsa_sign_hedged_verified(
 {
     if (!ecdsa_sign_hedged(msg_hash, private_key, aux_rand, sig)) return false;
     JacobianPoint pubkey;
-    scalar_mul_generator_ct_glv(private_key, &pubkey);  // CT+GLV: private_key is secret
+    ct::ct_generator_mul(private_key, &pubkey);
     return ecdsa_verify(msg_hash, &pubkey, sig);
 }
 

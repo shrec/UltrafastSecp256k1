@@ -33,6 +33,7 @@ LIB_ROOT = SCRIPT_DIR.parent
 
 # All audit-relevant Python scripts (relative to ci/)
 AUDIT_SCRIPTS = [
+    "caas_dashboard.py",
     "caas_runner.py",
     "install_caas_hooks.py",
     "external_audit_bundle.py",
@@ -85,6 +86,7 @@ AUDIT_SCRIPTS = [
     "check_research_signal_matrix.py",
     "check_evidence_refresh_coverage.py",
     "check_package_provenance_binding.py",
+    "check_libbitcoin_perf_matrix.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -785,7 +787,30 @@ def check_research_monitor_resilience() -> None:
             fail(tag, f"duplicate issue path attempted create: {duplicate_calls}")
             return
 
-        ok(tag, "ePrint RSS, term boundaries, report rendering, and issue escalation fallbacks are covered")
+        pq_noise = module.SourceItem(
+            source="Crossref",
+            item_id="10.1145/3807506",
+            title="Deep Learning Based Side-Channel Attack on Polynomial Multiplication in Post-Quantum Cryptography",
+            summary="",
+            published=published,
+            updated=published,
+            url="https://doi.org/10.1145/3807506",
+        )
+        matrix_classes = module.load_signal_matrix(module.DEFAULT_MATRIX)
+        pq_classification = module.classify_item(pq_noise, matrix_classes)
+        if pq_classification["bucket"] != "discard":
+            fail(tag, f"post-quantum polynomial side-channel noise was not discarded: {pq_classification}")
+            return
+
+        workflow = (LIB_ROOT / ".github" / "workflows" / "research-monitor.yml").read_text(encoding="utf-8")
+        if "OPEN_REVIEW='false'" not in workflow or "open_review_issue" not in workflow:
+            fail(tag, "research monitor workflow does not default scheduled review escalation to false")
+            return
+        if "OPEN_REVIEW='${{ github.event.inputs.open_review_issue || 'false' }}'" not in workflow:
+            fail(tag, "manual review-escalation fallback is not fail-closed")
+            return
+
+        ok(tag, "ePrint RSS, term boundaries, PQ noise discard, report rendering, and issue escalation fallbacks are covered")
     except Exception as exc:
         fail(tag, str(exc))
 
@@ -2564,6 +2589,143 @@ def check_package_provenance_binding_fixtures() -> None:
                 "release-marked-current / unknown workflow all fail; real dev manifest passes")
 
 
+def check_libbitcoin_perf_matrix_fixtures() -> None:
+    """B21: the libbitcoin performance matrix gate must fail missing surfaces,
+    wrong target_context, missing evidence, native-hardware overclaim, and missing
+    JSON benchmark artifact contracts; the real manifest passes."""
+    tag = "B21:libbitcoin_perf_matrix"
+    try:
+        mod = _load_ci_module("check_libbitcoin_perf_matrix.py", "lbtc_perf_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    ev = mod.evaluate
+
+    def row(id_, **kw):
+        base = {
+            "id": id_,
+            "surface": id_,
+            "target_context": "libbitcoin",
+            "status": "implemented",
+            "severity": "blocking",
+            "claim_scope": "test scope",
+            "evidence_paths": ["docs/LIBBITCOIN_INTEGRATION.md"],
+            "reproduce_command": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+            "native_hardware_claim": False,
+            "benchmark_artifact_contract": False,
+            "copy_policy": "test",
+        }
+        base.update(kw)
+        return base
+
+    healthy = [
+        row("lbtc_cpp_default_controller"),
+        row("lbtc_benchmark_json_artifact", benchmark_artifact_contract=True),
+        row("lbtc_cuda_row_persistent_scratch", native_hardware_claim=True,
+            benchmark_artifact_contract=True),
+        row("lbtc_msvc_windows_profile", status="measured_external", severity="warning"),
+        row("lbtc_vertical_opaque_contract", status="documented_current"),
+        row("lbtc_caas_perf_matrix_gate"),
+    ]
+    failures = []
+
+    if not ev(healthy)["overall_pass"]:
+        failures.append("healthy synthetic matrix did not pass")
+
+    r = ev(healthy[:-1])
+    if r["overall_pass"] or "missing_required_surface" not in r["problems"]:
+        failures.append("missing required surface did not fail")
+
+    bad_context = list(healthy)
+    bad_context[0] = row("lbtc_cpp_default_controller", target_context="microbench")
+    r = ev(bad_context)
+    if r["overall_pass"] or "bad_context" not in r["problems"]:
+        failures.append("wrong target_context did not fail")
+
+    missing_evidence = list(healthy)
+    missing_evidence[0] = row("lbtc_cpp_default_controller", evidence_paths=["docs/__missing_lbtc.md"])
+    r = ev(missing_evidence)
+    if r["overall_pass"] or "missing_evidence" not in r["problems"]:
+        failures.append("missing evidence path did not fail")
+
+    native_overclaim = list(healthy)
+    native_overclaim[0] = row("lbtc_cpp_default_controller", status="documented_current",
+                              native_hardware_claim=True, benchmark_artifact_contract=True)
+    r = ev(native_overclaim)
+    if r["overall_pass"] or "native_overclaim" not in r["problems"]:
+        failures.append("native-hardware overclaim did not fail")
+
+    no_artifact = list(healthy)
+    no_artifact[1] = row("lbtc_benchmark_json_artifact", benchmark_artifact_contract=False)
+    r = ev(no_artifact)
+    if r["overall_pass"] or "missing_benchmark_artifact_contract" not in r["problems"]:
+        failures.append("benchmark JSON contract omission did not fail")
+
+    rep, _ = mod.load_and_evaluate()
+    if not rep.get("overall_pass"):
+        failures.append(f"the committed LIBBITCOIN_PERF_MATRIX_STATUS.json did not pass: {rep.get('problems')}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing surface / wrong context / missing evidence / native overclaim / "
+                "missing JSON artifact contract all fail; real manifest passes")
+
+
+def check_caas_dashboard_evidence_browser() -> None:
+    """The CAAS dashboard must expose the committed evidence/status manifests in
+    one central browser. This prevents the UI from regressing into scattered
+    cards where reviewers cannot inspect CI-backed evidence rows directly."""
+    tag = "DASH:evidence_browser"
+    try:
+        mod = _load_ci_module("caas_dashboard.py", "caas_dashboard_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+    try:
+        rows = mod.collect_evidence_browser()
+    except Exception as exc:
+        fail(tag, f"collect_evidence_browser crashed: {exc}")
+        return
+
+    domains = {r.get("domain") for r in rows}
+    expected_domains = {
+        "Integration Evidence",
+        "CT Evidence",
+        "Fuzz Campaign",
+        "GPU / Hardware",
+        "Package Provenance",
+        "Libbitcoin Perf Matrix",
+        "External Audit Bundle",
+    }
+    missing_domains = sorted(expected_domains - domains)
+    if missing_domains:
+        failures.append("missing domains: " + ", ".join(missing_domains))
+
+    ids = {str(r.get("id", "")) for r in rows}
+    for expected in ("INT-SHIM-PARITY", "CT-ECDSA-SIGN", "FUZZ-DER-PARSER",
+                     "lbtc_cuda_row_persistent_scratch"):
+        if expected not in ids:
+            failures.append(f"missing evidence row {expected}")
+
+    if len(rows) < 30:
+        failures.append(f"too few evidence rows: {len(rows)}")
+
+    html = mod.render_section_evidence(rows)
+    for token in ('data-evidence-dashboard', 'id="evidence-table"', 'id="evidence-search"',
+                  "Integration Evidence", "Libbitcoin Perf Matrix"):
+        if token not in html:
+            failures.append(f"rendered evidence section missing {token}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, f"central evidence browser renders {len(rows)} rows across {len(domains)} domains")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -2589,6 +2751,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
         "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
+        "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2653,6 +2816,8 @@ def main() -> int:
     check_research_signal_matrix_fixtures()
     check_evidence_refresh_coverage_fixtures()
     check_package_provenance_binding_fixtures()
+    check_libbitcoin_perf_matrix_fixtures()
+    check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()
 

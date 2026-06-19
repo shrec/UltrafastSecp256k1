@@ -1,5 +1,290 @@
 # Audit Changelog
 
+## 2026-06-19 — CAAS dashboard centralized evidence browser
+
+- **Central evidence cockpit:** `ci/caas_dashboard.py` now aggregates the
+  committed Integration, CT, Fuzz, GPU/hardware, Package Provenance,
+  Libbitcoin Performance Matrix, Bastion Requirements, Audit SLA, and External
+  Audit Bundle manifests into one searchable/filterable Evidence Browser.
+- **Reviewer handoff improved:** each row shows the owning gate, reproduce
+  command, freshness/status/severity, notes, and backing evidence paths so
+  reviewers can inspect passed CI evidence without manually opening each JSON
+  manifest.
+- **Dashboard self-test added:** `ci/test_audit_scripts.py --quick` now imports
+  the dashboard, validates that known evidence rows render, and includes
+  `caas_dashboard.py` in the audit-script syntax/docstring checks.
+- **B21 fixture invocation restored:** the libbitcoin performance-matrix
+  fixture is now called from the self-test structural phase instead of only
+  being present for the fixture-coverage critic.
+- **XCFramework CI upload hardened:** the CI job now hard-fails on a missing or
+  empty XCFramework output before upload, but treats the GitHub artifact upload
+  itself as non-blocking infrastructure. This preserves build correctness while
+  avoiding false-red CI on transient `CreateArtifact` DNS/service failures.
+
+## 2026-06-19 — Research monitor review escalation softened
+
+- **Needs-review issue spam reduced:** scheduled research-monitor runs now keep
+  `needs_review` items in the uploaded artifact and job summary, but do not open
+  GitHub issues for them by default. GitHub issue creation remains automatic for
+  `high_confidence` findings.
+- **Manual escalation preserved:** owner-triggered workflow dispatch can still
+  set `open_review_issue=true` when a review queue should be promoted to an issue.
+- **Regression added for issue #307 class:** the audit self-test now checks that
+  a post-quantum polynomial-multiplication side-channel paper is discarded rather
+  than treated as secp256k1 evidence work.
+
+## 2026-06-19 — Libbitcoin integration performance matrix and CUDA row scratch
+
+- **Structured libbitcoin benchmark artifact:** `bench_lbtc_batch` now accepts
+  `--json <path>` and writes backend/device/kind/batch/iters/pool/timing rows
+  with `target_context=libbitcoin` and an explicit claim scope.
+- **CUDA row path allocation overhead reduced:** the consensus-bearing
+  libbitcoin opaque ECDSA row backend now reuses grow-only device row/result
+  buffers for the controller lifetime instead of allocating/freeing them on every
+  batch.
+- **Integration example aligned:** the libbitcoin demo now uses
+  `ufsecp::lbtc::Controller`'s default AUTO constructor, matching the manual and
+  avoiding raw C controller ceremony in the C++ example.
+- **New G-21 CAAS gate:** `audit_gate.py --libbitcoin-perf-matrix` validates
+  `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json`, blocking missing evidence, wrong
+  target context, native-hardware overclaims, and missing benchmark-artifact
+  contracts before libbitcoin performance claims are trusted.
+
+## 2026-06-18 — libbitcoin integration manual aligned to libbitcoin table standard
+
+- **libbitcoin-owned layout clarified:** `docs/LIBBITCOIN_INTEGRATION.md` now
+  treats libbitcoin's existing packed `std::span<Batch>` row/table format as the
+  canonical integration contract. The engine adapts to that layout instead of
+  requiring libbitcoin to reshape batches.
+- **Opaque ECDSA semantics documented:** the default `ufsecp_lbtc_verify_ecdsa`
+  path is explicitly documented as the opaque libbitcoin/libsecp-compatible
+  `ec_signature` format with scratch low-S normalization; public compact `r||s`
+  is available only through explicit compact variants.
+- **Build handoff made concrete:** the manual now documents the
+  `SECP256K1_BUILD_LIBBITCOIN` profile, optional CUDA/static-cudart behavior,
+  Windows MSVC/clang-cl notes, the direct `batch_verify(std::span<Batch>)`
+  mapping, and the local validation commands to hand to libbitcoin maintainers.
+- **AUTO backend default made explicit:** the libbitcoin examples now use the
+  C++ wrapper's default `ufsecp::lbtc::Controller` constructor, which already
+  binds `UFSECP_LBTC_AUTO`, keeping libbitcoin call sites shorter while leaving
+  the raw C ABI explicit.
+
+## 2026-06-18 — Gate shim security timeout hardening
+
+- **Shim security gate remains mandatory:** `Gate / PR-Push` still requires the
+  shim-linked security regression job on non-doc-only core/compat/CAAS/bindings
+  changes.
+- **Cold-runner cancellation window widened:** the shim gate timeout was raised
+  from 25 to 45 minutes after GitHub hosted runners repeatedly spent the whole
+  prior budget during dependency setup, cancelling the job before shim build and
+  regression tests could run.
+- **Security semantics unchanged:** no skip path or advisory downgrade was added;
+  the change only prevents infrastructure slowness from masking the required
+  shim test result as a cancelled security phase.
+
+## 2026-06-18 — Bech32 address encoder allocation reduction
+
+- **P2WPKH address encoding fast path tightened:** `bech32_encode` now uses a
+  stack-backed 5-bit conversion buffer for normal Bitcoin witness payloads and
+  computes the checksum as a streaming polymod instead of materializing
+  `hrp_expand || data || zeros` in heap vectors.
+- **Generic behavior preserved:** oversized witness payloads still fall back to
+  heap-backed storage, and decode/validation semantics remain unchanged.
+- **Measurement:** on the local GCC 14 `cpu-release` run, `address_p2wpkh`
+  improved from the captured baseline `522.1 ns` to stable reruns around
+  `470-471 ns`; `address_p2pkh` was left on the previous Base58Check path after
+  the stack-buffer experiment measured slower.
+- **Regression coverage:** `test_bech32` now checks the BIP173 P2WPKH vector
+  exactly and roundtrips an oversized Bech32m paycode-style payload, covering
+  both the stack-backed fast path and heap fallback.
+- **CAAS pairing recorded:** `check_security_fix_has_test.py` now records the
+  retroactive coverage for the earlier Bech32 optimization commit so the
+  protected fast gate can verify the test file exists instead of leaving the
+  commit as an uncovered `src/cpu/src/address.cpp` change.
+
+## 2026-06-18 — Static CUDA runtime linkage by default
+
+- **CUDA runtime packaging tightened:** CUDA-enabled engine, GPU-host, C ABI,
+  libbitcoin bridge bench/test, and CUDA benchmark/test targets now default to
+  `CMAKE_CUDA_RUNTIME_LIBRARY=Static`. This removes the runtime
+  `libcudart.so` / `cudart64*.dll` dependency from engine artifacts while
+  preserving the normal NVIDIA driver dependency.
+- **Integrator override remains standard CMake:** downstream packaging can pass
+  `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared` when it intentionally wants dynamic
+  cudart linkage.
+- **Docs updated:** `docs/BUILDING.md` and `docs/INTEGRATION_MODELS.md` now
+  document the CUDA runtime linkage contract.
+
+## 2026-06-18 — CUDA signing scalar-add correctness
+
+- **CUDA ECDSA/Schnorr fast signing paths now reuse CT scalar arithmetic:** the
+  duplicate local modular-add/reduce blocks in `ecdsa_sign`,
+  `schnorr_sign`, and `schnorr_sign_with_keypair` were replaced with the same
+  `ct::scalar_mul` / `ct::scalar_add` primitives used by the CT signing layer.
+  This restores CUDA sign+verify self-consistency and CT-vs-fast signature
+  parity while reducing duplicate scalar arithmetic in secret-bearing signing
+  code.
+- **Regression surface:** `cuda_selftest` covers ECDSA/Schnorr sign+verify and
+  `gpu_ct_smoke` covers CT signing plus CT-vs-fast ECDSA parity.
+
+## 2026-06-18 — Memory-vs-compute backend staging reduction
+
+- **CUDA/OpenCL ECDSA verify batch staging reduced:** `ufsecp_gpu_ecdsa_verify_batch`
+  now uploads compact `r||s` signatures to CUDA/OpenCL and parses them into
+  backend scalar registers inside the verify kernel. Metal already used this
+  shape. This removes the host-side `N x ECDSASignature` conversion/staging loop
+  from CUDA/OpenCL without changing the public ABI or verification semantics.
+- **libbitcoin bridge chunk scratch is grow-only:** hot result/column staging in
+  `compat/libbitcoin_bridge/src/ufsecp_libbitcoin.cpp` now reuses thread-local
+  byte buffers instead of allocating fresh vectors per chunk. This preserves the
+  existing row/column API while reducing allocator churn in validation-sized
+  batches.
+- **Regression gate:** `ci/check_backend_parity.py` now carries C9, a source-level
+  guard that fails if CUDA/OpenCL ECDSA verify reintroduces host-side compact
+  signature conversion/staging instead of device-local parse.
+- **Batch curve-check regression test corrected:** `regression_ecdsa_batch_curve_check`
+  now uses `secp256k1_ecdsa_signature_parse_compact` to convert public compact
+  `r||s` into the shim's opaque `secp256k1_ecdsa_signature` layout before calling
+  the batch API. This keeps the test aligned with libsecp-style public usage and
+  avoids writing big-endian compact bytes directly into the private opaque buffer.
+- **CPU batch-add status:** the existing `batch_add_affine_x_with_parity` path
+  already follows the register-local `Y` pattern: it computes `Y` only long enough
+  to derive the compressed-pubkey parity bit and stores `x + parity`, not full
+  `Y`. Further precompute-table `Y` elision requires benchmark evidence because
+  recovering `Y` from `x` costs a field square root and may lose against the
+  memory write it replaces.
+
+## 2026-06-18 — Separate native engine install from optional libufsecp C ABI install
+
+- **Pkg-config corrected:** `secp256k1-fast.pc` now links `-lfastsecp256k1`
+  instead of `-lufsecp`. The native engine package no longer points consumers at
+  the optional C ABI library by accident.
+- **Top-level C ABI install is explicit:** new `SECP256K1_INSTALL_CABI` defaults
+  to `OFF`. A normal install emits the native `fastsecp256k1` engine package;
+  consumers that really need the stable `ufsecp_*` C ABI / bridge package can set
+  `-DSECP256K1_BUILD_CABI=ON -DSECP256K1_INSTALL_CABI=ON` and install both from
+  the same configure.
+- **Docs clarified:** native C++ / shim integrations link `secp256k1::fast` (or
+  the `secp256k1_shim` facade). `libufsecp` is an optional C ABI package for C
+  callers, bindings, and explicit bridge consumers, not a second mandatory engine
+  library. The front-door README and integration-model docs now carry the same
+  package-selection guidance and the exact top-level install commands for
+  engine-only vs engine-plus-C-ABI installs.
+
+## 2026-06-17 — Restore PERF-004 marker + thread-cap regression coverage (CI fix)
+
+- **`regression_adaptor_blinded_nonce` green again.** The 2026-06-17 bridge-free
+  rewrite of `compat/libsecp256k1_shim/src/shim_batch_verify.cpp` dropped the
+  `shrink_to_fit() removed (PERF-004 ...)` marker comment that the audit module's
+  P3-BATCH-MEM source-scan keys on, turning the check red across the CI matrix,
+  Sanitizers, the Security Audit workflow, and the Shim Security Gate (build was
+  fine; only the deterministic source-scan failed). The design never changed — the
+  marshalling scratch is still a `thread_local` grow-only vector that retains
+  capacity — so the fix restores the documenting marker truthfully.
+- **`regression_ecdsa_batch_verify_mt` extended** with a no-thread-cap guard:
+  asserts thread budgets above the old 64 cap {65,128,256,1024} are accepted and
+  match serial, and source-scans `batch_verify.cpp` to assert no `kMaxThreads`
+  cap / fixed `std::array<std::thread,64>` pool remains and a dynamic
+  `std::vector<std::thread>` pool is used.
+- **Paired ABI docs** (`SECURITY_CLAIMS.md`, `FFI_HOSTILE_CALLER.md`) updated for
+  the `ufsecp_ecdsa_batch_verify_mt` thread-budget contract (no arbitrary cap;
+  caller owns thread priority). Retroactive test-coverage entry added for commit
+  `1f341508` in `ci/check_security_fix_has_test.py`.
+
+## 2026-06-17 — Remove arbitrary 64-thread cap from batch_verify_mt
+
+- **`ecdsa_batch_verify_mt` / `schnorr_batch_verify_mt`** (`src/cpu/src/batch_verify.cpp`)
+  no longer clamp the worker count to a hard-coded `kMaxThreads = 64`. The fixed
+  `std::array<std::thread, 64>` pool is replaced by a `std::vector<std::thread>` sized to
+  the actual `n_threads`. The thread budget is the caller's to own: an explicit
+  `max_threads` is honoured and only reduced to what the hardware can run
+  (`hardware_concurrency`) and to the number of 4096-row chunks. `0`=auto, `1`=serial
+  semantics are unchanged. The caller controls thread priority via the calling process's
+  thread priority (inherited by the spawned workers). Pure throughput change — verification
+  is variable-time over public data, so the fail-closed boolean result is unchanged for any
+  thread count. Docs (`API_REFERENCE`, `INTEGRATION_MODELS`, `BRIDGE_FREE_INTEGRATION_REVIEW`,
+  `SHIM_KNOWN_DIVERGENCES`, shim headers, ABI header) updated to drop the "capped 64" wording.
+
+## 2026-06-17 — Bridge-free integration standard: smart shim batch verify (MT + per-row)
+
+- **New engine API `secp256k1::schnorr_batch_verify_mt(entries, n, max_threads)`** — the
+  Schnorr twin of `ecdsa_batch_verify_mt`. Same chunked atomic-work-queue design (4096-row
+  chunks, cap 64 threads, `0`=auto, `1`=serial), same fail-closed boolean identical to the
+  serial `schnorr_batch_verify` for any thread count. BIP-340 verification is variable-time
+  over **public** data only, so threading is a pure throughput change with **zero** CT impact.
+- **Shim batch path is now "smart"** (`compat/libsecp256k1_shim/src/shim_batch_verify.cpp`).
+  The large-batch ECDSA path routes to `ecdsa_batch_verify_mt` and Schnorr to
+  `schnorr_batch_verify_mt`. Four **additive** symbols expose thread control and per-row
+  results so a single standard surface (no bespoke bridge) covers batch throughput:
+  - `secp256k1_ecdsa_verify_batch_mt(ctx, sigs, msgs32, pubkeys, n, max_threads)`
+  - `secp256k1_schnorrsig_verify_batch_mt(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads)`
+  - `secp256k1_ecdsa_verify_batch_results(ctx, ..., n, max_threads, results)`
+  - `secp256k1_schnorrsig_verify_batch_results(ctx, ..., n, max_threads, results)`
+  `max_threads`: `0`=auto (capped 64), `1`=serial (use when calling from your own pool to
+  avoid oversubscription), `N`=cap. The existing `secp256k1_ecdsa_verify_batch` /
+  `secp256k1_schnorrsig_verify_batch` are retained as thin auto-threaded wrappers (back-compat).
+- **No-failure contract:** the shim batch functions never throw across the C ABI. If internal
+  thread creation throws, they fall back to the serial verifier; the result is deterministic
+  and identical to the serial path. NULL ctx fires the illegal callback (unchanged); the
+  `_results` variants return 0 on a NULL `results` pointer.
+- **Bug fix (latent):** the pre-existing `secp256k1_ecdsa_verify_batch` parsed the opaque
+  `secp256k1_ecdsa_signature.data` as **big-endian** compact `r||s`, but the shim stores it in
+  the engine's **native little-endian** limb form (see `shim_ecdsa.cpp` `ecdsa_sig_from_data`).
+  All ECDSA batch parse sites now use `Scalar::parse_bytes_strict_le`, matching single
+  `secp256k1_ecdsa_verify`. (No prior ECDSA-batch test existed; Schnorr batch was unaffected.)
+- **New regression test `shim_batch_mt`** (`compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp`):
+  MT == single across thread counts `{0,1,2,8,64}` for ECDSA and Schnorr (n > one chunk so
+  threads actually spawn), per-row `results` pinpoint injected-invalid rows, `n==0` vacuous,
+  small-`n` parity, and `max_threads==1` (caller-pool) parity.
+- **Integration standard:** see new `docs/INTEGRATION_MODELS.md` (Model 0 drop-in, Model 1
+  batch throughput via this shim path, Model 2 advanced GPU/zero-copy via `libbitcoin_bridge`)
+  and `docs/LIBBITCOIN_INTEGRATION.md` (maps `ecdsa::batch_verify` / `schnorr::batch_verify`
+  onto the shim `_results` API, no bridge).
+- **CT note:** batch verify is variable-time over PUBLIC data only; threading adds no
+  secret-dependent branches (same class as `ecdsa_batch_verify_mt`).
+
+## 2026-06-17 — Programmatic cache directory API; config.ini removed from default path
+
+- **New C ABI `ufsecp_set_cache_dir(const char* dir)`** plus the engine primitive
+  `secp256k1::fast::set_cache_directory(const std::string&)`. Callers point the engine at
+  their own fixed-base cache directory (`cache_w{bits}[ _glv].bin`); `NULL`/`""` means the
+  current working directory. This is the programmatic replacement for the legacy `config.ini`.
+- **`configure_fixed_base_auto()` no longer creates or reads `config.ini`** (nor `autotune.log`).
+  It now applies the built-in default fixed-base configuration and lets the cache machinery
+  read/write the `.bin` cache from the configured directory (`set_cache_directory()` /
+  `SECP256K1_CACHE_DIR`) or the CWD. The libsecp256k1 shim's `shim_ensure_fixed_base()` drops
+  the implicit `config.ini` resolution step; `SECP256K1_CACHE_PATH` remains an explicit hatch,
+  and `configure_fixed_base_from_file(<path>)` stays available for callers that *want* a file.
+- **Why:** integrators (e.g. libbitcoin) have their own config systems and must not have a
+  `config.ini` silently written into their working directory. No INI file is created or read by
+  default; the engine self-manages its `.bin` cache in the chosen directory.
+- **New regression test `cache_dir_api`** (`src/cpu/tests/test_cache_dir_api.cpp`, standalone
+  CTest): asserts `configure_fixed_base_auto()` creates no `config.ini`, and that
+  `set_cache_directory()` keeps generator multiples correct (`scalar_mul_generator` == generic
+  `scalar_mul`) with a caller-supplied cache directory.
+
+## 2026-06-17 — First-class engine parallelism for ECDSA batch verify (ecdsa_batch_verify_mt)
+
+- **New engine API `secp256k1::ecdsa_batch_verify_mt(entries, n, max_threads)`** plus the
+  thin C ABI `ufsecp_ecdsa_batch_verify_mt(ctx, entries, n, max_threads)`. CPU parallelism
+  for batch verification now lives **inside the engine**, not in any caller or bridge: a
+  large ECDSA batch is split into fixed-size chunks pulled from an atomic work queue and
+  verified across up to `max_threads` CPU threads (`0` = `hardware_concurrency()`, capped 64;
+  `1` = serial). The serial `ecdsa_batch_verify` is unchanged — integrators choose.
+- **Why:** a single `ufsecp_lbtc_verify_ecdsa` call with ~429M signatures ran the whole batch
+  on one core (serial `for` loop, one `dual_scalar_mul` per sig) — hours of wall-clock that
+  looked like a hang. Verification is variable-time over **public** data (pubkey/sig/msg), so
+  threading is a pure throughput win with **zero** CT impact; the boolean result is identical
+  to the serial path for any thread count. Per-thread scratch stays O(chunk), never O(n).
+- **Thread-safety:** the GLV/generator precompute (`get_dual_mul_gen_tables`) is a C++11
+  function-local magic static (standard-guaranteed thread-safe init); `ecdsa_batch_verify`'s
+  inversion arena is `thread_local`; point arithmetic uses no shared mutable state — the same
+  guarantees the existing parallel sign batch (`batch_parallel`) already relies on.
+- **New differential module `regression_ecdsa_batch_verify_mt`** (advisory=false): asserts
+  MT == serial on a valid batch for thread counts {0,1,2,4,8,64}, single-sig corruption
+  detected at every count, and corruption in a **later** chunk (>4096 rows) propagates across
+  the dynamic work queue. Edge cases: `n==0` → false (serial contract), `n==1`/small-n parity.
+
 ## 2026-06-16 — Shim pubkey manipulation paths fail-closed on off-curve (PERF-002 split)
 
 - **`regression_p2_ct_shim_fixes` was failing on clang/MSVC** (passed on gcc) after the

@@ -1,6 +1,36 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-11 | **Version**: 4.3.0
+**Last updated**: 2026-06-17 | **Version**: 4.4.0
+
+### 2026-06-18 - Bech32 address encoder allocation reduction: public-data only
+
+The `bech32_encode` allocation-reduction change in `src/cpu/src/address.cpp`
+uses a stack-backed 5-bit conversion buffer and streams the Bech32 checksum for
+Bitcoin witness address encoding. This path receives only PUBLIC address data:
+the network HRP, witness version, and witness program/hash. It does not process
+private keys, nonces, signing scalars, seed material, or caller-owned secret
+buffers.
+
+No secret lifecycle or zeroization contract changed. `secure_erase` sites were
+not added, removed, or reordered; signing, BIP-32/BIP-39, MuSig2, FROST, ECIES,
+and wallet secret cleanup paths remain unchanged. The stack buffer contains only
+public 5-bit address groups and requires no secret scrubbing.
+
+### 2026-06-17 - Batch verify MT + cache-dir API: no new secret surface
+
+The bridge-free batch-verify work (`schnorr_batch_verify_mt`, the smart shim
+batch path, and the `secp256k1_*_verify_batch_{mt,results}` symbols) and the
+programmatic cache-directory API (`ufsecp_set_cache_dir` /
+`secp256k1::fast::set_cache_directory`) introduce **no new secret material and no
+new zeroization surface**. Batch verification operates only on PUBLIC data
+(pubkey/message/signature); multi-threading is a pure throughput change with no
+secret-dependent branch (same class as `ecdsa_batch_verify_mt`). The
+`ufsecp_set_cache_dir` ABI takes a directory string (public) and stores it; it
+never touches keys. The only change in `src/cpu/src/ufsecp_impl.cpp` for this
+work is an additional unity-build `#include` to expose `set_cache_directory` — no
+secret-lifecycle logic was added or altered. No `secure_erase` sites were added
+or removed; existing seckey/nonce erasure paths (`ecdsa_sign`, `schnorr`,
+`musig2`, `frost`, BIP-32) are unchanged.
 
 ### 2026-06-11 - MuSig2 partial-sign secret-derived stack residue erasure
 

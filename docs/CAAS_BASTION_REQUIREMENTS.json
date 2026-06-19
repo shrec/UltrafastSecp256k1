@@ -277,6 +277,20 @@
       "status": "gated",
       "residual_risk": "Every package surface declares the full binding contract; `template` surfaces hold sentinels with null hash+run_id (no fake current evidence), `bound` surfaces must match HEAD + the committed bundle digest + a real artifact hash + verdict==pass, and `owner_gated` release artifacts are never current in the dev tree. The gate never publishes, tags, merges, or authorizes a release - release authorization stays owner-only per CLAUDE.md. Reuses existing SLSA / supply-chain infra rather than duplicating it.",
       "last_verified": "2026-06-13"
+    },
+    {
+      "id": "G-21",
+      "claim": "Libbitcoin performance/integration evidence matrix: batch acceleration claims must name target_context=libbitcoin, evidence paths, reproduce commands, copy policy, native-hardware scope, and the structured benchmark artifact contract",
+      "artifact_paths": [
+        "docs/LIBBITCOIN_PERF_MATRIX_STATUS.json",
+        "ci/check_libbitcoin_perf_matrix.py",
+        "compat/libbitcoin_bridge/bench/bench_lbtc_batch.cpp"
+      ],
+      "gate": "audit_gate.py --libbitcoin-perf-matrix",
+      "gate_kind": "audit_gate",
+      "status": "gated",
+      "residual_risk": "The matrix is an evidence/overclaim gate, not a benchmark runner. Owner-run Windows/MSVC and GPU hardware numbers remain reproducible-command-backed until JSON artifacts are attached; current push CI validates that no libbitcoin performance or no-copy claim is trusted without an explicit target_context, evidence path, reproduce command, and copy/native-hardware policy.",
+      "last_verified": "2026-06-19"
     }
   ]
 }

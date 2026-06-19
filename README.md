@@ -55,7 +55,7 @@ It is not a trust request. It is a verification package.
 
 > **No external third-party security audit has been performed.** All audit evidence is self-generated and independently reproducible via CAAS. See [SECURITY.md](SECURITY.md) §Audit Status.
 
-> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 429-module unified runner with 269 exploit PoC tests.
+> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 430-module unified runner with 269 exploit PoC tests.
 
 **Reproduce from patch (primary — stable):**
 ```bash
@@ -143,14 +143,31 @@ cmake --build out/release -j
 
 **Package install**
 
-See [docs/BUILDING.md](docs/BUILDING.md) for full install instructions.
-Build from source (all platforms):
+For native C++ integrations, Bitcoin-family node integrations, and the
+libsecp256k1-compatible shim, install/link the engine package:
+
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1 && cd UltrafastSecp256k1
-cmake -S . -B out/release -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j$(nproc)
+cmake -S . -B out/install-fast -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build out/install-fast --target install
 ```
 
-→ [Full build guide](docs/BUILDING.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)
+This installs `libfastsecp256k1` plus `secp256k1-fast.pc`, which links
+`-lfastsecp256k1`. The optional `libufsecp` package is only for C callers,
+language bindings, or explicit C ABI / bridge consumers. Install both packages
+from one configure only when you intentionally need that C ABI surface:
+
+```bash
+cmake -S . -B out/install-both -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
+cmake --build out/install-both --target install
+```
+
+Native code should link `secp256k1::fast` or the `secp256k1_shim` facade. Use
+`libufsecp` only when the integration deliberately calls the `ufsecp_*` C ABI.
+
+→ [Full build guide](docs/BUILDING.md) · [Build integration guide](docs/BUILD_INTEGRATION_GUIDE.md) · [Integration models](docs/INTEGRATION_MODELS.md) · [API reference](docs/API_REFERENCE.md) · [Platform support](docs/CROSS_PLATFORM_TEST_MATRIX.md)
 
 ---
 
@@ -253,7 +270,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 160 non-exploit audit modules and 269 exploit PoCs ( 429 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
+- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 161 non-exploit audit modules and 269 exploit PoCs ( 430 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -407,7 +424,7 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **≈600K explicitly itemized** field/scalar/point/CT (see [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md)), plus full-suite KAT/differential/fuzz checks (not individually counted) |
-| Audit modules (`unified_audit_runner`) | **160 non-exploit modules + 269 exploit PoCs across 10 sections, 0 mandatory failures** (see [docs/AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) for advisory cluster status) |
+| Audit modules (`unified_audit_runner`) | **161 non-exploit modules + 269 exploit PoCs across 10 sections, 0 mandatory failures** (see [docs/AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) for advisory cluster status) |
 | Exploit PoC test files | **269 exploit-PoC modules (257 source files), 20+ coverage areas, 0 mandatory failures** |
 | CI/CD workflows | **50+ GitHub Actions workflows** |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 theoretical combinations** (actual CI matrix is a subset — see `.github/workflows/` for exact matrix) |
@@ -435,11 +452,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 160 non-exploit audit modules and all 269 exploit PoCs return `AUDIT-READY (self-generated)` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- All 161 non-exploit audit modules and all 269 exploit PoCs return `AUDIT-READY (self-generated)` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
 ### Exploit PoC Test Suite (269 Tests, 20+ Coverage Areas)
 
-In addition to the 429-module `unified_audit_runner`, UltrafastSecp256k1 ships **269 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the 430-module `unified_audit_runner`, UltrafastSecp256k1 ships **269 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -1716,7 +1733,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 160 non-exploit modules + 269 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 161 non-exploit modules + 269 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |

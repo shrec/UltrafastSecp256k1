@@ -256,6 +256,26 @@ struct KeyColumnSink {
     }
 };
 
+struct LbtcByteScratch {
+    std::vector<uint8_t> a;
+    std::vector<uint8_t> b;
+    std::vector<uint8_t> c;
+    std::vector<uint8_t> d;
+
+    uint8_t* bytes(std::vector<uint8_t>& slot, std::size_t n) {
+        if (slot.size() < n) slot.resize(n);
+        return slot.data();
+    }
+
+    uint8_t* fill(std::vector<uint8_t>& slot, std::size_t n, uint8_t value) {
+        uint8_t* out = bytes(slot, n);
+        std::fill_n(out, n, value);
+        return out;
+    }
+};
+
+static thread_local LbtcByteScratch g_lbtc_byte_scratch;
+
 /* Translate one libbitcoin row into the engine's packed record layout.
  *   ECDSA   row == engine record:        32 msg | 33 pubkey | 64 sig.
  *   Schnorr row (uniform with ECDSA):    32 msg | 32 xonly  | 64 sig,
@@ -287,9 +307,9 @@ void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
      * opaque-row C ABI parses each row in place into the batch verifier and low-S
      * normalizes internally — fast, zero scratch. */
     if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque) {
-        std::vector<uint8_t> verdicts(cnt, 0);
+        uint8_t* verdicts = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt);
         const auto rc = ufsecp_ecdsa_verify_opaque_rows(
-            ctx, rows + base * stride, stride, cnt, verdicts.data());
+            ctx, rows + base * stride, stride, cnt, verdicts);
         for (std::size_t i = 0; i < cnt; ++i) {
             sink.mark(base + i, rc == UFSECP_OK && verdicts[i] != 0);
         }
@@ -353,14 +373,14 @@ void cpu_columns_chunk(ufsecp_ctx* ctx, Kind k,
      * output) must NOT take this path — it would be mis-read as opaque — so it
      * falls through to the per-row loop, which honours `format`. */
     if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque) {
-        std::vector<uint8_t> verdicts(cnt, 0);
+        uint8_t* verdicts = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt);
         const auto rc = ufsecp_ecdsa_verify_opaque_batch(
             ctx,
             msgs32 + base * 32,
             pubs + base * pub,
             sigs64 + base * 64,
             cnt,
-            verdicts.data());
+            verdicts);
         for (std::size_t i = 0; i < cnt; ++i) {
             sink.mark(base + i, rc == UFSECP_OK && verdicts[i] != 0);
         }
@@ -391,42 +411,42 @@ bool gpu_chunk(ufsecp_gpu_ctx* gpu, Kind k, const uint8_t* rows,
                std::size_t base, std::size_t cnt, std::size_t stride,
                EcdsaSigFormat format, Sink& sink) {
     if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque) {
-        std::vector<uint8_t> res(cnt);
+        uint8_t* res = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt);
         const ufsecp_error_t rc =
             ufsecp_gpu_ecdsa_verify_opaque_rows(
-                gpu, rows + base * stride, stride, cnt, res.data());
+                gpu, rows + base * stride, stride, cnt, res);
         if (rc != UFSECP_OK) return false;
         for (std::size_t i = 0; i < cnt; ++i)
             sink.mark(base + i, res[i] != 0);
         return true;
     }
 
-    std::vector<uint8_t> msg(cnt * 32), sig(cnt * 64), res(cnt);
-    std::vector<uint8_t> pub(cnt * (k == Kind::Ecdsa ? 33u : 32u));
+    uint8_t* msg = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt * 32);
+    uint8_t* sig = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.b, cnt * 64);
+    uint8_t* res = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.c, cnt);
+    uint8_t* pub = g_lbtc_byte_scratch.bytes(
+        g_lbtc_byte_scratch.d, cnt * (k == Kind::Ecdsa ? 33u : 32u));
 
     for (std::size_t i = 0; i < cnt; ++i) {
         const uint8_t* r = rows + (base + i) * stride;
         if (k == Kind::Ecdsa) {
             /* record: 32 msg | 33 pubkey | 64 sig */
-            std::memcpy(msg.data() + i * 32, r, 32);
-            std::memcpy(pub.data() + i * 33, r + 32, 33);
-            copy_ecdsa_signature_normalized(r + 65, sig.data() + i * 64,
-                                            format);
+            std::memcpy(msg + i * 32, r, 32);
+            std::memcpy(pub + i * 33, r + 32, 33);
+            copy_ecdsa_signature_normalized(r + 65, sig + i * 64, format);
         } else {
             /* libbitcoin row: 32 msg | 32 xonly | 64 sig. The engine GPU ABI
              * takes (msg, pubkey_x, sig) — extract at the libbitcoin offsets. */
-            std::memcpy(msg.data() + i * 32, r, 32);
-            std::memcpy(pub.data() + i * 32, r + 32, 32);
-            std::memcpy(sig.data() + i * 64, r + 64, 64);
+            std::memcpy(msg + i * 32, r, 32);
+            std::memcpy(pub + i * 32, r + 32, 32);
+            std::memcpy(sig + i * 64, r + 64, 64);
         }
     }
 
     const ufsecp_error_t rc =
         k == Kind::Ecdsa
-            ? ufsecp_gpu_ecdsa_verify_batch(gpu, msg.data(), pub.data(),
-                                            sig.data(), cnt, res.data())
-            : ufsecp_gpu_schnorr_verify_batch(gpu, msg.data(), pub.data(),
-                                              sig.data(), cnt, res.data());
+            ? ufsecp_gpu_ecdsa_verify_batch(gpu, msg, pub, sig, cnt, res)
+            : ufsecp_gpu_schnorr_verify_batch(gpu, msg, pub, sig, cnt, res);
     if (rc != UFSECP_OK) return false; /* fall back to CPU */
 
     for (std::size_t i = 0; i < cnt; ++i)
@@ -453,30 +473,30 @@ bool gpu_chunk_collect(ufsecp_gpu_ctx* gpu, Kind k, const uint8_t* rows,
     if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque)
         return gpu_chunk(gpu, k, rows, base, cnt, stride, format, sink);
 
-    std::vector<uint8_t> msg(cnt * 32), sig(cnt * 64);
-    std::vector<uint8_t> pub(cnt * (k == Kind::Ecdsa ? 33u : 32u));
-    std::vector<uint8_t> keys(cnt, 1u); /* seed non-zero → unwritten rows = rejected */
+    uint8_t* msg = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt * 32);
+    uint8_t* sig = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.b, cnt * 64);
+    uint8_t* pub = g_lbtc_byte_scratch.bytes(
+        g_lbtc_byte_scratch.c, cnt * (k == Kind::Ecdsa ? 33u : 32u));
+    uint8_t* keys = g_lbtc_byte_scratch.fill(
+        g_lbtc_byte_scratch.d, cnt, 1u); /* seed non-zero → unwritten rows = rejected */
 
     for (std::size_t i = 0; i < cnt; ++i) {
         const uint8_t* r = rows + (base + i) * stride;
         if (k == Kind::Ecdsa) {
-            std::memcpy(msg.data() + i * 32, r, 32);
-            std::memcpy(pub.data() + i * 33, r + 32, 33);
-            copy_ecdsa_signature_normalized(r + 65, sig.data() + i * 64,
-                                            format);
+            std::memcpy(msg + i * 32, r, 32);
+            std::memcpy(pub + i * 33, r + 32, 33);
+            copy_ecdsa_signature_normalized(r + 65, sig + i * 64, format);
         } else {
-            std::memcpy(msg.data() + i * 32, r, 32);       /* msg   @ 0  */
-            std::memcpy(pub.data() + i * 32, r + 32, 32);  /* xonly @ 32 */
-            std::memcpy(sig.data() + i * 64, r + 64, 64);  /* sig   @ 64 */
+            std::memcpy(msg + i * 32, r, 32);       /* msg   @ 0  */
+            std::memcpy(pub + i * 32, r + 32, 32);  /* xonly @ 32 */
+            std::memcpy(sig + i * 64, r + 64, 64);  /* sig   @ 64 */
         }
     }
 
     const ufsecp_error_t rc =
         k == Kind::Ecdsa
-            ? ufsecp_gpu_ecdsa_verify_collect(gpu, msg.data(), pub.data(),
-                                              sig.data(), cnt, keys.data())
-            : ufsecp_gpu_schnorr_verify_collect(gpu, msg.data(), pub.data(),
-                                                sig.data(), cnt, keys.data());
+            ? ufsecp_gpu_ecdsa_verify_collect(gpu, msg, pub, sig, cnt, keys)
+            : ufsecp_gpu_schnorr_verify_collect(gpu, msg, pub, sig, cnt, keys);
     if (rc != UFSECP_OK) return false; /* Unsupported / device error → fall back */
 
     for (std::size_t i = 0; i < cnt; ++i)
@@ -490,22 +510,18 @@ bool gpu_columns_results(ufsecp_gpu_ctx* gpu, Kind k,
                          std::size_t cnt, EcdsaSigFormat format,
                          uint8_t* results) {
     const std::size_t pub = pubkey_size(k);
-    std::vector<uint8_t> scratch;
     uint8_t* out = results ? results + base : nullptr;
-    if (!out) {
-        scratch.resize(cnt);
-        out = scratch.data();
-    }
+    if (!out)
+        out = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt);
 
-    std::vector<uint8_t> sig_norm;
     const uint8_t* sig_ptr = sigs64 + base * 64;
     if (k == Kind::Ecdsa) {
-        sig_norm.resize(cnt * 64);
+        uint8_t* sig_norm = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.b, cnt * 64);
         for (std::size_t i = 0; i < cnt; ++i)
             copy_ecdsa_signature_normalized(sig_ptr + i * 64,
-                                            sig_norm.data() + i * 64,
+                                            sig_norm + i * 64,
                                             format);
-        sig_ptr = sig_norm.data();
+        sig_ptr = sig_norm;
     }
 
     const ufsecp_error_t rc =
@@ -528,27 +544,24 @@ bool gpu_columns_collect(ufsecp_gpu_ctx* gpu, Kind k,
     /* Use a 1-byte temporary verdict column even when the caller's key column is
      * also 1 byte. That keeps the caller-owned key cells untouched until the
      * backend reports success, so a device failure can safely fall back to CPU. */
-    std::vector<uint8_t> markers(cnt, 1u);
-    std::vector<uint8_t> sig_norm;
+    uint8_t* markers = g_lbtc_byte_scratch.fill(g_lbtc_byte_scratch.a, cnt, 1u);
     const uint8_t* sig_ptr = sigs64 + base * 64;
     if (k == Kind::Ecdsa) {
-        sig_norm.resize(cnt * 64);
+        uint8_t* sig_norm = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.b, cnt * 64);
         for (std::size_t i = 0; i < cnt; ++i)
             copy_ecdsa_signature_normalized(sig_ptr + i * 64,
-                                            sig_norm.data() + i * 64,
+                                            sig_norm + i * 64,
                                             format);
-        sig_ptr = sig_norm.data();
+        sig_ptr = sig_norm;
     }
     const ufsecp_error_t rc =
         k == Kind::Ecdsa
             ? ufsecp_gpu_ecdsa_verify_collect(gpu, msgs32 + base * 32,
                                               pubs + base * pub,
-                                              sig_ptr, cnt,
-                                              markers.data())
+                                              sig_ptr, cnt, markers)
             : ufsecp_gpu_schnorr_verify_collect(gpu, msgs32 + base * 32,
                                                 pubs + base * pub,
-                                                sig_ptr, cnt,
-                                                markers.data());
+                                                sig_ptr, cnt, markers);
     if (rc != UFSECP_OK) return false;
 
     for (std::size_t i = 0; i < cnt; ++i)

@@ -19,6 +19,10 @@
 #include <unordered_map>
 #include <array>
 #include <random>
+#include <algorithm>
+#include <atomic>
+#include <thread>
+#include <vector>
 
 namespace secp256k1 {
 
@@ -483,6 +487,154 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
 
 bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries) {
     return ecdsa_batch_verify(entries.data(), entries.size());
+}
+
+// ---------------------------------------------------------------------------
+// ecdsa_batch_verify_mt: first-class multi-threaded ECDSA batch verification.
+//
+// Verification is variable-time over PUBLIC data (pubkey/sig/msg) — there is no
+// secret material — so parallelism is purely a throughput win and the boolean
+// result is identical to the single-threaded ecdsa_batch_verify for any thread
+// count. CPU parallelism is a property of the engine, not of any caller/bridge.
+//
+// Rows are split into fixed-size chunks pulled from an atomic counter and run
+// across `max_threads` threads (0 => hardware_concurrency; 1 => serial). The
+// thread count is the caller's to own — an explicit request is honoured and is
+// only reduced by the engine when it exceeds what can be used (hardware
+// concurrency, or the number of chunks). There is no arbitrary upper cap; the
+// caller controls thread priority via the calling process's thread priority
+// (inherited by the spawned workers). Each chunk runs the serial
+// ecdsa_batch_verify over its sub-range, so the Montgomery batch inversion still
+// amortises within the chunk and the per-thread scratch (ecdsa_batch_verify's
+// thread_local arena) stays small (~kChunk scalars) regardless of n — no O(n)
+// inversion arena. Any invalid entry in any chunk makes the whole call return
+// false (fail-closed), matching the serial contract. For n <= kChunk the call
+// is exactly the serial path (single chunk, single thread), including its
+// small-n individual-verify branch.
+//
+// Thread-safety: the GLV/generator precompute (get_dual_mul_gen_tables) is a
+// C++11 function-local magic static (standard-guaranteed thread-safe init);
+// ecdsa_batch_verify's scratch is thread_local; the point arithmetic uses no
+// shared mutable state. The existing parallel sign batch relies on the same
+// guarantees.
+// ---------------------------------------------------------------------------
+bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
+                           std::size_t max_threads) {
+    if (n == 0) return false;  // identical to the serial ecdsa_batch_verify contract
+
+    static constexpr std::size_t kChunk = 4096;  // > batch-inversion cutoff (8)
+
+    unsigned hw = std::thread::hardware_concurrency();
+    if (hw == 0) hw = 1;
+    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
+    // is honoured but reduced to what the hardware can actually run; there is no
+    // arbitrary upper cap. n_threads is further bounded by the number of chunks
+    // (no point spawning workers that would find the queue already drained).
+    const unsigned want = (max_threads == 0)
+        ? hw
+        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
+    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
+        static_cast<std::size_t>(want), n_chunks));
+
+    std::atomic<std::size_t> next_chunk{0};
+    std::atomic<bool>        any_invalid{false};
+
+    auto run = [&]() {
+        for (;;) {
+            if (any_invalid.load(std::memory_order_relaxed)) return;
+            const std::size_t start =
+                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
+            if (start >= n) return;
+            const std::size_t end = std::min(start + kChunk, n);
+            if (!ecdsa_batch_verify(entries + start, end - start)) {
+                any_invalid.store(true, std::memory_order_relaxed);
+                return;
+            }
+        }
+    };
+
+    if (n_threads <= 1) {
+        run();
+        return !any_invalid.load(std::memory_order_acquire);
+    }
+
+    std::vector<std::thread> pool;
+    pool.reserve(n_threads);
+    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
+    for (auto& th : pool) th.join();
+    return !any_invalid.load(std::memory_order_acquire);
+}
+
+bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
+                           std::size_t max_threads) {
+    return ecdsa_batch_verify_mt(entries.data(), entries.size(), max_threads);
+}
+
+// ---------------------------------------------------------------------------
+// schnorr_batch_verify_mt: first-class multi-threaded Schnorr batch verify.
+//
+// The Schnorr twin of ecdsa_batch_verify_mt. BIP-340 verification is
+// variable-time over PUBLIC data (pubkey/msg/sig) with no secret material, so
+// parallelism is a pure throughput win and the boolean result is identical to
+// the single-threaded schnorr_batch_verify for any thread count. Rows are
+// split into fixed-size chunks pulled from an atomic counter; each chunk runs
+// the serial schnorr_batch_verify over its sub-range (so the random-linear-
+// combination amortises within the chunk and per-thread scratch stays
+// O(kChunk), never O(n)). Any invalid entry in any chunk fails the whole call
+// (fail-closed). For n <= kChunk this is exactly the serial path; for n == 0 it
+// delegates to the serial contract.
+// ---------------------------------------------------------------------------
+bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
+                             std::size_t max_threads) {
+    if (n == 0) return schnorr_batch_verify(entries, 0);  // identical serial contract
+
+    static constexpr std::size_t kChunk = 4096;
+
+    unsigned hw = std::thread::hardware_concurrency();
+    if (hw == 0) hw = 1;
+    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
+    // is honoured but reduced to what the hardware can actually run; there is no
+    // arbitrary upper cap. n_threads is further bounded by the number of chunks.
+    const unsigned want = (max_threads == 0)
+        ? hw
+        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
+    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
+        static_cast<std::size_t>(want), n_chunks));
+
+    std::atomic<std::size_t> next_chunk{0};
+    std::atomic<bool>        any_invalid{false};
+
+    auto run = [&]() {
+        for (;;) {
+            if (any_invalid.load(std::memory_order_relaxed)) return;
+            const std::size_t start =
+                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
+            if (start >= n) return;
+            const std::size_t end = std::min(start + kChunk, n);
+            if (!schnorr_batch_verify(entries + start, end - start)) {
+                any_invalid.store(true, std::memory_order_relaxed);
+                return;
+            }
+        }
+    };
+
+    if (n_threads <= 1) {
+        run();
+        return !any_invalid.load(std::memory_order_acquire);
+    }
+
+    std::vector<std::thread> pool;
+    pool.reserve(n_threads);
+    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
+    for (auto& th : pool) th.join();
+    return !any_invalid.load(std::memory_order_acquire);
+}
+
+bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,
+                             std::size_t max_threads) {
+    return schnorr_batch_verify_mt(entries.data(), entries.size(), max_threads);
 }
 
 // -- Identify Invalid Signatures ----------------------------------------------

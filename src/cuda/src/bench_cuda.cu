@@ -815,7 +815,7 @@ namespace secp256k1 { namespace cuda {
 extern __global__ void ecdsa_sign_batch_kernel(
     const uint8_t*, const Scalar*, ECDSASignatureGPU*, bool*, int);
 extern __global__ void ecdsa_verify_batch_kernel(
-    const uint8_t*, const JacobianPoint*, const ECDSASignatureGPU*, bool*, int);
+    const uint8_t*, const JacobianPoint*, const uint8_t*, bool*, int);
 extern __global__ void schnorr_sign_batch_kernel(
     const Scalar*, const uint8_t*, const uint8_t*, SchnorrSignatureGPU*, bool*, int);
 extern __global__ void schnorr_verify_batch_kernel(
@@ -956,25 +956,37 @@ BenchResult bench_ecdsa_verify(const BenchConfig& cfg) {
     std::vector<JacobianPoint> h_pubkeys;
     std::vector<ECDSASignatureGPU> h_sigs;
     prepare_ecdsa_test_data(batch, h_msgs, h_privkeys, h_pubkeys, h_sigs);
+    std::vector<uint8_t> h_sigs64(static_cast<size_t>(batch) * 64);
+    auto scalar_to_be = [](const Scalar& s, uint8_t* out) {
+        for (int limb = 0; limb < 4; ++limb) {
+            const uint64_t v = s.limbs[limb];
+            for (int b = 0; b < 8; ++b)
+                out[31 - limb * 8 - b] = static_cast<uint8_t>(v >> (b * 8));
+        }
+    };
+    for (int i = 0; i < batch; ++i) {
+        scalar_to_be(h_sigs[i].r, h_sigs64.data() + static_cast<size_t>(i) * 64);
+        scalar_to_be(h_sigs[i].s, h_sigs64.data() + static_cast<size_t>(i) * 64 + 32);
+    }
 
     uint8_t *d_msgs;
     JacobianPoint *d_pubs;
-    ECDSASignatureGPU *d_sigs_d;
+    uint8_t *d_sigs64;
     bool *d_res;
 
     CUDA_CHECK(cudaMalloc(&d_msgs, batch * 32));
     CUDA_CHECK(cudaMalloc(&d_pubs, batch * sizeof(JacobianPoint)));
-    CUDA_CHECK(cudaMalloc(&d_sigs_d, batch * sizeof(ECDSASignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_sigs64, batch * 64));
     CUDA_CHECK(cudaMalloc(&d_res, batch * sizeof(bool)));
 
     CUDA_CHECK(cudaMemcpy(d_msgs, h_msgs.data(), batch * 32, cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_pubs, h_pubkeys.data(), batch * sizeof(JacobianPoint), cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_sigs_d, h_sigs.data(), batch * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sigs64, h_sigs64.data(), batch * 64, cudaMemcpyHostToDevice));
 
     int blocks = (batch + kThreads - 1) / kThreads;
 
     for (int i = 0; i < cfg.warmup_iterations; ++i) {
-        ecdsa_verify_batch_kernel<<<blocks, kThreads>>>(d_msgs, d_pubs, d_sigs_d, d_res, batch);
+        ecdsa_verify_batch_kernel<<<blocks, kThreads>>>(d_msgs, d_pubs, d_sigs64, d_res, batch);
     }
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
@@ -982,7 +994,7 @@ BenchResult bench_ecdsa_verify(const BenchConfig& cfg) {
     CudaTimer timer;
     timer.start();
     for (int i = 0; i < cfg.measure_iterations; ++i) {
-        ecdsa_verify_batch_kernel<<<blocks, kThreads>>>(d_msgs, d_pubs, d_sigs_d, d_res, batch);
+        ecdsa_verify_batch_kernel<<<blocks, kThreads>>>(d_msgs, d_pubs, d_sigs64, d_res, batch);
     }
     float total_ms = timer.stop();
 
@@ -992,7 +1004,7 @@ BenchResult bench_ecdsa_verify(const BenchConfig& cfg) {
 
     CUDA_CHECK(cudaFree(d_msgs));
     CUDA_CHECK(cudaFree(d_pubs));
-    CUDA_CHECK(cudaFree(d_sigs_d));
+    CUDA_CHECK(cudaFree(d_sigs64));
     CUDA_CHECK(cudaFree(d_res));
 
     return {"ECDSA Verify", avg_ms, batch, throughput, ns_per_op};
@@ -1631,4 +1643,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

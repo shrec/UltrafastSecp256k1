@@ -665,6 +665,7 @@ int test_regression_schnorr_varlen_ct_fixes_run();   // VCS-1..6: varlen sign_cu
 int test_regression_p2_ct_shim_fixes_run();              // CT-001/002/003 + SHIM-002/003/004
 int test_regression_musig2_nonce_gen_seckey_run();        // P2-SEC-002/003: musig nonce_gen seckey
 int test_regression_shim_ndata_rgrind_run();             // SHIM-010: ndata hedged nonce R-grind
+int test_regression_ecdsa_batch_verify_mt_run();         // MT-BATCH: ecdsa_batch_verify_mt == serial (first-class engine parallelism)
 
 // ============================================================================
 // Forward declarations -- 2026-05-21 shim security edge cases
@@ -1465,6 +1466,12 @@ static const AuditModule ALL_MODULES[] = {
     // advisory=true: shim-dependent tests skip gracefully when shim not linked;
     // pure C++ CT tests (musig2_agg, hedged_nonce) always run.
     { "regression_p2_ct_shim_fixes", "CT-002: musig2_agg ct::scalar_add; CT-001: hedged_nonce fixed-iter; CT-002b: keypair_xonly is_zero_ct; CT-003: context_randomize strict parse; SHIM-002: pubkey_negate off-curve reject; SHIM-003: musig_ec_tweak_add allows tweak=0", "ct_analysis", test_regression_p2_ct_shim_fixes_run, false },
+    // === MT-BATCH: first-class engine parallelism for ECDSA batch verify ===
+    // advisory=false: pure C++ engine test (no shim/GPU). Asserts the threaded
+    // ecdsa_batch_verify_mt returns the same boolean as serial ecdsa_batch_verify
+    // for thread counts {0,1,2,4,8,64}, detects single-sig corruption at every
+    // count, and propagates corruption across multi-chunk (>4096) work queues.
+    { "regression_ecdsa_batch_verify_mt", "MT-BATCH: ecdsa_batch_verify_mt parity with serial ecdsa_batch_verify across thread counts + multi-chunk corruption propagation (variable-time public-data verify)", "differential", test_regression_ecdsa_batch_verify_mt_run, false },
     // === 2026-05-21 P1-SEC-001: FROST frost_sign absent signer ID ===
     // advisory=false: uses internal C++ FROST API only, no GPU/shim dependency.
     { "exploit_frost_absent_signer_id", "P1-SEC-001: frost_sign returns zero partial sig when caller ID absent from nonce_commitments signing set (FSI-1..3)", "exploit_poc", test_exploit_frost_absent_signer_id_run, false },

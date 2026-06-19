@@ -62,6 +62,16 @@ VARIANT_PREFIXES = ("batch_",)
 STANDARD_VERIFIERS = {
     "ecdsa_verify", "schnorr_verify",            # standard sig verify — differential oracle
     "ecdsa_batch_verify", "schnorr_batch_verify",  # batch of the above
+    "ecdsa_batch_verify_mt",                       # multi-threaded variant of ecdsa_batch_verify:
+                                                   # identical boolean result on PUBLIC data, covered by
+                                                   # differential module regression_ecdsa_batch_verify_mt
+                                                   # (asserts MT == serial == libsecp for thread counts)
+    "schnorr_batch_verify_mt",                     # multi-threaded twin of schnorr_batch_verify:
+                                                   # identical boolean result on PUBLIC data (BIP-340 is
+                                                   # variable-time over public pubkey/msg/sig); covered by
+                                                   # the shim test shim_batch_mt (MT == single across thread
+                                                   # counts {0,1,2,8,64} + per-row results), same class as
+                                                   # ecdsa_batch_verify_mt
     "bitcoin_verify_message", "eth_personal_verify",  # message-sig = ecdsa recover + compare
     "eip55_verify",                               # address checksum, not curve soundness
     "poly1305_verify",                            # MAC tag compare, not EC soundness

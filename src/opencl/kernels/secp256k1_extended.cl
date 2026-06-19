@@ -1234,6 +1234,24 @@ inline int lbtc_parse_opaque_scalar(__global const uchar* opaque, Scalar* out) {
     return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
 }
 
+inline int lbtc_parse_compact_scalar(__global const uchar* be, Scalar* out) {
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int base = (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j)
+            v = (v << 8) | (ulong)be[base + j];
+        out->limbs[limb] = v;
+    }
+    return !scalar_is_zero(out) && !lbtc_scalar_ge_order(out);
+}
+
+inline int lbtc_parse_compact_signature(__global const uchar* sig64,
+                                        ECDSASignature* sig) {
+    if (!lbtc_parse_compact_scalar(sig64, &sig->r)) return 0;
+    if (!lbtc_parse_compact_scalar(sig64 + 32, &sig->s)) return 0;
+    return 1;
+}
+
 inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
                                        ECDSASignature* sig) {
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
@@ -2057,6 +2075,34 @@ __kernel void ecdsa_verify(
     results[gid] = ecdsa_verify_impl(msg, &pub, &sig);
 }
 
+/* ecdsa_verify_compressed — GPU-side pubkey decompression variant.
+ * Takes 33-byte SEC1 compressed pubkeys directly (no CPU decompress).
+ * Decompresses in registers via lbtc_point_from_compressed → verify.
+ * Eliminates CPU sqrt+parity, host JacobianPoint buffer, and 3.2x PCIe data. */
+__kernel void ecdsa_verify_compressed(
+    __global const uchar* msg_hashes,
+    __global const uchar* pubkeys33,
+    __global const uchar* signatures,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[gid * 32 + i];
+
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        results[gid] = 0;
+        return;
+    }
+
+    ECDSASignature sig;
+    int ok = lbtc_parse_compact_signature(signatures + gid * 64, &sig);
+    results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
 __kernel void ecdsa_verify_lbtc_rows(
     __global const uchar* rows,
     const ulong stride,
@@ -2075,6 +2121,39 @@ __kernel void ecdsa_verify_lbtc_rows(
     int ok = lbtc_point_from_compressed(row + 32, &pub) &&
              lbtc_parse_opaque_signature(row + 65, &sig);
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.
+ * Takes 33-byte SEC1 compressed pubkeys + private scalars.
+ * Decompresses pubkeys in registers, then multiplies by scalar.
+ * Used by ECDH batch path to eliminate CPU sqrt+parity. */
+__kernel void ecdh_scalar_mul_compressed(
+    __global const Scalar* scalars,
+    __global const uchar* pubkeys33,
+    __global JacobianPoint* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    Scalar k = scalars[gid];
+
+    // Decompress pubkey on GPU (33-byte SEC1 → JacobianPoint with z=1)
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        point_set_infinity(&pub);
+        results[gid] = pub;
+        return;
+    }
+
+    // Convert Jacobian (z=1) → AffinePoint for scalar_mul_glv_impl
+    AffinePoint aff;
+    aff.x = pub.x;
+    aff.y = pub.y;
+
+    JacobianPoint r;
+    scalar_mul_glv_impl(&r, &k, &aff);
+    results[gid] = r;
 }
 
 __kernel void ecrecover_batch(
@@ -2336,6 +2415,34 @@ __kernel void ecdsa_snark_witness_batch(
     JacobianPoint pub = pubkeys[gid];
     ECDSASignature sig = sigs[gid];
 
+    EcdsaSnarkWitnessFlatOCL w;
+    ecdsa_snark_witness_impl(msg, &pub, &sig, &w);
+    out[gid] = w;
+}
+
+/* ecdsa_snark_witness_batch_compressed — GPU-side pubkey decompression variant */
+__kernel void ecdsa_snark_witness_batch_compressed(
+    __global const uchar*              msg_hashes,   // count × 32 bytes
+    __global const uchar*              pubkeys33,    // count × 33 bytes (SEC1 compressed)
+    __global const ECDSASignature*     sigs,
+    __global EcdsaSnarkWitnessFlatOCL* out,
+    const uint                         count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = msg_hashes[gid * 32 + i];
+
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + gid * 33, &pub)) {
+        // Zero-fill output on failure (fail-closed)
+        EcdsaSnarkWitnessFlatOCL zero = {0};
+        out[gid] = zero;
+        return;
+    }
+
+    ECDSASignature sig = sigs[gid];
     EcdsaSnarkWitnessFlatOCL w;
     ecdsa_snark_witness_impl(msg, &pub, &sig, &w);
     out[gid] = w;

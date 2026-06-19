@@ -87,6 +87,8 @@ if(SECP256K1_BUILD_CUDA AND TARGET secp256k1_cuda_lib)
         ${CMAKE_CURRENT_SOURCE_DIR}/../cuda/include
     )
     set_source_files_properties(src/gpu_backend_cuda.cu PROPERTIES LANGUAGE CUDA)
+    set_target_properties(secp256k1_gpu_host PROPERTIES
+        CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
 endif()
 
 # OpenCL-specific includes

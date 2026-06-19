@@ -381,11 +381,15 @@ static void test_bech32() {
     std::printf("\n=== Bech32/Bech32m ===\n");
 
     // Encode P2WPKH (v0, 20-byte program)
-    std::uint8_t prog20[20] = {};
-    prog20[0] = 0x75; prog20[1] = 0x1e;
+    std::uint8_t prog20[20] = {
+        0x75, 0x1e, 0x76, 0xe8, 0x19, 0x91, 0x96, 0xd4, 0x54, 0x94,
+        0x1c, 0x45, 0xd1, 0xb3, 0xa3, 0x23, 0xf1, 0x43, 0x3b, 0xd6,
+    };
     auto addr = bech32_encode("bc", 0, prog20, 20);
     CHECK(!addr.empty(), "bech32_encode_nonempty");
     CHECK(addr.substr(0, 3) == "bc1", "bech32_prefix_bc1");
+    CHECK(addr == "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+          "bech32_bip173_p2wpkh_vector");
 
     // Decode
     auto result = bech32_decode(addr);
@@ -404,6 +408,20 @@ static void test_bech32() {
     CHECK(result_tr.valid, "bech32m_decode_valid");
     CHECK(result_tr.witness_version == 1, "bech32m_witness_v1");
     CHECK(result_tr.witness_program.size() == 32, "bech32m_prog_32_bytes");
+
+    // Oversized paycode-style program exercises bech32_encode's heap fallback.
+    std::array<std::uint8_t, 80> long_prog{};
+    for (std::size_t i = 0; i < long_prog.size(); ++i) {
+        long_prog[i] = static_cast<std::uint8_t>((i * 17u + 3u) & 0xffu);
+    }
+    auto long_addr = bech32_encode("sp", 1, long_prog.data(), long_prog.size());
+    CHECK(!long_addr.empty(), "bech32m_long_encode_nonempty");
+    auto long_result = bech32m_paycode_decode(long_addr);
+    CHECK(long_result.valid, "bech32m_long_decode_valid");
+    CHECK(long_result.hrp == "sp", "bech32m_long_hrp");
+    CHECK(long_result.witness_version == 1, "bech32m_long_witness_v1");
+    CHECK(long_result.witness_program == std::vector<std::uint8_t>(long_prog.begin(), long_prog.end()),
+          "bech32m_long_roundtrip");
 }
 
 static void test_hash160() {

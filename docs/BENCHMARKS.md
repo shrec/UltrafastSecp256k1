@@ -52,6 +52,13 @@ x86-64: GCC 14.2.0 · i5-14400F · 2.496 GHz · turbo CONFIRMED disabled · core
 > **Verify vs lib** = both variable-time paths on public data (fair comparison). **Warm-cache** = 64-key pool held in L1/L2 — Ultra: ShimSchnorrCache pre-warmed (lift_x + GLV tables amortized over many calls); libsecp: fresh GLV derivation every call (no caching). This comparison shows steady-state throughput after cache warmup, not first-encounter cost. Cold-start (unique pubkey per call, ShimSchnorrCache cold) numbers pending controlled measurement.
 > **FAST signing**: diagnostic-only variable-time vs libsecp CT comparison; **not** a production claim. Production-equivalent numbers are the **CT Sign vs lib** column above. For the diagnostic raw ratios, see `benchmarks/comparison/README.md` §BENCH-001 note.
 > **GPU rows:** kernel-only throughput at standard batch sizes — **excludes PCIe host↔device transfer overhead**. Wall-clock throughput (including transfer) is lower; measure end-to-end for production estimates.
+> **GPU ECDSA verify staging:** as of 2026-06-18 CUDA/OpenCL match Metal by
+> uploading compact 64-byte `r||s` signatures and parsing them in the verify
+> kernel. Benchmarks should separately report kernel-only time and end-to-end
+> wall time, because this optimization mainly removes host conversion/allocation
+> work and may not appear in kernel-only numbers.
+> Diagnostic RTX 5060 Ti results for this staging change are recorded in
+> `benchmarks/gpu/cuda/rtx-50xx/ecdsa_staging_rtx5060ti_20260618.md`.
 > For Bitcoin Core pipeline numbers (bench_bitcoin), see `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 
 **Per-column canonical artifact attribution:**
@@ -1676,5 +1683,5 @@ Benchmarks run: 2026-04-25
 
 ## Version
 
-UltrafastSecp256k1 v4.3.0  
+UltrafastSecp256k1 v4.4.0
 Benchmarks updated: 2026-04-25

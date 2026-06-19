@@ -1,232 +1,260 @@
-# libbitcoin ⇄ UltrafastSecp256k1 — Integration Guide
+# libbitcoin integration (libbitcoin table format first)
 
-How to use UltrafastSecp256k1 as the secp256k1 backend in libbitcoin (or any node):
-what to do, how, and what is required. See also [SIGNATURE_FORMS.md](SIGNATURE_FORMS.md)
-(forms + entry points) and `compat/libbitcoin_bridge/README.md` (bridge API).
+This guide is for libbitcoin-system integration work against the current
+UltrafastSecp256k1 `dev` branch. The integration rule is simple:
 
----
+**libbitcoin keeps its existing batch table standard. UltrafastSecp256k1 accepts
+that layout directly.**
 
-## 0. Assessment of the two integration assumptions
+The engine must not require libbitcoin to reshape batches, translate opaque
+ECDSA signatures to a different public format, or add a second side table just
+to call the accelerator. The libbitcoin row/span layout is the integration
+contract.
 
-> **(1) "Drop-in use of ufsecp works directly over the secp interface."** ✅ **Correct.**
-> The libsecp256k1 compatibility shim (`secp256k1_*`) is a 1:1 drop-in replacement. Parse,
-> normalize, sign, verify, serialize all behave like stock libsecp256k1 — no extra shim, no
-> code changes. (The one historical break — the opaque `secp256k1_ecdsa_signature` byte layout
-> — is fixed; see §6.)
->
-> **(2) "Produce 64-byte compact low-S via `secp256k1_ecdsa_signature_serialize_compact` and
-> pass that to the batch interface."** ⚠️ **You do not need to, and it costs more, not less.**
-> The default batch row verifier `ufsecp_lbtc_verify_ecdsa` (== `_opaque`) consumes the **opaque**
-> `ec_signature` bytes directly: the opaque LE form *is* the engine's native scalar-limb layout, so
-> each `r`/`s` is read with a direct little-endian limb load — **no byte-reversal and no
-> per-signature copy** (`serialize_compact` would *add* a bswap + a copy). Feeding compact bytes to
-> the opaque verifier mismatches the form (it reads them as LE limbs) and fails; if you genuinely
-> store big-endian compact, call **`ufsecp_lbtc_verify_ecdsa_compact`** (same 8-arg shape). **Best:**
-> pass `ec_signature` **unchanged** to `ufsecp_lbtc_verify_ecdsa` — that is the true no-copy path,
-> and the engine's in-register low-S normalize (a conditional negate, consensus-required — see §4.1)
-> is free.
+## Integration Surfaces
 
-**Net:** the integration needs **no code change** on your side. `ufsecp_lbtc_verify_ecdsa` /
-`_schnorr` keep the exact 8-argument `ufsecp_error_t(... , results, invalid_idx, invalid_cap,
-invalid_count)` shape your `batch_verify` already calls — the engine API now matches your
-structure. Pick `_opaque` (default) or `_compact` for ECDSA per how you store signatures.
+There are two independent surfaces:
 
----
+| Surface | Use in libbitcoin | Library/API |
+|---|---|---|
+| Normal per-signature verify/sign | Drop-in replacement for libsecp256k1 paths | `secp256k1_*` shim |
+| libbitcoin batch / mmap tables | Existing `std::span<Batch>` packed tables, per-row results, optional GPU | `ufsecp_lbtc_*` |
 
-## 1. Architecture — two layers
+`libfastsecp256k1` is the native engine package. `libufsecp` is the optional C
+ABI package. For the libbitcoin batch path, the `ufsecp_lbtc_*` symbols are
+compiled into `libufsecp` by the libbitcoin profile; libbitcoin should not link
+a second bridge library.
 
-| Layer | API | Role | Opt-in |
-|-------|-----|------|--------|
-| **1. Drop-in shim** | `secp256k1_*` (libsecp256k1 ABI) | 1:1 replacement for libsecp256k1 | always |
-| **2. Batch/GPU bridge** | `ufsecp_lbtc_*` | additive accelerator for batch script-sig verify (ECDSA/Schnorr) on CPU threads or GPU | `WITH_ULTRAFAST` |
+## Build Profile
 
-Layer 2 is **additive**: with `WITH_ULTRAFAST` off, `ecdsa::batch_verify` / `schnorr::batch_verify`
-fall back to parallel single `secp256k1_ecdsa_verify` (layer 1). The GPU result is consensus-anchored
-to the CPU/libsecp reference (`test_lbtc_consensus_diff`).
+The libbitcoin profile is the intended one-flag entry point:
 
----
+```bash
+cmake -S . -B out/libbitcoin-release -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_INSTALL_CABI=ON
 
-## 2. Build wiring (CMake) — already correct in libbitcoin
-
-```cmake
-option(with-ultrafast "Use UltrafastSecp256k1 ..." OFF)
-if(with-ultrafast)
-  # deps/UltrafastSecp256k1 (submodule) or -DUltrafastSecp256k1_DIR=<path>
-  set(SECP256K1_BUILD_LIBBITCOIN ON CACHE BOOL "" FORCE)
-  add_subdirectory("${UltrafastSecp256k1_DIR}" ultrafast_secp256k1 EXCLUDE_FROM_ALL)
-  add_compile_definitions(WITH_ULTRAFAST)
-  include_directories("${UltrafastSecp256k1_DIR}/compat/libbitcoin_bridge/include")
-endif()
+cmake --build out/libbitcoin-release -j
+cmake --install out/libbitcoin-release --prefix <install-prefix>
 ```
-`SECP256K1_BUILD_LIBBITCOIN=ON` is the minimal node profile (shim + bridge + BIP-352, extras off).
 
----
+For local integration validation, also build the libbitcoin tests:
 
-## 3. Layer 1 — drop-in secp public API (single verify)
+```bash
+cmake -S . -B out/libbitcoin-test -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
 
-No changes. The opaque `ec_signature` is `secp256k1_ecdsa_signature.data`; parse DER into it and
-verify:
+cmake --build out/libbitcoin-test -j
+ctest --test-dir out/libbitcoin-test -R "lbtc|shim" --output-on-failure
+```
+
+CUDA is optional:
+
+```bash
+cmake -S . -B out/libbitcoin-cuda -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_CABI=ON \
+  -DSECP256K1_BUILD_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=native
+```
+
+CUDA builds link the CUDA runtime statically by default
+(`CMAKE_CUDA_RUNTIME_LIBRARY=Static`). The NVIDIA driver remains a normal host
+dependency. On machines without a usable GPU backend, `UFSECP_LBTC_AUTO` binds
+the CPU reference path.
+
+### Windows Notes
+
+- Windows x64 and Windows ARM64 are supported.
+- MSVC `cl` is supported. The default MSVC path keeps the portable x64 ABI
+  baseline and enables measured-safe `/Ob3`; whole-program `/GL` is opt-in via
+  `SECP256K1_MSVC_WPO=ON` because it can force downstream `/LTCG`.
+- The current MSVC Windows profile has been owner-benchmarked as accelerated on
+  the integration machine. Treat that as owner-side evidence until a
+  `bench_lbtc_batch --json` artifact from the same hardware is attached.
+- `clang-cl` is the recommended fast Windows compiler when the consumer accepts
+  the MSVC ABI with Clang codegen:
+
+```bash
+cmake --preset windows-clang-cl
+cmake --build --preset windows-clang-cl -j
+```
+
+For Windows ARM64:
+
+```bash
+cmake --preset windows-arm64-clang-cl
+cmake --build --preset windows-arm64-clang-cl -j
+```
+
+For a reproducible MSVC libbitcoin benchmark artifact:
+
+```powershell
+cmake -S . -B out/libbitcoin-msvc -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DSECP256K1_BUILD_LIBBITCOIN=ON `
+  -DSECP256K1_BUILD_CABI=ON `
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
+
+cmake --build out/libbitcoin-msvc -j
+out\libbitcoin-msvc\include\ufsecp\bench_lbtc_batch.exe 1000000 5 50000 --json out\libbitcoin-msvc\lbtc_msvc.json
+```
+
+## Batch Row Contract
+
+The row pointer always points at a tightly packed array. The caller passes the
+record count and the trailing opaque key size. There is no buffer-size argument:
+the byte size is implied by `count * (record_size + key_size)`.
+
+| Batch kind | Verified record bytes | Signature format |
+|---|---:|---|
+| ECDSA | `32-byte sighash | 33-byte compressed pubkey | 64-byte signature` | libbitcoin `ec_signature` / libsecp-compatible opaque scalar storage |
+| Schnorr | `32-byte sighash | 32-byte x-only pubkey | 64-byte signature` | BIP-340 public signature |
+
+The bytes after the verified record are libbitcoin-owned correlation/accounting
+data. The engine carries or ignores them according to the API; it never
+interprets them as cryptographic input.
+
+ECDSA details:
+
+- `ufsecp_lbtc_verify_ecdsa` is the default libbitcoin path and is the same as
+  `ufsecp_lbtc_verify_ecdsa_opaque`.
+- Opaque ECDSA means libbitcoin's existing `ec_signature` storage: the copied
+  `secp256k1_ecdsa_signature` scalar layout used by the current secp-backed
+  path, not DER and not public compact big-endian `r||s`.
+- High-S signatures with `s < n` are accepted and normalized internally in
+  scratch before verification, matching libsecp256k1 fallback semantics.
+- Caller-owned rows are not rewritten.
+- Public compact `r||s` is supported only through the explicit
+  `ufsecp_lbtc_verify_ecdsa_compact` and `*_columns_compact` variants.
+
+## libbitcoin `batch_verify` Mapping
+
+Keep libbitcoin's existing function shape. `count` is not a new libbitcoin
+parameter; it is derived from the existing `std::span`.
+
 ```cpp
-secp256k1_ecdsa_signature sig;
-ecdsa_signature_parse_der_lax(ctx, &sig, der, derlen);    // your parser (uses parse_compact)
-secp256k1_ecdsa_signature_normalize(ctx, &sig, &sig);     // Bitcoin accepts high-S; normalize
-secp256k1_ecdsa_verify(ctx, &sig, hash, &pubkey);         // (ufsecp shim accepts high-S anyway)
+template <typename Batch>
+data_chunk batch_verify(const std::span<Batch>& batch, bool) NOEXCEPT
+{
+    static thread_local ufsecp::lbtc::Controller context;
+    if (!context.ok()) std::abort();
+
+    const auto count = batch.size();
+    data_chunk results(count);
+    const auto out = results.data();
+    const auto in = pointer_cast<const uint8_t>(batch.data());
+
+    if constexpr (is_same_type<Batch, schnorr::batch>)
+    {
+        constexpr auto extra_size = sizeof(Batch) - (sizeof(hash_digest) +
+            sizeof(ec_xonly) + sizeof(ec_signature));
+        context.verify_schnorr(in, count, extra_size, out);
+    }
+    else
+    {
+        constexpr auto extra_size = sizeof(Batch) - (sizeof(hash_digest) +
+            sizeof(ec_compressed) + sizeof(ec_signature));
+        context.verify_ecdsa(in, count, extra_size, out);
+    }
+
+    return results;
+}
 ```
-The opaque `ec_signature` bytes are **identical** to stock libsecp256k1 (little-endian internal
-scalar limbs) — you may copy them across the boundary unchanged.
 
----
+The C++20 typed-span overloads can remove the explicit `count` and `extra_size`
+calculation at the call site:
 
-## 4. Layer 2 — batch bridge (`ufsecp_lbtc_*`)
-
-### 4.1 Signature form — pass the OPAQUE `ec_signature`, zero-copy (DO THIS)
-
-The ECDSA row/columns batch verifiers take the **opaque** form (your `ec_signature` bytes). Your
-packed `triple` span *is* the bridge row buffer:
-
-```
-ECDSA row   : digest(32) | pubkey(33) | ec_signature(64, opaque) | token(key_size)
-Schnorr row : digest(32) | x-only(32) | signature(64, BIP-340)   | token(key_size)
-```
-- **No `serialize_compact`. No `normalize`. No per-signature copy.** The opaque `ec_signature`
-  (libsecp's internal little-endian scalar limbs) **is the engine's native scalar layout**: the
-  ECDSA opaque verifier parses each `s`/`r` with a direct little-endian limb load
-  (`opaque_scalar_parse_strict_nonzero` → `Scalar::from_limbs`) — **not** a byte-reversal. This is
-  the unavoidable bytes→scalar parse every secp256k1 backend does; the opaque (LE) form is if
-  anything *cheaper* than the public big-endian compact form, which is the one that needs a bswap.
-- The high-S → low-S normalization is an **in-register conditional scalar negate** (`s ← n−s` iff
-  `s > n/2`), fused into that parse — not a copy of the signature. It is **consensus-required**, not
-  a "shim hack": Bitcoin consensus accepts high-S (historical blocks), and libbitcoin's own single
-  `verify_signature` already calls `secp256k1_ecdsa_signature_normalize` for exactly this reason;
-  the batch path normalizes so it agrees with that single path. Doing it in-register here is the
-  copy-free choice — normalizing on the libbitcoin side would mean mutating your `const` zero-copy
-  rows (a copy).
-- Pass `ec_signature` exactly as `parse_der_lax` produced it. The trailing `token` (`key_size`
-  bytes) is your opaque per-row id; the engine never interprets it.
-
-### 4.2 The API signature — matches your `batch_verify`, no change required
-
-```c
-/* The engine API matches libbitcoin's existing call exactly. Returns UFSECP_OK for
- * any well-formed batch (per-row failures are verdicts, not errors); a non-OK return
- * is an unrecoverable fault. results / invalid_idx / invalid_count are all optional. */
-ufsecp_error_t ufsecp_lbtc_verify_ecdsa(           /* == _ecdsa_opaque (default form) */
-    ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
-    uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count);
-ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque (...same args...);  /* opaque ec_signature */
-ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(...same args...);  /* big-endian compact r||s */
-ufsecp_error_t ufsecp_lbtc_verify_schnorr(...same args...);        /* BIP-340 (single form) */
-```
 ```cpp
-// Your existing call compiles + runs unchanged:
-static thread_local ufsecp::lbtc::Controller control{ UFSECP_LBTC_AUTO };
-if (!control.ok()) std::abort();
-const auto status = ufsecp_lbtc_verify_ecdsa(control.get(),
-    reinterpret_cast<const uint8_t*>(rows.data()), count,
-    sizeof(triple::token), results.data(), nullptr, 0, nullptr);   // or &invalid_count
-if (status != UFSECP_OK) std::abort();                             // unrecoverable fault only
-```
-- `results` (optional): `results[i]` = 1 valid / 0 invalid.
-- `invalid_idx` + `invalid_cap` (optional): indices of failing rows, up to `invalid_cap`.
-- `invalid_count` (optional): total failing rows (all valid iff `*invalid_count == 0`; may exceed
-  `invalid_cap`, so you can detect truncation — handy to skip the per-row scan when zero).
-
-> The engine was aligned to this exact 8-argument shape so your `ecdsa::batch_verify` /
-> `schnorr::batch_verify` need no edits. Choose `_opaque` (default) or `_compact` for ECDSA.
-
-Variants (same shape): `ufsecp_lbtc_verify_ecdsa_collect` / `_columns` / `_columns_collect` (and the
-Schnorr equivalents). `*_collect` writes the verdict into each row's key cell instead of `results[]`.
-
-### 4.3 If you prefer compact rows or columns
-
-- **Packed rows, compact:** `ufsecp_lbtc_verify_ecdsa_compact(ctrl, rows, n, key_size, results,
-  invalid_idx, invalid_cap, invalid_count)` — same row layout, but the 64-byte signature field holds
-  **public big-endian compact r||s**. Use `secp256k1_ecdsa_signature_serialize_compact` to fill it.
-- **Columns, compact:** `ufsecp_lbtc_verify_ecdsa_columns_compact(ctrl, msg32, pub33, sigs64_compact,
-  n, results)` (separate msg/pub/sig arrays).
-Both are correctness-equivalent to the opaque path; opaque is the zero-copy default.
-
-### 4.4 Endianness — opaque is a single-library private format; the BE caveat is cross-library only
-
-The opaque 64-byte ECDSA form is each library's **private in-memory scalar layout**, not a portable
-wire format. The decisive consequence: **no endianness conditionality is needed when one library both
-produces and consumes the opaque bytes** — which is *always* the case for single verify, and for the
-batch bridge whenever libbitcoin's secp backend is this project's shim.
-
-- **Single verify (stock libsecp *or* ufsecp), end to end — no conditionality, ever.** The same
-  library parses (`parse_der`/`parse_compact` → opaque) and verifies (opaque → scalar) with symmetric
-  code, so the bytes round-trip on any host. Stock libsecp uses a host-native struct dump (`memcpy`
-  both directions); the ufsecp shim uses an unconditional byte-reverse both directions
-  (`scalar_be_to_internal` / `scalar_internal_to_be`, mirrored by the engine's `opaque_read_le64` /
-  `opaque_write_le64`). Neither has a `#if` on host endianness, and neither needs one. You use the
-  private format all the way through — exactly as expected.
-- **Batch bridge with the ufsecp shim as the secp backend — also no conditionality, even on BE.** The
-  shim stores opaque as **pure little-endian on every host** (host-independent byte-reverse) and the
-  bridge's opaque parser (`opaque_read_le64`) reads pure little-endian on every host. So
-  shim-opaque → bridge is byte-consistent on **any** host, including big-endian.
-
-The single case that *does* need care is a **cross-library boundary on a big-endian host**: feeding
-opaque bytes produced by **stock libsecp** — whose opaque is host-native (on BE the limb array order
-stays little but each 64-bit limb is big-endian, so it is neither a clean LE nor a clean BE integer) —
-into the **ufsecp bridge**, which reads a fixed pure-LE order. Those layouts differ only on BE, and
-only when the producer is a *different*, host-native library. This arises solely in a mixed deployment
-that keeps stock libsecp as the signature producer while using the ufsecp bridge purely as a batch
-accelerator. There, on BE, route the batch through the canonical **compact** form
-(`ufsecp_lbtc_verify_ecdsa_compact`, defined big-endian `r‖s`):
-
-```c
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    /* opaque zero-copy — correct for every producer on little-endian */
-#else
-    /* big-endian + stock-libsecp-produced opaque → use compact */
-#endif
+static thread_local ufsecp::lbtc::Controller context;
+data_chunk results(batch.size());
+context.verify_ecdsa(std::span<const ecdsa::batch>{ batch }, results.data());
 ```
 
-If your secp backend is the ufsecp shim (the §3 drop-in), or you are on any little-endian host (every
-mainstream node), the opaque zero-copy path is correct as-is and the `#if` is unnecessary. The
-conditional exists only to be exhaustively correct for big-endian, mixed-backend deployments — a class
-that is essentially nonexistent in Bitcoin.
+Use this only when the `Batch` type is a tightly packed standard-layout row
+whose first bytes are the verified record.
 
----
+## Columnar / mmap Path
 
-## 5. What libbitcoin must do — checklist
+If libbitcoin later rotates from horizontal rows to vertical mmap columns, use
+the column API instead of rebuilding rows:
 
-1. **Bump `deps/UltrafastSecp256k1`** to current `dev` (opaque-layout fix, bridge high-S
-   normalization, the 8-arg `_opaque`/`_compact` row verifiers, `_columns_compact`, `ecdsa_sig_pack`,
-   and these docs).
-2. **Batch call sites:** **no change** — `ufsecp_lbtc_verify_ecdsa` / `_schnorr` already match your
-   8-argument `ufsecp_error_t` call (§4.2). Optionally switch to `_opaque`/`_compact` for explicitness.
-3. **Keep passing the opaque `ec_signature`** in rows, zero-copy (the default `ufsecp_lbtc_verify_ecdsa`
-   == `_opaque`); the bridge normalizes high-S. Use `_compact` only if you store compact sigs — or in
-   the narrow case of a **big-endian** host that feeds *stock-libsecp-produced* opaque to the bridge
-   (see §4.4; with the shim backend, or on little-endian — every mainstream node — opaque is correct
-   as-is, no conditionality).
-4. **Single verify / sign / parse:** unchanged (layer 1 drop-in).
+```cpp
+context.verify_ecdsa_columns(
+    msg_hashes32, pubkeys33, sigs64, count, results);
 
-That is the entire integration. No code change, no additional shim, no extra copies.
+context.verify_schnorr_columns(
+    msg_hashes32, pubkeys_x32, sigs64, count, results);
+```
 
----
+For in-place collection, pass the mutable key-cell column:
 
-## 6. Why the earlier validation failures happened (closed)
+```cpp
+context.collect_ecdsa_columns(
+    msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size);
+```
 
-Both were engine bugs, now fixed — not libbitcoin wiring:
-- **`df724f4d`** — the shim stored `secp256k1_ecdsa_signature.data` as big-endian compact instead of
-  libsecp's little-endian internal limbs, so libbitcoin saw `ec_signature`/DER byte-reversed. (This is
-  the "compatibility break between secp and ufsecp" evoskuil identified — a real drop-in violation,
-  now fixed and pinned by `shim_test.cpp` + the libbitcoin scenario-3 test.)
-- **`acb7fefe` / `91ae9baf` / `836ae25c`** — the bridge batch path did not low-S normalize high-S
-  signatures, so high-S sigs passed single-verify (which normalizes) but failed batch-verify (the 3
-  batch cases). The bridge now normalizes high-S on CPU and GPU.
+The column ECDSA signature format is opaque by default, exactly like the row
+API. Use `*_columns_compact` only for public compact `r||s`.
 
----
+The current no-intermediate-table GPU path is the packed opaque row API. The
+column API preserves the opaque format at the public boundary and is tracked in
+`docs/LIBBITCOIN_PERF_MATRIX_STATUS.json` so native no-copy GPU-column claims
+cannot be made until the parity surface exists across CUDA/OpenCL/Metal.
 
-## 7. Engine API status
+## Backend Selection
 
-The API now fully matches libbitcoin's structure — nothing is missing for the integration:
+Create one controller per worker thread or serialize access externally. The
+C++ wrapper defaults to `UFSECP_LBTC_AUTO`, so the normal libbitcoin call site
+does not need to spell the enum:
 
-- **8-arg `ufsecp_error_t` row verifiers** (`ufsecp_lbtc_verify_ecdsa` / `_schnorr`, with
-  `results` + `invalid_idx`/`invalid_cap`/`invalid_count`) — matches your `batch_verify` call. ✅
-- **Explicit `_opaque` / `_compact` ECDSA row verifiers** — pick the form by name. ✅
-- **Packed-row compact verify** (`_compact`) and **columns compact** (`_columns_compact`). ✅
-- Verified CPU + CUDA, with the GPU↔CPU consensus differential (`test_lbtc_consensus_diff`) green,
-  including high-S rows and the `invalid_idx`/`invalid_count` reporting.
+```cpp
+static thread_local ufsecp::lbtc::Controller context;
+if (!context.ok()) std::abort();
+```
+
+Backend modes:
+
+| Mode | Behavior |
+|---|---|
+| `UFSECP_LBTC_AUTO` | GPU if usable, otherwise CPU reference path |
+| `UFSECP_LBTC_GPU` | require GPU; controller creation fails without one |
+| `UFSECP_LBTC_CPU` | force CPU reference path |
+
+Once the controller exists, signature outcomes are per-row results. A bad
+signature is not an API error; `results[i] == 0` marks the row invalid.
+
+## Validation Checklist
+
+Before handing a build to libbitcoin maintainers:
+
+```bash
+python3 tools/source_graph_kit/source_graph.py build -i
+python3 ci/check_source_graph_quality.py
+bash ci/run_fast_gates.sh
+cmake --build out/libbitcoin-test -j
+ctest --test-dir out/libbitcoin-test -R "lbtc|shim" --output-on-failure
+```
+
+For GPU-capable local machines, also run:
+
+```bash
+ctest --test-dir out/libbitcoin-cuda -R "lbtc_consensus_diff|lbtc_multisig_threshold" --output-on-failure
+```
+
+Benchmark runs should emit a JSON artifact:
+
+```bash
+out/libbitcoin-cuda/include/ufsecp/bench_lbtc_batch 1000000 5 50000 --json out/libbitcoin-cuda/lbtc_batch.json
+python3 ci/audit_gate.py --libbitcoin-perf-matrix
+```
+
+The consensus rule is CPU/GPU/libsecp equivalence: GPU verdicts must match the
+CPU reference bit-for-bit, and the CPU reference is gated against
+libsecp256k1-compatible behavior.
