@@ -138,7 +138,7 @@ GPU, FFI, bindings, WASM, ZK, wallet tooling, and alternate node shims are separ
 git clone https://github.com/shrec/UltrafastSecp256k1.git && cd UltrafastSecp256k1
 python3 ci/configure_build.py release
 cmake --build out/release -j
-./out/release/selftest    # Expected: "ALL TESTS PASSED"
+./out/release/src/cpu/run_selftest    # Expected: "ALL TESTS PASSED"
 ```
 
 **Package install**
@@ -313,8 +313,8 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
-- **Minimal dependencies** -- No runtime library dependencies for the CPU-only build (no Boost, no OpenSSL). GPU builds require CUDA toolkit, OpenCL runtime, or Metal SDK. Build requires CMake 3.18+ and a C++17 compiler (GCC 10+, Clang 12+, MSVC 2019+, arm-none-eabi, Emscripten)
-- **12+ platforms** -- x86-64, ARM64, RISC-V, WASM (experimental — CT evidence incomplete), iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an early-development ROCm/HIP compatibility path slated for hardware-backed validation
+- **Minimal dependencies** -- No runtime library dependencies for the CPU-only build (no Boost, no OpenSSL). GPU builds require CUDA toolkit, OpenCL runtime, or Metal SDK. Build requires CMake 3.18+ and a C++20 compiler (GCC 11+, Clang/LLVM 15+, MSVC 2022+, arm-none-eabi, Emscripten)
+- **12+ platforms** -- x86-64, ARM64, RISC-V, WASM (experimental — CT evidence incomplete), iOS, Android, ESP32, STM32, CUDA, Metal, OpenCL, plus an owner-gated ROCm/HIP compatibility path slated for hardware-backed validation
 
 > **The following capabilities are out of scope for the Bitcoin Core CPU backend evaluation profile:**
 
@@ -341,7 +341,7 @@ Frigate 1.4.0 switched its DuckDB extension to `ufsecp.duckdb_extension` using U
 
 See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [Frigate README](https://github.com/sparrowwallet/frigate/blob/master/README.md) · [Details →](docs/ADOPTION.md)
 
-Package traction *(snapshot 2026-03-29 — see linked package pages for current figures)*: [`ufsecp`](https://www.npmjs.com/package/ufsecp) 1,192 npm downloads/30d · [`react-native-ufsecp`](https://www.npmjs.com/package/react-native-ufsecp) 1,295/30d · [`Ufsecp`](https://www.nuget.org/packages/Ufsecp) 1,491 NuGet total. *(See [docs/ADOPTION.md](docs/ADOPTION.md) for full adoption evidence.)*
+Package-distribution links and adoption evidence are maintained in [docs/ADOPTION.md](docs/ADOPTION.md). Download counts are intentionally not duplicated here because npm/NuGet figures change continuously.
 
 Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 
@@ -353,7 +353,7 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 [![Research](https://img.shields.io/github/actions/workflow/status/shrec/UltrafastSecp256k1/research-monitor.yml?branch=dev&label=Research)](https://github.com/shrec/UltrafastSecp256k1/actions/workflows/research-monitor.yml)
 [![Release](https://img.shields.io/github/v/release/shrec/UltrafastSecp256k1?label=Release)](https://github.com/shrec/UltrafastSecp256k1/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![C++17+](https://img.shields.io/badge/C%2B%2B-17%2B-blue.svg)](https://en.cppreference.com/w/cpp/17)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shrec/UltrafastSecp256k1/badge)](https://scorecard.dev/viewer/?uri=github.com/shrec/UltrafastSecp256k1)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12011/badge)](https://www.bestpractices.dev/projects/12011)
 [![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=shrec_UltrafastSecp256k1&metric=security_rating)](https://sonarcloud.io/summary/overall?id=shrec_UltrafastSecp256k1)
@@ -381,7 +381,7 @@ Full adopter list: [ADOPTERS.md](docs/ADOPTERS.md)
 [![OpenCL](https://img.shields.io/badge/OpenCL-3.0-green.svg)](https://www.khronos.org/opencl/)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1%2FM2%2FM3%2FM4-black.svg?logo=apple)](src/metal/)
 [![Metal](https://img.shields.io/badge/Metal-GPU%20Compute-silver.svg?logo=apple)](src/metal/)
-[![ROCm](https://img.shields.io/badge/ROCm-6.3%20HIP-red.svg)](src/cuda/README.md)
+[![ROCm](https://img.shields.io/badge/ROCm-HIP%20owner--gated-red.svg)](docs/GPU_HARDWARE_EVIDENCE_STATUS.json)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-purple.svg)](bindings/wasm/)
 [![ARM64](https://img.shields.io/badge/ARM64-Cortex--A55%2FA76-orange.svg)](https://developer.android.com/ndk)
 [![RISC-V](https://img.shields.io/badge/RISC--V-RV64GC-orange.svg)](https://riscv.org/)
@@ -424,16 +424,16 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 | Metric | Value |
 |--------|-------|
 | Internal audit assertions per build | **≈600K explicitly itemized** field/scalar/point/CT (see [WHY_ULTRAFASTSECP256K1.md](docs/WHY_ULTRAFASTSECP256K1.md)), plus full-suite KAT/differential/fuzz checks (not individually counted) |
-| Audit modules (`unified_audit_runner`) | **161 non-exploit modules + 269 exploit PoCs across 10 sections, 0 mandatory failures** (see [docs/AUDIT_COVERAGE.md](docs/AUDIT_COVERAGE.md) for advisory cluster status) |
-| Exploit PoC test files | **269 exploit-PoC modules (257 source files), 20+ coverage areas, 0 mandatory failures** |
-| CI/CD workflows | **50+ GitHub Actions workflows** |
+| Audit modules (`unified_audit_runner`) | Canonical count is generated by `python3 ci/sync_module_count.py`; current release data lives in [`docs/canonical_data.json`](docs/canonical_data.json) and [`docs/AUDIT_COVERAGE.md`](docs/AUDIT_COVERAGE.md) |
+| Exploit PoC test files | Canonical exploit-PoC module/source-file counts are generated from `audit/unified_audit_runner.cpp`; see [`docs/EXPLOIT_TEST_CATALOG.md`](docs/EXPLOIT_TEST_CATALOG.md) |
+| CI/CD workflows | See [`.github/workflows/`](.github/workflows/) for the exact current workflow set |
 | Build matrix (arch × config × OS) | **7 × 17 × 5 = 595 theoretical combinations** (actual CI matrix is a subset — see `.github/workflows/` for exact matrix) |
 | Differential tests (per push + manual) | **~1,300,000+ checks per deep-assurance run** |
 | Constant-time verification pipelines | **5 independent: 3 available as GitHub Actions workflows (`ct-verif.yml`, `valgrind-ct.yml`, `ct-prover.yml`) — triggered manually or on release tag push, not on every commit push; 2 manual/local: dudect statistical, ARM64 native** |
 | Fuzzing adversarial corpus | **libFuzzer + ClusterFuzz-Lite (see `.clusterfuzzlite/` and `src/cpu/fuzz/`; corpus count grows with CI runs and is not stored in-repo)** |
 | Static analysis tools | **7 (CodeQL, Clang-Tidy, CPPCheck, SonarCloud, Semgrep, Infer, Clang-SA)** |
 | Self-audit documents in repo | see [`docs/`](docs/) directory |
-| Self-tests passing (all backends) | **76/76** (reproduce: `./out/release/selftest` → "ALL TESTS PASSED" on the current release build) |
+| Self-tests passing | Reproduce with `./out/release/src/cpu/run_selftest`; backend-specific GPU/device evidence is tracked separately in [`docs/GPU_HARDWARE_EVIDENCE_STATUS.json`](docs/GPU_HARDWARE_EVIDENCE_STATUS.json) |
 
 ### CI/CD Pipeline Highlights
 
@@ -452,11 +452,11 @@ This top-level narrative maps directly to the assurance ledger: CT secret-key ro
 - Performance evidence is tracked through manual/release deep-assurance workflows instead of every-push benchmark fan-out
 - Audit results are logged as **structured artifacts** (JSON reports, per-platform logs), not just pass/fail signals
 - Differential tests run on every push and via manual deep-assurance workflows; no separate nightly schedule
-- All 161 non-exploit audit modules and all 269 exploit PoCs return `AUDIT-READY (self-generated)` status as of the last CAAS gate run. Zero failures — see pinned evidence: [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
+- Current module counts and mandatory/advisory verdicts are generated, not hand-maintained. See [`docs/canonical_data.json`](docs/canonical_data.json), [`docs/AUDIT_COVERAGE.md`](docs/AUDIT_COVERAGE.md), and pinned evidence in [`docs/EXTERNAL_AUDIT_BUNDLE.json`](docs/EXTERNAL_AUDIT_BUNDLE.json).
 
-### Exploit PoC Test Suite (269 Tests, 20+ Coverage Areas)
+### Exploit PoC Test Suite (canonical-counted)
 
-In addition to the 430-module `unified_audit_runner`, UltrafastSecp256k1 ships **269 exploit-style PoC modules files** that actively try to break the library across its highest-risk surfaces. Each `audit/test_exploit_*.cpp` target builds and runs standalone so failures stay easy to attribute and reproduce.
+In addition to the `unified_audit_runner`, UltrafastSecp256k1 ships exploit-style PoC modules that actively try to break the library across its highest-risk surfaces. Counts are generated from the runner and catalog so this README does not drift from CI.
 
 | Coverage Area | Representative attack focus |
 |---------------|-----------------------------|
@@ -508,9 +508,9 @@ In addition to the 430-module `unified_audit_runner`, UltrafastSecp256k1 ships *
 >
 > **Where to find the current numbers if you need them:**
 >
-> 1. Build and run `bench_unified --gpu` on your own hardware (the binary covers the same kernel surface the old table reported on).
-> 2. The benchmark methodology is documented in `docs/BENCHMARKS.md` (CPU section); the same controlled-run discipline applies to GPU runs (CPU pinning is not relevant for GPU, but turbo-state and PCIe-state pinning are — see the `--gpu-info` flag).
-> 3. Canonical bench artifacts live under `docs/bench_unified_*.json`; no GPU artifact is currently checked in because no controlled GPU run has been committed since the v4.0.0 baseline. When one is, this section will be updated to reference it (and `canonical_numbers.json` will carry the ratios via the same sync pipeline that handles CPU numbers).
+> 1. Build and run the relevant benchmark binary on your own hardware (`bench_unified --gpu` for the broad surface, or the libbitcoin bridge benchmark for opaque-row batch verification).
+> 2. The benchmark methodology is documented in `docs/BENCHMARKS.md`; the same controlled-run discipline applies to GPU runs (CPU pinning is not relevant for GPU, but turbo-state, PCIe-state, driver, toolkit, and batch size are).
+> 3. Committed GPU artifacts live under `benchmarks/` and `docs/bench_*.json` when they satisfy the benchmark evidence contract. Hardware evidence status is tracked separately in `docs/GPU_HARDWARE_EVIDENCE_STATUS.json`.
 >
 > GPU correctness coverage IS published — see the `BACKEND_ASSURANCE_MATRIX.md` for the CT-clean status of each kernel, and the unified runner's `gpu-*` advisory modules for kernel-level invariant checks.
 
@@ -595,7 +595,7 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **1 -- Core** | Multi-scalar | Strauss/Shamir dual-scalar multiplication | [OK] |
 | **1 -- Core** | Batch verify | ECDSA + Schnorr batch verification | [OK] |
 | **1 -- Core** | Hashing | SHA-256 (SHA-NI), SHA-512, HMAC, Keccak-256 | [OK] |
-| **1 -- Core** | C ABI | `ufsecp` stable FFI (45 exports) | [OK] |
+| **1 -- Core** | C ABI | `ufsecp` stable FFI (header-count gated; 161 `UFSECP_API` functions in v4.4.0) | [OK] |
 | **2 -- Protocol** | BIP-32/44 | HD derivation, path parsing, xprv/xpub, coin-type | [OK] |
 | **2 -- Protocol** | Taproot | BIP-341/342, tweak, Merkle tree | [OK] |
 | **2 -- Protocol** | MuSig2 | BIP-327, key aggregation, 2-round signing | [EXPERIMENTAL] |
@@ -607,8 +607,8 @@ Features are organized into **maturity tiers** (see [SUPPORTED_GUARANTEES.md](in
 | **3 -- Convenience** | Coins | 27 blockchains, auto-dispatch | [OK] |
 | **2 -- Protocol** | BIP-352 | Silent Payments scanning pipeline (CPU + GPU) | [OK] |
 | **2 -- Protocol** | ECIES | Elliptic curve integrated encryption | [OK] |
-| -- | GPU | CUDA, Metal, OpenCL kernels | [OK] · ROCm [EXPERIMENTAL] |
-| -- | GPU C ABI | `ufsecp_gpu` -- 16 functions (13 stable batch ops + 3 lifecycle: ctx/device/error), 3 backends, incl. FROST, BIP-324, BIP-352 | [OK] |
+| -- | GPU | CUDA, Metal, OpenCL kernels | [OK] for the stable public GPU ABI; ROCm/HIP is owner-gated future work |
+| -- | GPU C ABI | `ufsecp_gpu` -- 13 stable backend-neutral batch ops plus discovery/lifecycle/error helpers across CUDA, OpenCL, and Metal | [OK] |
 | -- | Platforms | x64, ARM64, RISC-V, ESP32, STM32, WASM, iOS, Android | [OK] |
 
 > **Tier 1** = battle-tested core crypto with stable API. **Tier 2** = protocol-level features, API may evolve. **Tier 3** = convenience utilities.
@@ -715,7 +715,7 @@ Get a working selftest in under a minute:
 **Option A -- Linux (apt)**
 ```bash
 sudo apt install libufsecp4
-ufsecp_selftest          # Expected: "OK (version 4.1.x, backend CPU)"
+ufsecp_selftest          # Expected: "OK (version 4.x, backend CPU)"
 ```
 
 **Option B -- npm (any OS)**
@@ -740,7 +740,7 @@ cmake --build out/release -j
 
 # Or classic one-liner:
 cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build out/release -j
-./out/release/selftest    # Expected: "ALL TESTS PASSED"
+./out/release/src/cpu/run_selftest    # Expected: "ALL TESTS PASSED"
 ```
 
 ---
@@ -760,9 +760,9 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build o
 | **ESP32-P4** | CPU (RISC-V HP dual-core) | PlatformIO / IDF component | [OK] Tested |
 | **STM32 (Cortex-M)** | CPU | CMake cross-compile | [OK] Tested |
 | **NVIDIA GPU** | CUDA 12+ | Build with `-DSECP256K1_BUILD_CUDA=ON` | [OK] Stable |
-| **AMD GPU** | ROCm/HIP | Build with `-DSECP256K1_BUILD_ROCM=ON` | [!] Beta |
-| **Apple GPU** | Metal | Build with Metal backend | [..] Experimental (discovery only) |
-| **Any GPU** | OpenCL | Build with `-DSECP256K1_BUILD_OPENCL=ON` | [OK] Full (6/6 ops) |
+| **AMD GPU** | ROCm/HIP | Future owner-gated lane | [!] Not release evidence |
+| **Apple GPU** | Metal | Build with Metal backend | [OK] Stable public GPU ABI; real-device perf is owner-run evidence |
+| **Any GPU** | OpenCL | Build with `-DSECP256K1_BUILD_OPENCL=ON` | [OK] Stable public GPU ABI |
 | **RISC-V (RV64GC)** | CPU | Cross-compile | [OK] Tested |
 
 ---
@@ -830,7 +830,11 @@ target_link_libraries(myapp PRIVATE secp256k1::fast)
 ### Use with pkg-config
 
 ```bash
-g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp
+# Native C++ engine:
+g++ myapp.cpp $(pkg-config --cflags --libs secp256k1-fast) -o myapp
+
+# C ABI / FFI surface:
+cc myapp.c $(pkg-config --cflags --libs ufsecp) -o myapp
 ```
 
 ---
@@ -843,97 +847,24 @@ g++ myapp.cpp $(pkg-config --cflags --libs ufsecp) -o myapp
 > the scope of consensus-critical signing paths. See the Bitcoin Core PR description for the
 > exact build configuration targeted.
 
-UltrafastSecp256k1 provides full secp256k1 ECDSA + Schnorr sign/verify on GPU across four backends (CUDA, OpenCL, Metal, ROCm). As of February 2026, no other open-source library was known to the authors to cover all four backends; corrections are welcome ([open an issue](https://github.com/shrec/UltrafastSecp256k1/issues)):
+UltrafastSecp256k1 exposes a stable public GPU C ABI for CUDA, OpenCL, and Metal. The release-grade claim is the ABI/correctness surface, not every historical benchmark table. Current hardware-evidence status is tracked in [`docs/GPU_HARDWARE_EVIDENCE_STATUS.json`](docs/GPU_HARDWARE_EVIDENCE_STATUS.json), backend parity in [`docs/BACKEND_ASSURANCE_MATRIX.md`](docs/BACKEND_ASSURANCE_MATRIX.md), and benchmark methodology/artifacts in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
-<details>
-<summary>GPU Performance tables (diagnostic — unverified against current build, not release-grade evidence. See <code>canonical_numbers.json</code> <code>gpu_throughput.status</code> field.)</summary>
-
-| Backend | Hardware | kG/s | ECDSA Sign | ECDSA Verify | Schnorr Sign | Schnorr Verify | FROST Verify |
-|---------|----------|------|------------|--------------|--------------|----------------|-------------|
-| **CUDA** | RTX 5060 Ti | 4.59 M/s | 4.88 M/s | **4.05 M/s** | 3.66 M/s | **5.38 M/s** | **1.34 M/s** |
-| **OpenCL** | RTX 5060 Ti | 3.86 M/s | -- | 2.44 M/s* | -- | 2.82 M/s* | — |
-| **Metal** | Apple M3 Pro | 0.33 M/s | -- | -- | -- | -- |
-| **ROCm (HIP)** | AMD GPUs | Portable | -- | -- | -- | -- |
-
-*CUDA 12.0, sm_86;sm_89, batch=16K signatures, measured on RTX 5060 Ti. The CUDA path uses our own hybrid GPU execution model, which improved end-to-end throughput by more than 10% during optimization. Metal 2.4, 8x32-bit Comba limbs, 18 GPU cores. (\*) OpenCL ECDSA/Schnorr verify uses extended kernel with lazy-loaded runtime compilation.*
-
-### CUDA Core ECC Operations (Kernel-Only Throughput)
-
-| Operation | Time/Op | Throughput |
-|-----------|---------|------------|
-| Field Mul | 0.2 ns | 4,142 M/s |
-| Field Add | 0.2 ns | 4,130 M/s |
-| Field Inv | 10.2 ns | 98.35 M/s |
-| Point Add | 1.6 ns | 619 M/s |
-| Point Double | 0.8 ns | 1,282 M/s |
-| Scalar Mul (Pxk) | 225.8 ns | 4.43 M/s |
-| Generator Mul (Gxk) | 217.7 ns | 4.59 M/s |
-| Batch Inv (Montgomery) | 2.9 ns | 340 M/s |
-| Jac->Affine (per-pt) | 14.9 ns | 66.9 M/s |
-
-### GPU Signature Operations (ECDSA + Schnorr)
-
-| Operation | Time/Op | Throughput | Protocol | Δ vs prev |
-|-----------|---------|------------|----------|----------|
-| **ECDSA Sign** | **204.8 ns** | **4.88 M/s** | RFC 6979 + low-S | — |
-| **ECDSA Verify** | **246.7 ns** | **4.05 M/s** | Shamir + GLV | **+66%** |
-| **ECDSA Sign+Recid** | **311.5 ns** | **3.21 M/s** | Recoverable (EIP-155) | — |
-| **Schnorr Sign** | **273.4 ns** | **3.66 M/s** | BIP-340 | — |
-| **Schnorr Verify** | **185.9 ns** | **5.38 M/s** | BIP-340 + GLV | **+91%** |
-| **FROST Partial Verify** | **748.9 ns** | **1.34 M/s** | t-of-n threshold | New |
-
-### CUDA vs OpenCL Comparison (RTX 5060 Ti)
-
-| Operation | CUDA | OpenCL | Winner |
-|-----------|------|--------|--------|
-| Field Mul | 0.2 ns | 0.2 ns | Tie |
-| Field Inv | 10.2 ns | 14.3 ns | **CUDA 1.40x** |
-| Point Double | 0.8 ns | 0.9 ns | **CUDA 1.13x** |
-| Point Add | 1.6 ns | 1.6 ns | Tie |
-| kG (Generator Mul) | 217.7 ns | 258.9 ns | **CUDA 1.19x** |
-| BIP352 Pipeline | 91.0 ns | 93.6 ns | **CUDA 1.03x** |
-
-*Benchmarks: 2026-02-14, Linux x86_64, NVIDIA Driver 580.126.09. Both kernel-only (no buffer allocation/copy overhead).*
-
-### Apple Metal (M3 Pro) -- Kernel-Only
-
-| Operation | Time/Op | Throughput |
-|-----------|---------|------------|
-| Field Mul | 1.9 ns | 527 M/s |
-| Field Inv | 106.4 ns | 9.40 M/s |
-| Point Add | 10.1 ns | 98.6 M/s |
-| Point Double | 5.1 ns | 196 M/s |
-| Scalar Mul (Pxk) | 2.94 us | 0.34 M/s |
-| Generator Mul (Gxk) | 3.00 us | 0.33 M/s |
-
-*Metal 2.4, 8x32-bit Comba limbs, Apple M3 Pro (18 GPU cores, Unified Memory 18 GB)*
-
-</details>
+ROCm/HIP remains an owner-gated future lane until AMD real-device evidence is attached. Secret-bearing signing paths route through the CPU CT layer; GPU secret-bearing operations are explicitly scoped in the hardware evidence manifest.
 
 ---
 
 ## secp256k1 ECDSA & Schnorr Signatures (BIP-340, RFC 6979)
 
-Full signature support across CPU and GPU:
+Full CPU signature support and GPU public-data batch verification:
 
 - **ECDSA**: RFC 6979 deterministic nonces, low-S normalization, DER/Compact encoding, public key recovery (recid)
 - **Schnorr**: BIP-340 compliant -- tagged hashing, x-only public keys
 - **Batch verification**: ECDSA and Schnorr batch verify
 - **Multi-scalar**: Shamir's trick (k_1xG + k_2xQ) for fast verification
 
-### CPU Signature Benchmarks (x86-64, Clang 19, AVX2, Release) [archived — see docs/bench_unified_2026-05-30_gcc14_x86-64.json for current GCC 14.2.0 numbers]
+### CPU Signature Benchmarks
 
-| Operation | Time | Throughput |
-|-----------|------:|----------:|
-| ECDSA Sign (RFC 6979) | 8.5 us | 118,000 op/s |
-| ECDSA Verify | 23.6 us | 42,400 op/s |
-| Schnorr Sign (BIP-340) | 6.8 us | 146,000 op/s |
-| Schnorr Verify (BIP-340) | 24.0 us | 41,600 op/s |
-| Key Generation (CT) | 9.5 us | 105,500 op/s |
-| Key Generation (fast) | 5.5 us | 182,000 op/s |
-| ECDH | 23.9 us | 41,800 op/s |
-
-*All rows above are the FAST (variable-time) path — NOT the production CT signing path. Schnorr sign is ~25% faster than ECDSA sign due to simpler nonce derivation. Measured single-core, pinned, Clang 19 — **archived 2026-02-21, NOT comparable to the current GCC 14.2.0 canonical data** below: [docs/bench_unified_2026-05-30_gcc14_x86-64.json](docs/bench_unified_2026-05-30_gcc14_x86-64.json).*
+Current release-grade CPU signature numbers are kept in benchmark artifacts, not duplicated here. Use [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json) for the canonical GCC 14.2.0 run and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, hardware notes, and historical comparisons.
 
 ---
 
@@ -1011,51 +942,7 @@ bool ok = zk::range_verify(commitment, rp);
 
 ## secp256k1 Benchmarks -- Cross-Platform Comparison
 
-### CPU: x86-64 vs ARM64 vs RISC-V
-
-| Operation | x86-64 (Clang 19, AVX2) [archived] | ARM64 (Cortex-A76) | RISC-V (Milk-V Mars) |
-|-----------|-------------------------:|--------------------:|---------------------:|
-| Field Mul | 17 ns | 74 ns | 95 ns |
-| Field Square | 14 ns | 50 ns | 70 ns |
-| Field Add | 1 ns | 8 ns | 11 ns |
-| Field Inverse | 1 us | 2 us | 4 us |
-| Point Add | 159 ns | 992 ns | 1 us |
-| Generator Mul (kxG) | 5 us | 14 us | 33 us |
-| Scalar Mul (kxP) | 25 us | 131 us | 154 us |
-
-### GPU: CUDA vs OpenCL vs Metal
-
-| Operation | CUDA (RTX 5060 Ti) | OpenCL (RTX 5060 Ti) | Metal (M3 Pro) |
-|-----------|--------------------:|---------------------:|---------------:|
-| Field Mul | 0.2 ns | 0.2 ns | 1.9 ns |
-| Field Inv | 10.2 ns | 14.3 ns | 106.4 ns |
-| Point Add | 1.6 ns | 1.6 ns | 10.1 ns |
-| Generator Mul (Gxk) | 217.7 ns | 295.1 ns | 3.00 us |
-
-### Embedded: ESP32-S3 vs ESP32 vs STM32
-
-| Operation | ESP32-S3 LX7 (240 MHz) | ESP32 LX6 (240 MHz) | STM32F103 (72 MHz) |
-|-----------|-------------------:|-------------------:|-------------------:|
-| Field Mul | 6,105 ns | 6,993 ns | 15,331 ns |
-| Field Square | 5,020 ns | 6,247 ns | 12,083 ns |
-| Field Add | 850 ns | 985 ns | 4,139 ns |
-| Field Inv | 2,524 us | 609 us | 1,645 us |
-| **Fast** Scalar x G | 5,226 us | 6,203 us | 37,982 us |
-| **CT** Scalar x G | 15,527 us | -- | -- |
-| **CT** Generator x k | 4,951 us | -- | -- |
-
-### Field Representation: 5x52 vs 4x64
-
-| Operation | 4x64 | 5x52 | Speedup |
-|-----------|------:|------:|--------:|
-| Multiplication | 42 ns | 15 ns | **2.76x** |
-| Squaring | 31 ns | 13 ns | **2.44x** |
-| Addition | 4.3 ns | 1.6 ns | **2.69x** |
-| Add chain (32 ops) | 286 ns | 57 ns | **5.01x** |
-
-*5x52 uses `__int128` lazy reduction -- ideal for 64-bit platforms.*
-
-For full benchmark results, see [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+Cross-platform and historical benchmark tables are maintained in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), with raw artifacts under `docs/bench_*.json` and `benchmarks/`. Keeping those numbers in one place prevents README drift when compiler, hardware, driver, or profile settings change.
 
 ---
 
@@ -1147,7 +1034,7 @@ Starting with **v3.4.0**, UltrafastSecp256k1 ships a stable C ABI -- `ufsecp` --
 |                  Your Application                |
 |          (C, C#, Python, Go, Rust, …)            |
 +------------------+-------------------------------+
-                   |  ufsecp C ABI (45 functions)
+                   |  ufsecp C ABI (header-count gated)
 +------------------▼-------------------------------+
 |           ufsecp.dll / libufsecp.so              |
 |  Opaque ctx  |  Error model  |  ABI versioning   |
@@ -1188,7 +1075,7 @@ ufsecp_ctx_destroy(ctx);
 
 ### GPU C ABI (`ufsecp_gpu`)
 
-Starting with **v3.3.0**, the GPU layer is fully accessible from any FFI language via `ufsecp_gpu.h`:
+Starting with **v3.3.0**, the GPU layer is accessible from any FFI language via `ufsecp_gpu.h`; the stable public surface is 13 backend-neutral batch operations plus discovery/lifecycle/error helpers:
 
 | Category | Functions |
 |----------|-----------|
@@ -1205,7 +1092,7 @@ Starting with **v3.3.0**, the GPU layer is fully accessible from any FFI languag
 | `hash160_pubkey_batch` | [OK] | [OK] | [OK] |
 | `msm` | [OK] | [OK] | [OK] |
 | `frost_verify_partial_batch` | [OK] | [OK] | [OK] |
-| `ecrecover_batch` | [OK] | [..] temporary stub | [..] temporary stub |
+| `ecrecover_batch` | [OK] | [OK] | [OK] |
 
 See [ufsecp_gpu.h](include/ufsecp/ufsecp_gpu.h) and [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for details.
 
@@ -1323,7 +1210,7 @@ SECP256K1_QEMU_SMOKE_TARGET=riscv64 bash ./ci/local-ci.sh --job qemu-smoke
 | `SECP256K1_USE_ASM` | ON | Assembly optimizations (x64/ARM64/RISC-V) |
 | `SECP256K1_BUILD_CUDA` | OFF | CUDA GPU support |
 | `SECP256K1_BUILD_OPENCL` | OFF | OpenCL GPU support |
-| `SECP256K1_BUILD_ROCM` | OFF | ROCm/HIP GPU support (AMD) |
+| `SECP256K1_BUILD_ROCM` | OFF | ROCm/HIP compatibility path (owner-gated; not release evidence) |
 | `SECP256K1_BUILD_TESTS` | ON | Test suite |
 | `SECP256K1_BUILD_BENCH` | ON | Benchmarks |
 | `SECP256K1_GLV_WINDOW_WIDTH` | platform | GLV window width (4-7); default 5 on x86/ARM/RISC-V, 4 on ESP32/WASM |
@@ -1360,7 +1247,7 @@ int main() {
 ```
 
 ```bash
-g++ -std=c++20 example.cpp -lufsecp -o example && ./example
+g++ -std=c++20 example.cpp $(pkg-config --cflags --libs secp256k1-fast) -o example && ./example
 ```
 
 ### GPU Batch Multiplication
@@ -1493,11 +1380,11 @@ All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address form
 | **Desktop CPU** | ARM64 (Apple Silicon, Ampere) | CPU | [OK] Stable |
 | **Desktop CPU** | RISC-V RV64GC | CPU | [OK] Stable |
 | **Raspberry Pi** | ARM64 (BCM2710, Zero 2 W) | CPU | [..] Testing |
-| **NVIDIA GPU** | RTX / GTX / Tesla (sm_50+) | CUDA 12+ | [OK] Stable (8/8 GPU C ABI ops) |
-| **AMD GPU** | RDNA / CDNA | OpenCL | [OK] Broad (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
-| **AMD GPU** | RDNA / CDNA | ROCm/HIP | [!] Beta |
-| **Apple GPU** | Apple Silicon (M1/M2/M3/M4) | Metal | [..] Experimental (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
-| **Any GPU** | OpenCL 1.2+ compatible | OpenCL | [OK] Broad (7/8 GPU C ABI ops; `ecrecover_batch` pending) |
+| **NVIDIA GPU** | RTX / GTX / Tesla (sm_50+) | CUDA 12+ | [OK] Stable public GPU ABI |
+| **AMD GPU** | RDNA / CDNA | OpenCL | [OK] Stable public GPU ABI |
+| **AMD GPU** | RDNA / CDNA | ROCm/HIP | [!] Owner-gated future lane |
+| **Apple GPU** | Apple Silicon (M1/M2/M3/M4) | Metal | [OK] Stable public GPU ABI |
+| **Any GPU** | OpenCL 1.2+ compatible | OpenCL | [OK] Stable public GPU ABI |
 | **ESP32-S3** | Xtensa LX7 @ 240 MHz | CPU | [OK] Tested |
 | **ESP32-P4** | RISC-V @ 400 MHz | CPU | [OK] Supported |
 | **ESP32-C6** | RISC-V (single-core) | CPU | [OK] Supported |
@@ -1506,7 +1393,7 @@ All EVM chains (ETH, BNB, MATIC, AVAX, FTM, ARB, OP) share the same address form
 | **Android** | ARM64 (NDK r27c) | CPU | [OK] Stable |
 | **iOS** | ARM64 (Xcode) | CPU | [OK] Stable |
 
-> **GPU C ABI ops**: generator_mul_batch, ecdsa_verify_batch, schnorr_verify_batch, ecdh_batch, hash160_pubkey_batch, msm, frost_verify_partial_batch, ecrecover_batch. See [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) for per-backend details.
+> **GPU C ABI ops**: the stable public surface is defined in [ufsecp_gpu.h](include/ufsecp/ufsecp_gpu.h) and summarized in [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md). Avoid treating historical benchmark/test-only kernels as release-grade ABI claims.
 
 ### Embedded Targets
 
@@ -1599,7 +1486,7 @@ libFuzzer harnesses cover core arithmetic (`cpu/fuzz/`):
 | iOS ARM64 | CPU | Xcode | [OK] CI |
 | Android ARM64 | CPU | NDK r27c | [OK] CI |
 | WebAssembly | CPU | Emscripten | [OK] CI |
-| ROCm/HIP | CPU + GPU | ROCm 6.3 | [OK] CI |
+| ROCm/HIP | Compatibility path | ROCm/HIP | [!] Owner-gated; no GitHub real-device GPU runner |
 
 ### Cross-Platform Audit Results
 
@@ -1628,13 +1515,13 @@ testing, standard vectors, fuzzing, protocol security, ABI safety, and performan
 
 ## Research Statement
 
-This library explores the **performance ceiling of secp256k1** across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPUs (CUDA, OpenCL, Metal, ROCm). Zero external dependencies. Pure C++20.
+This library explores the **performance ceiling of secp256k1** across CPU architectures (x64, ARM64, RISC-V, Cortex-M, Xtensa) and GPU backends (CUDA, OpenCL, Metal; ROCm/HIP owner-gated). Zero external dependencies for CPU-only builds. Pure C++20.
 
 ---
 
 ## API Stability
 
-**C++ API**: Not yet stable. Breaking changes may occur before **v4.0**. Core layers (field, scalar, point, ECDSA, Schnorr) are production-ready with full audit coverage. Extended layers (MuSig2, FROST, Adaptor, Pedersen, ZK, Taproot, HD, Coins) are **Experimental** — implemented and covered by PoC exploit tests and CT verification; APIs may change. C++ API signatures may still evolve before v4.0.
+**C++ API**: Tiered stability. Core layers (field, scalar, point, ECDSA, Schnorr) are production-ready with full audit coverage. Extended layers (MuSig2, FROST, Adaptor, Pedersen, ZK, Taproot, HD, Coins) remain tiered/experimental where documented; APIs may change through the deprecation process described in [docs/ABI_VERSIONING.md](docs/ABI_VERSIONING.md).
 
 **C ABI (`ufsecp`)**: Stable from v3.4.0. ABI version tracked separately. See [SUPPORTED_GUARANTEES.md](include/ufsecp/SUPPORTED_GUARANTEES.md).
 
@@ -1709,7 +1596,7 @@ cosign verify-blob SHA256SUMS \
 > No. It is an independent implementation with a different API. The C ABI (`ufsecp`) provides a stable FFI surface, but function signatures differ from libsecp256k1. Migration requires code changes.
 
 **Is the API stable?**
-> As of v4.0, the C ABI (`ufsecp_*`) and `ct::` signing namespace are stable with SemVer guarantees. The broader C++ API (namespaces `fast::`, experimental modules) is mature for Tier 1 features; breaking changes follow a deprecation cycle. See [docs/ABI_VERSIONING.md](docs/ABI_VERSIONING.md).
+> Since v4.0, the C ABI (`ufsecp_*`) and `ct::` signing namespace are stable with SemVer guarantees. The broader C++ API (namespaces `fast::`, experimental modules) is mature for Tier 1 features; breaking changes follow a deprecation cycle. See [docs/ABI_VERSIONING.md](docs/ABI_VERSIONING.md).
 
 **What is the constant-time scope?**
 > All functions in `ct::` namespace are constant-time: field arithmetic, scalar arithmetic, point multiplication, complete addition, signing, and ECDH. The C ABI uses CT internally for all secret-key operations. See [CT Evidence](#ct-evidence--methodology) above.
@@ -1729,7 +1616,7 @@ cosign verify-blob SHA256SUMS \
 | [API Reference](docs/API_REFERENCE.md) | Full C++ and C ABI reference |
 | [Build Guide](docs/BUILDING.md) | Detailed build instructions for all platforms |
 | [Benchmarks](docs/BENCHMARKS.md) | Complete benchmark results and methodology |
-| [GPU API](include/ufsecp/ufsecp_gpu.h) | GPU C ABI header (38 functions, 8 ops, 3 backends) |
+| [GPU API](include/ufsecp/ufsecp_gpu.h) | Stable GPU C ABI header (13 batch ops + discovery/lifecycle/error helpers, CUDA/OpenCL/Metal) |
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
@@ -1755,9 +1642,9 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
 ```bash
 git clone https://github.com/shrec/UltrafastSecp256k1.git
 cd UltrafastSecp256k1
-cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build out/release/dev -j
-ctest --test-dir out/release/dev --output-on-failure
+cmake -S . -B out/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build out/dev -j
+ctest --test-dir out/dev --output-on-failure
 ```
 
 ---
@@ -1837,7 +1724,7 @@ All sponsors are acknowledged in the README and release notes.
 
 ---
 
-**UltrafastSecp256k1** -- High-performance secp256k1 cryptography for CPU, CUDA, OpenCL, mobile, embedded, and WebAssembly. GPU-accelerated ECDSA and Schnorr on CUDA, zero dependencies, constant-time secret-key paths, and broad multi-platform coverage.
+**UltrafastSecp256k1** -- High-performance secp256k1 cryptography for CPU, CUDA, OpenCL, Metal, mobile, embedded, and WebAssembly. Constant-time secret-key paths, GPU public-data batch acceleration, and broad multi-platform coverage.
 
 <!-- SEO keywords (not rendered by GitHub) -->
 <!-- secp256k1 GPU CUDA OpenCL Metal ROCm ECDSA sign verify Schnorr BIP-340 Bitcoin Ethereum signature acceleration elliptic curve cryptography C++ C++20 high-performance zero dependency batch verification constant time side channel resistance embedded ESP32 STM32 ARM Cortex-M RISC-V ARM64 WebAssembly WASM cross-platform multi-coin address generation BIP-32 BIP-44 HD wallet derivation key recovery EIP-155 RFC-6979 transaction signing blockchain cryptocurrency libsecp256k1 alternative NVIDIA AMD Apple Silicon MuSig2 FROST threshold signatures Taproot BIP-341 BIP-342 Pedersen commitments adaptor signatures ECDH key exchange secp256k1 GPU acceleration secp256k1 on embedded secp256k1 benchmarks secp256k1 constant time secp256k1 WASM secp256k1 C ABI FFI bindings Python Go Rust Java Node.js constant-time ECC library for RISC-V bitcoin cryptography optimization high-throughput elliptic curve signing secp256k1 RISC-V constant-time branchless cryptography GLV endomorphism Hamburg signed-digit comb Renes-Costello-Bathalter complete addition formulas dudect side-channel testing ASan UBSan TSan fuzzing libFuzzer valgrind memcheck security audit vulnerability scanning SLSA provenance supply chain security OpenSSF Scorecard CodeQL SonarCloud clang-tidy static analysis Docker container reproducible build Debian APT RPM Arch AUR Linux packaging MIT open source cryptographic library secp256k1 formal verification Fiat-Crypto Montgomery multiplication Barrett reduction BIP-327 multi-party computation MPC digital signatures public key cryptography PKI key agreement protocol -->
