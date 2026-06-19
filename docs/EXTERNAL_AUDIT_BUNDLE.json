@@ -3,8 +3,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_MANIFEST.md",
-      "sha256": "f080c865c9d1b1649f1d733dbc5c9008e989c862caf4e6c7236970c87b02f9c4",
-      "size": 31320
+      "sha256": "f9ddd86ec98db20b6e915f75c5cb18b70e4e33750417dc7242be62b54e6a258a",
+      "size": 32195
     },
     {
       "exists": true,
@@ -126,7 +126,7 @@
           {
             "findings": [
               {
-                "message": "No changed secret-bearing paths detected",
+                "message": "No uncommitted changes to evaluate",
                 "severity": "PASS"
               }
             ],
@@ -200,7 +200,7 @@
           {
             "findings": [
               {
-                "message": "24 files modified/deleted since graph build (2026-06-18T12:51:04)",
+                "message": "31 files modified/deleted since graph build (2026-06-18T12:51:04)",
                 "severity": "WARN"
               },
               {
@@ -372,7 +372,7 @@
           {
             "findings": [
               {
-                "message": "2 changed files have matching docs",
+                "message": "No uncommitted changes",
                 "severity": "PASS"
               }
             ],
@@ -382,11 +382,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 65.4 days (threshold: 14)",
+                "message": "Mutation report age: 66.1 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (65.4 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (66.1 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -462,7 +462,7 @@
           {
             "findings": [
               {
-                "message": "P21 semantic map: 20 requirements (14 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual",
+                "message": "P21 semantic map: 21 requirements (15 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual",
                 "severity": "PASS"
               },
               {
@@ -544,6 +544,10 @@
               {
                 "message": "G-20: gated by --package-provenance-binding (registered)",
                 "severity": "PASS"
+              },
+              {
+                "message": "G-21: gated by --libbitcoin-perf-matrix (registered)",
+                "severity": "PASS"
               }
             ],
             "name": "P21: External-Audit Replacement Gate",
@@ -616,7 +620,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1651 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1653 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -732,19 +736,29 @@
             ],
             "name": "G-20: Package Provenance Binding",
             "status": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "message": "6 libbitcoin perf/integration surfaces (4 implemented, 1 measured_external, 1 documented_current, 0 owner_gated)",
+                "severity": "PASS"
+              }
+            ],
+            "name": "G-21: Libbitcoin Performance Matrix",
+            "status": "PASS"
           }
         ],
         "commit": {
           "reason": null,
           "status": "available",
           "value": {
-            "dirty": true,
+            "dirty": false,
             "ref": "dev",
-            "sha": "9b30f7b0f8ac775a4d5e19d6e71d65fe03c5c778",
-            "short": "9b30f7b0f8"
+            "sha": "19f4c4fb3dc0c82e269f16945f7f0ff10aef325d",
+            "short": "19f4c4fb3d"
           }
         },
-        "generated_at": "2026-06-18T18:03:03.837634+00:00",
+        "generated_at": "2026-06-19T10:05:12.584147+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -761,12 +775,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-06-18T18:03:03.837566+00:00",
+          "collected_at": "2026-06-19T10:05:12.584048+00:00",
           "git": {
-            "dirty": true,
+            "dirty": false,
             "ref": "dev",
-            "sha": "9b30f7b0f8ac775a4d5e19d6e71d65fe03c5c778",
-            "short": "9b30f7b0f8"
+            "sha": "19f4c4fb3dc0c82e269f16945f7f0ff10aef325d",
+            "short": "19f4c4fb3d"
           },
           "platform": {
             "machine": "x86_64",
@@ -787,7 +801,7 @@
           },
           "version": "4.3.0"
         },
-        "run_id": "audit_gate-9b30f7b0f8-20260618T180303",
+        "run_id": "audit_gate-19f4c4fb3d-20260619T100512",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -860,7 +874,7 @@
               {
                 "check_id": "p0__secret-path_change_gate",
                 "severity": "pass",
-                "title": "No changed secret-bearing paths detected"
+                "title": "No uncommitted changes to evaluate"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
@@ -942,7 +956,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "24 files modified/deleted since graph build (2026-06-18T12:51:04)"
+                "title": "31 files modified/deleted since graph build (2026-06-18T12:51:04)"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1151,7 +1165,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "2 changed files have matching docs"
+                "title": "No uncommitted changes"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1162,12 +1176,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 65.4 days (threshold: 14)"
+                "title": "Mutation report age: 66.1 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (65.4 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (66.1 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1253,7 +1267,7 @@
               {
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
-                "title": "P21 semantic map: 20 requirements (14 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual"
+                "title": "P21 semantic map: 21 requirements (15 gated, 5 presence, 1 documented-residual) \u2014 all bound to a live gate or documented residual"
               },
               {
                 "check_id": "p21__external-audit_replacement_gate",
@@ -1354,6 +1368,11 @@
                 "check_id": "p21__external-audit_replacement_gate",
                 "severity": "pass",
                 "title": "G-20: gated by --package-provenance-binding (registered)"
+              },
+              {
+                "check_id": "p21__external-audit_replacement_gate",
+                "severity": "pass",
+                "title": "G-21: gated by --libbitcoin-perf-matrix (registered)"
               }
             ],
             "name": "P21: External-Audit Replacement Gate",
@@ -1441,7 +1460,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1651 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1653 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1573,15 +1592,26 @@
             ],
             "name": "G-20: Package Provenance Binding",
             "verdict": "PASS"
+          },
+          {
+            "findings": [
+              {
+                "check_id": "g-21__libbitcoin_performance_matrix",
+                "severity": "pass",
+                "title": "6 libbitcoin perf/integration surfaces (4 implemented, 1 measured_external, 1 documented_current, 0 owner_gated)"
+              }
+            ],
+            "name": "G-21: Libbitcoin Performance Matrix",
+            "verdict": "PASS"
           }
         ],
         "summary": {
           "advisory": 57,
           "blocking": 0,
           "info": 52,
-          "sections": 33,
+          "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 117,
+          "total_findings": 119,
           "warnings": 5
         },
         "verdict": "PASS with advisory"
@@ -1589,8 +1619,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "eaa3a7fe99b855b8466aefbb61bd780fd7848673e10a726d56f70c6044e44e2b",
-      "stdout_sha256": "b762f241b6824446260adaa73627493ffb7ad146ff9d720a6af14a9ef0532cff"
+      "stderr_sha256": "79ee383a79e5b825193213906a4c0af0e847cb3c96076288d7223fe06e2a8a24",
+      "stdout_sha256": "7c6abad418564c78596d5b5d664f70361d7c4d40a81760a373fcb41a7d528fe0"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1892,13 +1922,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-06-18T18:03:05.866362+00:00"
+        "timestamp": "2026-06-19T10:05:14.745350+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "52c7f0778d036b0034ac81e84bc90d63a7d1ad76d0262cfdc42ea1f5d76672bb"
+      "stdout_sha256": "9d380f9e802763b47f222ab047bc09edce8bbafe44fd58a1f2729bf4090cdab5"
     },
     {
       "name": "supply_chain_gate",
@@ -1944,19 +1974,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-06-18T18:03:05.907359+00:00"
+        "timestamp": "2026-06-19T10:05:14.783423+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "9b0a38874e651284a9df85f78eba3035997e8a4b565a155456146102721c05fc"
+      "stdout_sha256": "865a0c3019948ba256c8210a77b95fe8a8ba73113e933675aab8ef03d59f8189"
     }
   ],
-  "generated_at": "2026-06-18T18:03:05.924534+00:00",
+  "generated_at": "2026-06-19T10:05:14.796720+00:00",
   "git": {
     "branch": "dev",
-    "commit": "9b30f7b0f8ac775a4d5e19d6e71d65fe03c5c778",
+    "commit": "19f4c4fb3dc0c82e269f16945f7f0ff10aef325d",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
