@@ -16,6 +16,10 @@
 - **B21 fixture invocation restored:** the libbitcoin performance-matrix
   fixture is now called from the self-test structural phase instead of only
   being present for the fixture-coverage critic.
+- **XCFramework CI upload hardened:** the CI job now hard-fails on a missing or
+  empty XCFramework output before upload, but treats the GitHub artifact upload
+  itself as non-blocking infrastructure. This preserves build correctness while
+  avoiding false-red CI on transient `CreateArtifact` DNS/service failures.
 
 ## 2026-06-19 — Research monitor review escalation softened
 
