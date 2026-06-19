@@ -28,7 +28,7 @@ on:
       open_review_issue:
         description: 'Also open a GitHub issue for needs-review research signals'
         required: false
-        default: true
+        default: false
         type: boolean
 
 permissions:
@@ -63,11 +63,11 @@ jobs:
           LOOKBACK='2'
           MAX_RESULTS='12'
           FAIL_FLAG=''
-          OPEN_REVIEW='true'
+          OPEN_REVIEW='false'
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             LOOKBACK='${{ github.event.inputs.lookback_days || '14' }}'
             MAX_RESULTS='${{ github.event.inputs.max_results || '12' }}'
-            OPEN_REVIEW='${{ github.event.inputs.open_review_issue || 'true' }}'
+            OPEN_REVIEW='${{ github.event.inputs.open_review_issue || 'false' }}'
             if [ "${{ github.event.inputs.fail_on_actionable || 'false' }}" = 'true' ]; then
               FAIL_FLAG='--fail-on-actionable'
             fi

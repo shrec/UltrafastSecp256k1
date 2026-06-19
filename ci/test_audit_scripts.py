@@ -785,7 +785,30 @@ def check_research_monitor_resilience() -> None:
             fail(tag, f"duplicate issue path attempted create: {duplicate_calls}")
             return
 
-        ok(tag, "ePrint RSS, term boundaries, report rendering, and issue escalation fallbacks are covered")
+        pq_noise = module.SourceItem(
+            source="Crossref",
+            item_id="10.1145/3807506",
+            title="Deep Learning Based Side-Channel Attack on Polynomial Multiplication in Post-Quantum Cryptography",
+            summary="",
+            published=published,
+            updated=published,
+            url="https://doi.org/10.1145/3807506",
+        )
+        matrix_classes = module.load_signal_matrix(module.DEFAULT_MATRIX)
+        pq_classification = module.classify_item(pq_noise, matrix_classes)
+        if pq_classification["bucket"] != "discard":
+            fail(tag, f"post-quantum polynomial side-channel noise was not discarded: {pq_classification}")
+            return
+
+        workflow = (LIB_ROOT / ".github" / "workflows" / "research-monitor.yml").read_text(encoding="utf-8")
+        if "OPEN_REVIEW='false'" not in workflow or "open_review_issue" not in workflow:
+            fail(tag, "research monitor workflow does not default scheduled review escalation to false")
+            return
+        if "OPEN_REVIEW='${{ github.event.inputs.open_review_issue || 'false' }}'" not in workflow:
+            fail(tag, "manual review-escalation fallback is not fail-closed")
+            return
+
+        ok(tag, "ePrint RSS, term boundaries, PQ noise discard, report rendering, and issue escalation fallbacks are covered")
     except Exception as exc:
         fail(tag, str(exc))
 

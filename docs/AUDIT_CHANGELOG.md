@@ -1,5 +1,17 @@
 # Audit Changelog
 
+## 2026-06-19 — Research monitor review escalation softened
+
+- **Needs-review issue spam reduced:** scheduled research-monitor runs now keep
+  `needs_review` items in the uploaded artifact and job summary, but do not open
+  GitHub issues for them by default. GitHub issue creation remains automatic for
+  `high_confidence` findings.
+- **Manual escalation preserved:** owner-triggered workflow dispatch can still
+  set `open_review_issue=true` when a review queue should be promoted to an issue.
+- **Regression added for issue #307 class:** the audit self-test now checks that
+  a post-quantum polynomial-multiplication side-channel paper is discarded rather
+  than treated as secp256k1 evidence work.
+
 ## 2026-06-18 — libbitcoin integration manual aligned to libbitcoin table standard
 
 - **libbitcoin-owned layout clarified:** `docs/LIBBITCOIN_INTEGRATION.md` now

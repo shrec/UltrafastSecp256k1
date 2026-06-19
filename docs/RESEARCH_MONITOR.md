@@ -67,7 +67,9 @@ reports.
 Escalation behavior:
 
 - `high_confidence` always opens a GitHub issue when issue creation is enabled
-- `needs_review` opens a GitHub issue when review escalation is enabled
+- `needs_review` stays in the generated artifact and job summary by default;
+  it opens a GitHub issue only when a manual run explicitly enables review
+  escalation
 - `discarded` stays in the artifact only
 
 Issue creation checks for an existing same-day `Research Monitor` issue before
@@ -91,7 +93,8 @@ Default behavior:
 - uploads the generated report as an artifact
 - writes a summary into the GitHub Actions job summary
 - opens an issue when high-confidence findings exist
-- opens an issue for needs-review findings when `open_review_issue` is enabled
+- keeps needs-review findings out of GitHub issues unless a manual dispatch sets
+  `open_review_issue=true`
 - sends email for the same escalated finding set when SMTP secrets are configured
 
 ## Signal Matrix
