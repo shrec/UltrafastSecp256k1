@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-19 — CAAS dashboard centralized evidence browser
+
+- **Central evidence cockpit:** `ci/caas_dashboard.py` now aggregates the
+  committed Integration, CT, Fuzz, GPU/hardware, Package Provenance,
+  Libbitcoin Performance Matrix, Bastion Requirements, Audit SLA, and External
+  Audit Bundle manifests into one searchable/filterable Evidence Browser.
+- **Reviewer handoff improved:** each row shows the owning gate, reproduce
+  command, freshness/status/severity, notes, and backing evidence paths so
+  reviewers can inspect passed CI evidence without manually opening each JSON
+  manifest.
+- **Dashboard self-test added:** `ci/test_audit_scripts.py --quick` now imports
+  the dashboard, validates that known evidence rows render, and includes
+  `caas_dashboard.py` in the audit-script syntax/docstring checks.
+- **B21 fixture invocation restored:** the libbitcoin performance-matrix
+  fixture is now called from the self-test structural phase instead of only
+  being present for the fixture-coverage critic.
+
 ## 2026-06-19 — Research monitor review escalation softened
 
 - **Needs-review issue spam reduced:** scheduled research-monitor runs now keep

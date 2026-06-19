@@ -33,6 +33,7 @@ LIB_ROOT = SCRIPT_DIR.parent
 
 # All audit-relevant Python scripts (relative to ci/)
 AUDIT_SCRIPTS = [
+    "caas_dashboard.py",
     "caas_runner.py",
     "install_caas_hooks.py",
     "external_audit_bundle.py",
@@ -2672,6 +2673,59 @@ def check_libbitcoin_perf_matrix_fixtures() -> None:
                 "missing JSON artifact contract all fail; real manifest passes")
 
 
+def check_caas_dashboard_evidence_browser() -> None:
+    """The CAAS dashboard must expose the committed evidence/status manifests in
+    one central browser. This prevents the UI from regressing into scattered
+    cards where reviewers cannot inspect CI-backed evidence rows directly."""
+    tag = "DASH:evidence_browser"
+    try:
+        mod = _load_ci_module("caas_dashboard.py", "caas_dashboard_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+    try:
+        rows = mod.collect_evidence_browser()
+    except Exception as exc:
+        fail(tag, f"collect_evidence_browser crashed: {exc}")
+        return
+
+    domains = {r.get("domain") for r in rows}
+    expected_domains = {
+        "Integration Evidence",
+        "CT Evidence",
+        "Fuzz Campaign",
+        "GPU / Hardware",
+        "Package Provenance",
+        "Libbitcoin Perf Matrix",
+        "External Audit Bundle",
+    }
+    missing_domains = sorted(expected_domains - domains)
+    if missing_domains:
+        failures.append("missing domains: " + ", ".join(missing_domains))
+
+    ids = {str(r.get("id", "")) for r in rows}
+    for expected in ("INT-SHIM-PARITY", "CT-ECDSA-SIGN", "FUZZ-DER-PARSER",
+                     "lbtc_cuda_row_persistent_scratch"):
+        if expected not in ids:
+            failures.append(f"missing evidence row {expected}")
+
+    if len(rows) < 30:
+        failures.append(f"too few evidence rows: {len(rows)}")
+
+    html = mod.render_section_evidence(rows)
+    for token in ('data-evidence-dashboard', 'id="evidence-table"', 'id="evidence-search"',
+                  "Integration Evidence", "Libbitcoin Perf Matrix"):
+        if token not in html:
+            failures.append(f"rendered evidence section missing {token}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, f"central evidence browser renders {len(rows)} rows across {len(domains)} domains")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -2762,6 +2816,8 @@ def main() -> int:
     check_research_signal_matrix_fixtures()
     check_evidence_refresh_coverage_fixtures()
     check_package_provenance_binding_fixtures()
+    check_libbitcoin_perf_matrix_fixtures()
+    check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()
 

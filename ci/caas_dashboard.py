@@ -27,13 +27,15 @@ Sections:
   8.  Source Graph / Coverage
   9.  Benchmarks
   10. Known Limitations
-  11. Artifacts
+  11. Evidence Browser
+  12. Artifacts
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
+import html
 import json
 import os
 import re
@@ -49,6 +51,63 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 LIB_ROOT   = SCRIPT_DIR.parent
+
+EVIDENCE_MANIFESTS = [
+    {
+        "label": "Integration Evidence",
+        "path": "docs/INTEGRATION_EVIDENCE_STATUS.json",
+        "rows": "rows",
+        "gate": "python3 ci/audit_gate.py --integration-evidence",
+    },
+    {
+        "label": "CT Evidence",
+        "path": "docs/CT_EVIDENCE_STATUS.json",
+        "rows": "rows",
+        "gate": "python3 ci/audit_gate.py --ct-evidence-status",
+    },
+    {
+        "label": "Fuzz Campaign",
+        "path": "docs/FUZZ_CAMPAIGN_STATUS.json",
+        "rows": "rows",
+        "gate": "python3 ci/audit_gate.py --fuzz-campaign-status",
+    },
+    {
+        "label": "GPU / Hardware",
+        "path": "docs/GPU_HARDWARE_EVIDENCE_STATUS.json",
+        "rows": "rows",
+        "gate": "python3 ci/audit_gate.py --gpu-hardware-evidence",
+    },
+    {
+        "label": "Package Provenance",
+        "path": "docs/PACKAGE_PROVENANCE_STATUS.json",
+        "rows": "surfaces",
+        "gate": "python3 ci/audit_gate.py --package-provenance-binding",
+    },
+    {
+        "label": "Libbitcoin Perf Matrix",
+        "path": "docs/LIBBITCOIN_PERF_MATRIX_STATUS.json",
+        "rows": "surfaces",
+        "gate": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+    },
+    {
+        "label": "Bastion Requirements",
+        "path": "docs/CAAS_BASTION_REQUIREMENTS.json",
+        "rows": "requirements",
+        "gate": "python3 ci/audit_gate.py --external-audit-replacement",
+    },
+    {
+        "label": "Audit SLA",
+        "path": "docs/AUDIT_SLA.json",
+        "rows": "freshness_artifacts.artifacts",
+        "gate": "python3 ci/audit_sla_check.py",
+    },
+    {
+        "label": "External Audit Bundle",
+        "path": "docs/EXTERNAL_AUDIT_BUNDLE.json",
+        "rows": "evidence",
+        "gate": "python3 ci/verify_external_audit_bundle.py",
+    },
+]
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +128,117 @@ def _load_json(path: Path) -> dict | list | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+def _h(value: object) -> str:
+    return html.escape("" if value is None else str(value), quote=True)
+
+
+def _nested(data: dict | list | None, dotted: str) -> object:
+    cur: object = data
+    for part in dotted.split("."):
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        else:
+            return None
+    return cur
+
+
+def _as_list(value: object) -> list:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return [value]
+
+
+def _first(row: dict, *names: str, default: object = "") -> object:
+    for name in names:
+        value = row.get(name)
+        if value not in (None, "", []):
+            return value
+    return default
+
+
+def _evidence_paths(row: dict) -> list[str]:
+    paths: list[str] = []
+    for key in (
+        "evidence_path",
+        "evidence_paths",
+        "artifact_paths",
+        "path",
+        "corpus_path",
+        "crash_path",
+        "regression_path",
+        "fallback_path",
+        "producer_workflow",
+        "integration_evidence",
+    ):
+        for value in _as_list(row.get(key)):
+            if value in (None, ""):
+                continue
+            if isinstance(value, dict):
+                paths.extend(str(v) for v in value.values() if v not in (None, ""))
+            else:
+                paths.append(str(value))
+    return sorted(dict.fromkeys(paths))
+
+
+def _normalize_evidence_row(domain: str, manifest: str, gate: str, row: dict) -> dict:
+    status = str(_first(row, "computed_status", "status", default="documented"))
+    severity = str(_first(row, "severity", default="info"))
+    item_id = str(_first(
+        row,
+        "id",
+        "claim_id",
+        "name",
+        "artifact",
+        "path",
+        "producer_workflow",
+        default=domain,
+    ))
+    surface = str(_first(
+        row,
+        "surface",
+        "target",
+        "operation",
+        "claim",
+        "ct_claim",
+        "artifact",
+        "name",
+        "path",
+        default=item_id,
+    ))
+    command = str(_first(row, "reproduce_command", "replay_command", default=gate))
+    notes = str(_first(row, "notes", "note", "reason", "rationale", default=""))
+    if manifest.endswith("EXTERNAL_AUDIT_BUNDLE.json"):
+        exists = bool(row.get("exists"))
+        status = "present" if exists else "missing"
+        severity = "blocking"
+        item_id = str(row.get("path") or item_id)
+        surface = "External audit bundle evidence"
+        digest = row.get("sha256")
+        size = row.get("size")
+        notes = f"sha256={digest or '?'}; size={size if size is not None else '?'}"
+    elif manifest.endswith("PACKAGE_PROVENANCE_STATUS.json"):
+        surface = str(row.get("artifact") or surface)
+        notes = notes or f"workflow={row.get('producer_workflow', '?')}"
+    return {
+        "domain": domain,
+        "manifest": manifest,
+        "id": item_id,
+        "surface": surface,
+        "status": status,
+        "severity": severity,
+        "last_verified": str(_first(row, "last_verified", "generated_at", default="")),
+        "freshness_days": _first(row, "freshness_days", default=""),
+        "gate": gate,
+        "command": command,
+        "paths": _evidence_paths(row),
+        "notes": notes,
+    }
 
 
 def collect_git() -> dict:
@@ -570,6 +740,75 @@ def collect_artifacts() -> list[dict]:
     return items
 
 
+def collect_evidence_browser() -> list[dict]:
+    rows: list[dict] = []
+    for spec in EVIDENCE_MANIFESTS:
+        manifest = str(spec["path"])
+        domain = str(spec["label"])
+        gate = str(spec["gate"])
+        path = LIB_ROOT / manifest
+        data = _load_json(path)
+        if not isinstance(data, (dict, list)):
+            rows.append({
+                "domain": domain,
+                "manifest": manifest,
+                "id": "manifest",
+                "surface": "Manifest file",
+                "status": "missing" if not path.exists() else "malformed",
+                "severity": "blocking",
+                "last_verified": "",
+                "freshness_days": "",
+                "gate": gate,
+                "command": gate,
+                "paths": [manifest],
+                "notes": "manifest could not be loaded",
+            })
+            continue
+
+        raw = _nested(data, str(spec["rows"]))
+        if isinstance(raw, dict):
+            raw_rows = []
+            for key, value in raw.items():
+                if isinstance(value, dict):
+                    merged = dict(value)
+                    merged.setdefault("path", key)
+                    raw_rows.append(merged)
+                else:
+                    raw_rows.append({"id": str(key), "value": value, "path": str(key)})
+        elif isinstance(raw, list):
+            raw_rows = raw
+        else:
+            raw_rows = []
+
+        if not raw_rows:
+            rows.append({
+                "domain": domain,
+                "manifest": manifest,
+                "id": "rows",
+                "surface": "Manifest rows",
+                "status": "empty",
+                "severity": "warning",
+                "last_verified": "",
+                "freshness_days": "",
+                "gate": gate,
+                "command": gate,
+                "paths": [manifest],
+                "notes": f"no rows at {spec['rows']}",
+            })
+            continue
+
+        for raw_row in raw_rows:
+            if isinstance(raw_row, dict):
+                rows.append(_normalize_evidence_row(domain, manifest, gate, raw_row))
+            else:
+                rows.append(_normalize_evidence_row(
+                    domain, manifest, gate, {"id": str(raw_row), "surface": str(raw_row)}
+                ))
+
+    rows.sort(key=lambda r: (str(r["domain"]), str(r["severity"]), str(r["id"])))
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # HTML renderer
 # ---------------------------------------------------------------------------
@@ -642,8 +881,47 @@ border-radius:3px;padding:.1em .4em;font-size:.82em;font-family:'Cascadia Code',
 display:flex;gap:.6rem;align-items:flex-start}
 .lim-list li::before{content:"⚠";color:var(--yellow);flex-shrink:0}
 .artifact-table td:first-child{font-family:monospace;font-size:.78rem;color:var(--cyan)}
+.evidence-toolbar{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:.6rem;margin:.8rem 0 1rem}
+.evidence-toolbar input,.evidence-toolbar select{width:100%;background:var(--bg3);color:var(--text);
+border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;font:inherit;font-size:.82rem}
+.evidence-toolbar input:focus,.evidence-toolbar select:focus{outline:1px solid var(--blue)}
+.evidence-paths{display:flex;gap:.25rem;flex-wrap:wrap;max-width:420px}
+.evidence-paths code{font-size:.68rem;color:var(--cyan);max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.evidence-note{color:var(--text2);font-size:.74rem;max-width:360px}
+.evidence-empty{display:none;color:var(--yellow);font-size:.82rem;margin:.7rem 0}
+@media(max-width:900px){.evidence-toolbar{grid-template-columns:1fr}.evidence-table{display:block;overflow-x:auto}}
 footer{text-align:center;padding:2rem;color:var(--text2);font-size:.75rem;
 border-top:1px solid var(--border);margin-top:2rem}
+"""
+
+JS = """
+function filterEvidence(){
+  const q = (document.getElementById('evidence-search')?.value || '').toLowerCase().trim();
+  const domain = document.getElementById('evidence-domain')?.value || '';
+  const status = document.getElementById('evidence-status')?.value || '';
+  const severity = document.getElementById('evidence-severity')?.value || '';
+  let shown = 0;
+  document.querySelectorAll('[data-evidence-row]').forEach((row) => {
+    const ok =
+      (!q || (row.dataset.text || '').includes(q)) &&
+      (!domain || row.dataset.domain === domain) &&
+      (!status || row.dataset.status === status) &&
+      (!severity || row.dataset.severity === severity);
+    row.style.display = ok ? '' : 'none';
+    if (ok) shown += 1;
+  });
+  const empty = document.getElementById('evidence-empty');
+  if (empty) empty.style.display = shown ? 'none' : 'block';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  ['evidence-search','evidence-domain','evidence-status','evidence-severity'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', filterEvidence);
+    el.addEventListener('change', filterEvidence);
+  });
+  filterEvidence();
+});
 """
 
 NAV_ITEMS = [
@@ -657,12 +935,13 @@ NAV_ITEMS = [
     ("graph",     "Coverage"),
     ("bench",     "Benchmarks"),
     ("limits",    "Limitations"),
+    ("evidence",  "Evidence"),
     ("artifacts", "Artifacts"),
 ]
 
 
 def _badge(status: str, text: str | None = None) -> str:
-    t = text or status
+    t = _h(text or status)
     cls = {"PASS":"pass","FAIL":"fail","WARN":"warn","ERROR":"fail",
            "COMPLETE":"pass","PLANNED":"warn","PARTIAL":"warn","ACTIVE":"active",
            "UNKNOWN":"warn"}.get(status.upper(), "info")
@@ -1096,6 +1375,90 @@ def render_section_limitations(lims: list[str]) -> str:
 </section>"""
 
 
+def render_section_evidence(evidence: list[dict]) -> str:
+    domains = sorted({str(r.get("domain", "")) for r in evidence if r.get("domain")})
+    statuses = sorted({str(r.get("status", "")) for r in evidence if r.get("status")})
+    severities = sorted({str(r.get("severity", "")) for r in evidence if r.get("severity")})
+    total = len(evidence)
+    blocking = sum(1 for r in evidence if str(r.get("severity", "")).lower() == "blocking")
+    owner_gated = sum(1 for r in evidence if "owner" in str(r.get("severity", "")).lower()
+                      or str(r.get("status", "")).lower() == "owner_gated")
+    missing = sum(1 for r in evidence if str(r.get("status", "")).lower() in ("missing", "malformed", "empty"))
+
+    def _options(values: list[str]) -> str:
+        return "".join(f'<option value="{_h(v)}">{_h(v)}</option>' for v in values)
+
+    rows = ""
+    for r in evidence:
+        paths = r.get("paths", [])
+        visible_paths = paths[:5] if isinstance(paths, list) else []
+        path_html = "".join(f"<code>{_h(p)}</code>" for p in visible_paths)
+        if isinstance(paths, list) and len(paths) > len(visible_paths):
+            path_html += f'<span class="pill">+{len(paths) - len(visible_paths)} more</span>'
+        if not path_html:
+            path_html = '<span style="color:var(--text2)">—</span>'
+        search_text = " ".join(
+            str(x) for x in (
+                r.get("domain", ""), r.get("manifest", ""), r.get("id", ""),
+                r.get("surface", ""), r.get("status", ""), r.get("severity", ""),
+                r.get("gate", ""), r.get("command", ""), r.get("notes", ""),
+                " ".join(paths) if isinstance(paths, list) else "",
+            )
+        ).lower()
+        rows += f"""<tr data-evidence-row
+          data-domain="{_h(r.get('domain',''))}"
+          data-status="{_h(r.get('status',''))}"
+          data-severity="{_h(r.get('severity',''))}"
+          data-text="{_h(search_text)}">
+          <td><b>{_h(r.get('domain','?'))}</b><br>
+            <span style="color:var(--text2);font-size:.72rem">{_h(r.get('manifest',''))}</span></td>
+          <td class="mono">{_h(r.get('id','?'))}<br>
+            <span style="color:var(--text2);font-size:.72rem">{_h(r.get('surface',''))}</span></td>
+          <td>{_badge(str(r.get('status','?')))}</td>
+          <td>{_badge(str(r.get('severity','?')), str(r.get('severity','?')))}</td>
+          <td class="mono">{_h(r.get('last_verified','') or '—')}<br>
+            <span style="color:var(--text2);font-size:.72rem">freshness: {_h(r.get('freshness_days','') or '—')}</span></td>
+          <td><code>{_h(r.get('command',''))}</code><br>
+            <span style="color:var(--text2);font-size:.72rem">{_h(r.get('gate',''))}</span></td>
+          <td><div class="evidence-paths">{path_html}</div>
+            <div class="evidence-note">{_h(r.get('notes',''))}</div></td>
+        </tr>"""
+
+    return f"""
+<section class="section-anchor" id="evidence" data-evidence-dashboard>
+<h2>11 · Evidence Browser</h2>
+<div class="card">
+  <p style="color:var(--text2);font-size:.82rem;margin-bottom:.8rem">
+    Centralized read-only view of committed CAAS evidence/status manifests.
+    Use it to inspect which gate owns each surface, what evidence file backs it,
+    and whether it is current proof, warning, residual, template, or owner-gated.
+  </p>
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-val blue">{total}</div>
+      <div class="stat-label">Evidence Rows</div></div>
+    <div class="stat"><div class="stat-val {'green' if blocking else 'yellow'}">{blocking}</div>
+      <div class="stat-label">Blocking Surfaces</div></div>
+    <div class="stat"><div class="stat-val yellow">{owner_gated}</div>
+      <div class="stat-label">Owner-Gated / Residual</div></div>
+    <div class="stat"><div class="stat-val {'red' if missing else 'green'}">{missing}</div>
+      <div class="stat-label">Missing / Malformed</div></div>
+  </div>
+  <div class="evidence-toolbar">
+    <input id="evidence-search" type="search" placeholder="Search evidence, paths, gates, notes...">
+    <select id="evidence-domain"><option value="">All domains</option>{_options(domains)}</select>
+    <select id="evidence-status"><option value="">All statuses</option>{_options(statuses)}</select>
+    <select id="evidence-severity"><option value="">All severities</option>{_options(severities)}</select>
+  </div>
+  <div id="evidence-empty" class="evidence-empty">No evidence rows match the current filter.</div>
+  <table class="evidence-table" id="evidence-table">
+    <thead><tr><th>Domain</th><th>Surface</th><th>Status</th><th>Severity</th>
+      <th>Freshness</th><th>Command / Gate</th><th>Evidence / Notes</th></tr></thead>
+    <tbody>{rows}</tbody>
+  </table>
+</div>
+</section>"""
+
+
 def render_section_artifacts(artifacts: list[dict]) -> str:
     freshness_css = {
         "FRESH":  "background:#1a3a22;color:#3fb950;border:1px solid #2ea043",
@@ -1123,7 +1486,7 @@ def render_section_artifacts(artifacts: list[dict]) -> str:
         )
     return f"""
 <section class="section-anchor" id="artifacts">
-<h2>11 · Artifacts</h2>
+<h2>12 · Artifacts</h2>
 <div class="card">
 <table class="artifact-table">
   <thead><tr><th>File</th><th>Type</th><th>Path</th><th>Freshness</th></tr></thead>
@@ -1162,6 +1525,7 @@ def render_html(data: dict) -> str:
         # F-07 fix: render_section_limitations was defined but never called;
         # the nav link #limits pointed to a section that was never rendered.
         + render_section_limitations(data["limitations"])
+        + render_section_evidence(data["evidence"])
         + render_section_artifacts(data["artifacts"])
     )
 
@@ -1172,6 +1536,7 @@ def render_html(data: dict) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CAAS Audit Dashboard · UltrafastSecp256k1 · {git.get('short','?')} · {dirty_str}</title>
 <style>{CSS}</style>
+<script>{JS}</script>
 </head>
 <body>
 <header class="header">
@@ -1235,6 +1600,7 @@ def main() -> int:
         "backend":      collect_backend_parity(),
         "source_graph": collect_source_graph(),
         "benchmarks":   collect_benchmarks(),
+        "evidence":     collect_evidence_browser(),
         "artifacts":    collect_artifacts(),
         # F-07 fix: collect_limitations() was never called; limitations data was
         # absent from the data dict so render_section_limitations was never invoked.
