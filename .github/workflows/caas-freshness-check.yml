@@ -3,16 +3,18 @@
 # ===========================================================================
 #
 # Runs on a 6-hour schedule independently of push-triggered pipelines.
-# Evaluates evidence age against the 30-day expiry threshold defined by
-# AUDIT_SLA.json slos.max_stale_evidence_days.threshold (CAAS6-04: this banner
-# previously said 7 days while the enforced value is 30 — see CAAS-08 below).
+# Delegates freshness policy to the authoritative B3/B19 gates:
+#   - ci/audit_sla_check.py for measurable freshness SLOs.
+#   - ci/check_evidence_refresh_coverage.py for the B19 refresh-disposition
+#     ledger that distinguishes auto-produced evidence from documented
+#     residual/manual/authored/golden evidence.
 #
 # T10 mitigation: ensures the freshness check fires even when no commits
 # are pushed, so stale evidence is detected within 6 hours of expiry.
 #
-# Fails if:
-#   - docs/EXTERNAL_AUDIT_BUNDLE.json has not been updated in >30 days
-#   - The bundle is missing or malformed
+# Fails if a blocking freshness SLO is violated, a tracked artifact has no
+# refresh disposition, an auto producer is unverifiable, or a documented residual
+# no longer resolves.
 # ===========================================================================
 
 name: CAAS Freshness Check
@@ -52,150 +54,32 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check evidence bundle freshness (T10 mitigation)
+      - name: Check evidence freshness and refresh coverage (T10 mitigation)
         run: |
-          python3 - <<'EOF'
-          import json, sys, subprocess, re
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          # CAAS-08: enforce exactly the threshold AUDIT_SLA.json documents. The
-          # threshold lives at slos.max_stale_evidence_days.threshold (nested), NOT
-          # a top-level "max_stale_evidence_days" key. The old top-level .get()
-          # always missed and silently fell back to 7 days while the SLA documents
-          # 30 — a 7-vs-30 divergence (gate stricter than its own policy doc). Read
-          # the nested value so the gate and the SLA cannot drift apart.
-          _sla_path = Path("docs/AUDIT_SLA.json")
-          MAX_AGE_DAYS = 30   # AUDIT_SLA.json slos.max_stale_evidence_days default
-          if _sla_path.exists():
-              try:
-                  _sla = json.loads(_sla_path.read_text())
-                  _slo = _sla.get("slos", {}).get("max_stale_evidence_days", {})
-                  if isinstance(_slo, dict) and "threshold" in _slo:
-                      MAX_AGE_DAYS = int(_slo["threshold"])
-                  elif "max_stale_evidence_days" in _sla:   # legacy flat layout
-                      MAX_AGE_DAYS = int(_sla["max_stale_evidence_days"])
-              except Exception:
-                  pass
-
-          failed = False
-
-          def _parse_generated_at(data: dict) -> str | None:
-              """Extract a generation timestamp from a JSON evidence document."""
-              # Try common field names used by different producers.
-              for key in ("generated_at", "timestamp", "produced_at", "last_updated"):
-                  val = data.get(key)
-                  if isinstance(val, str) and val:
-                      return val
-              # Try nested git.timestamp / meta.generated_at
-              for sub in ("git", "meta", "summary"):
-                  nested = data.get(sub) or {}
-                  for key in ("timestamp", "generated_at", "produced_at"):
-                      val = nested.get(key)
-                      if isinstance(val, str) and val:
-                          return val
-              return None
-
-          def check_file(path_str, label):
-              # The enclosing scope is module-level when this script runs as
-              # python3 - <<'EOF', so `nonlocal failed` raises:
-              #     SyntaxError: no binding for nonlocal 'failed' found
-              # Use `global failed` instead — the `failed = False` above is
-              # at module scope.
-              global failed
-              p = Path(path_str)
-              if not p.exists():
-                  print(f"::error::{label} not found — evidence missing")
-                  failed = True
-                  return
-              now = datetime.now(timezone.utc)
-
-              # CAAS-01 fix: only JSON evidence carries an embedded generated_at
-              # timestamp. Markdown (and any non-.json) evidence does not, so calling
-              # json.loads() on it raised and marked the WHOLE gate failed — leaving
-              # this scheduled check permanently red and masking real staleness of the
-              # JSON bundles. Parse JSON only for .json files; for everything else fall
-              # straight through to the git commit date.
-              ts_str = None
-              date_source = ""
-              if p.suffix == ".json":
-                  try:
-                      data = json.loads(p.read_text())
-                  except Exception as e:
-                      print(f"::error::{label} parse error: {e}")
-                      failed = True
-                      return
-                  # Prefer the JSON content's own generated_at timestamp — it reflects
-                  # when the bundle was actually *produced*, not when it was committed.
-                  # Git commit date drifts when content is stable (no-op commits skipped).
-                  ts_str = _parse_generated_at(data)
-                  date_source = "json:generated_at"
-
-              if not ts_str and p.suffix == ".md":
-                  # CAAS-08: markdown evidence (AUDIT_DASHBOARD.md) carries an
-                  # embedded "_Generated <ISO8601>._" header written by
-                  # ci/render_audit_dashboard.py. Prefer it over the git commit date:
-                  # it reflects actual generation time and does not depend on the
-                  # checkout history depth.
-                  m = re.search(r"_Generated\s+(.+?)\._", p.read_text())
-                  if m:
-                      ts_str = m.group(1).strip()
-                      date_source = "md:generated-header"
-
-              if not ts_str:
-                  # Markdown evidence without an embedded header, or JSON without an
-                  # embedded timestamp: use the git commit date.
-                  result = subprocess.run(
-                      ["git", "log", "-1", "--format=%cI", "--", path_str],
-                      capture_output=True, text=True, timeout=30,
-                  )
-                  ts_str = result.stdout.strip() if result.returncode == 0 else ""
-                  date_source = "git:commit"
-                  # NOTE: git commit date is unreliable as a freshness indicator.
-                  # A no-op re-commit (e.g. merge, rebase) resets the commit date even
-                  # when content is unchanged, producing a false-fresh reading.
-                  # Prefer json:generated_at whenever available.
-
-              if not ts_str:
-                  print(f"::error::{label}: no timestamp found — cannot verify evidence age (fail-closed)")
-                  failed = True
-                  return
-
-              try:
-                  evidence_date = datetime.fromisoformat(ts_str)
-              except ValueError as e:
-                  print(f"::error::{label}: cannot parse timestamp {ts_str!r}: {e}")
-                  failed = True
-                  return
-
-              age_days = (now - evidence_date).total_seconds() / 86400
-              print(f"{label}: {date_source}={ts_str} ({age_days:.1f}d ago)")
-              if age_days > MAX_AGE_DAYS:
-                  print(f"::error::{label} STALE — {age_days:.1f} days old (max {MAX_AGE_DAYS})")
-                  failed = True
-              else:
-                  print(f"::notice::{label} FRESH — {age_days:.1f} days old")
-
-          # F-22 fix: check all critical evidence files, not just 2 of them.
-          check_file("docs/EXTERNAL_AUDIT_BUNDLE.json",     "EXTERNAL_AUDIT_BUNDLE.json")
-          check_file("docs/SECURITY_AUTONOMY_KPI.json",     "SECURITY_AUTONOMY_KPI.json")
-          check_file("docs/EVIDENCE_CHAIN.json",            "EVIDENCE_CHAIN.json")
-          check_file("docs/BITCOIN_CORE_TEST_RESULTS.json", "BITCOIN_CORE_TEST_RESULTS.json")
-          check_file("docs/AUDIT_CHANGELOG.md",             "AUDIT_CHANGELOG.md")
-          check_file("docs/AUDIT_DASHBOARD.md",             "AUDIT_DASHBOARD.md")
-
-          sys.exit(1 if failed else 0)
-          EOF
+          python3 ci/audit_sla_check.py --json -o audit_sla_report.json
+          python3 ci/check_evidence_refresh_coverage.py --json -o evidence_refresh_coverage.json
 
       - name: Step summary
         if: always()
         run: |
           echo "## CAAS Evidence Freshness Check (T10 Mitigation)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          BUNDLE="docs/EXTERNAL_AUDIT_BUNDLE.json"
-          if [ -f "$BUNDLE" ]; then
-            LAST=$(git log -1 --format="%cI %s" -- "$BUNDLE")
-            echo "Last bundle update: \`$LAST\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**MISSING**: docs/EXTERNAL_AUDIT_BUNDLE.json not found" >> $GITHUB_STEP_SUMMARY
+          if [ -f audit_sla_report.json ]; then
+            python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("audit_sla_report.json"))
+          print(f"- Audit SLA release_ready: `{d.get('release_ready')}`")
+          print(f"- Blocking violations: `{d.get('blocking_violations')}`")
+          print(f"- Warning violations: `{d.get('warning_violations')}`")
+          print(f"- Minimum days until block: `{d.get('min_days_until_block')}`")
+          EOF
+          fi
+          if [ -f evidence_refresh_coverage.json ]; then
+            python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open("evidence_refresh_coverage.json"))
+          print(f"- Refresh coverage: `{d.get('overall_pass')}`")
+          print(f"- Tracked artifacts: `{d.get('tracked_total')}`")
+          print(f"- Auto/residual: `{d.get('auto_count')}` / `{d.get('residual_count')}`")
+          EOF
           fi
