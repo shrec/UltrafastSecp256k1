@@ -15,16 +15,16 @@
 #include <vector>
 
 int main() {
-    /* AUTO: GPU if the bridge was built with GPU support and a device exists,
-     * otherwise the CPU consensus reference path. Identical results either way. */
-    ufsecp_lbtc_ctrl* ctrl = nullptr;
-    if (ufsecp_lbtc_ctrl_create(&ctrl, UFSECP_LBTC_AUTO) != UFSECP_OK) {
+    /* Default C++ controller == UFSECP_LBTC_AUTO: GPU if usable, otherwise the
+     * CPU consensus reference path. Identical results either way. */
+    ufsecp::lbtc::Controller context;
+    if (!context.ok()) {
         std::fprintf(stderr, "controller create failed\n");
         return 1;
     }
     const char* names[] = {"CPU", "CUDA", "OpenCL", "Metal"};
-    std::printf("backend: %s (%s)\n", names[ufsecp_lbtc_ctrl_backend(ctrl)],
-                ufsecp_lbtc_ctrl_device_name(ctrl));
+    std::printf("backend: %s (%s)\n", names[context.backend()],
+                ufsecp_lbtc_ctrl_device_name(context.get()));
 
     /* --- build an ECDSA table: each row = 32 msg | 33 pubkey | 64 sig + 3-byte
      *     opaque block-id tag (the node's correlation key). --- */
@@ -58,7 +58,7 @@ int main() {
      * Map failures back to block ids by scanning it (exactly how libbitcoin's
      * verify_signatures collects failed-token identifiers). --- */
     std::vector<uint8_t> results(N);
-    ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, KEY, results.data(), nullptr, 0, nullptr);
+    context.verify_ecdsa(rows.data(), N, KEY, results.data());
 
     size_t ninvalid = 0;
     for (size_t i = 0; i < N; ++i) if (!results[i]) ++ninvalid;
@@ -72,6 +72,5 @@ int main() {
     }
 
     ufsecp_ctx_destroy(sctx);
-    ufsecp_lbtc_ctrl_destroy(ctrl);
     return 0;
 }

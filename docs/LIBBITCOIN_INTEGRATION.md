@@ -75,6 +75,9 @@ the CPU reference path.
 - MSVC `cl` is supported. The default MSVC path keeps the portable x64 ABI
   baseline and enables measured-safe `/Ob3`; whole-program `/GL` is opt-in via
   `SECP256K1_MSVC_WPO=ON` because it can force downstream `/LTCG`.
+- The current MSVC Windows profile has been owner-benchmarked as accelerated on
+  the integration machine. Treat that as owner-side evidence until a
+  `bench_lbtc_batch --json` artifact from the same hardware is attached.
 - `clang-cl` is the recommended fast Windows compiler when the consumer accepts
   the MSVC ABI with Clang codegen:
 
@@ -88,6 +91,19 @@ For Windows ARM64:
 ```bash
 cmake --preset windows-arm64-clang-cl
 cmake --build --preset windows-arm64-clang-cl -j
+```
+
+For a reproducible MSVC libbitcoin benchmark artifact:
+
+```powershell
+cmake -S . -B out/libbitcoin-msvc -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DSECP256K1_BUILD_LIBBITCOIN=ON `
+  -DSECP256K1_BUILD_CABI=ON `
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
+
+cmake --build out/libbitcoin-msvc -j
+out\libbitcoin-msvc\include\ufsecp\bench_lbtc_batch.exe 1000000 5 50000 --json out\libbitcoin-msvc\lbtc_msvc.json
 ```
 
 ## Batch Row Contract
@@ -187,6 +203,11 @@ context.collect_ecdsa_columns(
 The column ECDSA signature format is opaque by default, exactly like the row
 API. Use `*_columns_compact` only for public compact `r||s`.
 
+The current no-intermediate-table GPU path is the packed opaque row API. The
+column API preserves the opaque format at the public boundary and is tracked in
+`docs/LIBBITCOIN_PERF_MATRIX_STATUS.json` so native no-copy GPU-column claims
+cannot be made until the parity surface exists across CUDA/OpenCL/Metal.
+
 ## Backend Selection
 
 Create one controller per worker thread or serialize access externally. The
@@ -225,6 +246,13 @@ For GPU-capable local machines, also run:
 
 ```bash
 ctest --test-dir out/libbitcoin-cuda -R "lbtc_consensus_diff|lbtc_multisig_threshold" --output-on-failure
+```
+
+Benchmark runs should emit a JSON artifact:
+
+```bash
+out/libbitcoin-cuda/include/ufsecp/bench_lbtc_batch 1000000 5 50000 --json out/libbitcoin-cuda/lbtc_batch.json
+python3 ci/audit_gate.py --libbitcoin-perf-matrix
 ```
 
 The consensus rule is CPU/GPU/libsecp equivalence: GPU verdicts must match the

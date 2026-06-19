@@ -1,0 +1,105 @@
+{
+  "schema": "ufsecp-libbitcoin-perf-matrix-v1",
+  "last_verified": "2026-06-19",
+  "notes": "B21 libbitcoin integration/performance evidence ledger. This is an evidence and overclaim gate, not a substitute for owner-run full-chain benchmarks.",
+  "surfaces": [
+    {
+      "id": "lbtc_cpp_default_controller",
+      "surface": "C++ libbitcoin integration example uses the default UFSECP_LBTC_AUTO controller model",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Integration hygiene: libbitcoin call sites can use ufsecp::lbtc::Controller without spelling UFSECP_LBTC_AUTO.",
+      "evidence_paths": [
+        "compat/libbitcoin_bridge/example/lbtc_batch_demo.cpp",
+        "docs/LIBBITCOIN_INTEGRATION.md"
+      ],
+      "reproduce_command": "cmake -S . -B out/libbitcoin-test -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_CABI=ON -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON && cmake --build out/libbitcoin-test -j",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": false,
+      "copy_policy": "api_hygiene_only"
+    },
+    {
+      "id": "lbtc_benchmark_json_artifact",
+      "surface": "libbitcoin batch benchmark emits a structured JSON artifact",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Benchmark evidence format: local throughput numbers must be recorded with target_context, claim_scope, backend, device, batch, iters, pool, and timing.",
+      "evidence_paths": [
+        "compat/libbitcoin_bridge/bench/bench_lbtc_batch.cpp",
+        "docs/LIBBITCOIN_INTEGRATION.md"
+      ],
+      "reproduce_command": "out/libbitcoin-bench/include/ufsecp/bench_lbtc_batch 1000000 5 50000 --json out/libbitcoin-bench/lbtc_batch.json",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "artifact_contract_only"
+    },
+    {
+      "id": "lbtc_cuda_row_persistent_scratch",
+      "surface": "CUDA libbitcoin opaque ECDSA row path reuses grow-only device buffers across batches",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Implementation optimization: removes per-batch cudaMalloc/cudaFree from the consensus-bearing libbitcoin row path while preserving direct opaque-row parsing on device.",
+      "evidence_paths": [
+        "src/gpu/src/gpu_backend_cuda.cu",
+        "compat/libbitcoin_bridge/bench/bench_lbtc_batch.cpp"
+      ],
+      "reproduce_command": "out/libbitcoin-cuda/include/ufsecp/bench_lbtc_batch 1000000 5 50000 --json out/libbitcoin-cuda/lbtc_cuda_rows.json",
+      "native_hardware_claim": true,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "row_no_intermediate_tables+persistent_device_buffers"
+    },
+    {
+      "id": "lbtc_msvc_windows_profile",
+      "surface": "MSVC Windows libbitcoin profile remains a first-class measured target",
+      "target_context": "libbitcoin",
+      "status": "measured_external",
+      "severity": "warning",
+      "claim_scope": "Owner-measured Windows/MSVC profile: current MSVC path is accelerated relative to the previous MSVC build on the owner's Windows machine; exact hardware artifact remains owner-side until a public JSON bench artifact is attached.",
+      "evidence_paths": [
+        "CMakeLists.txt",
+        "docs/LIBBITCOIN_INTEGRATION.md"
+      ],
+      "reproduce_command": "cmake -S . -B out/libbitcoin-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_CABI=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-msvc -j && out\\\\libbitcoin-msvc\\\\include\\\\ufsecp\\\\bench_lbtc_batch.exe 1000000 5 50000 --json out\\\\libbitcoin-msvc\\\\lbtc_msvc.json",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "compiler_profile_evidence"
+    },
+    {
+      "id": "lbtc_vertical_opaque_contract",
+      "surface": "Vertical/column API accepts libbitcoin opaque ECDSA signatures while documenting the current scratch-normalization boundary",
+      "target_context": "libbitcoin",
+      "status": "documented_current",
+      "severity": "blocking",
+      "claim_scope": "Interface contract: columns keep the opaque signature format by default; row API is current no-intermediate-table GPU path, while columns remain explicitly tracked so no native no-copy GPU-column claim can be made accidentally.",
+      "evidence_paths": [
+        "compat/libbitcoin_bridge/include/ufsecp_libbitcoin.h",
+        "compat/libbitcoin_bridge/src/ufsecp_libbitcoin.cpp",
+        "docs/LIBBITCOIN_INTEGRATION.md"
+      ],
+      "reproduce_command": "ctest --test-dir out/libbitcoin-test -R \"lbtc|shim\" --output-on-failure",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": false,
+      "copy_policy": "columns_opaque_accepted_host_scratch_current"
+    },
+    {
+      "id": "lbtc_caas_perf_matrix_gate",
+      "surface": "CAAS gate validates libbitcoin performance/integration evidence before claims are trusted",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Audit discipline: libbitcoin performance evidence must name target_context, claim_scope, reproduce command, evidence paths, and copy/native-hardware policy.",
+      "evidence_paths": [
+        "ci/check_libbitcoin_perf_matrix.py",
+        "ci/audit_gate.py",
+        "docs/LIBBITCOIN_PERF_MATRIX_STATUS.json"
+      ],
+      "reproduce_command": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": false,
+      "copy_policy": "gate_only"
+    }
+  ]
+}

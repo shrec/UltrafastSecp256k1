@@ -85,6 +85,7 @@ AUDIT_SCRIPTS = [
     "check_research_signal_matrix.py",
     "check_evidence_refresh_coverage.py",
     "check_package_provenance_binding.py",
+    "check_libbitcoin_perf_matrix.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
 ]
@@ -2587,6 +2588,90 @@ def check_package_provenance_binding_fixtures() -> None:
                 "release-marked-current / unknown workflow all fail; real dev manifest passes")
 
 
+def check_libbitcoin_perf_matrix_fixtures() -> None:
+    """B21: the libbitcoin performance matrix gate must fail missing surfaces,
+    wrong target_context, missing evidence, native-hardware overclaim, and missing
+    JSON benchmark artifact contracts; the real manifest passes."""
+    tag = "B21:libbitcoin_perf_matrix"
+    try:
+        mod = _load_ci_module("check_libbitcoin_perf_matrix.py", "lbtc_perf_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    ev = mod.evaluate
+
+    def row(id_, **kw):
+        base = {
+            "id": id_,
+            "surface": id_,
+            "target_context": "libbitcoin",
+            "status": "implemented",
+            "severity": "blocking",
+            "claim_scope": "test scope",
+            "evidence_paths": ["docs/LIBBITCOIN_INTEGRATION.md"],
+            "reproduce_command": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+            "native_hardware_claim": False,
+            "benchmark_artifact_contract": False,
+            "copy_policy": "test",
+        }
+        base.update(kw)
+        return base
+
+    healthy = [
+        row("lbtc_cpp_default_controller"),
+        row("lbtc_benchmark_json_artifact", benchmark_artifact_contract=True),
+        row("lbtc_cuda_row_persistent_scratch", native_hardware_claim=True,
+            benchmark_artifact_contract=True),
+        row("lbtc_msvc_windows_profile", status="measured_external", severity="warning"),
+        row("lbtc_vertical_opaque_contract", status="documented_current"),
+        row("lbtc_caas_perf_matrix_gate"),
+    ]
+    failures = []
+
+    if not ev(healthy)["overall_pass"]:
+        failures.append("healthy synthetic matrix did not pass")
+
+    r = ev(healthy[:-1])
+    if r["overall_pass"] or "missing_required_surface" not in r["problems"]:
+        failures.append("missing required surface did not fail")
+
+    bad_context = list(healthy)
+    bad_context[0] = row("lbtc_cpp_default_controller", target_context="microbench")
+    r = ev(bad_context)
+    if r["overall_pass"] or "bad_context" not in r["problems"]:
+        failures.append("wrong target_context did not fail")
+
+    missing_evidence = list(healthy)
+    missing_evidence[0] = row("lbtc_cpp_default_controller", evidence_paths=["docs/__missing_lbtc.md"])
+    r = ev(missing_evidence)
+    if r["overall_pass"] or "missing_evidence" not in r["problems"]:
+        failures.append("missing evidence path did not fail")
+
+    native_overclaim = list(healthy)
+    native_overclaim[0] = row("lbtc_cpp_default_controller", status="documented_current",
+                              native_hardware_claim=True, benchmark_artifact_contract=True)
+    r = ev(native_overclaim)
+    if r["overall_pass"] or "native_overclaim" not in r["problems"]:
+        failures.append("native-hardware overclaim did not fail")
+
+    no_artifact = list(healthy)
+    no_artifact[1] = row("lbtc_benchmark_json_artifact", benchmark_artifact_contract=False)
+    r = ev(no_artifact)
+    if r["overall_pass"] or "missing_benchmark_artifact_contract" not in r["problems"]:
+        failures.append("benchmark JSON contract omission did not fail")
+
+    rep, _ = mod.load_and_evaluate()
+    if not rep.get("overall_pass"):
+        failures.append(f"the committed LIBBITCOIN_PERF_MATRIX_STATUS.json did not pass: {rep.get('problems')}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing surface / wrong context / missing evidence / native overclaim / "
+                "missing JSON artifact contract all fail; real manifest passes")
+
+
 def check_caas_gate_negative_fixture_coverage() -> None:
     """B5 completeness critic: every high-value CAAS gate must have a registered
     negative fixture in this file. A green gate without a proof that it fails on
@@ -2612,6 +2697,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
         "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
+        "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()

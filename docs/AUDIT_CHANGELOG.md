@@ -12,6 +12,23 @@
   a post-quantum polynomial-multiplication side-channel paper is discarded rather
   than treated as secp256k1 evidence work.
 
+## 2026-06-19 — Libbitcoin integration performance matrix and CUDA row scratch
+
+- **Structured libbitcoin benchmark artifact:** `bench_lbtc_batch` now accepts
+  `--json <path>` and writes backend/device/kind/batch/iters/pool/timing rows
+  with `target_context=libbitcoin` and an explicit claim scope.
+- **CUDA row path allocation overhead reduced:** the consensus-bearing
+  libbitcoin opaque ECDSA row backend now reuses grow-only device row/result
+  buffers for the controller lifetime instead of allocating/freeing them on every
+  batch.
+- **Integration example aligned:** the libbitcoin demo now uses
+  `ufsecp::lbtc::Controller`'s default AUTO constructor, matching the manual and
+  avoiding raw C controller ceremony in the C++ example.
+- **New G-21 CAAS gate:** `audit_gate.py --libbitcoin-perf-matrix` validates
+  `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json`, blocking missing evidence, wrong
+  target context, native-hardware overclaims, and missing benchmark-artifact
+  contracts before libbitcoin performance claims are trusted.
+
 ## 2026-06-18 — libbitcoin integration manual aligned to libbitcoin table standard
 
 - **libbitcoin-owned layout clarified:** `docs/LIBBITCOIN_INTEGRATION.md` now

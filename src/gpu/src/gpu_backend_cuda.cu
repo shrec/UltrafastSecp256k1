@@ -290,12 +290,65 @@ namespace {
 
 struct CudaBatchScratch {
     std::vector<uint8_t> result_bytes;
+    uint8_t* lbtc_rows = nullptr;
+    bool* lbtc_results = nullptr;
+    std::size_t lbtc_rows_bytes = 0;
+    std::size_t lbtc_results_count = 0;
+
+    ~CudaBatchScratch() {
+        free_lbtc_device();
+    }
 
     uint8_t* ensure_results(std::size_t count) {
         if (result_bytes.size() < count) {
             result_bytes.resize(count);
         }
         return result_bytes.data();
+    }
+
+    void free_lbtc_device() {
+        if (lbtc_results) {
+            cudaFree(lbtc_results);
+            lbtc_results = nullptr;
+            lbtc_results_count = 0;
+        }
+        if (lbtc_rows) {
+            cudaFree(lbtc_rows);
+            lbtc_rows = nullptr;
+            lbtc_rows_bytes = 0;
+        }
+    }
+
+    cudaError_t ensure_lbtc_rows(std::size_t bytes) {
+        if (bytes <= lbtc_rows_bytes) {
+            return cudaSuccess;
+        }
+        if (lbtc_rows) {
+            cudaFree(lbtc_rows);
+            lbtc_rows = nullptr;
+            lbtc_rows_bytes = 0;
+        }
+        const cudaError_t err = cudaMalloc(&lbtc_rows, bytes);
+        if (err == cudaSuccess) {
+            lbtc_rows_bytes = bytes;
+        }
+        return err;
+    }
+
+    cudaError_t ensure_lbtc_results(std::size_t count) {
+        if (count <= lbtc_results_count) {
+            return cudaSuccess;
+        }
+        if (lbtc_results) {
+            cudaFree(lbtc_results);
+            lbtc_results = nullptr;
+            lbtc_results_count = 0;
+        }
+        const cudaError_t err = cudaMalloc(&lbtc_results, count * sizeof(bool));
+        if (err == cudaSuccess) {
+            lbtc_results_count = count;
+        }
+        return err;
     }
 };
 
@@ -685,6 +738,7 @@ public:
 
     void shutdown() override {
         msm_pool_.free_all();
+        g_cuda_batch_scratch.free_lbtc_device();
         ready_ = false;
     }
 
@@ -828,22 +882,23 @@ gmb_cleanup:
         if (stride < 129u)
             return set_error(GpuError::BadInput, "libbitcoin row stride < 129");
 
-        uint8_t* d_rows = nullptr;
-        bool*    d_res  = nullptr;
         GpuError ret = GpuError::Ok;
 
         const size_t row_bytes = count * stride;
-        if (cudaMalloc(&d_rows, row_bytes) != cudaSuccess) {
+        if (stride != 0 && row_bytes / stride != count) {
+            return set_error(GpuError::BadInput, "libbitcoin row byte size overflow");
+        }
+        if (g_cuda_batch_scratch.ensure_lbtc_rows(row_bytes) != cudaSuccess) {
             return set_error(GpuError::Memory, "lbtc rows buffer alloc");
         }
-        if (cudaMalloc(&d_res, count * sizeof(bool)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "lbtc result buffer alloc");
-            goto lbtc_cleanup;
+        if (g_cuda_batch_scratch.ensure_lbtc_results(count) != cudaSuccess) {
+            return set_error(GpuError::Memory, "lbtc result buffer alloc");
         }
-        if (cudaMemcpy(d_rows, rows, row_bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc rows upload");
-            goto lbtc_cleanup;
-        }
+        uint8_t* const d_rows = g_cuda_batch_scratch.lbtc_rows;
+        bool* const d_res = g_cuda_batch_scratch.lbtc_results;
+
+        if (cudaMemcpy(d_rows, rows, row_bytes, cudaMemcpyHostToDevice) != cudaSuccess)
+            return set_error(GpuError::Launch, "lbtc rows upload");
 
         {
             int threads = 128;
@@ -852,29 +907,22 @@ gmb_cleanup:
                 d_rows, stride, d_res, static_cast<int>(count));
         }
         if (cudaGetLastError() != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel launch");
-            goto lbtc_cleanup;
+            return set_error(GpuError::Launch, "lbtc ecdsa row kernel launch");
         }
         if (cudaDeviceSynchronize() != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "lbtc ecdsa row kernel sync");
-            goto lbtc_cleanup;
+            return set_error(GpuError::Launch, "lbtc ecdsa row kernel sync");
         }
 
         {
             uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
             if (cudaMemcpy(h_res, d_res, count * sizeof(bool),
                            cudaMemcpyDeviceToHost) != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "lbtc result download");
-                goto lbtc_cleanup;
+                return set_error(GpuError::Launch, "lbtc result download");
             }
             for (size_t i = 0; i < count; ++i)
                 out_results[i] = h_res[i] ? 1 : 0;
         }
         clear_error();
-
-lbtc_cleanup:
-        if (d_res) cudaFree(d_res);
-        if (d_rows) cudaFree(d_rows);
         return ret;
     }
 

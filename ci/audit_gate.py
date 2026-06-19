@@ -1873,6 +1873,40 @@ def check_package_provenance_binding(conn):
     return 'G-20: Package Provenance Binding', findings
 
 
+def check_libbitcoin_perf_matrix(conn):
+    """G-21: libbitcoin performance/integration evidence matrix.
+
+    Loads docs/LIBBITCOIN_PERF_MATRIX_STATUS.json via
+    ci/check_libbitcoin_perf_matrix.py. The gate binds libbitcoin benchmark and
+    integration claims to target_context=libbitcoin, evidence paths, reproduce
+    commands, copy/native-hardware policy, and a JSON benchmark artifact contract.
+    Cheap: JSON + path existence only; no benchmark is run on push."""
+    findings = []
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    try:
+        from check_libbitcoin_perf_matrix import load_and_evaluate
+    except Exception as exc:
+        findings.append(('FAIL', f'cannot import check_libbitcoin_perf_matrix: {exc}'))
+        return 'G-21: Libbitcoin Performance Matrix', findings
+
+    report, _code = load_and_evaluate()
+    if report.get('error'):
+        findings.append(('FAIL', f'libbitcoin perf matrix: {report["error"]}'))
+        return 'G-21: Libbitcoin Performance Matrix', findings
+
+    if report['overall_pass']:
+        findings.append(('PASS', f'{report["surface_total"]} libbitcoin perf/integration surfaces '
+                                 f'({report["implemented"]} implemented, '
+                                 f'{report["measured_external"]} measured_external, '
+                                 f'{report["documented_current"]} documented_current, '
+                                 f'{report["owner_gated"]} owner_gated)'))
+    else:
+        for key, ids in (report.get('problems') or {}).items():
+            findings.append(('FAIL', f'{key}: {ids}'))
+    return 'G-21: Libbitcoin Performance Matrix', findings
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1911,6 +1945,7 @@ CHECK_MAP = {
     '--research-signal-matrix': check_research_signal_matrix,
     '--evidence-refresh-coverage': check_evidence_refresh_coverage,
     '--package-provenance-binding': check_package_provenance_binding,
+    '--libbitcoin-perf-matrix': check_libbitcoin_perf_matrix,
 }
 
 ALL_CHECKS = [
@@ -1947,6 +1982,7 @@ ALL_CHECKS = [
     check_research_signal_matrix,
     check_evidence_refresh_coverage,
     check_package_provenance_binding,
+    check_libbitcoin_perf_matrix,
 ]
 
 
