@@ -127,7 +127,10 @@ jobs:
   windows:
     name: "Windows / MSVC"
     # Advisory: MSVC __int128 portability + scalar-mul math bug compound here.
-    runs-on: windows-latest
+    # Keep this pinned to the Visual Studio 2022 image. The moving
+    # windows-latest alias can point at an image where the Visual Studio 17 2022
+    # CMake generator is unavailable during tag/release workflow dispatch.
+    runs-on: windows-2022
     timeout-minutes: 60
     steps:
       - name: Harden runner

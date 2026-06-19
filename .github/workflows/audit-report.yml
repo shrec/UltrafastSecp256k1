@@ -327,7 +327,10 @@ jobs:
   # =========================================================================
   windows-msvc:
     name: Audit (Windows MSVC)
-    runs-on: windows-latest
+    # Keep this pinned to the Visual Studio 2022 image. The moving
+    # windows-latest alias can point at an image where the Visual Studio 17 2022
+    # CMake generator is unavailable during tag/release workflow dispatch.
+    runs-on: windows-2022
     timeout-minutes: 60
     outputs:
       audit_artifact_id: ${{ steps.upload_reports.outputs.artifact-id }}
@@ -588,4 +591,3 @@ jobs:
             --platform "audit-report-linux-gcc14=$LINUX_GCC_RESULT" \
             --platform "audit-report-linux-clang17=$LINUX_CLANG_RESULT" \
             --platform "audit-report-windows-msvc=$WINDOWS_MSVC_RESULT"
-
