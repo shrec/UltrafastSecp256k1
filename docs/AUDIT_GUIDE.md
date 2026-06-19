@@ -132,7 +132,7 @@ stream between `JSON_BEGIN` and `JSON_END` markers.
 ```json
 {
   "framework_version": "2.0.0",
-  "library_version": "4.3.0",
+  "library_version": "4.4.0",
   "git_hash": "3d6b540...",
   "timestamp": "2026-03-01T12:00:00Z",
   "platform": {

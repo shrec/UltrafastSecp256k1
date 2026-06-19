@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-13 | **Version**: 4.3.0
+**Last updated**: 2026-06-13 | **Version**: 4.4.0
 
 ### 2026-06-13 - Opaque ECDSA ABI compatibility
 

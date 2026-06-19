@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-17 | **Version**: 4.3.0
+**Last updated**: 2026-06-17 | **Version**: 4.4.0
 
 ### 2026-06-18 - Bech32 address encoder allocation reduction: public-data only
 

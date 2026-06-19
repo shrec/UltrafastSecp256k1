@@ -12,13 +12,13 @@
 
 ## Scope
 
-This report covers **UltrafastSecp256k1 v4.3.0+** internal verification results.
+This report covers **UltrafastSecp256k1 v4.4.0+** internal verification results.
 All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
 | | |
 |---|---|
-| Version | 4.3.0 |
+| Version | 4.4.0 |
 | Branch | `dev` |
 | Report Date | 2026-04-09 |
 | Methodology | Automated deterministic + statistical |
@@ -369,5 +369,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v4.3.0 -- Verification Transparency Report*  
+*UltrafastSecp256k1 v4.4.0 -- Verification Transparency Report*
 *CAAS evidence is published for independent replay and review.*

@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 4.3.x  | [OK] Active |
+| 4.4.x  | [OK] Active |
 | 4.0.x  | [!] Critical fixes only (upgrade to 4.1.x recommended) |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
@@ -314,4 +314,4 @@ We appreciate responsible disclosure. Contributors who report valid security iss
 
 ---
 
-*UltrafastSecp256k1 v4.3.0 -- Security Policy*
+*UltrafastSecp256k1 v4.4.0 -- Security Policy*

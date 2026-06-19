@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-06-19
+
+> **Libbitcoin integration, GPU staging/decompression, CAAS evidence browsing,
+> and release/CI hardening.** A minor, **ABI-compatible** release
+> (`UFSECP_ABI_VERSION` stays 4). This release keeps the public ABI stable while
+> making the libbitcoin table interface easier to integrate, reducing GPU
+> staging overhead, tightening CUDA packaging, and turning CAAS evidence into a
+> centralized reviewer-facing dashboard.
+
+### Added
+
+- **CAAS Evidence Browser dashboard.** `ci/caas_dashboard.py` now aggregates
+  Integration, CT, Fuzz, GPU/hardware, Package Provenance, Libbitcoin
+  Performance Matrix, Bastion Requirements, Audit SLA, and External Audit Bundle
+  manifests into one searchable/filterable HTML evidence browser.
+- **Libbitcoin performance matrix gate.** `bench_lbtc_batch` can emit structured
+  JSON artifacts and the new G-21 gate validates libbitcoin benchmark target
+  context, claim scope, and backing evidence before performance claims are
+  trusted.
+- **GPU SEC1 pubkey decompression support across CUDA/OpenCL/Metal.** Public
+  compressed keys can stay compact until the backend, reducing host-side staging
+  and PCIe traffic for public-data GPU workloads.
+
+### Changed
+
+- **Libbitcoin integration manual aligned with libbitcoin-owned row tables.**
+  The documented path keeps libbitcoin's existing `std::span<Batch>` table shape,
+  defaults the C++ controller to `UFSECP_LBTC_AUTO`, and documents opaque ECDSA
+  normalization semantics for the default path.
+- **CUDA runtime links statically by default.** CUDA-enabled engine, GPU host,
+  C ABI, benchmarks, and libbitcoin bridge targets now default to static cudart
+  linkage while preserving a standard CMake override for dynamic cudart.
+- **CUDA/OpenCL ECDSA verify staging reduced.** Compact signatures are uploaded
+  and parsed into backend scalar registers in the kernel path, avoiding a
+  host-side `N x ECDSASignature` conversion loop.
+- **libbitcoin bridge scratch is grow-only.** Hot row/result staging reuses
+  thread-local buffers instead of allocating per chunk.
+- **Research monitor escalation softened.** Scheduled runs no longer open
+  GitHub issues for low-confidence `needs_review` research hits by default,
+  while high-confidence findings remain actionable.
+
+### Fixed
+
+- **CUDA signing scalar arithmetic now follows CT primitives.** CUDA
+  ECDSA/Schnorr signing paths reuse the CT scalar add/mul primitives instead of
+  duplicate local modular arithmetic.
+- **OpenCL/Metal compile and backend parity fixes.** Follow-up fixes restored
+  OpenCL C++17 compatibility, Metal shader compilation, and backend-specific
+  GPU decompression build paths.
+- **Bech32 P2WPKH encoding allocation reduction.** The common witness address
+  path now uses a stack-backed 5-bit conversion buffer and streaming checksum.
+- **XCFramework CI upload hardened.** CI hard-fails on missing/empty
+  XCFramework output before upload, while transient GitHub artifact upload
+  failures no longer create false-red builds.
+
+### Security
+
+- **CAAS gate surface expanded without hiding residuals.** GPU/hardware
+  evidence remains fail-closed for blocking gaps while ROCm real-device testing,
+  native SNARK GPU kernels, and physical power/EM/fault evidence stay explicitly
+  owner-gated or documented residuals.
+- **Research-signal and integration evidence routing remains enforced.** New
+  dashboard visibility is backed by existing gates rather than replacing them.
+
+### Performance
+
+- **libbitcoin batch verification path improved for real table workloads.**
+  CUDA row scratch reuse and reduced staging overhead target validation-sized
+  batches without forcing libbitcoin to reshape tables.
+- **GPU public-key decompression trades negligible compute for less transfer and
+  host work.** Local RTX 5060 Ti measurement showed compact-key backend
+  decompression adds only ~0.8 ns per key while reducing key transfer from 104
+  bytes to 33 bytes.
+
 ## [4.3.0] - 2026-06-16
 
 > **libsecp256k1-ABI backend under our own `ultrafast_secp256k1` name for Bitcoin

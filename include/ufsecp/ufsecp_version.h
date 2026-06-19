@@ -28,7 +28,7 @@ extern "C" {
  * stay in sync. Keep this file updated to match ufsecp_version.h.in. */
 
 #define UFSECP_VERSION_MAJOR   4
-#define UFSECP_VERSION_MINOR   3
+#define UFSECP_VERSION_MINOR   4
 #define UFSECP_VERSION_PATCH   0
 
 /** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat.
@@ -38,7 +38,7 @@ extern "C" {
      ((unsigned int)UFSECP_VERSION_MINOR <<  8) | \
       (unsigned int)UFSECP_VERSION_PATCH)
 
-#define UFSECP_VERSION_STRING  "4.3.0"
+#define UFSECP_VERSION_STRING  "4.4.0"
 
 /* -- ABI version (incremented ONLY on binary-incompatible changes) ---------- */
 

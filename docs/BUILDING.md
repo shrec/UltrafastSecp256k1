@@ -558,7 +558,7 @@ Output: `build-xcframework/output/UltrafastSecp256k1.xcframework`
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.3.0")
+    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.4.0")
 ]
 ```
 
