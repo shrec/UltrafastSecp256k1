@@ -86,6 +86,7 @@ AUDIT_SCRIPTS = [
     "check_research_signal_matrix.py",
     "check_evidence_refresh_coverage.py",
     "check_package_provenance_binding.py",
+    "check_release_package_contents.py",
     "check_libbitcoin_perf_matrix.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
@@ -102,6 +103,7 @@ HELPABLE_SCRIPTS = [
     "export_assurance.py",
     "preflight.py",
     "run_code_quality.py",
+    "check_release_package_contents.py",
 ]
 
 # ANSI
@@ -2589,6 +2591,60 @@ def check_package_provenance_binding_fixtures() -> None:
                 "release-marked-current / unknown workflow all fail; real dev manifest passes")
 
 
+def check_release_package_contents_fixtures() -> None:
+    """Release packages must contain only product libraries. Test/audit/exploit
+    standalone .lib/.a artifacts may exist in the build tree for CI, but the
+    release archive must fail closed if any of them is copied into lib/static or
+    lib/shared."""
+    tag = "REL:package_contents"
+    try:
+        mod = _load_ci_module("check_release_package_contents.py", "release_contents_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        good = root / "good"
+        (good / "lib" / "static").mkdir(parents=True)
+        (good / "lib" / "shared").mkdir(parents=True)
+        (good / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (good / "lib" / "static" / "ufsecp_s.lib").write_bytes(b"x")
+        (good / "lib" / "shared" / "ufsecp.dll").write_bytes(b"x")
+        if not mod.scan_package(good)["overall_pass"]:
+            failures.append("valid product-only package did not pass")
+
+        bad = root / "bad"
+        (bad / "lib" / "static").mkdir(parents=True)
+        (bad / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (bad / "lib" / "static" / "test_exploit_batch_sign_standalone.lib").write_bytes(b"x")
+        rep = mod.scan_package(bad)
+        if rep["overall_pass"]:
+            failures.append("test/exploit standalone library did not fail")
+        if not any(v["problem"] == "forbidden_test_or_audit_library" for v in rep["violations"]):
+            failures.append("forbidden standalone library was not classified")
+
+        unexpected = root / "unexpected"
+        (unexpected / "lib" / "static").mkdir(parents=True)
+        (unexpected / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (unexpected / "lib" / "static" / "internal_helper.lib").write_bytes(b"x")
+        rep = mod.scan_package(unexpected)
+        if rep["overall_pass"] or not any(v["problem"] == "unexpected_library" for v in rep["violations"]):
+            failures.append("unexpected internal library did not fail")
+
+        empty = root / "empty"
+        (empty / "lib" / "static").mkdir(parents=True)
+        rep = mod.scan_package(empty)
+        if rep["overall_pass"] or not any(v["problem"] == "missing_product_library" for v in rep["violations"]):
+            failures.append("empty lib package did not fail")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "product-only package passes; test/exploit/internal/empty library packages fail closed")
+
+
 def check_libbitcoin_perf_matrix_fixtures() -> None:
     """B21: the libbitcoin performance matrix gate must fail missing surfaces,
     wrong target_context, missing evidence, native-hardware overclaim, and missing
@@ -2751,6 +2807,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
         "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
+        "check_release_package_contents.py": "check_release_package_contents_fixtures",
         "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
     }
     g = globals()
@@ -2816,6 +2873,7 @@ def main() -> int:
     check_research_signal_matrix_fixtures()
     check_evidence_refresh_coverage_fixtures()
     check_package_provenance_binding_fixtures()
+    check_release_package_contents_fixtures()
     check_libbitcoin_perf_matrix_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()

@@ -441,9 +441,20 @@ jobs:
           # macOS ships bash 3.2 — no `mapfile`, no `declare -A` (associative
           # arrays). Use a portable read-loop + a helper scan instead so this
           # step runs on macOS as well as Linux/Windows.
+          _is_release_lib() {
+            case "$(basename "$1")" in
+              fastsecp256k1.lib|libfastsecp256k1.a|\
+              ultrafast_secp256k1.lib|ultrafast_secp256k1.dll|\
+              libultrafast_secp256k1.a|libultrafast_secp256k1.so|libultrafast_secp256k1.so.*|libultrafast_secp256k1.dylib|\
+              ufsecp.lib|ufsecp.dll|ufsecp_s.lib|libufsecp.a|libufsecp_s.a|libufsecp.so|libufsecp.so.*|libufsecp.dylib)
+                return 0 ;;
+            esac
+            return 1
+          }
+
           ALLLIBS=()
           while IFS= read -r _lib; do
-            [ -n "$_lib" ] && ALLLIBS+=("$_lib")
+            [ -n "$_lib" ] && _is_release_lib "$_lib" && ALLLIBS+=("$_lib")
           done < <(find build staging -maxdepth 5 \( \
             -name '*.dll' -o -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \
             -o -name '*.lib' -o -name '*.a' \) \
@@ -482,6 +493,8 @@ jobs:
             [ -f "${PKG_NAME}/${d}/fastsecp256k1.lib" ]  && mv "${PKG_NAME}/${d}/fastsecp256k1.lib"  "${PKG_NAME}/${d}/ultrafast_secp256k1.lib"
             [ -f "${PKG_NAME}/${d}/libfastsecp256k1.a" ] && mv "${PKG_NAME}/${d}/libfastsecp256k1.a" "${PKG_NAME}/${d}/libultrafast_secp256k1.a"
           done || true
+
+          python3 ci/check_release_package_contents.py "${PKG_NAME}"
 
           # -- Layout manifest --
           cat > "${PKG_NAME}/lib/LIBRARIES.md" <<'EOF'

@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-06-20 — Release package content allowlist
+
+- **Release archive contamination fixed:** `.github/workflows/release.yml` now
+  allowlists product libraries during desktop package collection instead of
+  copying every `.lib` / `.a` / shared library from the build tree.
+- **Fail-closed package guard added:** `ci/check_release_package_contents.py`
+  validates package directories or archives and rejects test, audit, exploit,
+  fuzz, benchmark, standalone, unexpected internal, misplaced, or empty library
+  payloads.
+- **Regression coverage:** `ci/test_audit_scripts.py` now includes the package
+  content checker and a fixture proving product-only packages pass while
+  `test_exploit_*_standalone.lib` style artifacts fail.
+
 ## 2026-06-19 — Release-tag Windows MSVC workflows pinned to VS2022 image
 
 - **Tag workflow false-red removed:** `.github/workflows/ci-advisory.yml` and
