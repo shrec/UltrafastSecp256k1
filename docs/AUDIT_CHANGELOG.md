@@ -6,6 +6,9 @@
   native leg now uses the same `lib/static` + `lib/shared` product-library
   allowlist and package-content guard as the desktop native legs. The old broad
   `find build ... *.a/*.so` collector was removed from that path.
+- **Binding package ingress guarded:** Python wheel and npm prebuild packaging now
+  re-run the release package-content checker over downloaded native archives
+  before copying any native library into binding packages.
 
 - **Release archive contamination fixed:** `.github/workflows/release.yml` now
   allowlists product libraries during desktop package collection instead of
