@@ -137,6 +137,21 @@ That produces both packages: `secp256k1-fast.pc` for the native engine and
 
 ---
 
+
+## Release Archive Selection
+
+Native release archives use the same package boundary across desktop and native
+Linux ARM64 builds:
+
+| Directory | Use when | Libraries |
+|---|---|---|
+| `lib/static` | static link / embedding | `ultrafast_secp256k1.*` for the libsecp256k1 ABI, `ufsecp_s.lib` / `libufsecp*.a` for the native C ABI |
+| `lib/shared` | dynamic link / bindings prebuilds | `ufsecp.dll` / `libufsecp.so` / `libufsecp.dylib` and, where available, `ultrafast_secp256k1` shared ABI libraries |
+
+Audit, exploit, fuzz, benchmark, JNI, and standalone test libraries are not part
+of native release archives. They are build-tree or binding-package artifacts
+only and are rejected by the release package-content guard.
+
 ## Summary
 
 | | Model 0 | Model 1 | Model 2 |

@@ -2,6 +2,11 @@
 
 ## 2026-06-20 — Release package content allowlist
 
+- **Linux ARM64 native package aligned:** the release workflow's Linux ARM64
+  native leg now uses the same `lib/static` + `lib/shared` product-library
+  allowlist and package-content guard as the desktop native legs. The old broad
+  `find build ... *.a/*.so` collector was removed from that path.
+
 - **Release archive contamination fixed:** `.github/workflows/release.yml` now
   allowlists product libraries during desktop package collection instead of
   copying every `.lib` / `.a` / shared library from the build tree.

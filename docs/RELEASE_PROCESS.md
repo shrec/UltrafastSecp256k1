@@ -137,12 +137,12 @@ Build platform binaries:
 
 > **Future**: Deterministic Docker builds (task 2.5.1), signed binaries (task 2.5.3).
 
-Desktop package archives are product-library allowlisted. `lib/static` and
-`lib/shared` may contain only `ufsecp*` native ABI libraries and
-`ultrafast_secp256k1*` libsecp256k1-compatible ABI libraries. CI/audit/test
-artifacts such as `test_*_standalone.lib`, `test_exploit_*`, fuzz, benchmark, or
-internal helper libraries are build-tree artifacts only and must not ship in a
-consumer archive. The release workflow enforces this with
+Desktop and native Linux ARM64 package archives are product-library
+allowlisted. `lib/static` and `lib/shared` may contain only `ufsecp*` native ABI
+libraries and `ultrafast_secp256k1*` libsecp256k1-compatible ABI libraries.
+CI/audit/test artifacts such as `test_*_standalone.lib`, `test_exploit_*`, fuzz,
+benchmark, or internal helper libraries are build-tree artifacts only and must
+not ship in a consumer archive. The release workflow enforces this with
 `ci/check_release_package_contents.py` before archiving.
 
 ### 3.5 GitHub Release
