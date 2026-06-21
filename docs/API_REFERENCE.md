@@ -2218,14 +2218,14 @@ and keep ECDSA and Schnorr batches homogeneous.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_lbtc_ctrl_create` | `(ctrl**, backend) -> error_t` | Create bridge controller; `AUTO` binds GPU when available, otherwise CPU |
-| `ufsecp_lbtc_verify_ecdsa` | `(ctrl, rows, n, key_size, results)` | Packed-row ECDSA verify; row = `hash32|pubkey33|sig64|opaque-key` |
-| `ufsecp_lbtc_verify_schnorr` | `(ctrl, rows, n, key_size, results)` | Packed-row Schnorr verify; row = `hash32|xonly32|sig64|opaque-key` |
-| `ufsecp_lbtc_verify_ecdsa_columns` | `(ctrl, hashes32, pubkeys33, sigs64, n, results)` | Columnar ECDSA verify; avoids bridge-side row-to-column de-interleave |
-| `ufsecp_lbtc_verify_schnorr_columns` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, results)` | Columnar Schnorr verify; avoids bridge-side row-to-column de-interleave |
-| `ufsecp_lbtc_verify_ecdsa_collect` | `(ctrl, rows, n, key_size)` | Packed-row collect; valid rows zero the row tail, invalid rows keep it |
-| `ufsecp_lbtc_verify_schnorr_collect` | `(ctrl, rows, n, key_size)` | Packed-row Schnorr collect |
-| `ufsecp_lbtc_verify_ecdsa_columns_collect` | `(ctrl, hashes32, pubkeys33, sigs64, n, key_cells, key_size)` | Columnar collect; valid rows zero `key_cells[i]`, invalid rows keep it |
-| `ufsecp_lbtc_verify_schnorr_columns_collect` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, key_cells, key_size)` | Columnar Schnorr collect |
+| `ufsecp_lbtc_verify_ecdsa` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row ECDSA verify; row = `hash32|pubkey33|sig64|opaque-key` |
+| `ufsecp_lbtc_verify_schnorr` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row Schnorr verify; row = `hash32|xonly32|sig64|opaque-key` |
+| `ufsecp_lbtc_verify_ecdsa_columns` | `(ctrl, hashes32, pubkeys33, sigs64, n, results, cancel=NULL)` | Columnar ECDSA verify; avoids bridge-side row-to-column de-interleave |
+| `ufsecp_lbtc_verify_schnorr_columns` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, results, cancel=NULL)` | Columnar Schnorr verify; avoids bridge-side row-to-column de-interleave |
+| `ufsecp_lbtc_verify_ecdsa_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row collect; valid rows zero the row tail, invalid rows keep it |
+| `ufsecp_lbtc_verify_schnorr_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row Schnorr collect |
+| `ufsecp_lbtc_verify_ecdsa_columns_collect` | `(ctrl, hashes32, pubkeys33, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar collect; valid rows zero `key_cells[i]`, invalid rows keep it |
+| `ufsecp_lbtc_verify_schnorr_columns_collect` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar Schnorr collect |
 
 Use the packed-row API when the producer naturally stores `[record | key]`
 tuples. Use the columnar API when the producer already stores
@@ -2233,6 +2233,13 @@ tuples. Use the columnar API when the producer already stores
 bridge forwards these columns directly to the existing GPU C ABI instead of
 building temporary columns from rows. The opaque key bytes are correlation
 metadata only and are never interpreted by the bridge.
+
+All libbitcoin verify/collect entry points accept a trailing
+`const ufsecp_cancel_token* cancel` argument. `NULL` preserves the old behavior.
+When the token callback returns non-zero, the call returns `UFSECP_ERR_CANCELLED`;
+callers must discard partial `results` or collect-key state. C++ callers may omit
+the argument because the header supplies a default `NULL`; plain C callers pass
+the final argument explicitly.
 
 <a id="c-abi-msm"></a>
 ### Multi-Scalar Multiplication

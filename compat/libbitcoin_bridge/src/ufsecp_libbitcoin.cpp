@@ -88,6 +88,21 @@ inline std::size_t pubkey_size(Kind k) {
     return k == Kind::Ecdsa ? 33u : 32u;
 }
 
+inline bool cancel_requested(const ufsecp_cancel_token* cancel) noexcept {
+    if (!cancel || !cancel->is_cancelled) return false;
+    try {
+        return cancel->is_cancelled(cancel->user) != 0;
+    } catch (...) {
+        return true;
+    }
+}
+
+inline std::size_t cancel_chunk_size(const ufsecp_cancel_token* cancel) noexcept {
+    if (!cancel || cancel->check_interval == 0) return kChunk;
+    const std::size_t requested = static_cast<std::size_t>(cancel->check_interval);
+    return requested < kChunk ? requested : kChunk;
+}
+
 /* secp256k1 group order and half-order, big-endian. These are public signature
  * normalization constants used only at the libbitcoin bridge boundary. */
 static constexpr uint8_t kScalarOrder[32] = {
@@ -582,12 +597,15 @@ bool gpu_columns_collect(ufsecp_gpu_ctx* gpu, Kind k,
  * stay zero-init = invalid; collect key cells stay non-zero = rejected), never
  * falsely accepted. */
 template <class Sink>
-void verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
-                 std::size_t n, std::size_t stride,
-                 EcdsaSigFormat format, Sink& sink) {
+ufsecp_error_t verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
+                           std::size_t n, std::size_t stride,
+                           EcdsaSigFormat format, Sink& sink,
+                           const ufsecp_cancel_token* cancel) {
     try {
-        for (std::size_t base = 0; base < n; base += kChunk) {
-            const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
+        const std::size_t chunk = cancel_chunk_size(cancel);
+        for (std::size_t base = 0; base < n; base += chunk) {
+            if (cancel_requested(cancel)) return UFSECP_ERR_CANCELLED;
+            const std::size_t cnt = (n - base) < chunk ? (n - base) : chunk;
 #ifdef UFSECP_LBTC_WITH_GPU
             if (ctrl->gpu) {
                 /* Collect path PREFERS the dedicated on-device kernel; the results
@@ -610,52 +628,58 @@ void verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
             cpu_chunk(ctrl->cpu, k, rows, base, cnt, stride, format, sink);
         }
     } catch (...) {
-        return; /* fail-closed: unprocessed rows remain at caller initial state */
+        return UFSECP_OK; /* fail-closed: unprocessed rows remain at caller initial state */
     }
+    return UFSECP_OK;
 }
 
 /* results[] variant — original behavior, unchanged for existing callers. */
-void verify_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+ufsecp_error_t verify_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                          const uint8_t* rows, std::size_t n,
                          std::size_t key_size, EcdsaSigFormat format,
-                         uint8_t* results) {
+                         uint8_t* results,
+                         const ufsecp_cancel_token* cancel) {
     /* No-op on a degenerate call: a NULL ctrl/rows or empty batch leaves results
      * exactly as the caller initialized it. Callers zero-initialize results, so a
      * degenerate call reads as "all invalid" (fail-closed), never falsely valid. */
-    if (!ctrl || n == 0 || !rows) return;
+    if (!ctrl || n == 0 || !rows) return UFSECP_OK;
     const std::size_t stride = record_size(k) + key_size;
     ResultSink sink{results};
-    verify_core(ctrl, k, rows, n, stride, format, sink);
+    return verify_core(ctrl, k, rows, n, stride, format, sink, cancel);
 }
 
 /* In-place "collect" variant — verdict collapsed into each row's key cell.
  * key_size == 0 is a no-op (no cell to write the verdict into → nothing can be
  * reported → fail-closed: every id survives = all rejected, never falsely
  * accepted). rows MUST be writable (the C++ span overload enforces non-const). */
-void verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+ufsecp_error_t verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                          uint8_t* rows, std::size_t n, std::size_t key_size,
-                         EcdsaSigFormat format) {
-    if (!ctrl || n == 0 || !rows || key_size == 0) return;
+                         EcdsaSigFormat format,
+                         const ufsecp_cancel_token* cancel) {
+    if (!ctrl || n == 0 || !rows || key_size == 0) return UFSECP_OK;
     const std::size_t rec    = record_size(k);
     const std::size_t stride = rec + key_size;
     CollectSink sink{rows, stride, rec, key_size};
     /* rows passed twice: as the const read view to verify_core, and (inside the
      * sink) as the mutable write target. No aliasing — see CollectSink. */
-    verify_core(ctrl, k, static_cast<const uint8_t*>(rows), n, stride, format,
-                sink);
+    return verify_core(ctrl, k, static_cast<const uint8_t*>(rows), n, stride, format,
+                       sink, cancel);
 }
 
 /* Vertical/columnar results[] variant. This is the copy-avoidance path for a
  * caller that stores its batch as independent msg/pub/sig columns already. */
-void verify_columns_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+ufsecp_error_t verify_columns_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                                  const uint8_t* msgs32, const uint8_t* pubs,
                                  const uint8_t* sigs64, std::size_t n,
-                                 EcdsaSigFormat format, uint8_t* results) {
-    if (!ctrl || n == 0 || !msgs32 || !pubs || !sigs64) return;
+                                 EcdsaSigFormat format, uint8_t* results,
+                                 const ufsecp_cancel_token* cancel) {
+    if (!ctrl || n == 0 || !msgs32 || !pubs || !sigs64) return UFSECP_OK;
     ResultSink sink{results};
     try {
-        for (std::size_t base = 0; base < n; base += kChunk) {
-            const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
+        const std::size_t chunk = cancel_chunk_size(cancel);
+        for (std::size_t base = 0; base < n; base += chunk) {
+            if (cancel_requested(cancel)) return UFSECP_ERR_CANCELLED;
+            const std::size_t cnt = (n - base) < chunk ? (n - base) : chunk;
 #ifdef UFSECP_LBTC_WITH_GPU
             if (ctrl->gpu &&
                 gpu_columns_results(ctrl->gpu, k, msgs32, pubs, sigs64, base, cnt,
@@ -666,23 +690,27 @@ void verify_columns_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                               format, sink);
         }
     } catch (...) {
-        return; /* fail-closed: caller-initialized result bytes remain untouched */
+        return UFSECP_OK; /* fail-closed: caller-initialized result bytes remain untouched */
     }
+    return UFSECP_OK;
 }
 
 /* Vertical/columnar collect variant. key_cells is an independent n*key_size
  * correlation-key column. VALID rows are zeroed; INVALID rows are left intact. */
-void verify_columns_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
+ufsecp_error_t verify_columns_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                                  const uint8_t* msgs32, const uint8_t* pubs,
                                  const uint8_t* sigs64, std::size_t n,
                                  uint8_t* key_cells, std::size_t key_size,
-                                 EcdsaSigFormat format) {
+                                 EcdsaSigFormat format,
+                                 const ufsecp_cancel_token* cancel) {
     if (!ctrl || n == 0 || !msgs32 || !pubs || !sigs64 || !key_cells || key_size == 0)
-        return;
+        return UFSECP_OK;
     KeyColumnSink sink{key_cells, key_size};
     try {
-        for (std::size_t base = 0; base < n; base += kChunk) {
-            const std::size_t cnt = (n - base) < kChunk ? (n - base) : kChunk;
+        const std::size_t chunk = cancel_chunk_size(cancel);
+        for (std::size_t base = 0; base < n; base += chunk) {
+            if (cancel_requested(cancel)) return UFSECP_ERR_CANCELLED;
+            const std::size_t cnt = (n - base) < chunk ? (n - base) : chunk;
 #ifdef UFSECP_LBTC_WITH_GPU
             if (ctrl->gpu &&
                 gpu_columns_collect(ctrl->gpu, k, msgs32, pubs, sigs64, base, cnt,
@@ -693,8 +721,9 @@ void verify_columns_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                               format, sink);
         }
     } catch (...) {
-        return; /* fail-closed: unprocessed key cells stay non-zero/rejected */
+        return UFSECP_OK; /* fail-closed: unprocessed key cells stay non-zero/rejected */
     }
+    return UFSECP_OK;
 }
 
 /* Shared implementation of the public packed-row verify entry points (the shape
@@ -712,11 +741,13 @@ ufsecp_error_t verify_rows_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                                 const uint8_t* rows, std::size_t n, std::size_t key_size,
                                 uint8_t* results, std::size_t* invalid_idx,
                                 std::size_t invalid_cap, std::size_t* invalid_count,
-                                EcdsaSigFormat format) {
+                                EcdsaSigFormat format,
+                                const ufsecp_cancel_token* cancel) {
     if (invalid_count) *invalid_count = 0;
     if (!ctrl) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return UFSECP_OK;                 /* empty batch: vacuously valid */
     if (!rows) return UFSECP_ERR_NULL_ARG;
+    if (cancel_requested(cancel)) return UFSECP_ERR_CANCELLED;
 
     /* Verify into the caller's results[] when provided, else a local scratch.
      * Zero-init = invalid, so any row the verify core does not reach (mid-batch
@@ -726,7 +757,8 @@ ufsecp_error_t verify_rows_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
     if (!res) { local.assign(n, 0u); res = local.data(); }
     else std::memset(res, 0, n);
 
-    verify_results_impl(ctrl, k, rows, n, key_size, format, res);
+    const ufsecp_error_t rc = verify_results_impl(ctrl, k, rows, n, key_size, format, res, cancel);
+    if (rc == UFSECP_ERR_CANCELLED) return rc;
 
     std::size_t failed = 0;
     for (std::size_t i = 0; i < n; ++i) {
@@ -826,91 +858,105 @@ const char* ufsecp_lbtc_ctrl_device_name(const ufsecp_lbtc_ctrl* ctrl) {
  * the same 8-argument shape and verdict/parity semantics. */
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque(
         ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
-        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, const ufsecp_cancel_token* cancel) {
     return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
                             invalid_idx, invalid_cap, invalid_count,
-                            EcdsaSigFormat::Opaque);
+                            EcdsaSigFormat::Opaque, cancel);
 }
 
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(
         ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
-        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, const ufsecp_cancel_token* cancel) {
     return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
                             invalid_idx, invalid_cap, invalid_count,
-                            EcdsaSigFormat::Compact);
+                            EcdsaSigFormat::Compact, cancel);
 }
 
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa(
         ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
-        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, const ufsecp_cancel_token* cancel) {
     return ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows, n, key_size, results,
-                                           invalid_idx, invalid_cap, invalid_count);
+                                           invalid_idx, invalid_cap, invalid_count,
+                                           cancel);
 }
 
 /* Schnorr signatures have a single BIP-340 form (no opaque/compact distinction). */
 ufsecp_error_t ufsecp_lbtc_verify_schnorr(
         ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
-        uint8_t* results, size_t* invalid_idx, size_t invalid_cap, size_t* invalid_count) {
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, const ufsecp_cancel_token* cancel) {
     return verify_rows_impl(ctrl, Kind::Schnorr, rows, n, key_size, results,
                             invalid_idx, invalid_cap, invalid_count,
-                            EcdsaSigFormat::Compact);
+                            EcdsaSigFormat::Compact, cancel);
 }
 
-void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
-                                      uint8_t* rows, size_t n,
-                                      size_t key_size) {
-    verify_collect_impl(ctrl, Kind::Ecdsa, rows, n, key_size,
-                        EcdsaSigFormat::Opaque);
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                uint8_t* rows, size_t n,
+                                                size_t key_size,
+                                                const ufsecp_cancel_token* cancel) {
+    return verify_collect_impl(ctrl, Kind::Ecdsa, rows, n, key_size,
+                               EcdsaSigFormat::Opaque, cancel);
 }
 
-void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
-                                        uint8_t* rows, size_t n,
-                                        size_t key_size) {
-    verify_collect_impl(ctrl, Kind::Schnorr, rows, n, key_size,
-                        EcdsaSigFormat::Compact);
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                  uint8_t* rows, size_t n,
+                                                  size_t key_size,
+                                                  const ufsecp_cancel_token* cancel) {
+    return verify_collect_impl(ctrl, Kind::Schnorr, rows, n, key_size,
+                               EcdsaSigFormat::Compact, cancel);
 }
 
-void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
-                                      const uint8_t* msg_hashes32,
-                                      const uint8_t* pubkeys33,
-                                      const uint8_t* sigs64,
-                                      size_t n,
-                                      uint8_t* results) {
-    verify_columns_results_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
-                                n, EcdsaSigFormat::Opaque, results);
-}
-
-void ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
-                                        const uint8_t* msg_hashes32,
-                                        const uint8_t* pubkeys_x32,
-                                        const uint8_t* sigs64,
-                                        size_t n,
-                                        uint8_t* results) {
-    verify_columns_results_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
-                                sigs64, n, EcdsaSigFormat::Compact, results);
-}
-
-void ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
-                                              const uint8_t* msg_hashes32,
-                                              const uint8_t* pubkeys33,
-                                              const uint8_t* sigs64,
-                                              size_t n,
-                                              uint8_t* key_cells,
-                                              size_t key_size) {
-    verify_columns_collect_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
-                                n, key_cells, key_size, EcdsaSigFormat::Opaque);
-}
-
-void ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
                                                 const uint8_t* msg_hashes32,
-                                                const uint8_t* pubkeys_x32,
+                                                const uint8_t* pubkeys33,
                                                 const uint8_t* sigs64,
                                                 size_t n,
-                                                uint8_t* key_cells,
-                                                size_t key_size) {
-    verify_columns_collect_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
-                                sigs64, n, key_cells, key_size,
-                                EcdsaSigFormat::Compact);
+                                                uint8_t* results,
+                                                const ufsecp_cancel_token* cancel) {
+    return verify_columns_results_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33,
+                                       sigs64, n, EcdsaSigFormat::Opaque, results,
+                                       cancel);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
+                                                  const uint8_t* msg_hashes32,
+                                                  const uint8_t* pubkeys_x32,
+                                                  const uint8_t* sigs64,
+                                                  size_t n,
+                                                  uint8_t* results,
+                                                  const ufsecp_cancel_token* cancel) {
+    return verify_columns_results_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
+                                       sigs64, n, EcdsaSigFormat::Compact, results,
+                                       cancel);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                        const uint8_t* msg_hashes32,
+                                                        const uint8_t* pubkeys33,
+                                                        const uint8_t* sigs64,
+                                                        size_t n,
+                                                        uint8_t* key_cells,
+                                                        size_t key_size,
+                                                        const ufsecp_cancel_token* cancel) {
+    return verify_columns_collect_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33,
+                                       sigs64, n, key_cells, key_size,
+                                       EcdsaSigFormat::Opaque, cancel);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+                                                          const uint8_t* msg_hashes32,
+                                                          const uint8_t* pubkeys_x32,
+                                                          const uint8_t* sigs64,
+                                                          size_t n,
+                                                          uint8_t* key_cells,
+                                                          size_t key_size,
+                                                          const ufsecp_cancel_token* cancel) {
+    return verify_columns_collect_impl(ctrl, Kind::Schnorr, msg_hashes32, pubkeys_x32,
+                                       sigs64, n, key_cells, key_size,
+                                       EcdsaSigFormat::Compact, cancel);
 }
 
 /* ---------------------------------------------------------------------------
@@ -957,25 +1003,29 @@ void ufsecp_lbtc_ecdsa_sigs_pack(const uint8_t* in, size_t n,
  * sigs). Same verdict + same CPU/GPU parity as ufsecp_lbtc_verify_ecdsa_columns;
  * the only difference is the input sig format (compact instead of opaque). High-S
  * is still low-S normalized, so a not-yet-normalized compact column is also safe. */
-void ufsecp_lbtc_verify_ecdsa_columns_compact(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_compact(ufsecp_lbtc_ctrl* ctrl,
                                               const uint8_t* msg_hashes32,
                                               const uint8_t* pubkeys33,
                                               const uint8_t* sigs64,
                                               size_t n,
-                                              uint8_t* results) {
-    verify_columns_results_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
-                                n, EcdsaSigFormat::Compact, results);
+                                              uint8_t* results,
+                                              const ufsecp_cancel_token* cancel) {
+    return verify_columns_results_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33,
+                                       sigs64, n, EcdsaSigFormat::Compact, results,
+                                       cancel);
 }
 
-void ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
                                                       const uint8_t* msg_hashes32,
                                                       const uint8_t* pubkeys33,
                                                       const uint8_t* sigs64,
                                                       size_t n,
                                                       uint8_t* key_cells,
-                                                      size_t key_size) {
-    verify_columns_collect_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33, sigs64,
-                                n, key_cells, key_size, EcdsaSigFormat::Compact);
+                                                      size_t key_size,
+                                                      const ufsecp_cancel_token* cancel) {
+    return verify_columns_collect_impl(ctrl, Kind::Ecdsa, msg_hashes32, pubkeys33,
+                                       sigs64, n, key_cells, key_size,
+                                       EcdsaSigFormat::Compact, cancel);
 }
 
 /* ---------------------------------------------------------------------------

@@ -223,6 +223,30 @@ endif()
 option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "Build the libbitcoin GPU/CPU consensus differential (test_lbtc_consensus_diff)" OFF)
 if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
+    add_executable(test_lbtc_bridge
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp"
+        ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})
+    target_compile_features(test_lbtc_bridge PRIVATE cxx_std_20)
+    target_compile_definitions(test_lbtc_bridge PRIVATE UFSECP_BUILDING UFSECP_STATIC_LIB)
+    target_include_directories(test_lbtc_bridge PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CPU_INCLUDE_DIR} ${SHARED_INCLUDE_DIR}
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/include")
+    target_link_libraries(test_lbtc_bridge PRIVATE fastsecp256k1)
+    if(TARGET secp256k1_gpu_host)
+        target_link_libraries(test_lbtc_bridge PRIVATE secp256k1_gpu_host)
+        target_include_directories(test_lbtc_bridge PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
+        target_compile_definitions(test_lbtc_bridge PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(test_lbtc_bridge PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endif()
+    include(CTest)
+    enable_testing()
+    add_test(NAME lbtc_bridge COMMAND test_lbtc_bridge)
+    set_tests_properties(lbtc_bridge PROPERTIES LABELS "libbitcoin;batch;compat")
+
     add_executable(test_lbtc_consensus_diff
         "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp"
         ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})
@@ -282,7 +306,7 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
     endif()
     add_test(NAME lbtc_multisig_threshold COMMAND test_lbtc_multisig_threshold)
     set_tests_properties(lbtc_multisig_threshold PROPERTIES LABELS "libbitcoin;batch;compat")
-    message(STATUS "  libbitcoin tests: ON (consensus diff + multisig/threshold, central source)")
+    message(STATUS "  libbitcoin tests: ON (bridge + consensus diff + multisig/threshold, central source)")
 endif()
 
 # -- Install (standalone only -- skip when used as sub-project) --------------

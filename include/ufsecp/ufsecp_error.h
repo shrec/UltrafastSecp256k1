@@ -34,6 +34,7 @@ typedef int ufsecp_error_t;
 #define UFSECP_ERR_BUF_TOO_SMALL 10  /**< Output buffer too small              */
 #define UFSECP_ERR_NOT_FOUND     11  /**< Item not found (e.g. GCS filter match) */
 #define UFSECP_ERR_DEPRECATED_API 12 /**< Deprecated ABI cannot be safely called */
+#define UFSECP_ERR_CANCELLED     13  /**< Caller requested operation cancellation */
 
 /* -- Error inspection ------------------------------------------------------- */
 

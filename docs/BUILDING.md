@@ -134,6 +134,24 @@ Native C++ and libsecp256k1-shim integrations should link `secp256k1::fast`
 or the `secp256k1_shim` facade, not `libufsecp`, unless they intentionally use
 the C ABI surface.
 
+### Libbitcoin Profile And Tests
+
+The libbitcoin profile builds the shim, central C ABI bridge, and BIP-352 scan
+surface without requiring a separate bridge library. Enable the optional
+central-source libbitcoin test targets when validating bridge changes locally:
+
+```bash
+cmake --preset cpu-release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
+cmake --build --preset cpu-release --target test_lbtc_bridge -j
+ctest --test-dir out/cpu-release -R '^lbtc_' --output-on-failure
+```
+
+`lbtc_consensus_diff` is GPU/local-CI oriented and skips cleanly when no GPU is
+available; `lbtc_bridge` and `lbtc_multisig_threshold` are CPU-validating
+regression targets.
+
 ### Coin-Specific Profiles (Minimal Footprint)
 
 Named presets strip unused optional modules to reduce `.text` size and compilation

@@ -118,6 +118,25 @@ typedef enum {
     UFSECP_LBTC_BOUND_METAL  = 3
 } ufsecp_lbtc_bound;
 
+/* Optional caller-driven cancellation token for long batch verification.
+ * NULL preserves the original behavior. A non-NULL token is polled between
+ * chunks; check_interval == 0 uses the engine default chunk size. Returning
+ * non-zero from is_cancelled yields UFSECP_ERR_CANCELLED. Cancellation is an
+ * execution status: partial results/key-cells are caller-discarded and must not
+ * be interpreted as consensus verdicts. */
+typedef int (*ufsecp_cancel_fn)(void* user);
+typedef struct ufsecp_cancel_token {
+    ufsecp_cancel_fn is_cancelled;
+    void* user;
+    uint32_t check_interval;
+} ufsecp_cancel_token;
+
+#ifdef __cplusplus
+#define UFSECP_LBTC_CANCEL_DEFAULT = NULL
+#else
+#define UFSECP_LBTC_CANCEL_DEFAULT
+#endif
+
 /* Create / destroy the controller. On success *out receives a non-NULL handle.
  * UFSECP_LBTC_AUTO never fails for lack of a GPU — it silently binds CPU. */
 ufsecp_error_t ufsecp_lbtc_ctrl_create(ufsecp_lbtc_ctrl** out,
@@ -189,25 +208,29 @@ ufsecp_error_t ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* rows, size_t n,
                                         size_t key_size, uint8_t* results,
                                         size_t* invalid_idx, size_t invalid_cap,
-                                        size_t* invalid_count);
+                                        size_t* invalid_count,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* rows, size_t n,
                                         size_t key_size, uint8_t* results,
                                         size_t* invalid_idx, size_t invalid_cap,
-                                        size_t* invalid_count);
+                                        size_t* invalid_count,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* rows, size_t n,
                                         size_t key_size, uint8_t* results,
                                         size_t* invalid_idx, size_t invalid_cap,
-                                        size_t* invalid_count);
+                                        size_t* invalid_count,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 ufsecp_error_t ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* rows, size_t n,
                                         size_t key_size, uint8_t* results,
                                         size_t* invalid_idx, size_t invalid_cap,
-                                        size_t* invalid_count);
+                                        size_t* invalid_count,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /*
  * Columnar/vertical form of the same verification API. These calls are intended
@@ -224,19 +247,21 @@ ufsecp_error_t ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
  * mutated. Degenerate calls are no-ops; callers should zero-initialize results
  * for fail-closed behavior.
  */
-void ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
                                       const uint8_t* msg_hashes32,
                                       const uint8_t* pubkeys33,
                                       const uint8_t* sigs64,
                                       size_t n,
-                                      uint8_t* results);
+                                      uint8_t* results,
+                                      const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
-void ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_columns(ufsecp_lbtc_ctrl* ctrl,
                                         const uint8_t* msg_hashes32,
                                         const uint8_t* pubkeys_x32,
                                         const uint8_t* sigs64,
                                         size_t n,
-                                        uint8_t* results);
+                                        uint8_t* results,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /* ------------------------------------------------------------------------- */
 /* 1a'. ECDSA signature packing — build a GPU-native sig table/column once.    */
@@ -275,20 +300,22 @@ void ufsecp_lbtc_ecdsa_sig_pack(const uint8_t* in, int input_is_opaque,
 void ufsecp_lbtc_ecdsa_sigs_pack(const uint8_t* in, size_t n,
                                  int input_is_opaque, uint8_t* out);
 
-void ufsecp_lbtc_verify_ecdsa_columns_compact(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_compact(ufsecp_lbtc_ctrl* ctrl,
                                               const uint8_t* msg_hashes32,
                                               const uint8_t* pubkeys33,
                                               const uint8_t* sigs64,
                                               size_t n,
-                                              uint8_t* results);
+                                              uint8_t* results,
+                                              const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
-void ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
                                                       const uint8_t* msg_hashes32,
                                                       const uint8_t* pubkeys33,
                                                       const uint8_t* sigs64,
                                                       size_t n,
                                                       uint8_t* key_cells,
-                                                      size_t key_size);
+                                                      size_t key_size,
+                                                      const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /* ------------------------------------------------------------------------- */
 /* 1b. In-place "collect" verify — verdict collapsed into the row's key cell.  */
@@ -321,21 +348,23 @@ void ufsecp_lbtc_verify_ecdsa_columns_compact_collect(ufsecp_lbtc_ctrl* ctrl,
  *             with key_size == 0 there is no cell to write the verdict into, so
  *             the call is a NO-OP (nothing can be reported — fail-closed).
  *
- * Returns void (same error model as the results variant): the only recoverable
- * failure — no usable backend — is surfaced at ctrl_create time. A degenerate
- * call (NULL ctrl/rows, n == 0, or key_size == 0) writes nothing; the key cells
- * stay as supplied, i.e. every id survives = "all rejected" = fail-closed, never
- * falsely accepted. An unrecoverable mid-batch condition (scratch OOM) abandons
- * the loop: processed rows keep their zeroed/left verdict; rows not yet reached
- * keep their non-zero id = rejected. Fail-closed end to end.
+ * Returns UFSECP_OK or UFSECP_ERR_CANCELLED. A degenerate call
+ * (NULL rows, n == 0, or key_size == 0) writes nothing; the key cells stay as
+ * supplied, i.e. every id survives = "all rejected" = fail-closed, never falsely
+ * accepted. On cancellation the caller must discard the partially-mutated key
+ * cells. An unrecoverable mid-batch condition (scratch OOM) abandons the loop:
+ * processed rows keep their zeroed/left verdict; rows not yet reached keep their
+ * non-zero id = rejected. Fail-closed end to end.
  */
-void ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,
                                       uint8_t* rows, size_t n,
-                                      size_t key_size);
+                                      size_t key_size,
+                                      const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
-void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
                                         uint8_t* rows, size_t n,
-                                        size_t key_size);
+                                        size_t key_size,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /*
  * Columnar/vertical collect form. The verified bytes live in msg/pub/sig columns;
@@ -343,21 +372,23 @@ void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
  * their whole key cell zeroed; INVALID rows keep their key cell intact. With
  * key_size == 0 the call is a no-op/fail-closed, matching the packed collect API.
  */
-void ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns_collect(ufsecp_lbtc_ctrl* ctrl,
                                               const uint8_t* msg_hashes32,
                                               const uint8_t* pubkeys33,
                                               const uint8_t* sigs64,
                                               size_t n,
                                               uint8_t* key_cells,
-                                              size_t key_size);
+                                              size_t key_size,
+                                              const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
-void ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_columns_collect(ufsecp_lbtc_ctrl* ctrl,
                                                 const uint8_t* msg_hashes32,
                                                 const uint8_t* pubkeys_x32,
                                                 const uint8_t* sigs64,
                                                 size_t n,
                                                 uint8_t* key_cells,
-                                                size_t key_size);
+                                                size_t key_size,
+                                                const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /* ------------------------------------------------------------------------- */
 /* 2. BIP-352 Silent Payments scan batch.                                     */
@@ -672,36 +703,40 @@ public:
     // Pass the record COUNT and the KEY SIZE (key_size == 0 == no correlation key)
     // plus the per-row results buffer. The row pointer has NO size argument: the
     // buffer is fully determined by count * (RECORD + key_size) bytes, so it can
-    // never mismatch and there is no size-related error condition. Returns void —
-    // results[i] (1=valid/0=invalid) is the only output; the caller maps a failing
-    // row back to its block/tx via the opaque tag at rows[i]. ECDSA high-S rows
-    // are normalized in scratch, never in the caller buffer. (Per evoskuil: the
-    // buffer size is redundant with count+key_size, and there is no calling failure
-    // mode — controller-init is the only recoverable error, checked via ok().)
-    void verify_ecdsa(const uint8_t* rows, size_t count, size_t key_size,
-                      uint8_t* results) const {
-        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
-                                       nullptr, 0, nullptr);
+    // never mismatch and there is no size-related error condition. Returns
+    // UFSECP_OK or UFSECP_ERR_CANCELLED when an optional cancel token asks the
+    // batch to stop. results[i] (1=valid/0=invalid) is valid only on UFSECP_OK;
+    // the caller maps a failing row back to its block/tx via the opaque tag at
+    // rows[i]. ECDSA high-S rows are normalized in scratch, never in the caller
+    // buffer. (Per evoskuil: the buffer size is redundant with count+key_size.)
+    ufsecp_error_t verify_ecdsa(const uint8_t* rows, size_t count, size_t key_size,
+                      uint8_t* results,
+                      const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                        nullptr, 0, nullptr, cancel);
     }
-    void verify_schnorr(const uint8_t* rows, size_t count, size_t key_size,
-                        uint8_t* results) const {
-        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
-                                         nullptr, 0, nullptr);
+    ufsecp_error_t verify_schnorr(const uint8_t* rows, size_t count, size_t key_size,
+                        uint8_t* results,
+                        const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                          nullptr, 0, nullptr, cancel);
     }
 
     // Columnar / vertical verify. Use when the node already stores independent
     // msg/pub/sig columns and wants to avoid bridge-side row de-interleave.
-    void verify_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+    ufsecp_error_t verify_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                               const uint8_t* sigs64, size_t count,
-                              uint8_t* results) const {
-        ufsecp_lbtc_verify_ecdsa_columns(
-            ctrl_, msg_hashes32, pubkeys33, sigs64, count, results);
+                              uint8_t* results,
+                              const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa_columns(
+            ctrl_, msg_hashes32, pubkeys33, sigs64, count, results, cancel);
     }
-    void verify_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+    ufsecp_error_t verify_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
                                 const uint8_t* sigs64, size_t count,
-                                uint8_t* results) const {
-        ufsecp_lbtc_verify_schnorr_columns(
-            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, results);
+                                uint8_t* results,
+                                const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr_columns(
+            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, results, cancel);
     }
 
     // Multisig (ECDSA m-of-n) and threshold (Schnorr / tapscript m-of-n) tables.
@@ -709,25 +744,29 @@ public:
     // verification, named for the libbitcoin table they consume. The m|n+group
     // bytes ride in the opaque key tail; key_size is its width (6 for the
     // canonical MultisigRow / ThresholdRow: m|n + group + block-fk).
-    void verify_multisig(const uint8_t* rows, size_t count, size_t key_size,
-                         uint8_t* results) const {
-        (void)ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
-                                       nullptr, 0, nullptr);
+    ufsecp_error_t verify_multisig(const uint8_t* rows, size_t count, size_t key_size,
+                         uint8_t* results,
+                         const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa(ctrl_, rows, count, key_size, results,
+                                        nullptr, 0, nullptr, cancel);
     }
-    void verify_threshold(const uint8_t* rows, size_t count, size_t key_size,
-                          uint8_t* results) const {
-        (void)ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
-                                         nullptr, 0, nullptr);
+    ufsecp_error_t verify_threshold(const uint8_t* rows, size_t count, size_t key_size,
+                          uint8_t* results,
+                          const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr(ctrl_, rows, count, key_size, results,
+                                          nullptr, 0, nullptr, cancel);
     }
-    void verify_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+    ufsecp_error_t verify_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                                  const uint8_t* sigs64, size_t count,
-                                 uint8_t* results) const {
-        verify_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count, results);
+                                 uint8_t* results,
+                                 const ufsecp_cancel_token* cancel = nullptr) const {
+        return verify_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count, results, cancel);
     }
-    void verify_threshold_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+    ufsecp_error_t verify_threshold_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
                                   const uint8_t* sigs64, size_t count,
-                                  uint8_t* results) const {
-        verify_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count, results);
+                                  uint8_t* results,
+                                  const ufsecp_cancel_token* cancel = nullptr) const {
+        return verify_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count, results, cancel);
     }
 
     // --- Collect (in-place) verify ------------------------------------------
@@ -735,36 +774,42 @@ public:
     // cell (key_size MUST be > 0) — zeroed on valid, left intact on invalid. The
     // caller then collects every row whose key cell is still non-zero = the
     // rejected-id set. `rows` MUST be writable. key_size == 0 is a no-op.
-    void collect_ecdsa(uint8_t* rows, size_t count, size_t key_size) const {
-        ufsecp_lbtc_verify_ecdsa_collect(ctrl_, rows, count, key_size);
+    ufsecp_error_t collect_ecdsa(uint8_t* rows, size_t count, size_t key_size,
+                                const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa_collect(ctrl_, rows, count, key_size, cancel);
     }
-    void collect_schnorr(uint8_t* rows, size_t count, size_t key_size) const {
-        ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size);
+    ufsecp_error_t collect_schnorr(uint8_t* rows, size_t count, size_t key_size,
+                                  const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size, cancel);
     }
 
     // Columnar / vertical collect. key_cells is n * key_size bytes and is the
     // only mutable column; msg/pub/sig columns remain read-only.
-    void collect_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+    ufsecp_error_t collect_ecdsa_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
                                const uint8_t* sigs64, size_t count,
-                               uint8_t* key_cells, size_t key_size) const {
-        ufsecp_lbtc_verify_ecdsa_columns_collect(
-            ctrl_, msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size);
+                               uint8_t* key_cells, size_t key_size,
+                               const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa_columns_collect(
+            ctrl_, msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size, cancel);
     }
-    void collect_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+    ufsecp_error_t collect_schnorr_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
                                  const uint8_t* sigs64, size_t count,
-                                 uint8_t* key_cells, size_t key_size) const {
-        ufsecp_lbtc_verify_schnorr_columns_collect(
-            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, key_cells, key_size);
+                                 uint8_t* key_cells, size_t key_size,
+                                 const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr_columns_collect(
+            ctrl_, msg_hashes32, pubkeys_x32, sigs64, count, key_cells, key_size, cancel);
     }
 
     // Collect twins for the multisig / threshold tables (see verify_multisig).
     // key_size MUST be > 0 (the whole tail is the verdict cell: zeroed on valid,
     // intact on invalid). For the canonical rows that is 6 (m|n + group + block-fk).
-    void collect_multisig(uint8_t* rows, size_t count, size_t key_size) const {
-        ufsecp_lbtc_verify_ecdsa_collect(ctrl_, rows, count, key_size);
+    ufsecp_error_t collect_multisig(uint8_t* rows, size_t count, size_t key_size,
+                                    const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_ecdsa_collect(ctrl_, rows, count, key_size, cancel);
     }
-    void collect_threshold(uint8_t* rows, size_t count, size_t key_size) const {
-        ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size);
+    ufsecp_error_t collect_threshold(uint8_t* rows, size_t count, size_t key_size,
+                                     const ufsecp_cancel_token* cancel = nullptr) const {
+        return ufsecp_lbtc_verify_schnorr_collect(ctrl_, rows, count, key_size, cancel);
     }
 
     // --- BIP-341 Taproot commitment batch (x-only tweak-add-check) -----------
@@ -868,15 +913,20 @@ public:
                           reinterpret_cast<uint8_t*>(out));
     }
 #endif
-    void collect_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
-                                  const uint8_t* sigs64, size_t count,
-                                  uint8_t* key_cells, size_t key_size) const {
-        collect_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count, key_cells, key_size);
+    ufsecp_error_t collect_multisig_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+                                            const uint8_t* sigs64, size_t count,
+                                            uint8_t* key_cells, size_t key_size,
+                                            const ufsecp_cancel_token* cancel = nullptr) const {
+        return collect_ecdsa_columns(msg_hashes32, pubkeys33, sigs64, count,
+                                     key_cells, key_size, cancel);
     }
-    void collect_threshold_columns(const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
-                                   const uint8_t* sigs64, size_t count,
-                                   uint8_t* key_cells, size_t key_size) const {
-        collect_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count, key_cells, key_size);
+    ufsecp_error_t collect_threshold_columns(const uint8_t* msg_hashes32,
+                                             const uint8_t* pubkeys_x32,
+                                             const uint8_t* sigs64, size_t count,
+                                             uint8_t* key_cells, size_t key_size,
+                                             const ufsecp_cancel_token* cancel = nullptr) const {
+        return collect_schnorr_columns(msg_hashes32, pubkeys_x32, sigs64, count,
+                                       key_cells, key_size, cancel);
     }
 
 #if __cplusplus >= 202002L
@@ -902,26 +952,28 @@ public:
     // `secp256k1::ecdsa::triple` satisfies this: it is #pragma pack(1) over
     // byte-array members, so the record is the first 129 bytes exactly.
     template <class Row>
-    void verify_ecdsa(std::span<const Row> batch, uint8_t* results) const {
+    ufsecp_error_t verify_ecdsa(std::span<const Row> batch, uint8_t* results,
+                      const ufsecp_cancel_token* cancel = nullptr) const {
         static_assert(sizeof(Row) >= UFSECP_LBTC_ECDSA_RECORD,
                       "Row must contain the 129-byte ECDSA record (hash|point|sig) first");
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 129 bytes are the contiguous on-wire record");
-        (void)ufsecp_lbtc_verify_ecdsa(
+        return ufsecp_lbtc_verify_ecdsa(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results, nullptr, 0, nullptr);
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, results, nullptr, 0, nullptr, cancel);
     }
     template <class Row>
-    void verify_schnorr(std::span<const Row> batch, uint8_t* results) const {
+    ufsecp_error_t verify_schnorr(std::span<const Row> batch, uint8_t* results,
+                        const ufsecp_cancel_token* cancel = nullptr) const {
         static_assert(sizeof(Row) >= UFSECP_LBTC_SCHNORR_RECORD,
                       "Row must contain the 128-byte Schnorr record (hash|xonly|sig) first");
         static_assert(std::is_standard_layout_v<Row>,
                       "Row must be a standard-layout, tightly-packed (#pragma pack(1)) "
                       "struct so the first 128 bytes are the contiguous on-wire record");
-        (void)ufsecp_lbtc_verify_schnorr(
+        return ufsecp_lbtc_verify_schnorr(
             ctrl_, reinterpret_cast<const uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results, nullptr, 0, nullptr);
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, results, nullptr, 0, nullptr, cancel);
     }
 
     // --- Typed-span COLLECT overloads (C++20) -------------------------------
@@ -937,7 +989,8 @@ public:
     //     ctrl.collect_ecdsa(batch);
     //     for (auto& row : batch) if (key_nonzero(row)) reject(row);
     template <class Row>
-    void collect_ecdsa(std::span<Row> batch) const {
+    ufsecp_error_t collect_ecdsa(std::span<Row> batch,
+                                const ufsecp_cancel_token* cancel = nullptr) const {
         static_assert(sizeof(Row) > UFSECP_LBTC_ECDSA_RECORD,
                       "collect requires a non-empty key cell: sizeof(Row) must "
                       "exceed the 129-byte ECDSA record");
@@ -947,12 +1000,13 @@ public:
         static_assert(!std::is_const_v<Row>,
                       "collect writes the key cell in place — the span must be over "
                       "non-const Row (mutable rows)");
-        ufsecp_lbtc_verify_ecdsa_collect(
+        return ufsecp_lbtc_verify_ecdsa_collect(
             ctrl_, reinterpret_cast<uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD);
+            sizeof(Row) - UFSECP_LBTC_ECDSA_RECORD, cancel);
     }
     template <class Row>
-    void collect_schnorr(std::span<Row> batch) const {
+    ufsecp_error_t collect_schnorr(std::span<Row> batch,
+                                  const ufsecp_cancel_token* cancel = nullptr) const {
         static_assert(sizeof(Row) > UFSECP_LBTC_SCHNORR_RECORD,
                       "collect requires a non-empty key cell: sizeof(Row) must "
                       "exceed the 128-byte Schnorr record");
@@ -962,9 +1016,9 @@ public:
         static_assert(!std::is_const_v<Row>,
                       "collect writes the key cell in place — the span must be over "
                       "non-const Row (mutable rows)");
-        ufsecp_lbtc_verify_schnorr_collect(
+        return ufsecp_lbtc_verify_schnorr_collect(
             ctrl_, reinterpret_cast<uint8_t*>(batch.data()), batch.size(),
-            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD);
+            sizeof(Row) - UFSECP_LBTC_SCHNORR_RECORD, cancel);
     }
 
     // --- Typed-span multisig / threshold overloads (C++20) ------------------
@@ -973,20 +1027,24 @@ public:
     // RECORD is recovered from the type (6 for the canonical rows). These forward
     // to the ECDSA / Schnorr verify+collect cores — same crypto, named for intent.
     template <class Row>
-    void verify_multisig(std::span<const Row> batch, uint8_t* results) const {
-        verify_ecdsa<Row>(batch, results);
+    ufsecp_error_t verify_multisig(std::span<const Row> batch, uint8_t* results,
+                         const ufsecp_cancel_token* cancel = nullptr) const {
+        return verify_ecdsa<Row>(batch, results, cancel);
     }
     template <class Row>
-    void verify_threshold(std::span<const Row> batch, uint8_t* results) const {
-        verify_schnorr<Row>(batch, results);
+    ufsecp_error_t verify_threshold(std::span<const Row> batch, uint8_t* results,
+                          const ufsecp_cancel_token* cancel = nullptr) const {
+        return verify_schnorr<Row>(batch, results, cancel);
     }
     template <class Row>
-    void collect_multisig(std::span<Row> batch) const {
-        collect_ecdsa<Row>(batch);
+    ufsecp_error_t collect_multisig(std::span<Row> batch,
+                                  const ufsecp_cancel_token* cancel = nullptr) const {
+        return collect_ecdsa<Row>(batch, cancel);
     }
     template <class Row>
-    void collect_threshold(std::span<Row> batch) const {
-        collect_schnorr<Row>(batch);
+    ufsecp_error_t collect_threshold(std::span<Row> batch,
+                                   const ufsecp_cancel_token* cancel = nullptr) const {
+        return collect_schnorr<Row>(batch, cancel);
     }
 #endif /* C++20 std::span */
 

@@ -1,5 +1,18 @@
 # Audit Changelog
 
+## 2026-06-20 — Libbitcoin batch cancellation token
+
+- **Existing bridge API extended:** libbitcoin packed-row, columnar, collect,
+  opaque, and compact batch verification functions now accept a trailing
+  `ufsecp_cancel_token*` with default `NULL` in C++ callers. No `_ex` surface is
+  introduced.
+- **Caller-driven shutdown supported:** the bridge polls the token between
+  chunks and returns `UFSECP_ERR_CANCELLED` when requested; callers must discard
+  partial verdict buffers or collect cells on cancellation.
+- **Regression coverage:** `test_lbtc_bridge` covers immediate cancellation,
+  mid-batch cancellation, error-string mapping, and C++ wrapper propagation; the
+  central libbitcoin test profile now wires this target into CTest.
+
 ## 2026-06-20 — Release package content allowlist
 
 - **Linux ARM64 native package aligned:** the release workflow's Linux ARM64

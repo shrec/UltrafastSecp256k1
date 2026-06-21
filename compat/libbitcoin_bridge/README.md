@@ -72,11 +72,11 @@ invalid row can be mapped back to its block/tx **without a second side table**.
 
   ```c
   // C ABI — rows = contiguous [record | key] buffer; n = records; ks = key bytes/row;
-  // results = n bytes (1=valid/0=invalid). Returns void: no error code, no buffer size,
-  // no invalid-index outputs — the caller maps failures from results[].
-  void ufsecp_lbtc_verify_ecdsa(ufsecp_lbtc_ctrl* ctrl,
-                                const uint8_t* rows, size_t n,
-                                size_t key_size, uint8_t* results);
+  // results = n bytes (1=valid/0=invalid). NULL cancel preserves old behavior.
+  ufsecp_error_t ufsecp_lbtc_verify_ecdsa(
+      ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+      uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+      size_t* invalid_count, const ufsecp_cancel_token* cancel);
   ```
 
   This is exactly the shape evoskuil's libbitcoin integration calls. With a packed
@@ -92,7 +92,11 @@ invalid row can be mapped back to its block/tx **without a second side table**.
   const auto in      = pointer_cast<uint8_t>(batch.data());
   const auto out     = results.data();
   constexpr auto id_size = array_count<decltype(triple::identifier)>;   // = 3
-  ufsecp_lbtc_verify_ecdsa(context.get(), in, count, id_size, out);     // void; 5 args
+  const auto status =
+      ufsecp_lbtc_verify_ecdsa(context.get(), in, count, id_size, out,
+                               nullptr, 0, nullptr, nullptr);
+  if (status == UFSECP_ERR_CANCELLED) return {}; // discard partial results
+  if (status != UFSECP_OK) std::abort();
   // map failures (results[i] == 0) back to your tokens:
   for (size_t row = 0; row < results.size(); ++row)
       if (!to_bool(results[row])) failed.push_back(batch[row].identifier);
@@ -447,11 +451,13 @@ still non-zero** — that set *is* the rejected list. No second side table, no
 ```c
 // rows is IN/OUT and MUST be writable; key_size MUST be > 0 (it is the result
 // channel). n may be arbitrarily large — it is walked in internal chunks, so
-// there is no size limit and no size error. Returns void.
-void ufsecp_lbtc_verify_ecdsa_collect (ufsecp_lbtc_ctrl* ctrl,
-                                       uint8_t* rows, size_t n, size_t key_size);
-void ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
-                                       uint8_t* rows, size_t n, size_t key_size);
+// there is no size limit and no size error. NULL cancel preserves old behavior.
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect(
+    ufsecp_lbtc_ctrl* ctrl, uint8_t* rows, size_t n, size_t key_size,
+    const ufsecp_cancel_token* cancel);
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect(
+    ufsecp_lbtc_ctrl* ctrl, uint8_t* rows, size_t n, size_t key_size,
+    const ufsecp_cancel_token* cancel);
 ```
 
 ```cpp

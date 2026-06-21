@@ -151,21 +151,56 @@ data_chunk batch_verify(const std::span<Batch>& batch, bool) NOEXCEPT
     const auto out = results.data();
     const auto in = pointer_cast<const uint8_t>(batch.data());
 
+    ufsecp_error_t status = UFSECP_OK;
     if constexpr (is_same_type<Batch, schnorr::batch>)
     {
         constexpr auto extra_size = sizeof(Batch) - (sizeof(hash_digest) +
             sizeof(ec_xonly) + sizeof(ec_signature));
-        context.verify_schnorr(in, count, extra_size, out);
+        status = context.verify_schnorr(in, count, extra_size, out);
     }
     else
     {
         constexpr auto extra_size = sizeof(Batch) - (sizeof(hash_digest) +
             sizeof(ec_compressed) + sizeof(ec_signature));
-        context.verify_ecdsa(in, count, extra_size, out);
+        status = context.verify_ecdsa(in, count, extra_size, out);
     }
+
+    if (status == UFSECP_ERR_CANCELLED)
+        return {}; // caller requested stop; discard partial verdicts
+    if (status != UFSECP_OK)
+        std::abort();
 
     return results;
 }
+```
+
+No `_ex` entry point is required. Existing libbitcoin functions are extended with
+a trailing optional cancellation token: `NULL`/omitted preserves the old behavior.
+C++ callers get the default parameter from `ufsecp_libbitcoin.h`; plain C callers
+pass the final argument explicitly.
+
+A caller-owned token is useful for node shutdown, validation chaser rotation, or
+window replacement. It is polled between chunks; on `UFSECP_ERR_CANCELLED`, the
+caller must discard `results`/collect cells because a prefix may already have
+been processed.
+
+```cpp
+struct cancel_state { std::atomic_bool stop{false}; };
+
+int is_cancelled(void* user) noexcept
+{
+    return static_cast<cancel_state*>(user)->stop.load(std::memory_order_relaxed)
+        ? 1 : 0;
+}
+
+cancel_state state;
+ufsecp_cancel_token token{ is_cancelled, &state, 8192 }; // 0 = engine chunk default
+
+const auto status = context.verify_ecdsa(in, count, extra_size, out, &token);
+if (status == UFSECP_ERR_CANCELLED)
+    return {}; // do not consume partial results
+if (status != UFSECP_OK)
+    std::abort();
 ```
 
 The C++20 typed-span overloads can remove the explicit `count` and `extra_size`

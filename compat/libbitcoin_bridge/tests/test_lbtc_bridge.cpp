@@ -190,6 +190,16 @@ InvalidInfo invalids(const std::vector<uint8_t>& res) {
     return r;
 }
 
+struct CancelAfter {
+    size_t calls;
+    size_t trip;
+};
+
+int cancel_after(void* user) noexcept {
+    auto* state = static_cast<CancelAfter*>(user);
+    return state->calls++ >= state->trip ? 1 : 0;
+}
+
 } // namespace
 
 int main() {
@@ -420,6 +430,43 @@ int main() {
         rows[3 * stride + 65] ^= 0x04; /* flip a sig byte in row 3 */
         wrap.verify_ecdsa(rows.data(), N, KS, res.data());
         CHECK(invalids(res).count == 1 && res[3] == 0, "wrapper: corruption detected, row 3 marked");
+    }
+
+    /* --- caller-driven cancellation token --- */
+    {
+        const size_t N = 16;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t invalid_count = 99;
+        CancelAfter state{0, 0}; /* cancel on first poll, before processing */
+        ufsecp_cancel_token token{cancel_after, &state, 1};
+        auto rc = ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(),
+                                           nullptr, 0, &invalid_count, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "cancel: immediate token returns UFSECP_ERR_CANCELLED");
+        CHECK(std::strcmp(ufsecp_error_str(rc), "operation cancelled") == 0,
+              "cancel: error string is mapped");
+        CHECK(res[0] == 0xAA && invalid_count == 0,
+              "cancel: immediate cancel leaves caller outputs untrusted/untouched");
+    }
+
+    {
+        const size_t N = 16;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        CancelAfter state{0, 1}; /* process one 8-row interval, then cancel */
+        ufsecp_cancel_token token{cancel_after, &state, 8};
+        auto rc = ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(),
+                                           nullptr, 0, nullptr, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "cancel: mid-batch token returns UFSECP_ERR_CANCELLED");
+        CHECK(state.calls >= 2,
+              "cancel: token is polled across chunk boundaries before stopping");
+
+        ufsecp::lbtc::Controller wrap;
+        CancelAfter wrap_state{0, 0};
+        ufsecp_cancel_token wrap_token{cancel_after, &wrap_state, 1};
+        auto wrap_rc = wrap.verify_ecdsa(rows.data(), N, 0, res.data(), &wrap_token);
+        CHECK(wrap_rc == UFSECP_ERR_CANCELLED,
+              "cancel: C++ wrapper returns cancellation status");
     }
 
     /* --- typed-span overload: pass a packed struct span; count + key_size are both
