@@ -124,10 +124,10 @@ typedef enum {
  * non-zero from is_cancelled yields UFSECP_ERR_CANCELLED. Cancellation is an
  * execution status: partial results/key-cells are caller-discarded and must not
  * be interpreted as consensus verdicts. */
-typedef int (*ufsecp_cancel_fn)(void* user);
+typedef int (*ufsecp_cancel_fn)(const void* user);
 typedef struct ufsecp_cancel_token {
     ufsecp_cancel_fn is_cancelled;
-    void* user;
+    const void* user;
     uint32_t check_interval;
 } ufsecp_cancel_token;
 

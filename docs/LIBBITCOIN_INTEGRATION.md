@@ -187,9 +187,9 @@ been processed.
 ```cpp
 struct cancel_state { std::atomic_bool stop{false}; };
 
-int is_cancelled(void* user) noexcept
+int is_cancelled(const void* user) noexcept
 {
-    return static_cast<cancel_state*>(user)->stop.load(std::memory_order_relaxed)
+    return static_cast<const cancel_state*>(user)->stop.load(std::memory_order_relaxed)
         ? 1 : 0;
 }
 

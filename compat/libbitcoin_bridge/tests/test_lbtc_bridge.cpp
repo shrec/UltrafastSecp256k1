@@ -195,8 +195,8 @@ struct CancelAfter {
     size_t trip;
 };
 
-int cancel_after(void* user) noexcept {
-    auto* state = static_cast<CancelAfter*>(user);
+int cancel_after(const void* user) noexcept {
+    auto* state = const_cast<CancelAfter*>(static_cast<const CancelAfter*>(user));
     return state->calls++ >= state->trip ? 1 : 0;
 }
 

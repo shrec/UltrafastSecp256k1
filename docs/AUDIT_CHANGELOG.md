@@ -2,6 +2,10 @@
 
 ## 2026-06-20 — Libbitcoin batch cancellation token
 
+- **Cancellation token const-correctness:** `ufsecp_cancel_fn` now receives
+  `const void* user`, and `ufsecp_cancel_token::user` is `const void*`, so
+  callers can pass immutable state such as `const std::atomic_bool&` without
+  const-casting at the call site.
 - **Existing bridge API extended:** libbitcoin packed-row, columnar, collect,
   opaque, and compact batch verification functions now accept a trailing
   `ufsecp_cancel_token*` with default `NULL` in C++ callers. No `_ex` surface is
