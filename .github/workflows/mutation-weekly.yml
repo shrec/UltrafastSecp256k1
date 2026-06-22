@@ -84,7 +84,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          # Visibility step — must never red the advisory job (see header).
+          # Tolerate missing labels / API hiccups: warn, never fail.
+          set +e
           TITLE='mutation-kill-rate-regression'
           BODY=$(python3 -c "
           import json
@@ -99,7 +101,10 @@ jobs:
           # Reuse one open issue rather than spamming a new one each week.
           existing=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' || echo '')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$BODY"
+            gh issue comment "$existing" --body "$BODY" \
+              || echo "::warning::failed to comment on issue #$existing (non-fatal)"
           else
-            gh issue create --title "$TITLE" --body "$BODY" --label "regression,mutation"
+            gh issue create --title "$TITLE" --body "$BODY" --label "regression,mutation" \
+              || echo "::warning::failed to open regression issue (non-fatal)"
           fi
+          exit 0
