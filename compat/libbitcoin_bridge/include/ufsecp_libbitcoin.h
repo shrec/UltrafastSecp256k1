@@ -408,6 +408,19 @@ ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
                                         size_t key_size,
                                         const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
+/* Multi-threaded twins of the in-place collect entry points (same verdict
+ * semantics; max_threads 0=auto/all cores, 1=serial, N=cap — see the packed-row
+ * _mt note above for the threading/GPU/cancellation contract). */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        uint8_t* rows, size_t n,
+                                        size_t key_size, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        uint8_t* rows, size_t n,
+                                        size_t key_size, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
 /*
  * Columnar/vertical collect form. The verified bytes live in msg/pub/sig columns;
  * key_cells is a separate n * key_size correlation-key column. VALID rows have

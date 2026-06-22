@@ -2228,6 +2228,7 @@ and keep ECDSA and Schnorr batches homogeneous.
 | `ufsecp_lbtc_verify_schnorr_columns` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, results, cancel=NULL)` | Columnar Schnorr verify; avoids bridge-side row-to-column de-interleave |
 | `ufsecp_lbtc_verify_ecdsa_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row collect; valid rows zero the row tail, invalid rows keep it |
 | `ufsecp_lbtc_verify_schnorr_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row Schnorr collect |
+| `ufsecp_lbtc_verify_ecdsa_collect_mt` / `_schnorr_collect_mt` | `(ctrl, rows, n, key_size, max_threads, cancel=NULL)` | Multi-threaded twins of the collect entries (same verdict/key-cell semantics; `max_threads` 0=auto, 1=serial, N=cap). |
 | `ufsecp_lbtc_verify_ecdsa_columns_collect` | `(ctrl, hashes32, pubkeys33, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar collect; valid rows zero `key_cells[i]`, invalid rows keep it |
 | `ufsecp_lbtc_verify_schnorr_columns_collect` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar Schnorr collect |
 

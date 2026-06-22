@@ -1,5 +1,24 @@
 # Audit Changelog
 
+## 2026-06-22 — Audit follow-up: libbitcoin collect `_mt` twins + MuSig2 partial-verify parity doc
+
+- **libbitcoin bridge collect `_mt` twins** (`compat/libbitcoin_bridge/...`): added
+  `ufsecp_lbtc_verify_ecdsa_collect_mt` / `ufsecp_lbtc_verify_schnorr_collect_mt`
+  (bridge-only, no new public ufsecp ABI) — `verify_collect_impl` already carried
+  `max_threads`, so these forward it; same in-place key-cell verdict semantics as the
+  serial collect. `test_lbtc_bridge` gains a collect-`_mt`-vs-serial parity case.
+  (Remaining deferred: the `_columns_collect` `_mt` twins need a `ufsecp_ecdsa_verify_opaque_batch_mt`
+  engine leaf + its ABI cycle; ECDSA-compact `_mt` CPU fallback stays per-row/serial.)
+- **MuSig2 partial-verify both-parity acceptance documented** (audit finding, validated
+  REAL but INTENTIONAL): `musig2_partial_verify` accepts both Y-parities of the signer
+  pubkey because `musig2_partial_sign` takes a raw seckey (not x-only); it is a bounded
+  coordinator-diagnostic laxity that does NOT enable aggregate forgery. Recorded in
+  `docs/SECURITY_CLAIMS.md` + kb `MUSIG2-PVERIFY-PARITY`. No behavior change (tightening
+  would break this library's own sign->verify roundtrip for odd-Y keys).
+- Full repo audit report: `workingdocs/AUDIT_REPORT_2026-06-22.md` (the only genuine
+  high-severity open item is the GPU constant-time cluster, which requires a `--gpu` host
+  to fix+verify and is NOT touched here).
+
 ## 2026-06-22 — Libbitcoin bridge multi-threaded (`_mt`) CPU verify
 
 - **Root cause:** the libbitcoin bridge (`ufsecp_lbtc_verify_*`) CPU signature-verify

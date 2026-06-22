@@ -587,6 +587,21 @@ int main() {
         CHECK(rcn == UFSECP_ERR_NULL_ARG, "mt: NULL ctrl returns UFSECP_ERR_NULL_ARG under _mt");
     }
 
+    /* --- collect _mt: valid rows zero their key cell, parity with serial collect --- */
+    {
+        const size_t N = 96, KS = 4;
+        auto rows_s = build_ecdsa(sctx, N, KS);
+        const size_t stride = UFSECP_LBTC_ECDSA_RECORD + KS;
+        rows_s[40 * stride + 65] ^= 0x01;        // corrupt row 40
+        auto rows_m = rows_s;                    // identical copy for the _mt run
+        ufsecp_lbtc_verify_ecdsa_collect(ctrl, rows_s.data(), N, KS, nullptr);
+        ufsecp_lbtc_verify_ecdsa_collect_mt(ctrl, rows_m.data(), N, KS, 0 /*auto*/, nullptr);
+        CHECK(rows_s == rows_m, "mt: ecdsa_collect_mt key cells identical to serial collect");
+        bool z0 = true;     for (size_t k = 0; k < KS; ++k) z0     &= rows_m[0  * stride + UFSECP_LBTC_ECDSA_RECORD + k] == 0;
+        bool kept40 = false; for (size_t k = 0; k < KS; ++k) kept40 |= rows_m[40 * stride + UFSECP_LBTC_ECDSA_RECORD + k] != 0;
+        CHECK(z0 && kept40, "mt: ecdsa_collect_mt zeroes valid key, keeps invalid (row 40)");
+    }
+
     /* --- empty batch (no-op; results untouched) --- */
     {
         std::vector<uint8_t> res(1, 0xAA);

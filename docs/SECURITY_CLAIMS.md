@@ -45,6 +45,31 @@ Validation: `audit/test_ffi_round_trip.cpp`,
 `audit/test_c_abi_negative.cpp`, `audit/test_gpu_abi_gate.cpp`, and
 `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`.
 
+### 2026-06-22 - MuSig2 partial-verify accepts both pubkey Y-parities (by design)
+
+`musig2_partial_verify` (`src/musig2.cpp`, exposed as `ufsecp_musig2_partial_verify`)
+verifies a partial signature against BOTH Y-parities of the signer's public key
+(`sG == R_eff + ea*P_i` OR `sG == R_eff + ea*(-P_i)`). This is intentional and
+required for self-consistency: this library's `musig2_partial_sign` takes a RAW
+32-byte secret key (its original parity), not an x-only key, so the signer's `P_i`
+may have either Y parity (BIP-327 signing uses `d_i` directly, with no per-signer
+parity flip). Tightening verify to a single parity would reject valid partial
+signatures produced by this library's own signer for odd-Y keys.
+
+**Scope / impact:** partial-verify is a coordinator diagnostic to locate a
+misbehaving signer before aggregation — it is NOT the consensus verifier. The
+both-parity acceptance is a bounded verify-laxity (a partial sig valid under the
+opposite signer-key parity is also accepted); it does **not** enable
+aggregate-signature forgery — the aggregate is still checked by the standard
+x-only Schnorr verifier, which fixes the parity. The divergence from strict
+BIP-327 `PartialSigVerify` (which consumes the x-only individual key) is therefore
+intentional and safe.
+
+**Claim:** the both-parity acceptance is a deliberate consequence of the raw-seckey
+partial-sign API and does not weaken aggregate unforgeability. kb
+`MUSIG2-PVERIFY-PARITY`. Validation: MuSig2 sign->partial_verify roundtrip tests
+(`audit/test_fuzz_musig2_frost.cpp::test_musig2_partial_verify_random`).
+
 ### 2026-06-11 - MuSig2 partial-sign secret-erasure hardening
 
 `musig2_partial_sign` now scrubs every secret-derived stack local: `neg_k` (-k),

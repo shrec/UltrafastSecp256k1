@@ -973,6 +973,24 @@ ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect(ufsecp_lbtc_ctrl* ctrl,
                                EcdsaSigFormat::Compact, cancel);
 }
 
+/* Multi-threaded twins of the in-place collect entry points. Same verdict
+ * semantics (valid rows zero their key cell); max_threads 0=auto, 1=serial. */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect_mt(ufsecp_lbtc_ctrl* ctrl,
+                                                   uint8_t* rows, size_t n,
+                                                   size_t key_size, size_t max_threads,
+                                                   const ufsecp_cancel_token* cancel) {
+    return verify_collect_impl(ctrl, Kind::Ecdsa, rows, n, key_size,
+                               EcdsaSigFormat::Opaque, cancel, max_threads);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_collect_mt(ufsecp_lbtc_ctrl* ctrl,
+                                                     uint8_t* rows, size_t n,
+                                                     size_t key_size, size_t max_threads,
+                                                     const ufsecp_cancel_token* cancel) {
+    return verify_collect_impl(ctrl, Kind::Schnorr, rows, n, key_size,
+                               EcdsaSigFormat::Compact, cancel, max_threads);
+}
+
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_columns(ufsecp_lbtc_ctrl* ctrl,
                                                 const uint8_t* msg_hashes32,
                                                 const uint8_t* pubkeys33,
