@@ -268,33 +268,27 @@ classes, not the 48 estimated when the residual was filed.)*
 
 ---
 
-## RR-GPU-OCL-01 — Non-NVIDIA OpenCL `field_reduce` retains reduction branches
+## RR-GPU-OCL-01 — No white-box CT measurement gate for OpenCL / Metal (source-CT only)
 
-**Type:** Constant-time gap on a secondary GPU backend
-**Status:** **Open** — needs a non-NVIDIA (AMD/Intel) OpenCL host to fix + verify
-**Severity:** Low (non-NVIDIA OpenCL signing only; NVIDIA path fixed + verified)
-**Scope:** OpenCL ECDSA/Schnorr signing on AMD/Intel devices
+**Type:** CT-measurement tooling gap (the underlying leaks are fixed)
+**Status:** **Source fixed for all backends; runtime CT-measurement gate is CUDA-only**
+**Severity:** Informational (no known residual leak; verification-depth gap)
+**Scope:** OpenCL (NVIDIA + portable `#else`) and Metal signing CT measurement
 
-**Description:**
-`src/opencl/kernels/secp256k1_field.cl` `field_mul_impl` selects the field reduction
-by `#ifdef __NV_CL_C_VERSION`: NVIDIA OpenCL uses the PTX `reduce_512_to_256_32_ocl`
-(made branchless 2026-06-22, verified by `opencl_test` 44/44 on an RTX 5060 Ti), but
-the `#else` portable path (`field_reduce`) still has data-dependent reduction branches
-(`if (temp[4] != 0)`, `if (carry)`, final `if (result >= p)`). On a non-NVIDIA OpenCL
-device these would leak the secret-derived carry/borrow during signing. The shared
-scalar reductions (`scalar_add_mod_n_impl` / `scalar_sub_mod_n_impl`) were fixed
-branchlessly for **both** paths in the same change.
+**Description (updated 2026-06-22):**
+All four GPU signing reductions are now branchless: CUDA (already CT — ncu gate 5/5),
+NVIDIA OpenCL `reduce_512_to_256_32_ocl` + scalar add/sub (`opencl_test` 44/44), the
+portable `#else` `field_reduce` (`if (temp[4]!=0)` / `if (carry)` made unconditional /
+masked — CPU equivalence 5,000,000 random+edge inputs, 0 mismatches vs the original),
+and Metal `field_reduce_512` (`while (acc[8]!=0)` → fixed 2 iterations —
+`test_exploit_metal_field_reduce` 14/14 vs an independent reference, incl. issue #226).
+Metal scalar add/sub and the field final-subtract were already branchless.
 
-**Why residual (not fixed now):** this host is CUDA/NVIDIA-only; the `#else` path cannot
-be compiled, run, or CT-measured here. A blind branchless rewrite of a multi-step
-reduction that cannot be correctness-tested risks a silent consensus break, so it is
-deferred to a session with AMD/Intel OpenCL hardware (build `opencl_test` there;
-mirror the branchless cmov pattern; confirm 44/44).
-
-**Related:** there is no ncu-equivalent **white-box CT gate for OpenCL** (the
-`ci/check_gpu_ct_uniformity.py` Nsight gate is CUDA-only and PASSES 5/5). Extending a
-white-box CT methodology to OpenCL is a standing follow-up; until then OpenCL CT rests
-on source-level branchlessness + correctness differentials.
+**Remaining gap:** there is **no ncu-equivalent white-box CT gate for OpenCL or Metal**
+(`ci/check_gpu_ct_uniformity.py` is CUDA-only). So OpenCL/Metal CT rests on source-level
+branchlessness + correctness equivalence, not a fixed-vs-random branch-uniformity
+*measurement*. Runtime CT confirmation on actual AMD/Intel (OpenCL `#else`) and Apple
+(Metal) hardware, and a white-box CT gate for those backends, are standing follow-ups.
 
 ---
 

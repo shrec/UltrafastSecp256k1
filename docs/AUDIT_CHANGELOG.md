@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-06-22 — GPU constant-time, part 2: Metal + portable-OpenCL field reductions
+
+Completed CT parity across all GPU backends (continues the CUDA/NVIDIA-OpenCL entry below).
+
+- **Metal `field_reduce_512`** (`src/metal/shaders/secp256k1_field.h`): the rare-carry
+  fold `while (acc[8] != 0)` was a data-dependent loop (0/1/2 iterations) on the
+  secret-derived overflow during signing (Metal signing uses `ct_sign` → `field_mul` →
+  `field_reduce_512`). Replaced with a **fixed 2 iterations** (the comment already bounds
+  it at ≤2; a zero `acc[8]` makes the fold a no-op). Verified by
+  `audit/test_exploit_metal_field_reduce` — 14/14 vs an independent CPU reference,
+  including the issue-#226 reproducer and `acc[8] > 2^32` boundary cases (the test's CPU
+  replica was switched to the same fixed-iteration form). Metal scalar `add/sub_mod_n` and
+  the field final-subtract were already branchless.
+- **Portable (non-NVIDIA) OpenCL `field_reduce`** (`src/opencl/kernels/secp256k1_field.cl`
+  `#else` path): `if (temp[4] != 0)` made unconditional (K·0 = no-op) and the nested
+  `if (carry)` rare fold made masked — mirroring the CUDA/Metal pattern. Verified by a CPU
+  equivalence harness: 5,000,000 random + edge inputs, **0 mismatches** vs the original
+  branchy version (the masked carry-fold pattern is additionally GPU-verified by
+  `opencl_test` on the NVIDIA path). Closes the leak portion of RR-GPU-OCL-01.
+- **Residual (RR-GPU-OCL-01, narrowed):** no ncu-equivalent **white-box CT gate** exists
+  for OpenCL/Metal (the Nsight gate is CUDA-only). OpenCL/Metal CT now rests on source
+  branchlessness + correctness equivalence; runtime CT measurement on AMD/Intel/Apple
+  hardware + a white-box gate for those backends are standing follow-ups.
+
 ## 2026-06-22 — GPU constant-time: CUDA confirmed CT (audit FP); OpenCL signing reductions fixed
 
 Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120, CUDA

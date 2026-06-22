@@ -199,9 +199,13 @@ inline FieldElement field_reduce_512(thread const uint prod[16]) {
     }
 
     // Second reduction: fold acc[8]·K back into limbs [0..7].
-    // acc[8] can exceed 32 bits after first fold (issue #226), so use
-    // full ulong and loop until fully absorbed (at most 2 iterations).
-    while (acc[8] != 0) {
+    // acc[8] can exceed 32 bits after first fold (issue #226), absorbed in at
+    // most 2 folds. CONSTANT-TIME: was `while (acc[8] != 0)` — a data-dependent
+    // loop whose trip count (0/1/2) leaks the secret-derived overflow during
+    // signing. Now a FIXED 2 iterations: when acc[8]==0 the fold uses extra==0
+    // and is a no-op, so the result is identical for any input (mirrors the
+    // CUDA/OpenCL masked rare-carry fold). Verified by test_exploit_metal_field_reduce.
+    for (int iter = 0; iter < 2; iter++) {
         ulong extra = acc[8];
         acc[8] = 0;
         ulong p = extra * ulong(K_LO);

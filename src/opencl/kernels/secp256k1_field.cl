@@ -460,8 +460,12 @@ FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
     c1 += (temp[3] < prod.x) ? 1UL : 0UL;
     temp[4] = c1 + prod.y;
 
-    // Second reduction: if temp[4] > 0, fold it in
-    if (temp[4] != 0) {
+    // Second reduction: fold temp[4]. CONSTANT-TIME: was `if (temp[4] != 0)` with a
+    // nested `if (carry)` — data-dependent branches on a secret-derived overflow
+    // during signing. Now ALWAYS folded (temp[4]==0 -> K*0=0 -> no-op) and the rare
+    // carry fold is masked (mirrors the CUDA/Metal masked rare-carry fold; the
+    // per-limb `? :` carries are branchless selects, not branches).
+    {
         prod = mul64_full(SECP256K1_K, temp[4]);
         temp[0] += prod.x;
         carry = (temp[0] < prod.x) ? 1UL : 0UL;
@@ -476,17 +480,16 @@ FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
         temp[3] += carry;
         carry = (temp[3] < carry) ? 1UL : 0UL;
 
-        // Rare carry overflow (probability ~2^{-190}): fold residual carry.
-        // Matches CUDA reduce_512_to_256 step 4 and Metal while-loop.
-        if (carry) {
-            temp[0] += SECP256K1_K;
-            ulong c2 = (temp[0] < SECP256K1_K) ? 1UL : 0UL;
-            temp[1] += c2;
-            c2 = (temp[1] < c2) ? 1UL : 0UL;
-            temp[2] += c2;
-            c2 = (temp[2] < c2) ? 1UL : 0UL;
-            temp[3] += c2;
-        }
+        // Rare carry overflow (~2^-190): fold residual carry branchlessly (0 when carry==0).
+        ulong cmask = (ulong)0 - (ulong)(carry != 0UL);
+        ulong kfold = (ulong)SECP256K1_K & cmask;
+        temp[0] += kfold;
+        ulong c2 = (temp[0] < kfold) ? 1UL : 0UL;
+        temp[1] += c2;
+        c2 = (temp[1] < c2) ? 1UL : 0UL;
+        temp[2] += c2;
+        c2 = (temp[2] < c2) ? 1UL : 0UL;
+        temp[3] += c2;
     }
 
     // Final reduction: if result >= p, subtract p
