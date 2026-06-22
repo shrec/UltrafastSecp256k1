@@ -15,7 +15,7 @@ updates:
 
   # ── npm: WASM package ──
   - package-ecosystem: "npm"
-    directory: "/wasm"
+    directory: "/bindings/wasm"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -93,7 +93,7 @@ updates:
 
   # ── Gradle: Android example ──
   - package-ecosystem: "gradle"
-    directory: "/android/example"
+    directory: "/bindings/android/example"
     schedule:
       interval: "weekly"
       day: "monday"
