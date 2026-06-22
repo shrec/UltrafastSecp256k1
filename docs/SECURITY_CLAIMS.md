@@ -1211,6 +1211,22 @@ the same guarantees the existing parallel sign batch relies on. The serial
 `ufsecp_ecdsa_batch_verify` is unchanged; integrators choose. Hostile-caller
 quartet: see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5.
 
+The same public-data MT model extends (2026-06-22) to **`ufsecp_schnorr_batch_verify_mt`**
+and **`ufsecp_ecdsa_verify_opaque_rows_mt`**, and to the libbitcoin-bridge packed-row
+verify twins `ufsecp_lbtc_verify_{ecdsa[_opaque|_compact],schnorr}_mt`. These reuse the
+audited serial marshalling and only swap the all-valid fast check to
+`secp256k1::{ecdsa,schnorr}_batch_verify_mt`; the per-row locate fallback stays serial.
+All inputs remain **public data** (message hashes, x-only/compressed public keys,
+signatures), so no secret material is processed, the CT-vs-variable-time boundary does
+not apply, and threading has **zero side-channel relevance**. In the bridge the GPU path
+is unaffected (`max_threads` governs the CPU fallback only) and the cancellation token is
+still polled between chunks. Per-row verdicts are bit-identical to serial for any thread
+count (parity across {0,1,2,8} plus a 4096-chunk-boundary corruption case in
+`test_lbtc_bridge`; hostile-caller negatives in `test_c_abi_negative`, Section I.5b). The
+single-threaded functions are unchanged; integrators that shard across their own thread
+pool keep using them. Hostile-caller quartet: see
+[FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5b.
+
 ### GPU per-item batch ABI (libbitcoin bridge, 2026-06-08 — PUBLIC-DATA)
 
 `ufsecp_gpu_xonly_validate`, `ufsecp_gpu_commitment_verify` and

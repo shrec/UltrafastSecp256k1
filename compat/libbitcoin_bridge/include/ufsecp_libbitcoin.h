@@ -231,6 +231,50 @@ ufsecp_error_t ufsecp_lbtc_verify_schnorr(ufsecp_lbtc_ctrl* ctrl,
                                         const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
 
 /*
+ * Multi-threaded twins of the packed-row verify entry points. Identical shape and
+ * per-row verdict/invalid_idx/invalid_count/parity semantics, plus a `max_threads`
+ * budget that fans the CPU verify across cores:
+ *     max_threads == 0  -> auto (std::thread::hardware_concurrency)
+ *     max_threads == 1  -> serial (byte-for-byte identical to the non-mt function)
+ *     max_threads == N  -> up to N
+ * Verification is variable-time over PUBLIC data only, so threading is a pure
+ * throughput change; the per-row verdict is identical to the serial path for any
+ * thread count. The GPU path is unaffected (max_threads governs the CPU fallback
+ * only). Cancellation still polls the token between chunks. The single-threaded
+ * functions above remain for integrators that already shard across their own
+ * thread pool (use those to avoid nested pools / oversubscription).
+ * NOTE: ufsecp_lbtc_verify_ecdsa_compact_mt accepts max_threads for API symmetry
+ * but its CPU fallback verifies per-row (serial); prefer the opaque form for MT.
+ */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_mt(ufsecp_lbtc_ctrl* ctrl,
+                                        const uint8_t* rows, size_t n,
+                                        size_t key_size, uint8_t* results,
+                                        size_t* invalid_idx, size_t invalid_cap,
+                                        size_t* invalid_count, size_t max_threads,
+                                        const ufsecp_cancel_token* cancel UFSECP_LBTC_CANCEL_DEFAULT);
+
+/*
  * Columnar/vertical form of the same verification API. These calls are intended
  * for large batch producers that already store independent columns:
  *

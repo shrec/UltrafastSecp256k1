@@ -451,6 +451,24 @@ static void run_neg4_ecdsa(ufsecp_ctx* ctx, const uint8_t* valid_sig64,
     CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows(ctx, nullptr, 129, 1, verdict),
                UFSECP_ERR_NULL_ARG,
                "NEG-4.14j: verify_opaque_rows(null_rows) -> NULL_ARG");
+    // NEG-4.14k-o: multi-threaded twins reject the same hostile/invalid/null inputs
+    // and are vacuously OK on the zero/empty edge (smoke), same as the serial path.
+    uint8_t srow[128] = {};
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows_mt(ctx, row, 129, 0, verdict, 0),
+               UFSECP_OK,
+               "NEG-4.14k: verify_opaque_rows_mt(count=0 empty) -> OK (valid edge)");
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows_mt(ctx, row, 128, 1, verdict, 0),
+               UFSECP_ERR_BAD_INPUT,
+               "NEG-4.14l: verify_opaque_rows_mt(stride<129 invalid) -> BAD_INPUT");
+    CHECK_CODE(ufsecp_ecdsa_verify_opaque_rows_mt(ctx, nullptr, 129, 1, verdict, 0),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14m: verify_opaque_rows_mt(null_rows) -> NULL_ARG");
+    CHECK_CODE(ufsecp_schnorr_batch_verify_mt(ctx, srow, 0, 0),
+               UFSECP_OK,
+               "NEG-4.14n: schnorr_batch_verify_mt(n=0 empty) -> OK (valid edge)");
+    CHECK_CODE(ufsecp_schnorr_batch_verify_mt(ctx, nullptr, 1, 0),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-4.14o: schnorr_batch_verify_mt(null invalid entries) -> NULL_ARG");
 
     // sig_to_der: null ctx
     uint8_t der[72] = {};

@@ -84,7 +84,9 @@
 | `ufsecp_ecdsa_verify_opaque` | Y | - | Y (opaque parse + low-S normalize) | Y (libbitcoin/libsecp wrapper parity) | N/A (public verify) | - | Y (block 704789 tuple via verify path) | N/A |
 | `ufsecp_ecdsa_verify_opaque_batch` | Y | - | Y (invalid row result isolation) | Y (compact batch parity) | N/A (public verify) | - | - | N/A |
 | `ufsecp_ecdsa_batch_verify_mt` | Y (regression_ecdsa_batch_verify_mt) | - | Y (single-sig corruption at every thread count) | Y (MT==serial parity {0,1,2,4,8,64} + multi-chunk propagation) | N/A (public verify — threading no side-channel) | - | - | N/A |
+| `ufsecp_schnorr_batch_verify_mt` | Y (test_lbtc_bridge MT parity) | - | Y (n=0/null via test_c_abi_negative) | Y (MT==serial parity {0,1,2,8} via libbitcoin bridge) | N/A (public verify — threading no side-channel) | - | - | N/A |
 | `ufsecp_ecdsa_verify_opaque_rows` | Y | - | Y (stride/null/invalid rows) | Y (libbitcoin row parity) | N/A (public verify) | - | - | N/A |
+| `ufsecp_ecdsa_verify_opaque_rows_mt` | Y (test_lbtc_bridge MT parity) | - | Y (stride/null via test_c_abi_negative) | Y (MT==serial libbitcoin row parity {0,1,2,8} + 4096-boundary) | N/A (public verify — threading no side-channel) | - | - | N/A |
 | `ufsecp_ecdsa_sign_recoverable` | Y | Y | Y (edge recids) | Y | Y (CT sign) | Y (CUDA `recovery.cuh`) | - | Y |
 | `ufsecp_ecdsa_recover` | Y | Y | Y (recid=4, wrong) | Y | N/A (public) | Y (CUDA `recovery.cuh`) | - | N/A |
 

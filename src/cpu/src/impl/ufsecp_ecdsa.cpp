@@ -421,6 +421,54 @@ ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows(
     } UFSECP_CATCH_RETURN(ctx)
 }
 
+// Multi-threaded twin of ufsecp_ecdsa_verify_opaque_rows: identical marshalling
+// and per-row semantics; only the all-valid fast check fans across the engine's
+// multi-threaded path. The per-row locate fallback (run only after a failure)
+// stays serial. max_threads: 0 => auto, 1 => serial.
+ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows_mt(
+    ufsecp_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results,
+    size_t max_threads) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!rows || !out_results)) return UFSECP_ERR_NULL_ARG;
+    if (stride < 129u) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "opaque row stride < 129");
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::memset(out_results, 0, count);
+
+    try {
+        std::vector<secp256k1::ECDSABatchEntry> batch(count);
+        size_t parsed_count = 0;
+        for (; parsed_count < count; ++parsed_count) {
+            const size_t i = parsed_count;
+            const uint8_t* row = rows + i * stride;
+            if (!ecdsa_entry_from_opaque(row, row + 32, row + 65, batch[i])) {
+                break;
+            }
+        }
+
+        if (parsed_count == count &&
+            secp256k1::ecdsa_batch_verify_mt(batch.data(), count, max_threads)) {
+            std::memset(out_results, 1, count);
+            return UFSECP_OK;
+        }
+
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* row = rows + i * stride;
+            secp256k1::ECDSABatchEntry one{};
+            const bool ok =
+                ecdsa_entry_from_opaque(row, row + 32, row + 65, one) &&
+                secp256k1::ecdsa_batch_verify(&one, 1);
+            out_results[i] = ok ? 1u : 0u;
+        }
+        return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
 ufsecp_error_t ufsecp_ecdsa_sig_to_der(ufsecp_ctx* ctx,
                                         const uint8_t sig64[64],
                                         uint8_t* der_out, size_t* der_len) {

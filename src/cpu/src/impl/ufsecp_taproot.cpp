@@ -807,6 +807,45 @@ ufsecp_error_t ufsecp_ecdsa_batch_verify_mt(ufsecp_ctx* ctx,
     } UFSECP_CATCH_RETURN(ctx)
 }
 
+// ---------------------------------------------------------------------------
+// ufsecp_schnorr_batch_verify_mt: Schnorr twin of ufsecp_ecdsa_batch_verify_mt.
+// Same marshalling as the serial ufsecp_schnorr_batch_verify above; only the
+// verify call fans across the engine's multi-threaded path. max_threads: 0 =>
+// auto, 1 => serial.
+// ---------------------------------------------------------------------------
+ufsecp_error_t ufsecp_schnorr_batch_verify_mt(ufsecp_ctx* ctx,
+                                              const uint8_t* entries, size_t n,
+                                              size_t max_threads) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;  /* empty batch is vacuously valid */
+    if (SECP256K1_UNLIKELY(!entries)) return UFSECP_ERR_NULL_ARG;
+    if (n > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::size_t total_bytes = 0;
+    if (!checked_mul_size(n, std::size_t{128}, total_bytes))
+        return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch size overflow");
+    try {
+    /* Each entry: 32-byte xonly pubkey | 32-byte msg | 64-byte sig = 128 bytes */
+    std::vector<secp256k1::SchnorrBatchEntry> batch(n);
+    for (size_t i = 0; i < n; ++i) {
+        const uint8_t* e = entries + i * 128;
+        FE pk_fe;
+        if (!FE::parse_bytes_strict(e, pk_fe)) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "non-canonical pubkey (x>=p) in batch");
+        }
+        std::memcpy(batch[i].pubkey_x.data(), e, 32);
+        std::memcpy(batch[i].message.data(), e + 32, 32);
+        if (!secp256k1::SchnorrSignature::parse_strict(e + 64, batch[i].signature)) {
+            return ctx_set_err(ctx, UFSECP_ERR_BAD_SIG, "invalid Schnorr sig in batch");
+        }
+    }
+    if (!secp256k1::schnorr_batch_verify_mt(batch.data(), n, max_threads)) {
+        return ctx_set_err(ctx, UFSECP_ERR_VERIFY_FAIL, "batch verify failed");
+    }
+    return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
 ufsecp_error_t ufsecp_schnorr_batch_identify_invalid(
     ufsecp_ctx* ctx, const uint8_t* entries, size_t n,
     size_t* invalid_out, size_t* invalid_count) {

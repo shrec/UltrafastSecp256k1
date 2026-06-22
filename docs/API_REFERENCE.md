@@ -2221,6 +2221,7 @@ and keep ECDSA and Schnorr batches homogeneous.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_lbtc_ctrl_create` | `(ctrl**, backend) -> error_t` | Create bridge controller; `AUTO` binds GPU when available, otherwise CPU |
+| `ufsecp_lbtc_verify_ecdsa_mt` / `_ecdsa_opaque_mt` / `_ecdsa_compact_mt` / `_schnorr_mt` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, max_threads, cancel=NULL)` | Multi-threaded twins of the packed-row verify entries. `max_threads`: 0=auto (all cores), 1=serial (identical to the non-mt fn), N=cap. Identical per-row verdict; GPU path unaffected (governs the CPU fallback only); cancellation preserved. `_compact_mt`'s CPU fallback is per-row/serial — prefer `_opaque_mt` for MT. |
 | `ufsecp_lbtc_verify_ecdsa` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row ECDSA verify; row = `hash32|pubkey33|sig64|opaque-key` |
 | `ufsecp_lbtc_verify_schnorr` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row Schnorr verify; row = `hash32|xonly32|sig64|opaque-key` |
 | `ufsecp_lbtc_verify_ecdsa_columns` | `(ctrl, hashes32, pubkeys33, sigs64, n, results, cancel=NULL)` | Columnar ECDSA verify; avoids bridge-side row-to-column de-interleave |

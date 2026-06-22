@@ -134,6 +134,35 @@ ECDSA details:
 - Public compact `r||s` is supported only through the explicit
   `ufsecp_lbtc_verify_ecdsa_compact` and `*_columns_compact` variants.
 
+### Multithreaded CPU verify (`_mt`)
+
+The default packed-row verify functions run the **CPU** path single-threaded (one
+controller call = one core), so for IBD you should call the multi-threaded twins,
+which fan the CPU verify across cores:
+
+```c
+/* ECDSA — opaque ec_signature rows; 0 = auto (all cores) */
+ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows, n, key_size,
+    results, invalid_idx, invalid_cap, invalid_count, /*max_threads=*/0, cancel);
+
+/* Schnorr — BIP-340 rows */
+ufsecp_lbtc_verify_schnorr_mt(ctrl, rows, n, key_size,
+    results, invalid_idx, invalid_cap, invalid_count, /*max_threads=*/0, cancel);
+```
+
+- `max_threads`: `0` = auto (`hardware_concurrency`, all cores), `1` = serial
+  (byte-for-byte identical to the non-`mt` function), `N` = up to N.
+- The per-row verdict / `invalid_idx` / `invalid_count` / return codes are
+  **identical** to the serial functions for any thread count (verify is
+  variable-time over public data — threading is a pure throughput change).
+- The **GPU path is unaffected** — `max_threads` governs only the CPU fallback.
+- **Cancellation still works** under `_mt` (the token is polled between chunks).
+- If your node already shards block validation across its own thread pool, keep
+  calling the **single-threaded** functions per shard (with `max_threads` you
+  could otherwise nest pools / oversubscribe).
+- `ufsecp_lbtc_verify_ecdsa_compact_mt` accepts `max_threads` for symmetry but its
+  CPU fallback verifies per-row (serial); prefer the opaque form for MT.
+
 ## libbitcoin `batch_verify` Mapping
 
 Keep libbitcoin's existing function shape. `count` is not a new libbitcoin

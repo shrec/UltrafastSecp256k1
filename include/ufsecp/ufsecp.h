@@ -284,6 +284,20 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows(
     size_t count,
     uint8_t* out_results);
 
+/** Multi-threaded twin of ufsecp_ecdsa_verify_opaque_rows: same strided-row
+ *  contract and per-row out_results (1 valid / 0 invalid), but the all-valid
+ *  fast path fans the batch across up to `max_threads` CPU threads
+ *  (0 = auto/hardware_concurrency, 1 = serial = identical to the non-mt variant,
+ *  N = up to N). The per-row locate fallback (used only once a row fails) stays
+ *  serial. Verification is variable-time over public data. */
+UFSECP_API ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows_mt(
+    ufsecp_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results,
+    size_t max_threads);
+
 /** Encode compact sig to DER.
  *  der_len: in = buffer size (>=72), out = actual DER length. */
 UFSECP_API ufsecp_error_t ufsecp_ecdsa_sig_to_der(ufsecp_ctx* ctx,
@@ -816,6 +830,19 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_verify(
  *  should keep calling the single-threaded ufsecp_ecdsa_batch_verify per chunk
  *  to avoid nested thread pools / oversubscription. */
 UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_verify_mt(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n, size_t max_threads);
+
+/** Schnorr batch verify (multi-threaded): Schnorr twin of
+ *  ufsecp_ecdsa_batch_verify_mt. Same contract and thread semantics
+ *  (max_threads == 0 -> auto/hardware_concurrency, == 1 -> serial, == N -> up to N);
+ *  variable-time over public data, so the boolean result is identical to the
+ *  single-threaded ufsecp_schnorr_batch_verify for any thread count.
+ *  Each entry: [32-byte xonly pubkey | 32-byte msg | 64-byte sig] = 128 bytes.
+ *  Returns UFSECP_OK if ALL valid. Integrators that already parallelise across
+ *  their own thread pool should keep calling the single-threaded variant per
+ *  chunk to avoid nested pools / oversubscription. */
+UFSECP_API ufsecp_error_t ufsecp_schnorr_batch_verify_mt(
     ufsecp_ctx* ctx,
     const uint8_t* entries, size_t n, size_t max_threads);
 

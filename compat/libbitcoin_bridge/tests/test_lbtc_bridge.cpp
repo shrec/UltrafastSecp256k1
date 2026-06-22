@@ -500,6 +500,93 @@ int main() {
         CHECK(res[6] == 1, "span<Triple>: high-S row remains valid beside corruption");
     }
 
+    /* --- Multi-threaded (_mt) variants: per-row verdict parity across thread
+     *     counts {0,1,2,8}, large-batch locate, invalid_idx/count, cancellation,
+     *     degenerate. Exercises the new engine MT leaves through the real path. --- */
+    {
+        const size_t threads[] = {0, 1, 2, 8};
+
+        /* ECDSA opaque rows: a valid high-S row + one corrupted row; the per-row
+         * verdict from each thread count must equal the serial reference. */
+        const size_t N = 200;
+        auto rows = build_ecdsa(sctx, N, 0);
+        make_lbtc_high_s(rows.data() + 17 * UFSECP_LBTC_ECDSA_RECORD + 65); /* valid high-S */
+        rows[123 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x01;                  /* corrupt row 123 */
+
+        std::vector<uint8_t> ref(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows.data(), N, 0, ref.data(), nullptr, 0, nullptr);
+        CHECK(invalids(ref).count == 1 && invalids(ref).first == 123,
+              "mt: serial reference pinpoints the corrupted row 123");
+
+        for (size_t t : threads) {
+            std::vector<uint8_t> res(N, 0xAA);
+            size_t idx[4] = {99, 99, 99, 99}, inv = 0;
+            auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0,
+                                                         res.data(), idx, 4, &inv, t, nullptr);
+            char lbl[112];
+            std::snprintf(lbl, sizeof lbl, "mt: ecdsa_opaque_mt(threads=%zu) verdict == serial", t);
+            CHECK(rc == UFSECP_OK && res == ref, lbl);
+            std::snprintf(lbl, sizeof lbl, "mt: ecdsa_opaque_mt(threads=%zu) invalid_idx/count == {123,1}", t);
+            CHECK(inv == 1 && idx[0] == 123, lbl);
+        }
+
+        std::vector<uint8_t> r_alias(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa_mt(ctrl, rows.data(), N, 0, r_alias.data(), nullptr, 0, nullptr, 0, nullptr);
+        CHECK(r_alias == ref, "mt: ufsecp_lbtc_verify_ecdsa_mt == _opaque_mt");
+    }
+
+    {
+        /* Schnorr _mt: per-row verdict parity across thread counts. */
+        const size_t threads[] = {0, 1, 2, 8};
+        const size_t N = 160;
+        auto rows = build_schnorr(sctx, N, 0);
+        rows[55 * UFSECP_LBTC_SCHNORR_RECORD + 64] ^= 0x01; /* corrupt row 55 */
+        std::vector<uint8_t> ref(N, 0xAA);
+        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, ref.data(), nullptr, 0, nullptr);
+        CHECK(invalids(ref).count == 1 && invalids(ref).first == 55, "mt: schnorr serial reference == row 55");
+        for (size_t t : threads) {
+            std::vector<uint8_t> res(N, 0xAA);
+            auto rc = ufsecp_lbtc_verify_schnorr_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                    nullptr, 0, nullptr, t, nullptr);
+            char lbl[112];
+            std::snprintf(lbl, sizeof lbl, "mt: schnorr_mt(threads=%zu) verdict == serial", t);
+            CHECK(rc == UFSECP_OK && res == ref, lbl);
+        }
+    }
+
+    {
+        /* Large batch crossing the engine's 4096-row chunk, MT (auto), one bad row
+         * exactly at the chunk boundary — the locate fallback must still find it. */
+        const size_t N = 8200;
+        auto rows = build_ecdsa(sctx, N, 0);
+        rows[4096 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x01;
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t inv = 0;
+        auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                     nullptr, 0, &inv, 0 /*auto*/, nullptr);
+        CHECK(rc == UFSECP_OK && inv == 1 && res[4096] == 0 && res[4095] == 1 && res[4097] == 1,
+              "mt: large batch (n=8200) locates the single bad row at the 4096 boundary");
+    }
+
+    {
+        /* Cancellation still works under _mt; degenerate inputs behave like serial. */
+        const size_t N = 64;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        CancelAfter state{0, 0}; /* cancel on first poll */
+        ufsecp_cancel_token token{cancel_after, &state, 1};
+        auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                     nullptr, 0, nullptr, 0, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "mt: cancellation returns UFSECP_ERR_CANCELLED under _mt");
+
+        auto rc0 = ufsecp_lbtc_verify_schnorr_mt(ctrl, rows.data(), 0, 0, res.data(),
+                                                 nullptr, 0, nullptr, 0, nullptr);
+        CHECK(rc0 == UFSECP_OK, "mt: n==0 is a vacuous no-op under _mt");
+        auto rcn = ufsecp_lbtc_verify_ecdsa_opaque_mt(nullptr, rows.data(), N, 0, res.data(),
+                                                      nullptr, 0, nullptr, 0, nullptr);
+        CHECK(rcn == UFSECP_ERR_NULL_ARG, "mt: NULL ctrl returns UFSECP_ERR_NULL_ARG under _mt");
+    }
+
     /* --- empty batch (no-op; results untouched) --- */
     {
         std::vector<uint8_t> res(1, 0xAA);

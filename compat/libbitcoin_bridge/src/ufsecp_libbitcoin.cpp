@@ -201,9 +201,16 @@ inline ufsecp_error_t cpu_verify_one(ufsecp_ctx* ctx, Kind k, const uint8_t* rec
 }
 
 inline ufsecp_error_t cpu_verify_run(ufsecp_ctx* ctx, Kind k,
-                                     const uint8_t* recs, std::size_t cnt) {
-    return k == Kind::Ecdsa ? ufsecp_ecdsa_batch_verify(ctx, recs, cnt)
-                            : ufsecp_schnorr_batch_verify(ctx, recs, cnt);
+                                     const uint8_t* recs, std::size_t cnt,
+                                     std::size_t max_threads = 1) {
+    /* max_threads == 1 keeps the original serial path byte-for-byte; otherwise
+     * fan across the engine's multi-threaded batch verify (0 => auto). */
+    if (max_threads == 1) {
+        return k == Kind::Ecdsa ? ufsecp_ecdsa_batch_verify(ctx, recs, cnt)
+                                : ufsecp_schnorr_batch_verify(ctx, recs, cnt);
+    }
+    return k == Kind::Ecdsa ? ufsecp_ecdsa_batch_verify_mt(ctx, recs, cnt, max_threads)
+                            : ufsecp_schnorr_batch_verify_mt(ctx, recs, cnt, max_threads);
 }
 
 /* Output channel for one verified row. The chunk paths (cpu_chunk / gpu_chunk)
@@ -315,16 +322,20 @@ inline void to_engine_record(Kind k, const uint8_t* row, uint8_t* out,
 template <class Sink>
 void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
                std::size_t base, std::size_t cnt, std::size_t stride,
-               EcdsaSigFormat format, Sink& sink) {
+               EcdsaSigFormat format, Sink& sink, std::size_t max_threads = 1) {
     const std::size_t rec = record_size(k);
 
     /* ECDSA OPAQUE rows: libbitcoin's native ec_signature layout. The engine's
      * opaque-row C ABI parses each row in place into the batch verifier and low-S
-     * normalizes internally — fast, zero scratch. */
+     * normalizes internally — fast, zero scratch. max_threads != 1 fans the
+     * all-valid fast check across CPU threads (serial path unchanged at == 1). */
     if (k == Kind::Ecdsa && format == EcdsaSigFormat::Opaque) {
         uint8_t* verdicts = g_lbtc_byte_scratch.bytes(g_lbtc_byte_scratch.a, cnt);
-        const auto rc = ufsecp_ecdsa_verify_opaque_rows(
-            ctx, rows + base * stride, stride, cnt, verdicts);
+        const auto rc = (max_threads == 1)
+            ? ufsecp_ecdsa_verify_opaque_rows(
+                  ctx, rows + base * stride, stride, cnt, verdicts)
+            : ufsecp_ecdsa_verify_opaque_rows_mt(
+                  ctx, rows + base * stride, stride, cnt, verdicts, max_threads);
         for (std::size_t i = 0; i < cnt; ++i) {
             sink.mark(base + i, rc == UFSECP_OK && verdicts[i] != 0);
         }
@@ -353,7 +364,7 @@ void cpu_chunk(ufsecp_ctx* ctx, Kind k, const uint8_t* rows,
         to_engine_record(k, rows + (base + i) * stride, eng.data() + i * rec,
                          format);
 
-    if (cpu_verify_run(ctx, k, eng.data(), cnt) == UFSECP_OK) {
+    if (cpu_verify_run(ctx, k, eng.data(), cnt, max_threads) == UFSECP_OK) {
         sink.mark_all_valid(base, cnt);
         return;
     }
@@ -600,7 +611,8 @@ template <class Sink>
 ufsecp_error_t verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
                            std::size_t n, std::size_t stride,
                            EcdsaSigFormat format, Sink& sink,
-                           const ufsecp_cancel_token* cancel) {
+                           const ufsecp_cancel_token* cancel,
+                           std::size_t max_threads = 1) {
     try {
         const std::size_t chunk = cancel_chunk_size(cancel);
         for (std::size_t base = 0; base < n; base += chunk) {
@@ -625,7 +637,7 @@ ufsecp_error_t verify_core(ufsecp_lbtc_ctrl* ctrl, Kind k, const uint8_t* rows,
                 /* device-level failure → mandatory CPU fallback for this chunk */
             }
 #endif
-            cpu_chunk(ctrl->cpu, k, rows, base, cnt, stride, format, sink);
+            cpu_chunk(ctrl->cpu, k, rows, base, cnt, stride, format, sink, max_threads);
         }
     } catch (...) {
         return UFSECP_OK; /* fail-closed: unprocessed rows remain at caller initial state */
@@ -638,14 +650,15 @@ ufsecp_error_t verify_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                          const uint8_t* rows, std::size_t n,
                          std::size_t key_size, EcdsaSigFormat format,
                          uint8_t* results,
-                         const ufsecp_cancel_token* cancel) {
+                         const ufsecp_cancel_token* cancel,
+                         std::size_t max_threads = 1) {
     /* No-op on a degenerate call: a NULL ctrl/rows or empty batch leaves results
      * exactly as the caller initialized it. Callers zero-initialize results, so a
      * degenerate call reads as "all invalid" (fail-closed), never falsely valid. */
     if (!ctrl || n == 0 || !rows) return UFSECP_OK;
     const std::size_t stride = record_size(k) + key_size;
     ResultSink sink{results};
-    return verify_core(ctrl, k, rows, n, stride, format, sink, cancel);
+    return verify_core(ctrl, k, rows, n, stride, format, sink, cancel, max_threads);
 }
 
 /* In-place "collect" variant — verdict collapsed into each row's key cell.
@@ -655,7 +668,8 @@ ufsecp_error_t verify_results_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
 ufsecp_error_t verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                          uint8_t* rows, std::size_t n, std::size_t key_size,
                          EcdsaSigFormat format,
-                         const ufsecp_cancel_token* cancel) {
+                         const ufsecp_cancel_token* cancel,
+                         std::size_t max_threads = 1) {
     if (!ctrl || n == 0 || !rows || key_size == 0) return UFSECP_OK;
     const std::size_t rec    = record_size(k);
     const std::size_t stride = rec + key_size;
@@ -663,7 +677,7 @@ ufsecp_error_t verify_collect_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
     /* rows passed twice: as the const read view to verify_core, and (inside the
      * sink) as the mutable write target. No aliasing — see CollectSink. */
     return verify_core(ctrl, k, static_cast<const uint8_t*>(rows), n, stride, format,
-                       sink, cancel);
+                       sink, cancel, max_threads);
 }
 
 /* Vertical/columnar results[] variant. This is the copy-avoidance path for a
@@ -742,7 +756,8 @@ ufsecp_error_t verify_rows_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
                                 uint8_t* results, std::size_t* invalid_idx,
                                 std::size_t invalid_cap, std::size_t* invalid_count,
                                 EcdsaSigFormat format,
-                                const ufsecp_cancel_token* cancel) {
+                                const ufsecp_cancel_token* cancel,
+                                std::size_t max_threads = 1) {
     if (invalid_count) *invalid_count = 0;
     if (!ctrl) return UFSECP_ERR_NULL_ARG;
     if (n == 0) return UFSECP_OK;                 /* empty batch: vacuously valid */
@@ -757,7 +772,7 @@ ufsecp_error_t verify_rows_impl(ufsecp_lbtc_ctrl* ctrl, Kind k,
     if (!res) { local.assign(n, 0u); res = local.data(); }
     else std::memset(res, 0, n);
 
-    const ufsecp_error_t rc = verify_results_impl(ctrl, k, rows, n, key_size, format, res, cancel);
+    const ufsecp_error_t rc = verify_results_impl(ctrl, k, rows, n, key_size, format, res, cancel, max_threads);
     if (rc == UFSECP_ERR_CANCELLED) return rc;
 
     std::size_t failed = 0;
@@ -891,6 +906,55 @@ ufsecp_error_t ufsecp_lbtc_verify_schnorr(
     return verify_rows_impl(ctrl, Kind::Schnorr, rows, n, key_size, results,
                             invalid_idx, invalid_cap, invalid_count,
                             EcdsaSigFormat::Compact, cancel);
+}
+
+/* ---- Multi-threaded twins of the packed-row verify entry points. Same shape
+ * and per-row verdict/invalid_idx/invalid_count/parity semantics, plus a
+ * `max_threads` budget for the CPU verify: 0 = auto (all cores), 1 = serial
+ * (identical to the non-mt function), N = up to N. The GPU path is unaffected
+ * (max_threads governs the CPU fallback only); cancellation still polls between
+ * chunks. The single-threaded functions above are unchanged for integrators that
+ * already shard across their own thread pool (avoid nested pools). ---- */
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_opaque_mt(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, size_t max_threads,
+        const ufsecp_cancel_token* cancel) {
+    return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Opaque, cancel, max_threads);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_compact_mt(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, size_t max_threads,
+        const ufsecp_cancel_token* cancel) {
+    /* Compact rows verify per-row on the CPU fallback, so max_threads is accepted
+     * for API symmetry but currently runs serial; prefer the opaque form for MT. */
+    return verify_rows_impl(ctrl, Kind::Ecdsa, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Compact, cancel, max_threads);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_ecdsa_mt(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, size_t max_threads,
+        const ufsecp_cancel_token* cancel) {
+    return ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows, n, key_size, results,
+                                              invalid_idx, invalid_cap, invalid_count,
+                                              max_threads, cancel);
+}
+
+ufsecp_error_t ufsecp_lbtc_verify_schnorr_mt(
+        ufsecp_lbtc_ctrl* ctrl, const uint8_t* rows, size_t n, size_t key_size,
+        uint8_t* results, size_t* invalid_idx, size_t invalid_cap,
+        size_t* invalid_count, size_t max_threads,
+        const ufsecp_cancel_token* cancel) {
+    return verify_rows_impl(ctrl, Kind::Schnorr, rows, n, key_size, results,
+                            invalid_idx, invalid_cap, invalid_count,
+                            EcdsaSigFormat::Compact, cancel, max_threads);
 }
 
 ufsecp_error_t ufsecp_lbtc_verify_ecdsa_collect(ufsecp_lbtc_ctrl* ctrl,

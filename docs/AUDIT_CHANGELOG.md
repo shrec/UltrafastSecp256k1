@@ -1,5 +1,34 @@
 # Audit Changelog
 
+## 2026-06-22 — Libbitcoin bridge multi-threaded (`_mt`) CPU verify
+
+- **Root cause:** the libbitcoin bridge (`ufsecp_lbtc_verify_*`) CPU signature-verify
+  path was entirely single-threaded (`verify_core → cpu_chunk` ended in the serial
+  `secp256k1::ecdsa_batch_verify` / `ufsecp_schnorr_batch_verify`), so a single
+  controller call used one core — measured ~194% of libsecp256k1 IBD runtime by the
+  libbitcoin maintainer. The bridge had no `_mt`/`max_threads` (those exist only in
+  the libsecp256k1 shim, which the bridge does not use).
+- **Fix:** added `_mt` twins for the packed-row verify entry points —
+  `ufsecp_lbtc_verify_ecdsa[_opaque|_compact]_mt` and `ufsecp_lbtc_verify_schnorr_mt`
+  (`compat/libbitcoin_bridge/...`), each taking a `max_threads` budget (0=auto/all
+  cores, 1=serial, N=cap) threaded through `cpu_verify_run`/`cpu_chunk`/`verify_core`/
+  the `*_impl` helpers. The existing single-threaded functions are unchanged
+  (byte-for-byte; integrators that shard across their own pool keep using them).
+- **Engine leaves (2 new public ufsecp ABI fns, filling a gap next to the existing
+  `ufsecp_ecdsa_batch_verify_mt`):** `ufsecp_schnorr_batch_verify_mt`
+  (`src/cpu/src/impl/ufsecp_taproot.cpp`) and `ufsecp_ecdsa_verify_opaque_rows_mt`
+  (`src/cpu/src/impl/ufsecp_ecdsa.cpp`) — reuse the proven serial marshalling and only
+  swap the all-valid fast check to `secp256k1::*_batch_verify_mt`; the per-row locate
+  fallback stays serial. ABI count 161→163 (`docs/ABI_VERSIONING.md`, nuspec);
+  ABI negative-test manifest regenerated (0 blocking).
+- **Invariants:** GPU path unaffected (`max_threads` governs the CPU fallback only);
+  cancellation preserved (token polled between chunks); per-row verdict is bit-identical
+  to serial for any thread count (verify = public/variable-time).
+- **Tests:** `test_lbtc_bridge` gains MT cases (per-row verdict parity across threads
+  {0,1,2,8}, large batch crossing the 4096 engine chunk, invalid_idx/count, cancel
+  under `_mt`, degenerate); `test_c_abi_negative` directly exercises the 2 new ABI
+  leaves (smoke / zero-edge / invalid / null).
+
 ## 2026-06-22 — Shim batch-verify external cancellation token
 
 - **All shim batch-verify functions are now cancellable:** `secp256k1_{ecdsa,schnorrsig}_verify_batch`,
