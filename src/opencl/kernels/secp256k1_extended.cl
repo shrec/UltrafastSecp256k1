@@ -284,17 +284,19 @@ inline void scalar_add_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
     ulong carry = 0;
     for (int i = 0; i < 4; i++)
         r->limbs[i] = add_with_carry(a->limbs[i], b->limbs[i], carry, &carry);
-    // If carry, definitely >= n; otherwise check and conditionally subtract
-    if (carry) {
-        // r + 2^256 - n: since carry=1, effectively subtract (n - 2^256) = subtract n, add 2^256
-        // which is same as: result = r - n (the carry absorbed the 2^256)
-        ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
-        ulong borrow = 0;
-        for (int i = 0; i < 4; i++)
-            r->limbs[i] = sub_with_borrow(r->limbs[i], n[i], borrow, &borrow);
-    } else {
-        scalar_cond_sub_n(r);
-    }
+    // CONSTANT-TIME: was `if (carry) sub n; else scalar_cond_sub_n` — a
+    // data-dependent branch on a secret-derived carry. Reduce branchlessly:
+    // t = r - n; (carry:r) >= n  iff  carry==1 OR r >= n (borrow_n==0). Select t
+    // in that case, else keep r. a,b < n => a+b < 2n, so one subtraction suffices
+    // (matches scalar_cond_sub_n's masked-select style, used above).
+    ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+    ulong borrow_n = 0;
+    ulong t[4];
+    for (int i = 0; i < 4; i++)
+        t[i] = sub_with_borrow(r->limbs[i], n[i], borrow_n, &borrow_n);
+    ulong mask = (ulong)0 - ((ulong)(carry != 0) | (ulong)(borrow_n == 0));
+    for (int i = 0; i < 4; i++)
+        r->limbs[i] = (t[i] & mask) | (r->limbs[i] & ~mask);
 }
 
 // Scalar sub mod n: r = (a - b) mod n
@@ -302,13 +304,13 @@ inline void scalar_sub_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
     ulong borrow = 0;
     for (int i = 0; i < 4; i++)
         r->limbs[i] = sub_with_borrow(a->limbs[i], b->limbs[i], borrow, &borrow);
-    // If borrow, add n back
-    if (borrow) {
-        ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
-        ulong carry2 = 0;
-        for (int i = 0; i < 4; i++)
-            r->limbs[i] = add_with_carry(r->limbs[i], n[i], carry2, &carry2);
-    }
+    // CONSTANT-TIME: was `if (borrow) add n` — a data-dependent branch on a
+    // secret-derived borrow. Add n masked by borrow (0 when no borrow -> no-op).
+    ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+    ulong mask = (ulong)0 - (ulong)(borrow != 0);
+    ulong carry2 = 0;
+    for (int i = 0; i < 4; i++)
+        r->limbs[i] = add_with_carry(r->limbs[i], n[i] & mask, carry2, &carry2);
 }
 
 // Scalar multiply mod n: r = (a * b) mod n

@@ -268,6 +268,36 @@ classes, not the 48 estimated when the residual was filed.)*
 
 ---
 
+## RR-GPU-OCL-01 — Non-NVIDIA OpenCL `field_reduce` retains reduction branches
+
+**Type:** Constant-time gap on a secondary GPU backend
+**Status:** **Open** — needs a non-NVIDIA (AMD/Intel) OpenCL host to fix + verify
+**Severity:** Low (non-NVIDIA OpenCL signing only; NVIDIA path fixed + verified)
+**Scope:** OpenCL ECDSA/Schnorr signing on AMD/Intel devices
+
+**Description:**
+`src/opencl/kernels/secp256k1_field.cl` `field_mul_impl` selects the field reduction
+by `#ifdef __NV_CL_C_VERSION`: NVIDIA OpenCL uses the PTX `reduce_512_to_256_32_ocl`
+(made branchless 2026-06-22, verified by `opencl_test` 44/44 on an RTX 5060 Ti), but
+the `#else` portable path (`field_reduce`) still has data-dependent reduction branches
+(`if (temp[4] != 0)`, `if (carry)`, final `if (result >= p)`). On a non-NVIDIA OpenCL
+device these would leak the secret-derived carry/borrow during signing. The shared
+scalar reductions (`scalar_add_mod_n_impl` / `scalar_sub_mod_n_impl`) were fixed
+branchlessly for **both** paths in the same change.
+
+**Why residual (not fixed now):** this host is CUDA/NVIDIA-only; the `#else` path cannot
+be compiled, run, or CT-measured here. A blind branchless rewrite of a multi-step
+reduction that cannot be correctness-tested risks a silent consensus break, so it is
+deferred to a session with AMD/Intel OpenCL hardware (build `opencl_test` there;
+mirror the branchless cmov pattern; confirm 44/44).
+
+**Related:** there is no ncu-equivalent **white-box CT gate for OpenCL** (the
+`ci/check_gpu_ct_uniformity.py` Nsight gate is CUDA-only and PASSES 5/5). Extending a
+white-box CT methodology to OpenCL is a standing follow-up; until then OpenCL CT rests
+on source-level branchlessness + correctness differentials.
+
+---
+
 ## Review Rule
 
 When a residual risk becomes blocking, partially covered, or fully closed:

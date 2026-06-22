@@ -365,14 +365,21 @@ FORCE_INLINE_STATIC void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r)
         : "+l"(r0),"+l"(r1),"+l"(r2),"+l"(r3),"=l"(c)
         : "l"(ek_lo),"l"(ek_hi)
     );
-    if (c) {
+    // CONSTANT-TIME rare-carry fold: was `if (c) { add SECP256K1_K }` — a
+    // data-dependent branch on a secret-derived carry. Now always execute the add
+    // with a masked addend (0 when c==0 -> no-op), so wavefront execution is
+    // uniform. Mirrors the CUDA reduce_512_to_256_32 (proven CT via ncu).
+    {
+        ulong cmask = (ulong)0 - (ulong)(c != 0UL);
+        __asm volatile("" : "+l"(cmask));   // value barrier
+        ulong cfold = (ulong)SECP256K1_K & cmask;
         __asm volatile(
             "add.cc.u64  %0, %0, %4;\n\t"
             "addc.cc.u64 %1, %1, 0;\n\t"
             "addc.cc.u64 %2, %2, 0;\n\t"
             "addc.u64    %3, %3, 0;\n\t"
             : "+l"(r0),"+l"(r1),"+l"(r2),"+l"(r3)
-            : "l"((ulong)SECP256K1_K)
+            : "l"(cfold)
         );
     }
 
@@ -388,10 +395,17 @@ FORCE_INLINE_STATIC void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r)
         : "l"(r0),"l"(r1),"l"(r2),"l"(r3),
           "l"(SECP256K1_P0),"l"(SECP256K1_P1),"l"(SECP256K1_P2),"l"(SECP256K1_P3)
     );
-    if (borrow == 0) {
-        r->limbs[0]=s0; r->limbs[1]=s1; r->limbs[2]=s2; r->limbs[3]=s3;
-    } else {
-        r->limbs[0]=r0; r->limbs[1]=r1; r->limbs[2]=r2; r->limbs[3]=r3;
+    // CONSTANT-TIME final reduction: was `if (borrow==0) r=s; else r=r;` — a
+    // data-dependent branch (borrow==0 <=> r >= P). Now branchless cmov: select
+    // the subtracted limbs s iff r >= P, else keep r, via a value-barriered mask.
+    // Mirrors the CUDA reduce_512_to_256_32 (proven CT via ncu).
+    {
+        ulong mask = (ulong)0 - (ulong)(borrow == 0UL);
+        __asm volatile("" : "+l"(mask));   // value barrier
+        r->limbs[0] = (s0 & mask) | (r0 & ~mask);
+        r->limbs[1] = (s1 & mask) | (r1 & ~mask);
+        r->limbs[2] = (s2 & mask) | (r2 & ~mask);
+        r->limbs[3] = (s3 & mask) | (r3 & ~mask);
     }
 }
 

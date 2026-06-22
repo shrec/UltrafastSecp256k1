@@ -1,5 +1,31 @@
 # Audit Changelog
 
+## 2026-06-22 — GPU constant-time: CUDA confirmed CT (audit FP); OpenCL signing reductions fixed
+
+Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120, CUDA
+12.0 forward-compat JIT), via measurement rather than inference:
+
+- **CUDA: already constant-time (the audit finding was a FALSE POSITIVE).** The white-box
+  Nsight gate `ci/check_gpu_ct_uniformity.py` PASSES 5/5 CT signing kernels
+  (`ct_generator_mul`/`ct_ecdsa_sign`/`ct_schnorr_sign`/`ct_scalar_mul_varbase`/
+  `ct_ecdsa_sign_recoverable`) at 100% fixed==random branch uniformity. CUDA
+  `reduce_512_to_256_32` is already branchless cmov (Phase 3/4 value-barriered masks);
+  the audit misread the mask comparisons (`c != 0`, `borrow == 0`) as branches.
+- **OpenCL: the real leak — the CUDA branchless fix was never mirrored.** Made branchless
+  (masked cmov, mirroring the proven-CT CUDA pattern + the already-branchless
+  `scalar_cond_sub_n` in the same file):
+  - `src/opencl/kernels/secp256k1_field.cl` `reduce_512_to_256_32_ocl` — `if (c)` carry
+    fold + `if (borrow==0) r=s else r=r` final reduction.
+  - `src/opencl/kernels/secp256k1_extended.cl` `scalar_add_mod_n_impl` (`if (carry)`) +
+    `scalar_sub_mod_n_impl` (`if (borrow)`).
+- **Verified on the GPU:** `opencl_test` 44/44 on the actual NVIDIA OpenCL device — kernels
+  runtime-compile (the PTX value barrier + masked ops are valid) and field/EC/scalar
+  arithmetic is correct (the branchless forms are arithmetically identical to the branches).
+- **Residual RR-GPU-OCL-01:** the `#else` (non-NVIDIA AMD/Intel) portable `field_reduce`
+  still has reduction branches; not fixed because it cannot be built/CT-measured on a
+  CUDA-only host (deferred to AMD/Intel OpenCL hardware). OpenCL also lacks an
+  ncu-equivalent white-box CT gate (CUDA-only) — a standing follow-up.
+
 ## 2026-06-22 — Audit follow-up: libbitcoin collect `_mt` twins + MuSig2 partial-verify parity doc
 
 - **libbitcoin bridge collect `_mt` twins** (`compat/libbitcoin_bridge/...`): added
