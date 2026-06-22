@@ -38,6 +38,7 @@
 #include <array>
 #include <vector>
 #include <cstdint>
+#include <algorithm>
 
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
@@ -121,9 +122,191 @@ bool schnorr_dispatch(const secp256k1::SchnorrBatchEntry* b, size_t n, size_t ma
     }
 }
 
+// -- External cancellation (verify path = public data only -> no CT impact) ----
+// A NULL token is the hot path (handled entirely by the *_batch_core null branch,
+// untouched). A non-NULL token is polled BETWEEN chunks on the caller's thread,
+// so there is no concurrent callback invocation. Default chunk size matches the
+// libbitcoin bridge (262144); a smaller check_interval trades MSM batching for
+// cancellation latency and is clamped up to the batch minimum.
+
+inline bool cancel_requested(const ufsecp_cancel_token* cancel) noexcept {
+    if (!cancel || !cancel->is_cancelled) return false;
+    try {
+        return cancel->is_cancelled(cancel->user) != 0;
+    } catch (...) {
+        return true;  // fail-closed: a throwing callback cancels the batch
+    }
+}
+
+static constexpr size_t kCancelChunkDefault = size_t{1} << 18;  // 262144 (matches bridge kChunk)
+
+inline size_t cancel_chunk_size(const ufsecp_cancel_token* cancel) noexcept {
+    if (!cancel || cancel->check_interval == 0) return kCancelChunkDefault;
+    size_t req = static_cast<size_t>(cancel->check_interval);
+    if (req < kBatchMinEcdsa) req = kBatchMinEcdsa;  // keep each chunk worth batching
+    return req < kCancelChunkDefault ? req : kCancelChunkDefault;
+}
+
+// Cancellable ECDSA core (cancel != nullptr; ctx/n/array guards already done by
+// the caller). Chunked so the batch can be aborted from outside; fail-closed.
+int ecdsa_batch_core_cancel(
+    const secp256k1_ecdsa_signature* const* sigs,
+    const unsigned char* const*             msgs32,
+    const secp256k1_pubkey* const*          pubkeys,
+    size_t                                  n,
+    size_t                                  max_threads,
+    int*                                    results,
+    const ufsecp_cancel_token*              cancel)
+{
+    using secp256k1_shim_internal::pubkey_data_to_point;
+    const size_t csz = cancel_chunk_size(cancel);
+
+    if (results) {
+        for (size_t i = 0; i < n; ++i) results[i] = 0;  // pre-zero: unreached rows stay 0
+        int all_valid = 1;
+        static thread_local std::vector<secp256k1::ECDSABatchEntry> rbatch;
+        static thread_local std::vector<size_t>                     ridx;
+        for (size_t base = 0; base < n; base += csz) {
+            if (cancel_requested(cancel)) return 0;
+            const size_t cn = std::min(csz, n - base);
+            rbatch.clear(); ridx.clear();
+            rbatch.reserve(cn); ridx.reserve(cn);
+            for (size_t i = base; i < base + cn; ++i) {
+                if (!sigs[i] || !msgs32[i] || !pubkeys[i]) { all_valid = 0; continue; }
+                Scalar r, s;
+                if (!Scalar::parse_bytes_strict_le(sigs[i]->data,      r)) { all_valid = 0; continue; }
+                if (!Scalar::parse_bytes_strict_le(sigs[i]->data + 32, s)) { all_valid = 0; continue; }
+                secp256k1::ECDSABatchEntry e{};
+                std::memcpy(e.msg_hash.data(), msgs32[i], 32);
+                e.signature  = secp256k1::ECDSASignature{r, s};
+                e.public_key = pubkey_data_to_point(pubkeys[i]->data);
+                rbatch.push_back(e); ridx.push_back(i);
+            }
+            const bool chunk_all_parsed = (rbatch.size() == cn);
+            if (chunk_all_parsed && ecdsa_dispatch(rbatch.data(), rbatch.size(), max_threads)) {
+                for (size_t i = base; i < base + cn; ++i) results[i] = 1;
+                continue;
+            }
+            std::vector<size_t> invalid;
+            secp256k1::ecdsa_batch_identify_invalid(rbatch.data(), rbatch.size(), invalid);
+            for (size_t j = 0; j < ridx.size(); ++j) results[ridx[j]] = 1;
+            for (size_t inv : invalid) results[ridx[inv]] = 0;
+            if (!(chunk_all_parsed && invalid.empty())) all_valid = 0;
+        }
+        return all_valid;
+    }
+
+    // All-or-nothing: any malformed row or invalid chunk -> 0 (fail-closed).
+    static thread_local std::vector<secp256k1::ECDSABatchEntry> obatch;
+    for (size_t base = 0; base < n; base += csz) {
+        if (cancel_requested(cancel)) return 0;
+        const size_t cn = std::min(csz, n - base);
+        obatch.clear(); obatch.reserve(cn);
+        for (size_t i = base; i < base + cn; ++i) {
+            if (!sigs[i] || !msgs32[i] || !pubkeys[i]) return 0;
+            secp256k1::ECDSABatchEntry e{};
+            std::memcpy(e.msg_hash.data(), msgs32[i], 32);
+            Scalar r, s;
+            if (!Scalar::parse_bytes_strict_le(sigs[i]->data,      r)) return 0;
+            if (!Scalar::parse_bytes_strict_le(sigs[i]->data + 32, s)) return 0;
+            e.signature  = secp256k1::ECDSASignature{r, s};
+            e.public_key = pubkey_data_to_point(pubkeys[i]->data);
+            obatch.push_back(e);
+        }
+        if (!ecdsa_dispatch(obatch.data(), obatch.size(), max_threads)) return 0;
+    }
+    return 1;
+}
+
+// Cancellable Schnorr core (cancel != nullptr; caller did the guards).
+int schnorr_batch_core_cancel(
+    const unsigned char* const*           sigs64,
+    const unsigned char* const*           msgs,
+    size_t                                msglen,
+    const secp256k1_xonly_pubkey* const*  pubkeys,
+    size_t                                n,
+    size_t                                max_threads,
+    int*                                  results,
+    const ufsecp_cancel_token*            cancel)
+{
+    const size_t csz = cancel_chunk_size(cancel);
+
+    if (results) {
+        for (size_t i = 0; i < n; ++i) results[i] = 0;  // pre-zero
+        if (msglen != 32) {  // variable-length: per-row verify with periodic polls
+            int all = 1;
+            for (size_t i = 0; i < n; ++i) {
+                if ((i % csz) == 0 && cancel_requested(cancel)) return 0;
+                results[i] = schnorr_verify_one(sigs64[i], msgs[i], msglen, pubkeys[i]) ? 1 : 0;
+                if (!results[i]) all = 0;
+            }
+            return all;
+        }
+        int all_valid = 1;
+        static thread_local std::vector<secp256k1::SchnorrBatchEntry> rbatch;
+        static thread_local std::vector<size_t>                       ridx;
+        for (size_t base = 0; base < n; base += csz) {
+            if (cancel_requested(cancel)) return 0;
+            const size_t cn = std::min(csz, n - base);
+            rbatch.clear(); ridx.clear();
+            rbatch.reserve(cn); ridx.reserve(cn);
+            for (size_t i = base; i < base + cn; ++i) {
+                if (!sigs64[i] || !msgs[i] || !pubkeys[i]) { all_valid = 0; continue; }
+                secp256k1::SchnorrBatchEntry e{};
+                std::memcpy(e.pubkey_x.data(), pubkeys[i]->data, 32);
+                std::memcpy(e.message.data(),  msgs[i],          32);
+                std::array<uint8_t, 64> sb{};
+                std::memcpy(sb.data(), sigs64[i], 64);
+                if (!secp256k1::SchnorrSignature::parse_strict(sb, e.signature)) { all_valid = 0; continue; }
+                rbatch.push_back(e); ridx.push_back(i);
+            }
+            const bool chunk_all_parsed = (rbatch.size() == cn);
+            if (chunk_all_parsed && schnorr_dispatch(rbatch.data(), rbatch.size(), max_threads)) {
+                for (size_t i = base; i < base + cn; ++i) results[i] = 1;
+                continue;
+            }
+            std::vector<size_t> invalid;
+            secp256k1::schnorr_batch_identify_invalid(rbatch.data(), rbatch.size(), invalid);
+            for (size_t j = 0; j < ridx.size(); ++j) results[ridx[j]] = 1;
+            for (size_t inv : invalid) results[ridx[inv]] = 0;
+            if (!(chunk_all_parsed && invalid.empty())) all_valid = 0;
+        }
+        return all_valid;
+    }
+
+    // All-or-nothing.
+    if (msglen != 32) {
+        for (size_t i = 0; i < n; ++i) {
+            if ((i % csz) == 0 && cancel_requested(cancel)) return 0;
+            if (!schnorr_verify_one(sigs64[i], msgs[i], msglen, pubkeys[i])) return 0;
+        }
+        return 1;
+    }
+    static thread_local std::vector<secp256k1::SchnorrBatchEntry> obatch;
+    for (size_t base = 0; base < n; base += csz) {
+        if (cancel_requested(cancel)) return 0;
+        const size_t cn = std::min(csz, n - base);
+        obatch.clear(); obatch.reserve(cn);
+        for (size_t i = base; i < base + cn; ++i) {
+            if (!sigs64[i] || !msgs[i] || !pubkeys[i]) return 0;
+            secp256k1::SchnorrBatchEntry e{};
+            std::memcpy(e.pubkey_x.data(), pubkeys[i]->data, 32);
+            std::memcpy(e.message.data(),  msgs[i],          32);
+            std::array<uint8_t, 64> sb{};
+            std::memcpy(sb.data(), sigs64[i], 64);
+            if (!secp256k1::SchnorrSignature::parse_strict(sb, e.signature)) return 0;
+            obatch.push_back(e);
+        }
+        if (!schnorr_dispatch(obatch.data(), obatch.size(), max_threads)) return 0;
+    }
+    return 1;
+}
+
 // ---------------------------------------------------------------------------
 // ECDSA batch core. results == nullptr => all-or-nothing (fail-closed on any
 // bad pointer); results != nullptr => per-row verdict (each results[i] set).
+// A non-NULL `cancel` routes to the chunked, cancellable path above; NULL keeps
+// the original single-dispatch hot path below byte-for-byte.
 // ---------------------------------------------------------------------------
 int ecdsa_batch_core(
     const secp256k1_context*               ctx,
@@ -132,11 +315,13 @@ int ecdsa_batch_core(
     const secp256k1_pubkey* const*          pubkeys,
     size_t                                  n,
     size_t                                  max_threads,
-    int*                                    results)
+    int*                                    results,
+    const ufsecp_cancel_token*              cancel = nullptr)
 {
     if (!ctx_can_verify(ctx)) return 0;
     if (n == 0) return 1;  // vacuously valid
     if (!sigs || !msgs32 || !pubkeys) return 0;
+    if (cancel) return ecdsa_batch_core_cancel(sigs, msgs32, pubkeys, n, max_threads, results, cancel);
 
     // -- Per-row results path -------------------------------------------------
     if (results) {
@@ -217,11 +402,13 @@ int schnorr_batch_core(
     const secp256k1_xonly_pubkey* const*  pubkeys,
     size_t                                n,
     size_t                                max_threads,
-    int*                                  results)
+    int*                                  results,
+    const ufsecp_cancel_token*            cancel = nullptr)
 {
     if (!ctx_can_verify(ctx)) return 0;
     if (n == 0) return 1;  // vacuously valid
     if (!sigs64 || !msgs || !pubkeys) return 0;
+    if (cancel) return schnorr_batch_core_cancel(sigs64, msgs, msglen, pubkeys, n, max_threads, results, cancel);
 
     // -- Per-row results path -------------------------------------------------
     if (results) {
@@ -308,13 +495,14 @@ int secp256k1_schnorrsig_verify_batch(
     const unsigned char* const*      msgs,
     size_t                           msglen,
     const secp256k1_xonly_pubkey* const* pubkeys,
-    size_t                           n)
+    size_t                           n,
+    const ufsecp_cancel_token*       cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_schnorrsig_verify_batch: NULL context");
         return 0;
     }
-    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, 0 /*auto*/, nullptr);
+    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, 0 /*auto*/, nullptr, cancel);
 }
 
 int secp256k1_schnorrsig_verify_batch_mt(
@@ -324,13 +512,14 @@ int secp256k1_schnorrsig_verify_batch_mt(
     size_t                           msglen,
     const secp256k1_xonly_pubkey* const* pubkeys,
     size_t                           n,
-    size_t                           max_threads)
+    size_t                           max_threads,
+    const ufsecp_cancel_token*       cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_schnorrsig_verify_batch_mt: NULL context");
         return 0;
     }
-    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads, nullptr);
+    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads, nullptr, cancel);
 }
 
 int secp256k1_schnorrsig_verify_batch_results(
@@ -341,14 +530,15 @@ int secp256k1_schnorrsig_verify_batch_results(
     const secp256k1_xonly_pubkey* const* pubkeys,
     size_t                           n,
     size_t                           max_threads,
-    int*                             results)
+    int*                             results,
+    const ufsecp_cancel_token*       cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_schnorrsig_verify_batch_results: NULL context");
         return 0;
     }
     if (!results) return 0;
-    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads, results);
+    return schnorr_batch_core(ctx, sigs64, msgs, msglen, pubkeys, n, max_threads, results, cancel);
 }
 
 int secp256k1_ecdsa_verify_batch(
@@ -356,13 +546,14 @@ int secp256k1_ecdsa_verify_batch(
     const secp256k1_ecdsa_signature* const* sigs,
     const unsigned char* const*             msgs32,
     const secp256k1_pubkey* const*          pubkeys,
-    size_t                                  n)
+    size_t                                  n,
+    const ufsecp_cancel_token*              cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_ecdsa_verify_batch: NULL context");
         return 0;
     }
-    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, 0 /*auto*/, nullptr);
+    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, 0 /*auto*/, nullptr, cancel);
 }
 
 int secp256k1_ecdsa_verify_batch_mt(
@@ -371,13 +562,14 @@ int secp256k1_ecdsa_verify_batch_mt(
     const unsigned char* const*             msgs32,
     const secp256k1_pubkey* const*          pubkeys,
     size_t                                  n,
-    size_t                                  max_threads)
+    size_t                                  max_threads,
+    const ufsecp_cancel_token*              cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_ecdsa_verify_batch_mt: NULL context");
         return 0;
     }
-    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, max_threads, nullptr);
+    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, max_threads, nullptr, cancel);
 }
 
 int secp256k1_ecdsa_verify_batch_results(
@@ -387,14 +579,15 @@ int secp256k1_ecdsa_verify_batch_results(
     const secp256k1_pubkey* const*          pubkeys,
     size_t                                  n,
     size_t                                  max_threads,
-    int*                                    results)
+    int*                                    results,
+    const ufsecp_cancel_token*              cancel)
 {
     if (!ctx) {
         secp256k1_shim_call_illegal_cb(NULL, "secp256k1_ecdsa_verify_batch_results: NULL context");
         return 0;
     }
     if (!results) return 0;
-    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, max_threads, results);
+    return ecdsa_batch_core(ctx, sigs, msgs32, pubkeys, n, max_threads, results, cancel);
 }
 
 } // extern "C"

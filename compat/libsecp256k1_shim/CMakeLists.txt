@@ -29,6 +29,7 @@ if(SECP256K1_BUILD_SHIM)
     target_include_directories(secp256k1_shim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include  # ufsecp/ufsecp_cancel.h (secp256k1_batch.h dep)
     )
 
     # The stub must link the engine so callers transitively get the symbols.
@@ -72,6 +73,7 @@ else()
     target_include_directories(secp256k1_shim PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/../../src/cpu/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include  # ufsecp/ufsecp_cancel.h (secp256k1_batch.h dep)
     )
 
     # Link against UltrafastSecp256k1 CPU library.
@@ -118,7 +120,8 @@ if(SECP256K1_SHIM_BUILD_SHARED)
         OUTPUT_NAME ultrafast_secp256k1
         WINDOWS_EXPORT_ALL_SYMBOLS ON)
     target_include_directories(ultrafast_secp256k1_shared PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../include)  # ufsecp/ufsecp_cancel.h (secp256k1_batch.h dep)
     # WHOLE_ARCHIVE (CMake >= 3.24) forces every fastsecp256k1 object into the
     # shared lib so the secp256k1_* ABI is present (and thus exported).
     target_link_libraries(ultrafast_secp256k1_shared PRIVATE
@@ -156,6 +159,10 @@ if(SECP256K1_SHIM_BUILD_SHARED)
         install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
                 DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ultrafast_secp256k1
                 FILES_MATCHING PATTERN "secp256k1*.h")
+        # secp256k1_batch.h includes "ufsecp/ufsecp_cancel.h" — ship it under the
+        # same include root so the installed ABI headers stay self-contained.
+        install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../include/ufsecp/ufsecp_cancel.h
+                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ultrafast_secp256k1/ufsecp)
         configure_file(
             ${CMAKE_CURRENT_SOURCE_DIR}/ultrafast_secp256k1.pc.in
             ${CMAKE_CURRENT_BINARY_DIR}/ultrafast_secp256k1.pc @ONLY)
@@ -228,4 +235,11 @@ if(SECP256K1_SHIM_BUILD_TESTS AND NOT SECP256K1_BUILD_SHIM)
     target_link_libraries(test_shim_batch_mt PRIVATE secp256k1_shim)
     add_test(NAME shim_batch_mt COMMAND test_shim_batch_mt)
     set_tests_properties(shim_batch_mt PROPERTIES LABELS "shim")
+
+    # External cancellation token on all batch-verify functions: NULL parity,
+    # immediate + mid-batch cancel, throwing callback fail-closed, per-row partial.
+    add_executable(test_shim_batch_cancel tests/test_shim_batch_cancel.cpp)
+    target_link_libraries(test_shim_batch_cancel PRIVATE secp256k1_shim)
+    add_test(NAME shim_batch_cancel COMMAND test_shim_batch_cancel)
+    set_tests_properties(shim_batch_cancel PROPERTIES LABELS "shim")
 endif()

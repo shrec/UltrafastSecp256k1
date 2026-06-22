@@ -1,5 +1,28 @@
 # Audit Changelog
 
+## 2026-06-22 — Shim batch-verify external cancellation token
+
+- **All shim batch-verify functions are now cancellable:** `secp256k1_{ecdsa,schnorrsig}_verify_batch`,
+  `_verify_batch_mt`, and `_verify_batch_results` (`compat/libsecp256k1_shim/include/secp256k1_batch.h` /
+  `src/shim_batch_verify.cpp`) gain a trailing `const ufsecp_cancel_token* cancel` (C++ default `NULL`).
+  This mirrors the libbitcoin bridge scheme so an integrator can abort a long batch verify from outside
+  (e.g. a node shutting down or reorging away an in-flight block).
+- **Shared cancel-token type:** `ufsecp_cancel_fn` / `ufsecp_cancel_token` / `UFSECP_CANCEL_DEFAULT` moved
+  to a single canonical header `include/ufsecp/ufsecp_cancel.h` (struct layout unchanged, byte-for-byte).
+  `ufsecp_libbitcoin.h` now includes it and keeps `UFSECP_LBTC_CANCEL_DEFAULT` as an alias, so the bridge
+  and shim agree on layout and a program may include both headers without a conflicting redefinition.
+- **Behavior:** `cancel == NULL` is the original single-dispatch hot path, byte-for-byte, zero overhead.
+  A non-NULL token chunks the batch (default 262144; `check_interval` tunes it, clamped up to the batch
+  minimum) and polls between chunks. Cancel returns `0` (fail-closed; a cancelled batch never returns 1);
+  for `_results`, rows not reached are left `0`. A throwing cancel callback is treated as cancel.
+- **Divergence note:** the shim returns `int`, so "cancelled" is not distinguishable from "invalid" via the
+  return value (unlike the bridge's `UFSECP_ERR_CANCELLED`); the caller disambiguates via its own token
+  state. Documented in `docs/SHIM_KNOWN_DIVERGENCES.md` (SHIM-BATCH-CANCEL).
+- **Regression coverage:** new `shim_batch_cancel` (`compat/libsecp256k1_shim/tests/test_shim_batch_cancel.cpp`)
+  — NULL/default-arg parity, non-tripping chunked verdict correctness, immediate + mid-batch cancel,
+  throwing-callback fail-closed, `_results` partial-fill, n==0 vacuous. `test_lbtc_bridge` re-verified
+  green after the shared-header refactor.
+
 ## 2026-06-20 — Libbitcoin batch cancellation token
 
 - **Cancellation token const-correctness:** `ufsecp_cancel_fn` now receives

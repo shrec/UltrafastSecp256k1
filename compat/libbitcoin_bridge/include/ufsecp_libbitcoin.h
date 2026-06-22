@@ -71,6 +71,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "ufsecp/ufsecp_error.h" /* ufsecp_error_t, UFSECP_OK, UFSECP_ERR_* */
+#include "ufsecp/ufsecp_cancel.h" /* ufsecp_cancel_fn, ufsecp_cancel_token, UFSECP_CANCEL_DEFAULT */
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,18 +124,15 @@ typedef enum {
  * chunks; check_interval == 0 uses the engine default chunk size. Returning
  * non-zero from is_cancelled yields UFSECP_ERR_CANCELLED. Cancellation is an
  * execution status: partial results/key-cells are caller-discarded and must not
- * be interpreted as consensus verdicts. */
-typedef int (*ufsecp_cancel_fn)(const void* user);
-typedef struct ufsecp_cancel_token {
-    ufsecp_cancel_fn is_cancelled;
-    const void* user;
-    uint32_t check_interval;
-} ufsecp_cancel_token;
-
-#ifdef __cplusplus
-#define UFSECP_LBTC_CANCEL_DEFAULT = NULL
-#else
-#define UFSECP_LBTC_CANCEL_DEFAULT
+ * be interpreted as consensus verdicts.
+ *
+ * ufsecp_cancel_fn / ufsecp_cancel_token / UFSECP_CANCEL_DEFAULT now live in the
+ * shared header "ufsecp/ufsecp_cancel.h" (single canonical definition so this
+ * bridge and the shim batch-verify API agree on layout). The struct is unchanged,
+ * byte-for-byte; the historical UFSECP_LBTC_CANCEL_DEFAULT name is kept as an
+ * alias for source compatibility. */
+#ifndef UFSECP_LBTC_CANCEL_DEFAULT
+#define UFSECP_LBTC_CANCEL_DEFAULT UFSECP_CANCEL_DEFAULT
 #endif
 
 /* Create / destroy the controller. On success *out receives a non-NULL handle.

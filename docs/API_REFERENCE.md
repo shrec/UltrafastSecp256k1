@@ -2205,8 +2205,11 @@ result identical to serial for any thread count).
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
 > (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),
 > which wraps the engine MT path with caller `max_threads` control and optional per-row results.
-> See [`INTEGRATION_MODELS.md`](INTEGRATION_MODELS.md). The `ufsecp_*` batch entries above are the
-> native (non-shim) ABI; the `libbitcoin_bridge` below is the advanced GPU/zero-copy tier.
+> Every function also takes a trailing `const ufsecp_cancel_token* cancel` (shared type in
+> `ufsecp/ufsecp_cancel.h`, same as the libbitcoin bridge; C++ default `NULL` = no cancellation,
+> zero overhead) so a long batch can be aborted from outside; on cancel it returns `0`
+> (fail-closed). See [`INTEGRATION_MODELS.md`](INTEGRATION_MODELS.md). The `ufsecp_*` batch entries
+> above are the native (non-shim) ABI; the `libbitcoin_bridge` below is the advanced GPU/zero-copy tier.
 
 <a id="c-abi-libbitcoin-bridge"></a>
 ### Libbitcoin Bridge
