@@ -154,8 +154,11 @@ static void test_mt_no_thread_cap() {
           "batch_verify.cpp: no hard-coded kMaxThreads cap");
     CHECK(src.find("std::array<std::thread") == std::string::npos,
           "batch_verify.cpp: no fixed std::array<std::thread,N> pool");
-    CHECK(src.find("std::vector<std::thread>") != std::string::npos,
-          "batch_verify.cpp: uses dynamic std::vector<std::thread> pool");
+    // The _mt paths now run on a PERSISTENT worker pool (detail::batch_worker_pool),
+    // not a per-call std::thread spawn — this parallelizes block-sized batches AND keeps
+    // worker thread_locals warm. (The old design spawned a std::vector<std::thread> per call.)
+    CHECK(src.find("batch_worker_pool") != std::string::npos,
+          "batch_verify.cpp: uses the persistent worker pool (no per-call thread spawn)");
 }
 
 // Edge cases.

@@ -1,5 +1,36 @@
 # Audit Changelog
 
+## 2026-06-22 — CPU batch-verify throughput: persistent pool, fused parse, FE52 decompress
+
+Reworked the CPU multi-threaded batch-verify paths so a libbitcoin-style consumer (one
+bridge call per block, verifying the libsecp baseline in parallel via `std::for_each(par)`)
+gets full multi-core utilization. Previously the bridge `_mt` paths silently collapsed to
+a single thread for any batch below 4096 signatures, so libbitcoin saw ~1 active core.
+
+- **`ecdsa_batch_verify_mt` / `schnorr_batch_verify_mt`** (`src/cpu/src/batch_verify.cpp`):
+  decoupled the worker count from the fixed 4096 work-steal chunk. Worker count is now
+  bounded by hardware/request and by having enough rows to amortize a worker
+  (`n / kMinRowsPerThread`), NOT by the chunk count — so block-sized batches parallelize.
+- **Persistent worker pool** (`src/cpu/include/secp256k1/detail/batch_pool.hpp`,
+  `detail::batch_worker_pool`): the `_mt` paths run on a process-wide pool created once and
+  reused, instead of spawning a fresh `std::thread` set per call. Removes the per-call spawn
+  storm and keeps worker `thread_local` scratch warm across calls. The singleton is
+  intentionally leaked (never destroyed) so no thread join runs at static-destruction /
+  Windows DLL-unload time — avoiding the loader-lock deadlock (MSVC-safe).
+- **`ufsecp_ecdsa_verify_opaque_rows_mt`** (`src/cpu/src/impl/ufsecp_ecdsa.cpp`): the fast
+  path now FUSES parse + verify inside each worker chunk (was: serial parse of all rows
+  before the parallel verify, an Amdahl ceiling). Per-row pubkey decompress
+  (`pubkey33_to_point`) (1) drops the wasted `build_schnorr_verify_tables` that
+  `ecdsa_pubkey_parse` builds and the batch path discards, and (2) does the field sqrt in
+  `FieldElement52` (5×52, the representation the verify uses internally) instead of the
+  slower 4×64 `fast::FieldElement`. The prefix / x-range / QR curve-check / parity logic is
+  identical to the tested `ecdsa_pubkey_parse`.
+- Verified: `audit/test_regression_ecdsa_batch_verify_mt` (parity vs serial + corruption
+  detection at every thread count, small-batch parity, persistent-pool source check) and
+  the libbitcoin bridge correctness suite (`test_lbtc_bridge`, all ECDSA/Schnorr `_mt`
+  invalid-row, boundary, cancellation, NULL, collect cases). Cross-validated against
+  upstream libsecp256k1 (all sigs accepted; corrupted rows located).
+
 ## 2026-06-22 — GPU constant-time, part 2: Metal + portable-OpenCL field reductions
 
 Completed CT parity across all GPU backends (continues the CUDA/NVIDIA-OpenCL entry below).

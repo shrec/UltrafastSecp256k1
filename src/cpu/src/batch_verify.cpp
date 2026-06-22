@@ -12,6 +12,7 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/detail/csprng.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/batch_pool.hpp"
 #if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -25,6 +26,22 @@
 #include <vector>
 
 namespace secp256k1 {
+
+namespace detail {
+// Single process-wide persistent worker pool, lazily created on first batch-verify _mt
+// call and reused thereafter (no per-call thread spawn).
+//
+// INTENTIONALLY LEAKED (heap, never deleted): the destructor would join the worker
+// threads at static-destruction time, which on Windows runs during DLL unload while the
+// loader lock is held — joining threads there deadlocks (the workers need the loader lock
+// to exit). Leaking the singleton means no destructor runs; the OS reclaims the threads
+// and memory at process exit. This is the portable (MSVC + libstdc++ + libc++) choice and
+// avoids static-destruction-order hazards as well.
+BatchWorkerPool& batch_worker_pool() {
+    static BatchWorkerPool* pool = new BatchWorkerPool();
+    return *pool;
+}
+}  // namespace detail
 
 // Seeded hash for 32-byte pubkey deduplication.
 // Seed is randomised per batch call so adversarial pubkey inputs cannot
@@ -522,48 +539,32 @@ bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
                            std::size_t max_threads) {
     if (n == 0) return false;  // identical to the serial ecdsa_batch_verify contract
 
-    static constexpr std::size_t kChunk = 4096;  // > batch-inversion cutoff (8)
+    // Parallelism granularity is DECOUPLED from the batch-inversion work-steal chunk.
+    // (Old bug: n_threads was capped by ceil(n/4096), so any batch < 4096 sigs ran on ONE
+    // thread regardless of max_threads — block-sized batches never parallelized.) A single
+    // ECDSA verify is ~25-100us, so even ~128 rows/thread dwarfs scheduling overhead. The
+    // PERSISTENT pool (created once, reused) avoids a per-call std::thread spawn storm and
+    // keeps worker thread_locals warm — matching libbitcoin's std::for_each(par).
+    static constexpr std::size_t kMinRowsPerThread = 128;
+    static constexpr std::size_t kStealFloor = 64;   // >= batch-inversion cutoff (8)
 
-    unsigned hw = std::thread::hardware_concurrency();
-    if (hw == 0) hw = 1;
-    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
-    // is honoured but reduced to what the hardware can actually run; there is no
-    // arbitrary upper cap. n_threads is further bounded by the number of chunks
-    // (no point spawning workers that would find the queue already drained).
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
     const unsigned want = (max_threads == 0)
         ? hw
         : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const std::size_t by_work = std::max<std::size_t>(1, n / kMinRowsPerThread);
     const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
-        static_cast<std::size_t>(want), n_chunks));
+        static_cast<std::size_t>(want), by_work));
+    const std::size_t steal = (n_threads <= 1)
+        ? n
+        : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
+                                  kStealFloor, std::size_t{4096});
 
-    std::atomic<std::size_t> next_chunk{0};
-    std::atomic<bool>        any_invalid{false};
-
-    auto run = [&]() {
-        for (;;) {
-            if (any_invalid.load(std::memory_order_relaxed)) return;
-            const std::size_t start =
-                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
-            if (start >= n) return;
-            const std::size_t end = std::min(start + kChunk, n);
-            if (!ecdsa_batch_verify(entries + start, end - start)) {
-                any_invalid.store(true, std::memory_order_relaxed);
-                return;
-            }
-        }
-    };
-
-    if (n_threads <= 1) {
-        run();
-        return !any_invalid.load(std::memory_order_acquire);
-    }
-
-    std::vector<std::thread> pool;
-    pool.reserve(n_threads);
-    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
-    for (auto& th : pool) th.join();
-    return !any_invalid.load(std::memory_order_acquire);
+    return pool.run(n, steal, n_threads,
+                    [entries](std::size_t s, std::size_t e) {
+                        return ecdsa_batch_verify(entries + s, e - s);
+                    });
 }
 
 bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
@@ -589,47 +590,31 @@ bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
                              std::size_t max_threads) {
     if (n == 0) return schnorr_batch_verify(entries, 0);  // identical serial contract
 
-    static constexpr std::size_t kChunk = 4096;
+    // Same principle as ecdsa_batch_verify_mt: decouple worker count from a fixed 4096
+    // chunk (so block-sized batches parallelize) and run on the PERSISTENT pool (no
+    // per-call spawn). Each chunk is an independent Schnorr batch (its own randomized
+    // MSM + infinity check), so chunking is correct; the steal floor keeps each chunk's
+    // MSM reasonably sized.
+    static constexpr std::size_t kMinRowsPerThread = 128;
+    static constexpr std::size_t kStealFloor = 64;
 
-    unsigned hw = std::thread::hardware_concurrency();
-    if (hw == 0) hw = 1;
-    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
-    // is honoured but reduced to what the hardware can actually run; there is no
-    // arbitrary upper cap. n_threads is further bounded by the number of chunks.
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
     const unsigned want = (max_threads == 0)
         ? hw
         : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const std::size_t by_work = std::max<std::size_t>(1, n / kMinRowsPerThread);
     const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
-        static_cast<std::size_t>(want), n_chunks));
+        static_cast<std::size_t>(want), by_work));
+    const std::size_t steal = (n_threads <= 1)
+        ? n
+        : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
+                                  kStealFloor, std::size_t{4096});
 
-    std::atomic<std::size_t> next_chunk{0};
-    std::atomic<bool>        any_invalid{false};
-
-    auto run = [&]() {
-        for (;;) {
-            if (any_invalid.load(std::memory_order_relaxed)) return;
-            const std::size_t start =
-                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
-            if (start >= n) return;
-            const std::size_t end = std::min(start + kChunk, n);
-            if (!schnorr_batch_verify(entries + start, end - start)) {
-                any_invalid.store(true, std::memory_order_relaxed);
-                return;
-            }
-        }
-    };
-
-    if (n_threads <= 1) {
-        run();
-        return !any_invalid.load(std::memory_order_acquire);
-    }
-
-    std::vector<std::thread> pool;
-    pool.reserve(n_threads);
-    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
-    for (auto& th : pool) th.join();
-    return !any_invalid.load(std::memory_order_acquire);
+    return pool.run(n, steal, n_threads,
+                    [entries](std::size_t s, std::size_t e) {
+                        return schnorr_batch_verify(entries + s, e - s);
+                    });
 }
 
 bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,

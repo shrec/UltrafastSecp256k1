@@ -2,6 +2,17 @@
 
 **UltrafastSecp256k1 v4.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-06-22 - CPU batch-verify throughput: persistent pool + FE52 decompress (verify-path only)
+
+Reworked the CPU multi-threaded batch-verify paths (`ecdsa_batch_verify_mt`,
+`schnorr_batch_verify_mt`, `ufsecp_ecdsa_verify_opaque_rows_mt`) to run on a persistent
+worker pool and to use a faster FE52/point-only pubkey decompress. These are **verify**
+paths over PUBLIC data; the security contract is unchanged and no signing/secret-bearing ABI
+was added or altered. The decompress keeps the same prefix / x-range / on-curve (QR) /
+parity validation as the tested `ecdsa_pubkey_parse`, so off-curve and out-of-range public
+keys are still rejected (fail-closed). The multi-threaded verdict is bit-identical to the
+serial path (verification is over public data and variable-time by design).
+
 ### 2026-06-18 - Bech32 address encoder allocation reduction
 
 `bech32_encode` now avoids heap-backed intermediate vectors for normal Bitcoin

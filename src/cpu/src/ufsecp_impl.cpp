@@ -50,6 +50,7 @@
 #include "secp256k1/precompute.hpp"   // set_cache_directory (ufsecp_set_cache_dir)
 #include "secp256k1/bip39.hpp"
 #include "secp256k1/batch_verify.hpp"
+#include "secp256k1/detail/batch_pool.hpp"
 #include "secp256k1/musig2.hpp"
 #include "secp256k1/frost.hpp"
 #include "secp256k1/adaptor.hpp"

@@ -2,6 +2,17 @@
 
 **Last updated**: 2026-06-13 | **Version**: 4.4.0
 
+### 2026-06-22 - CPU batch-verify pool + decompress: no new secret-bearing ABI boundary
+
+The 2026-06-22 batch-verify changes (persistent worker pool, fused parse+verify, FE52
+point-only decompress) touch internal verify implementation only — no new ABI export and no
+change to any secret-bearing boundary. Hostile-caller coverage for the affected verify entry
+points (`ufsecp_ecdsa_verify_opaque_rows_mt` and the `ufsecp_lbtc_verify_*_mt` bridge
+wrappers) is unchanged: NULL ctx/rows/results, `n == 0`, oversized counts, off-curve /
+out-of-range public keys, and malformed signatures are all rejected fail-closed, and per-row
+verdicts under `_mt` are bit-identical to serial at every thread count (covered by
+`test_lbtc_bridge`).
+
 ### 2026-06-13 - Opaque ECDSA ABI compatibility
 
 `include/ufsecp/ufsecp.h` now exposes opaque ECDSA helpers for consumers whose
