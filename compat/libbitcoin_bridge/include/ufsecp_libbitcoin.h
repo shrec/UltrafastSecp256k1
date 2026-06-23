@@ -632,6 +632,29 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    const uint8_t* tweak_pubkeys33, size_t n,
                                    uint64_t* prefix64_out);
 
+/*
+ * BIP-352 8-byte silent-payment prefix match (issue #312).
+ *
+ * Batched, branch-light filter for the DuckDB-style silent-payment scan: for each of
+ * `count` rows it extracts the 8-byte prefix of the candidate output pubkey `tweaks[i]`
+ * (33-byte SEC1-compressed) and sets
+ *     matches[i] = (extracted_prefix == prefixes[i]) ? 1 : 0
+ * The prefix is the BIG-ENDIAN top 8 bytes of the x-coordinate -- bytes [1..8] of the
+ * compressed point, identical to bench_bip352's extract_upper_64 and to the prefixes
+ * produced by ufsecp_lbtc_sp_scan / ufsecp_gpu_bip352_scan_batch. `prefixes[i]` is the
+ * target prefix for row i in that same convention (e.g. the taproot output prefix joined
+ * to this candidate by the scanner).
+ *
+ * Buffers: tweaks = count*33 bytes, prefixes = count uint64, matches = count bytes.
+ * PUBLIC data only -- no private key and no controller (works under any backend; the ECC
+ * scan that produces the candidates is the GPU-accelerated step, exposed separately as
+ * ufsecp_lbtc_sp_scan). Returns the number of matching rows (>= 0), or -1 on NULL args.
+ */
+int ufsecp_lbtc_match_silent_prefixes(const uint8_t* tweaks,
+                                      const uint64_t* prefixes,
+                                      size_t count,
+                                      uint8_t* matches);
+
 #ifdef __cplusplus
 } /* extern "C" */
 

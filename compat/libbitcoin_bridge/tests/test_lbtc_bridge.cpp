@@ -609,6 +609,30 @@ int main() {
         CHECK(res[0] == 0xAA, "empty batch is a no-op (results untouched)");
     }
 
+    /* --- issue #312: ufsecp_lbtc_match_silent_prefixes (8-byte SP prefix match) --- */
+    {
+        const size_t N = 4;
+        std::vector<uint8_t> cands(N * 33);
+        std::vector<uint64_t> targets(N);
+        for (size_t i = 0; i < N; ++i) {
+            cands[i * 33] = 0x02;  /* SEC1 even-parity prefix byte */
+            for (int b = 0; b < 32; ++b)
+                cands[i * 33 + 1 + b] = (uint8_t)((i * 7u + (unsigned)b * 13u + 1u) & 0xff);
+            uint64_t p = 0;  /* expected prefix = big-endian top 8 bytes of x */
+            for (int b = 0; b < 8; ++b) p = (p << 8) | cands[i * 33 + 1 + b];
+            targets[i] = p;
+        }
+        targets[1] ^= 1ull;  /* row 1: deliberately wrong target -> must NOT match */
+        std::vector<uint8_t> mm(N, 0xEE);
+        int nm = ufsecp_lbtc_match_silent_prefixes(cands.data(), targets.data(), N, mm.data());
+        CHECK(nm == 3 && mm[0] == 1 && mm[1] == 0 && mm[2] == 1 && mm[3] == 1,
+              "match_silent_prefixes: 3/4 match, row-1 wrong target rejected, count==3");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(nullptr, targets.data(), N, mm.data()) == -1,
+              "match_silent_prefixes: NULL tweaks -> -1");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(cands.data(), targets.data(), 0, mm.data()) == 0,
+              "match_silent_prefixes: count 0 -> 0 matches");
+    }
+
     ufsecp_ctx_destroy(sctx);
     ufsecp_lbtc_ctrl_destroy(ctrl);
 

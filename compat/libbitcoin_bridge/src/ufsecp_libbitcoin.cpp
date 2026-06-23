@@ -1741,4 +1741,29 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
 #endif
 }
 
+// BIP-352 8-byte silent-payment prefix match (issue #312). PUBLIC data only; no key, no
+// controller. For each row, the 8-byte prefix of the 33-byte compressed candidate output
+// pubkey (big-endian top 8 bytes of the x-coordinate, bytes [1..8] -- identical to
+// bench_bip352 extract_upper_64 and to the sp_scan / GPU bip352_scan_batch prefixes) is
+// compared to prefixes[i]. Returns the number of matches (>= 0), or -1 on NULL args.
+int ufsecp_lbtc_match_silent_prefixes(const uint8_t* tweaks,
+                                      const uint64_t* prefixes,
+                                      size_t count,
+                                      uint8_t* matches) {
+    if (!tweaks || !prefixes || !matches) return -1;
+    int n_match = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const uint8_t* x = tweaks + i * 33u + 1u;  // skip parity byte -> x-coordinate
+        const uint64_t pfx =
+            (static_cast<uint64_t>(x[0]) << 56) | (static_cast<uint64_t>(x[1]) << 48) |
+            (static_cast<uint64_t>(x[2]) << 40) | (static_cast<uint64_t>(x[3]) << 32) |
+            (static_cast<uint64_t>(x[4]) << 24) | (static_cast<uint64_t>(x[5]) << 16) |
+            (static_cast<uint64_t>(x[6]) <<  8) |  static_cast<uint64_t>(x[7]);
+        const uint8_t m = (pfx == prefixes[i]) ? 1u : 0u;
+        matches[i] = m;
+        n_match += static_cast<int>(m);
+    }
+    return n_match;
+}
+
 } // extern "C"

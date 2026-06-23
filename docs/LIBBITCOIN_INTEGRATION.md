@@ -294,6 +294,44 @@ Backend modes:
 Once the controller exists, signature outcomes are per-row results. A bad
 signature is not an API error; `results[i] == 0` marks the row invalid.
 
+## Silent Payments (BIP-352) — 8-byte prefix match
+
+Two complementary entry points serve the BIP-352 silent-payment scan (issue #312):
+
+| Function | Role | Backend |
+|----------|------|---------|
+| `ufsecp_lbtc_sp_scan(ctrl, scan_privkey32, spend_pubkey33, tweak_pubkeys33, n, prefix64_out)` | full ECC scan: tweak points → 8-byte output prefixes | GPU-accelerated (`ufsecp_gpu_bip352_scan_batch`) |
+| `ufsecp_lbtc_match_silent_prefixes(tweaks, prefixes, count, matches)` | batched 8-byte prefix filter: candidate output pubkeys → match flags | pure CPU (no controller; works under any backend) |
+
+**Prefix convention (both functions):** the 8-byte prefix is the **big-endian top 8 bytes
+of the candidate output's x-coordinate** — bytes `[1..8]` of the 33-byte SEC1-compressed
+point (identical to `bench_bip352`'s `extract_upper_64`). `prefix64_out` from `sp_scan` and
+the `prefixes[i]` targets handed to `match_silent_prefixes` are in this same convention.
+
+`match_silent_prefixes` is a **filter**: an 8-byte match is a *candidate* (8 bytes can
+collide). Confirm survivors with the full 32-byte x-coordinate before treating a row as a
+real silent-payment hit.
+
+### Usage (DuckDB-style scanner)
+
+```c
+// `count` candidate output pubkeys (33-byte SEC1 compressed), packed back to back, and a
+// parallel array of target prefixes (e.g. taproot output prefixes joined to each candidate
+// by the scanner — same big-endian-top-8-of-x convention).
+const uint8_t*  candidates33;   // count * 33 bytes
+const uint64_t* target_prefix;  // count
+uint8_t*        matches;        // count (caller-allocated)
+
+int n = ufsecp_lbtc_match_silent_prefixes(candidates33, target_prefix, count, matches);
+//  n  == number of rows whose 8-byte prefix matched (>= 0), or -1 on a NULL argument.
+//  matches[i] == 1  -> candidate i is a prefix hit (confirm with full x-coordinate)
+//  matches[i] == 0  -> candidate i is definitively NOT this output
+```
+
+No private key flows through `match_silent_prefixes` and it needs no controller, so it runs
+identically on a CPU-only or GPU-bound build. The heavy elliptic-curve work (deriving the
+candidate output pubkeys / prefixes) is the GPU-accelerated `sp_scan` step.
+
 ## Validation Checklist
 
 Before handing a build to libbitcoin maintainers:
