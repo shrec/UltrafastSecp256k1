@@ -6,6 +6,10 @@ Windows, and the audit now runs end-to-end. The items below are the **remaining
 real bugs** — none are Windows-specific; they fail identically on Linux and are
 easiest to fix there (full dev environment, Cryptol native).
 
+> **UPDATE 2026-06-23 (commit `c9ae316c`, Linux):** BUG 2 (bundle hash drift) and
+> BUG 3 (FE52-compute commit lacked an in-commit test) are **FIXED**. Only **BUG 1**
+> (Cryptol formal specs) remains open — it is an advisory-skip, not a hard gate failure.
+
 ---
 
 ## BUG 1 — Cryptol formal specs do not parse / are not actually proven  *(blocks the Cryptol formal gate)*
@@ -68,16 +72,23 @@ advisory skip. The Windows toolchain is already in place
 
 ---
 
-## BUG 2 — External audit-evidence bundle hash drift  *(Bundle integrity gate FAIL)*
+## BUG 2 — External audit-evidence bundle hash drift  *(Bundle integrity gate FAIL)*  ✅ FIXED (c9ae316c)
 
-`ci/verify_external_audit_bundle.py` reports `passing:false` — the recorded
-`expected_hash` no longer matches the recomputed `actual_hash`. The bundle was
-not regenerated after recent evidence changes. Regenerate it (owner/release step)
-so the manifest hash matches current evidence, then re-verify.
+`ci/verify_external_audit_bundle.py` reported `passing:false` — the recorded
+`expected_hash` no longer matched the recomputed `actual_hash` (drifted evidence:
+`docs/FFI_HOSTILE_CALLER.md`). Regenerated via `ci/external_audit_bundle.py`;
+`verify_external_audit_bundle.py --allow-commit-mismatch` now passes 12/12.
 
 ---
 
-## BUG 3 — FE52-compute perf commit lacks an in-commit test  *(Security-fix-has-test gate FAIL)*
+## BUG 3 — FE52-compute perf commit lacks an in-commit test  *(Security-fix-has-test gate FAIL)*  ✅ FIXED (c9ae316c)
+
+> Fixed differently from the "amend / age-out" suggestion below: added
+> `audit/test_fe52_compute_verify.cpp` (module `fe52_compute_verify`, section differential)
+> wired into the runner, and recorded `875d5bee9f` in `RETROACTIVELY_COVERED`
+> (`check_security_fix_has_test.py`, FROZEN_COUNT 63→64). The gate now passes without a
+> force-push. The test pins `dual_scalar_mul_gen_point(u1,u2,Q) == u1*G + u2*Q` (200 vectors)
+> + ECDSA/Schnorr verify round-trip + tamper rejection (392/392).
 
 `ci/check_security_fix_has_test.py --commits 10` flags `875d5bee9`
 (`perf(cpu): FE52-compute …`): it changed `src/cpu/src/field_52.cpp` and
