@@ -25,6 +25,8 @@ Key facts about the ABI:
 from __future__ import annotations
 
 import ctypes
+import os
+import sys
 import struct
 from pathlib import Path
 from typing import Optional
@@ -70,87 +72,96 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 _LIB_ROOT   = _SCRIPT_DIR.parent
 
 
+def _lib_globs() -> tuple[str, ...]:
+    """Shared-library basename globs for the current platform.
+
+    The build emits a different file per OS — Windows ``ufsecp.dll`` (NOT
+    ``libufsecp.so``), macOS ``libufsecp.dylib``, Linux ``libufsecp.so.*``.
+    Returning platform-correct patterns lets the audit run identically on every
+    OS instead of only finding the Linux ``.so``.
+    """
+    if os.name == "nt" or sys.platform.startswith("win"):
+        return ("ufsecp.dll", "libufsecp.dll",
+                "ultrafast_secp256k1.dll", "libultrafast_secp256k1.dll")
+    if sys.platform == "darwin":
+        return ("libufsecp*.dylib", "libultrafast_secp256k1*.dylib",
+                "libufsecp.so*", "libultrafast_secp256k1.so*")
+    return ("libufsecp.so*", "libultrafast_secp256k1.so*")
+
+
+def _load_lib(path: Path):
+    """ctypes.CDLL with Windows dependent-DLL search added (the lib's own dir)."""
+    sp = str(path)
+    if os.name == "nt" and hasattr(os, "add_dll_directory"):
+        try:
+            os.add_dll_directory(str(path.parent))
+        except OSError:
+            pass
+        try:
+            # winmode=0 -> LOAD_WITH_ALTERED_SEARCH_PATH so sibling DLLs resolve.
+            return ctypes.CDLL(sp, winmode=0)
+        except TypeError:
+            return ctypes.CDLL(sp)
+    return ctypes.CDLL(sp)
+
+
 def find_lib(hint: Optional[str] = None) -> str:
-    """Locate libufsecp.so.* or libultrafast_secp256k1.so on the filesystem."""
-    candidates = []
+    """Locate the ufsecp shared library (.so / .dll / .dylib) on the filesystem.
+
+    Cross-platform: Windows emits ``ufsecp.dll`` under ``out/<profile>/include/
+    ufsecp/`` (not a ``.so``), so the determinism gate and every other audit
+    script run the same on Windows and Linux.
+    """
+    globs = _lib_globs()
+    candidates: list[Path] = []
+
     if hint:
         hp = Path(hint)
         if hp.is_dir():
-            # Hint is a build dir — search it recursively for the .so
-            candidates.extend(sorted(hp.rglob("libufsecp.so*")))
-            candidates.extend(sorted(hp.rglob("libultrafast_secp256k1.so*")))
+            for g in globs:
+                candidates.extend(sorted(hp.rglob(g)))
         else:
             candidates.append(hp)
+
     root = _LIB_ROOT
-    # Prefer the versioned .so.3 (avoids dlopen confusion)
     suite = root.parent.parent
-    for bd in ["build_opencl", "build_rel", "build-cuda"]:
-        candidates += [
-            suite / bd / "include" / "ufsecp" / "libufsecp.so.3",
-            suite / bd / "include" / "ufsecp" / "libufsecp.so",
-        ]
-    # Canonical out/<profile> paths (new build layout as of 2026-05-01)
-    for profile in ["ci-release", "release", "audit", "test", "shim", "core", "rel",
-                    "gpu-opencl", "gpu-cuda", "ci-audit", "shim-check",
-                    "shim-v3", "packaging-repro"]:
-        candidates += [
-            root / "out" / profile / "include" / "ufsecp" / "libufsecp.so.3",
-            root / "out" / profile / "include" / "ufsecp" / "libufsecp.so",
-        ]
 
-    # Legacy paths (kept for backward compat while old build dirs still exist)
-    candidates += [
-        root / "build_opencl" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "build_opencl" / "include" / "ufsecp" / "libufsecp.so",
-        root / "build-audit" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "build-audit" / "include" / "ufsecp" / "libufsecp.so",
-        root / "build" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "build" / "include" / "ufsecp" / "libufsecp.so",
-        root / "build-packaging-repro" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "bindings" / "c_api" / "build" / "libultrafast_secp256k1.so",
-        root / "build-shim-v3" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "build-shim-v3" / "include" / "ufsecp" / "libufsecp.so",
-        root / "build_test" / "include" / "ufsecp" / "libufsecp.so.3",
-        root / "build_test" / "include" / "ufsecp" / "libufsecp.so",
-    ]
-
-    # CI/build layouts can place versioned libs in target-specific subdirs.
-    # Probe common build trees for libufsecp.so* and C-API shims.
+    # Search the whole out/ profile tree + suite/legacy build trees for the
+    # platform-correct library. rglob over out/ covers every CMake profile
+    # (out/<profile>/include/ufsecp/<lib>) without hard-coding profile names.
     search_roots = [
-        root / "out" / "release",
-        root / "out" / "audit",
-        root / "out" / "test",
-        root / "out" / "shim",
-        root / "out" / "rel",
-        root / "build-audit",
-        root / "build-shim-v3",
-        root / "build_test",
-        root / "build",
-        root / "build_opencl",
-        root / "build-packaging-repro",
-        suite / "build_opencl",
-        suite / "build_rel",
-        suite / "build-cuda",
+        root / "out",
+        suite / "build_opencl", suite / "build_rel", suite / "build-cuda",
+        root / "build", root / "build_opencl", root / "build-audit",
+        root / "build_test", root / "build-shim-v3", root / "build-packaging-repro",
+        root / "bindings" / "c_api" / "build",
     ]
     for sr in search_roots:
         if not sr.exists():
             continue
-        candidates.extend(sorted(sr.rglob("libufsecp.so*")))
-        candidates.extend(sorted(sr.rglob("libultrafast_secp256k1.so*")))
+        for g in globs:
+            candidates.extend(sorted(sr.rglob(g)))
 
-    import ctypes as _ct
+    tried: set[str] = set()
     for c in candidates:
         p = Path(c)
+        key = str(p)
+        if key in tried:
+            continue
+        tried.add(key)
         if not p.is_file():
             continue
         try:
-            _ct.CDLL(str(p))
-            return str(p)
+            _load_lib(p)
+            return key
         except OSError:
             continue
+
+    plat = "ufsecp.dll" if (os.name == "nt") else "libufsecp.so.3"
     raise FileNotFoundError(
-        "Cannot locate a loadable libufsecp.so / libultrafast_secp256k1.so.\n"
-        "Pass --lib /path/to/libufsecp.so.3 explicitly."
+        "Cannot locate a loadable ufsecp shared library "
+        "(searched .so/.dll/.dylib across build trees).\n"
+        f"Build it (e.g. CMake target ufsecp_shared) or pass --lib /path/to/{plat} explicitly."
     )
 
 
@@ -170,7 +181,7 @@ class UfSecp:
     """
 
     def __init__(self, lib_path: str):
-        self._raw = ctypes.CDLL(lib_path)
+        self._raw = _load_lib(Path(lib_path))
         self._ctx = self._create_ctx()
         self._bind()
 
