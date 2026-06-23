@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-06-23 — FE52-compute verify pairing test (audit/test_fe52_compute_verify.cpp)
+
+Pairs the previously-untested perf commit `875d5bee` ("FE52-compute ECDSA/Schnorr verify on
+MSVC cl"), which added `SECP256K1_FE52_COMPUTE` to gate the 5x52 verify dual-mul +
+`to_jac52`/`from_jac52` bridge while keeping 4x64 Point storage. New audit module
+`fe52_compute_verify` (section `differential`, advisory=false; standalone CTest
+`fe52_compute_verify`) pins, with 392/392 checks: (1) `dual_scalar_mul_gen_point(u1,u2,Q) ==
+u1*G + u2*Q` over 200 randomized vectors — a direct cross-check of the verify hot-path dual-mul
+against two independent single scalar-muls + a point add; (2) ECDSA and (3) Schnorr (BIP-340)
+sign/verify round-trip + tampered-message rejection through the real verify entry points. On
+native __int128 (Linux/GCC) `SECP256K1_FE52_COMPUTE` is on, so this is the same 5x52 path that
+ships in `ecdsa_verify`. Retroactively covers `875d5bee` in `check_security_fix_has_test.py`
+(`RETROACTIVELY_COVERED_FROZEN_COUNT` 63→64).
+
 ## 2026-06-23 — libbitcoin bridge: BIP-352 silent-payment scan + 8-byte prefix match (issue #312)
 
 Added `ufsecp_lbtc_match_silent_prefixes(scan_privkey32, spend_pubkey64, tweaks, prefixes,

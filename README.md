@@ -55,7 +55,7 @@ It is not a trust request. It is a verification package.
 
 > **No external third-party security audit has been performed.** All audit evidence is self-generated and independently reproducible via CAAS. See [SECURITY.md](SECURITY.md) §Audit Status.
 
-> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 430-module unified runner with 269 exploit PoC tests.
+> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 431-module unified runner with 269 exploit PoC tests.
 
 **Reproduce from patch (primary — stable):**
 ```bash
@@ -270,7 +270,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 161 non-exploit audit modules and 269 exploit PoCs ( 430 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
+- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 162 non-exploit audit modules and 269 exploit PoCs ( 431 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -1620,7 +1620,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 161 non-exploit modules + 269 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 162 non-exploit modules + 269 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |

@@ -6,14 +6,49 @@
 
 Every push and pull request to `dev` and `main` runs the block-based `gate.yml` pipeline. Release tags run the full release CAAS gate before build/package fan-out. Manual deep-assurance runs are a supplement, never a substitute for the required gate.
 
-## Pipeline Topology
+## Architecture Diagram
+
+> The block diagram below shows the complete CAAS architecture across 5 layers:
+> CI orchestration → stage pipeline → unified audit runner → evidence & reports →
+> dashboards & governance.  See [diagrams/caas_architecture.mmd](diagrams/caas_architecture.mmd)
+> for the editable Mermaid source.
+
+![CAAS Architecture Block Diagram](diagrams/caas_architecture.svg)
+
+**Diagram layers (top → bottom):**
+
+| Layer | Color | Contents |
+|-------|-------|----------|
+| **A — CI Orchestration** | Blue | GitHub event triggers, CI workflow files, pipeline block flow |
+| **B — Stage Pipeline** | Green | Stage 0 (90 fast gates) → Stage 1 (scanner) → Stage 2 (audit gate P0–P18) → Stage 3 (autonomy) → Stage 4 (bundle produce) → Stage 5 (bundle verify) |
+| **C — Unified Audit Runner** | Orange | `unified_audit_runner.cpp` — 400+ test modules across 10 audit sections |
+| **D — Evidence & Reports** | Yellow | JSON stage outputs, cryptographic bundles, HMAC-governed evidence chain, GitHub Actions artifacts (365-day retention) |
+| **E — Dashboards & Governance** | Purple | Web panel, interactive viewer, evidence governance, SLA checks, incident drills, mutation testing |
+
+**Sidebar:** 8 CAAS product profiles (default, bitcoin-core-backend, cpu-signing, gpu-public-data, ffi-bindings, wasm, bchn-compat, release).
+
+**To regenerate the diagram after editing the source:**
+
+```bash
+# Install mermaid-cli (one-time)
+npm install @mermaid-js/mermaid-cli
+
+# Render (Linux: use --no-sandbox if Chrome sandbox is restricted)
+npx mmdc -i docs/diagrams/caas_architecture.mmd \
+         -o docs/diagrams/caas_architecture.svg \
+         -w 1800 -H 2800 --backgroundColor white \
+         -p docs/diagrams/puppeteer-config.json
+```
+
+## Pipeline Topology (Text Reference)
 
 ```
 push / pull_request
         │
         ▼
 ┌──────────────────────────┐
-│ Stage 1: Static Analysis │  audit_test_quality_scanner.py
+│ Stage 0: Fast Gates      │  run_fast_gates.sh (~90 gates)
+│ + Stage 1: Static Anal.  │  audit_test_quality_scanner.py
 └─────────────┬────────────┘
               │ pass
               ▼

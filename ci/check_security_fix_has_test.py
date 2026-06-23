@@ -699,12 +699,24 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
         "test_v4_features.cpp checks the exact BIP173 P2WPKH vector and an "
         "oversized Bech32m paycode-style roundtrip, covering both paths.",
     ),
+    "875d5bee9f": (
+        ["audit/test_fe52_compute_verify.cpp"],
+        "perf(cpu): FE52-compute ECDSA/Schnorr verify (SECP256K1_FE52_COMPUTE). Gated the "
+        "5x52 verify dual-mul + to_jac52/from_jac52 bridge on the compute flag so MSVC cl runs "
+        "the verify ecmult through 5x52 while Point STORAGE stays 4x64; on native __int128 the "
+        "field arithmetic is byte-identical (the generic #else pointer-accumulation rewrite only "
+        "affects the MSVC/wasm u128_compat path). Touches field_52.cpp + point.cpp. Covered by "
+        "test_fe52_compute_verify (added in the follow-up commit, wired to unified_audit_runner "
+        "as fe52_compute_verify, section differential, advisory=false): pins "
+        "dual_scalar_mul_gen_point(u1,u2,Q) == u1*G + u2*Q over 200 vectors and ECDSA + Schnorr "
+        "sign/verify round-trip + tamper rejection through the FE52-compute verify path.",
+    ),
 }
 
 # Frozen count guard (CAAS-006): prevents silent whitelist growth.
 # When adding a new entry above, increment this constant too.
 # Unauthorized bypass (adding an entry without incrementing) → import-time assertion failure.
-RETROACTIVELY_COVERED_FROZEN_COUNT: int = 63
+RETROACTIVELY_COVERED_FROZEN_COUNT: int = 64
 assert len(RETROACTIVELY_COVERED) == RETROACTIVELY_COVERED_FROZEN_COUNT, (
     f"RETROACTIVELY_COVERED has {len(RETROACTIVELY_COVERED)} entries but "
     f"RETROACTIVELY_COVERED_FROZEN_COUNT={RETROACTIVELY_COVERED_FROZEN_COUNT}. "

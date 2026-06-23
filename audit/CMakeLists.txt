@@ -5768,6 +5768,18 @@ set_tests_properties(regression_shim_rfc6979_compat PROPERTIES TIMEOUT 30
     LABELS "audit;regression;shim;rfc6979;nonce;compat")
 target_sources(unified_audit_runner PRIVATE test_regression_shim_rfc6979_compat.cpp)
 
+# FE52-compute verify differential (2026-06-23): pairs commit 875d5bee
+# (SECP256K1_FE52_COMPUTE). advisory=false: CPU C++ API only, no GPU/shim dependency.
+add_executable(test_fe52_compute_verify_standalone
+    test_fe52_compute_verify.cpp)
+audit_target_defaults(test_fe52_compute_verify_standalone)
+target_compile_definitions(test_fe52_compute_verify_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME fe52_compute_verify
+    COMMAND test_fe52_compute_verify_standalone)
+set_tests_properties(fe52_compute_verify PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;verify;fe52;perf")
+target_sources(unified_audit_runner PRIVATE test_fe52_compute_verify.cpp)
+
 # ---------------------------------------------------------------------------
 # Per-file -Wno-deprecated-declarations suppression for tests that
 # INTENTIONALLY exercise ufsecp_musig2_partial_sign (v1) to verify the ABI

@@ -619,6 +619,9 @@ int test_regression_gpu_key_erase_raii_run();
 #else
 static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
+
+// FE52-compute verify differential — pairs commit 875d5bee (SECP256K1_FE52_COMPUTE).
+int test_fe52_compute_verify_run();
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
 int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
@@ -830,6 +833,7 @@ static const AuditModule ALL_MODULES[] = {
     { "fiat_crypto",       "Independent reference golden vectors",         "differential",   test_fiat_crypto_vectors_run, false },
     { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, true  /* advisory=true: requires __int128 (MSVC skips with code 77) */ },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
+    { "fe52_compute_verify","FE52-compute verify: dual-mul==single-mul + ECDSA/Schnorr KAT","differential",   test_fe52_compute_verify_run, false },
 
     // ===================================================================
     // Section 4: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
