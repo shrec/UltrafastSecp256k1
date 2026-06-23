@@ -1,5 +1,22 @@
 # Audit Changelog
 
+## 2026-06-23 — libsecp256k1 shim: secp256k1_ecdsa_verify now rejects high-S (SHIM-008 fix)
+
+Consensus/malleability finding from a differential sweep (engine C++ vs bitcoin-core/libsecp256k1
+in-process, `test_cross_libsecp256k1`) cross-confirmed by a code-audit fan-out. Upstream's
+`secp256k1_ecdsa_verify` rejects high-S signatures (`return (!secp256k1_scalar_is_high(&s) && ...)`)
+so the malleated `(r, n-s)` twin of a valid signature does not verify. The Ultra shim delegated
+straight to the raw-math core `secp256k1::ecdsa_verify` (accepts both `s` and `n-s` by design) and
+therefore **accepted high-S** — an undocumented divergence from upstream AND from the engine's own
+`ufsecp_ecdsa_verify` / `ecdsa_batch_verify`, both of which already enforce BIP-62 low-S. (The single
+shim verify accepted high-S while the shim batch rejected it — they were inconsistent; the old
+SHIM-008 note mis-stated upstream's behavior as "high-S acceptance".) Fix: `shim_ecdsa.cpp`
+`secp256k1_ecdsa_verify` adds an `is_low_s()` guard (covers both cache paths), matching upstream
+exactly and making single + batch consistent. Pinned by `test_regression_shim_high_s_verify`
+(converted from diagnostic to a real regression: HSV-6 asserts the shim REJECTS high-S, HSV-4/7
+that low-S and post-normalization verify). `test_cross_libsecp256k1` test [13] documents that the
+raw-math core still accepts high-S by design. Docs: `SHIM_KNOWN_DIVERGENCES.md` SHIM-008 updated.
+
 ## 2026-06-23 — Cryptol formal specs now actually parse + prove (BUG 1)
 
 The four `audit/formal/cryptol/*.cry` specs (GF(p) field, EC points, ECDSA, BIP-340 Schnorr)

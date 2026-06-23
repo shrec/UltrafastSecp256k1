@@ -373,7 +373,11 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
     `results[i]` (`1`=valid, `0`=invalid/malformed) and returns 1 iff every row is valid.
 - **Result contract:** the boolean ("all valid") result is identical to single
   `secp256k1_ecdsa_verify` / `secp256k1_schnorrsig_verify` for any thread count — threads are a
-  pure throughput change. High-S ECDSA signatures are accepted (matches single verify, SHIM-008).
+  pure throughput change. High-S ECDSA signatures are **rejected**, matching single
+  `secp256k1_ecdsa_verify` and upstream (SHIM-008 fix, 2026-06-23): both the single shim
+  verify and `ecdsa_batch_verify` enforce BIP-62 low-S via `is_low_s()`, exactly like
+  upstream's `!secp256k1_scalar_is_high(&s)`. (The earlier note here was wrong: upstream
+  `secp256k1_ecdsa_verify` rejects high-S; the shim previously accepted it — now fixed.)
   Schnorr `msglen != 32` is served via per-signature verify (MSM needs fixed 32-byte slots),
   matching upstream BIP-340 arbitrary-length semantics.
 - **No-failure contract:** these never throw across the C ABI. If internal thread creation

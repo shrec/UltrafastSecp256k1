@@ -1,14 +1,20 @@
 // ============================================================================
 // test_regression_shim_high_s_verify.cpp
-// Diagnostic: secp256k1_ecdsa_verify high-S signature behavior (SEC-007)
+// Regression: secp256k1_ecdsa_verify must REJECT high-S signatures (SEC-007 / SHIM-008)
 //
-// Documents the known behavioral divergence: libsecp256k1 normalizes before
-// verifying (high-S acceptance); Ultra shim does NOT normalize.
-// Callers must call secp256k1_ecdsa_signature_normalize before
-// secp256k1_ecdsa_verify for libsecp-compatible high-S acceptance.
+// bitcoin-core/libsecp256k1's secp256k1_ecdsa_verify rejects high-S signatures
+// (s > n/2): its final return is `(!secp256k1_scalar_is_high(&s) && ...)`. This
+// blocks the malleated (r, n-s) twin of a valid signature from verifying.
 //
-// This test is DIAGNOSTIC -- returns 0 (PASS) regardless of high-S result.
-// See docs/SHIM_KNOWN_DIVERGENCES.md for full description.
+// The Ultra shim previously delegated straight to the raw-math core
+// secp256k1::ecdsa_verify (which accepts both s and n-s by design) and therefore
+// ACCEPTED high-S — an undocumented divergence from upstream (and from the engine's
+// own ufsecp_ecdsa_verify / ecdsa_batch_verify, which both enforce BIP-62 low-S).
+// The earlier diagnostic version of this test mislabeled upstream's behavior as
+// "high-S acceptance"; that was incorrect.
+//
+// Fix: shim_ecdsa.cpp secp256k1_ecdsa_verify now rejects high-S (is_low_s() guard),
+// matching upstream exactly. This test pins that behavior.
 // ============================================================================
 
 #if !defined(UNIFIED_AUDIT_RUNNER) && !defined(STANDALONE_TEST)
@@ -83,11 +89,11 @@ static void test_high_s_verify_behavior() {
     unsigned char compact[64]{};
     secp256k1_ecdsa_signature_serialize_compact(ctx, compact, &low_s_sig);
 
+    // The canonical low-S signature MUST verify.
     int low_s_result = secp256k1_ecdsa_verify(ctx, &low_s_sig, MSGHASH, &pubkey);
-    std::printf("[HSV-4] low-S verify result: %d (expected 1)\n", low_s_result);
     CHECK(low_s_result == 1, "[HSV-4] low-S signature verifies");
 
-    // Manufacture high-S form: s' = n - s
+    // Manufacture the high-S twin: s' = n - s  (> n/2). parse_compact accepts s' < n.
     unsigned char high_s_compact[64];
     std::memcpy(high_s_compact, compact, 64);
     negate_s(compact + 32, high_s_compact + 32);
@@ -96,14 +102,11 @@ static void test_high_s_verify_behavior() {
     CHECK(secp256k1_ecdsa_signature_parse_compact(ctx, &high_s_sig, high_s_compact) == 1,
           "[HSV-5] parse high-S compact");
 
+    // libsecp parity: secp256k1_ecdsa_verify REJECTS the high-S twin (malleability).
     int high_s_result = secp256k1_ecdsa_verify(ctx, &high_s_sig, MSGHASH, &pubkey);
-    std::printf("[HSV-6] high-S verify result: %d\n", high_s_result);
-    std::printf("  DIAGNOSTIC (SEC-007): libsecp256k1 would return 1 (normalizes before verify).\n");
-    std::printf("  Ultra shim returns %d -- intentional divergence per SHIM_KNOWN_DIVERGENCES.md.\n",
-                high_s_result);
-    g_pass++; // diagnostic step always passes
+    CHECK(high_s_result == 0, "[HSV-6] shim REJECTS high-S (libsecp parity, BIP-62 malleability)");
 
-    // After normalization, it must verify
+    // After normalization the signature is low-S again and MUST verify.
     secp256k1_ecdsa_signature normalized{};
     secp256k1_ecdsa_signature_normalize(ctx, &normalized, &high_s_sig);
     int normalized_result = secp256k1_ecdsa_verify(ctx, &normalized, MSGHASH, &pubkey);
@@ -119,10 +122,9 @@ int test_regression_shim_high_s_verify_run() {
     return ADVISORY_SKIP_CODE;
 #else
     g_pass = 0; g_fail = 0;
-    std::printf("[regression_shim_high_s_verify] SEC-007 high-S verify diagnostic\n");
+    std::printf("[regression_shim_high_s_verify] SEC-007/SHIM-008 high-S rejection (libsecp parity)\n");
     test_high_s_verify_behavior();
     std::printf("  pass=%d  fail=%d\n", g_pass, g_fail);
-    // Always PASS: documents intentional divergence, not a correctness failure.
     return (g_fail == 0) ? 0 : 1;
 #endif
 }
