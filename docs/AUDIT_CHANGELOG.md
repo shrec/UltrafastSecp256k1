@@ -1,19 +1,23 @@
 # Audit Changelog
 
-## 2026-06-23 — libbitcoin bridge: BIP-352 8-byte silent-payment prefix match (issue #312)
+## 2026-06-23 — libbitcoin bridge: BIP-352 silent-payment scan + 8-byte prefix match (issue #312)
 
-Added `ufsecp_lbtc_match_silent_prefixes(tweaks, prefixes, count, matches)` to the libbitcoin
-bridge — the batched 8-byte prefix filter the DuckDB silent-payments scanner needs, the
-match-side companion to the existing `ufsecp_lbtc_sp_scan` (which does the GPU ECC scan).
-For each of `count` rows it extracts the big-endian top 8 bytes of the candidate output
-pubkey's x-coordinate (bytes `[1..8]` of the 33-byte SEC1-compressed point — identical to
-`bench_bip352`'s `extract_upper_64` and to the `sp_scan` / `bip352_scan_batch` prefixes) and
-sets `matches[i] = (prefix == prefixes[i])`; returns the match count, or `-1` on NULL args.
-PUBLIC data only — no private key, no controller (runs under any backend). It is a *filter*
-(8-byte prefixes can collide; survivors confirmed against the full x-coordinate by the
-caller). Bridge header only (not a `UFSECP_API`/`ufsecp.h` symbol → no ABI-manifest churn).
-Verified by `test_lbtc_bridge` (3/4 match with a corrupted target rejected, NULL → -1, count
-0 → 0). Usage documented in `docs/LIBBITCOIN_INTEGRATION.md`.
+Added `ufsecp_lbtc_match_silent_prefixes(scan_privkey32, spend_pubkey64, tweaks, prefixes,
+count, matches)` to the libbitcoin bridge — a direct CPU port of the per-row Silent Payments
+scan the DuckDB extension (`duckdb-ufsecp-extension`, used by Sparrow/Frigate) runs in
+`ProcessBatch`. The byte layouts match that extension exactly (scan key 32-byte LE; spend
+pubkey + tweaks 64-byte uncompressed `x(LE)||y(LE)`; prefixes BE top-8-of-x), so the same data
+flows through unchanged; the additive entry point does not touch the extension's own
+`ufsecp_scan` table function (Sparrow's API is untouched). Per row:
+`shared = k*tweak`, `hash = TaggedHash("BIP0352/SharedSecret", compress(shared)||be32(0))`,
+`output = spend + hash*G`, `prefix = ExtractUpper64(output.x)`, `matches[i] = (prefix ==
+prefixes[i])`. Returns the match count or `-1` on NULL/bad-key. It is a *filter* (8-byte
+prefixes can collide; the caller confirms survivors against the full x). Bridge header only
+(bare `int`, not a `UFSECP_API`/`ufsecp.h` symbol → no ABI-manifest churn). Correctness is
+pinned by a golden vector in `test_lbtc_bridge`: it replicates `bench_bip352`'s deterministic
+tweak #9999 and asserts this function reproduces the validated prefix `0xb63b4601066a6971`
+(cross-checked against libsecp256k1 / CUDA / OpenCL), plus wrong-target → 0, NULL → -1,
+count 0 → 0. Usage documented in `docs/LIBBITCOIN_INTEGRATION.md`.
 
 ## 2026-06-22 — CPU batch-verify throughput: persistent pool, fused parse, FE52 decompress
 

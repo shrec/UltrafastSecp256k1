@@ -37,6 +37,11 @@
 #include "secp256k1/scalar.hpp"  /* Scalar — Fiat-Shamir g_coeff for the commitment RLC */
 #endif
 
+/* BIP-352 silent-payment scan pipeline (issue #312) — a CPU port of the DuckDB extension's
+ * ProcessBatch. Needs the fast EC API + the BIP0352 tagged hash on every build. */
+#include "secp256k1/fast.hpp"
+#include "secp256k1/tagged_hash.hpp"
+
 #include <cstring>
 #include <new>
 #include <type_traits>
@@ -1741,29 +1746,73 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
 #endif
 }
 
-// BIP-352 8-byte silent-payment prefix match (issue #312). PUBLIC data only; no key, no
-// controller. For each row, the 8-byte prefix of the 33-byte compressed candidate output
-// pubkey (big-endian top 8 bytes of the x-coordinate, bytes [1..8] -- identical to
-// bench_bip352 extract_upper_64 and to the sp_scan / GPU bip352_scan_batch prefixes) is
-// compared to prefixes[i]. Returns the number of matches (>= 0), or -1 on NULL args.
-int ufsecp_lbtc_match_silent_prefixes(const uint8_t* tweaks,
+// BIP-352 silent-payment scan + 8-byte prefix match (issue #312). CPU port of the DuckDB
+// extension's ProcessBatch (duckdb-ufsecp-extension); byte layouts match it exactly. See the
+// header for the pipeline + the little-endian / uncompressed input conventions.
+int ufsecp_lbtc_match_silent_prefixes(const uint8_t scan_privkey32[32],
+                                      const uint8_t spend_pubkey64[64],
+                                      const uint8_t* tweaks,
                                       const uint64_t* prefixes,
                                       size_t count,
                                       uint8_t* matches) {
-    if (!tweaks || !prefixes || !matches) return -1;
-    int n_match = 0;
-    for (size_t i = 0; i < count; ++i) {
-        const uint8_t* x = tweaks + i * 33u + 1u;  // skip parity byte -> x-coordinate
-        const uint64_t pfx =
-            (static_cast<uint64_t>(x[0]) << 56) | (static_cast<uint64_t>(x[1]) << 48) |
-            (static_cast<uint64_t>(x[2]) << 40) | (static_cast<uint64_t>(x[3]) << 32) |
-            (static_cast<uint64_t>(x[4]) << 24) | (static_cast<uint64_t>(x[5]) << 16) |
-            (static_cast<uint64_t>(x[6]) <<  8) |  static_cast<uint64_t>(x[7]);
-        const uint8_t m = (pfx == prefixes[i]) ? 1u : 0u;
-        matches[i] = m;
-        n_match += static_cast<int>(m);
+    if (!scan_privkey32 || !spend_pubkey64 || !tweaks || !prefixes || !matches) return -1;
+    if (count == 0) return 0;
+
+    using secp256k1::fast::Point;
+    using secp256k1::fast::Scalar;
+    using secp256k1::fast::FieldElement;
+    using secp256k1::fast::KPlan;
+
+    // 32 little-endian bytes -> field element / scalar (Frigate sends reversed bytes).
+    auto fe_from_le = [](const uint8_t* le) -> FieldElement {
+        std::array<uint8_t, 32> be;
+        for (int i = 0; i < 32; ++i) be[i] = le[31 - i];
+        return FieldElement::from_bytes(be);
+    };
+    auto scalar_from_le = [](const uint8_t* le) -> Scalar {
+        std::array<uint8_t, 32> be;
+        for (int i = 0; i < 32; ++i) be[i] = le[31 - i];
+        return Scalar::from_bytes(be);
+    };
+
+    try {
+        const Scalar scan_scalar = scalar_from_le(scan_privkey32);
+        const KPlan kplan = KPlan::from_scalar(scan_scalar);
+        const Point spend_point =
+            Point::from_affine(fe_from_le(spend_pubkey64), fe_from_le(spend_pubkey64 + 32));
+        const auto midstate = secp256k1::detail::make_tag_midstate("BIP0352/SharedSecret");
+
+        int n_match = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* td = tweaks + i * 64u;
+            // 1. shared = scan_privkey * tweak_point   (k*P via the GLV plan)
+            Point tweak_point = Point::from_affine(fe_from_le(td), fe_from_le(td + 32));
+            Point shared = tweak_point.scalar_mul_with_plan(kplan);
+            // 2-3. hash = TaggedHash("BIP0352/SharedSecret", compress(shared) || counter_be32(0))
+            auto compressed = shared.to_compressed();           // 33 bytes
+            uint8_t serialized[37];
+            std::memcpy(serialized, compressed.data(), 33);
+            std::memset(serialized + 33, 0, 4);                 // output index k = 0
+            auto hash = secp256k1::detail::cached_tagged_hash(midstate, serialized, 37);
+            // 4-5. output = spend_pubkey + hash*G
+            Scalar hash_scalar = Scalar::from_bytes(hash.data());
+            Point output = spend_point.add(Point::generator().scalar_mul(hash_scalar));
+            // 6. prefix = big-endian top 8 bytes of output.x  (== ExtractUpper64)
+            auto out_comp = output.to_compressed();             // [parity | x_be(32)]
+            const uint8_t* x = out_comp.data() + 1;
+            const uint64_t prefix =
+                (static_cast<uint64_t>(x[0]) << 56) | (static_cast<uint64_t>(x[1]) << 48) |
+                (static_cast<uint64_t>(x[2]) << 40) | (static_cast<uint64_t>(x[3]) << 32) |
+                (static_cast<uint64_t>(x[4]) << 24) | (static_cast<uint64_t>(x[5]) << 16) |
+                (static_cast<uint64_t>(x[6]) <<  8) |  static_cast<uint64_t>(x[7]);
+            const uint8_t m = (prefix == prefixes[i]) ? 1u : 0u;
+            matches[i] = m;
+            n_match += static_cast<int>(m);
+        }
+        return n_match;
+    } catch (...) {
+        return -1;
     }
-    return n_match;
 }
 
 } // extern "C"

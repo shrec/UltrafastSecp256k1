@@ -294,43 +294,43 @@ Backend modes:
 Once the controller exists, signature outcomes are per-row results. A bad
 signature is not an API error; `results[i] == 0` marks the row invalid.
 
-## Silent Payments (BIP-352) — 8-byte prefix match
+## Silent Payments (BIP-352) — scan + 8-byte prefix match
 
-Two complementary entry points serve the BIP-352 silent-payment scan (issue #312):
-
-| Function | Role | Backend |
-|----------|------|---------|
-| `ufsecp_lbtc_sp_scan(ctrl, scan_privkey32, spend_pubkey33, tweak_pubkeys33, n, prefix64_out)` | full ECC scan: tweak points → 8-byte output prefixes | GPU-accelerated (`ufsecp_gpu_bip352_scan_batch`) |
-| `ufsecp_lbtc_match_silent_prefixes(tweaks, prefixes, count, matches)` | batched 8-byte prefix filter: candidate output pubkeys → match flags | pure CPU (no controller; works under any backend) |
-
-**Prefix convention (both functions):** the 8-byte prefix is the **big-endian top 8 bytes
-of the candidate output's x-coordinate** — bytes `[1..8]` of the 33-byte SEC1-compressed
-point (identical to `bench_bip352`'s `extract_upper_64`). `prefix64_out` from `sp_scan` and
-the `prefixes[i]` targets handed to `match_silent_prefixes` are in this same convention.
-
-`match_silent_prefixes` is a **filter**: an 8-byte match is a *candidate* (8 bytes can
-collide). Confirm survivors with the full 32-byte x-coordinate before treating a row as a
-real silent-payment hit.
-
-### Usage (DuckDB-style scanner)
+`ufsecp_lbtc_match_silent_prefixes` (issue #312) is a **direct CPU port of the per-row scan
+pipeline that the DuckDB extension** (`duckdb-ufsecp-extension`, used by Sparrow/Frigate) runs
+in `ProcessBatch`. The byte layouts match that extension exactly, so the same data flows
+through unchanged (the additive bridge entry point does **not** touch the extension's own
+`ufsecp_scan` table function — Sparrow's existing API is untouched).
 
 ```c
-// `count` candidate output pubkeys (33-byte SEC1 compressed), packed back to back, and a
-// parallel array of target prefixes (e.g. taproot output prefixes joined to each candidate
-// by the scanner — same big-endian-top-8-of-x convention).
-const uint8_t*  candidates33;   // count * 33 bytes
-const uint64_t* target_prefix;  // count
-uint8_t*        matches;        // count (caller-allocated)
-
-int n = ufsecp_lbtc_match_silent_prefixes(candidates33, target_prefix, count, matches);
-//  n  == number of rows whose 8-byte prefix matched (>= 0), or -1 on a NULL argument.
-//  matches[i] == 1  -> candidate i is a prefix hit (confirm with full x-coordinate)
-//  matches[i] == 0  -> candidate i is definitively NOT this output
+int ufsecp_lbtc_match_silent_prefixes(
+    const uint8_t  scan_privkey32[32],  // 32-byte scalar, LITTLE-ENDIAN (Frigate sends reversed)
+    const uint8_t  spend_pubkey64[64],  // uncompressed point: x(32 LE) || y(32 LE)
+    const uint8_t* tweaks,              // count * 64 bytes, each x(32 LE) || y(32 LE)
+    const uint64_t* prefixes,           // count target prefixes (BE top 8 bytes of output x)
+    size_t          count,
+    uint8_t*        matches);           // count bytes (caller-allocated), 0/1
 ```
 
-No private key flows through `match_silent_prefixes` and it needs no controller, so it runs
-identically on a CPU-only or GPU-bound build. The heavy elliptic-curve work (deriving the
-candidate output pubkeys / prefixes) is the GPU-accelerated `sp_scan` step.
+Per row, given the tweak point:
+
+```
+shared = scan_privkey * tweak_point                              (k*P, GLV plan)
+hash   = TaggedHash("BIP0352/SharedSecret", compress(shared) || counter_be32(0))
+output = spend_pubkey + hash * G
+prefix = big-endian top 8 bytes of output.x                      (== ExtractUpper64)
+matches[i] = (prefix == prefixes[i]) ? 1 : 0
+```
+
+Return value is the number of matching rows (`>= 0`), or `-1` on a NULL / malformed-key error.
+This is a **filter**: an 8-byte prefix can collide, so confirm survivors against the full
+32-byte x-coordinate before treating a row as a real hit. No controller is needed, so it runs
+on any build; the existing GPU-accelerated `ufsecp_lbtc_sp_scan` (33-byte SEC1 tweaks →
+`prefix64_out`) covers the GPU path for callers that prefer it.
+
+Correctness is pinned by a golden vector: `test_lbtc_bridge` replicates `bench_bip352`'s
+deterministic tweak #9999 and asserts this function reproduces its validated prefix
+`0xb63b4601066a6971` (cross-checked there against libsecp256k1 / CUDA / OpenCL).
 
 ## Validation Checklist
 

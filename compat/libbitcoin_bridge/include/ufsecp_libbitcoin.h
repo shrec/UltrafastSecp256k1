@@ -633,24 +633,36 @@ ufsecp_error_t ufsecp_lbtc_sp_scan(ufsecp_lbtc_ctrl* ctrl,
                                    uint64_t* prefix64_out);
 
 /*
- * BIP-352 8-byte silent-payment prefix match (issue #312).
+ * BIP-352 silent-payment scan + 8-byte prefix match (issue #312).
  *
- * Batched, branch-light filter for the DuckDB-style silent-payment scan: for each of
- * `count` rows it extracts the 8-byte prefix of the candidate output pubkey `tweaks[i]`
- * (33-byte SEC1-compressed) and sets
- *     matches[i] = (extracted_prefix == prefixes[i]) ? 1 : 0
- * The prefix is the BIG-ENDIAN top 8 bytes of the x-coordinate -- bytes [1..8] of the
- * compressed point, identical to bench_bip352's extract_upper_64 and to the prefixes
- * produced by ufsecp_lbtc_sp_scan / ufsecp_gpu_bip352_scan_batch. `prefixes[i]` is the
- * target prefix for row i in that same convention (e.g. the taproot output prefix joined
- * to this candidate by the scanner).
+ * A direct port of the per-row Silent Payments scanning pipeline that the DuckDB extension
+ * (`duckdb-ufsecp-extension`, used by Sparrow/Frigate) runs in `ProcessBatch`, exposed so a
+ * node can call it without DuckDB. The byte layouts match that extension exactly so the same
+ * data can flow through unchanged. For each of `count` rows, given the tweak point
+ * `tweaks[i]`:
  *
- * Buffers: tweaks = count*33 bytes, prefixes = count uint64, matches = count bytes.
- * PUBLIC data only -- no private key and no controller (works under any backend; the ECC
- * scan that produces the candidates is the GPU-accelerated step, exposed separately as
- * ufsecp_lbtc_sp_scan). Returns the number of matching rows (>= 0), or -1 on NULL args.
+ *     shared = scan_privkey * tweak_point                     (k*P, via the GLV plan)
+ *     hash   = TaggedHash("BIP0352/SharedSecret", compress(shared) || counter_be32(0))
+ *     output = spend_pubkey + hash * G
+ *     prefix = ExtractUpper64(output.x)   = big-endian top 8 bytes of the output x-coordinate
+ *     matches[i] = (prefix == prefixes[i]) ? 1 : 0
+ *
+ * Byte layouts (EXACTLY as the DuckDB extension / Frigate send them):
+ *   - scan_privkey32 : 32-byte scalar, LITTLE-ENDIAN.
+ *   - spend_pubkey64 : uncompressed point, x(32 LE) || y(32 LE).
+ *   - tweaks         : count * 64 bytes, each an uncompressed point x(32 LE) || y(32 LE).
+ *   - prefixes       : count uint64, each the BIG-ENDIAN top 8 bytes of a candidate output's
+ *                      x-coordinate (the taproot-output prefix the scanner joined to this row;
+ *                      same convention as ufsecp_lbtc_sp_scan's prefix64_out / extract_upper_64).
+ *   - matches        : count bytes (caller-allocated), written 0/1.
+ *
+ * CPU implementation (matches the extension's CPU `ProcessBatch`); works on any build. The
+ * heavy work is the per-row scalar multiply. Returns the number of matching rows (>= 0), or
+ * -1 on a NULL-argument / malformed-key error.
  */
-int ufsecp_lbtc_match_silent_prefixes(const uint8_t* tweaks,
+int ufsecp_lbtc_match_silent_prefixes(const uint8_t scan_privkey32[32],
+                                      const uint8_t spend_pubkey64[64],
+                                      const uint8_t* tweaks,
                                       const uint64_t* prefixes,
                                       size_t count,
                                       uint8_t* matches);

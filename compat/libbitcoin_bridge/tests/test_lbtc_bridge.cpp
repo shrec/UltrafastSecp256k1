@@ -12,6 +12,8 @@
  */
 #include "ufsecp_libbitcoin.h"
 #include "ufsecp.h"
+#include "secp256k1/fast.hpp"    /* issue #312: golden-vector check for match_silent_prefixes */
+#include "secp256k1/sha256.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -609,28 +611,43 @@ int main() {
         CHECK(res[0] == 0xAA, "empty batch is a no-op (results untouched)");
     }
 
-    /* --- issue #312: ufsecp_lbtc_match_silent_prefixes (8-byte SP prefix match) --- */
+    /* --- issue #312: ufsecp_lbtc_match_silent_prefixes (BIP-352 scan + 8-byte prefix match) ---
+     * Golden vector: replicate bench_bip352's deterministic tweak #9999 and confirm we reproduce
+     * its validated prefix 0xb63b4601066a6971 (cross-checked there against libsecp256k1 / CUDA /
+     * OpenCL). Inputs use the DuckDB-extension byte layout (64-byte uncompressed LE points). */
     {
-        const size_t N = 4;
-        std::vector<uint8_t> cands(N * 33);
-        std::vector<uint64_t> targets(N);
-        for (size_t i = 0; i < N; ++i) {
-            cands[i * 33] = 0x02;  /* SEC1 even-parity prefix byte */
-            for (int b = 0; b < 32; ++b)
-                cands[i * 33 + 1 + b] = (uint8_t)((i * 7u + (unsigned)b * 13u + 1u) & 0xff);
-            uint64_t p = 0;  /* expected prefix = big-endian top 8 bytes of x */
-            for (int b = 0; b < 8; ++b) p = (p << 8) | cands[i * 33 + 1 + b];
-            targets[i] = p;
-        }
-        targets[1] ^= 1ull;  /* row 1: deliberately wrong target -> must NOT match */
-        std::vector<uint8_t> mm(N, 0xEE);
-        int nm = ufsecp_lbtc_match_silent_prefixes(cands.data(), targets.data(), N, mm.data());
-        CHECK(nm == 3 && mm[0] == 1 && mm[1] == 0 && mm[2] == 1 && mm[3] == 1,
-              "match_silent_prefixes: 3/4 match, row-1 wrong target rejected, count==3");
-        CHECK(ufsecp_lbtc_match_silent_prefixes(nullptr, targets.data(), N, mm.data()) == -1,
-              "match_silent_prefixes: NULL tweaks -> -1");
-        CHECK(ufsecp_lbtc_match_silent_prefixes(cands.data(), targets.data(), 0, mm.data()) == 0,
-              "match_silent_prefixes: count 0 -> 0 matches");
+        using namespace secp256k1::fast;
+        auto to_le64 = [](const Point& p, uint8_t* out) {
+            auto unc = p.to_uncompressed();  /* [0x04 | x_be | y_be] */
+            for (int k = 0; k < 32; ++k) { out[k] = unc[32 - k]; out[32 + k] = unc[64 - k]; }
+        };
+        static const uint8_t SCAN_KEY[32] = {
+            0xc4,0x23,0x9f,0xd6,0xfc,0x3d,0xb6,0xe2,0x2b,0x8b,0xed,0x6a,0x49,0x21,0x9e,0x4e,
+            0x30,0xd7,0xd6,0xa3,0xb9,0x82,0x94,0xb1,0x38,0xaf,0x4a,0xd3,0x00,0xda,0x1a,0x42};
+        auto seed = secp256k1::SHA256::hash(reinterpret_cast<const uint8_t*>("bench_bip352_seed"), 17);
+        uint8_t buf[36]; std::memcpy(buf, seed.data(), 32);
+        const int i = 9999;
+        buf[32]=(uint8_t)(i>>24); buf[33]=(uint8_t)(i>>16); buf[34]=(uint8_t)(i>>8); buf[35]=(uint8_t)i;
+        auto sb = secp256k1::SHA256::hash(buf, 36);
+        Point tweak = Point::generator().scalar_mul(Scalar::from_bytes(sb.data()));
+        auto spend_priv =
+            secp256k1::SHA256::hash(reinterpret_cast<const uint8_t*>("bench_bip352_spend_key"), 22);
+        Point spend = Point::generator().scalar_mul(Scalar::from_bytes(spend_priv.data()));
+        uint8_t tweak64[64], spend64[64], scan_le[32];
+        to_le64(tweak, tweak64); to_le64(spend, spend64);
+        for (int k = 0; k < 32; ++k) scan_le[k] = SCAN_KEY[31 - k];
+
+        const uint64_t GOLDEN = 0xb63b4601066a6971ull;
+        uint8_t m = 0xEE;
+        int r = ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &GOLDEN, 1, &m);
+        CHECK(r == 1 && m == 1, "match_silent_prefixes: tweak#9999 reproduces bench 0xb63b4601066a6971");
+        const uint64_t wrong = GOLDEN ^ 1ull;
+        ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &wrong, 1, &m);
+        CHECK(m == 0, "match_silent_prefixes: wrong target -> 0");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(nullptr, spend64, tweak64, &GOLDEN, 1, &m) == -1,
+              "match_silent_prefixes: NULL scan_key -> -1");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &GOLDEN, 0, &m) == 0,
+              "match_silent_prefixes: count 0 -> 0");
     }
 
     ufsecp_ctx_destroy(sctx);
