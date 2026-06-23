@@ -38,9 +38,11 @@
 #endif
 
 /* BIP-352 silent-payment scan pipeline (issue #312) — a CPU port of the DuckDB extension's
- * ProcessBatch. Needs the fast EC API + the BIP0352 tagged hash on every build. */
+ * ProcessBatch. Needs the fast EC API + the BIP0352 tagged hash + the batched
+ * Jacobian->affine / affine-add primitives on every build. */
 #include "secp256k1/fast.hpp"
 #include "secp256k1/tagged_hash.hpp"
+#include "secp256k1/batch_add_affine.hpp"
 
 #include <cstring>
 #include <new>
@@ -1778,33 +1780,53 @@ int ufsecp_lbtc_match_silent_prefixes(const uint8_t scan_privkey32[32],
     try {
         const Scalar scan_scalar = scalar_from_le(scan_privkey32);
         const KPlan kplan = KPlan::from_scalar(scan_scalar);
-        const Point spend_point =
-            Point::from_affine(fe_from_le(spend_pubkey64), fe_from_le(spend_pubkey64 + 32));
+        const FieldElement spend_x = fe_from_le(spend_pubkey64);
+        const FieldElement spend_y = fe_from_le(spend_pubkey64 + 32);
         const auto midstate = secp256k1::detail::make_tag_midstate("BIP0352/SharedSecret");
 
-        int n_match = 0;
+        // Phase 1 (per-row): output_point = hash * G in Jacobian form, where
+        //   hash = TaggedHash("BIP0352/SharedSecret", compress(scan_privkey * tweak) || be32(0)).
+        std::vector<FieldElement> jac_x(count), jac_y(count), jac_z(count);
         for (size_t i = 0; i < count; ++i) {
             const uint8_t* td = tweaks + i * 64u;
-            // 1. shared = scan_privkey * tweak_point   (k*P via the GLV plan)
             Point tweak_point = Point::from_affine(fe_from_le(td), fe_from_le(td + 32));
-            Point shared = tweak_point.scalar_mul_with_plan(kplan);
-            // 2-3. hash = TaggedHash("BIP0352/SharedSecret", compress(shared) || counter_be32(0))
-            auto compressed = shared.to_compressed();           // 33 bytes
+            Point shared = tweak_point.scalar_mul_with_plan(kplan);   // k*P
+            auto compressed = shared.to_compressed();                 // 33 bytes
             uint8_t serialized[37];
             std::memcpy(serialized, compressed.data(), 33);
-            std::memset(serialized + 33, 0, 4);                 // output index k = 0
+            std::memset(serialized + 33, 0, 4);                       // output index k = 0
             auto hash = secp256k1::detail::cached_tagged_hash(midstate, serialized, 37);
-            // 4-5. output = spend_pubkey + hash*G
-            Scalar hash_scalar = Scalar::from_bytes(hash.data());
-            Point output = spend_point.add(Point::generator().scalar_mul(hash_scalar));
-            // 6. prefix = big-endian top 8 bytes of output.x  (== ExtractUpper64)
-            auto out_comp = output.to_compressed();             // [parity | x_be(32)]
-            const uint8_t* x = out_comp.data() + 1;
+            Point output = Point::generator().scalar_mul(Scalar::from_bytes(hash.data()));
+            jac_x[i] = output.X();
+            jac_y[i] = output.Y();
+            jac_z[i] = output.z();
+        }
+
+        // Phase 2: Montgomery batch Z-inversion (1 inverse + 3(N-1) muls), Jacobian -> affine.
+        std::vector<FieldElement> scratch;
+        secp256k1::fast::fe_batch_inverse(jac_z.data(), count, scratch);  // jac_z[i] := 1/Z[i]
+        std::vector<secp256k1::fast::AffinePointCompact> offsets(count);
+        for (size_t i = 0; i < count; ++i) {
+            const FieldElement zinv2 = jac_z[i] * jac_z[i];
+            const FieldElement zinv3 = zinv2 * jac_z[i];
+            offsets[i].x = jac_x[i] * zinv2;
+            offsets[i].y = jac_y[i] * zinv3;
+        }
+
+        // Phase 3: batch (spend_pubkey + output_point[i]) -> affine x-coordinates.
+        std::vector<FieldElement> final_x(count);
+        secp256k1::fast::batch_add_affine_x(spend_x, spend_y, offsets.data(),
+                                            final_x.data(), count, scratch);
+
+        // Phase 4: prefix = big-endian top 8 bytes of the output x  (== ExtractUpper64).
+        int n_match = 0;
+        for (size_t i = 0; i < count; ++i) {
+            const auto xb = final_x[i].to_bytes();   // big-endian, 32 bytes
             const uint64_t prefix =
-                (static_cast<uint64_t>(x[0]) << 56) | (static_cast<uint64_t>(x[1]) << 48) |
-                (static_cast<uint64_t>(x[2]) << 40) | (static_cast<uint64_t>(x[3]) << 32) |
-                (static_cast<uint64_t>(x[4]) << 24) | (static_cast<uint64_t>(x[5]) << 16) |
-                (static_cast<uint64_t>(x[6]) <<  8) |  static_cast<uint64_t>(x[7]);
+                (static_cast<uint64_t>(xb[0]) << 56) | (static_cast<uint64_t>(xb[1]) << 48) |
+                (static_cast<uint64_t>(xb[2]) << 40) | (static_cast<uint64_t>(xb[3]) << 32) |
+                (static_cast<uint64_t>(xb[4]) << 24) | (static_cast<uint64_t>(xb[5]) << 16) |
+                (static_cast<uint64_t>(xb[6]) <<  8) |  static_cast<uint64_t>(xb[7]);
             const uint8_t m = (prefix == prefixes[i]) ? 1u : 0u;
             matches[i] = m;
             n_match += static_cast<int>(m);

@@ -11,7 +11,9 @@ flows through unchanged; the additive entry point does not touch the extension's
 `ufsecp_scan` table function (Sparrow's API is untouched). Per row:
 `shared = k*tweak`, `hash = TaggedHash("BIP0352/SharedSecret", compress(shared)||be32(0))`,
 `output = spend + hash*G`, `prefix = ExtractUpper64(output.x)`, `matches[i] = (prefix ==
-prefixes[i])`. Returns the match count or `-1` on NULL/bad-key. It is a *filter* (8-byte
+prefixes[i])`. Like the extension it is the *optimized* (batched) path: a single Montgomery
+batch Z-inversion converts all output points Jacobian->affine, and `batch_add_affine_x` does
+the spend addition for the whole batch. Returns the match count or `-1` on NULL/bad-key. It is a *filter* (8-byte
 prefixes can collide; the caller confirms survivors against the full x). Bridge header only
 (bare `int`, not a `UFSECP_API`/`ufsecp.h` symbol → no ABI-manifest churn). Correctness is
 pinned by a golden vector in `test_lbtc_bridge`: it replicates `bench_bip352`'s deterministic
