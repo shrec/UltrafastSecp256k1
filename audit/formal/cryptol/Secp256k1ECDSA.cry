@@ -24,26 +24,31 @@ import Secp256k1Point
 
 type ECDSASig = { r : [256], s : [256] }
 
-// Scalar arithmetic mod N (group order)
+// Scalar arithmetic mod N (group order). Cryptol's (+) and (*) on [256] are
+// modulo 2^256 (they truncate), so operands are zero-extended before reduction
+// mod N — exactly as the field ops do mod P in Secp256k1Field.
 scalar_mod_add : [256] -> [256] -> [256]
-scalar_mod_add a b = (a + b) % N
+scalar_mod_add a b = drop`{1} ((ext a + ext b) % ext N)
+  where ext x = (zero : [1]) # x      // [257]: a+b < 2N does not wrap
 
 scalar_mod_mul : [256] -> [256] -> [256]
-scalar_mod_mul a b = (a * b) % N
+scalar_mod_mul a b = drop`{256} ((ext a * ext b) % ext N)
+  where ext x = (zero : [256]) # x    // [512]: a*b < N^2 does not wrap
 
+// Modular inverse mod N via Fermat: a^(N-2) mod N (N is prime).
 scalar_mod_inv : [256] -> [256]
-scalar_mod_inv a = if a == 0 then 0 else pow_mod a (N - 2) N
+scalar_mod_inv a = if a == 0 then 0 else pow_loop a (N - 2) 1
   where
-    pow_mod base exp modulus = pow_loop base exp modulus 1
-    pow_loop b e m acc =
-        if e == 0 then acc
-        else pow_loop ((b * b) % m) (e >> 1) m
-                      (if e ! 0 then (acc * b) % m else acc)
+    pow_loop b e acc =
+        if e == 0
+        then acc
+        else pow_loop (scalar_mod_mul b b)
+                      (e >> 1)
+                      (if e ! 0 then scalar_mod_mul acc b else acc)
 
 // ---------------------------------------------------------------------------
 // Low-S normalization (BIP-62 rule 5)
 // A signature with S > N/2 is normalized to S' = N - S.
-// This ensures unique S for every (r, S) pair.
 // ---------------------------------------------------------------------------
 
 low_s : [256] -> [256]
@@ -53,108 +58,102 @@ low_s_normalized : ECDSASig -> ECDSASig
 low_s_normalized sig = { r = sig.r, s = low_s sig.s }
 
 // ---------------------------------------------------------------------------
-// ECDSA verification (reference implementation)
+// Maybe (record encoding: a tag bit + a payload). Cryptol's `zero` supplies a
+// default payload for the Nothing case.
 // ---------------------------------------------------------------------------
+
+type Maybe a = { valid : Bit, value : a }
+
+mk_just : {a} a -> Maybe a
+mk_just x = { valid = True, value = x }
+
+mk_nothing : {a} (Zero a) => Maybe a
+mk_nothing = { valid = False, value = zero }
+
+// ---------------------------------------------------------------------------
+// ECDSA verification (reference implementation)
 //
 // Given: message hash z, signature (r, s), public key Q
 // Verify: R = (s^-1 * z) * G + (s^-1 * r) * Q, check R.x mod N == r
-//
+// ---------------------------------------------------------------------------
 
 ecdsa_verify_ref : [256] -> ECDSASig -> AffinePoint -> Bit
 ecdsa_verify_ref z sig Q =
-    // 1. Check r, s in [1, N-1]
+    // 1. r, s in [1, N-1] and Q a valid non-infinity curve point
     sig.r >= 1 /\ sig.r < N /\
     sig.s >= 1 /\ sig.s < N /\
     ~Q.infinity /\
     on_curve Q /\
-    // 2. Compute u1, u2
-    let s_inv = scalar_mod_inv sig.s
-        u1    = scalar_mod_mul z s_inv
-        u2    = scalar_mod_mul sig.r s_inv
-        // 3. Compute R = u1*G + u2*Q
-        R1    = scalar_mul u1 generator
-        R2    = scalar_mul u2 Q
-        R     = point_add R1 R2
-    in  ~R.infinity /\
-        // 4. Check R.x mod N == r
-        (R.x % N) == sig.r
+    // 3. R = u1*G + u2*Q is finite, and 4. R.x mod N == r
+    ~R.infinity /\
+    (R.x % N) == sig.r
+  where
+    // 2. u1, u2
+    s_inv = scalar_mod_inv sig.s
+    u1    = scalar_mod_mul z s_inv
+    u2    = scalar_mod_mul sig.r s_inv
+    R1    = scalar_mul u1 generator
+    R2    = scalar_mul u2 Q
+    R     = point_add R1 R2
 
 // ---------------------------------------------------------------------------
 // ECDSA sign (reference, using a provided nonce k)
 // In production, k = RFC6979(sk, z). Here k is an input for spec purity.
-// ---------------------------------------------------------------------------
 //
 // Given: message hash z, private key d, nonce k ∈ [1, N-1]
 // Sign:  R = k*G, r = R.x mod N, s = k^-1 * (z + r*d) mod N
-//
+// ---------------------------------------------------------------------------
 
 ecdsa_sign_with_nonce : [256] -> [256] -> [256] -> Maybe ECDSASig
 ecdsa_sign_with_nonce z d k =
-    if k == 0 \/ k >= N then Nothing
-    else
-        let R = scalar_mul k generator
-        in  if R.infinity then Nothing
-            else
-                let r = R.x % N
-                in  if r == 0 then Nothing
-                    else
-                        let k_inv = scalar_mod_inv k
-                            s_raw = scalar_mod_mul k_inv (scalar_mod_add z (scalar_mod_mul r d))
-                        in  if s_raw == 0 then Nothing
-                            else Just { r = r, s = low_s s_raw }
-
-// Helper: Maybe type (Cryptol's standard Maybe-like)
-primitive Maybe : * -> *
-Just : {a} a -> Maybe a
-Nothing : {a} Maybe a
-
-type instance Maybe a = { valid : Bit, value : a }
-Just x  = { valid = True,  value = x }
-Nothing = { valid = False, value = zero }
+    if k == 0 \/ k >= N then mk_nothing
+     | R.infinity       then mk_nothing
+     | r == 0           then mk_nothing
+     | s_raw == 0       then mk_nothing
+    else mk_just { r = r, s = low_s s_raw }
+  where
+    R     = scalar_mul k generator
+    r     = R.x % N
+    k_inv = scalar_mod_inv k
+    s_raw = scalar_mod_mul k_inv (scalar_mod_add z (scalar_mod_mul r d))
 
 // ---------------------------------------------------------------------------
 // Correctness property
-// ---------------------------------------------------------------------------
 //
-// The fundamental ECDSA correctness property:
 // If sign(z, d, k) succeeds, verify(z, sig, pubkey(d)) must accept.
-//
-// This property is the primary target for SAW equivalence proofs:
-// prove that our C implementation matches this Cryptol spec.
-//
+// This is the primary target for SAW equivalence proofs.
+// ---------------------------------------------------------------------------
 
 property ecdsa_sign_then_verify (z : [256]) (d : [256]) (k : [256]) =
-    // Preconditions: valid scalar and nonce
     (d >= 1 /\ d < N /\ k >= 1 /\ k < N) ==>
-    let result = ecdsa_sign_with_nonce z d k
-        Q      = privkey_to_pubkey d
-    in  // If sign succeeded, verify must accept
-        result.valid ==>
-        ecdsa_verify_ref z result.value Q
+    result.valid ==>
+    ecdsa_verify_ref z result.value Q
+  where
+    result = ecdsa_sign_with_nonce z d k
+    Q      = privkey_to_pubkey d
 
 // Low-S invariant: sign always produces s ≤ N/2
 property ecdsa_sign_low_s (z : [256]) (d : [256]) (k : [256]) =
-    let result = ecdsa_sign_with_nonce z d k
-    in  result.valid ==> result.value.s <= (N / 2)
+    result.valid ==> result.value.s <= (N / 2)
+  where result = ecdsa_sign_with_nonce z d k
 
 // r in range
 property ecdsa_sign_r_range (z : [256]) (d : [256]) (k : [256]) =
-    let result = ecdsa_sign_with_nonce z d k
-    in  result.valid ==>
-        result.value.r >= 1 /\ result.value.r < N
+    result.valid ==> (result.value.r >= 1 /\ result.value.r < N)
+  where result = ecdsa_sign_with_nonce z d k
 
 // s in range
 property ecdsa_sign_s_range (z : [256]) (d : [256]) (k : [256]) =
-    let result = ecdsa_sign_with_nonce z d k
-    in  result.valid ==>
-        result.value.s >= 1 /\ result.value.s <= (N / 2)
+    result.valid ==> (result.value.s >= 1 /\ result.value.s <= (N / 2))
+  where result = ecdsa_sign_with_nonce z d k
 
 // Zero message: sign still works (important boundary)
 property ecdsa_zero_msg (d : [256]) (k : [256]) =
     (d >= 1 /\ d < N /\ k >= 1 /\ k < N) ==>
-    let result = ecdsa_sign_with_nonce 0 d k
-        Q      = privkey_to_pubkey d
-    in  result.valid ==> ecdsa_verify_ref 0 result.value Q
+    result.valid ==> ecdsa_verify_ref 0 result.value Q
+  where
+    result = ecdsa_sign_with_nonce 0 d k
+    Q      = privkey_to_pubkey d
 
 // ---------------------------------------------------------------------------
 // Low-S normalization properties
@@ -170,4 +169,4 @@ property low_s_in_lower_half (s : [256]) =
 
 property low_s_valid (s : [256]) =
     (s >= 1 /\ s < N) ==>
-    low_s s >= 1 /\ low_s s < N
+    (low_s s >= 1 /\ low_s s < N)

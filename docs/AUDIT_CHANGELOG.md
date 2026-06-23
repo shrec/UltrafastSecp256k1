@@ -1,5 +1,28 @@
 # Audit Changelog
 
+## 2026-06-23 — Cryptol formal specs now actually parse + prove (BUG 1)
+
+The four `audit/formal/cryptol/*.cry` specs (GF(p) field, EC points, ECDSA, BIP-340 Schnorr)
+never ran: they had pre-3.5 `let…in` property syntax, a `(p q : T)` shared annotation, an
+invalid `primitive Maybe`, a `field_mul_ref … ` backtick type-application on a value, and —
+most importantly — **mathematically wrong arithmetic**: Cryptol's `(+)`/`(*)` on `[256]` are
+modulo 2^256 (they truncate), so `field_mul`/`field_mul_ref`/`field_add`/`field_sub` and the
+mod-N `scalar_mod_*` silently dropped the high half of every product/sum. All corrected to
+full-width zero-extended ops (`drop\`{…} ((ext a * ext b) % ext P)`), `let…in`→`where`, a
+record `Maybe` + `mk_just`/`mk_nothing`, and a polymorphic `tagged_hash`. `on_curve` now
+requires canonical infinity (`x=y=0`).
+
+The gate `ci/run_formal_verification.py` ran `cryptol -b <file>.cry`, which executes a spec as
+a REPL command batch — top-level definitions do not persist and **no property is ever checked**
+(it silently "passed"). Replaced with per-spec `.icry` runners (`:load` + `:check`); `cryptol -b`
+exits non-zero on any type error or counterexample, so it is now a real gate when cryptol is
+present (advisory-skip only when absent, per guardrail #16). `:check` is randomized testing — no
+SMT solver needed; the full sign/verify equivalences remain SAW `:prove` targets.
+
+Verified (cryptol 3.5.0, Linux): Field 15/15, Point 10/10, ECDSA 8/8 (incl. `ecdsa_sign_then_verify`),
+Schnorr 2/2 structural — all `:check` pass, 0 counterexamples; `run_formal_verification.py` reports
+z3 ✓ lean ✓ cryptol ✓ all PROVED.
+
 ## 2026-06-23 — FE52-compute verify pairing test (audit/test_fe52_compute_verify.cpp)
 
 Pairs the previously-untested perf commit `875d5bee` ("FE52-compute ECDSA/Schnorr verify on

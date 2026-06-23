@@ -1,0 +1,6 @@
+// Property-check runner for the ECDSA spec. sign/verify run 256-bit scalar
+// multiplication in the interpreter, so the test count is bounded (the full
+// equivalence is a SAW :prove target). All 8 properties are checked.
+:load Secp256k1ECDSA.cry
+:set tests=5
+:check

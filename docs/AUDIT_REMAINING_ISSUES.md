@@ -6,16 +6,30 @@ Windows, and the audit now runs end-to-end. The items below are the **remaining
 real bugs** — none are Windows-specific; they fail identically on Linux and are
 easiest to fix there (full dev environment, Cryptol native).
 
-> **UPDATE 2026-06-23 (commit `c9ae316c`, Linux):** BUG 2 (bundle hash drift) and
-> BUG 3 (FE52-compute commit lacked an in-commit test) are **FIXED**. Only **BUG 1**
-> (Cryptol formal specs) remains open — it is an advisory-skip, not a hard gate failure.
+> **UPDATE 2026-06-23 (Linux):** ALL THREE fixed. BUG 2 (bundle hash drift) and BUG 3
+> (FE52-compute commit lacked an in-commit test) in commit `c9ae316c`. BUG 1 (Cryptol
+> formal specs) is now fixed too: cryptol 3.5.0 installed, all four specs parse + type-check
+> and their tractable properties pass `:check` (Field 15/15, Point 10/10, ECDSA 8/8 incl.
+> sign→verify, Schnorr structural), and the gate now runs real `.icry` property checks
+> instead of the no-op `cryptol -b <file>.cry` REPL batch. `run_formal_verification.py`:
+> z3 ✓ lean ✓ cryptol ✓ all PROVED.
 
 ---
 
-## BUG 1 — Cryptol formal specs do not parse / are not actually proven  *(blocks the Cryptol formal gate)*
+## BUG 1 — Cryptol formal specs do not parse / are not actually proven  *(blocks the Cryptol formal gate)*  ✅ FIXED
 
-Two independent defects keep the Cryptol part of formal verification from ever
-running (today it ADVISORY-SKIPs because Cryptol is normally absent in CI):
+> **Fixed (Linux, cryptol 3.5.0).** Beyond the two defects below, the specs also had
+> mathematically-wrong arithmetic (Cryptol's `(+)`/`(*)` on `[256]` truncate mod 2^256, so
+> `field_mul_ref`/`field_add`/`scalar_mod_*` silently dropped the high half) and an invalid
+> `primitive Maybe` construct — all corrected to full-width zero-extended ops + a record
+> `Maybe`. The gate (`ci/run_formal_verification.py`) now runs per-spec `.icry` runners
+> (`:load` + `:check`) so a type error or counterexample fails the gate; the old
+> `cryptol -b <file>.cry` executed the file as a REPL batch and checked **nothing**.
+> Verified end-to-end: `run_formal_verification.py` → z3 ✓ lean ✓ cryptol ✓ all PROVED.
+> Linux install: download `cryptol-3.5.0-ubuntu-24.04-X64.tar.gz` from the GaloisInc/cryptol
+> 3.5.0 release; `:check` needs no SMT solver (it is randomized testing).
+
+Two independent defects (now fixed) kept the Cryptol part from ever running:
 
 ### 1a. Pre-3.5 syntax in the `.cry` specs (parse error)
 `audit/formal/cryptol/Secp256k1Field.cry:182` — a `let … in` expression inside a

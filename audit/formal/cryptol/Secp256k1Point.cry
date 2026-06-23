@@ -60,11 +60,11 @@ generator = { x = Gx, y = Gy, infinity = False }
 on_curve : AffinePoint -> Bit
 on_curve p =
     if p.infinity
-    then True
-    else
-        let lhs = field_mul_ref p.y p.y
-            rhs = field_add (field_mul_ref (field_mul_ref p.x p.x) p.x) B
-        in  lhs == rhs
+    then (p.x == 0 /\ p.y == 0)   // canonical point-at-infinity only (x=y=0)
+    else lhs == rhs
+  where
+    lhs = field_mul_ref p.y p.y
+    rhs = field_add (field_mul_ref (field_mul_ref p.x p.x) p.x) B
 
 // ---------------------------------------------------------------------------
 // Affine point operations
@@ -85,25 +85,25 @@ point_add p q =
         if p.y == q.y
         then point_double p  // same point → double
         else infinity_point   // P + (-P) = ∞
-    else
-        // Standard chord formula
-        let lam = field_mul_ref (field_sub q.y p.y) (field_inv (field_sub q.x p.x))
-            rx  = field_sub (field_sub (field_mul_ref lam lam) p.x) q.x
-            ry  = field_sub (field_mul_ref lam (field_sub p.x rx)) p.y
-        in  { x = rx, y = ry, infinity = False }
+    else { x = rx, y = ry, infinity = False }
+  where
+    // Standard chord formula
+    lam = field_mul_ref (field_sub q.y p.y) (field_inv (field_sub q.x p.x))
+    rx  = field_sub (field_sub (field_mul_ref lam lam) p.x) q.x
+    ry  = field_sub (field_mul_ref lam (field_sub p.x rx)) p.y
 
 // Point doubling (tangent formula, a=0 for secp256k1)
 point_double : AffinePoint -> AffinePoint
 point_double p =
     if p.infinity then infinity_point
     else if p.y == 0 then infinity_point  // point of order 2
-    else
-        // For a=0: λ = 3x²/(2y)
-        let x2  = field_mul_ref p.x p.x
-            lam = field_mul_ref (field_mul_ref 3 x2) (field_inv (field_mul_ref 2 p.y))
-            rx  = field_sub (field_mul_ref lam lam) (field_mul_ref 2 p.x)
-            ry  = field_sub (field_mul_ref lam (field_sub p.x rx)) p.y
-        in  { x = rx, y = ry, infinity = False }
+    else { x = rx, y = ry, infinity = False }
+  where
+    // For a=0: λ = 3x²/(2y)
+    x2  = field_mul_ref p.x p.x
+    lam = field_mul_ref (field_mul_ref 3 x2) (field_inv (field_mul_ref 2 p.y))
+    rx  = field_sub (field_mul_ref lam lam) (field_mul_ref 2 p.x)
+    ry  = field_sub (field_mul_ref lam (field_sub p.x rx)) p.y
 
 // ---------------------------------------------------------------------------
 // Scalar multiplication (double-and-add: reference only, not CT)
@@ -119,12 +119,12 @@ scalar_mul k p = sca_loop k p infinity_point
     sca_loop : [256] -> AffinePoint -> AffinePoint -> AffinePoint
     sca_loop bits base acc =
         if bits == 0 then acc
-        else
-            let new_acc = if bits ! 0  // test LSB
-                          then point_add acc base
-                          else acc
-                new_base = point_double base
-            in  sca_loop (bits >> 1) new_base new_acc
+        else sca_loop (bits >> 1) new_base new_acc
+      where
+        new_acc = if bits ! 0  // test LSB
+                  then point_add acc base
+                  else acc
+        new_base = point_double base
 
 // Private key → public key
 privkey_to_pubkey : Scalar -> AffinePoint
@@ -147,7 +147,7 @@ property point_neg_is_inverse (p : AffinePoint) =
     (point_add p (point_neg p)).infinity
 
 // Commutativity: P + Q == Q + P
-property point_add_commutative (p q : AffinePoint) =
+property point_add_commutative (p : AffinePoint) (q : AffinePoint) =
     (on_curve p /\ on_curve q) ==>
     point_add p q == point_add q p
 
