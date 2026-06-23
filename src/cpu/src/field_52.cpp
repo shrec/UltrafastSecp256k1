@@ -391,6 +391,27 @@ FieldElement52 FieldElement52::sqrt() const noexcept {
 
 #endif // SECP256K1_HYBRID_4X64_ACTIVE (sqrt)
 
+// --- MSVC cl fallback: 5x52 variable-time inverse via the 4x64 path ----------
+// fe52_inverse_safegcd_var (field.cpp) is compiled only under __SIZEOF_INT128__: its
+// SafeGCD posdivstep needs SIGNED 128-bit accumulators, which MSVC cl lacks
+// (u128_compat is unsigned only). The FE52-compute verify path enabled for cl
+// (SECP256K1_FE52_COMPUTE) still calls it for the dual-mul Jacobian->affine table
+// build (one batch inverse per verify), so provide a cl definition that round-trips
+// through the 4x64 variable-time inverse. This is a PUBLIC-data precompute path, so
+// variable-time is correct, and the field inverse is unique -> bit-identical to the
+// native SafeGCD route. (A native signed-128 SafeGCD on cl — Step C — would remove
+// this one round-trip, but the inverse runs once/verify vs the field ~hundreds of
+// times, so the codegen fix (Step A) carries the win; this stays a small fixed cost.)
+#if defined(SECP256K1_FE52_COMPUTE) && !defined(__SIZEOF_INT128__)
+void fe52_inverse_safegcd_var(const std::uint64_t* in5, std::uint64_t* out5) {
+    FieldElement52 a{};
+    a.n[0] = in5[0]; a.n[1] = in5[1]; a.n[2] = in5[2]; a.n[3] = in5[3]; a.n[4] = in5[4];
+    const FieldElement inv = a.to_fe().inverse();
+    const FieldElement52 r = FieldElement52::from_fe(inv);
+    out5[0] = r.n[0]; out5[1] = r.n[1]; out5[2] = r.n[2]; out5[3] = r.n[3]; out5[4] = r.n[4];
+}
+#endif // SECP256K1_FE52_COMPUTE && !__SIZEOF_INT128__
+
 } // namespace secp256k1::fast
 
 #if defined(__GNUC__)

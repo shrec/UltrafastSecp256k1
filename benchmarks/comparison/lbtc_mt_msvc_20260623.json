@@ -1,0 +1,121 @@
+{
+  "schema": "ufsecp-lbtc-benchmark-v1",
+  "target_context": "libbitcoin",
+  "claim_scope": "local libbitcoin batch-verify bridge throughput",
+  "security_gate_dependency": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+  "batch_size": 100000,
+  "iters": 3,
+  "pool": 10000,
+  "results": [
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row-mt-t1",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 11.5896634,
+      "m_sig_per_sec": 0.00862837828405
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row-mt-t2",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 5.8559677,
+      "m_sig_per_sec": 0.0170765969218
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row-mt-t4",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 3.1974666,
+      "m_sig_per_sec": 0.0312747598364
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row-mt-t8",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 1.9340611,
+      "m_sig_per_sec": 0.0517046746869
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row-mt-t16",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 1.4286669,
+      "m_sig_per_sec": 0.0699953222126
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row-mt-t1",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 2.2234362,
+      "m_sig_per_sec": 0.0449754303721
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row-mt-t2",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 1.6455765,
+      "m_sig_per_sec": 0.0607689767082
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row-mt-t4",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 0.8862507,
+      "m_sig_per_sec": 0.112834889721
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row-mt-t8",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 0.5993853,
+      "m_sig_per_sec": 0.166837591779
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row-mt-t16",
+      "batch_size": 100000,
+      "iters": 3,
+      "pool": 10000,
+      "best_seconds": 0.4240731,
+      "m_sig_per_sec": 0.235808401901
+    }
+  ]
+}

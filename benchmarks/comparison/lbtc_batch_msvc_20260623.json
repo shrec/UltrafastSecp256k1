@@ -1,0 +1,99 @@
+{
+  "schema": "ufsecp-lbtc-benchmark-v1",
+  "target_context": "libbitcoin",
+  "claim_scope": "local libbitcoin batch-verify bridge throughput",
+  "security_gate_dependency": "python3 ci/audit_gate.py --libbitcoin-perf-matrix",
+  "batch_size": 200000,
+  "iters": 5,
+  "pool": 20000,
+  "results": [
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-row",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 22.7687502,
+      "m_sig_per_sec": 0.00878396917895
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-row",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 4.4574004,
+      "m_sig_per_sec": 0.0448692022373
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-columns",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 23.6124667,
+      "m_sig_per_sec": 0.00847010193984
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-columns",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 22.0704332,
+      "m_sig_per_sec": 0.00906189734418
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-collect",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 22.3168305,
+      "m_sig_per_sec": 0.00896184608294
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-collect",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 4.221298,
+      "m_sig_per_sec": 0.0473787920208
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "ECDSA-col-collect",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 22.1586213,
+      "m_sig_per_sec": 0.00902583230663
+    },
+    {
+      "requested_backend": "CPU",
+      "bound_backend": "CPU",
+      "device": "CPU",
+      "kind": "Schnorr-col-collect",
+      "batch_size": 200000,
+      "iters": 5,
+      "pool": 20000,
+      "best_seconds": 22.1256255,
+      "m_sig_per_sec": 0.00903929247108
+    }
+  ]
+}

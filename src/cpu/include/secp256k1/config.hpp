@@ -40,6 +40,25 @@
     #endif
 #endif
 
+// FE52 COMPUTE availability (decoupled from FE52 STORAGE = SECP256K1_FAST_52BIT).
+// Set wherever the 5x52 field/point kernels can run as the ECMULT compute path:
+//   - native __int128 (GCC/Clang/clang-cl)  -> also used for FE52 Point storage
+//   - MSVC x64 cl (no __int128) -> compute-only via u128_compat (_umul128); Point
+//     STORAGE stays 4x64, the dual-mul bridges with to_jac52/from_jac52.
+// MEASURED (2026-06-23): with the pointer-accumulation u128 (Step A), the FE52 field
+// in a point-op context (multi-accumulator) is ~0.88x the 4x64 MASM-asm path on cl —
+// it WINS in context (the isolated single-mul micro-bench is misleading: no register
+// pressure). So routing the cl ECDSA-verify ecmult through FE52 is a net win.
+// Excluded on ESP32/STM32/wasm (no __int128 and u128_compat too slow / buggy there).
+#if !defined(SECP256K1_PLATFORM_ESP32) && !defined(ESP_PLATFORM) && \
+    !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+  #if defined(__SIZEOF_INT128__) || (defined(_MSC_VER) && !defined(__clang__) && defined(_M_X64))
+    #ifndef SECP256K1_FE52_COMPUTE
+      #define SECP256K1_FE52_COMPUTE 1
+    #endif
+  #endif
+#endif
+
 // Performance optimization macros for hot path functions
 
 // Force inline for critical performance paths

@@ -75,9 +75,14 @@ the CPU reference path.
 - MSVC `cl` is supported. The default MSVC path keeps the portable x64 ABI
   baseline and enables measured-safe `/Ob3`; whole-program `/GL` is opt-in via
   `SECP256K1_MSVC_WPO=ON` because it can force downstream `/LTCG`.
-- The current MSVC Windows profile has been owner-benchmarked as accelerated on
-  the integration machine. Treat that as owner-side evidence until a
-  `bench_lbtc_batch --json` artifact from the same hardware is attached.
+- The current MSVC Windows profile has an attached `bench_lbtc_batch --json`
+  artifact (Intel i7-11700, 8C/16T, MSVC 19.44.35227) showing the `_mt`
+  batch-verify path scaling 8.11x (ECDSA) / 5.24x (Schnorr) at 16 threads over the
+  `t=1` serial baseline — see
+  [`benchmarks/comparison/windows_msvc_lbtc_batch_20260623.md`](../benchmarks/comparison/windows_msvc_lbtc_batch_20260623.md).
+  That is a per-machine scaling artifact, not a cross-hardware absolute claim;
+  absolute per-core throughput stays MSVC-bound (use `clang-cl` for the faster
+  Windows codegen).
 - `clang-cl` is the recommended fast Windows compiler when the consumer accepts
   the MSVC ABI with Clang codegen:
 

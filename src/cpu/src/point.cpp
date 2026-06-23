@@ -338,8 +338,15 @@ static inline void jacobian_add_inplace(JacobianPoint& p, const JacobianPoint& q
 // This gives ~2.5-3x speedup to point double/add/mixed-add.
 // ===============================================================================
 
+// FE52 section. Compiled wherever FE52 COMPUTE is available (native __int128 OR MSVC
+// x64 cl — see config.hpp). FAST_52BIT (FE52 Point STORAGE) is defined ONLY under
+// native __int128: on cl the Point stays 4x64 and the FE52 compute functions bridge
+// via to_jac52/from_jac52 (which have 4x64 #else paths). Per-function guards below
+// decide storage (#if FAST_52BIT) vs compute (#if SECP256K1_FE52_COMPUTE).
+#if defined(SECP256K1_FE52_COMPUTE)
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #define SECP256K1_FAST_52BIT 1
+#endif
 
 // File-scope FE52 beta constant — avoids per-call function-static init-flag
 // (atomic load on every call). Shared by batch_scalar_mul_fixed_k,
@@ -477,7 +484,7 @@ static JacobianPoint52 jac52_double(const JacobianPoint52& p) noexcept {
 // Eliminates the 128-byte return value copy on every call.
 // Formula: libsecp256k1 gej_double (3M+4S+8 cheap, a=0)
 // L = (3/2)*X^2, S = Y^2, T = -X*S, X3 = L^2+2T, Y3 = -(L*(X3+T)+S^2), Z3 = Y*Z
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
+SECP256K1_HOT_FUNCTION
 // Core doubling on raw FE52 references (zero struct-copy overhead)
 // In-place variant: reads and writes through same x/y/z references.
 static inline void jac52_double_coords(FieldElement52& x, FieldElement52& y, FieldElement52& z) noexcept {
@@ -516,15 +523,15 @@ static inline void jac52_double_coords(FieldElement52& x, FieldElement52& y, Fie
 // Split I/O variant: reads from const in_*, writes to separate out_*.
 // Eliminates the 120-byte input->output copy needed by the in-place variant
 // when called from const methods (dbl, add) that return a new Point.
-// __restrict__ tells the compiler that in_* and out_* never alias each other,
+// SECP256K1_RESTRICT tells the compiler that in_* and out_* never alias each other,
 // enabling the same register-based optimizations as the copy-to-local approach.
 static inline void jac52_double_to(
-        const FieldElement52& __restrict__ in_x,
-        const FieldElement52& __restrict__ in_y,
-        const FieldElement52& __restrict__ in_z,
-        FieldElement52& __restrict__ out_x,
-        FieldElement52& __restrict__ out_y,
-        FieldElement52& __restrict__ out_z) noexcept {
+        const FieldElement52& SECP256K1_RESTRICT in_x,
+        const FieldElement52& SECP256K1_RESTRICT in_y,
+        const FieldElement52& SECP256K1_RESTRICT in_z,
+        FieldElement52& SECP256K1_RESTRICT out_x,
+        FieldElement52& SECP256K1_RESTRICT out_y,
+        FieldElement52& SECP256K1_RESTRICT out_z) noexcept {
     // Z3 = Y1 * Z1 (1M)
     out_z = in_y * in_z;
 
@@ -559,13 +566,13 @@ static inline void jac52_double_to(
 
 // Z=1 specialization: when input Z == 1, skip Z3 = Y*Z multiplication (2M+4S).
 // Saves 1M (~11ns on x86-64) for the first doubling of an affine-normalized point.
-SECP256K1_HOT_FUNCTION __attribute__((always_inline))
+SECP256K1_HOT_FUNCTION
 static inline void jac52_double_z1_to(
-        const FieldElement52& __restrict__ in_x,
-        const FieldElement52& __restrict__ in_y,
-        FieldElement52& __restrict__ out_x,
-        FieldElement52& __restrict__ out_y,
-        FieldElement52& __restrict__ out_z) noexcept {
+        const FieldElement52& SECP256K1_RESTRICT in_x,
+        const FieldElement52& SECP256K1_RESTRICT in_y,
+        FieldElement52& SECP256K1_RESTRICT out_x,
+        FieldElement52& SECP256K1_RESTRICT out_y,
+        FieldElement52& SECP256K1_RESTRICT out_z) noexcept {
     // Z3 = Y1 (Z1 == 1, skip multiplication)
     out_z = in_y;
 
@@ -825,17 +832,17 @@ static void jac52_add_mixed_neg_inplace(JacobianPoint52& p, const AffinePoint52&
 
 // Split I/O variant: reads from const in_* and q_*, writes to out_*.
 // Eliminates 320 bytes of struct-copy overhead in Point::add() const.
-// __restrict__ tells the compiler that all references are non-aliasing.
+// SECP256K1_RESTRICT tells the compiler that all references are non-aliasing.
 static inline void jac52_add_mixed_to(
-        const FieldElement52& __restrict__ in_x,
-        const FieldElement52& __restrict__ in_y,
-        const FieldElement52& __restrict__ in_z,
+        const FieldElement52& SECP256K1_RESTRICT in_x,
+        const FieldElement52& SECP256K1_RESTRICT in_y,
+        const FieldElement52& SECP256K1_RESTRICT in_z,
         bool in_infinity,
-        const FieldElement52& __restrict__ q_x,
-        const FieldElement52& __restrict__ q_y,
-        FieldElement52& __restrict__ out_x,
-        FieldElement52& __restrict__ out_y,
-        FieldElement52& __restrict__ out_z,
+        const FieldElement52& SECP256K1_RESTRICT q_x,
+        const FieldElement52& SECP256K1_RESTRICT q_y,
+        FieldElement52& SECP256K1_RESTRICT out_x,
+        FieldElement52& SECP256K1_RESTRICT out_y,
+        FieldElement52& SECP256K1_RESTRICT out_z,
         bool& out_infinity) noexcept {
     if (SECP256K1_UNLIKELY(in_infinity)) {
         out_x = q_x; out_y = q_y; out_z = FieldElement52::one();
@@ -2400,7 +2407,14 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     }
 #endif
 
-#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32)
+// Embedded AND MSVC cl take the 4x64 GLV+Shamir variable-base path below. MSVC has
+// no __int128 (no FE52), so without this it fell to the #else binary double-and-add
+// (no GLV/wNAF, ~256 doublings) — ~2x the point work (measured scalar_mul 96 -> 48us).
+// This GLV+Shamir body is pure 4x64, proven on ESP32/STM32. The generator case is
+// already handled above (is_generator_ -> scalar_mul_generator) for non-embedded, so
+// MSVC only uses this for the variable base. clang-cl has __int128 -> FE52 path, hence
+// (_MSC_VER && !__clang__).  (PERF, 2026-06-23)
+#if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32) || (defined(_MSC_VER) && !defined(__clang__))
     // ESP32 only: generator uses precomputed fixed-base table (~4ms vs ~12ms)
     // STM32 skips this (64KB SRAM too tight for 30KB table)
 #if defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM)
@@ -3984,7 +3998,7 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
 // -- File-scope generator tables (shared by dual_scalar_mul_gen_point and
 //    dual_scalar_mul_gen_prebuilt) -----------------------------------------
 // Initialized once on first use. NOT inside the function to allow sharing.
-#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+#if defined(SECP256K1_FE52_COMPUTE) && !defined(SECP256K1_USE_4X64_POINT_OPS)
 namespace {
     constexpr unsigned kDualMulWindowG    = 15;
     constexpr int kDualMulGTableSize      = (1 << (kDualMulWindowG - 2)); // 8192
@@ -4053,7 +4067,14 @@ namespace {
 } // anonymous namespace
 #endif
 
-#if defined(SECP256K1_FAST_52BIT)
+// FE52 fused dual-mul (a*G + b*P) — the verify hot path. Enabled wherever FE52 COMPUTE
+// is available, INCLUDING MSVC cl: with the pointer-accumulation u128 (Step A,
+// 2026-06-23) the 5x52 field in this multi-accumulator point-op context is MEASURED
+// ~0.88x the 4x64 MASM-asm path on cl (it WINS in context — the isolated single-mul
+// micro-bench was misleading). On cl the Point STORAGE stays 4x64; to_jac52/from_jac52
+// bridge to 5x52 once each. G/phi(G) tables are w=15 (8192 entries, static). The 4x64
+// GLV-Strauss below is now only the ESP32/STM32 fallback.
+#if defined(SECP256K1_FE52_COMPUTE)
 SECP256K1_HOT_FUNCTION
 Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P) {
     SECP_ASSERT_ON_CURVE(P);
@@ -4384,10 +4405,15 @@ bool Point::build_schnorr_verify_tables(
 }
 #endif
 
-// ESP32/Embedded: 4-stream GLV Strauss (4x64 field)
+// ESP32/Embedded AND MSVC cl: 4-stream GLV Strauss (4x64 field)
 // Fixed in v3.3.1: the phi(G) sign used k1_neg XOR k2_neg (flip_a) instead
 // of k2_neg alone. This is correct for the P table (where k1_neg is baked
 // into P_base), but wrong for the G table (precomputed once, no sign baked).
+//
+// ESP32/STM32 only: the FE52-compute path above is unavailable there (no __int128 and
+// u128_compat too slow on those MCUs vs this 4x64 GLV-Strauss). MSVC cl now takes the
+// FE52-compute path above — with Step A (pointer-accumulation u128) the 5x52 field
+// wins in the point-op context on cl (MEASURED), so it is no longer listed here.
 #elif (defined(SECP256K1_PLATFORM_ESP32) || defined(ESP_PLATFORM) || defined(SECP256K1_PLATFORM_STM32))
 // -- ESP32/Embedded: 4-stream GLV Strauss (4x64 field) --------------------
 // Combines a*G + b*P into a single doubling chain with 4 wNAF streams,
@@ -4400,24 +4426,34 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     GLVDecomposition decomp_a = glv_decompose(a);
     GLVDecomposition decomp_b = glv_decompose(b);
 
-    // -- Build wNAF w=5 for all 4 half-scalars ------------------------
+    // -- wNAF windows: Q (per-call table) w=5; G (precomputed-once) wider -----
+    // The generator window is DECOUPLED from and wider than the variable-base
+    // window. G/phi(G) tables are built ONCE (static), so a wide window is ~free at
+    // runtime and only cuts the per-verify G additions (w=5 -> ~43; w=12 -> ~21) —
+    // where libsecp's WINDOW_G=15 otherwise pulls ahead. w=12 (1024 odd multiples,
+    // 256 KB) captures most of the benefit at far less cache footprint than libsecp's
+    // ~2 MB w=15; w=14 (1 MB) was marginally faster single-thread but regressed the
+    // 16-thread batch (cache contention), so w=12. Q stays w=5 (its table is rebuilt
+    // per call, so a wider Q window would cost more than it saves).
     constexpr unsigned WINDOW = 5;
-    constexpr int TABLE_SIZE = (1 << (WINDOW - 2));  // 8
+    constexpr int TABLE_SIZE = (1 << (WINDOW - 2));  // 8  (variable base Q)
+    constexpr unsigned WINDOW_G = 12;
+    constexpr int TABLE_SIZE_G = (1 << (WINDOW_G - 2));  // 1024 (generator G, static)
 
     std::array<int32_t, 140> wnaf_a1{}, wnaf_a2{}, wnaf_b1{}, wnaf_b2{}; // all ≤128-bit
     std::size_t len_a1 = 0, len_a2 = 0, len_b1 = 0, len_b2 = 0;
-    compute_wnaf_into(decomp_a.k1, WINDOW, wnaf_a1.data(), wnaf_a1.size(), len_a1);
-    compute_wnaf_into(decomp_a.k2, WINDOW, wnaf_a2.data(), wnaf_a2.size(), len_a2);
-    compute_wnaf_into(decomp_b.k1, WINDOW, wnaf_b1.data(), wnaf_b1.size(), len_b1);
-    compute_wnaf_into(decomp_b.k2, WINDOW, wnaf_b2.data(), wnaf_b2.size(), len_b2);
+    compute_wnaf_into(decomp_a.k1, WINDOW_G, wnaf_a1.data(), wnaf_a1.size(), len_a1);  // a1*G
+    compute_wnaf_into(decomp_a.k2, WINDOW_G, wnaf_a2.data(), wnaf_a2.size(), len_a2);  // a2*phi(G)
+    compute_wnaf_into(decomp_b.k1, WINDOW, wnaf_b1.data(), wnaf_b1.size(), len_b1);    // b1*P
+    compute_wnaf_into(decomp_b.k2, WINDOW, wnaf_b2.data(), wnaf_b2.size(), len_b2);    // b2*phi(P)
 
     // -- Precompute G tables (static, computed once) ------------------
     // Odd multiples [1,3,5,...,15]xG and [1,3,...,15]xphi(G) in affine
     struct DualGenTables {
-        AffinePoint tbl_G[TABLE_SIZE];
-        AffinePoint tbl_phiG[TABLE_SIZE];
-        AffinePoint neg_tbl_G[TABLE_SIZE];
-        AffinePoint neg_tbl_phiG[TABLE_SIZE];
+        AffinePoint tbl_G[TABLE_SIZE_G];
+        AffinePoint tbl_phiG[TABLE_SIZE_G];
+        AffinePoint neg_tbl_G[TABLE_SIZE_G];
+        AffinePoint neg_tbl_phiG[TABLE_SIZE_G];
     };
 
     // C++11 magic static: thread-safe one-time initialization.
@@ -4425,25 +4461,26 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     static const DualGenTables& gen4 = *[]() {
         auto* t = new DualGenTables;
 
-        // Build [1,3,5,...,15]xG in Jacobian, then batch-invert to affine
+        // Build [1,3,5,...,2*TABLE_SIZE_G-1]xG in Jacobian, then batch-invert to
+        // affine. One-time init, so heap temporaries (TABLE_SIZE_G up to 1024) keep
+        // the lambda stack frame small instead of a ~200 KB local array.
         Point G = Point::generator();
-        Point pts_j[TABLE_SIZE];
+        std::vector<Point> pts_j(TABLE_SIZE_G);
         pts_j[0] = G;
         Point dbl_G = G; dbl_G.dbl_inplace();
-        for (int i = 1; i < TABLE_SIZE; i++) {
+        for (int i = 1; i < TABLE_SIZE_G; i++) {
             pts_j[i] = pts_j[i - 1];
             pts_j[i].add_inplace(dbl_G);
         }
 
         // Batch invert Z coordinates to get affine
-        FieldElement z_orig[TABLE_SIZE], z_pfx[TABLE_SIZE];
-        for (int i = 0; i < TABLE_SIZE; i++) z_orig[i] = pts_j[i].z_raw();
+        std::vector<FieldElement> z_orig(TABLE_SIZE_G), z_pfx(TABLE_SIZE_G), z_inv(TABLE_SIZE_G);
+        for (int i = 0; i < TABLE_SIZE_G; i++) z_orig[i] = pts_j[i].z_raw();
         z_pfx[0] = z_orig[0];
-        for (int i = 1; i < TABLE_SIZE; i++) z_pfx[i] = z_pfx[i - 1] * z_orig[i];
+        for (int i = 1; i < TABLE_SIZE_G; i++) z_pfx[i] = z_pfx[i - 1] * z_orig[i];
 
-        FieldElement inv = z_pfx[TABLE_SIZE - 1].inverse();
-        FieldElement z_inv[TABLE_SIZE];
-        for (int i = TABLE_SIZE - 1; i > 0; --i) {
+        FieldElement inv = z_pfx[TABLE_SIZE_G - 1].inverse();
+        for (int i = TABLE_SIZE_G - 1; i > 0; --i) {
             z_inv[i] = inv * z_pfx[i - 1];
             inv = inv * z_orig[i];
         }
@@ -4451,7 +4488,7 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
 
         static const FieldElement beta = FieldElement::from_bytes(glv_constants::BETA);
 
-        for (int i = 0; i < TABLE_SIZE; i++) {
+        for (int i = 0; i < TABLE_SIZE_G; i++) {
             FieldElement zi2 = z_inv[i].square();
             FieldElement zi3 = zi2 * z_inv[i];
             FieldElement ax = pts_j[i].x_raw() * zi2;

@@ -1,6 +1,6 @@
 {
   "schema": "ufsecp-libbitcoin-perf-matrix-v1",
-  "last_verified": "2026-06-19",
+  "last_verified": "2026-06-23",
   "notes": "B21 libbitcoin integration/performance evidence ledger. This is an evidence and overclaim gate, not a substitute for owner-run full-chain benchmarks.",
   "surfaces": [
     {
@@ -57,10 +57,13 @@
       "target_context": "libbitcoin",
       "status": "measured_external",
       "severity": "warning",
-      "claim_scope": "Owner-measured Windows/MSVC profile: current MSVC path is accelerated relative to the previous MSVC build on the owner's Windows machine; exact hardware artifact remains owner-side until a public JSON bench artifact is attached.",
+      "claim_scope": "Owner-measured Windows/MSVC profile. A per-hardware JSON bench artifact is now attached (Intel i7-11700, 8C/16T, MSVC 19.44.35227, dev 07a1eceee): the _mt batch-verify path scales 8.11x (ECDSA) / 5.24x (Schnorr) at 16 threads vs the t=1 serial baseline. This is a relative scaling artifact for the MSVC profile on this machine, NOT a cross-hardware absolute-throughput claim; absolute per-core throughput stays MSVC-bound (clang-cl is the faster Windows codegen).",
       "evidence_paths": [
         "CMakeLists.txt",
-        "docs/LIBBITCOIN_INTEGRATION.md"
+        "docs/LIBBITCOIN_INTEGRATION.md",
+        "benchmarks/comparison/windows_msvc_lbtc_batch_20260623.md",
+        "benchmarks/comparison/lbtc_mt_msvc_20260623.json",
+        "benchmarks/comparison/lbtc_batch_msvc_20260623.json"
       ],
       "reproduce_command": "cmake -S . -B out/libbitcoin-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_CABI=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-msvc -j && out\\\\libbitcoin-msvc\\\\include\\\\ufsecp\\\\bench_lbtc_batch.exe 1000000 5 50000 --json out\\\\libbitcoin-msvc\\\\lbtc_msvc.json",
       "native_hardware_claim": false,

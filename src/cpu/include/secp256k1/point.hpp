@@ -8,19 +8,23 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "config.hpp"
 #include "field.hpp"
 #include "scalar.hpp"
 
-// On 5x52-capable platforms, Point stores FieldElement52 internally
-// for zero-conversion-overhead point arithmetic.
-// FE52 native storage: only on 64-bit platforms with __int128
-// Excluded on Emscripten/WASM: wasm32 emulates __int128 via compiler intrinsics,
-// which is correct but gives no speed benefit over 4x64 FieldElement.
-// The 52-bit dual_scalar_mul_gen_point also builds huge static tables (8192 entries)
-// that are unnecessary for WASM targets.
-#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
-  #ifndef SECP256K1_FAST_52BIT
-    #define SECP256K1_FAST_52BIT 1
+// Two independent capabilities (see config.hpp SECP256K1_FE52_COMPUTE):
+//  * FE52 STORAGE  (SECP256K1_FAST_52BIT): Point holds FieldElement52 internally,
+//    zero-conversion point arithmetic. Needs native __int128 (so NOT MSVC cl).
+//  * FE52 COMPUTE  (SECP256K1_FE52_COMPUTE): the 5x52 field/point kernels are
+//    available as the ecmult compute path. True for native __int128 AND MSVC x64 cl
+//    (compute via u128_compat); on cl the Point STORAGE stays 4x64 and the FE52
+//    dual-mul bridges with to_jac52/from_jac52.
+// Excluded on ESP32/STM32/wasm (no __int128, u128_compat too slow / emulated-buggy).
+#if defined(SECP256K1_FE52_COMPUTE)
+  #if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+    #ifndef SECP256K1_FAST_52BIT
+      #define SECP256K1_FAST_52BIT 1
+    #endif
   #endif
   #include "field_52.hpp"
 #endif
@@ -301,7 +305,7 @@ public:
     // Much faster than separate generator_mul(a) + scalar_mul(b) + add
     static Point dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const Point& P);
 
-#if defined(SECP256K1_FAST_52BIT) && !defined(SECP256K1_USE_4X64_POINT_OPS)
+#if defined(SECP256K1_FE52_COMPUTE) && !defined(SECP256K1_USE_4X64_POINT_OPS)
     // Fast variant using pre-built P/phi(P) tables (from SchnorrXonlyPubkey cache).
     // Skips build_glv52_table_zr + derive_phi52_table (~1,954 ns per verify).
     // tbl_P:        8-entry pseudo-affine table of odd multiples of canonical P.
