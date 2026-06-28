@@ -142,30 +142,71 @@ if(SECP256K1_USE_ULTRAFAST)
 endif()
 
 # -- libbitcoin single-flag entry point -----------------------------------------
-# Minimal node profile for libbitcoin (and any node that wants GPU/CPU batch
-# signature offload). Activates the drop-in libsecp256k1 shim + the libsecp
-# contract (CT enforced, strict ABI), compiles the GPU/CPU batch script-signature
-# bridge + BIP-352 scan into the central C ABI library, and turns OFF everything
-# a node integration does not need. One flag is all libbitcoin sets.
+# Canonical libbitcoin integration is the BRIDGE-FREE, header-only C++ surface
+# <ufsecp/libbitcoin.hpp> (ufsecp::lbtc::* inline functions) linked against the
+# engine. ONE flag (SECP256K1_BUILD_LIBBITCOIN) builds that minimal surface: the
+# engine + the direct-header interface target `secp256k1::fastsecp256k1_libbitcoin`,
+# which carries <ufsecp/libbitcoin.hpp>, C++20 and HAVE_ULTRAFAST as usage
+# requirements. NO libsecp256k1 shim, NO ufsecp C ABI, NO ufsecp_lbtc bridge are
+# pulled in by default. The legacy shim + C ABI + ufsecp_lbtc batch bridge remain
+# available for COMPATIBILITY/TESTING only behind the explicit opt-in
+# SECP256K1_BUILD_LIBBITCOIN_BRIDGE.
 option(SECP256K1_BUILD_LIBBITCOIN
-       "[libbitcoin] Minimal node profile: shim + GPU/CPU batch script-sig bridge + BIP-352; extras off" OFF)
+       "[libbitcoin] Canonical bridge-free profile: engine + direct C++ header (ufsecp/libbitcoin.hpp); extras off" OFF)
+# Compatibility-only opt-in: re-enable the libsecp256k1 shim + C ABI + ufsecp_lbtc
+# batch bridge (legacy/reference integration surface). OFF for the canonical
+# direct profile.
+option(SECP256K1_BUILD_LIBBITCOIN_BRIDGE
+       "[libbitcoin] Compatibility opt-in: libsecp256k1 shim + C ABI + ufsecp_lbtc batch bridge (legacy)" OFF)
+# libbitcoin integration tests/bench. TESTS builds the canonical direct verify
+# CTest (lbtc_direct_verify); with SECP256K1_BUILD_LIBBITCOIN_BRIDGE it also
+# builds the legacy bridge consensus tests. BENCH requires the bridge surface.
+option(SECP256K1_BUILD_LIBBITCOIN_TESTS
+       "[libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON)" OFF)
+option(SECP256K1_BUILD_LIBBITCOIN_BENCH
+       "[libbitcoin] Build libbitcoin batch bench (requires SECP256K1_BUILD_LIBBITCOIN_BRIDGE)" OFF)
 if(SECP256K1_BUILD_LIBBITCOIN)
-    # libsecp256k1-compatible contract.
-    set(SECP256K1_BUILD_SHIM   ON)
+    # libsecp256k1-compatible contract (engine-level; CT enforced, strict ABI).
     set(SECP256K1_REQUIRE_CT   ON)
     set(UFSECP_BITCOIN_STRICT  ON)
-    # Central-source build: compile the engine as an OBJECT library so its
-    # object files splice directly into the consumer's link step — a
-    # continuation of the node's own source, NOT a static/shared library
-    # boundary. Applies identically to the CPU and CUDA backends.
-    set(SECP256K1_BUILD_AS_OBJECT ON)
-    # Minimal surface — drop everything not needed by a node.
+    # Package-friendly static engine target. The direct libbitcoin target is an
+    # INTERFACE library that links this static engine target transitively.
+    set(SECP256K1_BUILD_AS_OBJECT OFF)
+    # Minimal surface — drop everything not needed by libbitcoin direct verify.
+    # KEEP PIPPENGER/MSM: batch_verify.cpp depends on msm()/Pippenger for large
+    # ECDSA/Schnorr batches. Everything else below is unused by the canonical
+    # header-only surface.
+    set(SECP256K1_BUILD_MUSIG2   OFF)
+    set(SECP256K1_BUILD_FROST    OFF)
+    set(SECP256K1_BUILD_ZK       OFF)
+    set(SECP256K1_BUILD_ECIES    OFF)
+    set(SECP256K1_BUILD_BIP352   OFF)
+    set(SECP256K1_BUILD_LTC_SP   OFF)
+    set(SECP256K1_BUILD_ADAPTOR  OFF)
+    set(SECP256K1_BUILD_WALLET   OFF)
+    set(SECP256K1_BUILD_BCH      OFF)
+    set(SECP256K1_BUILD_BIP324   OFF)
+    set(SECP256K1_BUILD_PIPPENGER ON)
     set(SECP256K1_BUILD_TESTS    OFF)
     set(SECP256K1_BUILD_BENCH    OFF)
     set(SECP256K1_BUILD_EXAMPLES OFF)
     set(SECP256K1_BUILD_JAVA     OFF)
     set(SECP256K1_BUILD_ETHEREUM OFF)
-    message(STATUS "secp256k1-fast: ✅ libbitcoin profile — shim + batch script-sig bridge + BIP-352 (minimal surface)")
+    # Prevent a stale BUILD_TESTING=ON cache from building the full audit/CPU
+    # standalone test suite after this profile strips wallet/ZK/etc. The direct
+    # lbtc_direct_verify CTest is enabled explicitly after audit/ below.
+    set(BUILD_TESTING OFF CACHE BOOL "Disabled by the minimal libbitcoin profile" FORCE)
+    # Compatibility opt-in: legacy libsecp256k1 shim + C ABI + ufsecp_lbtc bridge.
+    if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
+        set(SECP256K1_BUILD_SHIM ON)
+        set(SECP256K1_BUILD_CABI ON)
+        message(STATUS "secp256k1-fast: libbitcoin profile — direct C++ header + COMPATIBILITY bridge (shim + C ABI + ufsecp_lbtc)")
+    else()
+        set(SECP256K1_BUILD_SHIM OFF)
+        set(SECP256K1_BUILD_CABI OFF)
+        set(SECP256K1_INSTALL_CABI OFF)
+        message(STATUS "secp256k1-fast: ✅ libbitcoin profile — bridge-free direct C++ header (ufsecp/libbitcoin.hpp), static engine, minimal surface")
+    endif()
 endif()
 
 # -- Bitcoin Knots single-flag entry point --------------------------------------
@@ -695,6 +736,23 @@ if(SECP256K1_BCHN_SHIM_BUILD_TESTS AND SECP256K1_BUILD_CPU)
     add_subdirectory(compat/libsecp256k1_bchn_shim)
 endif()
 
+# -- libbitcoin direct integration (canonical, bridge-free) ------------------
+# Header-only C++ surface <ufsecp/libbitcoin.hpp> + the engine. This is the
+# canonical libbitcoin integration target (secp256k1::fastsecp256k1_libbitcoin);
+# the shim / C ABI / ufsecp_lbtc bridge are compatibility-only and gated behind
+# SECP256K1_BUILD_LIBBITCOIN_BRIDGE. Added after src/cpu so the engine target
+# fastsecp256k1 already exists.
+if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_CPU)
+    if(SECP256K1_BUILD_LIBBITCOIN_TESTS)
+        # The libbitcoin profile forces SECP256K1_BUILD_TESTS OFF, so top-level
+        # CTest is not enabled above; enable it here so `ctest --test-dir` finds
+        # the direct verify test registered in the subdirectory.
+        include(CTest)
+        enable_testing()
+    endif()
+    add_subdirectory(compat/libbitcoin_direct)
+endif()
+
 # NOTE: bench_compare removed -- use src/src/cpu/bench/bench_unified instead
 #       (bench_unified has full apple-to-apple in a single binary, no FetchContent)
 
@@ -722,6 +780,20 @@ if(SECP256K1_INSTALL)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/secp256k1/version.hpp"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/secp256k1
     )
+
+    # libbitcoin direct integration: canonical bridge-free C++ surface. Install
+    # the header <ufsecp/libbitcoin.hpp> and add the interface target to the
+    # secp256k1-fast-targets export set so the package exposes
+    # secp256k1::fastsecp256k1_libbitcoin alongside the engine.
+    if(SECP256K1_BUILD_LIBBITCOIN AND TARGET fastsecp256k1_libbitcoin)
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp"
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ufsecp
+        )
+        install(TARGETS fastsecp256k1_libbitcoin
+            EXPORT secp256k1-fast-targets
+        )
+    endif()
 
     # Generate package config
     write_basic_package_version_file(
@@ -778,7 +850,9 @@ if(SECP256K1_INSTALL)
             )
         endif()
 
-        if(SECP256K1_BUILD_LIBBITCOIN)
+        # Legacy bridge header — compatibility-only (ufsecp_lbtc_* C batch API).
+        # Installed only when the compatibility bridge is explicitly opted in.
+        if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
             install(FILES
                 "${CMAKE_CURRENT_SOURCE_DIR}/compat/libbitcoin_bridge/include/ufsecp_libbitcoin.h"
                 DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ufsecp

@@ -60,7 +60,7 @@ endif()
 # ufsecp_lbtc_* batch script-signature verify + BIP-352 scan entry points,
 # dispatching to GPU (when the host layer is present) with CPU fallback.
 set(UFSECP_LBTC_SRC "")
-if(SECP256K1_BUILD_LIBBITCOIN)
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
     set(UFSECP_LBTC_SRC "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/src/ufsecp_libbitcoin.cpp")
 endif()
 
@@ -111,9 +111,10 @@ function(ufsecp_configure tgt)
         )
     endif()
 
-    # libbitcoin bridge: expose its header (PUBLIC so consumers can include it)
-    # and enable GPU dispatch only when the GPU host layer is in the build.
-    if(SECP256K1_BUILD_LIBBITCOIN)
+    # libbitcoin bridge (compatibility-only): expose its header (PUBLIC so
+    # consumers can include it) and enable GPU dispatch only when the GPU host
+    # layer is in the build. Gated on the explicit bridge opt-in.
+    if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
         target_include_directories(${tgt} PUBLIC
             $<BUILD_INTERFACE:${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/include>
             $<INSTALL_INTERFACE:include>
@@ -189,7 +190,7 @@ endif()
 # host layer + the ufsecp_lbtc batch bridge). OFF in the minimal ship profile.
 option(SECP256K1_BUILD_LIBBITCOIN_BENCH
        "Build the libbitcoin batch sig-verify benchmark (bench_lbtc_batch)" OFF)
-if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
     # Built straight from the central source: the C ABI, GPU C ABI and the
     # ufsecp_lbtc bridge are compiled into the benchmark target itself, which
     # links the in-tree engine targets (fastsecp256k1 [+ GPU host layer]). No
@@ -222,7 +223,7 @@ endif()
 # source exactly like the bench (no separate ufsecp library involved).
 option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "Build the libbitcoin GPU/CPU consensus differential (test_lbtc_consensus_diff)" OFF)
-if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
     add_executable(test_lbtc_bridge
         "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp"
         ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})

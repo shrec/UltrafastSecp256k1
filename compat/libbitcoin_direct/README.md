@@ -69,19 +69,42 @@ no serial prelude, so it scales on high-core boxes.
 ## Build (pure C++20 — no C ABI, no shim, no bridge, no FFI/NuGet)
 
 libbitcoin compiles this header directly and links only the engine static lib.
-No `libsecp256k1` shim, no `libufsecp` C ABI, no bridge `.a`:
+No `libsecp256k1` shim, no `libufsecp` C ABI, no bridge `.a`.
 
-```cmake
-# secp256k1-fast package exposes the engine target + C++ headers.
-target_compile_definitions(bitcoin-system PRIVATE HAVE_ULTRAFAST)
-target_link_libraries(bitcoin-system PRIVATE secp256k1::fastsecp256k1)
-# include dirs: <prefix>/include  (ufsecp/libbitcoin.hpp + secp256k1/*.hpp)
+One flag configures the canonical, bridge-free build (engine + this header's
+interface target only — no shim, no C ABI, no `ufsecp_lbtc` bridge):
+
+```sh
+cmake -B <build> -DSECP256K1_BUILD_LIBBITCOIN=ON
 ```
 
-Engine flags (set by the secp256k1-fast build): `-O2 -std=c++20` + the field/CT
-backend selectors; nothing libbitcoin-specific. The header is `inline` — it folds
-into libbitcoin's TUs, so the verify is a direct call into engine code (no symbol
-boundary to cross).
+There is a real CMake `INTERFACE` target the consumer links:
+`secp256k1::fastsecp256k1_libbitcoin`. It carries the include dir for
+`<ufsecp/libbitcoin.hpp>`, C++20, the `HAVE_ULTRAFAST` compile definition, and
+the engine target `secp256k1::fastsecp256k1` (transitively). Link this **one**
+target and you get all of it:
+
+```cmake
+# secp256k1-fast package (find_package or add_subdirectory) exposes the
+# canonical libbitcoin integration target. Link it and you get
+# <ufsecp/libbitcoin.hpp>, C++20, HAVE_ULTRAFAST, and the engine.
+target_link_libraries(bitcoin-system PRIVATE secp256k1::fastsecp256k1_libbitcoin)
+```
+
+Engine target stable name: `secp256k1::fastsecp256k1` (the build-tree alias is
+identical to the installed export name). The older `secp256k1::fast` alias still
+works. The header is `inline` — it folds into libbitcoin's TUs, so the verify is
+a direct call into engine code (no symbol boundary to cross).
+
+**Tests.** Add `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON` to build the CTest
+`lbtc_direct_verify` (from `tests/test_direct_verify.cpp`), then run:
+
+```sh
+ctest --test-dir <build> -R lbtc_direct --output-on-failure
+```
+
+The shim, the C ABI, and the `ufsecp_lbtc_*` bridge are compatibility-only and
+live behind a separate flag — `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
 
 ## Remaining: full secp256k1 surface libbitcoin calls (to fully drop the shim)
 
