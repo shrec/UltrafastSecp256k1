@@ -12,6 +12,7 @@ Complete API documentation for CPU, CUDA, and WASM implementations.
    - [Point](#point)
    - [ECDSA (RFC 6979)](#ecdsa-rfc-6979)
    - [Schnorr (BIP-340)](#schnorr-bip-340)
+   - [Batch Verification](#batch-verification)
    - [SHA-256](#sha-256)
    - [Constant-Time Layer](#constant-time-layer)
    - [Utility Functions](#utility-functions)
@@ -522,6 +523,55 @@ std::array<uint8_t, 32> aux = {}; // zeros for deterministic
 auto sig = schnorr_sign(sk, msg, aux);
 bool ok = schnorr_verify(pk_x, msg, sig);
 ```
+
+---
+
+### Batch Verification
+
+**Namespace:** `secp256k1`
+
+**Header:**
+```cpp
+#include <secp256k1/batch_verify.hpp>
+```
+
+#### Direct byte-span APIs
+
+These APIs are for C++ consumers that already store libbitcoin/libsecp-compatible rows or column arrays. The engine parses and verifies in bounded chunks, including when `max_threads == 1`, so callers do not need to marshal full tables into `ECDSABatchEntry` or `SchnorrBatchEntry` vectors.
+
+```cpp
+// ECDSA rows: [hash32 | compressed_pubkey33 | opaque_sig64]
+bool ecdsa_batch_verify_opaque_rows(const uint8_t* rows,
+                                    size_t stride,
+                                    size_t count,
+                                    uint8_t* out_results = nullptr,
+                                    size_t max_threads = 0);
+
+// ECDSA columns: digests[count][32], pubkeys[count][33], sigs[count][64]
+bool ecdsa_batch_verify_opaque_columns(const uint8_t* digests32,
+                                       const uint8_t* pubkeys33,
+                                       const uint8_t* sigs64,
+                                       size_t count,
+                                       uint8_t* out_results = nullptr,
+                                       size_t max_threads = 0);
+
+// Schnorr rows: [msg32 | xonly_pubkey32 | bip340_sig64]
+bool schnorr_batch_verify_bip340_rows(const uint8_t* rows,
+                                      size_t stride,
+                                      size_t count,
+                                      uint8_t* out_results = nullptr,
+                                      size_t max_threads = 0);
+
+// Schnorr columns: digests[count][32], xonly[count][32], sigs[count][64]
+bool schnorr_batch_verify_bip340_columns(const uint8_t* digests32,
+                                         const uint8_t* xonly32,
+                                         const uint8_t* sigs64,
+                                         size_t count,
+                                         uint8_t* out_results = nullptr,
+                                         size_t max_threads = 0);
+```
+
+`max_threads == 0` means auto, `max_threads == 1` means serial bounded chunks. `count == 0` returns true. If `out_results` is non-null, all-valid batches fill it with `1`; mixed, invalid, or unparsable batches write per-row `1`/`0` after fallback. Invalid pointers or undersized strides return false and zero `out_results` when provided.
 
 ---
 

@@ -30,15 +30,11 @@
 #include "secp256k1/field.hpp"
 #include "secp256k1/field_52.hpp"
 #include "secp256k1/batch_verify.hpp"
-#include "secp256k1/detail/batch_pool.hpp"
 
-#include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <vector>
 
 namespace ufsecp::lbtc {
 
@@ -79,16 +75,6 @@ namespace detail {
     return secp256k1::fast::Scalar::from_limbs({rd(p), rd(p + 8), rd(p + 16), rd(p + 24)});
 }
 
-[[nodiscard]] inline bool ecdsa_entry(const std::uint8_t* hash32,
-                                      const std::uint8_t* pub33,
-                                      const std::uint8_t* sig64,
-                                      secp256k1::ECDSABatchEntry& out) noexcept {
-    std::memcpy(out.msg_hash.data(), hash32, 32);
-    if (!decompress(pub33, out.public_key)) return false;
-    out.signature = secp256k1::ECDSASignature{opaque_scalar(sig64), opaque_scalar(sig64 + 32)};
-    return true;
-}
-
 } // namespace detail
 
 // ─── ECDSA single verify ────────────────────────────────────────────────────
@@ -115,31 +101,8 @@ namespace detail {
 [[nodiscard]] inline bool ecdsa_verify_batch(const std::uint8_t* rows, std::size_t stride,
                                              std::size_t count, std::uint8_t* out_results,
                                              std::size_t max_threads) {
-    if (count == 0) return true;
-    std::vector<secp256k1::ECDSABatchEntry> e(count);
-    bool parse_ok = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        const std::uint8_t* row = rows + i * stride;
-        if (!detail::ecdsa_entry(row, row + 32, row + 65, e[i])) {
-            parse_ok = false;
-            if (out_results) out_results[i] = 0u;
-        }
-    }
-    if (parse_ok && secp256k1::ecdsa_batch_verify_mt(e.data(), count, max_threads)) {
-        if (out_results) std::memset(out_results, 1, count);
-        return true;
-    }
-    // Mixed/invalid: locate per row (only after the fast path reported a failure).
-    bool all = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        const std::uint8_t* row = rows + i * stride;
-        secp256k1::ECDSABatchEntry one{};
-        const bool ok = detail::ecdsa_entry(row, row + 32, row + 65, one) &&
-                        secp256k1::ecdsa_batch_verify(&one, 1);
-        if (out_results) out_results[i] = ok ? 1u : 0u;
-        all = all && ok;
-    }
-    return all;
+    return secp256k1::ecdsa_batch_verify_opaque_rows(
+        rows, stride, count, out_results, max_threads);
 }
 
 // ─── ECDSA batch verify, COLUMNS (Structure-of-Arrays) ──────────────────────
@@ -153,58 +116,8 @@ namespace detail {
                                                std::size_t count,
                                                std::uint8_t* out_results,
                                                std::size_t max_threads) {
-    if (count == 0) return true;
-    // Fused parallel parse+verify: each work-steal chunk decompresses ITS OWN
-    // pubkeys and batch-verifies, so the per-pubkey sqrt decompress is NOT a
-    // serial prelude (which on a 64-core box would dominate by Amdahl). Mirrors
-    // the engine's opaque-rows MT path (persistent pool, warm thread_locals).
-    auto& pool = secp256k1::detail::batch_worker_pool();
-    const unsigned hw = pool.size();
-    const unsigned want = (max_threads == 0) ? hw
-        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t by_work = std::max<std::size_t>(1, count / 128);  // kMinRowsPerThread
-    const unsigned nt = static_cast<unsigned>(std::min<std::size_t>(want, by_work));
-    const std::size_t steal = (nt <= 1) ? count
-        : std::clamp<std::size_t>(count / (static_cast<std::size_t>(nt) * 4), 64, 4096);
-
-    std::atomic<bool> parse_bad{false};
-    const bool all = pool.run(count, steal, nt, [&](std::size_t s, std::size_t e) -> bool {
-        static thread_local std::vector<secp256k1::ECDSABatchEntry> local;
-        local.clear();
-        local.resize(e - s);
-        for (std::size_t i = s; i < e; ++i) {
-            secp256k1::ECDSABatchEntry& en = local[i - s];
-            std::memcpy(en.msg_hash.data(), digests32 + i * 32, 32);
-            if (!detail::decompress(points33 + i * 33, en.public_key)) {
-                parse_bad.store(true, std::memory_order_relaxed);
-                return false;
-            }
-            en.signature = secp256k1::ECDSASignature{
-                detail::opaque_scalar(sigs64 + i * 64),
-                detail::opaque_scalar(sigs64 + i * 64 + 32)};
-        }
-        return secp256k1::ecdsa_batch_verify(local.data(), e - s);
-    });
-    if (all && !parse_bad.load(std::memory_order_relaxed)) {
-        if (out_results) std::memset(out_results, 1, count);
-        return true;
-    }
-    // Per-row locate (serial; runs only after the fast path reported a failure).
-    bool ok_all = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        secp256k1::ECDSABatchEntry one{};
-        std::memcpy(one.msg_hash.data(), digests32 + i * 32, 32);
-        bool ok = detail::decompress(points33 + i * 33, one.public_key);
-        if (ok) {
-            one.signature = secp256k1::ECDSASignature{
-                detail::opaque_scalar(sigs64 + i * 64),
-                detail::opaque_scalar(sigs64 + i * 64 + 32)};
-            ok = secp256k1::ecdsa_batch_verify(&one, 1);
-        }
-        if (out_results) out_results[i] = ok ? 1u : 0u;
-        ok_all = ok_all && ok;
-    }
-    return ok_all;
+    return secp256k1::ecdsa_batch_verify_opaque_columns(
+        digests32, points33, sigs64, count, out_results, max_threads);
 }
 
 // ─── Schnorr (BIP-340) single verify ────────────────────────────────────────
@@ -224,32 +137,8 @@ namespace detail {
 [[nodiscard]] inline bool schnorr_verify_batch(const std::uint8_t* rows, std::size_t stride,
                                                std::size_t count, std::uint8_t* out_results,
                                                std::size_t max_threads) {
-    if (count == 0) return true;
-    std::vector<secp256k1::SchnorrBatchEntry> e(count);
-    bool parse_ok = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        const std::uint8_t* row = rows + i * stride;
-        std::memcpy(e[i].message.data(),  row,      32);
-        std::memcpy(e[i].pubkey_x.data(), row + 32, 32);
-        if (!secp256k1::SchnorrSignature::parse_strict(row + 64, e[i].signature)) {
-            parse_ok = false;
-            if (out_results) out_results[i] = 0u;
-        }
-    }
-    if (parse_ok && secp256k1::schnorr_batch_verify_mt(e.data(), count, max_threads)) {
-        if (out_results) std::memset(out_results, 1, count);
-        return true;
-    }
-    bool all = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        const std::uint8_t* row = rows + i * stride;
-        secp256k1::SchnorrSignature sig;
-        const bool ok = secp256k1::SchnorrSignature::parse_strict(row + 64, sig) &&
-                        secp256k1::schnorr_verify(row + 32 /*xonly*/, row /*msg*/, sig);
-        if (out_results) out_results[i] = ok ? 1u : 0u;
-        all = all && ok;
-    }
-    return all;
+    return secp256k1::schnorr_batch_verify_bip340_rows(
+        rows, stride, count, out_results, max_threads);
 }
 
 // ─── Schnorr batch verify, COLUMNS (Structure-of-Arrays) ────────────────────
@@ -261,45 +150,8 @@ namespace detail {
                                                  std::size_t count,
                                                  std::uint8_t* out_results,
                                                  std::size_t max_threads) {
-    if (count == 0) return true;
-    auto& pool = secp256k1::detail::batch_worker_pool();
-    const unsigned hw = pool.size();
-    const unsigned want = (max_threads == 0) ? hw
-        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t by_work = std::max<std::size_t>(1, count / 128);
-    const unsigned nt = static_cast<unsigned>(std::min<std::size_t>(want, by_work));
-    const std::size_t steal = (nt <= 1) ? count
-        : std::clamp<std::size_t>(count / (static_cast<std::size_t>(nt) * 4), 64, 4096);
-
-    std::atomic<bool> parse_bad{false};
-    const bool all = pool.run(count, steal, nt, [&](std::size_t s, std::size_t e) -> bool {
-        static thread_local std::vector<secp256k1::SchnorrBatchEntry> local;
-        local.clear();
-        local.resize(e - s);
-        for (std::size_t i = s; i < e; ++i) {
-            secp256k1::SchnorrBatchEntry& en = local[i - s];
-            std::memcpy(en.message.data(),  digests32 + i * 32, 32);
-            std::memcpy(en.pubkey_x.data(), xonly32   + i * 32, 32);
-            if (!secp256k1::SchnorrSignature::parse_strict(sigs64 + i * 64, en.signature)) {
-                parse_bad.store(true, std::memory_order_relaxed);
-                return false;
-            }
-        }
-        return secp256k1::schnorr_batch_verify(local.data(), e - s);
-    });
-    if (all && !parse_bad.load(std::memory_order_relaxed)) {
-        if (out_results) std::memset(out_results, 1, count);
-        return true;
-    }
-    bool ok_all = true;
-    for (std::size_t i = 0; i < count; ++i) {
-        secp256k1::SchnorrSignature sig;
-        const bool ok = secp256k1::SchnorrSignature::parse_strict(sigs64 + i * 64, sig) &&
-                        secp256k1::schnorr_verify(xonly32 + i * 32, digests32 + i * 32, sig);
-        if (out_results) out_results[i] = ok ? 1u : 0u;
-        ok_all = ok_all && ok;
-    }
-    return ok_all;
+    return secp256k1::schnorr_batch_verify_bip340_columns(
+        digests32, xonly32, sigs64, count, out_results, max_threads);
 }
 
 } // namespace ufsecp::lbtc

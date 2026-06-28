@@ -97,6 +97,46 @@ bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
 bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
                            std::size_t max_threads = 0);
 
+// -- Opaque byte-span batch verification ---------------------------------------
+
+// Direct byte-layout APIs for C++ consumers that already store libbitcoin/libsecp
+// compatible rows or column arrays. These functions parse and verify in bounded
+// chunks inside the engine; callers do not need to marshal the full table into
+// ECDSABatchEntry/SchnorrBatchEntry vectors.
+//
+// ECDSA row layout: [hash32 | compressed_pubkey33 | opaque_sig64]
+// ECDSA columns: digests[count][32], pubkeys[count][33], sigs[count][64]
+// opaque_sig64 is the libsecp/libbitcoin in-memory ECDSA signature layout:
+// little-endian scalar limbs for r followed by s.
+//
+// Schnorr row layout: [msg32 | xonly_pubkey32 | bip340_sig64]
+// Schnorr columns: digests[count][32], xonly[count][32], sigs[count][64]
+//
+// Returns true iff all rows verify. If out_results is non-null, all-valid batches
+// fill it with 1; mixed, invalid, or unparsable batches write 1/0 per row after
+// per-row fallback. count == 0 returns true. Invalid pointers or undersized row
+// strides return false and zero out_results when provided.
+bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride,
+                                    std::size_t count,
+                                    std::uint8_t* out_results = nullptr,
+                                    std::size_t max_threads = 0);
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results = nullptr,
+                                       std::size_t max_threads = 0);
+bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows, std::size_t stride,
+                                      std::size_t count,
+                                      std::uint8_t* out_results = nullptr,
+                                      std::size_t max_threads = 0);
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results = nullptr,
+                                         std::size_t max_threads = 0);
+
 // -- Identify Invalid Signatures ----------------------------------------------
 
 // After a batch fails, identify which signature(s) are invalid.

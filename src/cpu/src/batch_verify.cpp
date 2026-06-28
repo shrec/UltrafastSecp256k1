@@ -22,6 +22,7 @@
 #include <random>
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -78,6 +79,169 @@ namespace {
 // linear scan in the individual path when data is warm across bench passes.
 // Empirically measured optimal cutoff: 96 (individual wins below this).
 constexpr std::size_t kSchnorrBatchIndividualCutoff = 96;
+constexpr std::size_t kOpaqueBatchChunk = 4096;
+constexpr std::size_t kOpaqueBatchMinRowsPerThread = 128;
+constexpr std::size_t kOpaqueBatchStealFloor = 64;
+constexpr std::size_t kEcdsaRowBytes = 32 + 33 + 64;
+constexpr std::size_t kSchnorrRowBytes = 32 + 32 + 64;
+
+bool row_layout_overflows(std::size_t count, std::size_t stride,
+                          std::size_t row_bytes) noexcept {
+    if (count <= 1) return false;
+    const std::size_t max = std::numeric_limits<std::size_t>::max();
+    return stride > (max - row_bytes) / (count - 1);
+}
+
+bool column_layout_overflows(std::size_t count, std::size_t item_bytes) noexcept {
+    return count != 0 &&
+           count > (std::numeric_limits<std::size_t>::max() / item_bytes);
+}
+
+void zero_results(std::uint8_t* out_results, std::size_t count) noexcept {
+    if (out_results != nullptr && count != 0) {
+        std::memset(out_results, 0, count);
+    }
+}
+
+void one_results(std::uint8_t* out_results, std::size_t count) noexcept {
+    if (out_results != nullptr && count != 0) {
+        std::memset(out_results, 1, count);
+    }
+}
+
+unsigned opaque_batch_thread_count(std::size_t count, std::size_t max_threads) {
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
+    const unsigned want = (max_threads == 0)
+        ? hw
+        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
+    const std::size_t by_work = std::max<std::size_t>(
+        1, count / kOpaqueBatchMinRowsPerThread);
+    return static_cast<unsigned>(std::min<std::size_t>(
+        static_cast<std::size_t>(want), by_work));
+}
+
+std::size_t opaque_batch_steal_size(std::size_t count,
+                                    unsigned n_threads) noexcept {
+    if (n_threads <= 1) {
+        return std::min<std::size_t>(count, kOpaqueBatchChunk);
+    }
+    return std::clamp<std::size_t>(
+        count / (static_cast<std::size_t>(n_threads) * 4),
+        kOpaqueBatchStealFloor, kOpaqueBatchChunk);
+}
+
+bool decompress_compressed_pubkey(const std::uint8_t pub33[33],
+                                  Point& out) noexcept {
+    if (pub33[0] != 0x02 && pub33[0] != 0x03) {
+        return false;
+    }
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(pub33 + 1, x)) {
+        return false;
+    }
+
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+    using fast::FieldElement52;
+    const FieldElement52 x52 = FieldElement52::from_fe(x);
+    static const std::uint64_t k7[4] = {7u, 0u, 0u, 0u};
+    const FieldElement52 y2 = x52.square() * x52 +
+                              FieldElement52::from_4x64_limbs(k7);
+    const FieldElement52 y52 = y2.sqrt();
+    if (!(y52.square() == y2)) {
+        return false;
+    }
+    FieldElement y = y52.to_fe();
+#else
+    const FieldElement y2 = x.square() * x + FieldElement::from_uint64(7);
+    FieldElement y = y2.sqrt();
+    if (!(y.square() == y2)) {
+        return false;
+    }
+#endif
+
+    if (((y.limbs()[0] & 1u) != 0u) != (pub33[0] == 0x03)) {
+        y = FieldElement::zero() - y;
+    }
+    out = Point::from_affine(x, y);
+    return !out.is_infinity();
+}
+
+Scalar opaque_scalar_le(const std::uint8_t* p) noexcept {
+    auto rd = [](const std::uint8_t* q) noexcept {
+        std::uint64_t v = 0;
+        for (int i = 0; i < 8; ++i) {
+            v |= static_cast<std::uint64_t>(q[i]) << (i * 8);
+        }
+        return v;
+    };
+    return Scalar::from_limbs({rd(p), rd(p + 8), rd(p + 16), rd(p + 24)});
+}
+
+bool parse_ecdsa_opaque_entry(const std::uint8_t* hash32,
+                              const std::uint8_t* pub33,
+                              const std::uint8_t* sig64,
+                              ECDSABatchEntry& out) noexcept {
+    std::memcpy(out.msg_hash.data(), hash32, 32);
+    if (!decompress_compressed_pubkey(pub33, out.public_key)) {
+        return false;
+    }
+    out.signature = ECDSASignature{opaque_scalar_le(sig64),
+                                   opaque_scalar_le(sig64 + 32)};
+    return true;
+}
+
+bool parse_schnorr_bip340_entry(const std::uint8_t* msg32,
+                                const std::uint8_t* xonly32,
+                                const std::uint8_t* sig64,
+                                SchnorrBatchEntry& out) noexcept {
+    std::memcpy(out.message.data(), msg32, 32);
+    std::memcpy(out.pubkey_x.data(), xonly32, 32);
+    return SchnorrSignature::parse_strict(sig64, out.signature);
+}
+
+template <typename Entry, typename ParseEntry, typename VerifyBatch,
+          typename VerifyOne>
+bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
+                           std::size_t max_threads, ParseEntry&& parse_entry,
+                           VerifyBatch&& verify_batch, VerifyOne&& verify_one) {
+    if (count == 0) {
+        return true;
+    }
+
+    const unsigned n_threads = opaque_batch_thread_count(count, max_threads);
+    const std::size_t steal = opaque_batch_steal_size(count, n_threads);
+    auto& pool = detail::batch_worker_pool();
+    const bool all_valid = pool.run(
+        count, steal, n_threads,
+        [&](std::size_t s, std::size_t e) -> bool {
+            static thread_local std::vector<Entry> local;
+            local.clear();
+            local.resize(e - s);
+            for (std::size_t i = s; i < e; ++i) {
+                if (!parse_entry(i, local[i - s])) {
+                    return false;
+                }
+            }
+            return verify_batch(local.data(), e - s);
+        });
+
+    if (all_valid) {
+        one_results(out_results, count);
+        return true;
+    }
+
+    bool ok_all = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        Entry one{};
+        const bool ok = parse_entry(i, one) && verify_one(one);
+        if (out_results != nullptr) {
+            out_results[i] = ok ? 1u : 0u;
+        }
+        ok_all = ok_all && ok;
+    }
+    return ok_all;
+}
 
 // Generate deterministic weights for batch verification.
 // batch_seed: SHA256 over all signature data (binds to entire batch).
@@ -620,6 +784,124 @@ bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
 bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,
                              std::size_t max_threads) {
     return schnorr_batch_verify_mt(entries.data(), entries.size(), max_threads);
+}
+
+bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride,
+                                    std::size_t count,
+                                    std::uint8_t* out_results,
+                                    std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (rows == nullptr || stride < kEcdsaRowBytes ||
+        row_layout_overflows(count, stride, kEcdsaRowBytes)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<ECDSABatchEntry>(
+        count, out_results, max_threads,
+        [rows, stride](std::size_t i, ECDSABatchEntry& out) {
+            const std::uint8_t* row = rows + i * stride;
+            return parse_ecdsa_opaque_entry(row, row + 32, row + 65, out);
+        },
+        [](const ECDSABatchEntry* entries, std::size_t n) {
+            return ecdsa_batch_verify(entries, n);
+        },
+        [](const ECDSABatchEntry& entry) {
+            return ecdsa_batch_verify(&entry, 1);
+        });
+}
+
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results,
+                                       std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (digests32 == nullptr || pubkeys33 == nullptr || sigs64 == nullptr ||
+        column_layout_overflows(count, 32) ||
+        column_layout_overflows(count, 33) ||
+        column_layout_overflows(count, 64)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<ECDSABatchEntry>(
+        count, out_results, max_threads,
+        [digests32, pubkeys33, sigs64](std::size_t i, ECDSABatchEntry& out) {
+            return parse_ecdsa_opaque_entry(digests32 + i * 32,
+                                            pubkeys33 + i * 33,
+                                            sigs64 + i * 64, out);
+        },
+        [](const ECDSABatchEntry* entries, std::size_t n) {
+            return ecdsa_batch_verify(entries, n);
+        },
+        [](const ECDSABatchEntry& entry) {
+            return ecdsa_batch_verify(&entry, 1);
+        });
+}
+
+bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows,
+                                      std::size_t stride,
+                                      std::size_t count,
+                                      std::uint8_t* out_results,
+                                      std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (rows == nullptr || stride < kSchnorrRowBytes ||
+        row_layout_overflows(count, stride, kSchnorrRowBytes)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<SchnorrBatchEntry>(
+        count, out_results, max_threads,
+        [rows, stride](std::size_t i, SchnorrBatchEntry& out) {
+            const std::uint8_t* row = rows + i * stride;
+            return parse_schnorr_bip340_entry(row, row + 32, row + 64, out);
+        },
+        [](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify(entries, n);
+        },
+        [](const SchnorrBatchEntry& entry) {
+            return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
+        });
+}
+
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results,
+                                         std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (digests32 == nullptr || xonly32 == nullptr || sigs64 == nullptr ||
+        column_layout_overflows(count, 32) ||
+        column_layout_overflows(count, 64)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<SchnorrBatchEntry>(
+        count, out_results, max_threads,
+        [digests32, xonly32, sigs64](std::size_t i, SchnorrBatchEntry& out) {
+            return parse_schnorr_bip340_entry(digests32 + i * 32,
+                                              xonly32 + i * 32,
+                                              sigs64 + i * 64, out);
+        },
+        [](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify(entries, n);
+        },
+        [](const SchnorrBatchEntry& entry) {
+            return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
+        });
 }
 
 // -- Identify Invalid Signatures ----------------------------------------------
