@@ -53,6 +53,25 @@ int main() {
     std::vector<std::uint8_t> eres(M, 0);
     check(ufsecp::lbtc::ecdsa_verify_batch(erows.data(), ES, M, eres.data(), 0), "ecdsa batch all-valid");
     { long ok = 0; for (auto v : eres) ok += v; check(ok == M, "ecdsa batch per-row results all-valid"); }
+    // ECDSA columns (Structure-of-Arrays) view of the same valid data.
+    {
+        std::vector<std::uint8_t> cd(M * 32), cp(M * 33), cs(M * 64);
+        for (int i = 0; i < M; ++i) {
+            const std::uint8_t* r = erows.data() + i * ES;
+            std::memcpy(cd.data() + i * 32, r, 32);
+            std::memcpy(cp.data() + i * 33, r + 32, 33);
+            std::memcpy(cs.data() + i * 64, r + 65, 64);
+        }
+        std::vector<std::uint8_t> cr(M, 0);
+        check(ufsecp::lbtc::ecdsa_verify_columns(cd.data(), cp.data(), cs.data(), M, cr.data(), 0),
+              "ecdsa columns all-valid");
+        long ok = 0; for (auto v : cr) ok += v; check(ok == M, "ecdsa columns per-row all-valid");
+        cs[5 * 64] ^= 1;  // tamper row 5
+        std::vector<std::uint8_t> cr2(M, 0);
+        check(!ufsecp::lbtc::ecdsa_verify_columns(cd.data(), cp.data(), cs.data(), M, cr2.data(), 0),
+              "ecdsa columns fail-closed on tamper");
+        check(cr2[5] == 0, "ecdsa columns tampered row marked invalid");
+    }
     erows[ES * 7 + 65] ^= 1;  // tamper row 7
     std::vector<std::uint8_t> eres2(M, 0);
     check(!ufsecp::lbtc::ecdsa_verify_batch(erows.data(), ES, M, eres2.data(), 0), "ecdsa batch fail-closed on tamper");
@@ -78,6 +97,20 @@ int main() {
     std::vector<std::uint8_t> sres(M, 0);
     check(ufsecp::lbtc::schnorr_verify_batch(srows.data(), SS, M, sres.data(), 0), "schnorr batch all-valid");
     { long ok = 0; for (auto v : sres) ok += v; check(ok == M, "schnorr batch per-row results all-valid"); }
+    // Schnorr columns (Structure-of-Arrays) view of the same valid data.
+    {
+        std::vector<std::uint8_t> cd(M * 32), cx(M * 32), cs(M * 64);
+        for (int i = 0; i < M; ++i) {
+            const std::uint8_t* r = srows.data() + i * SS;
+            std::memcpy(cd.data() + i * 32, r, 32);
+            std::memcpy(cx.data() + i * 32, r + 32, 32);
+            std::memcpy(cs.data() + i * 64, r + 64, 64);
+        }
+        std::vector<std::uint8_t> cr(M, 0);
+        check(ufsecp::lbtc::schnorr_verify_columns(cd.data(), cx.data(), cs.data(), M, cr.data(), 0),
+              "schnorr columns all-valid");
+        long ok = 0; for (auto v : cr) ok += v; check(ok == M, "schnorr columns per-row all-valid");
+    }
     srows[SS * 3 + 64] ^= 1;  // tamper row 3
     std::vector<std::uint8_t> sres2(M, 0);
     check(!ufsecp::lbtc::schnorr_verify_batch(srows.data(), SS, M, sres2.data(), 0), "schnorr batch fail-closed on tamper");
