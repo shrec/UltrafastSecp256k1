@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**79 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**80 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -27,7 +27,10 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_EXAMPLES` | `ON` | Build example programs |
 | `SECP256K1_BUILD_JAVA` | `ON` | Build Java JNI bindings |
 | `SECP256K1_BUILD_KNOTS` | `OFF` | [Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off |
-| `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Minimal node profile: shim + GPU/CPU batch script-sig bridge + BIP-352; extras off |
+| `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Canonical bridge-free profile: engine + direct C++ header (ufsecp/libbitcoin.hpp); extras off |
+| `SECP256K1_BUILD_LIBBITCOIN_BENCH` | `OFF` | [libbitcoin] Build libbitcoin batch bench (requires SECP256K1_BUILD_LIBBITCOIN_BRIDGE) |
+| `SECP256K1_BUILD_LIBBITCOIN_BRIDGE` | `OFF` | [libbitcoin] Compatibility opt-in: libsecp256k1 shim + C ABI + ufsecp_lbtc batch bridge (legacy) |
+| `SECP256K1_BUILD_LIBBITCOIN_TESTS` | `OFF` | [libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON) |
 | `SECP256K1_BUILD_METAL` | `OFF` | Build Apple Metal GPU support |
 | `SECP256K1_BUILD_OPENCL` | `OFF` | Build OpenCL support |
 | `SECP256K1_BUILD_ROCM` | `OFF` | Build ROCm/HIP GPU support (AMD) |
@@ -99,8 +102,6 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `SECP256K1_BUILD_LIBBITCOIN_BENCH` | `OFF` | Build the libbitcoin batch sig-verify benchmark (bench_lbtc_batch) |
-| `SECP256K1_BUILD_LIBBITCOIN_TESTS` | `OFF` | Build the libbitcoin GPU/CPU consensus differential (test_lbtc_consensus_diff) |
 | `UFSECP_BUILD_SHARED` | `ON` | Build shared library |
 | `UFSECP_BUILD_STATIC` | `ON` | Build static library |
 
@@ -134,4 +135,4 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 ---
 
-_Generated from:_ `CMakeLists.txt`, `audit/CMakeLists.txt`, `bindings/android/CMakeLists.txt`, `bindings/android/example/src/main/cpp/CMakeLists.txt`, `bindings/c_api/CMakeLists.txt`, `bindings/java/CMakeLists.txt`, `bindings/wasm/CMakeLists.txt`, `compat/libbitcoin_bridge/CMakeLists.txt`, `compat/libsecp256k1_bchn_shim/CMakeLists.txt`, `compat/libsecp256k1_shim/CMakeLists.txt`, `compat/litecoin_shim/CMakeLists.txt`, `examples/CMakeLists.txt`, `examples/esp32_bench_hornet/CMakeLists.txt`, `examples/esp32_bench_hornet/main/CMakeLists.txt`, `examples/esp32_test/CMakeLists.txt`, `examples/esp32_test/main/CMakeLists.txt`, `examples/esp32c6_bench_hornet/CMakeLists.txt`, `examples/esp32c6_bench_hornet/main/CMakeLists.txt`, `examples/esp32p4_bench_hornet/CMakeLists.txt`, `examples/esp32p4_bench_hornet/main/CMakeLists.txt`, `examples/stm32_test/CMakeLists.txt`, `include/ufsecp/CMakeLists.txt`, `src/bch/CMakeLists.txt`, `src/cpu/CMakeLists.txt`, `src/cuda/CMakeLists.txt`, `src/gpu/CMakeLists.txt`, `src/ltc/cuda/CMakeLists.txt`, `src/metal/CMakeLists.txt`, `src/opencl/CMakeLists.txt`, `tests/esp32_audit/CMakeLists.txt`, `tests/esp32_audit/main/CMakeLists.txt`, `tests/esp32c6_audit/CMakeLists.txt`, `tests/esp32c6_audit/main/CMakeLists.txt`, `tests/esp32p4_audit/CMakeLists.txt`, `tests/esp32p4_audit/main/CMakeLists.txt`
+_Generated from:_ `CMakeLists.txt`, `audit/CMakeLists.txt`, `bindings/android/CMakeLists.txt`, `bindings/android/example/src/main/cpp/CMakeLists.txt`, `bindings/c_api/CMakeLists.txt`, `bindings/java/CMakeLists.txt`, `bindings/wasm/CMakeLists.txt`, `compat/libbitcoin_bridge/CMakeLists.txt`, `compat/libbitcoin_direct/CMakeLists.txt`, `compat/libsecp256k1_bchn_shim/CMakeLists.txt`, `compat/libsecp256k1_shim/CMakeLists.txt`, `compat/litecoin_shim/CMakeLists.txt`, `examples/CMakeLists.txt`, `examples/esp32_bench_hornet/CMakeLists.txt`, `examples/esp32_bench_hornet/main/CMakeLists.txt`, `examples/esp32_test/CMakeLists.txt`, `examples/esp32_test/main/CMakeLists.txt`, `examples/esp32c6_bench_hornet/CMakeLists.txt`, `examples/esp32c6_bench_hornet/main/CMakeLists.txt`, `examples/esp32p4_bench_hornet/CMakeLists.txt`, `examples/esp32p4_bench_hornet/main/CMakeLists.txt`, `examples/stm32_test/CMakeLists.txt`, `include/ufsecp/CMakeLists.txt`, `src/bch/CMakeLists.txt`, `src/cpu/CMakeLists.txt`, `src/cuda/CMakeLists.txt`, `src/gpu/CMakeLists.txt`, `src/ltc/cuda/CMakeLists.txt`, `src/metal/CMakeLists.txt`, `src/opencl/CMakeLists.txt`, `tests/esp32_audit/CMakeLists.txt`, `tests/esp32_audit/main/CMakeLists.txt`, `tests/esp32c6_audit/CMakeLists.txt`, `tests/esp32c6_audit/main/CMakeLists.txt`, `tests/esp32p4_audit/CMakeLists.txt`, `tests/esp32p4_audit/main/CMakeLists.txt`

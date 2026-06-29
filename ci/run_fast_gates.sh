@@ -43,6 +43,7 @@ SUMMARY=0
 MANDATORY_GATES=(
     "ci/check_exploit_wiring.py"
     "ci/check_security_fix_has_test.py"
+    "ci/test_check_security_fix_has_test.py"
     # check_advisory_skip_returns.sh is NOT listed here: in fast_gates (pre-build)
     # it legitimately returns 77 (no binaries). It is mandatory only post-build.
     "ci/check_section_ids.py"            # section IDs in ALL_MODULES must be declared in SECTIONS[]
@@ -139,6 +140,7 @@ run "Repo map check"          tools/render_repo_map.py --check
 run "Exploit wiring parity"  ci/check_exploit_wiring.py
 run "Advisory blocking twin (CAAS-FG-01)" ci/check_advisory_has_blocking_test.py
 run "Security fix has test"   ci/check_security_fix_has_test.py --commits 10
+run "Security-fix gate self-test" ci/test_check_security_fix_has_test.py
 run "Version + count sync"   ci/check_version_sync.py
 run "Canonical data sync"    ci/build_canonical_data.py --dry-run
 run "Docs from canonical"    ci/sync_docs_from_canonical.py --dry-run

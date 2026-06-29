@@ -15,6 +15,7 @@ What counts as a "test":
   - Any new or modified audit/test_*.cpp file in the SAME commit
   - Any new or modified tests/*.cpp file in the SAME commit
   - Any new or modified compat/libsecp256k1_shim/tests/*.cpp
+  - Any new or modified compat/libbitcoin_direct/tests/*.cpp
 
 Usage:
     python3 ci/check_security_fix_has_test.py [--since <ref>] [--commits N]
@@ -84,6 +85,9 @@ TEST_PATTERNS = (
     # test_lbtc_consensus_diff proves GPU==CPU==libsecp, test_lbtc_collect /
     # test_lbtc_bridge prove the bridge contracts).
     r"^compat/libbitcoin_bridge/tests/",
+    # Direct libbitcoin C++ integration tests cover direct engine/package surfaces
+    # without the C bridge/shim layer.
+    r"^compat/libbitcoin_direct/tests/",
     # A change to a CI security tool (a SECURITY_CI_FILE — a Python gate / scanner)
     # is correctly covered by its paired Python unit test, not a C++ audit test.
     r"^ci/test_.*\.py$",
@@ -841,7 +845,7 @@ def main() -> int:
         print()
         print("  Rule: every commit touching src/cpu/src/, compat/libsecp256k1_shim/src/,")
         print("  or src/cpu/include/secp256k1/ct/ MUST include a test file in audit/test_*")
-        print("  or tests/*.cpp in the SAME commit.")
+        print("  or tests/*.cpp / compat/*/tests/* in the SAME commit.")
         print("  See CLAUDE.md: 'Exploit / Audit Test Conversion Standard'")
         return 1
 

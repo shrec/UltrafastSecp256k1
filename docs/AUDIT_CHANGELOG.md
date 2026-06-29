@@ -1,5 +1,23 @@
 # Audit Changelog
 
+## 2026-06-29 — soundness gate: libbitcoin row/column batch adapters classified as standard verifiers
+
+The push gates for `30dcd0d8` correctly failed closed in
+`ci/check_soundness_coverage.py`: the new libbitcoin direct entry points
+`ecdsa_batch_verify_opaque_{rows,columns}` and
+`schnorr_batch_verify_bip340_{rows,columns}` were discovered as
+`*verify*` symbols but had not been classified in the negative-test ledger.
+They are not custom protocol soundness surfaces; they parse public
+row/column layouts and delegate to the existing standard ECDSA/Schnorr batch
+verifiers plus canonical per-row fallback. The checker now exempts them in
+`STANDARD_VERIFIERS` with that justification, and its self-test proves the
+adapters remain exempt while new custom `*verify*` symbols still block. While
+replaying the full local fast gate, `check_security_fix_has_test.py` also
+surfaced an older classifier miss: `compat/libbitcoin_direct/tests/*.cpp` was
+not counted as test evidence even though the bounded libbitcoin batch API commit
+carried `test_direct_verify.cpp`. The classifier and fast-gate self-test now
+cover that direct-integration test path.
+
 ## 2026-06-29 — mutation-weekly: baseline timeout no longer misreported as kill-rate regression (issue #313)
 
 The weekly mutation workflow opened `mutation-kill-rate-regression` with every
