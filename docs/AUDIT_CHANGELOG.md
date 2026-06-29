@@ -1,5 +1,27 @@
 # Audit Changelog
 
+## 2026-06-29 — mutation-weekly: baseline timeout no longer misreported as kill-rate regression (issue #313)
+
+The weekly mutation workflow opened `mutation-kill-rate-regression` with every
+metric rendered as `None`. Two root causes: (1) the issue body read invented
+JSON keys (`kill_rate_percent`, `threshold`, `total_mutants`) that do not exist
+in the `KillReport` schema (`kill_rate_pct`, `threshold_pct`, `total`); and (2)
+the real failure was a baseline `unified_audit` **timeout** at the 90s default —
+an infrastructure failure before any mutant was tested — but it was filed as a
+normal kill-rate regression. Fixes: `mutation_kill_rate.py` adds an explicit
+`failure_class` field (`baseline_infrastructure` vs `kill_rate_regression` /
+`insufficient_sample` / `build_error_ratio` / `pass`) and a single
+`render_issue_body()` / `classify_result()` source of truth (plus a
+`--render-issue-body` mode); the harness stays fail-closed (baseline failure ⇒
+`total=0`, no fake mutants). `mutation-weekly.yml` renders the body via the
+harness, files baseline failures under `mutation-weekly-baseline-failure`
+(label `infrastructure`), and sets a deterministic baseline timeout
+(`UFSECP_MUTATION_{BUILD,TEST}_TIMEOUT=900`, also overridable via
+`--test-timeout`). `audit_gate.py` `check_mutation_kill_rate` reports a baseline
+failure as infrastructure, not as a sub-threshold kill rate. Pinned by
+`tests/ci/test_mutation_reporting.py` (proves no `None`, correct classification,
+and that the renderer cannot drift from the schema).
+
 ## 2026-06-23 — libsecp256k1 shim: secp256k1_ecdsa_verify now rejects high-S (SHIM-008 fix)
 
 Consensus/malleability finding from a differential sweep (engine C++ vs bitcoin-core/libsecp256k1

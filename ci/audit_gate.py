@@ -879,7 +879,17 @@ def check_mutation_kill_rate(conn):
         f"kill_rate={report.get('kill_rate_pct', 0.0)}%"
     ))
 
-    if rc != 0 or not report.get('passed', False):
+    # Distinguish an infrastructure/baseline failure (the unmutated tree did not
+    # build, or its tests timed out, so no kill rate was measured) from a real
+    # kill-rate regression — issue #313. failure_class is authoritative; fall
+    # back to the baseline flags for reports produced before the field existed.
+    failure_class = report.get('failure_class')
+    baseline_failed = (not report.get('baseline_build_ok', True)
+                       or not report.get('baseline_test_ok', True))
+    if failure_class == 'baseline_infrastructure' or (failure_class is None and baseline_failed):
+        note = (report.get('baseline_note') or 'baseline build/test failed').strip()
+        findings.append(('FAIL', f"Mutation baseline failure (infrastructure, no kill rate measured): {note}"))
+    elif rc != 0 or not report.get('passed', False):
         findings.append(('FAIL', f"Mutation kill rate below threshold ({report.get('kill_rate_pct', 0.0)}% < {threshold:.1f}%)"))
     else:
         findings.append(('PASS', f"Mutation kill rate meets threshold ({report.get('kill_rate_pct', 0.0)}%)"))

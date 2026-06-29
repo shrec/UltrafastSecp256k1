@@ -66,6 +66,18 @@ Sunday 03:30 UTC; opens or updates the `mutation-kill-rate-regression`
 issue if `mutation_kill_rate.py --threshold 75` fails. Visibility-only,
 does not block `dev` pushes (heavy lane: ~1h runtime).
 
+**issue #313 follow-up (2026-06-29):** the lane now distinguishes a
+**baseline-infrastructure failure** (the unmutated tree failed to build, or its
+`unified_audit` baseline tests timed out — no kill rate was ever measured) from
+a genuine **kill-rate regression**. `mutation_kill_rate.py` carries an explicit
+`failure_class` and a single tested `render_issue_body()` / `classify_result()`
+path; baseline failures are filed under `mutation-weekly-baseline-failure`
+(label `infrastructure`), not as a regression, and never render `None` metrics.
+The baseline timeout is deterministic and overridable
+(`UFSECP_MUTATION_{BUILD,TEST}_TIMEOUT`, `--test-timeout`). Pinned by
+`tests/ci/test_mutation_reporting.py`. The harness stays fail-closed: a baseline
+failure yields `total=0` with no fabricated mutant results.
+
 ---
 
 ### H-5 — GPU schnorr_snark_witness_batch performance gap ✅ CLOSED 2026-04-21
