@@ -4582,8 +4582,11 @@ message(STATUS "  Full audit script (Linux):   audit/run_full_audit.sh")
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
     set(_py_scripts_dir "${CMAKE_CURRENT_SOURCE_DIR}/../ci")
-    set(_uf_lib "$<TARGET_FILE:ufsecp_shared>")
     set(_py_env "PYTHONPATH=${_py_scripts_dir}")
+    set(_python_ctypes_audit_tests_registered OFF)
+
+    if(TARGET ufsecp_shared)
+    set(_uf_lib "$<TARGET_FILE:ufsecp_shared>")
 
     add_test(NAME py_differential_crossimpl
         COMMAND ${Python3_EXECUTABLE} "${_py_scripts_dir}/differential_cross_impl.py"
@@ -4679,6 +4682,11 @@ if(Python3_FOUND)
         LABELS "audit;python;stateful"
         ENVIRONMENT "${_py_env}")
 
+    set(_python_ctypes_audit_tests_registered ON)
+    else()
+        message(STATUS "  Python ctypes audit scripts: SKIPPED (ufsecp_shared target not available)")
+    endif()
+
     # Static dev-bug scanner — no library needed, scans C++ source files for classic
     # development bugs: sizeof(ptr), off-by-one, signed/unsigned, truncation, null-after-deref, etc.
     # Runs at MEDIUM level and emits a JSON report; does NOT fail CI so it serves as a
@@ -4713,7 +4721,11 @@ if(Python3_FOUND)
         LABELS "audit;python;static_analysis;performance"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-    message(STATUS "  Python audit scripts: 10 tests registered (py_differential_crossimpl, py_nonce_bias, py_bip32_cka, py_rfc6979_spec, py_glv_exhaustive, py_semantic_props, py_invalid_input_grammar, py_stateful_sequences, py_dev_bug_scan, py_hot_path_alloc_scan)")
+    if(_python_ctypes_audit_tests_registered)
+        message(STATUS "  Python audit scripts: 10 tests registered (py_differential_crossimpl, py_nonce_bias, py_bip32_cka, py_rfc6979_spec, py_glv_exhaustive, py_semantic_props, py_invalid_input_grammar, py_stateful_sequences, py_dev_bug_scan, py_hot_path_alloc_scan)")
+    else()
+        message(STATUS "  Python audit scripts: 2 static-analysis tests registered (shared-library ctypes tests skipped)")
+    endif()
 else()
     message(STATUS "  Python3 not found — skipping Python audit scripts")
 endif()

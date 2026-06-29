@@ -1,5 +1,14 @@
 # Audit Changelog
 
+## 2026-06-29 — Shim API compatibility build skips shared-library Python audit tests
+
+The shim security gate's libsecp API compatibility phase configures a minimal
+build with `SECP256K1_BUILD_CABI=OFF`, so the `ufsecp_shared` target is
+intentionally absent. `audit/CMakeLists.txt` now registers the Python ctypes
+audit tests only when that target exists, while still registering the two
+source-only Python static-analysis tests. This keeps the minimal shim API build
+generatable without weakening the normal shared-library audit builds.
+
 ## 2026-06-29 — Shim security gate now builds and runs standalone coverage
 
 Fixed the push gate regression where `unified_audit_runner` received the
