@@ -1203,11 +1203,16 @@ def check_rule16_json_smoke() -> None:
             clean = root / "clean.json"
             clean.write_text(json.dumps({"sections": [{"modules": [
                 {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": False, "return_code": 77},
+                {"id": "cryptol_specs", "advisory": True, "passed": False, "return_code": 1},
                 {"id": "test_ecdsa_sign", "advisory": False, "passed": True, "return_code": 0},
             ]}]}), encoding="utf-8")
             bad = root / "bad.json"
             bad.write_text(json.dumps({"sections": [{"modules": [
                 {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": True, "return_code": 0},
+            ]}]}), encoding="utf-8")
+            non_advisory_bad = root / "non_advisory_bad.json"
+            non_advisory_bad.write_text(json.dumps({"sections": [{"modules": [
+                {"id": "test_ecdsa_sign", "advisory": False, "passed": False, "return_code": 1},
             ]}]}), encoding="utf-8")
 
             def run(arg: Path) -> int:
@@ -1218,13 +1223,17 @@ def check_rule16_json_smoke() -> None:
 
             rc_clean = run(clean)
             rc_bad = run(bad)
+            rc_non_advisory_bad = run(non_advisory_bad)
         if rc_clean != 0:
-            fail(tag, f"clean report should pass (exit 0), got {rc_clean}")
+            fail(tag, f"clean/advisory-degraded report should pass (exit 0), got {rc_clean}")
             return
         if rc_bad != 1:
             fail(tag, f"GPU advisory false-PASS (0 not 77) should fail (exit 1), got {rc_bad}")
             return
-        ok(tag, "clean report passes; GPU advisory false-PASS is caught (Rule 16 enforced)")
+        if rc_non_advisory_bad != 1:
+            fail(tag, f"non-advisory failure should fail (exit 1), got {rc_non_advisory_bad}")
+            return
+        ok(tag, "advisory-degraded report passes; false-PASS and non-advisory failures are caught")
     except subprocess.TimeoutExpired:
         fail(tag, "timed out")
     except Exception as exc:

@@ -5780,6 +5780,48 @@ set_tests_properties(fe52_compute_verify PROPERTIES TIMEOUT 60
     LABELS "audit;differential;verify;fe52;perf")
 target_sources(unified_audit_runner PRIVATE test_fe52_compute_verify.cpp)
 
+# Aggregate target used by .github/workflows/gate.yml's shim security job. The
+# ctest -R expression there matches test names, not build target names, so the
+# binaries must be built explicitly before ctest runs. Keep this list aligned
+# with that workflow regex: regression_shim|regression_ecdsa_batch_curve|
+# exploit_shim|test_shim.
+set(_shim_security_gate_standalone_targets
+    test_exploit_shim_noncefp_bypass_standalone
+    test_exploit_shim_der_bip66_standalone
+    test_exploit_shim_musig_secnonce_standalone
+    test_exploit_shim_musig_ka_cap_standalone
+    test_regression_shim_static_ctx_standalone
+    test_exploit_shim_recovery_null_arg_standalone
+    test_exploit_shim_pubkey_ct_standalone
+    test_regression_shim_context_erase_standalone
+    test_regression_shim_keypair_null_cb_standalone
+    test_regression_shim_null_arg_cb_standalone
+    test_regression_shim_security_v8_standalone
+    test_regression_ecdsa_batch_curve_check_standalone
+    test_regression_shim_divergence_fixes_standalone
+    test_regression_shim_tweak_recover_null_cb_standalone
+    test_regression_shim_perf_correctness_standalone
+    test_regression_shim_high_s_verify_standalone
+    test_regression_shim_pubkey_sort_standalone
+    test_regression_shim_per_context_blinding_standalone
+    test_regression_shim_musig_null_ctx_standalone
+    test_regression_shim_seckey_erase_standalone
+    test_regression_shim_null_callback_standalone
+    test_regression_shim_xonly_parse_standalone
+    test_regression_shim_security_v9_standalone
+    test_regression_shim_rgrind_functional_standalone
+    test_regression_shim_preallocated_ctx_standalone
+    test_regression_shim_rfc6979_compat_standalone
+)
+add_custom_target(shim_security_gate_standalones)
+foreach(_shim_gate_target IN LISTS _shim_security_gate_standalone_targets)
+    if(TARGET ${_shim_gate_target})
+        add_dependencies(shim_security_gate_standalones ${_shim_gate_target})
+    endif()
+endforeach()
+unset(_shim_gate_target)
+unset(_shim_security_gate_standalone_targets)
+
 # ---------------------------------------------------------------------------
 # Per-file -Wno-deprecated-declarations suppression for tests that
 # INTENTIONALLY exercise ufsecp_musig2_partial_sign (v1) to verify the ABI

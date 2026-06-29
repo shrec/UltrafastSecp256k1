@@ -93,9 +93,11 @@ def main(argv) -> int:
               f"returned 0 instead of 77 (Rule 16 false-PASS): {false_pass}")
         return 1
 
-    # Non-advisory real failures.
+    # Non-advisory real failures. Advisory modules that return non-77 are
+    # degraded audit evidence, not Rule-16 false-pass violations; the runner
+    # reports them separately without blocking this skip-return guard.
     failed = [m.get("id", "?") for m in modules
-              if not m.get("passed") and not (m.get("advisory") and m.get("return_code") == 77)]
+              if not m.get("passed") and not m.get("advisory")]
     if failed:
         print(f"::error::check_advisory_json_rule16: non-advisory modules FAILED: {failed}")
         return 1

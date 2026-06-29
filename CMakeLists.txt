@@ -560,6 +560,14 @@ if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Subdirectories
+# Honor explicit `-DBUILD_TESTING=ON` even when the project-specific
+# SECP256K1_BUILD_TESTS/SECP256K1_BUILD_BENCH toggles are OFF. CI shim gates use
+# that profile: audit/ registers standalone CTest targets, but CTest must be
+# enabled at the top level for `ctest --test-dir out/...` to see them.
+if(BUILD_TESTING)
+    include(CTest)
+    enable_testing()
+endif()
 if(SECP256K1_BUILD_CPU)
     # Enable testing so src/cpu/CMakeLists.txt BUILD_TESTING guard works
     if(SECP256K1_BUILD_TESTS OR SECP256K1_BUILD_BENCH)

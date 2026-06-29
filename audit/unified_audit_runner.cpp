@@ -1365,8 +1365,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_shim_der_zero_r", "DER parse r=0 rejection (shim vs libsecp divergence)", "exploit_poc", test_shim_der_zero_r_run, true },
     { "exploit_shim_null_ctx",   "NULL context illegal-callback enforcement (SHIM-001/002/003)", "exploit_poc", test_shim_null_ctx_run, true },
     // === 2026-05-12 SEC-007: high-S verify divergence diagnostic ===
-    // advisory=true: depends on shim being linked; documents intentional divergence.
-    { "regression_shim_high_s_verify", "SEC-007/SHIM-008: secp256k1_ecdsa_verify REJECTS high-S (libsecp parity, BIP-62 malleability)", "exploit_poc", test_regression_shim_high_s_verify_run, false },
+    // advisory=true: unified_audit_runner gets the shim stub in this CMake order.
+    // The real shim-linked body is mandatory in the standalone CTest gate.
+    { "regression_shim_high_s_verify", "SEC-007/SHIM-008: secp256k1_ecdsa_verify REJECTS high-S (libsecp parity, BIP-62 malleability)", "exploit_poc", test_regression_shim_high_s_verify_run, true },
     // === 2026-05-12 PERF-001/005: shim hot-path optimization correctness ===
     // advisory=true: stub in shim_run_stubs_unified.cpp returns ADVISORY_SKIP_CODE
     // when the shim is not linked into unified_audit_runner. Standalone CTest target

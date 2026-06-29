@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-06-29 — Shim security gate now builds and runs standalone coverage
+
+Fixed the push gate regression where `unified_audit_runner` received the
+`regression_shim_high_s_verify` advisory stub (`return_code=77`) but the module
+was still registered as mandatory. The unified runner now labels that entry
+advisory, while the real shim-linked high-S test remains mandatory through the
+standalone CTest gate. The top-level CMake now honors explicit
+`-DBUILD_TESTING=ON` for CTest even when `SECP256K1_BUILD_TESTS=OFF`, and the
+shim gate builds the `shim_security_gate_standalones` aggregate target before
+running `ctest --no-tests=error`, preventing empty CTest runs from passing.
+`check_advisory_json_rule16.py` now matches that gate logic: advisory non-77
+modules remain degraded audit evidence, while Rule 16 blocks advisory false-pass
+(`passed=true`, `return_code=0`) and non-advisory failures.
+
 ## 2026-06-29 — soundness gate: libbitcoin row/column batch adapters classified as standard verifiers
 
 The push gates for `30dcd0d8` correctly failed closed in
