@@ -18,6 +18,13 @@ not counted as test evidence even though the bounded libbitcoin batch API commit
 carried `test_direct_verify.cpp`. The classifier and fast-gate self-test now
 cover that direct-integration test path.
 
+The same push exposed stale residual CAAS evidence in Block 3: the
+`audit_sla_check.py` critical freshness SLO rejected `audit/ci-evidence` and
+`docs/API_SECURITY_CONTRACTS.json` as older than 14 days. Refreshed the four
+manual CT/adversarial evidence snapshots from freshly built standalone audit
+binaries (`adversarial_protocol`, `ecies_regression`, `fuzz_parsers`, and
+`fuzz_address_bip32_ffi`) and re-attested `API_SECURITY_CONTRACTS.json`.
+
 ## 2026-06-29 — mutation-weekly: baseline timeout no longer misreported as kill-rate regression (issue #313)
 
 The weekly mutation workflow opened `mutation-kill-rate-regression` with every
