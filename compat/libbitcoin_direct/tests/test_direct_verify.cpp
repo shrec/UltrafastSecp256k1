@@ -3,12 +3,13 @@
 // Build: g++ -O2 -std=c++20 -I<compat/libbitcoin_direct/include> -I<src/cpu/include>
 //        test_direct_verify.cpp <engine libs> -pthread
 // Returns 0 on success, 1 on any failure.
+//
+// NOTE: Test-data generation uses CT-backed ufsecp::lbtc::* entrypoints so the
+// build emits no deprecated non-CT signing/keypair warnings from this file.
 #include "ufsecp/libbitcoin.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/batch_verify.hpp"
-#include "secp256k1/point.hpp"
-#include "secp256k1/scalar.hpp"
 
 #include <algorithm>
 #include <array>
@@ -17,19 +18,23 @@
 #include <cstring>
 #include <vector>
 
-using namespace secp256k1;
-using fast::Scalar;
-using fast::Point;
-
 namespace {
 std::uint64_t g_xs = 0x9E3779B97F4A7C15ull;
 std::uint8_t nb() { g_xs ^= g_xs << 13; g_xs ^= g_xs >> 7; g_xs ^= g_xs << 17; return static_cast<std::uint8_t>(g_xs); }
-void wl(const Scalar& v, std::uint8_t* o) {
-    auto L = v.limbs();
-    for (int k = 0; k < 4; ++k) for (int j = 0; j < 8; ++j) o[k * 8 + j] = static_cast<std::uint8_t>(L[k] >> (j * 8));
-}
 int fails = 0;
 void check(bool cond, const char* what) { if (!cond) { std::printf("FAIL: %s\n", what); ++fails; } }
+
+// Generate a valid random secret key (CT-backed via ufsecp::lbtc::seckey_verify).
+void rand_sk(std::uint8_t sk[32]) {
+    do {
+        for (int i = 0; i < 32; ++i) sk[i] = nb();
+    } while (!ufsecp::lbtc::seckey_verify(sk));
+}
+
+// Generate a valid random message hash.
+void rand_hash(std::uint8_t h[32]) {
+    for (int i = 0; i < 32; ++i) h[i] = nb();
+}
 } // namespace
 
 int main() {
@@ -37,18 +42,19 @@ int main() {
     constexpr int SERIAL_N = 5000;  // Crosses the 4096 bounded-chunk threshold.
 
     // ---- ECDSA: rows [hash32 | pub33 | sig64(opaque LE)] ----
+    // Test-data generation uses CT-backed ufsecp::lbtc entrypoints.
     constexpr int ES = 129;
     std::vector<std::uint8_t> erows(M * ES);
     for (int i = 0; i < M; ++i) {
-        std::array<std::uint8_t, 32> b; for (auto& z : b) z = nb();
-        Scalar sk = Scalar::from_bytes(b); if (sk.is_zero()) sk = Scalar::from_bytes(b);
-        Point pk = Point::generator().scalar_mul(sk);
-        std::array<std::uint8_t, 32> msg; for (auto& z : msg) z = nb();
-        ECDSASignature s = ecdsa_sign(msg, sk);
-        auto c = pk.to_compressed();
+        std::uint8_t sk[32], msg[32], sig64[64], pub33[33];
+        rand_sk(sk);
+        rand_hash(msg);
+        check(ufsecp::lbtc::pubkey_create(sk, pub33), "ecdsa test-data pubkey_create");  // CT-backed
+        check(ufsecp::lbtc::ecdsa_sign(msg, sk, sig64), "ecdsa test-data ecdsa_sign");  // CT-backed
         std::uint8_t* r = erows.data() + i * ES;
-        std::memcpy(r, msg.data(), 32); std::memcpy(r + 32, c.data(), 33);
-        wl(s.r, r + 65); wl(s.s, r + 65 + 32);
+        std::memcpy(r, msg, 32);
+        std::memcpy(r + 32, pub33, 33);
+        std::memcpy(r + 65, sig64, 64);
     }
     long eok = 0;
     for (int i = 0; i < M; ++i) { const std::uint8_t* r = erows.data() + i * ES; eok += ufsecp::lbtc::ecdsa_verify(r + 32, r, r + 65); }
@@ -98,18 +104,20 @@ int main() {
     check(eres3[7] == 0, "engine ecdsa rows tampered row marked invalid");
 
     // ---- Schnorr: rows [msg32 | xonly32 | sig64(BIP-340)] ----
+    // Test-data generation uses CT-backed ufsecp::lbtc entrypoints.
     constexpr int SS = 128;
     std::vector<std::uint8_t> srows(M * SS);
-    std::array<std::uint8_t, 32> aux{};
+    std::uint8_t aux[32]{};
     for (int i = 0; i < M; ++i) {
-        std::array<std::uint8_t, 32> b; for (auto& z : b) z = nb();
-        Scalar sk = Scalar::from_bytes(b); if (sk.is_zero()) sk = Scalar::from_bytes(b);
-        SchnorrKeypair kp = schnorr_keypair_create(sk);
-        std::array<std::uint8_t, 32> msg; for (auto& z : msg) z = nb();
-        SchnorrSignature sig = schnorr_sign(sk, msg, aux);
-        auto sb = sig.to_bytes();
+        std::uint8_t sk[32], msg[32], xonly[32], sig64[64];
+        rand_sk(sk);
+        rand_hash(msg);
+        check(ufsecp::lbtc::schnorr_keypair_create(sk, xonly), "schnorr test-data keypair_create");  // CT-backed
+        check(ufsecp::lbtc::schnorr_sign(xonly, sk, msg, aux, sig64), "schnorr test-data sign");  // CT-backed
         std::uint8_t* r = srows.data() + i * SS;
-        std::memcpy(r, msg.data(), 32); std::memcpy(r + 32, kp.px.data(), 32); std::memcpy(r + 64, sb.data(), 64);
+        std::memcpy(r, msg, 32);
+        std::memcpy(r + 32, xonly, 32);
+        std::memcpy(r + 64, sig64, 64);
     }
     long sok = 0;
     for (int i = 0; i < M; ++i) { const std::uint8_t* r = srows.data() + i * SS; sok += ufsecp::lbtc::schnorr_verify(r + 32, r, r + 64); }

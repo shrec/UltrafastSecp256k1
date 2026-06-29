@@ -535,6 +535,40 @@ bool ok = schnorr_verify(pk_x, msg, sig);
 #include <secp256k1/batch_verify.hpp>
 ```
 
+#### Canonical libbitcoin C++ surface (`ufsecp::lbtc::*`)
+
+The canonical bridge-free libbitcoin integration is the header-only target `secp256k1::fastsecp256k1_libbitcoin`.
+Build with `-DSECP256K1_BUILD_LIBBITCOIN=ON` (optionally `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON`).
+
+**Package target:** `secp256k1::fastsecp256k1_libbitcoin` (INTERFACE, carries C++20 + `HAVE_ULTRAFAST` + engine).
+
+**Header:** `<ufsecp/libbitcoin.hpp>` — namespace `ufsecp::lbtc::*`, all stateless inline functions.
+
+**Byte layouts** (match libbitcoin/libsecp256k1 exactly):
+| Type | Format |
+|------|--------|
+| pubkey | 33-byte compressed (`0x02`/`0x03` \|\| X big-endian) |
+| hash | 32-byte message hash |
+| ecdsa sig | 64-byte `secp256k1_ecdsa_signature` opaque (r limbs LE \|\| s limbs LE) |
+| schnorr sig | 64-byte BIP-340 (R.x big-endian \|\| s big-endian) |
+| xonly | 32-byte x-only pubkey |
+
+**CT guarantees:** Secret-bearing operations (sign, key create, seckey tweak) use `secp256k1::ct::*` primitives — constant-time, no data-dependent branches. Verify/recover/combine operations are variable-time (all inputs public). See `docs/LIBBITCOIN_INTEGRATION.md` for the full CT/VT matrix.
+
+**Fail-closed semantics:** On any failure (invalid input, parsing error, signing error) every output buffer is zeroed and `false` is returned. Batch APIs write `1`/`0` per row to `out_results`; all-valid batches fill `out_results` with `1`. `count == 0` returns `true`. Invalid/`nullptr` row pointers return `false`.
+
+**Threading:** `max_threads == 0` = auto, `max_threads == 1` = serial bounded chunks, `N` = cap.
+
+**Batch APIs:**
+- `ecdsa_verify_batch` / `ecdsa_verify_columns` — rows `[hash32|pub33|sig64]` @ stride, or parallel spans
+- `schnorr_verify_batch` / `schnorr_verify_columns` — rows `[msg32|xonly32|sig64]` @ stride, or parallel spans
+
+**Consumer CMake example:**
+```cmake
+find_package(secp256k1-fast REQUIRED COMPONENTS CPU LIBBITCOIN)
+target_link_libraries(myapp PRIVATE secp256k1::fastsecp256k1_libbitcoin)
+```
+
 #### Direct byte-span APIs
 
 These APIs are for C++ consumers that already store libbitcoin/libsecp-compatible rows or column arrays. The engine parses and verifies in bounded chunks, including when `max_threads == 1`, so callers do not need to marshal full tables into `ECDSABatchEntry` or `SchnorrBatchEntry` vectors.

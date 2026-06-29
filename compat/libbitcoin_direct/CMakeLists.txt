@@ -50,5 +50,17 @@ if(SECP256K1_BUILD_LIBBITCOIN_TESTS)
     endif()
     add_test(NAME lbtc_direct_verify COMMAND test_lbtc_direct_verify)
     set_tests_properties(lbtc_direct_verify PROPERTIES LABELS "libbitcoin;direct;verify")
-    message(STATUS "  libbitcoin direct test: ON (lbtc_direct_verify)")
+
+    # libbitcoin direct integration test: signing, key operations, recovery, utilities.
+    add_executable(test_lbtc_direct_operations tests/test_direct_operations.cpp)
+    target_link_libraries(test_lbtc_direct_operations PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_engine})
+    find_package(Threads QUIET)
+    if(TARGET Threads::Threads)
+        target_link_libraries(test_lbtc_direct_operations PRIVATE Threads::Threads)
+    endif()
+    add_test(NAME lbtc_direct_operations COMMAND test_lbtc_direct_operations)
+    set_tests_properties(lbtc_direct_operations PROPERTIES LABELS "libbitcoin;direct;operations")
+    message(STATUS "  libbitcoin direct test: ON (lbtc_direct_verify, lbtc_direct_operations)")
 endif()

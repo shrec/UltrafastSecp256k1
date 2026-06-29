@@ -90,6 +90,30 @@ message hash) are public on-chain data, so variable-time wNAF/GLV is both
 correct and the fastest choice. (Constant-time verify would be a performance bug
 with zero security benefit.)
 
+### CT/VT Operations Matrix
+
+| Operation | CT/VT | Primitive | Namespace |
+|-----------|-------|-----------|-----------|
+| `ecdsa_sign` | **CT** ✅ | `ct::ecdsa_sign()` | `secp256k1::ct` |
+| `ecdsa_sign_hedged` | **CT** ✅ | `ct::ecdsa_sign_hedged()` | `secp256k1::ct` |
+| `ecdsa_sign_recoverable` | **CT** ✅ | `ct::ecdsa_sign_recoverable()` | `secp256k1::ct` |
+| `schnorr_sign` | **CT** ✅ | `ct::schnorr_sign()` | `secp256k1::ct` |
+| `schnorr_keypair_create` | **CT** ✅ | `ct::schnorr_keypair_create()` | `secp256k1::ct` |
+| `pubkey_create` | **CT** ✅ | `ct::generator_mul_blinded()` | `secp256k1::ct` |
+| `seckey_negate` | **CT** ✅ | `ct::scalar_neg()` | `secp256k1::ct` |
+| `seckey_tweak_add` | **CT** ✅ | `ct::scalar_add()` | `secp256k1::ct` |
+| `seckey_tweak_mul` | **CT** ✅ | `ct::scalar_mul()` | `secp256k1::ct` |
+| `ecdsa_verify` | **VT** (public data) | `ecdsa_verify()` | `secp256k1` |
+| `schnorr_verify` | **VT** (public data) | `schnorr_verify()` | `secp256k1` |
+| `ecdsa_recover` | **VT** (public data) | `ecdsa_recover()` | `secp256k1` |
+| `ecdsa_verify_batch` | **VT** (public data) | `ecdsa_batch_verify_opaque_rows()` | `secp256k1` |
+| `schnorr_verify_batch` | **VT** (public data) | `schnorr_batch_verify_bip340_rows()` | `secp256k1` |
+| `pubkey_combine` | **VT** (public data) | `Point::add()` | `secp256k1::fast` |
+| `pubkey_tweak_add` | **VT** (public data) | `Point::dual_scalar_mul_gen_point()` | `secp256k1::fast` |
+| `pubkey_tweak_mul` | **VT** (public data) | `Point::scalar_mul()` | `secp256k1::fast` |
+
+Every CT entry has graph evidence: `symbols`/`coverage`/`auditmap` against `source_graph.db` confirm the code path routes through `secp256k1::ct::*` primitives with no data-dependent branches.
+
 ### Batch Row Contract
 
 The row pointer points at `count` records separated by `stride` bytes. The

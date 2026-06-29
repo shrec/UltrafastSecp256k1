@@ -402,7 +402,7 @@ class CppAdapter(LanguageAdapter):
 
     def method_pattern(self):
         return re.compile(
-            r'^\s*(?:virtual\s+|static\s+|inline\s+)*'
+            r'^\s*(?:\[\[\w+\]\]\s+)*(?:virtual\s+|static\s+|inline\s+)*'
             r'(?:const\s+)?(\w[\w:*&<> ]*?)\s+'
             r'(\w+)\s*\([^)]*\)\s*'
             r'(?:const\s*)?(?:override\s*)?(?:=\s*0\s*)?;'
@@ -415,6 +415,7 @@ class CppAdapter(LanguageAdapter):
     def function_sig_pattern(self):
         return re.compile(
             r'^[\s]*'
+            r'(?:\[\[\w+\]\]\s+)*'   # optional C++11 attribute [[...]]
             r'(?:[\w:*&<>,\s]+?)\s+'
             r'(?:(\w+)\s*::\s*)?'
             r'(~?\w+)\s*\('
@@ -4927,6 +4928,11 @@ def scan_audit_coverage(conn):
             "SELECT COUNT(*) FROM edges WHERE target = ? AND edge_type = 'tests'",
             (file_name,)
         ).fetchone()[0]
+        # Also credit test_function_map entries as test coverage evidence
+        test_map_refs = conn.execute(
+            "SELECT COUNT(DISTINCT function_name || '|' || COALESCE(class_name, '')) FROM test_function_map WHERE target_file = ?",
+            (file_name,)
+        ).fetchone()[0]
         has_summary = 1 if conn.execute("SELECT 1 FROM file_summaries WHERE file = ? LIMIT 1", (file_name,)).fetchone() else 0
         has_function_index = 1 if conn.execute("SELECT 1 FROM function_index WHERE file = ? LIMIT 1", (file_name,)).fetchone() else 0
         todo_count = conn.execute("SELECT COUNT(*) FROM todos WHERE file = ?", (file_name,)).fetchone()[0]
@@ -4947,6 +4953,7 @@ def scan_audit_coverage(conn):
 
         coverage_score = 20
         coverage_score += min(unit_test_refs * 20, 40)
+        coverage_score += min(test_map_refs * 3, 15)
         coverage_score += 15 if has_summary else 0
         coverage_score += 15 if has_function_index else 0
         coverage_score -= min(todo_count * 2, 10)
@@ -4956,7 +4963,7 @@ def scan_audit_coverage(conn):
         coverage_score = max(0, min(100, coverage_score))
 
         notes = []
-        if unit_test_refs == 0:
+        if unit_test_refs == 0 and test_map_refs == 0:
             notes.append("no unit test edges")
         if crash_risk_count > 0:
             notes.append(f"{crash_risk_count} crash risks")
@@ -5290,16 +5297,16 @@ def scan_test_function_map(conn):
     # ---------- secp256k1-style test discovery ----------
     # Test files (test_*.cpp) in any source dir: match called function names
     # against function_index entries in non-test projects.
-    _impl_projects = {"cpu", "include", "gpu", "cuda", "opencl", "metal"}
+    _impl_projects = {"cpu", "include", "gpu", "cuda", "opencl", "metal", "compat"}
     call_re = re.compile(r'\b([a-zA-Z_]\w{3,})\s*\(')
     # Pre-load implementation function names for fast lookup
-    impl_funcs = {}
+    impl_funcs = defaultdict(list)
     for row in conn.execute(
         "SELECT function_name, file, class_name FROM function_index WHERE project IN ({})".format(
             ",".join(f"'{p}'" for p in _impl_projects)
         )
     ).fetchall():
-        impl_funcs.setdefault(row["function_name"], (row["file"], row["class_name"]))
+        impl_funcs[row["function_name"]].append((row["file"], row["class_name"]))
 
     seen_mappings = set()
     for project, base_dir, _exts in SOURCE_DIRS:
@@ -5316,18 +5323,18 @@ def scan_test_function_map(conn):
                 called = set(call_re.findall(text))
                 for fn in called:
                     if fn in impl_funcs:
-                        target_file, class_name = impl_funcs[fn]
-                        key = (test_rel, target_file, fn)
-                        if key in seen_mappings:
-                            continue
-                        seen_mappings.add(key)
-                        try:
-                            conn.execute(
-                                "INSERT INTO test_function_map (test_file, target_file, function_name, class_name, mapping_type) VALUES (?,?,?,?,?)",
-                                (test_rel, target_file, fn, class_name, "call_mention")
-                            )
-                        except Exception:
-                            pass
+                        for target_file, class_name in impl_funcs[fn]:
+                            key = (test_rel, target_file, fn)
+                            if key in seen_mappings:
+                                continue
+                            seen_mappings.add(key)
+                            try:
+                                conn.execute(
+                                    "INSERT INTO test_function_map (test_file, target_file, function_name, class_name, mapping_type) VALUES (?,?,?,?,?)",
+                                    (test_rel, target_file, fn, class_name, "call_mention")
+                                )
+                            except Exception:
+                                pass
 
 
 def scan_call_edges(conn):
@@ -6916,6 +6923,9 @@ def build():
     print("[*] Aggregating semantic profiles...")
     scan_semantic_profiles(conn)
 
+    print("[*] Mapping tests to functions...")
+    scan_test_function_map(conn)
+
     print("[*] Aggregating audit coverage...")
     scan_audit_coverage(conn)
 
@@ -6924,9 +6934,6 @@ def build():
 
     print("[*] Aggregating ownership metrics...")
     scan_ownership_metrics(conn)
-
-    print("[*] Mapping tests to functions...")
-    scan_test_function_map(conn)
 
     print("[*] Aggregating symbol metadata...")
     scan_symbol_metadata(conn)
@@ -7081,10 +7088,10 @@ def _rebuild_aggregation_tables(conn):
     scan_edges(conn)
     scan_semantic_tags(conn)
     scan_semantic_profiles(conn)
+    scan_test_function_map(conn)
     scan_audit_coverage(conn)
     scan_history_metrics(conn)
     scan_ownership_metrics(conn)
-    scan_test_function_map(conn)
     scan_symbol_metadata(conn)
     scan_analysis_scores(conn)
     scan_review_queue(conn)

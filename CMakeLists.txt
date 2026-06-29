@@ -770,11 +770,57 @@ if(SECP256K1_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    # Install public headers
-    install(DIRECTORY src/cpu/include/secp256k1
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.hpp"
-    )
+    # Install public headers (exclude BCH when the module is OFF;
+    # libbitcoin profile: only headers needed by <ufsecp/libbitcoin.hpp>)
+    if(SECP256K1_BUILD_LIBBITCOIN)
+        install(DIRECTORY src/cpu/include/secp256k1
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            FILES_MATCHING PATTERN "*.hpp"
+            PATTERN "bch" EXCLUDE
+            PATTERN "coins" EXCLUDE
+            PATTERN "ltc" EXCLUDE
+            PATTERN "ecdh.hpp" EXCLUDE
+            PATTERN "ellswift.hpp" EXCLUDE
+            PATTERN "frost*" EXCLUDE
+            PATTERN "musig2.hpp" EXCLUDE
+            PATTERN "ecies*" EXCLUDE
+            PATTERN "bip32*" EXCLUDE
+            PATTERN "bip39*" EXCLUDE
+            PATTERN "bip143*" EXCLUDE
+            PATTERN "bip144*" EXCLUDE
+            PATTERN "bip324*" EXCLUDE
+            PATTERN "bip352*" EXCLUDE
+            PATTERN "chacha20*" EXCLUDE
+            PATTERN "hkdf*" EXCLUDE
+            PATTERN "sha256*" EXCLUDE
+            PATTERN "sha512*" EXCLUDE
+            PATTERN "unicode*" EXCLUDE
+            PATTERN "segwit*" EXCLUDE
+            PATTERN "address*" EXCLUDE
+            PATTERN "adaptor*" EXCLUDE
+            PATTERN "benchmark_*" EXCLUDE
+            PATTERN "test_framework*" EXCLUDE
+            PATTERN "debug_invariants*" EXCLUDE
+            PATTERN "context*" EXCLUDE
+            PATTERN "fast.hpp" EXCLUDE
+            PATTERN "field_26.hpp" EXCLUDE
+            PATTERN "field_branchless.hpp" EXCLUDE
+            PATTERN "field_asm.hpp" EXCLUDE
+            PATTERN "zk.hpp" EXCLUDE
+            PATTERN "pedersen.hpp" EXCLUDE
+        )
+    elseif(SECP256K1_BUILD_BCH)
+        install(DIRECTORY src/cpu/include/secp256k1
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            FILES_MATCHING PATTERN "*.hpp"
+        )
+    else()
+        install(DIRECTORY src/cpu/include/secp256k1
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            FILES_MATCHING PATTERN "*.hpp"
+            PATTERN "bch" EXCLUDE
+        )
+    endif()
 
     # Install generated version header
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/secp256k1/version.hpp"
