@@ -164,7 +164,7 @@ jobs:
 
       - name: Cache shared library (CAAS-08 — avoid triple build)
         id: cache-lib
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build-audit/
           key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
@@ -274,7 +274,7 @@ jobs:
 
       - name: Cache shared library (CAAS-08 — avoid triple build)
         id: cache-lib
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build-audit/
           key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
@@ -409,7 +409,7 @@ jobs:
 
       - name: Cache shared library (CAAS-08 — avoid triple build)
         id: cache-lib
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build-audit/
           key: ufsecp-shared-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('src/cpu/src/**', 'src/cpu/include/**', 'include/**', 'CMakeLists.txt') }}
