@@ -160,11 +160,12 @@ option(SECP256K1_BUILD_LIBBITCOIN_BRIDGE
        "[libbitcoin] Compatibility opt-in: libsecp256k1 shim + C ABI + ufsecp_lbtc batch bridge (legacy)" OFF)
 # libbitcoin integration tests/bench. TESTS builds the canonical direct verify
 # CTest (lbtc_direct_verify); with SECP256K1_BUILD_LIBBITCOIN_BRIDGE it also
-# builds the legacy bridge consensus tests. BENCH requires the bridge surface.
+# builds the legacy bridge consensus tests. BENCH builds the canonical direct
+# C++ benchmark; with BRIDGE=ON it also builds the legacy C-ABI bridge bench.
 option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "[libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON)" OFF)
 option(SECP256K1_BUILD_LIBBITCOIN_BENCH
-       "[libbitcoin] Build libbitcoin batch bench (requires SECP256K1_BUILD_LIBBITCOIN_BRIDGE)" OFF)
+       "[libbitcoin] Build libbitcoin direct C++ batch bench; + legacy bridge bench when BRIDGE=ON" OFF)
 if(SECP256K1_BUILD_LIBBITCOIN)
     # libsecp256k1-compatible contract (engine-level; CT enforced, strict ABI).
     set(SECP256K1_REQUIRE_CT   ON)

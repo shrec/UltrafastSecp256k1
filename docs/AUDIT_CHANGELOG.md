@@ -1,5 +1,17 @@
 # Audit Changelog
 
+## 2026-06-29 — libbitcoin benchmark evidence no longer depends on C ABI bridge
+
+The canonical libbitcoin benchmark evidence path now builds
+`bench_lbtc_direct_batch` from `compat/libbitcoin_direct` and links only
+`secp256k1::fastsecp256k1_libbitcoin` plus the engine. The direct benchmark
+emits JSON with explicit `c_abi_required=false`, `shim_required=false`, and
+`bridge_required=false`, and the G-21 libbitcoin performance matrix now points
+canonical reproduce commands at `SECP256K1_BUILD_LIBBITCOIN=ON` +
+`SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` without `SECP256K1_BUILD_CABI=ON`.
+The legacy `bench_lbtc_batch` remains available only when the compatibility
+bridge is explicitly enabled.
+
 ## 2026-06-29 — Shim API compatibility build skips shared-library Python audit tests
 
 The shim security gate's libsecp API compatibility phase configures a minimal

@@ -5,32 +5,33 @@
   "surfaces": [
     {
       "id": "lbtc_cpp_default_controller",
-      "surface": "C++ libbitcoin integration example uses the default UFSECP_LBTC_AUTO controller model",
+      "surface": "C++ libbitcoin integration uses the direct secp256k1::fastsecp256k1_libbitcoin target",
       "target_context": "libbitcoin",
       "status": "implemented",
       "severity": "blocking",
-      "claim_scope": "Integration hygiene: libbitcoin call sites can use ufsecp::lbtc::Controller without spelling UFSECP_LBTC_AUTO.",
+      "claim_scope": "Integration hygiene: libbitcoin call sites link the direct C++ target and do not require ufsecp C ABI, shim, or bridge symbols.",
       "evidence_paths": [
-        "compat/libbitcoin_bridge/example/lbtc_batch_demo.cpp",
+        "compat/libbitcoin_direct/CMakeLists.txt",
+        "compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp",
         "docs/LIBBITCOIN_INTEGRATION.md"
       ],
-      "reproduce_command": "cmake -S . -B out/libbitcoin-test -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_CABI=ON -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON && cmake --build out/libbitcoin-test -j",
+      "reproduce_command": "cmake -S . -B out/libbitcoin-test -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON && cmake --build out/libbitcoin-test -j && ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure",
       "native_hardware_claim": false,
       "benchmark_artifact_contract": false,
       "copy_policy": "api_hygiene_only"
     },
     {
       "id": "lbtc_benchmark_json_artifact",
-      "surface": "libbitcoin batch benchmark emits a structured JSON artifact",
+      "surface": "direct C++ libbitcoin batch benchmark emits a structured JSON artifact",
       "target_context": "libbitcoin",
       "status": "implemented",
       "severity": "blocking",
-      "claim_scope": "Benchmark evidence format: local throughput numbers must be recorded with target_context, claim_scope, backend, device, batch, iters, pool, and timing.",
+      "claim_scope": "Benchmark evidence format: local throughput numbers must be recorded with target_context, claim_scope, batch, iters, pool, C ABI/shim/bridge requirement flags, and timing.",
       "evidence_paths": [
-        "compat/libbitcoin_bridge/bench/bench_lbtc_batch.cpp",
+        "compat/libbitcoin_direct/bench/bench_direct_batch.cpp",
         "docs/LIBBITCOIN_INTEGRATION.md"
       ],
-      "reproduce_command": "out/libbitcoin-bench/include/ufsecp/bench_lbtc_batch 1000000 5 50000 --json out/libbitcoin-bench/lbtc_batch.json",
+      "reproduce_command": "cmake -S . -B out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch -j && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 --json out/libbitcoin-bench/lbtc_direct_batch.json",
       "native_hardware_claim": false,
       "benchmark_artifact_contract": true,
       "copy_policy": "artifact_contract_only"
@@ -65,7 +66,7 @@
         "benchmarks/comparison/lbtc_mt_msvc_20260623.json",
         "benchmarks/comparison/lbtc_batch_msvc_20260623.json"
       ],
-      "reproduce_command": "cmake -S . -B out/libbitcoin-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_CABI=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-msvc -j && out\\\\libbitcoin-msvc\\\\include\\\\ufsecp\\\\bench_lbtc_batch.exe 1000000 5 50000 --json out\\\\libbitcoin-msvc\\\\lbtc_msvc.json",
+      "reproduce_command": "cmake -S . -B out/libbitcoin-msvc -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-msvc --target bench_lbtc_direct_batch -j && out\\\\libbitcoin-msvc\\\\compat\\\\libbitcoin_direct\\\\bench_lbtc_direct_batch.exe 1000000 5 50000 --json out\\\\libbitcoin-msvc\\\\lbtc_direct_msvc.json",
       "native_hardware_claim": false,
       "benchmark_artifact_contract": true,
       "copy_policy": "compiler_profile_evidence"

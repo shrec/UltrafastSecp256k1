@@ -28,7 +28,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_JAVA` | `ON` | Build Java JNI bindings |
 | `SECP256K1_BUILD_KNOTS` | `OFF` | [Bitcoin Knots] Minimal libsecp256k1 backend: ecdsa+recovery+schnorr+extrakeys+ellswift; everything else off |
 | `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Canonical bridge-free profile: engine + direct C++ header (ufsecp/libbitcoin.hpp); extras off |
-| `SECP256K1_BUILD_LIBBITCOIN_BENCH` | `OFF` | [libbitcoin] Build libbitcoin batch bench (requires SECP256K1_BUILD_LIBBITCOIN_BRIDGE) |
+| `SECP256K1_BUILD_LIBBITCOIN_BENCH` | `OFF` | [libbitcoin] Build libbitcoin direct C++ batch bench; + legacy bridge bench when BRIDGE=ON |
 | `SECP256K1_BUILD_LIBBITCOIN_BRIDGE` | `OFF` | [libbitcoin] Compatibility opt-in: libsecp256k1 shim + C ABI + ufsecp_lbtc batch bridge (legacy) |
 | `SECP256K1_BUILD_LIBBITCOIN_TESTS` | `OFF` | [libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON) |
 | `SECP256K1_BUILD_METAL` | `OFF` | Build Apple Metal GPU support |

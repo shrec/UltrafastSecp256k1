@@ -64,3 +64,17 @@ if(SECP256K1_BUILD_LIBBITCOIN_TESTS)
     set_tests_properties(lbtc_direct_operations PROPERTIES LABELS "libbitcoin;direct;operations")
     message(STATUS "  libbitcoin direct test: ON (lbtc_direct_verify, lbtc_direct_operations)")
 endif()
+
+# Canonical direct C++ benchmark. This intentionally links only the direct
+# interface target and the engine: no ufsecp C ABI, no shim, no ufsecp_lbtc bridge.
+if(SECP256K1_BUILD_LIBBITCOIN_BENCH)
+    add_executable(bench_lbtc_direct_batch bench/bench_direct_batch.cpp)
+    target_link_libraries(bench_lbtc_direct_batch PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_engine})
+    find_package(Threads QUIET)
+    if(TARGET Threads::Threads)
+        target_link_libraries(bench_lbtc_direct_batch PRIVATE Threads::Threads)
+    endif()
+    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, no C ABI/shim/bridge)")
+endif()

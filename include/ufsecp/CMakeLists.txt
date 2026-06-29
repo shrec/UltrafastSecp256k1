@@ -185,11 +185,9 @@ elseif(TARGET ufsecp_shared)
     add_library(ufsecp::ufsecp ALIAS ufsecp_shared)
 endif()
 
-# libbitcoin batch sig-verify benchmark — built as part of the central source
-# (static link to ufsecp_static, which already pulls in fastsecp256k1 + the GPU
-# host layer + the ufsecp_lbtc batch bridge). OFF in the minimal ship profile.
-option(SECP256K1_BUILD_LIBBITCOIN_BENCH
-       "Build the libbitcoin batch sig-verify benchmark (bench_lbtc_batch)" OFF)
+# Legacy libbitcoin C-ABI bridge benchmark. The top-level
+# SECP256K1_BUILD_LIBBITCOIN_BENCH option is the single source of truth; this
+# C-ABI subdirectory only adds the legacy bench when the bridge is also enabled.
 if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
     # Built straight from the central source: the C ABI, GPU C ABI and the
     # ufsecp_lbtc bridge are compiled into the benchmark target itself, which

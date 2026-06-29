@@ -64,10 +64,19 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-test -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
 cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
+# optional direct benchmark evidence, still no C ABI / shim / bridge:
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bench -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
+cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch -j
+out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
+  --json out/libbitcoin-bench/lbtc_direct_batch.json
 ```
 
 Tests are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON`. The canonical
-test is the CTest `lbtc_direct_verify`.
+tests are the CTests `lbtc_direct_verify` and `lbtc_direct_operations`.
+Benchmarks are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON`; the
+canonical benchmark is `bench_lbtc_direct_batch` and it links only
+`secp256k1::fastsecp256k1_libbitcoin` plus the engine.
 
 ### Header API
 
@@ -232,6 +241,9 @@ python3 ci/check_source_graph_quality.py
 bash ci/run_fast_gates.sh
 cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
+cmake --build out/libbitcoin-test --target bench_lbtc_direct_batch -j
+out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_direct_batch 128 1 32 \
+  --json out/libbitcoin-test/lbtc_direct_smoke.json
 ```
 
 The consensus rule is CPU/GPU/libsecp equivalence: GPU verdicts must match the
@@ -258,10 +270,12 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bridge -G Ninja \
 ```
 
 `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON` re-enables the legacy libsecp256k1 shim,
-the C ABI, the `ufsecp_lbtc_*` batch bridge, and the bridge tests/bench
-(`lbtc_bridge`, `lbtc_consensus_diff`, `lbtc_multisig_threshold`,
-`bench_lbtc_batch`). The C ABI (`-DSECP256K1_BUILD_CABI=ON`) is only required for
-this bridge/compat path — it is not needed for the canonical surface.
+the C ABI, the `ufsecp_lbtc_*` batch bridge, and the bridge tests. The canonical
+benchmark remains `bench_lbtc_direct_batch`; the legacy C-ABI benchmark
+`bench_lbtc_batch` is built only when both `SECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`
+and `SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` are set. The C ABI
+(`-DSECP256K1_BUILD_CABI=ON`) is only required for this bridge/compat path — it
+is not needed for the canonical surface.
 
 ### Legacy Integration Surfaces
 

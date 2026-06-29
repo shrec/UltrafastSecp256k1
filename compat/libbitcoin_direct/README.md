@@ -97,39 +97,31 @@ works. The header is `inline` — it folds into libbitcoin's TUs, so the verify 
 a direct call into engine code (no symbol boundary to cross).
 
 **Tests.** Add `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON` to build the CTest
-`lbtc_direct_verify` (from `tests/test_direct_verify.cpp`), then run:
+`lbtc_direct_verify` / `lbtc_direct_operations`, then run:
 
 ```sh
 ctest --test-dir <build> -R lbtc_direct --output-on-failure
 ```
 
+**Benchmark.** Add `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON` to build
+`bench_lbtc_direct_batch`. It is also direct C++ only: no C ABI, no shim, no
+bridge.
+
+```sh
+cmake --build <build> --target bench_lbtc_direct_batch -j
+<build>/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
+  --json <build>/lbtc_direct_batch.json
+```
+
 The shim, the C ABI, and the `ufsecp_lbtc_*` bridge are compatibility-only and
 live behind a separate flag — `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
 
-## Remaining: full secp256k1 surface libbitcoin calls (to fully drop the shim)
+## Consumer rule
 
-libbitcoin's `src/crypto/secp256k1/*.cpp` calls these `secp256k1_*` (shim) symbols.
-Each maps to an engine C++ call; add an inline `ufsecp::lbtc::*` and a
-`#if defined(HAVE_ULTRAFAST)` branch in the corresponding libbitcoin file:
-
-| libbitcoin call (file) | engine C++ mapping |
-|------------------------|--------------------|
-| `secp256k1_ecdsa_sign` (ecdsa.cpp) | `ct::ecdsa_sign(msg, sk)` → `to_compact`/opaque |
-| `secp256k1_ecdsa_signature_normalize` (ecdsa.cpp) | `ECDSASignature::normalize()` (low-S) |
-| `secp256k1_ecdsa_signature_serialize_compact/der` (ecdsa.cpp) | `to_compact()` / DER encode |
-| `secp256k1_ec_pubkey_create` (keys.cpp) | `ct::generator_mul(sk)` → compress |
-| `secp256k1_ec_seckey_verify` (keys.cpp) | `Scalar::parse_strict_nonzero` |
-| `secp256k1_ec_pubkey_combine/negate` (math.cpp) | `Point::operator+` / `negate` |
-| `secp256k1_ec_pubkey_tweak_add/mul` (math.cpp) | `Point + G·t` / `Point·t` |
-| `secp256k1_ec_seckey_negate/tweak_add/mul` (math.cpp) | `Scalar` neg/add/mul |
-| `secp256k1_ecdsa_recover` + recoverable (recover.cpp) | `ecdsa_recover` (recovery.hpp) |
-| `secp256k1_keypair_create` / `schnorrsig_sign32` (schnorr.cpp) | `schnorr_keypair_create` / `schnorr_sign` |
-| `secp256k1_xonly_pubkey_parse` / `tweak_add_check` (schnorr.cpp) | `schnorr_xonly_pubkey_parse` / taproot tweak |
-| `secp256k1_context_create/destroy` (ec_context.cpp) | no-op (engine is contextless) |
-
-Until those land, libbitcoin still links `libufsecp` for the cold-path shim
-symbols (mixed state); migrating them all lets the build link **only** the engine
-(`libfastsecp256k1`) + this header — no shim, no C ABI, no bridge.
+The libbitcoin consumer should link exactly
+`secp256k1::fastsecp256k1_libbitcoin`. Do not link `libufsecp`, do not include
+`ufsecp.h`, and do not call `ufsecp_lbtc_*` from the canonical integration. Those
+surfaces remain only for compatibility tests and non-C++ FFI consumers.
 
 ## Minimal build (no shim/CABI/bridge/FFI/NuGet)
 

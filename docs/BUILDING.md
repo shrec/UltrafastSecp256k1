@@ -136,21 +136,21 @@ the C ABI surface.
 
 ### Libbitcoin Profile And Tests
 
-The libbitcoin profile builds the shim, central C ABI bridge, and BIP-352 scan
-surface without requiring a separate bridge library. Enable the optional
-central-source libbitcoin test targets when validating bridge changes locally:
+The canonical libbitcoin profile is direct C++ only: engine +
+`secp256k1::fastsecp256k1_libbitcoin`, no shim, no C ABI, no bridge. Enable the
+optional direct tests and benchmark when validating integration changes locally:
 
 ```bash
 cmake --preset cpu-release \
   -DSECP256K1_BUILD_LIBBITCOIN=ON \
-  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
-cmake --build --preset cpu-release --target test_lbtc_bridge -j
-ctest --test-dir out/cpu-release -R '^lbtc_' --output-on-failure
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
+cmake --build --preset cpu-release --target test_lbtc_direct_verify test_lbtc_direct_operations bench_lbtc_direct_batch -j
+ctest --test-dir out/cpu-release -R '^lbtc_direct' --output-on-failure
 ```
 
-`lbtc_consensus_diff` is GPU/local-CI oriented and skips cleanly when no GPU is
-available; `lbtc_bridge` and `lbtc_multisig_threshold` are CPU-validating
-regression targets.
+The legacy bridge/C ABI tests are compatibility-only and require
+`-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
 
 ### Coin-Specific Profiles (Minimal Footprint)
 
