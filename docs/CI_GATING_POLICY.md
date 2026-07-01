@@ -60,6 +60,12 @@ pass the selected blocks.
 | Block 3 / Selected Security/Profile Gates | CAAS, bindings, GPU/WASM routing, compat gates selected by profile |
 | Gate / Final Verdict | Single status check summarizing selected blocks |
 
+Block 1 treats documentation counts as canonical data, not prose. It runs
+`ci/sync_module_count.py --dry-run` and the paired-count self-test so compact
+claims such as `N exploit PoCs / M modules` drift together or fail closed.
+`ci/check_doc_drift.py` also replays the module-count dry-run so standalone
+doc-drift checks catch stale README/count claims.
+
 **What does NOT run:**
 - Dudect (statistical, flaky)
 - Long fuzz campaigns

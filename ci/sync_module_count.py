@@ -70,6 +70,14 @@ RUNNER_MODULE_COUNT_BT_RE = re.compile(r'\b\d{3}-module `unified_audit_runner`')
 # Uses 3+ digit requirement to avoid false positives from incremental changelog entries.
 EXPLOIT_POCS_SIMPLE_RE = re.compile(r'\b(\d{3,})\s+exploit[ -]PoC[s]?\b', re.IGNORECASE)
 
+# Matches paired headline/readme claims such as "262 exploit PoCs / 367 modules".
+# This must run before EXPLOIT_POCS_SIMPLE_RE, otherwise only the exploit count
+# is updated and the total module count silently drifts.
+EXPLOIT_POCS_SLASH_MODULES_RE = re.compile(
+    r'\b\d{3,}\s+exploit[ -]PoC[s]?\s*/\s*\d{3,}\s+(?:registered\s+)?modules?\b',
+    re.IGNORECASE,
+)
+
 # Matches "N registered exploit-style PoC test modules (M test files)"
 REGISTERED_STYLE_RE = re.compile(
     r'\d+ registered exploit-style PoC test modules \(\d+ test files\)'
@@ -339,6 +347,16 @@ def make_replacements(content: str,
         return replacement
 
     new = SUMMARY_NONEXPLOIT_RE.sub(_replace_summary_nonexploit, new)
+
+    # "N exploit PoCs / M modules" — compact README/GitHub summary form.
+    def _replace_exploit_pocs_slash_modules(m: re.Match) -> str:
+        nonlocal changes
+        replacement = f'{exploit_mods} exploit PoCs / {total} modules'
+        if m.group(0) != replacement:
+            changes += 1
+        return replacement
+
+    new = EXPLOIT_POCS_SLASH_MODULES_RE.sub(_replace_exploit_pocs_slash_modules, new)
 
     # "N exploit PoCs" / "N exploit-PoCs" — short form without "modules" (3+ digit only)
     def _replace_exploit_pocs_simple(m: re.Match) -> str:

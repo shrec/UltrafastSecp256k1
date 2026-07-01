@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-07-01 — Doc drift gate now catches paired exploit/module count claims
+
+The documentation drift gate now fails closed on canonical audit count drift by
+replaying `ci/sync_module_count.py --dry-run` from `ci/check_doc_drift.py`.
+`sync_module_count.py` also recognizes compact paired claims such as
+`N exploit PoCs / M modules`, preventing the exploit count from updating while
+the total module count remains stale. `ci/test_sync_module_count.py` pins this
+regression with a synthetic stale slash-separated README count claim, and the
+fast gate runs that self-test before accepting module-count docs as current.
+
 ## 2026-06-29 — libbitcoin benchmark evidence no longer depends on C ABI bridge
 
 The canonical libbitcoin benchmark evidence path now builds

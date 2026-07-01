@@ -48,6 +48,7 @@ MANDATORY_GATES=(
     # it legitimately returns 77 (no binaries). It is mandatory only post-build.
     "ci/check_section_ids.py"            # section IDs in ALL_MODULES must be declared in SECTIONS[]
     "ci/test_audit_scripts.py"           # P3-PR-011: audit framework self-test is mandatory
+    "ci/test_sync_module_count.py"       # DOC-DRIFT-COUNT: paired README counts must sync together
     "ci/check_version_sync.py"
     "ci/check_abi_version_sync.py"       # REL-ABI: binding EXPECTED_ABI must equal library ABI (== MAJOR)
     "ci/check_randomize_claim_consistency.py"  # REVIEWER-FRICTION-001: no doc may call context_randomize a no-op
@@ -145,6 +146,7 @@ run "Version + count sync"   ci/check_version_sync.py
 run "Canonical data sync"    ci/build_canonical_data.py --dry-run
 run "Docs from canonical"    ci/sync_docs_from_canonical.py --dry-run
 run "Module count sync"      ci/sync_module_count.py --dry-run
+run "Module-count gate self-test" ci/test_sync_module_count.py
 run "Canonical numbers sync" ci/sync_canonical_numbers.py --dry-run
 run "Audit scripts"          ci/test_audit_scripts.py --quick
 run "Assurance validation"   ci/validate_assurance.py

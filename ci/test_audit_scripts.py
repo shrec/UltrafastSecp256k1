@@ -69,6 +69,7 @@ AUDIT_SCRIPTS = [
     "sync_audit_report_version.py",
     "sync_docs.py",
     "sync_module_count.py",
+    "test_sync_module_count.py",
     "sync_version_refs.py",
     "validate_assurance.py",
     "verify_slsa_provenance.py",
