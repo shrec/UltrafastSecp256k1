@@ -1449,6 +1449,46 @@ def check_audit_sla_pre_alert_and_block() -> None:
         ok(tag, "SLA blocks at deadline, pre-alerts in buffer window, reports days_until_block")
 
 
+def check_audit_sla_build_report_not_tracked() -> None:
+    """B3 regression: risk_surface_report is a build-scoped generated artifact.
+
+    It must not be committed under out/reports/, otherwise audit_sla_check.py
+    evaluates the git commit date instead of current build evidence and the
+    autonomy gate can fall from 100 to 90 when a stale generated file crosses
+    the freshness threshold.
+    """
+    tag = "B3:audit_sla_build_report_untracked"
+    rel = "out/reports/risk_surface_report.json"
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", "-q", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    failures = []
+    pending_delete = status.stdout.startswith("D ") or status.stdout.startswith(" D")
+    if tracked.returncode == 0 and not pending_delete:
+        failures.append(f"{rel} is tracked but must remain build-only")
+    if ignored.returncode != 0:
+        failures.append(f"{rel} is not covered by .gitignore")
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "build-scoped risk report is ignored and not tracked")
+
+
 def check_external_audit_bundle_negative_fixtures() -> None:
     """B4/B5: verify_external_audit_bundle.py must fail closed on a tampered
     digest, a missing evidence file, an evidence hash mismatch, a stale commit
@@ -2866,6 +2906,7 @@ def main() -> int:
     check_research_monitor_resilience()
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
+    check_audit_sla_build_report_not_tracked()
     check_external_audit_bundle_negative_fixtures()
     check_ct_independence_negative_fixtures()
     check_multi_ci_repro_negative_fixtures()

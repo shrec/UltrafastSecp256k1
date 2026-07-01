@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-01 — Security autonomy no longer reads stale committed build reports
+
+Removed the stale committed `out/reports/risk_surface_report.json` artifact
+from git. That report is build-scoped generated evidence and is already ignored
+under `out/reports/`; committing it caused `ci/audit_sla_check.py` to judge the
+report by its old git commit date instead of treating it as current build
+evidence or absent generated output. `ci/test_audit_scripts.py --quick` now
+asserts that this risk-surface report remains ignored and untracked, preventing
+the security autonomy gate from dropping to 90/100 when the stale artifact ages
+past the SLA threshold.
+
 ## 2026-07-01 — Doc drift gate now catches paired exploit/module count claims
 
 The documentation drift gate now fails closed on canonical audit count drift by
