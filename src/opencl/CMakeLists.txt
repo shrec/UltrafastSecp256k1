@@ -97,11 +97,11 @@ set_target_properties(secp256k1_opencl PROPERTIES
 target_include_directories(secp256k1_opencl
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${OpenCL_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 target_link_libraries(secp256k1_opencl
