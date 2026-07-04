@@ -1,5 +1,39 @@
 # Audit Changelog
 
+## 2026-07-04 — GPU lbtc_columns ABI: hostile-caller quartet + misuse-resistance gate restored
+
+`ci/check_misuse_resistance.py` reported `ufsecp_gpu_ecdsa_verify_lbtc_columns` and
+`ufsecp_gpu_schnorr_verify_lbtc_columns` at 1 negative test each (below the
+`MIN_NEGATIVE_TESTS=3` floor): both public GPU ABI exports were absent from
+`docs/ABI_NEGATIVE_TEST_MANIFEST.json` (generated 2026-06-22, before the two symbols
+were added), so the counter fell back to the source-graph single mapping. That dropped
+`security_autonomy_check.py` `misuse_resistance` to 0/10 → autonomy 90/100 and stalled
+the CAAS Security Gates / PR-Push block on commit c3d4800d.
+
+- **`audit/test_c_abi_negative.cpp`** — added `run_neg25_gpu_columns_hostile` (NEG-25):
+  a real hostile-caller matrix that issues, for each column-verify ABI symbol, distinct
+  misuse calls — null input buffer, null output pointer, zero count, oversized/invalid
+  count (`> 1<<26`), and null-ctx context misuse with an out-sentinel fail-closed
+  assertion. A `ufsecp_gpu_ctx_create` attempt drives a live-ctx branch on GPU hosts
+  while staying deterministic on CPU-only CI (no provider can be created → every call
+  rejects with `NULL_ARG`, out left untouched). 12 new checks; `test_c_abi_negative`
+  now 299/299.
+- **`docs/ABI_NEGATIVE_TEST_MANIFEST.json`** — regenerated with
+  `ci/generate_abi_negative_tests.py`; both column symbols now carry the full
+  success_smoke / null_rejection / zero_edge / invalid_content quartet (15 covered
+  checks each), 0 blocking → `check_misuse_resistance.py` 199/199,
+  `security_autonomy_check.py` 100/100.
+- **`docs/FFI_HOSTILE_CALLER.md`** — new Section J `J.lbtc-columns` documenting the
+  quartet for both symbols.
+- **`docs/AUDIT_COVERAGE.md`** — column-verify ABI symbols recorded under the
+  misuse-resistance / hostile-caller coverage surface.
+- **`docs/EXTERNAL_AUDIT_BUNDLE.json` / `.sha256`** — refreshed so static and
+  current-run verification pass against the now-green gates and current evidence-file
+  hashes.
+
+No gate weakened, no `MIN_NEGATIVE_TESTS` change, no fabricated manifest counts, no ABI
+signature or GPU backend semantics touched.
+
 ## 2026-07-03 — lbtc-direct GPU column verify: reusable staging (A6) + Metal fatal-not-invalid guard (A5/A9)
 
 Follows an adversarial 8-area verification of the columnar GPU verify backend

@@ -337,6 +337,18 @@ copied libsecp-compatible ECDSA opaque scalar storage). Hostile-caller quartet i
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid opaque row returns result 1 (success, when GPU present) |
 | `ufsecp_gpu_ecdsa_verify_lbtc_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | alias of `ufsecp_gpu_ecdsa_verify_opaque_rows`; same valid-row smoke path |
 
+**J.lbtc-columns — `ufsecp_gpu_ecdsa_verify_lbtc_columns` /
+`ufsecp_gpu_schnorr_verify_lbtc_columns`** (PUBLIC-DATA; column-major libbitcoin
+batch layout — digests / pubkeys-or-xonly / signatures in separate parallel arrays,
+no secret material). Guard order is `ctx` → `count==0` → `count>cap` → clear-output →
+`NULL` buffers. Hostile-caller matrix in `test_c_abi_negative.cpp` (NEG-24 pins the
+null-ctx fail-closed contract; NEG-25 adds the full quartet across both symbols):
+
+| Function | null | zero | invalid | smoke |
+|----------|------|------|---------|-------|
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns`   | NULL ctx / NULL digests / NULL output → `UFSECP_ERR_NULL_ARG`, out sentinel left untouched (fail-closed) | count=0 → no-op OK (zero-edge; `NULL_ARG` when no ctx can be created) | oversized count > cap (`1<<26`) → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid column batch verified when a GPU backend is present (smoke) |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | NULL ctx / NULL digests / NULL output → `UFSECP_ERR_NULL_ARG`, out sentinel left untouched (fail-closed) | count=0 → no-op OK (zero-edge; `NULL_ARG` when no ctx can be created) | oversized count > cap (`1<<26`) → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid x-only column batch verified when a GPU backend is present (smoke) |
+
 For the collect APIs, backends without a native collect kernel (OpenCL/Metal)
 return `Unsupported`; the libbitcoin bridge then falls back to the host-collapse
 path (consensus-identical).

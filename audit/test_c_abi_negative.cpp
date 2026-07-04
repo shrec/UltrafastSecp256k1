@@ -1544,6 +1544,115 @@ static void run_neg24_gpu_columns(void) {
           "NEG-24.9: gpu_schnorr_verify_lbtc_columns(null_ctx) leaves out untouched (fail-closed)");
 }
 
+// NEG-25 extends the two GPU column-verify ABI symbols
+// (ufsecp_gpu_ecdsa_verify_lbtc_columns / ufsecp_gpu_schnorr_verify_lbtc_columns)
+// from the single null-ctx check in NEG-24 to a full hostile-caller matrix, so
+// each symbol carries >=3 real negative checks across distinct misuse
+// categories: null input pointer, invalid (null) output pointer, zero count,
+// oversized/invalid batch count, and null-ctx context misuse.
+//
+// Guard order in both functions is load-bearing (src/cpu/src/ufsecp_gpu_impl.cpp):
+//   (1) ctx == NULL      -> UFSECP_ERR_NULL_ARG
+//   (2) count == 0       -> UFSECP_OK        (no-op, BEFORE any buffer check)
+//   (3) count > cap      -> UFSECP_ERR_BAD_INPUT
+//   (4) clear_output_bytes(out, count, 1)
+//   (5) any required buffer NULL -> UFSECP_ERR_NULL_ARG
+// A live GPU ctx cannot be created in the no-provider audit build, so on
+// CPU-only GitHub CI every call rejects with NULL_ARG (ctx is checked first)
+// and the assertions below tolerate that; on a real GPU dev host they
+// additionally pin the zero / oversized / null-buffer guard semantics. No case
+// depends on the presence of real hardware.
+static void run_neg25_gpu_columns_hostile(void) {
+    AUDIT_LOG("\n  [NEG-25] GPU column-verify hostile-caller matrix\n");
+
+    // A live ctx is impossible in this no-provider build (ctx stays null); keep
+    // both branches correct so the checks stay valid on a GPU dev host too.
+    ufsecp_gpu_ctx* ctx = nullptr;
+    (void)ufsecp_gpu_ctx_create(&ctx, UFSECP_GPU_BACKEND_CUDA, 0);
+    const bool live = (ctx != nullptr);
+
+    uint8_t digests32[32] = {};
+    uint8_t pubkeys33[33] = {};
+    uint8_t xonly32[32]   = {};
+    uint8_t sigs64[64]    = {};
+    uint8_t out[2]        = { 0xAA, 0xAA };
+    const size_t oversized = (static_cast<size_t>(1) << 26) + 1;  // > kMaxGpuBatchN
+
+    // ===== ufsecp_gpu_ecdsa_verify_lbtc_columns =====
+
+    // null_rejection: a NULL required input buffer must never be accepted.
+    CHECK_ERR(ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, nullptr, pubkeys33, sigs64, 1, out),
+              "NEG-25.1: ecdsa_verify_lbtc_columns(null digests buffer) rejected");
+
+    // null_rejection: an invalid (NULL) output pointer must never be accepted.
+    CHECK_ERR(ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, digests32, pubkeys33, sigs64, 1, nullptr),
+              "NEG-25.2: ecdsa_verify_lbtc_columns(null output pointer) rejected");
+
+    // zero_edge: count=0 is a fail-closed no-op edge (OK/UNSUPPORTED with a live
+    // ctx, NULL_ARG when no ctx can be created); out is never partially written.
+    {
+        ufsecp_error_t e = ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, digests32, pubkeys33, sigs64, 0, out);
+        CHECK(live ? (e == UFSECP_OK || e == UFSECP_ERR_GPU_UNSUPPORTED)
+                   : (e == UFSECP_ERR_NULL_ARG),
+              "NEG-25.3: ecdsa_verify_lbtc_columns(zero count / count=0) fail-closed");
+    }
+
+    // invalid_content: an oversized/invalid batch count must be rejected.
+    {
+        ufsecp_error_t e = ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, digests32, pubkeys33, sigs64, oversized, out);
+        CHECK(live ? (e == UFSECP_ERR_BAD_INPUT)
+                   : (e == UFSECP_ERR_NULL_ARG),
+              "NEG-25.4: ecdsa_verify_lbtc_columns(oversized invalid count) rejected");
+    }
+
+    // context_misuse: a NULL ctx handle must fail closed and leave out untouched.
+    out[0] = 0xAA;
+    CHECK_CODE(ufsecp_gpu_ecdsa_verify_lbtc_columns(nullptr, digests32, pubkeys33, sigs64, 1, out),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-25.5: ecdsa_verify_lbtc_columns(null ctx, context misuse) -> NULL_ARG");
+    CHECK(out[0] == 0xAA,
+          "NEG-25.6: ecdsa_verify_lbtc_columns(null ctx) leaves out untouched (fail-closed)");
+
+    // ===== ufsecp_gpu_schnorr_verify_lbtc_columns =====  (xonly32 in place of pubkeys33)
+
+    // null_rejection: a NULL required input buffer must never be accepted.
+    CHECK_ERR(ufsecp_gpu_schnorr_verify_lbtc_columns(ctx, nullptr, xonly32, sigs64, 1, out),
+              "NEG-25.7: schnorr_verify_lbtc_columns(null digests buffer) rejected");
+
+    // null_rejection: an invalid (NULL) output pointer must never be accepted.
+    CHECK_ERR(ufsecp_gpu_schnorr_verify_lbtc_columns(ctx, digests32, xonly32, sigs64, 1, nullptr),
+              "NEG-25.8: schnorr_verify_lbtc_columns(null output pointer) rejected");
+
+    // zero_edge: count=0 is a fail-closed no-op edge (OK/UNSUPPORTED with a live
+    // ctx, NULL_ARG when no ctx can be created); out is never partially written.
+    {
+        ufsecp_error_t e = ufsecp_gpu_schnorr_verify_lbtc_columns(ctx, digests32, xonly32, sigs64, 0, out);
+        CHECK(live ? (e == UFSECP_OK || e == UFSECP_ERR_GPU_UNSUPPORTED)
+                   : (e == UFSECP_ERR_NULL_ARG),
+              "NEG-25.9: schnorr_verify_lbtc_columns(zero count / count=0) fail-closed");
+    }
+
+    // invalid_content: an oversized/invalid batch count must be rejected.
+    {
+        ufsecp_error_t e = ufsecp_gpu_schnorr_verify_lbtc_columns(ctx, digests32, xonly32, sigs64, oversized, out);
+        CHECK(live ? (e == UFSECP_ERR_BAD_INPUT)
+                   : (e == UFSECP_ERR_NULL_ARG),
+              "NEG-25.10: schnorr_verify_lbtc_columns(oversized invalid count) rejected");
+    }
+
+    // context_misuse: a NULL ctx handle must fail closed and leave out untouched.
+    out[0] = 0xAA;
+    CHECK_CODE(ufsecp_gpu_schnorr_verify_lbtc_columns(nullptr, digests32, xonly32, sigs64, 1, out),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-25.11: schnorr_verify_lbtc_columns(null ctx, context misuse) -> NULL_ARG");
+    CHECK(out[0] == 0xAA,
+          "NEG-25.12: schnorr_verify_lbtc_columns(null ctx) leaves out untouched (fail-closed)");
+
+    if (ctx) {
+        ufsecp_gpu_ctx_destroy(ctx);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -1586,6 +1695,7 @@ int test_c_abi_negative_run() {
     run_neg22_abi_version();
     run_neg23_cache_dir();
     run_neg24_gpu_columns();
+    run_neg25_gpu_columns_hostile();
 
     printf("[test_c_abi_negative] %d/%d checks passed\n",
            g_pass, g_pass + g_fail);

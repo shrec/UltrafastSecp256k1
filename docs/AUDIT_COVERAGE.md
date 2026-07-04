@@ -772,6 +772,12 @@ silently succeed) when called with:
 - **Truncated / garbage DER** → `UFSECP_ERR_BAD_INPUT`
 - **Output buffer too small** → `UFSECP_ERR_BUF_TOO_SMALL`
 - **BIP-32 seed length < 16 bytes** → `UFSECP_ERR_BAD_INPUT`
+- **GPU column-verify ABI** (`ufsecp_gpu_ecdsa_verify_lbtc_columns` /
+  `ufsecp_gpu_schnorr_verify_lbtc_columns`) → null ctx / null input buffer / null output
+  → `UFSECP_ERR_NULL_ARG` (out sentinel left untouched, fail-closed); count=0 no-op;
+  oversized/invalid count (`> 1<<26`) → `UFSECP_ERR_BAD_INPUT`. Full hostile-caller
+  quartet in NEG-24 (null-ctx contract) + NEG-25 (`run_neg25_gpu_columns_hostile`),
+  keeping both public GPU ABI exports at ≥3 negative tests for the misuse-resistance gate.
 
 Covers 12 function groups: context, seckey, pubkey, ECDSA, Schnorr, ECDH,
 hashing, addresses, WIF, BIP-32, Taproot, pubkey arithmetic.
