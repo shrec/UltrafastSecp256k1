@@ -104,6 +104,24 @@
       "native_hardware_claim": false,
       "benchmark_artifact_contract": false,
       "copy_policy": "gate_only"
+    },
+    {
+      "id": "lbtc_direct_gpu_column_verify_acceptance",
+      "surface": "Direct C++ GPU column verify — hook-installation runtime smoke test in the direct profile",
+      "target_context": "libbitcoin",
+      "status": "documented_current",
+      "severity": "blocking",
+      "claim_scope": "Transparent GPU column acceleration: the GpuColumnsVerifyHook must be non-null after GPU-capable startup in the libbitcoin direct profile (not only in the C ABI audit test). When the companion backend card lbtc-direct-gpu-backend-columns adds a runtime hook smoke target to the direct test suite, this entry moves to accepted.",
+      "evidence_paths": [
+        "docs/LIBBITCOIN_INTEGRATION.md",
+        "compat/libbitcoin_direct/CMakeLists.txt",
+        "src/gpu/src/gpu_engine_hook.cpp",
+        "audit/test_gpu_lbtc_columns_diff.cpp"
+      ],
+      "reproduce_command": "nm -C out/libbitcoin-gpu/compat/libbitcoin_direct/test_lbtc_direct_verify | grep -E 'EngineGpuColumnsInstaller|engine_gpu_columns_hook|secp256k1_gpu_columns_provider_anchor'; cmake --build out/libbitcoin-gpu --target test_gpu_lbtc_columns_diff -j && out/libbitcoin-gpu/audit/test_gpu_lbtc_columns_diff",
+      "native_hardware_claim": false,
+      "benchmark_artifact_claim": false,
+      "copy_policy": "acceptance_tracking_only"
     }
   ]
 }

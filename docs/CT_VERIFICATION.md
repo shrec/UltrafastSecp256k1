@@ -493,7 +493,7 @@ The OpenCL CT layer mirrors the CUDA CT implementation with OpenCL-native barrie
 - `value_barrier()` via inline OpenCL `asm volatile` or volatile loads
 - Branchless masks and conditional moves on all secret-dependent paths
 - CT scalar multiplication with fixed iteration count (GLV + signed-digit)
-- Audited via `opencl_audit_runner` ( 431 modules including CT sections)
+- Audited via `opencl_audit_runner` ( 432 modules including CT sections)
 
 ### Metal CT Layer
 
@@ -506,7 +506,7 @@ src/metal/shaders/
 The Metal CT layer uses Metal Shading Language (MSL) with:
 - `value_barrier()` via threadgroup memory fence pattern
 - Identical algorithms to CUDA/OpenCL CT layers
-- Audited via `metal_audit_runner` ( 431 modules including CT sections)
+- Audited via `metal_audit_runner` ( 432 modules including CT sections)
 
 ---
 
@@ -767,8 +767,8 @@ fixed iteration counts. All three GPU backends implement identical CT algorithms
 
 The GPU CT layers are tested via:
 - **CUDA**: `test_ct_smoke` (9 functional tests) + GPU audit runner (Section S6: CT Analysis)
-- **OpenCL**: `opencl_audit_runner` ( 431 modules including CT signing + CT ZK sections)
-- **Metal**: `metal_audit_runner` ( 431 modules including CT signing + CT ZK sections)
+- **OpenCL**: `opencl_audit_runner` ( 432 modules including CT signing + CT ZK sections)
+- **Metal**: `metal_audit_runner` ( 432 modules including CT signing + CT ZK sections)
 
 ### 5. Experimental Protocols
 

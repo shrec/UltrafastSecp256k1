@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**80 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**81 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -30,6 +30,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_LIBBITCOIN` | `OFF` | [libbitcoin] Canonical bridge-free profile: engine + direct C++ header (ufsecp/libbitcoin.hpp); extras off |
 | `SECP256K1_BUILD_LIBBITCOIN_BENCH` | `OFF` | [libbitcoin] Build libbitcoin direct C++ batch bench; + legacy bridge bench when BRIDGE=ON |
 | `SECP256K1_BUILD_LIBBITCOIN_BRIDGE` | `OFF` | [libbitcoin] Compatibility opt-in: libsecp256k1 shim + C ABI + ufsecp_lbtc batch bridge (legacy) |
+| `SECP256K1_BUILD_LIBBITCOIN_GPU` | `OFF` | [libbitcoin] Opt-in GPU column acceleration for direct C++ verify (transparent; CPU fallback when no GPU runtime) |
 | `SECP256K1_BUILD_LIBBITCOIN_TESTS` | `OFF` | [libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON) |
 | `SECP256K1_BUILD_METAL` | `OFF` | Build Apple Metal GPU support |
 | `SECP256K1_BUILD_OPENCL` | `OFF` | Build OpenCL support |

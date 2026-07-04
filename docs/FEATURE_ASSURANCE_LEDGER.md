@@ -589,7 +589,7 @@ closure pass on 2026-04-06.
 
 ---
 
-## 30. GPU C ABI (`ufsecp_gpu_*`) -- 37 functions
+## 30. GPU C ABI (`ufsecp_gpu_*`) -- 39 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -629,6 +629,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_pubkey_validate` | fb | Y | fb | Y (GPU==shim ec_pubkey_parse) | libbitcoin: batch full compressed-pubkey validation; CUDA native kernel, OpenCL/Metal CPU fallback |
 | `ufsecp_gpu_tagged_hash_var` | fb | Y | fb | Y (GPU==shim tagged_sha256) | libbitcoin: TapLeaf per-item-length tagged hash; CUDA native kernel, OpenCL/Metal CPU fallback |
 | `ufsecp_gpu_hash256` | fb | Y | fb | Y (GPU==SHA256d ref) | libbitcoin: batch HASH256 / merkle node hashing; CUDA native kernel, OpenCL/Metal CPU fallback |
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns` | Y | Y | Y | Y (GPU==CPU lbtc columns) | libbitcoin: batch ECDSA column verify (digests32 | pubkeys33 | opaque-LE sig64); Structure-of-Arrays layout |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | Y | Y | Y | Y (GPU==CPU lbtc columns) | libbitcoin: batch Schnorr column verify (digests32 | xonly32 | BIP-340 sig64); Structure-of-Arrays layout |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | Y | Y | - | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | Y | Y | Y | - | Recover compressed pubkeys from recoverable ECDSA sigs |
 | `ufsecp_gpu_zk_knowledge_verify_batch` | - | - | - | CUDA only | Batch ZK knowledge proof verification |
@@ -641,7 +643,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_bip352_scan_batch` | Y | Y | Y | CUDA+OpenCL | BIP-352 Silent Payment GPU batch scan; scan_privkey SECRET-BEARING |
 
 **Test file:** `audit/test_gpu_abi_gate.cpp` (opaque-row alias negative tests),
-`audit/test_gpu_ops_equivalence.cpp`, `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
+`audit/test_gpu_ops_equivalence.cpp`, `audit/test_gpu_lbtc_columns_diff.cpp`,
+`compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
 
 ---
 

@@ -55,11 +55,11 @@ module Ufsecp
   ERR_BUF_SMALL   = 10
 
   ERROR_NAMES = {
-    ERR_NULL_ARG => 'null argument', ERR_BAD_KEY => 'invalid private key',
-    ERR_BAD_PUBKEY => 'invalid public key', ERR_BAD_SIG => 'invalid signature',
-    ERR_BAD_INPUT => 'bad input', ERR_VERIFY_FAIL => 'verification failed',
-    ERR_ARITH => 'arithmetic error', ERR_SELFTEST => 'selftest failed',
-    ERR_INTERNAL => 'internal error', ERR_BUF_SMALL => 'buffer too small',
+    1 => 'null argument', 2 => 'invalid private key',
+    3 => 'invalid public key', 4 => 'invalid signature',
+    5 => 'bad input', 6 => 'verification failed',
+    7 => 'arithmetic error', 8 => 'selftest failed',
+    9 => 'internal error', 10 => 'buffer too small',
   }.freeze
 
   NET_MAINNET = 0

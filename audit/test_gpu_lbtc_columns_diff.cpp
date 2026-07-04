@@ -190,7 +190,7 @@ void test_differential() {
                 if (e == UFSECP_OK) {
                     bool ok = true;
                     for (size_t k = 0; k < 3; ++k) if (out2[bad[k]] != 0) ok = false;
-                    CHECK(ok, "ecdsa columns: tampered rows fail (==0), fail-closed");
+                    CHECK(ok, "ecdsa columns: tampered rows zeroed (==0)");
                     CHECK(out2[0] == 1 && out2[M - 1] == 1, "ecdsa columns: untouched rows still valid");
                 } else if (is_skip_err(e)) { std::printf("  (ecdsa tamper: runtime skip)\n"); }
                 else CHECK(0, "ecdsa columns tamper: unexpected error");
@@ -202,8 +202,8 @@ void test_differential() {
                 std::vector<uint8_t> out3(M, 0xEE);
                 e = ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, dig.data(), mp.data(), ms.data(), M, out3.data());
                 if (e == UFSECP_OK) {
-                    CHECK(out3[7] == 0, "ecdsa columns: malformed pubkey -> invalid");
-                    CHECK(out3[9] == 0, "ecdsa columns: malformed sig (r>=n) -> invalid");
+                    CHECK(out3[7] == 0, "ecdsa columns: malformed pubkey row zeroed");
+                    CHECK(out3[9] == 0, "ecdsa columns: malformed sig (r>=n) row zeroed");
                     CHECK(out3[0] == 1, "ecdsa columns: well-formed row alongside malformed still valid");
                 } else if (is_skip_err(e)) { std::printf("  (ecdsa malformed: runtime skip)\n"); }
 
@@ -316,7 +316,7 @@ void test_differential() {
                 if (e == UFSECP_OK) {
                     bool ok = true;
                     for (size_t k = 0; k < 3; ++k) if (out2[bad[k]] != 0) ok = false;
-                    CHECK(ok, "schnorr columns: tampered rows fail (==0), fail-closed");
+                    CHECK(ok, "schnorr columns: tampered rows zeroed (==0)");
                 } else if (is_skip_err(e)) { std::printf("  (schnorr tamper: runtime skip)\n"); }
 
                 setenv("UFSECP_GPU_COLUMNS_CHUNK", "100", 1);
@@ -479,7 +479,7 @@ void test_engine_dispatcher() {
                 bool r = secp256k1::ecdsa_batch_verify_opaque_columns(
                     dig.data(), pub.data(), sopq.data(), M, out.data());
                 CHECK(!r, "ecdsa dispatch: handled-some-invalid hook returns false (fail-closed)");
-                CHECK(out[7] == 0, "ecdsa dispatch: handled-some-invalid honours forced row (out[7]==0)");
+                CHECK(out[7] == 0, "ecdsa dispatch: handled-some-bad forced row zeroed (out[7]==0)");
                 CHECK(out[0] == 1, "ecdsa dispatch: handled-some-invalid keeps valid rows (out[0]==1)");
                 CHECK(g_hook_calls >= 1, "ecdsa dispatch: handled-some-invalid hook consulted");
             }
@@ -583,7 +583,7 @@ void test_engine_dispatcher() {
                 bool r = secp256k1::schnorr_batch_verify_bip340_columns(
                     dig.data(), xonly.data(), sig.data(), M, out.data());
                 CHECK(!r, "schnorr dispatch: handled-some-invalid hook returns false (fail-closed)");
-                CHECK(out[7] == 0, "schnorr dispatch: handled-some-invalid honours forced row (out[7]==0)");
+                CHECK(out[7] == 0, "schnorr dispatch: handled-some-bad forced row zeroed (out[7]==0)");
                 CHECK(out[0] == 1, "schnorr dispatch: handled-some-invalid keeps valid rows (out[0]==1)");
                 CHECK(g_hook_calls >= 1, "schnorr dispatch: handled-some-invalid hook consulted");
             }
@@ -694,7 +694,7 @@ void test_cpu_consensus_rejects() {
             std::vector<uint8_t> out(M, 0xEE);
             bool r = secp256k1::schnorr_batch_verify_bip340_columns(
                 dig.data(), mxo.data(), msig.data(), M, out.data());
-            CHECK(!r, "schnorr CPU columns: batch with x>=p/s>=n/s==0 returns false (fail-closed)");
+            CHECK(!r, "schnorr CPU columns: batch with x>=p/s>=n/s==0 returns false");
             CHECK(out[row_badx] == 0, "schnorr CPU columns: x-only x>=p rejected");
             CHECK(out[row_bads] == 0, "schnorr CPU columns: BIP-340 s>=n rejected");
             CHECK(out[row_s0]  == 0, "schnorr CPU columns: BIP-340 s==0 rejected");
