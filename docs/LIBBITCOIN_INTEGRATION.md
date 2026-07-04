@@ -78,6 +78,101 @@ Benchmarks are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON`; the
 canonical benchmark is `bench_lbtc_direct_batch` and it links only
 `secp256k1::fastsecp256k1_libbitcoin` plus the engine.
 
+### GPU Acceleration (opt-in, internal — Eric's contract)
+
+GPU column acceleration is **opt-in** via `-DSECP256K1_BUILD_LIBBITCOIN_GPU=ON`.
+GPU is an internal math-engine tool — the libbitcoin caller surface never sees
+a CPU/GPU split or a recoverable GPU status code.
+
+**Eric's design contract (strict):**
+
+1. **secp is a math library; GPU is an internal tool.** The libbitcoin caller
+   surface (`ufsecp::lbtc::*`) exposes exactly one verify API per operation.
+   There is no separate `_gpu` verify call, no `verify_batch_status`, and no
+   caller-visible operational GPU status code.
+
+2. **Transparent fallback.** If no GPU runtime can be used (no backend compiled,
+   device unavailable, or a backend returns Unsupported), the engine falls back
+   to the deterministic CPU column path. The caller never chunks batches, manages
+   GPU buffers, selects CPU vs GPU, retries after GPU errors, or handles
+   GPU-specific error codes.
+
+3. **Fail-hard on unrecoverable math failure.** If the math cannot be completed
+   at all (no CPU fallback available, internal engine error), the process
+   aborts/fails hard rather than returning consensus-invalid results. A GPU
+   backend that cannot complete the work must decline (`-1`) to trigger CPU
+   fallback — never write consensus-invalid rows. A backend that returns a
+   non-Ok error code triggers the `-1` decline path → CPU fallback, which is
+   the expected recovery mechanism for operational errors. Only a hook-internal
+   inconsistency that makes the CPU fallback itself unsafe (corrupted state,
+   assertion failure) should reach `std::abort()` — the current hook
+   implementation (`engine_gpu_columns_hook` in `gpu_engine_hook.cpp`) always
+   returns `-1` on any backend error or exception, relying on the engine's
+   deterministic CPU column verify as the safe fallback. The `std::abort()`
+   boundary is thus at the engine level if the CPU fallback itself cannot
+   complete, not inside the GPU hook.
+
+4. **Boolean consensus result only.** `ecdsa_verify_batch`, `ecdsa_verify_columns`,
+   `schnorr_verify_batch`, and `schnorr_verify_columns` return `bool` (true iff
+   ALL signatures are valid). Per-row results via `out_results` are optional
+   caller-owned storage — the engine writes 1/0 per row but the boolean return
+   is the consensus verdict. Engine allocation/device/internal failures are
+   never collapsed into consensus-invalid, false, or all-zero per-row results.
+
+**Architecture (high-level):**
+
+GPU column acceleration is implemented as an internal **hook mechanism** in the
+engine (`batch_verify.hpp` / `batch_verify.cpp`). When the engine initializes, a
+self-installing provider attempts to acquire the first available `GpuBackend`
+(CUDA, OpenCL, or Metal) at runtime. If a backend is available, column-verify
+calls are dispatched to the device; if not (no backend compiled, device
+unavailable, or backend returns `Unsupported`), the engine falls back
+transparently to the deterministic CPU column path (`verify_opaque_bounded`).
+
+- All three GPU backends (CUDA, OpenCL, Metal) implement native device kernels
+  for `ecdsa_verify_lbtc_columns` and `schnorr_verify_lbtc_columns`.
+- The hook returns `1` (all valid), `0` (some invalid), or `-1` (decline →
+  CPU fallback). On any backend error or exception, the hook declines (`-1`)
+  rather than writing consensus-invalid data. Only if the CPU fallback itself
+  cannot complete (rare engine-internal failure) does the process abort — the
+  rule is: if the engine can still compute a correct CPU verdict, decline; if
+  not, abort. Never return a consensus result that cannot be guaranteed correct.
+- The hook is consulted **only** when `out_results != nullptr`. When the hook
+  returns `-1` or the hook is unavailable, the engine falls through to the
+  identical CPU column-verify path, which runs the same deterministic
+  multithreaded batch verification — the caller's `out_results` buffer is fully
+  written in either case.
+- The static-initializer provider retention is resolved via a targeted linker
+  anchor (`--undefined=secp256k1_gpu_columns_provider_anchor`), avoiding
+  `WHOLE_ARCHIVE` which would pull ZK-dependent objects into a ZK-free build.
+  This is an internal build detail — libbitcoin integrators do not need to
+  configure or verify it.
+
+GPU column verify is available when:
+- `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` is set
+- At least one GPU backend (CUDA/OpenCL/Metal) is compiled
+- A compatible GPU runtime is available at startup
+
+When any of these conditions is not met, the engine falls back transparently
+to the deterministic CPU column path.
+
+```bash
+# CPU-only (default — bridge-free, C ABI-free, shim-free):
+# Run from libs/UltrafastSecp256k1/ or use -S libs/UltrafastSecp256k1 from the repo root:
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
+
+# With opt-in GPU build support (CUDA example):
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-gpu -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON -DSECP256K1_BUILD_CUDA=ON
+```
+
+The `SECP256K1_BUILD_LIBBITCOIN_GPU` flag is internal to the engine's build
+system — it does not change the public API surface. `ufsecp::lbtc::*` function
+names, result types, and chunking responsibilities are identical with or without
+GPU acceleration.
+
 ### Header API
 
 ```cpp
@@ -116,7 +211,9 @@ with zero security benefit.)
 | `schnorr_verify` | **VT** (public data) | `schnorr_verify()` | `secp256k1` |
 | `ecdsa_recover` | **VT** (public data) | `ecdsa_recover()` | `secp256k1` |
 | `ecdsa_verify_batch` | **VT** (public data) | `ecdsa_batch_verify_opaque_rows()` | `secp256k1` |
+| `ecdsa_verify_columns` | **VT** (public data) | `ecdsa_batch_verify_opaque_columns()` | `secp256k1` |
 | `schnorr_verify_batch` | **VT** (public data) | `schnorr_batch_verify_bip340_rows()` | `secp256k1` |
+| `schnorr_verify_columns` | **VT** (public data) | `schnorr_batch_verify_bip340_columns()` | `secp256k1` |
 | `pubkey_combine` | **VT** (public data) | `Point::add()` | `secp256k1::fast` |
 | `pubkey_tweak_add` | **VT** (public data) | `Point::dual_scalar_mul_gen_point()` | `secp256k1::fast` |
 | `pubkey_tweak_mul` | **VT** (public data) | `Point::scalar_mul()` | `secp256k1::fast` |
@@ -200,12 +297,24 @@ ufsecp::lbtc::schnorr_verify_columns(
 The column ECDSA signature format is opaque by default, exactly like the row
 API.
 
-The column API preserves the opaque format at the public boundary and is tracked
-in `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json` so native no-copy GPU-column claims
-cannot be made until the parity surface exists across CUDA/OpenCL/Metal.
-
-Once verified, signature outcomes are per-row results. A bad signature is not an
-API error; `results[i] == 0` marks the row invalid.
+The column API preserves the opaque format at the public boundary. GPU column
+acceleration is accessed through the internal `GpuColumnsVerifyHook` mechanism
+and is **opt-in** via `-DSECP256K1_BUILD_LIBBITCOIN_GPU=ON`. The architecture
+follows Eric's contract: GPU is an internal math-engine tool; the libbitcoin
+caller surface (`ufsecp::lbtc::*`) is unchanged — there is no separate `_gpu`
+verify API and no caller-visible CPU/GPU split. The hook mechanism is in place
+(hook interface, self-installing provider in `gpu_engine_hook.cpp`, and
+per-backend `ecdsa_verify_lbtc_columns` / `schnorr_verify_lbtc_columns`
+implementations on CUDA, OpenCL, and Metal). **Static-initializer provider
+retention is linker-resolved** via targeted `LINKER:--undefined=secp256k1_gpu_columns_provider_anchor`
+on each executable (not `WHOLE_ARCHIVE`, which would pull ZK-dependent
+fallback objects into a ZK-free build). With a GPU backend compiled and a
+compatible runtime available, the hook transparently accelerates column verify
+on the GPU device; when no GPU runtime is available or the hook declines, the
+CPU path runs transparently. Runtime hook-installation acceptance is covered
+by the direct-profile smoke test `lbtc_direct_gpu_columns_hook` (see
+Validation Checklist below). The canonical-surface progress is tracked in
+`docs/LIBBITCOIN_PERF_MATRIX_STATUS.json`.
 
 ### Windows Notes
 
@@ -246,9 +355,22 @@ out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_direct_batch 128 1 32 \
   --json out/libbitcoin-test/lbtc_direct_smoke.json
 ```
 
-The consensus rule is CPU/GPU/libsecp equivalence: GPU verdicts must match the
-CPU reference bit-for-bit, and the CPU reference is gated against
-libsecp256k1-compatible behavior.
+For GPU-accelerated builds, run the direct-profile runtime hook smoke test:
+
+```bash
+# Direct-profile runtime hook smoke test — asserts hook installed at startup,
+# verifies transparent GPU/CPU columns through ufsecp::lbtc::* calls, tests
+# fail-closed on tampered rows (source:
+# compat/libbitcoin_direct/tests/test_direct_gpu_columns_hook.cpp):
+ctest --test-dir out/libbitcoin-gpu -R lbtc_direct_gpu_columns_hook --output-on-failure
+```
+
+The consensus rule is CPU/GPU equivalence: GPU column-verify verdicts must match
+the CPU reference bit-for-bit. GPU column acceleration is available transparently
+when `SECP256K1_BUILD_LIBBITCOIN_GPU=ON`, at least one GPU backend is compiled,
+and a compatible GPU runtime is present at startup. When no GPU is available, the
+engine transparently falls back to the deterministic CPU column path. The CPU
+reference is always gated against libsecp256k1-compatible behavior.
 
 ---
 
@@ -321,7 +443,42 @@ cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R "lbtc|shim" --output-on-failure
 ```
 
-CUDA is optional:
+GPU acceleration for the direct profile is **opt-in** via
+`-DSECP256K1_BUILD_LIBBITCOIN_GPU=ON`. Without this flag, the build is CPU-only
+regardless of compiled GPU backends:
+
+```bash
+# CPU-only (default — SECP256K1_BUILD_LIBBITCOIN_GPU not set):
+cmake -S . -B out/libbitcoin-direct-cpu -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
+cmake --build out/libbitcoin-direct-cpu -j
+ctest --test-dir out/libbitcoin-direct-cpu -R lbtc_direct --output-on-failure
+
+# With transparent GPU acceleration (CUDA example, opt-in flag required):
+cmake -S . -B out/libbitcoin-direct-gpu -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON \
+  -DSECP256K1_BUILD_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=native
+cmake --build out/libbitcoin-direct-gpu -j
+ctest --test-dir out/libbitcoin-direct-gpu -R lbtc_direct --output-on-failure
+```
+
+When `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` and a GPU backend (CUDA/OpenCL/Metal) is
+compiled, the GPU host layer (`secp256k1_gpu_host`) is linked. The
+self-installing `GpuColumnsVerifyHook` provider TU (`gpu_engine_hook.cpp`) is
+retained via `LINKER:--undefined=secp256k1_gpu_columns_provider_anchor` on each
+executable (targeted anchor retention, not `WHOLE_ARCHIVE`). With a compatible
+GPU runtime at startup, column verify transparently accelerates on the GPU
+device; when no GPU is available, the engine falls back to the deterministic CPU
+column path. No separate `_gpu` API, no caller-visible CPU/GPU split.
+
+For the legacy compatibility bridge (shim + C ABI + ufsecp_lbtc):
 
 ```bash
 cmake -S . -B out/libbitcoin-cuda -G Ninja \
