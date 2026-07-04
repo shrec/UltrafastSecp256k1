@@ -39,7 +39,26 @@ using namespace secp256k1::gpu;
  * This is a link-retention reference, NOT a call: the libbitcoin-direct path still
  * never invokes the C ABI (that path retains the provider with a targeted
  * `--undefined=secp256k1_gpu_columns_provider_anchor` linker anchor at its own link,
- * NOT a blanket WHOLE_ARCHIVE — see compat/libbitcoin_direct/CMakeLists.txt). */
+ * NOT a blanket WHOLE_ARCHIVE — see compat/libbitcoin_direct/CMakeLists.txt).
+ *
+ * The retention reference is a STRONG undefined symbol, so it is only sound in a
+ * link that actually carries the provider object. Every shipping consumer does:
+ *   - libufsecp (ufsecp_shared / ufsecp_static) compiles this TU ONLY when the
+ *     secp256k1_gpu_host target exists and always links it — that archive defines
+ *     the anchor (see include/ufsecp/CMakeLists.txt UFSECP_GPU_IMPL_SRC guard);
+ *   - the unified audit runner lists gpu_engine_hook.cpp among its own sources.
+ * But the non-GPU CABI audit *standalone* tests compile this TU as a raw source
+ * WITHOUT the provider (no secp256k1_gpu_host, no gpu_engine_hook.cpp) — there the
+ * strong reference is an undefined symbol that breaks the link on the CPU-only
+ * (GitHub) CI (LBTC-GPU-SELFINSTALL-DROP / anchor-link). Those targets define
+ * UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR to drop the retention reference: they never
+ * exercise the transparent GPU column-verify dispatch, so losing the self-install
+ * hook there is a no-op. A weak reference is deliberately NOT used instead — a weak
+ * undefined symbol does not pull the provider archive member, so the hook would
+ * silently stop installing in libufsecp. Gate: retention on by default (correct for
+ * every provider-carrying link), opted out only where the provider is absent by
+ * construction (audit/CMakeLists.txt audit_target_defaults). */
+#ifndef UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR
 extern "C" int secp256k1_gpu_columns_provider_anchor;
 namespace {
 struct GpuColumnsProviderKeeper {
@@ -50,6 +69,7 @@ struct GpuColumnsProviderKeeper {
 };
 GpuColumnsProviderKeeper g_gpu_columns_provider_keeper;
 }  // namespace
+#endif  /* UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR */
 
 /* Hard upper bound on user-supplied GPU batch counts.
  * Prevents hostile callers from triggering multi-GB allocations.              */

@@ -1473,6 +1473,78 @@ static void run_neg23_cache_dir(void) {
 }
 
 // ---------------------------------------------------------------------------
+// NEG-24: GPU column-verify provider dispatch — CPU-only no-provider fallback
+// ---------------------------------------------------------------------------
+// Regression guard for commit ac549fd8 ("Fix GPU provider anchor in standalone
+// C ABI audit"). This standalone target compiles src/cpu/src/ufsecp_gpu_impl.cpp
+// as a raw source WITHOUT the GPU provider TU (src/gpu/src/gpu_engine_hook.cpp)
+// that defines the link-retention anchor secp256k1_gpu_columns_provider_anchor,
+// so audit/CMakeLists.txt applies UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR to drop
+// the otherwise-undefined strong reference. Merely building+linking this case
+// proves that guard keeps the CPU-only (GitHub CI) link healthy; the assertions
+// below additionally pin the fail-closed contract of the transparent GPU
+// column-verify dispatch surface that the anchor exists to keep installed.
+//
+// Every input here is invalid (never-compiled backend id / null ctx), so the
+// results are deterministic on BOTH the CPU-only CI and a GPU dev host — no
+// case depends on the presence of real hardware.
+static void run_neg24_gpu_columns(void) {
+    AUDIT_LOG("\n  [NEG-24] GPU column-verify provider dispatch (no-provider fallback)\n");
+
+    // -- ufsecp_gpu_ctx_create: the sole GPU gateway must fail closed --------
+    // UFSECP_GPU_BACKEND_NONE(0) and 0xFF are never a compiled backend, so
+    // create_backend() returns nullptr on every host -> GPU_UNAVAILABLE and
+    // *ctx_out is set to nullptr (no dangling handle escapes the failure).
+    ufsecp_gpu_ctx* c = reinterpret_cast<ufsecp_gpu_ctx*>(0x1);  // poison
+    CHECK_CODE(ufsecp_gpu_ctx_create(&c, UFSECP_GPU_BACKEND_NONE, 0),
+               UFSECP_ERR_GPU_UNAVAILABLE,
+               "NEG-24.1: gpu_ctx_create(backend_none) -> GPU_UNAVAILABLE");
+    CHECK(c == nullptr,
+          "NEG-24.2: gpu_ctx_create(backend_none) nulls *ctx_out (fail-closed)");
+
+    c = reinterpret_cast<ufsecp_gpu_ctx*>(0x1);  // re-poison
+    CHECK_CODE(ufsecp_gpu_ctx_create(&c, 0xFF, 0),
+               UFSECP_ERR_GPU_UNAVAILABLE,
+               "NEG-24.3: gpu_ctx_create(invalid_backend=0xFF) -> GPU_UNAVAILABLE");
+    CHECK(c == nullptr,
+          "NEG-24.4: gpu_ctx_create(invalid_backend) nulls *ctx_out (fail-closed)");
+
+    // null ctx_out is an exact NULL_ARG (NEG-21.1 only pins non-OK).
+    CHECK_CODE(ufsecp_gpu_ctx_create(nullptr, UFSECP_GPU_BACKEND_NONE, 0),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-24.5: gpu_ctx_create(null_ctx_out) -> NULL_ARG");
+
+    // -- column-verify dispatch entrypoints (the anchor-tied surface) --------
+    // Because no ctx can be created in the no-provider build, these are only
+    // reachable with ctx==nullptr, which each rejects with NULL_ARG BEFORE it
+    // clears or writes out_results -> no crash, no partial/garbage verdict.
+    uint8_t digests32[32] = {};
+    uint8_t pubkeys33[33] = {};
+    uint8_t xonly32[32]   = {};
+    uint8_t sigs64[64]    = {};
+
+    // Sentinel-fill the outputs so we can prove the rejected call touches them
+    // at all: a valid-looking "1" written into these must never survive a
+    // fail-closed rejection.
+    uint8_t out_ecdsa   = 0xAA;
+    uint8_t out_schnorr = 0xAA;
+
+    CHECK_CODE(ufsecp_gpu_ecdsa_verify_lbtc_columns(
+                   nullptr, digests32, pubkeys33, sigs64, 1, &out_ecdsa),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-24.6: gpu_ecdsa_verify_lbtc_columns(null_ctx) -> NULL_ARG");
+    CHECK(out_ecdsa == 0xAA,
+          "NEG-24.7: gpu_ecdsa_verify_lbtc_columns(null_ctx) leaves out untouched (fail-closed)");
+
+    CHECK_CODE(ufsecp_gpu_schnorr_verify_lbtc_columns(
+                   nullptr, digests32, xonly32, sigs64, 1, &out_schnorr),
+               UFSECP_ERR_NULL_ARG,
+               "NEG-24.8: gpu_schnorr_verify_lbtc_columns(null_ctx) -> NULL_ARG");
+    CHECK(out_schnorr == 0xAA,
+          "NEG-24.9: gpu_schnorr_verify_lbtc_columns(null_ctx) leaves out untouched (fail-closed)");
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -1513,6 +1585,7 @@ int test_c_abi_negative_run() {
     run_neg21_gpu();
     run_neg22_abi_version();
     run_neg23_cache_dir();
+    run_neg24_gpu_columns();
 
     printf("[test_c_abi_negative] %d/%d checks passed\n",
            g_pass, g_pass + g_fail);

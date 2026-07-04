@@ -36,6 +36,22 @@ macro(audit_target_defaults target_name)
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(${target_name} PRIVATE "LINKER:/STACK:8388608")
     endif()
+    # Drop the GPU column-verify provider retention anchor for standalone audit
+    # binaries that compile src/cpu/src/ufsecp_gpu_impl.cpp as a raw source WITHOUT
+    # the provider TU (src/gpu/src/gpu_engine_hook.cpp, which defines the exported
+    # secp256k1_gpu_columns_provider_anchor). ufsecp_gpu_impl.cpp holds a STRONG
+    # link-retention reference to that anchor; on the CPU-only (GitHub) CI no GPU
+    # host is built, so libufsecp carries no ufsecp_gpu_impl.o / anchor and the
+    # raw-source copy compiled here has an undefined reference that breaks the link
+    # (anchor-link regression). These standalone tests never exercise the transparent
+    # GPU column-verify dispatch, so dropping the self-install retention is a no-op
+    # (UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR — see src/cpu/src/ufsecp_gpu_impl.cpp).
+    # The unified audit runner lists gpu_engine_hook.cpp among its own sources, so the
+    # guard below leaves the anchor enabled there (provider present, resolves cleanly).
+    get_target_property(_atd_sources ${target_name} SOURCES)
+    if(_atd_sources MATCHES "ufsecp_gpu_impl" AND NOT _atd_sources MATCHES "gpu_engine_hook")
+        target_compile_definitions(${target_name} PRIVATE UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR)
+    endif()
 endmacro()
 
 # ===========================================================================
