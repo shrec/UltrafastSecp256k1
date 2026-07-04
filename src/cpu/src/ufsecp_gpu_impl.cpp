@@ -14,7 +14,6 @@
 #include "ufsecp_gpu.h"
 #include "../../gpu/include/gpu_backend.hpp"
 #include "secp256k1/config.hpp"
-
 #include <cstring>
 #include <cstdlib>
 #include <memory>
@@ -28,6 +27,29 @@
 #include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::gpu;
+
+/* Retain the self-installing GPU column-verify provider
+ * (src/gpu/src/gpu_engine_hook.cpp). Its only content is a file-scope static
+ * initializer with no external references, so a normal static link of
+ * secp256k1_gpu_host drops the object and the engine column entrypoints
+ * (secp256k1::ecdsa_batch_verify_opaque_columns / schnorr_batch_verify_bip340_columns)
+ * would silently stay CPU-only. This C ABI TU is always retained in libufsecp (it
+ * defines the exported ufsecp_gpu_* symbols), so referencing the provider's anchor
+ * here drags that object into the shared library and runs its installer at load.
+ * This is a link-retention reference, NOT a call: the libbitcoin-direct path still
+ * never invokes the C ABI (that path retains the provider with a targeted
+ * `--undefined=secp256k1_gpu_columns_provider_anchor` linker anchor at its own link,
+ * NOT a blanket WHOLE_ARCHIVE — see compat/libbitcoin_direct/CMakeLists.txt). */
+extern "C" int secp256k1_gpu_columns_provider_anchor;
+namespace {
+struct GpuColumnsProviderKeeper {
+    GpuColumnsProviderKeeper() noexcept {
+        volatile int keep = secp256k1_gpu_columns_provider_anchor;
+        (void)keep;
+    }
+};
+GpuColumnsProviderKeeper g_gpu_columns_provider_keeper;
+}  // namespace
 
 /* Hard upper bound on user-supplied GPU batch counts.
  * Prevents hostile callers from triggering multi-GB allocations.              */
@@ -352,6 +374,58 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     return to_abi_error_clear_on_fail(
         ctx->backend->schnorr_verify_batch(
             msg_hashes32, pubkeys_x32, sigs64, count, out_results),
+        out_results, count, 1);
+    } UFSECP_GPU_CATCH
+}
+
+/* libbitcoin ECDSA/Schnorr column (Structure-of-Arrays) verify. Public-data.
+ * Completeness mirror of the *_verify_lbtc_rows / *_verify_batch ABI wrappers.
+ * NOTE: the libbitcoin direct entrypoint does NOT call these C ABI functions —
+ * it calls the C++ GpuBackend methods directly (GPU is an internal accelerator,
+ * no separate caller-facing GPU API/status). These exist to satisfy the C ABI
+ * completeness rule for every GpuBackend virtual method. */
+ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!digests32 || !pubkeys33 || !sigs64 || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->ecdsa_verify_lbtc_columns(
+            digests32, pubkeys33, sigs64, count, out_results),
+        out_results, count, 1);
+    } UFSECP_GPU_CATCH
+}
+
+ufsecp_error_t ufsecp_gpu_schnorr_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* xonly32,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!digests32 || !xonly32 || !sigs64 || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->schnorr_verify_lbtc_columns(
+            digests32, xonly32, sigs64, count, out_results),
         out_results, count, 1);
     } UFSECP_GPU_CATCH
 }

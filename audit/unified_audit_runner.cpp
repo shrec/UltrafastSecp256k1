@@ -161,6 +161,7 @@ int test_ecies_regression_run();
 int test_gpu_host_api_negative_run(); // NULL guards, invalid backend/device, error strings
 int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_gpu_zk_prove_verify_differential_run(); // CPU range-proof → GPU poly-check accept/reject
+int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispatcher fallback
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -868,6 +869,10 @@ static const AuditModule ALL_MODULES[] = {
     // when no GPU backend (GitHub runners) or backend built without SECP256K1_GPU_HAS_ZK
     // (bulletproof_verify_batch → ERR_GPU_UNSUPPORTED) — cannot be made mandatory in CI.
     { "gpu_zk_prove_verify_differential", "GPU Bulletproof poly-check vs CPU prover (CPU-prove → GPU-verify)", "differential", test_gpu_zk_prove_verify_differential_run, true  },
+    // advisory=false: null-ctx contract + engine-dispatcher (installable GPU-columns
+    // hook decline/handled/fail-closed) run CPU-only and MUST pass everywhere; the
+    // GPU-native columns-vs-CPU differential self-skips when no GPU backend.
+    { "gpu_lbtc_columns_diff", "GPU vs CPU libbitcoin column verify + engine dispatcher CPU fallback", "differential", test_gpu_lbtc_columns_diff_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================

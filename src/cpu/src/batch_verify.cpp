@@ -28,6 +28,23 @@
 
 namespace secp256k1 {
 
+// -- GPU column-verify accelerator hook ---------------------------------------
+// Translation-unit-local atomic hook plus its installer. Null by default (pure
+// CPU); the two *_batch_verify_*_columns entrypoints consult it internally.
+//
+// The engine (fastsecp256k1) deliberately carries NO gpu:: dependency: the
+// default provider that bridges this hook to a real GPU backend lives in the
+// GPU-host layer (src/gpu/src/gpu_engine_hook.cpp) and SELF-INSTALLS via a static
+// initializer whenever that translation unit is linked (i.e. whenever the GPU
+// host is built). This avoids the secp256k1_gpu_host -> fastsecp256k1 static-lib
+// cycle a direct engine->backend call would create, and needs no compile-time
+// macro. Default (CPU-only) builds never link the provider, so the hook stays
+// null and verification runs on the CPU column path below.
+namespace { std::atomic<GpuColumnsVerifyHook> g_gpu_columns_hook{nullptr}; }
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept {
+    return g_gpu_columns_hook.exchange(hook, std::memory_order_acq_rel);
+}
+
 namespace detail {
 // Single process-wide persistent worker pool, lazily created on first batch-verify _mt
 // call and reused thereafter (no per-call thread spawn).
@@ -830,6 +847,16 @@ bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
         return false;
     }
 
+    if (out_results != nullptr) {
+        if (GpuColumnsVerifyHook hook = g_gpu_columns_hook.load(std::memory_order_acquire)) {
+            const int rc = hook(0, digests32, pubkeys33, sigs64, count, out_results);
+            if (rc >= 0) {
+                return rc == 1;   // GPU handled the whole batch; out_results written
+            }
+            // rc < 0: decline -> CPU fallback below overwrites out_results fully.
+        }
+    }
+
     return verify_opaque_bounded<ECDSABatchEntry>(
         count, out_results, max_threads,
         [digests32, pubkeys33, sigs64](std::size_t i, ECDSABatchEntry& out) {
@@ -887,6 +914,16 @@ bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
         column_layout_overflows(count, 64)) {
         zero_results(out_results, count);
         return false;
+    }
+
+    if (out_results != nullptr) {
+        if (GpuColumnsVerifyHook hook = g_gpu_columns_hook.load(std::memory_order_acquire)) {
+            const int rc = hook(1, digests32, xonly32, sigs64, count, out_results);
+            if (rc >= 0) {
+                return rc == 1;   // GPU handled the whole batch; out_results written
+            }
+            // rc < 0: decline -> CPU fallback below overwrites out_results fully.
+        }
     }
 
     return verify_opaque_bounded<SchnorrBatchEntry>(

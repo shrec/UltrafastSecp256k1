@@ -259,6 +259,51 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     size_t count,
     uint8_t* out_results);
 
+/** Batch libbitcoin ECDSA COLUMN (Structure-of-Arrays) verification.
+ *
+ *  PUBLIC-DATA operation. Column sibling of ufsecp_gpu_ecdsa_verify_lbtc_rows:
+ *  three parallel column spans instead of one interleaved row buffer. The opaque
+ *  little-endian signature and 33-byte compressed pubkey are parsed device-side.
+ *
+ *  NOTE: the libbitcoin direct integration path does NOT call this C ABI; it calls
+ *  the C++ GpuBackend method directly (GPU is an internal accelerator, never a
+ *  separate caller-facing GPU API). This wrapper exists for C ABI completeness.
+ *
+ *  @param ctx           GPU context.
+ *  @param digests32     Input: count * 32 bytes (message digests).
+ *  @param pubkeys33     Input: count * 33 bytes (compressed public keys).
+ *  @param sigs64        Input: count * 64 bytes (opaque LE r||s scalar limbs).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results);
+
+/** Batch libbitcoin Schnorr COLUMN (Structure-of-Arrays) verification.
+ *
+ *  PUBLIC-DATA operation. BIP-340 signatures parsed device-side.
+ *
+ *  NOTE: the libbitcoin direct integration path does NOT call this C ABI; it calls
+ *  the C++ GpuBackend method directly. This wrapper exists for C ABI completeness.
+ *
+ *  @param ctx           GPU context.
+ *  @param digests32     Input: count * 32 bytes (message digests).
+ *  @param xonly32       Input: count * 32 bytes (x-only public keys).
+ *  @param sigs64        Input: count * 64 bytes (BIP-340 R.x||s, big-endian).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_schnorr_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* xonly32,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results);
+
 /** Batch ECDSA "collect" verification (libbitcoin bridge specialization).
  *
  *  PUBLIC-DATA operation. Identical verdict to ufsecp_gpu_ecdsa_verify_batch,

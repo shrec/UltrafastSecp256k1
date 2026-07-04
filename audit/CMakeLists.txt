@@ -236,6 +236,20 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
     add_test(NAME gpu_abi_gate COMMAND test_gpu_abi_gate)
     set_tests_properties(gpu_abi_gate PROPERTIES TIMEOUT 60)
 
+    # -- GPU libbitcoin column verify differential (GPU columns vs CPU per-row) --
+    add_executable(test_gpu_lbtc_columns_diff test_gpu_lbtc_columns_diff.cpp)
+    target_link_libraries(test_gpu_lbtc_columns_diff PRIVATE ${UFSECP_GPU_TEST_LIB})
+    target_include_directories(test_gpu_lbtc_columns_diff PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_BINARY_DIR}/include/ufsecp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include  # secp256k1/batch_verify.hpp (engine hook + columns entrypoints)
+    )
+    target_compile_definitions(test_gpu_lbtc_columns_diff PRIVATE STANDALONE_TEST)
+    add_test(NAME lbtc_gpu_columns_diff COMMAND test_gpu_lbtc_columns_diff)
+    set_tests_properties(lbtc_gpu_columns_diff PROPERTIES
+        TIMEOUT 120
+        LABELS "gpu;libbitcoin;columns;differential")
+
     # -- GPU ops equivalence (GPU vs CPU reference) --
     add_executable(test_gpu_ops_equivalence test_gpu_ops_equivalence.cpp)
     target_link_libraries(test_gpu_ops_equivalence PRIVATE ${UFSECP_GPU_TEST_LIB})
@@ -3667,8 +3681,15 @@ add_executable(unified_audit_runner
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp
+    # Engine GPU column-verify provider: defines secp256k1_gpu_columns_provider_anchor
+    # (ODR-used by ufsecp_gpu_impl.cpp above) and self-installs the engine hook so the
+    # gpu_lbtc_columns_diff dispatcher check sees a non-null provider. Without this TU
+    # the runner fails to link (undefined reference to the anchor).
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_engine_hook.cpp
     test_gpu_host_api_negative.cpp
     test_gpu_abi_gate.cpp
+    # GPU vs CPU libbitcoin column verify + engine-dispatcher CPU-fallback contract
+    test_gpu_lbtc_columns_diff.cpp
     # CPU range-proof → GPU Bulletproof poly-check consistency (advisory; skips w/o GPU/ZK)
     test_gpu_zk_prove_verify_differential.cpp
     # -- field representation tests --

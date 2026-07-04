@@ -149,6 +149,46 @@ struct OclMsmPool {
     }
 };
 
+/* libbitcoin columnar verify persistent buffer pool — grow-only, reused across
+ * engine calls so the hot verify loop performs no per-call/per-chunk
+ * clCreateBuffer (acceptance A6). Holds PUBLIC verify data only (digests,
+ * pubkeys, signatures, verdicts) — no secret material, so no pre-release
+ * zeroing is required. One capacity (in rows) backs the widest column set: the
+ * pubkey/xonly span is sized at 33 B/row so it serves both ECDSA (33) and
+ * Schnorr (32) without a second buffer. */
+struct OclColumnsPool {
+    cl_mem d_dig = nullptr;   // capacity × 32  (digests)
+    cl_mem d_key = nullptr;   // capacity × 33  (ecdsa pubkeys33 / schnorr xonly32)
+    cl_mem d_sig = nullptr;   // capacity × 64  (opaque-LE / BIP-340 sigs)
+    cl_mem d_res = nullptr;   // capacity × sizeof(int)  (verdicts)
+    size_t capacity = 0;
+
+    bool ensure(size_t n, cl_context ctx) {
+        if (n <= capacity) return true;
+        free_all();
+        cl_int err = CL_SUCCESS;
+        d_dig = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 32,          nullptr, &err);
+        d_key = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 33,          nullptr, &err);
+        d_sig = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 64,          nullptr, &err);
+        d_res = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, n * sizeof(int), nullptr, &err);
+        if (d_dig && d_key && d_sig && d_res) { capacity = n; return true; }
+        free_all();
+        return false;
+    }
+
+    void free_all() {
+        if (d_dig) { clReleaseMemObject(d_dig); d_dig = nullptr; }
+        if (d_key) { clReleaseMemObject(d_key); d_key = nullptr; }
+        if (d_sig) { clReleaseMemObject(d_sig); d_sig = nullptr; }
+        if (d_res) { clReleaseMemObject(d_res); d_res = nullptr; }
+        capacity = 0;
+    }
+
+    ~OclColumnsPool() { free_all(); }
+};
+
+static thread_local OclColumnsPool g_ocl_columns_pool;
+
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -230,6 +270,8 @@ public:
         if (ext_ecdsa_verify_)   { clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr; }
         if (ext_ecdsa_verify_compressed_) { clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr; }
         if (ext_ecdsa_lbtc_)     { clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr; }
+        if (ext_ecdsa_lbtc_columns_)   { clReleaseKernel(ext_ecdsa_lbtc_columns_);   ext_ecdsa_lbtc_columns_   = nullptr; }
+        if (ext_schnorr_lbtc_columns_) { clReleaseKernel(ext_schnorr_lbtc_columns_); ext_schnorr_lbtc_columns_ = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -544,6 +586,169 @@ public:
         clReleaseMemObject(d_sigs);
         clReleaseMemObject(d_res);
 
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* Memory-aware chunk size for the column paths: bound per-chunk rows by the
+     * device's max single-allocation (largest column buffer is 64 B/row) and a
+     * hard cap, so a huge batch cannot force a giant one-shot allocation.
+     * UFSECP_GPU_COLUMNS_CHUNK is an internal/test knob — never caller-facing. */
+    size_t lbtc_columns_chunk(cl_command_queue queue, size_t count) const {
+        size_t cap = (static_cast<size_t>(4) << 20);
+        cl_device_id dev = nullptr;
+        cl_ulong max_alloc = 0;
+        if (clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr) == CL_SUCCESS && dev)
+            clGetDeviceInfo(dev, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(max_alloc), &max_alloc, nullptr);
+        if (max_alloc > 0) {
+            const size_t by_mem = static_cast<size_t>(max_alloc) / 64u;
+            if (by_mem < cap) cap = by_mem;
+        }
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        if (cap < 1) cap = 1;
+        return (count < cap) ? count : cap;
+    }
+
+    GpuError ecdsa_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return (Unsupported/alloc/launch/read) leaves no stale
+        // or partial verdict behind. On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_ecdsa_lbtc_columns_)
+            return set_error(GpuError::Unsupported, "ecdsa_verify_lbtc_columns kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        // Reusable, grow-only device + host staging (acceptance A6): the four
+        // column buffers persist across engine calls and chunks — no per-call or
+        // per-chunk clCreateBuffer on the hot loop. Each chunk re-uploads exactly
+        // n rows (in-order queue orders the writes before the kernel) so no stale
+        // data from a larger prior batch is ever read.
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc ecdsa columns device alloc");
+        cl_mem d_dig = g_ocl_columns_pool.d_dig;
+        cl_mem d_pub = g_ocl_columns_pool.d_key;
+        cl_mem d_sig = g_ocl_columns_pool.d_sig;
+        cl_mem d_res = g_ocl_columns_pool.d_res;
+        g_opencl_batch_scratch.ensure_results(chunk);
+        int* const h_res = g_opencl_batch_scratch.results.data();
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(digests32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_pub, CL_FALSE, 0, 33 * n,
+                    const_cast<uint8_t*>(pubkeys33 + off * 33), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa columns upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 1, sizeof(cl_mem), &d_pub);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_columns_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "ecdsa columns kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa columns result read failed");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* xonly32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !xonly32 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return leaves no stale or partial verdict behind.
+        // On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_schnorr_lbtc_columns_)
+            return set_error(GpuError::Unsupported, "schnorr_verify_lbtc_columns kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        // Reusable, grow-only device + host staging (acceptance A6): persistent
+        // across engine calls and chunks — no per-call/per-chunk clCreateBuffer.
+        // Each chunk re-uploads exactly n rows (in-order queue orders the writes
+        // before the kernel) so no stale data from a larger prior batch is read.
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc schnorr columns device alloc");
+        cl_mem d_dig = g_ocl_columns_pool.d_dig;
+        cl_mem d_xon = g_ocl_columns_pool.d_key;
+        cl_mem d_sig = g_ocl_columns_pool.d_sig;
+        cl_mem d_res = g_ocl_columns_pool.d_res;
+        g_opencl_batch_scratch.ensure_results(chunk);
+        int* const h_res = g_opencl_batch_scratch.results.data();
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(digests32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_xon, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(xonly32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr columns upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 1, sizeof(cl_mem), &d_xon);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_columns_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "schnorr columns kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr columns result read failed");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
         clear_error();
         return GpuError::Ok;
     }
@@ -2041,6 +2246,8 @@ private:
     cl_kernel  ext_ecdsa_verify_           = nullptr;
     cl_kernel  ext_ecdsa_verify_compressed_ = nullptr;
     cl_kernel  ext_ecdsa_lbtc_             = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_columns_     = nullptr;
+    cl_kernel  ext_schnorr_lbtc_columns_   = nullptr;
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
@@ -2251,6 +2458,39 @@ private:
             clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
             clReleaseProgram(ext_program_);       ext_program_        = nullptr;
             return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel not found");
+        }
+
+        // libbitcoin column verify kernels (Structure-of-Arrays). Native OpenCL
+        // path; reuse the same device parse/verify as the row kernel.
+        ext_ecdsa_lbtc_columns_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_columns", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_ = nullptr;
+            clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "ecdsa_verify_lbtc_columns kernel not found");
+        }
+
+        ext_schnorr_lbtc_columns_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_columns", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_lbtc_columns_); ext_ecdsa_lbtc_columns_ = nullptr;
+            clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_ = nullptr;
+            clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "schnorr_verify_lbtc_columns kernel not found");
         }
 
         return GpuError::Ok;

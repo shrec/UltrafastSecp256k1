@@ -2509,6 +2509,8 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_ecdsa_verify_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | ECDSA batch verify |
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` / `ufsecp_gpu_ecdsa_verify_lbtc_rows` | `(ctx, rows, stride, n, results_out[]) -> error_t` | Direct strided opaque ECDSA rows; CUDA/OpenCL/Metal parse and low-S normalize on device |
 | `ufsecp_gpu_schnorr_verify_batch` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, results_out[]) -> error_t` | Schnorr/BIP-340 batch verify |
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns` | `(ctx, digests32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin ECDSA column (SoA) verify; opaque-LE sig parsed on device. **C ABI completeness only — the libbitcoin-direct surface is the C++ engine entrypoint, which reaches GPU via `install_gpu_columns_verify_hook` (see below), not this C ABI.** |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | `(ctx, digests32[], xonly32[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin Schnorr column (SoA) verify; BIP-340 parsed on device. **C ABI completeness only (see above).** |
 | `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Non-CUDA backends return Unsupported |
 | `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict (see ecdsa_verify_collect) |
 | `ufsecp_gpu_ecdh_batch` | `(ctx, privkeys32[], pubs33[], n, secrets32_out[]) -> error_t` | ECDH shared secrets (SECRET-BEARING) |
@@ -2530,6 +2532,82 @@ Current GPU C ABI failure semantics:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_bip352_prepare_scan_plan` | `(scan_privkey32, plan264_out) -> error_t` | Precompute 264-byte BIP-352 GLV wNAF scan plan for repeated GPU batch scans; rejects zero/order-or-larger scan keys and zeroes the plan on error |
+
+---
+
+## libbitcoin-direct column verify (C++ engine surface)
+
+Header: `<secp256k1/batch_verify.hpp>`. These are the **single public surface** the
+libbitcoin-direct engine calls (`ufsecp::lbtc::*` invokes exactly these). They
+verify column (Structure-of-Arrays) batches and, when a GPU accelerator is
+installed, use it transparently — the caller sees one API, one boolean-plus-per-row
+result, no CPU/GPU split, and no recoverable GPU status. **Verification is
+variable-time over PUBLIC data (pubkey, signature, message)** — correct by design.
+
+```cpp
+namespace secp256k1 {
+
+// Column entrypoints. Return true iff all rows verify. When out_results is
+// non-null it is filled 1=valid / 0=invalid per row. count == 0 returns true.
+// Null column pointers or a size overflow return false and zero out_results
+// (fail-closed input validation). When a GPU columns hook is installed the
+// entrypoint attempts GPU first and falls back to the deterministic CPU column
+// path — with identical results — whenever the hook declines. An operational
+// GPU/backend error is a decline -> CPU fallback, NEVER a consensus-invalid row.
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results = nullptr,
+                                       std::size_t max_threads = 0);
+
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results = nullptr,
+                                         std::size_t max_threads = 0);
+
+// Installable GPU accelerator hook (PUBLIC-DATA verify only). Null by default =>
+// pure CPU. Self-installed by the GPU-host layer (gpu_engine_hook.cpp) via a
+// static initializer whenever the GPU host is linked; no compile-time macro.
+//   kind == 0 : ECDSA opaque-LE columns (keys = pubkeys33)
+//   kind == 1 : Schnorr BIP-340 columns (keys = xonly32)
+// Return contract:
+//    1 -> handled; out_results fully written; ALL rows valid.
+//    0 -> handled; out_results fully written; at least one row invalid.
+//   -1 -> NOT handled (GPU unavailable/unsupported/operational error); the engine
+//         MUST fall back to the CPU column path. A declining hook MUST NOT write a
+//         consensus-invalid all-zero buffer to signal "not handled".
+using GpuColumnsVerifyHook = int (*)(int kind,
+        const std::uint8_t* digests32, const std::uint8_t* keys,
+        const std::uint8_t* sigs64, std::size_t count,
+        std::uint8_t* out_results) noexcept;
+
+// Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept;
+
+} // namespace secp256k1
+```
+
+Semantics:
+
+- **One caller surface.** There is no caller-visible `_gpu` variant and no
+  recoverable GPU status on this surface. The caller never chunks, never selects
+  CPU vs GPU, and never manages GPU buffers; chunking and reusable staging are
+  engine/backend-owned.
+- **GPU is an internal accelerator.** With a hook installed, each entrypoint
+  attempts the GPU column verify (`kind` 0=ECDSA / 1=Schnorr). With no hook, or on
+  a `-1` decline, the engine completes the batch on the deterministic CPU column
+  path with byte-identical boolean + per-row results.
+- **Fatal, not invalid.** Operational GPU/backend errors are declines converted to
+  a CPU fallback — never consensus-invalid rows or an all-zero OK result. Only an
+  unrecoverable inability to complete the math (with no fallback) fails hard (a
+  fatal engine failure, not consensus data). Malformed layout (null column
+  pointers / size overflow) is fail-closed `false` with zeroed results (input
+  validation, not a GPU error).
+- **Default is pure CPU.** The hook is null unless the libbitcoin-GPU build
+  installs one, so the default direct build is CPU-only until that enablement lands.
 
 ---
 

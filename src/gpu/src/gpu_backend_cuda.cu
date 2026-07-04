@@ -10,6 +10,7 @@
 
 #include "../include/gpu_backend.hpp"
 
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <vector>
@@ -291,8 +292,10 @@ namespace {
 struct CudaBatchScratch {
     std::vector<uint8_t> result_bytes;
     uint8_t* lbtc_rows = nullptr;
+    uint8_t* lbtc_cols = nullptr;      // packed column staging: dig | pub/xon | sig
     bool* lbtc_results = nullptr;
     std::size_t lbtc_rows_bytes = 0;
+    std::size_t lbtc_cols_bytes = 0;
     std::size_t lbtc_results_count = 0;
 
     ~CudaBatchScratch() {
@@ -311,6 +314,11 @@ struct CudaBatchScratch {
             cudaFree(lbtc_results);
             lbtc_results = nullptr;
             lbtc_results_count = 0;
+        }
+        if (lbtc_cols) {
+            cudaFree(lbtc_cols);
+            lbtc_cols = nullptr;
+            lbtc_cols_bytes = 0;
         }
         if (lbtc_rows) {
             cudaFree(lbtc_rows);
@@ -331,6 +339,25 @@ struct CudaBatchScratch {
         const cudaError_t err = cudaMalloc(&lbtc_rows, bytes);
         if (err == cudaSuccess) {
             lbtc_rows_bytes = bytes;
+        }
+        return err;
+    }
+
+    // Grow-only device staging for the columnar verify paths, reused across
+    // successive engine calls so the hot libbitcoin verify loop performs no
+    // fresh per-call cudaMalloc/cudaFree (acceptance A6). Freed at thread exit.
+    cudaError_t ensure_lbtc_cols(std::size_t bytes) {
+        if (bytes <= lbtc_cols_bytes) {
+            return cudaSuccess;
+        }
+        if (lbtc_cols) {
+            cudaFree(lbtc_cols);
+            lbtc_cols = nullptr;
+            lbtc_cols_bytes = 0;
+        }
+        const cudaError_t err = cudaMalloc(&lbtc_cols, bytes);
+        if (err == cudaSuccess) {
+            lbtc_cols_bytes = bytes;
         }
         return err;
     }
@@ -391,6 +418,18 @@ __device__ __forceinline__ uint64_t lbtc_load_le64(const uint8_t* p)
     return v;
 }
 
+// The device point_from_compressed() (secp256k1.cuh) parses the x-coordinate with
+// the NON-strict field_from_bytes(), which silently reduces x mod p. The CPU
+// reference (decompress_compressed_pubkey) uses parse_bytes_strict and REJECTS any
+// x >= p. Without this guard the GPU would accept a compressed key whose 32 x-bytes
+// encode a value >= p (e.g. x_valid + p) that the CPU rejects — a differential
+// false-accept. Validate x < p on the raw big-endian bytes before decompression.
+__device__ __forceinline__ bool lbtc_compressed_x_lt_p(const uint8_t* pub33)
+{
+    FieldElement x;
+    return field_from_bytes_strict(pub33 + 1, &x);
+}
+
 __device__ __forceinline__ bool lbtc_scalar_ge_order(const Scalar* s)
 {
     for (int i = 3; i >= 0; --i) {
@@ -415,11 +454,11 @@ __device__ __forceinline__ bool lbtc_parse_opaque_signature(
 {
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return false;
     if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return false;
-    if (scalar_is_high(&sig->s)) {
-        Scalar neg_s;
-        scalar_negate(&sig->s, &neg_s);
-        sig->s = neg_s;
-    }
+    // BIP-62 low-S: the CPU reference (ecdsa_batch_verify) REJECTS any signature
+    // whose s is high (s > n/2) rather than normalising it. Normalising here would
+    // make the GPU accept a non-canonical/malleated signature the CPU rejects — a
+    // differential false-accept. Reject high-s to stay bit-identical to the CPU.
+    if (scalar_is_high(&sig->s)) return false;
     return true;
 }
 
@@ -436,9 +475,80 @@ __global__ void ecdsa_verify_lbtc_rows_kernel(
     JacobianPoint pub;
     ECDSASignatureGPU sig;
     const bool ok =
+        lbtc_compressed_x_lt_p(row + 32) &&
         point_from_compressed(row + 32, &pub) &&
         lbtc_parse_opaque_signature(row + 65, &sig);
     results[idx] = ok && ecdsa_verify(row, &pub, &sig);
+}
+
+// libbitcoin ECDSA COLUMN verify kernel — sibling of the row kernel above, but
+// reads three separate column spans (digests32 | pubkeys33 | sigs64) instead of
+// one interleaved row. Opaque-LE signature parse + 33-byte pubkey decompression
+// both happen device-side (no host compact-sig staging). 64-bit offsets.
+__global__ void ecdsa_verify_lbtc_columns_kernel(
+    const uint8_t* __restrict__ digests32,
+    const uint8_t* __restrict__ pubkeys33,
+    const uint8_t* __restrict__ sigs64,
+    bool* __restrict__ results,
+    int count)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    JacobianPoint pub;
+    ECDSASignatureGPU sig;
+    const uint8_t* pub33 = pubkeys33 + static_cast<size_t>(idx) * 33;
+    const bool ok =
+        lbtc_compressed_x_lt_p(pub33) &&
+        point_from_compressed(pub33, &pub) &&
+        lbtc_parse_opaque_signature(sigs64 + static_cast<size_t>(idx) * 64, &sig);
+    results[idx] = ok && ecdsa_verify(digests32 + static_cast<size_t>(idx) * 32, &pub, &sig);
+}
+
+// Device-side BIP-340 signature parse (byte-identical to the host bytes_to_schnorr_sig
+// used by schnorr_verify_batch): r is the raw 32 big-endian R.x bytes; s is a
+// 32-byte big-endian scalar loaded into 4 little-endian limbs. Keeping the parse
+// on device removes the host pre-conversion for the column path.
+__device__ __forceinline__ void lbtc_parse_bip340_sig(
+    const uint8_t* sig64, SchnorrSignatureGPU* out)
+{
+#pragma unroll
+    for (int i = 0; i < 32; ++i) out->r[i] = sig64[i];
+#pragma unroll
+    for (int limb = 0; limb < 4; ++limb) {
+        uint64_t v = 0;
+#pragma unroll
+        for (int b = 0; b < 8; ++b)
+            v = (v << 8) | static_cast<uint64_t>(sig64[32 + (3 - limb) * 8 + b]);
+        out->s.limbs[limb] = v;
+    }
+}
+
+// libbitcoin Schnorr COLUMN verify kernel — reads digests32 | xonly32 | sigs64
+// (BIP-340) column spans and parses the signature device-side.
+__global__ void schnorr_verify_lbtc_columns_kernel(
+    const uint8_t* __restrict__ digests32,
+    const uint8_t* __restrict__ xonly32,
+    const uint8_t* __restrict__ sigs64,
+    bool* __restrict__ results,
+    int count)
+{
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+
+    SchnorrSignatureGPU sig;
+    lbtc_parse_bip340_sig(sigs64 + static_cast<size_t>(idx) * 64, &sig);
+    // BIP-340 strict: reject s == 0 and s >= n before verifying so the column
+    // verdict is byte-identical to the CPU reference (SchnorrSignature::parse_strict
+    // via parse_schnorr_bip340_entry) and the OpenCL/Metal backends. Without this,
+    // a malleated s' ≡ s (mod n) with s' >= n maps to the same point as a valid s
+    // and would be a GPU-only false-accept (signature malleability / consensus split).
+    if (scalar_is_zero(&sig.s) || lbtc_scalar_ge_order(&sig.s)) {
+        results[idx] = false;
+        return;
+    }
+    results[idx] = schnorr_verify(xonly32 + static_cast<size_t>(idx) * 32,
+                                  digests32 + static_cast<size_t>(idx) * 32, &sig);
 }
 
 #if SECP256K1_GPU_HAS_MSM
@@ -975,6 +1085,138 @@ gmb_cleanup:
         cudaFree(d_sigs);
         cudaFree(d_msgs);
         cudaFree(d_pks);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    // Engine-owned, memory-aware chunk size (rows). Bounds a chunk by half of free
+    // device memory and a hard cap so a large batch cannot force a giant one-shot
+    // allocation. UFSECP_GPU_COLUMNS_CHUNK is an internal/test knob only — the
+    // caller never sees or manages chunking.
+    static size_t lbtc_columns_chunk(size_t count, size_t per_row) {
+        size_t free_b = 0, total_b = 0;
+        size_t cap = (static_cast<size_t>(4) << 20);
+        if (cudaMemGetInfo(&free_b, &total_b) == cudaSuccess && per_row) {
+            const size_t by_mem = (free_b / 2) / per_row;
+            if (by_mem < cap) cap = by_mem;
+        }
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        if (cap < 1) cap = 1;
+        return (count < cap) ? count : cap;
+    }
+
+    GpuError ecdsa_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return (alloc/upload/launch/sync/download) leaves no
+        // stale or partial verdict behind for a caller that inspects the buffer
+        // despite the error status. On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        const size_t chunk = lbtc_columns_chunk(count, 32u + 33u + 64u + sizeof(bool));
+        // Reusable, grow-only device + host staging (acceptance A6): no fresh
+        // per-call cudaMalloc/cudaFree on the hot loop. One packed device buffer
+        // holds the three column spans (dig | pub | sig) at fixed sub-offsets.
+        if (g_cuda_batch_scratch.ensure_lbtc_cols(chunk * (32u + 33u + 64u)) != cudaSuccess ||
+            g_cuda_batch_scratch.ensure_lbtc_results(chunk) != cudaSuccess) {
+            return set_error(GpuError::Memory, "lbtc ecdsa columns device alloc");
+        }
+        uint8_t* const d_dig = g_cuda_batch_scratch.lbtc_cols;
+        uint8_t* const d_pub = d_dig + chunk * 32;
+        uint8_t* const d_sig = d_pub + chunk * 33;
+        bool* const d_res = g_cuda_batch_scratch.lbtc_results;
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(chunk);
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (cudaMemcpy(d_dig, digests32 + off * 32, n * 32, cudaMemcpyHostToDevice) != cudaSuccess ||
+                cudaMemcpy(d_pub, pubkeys33 + off * 33, n * 33, cudaMemcpyHostToDevice) != cudaSuccess ||
+                cudaMemcpy(d_sig, sigs64    + off * 64, n * 64, cudaMemcpyHostToDevice) != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc ecdsa columns upload");
+            }
+            const int threads = 128;
+            const int blocks  = (static_cast<int>(n) + threads - 1) / threads;
+            ecdsa_verify_lbtc_columns_kernel<<<blocks, threads>>>(
+                d_dig, d_pub, d_sig, d_res, static_cast<int>(n));
+            if (cudaGetLastError() != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc ecdsa columns kernel launch");
+            }
+            if (cudaDeviceSynchronize() != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc ecdsa columns kernel sync");
+            }
+            if (cudaMemcpy(h_res, d_res, n * sizeof(bool), cudaMemcpyDeviceToHost) != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc ecdsa columns download");
+            }
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* xonly32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !xonly32 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return leaves no stale or partial verdict behind.
+        // On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        const size_t chunk = lbtc_columns_chunk(count, 32u + 32u + 64u + sizeof(bool));
+        // Reusable, grow-only device + host staging (acceptance A6): no fresh
+        // per-call cudaMalloc/cudaFree on the hot loop. One packed device buffer
+        // holds the three column spans (dig | xon | sig) at fixed sub-offsets.
+        if (g_cuda_batch_scratch.ensure_lbtc_cols(chunk * (32u + 32u + 64u)) != cudaSuccess ||
+            g_cuda_batch_scratch.ensure_lbtc_results(chunk) != cudaSuccess) {
+            return set_error(GpuError::Memory, "lbtc schnorr columns device alloc");
+        }
+        uint8_t* const d_dig = g_cuda_batch_scratch.lbtc_cols;
+        uint8_t* const d_xon = d_dig + chunk * 32;
+        uint8_t* const d_sig = d_xon + chunk * 32;
+        bool* const d_res = g_cuda_batch_scratch.lbtc_results;
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(chunk);
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (cudaMemcpy(d_dig, digests32 + off * 32, n * 32, cudaMemcpyHostToDevice) != cudaSuccess ||
+                cudaMemcpy(d_xon, xonly32   + off * 32, n * 32, cudaMemcpyHostToDevice) != cudaSuccess ||
+                cudaMemcpy(d_sig, sigs64    + off * 64, n * 64, cudaMemcpyHostToDevice) != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc schnorr columns upload");
+            }
+            const int threads = 128;
+            const int blocks  = (static_cast<int>(n) + threads - 1) / threads;
+            schnorr_verify_lbtc_columns_kernel<<<blocks, threads>>>(
+                d_dig, d_xon, d_sig, d_res, static_cast<int>(n));
+            if (cudaGetLastError() != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc schnorr columns kernel launch");
+            }
+            if (cudaDeviceSynchronize() != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc schnorr columns kernel sync");
+            }
+            if (cudaMemcpy(h_res, d_res, n * sizeof(bool), cudaMemcpyDeviceToHost) != cudaSuccess) {
+                return set_error(GpuError::Launch, "lbtc schnorr columns download");
+            }
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
         clear_error();
         return GpuError::Ok;
     }

@@ -393,7 +393,12 @@ inline bool lbtc_parse_opaque_signature(device const uchar* opaque,
                                         thread ECDSASignature &sig) {
     if (!lbtc_parse_opaque_scalar(opaque, sig.r)) return false;
     if (!lbtc_parse_opaque_scalar(opaque + 32, sig.s)) return false;
-    if (!scalar_is_low_s(sig.s)) sig.s = scalar_negate(sig.s);
+    // CPU column reference (batch_verify.cpp:550-556 ecdsa_batch_verify pre-validate)
+    // REJECTS high-s via is_low_s(): a malleated s' = n - s must verify INVALID, not be
+    // silently normalized to low-s and accepted. Normalize-and-accept was a false-accept
+    // differential vs the CPU path (and vs the CUDA backend which already rejects). Match
+    // both: reject high-s (s > n/2) so this row's verdict is 0.
+    if (!scalar_is_low_s(sig.s)) return false;
     return true;
 }
 
@@ -507,6 +512,84 @@ kernel void ecdsa_verify_lbtc_rows(
     const bool ok = lbtc_point_from_compressed(row + 32, pub) &&
                     lbtc_parse_opaque_signature(row + 65, sig);
     results[tid] = ok && ecdsa_verify(msg_bytes, pub, sig) ? 1u : 0u;
+}
+
+// libbitcoin ECDSA COLUMN verify — Structure-of-Arrays sibling of
+// ecdsa_verify_lbtc_rows: three separate column spans. Opaque-LE signature and
+// 33-byte compressed pubkey are parsed device-side. 64-bit (ulong) row offsets.
+kernel void ecdsa_verify_lbtc_columns(
+    device const uchar *digests32      [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys33      [[buffer(1)]],   // N × 33 (compressed)
+    device const uchar *sigs64         [[buffer(2)]],   // N × 64 (opaque LE r||s)
+    device uint *results               [[buffer(3)]],
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    uchar msg_bytes[32];
+    for (int i = 0; i < 32; ++i) msg_bytes[i] = digests32[ulong(tid) * 32 + i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    const bool ok = lbtc_point_from_compressed(pubkeys33 + ulong(tid) * 33, pub) &&
+                    lbtc_parse_opaque_signature(sigs64 + ulong(tid) * 64, sig);
+    results[tid] = ok && ecdsa_verify(msg_bytes, pub, sig) ? 1u : 0u;
+}
+
+// libbitcoin Schnorr COLUMN verify — digests32 | xonly32 | sigs64 (BIP-340).
+// Mirrors schnorr_verify_batch's device-side big-endian parse (R.x, s), but with
+// explicit column naming and self-consistent buffer order (buffer(0)=digests).
+kernel void schnorr_verify_lbtc_columns(
+    device const uchar *digests32      [[buffer(0)]],   // N × 32
+    device const uchar *xonly32        [[buffer(1)]],   // N × 32 (x-only)
+    device const uchar *sigs64         [[buffer(2)]],   // N × 64 (BIP-340 R.x||s)
+    device uint *results               [[buffer(3)]],
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    Scalar256 msg, pub_x, sig_rx, sig_s;
+    for (int i = 0; i < 8; i++) {
+        // 64-bit (ulong) row offsets: match ecdsa_verify_lbtc_columns and keep
+        // large batches (>~67M rows) from overflowing 32-bit index math.
+        ulong mi = ulong(tid) * 32 + i * 4;
+        msg.limbs[7 - i]   = ((uint)digests32[mi] << 24) |
+                             ((uint)digests32[mi+1] << 16) |
+                             ((uint)digests32[mi+2] << 8) |
+                             ((uint)digests32[mi+3]);
+        pub_x.limbs[7 - i] = ((uint)xonly32[mi] << 24) |
+                             ((uint)xonly32[mi+1] << 16) |
+                             ((uint)xonly32[mi+2] << 8) |
+                             ((uint)xonly32[mi+3]);
+        ulong si = ulong(tid) * 64 + i * 4;
+        sig_rx.limbs[7 - i] = ((uint)sigs64[si] << 24) |
+                              ((uint)sigs64[si+1] << 16) |
+                              ((uint)sigs64[si+2] << 8) |
+                              ((uint)sigs64[si+3]);
+        sig_s.limbs[7 - i] = ((uint)sigs64[si + 32] << 24) |
+                             ((uint)sigs64[si + 32 + 1] << 16) |
+                             ((uint)sigs64[si + 32 + 2] << 8) |
+                             ((uint)sigs64[si + 32 + 3]);
+    }
+
+    // BIP-340 strict: reject s == 0 and s >= n before verifying so the column
+    // verdict is byte-identical to the CPU reference (SchnorrSignature::parse_strict
+    // via parse_schnorr_bip340_entry) and the OpenCL/CUDA backends. Without this,
+    // a malleated s' ≡ s (mod n) with s' >= n maps to the same point as a valid s
+    // and would be a GPU-only false-accept (signature malleability / consensus split).
+    Scalar256 n_order;
+    for (int i = 0; i < 8; ++i) n_order.limbs[i] = SECP256K1_N[i];
+    if (scalar256_is_zero(sig_s) || scalar256_ge(sig_s, n_order)) {
+        results[tid] = 0u;
+        return;
+    }
+
+    FieldElement px;
+    for (int i = 0; i < 8; i++) px.limbs[i] = pub_x.limbs[i];
+
+    results[tid] = schnorr_verify(msg, px, sig_rx, sig_s) ? 1u : 0u;
 }
 
 // =============================================================================

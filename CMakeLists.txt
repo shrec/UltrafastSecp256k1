@@ -166,6 +166,14 @@ option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "[libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON)" OFF)
 option(SECP256K1_BUILD_LIBBITCOIN_BENCH
        "[libbitcoin] Build libbitcoin direct C++ batch bench; + legacy bridge bench when BRIDGE=ON" OFF)
+# GPU accelerator opt-in: when ON and at least one GPU backend (CUDA/OpenCL/Metal) is
+# compiled, the libbitcoin direct test/bench executables link secp256k1_gpu_host so
+# the self-installing GpuColumnsVerifyHook transparently accelerates column verify
+# calls. OFF by default — CPU-only. GPU is an internal math-engine tool; the caller
+# surface (ufsecp::lbtc::*) is unchanged. No caller-visible CPU/GPU split, no GPU
+# status, no recoverable GPU error path.
+option(SECP256K1_BUILD_LIBBITCOIN_GPU
+       "[libbitcoin] Opt-in GPU column acceleration for direct C++ verify (transparent; CPU fallback when no GPU runtime)" OFF)
 if(SECP256K1_BUILD_LIBBITCOIN)
     # libsecp256k1-compatible contract (engine-level; CT enforced, strict ABI).
     set(SECP256K1_REQUIRE_CT   ON)
@@ -207,6 +215,16 @@ if(SECP256K1_BUILD_LIBBITCOIN)
         set(SECP256K1_BUILD_CABI OFF)
         set(SECP256K1_INSTALL_CABI OFF)
         message(STATUS "secp256k1-fast: ✅ libbitcoin profile — bridge-free direct C++ header (ufsecp/libbitcoin.hpp), static engine, minimal surface")
+    endif()
+    # GPU accelerator opt-in: passes SECP256K1_BUILD_LIBBITCOIN_GPU to the libbitcoin_direct
+    # subdirectory. When ON, test/bench executables may link secp256k1_gpu_host for
+    # transparent column-verify acceleration (CPU fallback when no GPU runtime).
+    # GPU availability at build time is checked inside the subdirectory: the flag alone
+    # is insufficient — a compiled GPU backend (CUDA/OpenCL/Metal) must also exist.
+    if(SECP256K1_BUILD_LIBBITCOIN_GPU)
+        message(STATUS "  libbitcoin GPU opt-in: ON (SECP256K1_BUILD_LIBBITCOIN_GPU=ON — transparent column verify when GPU backend compiled)")
+    else()
+        message(STATUS "  libbitcoin GPU opt-in: OFF (CPU-only column verify)")
     endif()
 endif()
 

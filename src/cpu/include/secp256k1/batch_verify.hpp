@@ -137,6 +137,33 @@ bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
                                          std::uint8_t* out_results = nullptr,
                                          std::size_t max_threads = 0);
 
+// -- GPU column-verify accelerator hook (PUBLIC-DATA verify only) --------------
+// Null by default (pure CPU). Self-installed by the GPU-host layer
+// (src/gpu/src/gpu_engine_hook.cpp) via a static initializer whenever that TU is
+// linked; the engine keeps NO gpu:: dependency (a reverse engine->gpu_host link
+// would be a static-lib cycle) and no compile-time macro gates it. The two
+// *_batch_verify_*_columns entrypoints consult it internally so the
+// libbitcoin-direct caller keeps ONE API with no caller-visible CPU/GPU split and
+// no recoverable GPU status.
+//   kind == 0 : ECDSA opaque-LE columns  (keys = pubkeys33)
+//   kind == 1 : Schnorr BIP-340 columns  (keys = xonly32)
+// Return contract:
+//    1  -> handled; out_results fully written; ALL rows valid.
+//    0  -> handled; out_results fully written; at least one row invalid.
+//   -1  -> NOT handled (GPU unavailable/unsupported/operational error); the engine
+//          MUST fall back to the CPU column path. A declining hook MUST NOT write a
+//          consensus-invalid all-zero buffer to signal "not handled".
+// Operational backend errors are declines (-1) -> CPU fallback, never invalid rows.
+// A hook that cannot complete the math and cannot decline must abort/fail hard
+// itself; it must never return an incorrect verdict.
+using GpuColumnsVerifyHook = int (*)(int kind,
+        const std::uint8_t* digests32, const std::uint8_t* keys,
+        const std::uint8_t* sigs64, std::size_t count,
+        std::uint8_t* out_results) noexcept;
+
+// Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept;
+
 // -- Identify Invalid Signatures ----------------------------------------------
 
 // After a batch fails, identify which signature(s) are invalid.

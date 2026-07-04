@@ -1259,13 +1259,12 @@ inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
     if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return 0;
 
-    Scalar neg_s;
-    scalar_negate_impl(&sig->s, &neg_s);
-    const ulong mask = scalar_is_high_mask_impl(&sig->s);
-    sig->s.limbs[0] = (sig->s.limbs[0] & ~mask) | (neg_s.limbs[0] & mask);
-    sig->s.limbs[1] = (sig->s.limbs[1] & ~mask) | (neg_s.limbs[1] & mask);
-    sig->s.limbs[2] = (sig->s.limbs[2] & ~mask) | (neg_s.limbs[2] & mask);
-    sig->s.limbs[3] = (sig->s.limbs[3] & ~mask) | (neg_s.limbs[3] & mask);
+    // BIP-62 low-S: the CPU reference (ecdsa_batch_verify pre-validate loop) REJECTS
+    // any signature whose s is high (s > n/2) rather than normalising it. Normalising
+    // here would make the GPU accept a non-canonical/malleated signature the CPU
+    // rejects — a differential false-accept. Reject high-s to stay bit-identical to
+    // the CPU reference and to the CUDA/Metal backends.
+    if (scalar_is_high_mask_impl(&sig->s)) return 0;
     return 1;
 }
 
@@ -2123,6 +2122,69 @@ __kernel void ecdsa_verify_lbtc_rows(
     int ok = lbtc_point_from_compressed(row + 32, &pub) &&
              lbtc_parse_opaque_signature(row + 65, &sig);
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* libbitcoin ECDSA COLUMN verify — Structure-of-Arrays sibling of
+ * ecdsa_verify_lbtc_rows. Three separate column spans; opaque-LE signature and
+ * 33-byte compressed pubkey parsed device-side. 64-bit (ulong) row offsets. */
+__kernel void ecdsa_verify_lbtc_columns(
+    __global const uchar* digests32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = digests32[(ulong)gid * 32 + i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    int ok = lbtc_point_from_compressed(pubkeys33 + (ulong)gid * 33, &pub) &&
+             lbtc_parse_opaque_signature(sigs64 + (ulong)gid * 64, &sig);
+    results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* libbitcoin Schnorr COLUMN verify — digests32 | xonly32 | sigs64 (BIP-340).
+ * The BIP-340 signature is parsed device-side: r is the raw 32 big-endian R.x
+ * bytes; s is a big-endian scalar loaded into 4 little-endian limbs (identical to
+ * the host be32_to_le_limbs used by schnorr_verify_batch). 64-bit row offsets. */
+__kernel void schnorr_verify_lbtc_columns(
+    __global const uchar* digests32,
+    __global const uchar* xonly32,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar pk[32], msg[32];
+    for (int i = 0; i < 32; ++i) {
+        pk[i]  = xonly32[(ulong)gid * 32 + i];
+        msg[i] = digests32[(ulong)gid * 32 + i];
+    }
+
+    SchnorrSignature sig;
+    const ulong base = (ulong)gid * 64;
+    for (int i = 0; i < 32; ++i) sig.r[i] = sigs64[base + i];
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int b = 32 + (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sigs64[base + b + j];
+        sig.s.limbs[limb] = v;
+    }
+    // BIP-340 strict: reject s == 0 and s >= n before verifying so the column
+    // verdict matches the CPU reference (SchnorrSignature::parse_strict). Without
+    // this, s' = s + n (>= n) maps to the same point as a valid s and would be a
+    // false-accept on GPU while the CPU rejects it (signature malleability).
+    if (scalar_is_zero(&sig.s) || lbtc_scalar_ge_order(&sig.s)) {
+        results[gid] = 0;
+        return;
+    }
+    results[gid] = schnorr_verify_impl(pk, msg, &sig);
 }
 
 /* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.

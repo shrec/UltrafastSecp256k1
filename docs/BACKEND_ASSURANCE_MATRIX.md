@@ -67,6 +67,125 @@ bridge-side msg/pub/sig column staging for the packed-row API while preserving
 libsecp-compatible verification semantics. `ufsecp_gpu_ecdsa_verify_lbtc_rows`
 is retained as a compatibility alias.
 
+### libbitcoin ECDSA/Schnorr column verify (Added 2026-07-01)
+
+The single public libbitcoin-direct verify surface for the column (Structure-of-
+Arrays) layout is the pair of engine entrypoints
+`secp256k1::ecdsa_batch_verify_opaque_columns(digests32, pubkeys33, sigs64, count,
+out_results)` and `secp256k1::schnorr_batch_verify_bip340_columns(digests32,
+xonly32, sigs64, count, out_results)` (the `ufsecp::lbtc::*` header calls exactly
+these). There is **no caller-visible `_gpu` variant on this surface and no
+recoverable GPU status** — the caller sees one API with a boolean-plus-per-row
+result and never chunks, never selects CPU vs GPU, and never manages GPU buffers.
+
+The columns consumed are libbitcoin's parallel spans:
+`digests32[count]`, `pubkeys[count]` (33 compressed for ECDSA / 32 x-only for
+Schnorr), `sigs64[count]` (ECDSA = opaque LE `secp256k1_ecdsa_signature`; Schnorr
+= BIP-340 `R.x||s`). Verification is **variable-time over PUBLIC data** (pubkey,
+signature, message) — correct by design, not a side-channel gap.
+
+**GPU is an internal accelerator, selected inside the engine.** A GPU provider is
+attached by installing a process-wide hook
+`secp256k1::install_gpu_columns_verify_hook(...)` (thread-safe, returns the
+previous hook; installed by the libbitcoin-GPU build). When a hook is installed,
+each column entrypoint attempts the GPU column verify first; when no hook is
+installed, or the hook **declines** (GPU not compiled / no device / Unsupported /
+operational backend error), the engine transparently completes the batch on the
+deterministic CPU column path with **identical boolean and per-row semantics**.
+Chunking and reusable device staging are engine/backend-owned, never caller-owned.
+
+**Failure policy — fatal, not invalid.** An operational GPU/backend error is
+converted to a CPU fallback via the hook's decline; it is **never** represented as
+a consensus-invalid row or an all-zero OK result. Only an unrecoverable inability
+to complete the required math (with no fallback possible) fails hard — that is a
+fatal engine failure, not consensus data. A malformed layout (null column
+pointers or size overflow) remains fail-closed: the entrypoint returns `false` and
+zeroes `out_results` — this is input validation, not a GPU error.
+
+The backend column methods `ecdsa_verify_lbtc_columns` / `schnorr_verify_lbtc_columns`
+exist **natively on CUDA, OpenCL, and Metal**. They parse the ECDSA opaque
+little-endian r/s and Schnorr BIP-340 signatures **device-side** (no host
+compact-signature staging) and decompress the 33-byte pubkeys on device; per-row
+offsets are 64-bit and results are `uint8_t` 1=valid/0=invalid. A backend that
+returns `Unsupported`/non-OK is completed by the engine CPU fallback — that is
+correctness-preserving, not a success gap. The native column method and the
+always-present CPU fallback are both true simultaneously: the kernels exist on all
+three backends, and the engine always has a deterministic CPU path to fall back
+to; there is no "kernels not yet ready" state on this surface.
+
+| Backend | column path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — gated vs libsecp256k1 | public-data variable-time; byte-identical fallback for every backend |
+| CUDA | native on-device kernel | **HIGH** — `lbtc_gpu_columns_diff` proves GPU==CPU on valid/tampered/malformed + forced small chunks | public-data variable-time |
+| OpenCL | native on-device kernel | **HIGH** — same kernel device-parse; differential-tested when an OpenCL device is present | public-data variable-time |
+| Metal | native on-device kernel | **MEDIUM** — compiles/validates on macOS CI; Linux host cannot build Metal | public-data variable-time; fatal-not-invalid dispatch guard (below) |
+
+**Engine-owned reusable staging (acceptance A6).** Chunk sizing is engine-owned and
+memory-aware on every backend (`lbtc_columns_chunk`); the caller never chunks or sees
+a chunk parameter. Device/host staging is grow-only and **reused across successive
+engine calls**, so a hot libbitcoin verify loop performs no fresh per-call allocation:
+
+- **CUDA** — a thread-local `CudaBatchScratch` keeps one packed device buffer
+  (`dig | key | sig`) plus the results buffer and host readback vector, grown on
+  demand and freed only at thread exit. Validated on RTX 5060 Ti including forced
+  1-row chunks (`UFSECP_GPU_COLUMNS_CHUNK=1`, byte-identical to CPU).
+- **OpenCL** — a thread-local `OclColumnsPool` (mirroring the existing MSM pool) keeps
+  the four column buffers persistent across calls and chunks; each chunk re-uploads
+  exactly its rows via `clEnqueueWriteBuffer` on the in-order queue, so no stale data
+  from a larger prior batch is read. Validated on the NVIDIA OpenCL runtime including
+  forced small chunks.
+- **Metal** — the column methods allocate `MTLResourceStorageModeShared` buffers per
+  call, consistent with every other Metal op (the Metal backend has no persistent
+  device-buffer pool). On Apple Silicon these are cheap unified-memory allocations; a
+  persistent Metal pool is a tracked future optimization, not a correctness gap.
+
+**Fatal-not-invalid on Metal dispatch failure (acceptance A5/A9).**
+`MetalRuntime::dispatch_sync` is `void` and only logs a command-buffer error, so a GPU
+execution failure (watchdog / device-lost / mid-run fault) would leave the shared
+result buffer unwritten and be misread as "every row invalid" — an operational failure
+masquerading as a consensus verdict. The Metal column methods now seed every result
+slot with a sentinel the kernel never writes (it writes only 0/1 per row) and **decline
+with a non-OK `GpuError` if any sentinel survives the dispatch**, so the engine hook
+falls back to CPU instead of emitting invalid rows. CUDA and OpenCL already detect this
+via `cudaDeviceSynchronize` / `clFinish` return codes. The deeper fix — returning a
+status from `dispatch_sync` in `src/metal/src/metal_runtime.mm` — is tracked for the
+runtime owner, as that file is outside this card's write scope.
+
+Caller contract: **no bridge, no caller-visible GPU API, engine-owned chunking.**
+The default direct build is **pure CPU** — no compile-time macro gates the GPU
+provider. The engine (`fastsecp256k1`) owns an installable `GpuColumnsVerifyHook`
+(see `secp256k1/batch_verify.hpp`) and carries no `gpu::` dependency, because
+`secp256k1_gpu_host` already PRIVATE-links the engine and a reverse link would be a
+static-library cycle. The default provider that bridges that hook to a real backend
+lives in the GPU-host layer (`src/gpu/src/gpu_engine_hook.cpp`) and **self-installs
+via a static initializer whenever the GPU host is linked**. Enablement is therefore
+the inspectable build fact "is the provider translation unit linked," not a macro:
+
+- GPU host not built (default direct build): the provider is never linked, the hook
+  stays null, and the engine surface runs the pure-CPU column path.
+- GPU host built: the provider self-installs and the engine surface
+  (`ecdsa_batch_verify_opaque_columns` / `schnorr_batch_verify_bip340_columns`)
+  transparently accelerates on the GPU, declining to CPU on any operational error
+  (fatal-not-invalid: an operational decline never yields invalid rows).
+
+The audit build proves this end-to-end on a GPU-less runner: `lbtc_gpu_columns_diff`
+asserts the provider self-installed (`install_gpu_columns_verify_hook(nullptr)`
+returns non-null) before exercising the decline → CPU-fallback contract. Residual
+finalization owned by the companion `compat/libbitcoin_direct` entrypoint card: that
+consumer must link `secp256k1_gpu_host` and retain the self-registering provider
+object (a targeted `--undefined` anchor is used, not a blanket `WHOLE_ARCHIVE`, to
+pull only the provider) to reach the GPU from the bridge-free direct path. That
+retention no longer breaks the ZK-less link: the Schnorr SNARK-witness host fallback
+that once dragged an undefined `secp256k1::zk::` reference into the minimal engine is
+now `#if SECP256K1_HAS_ZK`-gated in `gpu_backend.hpp` and its TU dropped from
+`secp256k1_gpu_host` when `SECP256K1_BUILD_ZK=OFF` (LBTC-GPU-DIRECT-ZK-BLOCKER,
+resolved). Verified on RTX 5060 Ti: the `LIBBITCOIN+LIBBITCOIN_GPU+CUDA` direct-GPU
+build links and `nm` shows the provider anchor + installer + hook present with the
+SNARK fallback and `zk::` symbols absent. Do not claim the default direct build is
+GPU-accelerated; by default it is pure CPU. The C ABI
+`ufsecp_gpu_ecdsa_verify_lbtc_columns` / `ufsecp_gpu_schnorr_verify_lbtc_columns`
+exist only for C ABI completeness and are not the libbitcoin-direct surface.
+
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
 `ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA

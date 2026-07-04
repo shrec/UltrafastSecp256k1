@@ -12,6 +12,7 @@
 
 #include "../include/gpu_backend.hpp"
 
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <vector>
@@ -566,6 +567,161 @@ public:
         for (size_t i = 0; i < count; ++i)
             out_results[i] = res[i] ? 1 : 0;
 
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError ecdsa_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return (library/pipeline/alloc) leaves no stale or
+        // partial verdict behind. On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("ecdsa_verify_lbtc_columns");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: ecdsa_verify_lbtc_columns kernel missing from loaded library");
+
+        // Engine-owned, memory-aware chunking: hard-cap per-chunk rows so a large
+        // batch cannot force a giant one-shot device allocation. Internal only —
+        // the caller never sees or manages chunking (UFSECP_GPU_COLUMNS_CHUNK is a
+        // private engine/test tuning knob, not a caller-facing parameter).
+        size_t cap = (static_cast<size_t>(4) << 20);
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        const size_t chunk = (count < cap) ? count : cap;
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            auto buf_dig = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_pub = runtime_->alloc_buffer_shared(n * 33);
+            auto buf_sig = runtime_->alloc_buffer_shared(n * 64);
+            auto buf_res = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+            auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            // Fail-closed: a nil buffer (alloc failure) has contents()==nil; a
+            // memcpy into it is UB. Decline with a non-OK GpuError so the engine
+            // falls back to CPU — never proceed and emit partial/all-zero rows.
+            if (!buf_dig.valid() || !buf_pub.valid() || !buf_sig.valid() ||
+                !buf_res.valid() || !buf_count.valid())
+                return set_error(GpuError::Memory,
+                                 "Metal: ecdsa_verify_lbtc_columns chunk buffer allocation failed");
+            std::memcpy(buf_dig.contents(), digests32 + off * 32, n * 32);
+            std::memcpy(buf_pub.contents(), pubkeys33 + off * 33, n * 33);
+            std::memcpy(buf_sig.contents(), sigs64 + off * 64, n * 64);
+            uint32_t n32 = (uint32_t)n;
+            std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+            // Fatal-not-invalid guard (acceptance A5/A9). MetalRuntime::dispatch_sync
+            // is void and only logs cmd_buf.error, so a command-buffer EXECUTION
+            // failure (GPU watchdog timeout, device-lost, mid-run fault) leaves
+            // buf_res unwritten. Reading it back as all-zero would be misinterpreted
+            // as "every row invalid" — an operational failure masquerading as a
+            // consensus verdict. The kernel writes only 0/1 for every row < count, so
+            // seed each slot with a sentinel it never produces; any surviving sentinel
+            // after the dispatch proves the kernel did not complete -> decline with a
+            // non-OK GpuError. The engine hook (gpu_engine_hook.cpp) maps non-OK to a
+            // CPU fallback, never to invalid rows.
+            constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+            auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+            for (size_t i = 0; i < n; ++i) res_seed[i] = kUnwritten;
+
+            runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                    {&buf_dig, &buf_pub, &buf_sig, &buf_res, &buf_count});
+
+            const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+            for (size_t i = 0; i < n; ++i)
+                if (res[i] == kUnwritten)
+                    return set_error(GpuError::Launch,
+                                     "Metal: ecdsa_verify_lbtc_columns dispatch left results "
+                                     "unwritten (command-buffer failure) — declining to CPU");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* xonly32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !xonly32 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return leaves no stale or partial verdict behind.
+        // On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("schnorr_verify_lbtc_columns");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: schnorr_verify_lbtc_columns kernel missing from loaded library");
+
+        size_t cap = (static_cast<size_t>(4) << 20);
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        const size_t chunk = (count < cap) ? count : cap;
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            auto buf_dig = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_xon = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_sig = runtime_->alloc_buffer_shared(n * 64);
+            auto buf_res = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+            auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            // Fail-closed: a nil buffer (alloc failure) has contents()==nil; a
+            // memcpy into it is UB. Decline with a non-OK GpuError so the engine
+            // falls back to CPU — never proceed and emit partial/all-zero rows.
+            if (!buf_dig.valid() || !buf_xon.valid() || !buf_sig.valid() ||
+                !buf_res.valid() || !buf_count.valid())
+                return set_error(GpuError::Memory,
+                                 "Metal: schnorr_verify_lbtc_columns chunk buffer allocation failed");
+            std::memcpy(buf_dig.contents(), digests32 + off * 32, n * 32);
+            std::memcpy(buf_xon.contents(), xonly32 + off * 32, n * 32);
+            std::memcpy(buf_sig.contents(), sigs64 + off * 64, n * 64);
+            uint32_t n32 = (uint32_t)n;
+            std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+            // Fatal-not-invalid guard (acceptance A5/A9) — see ecdsa_verify_lbtc_columns.
+            // dispatch_sync swallows command-buffer execution errors; a sentinel that
+            // the kernel never writes (it writes only 0/1 per row) detects a dispatch
+            // that did not complete and declines to CPU instead of emitting all-invalid
+            // rows for an operational GPU failure.
+            constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+            auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+            for (size_t i = 0; i < n; ++i) res_seed[i] = kUnwritten;
+
+            runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                    {&buf_dig, &buf_xon, &buf_sig, &buf_res, &buf_count});
+
+            const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+            for (size_t i = 0; i < n; ++i)
+                if (res[i] == kUnwritten)
+                    return set_error(GpuError::Launch,
+                                     "Metal: schnorr_verify_lbtc_columns dispatch left results "
+                                     "unwritten (command-buffer failure) — declining to CPU");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = res[i] ? 1 : 0;
+        }
         clear_error();
         return GpuError::Ok;
     }
