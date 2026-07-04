@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-07-04 — GPU lbtc_columns diff test: MSVC/Windows env-knob portability fix
+
+`test_gpu_lbtc_columns_diff.cpp` drove the internal `UFSECP_GPU_COLUMNS_CHUNK` forced-chunk
+knob with POSIX `setenv`/`unsetenv`, which MSVC does not provide — the Windows (Release)
+`CI / windows (Release)` build on commit `24cd4464` failed to compile the unified
+audit runner. Fixed without weakening any assertion or the forced small-chunk coverage.
+
+- **`audit/test_gpu_lbtc_columns_diff.cpp`** — added file-local `portable_setenv` /
+  `portable_unsetenv` helpers: on POSIX they keep `setenv(name, value, 1)` /
+  `unsetenv(name)` semantics; on `_WIN32` they use `_putenv_s(name, value)` and
+  `_putenv_s(name, "")` (empty value removes the variable, matching `unsetenv`). The
+  raw POSIX calls are now confined to the `#else` branch of these helpers; the ECDSA
+  (chunk=64) and Schnorr (chunk=100) forced-chunk differential paths call the helpers.
+  No production source, GPU backend, ABI, CI workflow, or assertion changed.
+
 ## 2026-07-04 — GPU lbtc_columns ABI: hostile-caller quartet + misuse-resistance gate restored
 
 `ci/check_misuse_resistance.py` reported `ufsecp_gpu_ecdsa_verify_lbtc_columns` and

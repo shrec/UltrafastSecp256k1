@@ -52,6 +52,25 @@ bool is_skip_err(ufsecp_error_t e) {
            e == UFSECP_ERR_GPU_DEVICE || e == UFSECP_ERR_GPU_UNSUPPORTED;
 }
 
+// Portable set/clear for the internal UFSECP_GPU_COLUMNS_CHUNK test knob. POSIX has
+// setenv/unsetenv; MSVC/Windows provides neither, so use _putenv_s (both declared in
+// <cstdlib>). Setting an empty value with _putenv_s removes the variable, matching
+// unsetenv semantics so getenv() returns NULL after portable_unsetenv on every target.
+void portable_setenv(const char* name, const char* value) {
+#if defined(_WIN32)
+    _putenv_s(name, value);
+#else
+    setenv(name, value, 1);
+#endif
+}
+void portable_unsetenv(const char* name) {
+#if defined(_WIN32)
+    _putenv_s(name, "");
+#else
+    unsetenv(name);
+#endif
+}
+
 // Build M valid ECDSA rows in column (SoA) layout. sigs are opaque-LE (GPU input);
 // compact sigs are kept for the independent CPU oracle. Returns false if the CPU
 // signing infrastructure is unavailable.
@@ -272,10 +291,10 @@ void test_differential() {
                 }
 
                 // Forced small chunks: exercise the engine-internal chunk loop.
-                setenv("UFSECP_GPU_COLUMNS_CHUNK", "64", 1);
+                portable_setenv("UFSECP_GPU_COLUMNS_CHUNK", "64");
                 std::vector<uint8_t> out4(M, 0xEE);
                 e = ufsecp_gpu_ecdsa_verify_lbtc_columns(ctx, dig.data(), pub.data(), sopq.data(), M, out4.data());
-                unsetenv("UFSECP_GPU_COLUMNS_CHUNK");
+                portable_unsetenv("UFSECP_GPU_COLUMNS_CHUNK");
                 if (e == UFSECP_OK)
                     CHECK(matches_cpu_ecdsa(sc, dig, pub, scmp, out4, M),
                           "ecdsa columns: forced small chunks (64) == CPU oracle across boundaries");
@@ -319,10 +338,10 @@ void test_differential() {
                     CHECK(ok, "schnorr columns: tampered rows zeroed (==0)");
                 } else if (is_skip_err(e)) { std::printf("  (schnorr tamper: runtime skip)\n"); }
 
-                setenv("UFSECP_GPU_COLUMNS_CHUNK", "100", 1);
+                portable_setenv("UFSECP_GPU_COLUMNS_CHUNK", "100");
                 std::vector<uint8_t> out3(M, 0xEE);
                 e = ufsecp_gpu_schnorr_verify_lbtc_columns(ctx, dig.data(), xonly.data(), sig.data(), M, out3.data());
-                unsetenv("UFSECP_GPU_COLUMNS_CHUNK");
+                portable_unsetenv("UFSECP_GPU_COLUMNS_CHUNK");
                 if (e == UFSECP_OK)
                     CHECK(matches_cpu_schnorr(sc, dig, xonly, sig, out3, M),
                           "schnorr columns: forced small chunks (100) == CPU oracle across boundaries");
