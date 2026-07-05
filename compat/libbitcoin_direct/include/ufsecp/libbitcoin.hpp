@@ -46,6 +46,10 @@
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
+#include "secp256k1/tagged_hash.hpp"
+#include "secp256k1/sha256.hpp"
+
+#include "ufsecp/lbtc_gpu_ops.hpp"
 
 #include <array>
 #include <cstddef>
@@ -693,6 +697,270 @@ inline void pubkey_serialize(const std::uint8_t pub33[33],
 inline int context_create() noexcept { return 1; }
 inline void context_destroy() noexcept {}
 inline int context_randomize(const std::uint8_t /*seed32*/[32]) noexcept { return 1; }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// libbitcoin public-data batch ops (GPU-accelerated internally, deterministic
+// CPU fallback)
+// ══════════════════════════════════════════════════════════════════════════════
+// Six batch primitives libbitcoin drives at block-connect scale: validate
+// arrays of x-only / compressed pubkeys, verify raw taproot tweak commitments,
+// and batch the BIP-340 tagged hash + Bitcoin HASH256. Each presents ONE
+// bool-returning inline call — the libbitcoin caller never sees a CPU/GPU split,
+// a GPU status code, caller-side chunking, or a bridge/Controller/C-ABI.
+//
+// Internally each op consults an engine-owned atomic hook (installed by the GPU
+// host when secp256k1_gpu_host is linked in the direct-GPU profile). The hook
+// routes to the matching EXISTING GpuBackend virtual. When no GPU is present
+// (hook null — CPU-only build) or the backend declines (no device / non-Ok
+// GpuError / exception -> hook returns -1), control falls to the deterministic
+// CPU fallback below, which ALWAYS overwrites every result row (validate) or
+// writes the correct hash for every row (hash). Operational engine failure
+// therefore NEVER yields all-zero / consensus-invalid rows.
+//
+// CT boundary: all six ops operate on PUBLIC on-chain data (pubkey x-coords,
+// taproot commitment tuples, tagged-hash messages, hash256 preimages). No
+// secret key, nonce, signing share, or ECDH scalar is touched — variable-time
+// arithmetic on both the GPU and CPU sides is correct and no ct::* is applied.
+
+namespace detail {
+
+// count * elem would overflow size_t? (elem is a compile-time-small stride).
+[[nodiscard]] inline bool column_layout_overflows(std::size_t count,
+                                                  std::size_t elem) noexcept {
+    return elem != 0 && count > (SIZE_MAX / elem);
+}
+
+// BIP-340 tagged hash with a host-precomputed tag hash:
+// out32 = SHA256(tag_hash32 || tag_hash32 || msg[0..len)).
+inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
+                                    const std::uint8_t* msg, std::size_t len,
+                                    std::uint8_t out32[32]) noexcept {
+    secp256k1::SHA256 ctx;
+    ctx.update(tag_hash32, 32);
+    ctx.update(tag_hash32, 32);
+    if (len != 0) ctx.update(msg, len);
+    const auto d = ctx.finalize();
+    std::memcpy(out32, d.data(), 32);
+}
+
+} // namespace detail
+
+// ─── xonly_validate_batch (public data, variable-time) ──────────────────────
+// Validate N 32-byte BIP-340 x-only pubkeys. out_results[i] = 1 iff keys32[i]
+// is a valid x-only x-coordinate (x < p AND lift_x even-y point on the curve).
+// Returns true iff ALL rows valid. count==0 -> true (out_results untouched).
+// Fail-closed: null keys32/out_results or layout overflow -> zero out_results
+// (if non-null) and return false.
+[[nodiscard]] inline bool xonly_validate_batch(const std::uint8_t* keys32,
+                                               std::size_t count,
+                                               std::uint8_t* out_results,
+                                               std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (keys32 == nullptr || out_results == nullptr ||
+        detail::column_layout_overflows(count, 32)) {
+        if (out_results != nullptr) std::memset(out_results, 0, count);
+        return false;
+    }
+    if (auto hook = gpu_hook::g_lbtc_xonly_hook.load(std::memory_order_acquire)) {
+        const int rc = hook(keys32, count, out_results);
+        if (rc >= 0) {  // handled: trust the GPU-written buffer
+            bool all = true;
+            for (std::size_t i = 0; i < count; ++i)
+                if (out_results[i] != 1) { all = false; break; }
+            return all;
+        }
+        // rc < 0: decline -> CPU fallback overwrites every row below.
+    }
+    bool all = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        const bool ok = ufsecp::lbtc::schnorr_xonly_pubkey_parse(keys32 + i * 32);
+        out_results[i] = ok ? 1 : 0;
+        if (!ok) all = false;
+    }
+    return all;
+}
+
+// ─── pubkey_validate_batch (public data, variable-time) ─────────────────────
+// Validate N 33-byte compressed pubkeys. out_results[i] = 1 iff prefix in
+// {0x02,0x03} AND x < p AND y^2 = x^3 + 7 has a root (on curve).
+[[nodiscard]] inline bool pubkey_validate_batch(const std::uint8_t* pubkeys33,
+                                                std::size_t count,
+                                                std::uint8_t* out_results,
+                                                std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (pubkeys33 == nullptr || out_results == nullptr ||
+        detail::column_layout_overflows(count, 33)) {
+        if (out_results != nullptr) std::memset(out_results, 0, count);
+        return false;
+    }
+    if (auto hook = gpu_hook::g_lbtc_pubkey_hook.load(std::memory_order_acquire)) {
+        const int rc = hook(pubkeys33, count, out_results);
+        if (rc >= 0) {
+            bool all = true;
+            for (std::size_t i = 0; i < count; ++i)
+                if (out_results[i] != 1) { all = false; break; }
+            return all;
+        }
+    }
+    bool all = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        secp256k1::fast::Point P;
+        const bool ok = detail::decompress(pubkeys33 + i * 33, P);
+        out_results[i] = ok ? 1 : 0;
+        if (!ok) all = false;
+    }
+    return all;
+}
+
+// ─── taproot_commitment_verify_batch (public data, variable-time) ───────────
+// Verify N raw taproot tweak commitments. out_results[i] = 1 iff
+//   x(lift_x_even(internal_x_i) + tweak_i*G) == tweaked_x_i  AND
+//   y-parity of that point == parity[i].
+// tweak32 rows are RAW precomputed tweak scalars (NOT recomputed from a merkle
+// root) — this op is intentionally distinct from taproot_tweak_add_check, which
+// derives t = H_TapTweak(P.x || merkle_root) per BIP-341.
+[[nodiscard]] inline bool taproot_commitment_verify_batch(
+    const std::uint8_t* internal_x32, const std::uint8_t* tweak32,
+    const std::uint8_t* tweaked_x32, const std::uint8_t* parity,
+    std::size_t count, std::uint8_t* out_results,
+    std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (internal_x32 == nullptr || tweak32 == nullptr || tweaked_x32 == nullptr ||
+        parity == nullptr || out_results == nullptr ||
+        detail::column_layout_overflows(count, 32)) {
+        if (out_results != nullptr) std::memset(out_results, 0, count);
+        return false;
+    }
+    if (auto hook = gpu_hook::g_lbtc_commit_hook.load(std::memory_order_acquire)) {
+        const int rc = hook(internal_x32, tweak32, tweaked_x32, parity, count, out_results);
+        if (rc >= 0) {
+            bool all = true;
+            for (std::size_t i = 0; i < count; ++i)
+                if (out_results[i] != 1) { all = false; break; }
+            return all;
+        }
+    }
+    bool all = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        secp256k1::SchnorrXonlyPubkey xp;
+        if (!secp256k1::schnorr_xonly_pubkey_parse(xp, internal_x32 + i * 32)) {
+            out_results[i] = 0; all = false; continue;   // internal_x not liftable
+        }
+        // Q = P + tweak*G (raw public tweak) via dual_scalar_mul_gen_point(t,1,P).
+        const secp256k1::fast::Scalar t = secp256k1::fast::Scalar::from_bytes(tweak32 + i * 32);
+        const auto Q = secp256k1::fast::Point::dual_scalar_mul_gen_point(
+            t, secp256k1::fast::Scalar::one(), xp.point);
+        if (Q.is_infinity()) { out_results[i] = 0; all = false; continue; }
+        const auto comp = Q.to_compressed();     // [0x02|0x03] || x(Q) big-endian
+        const int q_parity = (comp[0] == 0x03) ? 1 : 0;
+        const bool ok = (std::memcmp(comp.data() + 1, tweaked_x32 + i * 32, 32) == 0) &&
+                        (q_parity == (parity[i] != 0 ? 1 : 0));
+        out_results[i] = ok ? 1 : 0;
+        if (!ok) all = false;
+    }
+    return all;
+}
+
+// ─── tagged_hash_batch (public data, variable-time) ─────────────────────────
+// out32[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i]) over fixed msg_len
+// (BIP-340 tagged hash, tag_hash32 = SHA256(tag) shared across all rows).
+// HASH op: out32 is NEVER pre-zeroed (a zero row is a WRONG/consensus-invalid
+// hash). count==0 -> true. Null tag_hash32/msgs/out32 OR msg_len==0 OR layout
+// overflow -> return false WITHOUT touching out32. Returns true iff computed.
+[[nodiscard]] inline bool tagged_hash_batch(const std::uint8_t* tag_hash32,
+                                            const std::uint8_t* msgs,
+                                            std::size_t msg_len, std::size_t count,
+                                            std::uint8_t* out32,
+                                            std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (tag_hash32 == nullptr || msgs == nullptr || out32 == nullptr || msg_len == 0 ||
+        detail::column_layout_overflows(count, 32) ||
+        detail::column_layout_overflows(count, msg_len)) {
+        return false;  // HASH op: do NOT touch out32 on bad input
+    }
+    if (auto hook = gpu_hook::g_lbtc_tagged_hash_hook.load(std::memory_order_acquire)) {
+        if (hook(tag_hash32, msgs, msg_len, count, out32) == 0) return true;  // handled
+        // decline -> CPU fallback recomputes every row below.
+    }
+    for (std::size_t i = 0; i < count; ++i)
+        detail::tagged_hash_precomputed(tag_hash32, msgs + i * msg_len, msg_len,
+                                        out32 + i * 32);
+    return true;
+}
+
+// Convenience overload: compute tag_hash32 = SHA256(tag) once, then delegate.
+[[nodiscard]] inline bool tagged_hash_batch(const char* tag, std::size_t tag_len,
+                                            const std::uint8_t* msgs,
+                                            std::size_t msg_len, std::size_t count,
+                                            std::uint8_t* out32,
+                                            std::size_t max_threads = 0) noexcept {
+    if (count == 0) return true;              // vacuous: never dereference tag
+    if (tag == nullptr) return false;
+    const auto th = secp256k1::SHA256::hash(tag, tag_len);
+    return tagged_hash_batch(th.data(), msgs, msg_len, count, out32, max_threads);
+}
+
+// ─── tagged_hash_var_batch (public data, variable-time) ─────────────────────
+// out32[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i*stride .. +msg_lens[i]])
+// with per-item variable length. The CPU path does NOT cap length (the GPU
+// trampoline declines any length above the device cap so the CPU covers all
+// lengths — avoiding the legacy bridge's 256-byte cap divergence).
+// HASH op: out32 never pre-zeroed. count==0 -> true. Null tag_hash32/msgs/
+// msg_lens/out32 OR stride < any msg_lens[i] OR layout overflow -> false
+// WITHOUT touching out32.
+[[nodiscard]] inline bool tagged_hash_var_batch(const std::uint8_t* tag_hash32,
+                                                const std::uint8_t* msgs,
+                                                const std::uint32_t* msg_lens,
+                                                std::size_t stride, std::size_t count,
+                                                std::uint8_t* out32,
+                                                std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (tag_hash32 == nullptr || msgs == nullptr || msg_lens == nullptr || out32 == nullptr ||
+        detail::column_layout_overflows(count, 32) ||
+        detail::column_layout_overflows(count, stride)) {
+        return false;
+    }
+    for (std::size_t i = 0; i < count; ++i)
+        if (static_cast<std::size_t>(msg_lens[i]) > stride) return false;  // row would read OOB
+    if (auto hook = gpu_hook::g_lbtc_tagged_hash_var_hook.load(std::memory_order_acquire)) {
+        if (hook(tag_hash32, msgs, msg_lens, stride, count, out32) == 0) return true;
+    }
+    for (std::size_t i = 0; i < count; ++i)
+        detail::tagged_hash_precomputed(tag_hash32, msgs + i * stride,
+                                        static_cast<std::size_t>(msg_lens[i]),
+                                        out32 + i * 32);
+    return true;
+}
+
+// ─── hash256_batch (public data, variable-time) ─────────────────────────────
+// out32[i] = SHA256(SHA256(inputs[i])) (Bitcoin HASH256) over fixed input_len.
+// HASH op: out32 never pre-zeroed. count==0 -> true. Null inputs/out32 OR
+// input_len==0 OR layout overflow -> false WITHOUT touching out32.
+[[nodiscard]] inline bool hash256_batch(const std::uint8_t* inputs,
+                                        std::size_t input_len, std::size_t count,
+                                        std::uint8_t* out32,
+                                        std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (inputs == nullptr || out32 == nullptr || input_len == 0 ||
+        detail::column_layout_overflows(count, 32) ||
+        detail::column_layout_overflows(count, input_len)) {
+        return false;
+    }
+    if (auto hook = gpu_hook::g_lbtc_hash256_hook.load(std::memory_order_acquire)) {
+        if (hook(inputs, input_len, count, out32) == 0) return true;
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto d = secp256k1::SHA256::hash256(inputs + i * input_len, input_len);
+        std::memcpy(out32 + i * 32, d.data(), 32);
+    }
+    return true;
+}
 
 } // namespace ufsecp::lbtc
 

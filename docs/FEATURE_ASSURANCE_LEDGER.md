@@ -693,6 +693,22 @@ Files with `secure_erase` for secret data cleanup:
 
 ---
 
+## Informational: header-only libbitcoin public-data batch ops (non-ABI)
+
+The six `ufsecp::lbtc::*` public-data batch ops added 2026-07-04 —
+`xonly_validate_batch`, `pubkey_validate_batch`,
+`taproot_commitment_verify_batch`, `tagged_hash_batch`, `tagged_hash_var_batch`,
+`hash256_batch` — are **header-only C++ inline functions** in
+`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`, NOT `UFSECP_API`
+C-ABI (`ufsecp_*`) exports. They therefore carry **no ABI ledger-row
+obligation**: `ci/validate_assurance.py` mandates rows only for `UFSECP_API
+ufsecp_*` declarations, and zero such declarations are added (no C ABI, no new
+`GpuBackend` virtual). Their assurance is carried by the `lbtc_direct_verify`
+CTest (success + hostile-caller coverage per op) and the six rows in
+`docs/BACKEND_ASSURANCE_MATRIX.md` (§ *libbitcoin public-data batch ops*).
+All six are PUBLIC-DATA / variable-time — no secret is touched, so the CT-path
+and Zeroization columns are N/A.
+
 ## Summary Statistics
 
 | Metric | Count |

@@ -563,6 +563,47 @@ Build with `-DSECP256K1_BUILD_LIBBITCOIN=ON` (optionally `-DSECP256K1_BUILD_LIBB
 - `ecdsa_verify_batch` / `ecdsa_verify_columns` — rows `[hash32|pub33|sig64]` @ stride, or parallel spans
 - `schnorr_verify_batch` / `schnorr_verify_columns` — rows `[msg32|xonly32|sig64]` @ stride, or parallel spans
 
+**Public-data batch ops (validate / commitment / hashing):** all `[[nodiscard]] inline bool` in `ufsecp::lbtc`, all **variable-time / public-data** (no secret is ever touched). Each is ONE surface — internal GPU acceleration via the EXISTING `GpuBackend` virtuals + deterministic CPU fallback, no CPU/GPU split, no GPU status code, no caller chunking, no C ABI.
+
+```cpp
+// Validate N x-only pubkeys. out[i]=1 iff valid BIP-340 x-coordinate (x<p, even-y lift_x).
+bool xonly_validate_batch(const uint8_t* keys32, size_t count,
+                          uint8_t* out_results, size_t max_threads = 0) noexcept;
+
+// Validate N compressed pubkeys. out[i]=1 iff prefix∈{0x02,0x03}, x<p, on curve.
+bool pubkey_validate_batch(const uint8_t* pubkeys33, size_t count,
+                           uint8_t* out_results, size_t max_threads = 0) noexcept;
+
+// Verify N RAW taproot tweak commitments (tweak = precomputed scalar, NOT H_TapTweak).
+// out[i]=1 iff x(lift_x_even(internal_i) + tweak_i*G)==tweaked_x_i AND y-parity==parity[i].
+bool taproot_commitment_verify_batch(const uint8_t* internal_x32, const uint8_t* tweak32,
+                                     const uint8_t* tweaked_x32, const uint8_t* parity,
+                                     size_t count, uint8_t* out_results,
+                                     size_t max_threads = 0) noexcept;
+
+// BIP-340 tagged hash over fixed-length msgs; tag_hash32 = SHA256(tag) shared across rows.
+// out32[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i]).
+bool tagged_hash_batch(const uint8_t* tag_hash32, const uint8_t* msgs,
+                       size_t msg_len, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;
+bool tagged_hash_batch(const char* tag, size_t tag_len, const uint8_t* msgs,
+                       size_t msg_len, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;  // computes tag_hash32 once
+
+// BIP-340 tagged hash over per-item variable-length msgs (TapLeaf scripts).
+// CPU covers ALL lengths (no device-side 256-byte cap).
+bool tagged_hash_var_batch(const uint8_t* tag_hash32, const uint8_t* msgs,
+                           const uint32_t* msg_lens, size_t stride, size_t count,
+                           uint8_t* out32, size_t max_threads = 0) noexcept;
+
+// Bitcoin HASH256 (double SHA-256) over fixed-length inputs.
+// out32[i] = SHA256(SHA256(inputs[i])).
+bool hash256_batch(const uint8_t* inputs, size_t input_len, size_t count,
+                   uint8_t* out32, size_t max_threads = 0) noexcept;
+```
+
+Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]`, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row.
+
 **Consumer CMake example:**
 ```cmake
 find_package(secp256k1-fast REQUIRED COMPONENTS CPU LIBBITCOIN)

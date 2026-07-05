@@ -107,3 +107,145 @@ struct EngineGpuColumnsInstaller {
 EngineGpuColumnsInstaller g_engine_gpu_columns_installer;
 
 }  // namespace
+
+/* ============================================================================
+ * libbitcoin public-data batch ops — GPU offload trampolines (self-installing)
+ * ============================================================================
+ * Sibling of the column-verify provider above, for the six header-only
+ * ufsecp::lbtc batch ops (xonly/pubkey/taproot-commitment validate +
+ * tagged_hash/tagged_hash_var/hash256). The header CPU surface
+ * (<ufsecp/libbitcoin.hpp>) consults engine-owned atomic fn-ptr hooks
+ * (<ufsecp/lbtc_gpu_ops.hpp>); these trampolines wire those hooks to the
+ * matching EXISTING GpuBackend virtual and translate GpuError -> {handled /
+ * -1 decline}. An operational backend error (no device, non-Ok GpuError,
+ * exception) is ALWAYS a decline (-1) so the header's deterministic CPU
+ * fallback covers the batch — never an all-zero / consensus-invalid buffer.
+ *
+ * Compiled ONLY in the direct-GPU profile (SECP256K1_LBTC_GPU_OPS, set on
+ * secp256k1_gpu_host by compat/libbitcoin_direct/CMakeLists.txt); other GPU
+ * builds leave the guard off, so this block imposes no include-path dependency.
+ * Reuses engine_gpu_backend() and g_engine_gpu_backend_mtx from the unnamed
+ * namespace above (same TU). Retained by the SAME existing -u
+ * secp256k1_gpu_columns_provider_anchor — no new anchor. The three HASH
+ * trampolines pre-check the device length caps enforced by the CUDA overrides
+ * (tagged msg_len<=256, var stride<=256, hash256 input_len<=320) and decline
+ * out-of-cap lengths so the CPU covers ALL lengths (no 256-byte cap divergence).
+ * ============================================================================ */
+#if defined(SECP256K1_LBTC_GPU_OPS)
+
+#include <ufsecp/lbtc_gpu_ops.hpp>
+
+namespace {
+
+int engine_lbtc_xonly_hook(const std::uint8_t* keys32, std::size_t count,
+                           std::uint8_t* out_results) noexcept {
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;  /* no GPU -> CPU fallback */
+        if (b->xonly_validate(keys32, count, out_results) != secp256k1::gpu::GpuError::Ok)
+            return -1;                /* operational error -> decline (never invalid rows) */
+        for (std::size_t i = 0; i < count; ++i) if (out_results[i] == 0) return 0;
+        return 1;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int engine_lbtc_pubkey_hook(const std::uint8_t* pubkeys33, std::size_t count,
+                            std::uint8_t* out_results) noexcept {
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->pubkey_validate(pubkeys33, count, out_results) != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        for (std::size_t i = 0; i < count; ++i) if (out_results[i] == 0) return 0;
+        return 1;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int engine_lbtc_commit_hook(const std::uint8_t* internal_x32, const std::uint8_t* tweak32,
+                            const std::uint8_t* tweaked_x32, const std::uint8_t* parity,
+                            std::size_t count, std::uint8_t* out_results) noexcept {
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->commitment_verify(internal_x32, tweak32, tweaked_x32, parity, count, out_results)
+                != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        for (std::size_t i = 0; i < count; ++i) if (out_results[i] == 0) return 0;
+        return 1;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int engine_lbtc_tagged_hash_hook(const std::uint8_t* tag_hash32, const std::uint8_t* msgs,
+                                 std::size_t msg_len, std::size_t count,
+                                 std::uint8_t* out32) noexcept {
+    try {
+        if (msg_len > 256) return -1;  /* device cap -> CPU covers all lengths */
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->tagged_hash(tag_hash32, msgs, msg_len, count, out32) != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        return 0;  /* handled: every out32 row written */
+    } catch (...) {
+        return -1;
+    }
+}
+
+int engine_lbtc_tagged_hash_var_hook(const std::uint8_t* tag_hash32, const std::uint8_t* msgs,
+                                     const std::uint32_t* msg_lens, std::size_t stride,
+                                     std::size_t count, std::uint8_t* out32) noexcept {
+    try {
+        if (stride > 256) return -1;  /* device cap -> CPU covers all lengths */
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->tagged_hash_var(tag_hash32, msgs, msg_lens, stride, count, out32)
+                != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+int engine_lbtc_hash256_hook(const std::uint8_t* inputs, std::size_t input_len,
+                             std::size_t count, std::uint8_t* out32) noexcept {
+    try {
+        if (input_len > 320) return -1;  /* device cap -> CPU covers all lengths */
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->hash256(inputs, input_len, count, out32) != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
+/* Self-install at load time. Runs when this TU is retained (the direct-GPU
+ * profile forces it via the shared -u secp256k1_gpu_columns_provider_anchor). */
+struct EngineLbtcOpsInstaller {
+    EngineLbtcOpsInstaller() noexcept {
+        ufsecp::lbtc::gpu_hook::install_lbtc_xonly_hook(&engine_lbtc_xonly_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_pubkey_hook(&engine_lbtc_pubkey_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_commit_hook(&engine_lbtc_commit_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_tagged_hash_hook(&engine_lbtc_tagged_hash_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_tagged_hash_var_hook(&engine_lbtc_tagged_hash_var_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_hash256_hook(&engine_lbtc_hash256_hook);
+    }
+};
+EngineLbtcOpsInstaller g_engine_lbtc_ops_installer;
+
+}  // namespace
+
+#endif  // SECP256K1_LBTC_GPU_OPS

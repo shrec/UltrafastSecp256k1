@@ -194,6 +194,47 @@ message hash) are public on-chain data, so variable-time wNAF/GLV is both
 correct and the fastest choice. (Constant-time verify would be a performance bug
 with zero security benefit.)
 
+### Public-data batch ops (validate / commitment / hashing)
+
+Six additional block-connect-scale batch primitives share the identical
+one-surface contract as the verify paths above — **internal GPU acceleration,
+deterministic CPU fallback, one `bool`-returning inline call, no CPU/GPU split,
+no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
+
+| Function | Byte layout | `out` | Meaning |
+|---|---|---|---|
+| `xonly_validate_batch(keys32, count, out_results, max_threads=0)` | `keys32`: `count×32` BE x-only | `count` bytes | `out[i]=1` iff x-only key `i` is a valid BIP-340 x-coordinate (`x<p` and even-y `lift_x` on curve) |
+| `pubkey_validate_batch(pubkeys33, count, out_results, max_threads=0)` | `pubkeys33`: `count×33` compressed | `count` bytes | `out[i]=1` iff prefix ∈ {0x02,0x03}, `x<p`, on curve |
+| `taproot_commitment_verify_batch(internal_x32, tweak32, tweaked_x32, parity, count, out_results, max_threads=0)` | four `count×32` / `count×1` columns | `count` bytes | `out[i]=1` iff `x(lift_x_even(internal_i)+tweak_i·G)==tweaked_x_i` and its y-parity `==parity[i]` (**RAW** tweak — distinct from `taproot_tweak_add_check`, which recomputes `t=H_TapTweak(P.x‖merkle_root)`) |
+| `tagged_hash_batch(tag_hash32, msgs, msg_len, count, out32, max_threads=0)` | `msgs`: `count×msg_len` | `count×32` | `out[i]=SHA256(tag_hash32‖tag_hash32‖msgs[i])` (BIP-340; `tag_hash32=SHA256(tag)` shared) |
+| `tagged_hash_batch(tag, tag_len, msgs, msg_len, count, out32, max_threads=0)` | convenience overload | `count×32` | computes `tag_hash32=SHA256(tag)` once, delegates |
+| `tagged_hash_var_batch(tag_hash32, msgs, msg_lens, stride, count, out32, max_threads=0)` | `msgs`: `count` items at `stride`; `msg_lens[i]` per item | `count×32` | per-item variable-length BIP-340 tagged hash (CPU covers **all** lengths — no 256-byte cap) |
+| `hash256_batch(inputs, input_len, count, out32, max_threads=0)` | `inputs`: `count×input_len` | `count×32` | `out[i]=SHA256(SHA256(inputs[i]))` (Bitcoin HASH256) |
+
+Fail-closed / never-consensus-invalid semantics:
+
+- **Validate ops** return `true` iff every row is valid. `count==0` → `true`
+  (vacuous, `out_results` untouched). A null pointer or a `count×elem` size-overflow
+  → zero `out_results` (when non-null) and return `false`. On operational GPU
+  failure (no device, non-Ok `GpuError`, exception) the internal hook declines and
+  the CPU fallback **overwrites every row** — never an all-zero buffer.
+- **Hash ops** never pre-zero `out32` (a zero row would be a wrong/consensus-invalid
+  hash). `count==0` → `true`. A null pointer, `msg_len/input_len==0`, `stride < msg_lens[i]`,
+  or a size-overflow → `false` **without touching** `out32`. On operational GPU
+  failure the hook declines and the CPU fallback writes the correct hash for every row.
+
+GPU enablement is the inspectable build fact **"is `secp256k1_gpu_host` linked"**
+(the direct-GPU profile defines `SECP256K1_LBTC_GPU_OPS` on that target and the
+self-installing `EngineLbtcOpsInstaller` rides the same `-u
+secp256k1_gpu_columns_provider_anchor`). GPU acceleration reuses the EXISTING
+`GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`, `commitment_verify`,
+`tagged_hash`, `tagged_hash_var`, `hash256`) — CUDA-native today; OpenCL/Metal
+return `Unsupported` → decline → CPU. A **CPU-only** libbitcoin build never links
+`secp256k1_gpu_host`, so the hooks stay null and every call runs the deterministic
+header CPU path (no GPU symbol is referenced). Build/test with the same commands
+as the verify paths (`-DSECP256K1_BUILD_LIBBITCOIN[_GPU]=ON`,
+`ctest -R lbtc_direct`); coverage lives in the `lbtc_direct_verify` CTest.
+
 ### CT/VT Operations Matrix
 
 | Operation | CT/VT | Primitive | Namespace |
@@ -217,6 +258,12 @@ with zero security benefit.)
 | `pubkey_combine` | **VT** (public data) | `Point::add()` | `secp256k1::fast` |
 | `pubkey_tweak_add` | **VT** (public data) | `Point::dual_scalar_mul_gen_point()` | `secp256k1::fast` |
 | `pubkey_tweak_mul` | **VT** (public data) | `Point::scalar_mul()` | `secp256k1::fast` |
+| `xonly_validate_batch` | **VT** (public data) | `schnorr_xonly_pubkey_parse()` / GPU `xonly_validate` | `secp256k1` / `gpu` |
+| `pubkey_validate_batch` | **VT** (public data) | `detail::decompress()` / GPU `pubkey_validate` | `ufsecp::lbtc` / `gpu` |
+| `taproot_commitment_verify_batch` | **VT** (public data) | `Point::dual_scalar_mul_gen_point()` / GPU `commitment_verify` | `secp256k1::fast` / `gpu` |
+| `tagged_hash_batch` | **VT** (public data) | `SHA256` / GPU `tagged_hash` | `secp256k1` / `gpu` |
+| `tagged_hash_var_batch` | **VT** (public data) | `SHA256` / GPU `tagged_hash_var` | `secp256k1` / `gpu` |
+| `hash256_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `hash256` | `secp256k1` / `gpu` |
 
 Every CT entry has graph evidence: `symbols`/`coverage`/`auditmap` against `source_graph.db` confirm the code path routes through `secp256k1::ct::*` primitives with no data-dependent branches.
 

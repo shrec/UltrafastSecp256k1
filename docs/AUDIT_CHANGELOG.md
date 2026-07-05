@@ -1,5 +1,47 @@
 # Audit Changelog
 
+## 2026-07-04 — libbitcoin public-data batch ops: 6 header-only surfaces (validate / commitment / hashing)
+
+Added six block-connect-scale batch primitives to the bridge-free header-only
+`ufsecp::lbtc::*` libbitcoin surface, each = internal GPU acceleration (reusing an
+EXISTING `GpuBackend` virtual) + deterministic CPU fallback, presented as ONE
+`bool`-returning inline call. No new C ABI, no new virtual, no new anchor, no new
+CTest target. All six are PUBLIC-DATA / variable-time (no secret is touched).
+
+- **`xonly_validate_batch`** — validate N 32-byte BIP-340 x-only pubkeys
+  (`x<p` + even-y `lift_x`); GPU virtual `xonly_validate`, CPU
+  `schnorr_xonly_pubkey_parse`.
+- **`pubkey_validate_batch`** — validate N 33-byte compressed pubkeys (prefix +
+  `x<p` + on-curve); GPU `pubkey_validate`, CPU `detail::decompress`.
+- **`taproot_commitment_verify_batch`** — verify N RAW taproot tweak commitments
+  `x(lift_x_even(internal_i)+tweak_i·G)==tweaked_x_i` with matching y-parity
+  (distinct from `taproot_tweak_add_check`, which recomputes `H_TapTweak`); GPU
+  `commitment_verify`, CPU `dual_scalar_mul_gen_point`.
+- **`tagged_hash_batch`** (+ `const char* tag` overload), **`tagged_hash_var_batch`**,
+  **`hash256_batch`** — BIP-340 tagged hash (fixed / per-item variable length) and
+  Bitcoin HASH256; GPU `tagged_hash` / `tagged_hash_var` / `hash256`, CPU `SHA256`.
+  The var CPU path does NOT cap length (avoids the legacy bridge's 256-byte cap).
+
+- **Files:** new companion header
+  `compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` (engine-owned
+  `inline std::atomic<>` offload hooks, depends only on `<atomic>`/`<cstdint>`/
+  `<cstddef>`); the 6 inline ops + deterministic CPU fallback in
+  `compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`; 6 self-installing GPU
+  trampolines in `src/gpu/src/gpu_engine_hook.cpp` under
+  `#if defined(SECP256K1_LBTC_GPU_OPS)` (retained by the existing
+  `secp256k1_gpu_columns_provider_anchor`); CMake wiring in
+  `compat/libbitcoin_direct/CMakeLists.txt` (`SECP256K1_LBTC_GPU_OPS` +
+  include dir on `secp256k1_gpu_host`, direct-GPU profile only).
+- **Test:** extended `compat/libbitcoin_direct/tests/test_direct_verify.cpp`
+  (CTest `lbtc_direct_verify`) with success + hostile-caller cases per op
+  (malformed/off-curve rows, wrong tweaked-x / parity, unliftable internal, null
+  pointers, `count==0`, size-overflow, RAW-tweak distinctness, engine-parity
+  cross-checks, HASH rows never all-zero, var no-256-cap).
+- **Fail-closed:** validate ops overwrite every row on the CPU path (never
+  all-zero on operational GPU failure); hash ops never pre-zero `out32` and reject
+  bad input without touching it. Every trampoline declines (`-1`) on no-GPU /
+  non-Ok `GpuError` / exception → deterministic CPU path.
+
 ## 2026-07-04 — GPU lbtc_columns diff test: MSVC/Windows env-knob portability fix
 
 `test_gpu_lbtc_columns_diff.cpp` drove the internal `UFSECP_GPU_COLUMNS_CHUNK` forced-chunk

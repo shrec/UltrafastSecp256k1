@@ -726,6 +726,301 @@ public:
         return GpuError::Ok;
     }
 
+    /* libbitcoin-bridge: batch x-only key validation (lift_x per key). PUBLIC.
+     * Native Metal parity with CudaBackend::xonly_validate. */
+    GpuError xonly_validate(
+        const uint8_t* keys32, size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !results) return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: any early non-OK return leaves an all-invalid buffer, never
+        // a stale/partial verdict. On success every row is overwritten below.
+        std::memset(results, 0, n);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_xonly_validate");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_xonly_validate kernel missing from loaded library");
+
+        auto buf_keys  = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_res   = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_keys.valid() || !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_xonly_validate buffer allocation failed");
+
+        std::memcpy(buf_keys.contents(), keys32, n * 32);
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        // Fatal-not-invalid guard: dispatch_sync is void and only logs
+        // cmd_buf.error, so a command-buffer execution failure leaves buf_res
+        // unwritten. The kernel writes only 0/1 per row < count, so seed each slot
+        // with a sentinel it never produces; any survivor -> decline to CPU.
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i) res_seed[i] = kUnwritten;
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u, {&buf_keys, &buf_res, &buf_count});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: lbtc_xonly_validate dispatch left results unwritten "
+                                 "(command-buffer failure) — declining to CPU");
+        for (size_t i = 0; i < n; ++i)
+            results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge: batch full compressed-pubkey validation. PUBLIC.
+     * Native Metal parity with CudaBackend::pubkey_validate. */
+    GpuError pubkey_validate(
+        const uint8_t* pubkeys33, size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!pubkeys33 || !results) return set_error(GpuError::NullArg, "NULL buffer");
+
+        std::memset(results, 0, n);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_pubkey_validate");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_pubkey_validate kernel missing from loaded library");
+
+        auto buf_pk    = runtime_->alloc_buffer_shared(n * 33);
+        auto buf_res   = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_pk.valid() || !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_pubkey_validate buffer allocation failed");
+
+        std::memcpy(buf_pk.contents(), pubkeys33, n * 33);
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i) res_seed[i] = kUnwritten;
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u, {&buf_pk, &buf_res, &buf_count});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: lbtc_pubkey_validate dispatch left results unwritten "
+                                 "(command-buffer failure) — declining to CPU");
+        for (size_t i = 0; i < n; ++i)
+            results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge: BIP-341 commitment tweak-add-check, one thread per item.
+     * accept iff x(lift_x(internal)+tweak*G)==tweaked_x AND y-parity==parity.
+     * PUBLIC. Native Metal parity with CudaBackend::commitment_verify. */
+    GpuError commitment_verify(
+        const uint8_t* internal_x32, const uint8_t* tweak32,
+        const uint8_t* tweaked_x32, const uint8_t* parity,
+        size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!internal_x32 || !tweak32 || !tweaked_x32 || !parity || !results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        std::memset(results, 0, n);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_commitment_verify");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_commitment_verify kernel missing from loaded library");
+
+        auto buf_ix    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_tw    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_tx    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_par   = runtime_->alloc_buffer_shared(n);
+        auto buf_res   = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_ix.valid() || !buf_tw.valid() || !buf_tx.valid() ||
+            !buf_par.valid() || !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_commitment_verify buffer allocation failed");
+
+        std::memcpy(buf_ix.contents(), internal_x32, n * 32);
+        std::memcpy(buf_tw.contents(), tweak32, n * 32);
+        std::memcpy(buf_tx.contents(), tweaked_x32, n * 32);
+        std::memcpy(buf_par.contents(), parity, n);
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i) res_seed[i] = kUnwritten;
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_ix, &buf_tw, &buf_tx, &buf_par, &buf_res, &buf_count});
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < n; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: lbtc_commitment_verify dispatch left results unwritten "
+                                 "(command-buffer failure) — declining to CPU");
+        for (size_t i = 0; i < n; ++i)
+            results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge: Taproot tagged hash. tag_hash32 = SHA256(tag)
+     * (host-precomputed); out_i = SHA256(tag_hash||tag_hash||msg_i). PUBLIC.
+     * Native Metal parity with CudaBackend::tagged_hash. Hash op: no sentinel
+     * (matches CUDA — relies on ensure_library/pipeline/alloc guards); out32 is
+     * NOT pre-zeroed, matching CUDA. */
+    GpuError tagged_hash(
+        const uint8_t* tag_hash32, const uint8_t* msgs,
+        size_t msg_len, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!tag_hash32 || !msgs || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (msg_len == 0 || msg_len > 256) return set_error(GpuError::BadInput, "msg_len out of range");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_tagged_hash");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_tagged_hash kernel missing from loaded library");
+
+        auto buf_th     = runtime_->alloc_buffer_shared(32);
+        auto buf_msgs   = runtime_->alloc_buffer_shared(n * msg_len);
+        auto buf_msglen = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        auto buf_out    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_th.valid() || !buf_msgs.valid() || !buf_msglen.valid() ||
+            !buf_out.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_tagged_hash buffer allocation failed");
+
+        std::memcpy(buf_th.contents(), tag_hash32, 32);
+        std::memcpy(buf_msgs.contents(), msgs, n * msg_len);
+        uint32_t ml32 = (uint32_t)msg_len;
+        std::memcpy(buf_msglen.contents(), &ml32, sizeof(ml32));
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_th, &buf_msgs, &buf_msglen, &buf_out, &buf_count});
+
+        std::memcpy(out32, buf_out.contents(), n * 32);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge: Taproot tagged hash, per-item length (TapLeaf). PUBLIC.
+     * Native Metal parity with CudaBackend::tagged_hash_var. */
+    GpuError tagged_hash_var(
+        const uint8_t* tag_hash32, const uint8_t* msgs, const uint32_t* msg_lens,
+        size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!tag_hash32 || !msgs || !msg_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0 || stride > 256) return set_error(GpuError::BadInput, "stride out of range");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_tagged_hash_var");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_tagged_hash_var kernel missing from loaded library");
+
+        auto buf_th     = runtime_->alloc_buffer_shared(32);
+        auto buf_msgs   = runtime_->alloc_buffer_shared(n * stride);
+        auto buf_lens   = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+        auto buf_stride = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        auto buf_out    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_th.valid() || !buf_msgs.valid() || !buf_lens.valid() ||
+            !buf_stride.valid() || !buf_out.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_tagged_hash_var buffer allocation failed");
+
+        std::memcpy(buf_th.contents(), tag_hash32, 32);
+        std::memcpy(buf_msgs.contents(), msgs, n * stride);
+        std::memcpy(buf_lens.contents(), msg_lens, n * sizeof(uint32_t));
+        uint32_t st32 = (uint32_t)stride;
+        std::memcpy(buf_stride.contents(), &st32, sizeof(st32));
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_th, &buf_msgs, &buf_lens, &buf_stride, &buf_out, &buf_count});
+
+        std::memcpy(out32, buf_out.contents(), n * 32);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge: batch HASH256 (double SHA-256) of fixed-length inputs.
+     * PUBLIC. Native Metal parity with CudaBackend::hash256. */
+    GpuError hash256(
+        const uint8_t* inputs, size_t input_len, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (input_len == 0 || input_len > 320) return set_error(GpuError::BadInput, "input_len out of range");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_hash256");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_hash256 kernel missing from loaded library");
+
+        auto buf_in    = runtime_->alloc_buffer_shared(n * input_len);
+        auto buf_inlen = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        auto buf_out   = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_in.valid() || !buf_inlen.valid() || !buf_out.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_hash256 buffer allocation failed");
+
+        std::memcpy(buf_in.contents(), inputs, n * input_len);
+        uint32_t il32 = (uint32_t)input_len;
+        std::memcpy(buf_inlen.contents(), &il32, sizeof(il32));
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_in, &buf_inlen, &buf_out, &buf_count});
+
+        std::memcpy(out32, buf_out.contents(), n * 32);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdh_batch(
         const uint8_t* privkeys32, const uint8_t* peer_pubkeys33,
         size_t count, uint8_t* out_secrets32) override

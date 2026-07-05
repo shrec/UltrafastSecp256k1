@@ -2187,6 +2187,189 @@ __kernel void schnorr_verify_lbtc_columns(
     results[gid] = schnorr_verify_impl(pk, msg, &sig);
 }
 
+/* ============================================================================
+ * libbitcoin-bridge PUBLIC-DATA GpuBackend ops — native OpenCL siblings of the
+ * CUDA lbtc_* kernels (gpu_backend_cuda.cu @715-779). One item per work-item,
+ * variable-time (all inputs are public: x-only / compressed pubkeys, taproot
+ * commitment tuples, tagged-hash messages, hash256 preimages — no secret).
+ * THREE parity invariants mirrored bit-for-bit from CUDA:
+ *   (1) x<p is an EXTERNAL gate (lbtc_be32_lt_field_p, __global) applied BEFORE
+ *       lift_x_impl (which only reduces mod p);
+ *   (2) tweak is a RAW scalar via scalar_from_bytes_impl (single conditional -n),
+ *       never rejected;
+ *   (3) tagged hash feeds tag_hash32 TWICE then the message (SHA256(th||th||msg));
+ *       tagged_hash_impl is NOT used (it re-hashes the tag).
+ * CL1.2 has no generic address space: __global input bytes are copied into
+ * private buffers before lift_x_impl / sha256_update, and sha256_final writes a
+ * private digest that is then copied to the __global out. results/out are
+ * __global uchar to match the CUDA uint8_t contract. ========================= */
+
+/* result[i] = 1 iff keys32[i] is a valid BIP-340 x-only key (x<p, even-y lift). */
+__kernel void lbtc_xonly_validate(
+    __global const uchar* keys32,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar x[32];
+    for (int i = 0; i < 32; ++i) x[i] = keys32[(ulong)gid * 32 + i];
+    JacobianPoint p;
+    results[gid] = (lbtc_be32_lt_field_p(keys32 + (ulong)gid * 32) &&
+                    lift_x_impl(x, &p)) ? 1 : 0;
+}
+
+/* result[i] = 1 iff prefix in {2,3}, x<p, and x lifts (on curve). Byte-matches
+ * CUDA lbtc_pubkey_validate_kernel: prefix parity is NOT re-checked vs lift. */
+__kernel void lbtc_pubkey_validate(
+    __global const uchar* pubkeys33,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global const uchar* p = pubkeys33 + (ulong)gid * 33;
+    uchar pfx = p[0];
+    int ok = (pfx == 0x02 || pfx == 0x03) && lbtc_be32_lt_field_p(p + 1);
+    if (ok) {
+        uchar x[32];
+        for (int i = 0; i < 32; ++i) x[i] = p[1 + i];
+        JacobianPoint j;
+        ok = lift_x_impl(x, &j);
+    }
+    results[gid] = ok ? 1 : 0;
+}
+
+/* result[i] = 1 iff x(lift_x_even(internal_i) + tweak_i*G) == tweaked_x_i AND its
+ * y-parity == parity[i]. RAW tweak. Mirrors CUDA lbtc_commitment_kernel. */
+__kernel void lbtc_commitment_verify(
+    __global const uchar* internal_x32,
+    __global const uchar* tweak32,
+    __global const uchar* tweaked_x32,
+    __global const uchar* parity,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global const uchar* ixp = internal_x32 + (ulong)gid * 32;
+    uchar ix[32];
+    for (int i = 0; i < 32; ++i) ix[i] = ixp[i];
+    JacobianPoint P;
+    if (!lbtc_be32_lt_field_p(ixp) || !lift_x_impl(ix, &P)) {  // even-y internal, x<p
+        results[gid] = 0;
+        return;
+    }
+    // lift_x_impl sets z=1, so the Jacobian coords are already affine.
+    AffinePoint Pa; Pa.x = P.x; Pa.y = P.y;
+    uchar tw[32];
+    for (int i = 0; i < 32; ++i) tw[i] = tweak32[(ulong)gid * 32 + i];
+    // Q = tweak*G + 1*P via the PROVEN Shamir path (same helper ecdsa_verify_impl
+    // uses for u1*G + u2*Q). scalar_mul_generator_impl+point_add_mixed_unchecked
+    // was avoided: point_add_mixed_unchecked mis-handles a mixed-add edge case for
+    // certain Jacobian Z (e.g. 4*G, 7*G came out wrong) while scalar_mul_generator
+    // itself is correct. shamir_double_mul_glv_impl is exercised by ecdsa verify.
+    Scalar u1; scalar_from_bytes_impl(tw, &u1);        // RAW tweak (single -n)
+    Scalar u2; u2.limbs[0] = 1; u2.limbs[1] = 0; u2.limbs[2] = 0; u2.limbs[3] = 0;  // scalar 1
+    AffinePoint Gaff; get_generator(&Gaff);
+    JacobianPoint Q;
+    shamir_double_mul_glv_impl(&Gaff, &u1, &Pa, &u2, &Q);   // tweak*G + P
+    if (point_is_infinity(&Q)) { results[gid] = 0; return; }
+    // Inline Jacobian -> affine (jacobian_to_affine_impl lives in secp256k1_zk.cl,
+    // which is NOT part of this translation unit); mirror ecdsa_verify_impl.
+    FieldElement zinv, z2, z3, ax, ay;
+    field_inv_impl(&zinv, &Q.z);
+    field_sqr_impl(&z2, &zinv);
+    field_mul_impl(&z3, &z2, &zinv);
+    field_mul_impl(&ax, &Q.x, &z2);
+    field_mul_impl(&ay, &Q.y, &z3);
+    uchar xb[32], yb[32];
+    field_to_bytes_impl(&ax, xb);
+    field_to_bytes_impl(&ay, yb);
+    uchar want = (parity[gid] != 0) ? 0x03 : 0x02;
+    uchar got  = (yb[31] & 1) ? 0x03 : 0x02;              // y-parity of x(Q)
+    uchar ok = (got == want) ? 1 : 0;
+    for (int j = 0; j < 32; ++j)
+        if (xb[j] != tweaked_x32[(ulong)gid * 32 + j]) ok = 0;   // x(Q)==tweaked_x
+    results[gid] = ok;
+}
+
+/* out[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i]) over fixed-length msgs. */
+__kernel void lbtc_tagged_hash(
+    __global const uchar* tag_hash32,
+    __global const uchar* msgs,
+    const uint msg_len,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar th[32];
+    for (int i = 0; i < 32; ++i) th[i] = tag_hash32[i];
+    uchar mbuf[256];
+    for (uint i = 0; i < msg_len; ++i) mbuf[i] = msgs[(ulong)gid * msg_len + i];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, th, 32);          // tag hash TWICE
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, mbuf, msg_len);
+    uchar h[32];
+    sha256_final(&ctx, h);
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h[i];
+}
+
+/* out[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i][0..L)), L=msg_lens[i]
+ * clamped to 256 (silent, matches CUDA). msgs row stride is `stride`. */
+__kernel void lbtc_tagged_hash_var(
+    __global const uchar* tag_hash32,
+    __global const uchar* msgs,
+    __global const uint* msg_lens,
+    const uint stride,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uint L = msg_lens[gid];
+    if (L > 256) L = 256;
+    uchar th[32];
+    for (int i = 0; i < 32; ++i) th[i] = tag_hash32[i];
+    uchar mbuf[256];
+    for (uint i = 0; i < L; ++i) mbuf[i] = msgs[(ulong)gid * stride + i];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, mbuf, L);
+    uchar h[32];
+    sha256_final(&ctx, h);
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h[i];
+}
+
+/* out[i] = SHA256(SHA256(inputs[i])) over fixed-length inputs (no tag prefix). */
+__kernel void lbtc_hash256(
+    __global const uchar* inputs,
+    const uint input_len,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar in[320];
+    for (uint i = 0; i < input_len; ++i) in[i] = inputs[(ulong)gid * input_len + i];
+    uchar h1[32];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, in, input_len);
+    sha256_final(&ctx, h1);               // SHA256(input)
+    uchar h2[32];
+    SHA256Ctx ctx2;
+    sha256_init(&ctx2);
+    sha256_update(&ctx2, h1, 32);
+    sha256_final(&ctx2, h2);              // SHA256(SHA256(input))
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
+}
+
 /* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.
  * Takes 33-byte SEC1 compressed pubkeys + private scalars.
  * Decompresses pubkeys in registers, then multiplies by scalar.

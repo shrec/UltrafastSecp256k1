@@ -186,6 +186,40 @@ GPU-accelerated; by default it is pure CPU. The C ABI
 `ufsecp_gpu_ecdsa_verify_lbtc_columns` / `ufsecp_gpu_schnorr_verify_lbtc_columns`
 exist only for C ABI completeness and are not the libbitcoin-direct surface.
 
+### libbitcoin public-data batch ops: validate / commitment / hashing (Added 2026-07-04)
+
+Six header-only `ufsecp::lbtc::*` batch primitives — `xonly_validate_batch`,
+`pubkey_validate_batch`, `taproot_commitment_verify_batch`, `tagged_hash_batch`,
+`tagged_hash_var_batch`, `hash256_batch` — share the identical one-surface
+contract as the column-verify path above: internal GPU acceleration via the
+**EXISTING** `GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`,
+`commitment_verify`, `tagged_hash`, `tagged_hash_var`, `hash256`) + a
+deterministic CPU fallback, presented as ONE `bool`-returning inline call (no
+CPU/GPU split, no GPU status code, no caller chunking, no bridge/C-ABI). All six
+are PUBLIC-DATA / variable-time (no secret is touched). The offload is wired
+through engine-owned `inline std::atomic<>` hooks
+(`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`) that
+`src/gpu/src/gpu_engine_hook.cpp` self-installs (guarded by
+`SECP256K1_LBTC_GPU_OPS`, retained by the same
+`secp256k1_gpu_columns_provider_anchor`). No new virtual, no new C ABI, no new
+anchor, no new CTest target.
+
+| Backend | validate/commitment/hash path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — `lbtc_direct_verify` cross-checks each op vs a serial reference (schnorr `lift_x`, `P+t*G`, SHA256, double-SHA256) + hostile-caller matrix | public-data variable-time; byte-identical fallback for every backend |
+| CUDA | native on-device kernel | **HIGH** — the six virtuals are CUDA-native (`lbtc_*_kernel` in `gpu_backend_cuda.cu`); operational error declines → CPU | public-data variable-time; hash caps (msg_len≤256, stride≤256, input_len≤320) decline out-of-cap lengths → CPU covers all |
+| OpenCL | host CPU fallback | **MEDIUM (parity exception)** — virtual returns `Unsupported` → decline → deterministic CPU | correctness-preserving, not a success gap |
+| Metal | host CPU fallback | **MEDIUM (parity exception)** — virtual returns `Unsupported` → decline → deterministic CPU | correctness-preserving, not a success gap |
+
+Fail-closed / never-consensus-invalid: **validate ops** deterministically
+overwrite every result row on the CPU path (operational GPU failure never yields
+an all-zero buffer); **hash ops** never pre-zero `out32` (a zero row would be a
+wrong/consensus-invalid hash) and reject bad input (`false`) without touching
+`out32`. Every trampoline maps no-GPU / non-Ok `GpuError` / exception to a
+decline (`-1`), so control always falls to the correct CPU computation. A
+CPU-only libbitcoin build never links `secp256k1_gpu_host`, so the hooks stay
+null and every call runs the deterministic CPU path — no GPU symbol is required.
+
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
 `ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA

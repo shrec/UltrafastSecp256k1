@@ -593,6 +593,180 @@ kernel void schnorr_verify_lbtc_columns(
 }
 
 // =============================================================================
+// libbitcoin-bridge PUBLIC-DATA batch ops (native Metal parity with the CUDA
+// reference in src/gpu/src/gpu_backend_cuda.cu kernels @715-779). All six are
+// variable-time on public data (x-only/compressed pubkeys, taproot commitment
+// tuples, tagged-hash messages, hash256 preimages) — no secret is touched, so
+// VT device helpers (lift_x, RAW scalar_from_bytes, windowed k*G, mixed add,
+// streaming SHA-256) are correct. THREE parity invariants mirror CUDA exactly:
+//   (1) x < p is an EXTERNAL gate (lbtc_be32_lt_field_p) applied BEFORE lift_x,
+//       because lift_x only reduces mod p and would otherwise accept x >= p;
+//   (2) the tweak is a RAW scalar reduced by a single conditional -n
+//       (scalar_from_bytes), never rejected;
+//   (3) the tag hash is fed TWICE then the message (SHA256(th||th||msg)) — the
+//       host precomputes th = SHA256(tag); we never re-hash the tag here.
+// Result buffers for the validate ops are `device uint*` (uint32, sentinel-
+// capable) so the host can seed 0xFFFFFFFF and detect a command-buffer fault
+// that dispatch_sync silently swallows; the host narrows uint32 -> uint8.
+// =============================================================================
+
+// x-only key validation: results[i] = 1 iff keys32[i] is a valid BIP-340 x-only
+// key (x < p AND even-y lift_x on curve). Mirrors lbtc_xonly_validate_kernel.
+kernel void lbtc_xonly_validate(
+    device const uchar *keys32   [[buffer(0)]],   // N × 32
+    device uint *results         [[buffer(1)]],
+    constant uint &count         [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    device const uchar* x = keys32 + ulong(tid) * 32;
+    JacobianPoint p;
+    // External x<p gate BEFORE lift_x (invariant 1); && short-circuits like CUDA.
+    results[tid] = (lbtc_be32_lt_field_p(x) && lift_x(x, p)) ? 1u : 0u;
+}
+
+// Compressed pubkey validation: results[i] = 1 iff prefix in {2,3}, x < p, and
+// x lifts on-curve. Prefix parity is NOT checked against the lifted point —
+// byte-identical to lbtc_pubkey_validate_kernel.
+kernel void lbtc_pubkey_validate(
+    device const uchar *pubkeys33 [[buffer(0)]],  // N × 33
+    device uint *results          [[buffer(1)]],
+    constant uint &count          [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    device const uchar* p = pubkeys33 + ulong(tid) * 33;
+    uchar pfx = p[0];
+    bool ok = (pfx == 0x02 || pfx == 0x03) && lbtc_be32_lt_field_p(p + 1);
+    if (ok) { JacobianPoint J; ok = lift_x(p + 1, J); }
+    results[tid] = ok ? 1u : 0u;
+}
+
+// BIP-341 commitment tweak-add-check: results[i] = 1 iff
+// x(lift_x_even(internal_i) + tweak_i*G) == tweaked_x_i AND its y-parity ==
+// parity[i]. RAW tweak (invariant 2). Mirrors lbtc_commitment_kernel; the
+// jacobian->affine extract + parity compress is done inline (matches CUDA
+// point_to_compressed) so no zk.h dependency is needed.
+kernel void lbtc_commitment_verify(
+    device const uchar *ix    [[buffer(0)]],   // N × 32 internal x
+    device const uchar *tw    [[buffer(1)]],   // N × 32 tweak (RAW)
+    device const uchar *tx    [[buffer(2)]],   // N × 32 tweaked x (expected)
+    device const uchar *par   [[buffer(3)]],   // N × 1 expected y-parity
+    device uint *res          [[buffer(4)]],
+    constant uint &count      [[buffer(5)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    device const uchar* ixp = ix + ulong(tid) * 32;
+    JacobianPoint P;
+    // even-y internal, x<p gate BEFORE lift_x (invariant 1)
+    if (!lbtc_be32_lt_field_p(ixp) || !lift_x(ixp, P)) { res[tid] = 0u; return; }
+    // Q = tweak*G + P via the PROVEN pattern ecdsa_verify() uses on Metal
+    // (generator_affine + scalar_mul_glv + FULL jacobian_add). Deliberately NOT
+    // scalar_mul_generator_windowed + jacobian_add_mixed: the OpenCL sibling's
+    // mixed add (point_add_mixed_unchecked) mis-handled certain Jacobian Z (e.g.
+    // 4*G, 7*G verified wrong on-device) and was replaced by the Shamir path;
+    // jacobian_add is the full, verify-exercised add. lift_x returns P as a z==1
+    // Jacobian, usable directly as the second addend.
+    AffinePoint Gaff = generator_affine();
+    Scalar256 s = scalar_from_bytes(tw + ulong(tid) * 32);   // RAW tweak mod-n (invariant 2)
+    JacobianPoint twG = scalar_mul_glv(Gaff, s);             // tweak*G, variable-time
+    JacobianPoint Q = jacobian_add(twG, P);                  // tweak*G + P (full add)
+    if (Q.infinity != 0) { res[tid] = 0u; return; }
+    AffinePoint Qa = jacobian_to_affine(Q);
+    thread uchar xb[32];
+    thread uchar yb[32];
+    field_to_bytes(Qa.x, xb);
+    field_to_bytes(Qa.y, yb);
+    uchar want = (par[tid] != 0) ? 0x03 : 0x02;
+    uchar yprefix = (yb[31] & 1u) ? 0x03 : 0x02;             // BE serialize: LSB = parity
+    uint ok = (yprefix == want) ? 1u : 0u;
+    for (uint j = 0; j < 32; ++j)
+        if (xb[j] != tx[ulong(tid) * 32 + j]) ok = 0u;
+    res[tid] = ok;
+}
+
+// Taproot tagged hash (fixed msg length): out[i] = SHA256(th||th||msg_i).
+// Mirrors lbtc_tagged_hash_kernel. Uses the streaming SHA256Ctx (NOT
+// sha256_oneshot, which only handles <128-byte inputs; th||th||msg reaches
+// 320 bytes). Inputs are copied device->thread because sha256_update needs a
+// thread pointer.
+kernel void lbtc_tagged_hash(
+    device const uchar *th    [[buffer(0)]],   // 32 (host-precomputed SHA256(tag))
+    device const uchar *msgs  [[buffer(1)]],   // N × msg_len
+    constant uint &msg_len    [[buffer(2)]],   // host-guarded [1,256]
+    device uchar *out         [[buffer(3)]],   // N × 32
+    constant uint &count      [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    thread uchar th32[32];
+    for (uint j = 0; j < 32; ++j) th32[j] = th[j];
+    thread uchar mbuf[256];
+    for (uint j = 0; j < msg_len; ++j) mbuf[j] = msgs[ulong(tid) * msg_len + j];
+    SHA256Ctx ctx; sha256_init(ctx);
+    sha256_update(ctx, th32, 32);                 // tag hash TWICE (invariant 3)
+    sha256_update(ctx, th32, 32);
+    sha256_update(ctx, mbuf, msg_len);
+    thread uchar h[32];
+    sha256_final(ctx, h);
+    for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h[j];
+}
+
+// Taproot tagged hash with per-item message length (TapLeaf scripts):
+// out[i] = SHA256(th||th||msg_i[0..L)) with L = min(lens[i], 256) — the same
+// silent per-item clamp as lbtc_tagged_hash_var_kernel. lens[i] may exceed
+// stride (reads into the neighbouring row, caller responsibility, matches CUDA).
+kernel void lbtc_tagged_hash_var(
+    device const uchar *th    [[buffer(0)]],   // 32
+    device const uchar *msgs  [[buffer(1)]],   // N × stride
+    device const uint *lens   [[buffer(2)]],   // N (little-endian uint32)
+    constant uint &stride     [[buffer(3)]],   // host-guarded [1,256]
+    device uchar *out         [[buffer(4)]],   // N × 32
+    constant uint &count      [[buffer(5)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    uint L = lens[tid];
+    if (L > 256u) L = 256u;                        // silent clamp, matches CUDA
+    thread uchar th32[32];
+    for (uint j = 0; j < 32; ++j) th32[j] = th[j];
+    thread uchar mbuf[256];
+    for (uint j = 0; j < L; ++j) mbuf[j] = msgs[ulong(tid) * stride + j];
+    SHA256Ctx ctx; sha256_init(ctx);
+    sha256_update(ctx, th32, 32);                 // tag hash TWICE (invariant 3)
+    sha256_update(ctx, th32, 32);
+    sha256_update(ctx, mbuf, L);
+    thread uchar h[32];
+    sha256_final(ctx, h);
+    for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h[j];
+}
+
+// HASH256 (double SHA-256) of fixed-length inputs (merkle node hashing):
+// out[i] = SHA256(SHA256(inputs_i)). NO tag prefix. Mirrors lbtc_hash256_kernel.
+// device->thread copy is mandatory (sha256_update needs a thread pointer).
+kernel void lbtc_hash256(
+    device const uchar *inputs [[buffer(0)]],   // N × input_len
+    constant uint &input_len   [[buffer(1)]],   // host-guarded [1,320]
+    device uchar *out          [[buffer(2)]],   // N × 32
+    constant uint &count       [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    thread uchar in[320];
+    for (uint j = 0; j < input_len; ++j) in[j] = inputs[ulong(tid) * input_len + j];
+    SHA256Ctx ctx1; sha256_init(ctx1);
+    sha256_update(ctx1, in, input_len);
+    thread uchar h1[32];
+    sha256_final(ctx1, h1);                        // SHA256(input)
+    SHA256Ctx ctx2; sha256_init(ctx2);
+    sha256_update(ctx2, h1, 32);
+    thread uchar h2[32];
+    sha256_final(ctx2, h2);                        // SHA256(SHA256(input))
+    for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
+}
+
+// =============================================================================
 // Kernel 11: Batch Schnorr Sign (BIP-340)
 // =============================================================================
 
