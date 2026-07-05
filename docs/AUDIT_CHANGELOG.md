@@ -1,5 +1,39 @@
 # Audit Changelog
 
+## 2026-07-05 — libbitcoin public-data batch ops: native OpenCL + Metal parity for the 6 GpuBackend virtuals
+
+Follow-up to the 2026-07-04 surface: the six `GpuBackend` virtuals
+(`xonly_validate`, `pubkey_validate`, `commitment_verify`, `tagged_hash`,
+`tagged_hash_var`, `hash256`) were CUDA-only; OpenCL/Metal declined to CPU. Both
+are now **native**, matching the CUDA reference bit-for-bit. CPU fallback remains
+only for the no-device / operational-error case (a native override never blanket-
+returns `Unsupported` when a device is present).
+
+- **OpenCL** — 6 `lbtc_*` `__kernel`s appended to
+  `src/opencl/kernels/secp256k1_extended.cl` (reusing existing device helpers:
+  `lbtc_be32_lt_field_p` external `x<p` gate, `lift_x_impl` even-Y, streaming
+  `sha256_*`), 6 overrides in `gpu_backend_opencl.cpp` mirroring the
+  `ecdsa_verify_lbtc_columns` clCreateBuffer/enqueue/read recipe. **Verified
+  on-device (NVIDIA RTX 5060 Ti):** all 6 kernels bit-exact vs a Python
+  `hashlib`+EC reference, plus `lbtc_direct_verify` end-to-end with OpenCL active.
+- **Bug found & fixed (OpenCL `commitment_verify`):** the first draft computed
+  `tweak*G + P` with `scalar_mul_generator_impl` (correct) + `point_add_mixed_unchecked`,
+  and the mixed-add returned the wrong point for certain Jacobian Z (e.g. `4*G`,
+  `7*G` failed on-device while `2*G`,`5*G` passed). Replaced with the proven
+  `shamir_double_mul_glv_impl` (the same `u1*G + u2*P` helper `ecdsa_verify_impl`
+  uses); all commitment vectors then pass. (`point_add_mixed_unchecked` in
+  `secp256k1_point.cl` may warrant a separate audit — it is also used by
+  frost/bip32/zk OpenCL paths.)
+- **Metal** — 6 `lbtc_*` `[[kernel]]`s appended to
+  `src/metal/shaders/secp256k1_kernels.metal`, 6 overrides in
+  `gpu_backend_metal.mm`. `commitment_verify` uses the proven
+  `generator_affine`+`scalar_mul_glv`+`jacobian_add` path (same as Metal
+  `ecdsa_verify`), NOT `jacobian_add_mixed`. **Not built/run here:** Metal
+  compiles only on Apple; runtime parity is **pending owner validation on Apple
+  hardware**. No measured Metal numbers are claimed.
+- Docs: `BACKEND_ASSURANCE_MATRIX.md` OpenCL row → HIGH (verified), Metal row →
+  code-complete/pending-Apple; `LIBBITCOIN_INTEGRATION.md` parity note updated.
+
 ## 2026-07-04 — libbitcoin public-data batch ops: 6 header-only surfaces (validate / commitment / hashing)
 
 Added six block-connect-scale batch primitives to the bridge-free header-only

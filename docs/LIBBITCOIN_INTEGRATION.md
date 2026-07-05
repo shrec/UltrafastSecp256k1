@@ -228,8 +228,13 @@ GPU enablement is the inspectable build fact **"is `secp256k1_gpu_host` linked"*
 self-installing `EngineLbtcOpsInstaller` rides the same `-u
 secp256k1_gpu_columns_provider_anchor`). GPU acceleration reuses the EXISTING
 `GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`, `commitment_verify`,
-`tagged_hash`, `tagged_hash_var`, `hash256`) — CUDA-native today; OpenCL/Metal
-return `Unsupported` → decline → CPU. A **CPU-only** libbitcoin build never links
+`tagged_hash`, `tagged_hash_var`, `hash256`) — **native on all three backends**:
+CUDA (`gpu_backend_cuda.cu`) and OpenCL (`src/opencl/kernels/secp256k1_extended.cl`
++ `gpu_backend_opencl.cpp`) are verified on-device; Metal
+(`src/metal/shaders/secp256k1_kernels.metal` + `gpu_backend_metal.mm`) is
+code-complete and mirrors the reference but its runtime parity is **pending
+Apple-hardware validation** (Metal does not build on a non-Apple host). Any
+operational backend error declines → CPU. A **CPU-only** libbitcoin build never links
 `secp256k1_gpu_host`, so the hooks stay null and every call runs the deterministic
 header CPU path (no GPU symbol is referenced). Build/test with the same commands
 as the verify paths (`-DSECP256K1_BUILD_LIBBITCOIN[_GPU]=ON`,
