@@ -217,20 +217,27 @@ public:
 
     /** libbitcoin-bridge: batch x-only key validation (lift_x per key). PUBLIC data.
      *  result[i] = 1 iff keys32[i*32..] is a valid x-only pubkey x-coordinate.
-     *  Default Unsupported: only CUDA implements it; OpenCL/Metal fall back to CPU. */
+     *  CUDA, OpenCL, and Metal all provide native overrides (see gpu_backend_cuda.cu,
+     *  gpu_backend_opencl.cpp, gpu_backend_metal.mm); this base virtual default is
+     *  unreachable for any currently shipped backend — it exists only as an
+     *  abstract-safe fallback for a hypothetical future backend. */
     virtual GpuError xonly_validate(
         const uint8_t* keys32, size_t n, uint8_t* results)
     {
         (void)keys32; (void)n; (void)results;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
     /** libbitcoin-bridge: BIP-341 commitment tweak-add-check, one item per thread.
      *  result[i] = 1 iff x(lift_x(internal_x_i)+tweak_i*G)==tweaked_x_i and its
-     *  y-parity==parity[i]. PUBLIC data. Default Unsupported (CUDA-only). */
+     *  y-parity==parity[i]. PUBLIC data. CUDA, OpenCL, and Metal all provide native
+     *  overrides (see gpu_backend_cuda.cu, gpu_backend_opencl.cpp,
+     *  gpu_backend_metal.mm); this base virtual default is unreachable for any
+     *  currently shipped backend — it exists only as an abstract-safe fallback for
+     *  a hypothetical future backend. */
     virtual GpuError commitment_verify(
         const uint8_t* internal_x32, const uint8_t* tweak32,
         const uint8_t* tweaked_x32, const uint8_t* parity,
@@ -238,60 +245,74 @@ public:
     {
         (void)internal_x32; (void)tweak32; (void)tweaked_x32; (void)parity;
         (void)n; (void)results;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
     /** libbitcoin-bridge: Taproot tagged hash. tag_hash32 = SHA256(tag) (host-precomputed);
      *  out32[i*32..] = SHA256(tag_hash||tag_hash||msg_i) over fixed-length msgs. PUBLIC
-     *  data. Default Unsupported (CUDA-only). */
+     *  data. CUDA, OpenCL, and Metal all provide native overrides (see
+     *  gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this base
+     *  virtual default is unreachable for any currently shipped backend — it exists
+     *  only as an abstract-safe fallback for a hypothetical future backend. */
     virtual GpuError tagged_hash(
         const uint8_t* tag_hash32, const uint8_t* msgs,
         size_t msg_len, size_t n, uint8_t* out32)
     {
         (void)tag_hash32; (void)msgs; (void)msg_len; (void)n; (void)out32;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
     /** libbitcoin-bridge: batch full compressed-pubkey validation (prefix + x<p +
-     *  on-curve). PUBLIC data. Default Unsupported (CUDA-only). */
+     *  on-curve). PUBLIC data. CUDA, OpenCL, and Metal all provide native overrides
+     *  (see gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+     *  base virtual default is unreachable for any currently shipped backend — it
+     *  exists only as an abstract-safe fallback for a hypothetical future backend. */
     virtual GpuError pubkey_validate(
         const uint8_t* pubkeys33, size_t n, uint8_t* results)
     {
         (void)pubkeys33; (void)n; (void)results;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
     /** libbitcoin-bridge: Taproot tagged hash with per-item message length
-     *  (TapLeaf scripts). PUBLIC data. Default Unsupported (CUDA-only). */
+     *  (TapLeaf scripts). PUBLIC data. CUDA, OpenCL, and Metal all provide native
+     *  overrides (see gpu_backend_cuda.cu, gpu_backend_opencl.cpp,
+     *  gpu_backend_metal.mm); this base virtual default is unreachable for any
+     *  currently shipped backend — it exists only as an abstract-safe fallback for
+     *  a hypothetical future backend. */
     virtual GpuError tagged_hash_var(
         const uint8_t* tag_hash32, const uint8_t* msgs, const uint32_t* msg_lens,
         size_t stride, size_t n, uint8_t* out32)
     {
         (void)tag_hash32; (void)msgs; (void)msg_lens; (void)stride; (void)n; (void)out32;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
     /** libbitcoin-bridge: batch HASH256 (double SHA-256) of fixed-length inputs
-     *  (merkle node hashing). PUBLIC data. Default Unsupported (CUDA-only). */
+     *  (merkle node hashing). PUBLIC data. CUDA, OpenCL, and Metal all provide
+     *  native overrides (see gpu_backend_cuda.cu, gpu_backend_opencl.cpp,
+     *  gpu_backend_metal.mm); this base virtual default is unreachable for any
+     *  currently shipped backend — it exists only as an abstract-safe fallback for
+     *  a hypothetical future backend. */
     virtual GpuError hash256(
         const uint8_t* inputs, size_t input_len, size_t n, uint8_t* out32)
     {
         (void)inputs; (void)input_len; (void)n; (void)out32;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 

@@ -395,32 +395,36 @@ benchmark JSON, audit output, driver metadata, and a real AMD device record
 per `docs/GPU_BACKEND_EVIDENCE.json`. CUDA source-sharing is not acceptable
 evidence for ROCm/HIP promotion.
 
-### Default-stub parity exceptions (libbitcoin-bridge specializations)
+### Default-stub parity exceptions (resolved for the six libbitcoin-bridge public-data ops)
 
-Beyond the 16 public ABI ops, the `GpuBackend` interface exposes optional
-**libbitcoin-bridge specialization** virtual methods (`xonly_validate`,
-`commitment_verify`, `tagged_hash`, `tagged_hash_var`, `pubkey_validate`,
-`hash256`, and the ZK/AEAD/BIP-352 batch variants). These are **CUDA-native**
-and intentionally default to `GpuError::Unsupported` on OpenCL/Metal, where the
-caller transparently falls back to the host/CPU path (e.g. `*_verify_batch` +
-a host collapse). All inputs on these paths are **public data**, and the
-fallback is deterministic, so this is a **performance residual, not a
-correctness parity gap**.
+The `xonly_validate`, `commitment_verify`, `tagged_hash`, `tagged_hash_var`,
+`pubkey_validate`, and `hash256` **libbitcoin-bridge specialization** virtual
+methods are **not** a parity exception: as of the libbitcoin public-data batch
+ops work (2026-07-04), all three shipped backends (CUDA, OpenCL, Metal)
+provide dedicated native overrides for all six — the base `GpuBackend` virtual
+default (`return GpuError::Unsupported`) is unreachable for any currently
+shipped backend and exists only as an abstract-safe fallback for a
+hypothetical future backend, exactly like `ecdsa_verify_collect` /
+`schnorr_verify_collect` below. See "libbitcoin public-data batch ops:
+validate / commitment / hashing" above (~line 195) for the authoritative
+per-backend assurance status.
 
-`ecdsa_verify_collect` / `schnorr_verify_collect` are **not** part of this
-default-stub group: as of the libbitcoin "collect" verify work (2026-06-02),
-all three shipped backends (CUDA, OpenCL, Metal) provide dedicated native
-overrides — the base `GpuBackend` virtual is unreachable for any currently
-shipped backend and exists only as an abstract-safe default for a hypothetical
-future backend. See the "libbitcoin bridge 'collect' verify" section above
-(~line 37) for the authoritative per-backend assurance status.
+`ecdsa_verify_collect` / `schnorr_verify_collect` are resolved the same way:
+as of the libbitcoin "collect" verify work (2026-06-02), all three shipped
+backends (CUDA, OpenCL, Metal) provide dedicated native overrides — the base
+`GpuBackend` virtual is unreachable for any currently shipped backend and
+exists only as an abstract-safe default for a hypothetical future backend.
+See the "libbitcoin bridge 'collect' verify" section above (~line 37) for the
+authoritative per-backend assurance status.
 
-Each remaining default-stub return in `src/gpu/include/gpu_backend.hpp` carries
-an inline `PARITY-EXCEPTION` marker, and the `audit_gate.py --gpu-parity` gate
+Any GPU-gated or ZK-gated virtual that still has a genuine, currently-true
+default-stub gap carries an inline `PARITY-EXCEPTION` or `TODO(parity)` marker
+in `src/gpu/include/gpu_backend.hpp`, and the `audit_gate.py --gpu-parity` gate
 enforces that **every `return ...Unsupported` in GPU backend source is either
-implemented or carries a `TODO(parity)`/`PARITY-EXCEPTION` marker** — a backend
-may not silently return Unsupported without a documented exception. The gate
-scans source files only (build/generated trees are pruned) so the signal is
+implemented or carries a `TODO(parity)`/`PARITY-EXCEPTION` marker, OR is one of
+the abstract-safe-only base defaults documented above** — a backend may not
+silently return Unsupported without a documented exception. The gate scans
+source files only (build/generated trees are pruned) so the signal is
 precise.
 
 ---

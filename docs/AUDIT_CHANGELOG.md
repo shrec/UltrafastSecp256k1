@@ -1,5 +1,38 @@
 # Audit Changelog
 
+## 2026-07-06 — doc-only correction: six libbitcoin public-data GPU ops already at full parity
+
+No code change. Corrected stale doc wording for six `GpuBackend` libbitcoin-bridge
+specialization virtuals — `xonly_validate`, `pubkey_validate`, `commitment_verify`,
+`tagged_hash`, `tagged_hash_var`, `hash256` — that had been mis-documented as
+"CUDA-only, OpenCL/Metal fall back to host CPU" / `PARITY-EXCEPTION`, even though
+all three shipped backends (CUDA, OpenCL, Metal) already dispatch real on-device
+kernels for all six (confirmed via `gpu_backend_cuda.cu`, `gpu_backend_opencl.cpp`,
+`gpu_backend_metal.mm` override bodies) and all six are already exposed through
+bridge-less `ufsecp::lbtc::*_batch` direct entry points with GPU hooks wired in
+`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` /
+`src/gpu/src/gpu_engine_hook.cpp`.
+
+- **`src/gpu/include/gpu_backend.hpp`:** rewrote the doc comment and default-stub
+  body comment for all six virtuals to the same "abstract-safe fallback only —
+  CUDA/OpenCL/Metal all override natively; this base default is unreachable for
+  any currently shipped backend" wording already established for
+  `ecdsa_verify_collect` / `schnorr_verify_collect`. No signature, no behavior,
+  no stub return value changed.
+- **`docs/BACKEND_ASSURANCE_MATRIX.md`:** rewrote the "Default-stub parity
+  exceptions" section (previously claimed these six were CUDA-native with an
+  OpenCL/Metal host-CPU fallback) to state they are resolved, pointing to the
+  existing correct per-backend table in the "libbitcoin public-data batch ops:
+  validate / commitment / hashing (Added 2026-07-04)" section.
+- **Not touched (out of scope for this correction, left for a follow-up):**
+  `include/ufsecp/ufsecp_gpu.h` carries the same stale "CUDA implemented;
+  OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED`" banner immediately above
+  these six C ABI declarations (~line 404) — it is not in this task's allowed
+  write set (C ABI header) and needs its own doc-only pass.
+- **Test:** doc-only change; no new test required. Existing coverage:
+  `lbtc_direct_verify` / `test_direct_gpu_columns_hook`-style hostile-caller +
+  GPU-hook-installed assertions already exercise these six ops end-to-end.
+
 ## 2026-07-05 — collect verify: native OpenCL + Metal parity (ecdsa_verify_collect / schnorr_verify_collect)
 
 Closed the last strict GPU-backend parity gap: the collect-verify virtuals
