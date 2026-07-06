@@ -67,16 +67,20 @@ ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
 # optional direct benchmark evidence, still no C ABI / shim / bridge:
 cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bench -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
-cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch -j
+cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
 out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
   --json out/libbitcoin-bench/lbtc_direct_batch.json
+out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_hash256_var 262144 5 512 80 512 \
+  --json out/libbitcoin-bench/lbtc_hash256_var.json
 ```
 
 Tests are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON`. The canonical
 tests are the CTests `lbtc_direct_verify` and `lbtc_direct_operations`.
 Benchmarks are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON`; the
-canonical benchmark is `bench_lbtc_direct_batch` and it links only
-`secp256k1::fastsecp256k1_libbitcoin` plus the engine.
+canonical benchmarks are `bench_lbtc_direct_batch` (signature batch verify) and
+`bench_lbtc_hash256_var` (variable-length Bitcoin HASH256). Both link only
+`secp256k1::fastsecp256k1_libbitcoin` plus the engine and, when explicitly
+enabled, the internal GPU host provider.
 
 ### GPU Acceleration (opt-in, internal — Eric's contract)
 
@@ -196,7 +200,7 @@ with zero security benefit.)
 
 ### Public-data batch ops (validate / commitment / hashing)
 
-Six additional block-connect-scale batch primitives share the identical
+Seven additional block-connect-scale batch primitives share the identical
 one-surface contract as the verify paths above — **internal GPU acceleration,
 deterministic CPU fallback, one `bool`-returning inline call, no CPU/GPU split,
 no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
@@ -210,6 +214,7 @@ no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
 | `tagged_hash_batch(tag, tag_len, msgs, msg_len, count, out32, max_threads=0)` | convenience overload | `count×32` | computes `tag_hash32=SHA256(tag)` once, delegates |
 | `tagged_hash_var_batch(tag_hash32, msgs, msg_lens, stride, count, out32, max_threads=0)` | `msgs`: `count` items at `stride`; `msg_lens[i]` per item | `count×32` | per-item variable-length BIP-340 tagged hash (CPU covers **all** lengths — no 256-byte cap) |
 | `hash256_batch(inputs, input_len, count, out32, max_threads=0)` | `inputs`: `count×input_len` | `count×32` | `out[i]=SHA256(SHA256(inputs[i]))` (Bitcoin HASH256) |
+| `hash256_var_batch(inputs, input_lens, stride, count, out32, max_threads=0)` | `inputs`: `count` items at `stride`; `input_lens[i]` per item | `count×32` | per-item variable-length Bitcoin HASH256 for txid/wtxid preimages after libbitcoin serializes bytes on CPU |
 
 Fail-closed / never-consensus-invalid semantics:
 
@@ -228,7 +233,8 @@ GPU enablement is the inspectable build fact **"is `secp256k1_gpu_host` linked"*
 self-installing `EngineLbtcOpsInstaller` rides the same `-u
 secp256k1_gpu_columns_provider_anchor`). GPU acceleration reuses the EXISTING
 `GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`, `commitment_verify`,
-`tagged_hash`, `tagged_hash_var`, `hash256`) — **native on all three backends**:
+`tagged_hash`, `tagged_hash_var`, `hash256`, `hash256_var`) — **native on all
+three backends**:
 CUDA (`gpu_backend_cuda.cu`) and OpenCL (`src/opencl/kernels/secp256k1_extended.cl`
 + `gpu_backend_opencl.cpp`) are verified on-device; Metal
 (`src/metal/shaders/secp256k1_kernels.metal` + `gpu_backend_metal.mm`) is
@@ -269,6 +275,7 @@ as the verify paths (`-DSECP256K1_BUILD_LIBBITCOIN[_GPU]=ON`,
 | `tagged_hash_batch` | **VT** (public data) | `SHA256` / GPU `tagged_hash` | `secp256k1` / `gpu` |
 | `tagged_hash_var_batch` | **VT** (public data) | `SHA256` / GPU `tagged_hash_var` | `secp256k1` / `gpu` |
 | `hash256_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `hash256` | `secp256k1` / `gpu` |
+| `hash256_var_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `hash256_var` | `secp256k1` / `gpu` |
 
 Every CT entry has graph evidence: `symbols`/`coverage`/`auditmap` against `source_graph.db` confirm the code path routes through `secp256k1::ct::*` primitives with no data-dependent branches.
 
@@ -402,9 +409,11 @@ python3 ci/check_source_graph_quality.py
 bash ci/run_fast_gates.sh
 cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
-cmake --build out/libbitcoin-test --target bench_lbtc_direct_batch -j
+cmake --build out/libbitcoin-test --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
 out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_direct_batch 128 1 32 \
   --json out/libbitcoin-test/lbtc_direct_smoke.json
+out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_hash256_var 1024 1 512 80 512 \
+  --json out/libbitcoin-test/lbtc_hash256_var_smoke.json
 ```
 
 For GPU-accelerated builds, run the direct-profile runtime hook smoke test:
@@ -417,12 +426,13 @@ For GPU-accelerated builds, run the direct-profile runtime hook smoke test:
 ctest --test-dir out/libbitcoin-gpu -R lbtc_direct_gpu_columns_hook --output-on-failure
 ```
 
-The consensus rule is CPU/GPU equivalence: GPU column-verify verdicts must match
-the CPU reference bit-for-bit. GPU column acceleration is available transparently
-when `SECP256K1_BUILD_LIBBITCOIN_GPU=ON`, at least one GPU backend is compiled,
-and a compatible GPU runtime is present at startup. When no GPU is available, the
-engine transparently falls back to the deterministic CPU column path. The CPU
-reference is always gated against libsecp256k1-compatible behavior.
+The consensus rule is CPU/GPU equivalence: GPU column-verify verdicts and
+public-data hash outputs must match the CPU reference bit-for-bit. GPU
+acceleration is available transparently when
+`SECP256K1_BUILD_LIBBITCOIN_GPU=ON`, at least one GPU backend is compiled, and a
+compatible GPU runtime is present at startup. When no GPU is available, the
+engine transparently falls back to the deterministic CPU path. The CPU reference
+is always gated against libsecp256k1-compatible behavior.
 
 ---
 
@@ -445,9 +455,10 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bridge -G Ninja \
 
 `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON` re-enables the legacy libsecp256k1 shim,
 the C ABI, the `ufsecp_lbtc_*` batch bridge, and the bridge tests. The canonical
-benchmark remains `bench_lbtc_direct_batch`; the legacy C-ABI benchmark
-`bench_lbtc_batch` is built only when both `SECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`
-and `SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` are set. The C ABI
+benchmarks remain `bench_lbtc_direct_batch` and `bench_lbtc_hash256_var`; the
+legacy C-ABI benchmark `bench_lbtc_batch` is built only when both
+`SECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON` and
+`SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` are set. The C ABI
 (`-DSECP256K1_BUILD_CABI=ON`) is only required for this bridge/compat path — it
 is not needed for the canonical surface.
 

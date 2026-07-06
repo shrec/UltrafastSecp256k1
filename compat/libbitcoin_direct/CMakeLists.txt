@@ -62,7 +62,7 @@ if(SECP256K1_BUILD_LIBBITCOIN_GPU)
         # reference in ufsecp_gpu_impl.cpp — see src/gpu/src/gpu_engine_hook.cpp and
         # src/gpu/CMakeLists.txt "LBTC-GPU-SELFINSTALL-DROP".)
         set(_lbtc_gpu_retain "LINKER:--undefined=secp256k1_gpu_columns_provider_anchor")
-        # Enable the six libbitcoin public-data batch-op GPU trampolines in
+        # Enable the seven libbitcoin public-data batch-op GPU trampolines in
         # gpu_engine_hook.cpp (guarded by SECP256K1_LBTC_GPU_OPS) and give that TU
         # the include path for <ufsecp/lbtc_gpu_ops.hpp>. Both are target-level
         # properties on the already-created secp256k1_gpu_host target; CMake
@@ -167,5 +167,17 @@ if(SECP256K1_BUILD_LIBBITCOIN_BENCH)
     if(TARGET Threads::Threads)
         target_link_libraries(bench_lbtc_direct_batch PRIVATE Threads::Threads)
     endif()
-    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, no C ABI/shim/bridge)")
+
+    add_executable(bench_lbtc_hash256_var bench/bench_hash256_var.cpp)
+    target_link_libraries(bench_lbtc_hash256_var PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_gpu_host}
+        ${_lbtc_engine})
+    if(_lbtc_gpu_retain)
+        target_link_options(bench_lbtc_hash256_var PRIVATE ${_lbtc_gpu_retain})
+    endif()
+    if(TARGET Threads::Threads)
+        target_link_libraries(bench_lbtc_hash256_var PRIVATE Threads::Threads)
+    endif()
+    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, bench_lbtc_hash256_var, no C ABI/shim/bridge)")
 endif()

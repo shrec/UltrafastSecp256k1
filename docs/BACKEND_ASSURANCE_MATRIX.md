@@ -303,7 +303,7 @@ The table below distinguishes between the **public GPU ABI** (functions exposed 
 compiled into the device code but not directly callable through the stable C ABI).
 A kernel being present internally does not imply a public API exists for it.
 
-### Public GPU ABI operations (17 functions, backend-neutral)
+### Public GPU ABI operations (18 functions, backend-neutral)
 
 | Function | CPU (fast) | CPU (CT) | CUDA | OpenCL | Metal |
 |---|---|---|---|---|---|
@@ -313,6 +313,7 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_schnorr_verify_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecdh_batch` ¹ | Y | Y | Y | Y | Y |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | - | Y | Y | Y |
+| `ufsecp_gpu_hash256_var` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecrecover_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_msm` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | - | Y | Y | Y |
@@ -390,9 +391,9 @@ through `ufsecp_gpu.h`.
 > immediately by the parity audit workflow. The numbers below reflect the current
 > HEAD — they are not a manually maintained snapshot.
 
-All 17 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
+All 18 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
 No partial stubs or CPU fallbacks remain for any of them. Last resolved:
-2026-06-13 (`ufsecp_gpu_ecdsa_verify_opaque_rows`).
+2026-07-06 (`ufsecp_gpu_hash256_var`).
 
 `ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
 added 2026-04-24): native device kernels now exist on all three backends

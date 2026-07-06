@@ -34,9 +34,10 @@ inputs public) — correct and fastest; no secret material is handled here.
 | `ecdsa_verify_batch` / `schnorr_verify_batch` (interleaved rows, MT) | ✅ done + tested |
 | **`ecdsa_verify_columns` / `schnorr_verify_columns`** (Structure-of-Arrays, MT) | ✅ done + tested — **matches libbitcoin's column-span batch** |
 | parallelism: fused parallel parse+verify, **7.6× / 16 cores** (no serial-parse Amdahl wall) | ✅ validated |
+| public-data batch ops (`xonly_validate`, `pubkey_validate`, `taproot_commitment_verify`, `tagged_hash`, `tagged_hash_var`, `hash256`, `hash256_var`) | ✅ done + tested — one direct API, transparent GPU hook, deterministic CPU fallback |
 | sign / recover / keys / math / serialize / context | ⏳ next increment |
 | silent payments (BIP-352 scan) | ⏳ engine has `bip352_*`; awaiting evoskuil's `silent::batch` design |
-| GPU verify / scan | ⏳ engine GPU backends |
+| GPU verify / scan | ✅ direct libbitcoin GPU hook for columns + public-data batch ops; BIP-352 scan remains engine-level until libbitcoin exposes its batch design |
 
 Verify is the IBD-critical path. Test: `tests/test_direct_verify.cpp` (ECDSA +
 Schnorr, single + batch + columns, all-valid + fail-closed-on-tamper).
@@ -104,14 +105,23 @@ ctest --test-dir <build> -R lbtc_direct --output-on-failure
 ```
 
 **Benchmark.** Add `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON` to build
-`bench_lbtc_direct_batch`. It is also direct C++ only: no C ABI, no shim, no
-bridge.
+`bench_lbtc_direct_batch` and `bench_lbtc_hash256_var`. Both are direct C++ only:
+no C ABI, no shim, no bridge.
 
 ```sh
-cmake --build <build> --target bench_lbtc_direct_batch -j
+cmake --build <build> --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
 <build>/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
   --json <build>/lbtc_direct_batch.json
+<build>/compat/libbitcoin_direct/bench_lbtc_hash256_var 262144 5 512 80 512 \
+  --json <build>/lbtc_hash256_var.json
 ```
+
+`bench_lbtc_hash256_var` reports three rows: serial CPU reference,
+direct-wrapper with the production GPU hook temporarily disabled, and the
+production direct path. The JSON artifact explicitly records whether the
+production `hash256_var` hook was installed and whether a sample call was
+accepted by the backend; if the hook is absent or declines, the production row is
+the deterministic CPU fallback, not a GPU performance claim.
 
 The shim, the C ABI, and the `ufsecp_lbtc_*` bridge are compatibility-only and
 live behind a separate flag — `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
