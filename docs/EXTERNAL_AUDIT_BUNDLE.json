@@ -45,8 +45,8 @@
     {
       "exists": true,
       "path": "docs/FFI_HOSTILE_CALLER.md",
-      "sha256": "bfc3d004fab63b51e5af67328798d77587b8b2b470125a17fadb0ef748673b12",
-      "size": 30010
+      "sha256": "2c34d4423613d00e5fa5a2103e5142d4d763ebcac354b71a6e52d95f85ac8f32",
+      "size": 30489
     },
     {
       "exists": true,
@@ -126,7 +126,11 @@
           {
             "findings": [
               {
-                "message": "No changed secret-bearing paths detected",
+                "message": "Secret-bearing ABI boundary: include/ufsecp/ufsecp_gpu.h",
+                "severity": "INFO"
+              },
+              {
+                "message": "Secret-bearing changes have paired documentation updates",
                 "severity": "PASS"
               }
             ],
@@ -200,8 +204,12 @@
           {
             "findings": [
               {
-                "message": "6 files modified/deleted since graph build (2026-07-05T12:07:54)",
+                "message": "9 files modified/deleted since graph build (2026-07-05T12:07:54)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: include/ufsecp/ufsecp_gpu.h",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/AUDIT_CHANGELOG.md",
@@ -216,11 +224,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "message": "MODIFIED: docs/FFI_HOSTILE_CALLER.md",
                 "severity": "INFO"
               }
             ],
@@ -404,7 +408,7 @@
           {
             "findings": [
               {
-                "message": "6 changed files have matching docs",
+                "message": "7 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -414,11 +418,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 83.2 days (threshold: 14)",
+                "message": "Mutation report age: 83.3 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (83.2 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (83.3 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -786,11 +790,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c03fcf09319ad543d82c65f1712f844269847490",
-            "short": "c03fcf0931"
+            "sha": "05a72c76a79bb75b7f87ab10d175084d94486e5a",
+            "short": "05a72c76a7"
           }
         },
-        "generated_at": "2026-07-06T11:44:41.863771+00:00",
+        "generated_at": "2026-07-06T14:41:44.875264+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -807,12 +811,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-07-06T11:44:41.863709+00:00",
+          "collected_at": "2026-07-06T14:41:44.875202+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c03fcf09319ad543d82c65f1712f844269847490",
-            "short": "c03fcf0931"
+            "sha": "05a72c76a79bb75b7f87ab10d175084d94486e5a",
+            "short": "05a72c76a7"
           },
           "platform": {
             "machine": "x86_64",
@@ -833,7 +837,7 @@
           },
           "version": "4.4.0"
         },
-        "run_id": "audit_gate-c03fcf0931-20260706T114441",
+        "run_id": "audit_gate-05a72c76a7-20260706T144144",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -905,8 +909,13 @@
             "findings": [
               {
                 "check_id": "p0__secret-path_change_gate",
+                "severity": "info",
+                "title": "Secret-bearing ABI boundary: include/ufsecp/ufsecp_gpu.h"
+              },
+              {
+                "check_id": "p0__secret-path_change_gate",
                 "severity": "pass",
-                "title": "No changed secret-bearing paths detected"
+                "title": "Secret-bearing changes have paired documentation updates"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
@@ -988,7 +997,12 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "6 files modified/deleted since graph build (2026-07-05T12:07:54)"
+                "title": "9 files modified/deleted since graph build (2026-07-05T12:07:54)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: include/ufsecp/ufsecp_gpu.h"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1008,12 +1022,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
+                "title": "MODIFIED: docs/FFI_HOSTILE_CALLER.md"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1237,7 +1246,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "6 changed files have matching docs"
+                "title": "7 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1248,12 +1257,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 83.2 days (threshold: 14)"
+                "title": "Mutation report age: 83.3 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (83.2 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (83.3 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1678,12 +1687,12 @@
           }
         ],
         "summary": {
-          "advisory": 67,
+          "advisory": 68,
           "blocking": 0,
-          "info": 60,
+          "info": 61,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 127,
+          "total_findings": 128,
           "warnings": 7
         },
         "verdict": "PASS with advisory"
@@ -1691,8 +1700,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "ca3602bac86746b99b5b2da62f494ec72e8ccbc07a36c3e670bfc457453a60a3",
-      "stdout_sha256": "ae63863d7f979dd10e24b518a49705a8d8243539a1bac0da47f697eae1bb403e"
+      "stderr_sha256": "b993307155203a6a7acb43862821e72933ff7313fe874f4a8680f36f715b796a",
+      "stdout_sha256": "364f732cb1bc92a7e6a2e1c9fae1312dab7b44492cdf815562337d44de6966be"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1994,13 +2003,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-07-06T11:44:45.530265+00:00"
+        "timestamp": "2026-07-06T14:41:48.416491+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "95fde56ddb9a9534b17e1b94f8aa7402565e05602ad5203fbbe5774b0290ea9b"
+      "stdout_sha256": "b63a999c8b8196aa116bacfdfad73aa31ada35d0effa5a3464aabb94bb353676"
     },
     {
       "name": "supply_chain_gate",
@@ -2046,19 +2055,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-07-06T11:44:45.631066+00:00"
+        "timestamp": "2026-07-06T14:41:48.519925+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "544e30356511205aecd9fa8582811838a7923234b9ad65c9de9076535fc167f4"
+      "stdout_sha256": "53633f89f8b6ad9c89b7805d187c615de2777dac7bcdcebb79b745e76c8e3a86"
     }
   ],
-  "generated_at": "2026-07-06T11:44:45.645393+00:00",
+  "generated_at": "2026-07-06T14:41:48.534296+00:00",
   "git": {
     "branch": "dev",
-    "commit": "c03fcf09319ad543d82c65f1712f844269847490",
+    "commit": "05a72c76a79bb75b7f87ab10d175084d94486e5a",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

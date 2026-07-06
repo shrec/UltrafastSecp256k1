@@ -402,9 +402,9 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_msm(
     uint8_t* out_result33);
 
 /* ============================================================================
- * libbitcoin-bridge per-item batch ops (CUDA implemented; OpenCL/Metal return
- * UFSECP_ERR_GPU_UNSUPPORTED so the bridge falls back to its CPU path). All
- * PUBLIC-DATA -> variable-time.
+ * libbitcoin-bridge per-item batch ops. CUDA, OpenCL, and Metal all provide
+ * native on-device implementations for every op below (no host-CPU fallback).
+ * All PUBLIC-DATA -> variable-time.
  * ============================================================================ */
 
 /** Batch x-only pubkey validation: one lift_x per key (on-curve x check).

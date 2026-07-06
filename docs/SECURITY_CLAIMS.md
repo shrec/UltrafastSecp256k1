@@ -2,6 +2,22 @@
 
 **UltrafastSecp256k1 v4.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-07-06 - `ufsecp_gpu.h` C ABI banner corrected for the six lbtc-batch ops (doc-only, no claim change)
+
+The `include/ufsecp/ufsecp_gpu.h` section banner above `ufsecp_gpu_xonly_validate`,
+`ufsecp_gpu_commitment_verify`, `ufsecp_gpu_tagged_hash`, `ufsecp_gpu_pubkey_validate`,
+`ufsecp_gpu_tagged_hash_var`, and `ufsecp_gpu_hash256` carried a stale "CUDA
+implemented; OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED`" claim. It has been
+rewritten to state CUDA, OpenCL, and Metal all dispatch native on-device kernels for
+these six ops (no host-CPU fallback), matching the same correction already applied to
+`src/gpu/include/gpu_backend.hpp` and `docs/BACKEND_ASSURANCE_MATRIX.md`. The stale
+"OpenCL/Metal `Unsupported` -> CPU fallback" wording in the "GPU per-item batch ABI"
+claim below (unchanged since 2026-06-08) is corrected in the same pass. This is
+comment/doc-only: no C ABI signature, enum, macro, dispatch logic, or the PUBLIC-DATA
+/ no-CT-boundary claim for these six ops changed. See `docs/AUDIT_CHANGELOG.md`
+(2026-07-06, "doc-only follow-up: `ufsecp_gpu.h` C ABI banner corrected for the same
+six ops") for full detail.
+
 ### 2026-06-22 - CPU batch-verify throughput: persistent pool + FE52 decompress (verify-path only)
 
 Reworked the CPU multi-threaded batch-verify paths (`ecdsa_batch_verify_mt`,
@@ -1270,9 +1286,9 @@ pool keep using them. Hostile-caller quartet: see
 **public-data operations**: inputs are x-only keys, BIP-341 tweaks/outputs, and
 script-tree messages (all on-chain / caller-public) — **no private key, nonce, or
 secret material is processed**, so the CT-vs-variable-time boundary does not apply
-(variable-time is correct, per the verify-path rule). Each is a one-thread-per-item
-CUDA kernel; OpenCL/Metal return `Unsupported` and the bridge falls back to its
-threaded CPU reference (consensus-identical). Correctness is anchored bit-for-bit on
+(variable-time is correct, per the verify-path rule). CUDA, OpenCL, and Metal each
+dispatch a native one-thread-per-item on-device kernel (no host-CPU fallback).
+Correctness is anchored bit-for-bit on
 the libsecp shim: `ufsecp_gpu_xonly_validate` == `secp256k1_xonly_pubkey_parse`
 (including the `x ≥ p` reject), `ufsecp_gpu_commitment_verify` ==
 `secp256k1_xonly_pubkey_tweak_add_check` per row, and `ufsecp_gpu_tagged_hash` ==
@@ -1280,8 +1296,9 @@ the libsecp shim: `ufsecp_gpu_xonly_validate` == `secp256k1_xonly_pubkey_parse`
 (section 9). Outputs are fail-closed (cleared on any error). Hostile-caller quartet:
 see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section J (J.lbtc-batch).
 
-Three further libbitcoin-bridge batch kernels follow the same model (CUDA-native,
-OpenCL/Metal `Unsupported` → threaded CPU fallback, fail-closed, all PUBLIC-DATA):
+Three further libbitcoin-bridge batch kernels follow the same model (native CUDA,
+OpenCL, and Metal on-device kernels, no host-CPU fallback, fail-closed, all
+PUBLIC-DATA):
 `ufsecp_gpu_pubkey_validate` (full compressed-pubkey on-curve check, == shim
 `ec_pubkey_parse`), `ufsecp_gpu_tagged_hash_var` (TapLeaf per-item-length tagged
 hash, == shim `tagged_sha256`), and `ufsecp_gpu_hash256` (double-SHA-256 / merkle

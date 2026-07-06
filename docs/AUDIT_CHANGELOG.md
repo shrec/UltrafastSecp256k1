@@ -1,5 +1,27 @@
 # Audit Changelog
 
+## 2026-07-06 — doc-only follow-up: `ufsecp_gpu.h` C ABI banner corrected for the same six ops
+
+No code change. Closes the follow-up left open by the same-day entry below: the
+C ABI header `include/ufsecp/ufsecp_gpu.h` carried its own copy of the stale
+"CUDA implemented; OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED` so the
+bridge falls back to its CPU path" banner immediately above the six
+`ufsecp_gpu_*` declarations (`xonly_validate`, `commitment_verify`,
+`tagged_hash`, `pubkey_validate`, `tagged_hash_var`, `hash256`, ~line 404).
+`source_graph.py bodygrep` confirms all six already have native CUDA, OpenCL,
+and Metal overrides (`gpu_backend_cuda.cu`, `gpu_backend_opencl.cpp`,
+`gpu_backend_metal.mm`), plus C ABI dispatch (`ufsecp_gpu_impl.cpp`) and
+direct libbitcoin hooks (`gpu_engine_hook.cpp`).
+
+- **`include/ufsecp/ufsecp_gpu.h`:** rewrote the section banner above the six
+  declarations to state that CUDA, OpenCL, and Metal all provide native
+  on-device implementations with no host-CPU fallback, matching the wording
+  already applied to `src/gpu/include/gpu_backend.hpp` in the entry below.
+  No function signature, enum, macro, or implementation changed — comment-only.
+- **Test:** doc-only change; no new test required. Existing coverage:
+  `lbtc_direct_verify` / `test_direct_gpu_columns_hook`-style hostile-caller +
+  GPU-hook-installed assertions already exercise these six ops end-to-end.
+
 ## 2026-07-06 — doc-only correction: six libbitcoin public-data GPU ops already at full parity
 
 No code change. Corrected stale doc wording for six `GpuBackend` libbitcoin-bridge

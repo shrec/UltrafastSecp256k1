@@ -355,8 +355,8 @@ path (consensus-identical).
 
 **J.lbtc-batch — `ufsecp_gpu_xonly_validate` / `ufsecp_gpu_commitment_verify` /
 `ufsecp_gpu_tagged_hash`** (libbitcoin bridge, PUBLIC-DATA; no secret material on
-these paths). CUDA-native per-item kernels; OpenCL/Metal return `Unsupported` and the
-bridge falls back to its threaded CPU path (consensus-identical). Hostile-caller
+these paths). CUDA, OpenCL, and Metal each dispatch native per-item on-device
+kernels for all six ops in this family (no host-CPU fallback). Hostile-caller
 quartet cross-checked against the libsecp shim in `tests/test_lbtc_commitment.cpp`
 (section 9: GPU verdict == shim per row/key):
 
@@ -430,3 +430,4 @@ paths — including validation failure — to prevent nonce reuse even when the 
 
 <!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create. Phantom export removed from misuse_resistance gate. No hostile-caller contract changes. -->
 <!-- 2026-05-12: SEC-001 fix — ufsecp_musig2_partial_sign_v2 added (Section L). Hostile-caller quartet documented above. -->
+<!-- 2026-07-06: ufsecp_gpu.h section banner above the six J.lbtc-batch ops (xonly_validate, commitment_verify, tagged_hash, pubkey_validate, tagged_hash_var, hash256) corrected: CUDA, OpenCL, and Metal all provide native on-device implementations, no host-CPU fallback — matches the gpu_backend.hpp/BACKEND_ASSURANCE_MATRIX.md fix in the same-day AUDIT_CHANGELOG entry. Comment-only; no ABI/dispatch change. All six remain PUBLIC-DATA — hostile-caller quartet above is unaffected. -->
