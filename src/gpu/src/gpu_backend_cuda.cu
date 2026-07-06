@@ -653,7 +653,12 @@ __device__ __forceinline__ uint32_t lbtc_rr32(uint32_t x, int n) {
     return (x >> n) | (x << (32 - n));
 }
 
-// Multi-block SHA-256 over inputs up to 320 bytes (tag_hash || tag_hash || msg).
+// Block-streaming SHA-256: compresses full 64-byte blocks directly from `data`
+// (no whole-message local copy), then finalizes with a <=128B tail buffer sized
+// for padding + length only. O(1) local memory regardless of `len` (previously
+// this copied the entire message into a fixed uint8_t blk[384], which silently
+// overflowed for len > ~375 bytes; every existing caller happened to stay under
+// that bound, but hash256_var must support multi-megabyte rows).
 __device__ void lbtc_sha256(const uint8_t* data, int len, uint8_t out[32]) {
     const uint32_t K[64] = {
       0x428a2f98u,0x71374491u,0xb5c0fbcfu,0xe9b5dba5u,0x3956c25bu,0x59f111f1u,0x923f82a4u,0xab1c5ed5u,
@@ -666,19 +671,49 @@ __device__ void lbtc_sha256(const uint8_t* data, int len, uint8_t out[32]) {
       0x748f82eeu,0x78a5636fu,0x84c87814u,0x8cc70208u,0x90befffau,0xa4506cebu,0xbef9a3f7u,0xc67178f2u};
     uint32_t h[8] = {0x6a09e667u,0xbb67ae85u,0x3c6ef372u,0xa54ff53au,
                      0x510e527fu,0x9b05688cu,0x1f83d9abu,0x5be0cd19u};
-    uint8_t blk[384];
-    for (int i = 0; i < 384; ++i) blk[i] = 0;
-    for (int i = 0; i < len; ++i) blk[i] = data[i];
-    blk[len] = 0x80;
-    const uint64_t bl = static_cast<uint64_t>(len) * 8ULL;
-    const int nb   = (len + 1 + 8 + 63) / 64;   // blocks incl. padding
-    const int last = nb * 64;
-    for (int i = 0; i < 8; ++i) blk[last - 1 - i] = static_cast<uint8_t>(bl >> (i * 8));
-    for (int b = 0; b < nb; ++b) {
-        uint32_t w[64]; const int off = b * 64;
+    int off = 0;
+    // Stream full 64-byte blocks directly from `data` (global or any device
+    // memory — CUDA device-function pointers work uniformly, no address-space
+    // overload needed unlike OpenCL/Metal). No local copy of the whole message.
+    while (off + 64 <= len) {
+        const uint8_t* block = data + off;
+        uint32_t w[64];
         for (int i = 0; i < 16; ++i)
-            w[i] = (static_cast<uint32_t>(blk[off+i*4])<<24)|(static_cast<uint32_t>(blk[off+i*4+1])<<16)|
-                   (static_cast<uint32_t>(blk[off+i*4+2])<<8)|blk[off+i*4+3];
+            w[i] = (static_cast<uint32_t>(block[i*4])<<24)|(static_cast<uint32_t>(block[i*4+1])<<16)|
+                   (static_cast<uint32_t>(block[i*4+2])<<8)|block[i*4+3];
+        for (int i = 16; i < 64; ++i) {
+            uint32_t s0 = lbtc_rr32(w[i-15],7)^lbtc_rr32(w[i-15],18)^(w[i-15]>>3);
+            uint32_t s1 = lbtc_rr32(w[i-2],17)^lbtc_rr32(w[i-2],19)^(w[i-2]>>10);
+            w[i] = w[i-16]+s0+w[i-7]+s1;
+        }
+        uint32_t a=h[0],b2=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
+        for (int i = 0; i < 64; ++i) {
+            uint32_t S1=lbtc_rr32(e,6)^lbtc_rr32(e,11)^lbtc_rr32(e,25); uint32_t ch=(e&f)^(~e&g);
+            uint32_t t1=hh+S1+ch+K[i]+w[i]; uint32_t S0=lbtc_rr32(a,2)^lbtc_rr32(a,13)^lbtc_rr32(a,22);
+            uint32_t mj=(a&b2)^(a&c)^(b2&c); uint32_t t2=S0+mj;
+            hh=g;g=f;f=e;e=d+t1;d=c;c=b2;b2=a;a=t1+t2;
+        }
+        h[0]+=a;h[1]+=b2;h[2]+=c;h[3]+=d;h[4]+=e;h[5]+=f;h[6]+=g;h[7]+=hh;
+        off += 64;
+    }
+    // Final block(s): remaining tail bytes [off,len) + 0x80 + zero pad + 8-byte
+    // big-endian bit length. This is at most 2 blocks (128 bytes) REGARDLESS of
+    // len, unlike the old blk[384] which was sized for the whole message.
+    const int tail_len = len - off;
+    uint8_t finalblk[128];
+    for (int i = 0; i < 128; ++i) finalblk[i] = 0;
+    for (int i = 0; i < tail_len; ++i) finalblk[i] = data[off + i];
+    finalblk[tail_len] = 0x80;
+    const uint64_t bit_len = static_cast<uint64_t>(len) * 8ULL;
+    const int nb_final = (tail_len + 1 + 8 <= 64) ? 1 : 2;
+    const int last = nb_final * 64;
+    for (int i = 0; i < 8; ++i) finalblk[last - 1 - i] = static_cast<uint8_t>(bit_len >> (8 * i));
+    for (int b = 0; b < nb_final; ++b) {
+        const uint8_t* block = finalblk + b * 64;
+        uint32_t w[64];
+        for (int i = 0; i < 16; ++i)
+            w[i] = (static_cast<uint32_t>(block[i*4])<<24)|(static_cast<uint32_t>(block[i*4+1])<<16)|
+                   (static_cast<uint32_t>(block[i*4+2])<<8)|block[i*4+3];
         for (int i = 16; i < 64; ++i) {
             uint32_t s0 = lbtc_rr32(w[i-15],7)^lbtc_rr32(w[i-15],18)^(w[i-15]>>3);
             uint32_t s1 = lbtc_rr32(w[i-2],17)^lbtc_rr32(w[i-2],19)^(w[i-2]>>10);
@@ -776,6 +811,19 @@ __global__ void lbtc_hash256_kernel(
     uint8_t h1[32];
     lbtc_sha256(inputs + (size_t)i*input_len, input_len, h1);   // SHA256(input)
     lbtc_sha256(h1, 32, out + i*32);                            // SHA256(SHA256(input))
+}
+
+// Batch HASH256 (double SHA-256) of variable-length rows: row_i = inputs[i*stride ..
+// i*stride+input_lens[i]); bytes beyond input_lens[i] up to stride are ignored padding.
+// Rows may span multiple megabytes (real Bitcoin transactions) -- lbtc_sha256 is
+// block-streaming so this stays O(1) local memory regardless of input_lens[i].
+__global__ void lbtc_hash256_var_kernel(
+    const uint8_t* __restrict__ inputs, const uint32_t* __restrict__ input_lens,
+    size_t stride, int n, uint8_t* __restrict__ out) {
+    const int i = blockIdx.x*blockDim.x + threadIdx.x; if (i >= n) return;
+    uint8_t h1[32];
+    lbtc_sha256(inputs + (size_t)i*stride, (int)input_lens[i], h1);
+    lbtc_sha256(h1, 32, out + i*32);
 }
 
 }  // anonymous namespace (libbitcoin-bridge kernels)
@@ -1718,6 +1766,40 @@ tv_cleanup:
         clear_error();
 h2_cleanup:
         if(d_in)cudaFree(d_in); if(d_out)cudaFree(d_out);
+        return ret;
+    }
+
+    /* libbitcoin-bridge: batch HASH256 (double SHA-256) of variable-length rows.
+     * row_i = inputs[i*stride .. i*stride+input_lens[i]); bytes beyond input_lens[i]
+     * up to stride are ignored padding. out32[i*32..] = SHA256(SHA256(row_i)). PUBLIC
+     * data -- no upper length cap (rows may span multi-megabyte transactions);
+     * lbtc_sha256 is block-streaming so per-row device memory stays O(1). */
+    GpuError hash256_var(
+        const uint8_t* inputs, const uint32_t* input_lens, size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !input_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0) return set_error(GpuError::BadInput, "stride out of range");
+
+        uint8_t *d_in=nullptr,*d_out=nullptr; uint32_t* d_lens=nullptr;
+        GpuError ret = GpuError::Ok;
+        const int n_int = static_cast<int>(n);
+        const int threads = 256;
+        const int blocks  = (n_int + threads - 1) / threads;
+
+        if (cudaMalloc(&d_in, n*stride)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_in"); goto h2v_cleanup; }
+        if (cudaMalloc(&d_lens, n*sizeof(uint32_t))!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_lens"); goto h2v_cleanup; }
+        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_out"); goto h2v_cleanup; }
+        if (cudaMemcpy(d_in, inputs, n*stride, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var up in"); goto h2v_cleanup; }
+        if (cudaMemcpy(d_lens, input_lens, n*sizeof(uint32_t), cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var up lens"); goto h2v_cleanup; }
+        lbtc_hash256_var_kernel<<<blocks,threads>>>(d_in, d_lens, stride, n_int, d_out);
+        if (cudaGetLastError()!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var kernel"); goto h2v_cleanup; }
+        if (cudaDeviceSynchronize()!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var sync"); goto h2v_cleanup; }
+        if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var download"); goto h2v_cleanup; }
+        clear_error();
+h2v_cleanup:
+        if(d_in)cudaFree(d_in); if(d_lens)cudaFree(d_lens); if(d_out)cudaFree(d_out);
         return ret;
     }
 

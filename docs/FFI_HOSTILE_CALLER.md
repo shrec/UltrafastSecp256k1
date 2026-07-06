@@ -368,6 +368,14 @@ quartet cross-checked against the libsecp shim in `tests/test_lbtc_commitment.cp
 | `ufsecp_gpu_pubkey_validate`   | NULL ctx / NULL buffer → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | bad prefix / x ≥ p / off-curve → result 0 (invalid/reject), matches shim ec_pubkey_parse | valid compressed pubkey succeeds (smoke, GPU present) |
 | `ufsecp_gpu_tagged_hash_var`   | NULL ctx / NULL msgs / NULL lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 256 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid TapLeaf per-item digest succeeds (smoke); matches shim tagged_sha256 |
 | `ufsecp_gpu_hash256`           | NULL ctx / NULL inputs → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | input_len 0 or > 320 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid SHA256d digest succeeds (smoke); matches SHA256d reference |
+| `ufsecp_gpu_hash256_var`       | NULL ctx / NULL inputs / NULL input_lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 4 MiB (`kMaxHash256VarStride`), or any `input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT` (invalid/reject); out32 never partial/stale on reject | valid variable-length SHA256d digest succeeds (smoke, CUDA+OpenCL native); matches SHA256d reference (`audit/test_regression_hash256_var_batch.cpp`, `audit/test_exploit_hash256_var_bounds.cpp`) |
+
+**2026-07-06 — `ufsecp_gpu_hash256_var` added, no new secret-bearing surface**: this
+function shares the `include/ufsecp/ufsecp_gpu.h` header file with secret-bearing
+GPU ops (e.g. `ufsecp_gpu_ecdh_batch`), which is why this doc is touched, but
+`hash256_var` itself is PUBLIC-DATA only (Bitcoin tx/merkle-tree preimages) — no
+private key, nonce, or scalar is ever passed through it, and it introduces no new
+secret-bearing ABI boundary.
 
 ---
 

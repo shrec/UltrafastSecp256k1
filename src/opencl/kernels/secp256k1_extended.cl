@@ -1068,6 +1068,27 @@ inline void sha256_update(SHA256Ctx* ctx, const uchar* data, uint len) {
     while (i < len) ctx->buf[ctx->buf_len++] = data[i++];
 }
 
+/* sha256_update variant that reads directly from __global memory using a
+ * fixed 64-byte __private scratch buffer per block, so private/register cost
+ * is O(1) regardless of total row length (rows can be multi-MB, e.g. real
+ * Bitcoin transactions). Reuses the existing sha256_compress unchanged.
+ * Mirrors sha256_update's own partial-buffer folding logic exactly. */
+inline void sha256_update_global(SHA256Ctx* ctx, __global const uchar* data, uint len) {
+    ctx->total_len += len;
+    uint i = 0;
+    if (ctx->buf_len > 0) {
+        while (ctx->buf_len < 64 && i < len) ctx->buf[ctx->buf_len++] = data[i++];
+        if (ctx->buf_len == 64) { sha256_compress(ctx, ctx->buf); ctx->buf_len = 0; }
+    }
+    uchar blk[64];
+    while (i + 64 <= len) {
+        for (uint j = 0; j < 64; ++j) blk[j] = data[i + j];
+        sha256_compress(ctx, blk);
+        i += 64;
+    }
+    while (i < len) ctx->buf[ctx->buf_len++] = data[i++];
+}
+
 inline void sha256_final(SHA256Ctx* ctx, uchar out[32]) {
     ulong bits = ctx->total_len * 8;
     uchar pad = 0x80;
@@ -2432,6 +2453,35 @@ __kernel void lbtc_hash256(
     sha256_init(&ctx2);
     sha256_update(&ctx2, h1, 32);
     sha256_final(&ctx2, h2);              // SHA256(SHA256(input))
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
+}
+
+/* out[i] = SHA256(SHA256(row_i)), where row_i = inputs[i*stride .. i*stride+input_lens[i]).
+ * Generic batch variable-length double-SHA256: row i is read directly from
+ * __global memory via sha256_update_global (O(1) private scratch), so rows
+ * can be multi-MB (e.g. real Bitcoin transactions) unlike lbtc_hash256's
+ * fixed 320-byte cap above. Bytes beyond input_lens[i] up to stride are
+ * ignored padding. Public-data hashing only — no tag prefix, no tx parsing. */
+__kernel void lbtc_hash256_var(
+    __global const uchar* inputs,
+    __global const uint* input_lens,
+    const uint stride,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uint len = input_lens[gid];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update_global(&ctx, inputs + (ulong)gid * stride, len);
+    uchar h1[32];
+    sha256_final(&ctx, h1);               // SHA256(row)
+    SHA256Ctx ctx2;
+    sha256_init(&ctx2);
+    sha256_update(&ctx2, h1, 32);          // h1 is a private array; existing sha256_update is fine here
+    uchar h2[32];
+    sha256_final(&ctx2, h2);              // SHA256(SHA256(row))
     for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
 }
 

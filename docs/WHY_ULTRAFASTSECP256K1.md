@@ -9,7 +9,7 @@ Traditional audits produce documents. This system produces **continuous evidence
 | Differentiator | UltrafastSecp256k1 |
 |---------------|---------------------|
 | Audit model | Continuous — every commit, not one-time |
-| Exploit tests | 257 PoC files, 269 registered modules, 0 failures |
+| Exploit tests | 258 PoC files, 270 registered modules, 0 failures |
 | Checks per run | ~1,000,000+ assertions |
 | Deep assurance checks | ~1,300,000+ random differential tests on manual/release evidence runs |
 | CI/CD model | Block-based PR/push gate + release CAAS gate + manual deep-assurance workflows |
@@ -67,7 +67,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 269 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 269 wired, 0 failures |
+| Exploit PoC tests | 270 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 270 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |
@@ -76,11 +76,11 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 164 non-exploit modules + 269 exploit-PoC modules (433 total) | **~1,000,000+** |
-| **Total (exploit PoC tests)** | **269 exploit-PoC modules** (257 source files — 9 modules share a file or use inline shim stubs) across 20+ coverage categories | **269 modules, 0 failures** |
+| **Total (audit runner)** | **unified_audit_runner** across 166 non-exploit modules + 270 exploit-PoC modules (436 total) | **~1,000,000+** |
+| **Total (exploit PoC tests)** | **270 exploit-PoC modules** (258 source files — 9 modules share a file or use inline shim stubs) across 20+ coverage categories | **270 modules, 0 failures** |
 
-All 164 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures in the current CI run (not a lifetime claim — see `docs/AUDIT_COVERAGE.md` for current status).
-All 269 exploit PoCs modules pass. Zero failures in the current CI run across all 20+ coverage categories.
+All 166 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures in the current CI run (not a lifetime claim — see `docs/AUDIT_COVERAGE.md` for current status).
+All 270 exploit PoCs modules pass. Zero failures in the current CI run across all 20+ coverage categories.
 
 ### Self-Audit Documents
 

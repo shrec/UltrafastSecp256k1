@@ -316,6 +316,23 @@ public:
         return GpuError::Unsupported;
     }
 
+    /**
+     * Batch variable-length double-SHA256. Row i occupies
+     * inputs[i*stride .. i*stride + input_lens[i]); bytes beyond input_lens[i]
+     * up to stride are ignored padding. No tag prefix, no transaction parsing —
+     * GPU treats each row as an opaque byte string; BIP141 serialization stays
+     * entirely CPU/libbitcoin-side. Public-data hashing only (not secret-bearing).
+     */
+    virtual GpuError hash256_var(
+        const uint8_t* inputs, const uint32_t* input_lens, size_t stride, size_t n, uint8_t* out32)
+    {
+        (void)inputs; (void)input_lens; (void)stride; (void)n; (void)out32;
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
+        return GpuError::Unsupported;
+    }
+
     /** Batch FROST partial signature verification.
      *  Each item verifies: R_i = D_i + rho_i*E_i, lhs = z_i*G, rhs = R_i + lambda_ie*Y_i
      *  result[i] = (lhs == rhs). */

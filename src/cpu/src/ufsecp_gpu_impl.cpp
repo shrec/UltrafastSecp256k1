@@ -678,6 +678,46 @@ ufsecp_error_t ufsecp_gpu_hash256(
     } UFSECP_GPU_CATCH
 }
 
+/* Hard upper bound on hash256_var's per-row stride. Matches Bitcoin's
+ * maximum block-weight-derived transaction size ceiling (~4 MiB), giving
+ * generous headroom over realistic standard-relay transaction sizes
+ * (~100 KB) while bounding worst-case per-call host/device work. Deliberately
+ * NOT the tagged_hash_var precedent's 256-byte cap — that cap exists because
+ * tagged_hash_var must fit a 64-byte tag prefix in a small on-chip scratch
+ * buffer; hash256_var has no tag prefix and streams each row directly, so it
+ * is not bound by that same buffer. */
+static constexpr std::size_t kMaxHash256VarStride = std::size_t{4} * 1024 * 1024;  /* 4 MiB */
+
+ufsecp_error_t ufsecp_gpu_hash256_var(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* inputs,
+    const uint32_t* input_lens,
+    size_t stride,
+    size_t n,
+    uint8_t* out32)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;
+    if (n > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (stride == 0 || stride > kMaxHash256VarStride) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out32, n, 32)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!inputs || !input_lens || !out32)) return UFSECP_ERR_NULL_ARG;
+    /* Host-side per-row validation: every row's real length must be in
+     * [1, stride]. Neither ufsecp_gpu_hash256 (fixed input_len) nor
+     * ufsecp_gpu_tagged_hash_var (variable msg_lens) validates individual
+     * per-row lengths against stride/bounds in this ABI wrapper — that gap
+     * must not be repeated here, since hash256_var's row lengths are fully
+     * caller-controlled and an out-of-range row would read past its slot. */
+    for (size_t i = 0; i < n; ++i) {
+        if (input_lens[i] == 0 || input_lens[i] > stride) return UFSECP_ERR_BAD_INPUT;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->hash256_var(inputs, input_lens, stride, n, out32),
+        out32, n, 32);
+    } UFSECP_GPU_CATCH
+}
+
 ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* z_i32,

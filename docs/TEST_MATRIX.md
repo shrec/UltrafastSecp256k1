@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 433 modules (164 non-exploit + 269 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 436 modules (166 non-exploit + 270 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -105,13 +105,13 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 433 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 436 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 433 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 436 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 433 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 436 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -421,6 +421,26 @@ The following active CTest target was added pairing the FE52-compute verify perf
 commit (875d5bee, `SECP256K1_FE52_COMPUTE` decouples 5x52 compute from storage):
 
 - `fe52_compute_verify` — FE52-compute verify differential: `dual_scalar_mul_gen_point(u1,u2,Q) == u1*G + u2*Q` over 200 vectors + ECDSA/Schnorr sign/verify round-trip + tamper rejection exercising the 5x52 verify dual-mul and to_jac52/from_jac52 bridge (section differential, advisory=false)
+
+### Generated Inventory Sync (2026-07-06)
+
+The following active CTest targets were added for the new GPU `hash256_var`
+batch variable-length double-SHA256 primitive (`GpuBackend::hash256_var` with
+native CUDA/OpenCL/Metal kernels, C ABI `ufsecp_gpu_hash256_var`, and
+libbitcoin-direct `hash256_var_batch`):
+
+- `regression_hash256_var_batch` — KAT/boundary coverage for
+  `test_regression_hash256_var_batch.cpp`: 1B/32B/64B/~1KB rows, stride==len,
+  stride>len, n=0, n=1, n=large — differential against
+  `secp256k1::SHA256::hash256` (section differential, advisory=false)
+- `regression_hash256_var_parity` — `test_regression_hash256_var_parity.cpp`:
+  cross-backend (CUDA/OpenCL/Metal) byte-identical output parity for the same
+  input corpus (section differential, advisory=false)
+- `exploit_hash256_var_bounds` — `test_exploit_hash256_var_bounds.cpp`:
+  hostile-input coverage for `ufsecp_gpu_hash256_var` / `hash256_var_batch`
+  bounds validation — null `inputs`/`input_lens`/`out32`, `n==0`,
+  `input_lens[i]==0`, `input_lens[i]>stride`, `stride==0`, stride/count
+  overflow (section exploit_poc, advisory=false)
 
 ---
 

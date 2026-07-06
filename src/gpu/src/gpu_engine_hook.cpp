@@ -111,9 +111,9 @@ EngineGpuColumnsInstaller g_engine_gpu_columns_installer;
 /* ============================================================================
  * libbitcoin public-data batch ops — GPU offload trampolines (self-installing)
  * ============================================================================
- * Sibling of the column-verify provider above, for the six header-only
+ * Sibling of the column-verify provider above, for the seven header-only
  * ufsecp::lbtc batch ops (xonly/pubkey/taproot-commitment validate +
- * tagged_hash/tagged_hash_var/hash256). The header CPU surface
+ * tagged_hash/tagged_hash_var/hash256/hash256_var). The header CPU surface
  * (<ufsecp/libbitcoin.hpp>) consults engine-owned atomic fn-ptr hooks
  * (<ufsecp/lbtc_gpu_ops.hpp>); these trampolines wire those hooks to the
  * matching EXISTING GpuBackend virtual and translate GpuError -> {handled /
@@ -126,10 +126,17 @@ EngineGpuColumnsInstaller g_engine_gpu_columns_installer;
  * builds leave the guard off, so this block imposes no include-path dependency.
  * Reuses engine_gpu_backend() and g_engine_gpu_backend_mtx from the unnamed
  * namespace above (same TU). Retained by the SAME existing -u
- * secp256k1_gpu_columns_provider_anchor — no new anchor. The three HASH
- * trampolines pre-check the device length caps enforced by the CUDA overrides
- * (tagged msg_len<=256, var stride<=256, hash256 input_len<=320) and decline
- * out-of-cap lengths so the CPU covers ALL lengths (no 256-byte cap divergence).
+ * secp256k1_gpu_columns_provider_anchor — no new anchor. The four HASH
+ * trampolines pre-check a length cap before dispatch: tagged_hash,
+ * tagged_hash_var, and hash256 enforce the hard on-chip buffer caps of the
+ * CUDA overrides (msg_len<=256, stride<=256, input_len<=320) and decline
+ * out-of-cap lengths so the CPU covers ALL lengths (no cap divergence).
+ * hash256_var's CUDA/OpenCL/Metal kernels stream 64-byte SHA-256 blocks
+ * directly from device/global memory instead of copying a full row into a
+ * fixed on-chip buffer, so it has no such device-correctness limit; its
+ * stride<=kMaxHash256VarStride check below is a policy bound mirroring the
+ * ABI layer's cap (src/cpu/src/ufsecp_gpu_impl.cpp), applied here too because
+ * this libbitcoin-direct path never goes through that C ABI wrapper.
  * ============================================================================ */
 #if defined(SECP256K1_LBTC_GPU_OPS)
 
@@ -232,6 +239,29 @@ int engine_lbtc_hash256_hook(const std::uint8_t* inputs, std::size_t input_len,
     }
 }
 
+/* Hard upper bound on hash256_var's per-row stride for this libbitcoin-direct
+ * path, mirroring kMaxHash256VarStride in src/cpu/src/ufsecp_gpu_impl.cpp (4
+ * MiB, Bitcoin's block-weight-derived tx size ceiling). Not a device-buffer
+ * correctness limit -- the CUDA/OpenCL/Metal hash256_var kernels stream
+ * 64-byte blocks straight from device/global memory -- but this path bypasses
+ * the C ABI wrapper entirely, so the same policy cap is enforced here too. */
+int engine_lbtc_hash256_var_hook(const std::uint8_t* inputs, const std::uint32_t* input_lens,
+                                 std::size_t stride, std::size_t count,
+                                 std::uint8_t* out32) noexcept {
+    try {
+        constexpr std::size_t kMaxHash256VarStride = std::size_t{4} * 1024 * 1024;
+        if (stride > kMaxHash256VarStride) return -1;  /* policy cap -> CPU fallback */
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->hash256_var(inputs, input_lens, stride, count, out32) != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        return 0;
+    } catch (...) {
+        return -1;
+    }
+}
+
 /* Self-install at load time. Runs when this TU is retained (the direct-GPU
  * profile forces it via the shared -u secp256k1_gpu_columns_provider_anchor). */
 struct EngineLbtcOpsInstaller {
@@ -242,6 +272,7 @@ struct EngineLbtcOpsInstaller {
         ufsecp::lbtc::gpu_hook::install_lbtc_tagged_hash_hook(&engine_lbtc_tagged_hash_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_tagged_hash_var_hook(&engine_lbtc_tagged_hash_var_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_hook(&engine_lbtc_hash256_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(&engine_lbtc_hash256_var_hook);
     }
 };
 EngineLbtcOpsInstaller g_engine_lbtc_ops_installer;

@@ -57,6 +57,15 @@ void ref_hash256(const std::uint8_t* in, std::size_t len, std::uint8_t out[32]) 
     const auto d = secp256k1::SHA256::hash256(in, len);
     std::memcpy(out, d.data(), 32);
 }
+
+// Fake GPU hook for hash256_var_batch: writes a fixed sentinel pattern and
+// reports "handled" (0). Used only to prove the wrapper actually consults
+// the installed hook instead of silently falling through to the CPU path.
+int fake_hash256_var_hook(const std::uint8_t*, const std::uint32_t*, std::size_t,
+                          std::size_t count, std::uint8_t* out32) {
+    std::memset(out32, 0xEE, count * 32);
+    return 0;
+}
 } // namespace
 
 int main() {
@@ -483,6 +492,100 @@ int main() {
               "hash256 count==0 vacuous true");
         check(!ufsecp::lbtc::hash256_batch(in.data(), IL, OVF32, out.data()),
               "hash256 huge count overflow rejected");
+    }
+
+    // ---- hash256_var_batch (variable-length double-SHA256, HASH op) ----
+    {
+        const std::size_t STRIDE = 200;
+        std::vector<std::uint8_t> in(BN * STRIDE);
+        for (auto& b : in) b = nb();
+        std::vector<std::uint32_t> lens(BN);
+        for (std::size_t i = 0; i < BN; ++i) lens[i] = (std::uint32_t)(1 + (i % STRIDE));
+
+        // STARTUP CAPTURE (non-destructive): whatever is installed right now is
+        // either nullptr (CPU-only build) or the REAL production hook
+        // self-installed at process start by gpu_engine_hook.cpp's
+        // EngineLbtcOpsInstaller (direct-GPU profile, SECP256K1_LBTC_GPU_OPS).
+        // Swap-and-restore reads it without disturbing whatever is genuinely live.
+        const auto prod_hook = ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(nullptr);
+        ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(prod_hook);
+        check(prod_hook != fake_hash256_var_hook,
+              "hash256_var production hook (if any) is not this test's fake");
+
+        // Correctness through whatever is actually installed at startup: the
+        // production engine hook in a direct-GPU build (whether it computes on
+        // a real device or internally declines to the header's CPU loop), or
+        // the CPU-only header path otherwise. No test double is installed for
+        // this call, so it proves hash256_var_batch reaches a real, non-test
+        // hook end-to-end -- a fake sentinel alone cannot prove that.
+        std::vector<std::uint8_t> out(BN * 32, 0);
+        check(ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, BN, out.data()),
+              "hash256_var_batch computes true");
+        int mism = 0, nonzero_seen = 0;
+        for (std::size_t i = 0; i < BN; ++i) {
+            std::uint8_t ref[32];
+            ref_hash256(in.data() + i * STRIDE, lens[i], ref);
+            if (std::memcmp(out.data() + i * 32, ref, 32) != 0) ++mism;
+            for (int j = 0; j < 32; ++j) if (out[i * 32 + j] != 0) { ++nonzero_seen; break; }
+        }
+        check(mism == 0, prod_hook != nullptr
+              ? "hash256_var bit-exact vs serial double-SHA reference (production hook path)"
+              : "hash256_var bit-exact vs serial double-SHA reference (CPU fallback)");
+        check(nonzero_seen == (int)BN, "hash256_var rows non-zero (not pre-zeroed)");
+
+        // GPU-hook path: install a fake hook, confirm the wrapper actually uses
+        // its output (sentinel 0xEE) instead of silently falling through to CPU.
+        // The hook displaced here must be exactly what startup capture read
+        // above (nullptr, or the real production hook) -- not an assumption
+        // that no hook can ever already be installed.
+        check(ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(fake_hash256_var_hook) == prod_hook,
+              "hash256_var pre-existing hook (production or none) matches startup capture");
+        std::vector<std::uint8_t> out_hook(BN * 32, 0);
+        check(ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, BN, out_hook.data()),
+              "hash256_var_batch with hook computes true");
+        bool all_sentinel = true;
+        for (auto b : out_hook) if (b != 0xEE) { all_sentinel = false; break; }
+        check(all_sentinel, "hash256_var_batch used the installed hook's output");
+        check(ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(prod_hook) == fake_hash256_var_hook,
+              "hash256_var fake hook uninstalled, previous fn returned; production hook restored");
+
+        // Hook restored to whatever was genuinely live at startup: recomputes
+        // and must match the earlier reference-checked output again
+        // (deterministic, whether served by the production hook or CPU).
+        std::vector<std::uint8_t> out2(BN * 32, 0);
+        check(ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, BN, out2.data()),
+              "hash256_var_batch after hook removal computes true");
+        check(std::memcmp(out.data(), out2.data(), BN * 32) == 0,
+              "hash256_var output stable after hook removal");
+
+        // Null / stride==0 / count==0 / overflow / hostile length (HASH op never writes on bad input).
+        std::vector<std::uint8_t> outs(BN * 32, 0xCD);
+        check(!ufsecp::lbtc::hash256_var_batch(nullptr, lens.data(), STRIDE, BN, outs.data()),
+              "hash256_var null inputs fails");
+        check(outs[0] == 0xCD, "hash256_var null inputs leaves out untouched");
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), nullptr, STRIDE, BN, outs.data()),
+              "hash256_var null lens fails");
+        check(outs[0] == 0xCD, "hash256_var null lens leaves out untouched");
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, BN, nullptr),
+              "hash256_var null out fails");
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), 0, BN, outs.data()),
+              "hash256_var stride==0 fails");
+        check(outs[0] == 0xCD, "hash256_var stride==0 leaves out untouched");
+        check(ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, 0, outs.data()),
+              "hash256_var count==0 vacuous true");
+        check(outs[0] == 0xCD, "hash256_var count==0 out untouched");
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), lens.data(), STRIDE, OVF32, out.data()),
+              "hash256_var huge count overflow rejected");
+        // Hostile: one row's length exceeds stride -> reject, out untouched.
+        std::vector<std::uint32_t> lens_bad = lens; lens_bad[3] = (std::uint32_t)STRIDE + 1;
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), lens_bad.data(), STRIDE, BN, outs.data()),
+              "hash256_var length>stride fails closed");
+        check(outs[0] == 0xCD, "hash256_var length>stride leaves out untouched");
+        // Hostile: a zero-length row is also rejected (every row must hash >=1 byte).
+        std::vector<std::uint32_t> lens_zero = lens; lens_zero[4] = 0;
+        check(!ufsecp::lbtc::hash256_var_batch(in.data(), lens_zero.data(), STRIDE, BN, outs.data()),
+              "hash256_var zero-length row fails closed");
+        check(outs[0] == 0xCD, "hash256_var zero-length row leaves out untouched");
     }
 
     if (fails == 0) std::printf("test_direct_verify: ALL PASS (ecdsa+schnorr single+batch+fail-closed+lbtc batch ops)\n");

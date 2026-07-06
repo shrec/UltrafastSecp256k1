@@ -163,6 +163,8 @@ int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_gpu_zk_prove_verify_differential_run(); // CPU range-proof → GPU poly-check accept/reject
 int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispatcher fallback
 int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_batch verdict (per-row)
+int test_regression_hash256_var_batch_run(); // hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle
+int test_regression_hash256_var_parity_run(); // hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -388,6 +390,7 @@ int test_exploit_glv_endomorphism_run();
 int test_exploit_glv_kat_run();
 int test_exploit_gpu_cpu_divergence_run();
 int test_exploit_gpu_host_api_shape_run();
+int test_exploit_hash256_var_bounds_run(); // hash256_var hostile-input / bounds contract (ctx-null, n=0, oversize n/stride, per-row length)
 int test_exploit_hedged_nonce_bias_run();
 int test_exploit_hkdf_kat_run();
 int test_infinity_edge_cases_run();
@@ -878,6 +881,13 @@ static const AuditModule ALL_MODULES[] = {
     // the on-device collect-vs-verify_batch per-row parity self-skips when no GPU
     // backend is present (or a backend lacks a native collect override).
     { "gpu_collect_verify_parity", "GPU collect-verify parity (native OpenCL/Metal/CUDA collect == verify_batch verdict)", "differential", test_gpu_collect_verify_parity_run, false },
+    // advisory=false: null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device KAT/boundary checks (per backend) self-skip when no GPU
+    // backend is compiled in or a device is unavailable.
+    { "hash256_var_batch", "hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle", "differential", test_regression_hash256_var_batch_run, false },
+    // advisory=false: cross-backend byte-identical parity self-skips (zero
+    // on-device assertions is not a failure) when no GPU backend is present.
+    { "hash256_var_parity", "hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical output vs CPU oracle", "differential", test_regression_hash256_var_parity_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
@@ -1032,6 +1042,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_glv_kat",                "GLV Decomposition KAT",                       "exploit_poc", test_exploit_glv_kat_run, false },
     { "exploit_gpu_cpu_divergence",     "GPU/CPU Algebraic Consistency",               "exploit_poc", test_exploit_gpu_cpu_divergence_run, false },
     { "exploit_gpu_host_api_shape",     "GPU Host API Hostile Caller",                 "exploit_poc", test_exploit_gpu_host_api_shape_run, false },
+    { "exploit_hash256_var_bounds",     "hash256_var Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_hash256_var_bounds_run, false },
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
     { "exploit_hkdf_kat",               "HKDF-SHA256 KAT (RFC 5869)",                 "exploit_poc", test_exploit_hkdf_kat_run, false },
     { "infinity_edge_cases",            "Point-at-Infinity Edge Cases (INF-1..28)",    "exploit_poc", test_infinity_edge_cases_run, false },

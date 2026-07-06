@@ -877,6 +877,59 @@ kernel void lbtc_hash256(
     for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
 }
 
+// sha256_update_device: streams SHA-256 blocks directly from `device` memory.
+// The real sha256_update (secp256k1_extended.h) only accepts a `thread const
+// uchar*` pointer, so lbtc_hash256/lbtc_tagged_hash_var copy each row into a
+// small fixed thread-local buffer first (host-capped at <=320 bytes). That
+// copy-into-thread-buffer pattern does NOT scale to hash256_var, whose rows
+// may be multi-megabyte — `thread` storage is limited and per-row size is
+// unbounded. Instead this streams one 64-byte compression block at a time
+// through a fixed thread-local scratch buffer (O(1) thread memory regardless
+// of row length), reusing the existing sha256_compress unchanged. Mirrors the
+// real sha256_update's buffering logic exactly, just sourced from `device`.
+inline void sha256_update_device(thread SHA256Ctx &ctx, device const uchar *data, uint len) {
+    ctx.total_len_lo += len;
+    if (ctx.total_len_lo < len) ctx.total_len_hi++; // overflow
+    uint i = 0;
+    if (ctx.buf_len > 0) {
+        while (ctx.buf_len < 64 && i < len) ctx.buf[ctx.buf_len++] = data[i++];
+        if (ctx.buf_len == 64) { sha256_compress(ctx, ctx.buf); ctx.buf_len = 0; }
+    }
+    thread uchar blk[64];   // fixed-size scratch reused per block, NOT sized to len
+    while (i + 64 <= len) {
+        for (uint j = 0; j < 64; ++j) blk[j] = data[i + j];
+        sha256_compress(ctx, blk);
+        i += 64;
+    }
+    while (i < len) ctx.buf[ctx.buf_len++] = data[i++];
+}
+
+// HASH256 (double SHA-256) of variable-length inputs, batched with a common
+// row stride (rows may be multi-megabyte — see sha256_update_device above):
+// out[i] = SHA256(SHA256(inputs[i*stride .. i*stride+input_lens[i]))). NO tag
+// prefix, no transaction parsing — pure public-data hashing. input_lens[i] is
+// expected <= stride (host contract, same convention as lbtc_tagged_hash_var).
+kernel void lbtc_hash256_var(
+    device const uchar *inputs     [[buffer(0)]],   // N × stride
+    device const uint *input_lens  [[buffer(1)]],   // N (bytes to hash per row)
+    constant uint &stride          [[buffer(2)]],   // host-guarded row stride
+    device uchar *out              [[buffer(3)]],   // N × 32
+    constant uint &count           [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    uint len = input_lens[tid];
+    SHA256Ctx ctx1; sha256_init(ctx1);
+    sha256_update_device(ctx1, inputs + ulong(tid) * stride, len);
+    thread uchar h1[32];
+    sha256_final(ctx1, h1);                        // SHA256(input)
+    SHA256Ctx ctx2; sha256_init(ctx2);
+    sha256_update(ctx2, h1, 32);                    // h1 is thread-local, real sha256_update is fine here
+    thread uchar h2[32];
+    sha256_final(ctx2, h2);                         // SHA256(SHA256(input))
+    for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
+}
+
 // =============================================================================
 // Kernel 11: Batch Schnorr Sign (BIP-340)
 // =============================================================================

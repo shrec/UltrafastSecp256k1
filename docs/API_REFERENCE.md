@@ -600,9 +600,24 @@ bool tagged_hash_var_batch(const uint8_t* tag_hash32, const uint8_t* msgs,
 // out32[i] = SHA256(SHA256(inputs[i])).
 bool hash256_batch(const uint8_t* inputs, size_t input_len, size_t count,
                    uint8_t* out32, size_t max_threads = 0) noexcept;
+
+// Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs
+// (e.g. CPU-pre-serialized transaction bytes for a future txid/wtxid batch
+// wrapper). No tag prefix, no transaction parsing on GPU — the caller
+// serializes on the CPU; row i = inputs[i*stride .. i*stride+input_lens[i]).
+// out32[i] = SHA256(SHA256(row_i)). Every input_lens[i] is validated against
+// stride per-row, host-side, before GPU dispatch.
+bool hash256_var_batch(const uint8_t* inputs, const uint32_t* input_lens,
+                       size_t stride, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;
 ```
 
-Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]`, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row.
+`hash256_var_batch`'s `max_threads` parameter is accepted for signature
+parity with the other batch ops but is currently unused by the CPU fallback
+(single-pass per-row hashing; the GPU hook, when installed, does its own
+internal parallelism) — reserved for a future threaded CPU fallback.
+
+Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]`, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row. **`hash256_var_batch`** additionally rejects any individual `input_lens[i]==0` or `input_lens[i]>stride` (per-row bounds check, not just a scalar `stride` check) before touching `out32` or dispatching to GPU.
 
 **Consumer CMake example:**
 ```cmake
@@ -2556,6 +2571,9 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict; native on CUDA, OpenCL, and Metal (see ecdsa_verify_collect) |
 | `ufsecp_gpu_ecdh_batch` | `(ctx, privkeys32[], pubs33[], n, secrets32_out[]) -> error_t` | ECDH shared secrets (SECRET-BEARING) |
 | `ufsecp_gpu_hash160_pubkey_batch` | `(ctx, pubs33[], n, hashes20_out[]) -> error_t` | SHA-256 + RIPEMD-160 of pubkeys |
+| `ufsecp_gpu_tagged_hash_var` | `(ctx, tag_hash32, msgs, msg_lens[], stride, n, out32) -> error_t` | BIP-340 tagged hash over per-item variable-length messages (TapLeaf scripts); each `msg_lens[i]` must be in `[1,256]` |
+| `ufsecp_gpu_hash256` | `(ctx, inputs, input_len, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) of fixed-length inputs; `input_len` must be in `[1,320]` |
+| `ufsecp_gpu_hash256_var` | `(ctx, inputs, input_lens[], stride, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs; row `i` = `inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up to `stride` are ignored padding. No tag prefix, no transaction parsing — GPU treats each row as an opaque byte string; rows up to `stride <= 4 MiB` (`kMaxHash256VarStride`). PUBLIC-DATA / variable-time |
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |

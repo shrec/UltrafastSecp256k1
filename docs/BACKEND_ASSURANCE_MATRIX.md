@@ -226,6 +226,43 @@ decline (`-1`), so control always falls to the correct CPU computation. A
 CPU-only libbitcoin build never links `secp256k1_gpu_host`, so the hooks stay
 null and every call runs the deterministic CPU path — no GPU symbol is required.
 
+### `hash256_var`: GPU batch variable-length double-SHA256 (Added 2026-07-06)
+
+A new `GpuBackend::hash256_var` virtual (`src/gpu/include/gpu_backend.hpp`)
+extends the libbitcoin public-data batch-op surface above with a
+**variable-length** Bitcoin HASH256 primitive: row `i` is
+`inputs[i*stride .. i*stride+input_lens[i])`, no tag prefix, no transaction
+parsing on GPU — this is the primitive a future libbitcoin
+`txid_batch`/`wtxid_batch` convenience wrapper will compose with CPU-side
+BIP141 serialization (`legacy_serialize`/`witness_serialize` in
+`src/cpu/src/bip144.cpp`). Exposed via C ABI `ufsecp_gpu_hash256_var`
+(`include/ufsecp/ufsecp_gpu.h` / `src/cpu/src/ufsecp_gpu_impl.cpp`) and the
+bridge-free `ufsecp::lbtc::hash256_var_batch` direct wrapper
+(`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`) with its own
+hook/installer in `lbtc_gpu_ops.hpp`. PUBLIC-DATA / variable-time — not
+secret-bearing, no CT requirement.
+
+| Backend | `hash256_var` path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — `hash256_var_batch` per-row-validates `input_lens[i]` against `stride` before dispatch and falls back to `secp256k1::SHA256::hash256` per row; covered by `test_regression_hash256_var_batch` (KAT/boundary differential) | public-data variable-time; byte-identical fallback for every backend; `out32` never touched on a rejected call |
+| CUDA | native on-device kernel | **HIGH** — `hash256_var` virtual is CUDA-native (`lbtc_hash256_var_kernel` in `gpu_backend_cuda.cu`); operational error declines → CPU | public-data variable-time; streams each row directly in 64-byte SHA-256 compression blocks (no full-row local copy), so rows up to `kMaxHash256VarStride` (4 MiB) are supported — unlike `tagged_hash_var`/`hash256`, which copy each row into a small fixed on-chip buffer (256–320 bytes) to prepend the BIP-340 tag and are capped accordingly |
+| OpenCL | native on-device kernel | **HIGH** — `hash256_var` virtual is OpenCL-native (`lbtc_hash256_var` kernel in `src/opencl/kernels/secp256k1_extended.cl` + override in `gpu_backend_opencl.cpp`); operational error declines → CPU | public-data variable-time; same streaming design as CUDA (`sha256_update_global` reads each row directly from global memory, no full-row local copy); same 4 MiB `kMaxHash256VarStride` bound |
+| Metal | native on-device kernel | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — `hash256_var` virtual is Metal-native (`lbtc_hash256_var` kernel in `src/metal/shaders/secp256k1_kernels.metal` + override in `gpu_backend_metal.mm`), mirroring the CUDA/OpenCL streaming design (`sha256_update_device`); NOT built/run here: Metal compiles only on Apple, so this Linux host cannot execute it — same status already documented above for the sibling `xonly_validate`/`pubkey_validate`/`commitment_verify`/`tagged_hash`/`tagged_hash_var`/`hash256` ops | operational error declines → CPU. No measured Metal numbers; owner validates on Apple GPU before this row is promoted to HIGH |
+
+Fail-closed: `ufsecp_gpu_hash256_var` / `hash256_var_batch` never pre-zero
+`out32` and reject bad input without touching it — `ctx==nullptr` /
+null `inputs`/`input_lens`/`out32` with `n>0` → `UFSECP_ERR_NULL_ARG`;
+`n==0` → `UFSECP_OK` no-op; `n` over the existing `kMaxGpuBatchN` (64M) batch
+cap, `stride==0`/`>kMaxHash256VarStride`, or any individual
+`input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT`. Unlike the older
+`ufsecp_gpu_tagged_hash_var` ABI wrapper (which only bounds-checks the scalar
+`stride`), the `hash256_var` wrapper validates every row's length
+individually before GPU dispatch, since row lengths here are fully
+caller-controlled. Test coverage: `audit/test_regression_hash256_var_batch.cpp`
+(KAT/boundary), `audit/test_regression_hash256_var_parity.cpp` (cross-backend
+byte-identical parity), `audit/test_exploit_hash256_var_bounds.cpp` (hostile
+inputs).
+
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
 `ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA

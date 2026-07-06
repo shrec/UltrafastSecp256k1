@@ -520,6 +520,29 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_hash256(
     size_t n,
     uint8_t* out32);
 
+/**
+ * ufsecp_gpu_hash256_var - batch variable-length double-SHA256.
+ *
+ * Row i is inputs[i*stride .. i*stride+input_lens[i]); bytes beyond
+ * input_lens[i] up to stride are ignored padding. out32 receives n*32 bytes,
+ * one digest per row. GPU performs no transaction parsing; callers (e.g.
+ * libbitcoin txid/wtxid wrappers) must pre-serialize on the CPU.
+ *
+ * n==0 is a no-op (UFSECP_OK, out32 untouched). Any input_lens[i]==0 or
+ * input_lens[i]>stride is UFSECP_ERR_BAD_INPUT (checked host-side before
+ * dispatch). stride==0 or stride exceeding the implementation's max row size
+ * is UFSECP_ERR_BAD_INPUT. n exceeding the batch cap is UFSECP_ERR_BAD_INPUT.
+ * On any non-OK return, out32 is left cleared/undefined — never a partial or
+ * stale result.
+ */
+UFSECP_API ufsecp_error_t ufsecp_gpu_hash256_var(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* inputs,
+    const uint32_t* input_lens,
+    size_t stride,
+    size_t n,
+    uint8_t* out32);
+
 /* ============================================================================
  * GPU error string extension
  * ============================================================================ */

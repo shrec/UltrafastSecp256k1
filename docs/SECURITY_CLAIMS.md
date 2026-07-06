@@ -2,6 +2,26 @@
 
 **UltrafastSecp256k1 v4.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-07-06 - `ufsecp_gpu_hash256_var` added: batch variable-length HASH256, no new secret-bearing surface
+
+Added `GpuBackend::hash256_var` / C ABI `ufsecp_gpu_hash256_var` (native CUDA, OpenCL,
+and Metal kernels) and the bridge-free libbitcoin-direct wrapper `hash256_var_batch`.
+Row `i` is `inputs[i*stride .. i*stride+input_lens[i])` with no BIP-340 tag prefix and
+no GPU-side transaction parsing — this is the primitive a future libbitcoin
+`txid_batch`/`wtxid_batch` wrapper will compose with CPU-side BIP141 serialization.
+**Security claim: PUBLIC-DATA / variable-time only.** Every input (transaction/merkle
+preimage bytes) is public on-chain data; no private key, nonce, signing share, or ECDH
+scalar is ever passed through this path, so no `ct::*` boundary applies (see the
+CT-vs-VT boundary rule). `include/ufsecp/ufsecp_gpu.h` is touched only because it is
+the shared header for both secret-bearing GPU ops (e.g. `ufsecp_gpu_ecdh_batch`) and
+this public-data op — this change adds no new secret-bearing ABI boundary. Fail-closed
+contract: `ctx==NULL`/null buffer with `n>0` -> `UFSECP_ERR_NULL_ARG`; `n==0` -> no-op
+`UFSECP_OK`; `stride==0`/`>kMaxHash256VarStride` (4 MiB) or any `input_lens[i]==0`/
+`>stride` -> `UFSECP_ERR_BAD_INPUT`; `out32` is never left holding a partial or stale
+digest on any rejected call. Covered by `audit/test_regression_hash256_var_batch.cpp`,
+`audit/test_regression_hash256_var_parity.cpp` (cross-backend byte-identical output),
+and `audit/test_exploit_hash256_var_bounds.cpp` (hostile-input bounds).
+
 ### 2026-07-06 - `ufsecp_gpu.h` C ABI banner corrected for the six lbtc-batch ops (doc-only, no claim change)
 
 The `include/ufsecp/ufsecp_gpu.h` section banner above `ufsecp_gpu_xonly_validate`,

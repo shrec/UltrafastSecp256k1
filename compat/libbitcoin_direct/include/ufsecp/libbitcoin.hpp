@@ -962,6 +962,38 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
     return true;
 }
 
+// ─── hash256_var_batch (public data, variable-time) ─────────────────────────
+// out32[i] = SHA256(SHA256(inputs[i*stride .. +input_lens[i]])), per-item
+// variable length (e.g. txid/wtxid over full-size serialized transactions —
+// no BIP141 parsing here, callers pre-serialize on the CPU). No tag prefix.
+// HASH op: out32 never pre-zeroed. count==0 -> true. Null inputs/input_lens/
+// out32 OR stride==0 OR any input_lens[i]==0 or > stride OR layout overflow
+// -> false WITHOUT touching out32.
+[[nodiscard]] inline bool hash256_var_batch(const std::uint8_t* inputs,
+                                            const std::uint32_t* input_lens,
+                                            std::size_t stride, std::size_t count,
+                                            std::uint8_t* out32,
+                                            std::size_t max_threads = 0) noexcept {
+    (void)max_threads;
+    if (count == 0) return true;
+    if (inputs == nullptr || input_lens == nullptr || out32 == nullptr || stride == 0 ||
+        detail::column_layout_overflows(count, stride) ||
+        detail::column_layout_overflows(count, 32)) {
+        return false;
+    }
+    for (std::size_t i = 0; i < count; ++i)
+        if (input_lens[i] == 0 || static_cast<std::size_t>(input_lens[i]) > stride) return false;
+    if (auto hook = gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire)) {
+        if (hook(inputs, input_lens, stride, count, out32) == 0) return true;
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto d = secp256k1::SHA256::hash256(inputs + i * stride,
+                                                   static_cast<std::size_t>(input_lens[i]));
+        std::memcpy(out32 + i * 32, d.data(), 32);
+    }
+    return true;
+}
+
 } // namespace ufsecp::lbtc
 
 #endif // UFSECP_LIBBITCOIN_DIRECT_HPP

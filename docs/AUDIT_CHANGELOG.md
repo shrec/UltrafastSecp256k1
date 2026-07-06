@@ -1,5 +1,60 @@
 # Audit Changelog
 
+## 2026-07-06 — new GPU primitive: `hash256_var` batch variable-length double-SHA256
+
+Added a new backend-neutral GPU primitive for batch variable-length Bitcoin
+HASH256 (double SHA-256): `GpuBackend::hash256_var` virtual
+(`src/gpu/include/gpu_backend.hpp`) with native CUDA, OpenCL, and Metal
+kernels, C ABI `ufsecp_gpu_hash256_var` (`include/ufsecp/ufsecp_gpu.h` /
+`src/cpu/src/ufsecp_gpu_impl.cpp`), and a bridge-free libbitcoin-direct
+wrapper `hash256_var_batch` (`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`)
+with hook typedef/atomic/installer in
+`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`. Row `i` is
+`inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up
+to `stride` are ignored padding; GPU performs no tag prefix and no
+transaction parsing — this is the primitive libbitcoin's future
+`txid_batch`/`wtxid_batch` convenience wrappers will compose with CPU-side
+BIP141 serialization (`legacy_serialize`/`witness_serialize` in
+`src/cpu/src/bip144.cpp`). PUBLIC-DATA / variable-time throughout — no
+secret-bearing path, no CT requirement.
+
+- **New bound:** `kMaxHash256VarStride` (4 MiB, `src/cpu/src/ufsecp_gpu_impl.cpp`)
+  chosen to cover Bitcoin's maximum block-weight-derived transaction size
+  with headroom over realistic ~100KB standard-relay tx sizes.
+- **New per-row validation:** unlike the existing `ufsecp_gpu_tagged_hash_var`
+  ABI wrapper (which only bounds-checks the scalar `stride`), the
+  `ufsecp_gpu_hash256_var` wrapper validates every `input_lens[i]` against
+  `stride` host-side, per row, before GPU dispatch — since `hash256_var` row
+  lengths are fully caller-controlled and an out-of-range row would read past
+  its slot.
+- **Kernel design:** unlike `tagged_hash_var` (which copies each row into a
+  small fixed on-chip buffer, 256–320 bytes, to prepend the 64-byte BIP-340
+  tag), `hash256_var` has no tag prefix, so the CUDA/OpenCL/Metal kernels
+  stream each row directly in 64-byte SHA-256 compression blocks with no
+  full-row local copy — supporting rows up to the 4 MiB bound instead of
+  inheriting the 256/320-byte cap.
+- **Error semantics:** `ctx==nullptr` → `UFSECP_ERR_NULL_ARG`; `n==0` →
+  `UFSECP_OK` no-op (`out32` untouched); `n` over the existing
+  `kMaxGpuBatchN` (64M) batch cap, `stride==0`/`>kMaxHash256VarStride`, or any
+  `input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT`; null
+  `inputs`/`input_lens`/`out32` with `n>0` → `UFSECP_ERR_NULL_ARG`. Non-OK
+  return leaves `out32` cleared, never partial/stale.
+- **Test:** `audit/test_regression_hash256_var_batch.cpp` (KAT/boundary:
+  1B/32B/64B/~1KB rows, stride==len, stride>len, n=0, n=1, n=large;
+  differential against `secp256k1::SHA256::hash256`),
+  `audit/test_regression_hash256_var_parity.cpp` (cross-backend
+  byte-identical output), `audit/test_exploit_hash256_var_bounds.cpp`
+  (hostile inputs: nulls, n==0, input_lens[i]==0, input_lens[i]>stride,
+  stride==0, stride/count overflow).
+- **Metal:** code-complete, runtime parity PENDING Apple-hardware
+  validation — same status already documented for the sibling libbitcoin
+  public-data batch ops in `docs/BACKEND_ASSURANCE_MATRIX.md` (this work was
+  done on Linux; no Apple hardware available here).
+- **Docs:** `docs/API_REFERENCE.md` (C ABI table + `hash256_var_batch` C++
+  wrapper doc), `docs/BACKEND_ASSURANCE_MATRIX.md` (new per-backend table),
+  `docs/TEST_MATRIX.md` and `docs/EXPLOIT_TEST_CATALOG.md` (new test
+  entries) updated in the same pass.
+
 ## 2026-07-06 — doc-only follow-up: `ufsecp_gpu.h` C ABI banner corrected for the same six ops
 
 No code change. Closes the follow-up left open by the same-day entry below: the
@@ -2157,7 +2212,7 @@ Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120
   crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors.
   10/10 relations hold. The positive twin of `soundness_adaptor_dleq_forgery` (GHSA-c7q2):
   a structural break in adapt/extract escapes a single honest roundtrip but breaks the
-  relation. Module count 421 → 422 (153 non-exploit + 269 exploit PoCs).
+  relation. Module count 421 → 422 (153 non-exploit + 270 exploit PoCs).
 - **Ledger also institutionalizes existing coverage:** `pedersen-additive-homomorphism`
   marked `covered` → existing `exploit_pedersen_homomorphism` module; MuSig2 aggregate≡single
   and FROST threshold-reconstruction equivalence declared `roadmap`.
@@ -3770,7 +3825,7 @@ No code issues found. Findings recorded in knowledge_base (CT-AUDIT-FROST/ADAPTO
 - **audit/test_exploit_frost_absent_signer_id.cpp (NEW — P1-SEC-001):** 3 sub-tests (FSI-1..3): absent signer → zero z_i; present signer → non-zero z_i; below-threshold → zero z_i. Wired to `unified_audit_runner` as `exploit_poc`, `advisory=false`.
 - **audit/test_regression_schnorr_sign_e_hash_erased.cpp (NEW — P1-SEC-002):** 4 sub-tests (SHE-1..4): sign+verify round-trip; 50 round-trips with varied messages; deterministic output; different messages → different sigs. Wired as `ct_analysis`, `advisory=false`.
 - **audit/test_exploit_musig2_infinity_pubnonce.cpp (NEW — P1-SEC-003):** 6 sub-tests (MIP-1..6): valid pubnonce accepted; zero input (prefix 0x00) rejected; uncompressed prefix (0x04) rejected; off-curve x handled; NULL args rejected; invalid second-point prefix rejected. Wired as `exploit_poc`, `advisory=true` (requires shim).
-- **ci/sync_module_count.py:** Module count propagated — 382 total (269 exploit-PoC, 115 non-exploit).
+- **ci/sync_module_count.py:** Module count propagated — 382 total (270 exploit-PoC, 115 non-exploit).
 
 ## 2026-05-21 — Fix: doc sync, stale paths, canonical benchmark JSON machine-generation (REL-001..011, BENCH-003/006, CI-001)
 
@@ -4247,7 +4302,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 269 exploit PoC)
+### Module count: 357 total (101 non-exploit + 270 exploit PoC)
 
 ---
 
@@ -4393,7 +4448,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 269 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 270 exploit PoC = 350 total.
 
 ---
 
@@ -5268,7 +5323,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 269 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 270 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -7668,7 +7723,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 269 exploit PoC files, 59 new checks.**
+**Running total after this wave: 270 exploit PoC files, 59 new checks.**
 
 ---
 

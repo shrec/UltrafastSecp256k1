@@ -1179,6 +1179,56 @@ public:
         return GpuError::Ok;
     }
 
+    /* libbitcoin-bridge: batch HASH256 (double SHA-256) of variable-length
+     * inputs sharing a common row stride. PUBLIC-data hashing only, no tag
+     * prefix, no transaction parsing. Rows may be multi-megabyte (unlike
+     * hash256's fixed <=320-byte rows) — see sha256_update_device in
+     * secp256k1_kernels.metal for why this needs its own kernel rather than
+     * reusing lbtc_hash256's copy-into-thread-buffer approach.
+     * Dispatch structure mirrors tagged_hash_var (also uploads a per-item
+     * lengths array + stride scalar); no tag_hash32 buffer here. */
+    GpuError hash256_var(
+        const uint8_t* inputs, const uint32_t* input_lens,
+        size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !input_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0) return set_error(GpuError::BadInput, "stride out of range");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_hash256_var");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_hash256_var kernel missing from loaded library");
+
+        auto buf_in     = runtime_->alloc_buffer_shared(n * stride);
+        auto buf_lens   = runtime_->alloc_buffer_shared(n * sizeof(uint32_t));
+        auto buf_stride = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        auto buf_out    = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_in.valid() || !buf_lens.valid() || !buf_stride.valid() ||
+            !buf_out.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_hash256_var buffer allocation failed");
+
+        std::memcpy(buf_in.contents(), inputs, n * stride);
+        std::memcpy(buf_lens.contents(), input_lens, n * sizeof(uint32_t));
+        uint32_t st32 = (uint32_t)stride;
+        std::memcpy(buf_stride.contents(), &st32, sizeof(st32));
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_in, &buf_lens, &buf_stride, &buf_out, &buf_count});
+
+        std::memcpy(out32, buf_out.contents(), n * 32);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdh_batch(
         const uint8_t* privkeys32, const uint8_t* peer_pubkeys33,
         size_t count, uint8_t* out_secrets32) override

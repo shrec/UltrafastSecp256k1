@@ -287,6 +287,7 @@ public:
         if (ext_tagged_hash_)          { clReleaseKernel(ext_tagged_hash_);          ext_tagged_hash_          = nullptr; }
         if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
         if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
+        if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -1139,6 +1140,64 @@ public:
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
         release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256 result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* Generic batch variable-length double-SHA256. Row i is
+     * inputs[i*stride .. i*stride+input_lens[i]); bytes beyond input_lens[i]
+     * up to stride are ignored padding. out32[i*32..i*32+32) =
+     * SHA256(SHA256(row_i)). Public-data hashing only, no tag prefix, no
+     * transaction parsing. Unlike hash256() (fixed input_len, host-capped at
+     * 320 B), rows here are read directly from __global memory on-device via
+     * sha256_update_global, so stride is not capped — real multi-MB Bitcoin
+     * transactions are supported. */
+    GpuError hash256_var(
+        const uint8_t* inputs, const uint32_t* input_lens,
+        size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !input_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0) return set_error(GpuError::BadInput, "stride out of range");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_hash256_var_)
+            return set_error(GpuError::Launch, "lbtc_hash256_var kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_in = nullptr, d_lens = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out)  clReleaseMemObject(d_out);
+            if (d_lens) clReleaseMemObject(d_lens);
+            if (d_in)   clReleaseMemObject(d_in);
+        };
+        d_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * stride, const_cast<uint8_t*>(inputs), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_in"); }
+        d_lens = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * sizeof(cl_uint), const_cast<uint32_t*>(input_lens), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_lens"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        cl_uint cl_stride = static_cast<cl_uint>(stride);
+        clSetKernelArg(ext_hash256_var_, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(ext_hash256_var_, 1, sizeof(cl_mem), &d_lens);
+        clSetKernelArg(ext_hash256_var_, 2, sizeof(cl_uint), &cl_stride);
+        clSetKernelArg(ext_hash256_var_, 3, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_hash256_var_, 4, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_hash256_var_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "hash256_var kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256_var result read failed");
         clear_error();
         return GpuError::Ok;
     }
@@ -2717,6 +2776,7 @@ private:
     cl_kernel  ext_tagged_hash_            = nullptr;
     cl_kernel  ext_tagged_hash_var_        = nullptr;
     cl_kernel  ext_hash256_                = nullptr;
+    cl_kernel  ext_hash256_var_            = nullptr;
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
@@ -2785,7 +2845,7 @@ private:
             ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ &&
             ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_ &&
             ext_xonly_validate_ && ext_pubkey_validate_ && ext_commitment_verify_ &&
-            ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ &&
+            ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ && ext_hash256_var_ &&
             ext_ecdsa_lbtc_collect_ && ext_schnorr_lbtc_collect_)
             return GpuError::Ok;
         if (ext_init_attempted_)
@@ -2970,6 +3030,7 @@ private:
         // (each handle is nullptr until created) make one shared cleanup safe
         // regardless of which clCreateKernel failed — no double-release.
         auto release_all_extended = [&]() {
+            if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
             if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
             if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
             if (ext_tagged_hash_)          { clReleaseKernel(ext_tagged_hash_);          ext_tagged_hash_          = nullptr; }
@@ -3004,6 +3065,8 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_tagged_hash_var kernel not found"); }
         ext_hash256_ = clCreateKernel(ext_program_, "lbtc_hash256", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256 kernel not found"); }
+        ext_hash256_var_ = clCreateKernel(ext_program_, "lbtc_hash256_var", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256_var kernel not found"); }
 
         // libbitcoin COLLECT verify kernels (native OpenCL). Same device parse/
         // verify as the column kernels; only the output convention differs.
