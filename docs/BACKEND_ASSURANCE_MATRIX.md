@@ -36,23 +36,29 @@ Backend trust is measured, not assumed.
 
 ### libbitcoin bridge "collect" verify (Added 2026-06-02)
 
-The in-place collect verify (`ufsecp_lbtc_verify_*_collect`) has a dedicated
-on-device CUDA kernel (`ufsecp_gpu_*_verify_collect`); OpenCL and Metal inherit
-the `GpuBackend` default (`GpuError::Unsupported`) and the bridge falls back to
-the host-collapse path (the existing, audited `ufsecp_gpu_*_verify_batch` kernels
-+ a host-side verdict write). All paths route through the identical verify cores,
-so the rejected-set is consensus-identical across them.
+The in-place collect verify (`ufsecp_lbtc_verify_*_collect`) now has a dedicated
+on-device kernel on **all three backends** (`ecdsa_verify_collect` /
+`schnorr_verify_collect`). Each collect kernel is a verbatim clone of the same
+backend's audited `*_verify_lbtc_columns` verify kernel — the verdict is
+bit-for-bit identical to `*_verify_batch`; ONLY the output store changes to the
+collect convention: the caller pre-seeds the 1-byte-per-row `key_buffer` non-zero,
+a VALID row writes 0, an INVALID row is left seeded (rejected id survives). The
+override seeds the device verdict channel from `key_buffer`, reads it back
+verbatim, and returns a non-OK `GpuError` on any operational fault (engine falls
+back) — never zeroing a non-valid row and never emitting an all-zero buffer.
 
 | Backend | collect path | Assurance |
 |---------|--------------|-----------|
 | CPU     | reference (per-row verify) | **HIGH** — gated vs libsecp256k1 |
 | CUDA    | dedicated on-device kernel | **HIGH** — `test_lbtc_consensus_diff` proves GPU==CPU==libsecp on the rejected-set (ECDSA+Schnorr, mixed corpus); kernel is a verbatim copy of the audited verify kernel with only the output store changed |
-| OpenCL  | host-collapse fallback (`Unsupported` → `*_verify_batch` + host write) | **MEDIUM** — verify kernel ABI-complete; collect verdict applied host-side (no untested device kernel) |
-| Metal   | host-collapse fallback | **MEDIUM** — same as OpenCL |
+| OpenCL  | dedicated on-device kernel (`ecdsa_verify_lbtc_collect` / `schnorr_verify_lbtc_collect` in `secp256k1_extended.cl`) | **HIGH** — verified on-device end-to-end (NVIDIA RTX 5060 Ti, OPENCL=ON/CUDA=OFF): the wired `test_gpu_collect_verify_parity` audit test runs through the C ABI → OpenCL override → kernel and asserts `collect == ufsecp_gpu_*_verify_batch` verdict per-row on an all-valid + tampered corpus → **pass=24 fail=0**. ECDSA collect parses the **compact (big-endian r‖s)** sig via `lbtc_parse_compact_signature` — the SAME format as `ecdsa_verify_batch` (`ecdsa_verify_compressed`), not the little-endian columns/opaque parse |
+| Metal   | dedicated on-device kernel (`lbtc_ecdsa_verify_collect` / `lbtc_schnorr_verify_collect` in `secp256k1_kernels.metal`) | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — ECDSA collect mirrors `ecdsa_verify_batch_compressed` (compact big-endian sig parse + `ecdsa_verify(Scalar256,AffinePoint,r,s)`); Schnorr collect clones the Metal `schnorr_verify_lbtc_columns` verify core. Only the output store changes to the collect convention. Not built/run here (Metal is Apple-only); owner validates on Apple GPU (same `test_gpu_collect_verify_parity`) before promotion to HIGH |
 
-A native OpenCL/Metal collect kernel is a documented follow-up, gated on those
-backends gaining local/CI hardware coverage (a consensus-bearing accept/reject
-device kernel must never ship unverified).
+Cross-backend parity is proven by the wired advisory audit test
+`test_gpu_collect_verify_parity` (`gpu_collect_verify_parity` module): it asserts
+the native collect verdict equals the `*_verify_batch` verdict per-row on-device,
+and self-skips the device portion when no GPU is present (its null-ctx contract
+portion runs everywhere).
 
 ### libbitcoin opaque ECDSA row verify (Added 2026-06-13)
 
@@ -392,21 +398,30 @@ evidence for ROCm/HIP promotion.
 ### Default-stub parity exceptions (libbitcoin-bridge specializations)
 
 Beyond the 16 public ABI ops, the `GpuBackend` interface exposes optional
-**libbitcoin-bridge specialization** virtual methods (`ecdsa_verify_collect`,
-`schnorr_verify_collect`, `xonly_validate`, `commitment_verify`, `tagged_hash`,
-`tagged_hash_var`, `pubkey_validate`, `hash256`, and the ZK/AEAD/BIP-352 batch
-variants). These are **CUDA-native** and intentionally default to
-`GpuError::Unsupported` on OpenCL/Metal, where the caller transparently falls
-back to the host/CPU path (e.g. `*_verify_batch` + a host collapse). All inputs
-on these paths are **public data**, and the fallback is deterministic, so this is
-a **performance residual, not a correctness parity gap**.
+**libbitcoin-bridge specialization** virtual methods (`xonly_validate`,
+`commitment_verify`, `tagged_hash`, `tagged_hash_var`, `pubkey_validate`,
+`hash256`, and the ZK/AEAD/BIP-352 batch variants). These are **CUDA-native**
+and intentionally default to `GpuError::Unsupported` on OpenCL/Metal, where the
+caller transparently falls back to the host/CPU path (e.g. `*_verify_batch` +
+a host collapse). All inputs on these paths are **public data**, and the
+fallback is deterministic, so this is a **performance residual, not a
+correctness parity gap**.
 
-Each such return in `src/gpu/include/gpu_backend.hpp` carries an inline
-`PARITY-EXCEPTION` marker, and the `audit_gate.py --gpu-parity` gate enforces that
-**every `return ...Unsupported` in GPU backend source is either implemented or
-carries a `TODO(parity)`/`PARITY-EXCEPTION` marker** — a backend may not silently
-return Unsupported without a documented exception. The gate scans source files
-only (build/generated trees are pruned) so the signal is precise.
+`ecdsa_verify_collect` / `schnorr_verify_collect` are **not** part of this
+default-stub group: as of the libbitcoin "collect" verify work (2026-06-02),
+all three shipped backends (CUDA, OpenCL, Metal) provide dedicated native
+overrides — the base `GpuBackend` virtual is unreachable for any currently
+shipped backend and exists only as an abstract-safe default for a hypothetical
+future backend. See the "libbitcoin bridge 'collect' verify" section above
+(~line 37) for the authoritative per-backend assurance status.
+
+Each remaining default-stub return in `src/gpu/include/gpu_backend.hpp` carries
+an inline `PARITY-EXCEPTION` marker, and the `audit_gate.py --gpu-parity` gate
+enforces that **every `return ...Unsupported` in GPU backend source is either
+implemented or carries a `TODO(parity)`/`PARITY-EXCEPTION` marker** — a backend
+may not silently return Unsupported without a documented exception. The gate
+scans source files only (build/generated trees are pruned) so the signal is
+precise.
 
 ---
 

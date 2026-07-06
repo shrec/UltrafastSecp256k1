@@ -266,6 +266,19 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
         TIMEOUT 120
         LABELS "gpu;libbitcoin;columns;differential")
 
+    # -- GPU collect-verify parity (native collect verdict == verify_batch verdict) --
+    add_executable(test_gpu_collect_verify_parity test_gpu_collect_verify_parity.cpp)
+    target_link_libraries(test_gpu_collect_verify_parity PRIVATE ${UFSECP_GPU_TEST_LIB})
+    target_include_directories(test_gpu_collect_verify_parity PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_BINARY_DIR}/include/ufsecp
+    )
+    target_compile_definitions(test_gpu_collect_verify_parity PRIVATE STANDALONE_TEST)
+    add_test(NAME gpu_collect_verify_parity COMMAND test_gpu_collect_verify_parity)
+    set_tests_properties(gpu_collect_verify_parity PROPERTIES
+        TIMEOUT 120
+        LABELS "gpu;libbitcoin;collect;differential")
+
     # -- GPU ops equivalence (GPU vs CPU reference) --
     add_executable(test_gpu_ops_equivalence test_gpu_ops_equivalence.cpp)
     target_link_libraries(test_gpu_ops_equivalence PRIVATE ${UFSECP_GPU_TEST_LIB})
@@ -348,6 +361,7 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
             test_gpu_host_api_negative test_gpu_backend_matrix
             test_gpu_ecdsa_snark_witness test_gpu_bip352_scan
             test_gpu_zk_prove_verify_differential
+            test_gpu_collect_verify_parity
             PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE
         )
     endif()
@@ -3706,6 +3720,8 @@ add_executable(unified_audit_runner
     test_gpu_abi_gate.cpp
     # GPU vs CPU libbitcoin column verify + engine-dispatcher CPU-fallback contract
     test_gpu_lbtc_columns_diff.cpp
+    # Native GPU collect verdict == verify_batch verdict per-row (null-ctx contract runs CPU-only)
+    test_gpu_collect_verify_parity.cpp
     # CPU range-proof → GPU Bulletproof poly-check consistency (advisory; skips w/o GPU/ZK)
     test_gpu_zk_prove_verify_differential.cpp
     # -- field representation tests --

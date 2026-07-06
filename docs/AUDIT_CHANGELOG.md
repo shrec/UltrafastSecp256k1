@@ -1,5 +1,50 @@
 # Audit Changelog
 
+## 2026-07-05 — collect verify: native OpenCL + Metal parity (ecdsa_verify_collect / schnorr_verify_collect)
+
+Closed the last strict GPU-backend parity gap: the collect-verify virtuals
+(`ecdsa_verify_collect` @gpu_backend.hpp:178, `schnorr_verify_collect` @191) were
+CUDA-only; OpenCL/Metal returned `GpuError::Unsupported` and the bridge did a
+host-collapse fallback. Both now have **native on-device kernels** on OpenCL and
+Metal. No gpu_backend.hpp/signature change, no C ABI change (the C ABI already
+dispatches to the active backend's virtual), no new public libbitcoin API.
+
+- **Design:** each collect kernel is a VERBATIM clone of the same backend's audited
+  `*_verify_lbtc_columns` verify kernel (identical verify core / device fns) with
+  ONLY the output store changed to the collect convention. The verdict is bit-for-bit
+  identical to `*_verify_batch`; the caller pre-seeds the 1-byte-per-row `key_buffer`
+  non-zero, a VALID row writes 0, an INVALID row is left seeded. Three fail-closed
+  inversions vs the column clone: (1) NO up-front `memset(key_buffer,0)` (0==VALID —
+  a mass false-accept otherwise); (2) the BIP-340 strict-s reject leaves the seed
+  (bare return), not a 0 write; (3) the verdict channel is read back verbatim (no
+  `?1:0`). Operational fault → non-OK `GpuError` (engine falls back), never zeroing a
+  non-valid row, never all-zero.
+- **OpenCL** (`secp256k1_extended.cl` + `gpu_backend_opencl.cpp`): kernels
+  `ecdsa_verify_lbtc_collect` / `schnorr_verify_lbtc_collect`, overrides reuse the
+  grow-only columns pool. **Verified on-device end-to-end (NVIDIA RTX 5060 Ti,
+  OPENCL=ON/CUDA=OFF):** the wired `test_gpu_collect_verify_parity` audit test runs
+  through the C ABI → OpenCL override → kernel → **pass=24 fail=0** (`collect ==
+  ufsecp_gpu_*_verify_batch` per-row, all-valid + tampered corpora).
+- **Sig-format correction (found by the end-to-end test):** the collect ABI sig
+  format is **compact (big-endian r‖s)** — the SAME as `ufsecp_gpu_ecdsa_verify_batch`
+  (`ecdsa_verify_compressed`) and the CUDA collect (`bytes_to_ecdsa_sig` over
+  `compact[64]`). The first ECDSA collect draft cloned the little-endian *opaque*
+  parse from `*_verify_lbtc_columns`, which mis-parsed every row (no valid sig ever
+  collected). Fixed: OpenCL uses `lbtc_parse_compact_signature`; Metal inlines the
+  big-endian Scalar256 parse of `ecdsa_verify_batch_compressed`. Schnorr was already
+  correct (BIP-340 is big-endian).
+- **Metal** (`secp256k1_kernels.metal` + `gpu_backend_metal.mm`): kernels
+  `lbtc_ecdsa_verify_collect` / `lbtc_schnorr_verify_collect`, overrides mirror the
+  column-verify dispatch. **Not built/run here** (Metal is Apple-only); runtime
+  parity is **pending owner validation on Apple hardware** (same audit test).
+- **Test:** new advisory audit module `gpu_collect_verify_parity`
+  (`audit/test_gpu_collect_verify_parity.cpp`, wired into `unified_audit_runner.cpp`
+  + `audit/CMakeLists.txt`; module counts synced via `ci/sync_module_count.py`,
+  163→164 non-exploit modules) asserts native collect verdict == `*_verify_batch`
+  verdict per-row on-device, self-skipping the device portion with no GPU.
+- Docs: `BACKEND_ASSURANCE_MATRIX.md` collect rows → OpenCL HIGH (verified) / Metal
+  code-complete-pending-Apple.
+
 ## 2026-07-05 — libbitcoin public-data batch ops: native OpenCL + Metal parity for the 6 GpuBackend virtuals
 
 Follow-up to the 2026-07-04 surface: the six `GpuBackend` virtuals

@@ -726,6 +726,164 @@ public:
         return GpuError::Ok;
     }
 
+    /* libbitcoin-bridge COLLECT verify (ECDSA). Native Metal parity with
+     * CudaBackend::ecdsa_verify_collect (gpu_backend_cuda.cu:1230). PUBLIC-DATA,
+     * variable-time. The verdict is bit-for-bit identical to
+     * ecdsa_verify_lbtc_columns / ecdsa_verify_batch; only the OUTPUT convention
+     * differs: key_buffer is a 1-byte/row verdict channel the caller SEEDS
+     * non-zero, and a VALID row is collapsed to 0 while an INVALID/rejected row is
+     * LEFT seeded (the rejected id survives). Fail-closed inversions vs the
+     * *_columns clone:
+     *   (1) NO up-front memset — 0 == VALID here, so zeroing key_buffer would be a
+     *       mass false-accept; any early non-OK return leaves the caller's non-zero
+     *       seed intact (== all-rejected == fail-closed).
+     *   (2) A command-buffer fault canary (buffer(5), host-seeded 0, kernel-stamped
+     *       1) REPLACES the column path's 0xFFFFFFFF result sentinel: a collect row
+     *       legitimately keeps its seed on invalid, so the seed cannot double as a
+     *       "kernel ran" marker — the canary is the only fault detector. A surviving
+     *       0 -> non-OK GpuError (CPU fallback), no copyback. */
+    GpuError ecdsa_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys33 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // NO up-front memset: for collect 0 == VALID, so any early non-OK return
+        // must leave the caller's non-zero seed (== all-rejected) untouched.
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_ecdsa_verify_collect");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_ecdsa_verify_collect kernel missing from loaded library");
+
+        size_t cap = (static_cast<size_t>(4) << 20);
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        const size_t chunk = (count < cap) ? count : cap;
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            auto buf_dig    = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_pub    = runtime_->alloc_buffer_shared(n * 33);
+            auto buf_sig    = runtime_->alloc_buffer_shared(n * 64);
+            auto buf_keys   = runtime_->alloc_buffer_shared(n * 1);
+            auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            auto buf_canary = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            // Fail-closed: a nil buffer (alloc failure) has contents()==nil; a
+            // memcpy into it is UB. Decline with a non-OK GpuError so the engine
+            // falls back to CPU — never proceed and never zero key_buffer.
+            if (!buf_dig.valid() || !buf_pub.valid() || !buf_sig.valid() ||
+                !buf_keys.valid() || !buf_count.valid() || !buf_canary.valid())
+                return set_error(GpuError::Memory,
+                                 "Metal: lbtc_ecdsa_verify_collect chunk buffer allocation failed");
+            std::memcpy(buf_dig.contents(), msg_hashes32 + off * 32, n * 32);
+            std::memcpy(buf_pub.contents(), pubkeys33 + off * 33, n * 33);
+            std::memcpy(buf_sig.contents(), sigs64 + off * 64, n * 64);
+            // SEED the verdict channel with the caller's non-zero markers: a row
+            // the kernel never zeroes (invalid, or unreached after a fault) stays
+            // non-zero = rejected = fail-closed.
+            std::memcpy(buf_keys.contents(), key_buffer + off, n);
+            uint32_t n32 = (uint32_t)n;
+            std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+            // Fault canary seeded 0; the kernel unconditionally stamps 1.
+            uint32_t canary0 = 0u;
+            std::memcpy(buf_canary.contents(), &canary0, sizeof(canary0));
+
+            runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                    {&buf_dig, &buf_pub, &buf_sig, &buf_keys,
+                                     &buf_count, &buf_canary});
+
+            // dispatch_sync is void and only cerr-logs a command-buffer fault; a
+            // surviving canary 0 proves the kernel did not run -> decline to CPU
+            // WITHOUT copyback (caller seed stays = all-rejected). Never emit
+            // all-zero, never zero a rejected row.
+            uint32_t ran = 0u;
+            std::memcpy(&ran, buf_canary.contents(), sizeof(ran));
+            if (ran == 0u)
+                return set_error(GpuError::Launch,
+                                 "Metal: lbtc_ecdsa_verify_collect dispatch did not run "
+                                 "(command-buffer failure) — declining to CPU");
+            // Verdict already collapsed on device (valid->0, invalid->seeded); copy
+            // the 1-byte/row channel back VERBATIM — no 0/1 normalization.
+            std::memcpy(key_buffer + off, buf_keys.contents(), n);
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* libbitcoin-bridge COLLECT verify (Schnorr). Native Metal parity with
+     * CudaBackend::schnorr_verify_collect (gpu_backend_cuda.cu:1290). PUBLIC-DATA,
+     * variable-time. Same collect convention and fail-closed inversions as
+     * ecdsa_verify_collect above (no memset; seed key_buffer; canary fault
+     * detector; verbatim readback). */
+    GpuError schnorr_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys_x32 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // NO up-front memset: 0 == VALID for collect (see ecdsa_verify_collect).
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_schnorr_verify_collect");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_schnorr_verify_collect kernel missing from loaded library");
+
+        size_t cap = (static_cast<size_t>(4) << 20);
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        const size_t chunk = (count < cap) ? count : cap;
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            auto buf_dig    = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_xon    = runtime_->alloc_buffer_shared(n * 32);
+            auto buf_sig    = runtime_->alloc_buffer_shared(n * 64);
+            auto buf_keys   = runtime_->alloc_buffer_shared(n * 1);
+            auto buf_count  = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            auto buf_canary = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+            if (!buf_dig.valid() || !buf_xon.valid() || !buf_sig.valid() ||
+                !buf_keys.valid() || !buf_count.valid() || !buf_canary.valid())
+                return set_error(GpuError::Memory,
+                                 "Metal: lbtc_schnorr_verify_collect chunk buffer allocation failed");
+            std::memcpy(buf_dig.contents(), msg_hashes32 + off * 32, n * 32);
+            std::memcpy(buf_xon.contents(), pubkeys_x32 + off * 32, n * 32);
+            std::memcpy(buf_sig.contents(), sigs64 + off * 64, n * 64);
+            // SEED verdict channel from the caller's non-zero markers.
+            std::memcpy(buf_keys.contents(), key_buffer + off, n);
+            uint32_t n32 = (uint32_t)n;
+            std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+            uint32_t canary0 = 0u;
+            std::memcpy(buf_canary.contents(), &canary0, sizeof(canary0));
+
+            runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                    {&buf_dig, &buf_xon, &buf_sig, &buf_keys,
+                                     &buf_count, &buf_canary});
+
+            uint32_t ran = 0u;
+            std::memcpy(&ran, buf_canary.contents(), sizeof(ran));
+            if (ran == 0u)
+                return set_error(GpuError::Launch,
+                                 "Metal: lbtc_schnorr_verify_collect dispatch did not run "
+                                 "(command-buffer failure) — declining to CPU");
+            std::memcpy(key_buffer + off, buf_keys.contents(), n);
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
     /* libbitcoin-bridge: batch x-only key validation (lift_x per key). PUBLIC.
      * Native Metal parity with CudaBackend::xonly_validate. */
     GpuError xonly_validate(

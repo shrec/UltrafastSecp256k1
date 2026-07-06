@@ -618,8 +618,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` | Y | Y | Y | Y (GPU==CPU opaque row) | Strided `hash|pubkey|opaque-sig|tail` rows; parses copied libsecp-compatible signature storage in-kernel |
 | `ufsecp_gpu_ecdsa_verify_lbtc_rows` | Y | Y | Y | Y (alias parity) | Libbitcoin compatibility alias for opaque ECDSA rows; fail-closed null/stride checks before forwarding |
 | `ufsecp_gpu_schnorr_verify_batch` | Y | Y | Y | - | BIP-340 batch verify |
-| `ufsecp_gpu_ecdsa_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
-| `ufsecp_gpu_schnorr_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
+| `ufsecp_gpu_ecdsa_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
+| `ufsecp_gpu_schnorr_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
 | `ufsecp_gpu_ecdh_batch` | Y | Y | Y | - | SECRET-BEARING |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | Y | Y | - | SHA-256+RIPEMD-160 |
 | `ufsecp_gpu_msm` | Y | Y | Y | - | Multi-scalar multiplication |

@@ -2552,8 +2552,8 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_schnorr_verify_batch` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, results_out[]) -> error_t` | Schnorr/BIP-340 batch verify |
 | `ufsecp_gpu_ecdsa_verify_lbtc_columns` | `(ctx, digests32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin ECDSA column (SoA) verify; opaque-LE sig parsed on device. **C ABI completeness only — the libbitcoin-direct surface is the C++ engine entrypoint, which reaches GPU via `install_gpu_columns_verify_hook` (see below), not this C ABI.** |
 | `ufsecp_gpu_schnorr_verify_lbtc_columns` | `(ctx, digests32[], xonly32[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin Schnorr column (SoA) verify; BIP-340 parsed on device. **C ABI completeness only (see above).** |
-| `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Non-CUDA backends return Unsupported |
-| `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict (see ecdsa_verify_collect) |
+| `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Native on CUDA, OpenCL, and Metal |
+| `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict; native on CUDA, OpenCL, and Metal (see ecdsa_verify_collect) |
 | `ufsecp_gpu_ecdh_batch` | `(ctx, privkeys32[], pubs33[], n, secrets32_out[]) -> error_t` | ECDH shared secrets (SECRET-BEARING) |
 | `ufsecp_gpu_hash160_pubkey_batch` | `(ctx, pubs33[], n, hashes20_out[]) -> error_t` | SHA-256 + RIPEMD-160 of pubkeys |
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |

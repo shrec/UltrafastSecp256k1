@@ -171,9 +171,11 @@ public:
 
     /* "Collect" verify (libbitcoin bridge specialization): identical verdict to
      * *_verify_batch, but written in place into a 1-byte-per-row key_buffer the
-     * caller pre-seeds non-zero (valid -> 0, invalid -> left). Non-pure with a
-     * safe default: backends that do not implement it (OpenCL/Metal) return
-     * Unsupported so the caller falls back to *_verify_batch + a host collapse.
+     * caller pre-seeds non-zero (valid -> 0, invalid -> left). CUDA, OpenCL, and
+     * Metal all provide native overrides (see gpu_backend_cuda.cu,
+     * gpu_backend_opencl.cpp, gpu_backend_metal.mm); this base virtual default is
+     * unreachable for any currently shipped backend — it exists only as an
+     * abstract-safe fallback for a hypothetical future backend.
      * PUBLIC-DATA: key_buffer holds only opaque correlation markers, no secret. */
     virtual GpuError ecdsa_verify_collect(
         const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
@@ -182,9 +184,9 @@ public:
     {
         (void)msg_hashes32; (void)pubkeys33; (void)sigs64;
         (void)count; (void)key_buffer;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 
@@ -195,9 +197,9 @@ public:
     {
         (void)msg_hashes32; (void)pubkeys_x32; (void)sigs64;
         (void)count; (void)key_buffer;
-        // PARITY-EXCEPTION: intentional default stub — CUDA-native op; OpenCL/Metal
-        // fall back to host CPU (perf residual, not a correctness gap; see method
-        // doc + docs/BACKEND_ASSURANCE_MATRIX.md).
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively
+        // (gpu_backend_cuda.cu, gpu_backend_opencl.cpp, gpu_backend_metal.mm); this
+        // base default is unreachable for any currently shipped backend.
         return GpuError::Unsupported;
     }
 

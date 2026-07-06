@@ -593,6 +593,117 @@ kernel void schnorr_verify_lbtc_columns(
 }
 
 // =============================================================================
+// libbitcoin COLLECT verify (ECDSA + Schnorr) — SoA siblings of the *_columns
+// kernels. PUBLIC-DATA, variable-time (all inputs public). The VERDICT is
+// bit-for-bit identical to ecdsa_verify_lbtc_columns / schnorr_verify_lbtc_columns
+// (and _verify_batch, and the CUDA collect kernels secp256k1.cu:255/274); ONLY
+// the output ENCODING differs:
+//   - column kernels write 1/0 into a WRITE-ONLY results buffer the host clears
+//     to 0 up front;
+//   - collect kernels take a 1-byte-per-row key_cells buffer the host SEEDS with
+//     the caller's non-zero markers, and write 0 ONLY on a VALID verdict. An
+//     INVALID / strict-rejected row is LEFT seeded (the rejected id survives) —
+//     this is why the collect override MUST NOT memset key_buffer to 0 (0==VALID
+//     here, so a blanket zero would be a mass false-accept).
+// buffer(5) ran_flag is an unconditional "kernel executed" canary: because
+// MetalRuntime::dispatch_sync is void and only cerr-logs a command-buffer fault,
+// a collect row that keeps its seed is indistinguishable from a never-run thread.
+// The host seeds ran_flag=0 and treats a surviving 0 after the dispatch as an
+// operational failure -> non-Ok GpuError (CPU fallback), never an all-reject
+// verdict. Every thread stamps it before the count guard.
+// =============================================================================
+
+kernel void lbtc_ecdsa_verify_collect(
+    device const uchar *digests32      [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys33      [[buffer(1)]],   // N × 33 (compressed)
+    device const uchar *sigs64         [[buffer(2)]],   // N × 64 (COMPACT big-endian r||s)
+    device uchar *key_cells            [[buffer(3)]],   // N × 1 (seeded non-zero; valid->0)
+    constant uint &count               [[buffer(4)]],
+    device atomic_uint *ran_flag       [[buffer(5)]],   // fault canary (host seeds 0)
+    uint tid [[thread_position_in_grid]]
+) {
+    atomic_store_explicit(ran_flag, 1u, memory_order_relaxed);
+    if (tid >= count) return;
+
+    // COMPACT (big-endian r||s) sig + big-endian msg + compressed-pubkey decompress
+    // — matching ufsecp_gpu_ecdsa_verify_batch (kernel ecdsa_verify_batch_compressed)
+    // and the CUDA collect (bytes_to_ecdsa_sig over compact[64]). NOT the opaque/
+    // little-endian columns parse, which would mis-parse every row so no valid sig
+    // ever collects.
+    Scalar256 msg;
+    for (int i = 0; i < 8; i++) {
+        uint b = ulong(tid) * 32 + i * 4;
+        msg.limbs[7 - i] = ((uint)digests32[b] << 24) | ((uint)digests32[b+1] << 16) |
+                           ((uint)digests32[b+2] << 8) | ((uint)digests32[b+3]);
+    }
+    JacobianPoint pub;
+    if (!lbtc_point_from_compressed(pubkeys33 + ulong(tid) * 33, pub))
+        return;   // bad pubkey -> invalid -> leave key_cells[tid] seeded
+    Scalar256 r_sig, s_sig;
+    uint bs = ulong(tid) * 64;
+    for (int i = 0; i < 8; i++) {
+        r_sig.limbs[7 - i] = ((uint)sigs64[bs + i*4] << 24) | ((uint)sigs64[bs + i*4+1] << 16) |
+                             ((uint)sigs64[bs + i*4+2] << 8) | ((uint)sigs64[bs + i*4+3]);
+        s_sig.limbs[7 - i] = ((uint)sigs64[bs+32 + i*4] << 24) | ((uint)sigs64[bs+32 + i*4+1] << 16) |
+                             ((uint)sigs64[bs+32 + i*4+2] << 8) | ((uint)sigs64[bs+32 + i*4+3]);
+    }
+    if (ecdsa_verify(msg, AffinePoint{pub.x, pub.y}, r_sig, s_sig))
+        key_cells[tid] = 0u;   // valid -> zero (collect contract)
+    // invalid -> leave key_cells[tid] as seeded (rejected id survives)
+}
+
+kernel void lbtc_schnorr_verify_collect(
+    device const uchar *digests32      [[buffer(0)]],   // N × 32
+    device const uchar *xonly32        [[buffer(1)]],   // N × 32 (x-only)
+    device const uchar *sigs64         [[buffer(2)]],   // N × 64 (BIP-340 R.x||s)
+    device uchar *key_cells            [[buffer(3)]],   // N × 1 (seeded non-zero; valid->0)
+    constant uint &count               [[buffer(4)]],
+    device atomic_uint *ran_flag       [[buffer(5)]],   // fault canary (host seeds 0)
+    uint tid [[thread_position_in_grid]]
+) {
+    atomic_store_explicit(ran_flag, 1u, memory_order_relaxed);
+    if (tid >= count) return;
+
+    Scalar256 msg, pub_x, sig_rx, sig_s;
+    for (int i = 0; i < 8; i++) {
+        ulong mi = ulong(tid) * 32 + i * 4;
+        msg.limbs[7 - i]   = ((uint)digests32[mi] << 24) |
+                             ((uint)digests32[mi+1] << 16) |
+                             ((uint)digests32[mi+2] << 8) |
+                             ((uint)digests32[mi+3]);
+        pub_x.limbs[7 - i] = ((uint)xonly32[mi] << 24) |
+                             ((uint)xonly32[mi+1] << 16) |
+                             ((uint)xonly32[mi+2] << 8) |
+                             ((uint)xonly32[mi+3]);
+        ulong si = ulong(tid) * 64 + i * 4;
+        sig_rx.limbs[7 - i] = ((uint)sigs64[si] << 24) |
+                              ((uint)sigs64[si+1] << 16) |
+                              ((uint)sigs64[si+2] << 8) |
+                              ((uint)sigs64[si+3]);
+        sig_s.limbs[7 - i] = ((uint)sigs64[si + 32] << 24) |
+                             ((uint)sigs64[si + 32 + 1] << 16) |
+                             ((uint)sigs64[si + 32 + 2] << 8) |
+                             ((uint)sigs64[si + 32 + 3]);
+    }
+
+    // BIP-340 strict: reject s == 0 and s >= n (byte-identical to the column
+    // kernel / CPU reference). COLLECT delta vs the column kernel: on reject do a
+    // bare return so key_cells[tid] KEEPS its non-zero seed (rejected -> survives);
+    // writing 0 here would be a false-accept.
+    Scalar256 n_order;
+    for (int i = 0; i < 8; ++i) n_order.limbs[i] = SECP256K1_N[i];
+    if (scalar256_is_zero(sig_s) || scalar256_ge(sig_s, n_order))
+        return;   // leave seeded
+
+    FieldElement px;
+    for (int i = 0; i < 8; i++) px.limbs[i] = pub_x.limbs[i];
+
+    if (schnorr_verify(msg, px, sig_rx, sig_s))
+        key_cells[tid] = 0u;   // valid -> zero (collect contract)
+    // invalid -> leave key_cells[tid] as seeded (rejected id survives)
+}
+
+// =============================================================================
 // libbitcoin-bridge PUBLIC-DATA batch ops (native Metal parity with the CUDA
 // reference in src/gpu/src/gpu_backend_cuda.cu kernels @715-779). All six are
 // variable-time on public data (x-only/compressed pubkeys, taproot commitment

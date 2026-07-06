@@ -27,19 +27,19 @@
     {
       "exists": true,
       "path": "docs/FEATURE_ASSURANCE_LEDGER.md",
-      "sha256": "dbf60a18deb6ffa01955c85ddf9a3a2803169767d263c6e5cc6c957429432f1b",
-      "size": 45957
+      "sha256": "c5f73f2de1af0a21c1509f4586c85c6c2693517a042c5660ae1293aec02fcf06",
+      "size": 47227
     },
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "891a80d446585afd1dd59953e41a019a3b856dbde042ada4bceec7d8782df958",
-      "size": 69291
+      "sha256": "f61c75b2db52fdfc8262921d5e7e61dbe1e9e228ecd7060713ab7f89c594b4bf",
+      "size": 70400
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "f300e3bfc2d65352a474b3d8348fb4ecf5ab08311adf8ed364a93a135c1b466c",
+      "sha256": "3b118a63568d7116312809d1397129c64c16e68f98109c66241b610e007e85f5",
       "size": 49162
     },
     {
@@ -51,8 +51,8 @@
     {
       "exists": true,
       "path": "docs/BACKEND_ASSURANCE_MATRIX.md",
-      "sha256": "3c1f9891a065f95bfc73f3256a75df6c6024a52dca2e6cccdb8293616f5bf254",
-      "size": 27474
+      "sha256": "919a3f3ee3bafe8164151a92b75b68283939ce22893db37e8bb3aa8669760159",
+      "size": 33237
     },
     {
       "exists": true,
@@ -156,7 +156,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=434, critical=0, high=0, medium=0, low=0",
+                "message": "Audit test-quality findings: files=435, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
@@ -200,8 +200,24 @@
           {
             "findings": [
               {
-                "message": "Graph is fresh (built: 2026-07-04T17:53:15)",
-                "severity": "PASS"
+                "message": "4 files modified/deleted since graph build (2026-07-05T12:07:54)",
+                "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: src/gpu/include/gpu_backend.hpp",
+                "severity": "INFO"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -210,11 +226,19 @@
           {
             "findings": [
               {
-                "message": "1 undocumented \"return Unsupported\" site(s) (backend silently unimplemented without a TODO(parity)/PARITY-EXCEPTION marker)",
+                "message": "3 undocumented \"return Unsupported\" site(s) (backend silently unimplemented without a TODO(parity)/PARITY-EXCEPTION marker)",
                 "severity": "WARN"
               },
               {
-                "message": "  src/gpu/include/gpu_backend.hpp:480",
+                "message": "  src/gpu/include/gpu_backend.hpp:190",
+                "severity": "INFO"
+              },
+              {
+                "message": "  src/gpu/include/gpu_backend.hpp:203",
+                "severity": "INFO"
+              },
+              {
+                "message": "  src/gpu/include/gpu_backend.hpp:482",
                 "severity": "INFO"
               }
             ],
@@ -224,7 +248,7 @@
           {
             "findings": [
               {
-                "message": "57 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
+                "message": "56 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
                 "severity": "WARN"
               }
             ],
@@ -356,8 +380,8 @@
           {
             "findings": [
               {
-                "message": "10 changed files have matching docs",
-                "severity": "PASS"
+                "message": "CMakeLists.txt changed but docs/BUILDING.md not updated",
+                "severity": "WARN"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -366,11 +390,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 81.4 days (threshold: 14)",
+                "message": "Mutation report age: 83.1 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (81.4 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (83.1 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -604,7 +628,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1681 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1683 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -738,11 +762,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c3d4800d6506806975682bfb42b3a18a2026cb40",
-            "short": "c3d4800d65"
+            "sha": "bdf6b730a753b1039dbbf9ddd5146dfd69eddbbb",
+            "short": "bdf6b730a7"
           }
         },
-        "generated_at": "2026-07-04T17:53:47.918122+00:00",
+        "generated_at": "2026-07-06T10:53:20.241769+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -759,12 +783,12 @@
             },
             "flags_hash": "f6054a07e934d755"
           },
-          "collected_at": "2026-07-04T17:53:47.918079+00:00",
+          "collected_at": "2026-07-06T10:53:20.241707+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "c3d4800d6506806975682bfb42b3a18a2026cb40",
-            "short": "c3d4800d65"
+            "sha": "bdf6b730a753b1039dbbf9ddd5146dfd69eddbbb",
+            "short": "bdf6b730a7"
           },
           "platform": {
             "machine": "x86_64",
@@ -785,7 +809,7 @@
           },
           "version": "4.4.0"
         },
-        "run_id": "audit_gate-c3d4800d65-20260704T175347",
+        "run_id": "audit_gate-bdf6b730a7-20260706T105320",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -891,7 +915,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=434, critical=0, high=0, medium=0, low=0"
+                "title": "Audit test-quality findings: files=435, critical=0, high=0, medium=0, low=0"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -939,24 +963,54 @@
             "findings": [
               {
                 "check_id": "p6__graph_freshness",
-                "severity": "pass",
-                "title": "Graph is fresh (built: 2026-07-04T17:53:15)"
+                "severity": "advisory:medium",
+                "title": "4 files modified/deleted since graph build (2026-07-05T12:07:54)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/EXTERNAL_AUDIT_BUNDLE.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: src/gpu/include/gpu_backend.hpp"
               }
             ],
             "name": "P6: Graph Freshness",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
               {
                 "check_id": "p7__gpu_parity",
                 "severity": "advisory:medium",
-                "title": "1 undocumented \"return Unsupported\" site(s) (backend silently unimplemented without a TODO(parity)/PARITY-EXCEPTION marker)"
+                "title": "3 undocumented \"return Unsupported\" site(s) (backend silently unimplemented without a TODO(parity)/PARITY-EXCEPTION marker)"
               },
               {
                 "check_id": "p7__gpu_parity",
                 "severity": "info",
-                "title": "  src/gpu/include/gpu_backend.hpp:480"
+                "title": "  src/gpu/include/gpu_backend.hpp:190"
+              },
+              {
+                "check_id": "p7__gpu_parity",
+                "severity": "info",
+                "title": "  src/gpu/include/gpu_backend.hpp:203"
+              },
+              {
+                "check_id": "p7__gpu_parity",
+                "severity": "info",
+                "title": "  src/gpu/include/gpu_backend.hpp:482"
               }
             ],
             "name": "P7: GPU Parity",
@@ -967,7 +1021,7 @@
               {
                 "check_id": "p8__test_documentation",
                 "severity": "advisory:medium",
-                "title": "57 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
+                "title": "56 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
               }
             ],
             "name": "P8: Test Documentation",
@@ -1128,24 +1182,24 @@
             "findings": [
               {
                 "check_id": "p10__doc-code_pairing",
-                "severity": "pass",
-                "title": "10 changed files have matching docs"
+                "severity": "advisory:medium",
+                "title": "CMakeLists.txt changed but docs/BUILDING.md not updated"
               }
             ],
             "name": "P10: Doc-Code Pairing",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 81.4 days (threshold: 14)"
+                "title": "Mutation report age: 83.1 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (81.4 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (83.1 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1424,7 +1478,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1681 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1683 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1570,21 +1624,21 @@
           }
         ],
         "summary": {
-          "advisory": 54,
+          "advisory": 62,
           "blocking": 0,
-          "info": 48,
+          "info": 54,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 115,
-          "warnings": 6
+          "total_findings": 121,
+          "warnings": 8
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "e22519c459a34dd02f0535d5f53164e4cb5acc3e32a36f09a02fbd16840655a2",
-      "stdout_sha256": "a1c90d7f5c1d15f8149277e6b440823f0c855e5b4e7e8916d57041e1910a4996"
+      "stderr_sha256": "c2804d4e929bf958ed3fc658299fe1ca7c64e758f7d50f1c16125d78f029d68e",
+      "stdout_sha256": "5ba7c55fb1016ad7287bccd0f30b70d293ee70feb31cb806d6785fcda5c03447"
     },
     {
       "name": "audit_gap_report_strict",
@@ -1886,13 +1940,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-07-04T17:53:51.599361+00:00"
+        "timestamp": "2026-07-06T10:53:24.042555+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "e8baab1f52869470e52af7a3ab6bab166563809efea3ae9db621b362145e6bc6"
+      "stdout_sha256": "3a49bf18dfcb29ae59ddce81bda023026322538d840443a1b56000579c7f47e8"
     },
     {
       "name": "supply_chain_gate",
@@ -1938,19 +1992,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-07-04T17:53:51.704268+00:00"
+        "timestamp": "2026-07-06T10:53:24.156248+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "ed78fe5026696ceaba47715712271115382eb0584e2de2c5bb07200939e57c54"
+      "stdout_sha256": "ec0b931ea41c56d4f2a8a635038e59c1d07f181fb3a116dc61ebbe1ef1236cfc"
     }
   ],
-  "generated_at": "2026-07-04T17:53:51.721582+00:00",
+  "generated_at": "2026-07-06T10:53:24.171351+00:00",
   "git": {
     "branch": "dev",
-    "commit": "c3d4800d6506806975682bfb42b3a18a2026cb40",
+    "commit": "bdf6b730a753b1039dbbf9ddd5146dfd69eddbbb",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

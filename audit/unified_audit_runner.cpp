@@ -162,6 +162,7 @@ int test_gpu_host_api_negative_run(); // NULL guards, invalid backend/device, er
 int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_gpu_zk_prove_verify_differential_run(); // CPU range-proof → GPU poly-check accept/reject
 int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispatcher fallback
+int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_batch verdict (per-row)
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -873,6 +874,10 @@ static const AuditModule ALL_MODULES[] = {
     // hook decline/handled/fail-closed) run CPU-only and MUST pass everywhere; the
     // GPU-native columns-vs-CPU differential self-skips when no GPU backend.
     { "gpu_lbtc_columns_diff", "GPU vs CPU libbitcoin column verify + engine dispatcher CPU fallback", "differential", test_gpu_lbtc_columns_diff_run, false },
+    // advisory=false: the null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device collect-vs-verify_batch per-row parity self-skips when no GPU
+    // backend is present (or a backend lacks a native collect override).
+    { "gpu_collect_verify_parity", "GPU collect-verify parity (native OpenCL/Metal/CUDA collect == verify_batch verdict)", "differential", test_gpu_collect_verify_parity_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================

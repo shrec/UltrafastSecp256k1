@@ -2187,6 +2187,71 @@ __kernel void schnorr_verify_lbtc_columns(
     results[gid] = schnorr_verify_impl(pk, msg, &sig);
 }
 
+/* libbitcoin ECDSA COLLECT verify — SoA sibling of ecdsa_verify_lbtc_columns
+ * with the collect output convention: key_cells is a 1-byte-per-row verdict
+ * channel PRE-SEEDED non-zero by the host. The verdict is bit-for-bit identical
+ * to ecdsa_verify_lbtc_columns; only the encoding differs. VALID  -> write 0.
+ * INVALID (bad parse OR failed verify) -> leave the caller's seed untouched so
+ * the rejected id survives (fail-closed collect contract). Never write non-zero. */
+__kernel void ecdsa_verify_lbtc_collect(
+    __global const uchar* digests32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global uchar* key_cells,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = digests32[(ulong)gid * 32 + i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    // COMPACT (big-endian r||s) — the collect ABI uses the SAME sig format as
+    // ufsecp_gpu_ecdsa_verify_batch (kernel ecdsa_verify_compressed parses via
+    // lbtc_parse_compact_signature) and the CUDA collect (bytes_to_ecdsa_sig over
+    // compact[64]). NOT lbtc_parse_opaque_signature (little-endian libbitcoin-
+    // columns format) — that mis-parses every row so no valid sig ever collects.
+    int ok = lbtc_point_from_compressed(pubkeys33 + (ulong)gid * 33, &pub) &&
+             lbtc_parse_compact_signature(sigs64 + (ulong)gid * 64, &sig);
+    if (ok && ecdsa_verify_impl(msg, &pub, &sig)) key_cells[gid] = 0u; /* valid->0; invalid-> leave seeded */
+}
+
+/* libbitcoin Schnorr COLLECT verify — SoA sibling of schnorr_verify_lbtc_columns
+ * with the collect output convention (see ecdsa_verify_lbtc_collect). The BIP-340
+ * strict-s reject leaves the seed (bare return), NOT a 0 write. VALID -> write 0. */
+__kernel void schnorr_verify_lbtc_collect(
+    __global const uchar* digests32,
+    __global const uchar* xonly32,
+    __global const uchar* sigs64,
+    __global uchar* key_cells,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar pk[32], msg[32];
+    for (int i = 0; i < 32; ++i) {
+        pk[i]  = xonly32[(ulong)gid * 32 + i];
+        msg[i] = digests32[(ulong)gid * 32 + i];
+    }
+
+    SchnorrSignature sig;
+    const ulong base = (ulong)gid * 64;
+    for (int i = 0; i < 32; ++i) sig.r[i] = sigs64[base + i];
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int b = 32 + (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sigs64[base + b + j];
+        sig.s.limbs[limb] = v;
+    }
+    // BIP-340 strict: reject s == 0 and s >= n. For collect this is an INVALID
+    // verdict -> leave the caller's seed (bare return), never write 0.
+    if (scalar_is_zero(&sig.s) || lbtc_scalar_ge_order(&sig.s)) return; /* leave seeded */
+    if (schnorr_verify_impl(pk, msg, &sig)) key_cells[gid] = 0u; /* valid->0; invalid-> leave seeded */
+}
+
 /* ============================================================================
  * libbitcoin-bridge PUBLIC-DATA GpuBackend ops — native OpenCL siblings of the
  * CUDA lbtc_* kernels (gpu_backend_cuda.cu @715-779). One item per work-item,

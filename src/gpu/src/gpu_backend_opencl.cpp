@@ -160,7 +160,9 @@ struct OclColumnsPool {
     cl_mem d_dig = nullptr;   // capacity × 32  (digests)
     cl_mem d_key = nullptr;   // capacity × 33  (ecdsa pubkeys33 / schnorr xonly32)
     cl_mem d_sig = nullptr;   // capacity × 64  (opaque-LE / BIP-340 sigs)
-    cl_mem d_res = nullptr;   // capacity × sizeof(int)  (verdicts)
+    cl_mem d_res = nullptr;   // capacity × sizeof(int)  (column verdicts, WRITE_ONLY)
+    cl_mem d_keys = nullptr;  // capacity × 1  (collect verdict channel, READ_WRITE:
+                              //   host SEEDs caller markers in, kernel writes 0 on VALID)
     size_t capacity = 0;
 
     bool ensure(size_t n, cl_context ctx) {
@@ -171,7 +173,11 @@ struct OclColumnsPool {
         d_key = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 33,          nullptr, &err);
         d_sig = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 64,          nullptr, &err);
         d_res = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, n * sizeof(int), nullptr, &err);
-        if (d_dig && d_key && d_sig && d_res) { capacity = n; return true; }
+        // Collect verdict buffer must be READ_WRITE — the host seeds the caller's
+        // non-zero markers before launch and the kernel clears valid rows to 0.
+        // d_res (WRITE_ONLY) cannot be seed-written, so a separate buffer is used.
+        d_keys = clCreateBuffer(ctx, CL_MEM_READ_WRITE, n,              nullptr, &err);
+        if (d_dig && d_key && d_sig && d_res && d_keys) { capacity = n; return true; }
         free_all();
         return false;
     }
@@ -181,6 +187,7 @@ struct OclColumnsPool {
         if (d_key) { clReleaseMemObject(d_key); d_key = nullptr; }
         if (d_sig) { clReleaseMemObject(d_sig); d_sig = nullptr; }
         if (d_res) { clReleaseMemObject(d_res); d_res = nullptr; }
+        if (d_keys) { clReleaseMemObject(d_keys); d_keys = nullptr; }
         capacity = 0;
     }
 
@@ -272,6 +279,8 @@ public:
         if (ext_ecdsa_lbtc_)     { clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr; }
         if (ext_ecdsa_lbtc_columns_)   { clReleaseKernel(ext_ecdsa_lbtc_columns_);   ext_ecdsa_lbtc_columns_   = nullptr; }
         if (ext_schnorr_lbtc_columns_) { clReleaseKernel(ext_schnorr_lbtc_columns_); ext_schnorr_lbtc_columns_ = nullptr; }
+        if (ext_ecdsa_lbtc_collect_)   { clReleaseKernel(ext_ecdsa_lbtc_collect_);   ext_ecdsa_lbtc_collect_   = nullptr; }
+        if (ext_schnorr_lbtc_collect_) { clReleaseKernel(ext_schnorr_lbtc_collect_); ext_schnorr_lbtc_collect_ = nullptr; }
         if (ext_xonly_validate_)       { clReleaseKernel(ext_xonly_validate_);       ext_xonly_validate_       = nullptr; }
         if (ext_pubkey_validate_)      { clReleaseKernel(ext_pubkey_validate_);      ext_pubkey_validate_      = nullptr; }
         if (ext_commitment_verify_)    { clReleaseKernel(ext_commitment_verify_);    ext_commitment_verify_    = nullptr; }
@@ -684,6 +693,152 @@ public:
                 return set_error(GpuError::Memory, "ecdsa columns result read failed");
             for (size_t i = 0; i < n; ++i)
                 out_results[off + i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* ====================================================================
+     * libbitcoin COLLECT verify — native OpenCL siblings of the *_lbtc_columns
+     * overrides above, mirroring the CUDA reference (gpu_backend_cuda.cu
+     * @1230/@1290). Same verdict, different output convention: key_buffer is a
+     * 1-byte-per-row verdict channel PRE-SEEDED non-zero by the caller. VALID
+     * rows are cleared to 0; INVALID rows are left seeded so a rejected id
+     * survives (fail-closed collect contract). CRITICAL differences vs the
+     * column clone:
+     *   (1) NO up-front memset(key_buffer, 0) — 0 == VALID here, so zeroing up
+     *       front would be a mass false-accept. Any early non-Ok return leaves
+     *       the caller's non-zero seed (all-rejected == fail-closed).
+     *   (2) The device verdict channel is SEEDED from key_buffer before launch
+     *       (d_keys, READ_WRITE) and read back VERBATIM (no ?1:0 normalisation).
+     *   (3) Any operational fault (alloc/enqueue/finish/read, or a missing
+     *       kernel while a device is present) returns a non-Ok GpuError WITHOUT
+     *       zeroing key_buffer, so the engine falls back and never sees an
+     *       all-zero or a zeroed-invalid buffer. All inputs public → VT.
+     * ==================================================================== */
+
+    GpuError ecdsa_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys33 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        // NO up-front memset: 0 == VALID for collect. Leaving key_buffer untouched
+        // on any early non-Ok return preserves the caller's non-zero seed
+        // (all-rejected == fail-closed).
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_ecdsa_lbtc_collect_)
+            return set_error(GpuError::Unsupported, "ecdsa_verify_lbtc_collect kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc ecdsa collect device alloc");
+        cl_mem d_dig  = g_ocl_columns_pool.d_dig;
+        cl_mem d_pub  = g_ocl_columns_pool.d_key;
+        cl_mem d_sig  = g_ocl_columns_pool.d_sig;
+        cl_mem d_keys = g_ocl_columns_pool.d_keys;
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            // Seed the verdict channel from the caller's non-zero markers and
+            // upload the public columns. In-order queue orders all writes before
+            // the kernel; each chunk re-uploads exactly n rows (no stale reads).
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(msg_hashes32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_pub, CL_FALSE, 0, 33 * n,
+                    const_cast<uint8_t*>(pubkeys33 + off * 33), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_keys, CL_FALSE, 0, n,
+                    key_buffer + off, 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa collect upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 1, sizeof(cl_mem), &d_pub);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_collect_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "ecdsa collect kernel launch failed");
+            clFinish(queue);
+            // Read the verdict channel back VERBATIM — valid rows are now 0,
+            // invalid rows retain the caller's seed.
+            clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa collect result read failed");
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys_x32 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        // NO up-front memset (0 == VALID for collect); see ecdsa_verify_collect.
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_schnorr_lbtc_collect_)
+            return set_error(GpuError::Unsupported, "schnorr_verify_lbtc_collect kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc schnorr collect device alloc");
+        cl_mem d_dig  = g_ocl_columns_pool.d_dig;
+        cl_mem d_xon  = g_ocl_columns_pool.d_key;  // 33 B/row buffer backs 32 B x-only
+        cl_mem d_sig  = g_ocl_columns_pool.d_sig;
+        cl_mem d_keys = g_ocl_columns_pool.d_keys;
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(msg_hashes32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_xon, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(pubkeys_x32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_keys, CL_FALSE, 0, n,
+                    key_buffer + off, 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr collect upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 1, sizeof(cl_mem), &d_xon);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_collect_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "schnorr collect kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr collect result read failed");
         }
         clear_error();
         return GpuError::Ok;
@@ -2553,6 +2708,8 @@ private:
     cl_kernel  ext_ecdsa_lbtc_             = nullptr;
     cl_kernel  ext_ecdsa_lbtc_columns_     = nullptr;
     cl_kernel  ext_schnorr_lbtc_columns_   = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_collect_     = nullptr;  /* collect verdict channel */
+    cl_kernel  ext_schnorr_lbtc_collect_   = nullptr;
     /* libbitcoin-bridge PUBLIC-DATA ops (native OpenCL; lazy-loaded with the rest) */
     cl_kernel  ext_xonly_validate_         = nullptr;
     cl_kernel  ext_pubkey_validate_        = nullptr;
@@ -2628,7 +2785,8 @@ private:
             ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ &&
             ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_ &&
             ext_xonly_validate_ && ext_pubkey_validate_ && ext_commitment_verify_ &&
-            ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_)
+            ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ &&
+            ext_ecdsa_lbtc_collect_ && ext_schnorr_lbtc_collect_)
             return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
@@ -2818,6 +2976,8 @@ private:
             if (ext_commitment_verify_)    { clReleaseKernel(ext_commitment_verify_);    ext_commitment_verify_    = nullptr; }
             if (ext_pubkey_validate_)      { clReleaseKernel(ext_pubkey_validate_);      ext_pubkey_validate_      = nullptr; }
             if (ext_xonly_validate_)       { clReleaseKernel(ext_xonly_validate_);       ext_xonly_validate_       = nullptr; }
+            if (ext_schnorr_lbtc_collect_) { clReleaseKernel(ext_schnorr_lbtc_collect_); ext_schnorr_lbtc_collect_ = nullptr; }
+            if (ext_ecdsa_lbtc_collect_)   { clReleaseKernel(ext_ecdsa_lbtc_collect_);   ext_ecdsa_lbtc_collect_   = nullptr; }
             if (ext_schnorr_lbtc_columns_) { clReleaseKernel(ext_schnorr_lbtc_columns_); ext_schnorr_lbtc_columns_ = nullptr; }
             if (ext_ecdsa_lbtc_columns_)   { clReleaseKernel(ext_ecdsa_lbtc_columns_);   ext_ecdsa_lbtc_columns_   = nullptr; }
             if (ext_schnorr_snark_)        { clReleaseKernel(ext_schnorr_snark_);        ext_schnorr_snark_        = nullptr; }
@@ -2844,6 +3004,13 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_tagged_hash_var kernel not found"); }
         ext_hash256_ = clCreateKernel(ext_program_, "lbtc_hash256", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256 kernel not found"); }
+
+        // libbitcoin COLLECT verify kernels (native OpenCL). Same device parse/
+        // verify as the column kernels; only the output convention differs.
+        ext_ecdsa_lbtc_collect_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_collect", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "ecdsa_verify_lbtc_collect kernel not found"); }
+        ext_schnorr_lbtc_collect_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_collect", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "schnorr_verify_lbtc_collect kernel not found"); }
 
         return GpuError::Ok;
     }
