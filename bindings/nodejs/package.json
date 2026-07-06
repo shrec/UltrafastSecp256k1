@@ -19,7 +19,7 @@
     "ffi-napi": "^4.0.3",
     "koffi": "^2.15.2",
     "node-addon-api": "^8.5.0",
-    "node-gyp": "^12.2.0",
+    "node-gyp": "^13.0.1",
     "ref-napi": "^3.0.3"
   },
   "keywords": [
