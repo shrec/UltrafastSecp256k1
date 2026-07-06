@@ -166,6 +166,8 @@ option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "[libbitcoin] Build libbitcoin integration tests (direct verify; + bridge consensus when BRIDGE=ON)" OFF)
 option(SECP256K1_BUILD_LIBBITCOIN_BENCH
        "[libbitcoin] Build libbitcoin direct C++ batch bench; + legacy bridge bench when BRIDGE=ON" OFF)
+option(SECP256K1_BUILD_LIBBITCOIN_EXAMPLES
+       "[libbitcoin] Build bridge-free direct C++ libbitcoin examples" OFF)
 # GPU accelerator opt-in: when ON and at least one GPU backend (CUDA/OpenCL/Metal) is
 # compiled, the libbitcoin direct test/bench executables link secp256k1_gpu_host so
 # the self-installing GpuColumnsVerifyHook transparently accelerates column verify

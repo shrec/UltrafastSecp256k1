@@ -76,19 +76,24 @@ libsecp256k1 shim, and no `ufsecp_lbtc` bridge.
 cmake -S . -B out/libbitcoin-bench -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_LIBBITCOIN=ON \
-  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
-cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_EXAMPLES=ON
+cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch bench_lbtc_public_ops \
+  bench_lbtc_hash256_var example_lbtc_public_ops -j
 
 out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
   --json out/libbitcoin-bench/lbtc_direct_batch.json
+out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_public_ops 8192 3 80 512 80 512 \
+  --json out/libbitcoin-bench/lbtc_public_ops.json
 out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_hash256_var 262144 5 512 80 512 \
   --json out/libbitcoin-bench/lbtc_hash256_var.json
+out/libbitcoin-bench/compat/libbitcoin_direct/example_lbtc_public_ops
 ```
 
 For GPU evidence, add `-DSECP256K1_BUILD_LIBBITCOIN_GPU=ON` plus the backend flag
 (`-DSECP256K1_BUILD_CUDA=ON`, `-DSECP256K1_BUILD_OPENCL=ON`, or Metal on Apple).
-`bench_lbtc_hash256_var` records whether the production GPU hook was installed and
-accepted a sample call; only an accepted hook row is GPU performance evidence.
+Only a production row whose internal hook is present and accepted by the backend
+is GPU performance evidence; CPU-only rows remain direct-integration evidence.
 
 ### GPU Benchmarks (CUDA)
 

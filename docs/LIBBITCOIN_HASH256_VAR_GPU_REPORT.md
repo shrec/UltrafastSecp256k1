@@ -1,7 +1,9 @@
 # libbitcoin hash256_var GPU/direct integration report
 
-This report is the shareable evidence page for the bridge-free
-`ufsecp::lbtc::hash256_var_batch` entry point.
+This report is the focused evidence page for the bridge-free
+`ufsecp::lbtc::hash256_var_batch` entry point. For the benchmark covering every
+libbitcoin public-data batch op, see
+[`LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`](LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md).
 
 ## What was added
 
@@ -105,9 +107,9 @@ Benchmark shape:
 
 | Row | M rows/s | Payload MiB/s | Stride MiB/s | ns/row | Speedup vs serial |
 |---|---:|---:|---:|---:|---:|
-| `serial-reference` | 4.55 | 1281.56 | 2221.24 | 219.8 | 1.00x |
-| `direct-cpu-forced` | 4.66 | 1314.02 | 2277.51 | 214.4 | 1.03x |
-| `direct-production` | 4.76 | 1340.12 | 2322.74 | 210.2 | 1.05x |
+| `serial-reference` | 4.60 | 1296.68 | 2247.45 | 217.3 | 1.00x |
+| `direct-cpu-forced` | 4.67 | 1316.40 | 2281.62 | 214.0 | 1.02x |
+| `direct-production` | 4.64 | 1307.02 | 2265.36 | 215.5 | 1.01x |
 
 This local run is a CPU/direct integration number, not a GPU throughput claim:
 the production hook was not linked in this build. It proves the direct benchmark
@@ -125,6 +127,7 @@ runners do not provide the CUDA/OpenCL/Metal device matrix.
 
 - Integration guide: `docs/LIBBITCOIN_INTEGRATION.md`
 - Benchmark source: `compat/libbitcoin_direct/bench/bench_hash256_var.cpp`
+- All public ops benchmark: `docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`
 - Direct C++ API: `compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`
 - GPU hook contract: `compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`
 - Backend assurance: `docs/BACKEND_ASSURANCE_MATRIX.md`

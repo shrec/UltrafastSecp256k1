@@ -702,7 +702,7 @@ inline int context_randomize(const std::uint8_t /*seed32*/[32]) noexcept { retur
 // libbitcoin public-data batch ops (GPU-accelerated internally, deterministic
 // CPU fallback)
 // ══════════════════════════════════════════════════════════════════════════════
-// Six batch primitives libbitcoin drives at block-connect scale: validate
+// Seven batch primitives libbitcoin drives at block-connect scale: validate
 // arrays of x-only / compressed pubkeys, verify raw taproot tweak commitments,
 // and batch the BIP-340 tagged hash + Bitcoin HASH256. Each presents ONE
 // bool-returning inline call — the libbitcoin caller never sees a CPU/GPU split,
@@ -717,7 +717,7 @@ inline int context_randomize(const std::uint8_t /*seed32*/[32]) noexcept { retur
 // writes the correct hash for every row (hash). Operational engine failure
 // therefore NEVER yields all-zero / consensus-invalid rows.
 //
-// CT boundary: all six ops operate on PUBLIC on-chain data (pubkey x-coords,
+// CT boundary: all seven ops operate on PUBLIC on-chain data (pubkey x-coords,
 // taproot commitment tuples, tagged-hash messages, hash256 preimages). No
 // secret key, nonce, signing share, or ECDH scalar is touched — variable-time
 // arithmetic on both the GPU and CPU sides is correct and no ct::* is applied.

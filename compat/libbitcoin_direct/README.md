@@ -104,24 +104,28 @@ a direct call into engine code (no symbol boundary to cross).
 ctest --test-dir <build> -R lbtc_direct --output-on-failure
 ```
 
-**Benchmark.** Add `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON` to build
-`bench_lbtc_direct_batch` and `bench_lbtc_hash256_var`. Both are direct C++ only:
-no C ABI, no shim, no bridge.
+**Benchmark/examples.** Add `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON` to build
+`bench_lbtc_direct_batch`, `bench_lbtc_public_ops`, and
+`bench_lbtc_hash256_var`. Add `-DSECP256K1_BUILD_LIBBITCOIN_EXAMPLES=ON` for
+`example_lbtc_public_ops`. All are direct C++ only: no C ABI, no shim, no bridge.
 
 ```sh
-cmake --build <build> --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
+cmake --build <build> --target bench_lbtc_direct_batch bench_lbtc_public_ops \
+  bench_lbtc_hash256_var example_lbtc_public_ops -j
 <build>/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
   --json <build>/lbtc_direct_batch.json
+<build>/compat/libbitcoin_direct/bench_lbtc_public_ops 8192 3 80 512 80 512 \
+  --json <build>/lbtc_public_ops.json
 <build>/compat/libbitcoin_direct/bench_lbtc_hash256_var 262144 5 512 80 512 \
   --json <build>/lbtc_hash256_var.json
+<build>/compat/libbitcoin_direct/example_lbtc_public_ops
 ```
 
-`bench_lbtc_hash256_var` reports three rows: serial CPU reference,
-direct-wrapper with the production GPU hook temporarily disabled, and the
-production direct path. The JSON artifact explicitly records whether the
-production `hash256_var` hook was installed and whether a sample call was
-accepted by the backend; if the hook is absent or declines, the production row is
-the deterministic CPU fallback, not a GPU performance claim.
+`bench_lbtc_public_ops` reports forced-CPU and production direct rows for every
+public-data entrypoint. `bench_lbtc_hash256_var` reports serial reference,
+forced CPU, and production direct rows for the larger variable-length HASH256
+workload. If the hook is absent or declines, the production row is the
+deterministic CPU fallback, not a GPU performance claim.
 
 The shim, the C ABI, and the `ufsecp_lbtc_*` bridge are compatibility-only and
 live behind a separate flag — `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.

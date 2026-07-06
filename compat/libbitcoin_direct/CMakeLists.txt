@@ -179,5 +179,36 @@ if(SECP256K1_BUILD_LIBBITCOIN_BENCH)
     if(TARGET Threads::Threads)
         target_link_libraries(bench_lbtc_hash256_var PRIVATE Threads::Threads)
     endif()
-    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, bench_lbtc_hash256_var, no C ABI/shim/bridge)")
+
+    add_executable(bench_lbtc_public_ops bench/bench_public_ops.cpp)
+    target_link_libraries(bench_lbtc_public_ops PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_gpu_host}
+        ${_lbtc_engine})
+    if(_lbtc_gpu_retain)
+        target_link_options(bench_lbtc_public_ops PRIVATE ${_lbtc_gpu_retain})
+    endif()
+    if(TARGET Threads::Threads)
+        target_link_libraries(bench_lbtc_public_ops PRIVATE Threads::Threads)
+    endif()
+    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, bench_lbtc_hash256_var, bench_lbtc_public_ops, no C ABI/shim/bridge)")
+endif()
+
+# Canonical direct C++ examples. Kept behind a libbitcoin-specific flag because
+# the minimal libbitcoin profile deliberately disables the repository-wide
+# SECP256K1_BUILD_EXAMPLES surface.
+if(SECP256K1_BUILD_LIBBITCOIN_EXAMPLES)
+    add_executable(example_lbtc_public_ops examples/public_ops_example.cpp)
+    target_link_libraries(example_lbtc_public_ops PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_gpu_host}
+        ${_lbtc_engine})
+    if(_lbtc_gpu_retain)
+        target_link_options(example_lbtc_public_ops PRIVATE ${_lbtc_gpu_retain})
+    endif()
+    find_package(Threads QUIET)
+    if(TARGET Threads::Threads)
+        target_link_libraries(example_lbtc_public_ops PRIVATE Threads::Threads)
+    endif()
+    message(STATUS "  libbitcoin direct examples: ON (example_lbtc_public_ops, no C ABI/shim/bridge)")
 endif()

@@ -66,21 +66,31 @@ cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
 # optional direct benchmark evidence, still no C ABI / shim / bridge:
 cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bench -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
-cmake --build out/libbitcoin-bench --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON -DSECP256K1_BUILD_LIBBITCOIN_EXAMPLES=ON
+cmake --build out/libbitcoin-bench \
+  --target bench_lbtc_direct_batch bench_lbtc_public_ops bench_lbtc_hash256_var \
+           example_lbtc_public_ops -j
 out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_direct_batch 1000000 5 50000 \
   --json out/libbitcoin-bench/lbtc_direct_batch.json
+out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_public_ops 8192 3 80 512 80 512 \
+  --json out/libbitcoin-bench/lbtc_public_ops.json
 out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_hash256_var 262144 5 512 80 512 \
   --json out/libbitcoin-bench/lbtc_hash256_var.json
+out/libbitcoin-bench/compat/libbitcoin_direct/example_lbtc_public_ops
 ```
 
 Tests are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON`. The canonical
 tests are the CTests `lbtc_direct_verify` and `lbtc_direct_operations`.
 Benchmarks are gated behind `-DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON`; the
 canonical benchmarks are `bench_lbtc_direct_batch` (signature batch verify) and
-`bench_lbtc_hash256_var` (variable-length Bitcoin HASH256). Both link only
+`bench_lbtc_public_ops` (all direct public-data batch ops), with
+`bench_lbtc_hash256_var` as a larger txid/wtxid-shaped HASH256-var harness. The
+example target is `example_lbtc_public_ops`. All link only
 `secp256k1::fastsecp256k1_libbitcoin` plus the engine and, when explicitly
-enabled, the internal GPU host provider.
+enabled, the internal GPU host provider. See
+[`LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`](LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md)
+for current commands, results, and interpretation rules.
 
 ### GPU Acceleration (opt-in, internal — Eric's contract)
 
@@ -409,9 +419,11 @@ python3 ci/check_source_graph_quality.py
 bash ci/run_fast_gates.sh
 cmake --build out/libbitcoin-test -j
 ctest --test-dir out/libbitcoin-test -R lbtc_direct --output-on-failure
-cmake --build out/libbitcoin-test --target bench_lbtc_direct_batch bench_lbtc_hash256_var -j
+cmake --build out/libbitcoin-test --target bench_lbtc_direct_batch bench_lbtc_public_ops bench_lbtc_hash256_var -j
 out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_direct_batch 128 1 32 \
   --json out/libbitcoin-test/lbtc_direct_smoke.json
+out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_public_ops 128 1 80 512 80 512 \
+  --json out/libbitcoin-test/lbtc_public_ops_smoke.json
 out/libbitcoin-test/compat/libbitcoin_direct/bench_lbtc_hash256_var 1024 1 512 80 512 \
   --json out/libbitcoin-test/lbtc_hash256_var_smoke.json
 ```
@@ -455,7 +467,8 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-bridge -G Ninja \
 
 `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON` re-enables the legacy libsecp256k1 shim,
 the C ABI, the `ufsecp_lbtc_*` batch bridge, and the bridge tests. The canonical
-benchmarks remain `bench_lbtc_direct_batch` and `bench_lbtc_hash256_var`; the
+benchmarks remain `bench_lbtc_direct_batch`, `bench_lbtc_public_ops`, and
+`bench_lbtc_hash256_var`; the
 legacy C-ABI benchmark `bench_lbtc_batch` is built only when both
 `SECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON` and
 `SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` are set. The C ABI
