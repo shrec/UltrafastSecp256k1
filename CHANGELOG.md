@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and npm package jobs now run the desktop-native package guard only against the
   desktop release archives, so mobile, WASM, and binding archives are not checked
   with the wrong package-layout policy.
+- **Windows audit-report CAAS gates use UTF-8 Python output.** Release-tag audit
+  snapshots now force UTF-8 Python I/O on Windows so grammar/stateful harness
+  progress markers cannot trip `cp1252` console encoding during JSON generation.
 
 ### Security
 
