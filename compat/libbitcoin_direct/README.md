@@ -26,6 +26,15 @@ inputs public) — correct and fastest; no secret material is handled here.
 - Schnorr sig: 64-byte BIP-340 (`R.x` big-endian `|| s` big-endian)
 - x-only: 32-byte x-only public key
 
+## ECDSA high-S policy
+
+The direct libbitcoin verify surface treats low-S as a standardness/normalization
+policy, not as an unconditional Bitcoin validity rule. `ecdsa_verify`,
+`ecdsa_verify_batch`, and `ecdsa_verify_columns` accept mathematically valid
+high-S signatures in libbitcoin's opaque `ec_signature` layout and leave caller
+buffers untouched. Strict low-S rejection remains in the libsecp-compatible shim
+and in explicit normalization/standardness utilities.
+
 ## Status
 
 | surface | status |

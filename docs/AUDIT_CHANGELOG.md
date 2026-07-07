@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-07-07 — libbitcoin direct ECDSA high-S consensus policy
+
+Corrected the libbitcoin-direct consensus verify policy for ECDSA high-S
+signatures. Low-S remains the signing output/standardness/shim policy, but the
+canonical libbitcoin direct verify paths must not treat a mathematically valid
+high-S ECDSA signature as consensus-invalid.
+
+- **CPU engine:** `ecdsa_batch_verify_opaque_rows` and
+  `ecdsa_batch_verify_opaque_columns` now use a libbitcoin consensus s-policy
+  that accepts high-S while preserving strict low-S enforcement in the public
+  `ecdsa_batch_verify` / libsecp-compatible surfaces.
+- **GPU parity:** CUDA, OpenCL, and Metal libbitcoin opaque ECDSA parsers now
+  reject only zero/non-scalar `r`/`s` values; high-S no longer diverges from the
+  CPU consensus path.
+- **Tests:** `compat/libbitcoin_direct/tests/test_direct_verify.cpp` now checks
+  high-S acceptance for single, row-batch, column-batch, engine opaque rows, and
+  engine opaque columns, including a mixed batch where the high-S row remains
+  valid beside a separate tampered row. `audit/test_gpu_lbtc_columns_diff.cpp`
+  now asserts high-S acceptance and x>=p rejection for CPU/GPU column parity.
+- **Docs:** `docs/API_REFERENCE.md`, `docs/LIBBITCOIN_INTEGRATION.md`,
+  `compat/libbitcoin_direct/README.md`, and the batch verify header document
+  the split between libbitcoin consensus acceptance and strict low-S
+  standardness/shim behavior.
+
 ## 2026-07-06 — new GPU primitive: `hash256_var` batch variable-length double-SHA256
 
 Added a new backend-neutral GPU primitive for batch variable-length Bitcoin

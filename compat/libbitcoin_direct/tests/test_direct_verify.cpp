@@ -58,6 +58,89 @@ void ref_hash256(const std::uint8_t* in, std::size_t len, std::uint8_t out[32]) 
     std::memcpy(out, d.data(), 32);
 }
 
+static constexpr std::uint8_t kScalarOrder[32] = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b,
+    0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41
+};
+
+static constexpr std::uint8_t kScalarHalfOrder[32] = {
+    0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x5d, 0x57, 0x6e, 0x73, 0x57, 0xa4, 0x50, 0x1d,
+    0xdf, 0xe9, 0x2f, 0x46, 0x68, 0x1b, 0x20, 0xa0
+};
+
+int cmp32_be(const std::uint8_t* a, const std::uint8_t* b) {
+    for (std::size_t i = 0; i < 32; ++i) {
+        if (a[i] < b[i]) return -1;
+        if (a[i] > b[i]) return 1;
+    }
+    return 0;
+}
+
+void scalar_order_minus(std::uint8_t out[32], const std::uint8_t x[32]) {
+    std::uint16_t borrow = 0;
+    for (int i = 31; i >= 0; --i) {
+        const std::uint16_t lhs = kScalarOrder[static_cast<std::size_t>(i)];
+        const std::uint16_t rhs = static_cast<std::uint16_t>(x[i]) + borrow;
+        if (lhs < rhs) {
+            out[i] = static_cast<std::uint8_t>(lhs + 256u - rhs);
+            borrow = 1;
+        } else {
+            out[i] = static_cast<std::uint8_t>(lhs - rhs);
+            borrow = 0;
+        }
+    }
+}
+
+bool ecdsa_s_is_high(const std::uint8_t* sig64_be) {
+    return cmp32_be(sig64_be + 32, kScalarOrder) < 0 &&
+           cmp32_be(sig64_be + 32, kScalarHalfOrder) > 0;
+}
+
+void scalar_be_to_opaque(std::uint8_t out[32], const std::uint8_t in[32]) {
+    for (std::size_t i = 0; i < 32; ++i) out[i] = in[31 - i];
+}
+
+void scalar_opaque_to_be(std::uint8_t out[32], const std::uint8_t in[32]) {
+    for (std::size_t i = 0; i < 32; ++i) out[i] = in[31 - i];
+}
+
+void lbtc_opaque_to_compact(const std::uint8_t sig64[64],
+                            std::uint8_t out[64]) {
+    scalar_opaque_to_be(out, sig64);
+    scalar_opaque_to_be(out + 32, sig64 + 32);
+}
+
+void compact_to_lbtc_opaque(std::uint8_t sig64[64]) {
+    std::uint8_t tmp[64];
+    scalar_be_to_opaque(tmp, sig64);
+    scalar_be_to_opaque(tmp + 32, sig64 + 32);
+    std::memcpy(sig64, tmp, 64);
+}
+
+bool lbtc_ecdsa_s_is_high(const std::uint8_t sig64[64]) {
+    std::uint8_t compact[64];
+    lbtc_opaque_to_compact(sig64, compact);
+    return ecdsa_s_is_high(compact);
+}
+
+void make_high_s(std::uint8_t sig64_be[64]) {
+    std::uint8_t high_s[32];
+    scalar_order_minus(high_s, sig64_be + 32);
+    std::memcpy(sig64_be + 32, high_s, 32);
+}
+
+void make_lbtc_high_s(std::uint8_t sig64[64]) {
+    std::uint8_t compact[64];
+    lbtc_opaque_to_compact(sig64, compact);
+    make_high_s(compact);
+    compact_to_lbtc_opaque(compact);
+    std::memcpy(sig64, compact, 64);
+}
+
 // Fake GPU hook for hash256_var_batch: writes a fixed sentinel pattern and
 // reports "handled" (0). Used only to prove the wrapper actually consults
 // the installed hook instead of silently falling through to the CPU path.
@@ -124,6 +207,59 @@ int main() {
         check(!secp256k1::ecdsa_batch_verify_opaque_columns(cd.data(), cp.data(), cs.data(), SERIAL_N, cr3.data(), 1),
               "engine ecdsa columns serial fail-closed on tamper");
         check(cr3[5] == 0, "engine ecdsa columns tampered row marked invalid");
+    }
+    // High-S ECDSA signatures are consensus-valid in Bitcoin. The direct
+    // libbitcoin surface must not treat low-S as a strict validity rule; low-S
+    // normalization/standardness remains a separate policy layer.
+    {
+        constexpr int HS = 11;
+        constexpr int BAD = 5;
+        std::vector<std::uint8_t> high_rows = erows;
+        std::uint8_t* hs_row = high_rows.data() + HS * ES;
+        make_lbtc_high_s(hs_row + 65);
+        check(lbtc_ecdsa_s_is_high(hs_row + 65), "ecdsa high-S fixture constructed");
+        check(ufsecp::lbtc::ecdsa_verify(hs_row + 32, hs_row, hs_row + 65),
+              "ecdsa single verify accepts consensus-valid high-S");
+
+        std::vector<std::uint8_t> hr(M, 0);
+        check(ufsecp::lbtc::ecdsa_verify_batch(high_rows.data(), ES, M, hr.data(), 0),
+              "ecdsa batch accepts consensus-valid high-S");
+        check(hr[HS] == 1, "ecdsa batch high-S row marked valid");
+        std::vector<std::uint8_t> hr_engine(SERIAL_N, 0);
+        check(secp256k1::ecdsa_batch_verify_opaque_rows(
+                  high_rows.data(), ES, SERIAL_N, hr_engine.data(), 1),
+              "engine ecdsa opaque rows accept consensus-valid high-S");
+        check(hr_engine[HS] == 1, "engine ecdsa rows high-S row marked valid");
+
+        std::vector<std::uint8_t> cd(M * 32), cp(M * 33), cs(M * 64);
+        for (int i = 0; i < M; ++i) {
+            const std::uint8_t* r = high_rows.data() + i * ES;
+            std::memcpy(cd.data() + i * 32, r, 32);
+            std::memcpy(cp.data() + i * 33, r + 32, 33);
+            std::memcpy(cs.data() + i * 64, r + 65, 64);
+        }
+        std::vector<std::uint8_t> hc(M, 0);
+        check(ufsecp::lbtc::ecdsa_verify_columns(cd.data(), cp.data(), cs.data(), M, hc.data(), 0),
+              "ecdsa columns accept consensus-valid high-S");
+        check(hc[HS] == 1, "ecdsa columns high-S row marked valid");
+        std::vector<std::uint8_t> hc_engine(SERIAL_N, 0);
+        check(secp256k1::ecdsa_batch_verify_opaque_columns(
+                  cd.data(), cp.data(), cs.data(), SERIAL_N, hc_engine.data(), 1),
+              "engine ecdsa opaque columns accept consensus-valid high-S");
+        check(hc_engine[HS] == 1, "engine ecdsa columns high-S row marked valid");
+
+        cs[BAD * 64] ^= 1;
+        std::vector<std::uint8_t> hm(M, 0);
+        check(!ufsecp::lbtc::ecdsa_verify_columns(cd.data(), cp.data(), cs.data(), M, hm.data(), 0),
+              "ecdsa columns high-S remains valid beside tamper");
+        check(hm[BAD] == 0, "ecdsa columns tampered row invalid with high-S present");
+        check(hm[HS] == 1, "ecdsa columns high-S row still valid beside tamper");
+        std::vector<std::uint8_t> hm_engine(SERIAL_N, 0);
+        check(!secp256k1::ecdsa_batch_verify_opaque_columns(
+                  cd.data(), cp.data(), cs.data(), SERIAL_N, hm_engine.data(), 1),
+              "engine ecdsa columns high-S remains valid beside tamper");
+        check(hm_engine[BAD] == 0, "engine ecdsa columns tampered row invalid");
+        check(hm_engine[HS] == 1, "engine ecdsa columns high-S row still valid");
     }
     erows[ES * 7 + 65] ^= 1;  // tamper row 7
     std::vector<std::uint8_t> eres2(M, 0);

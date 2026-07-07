@@ -111,6 +111,9 @@ bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
 //
 // Schnorr row layout: [msg32 | xonly_pubkey32 | bip340_sig64]
 // Schnorr columns: digests[count][32], xonly[count][32], sigs[count][64]
+// ECDSA opaque rows/columns are libbitcoin consensus verify paths: they accept
+// mathematically valid high-S signatures. Low-S standardness enforcement remains
+// on the strict ecdsa_batch_verify/libsecp-compatible surfaces.
 //
 // Returns true iff all rows verify. If out_results is non-null, all-valid batches
 // fill it with 1; mixed, invalid, or unparsable batches write 1/0 per row after

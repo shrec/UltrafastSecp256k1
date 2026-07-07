@@ -226,12 +226,12 @@ void test_differential() {
                     CHECK(out3[0] == 1, "ecdsa columns: well-formed row alongside malformed still valid");
                 } else if (is_skip_err(e)) { std::printf("  (ecdsa malformed: runtime skip)\n"); }
 
-                // Consensus-differential rows the CPU column reference rejects but a
-                // naive single-sig verify would ACCEPT (batch_verify.cpp is_low_s +
-                // strict decompress). Prove GPU verdict == CPU-columns verdict (both 0)
-                // so the round-2 backend rejects match the CPU column reference.
-                //   row hs  : high-S ECDSA sig  (S' = n - S > n/2)
-                //   row xge : compressed pubkey with x-coord >= field prime p
+                // Consensus-differential rows the GPU backend must match against
+                // the CPU column reference:
+                //   row hs  : high-S ECDSA sig (S' = n - S > n/2), valid in the
+                //             libbitcoin consensus/direct verify path.
+                //   row xge : compressed pubkey with x-coord >= field prime p,
+                //             invalid under strict decompression.
                 // No hardcoded n/p: S' = n - S via ufsecp_seckey_negate (x <- -x mod n,
                 // strict-nonzero-<n parse); a low-S signature's S is nonzero and < n, so
                 // its negation is a valid high-S scalar. x >= p uses the all-0xFF X
@@ -278,8 +278,8 @@ void test_differential() {
                         for (size_t i = 0; i < M; ++i) if (outc[i] != cpu_ref[i]) row_match = false;
                         CHECK(row_match, "ecdsa columns: GPU verdict == CPU column reference (high-S + x>=p corpus)");
                         if (hs_ready)
-                            CHECK(outc[hs] == 0 && cpu_ref[hs] == 0,
-                                  "ecdsa columns: high-S (s>n/2) rejected on GPU and CPU");
+                            CHECK(outc[hs] == 1 && cpu_ref[hs] == 1,
+                                  "ecdsa columns: high-S (s>n/2) accepted on GPU and CPU");
                         else
                             std::printf("  (ecdsa high-S: ABI declined scalar negate -- skip hs assert)\n");
                         CHECK(outc[xge] == 0 && cpu_ref[xge] == 0,
@@ -635,17 +635,17 @@ void test_engine_dispatcher() {
     ufsecp_ctx_destroy(sc);
 }
 
-// -- CPU-only consensus rejects (runs on EVERY runner, no GPU needed) ------------
-// The consensus-critical edge rejects — high-S ECDSA (s > n/2), pubkey x >= p,
-// BIP-340 s >= n, BIP-340 s == 0 — are also exercised in test_differential(), but
-// ONLY when a real GPU is present. On a GPU-less runner (e.g. GitHub CI) those rows
-// never execute, so the engine CPU column reference (ecdsa_batch_verify_opaque_columns
-// / schnorr_batch_verify_bip340_columns) — the exact is_low_s + strict-decompress +
-// strict-s reference the GPU kernels are held to — would go unverified on the very
-// consensus behaviour it guards. This drives those rejects directly on the CPU with
-// the GPU hook cleared, so they run everywhere.
-void test_cpu_consensus_rejects() {
-    std::printf("[gpu_lbtc_columns_diff] CPU column consensus rejects (no GPU needed)\n");
+// -- CPU-only consensus edges (runs on EVERY runner, no GPU needed) -------------
+// The consensus-critical edge cases — high-S ECDSA acceptance, pubkey x >= p
+// rejection, BIP-340 s >= n rejection, BIP-340 s == 0 rejection — are also
+// exercised in test_differential(), but ONLY when a real GPU is present. On a
+// GPU-less runner (e.g. GitHub CI) those rows never execute, so the engine CPU
+// column reference (ecdsa_batch_verify_opaque_columns /
+// schnorr_batch_verify_bip340_columns) would go unverified on the behavior the
+// GPU kernels are held to. This drives those edges directly on the CPU with the
+// GPU hook cleared, so they run everywhere.
+void test_cpu_consensus_edges() {
+    std::printf("[gpu_lbtc_columns_diff] CPU column consensus edges (no GPU needed)\n");
     ufsecp_ctx* sc = nullptr;
     if (ufsecp_ctx_create(&sc) != UFSECP_OK || !sc) {
         std::printf("  (cpu ctx create failed -- skipping consensus rejects)\n");
@@ -657,7 +657,7 @@ void test_cpu_consensus_rejects() {
     secp256k1::GpuColumnsVerifyHook prev =
         secp256k1::install_gpu_columns_verify_hook(nullptr);
 
-    // ---------------- ECDSA: high-S (s>n/2) + pubkey x>=p ----------------
+    // ---------------- ECDSA: high-S accepted + pubkey x>=p rejected --------
     {
         std::vector<uint8_t> dig, pub, sopq, scmp;
         if (build_ecdsa(sc, M, dig, pub, sopq, scmp)) {
@@ -686,13 +686,13 @@ void test_cpu_consensus_rejects() {
             std::vector<uint8_t> out(M, 0xEE);
             bool r = secp256k1::ecdsa_batch_verify_opaque_columns(
                 dig.data(), hp.data(), hopq.data(), M, out.data());
-            CHECK(!r, "ecdsa CPU columns: batch with high-S/x>=p returns false (fail-closed)");
+            CHECK(!r, "ecdsa CPU columns: batch with high-S/x>=p returns false because x>=p is invalid");
             if (hs_ready)
-                CHECK(out[hs] == 0, "ecdsa CPU columns: high-S (s>n/2) rejected");
+                CHECK(out[hs] == 1, "ecdsa CPU columns: high-S (s>n/2) accepted");
             else
                 std::printf("  (ecdsa high-S: ABI declined scalar negate -- skip hs assert)\n");
             CHECK(out[xge] == 0, "ecdsa CPU columns: pubkey x>=p rejected");
-            CHECK(out[0] == 1, "ecdsa CPU columns: control row valid alongside rejects (not all-zero)");
+            CHECK(out[0] == 1, "ecdsa CPU columns: control row valid alongside x>=p reject (not all-zero)");
         } else {
             std::printf("  (ecdsa signing infra unavailable -- skip ecdsa consensus rejects)\n");
         }
@@ -734,7 +734,7 @@ int test_gpu_lbtc_columns_diff_run() {
     std::printf("=== GPU libbitcoin column verify differential ===\n");
     test_null_ctx_contract();
     test_engine_dispatcher();
-    test_cpu_consensus_rejects();
+    test_cpu_consensus_edges();
     test_differential();
     std::printf("[gpu_lbtc_columns_diff] pass=%d fail=%d\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

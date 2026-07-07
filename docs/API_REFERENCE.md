@@ -2659,6 +2659,10 @@ Semantics:
   attempts the GPU column verify (`kind` 0=ECDSA / 1=Schnorr). With no hook, or on
   a `-1` decline, the engine completes the batch on the deterministic CPU column
   path with byte-identical boolean + per-row results.
+- **ECDSA high-S is consensus-valid here.** The libbitcoin-direct opaque ECDSA
+  entrypoints accept mathematically valid high-S signatures and do not rewrite
+  caller buffers. Low-S strictness remains a shim/standardness policy, not this
+  consensus verify contract.
 - **Fatal, not invalid.** Operational GPU/backend errors are declines converted to
   a CPU fallback — never consensus-invalid rows or an all-zero OK result. Only an
   unrecoverable inability to complete the math (with no fallback) fails hard (a

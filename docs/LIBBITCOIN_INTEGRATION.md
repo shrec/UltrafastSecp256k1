@@ -208,6 +208,21 @@ message hash) are public on-chain data, so variable-time wNAF/GLV is both
 correct and the fastest choice. (Constant-time verify would be a performance bug
 with zero security benefit.)
 
+### ECDSA high-S consensus behavior
+
+The canonical libbitcoin verify paths do **not** treat low-S as a strict
+validity requirement. `ufsecp::lbtc::ecdsa_verify`,
+`ufsecp::lbtc::ecdsa_verify_batch`, and
+`ufsecp::lbtc::ecdsa_verify_columns` accept mathematically valid high-S ECDSA
+signatures in libbitcoin's opaque `ec_signature` layout. The engine verifies the
+signature as consensus data and does not rewrite the caller's signature buffer.
+
+Low-S normalization and high-S rejection remain available where they belong:
+signing emits normalized low-S signatures, explicit normalization helpers can
+canonicalize signatures, and the libsecp-compatible shim keeps its strict
+low-S behavior for libsecp parity. The direct libbitcoin consensus path must not
+collapse high-S into consensus-invalid.
+
 ### Public-data batch ops (validate / commitment / hashing)
 
 Seven additional block-connect-scale batch primitives share the identical

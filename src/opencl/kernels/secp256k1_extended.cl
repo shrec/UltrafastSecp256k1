@@ -1280,12 +1280,9 @@ inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
     if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return 0;
 
-    // BIP-62 low-S: the CPU reference (ecdsa_batch_verify pre-validate loop) REJECTS
-    // any signature whose s is high (s > n/2) rather than normalising it. Normalising
-    // here would make the GPU accept a non-canonical/malleated signature the CPU
-    // rejects — a differential false-accept. Reject high-s to stay bit-identical to
-    // the CPU reference and to the CUDA/Metal backends.
-    if (scalar_is_high_mask_impl(&sig->s)) return 0;
+    // Libbitcoin consensus/direct opaque verification accepts both low-S and
+    // high-S ECDSA forms. Low-S standardness belongs above this path; the device
+    // parser must reject only non-scalars/zero scalars, not a valid high-S twin.
     return 1;
 }
 

@@ -540,18 +540,29 @@ bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries) {
 //   (u1_i * G + u2_i * Q_i).x mod n == r_i
 // We pre-compute all R'_i = u1_i*G + u2_i*Q_i using multi_scalar_mul tricks.
 
-bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
+enum class EcdsaSPolicy {
+    RequireLowS,
+    AcceptHighS,
+};
+
+static bool ecdsa_batch_verify_impl(const ECDSABatchEntry* entries,
+                                    std::size_t n,
+                                    EcdsaSPolicy s_policy) {
     if (n == 0) return false;
 
     // Pre-validate all entries before any further processing to enforce
-    // BIP-62 low-S: reject any s > n/2 and reject zero r/s.
-    // This must run before the n==1 shortcut to maintain consistent policy
-    // with the single ecdsa_verify path.
+    // the selected s policy and reject zero r/s.
+    //
+    // The standard batch API remains strict-low-S for libsecp/shim parity.
+    // Libbitcoin consensus/direct opaque rows use AcceptHighS because high-S
+    // ECDSA signatures are mathematically valid and are not an unconditional
+    // Bitcoin consensus-invalid condition.
     for (std::size_t i = 0; i < n; ++i) {
         if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
             return false;
         }
-        if (!entries[i].signature.is_low_s()) {
+        if (s_policy == EcdsaSPolicy::RequireLowS &&
+            !entries[i].signature.is_low_s()) {
             return false;
         }
         // CA-001 (clang/arch UB fix): reject an invalid (off-curve / infinity)
@@ -681,6 +692,10 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     }
 
     return true;
+}
+
+bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
+    return ecdsa_batch_verify_impl(entries, n, EcdsaSPolicy::RequireLowS);
 }
 
 bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries) {
@@ -823,10 +838,12 @@ bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride
             return parse_ecdsa_opaque_entry(row, row + 32, row + 65, out);
         },
         [](const ECDSABatchEntry* entries, std::size_t n) {
-            return ecdsa_batch_verify(entries, n);
+            return ecdsa_batch_verify_impl(entries, n,
+                                           EcdsaSPolicy::AcceptHighS);
         },
         [](const ECDSABatchEntry& entry) {
-            return ecdsa_batch_verify(&entry, 1);
+            return ecdsa_batch_verify_impl(&entry, 1,
+                                           EcdsaSPolicy::AcceptHighS);
         });
 }
 
@@ -865,10 +882,12 @@ bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
                                             sigs64 + i * 64, out);
         },
         [](const ECDSABatchEntry* entries, std::size_t n) {
-            return ecdsa_batch_verify(entries, n);
+            return ecdsa_batch_verify_impl(entries, n,
+                                           EcdsaSPolicy::AcceptHighS);
         },
         [](const ECDSABatchEntry& entry) {
-            return ecdsa_batch_verify(&entry, 1);
+            return ecdsa_batch_verify_impl(&entry, 1,
+                                           EcdsaSPolicy::AcceptHighS);
         });
 }
 

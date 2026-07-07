@@ -393,12 +393,9 @@ inline bool lbtc_parse_opaque_signature(device const uchar* opaque,
                                         thread ECDSASignature &sig) {
     if (!lbtc_parse_opaque_scalar(opaque, sig.r)) return false;
     if (!lbtc_parse_opaque_scalar(opaque + 32, sig.s)) return false;
-    // CPU column reference (batch_verify.cpp:550-556 ecdsa_batch_verify pre-validate)
-    // REJECTS high-s via is_low_s(): a malleated s' = n - s must verify INVALID, not be
-    // silently normalized to low-s and accepted. Normalize-and-accept was a false-accept
-    // differential vs the CPU path (and vs the CUDA backend which already rejects). Match
-    // both: reject high-s (s > n/2) so this row's verdict is 0.
-    if (!scalar_is_low_s(sig.s)) return false;
+    // Libbitcoin consensus/direct opaque verification accepts both low-S and
+    // high-S ECDSA forms. Low-S standardness belongs above this path; the device
+    // parser must reject only non-scalars/zero scalars, not a valid high-S twin.
     return true;
 }
 
