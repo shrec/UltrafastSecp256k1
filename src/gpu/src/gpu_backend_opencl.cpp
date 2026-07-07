@@ -299,6 +299,9 @@ public:
         if (frost_kernel_)       { clReleaseKernel(frost_kernel_);       frost_kernel_       = nullptr; }
         if (frost_program_)      { clReleaseProgram(frost_program_);     frost_program_      = nullptr; }
         frost_init_attempted_ = false;
+        if (hash160_kernel_)     { clReleaseKernel(hash160_kernel_);     hash160_kernel_     = nullptr; }
+        if (hash160_program_)    { clReleaseProgram(hash160_program_);   hash160_program_    = nullptr; }
+        hash160_init_attempted_ = false;
         if (zk_knowledge_verify_) { clReleaseKernel(zk_knowledge_verify_); zk_knowledge_verify_ = nullptr; }
         if (zk_dleq_verify_)      { clReleaseKernel(zk_dleq_verify_);     zk_dleq_verify_      = nullptr; }
         if (bp_poly_batch_)       { clReleaseKernel(bp_poly_batch_);       bp_poly_batch_       = nullptr; }
@@ -1385,11 +1388,45 @@ public:
         return set_error(GpuError::Unsupported, "GPU HASH160 module disabled at build time");
 #endif
 
-        /* CPU-side SIMD-accelerated Hash160 */
-        for (size_t i = 0; i < count; ++i) {
-            secp256k1::hash::hash160_33(pubkeys33 + i * 33,
-                                        out_hash160 + i * 20);
+        auto err = ensure_hash160_kernel();
+        if (err != GpuError::Ok) return err;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+
+        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash160 pubkeys buffer alloc");
+
+        cl_mem d_hash = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, 20 * count, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_pubs);
+            return set_error(GpuError::Memory, "hash160 output buffer alloc");
         }
+
+        cl_uint cl_stride = 33;
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(hash160_kernel_, 0, sizeof(cl_mem),  &d_pubs);
+        clSetKernelArg(hash160_kernel_, 1, sizeof(cl_mem),  &d_hash);
+        clSetKernelArg(hash160_kernel_, 2, sizeof(cl_uint), &cl_stride);
+        clSetKernelArg(hash160_kernel_, 3, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        clerr = clEnqueueNDRangeKernel(queue, hash160_kernel_, 1, nullptr,
+                               &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_hash);
+            clReleaseMemObject(d_pubs);
+            return set_error(GpuError::Launch, "hash160_batch kernel launch failed");
+        }
+        clFinish(queue);
+
+        clEnqueueReadBuffer(queue, d_hash, CL_TRUE, 0, 20 * count, out_hash160, 0, nullptr, nullptr);
+
+        clReleaseMemObject(d_hash);
+        clReleaseMemObject(d_pubs);
 
         clear_error();
         return GpuError::Ok;
@@ -2790,6 +2827,11 @@ private:
     cl_kernel  frost_kernel_        = nullptr;
     bool       frost_init_attempted_ = false;
 
+    /* Hash160 kernel handle (lazy-loaded via secp256k1_hash160.cl) */
+    cl_program hash160_program_        = nullptr;
+    cl_kernel  hash160_kernel_         = nullptr;
+    bool       hash160_init_attempted_ = false;
+
     /* ZK proof kernel handles (lazy-loaded via secp256k1_zk.cl) */
     cl_program zk_program_            = nullptr;
     cl_kernel  zk_knowledge_verify_   = nullptr;
@@ -3140,6 +3182,72 @@ private:
         if (err != CL_SUCCESS) {
             clReleaseProgram(frost_program_); frost_program_ = nullptr;
             return set_error(GpuError::Launch, "frost_verify_partial kernel not found");
+        }
+
+        return GpuError::Ok;
+    }
+
+    GpuError ensure_hash160_kernel() {
+        if (hash160_kernel_) return GpuError::Ok;
+        if (hash160_init_attempted_)
+            return set_error(GpuError::Launch, "hash160 kernel init previously failed");
+        hash160_init_attempted_ = true;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        cl_device_id device = nullptr;
+        clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
+
+        const char* search_paths[] = {
+            "../../opencl/kernels/secp256k1_hash160.cl",
+            "../opencl/kernels/secp256k1_hash160.cl",
+            "../../../opencl/kernels/secp256k1_hash160.cl",
+            "opencl/kernels/secp256k1_hash160.cl",
+            "kernels/secp256k1_hash160.cl",
+            "../kernels/secp256k1_hash160.cl",
+        };
+
+        std::string src;
+        std::string kernel_dir;
+        for (auto* p : search_paths) {
+            src = load_file_to_string(p);
+            if (!src.empty()) {
+                std::filesystem::path fp(p);
+                kernel_dir = fp.parent_path().string();
+                break;
+            }
+        }
+        if (src.empty())
+            return set_error(GpuError::Launch, "secp256k1_hash160.cl not found");
+
+        const char* src_ptr = src.c_str();
+        size_t src_len = src.size();
+        cl_int err;
+        hash160_program_ = clCreateProgramWithSource(cl_ctx, 1, &src_ptr, &src_len, &err);
+        if (err != CL_SUCCESS)
+            return set_error(GpuError::Launch, "hash160 clCreateProgramWithSource failed");
+
+        std::string opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
+        if (!kernel_dir.empty())
+            opts += " -I " + kernel_dir;
+
+        err = clBuildProgram(hash160_program_, 1, &device, opts.c_str(), nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            size_t log_len = 0;
+            clGetProgramBuildInfo(hash160_program_, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_len);
+            std::string log(log_len, '\0');
+            clGetProgramBuildInfo(hash160_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
+            clReleaseProgram(hash160_program_);
+            hash160_program_ = nullptr;
+            std::string msg = "secp256k1_hash160.cl build failed: " + log;
+            return set_error(GpuError::Launch, msg.c_str());
+        }
+
+        hash160_kernel_ = clCreateKernel(hash160_program_, "hash160_batch", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseProgram(hash160_program_); hash160_program_ = nullptr;
+            return set_error(GpuError::Launch, "hash160_batch kernel not found");
         }
 
         return GpuError::Ok;

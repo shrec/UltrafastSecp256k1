@@ -2779,6 +2779,125 @@ def check_libbitcoin_perf_matrix_fixtures() -> None:
                 "missing JSON artifact contract all fail; real manifest passes")
 
 
+def check_gpu_backend_parity_fixtures() -> None:
+    """The GPU backend native-parity gate must classify native/fallback/stub/
+    missing overrides correctly on synthetic fixtures (proof-it-blocks), and
+    must not silently pass when docs overclaim parity or an operation has no
+    ABI mapping. Also pins the checker's result against the real repo so a
+    NEW violation trips this test -- the repo is expected to be fully clean
+    (zero violations) as of the hash160_pubkey_batch/OpenCL native-kernel fix."""
+    tag = "GPU-PARITY:backend_parity_fixtures"
+    try:
+        mod = _load_ci_module("check_gpu_backend_parity.py", "gpu_backend_parity_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+
+    # --- classify_override(): each forbidden gap class + the success case ---
+    native_cuda_body = "{ my_kernel<<<blocks, threads>>>(a, b, c); }"
+    if mod.classify_override(native_cuda_body, "cuda") != "native":
+        failures.append("CUDA kernel-launch body not classified as native")
+
+    native_opencl_body = "{ clEnqueueNDRangeKernel(queue, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr); }"
+    if mod.classify_override(native_opencl_body, "opencl") != "native":
+        failures.append("OpenCL clEnqueueNDRangeKernel body not classified as native")
+
+    native_metal_body = "{ runtime_->dispatch_sync(pipe, (uint32_t)count, 64u, {&buf}); }"
+    if mod.classify_override(native_metal_body, "metal") != "native":
+        failures.append("Metal dispatch_sync body not classified as native")
+
+    fallback_body = "{ for (size_t i = 0; i < count; ++i) { host_fn(i); } }"
+    if mod.classify_override(fallback_body, "opencl") != "fallback_only":
+        failures.append("pure CPU loop body not classified as fallback_only")
+
+    stub_body = "{ (void)a; (void)b; return GpuError::Unsupported; }"
+    if mod.classify_override(stub_body, "cuda") != "stub_unsupported":
+        failures.append("bare return-Unsupported body not classified as stub_unsupported")
+
+    if mod.classify_override(None, "cuda") != "missing_no_override":
+        failures.append("absent override not classified as missing_no_override")
+
+    if mod.classify_override(stub_body, "cuda", is_lifecycle=True) != "lifecycle_present":
+        failures.append("lifecycle op with a found body not classified as lifecycle_present")
+
+    # --- parse_gpu_backend_operations(): pure-virtual + virtual-with-default ---
+    synthetic_hpp = """
+    class GpuBackend {
+    public:
+        virtual ~GpuBackend() = default;
+        virtual uint32_t backend_id() const = 0;
+        virtual GpuError widget_batch(const uint8_t* in, size_t n, uint8_t* out)
+        {
+            (void)in; (void)n; (void)out;
+            return GpuError::Unsupported;
+        }
+    };
+    """
+    ops = mod.parse_gpu_backend_operations(synthetic_hpp)
+    op_names = {op["name"] for op in ops}
+    if op_names != {"backend_id", "widget_batch"}:
+        failures.append(f"header parser found wrong op set: {sorted(op_names)}")
+    else:
+        by_name = {op["name"]: op for op in ops}
+        if not by_name["backend_id"]["pure_virtual"]:
+            failures.append("pure-virtual op misclassified as having a default body")
+        if by_name["widget_batch"]["pure_virtual"] or not by_name["widget_batch"]["has_default_body"]:
+            failures.append("virtual-with-default op misclassified as pure virtual / no body")
+
+    # --- parse_permanent_exceptions(): doc-ledger exception lookup ---
+    synthetic_doc = """
+## Permanent Architecture Exceptions
+
+| Operation | Backend | Reason |
+|---|---|---|
+| `widget_batch` | OpenCL | Synthetic fixture exception for the self-test. |
+
+---
+"""
+    exceptions = mod.parse_permanent_exceptions(synthetic_doc)
+    if ("widget_batch", "opencl") not in exceptions:
+        failures.append("Permanent Architecture Exceptions table row not parsed into the ledger")
+
+    # --- check_abi_exposure(): missing ABI mapping / missing ABI symbol fail closed ---
+    fake_ops = [{"name": "hash256", "return_type": "GpuError", "pure_virtual": False, "has_default_body": True}]
+    abi_present = mod.check_abi_exposure("GpuError ufsecp_gpu_hash256(...);", fake_ops)
+    if abi_present:
+        failures.append("present ABI symbol incorrectly flagged as missing")
+    abi_absent = mod.check_abi_exposure("GpuError ufsecp_gpu_something_else(...);", fake_ops)
+    if not any(v["kind"] == "abi_missing" for v in abi_absent):
+        failures.append("absent ABI symbol did not fail closed")
+
+    # --- cross_check_docs(): doc overclaim must fail, honest claim must not ---
+    doc_rows = {"ufsecp_gpu_hash256": {"cuda": "Y", "opencl": "Y", "metal": "Y"}}
+    status_all_native = {("hash256", "cuda"): "native", ("hash256", "opencl"): "native", ("hash256", "metal"): "native"}
+    if mod.cross_check_docs(doc_rows, status_all_native):
+        failures.append("honest doc claim (matches code) incorrectly flagged as overclaim")
+    status_opencl_gap = dict(status_all_native)
+    status_opencl_gap[("hash256", "opencl")] = "fallback_only"
+    overclaim = mod.cross_check_docs(doc_rows, status_opencl_gap)
+    if not any(v["kind"] == "doc_overclaim" and v["backend"] == "opencl" for v in overclaim):
+        failures.append("doc claiming Y where code is non-native did not fail (doc-overclaim)")
+
+    # --- real repo: pin the currently-known violation set (regression guard) ---
+    report = mod.evaluate()
+    real_ops_with_violations = {v["op"] for v in report.get("violations", [])}
+    known_gap_ops: set[str] = set()
+    if real_ops_with_violations - known_gap_ops:
+        failures.append(
+            f"real repo has NEW unexpected GPU backend parity violation(s): "
+            f"{sorted(real_ops_with_violations - known_gap_ops)}"
+        )
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "native/fallback/stub/missing/lifecycle classification, header parsing, "
+                "exception-ledger lookup, ABI fail-closed check, and doc-overclaim check "
+                "all correct; real repo has zero GPU backend parity violations")
+
+
 def check_caas_dashboard_evidence_browser() -> None:
     """The CAAS dashboard must expose the committed evidence/status manifests in
     one central browser. This prevents the UI from regressing into scattered
@@ -2859,6 +2978,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
         "check_release_package_contents.py": "check_release_package_contents_fixtures",
         "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
+        "check_gpu_backend_parity.py": "check_gpu_backend_parity_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2926,6 +3046,7 @@ def main() -> int:
     check_package_provenance_binding_fixtures()
     check_release_package_contents_fixtures()
     check_libbitcoin_perf_matrix_fixtures()
+    check_gpu_backend_parity_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()

@@ -64,6 +64,7 @@ MANDATORY_GATES=(
     "ci/sync_canonical_numbers.py"
     "ci/check_bench_doc_consistency.py"
     "ci/check_backend_parity.py"
+    "ci/check_gpu_backend_parity.py"     # GPU-PARITY-002: GpuBackend op must be native on CUDA+OpenCL+Metal or have a documented exception
     "ci/check_zk_tag_conformance.py"
     "ci/check_tag_conformance.py"
     "ci/check_secret_parse_strictness.py"
@@ -93,7 +94,8 @@ run() {
     local label="$1"; shift
     printf "  %-48s" "${label}..."
     local out rc
-    out=$(python3 "$@" 2>&1); rc=$?
+    rc=0
+    out=$(python3 "$@" 2>&1) || rc=$?  # || prevents set -e from firing on non-zero exit
     if [ "$rc" -eq 0 ]; then
         printf " \033[0;32mOK\033[0m\n"
     elif [ "$rc" -eq 77 ]; then
@@ -154,6 +156,7 @@ run "Assurance validation"   ci/validate_assurance.py
 # Protocol & Backend Parity Gates — catch copy-paste divergence and
 # protocol invariant violations (root cause of confirmed red-team bugs C1–C8).
 run "Backend parity"                           ci/check_backend_parity.py
+run "GPU backend parity (CUDA/OpenCL/Metal)"   ci/check_gpu_backend_parity.py
 run "ZK Fiat-Shamir tag conformance"           ci/check_zk_tag_conformance.py
 run "Tagged-hash tag conformance (all tags)"   ci/check_tag_conformance.py
 run "Secret parse strictness (Rule 11)"        ci/check_secret_parse_strictness.py

@@ -78,6 +78,16 @@ jobs:
         # unified_audit_runner.cpp. Must pass before the quality scanner runs.
         run: python3 ci/check_exploit_wiring.py
 
+      - name: GPU backend parity gate (CUDA/OpenCL/Metal)
+        # Enforces the owner rule that any GpuBackend operation must be native
+        # on CUDA, OpenCL, and Metal (plus required C ABI exposure), unless a
+        # documented owner-approved exception exists in
+        # docs/BACKEND_ASSURANCE_MATRIX.md's "Permanent Architecture
+        # Exceptions" table. Already covered by the fast-gates replay above;
+        # run standalone too for visibility, mirroring the exploit-wiring
+        # belt-and-suspenders pattern.
+        run: python3 ci/check_gpu_backend_parity.py
+
       - name: Canonical data + doc sync check
         # Rebuilds canonical_data.json from source-of-truth and checks that
         # all documentation files match it. Fails on any numeric drift.

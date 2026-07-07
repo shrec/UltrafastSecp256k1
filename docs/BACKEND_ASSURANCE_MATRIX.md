@@ -391,9 +391,10 @@ through `ufsecp_gpu.h`.
 > immediately by the parity audit workflow. The numbers below reflect the current
 > HEAD — they are not a manually maintained snapshot.
 
-All 18 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
-No partial stubs or CPU fallbacks remain for any of them. Last resolved:
-2026-07-06 (`ufsecp_gpu_hash256_var`).
+18 of the 18 public GPU ABI operations are implemented natively on CUDA, OpenCL,
+and Metal. Last resolved: 2026-07-07 (`ufsecp_gpu_hash160_pubkey_batch` — native
+OpenCL kernel dispatch via `hash160_batch` in `secp256k1_hash160.cl`). No known
+exceptions remain; see "GPU backend native-parity gate" immediately below.
 
 `ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
 added 2026-04-24): native device kernels now exist on all three backends
@@ -464,6 +465,37 @@ the abstract-safe-only base defaults documented above** — a backend may not
 silently return Unsupported without a documented exception. The gate scans
 source files only (build/generated trees are pruned) so the signal is
 precise.
+
+### GPU backend native-parity gate (added 2026-07-07)
+
+`ci/check_gpu_backend_parity.py` mechanically enforces the owner rule that any
+`GpuBackend` virtual operation implemented natively on one shipping backend
+must be native on CUDA, OpenCL, AND Metal, plus have required C ABI exposure.
+
+Unlike `audit_gate.py --gpu-parity` above — which only checks that a
+`return ...Unsupported` site has a `PARITY-EXCEPTION`/`TODO(parity)` comment
+somewhere nearby, trivially satisfiable by adding a comment, and blind to an
+override that exists but merely delegates to a CPU loop instead of
+dispatching a GPU kernel — this gate independently inspects each backend's
+override body for real device-dispatch evidence (CUDA `<<<...>>>` kernel
+launch, OpenCL `clEnqueueNDRangeKernel`/context-wrapper dispatch, Metal
+`dispatch_sync`) and never trusts an inline source comment as proof. A gap
+only passes the gate if the `(operation, backend)` pair is listed in the
+"Permanent Architecture Exceptions" table above — a doc that goes through
+normal PR review, not a code comment any single commit can add unilaterally.
+It also cross-checks the Feature Matrix above so this document cannot claim
+`Y` (native) for a cell the code does not actually provide.
+
+As of 2026-07-07, the gate passes with zero violations across all 37 enumerated
+`GpuBackend` operations. The one pre-existing gap the gate caught at
+introduction time — `hash160_pubkey_batch` having no native OpenCL kernel
+dispatch — is now resolved: `GpuBackendOpenCL::hash160_pubkey_batch` dispatches
+the existing `hash160_batch` kernel in `secp256k1_hash160.cl` via
+`clEnqueueNDRangeKernel`, lazily loaded/compiled through `ensure_hash160_kernel()`
+the same way `frost_verify_partial_batch` loads `secp256k1_frost.cl`.
+
+Run: `python3 ci/check_gpu_backend_parity.py` (add `--json` for machine
+output or `--list` to see every operation's per-backend classification).
 
 ---
 
