@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-17 | **Version**: 4.4.0
+**Last updated**: 2026-06-17 | **Version**: 4.5.0
 
 ### 2026-06-22 - CPU batch-verify pool + decompress: verify-path only, no secret lifecycle change
 

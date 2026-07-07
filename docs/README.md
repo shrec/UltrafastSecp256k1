@@ -1,6 +1,6 @@
 # UltrafastSecp256k1 Documentation
 
-> **Version 4.4.0** -- Cross-platform secp256k1 ECC library
+> **Version 4.5.0** -- Cross-platform secp256k1 ECC library
 
 ---
 

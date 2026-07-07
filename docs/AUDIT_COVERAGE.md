@@ -1236,4 +1236,4 @@ valgrind --leak-check=full --error-exitcode=1 ./build_rel/audit/unified_audit_ru
 
 ---
 
-*Generated from unified_audit_runner v4.4.0 output + CI workflow analysis. Last updated 2026-04-01.*
+*Generated from unified_audit_runner v4.5.0 output + CI workflow analysis. Last updated 2026-04-01.*

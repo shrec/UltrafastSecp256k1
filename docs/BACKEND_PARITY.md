@@ -1,6 +1,6 @@
 # Backend Parity Evidence Matrix
 
-**Last updated**: 2026-04-21 | **Version**: 4.4.0
+**Last updated**: 2026-04-21 | **Version**: 4.5.0
 
 This document tracks feature parity, audit coverage, and benchmark evidence across all GPU backends and the CPU reference implementation.
 

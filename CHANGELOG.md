@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-07-07
+
+> **Bridge-free libbitcoin integration, public-data GPU parity, and release
+> evidence hardening.** A minor, **ABI-compatible** release
+> (`UFSECP_ABI_VERSION` stays 4). This release makes the direct libbitcoin
+> integration path the primary consumer contract, expands GPU-backed public
+> operations without requiring libbitcoin to use the C ABI, and hardens the
+> release gates that prove backend parity, package contents, and benchmark
+> evidence.
+
+### Added
+
+- **Bridge-free direct libbitcoin C++ integration.** `compat/libbitcoin_direct`
+  now provides the direct header/profile, row/column batch verification hooks,
+  GPU column hook smoke coverage, and examples for libbitcoin-owned table
+  layouts without bridge/shim marshalling.
+- **Libbitcoin public-data GPU operation surface.** Direct integration examples
+  and benchmarks cover x-only/pubkey validation, commitment verification,
+  tagged-hash variants, and hash256/hash256-var style public workloads.
+- **Backend parity gate for GPU operations.** `ci/check_gpu_backend_parity.py`
+  now fails closed on CUDA/OpenCL/Metal operation drift, missing C ABI exposure,
+  undocumented fallback/stub status, and stale public parity claims.
+- **Release/package hardening.** Native release archives are checked for
+  product-library-only contents before binding packages are assembled.
+
+### Changed
+
+- **Libbitcoin direct profile is canonical.** The integration path favors
+  bounded batches, cancellation tokens, reusable row/column staging, and direct
+  C++ entry points over C ABI bridges.
+- **GPU backend coverage is documented as a strict parity contract.** Public
+  docs and assurance matrices now align CUDA, OpenCL, Metal, and C ABI status
+  for the exposed GPU operation set.
+- **Benchmark evidence is tied to target context.** Libbitcoin direct batch,
+  hash256-var, and public-operation benchmarks now carry JSON artifacts and
+  perf-matrix validation before claims are trusted.
+
+### Fixed
+
+- **Libbitcoin high-S ECDSA consensus verification.** Direct libbitcoin verify
+  paths now accept consensus-valid high-S signatures where Bitcoin consensus
+  allows them, while the libsecp256k1 shim keeps libsecp-compatible low-S
+  behavior.
+- **libsecp256k1 shim high-S parity.** The shim reject path now matches
+  libsecp256k1 behavior instead of accepting signatures the shim ABI should
+  reject.
+- **Standalone C API generated-feature installs.** The generated feature header
+  and public header propagation are now covered for standalone consumers.
+- **OpenCL/Metal public-operation parity regressions.** Public GPU operation
+  drift is now covered by regression tests and the parity gate.
+
+### Security
+
+- **Release CAAS evidence remains fail-closed.** Audit bundle freshness, module
+  counts, advisory wiring, package provenance, and backend parity gates were
+  tightened so stale or overbroad release claims block instead of passing.
+- **Formal/audit gate regressions fixed.** Cryptol parsing/proof execution and
+  cross-platform audit library discovery now fail on real errors instead of
+  false-green paths.
+- **GPU signing reductions kept constant-time.** OpenCL and Metal field/scalar
+  modular reductions on signing paths were aligned with CT requirements.
+
+### Performance
+
+- **BIP-352 scan path improved.** Silent-payment prefix matching and batched
+  Montgomery Z-inversion reduce CPU staging work for scan-sized workloads.
+- **Direct libbitcoin batch verification gained fused staging.** Persistent
+  pools, FE52 decompression, and multithreaded `_mt` verify twins reduce
+  repeated parsing/allocation overhead for validation-sized batches.
+- **Public-data GPU workload evidence added.** Direct libbitcoin public ops and
+  hash256-var benchmarks document where GPU execution is beneficial and where
+  fallback/host cost dominates.
+
 ## [4.4.0] - 2026-06-19
 
 > **Libbitcoin integration, GPU staging/decompression, CAAS evidence browsing,
