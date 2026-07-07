@@ -64,6 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verifies the committed external audit bundle via explicit workspace paths and
   falls back to the `HEAD` tree when a runner checkout misses the baseline file,
   while still failing closed if the committed baseline is absent or invalid.
+- **Binding package release verification is scoped to native archives.** Python
+  and npm package jobs now run the desktop-native package guard only against the
+  desktop release archives, so mobile, WASM, and binding archives are not checked
+  with the wrong package-layout policy.
 
 ### Security
 
